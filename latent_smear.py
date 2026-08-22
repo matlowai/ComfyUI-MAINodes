@@ -141,9 +141,11 @@ class H3LatentSmear:
         n = int(hm.get("world_len") or ((t_src - 2) // 5 * 17 + 5))
         assert _token_count(n) == t_src, (
             f"latent has {t_src} tokens, which is not world length {n} ({_token_count(n)} tokens)")
-        if hm.get("legal"):
-            raise ValueError("H3LatentSmear works on H3's own latent; a remapped hold map "
-                             "(another model's grid) belongs with H3 Time Smear + that model's VAE")
+        legal = hm.get("legal")
+        if legal and tuple(legal) != (17, 5):
+            raise ValueError("H3LatentSmear works on H3's own latent (17k+5 grid); this hold map was "
+                             f"remapped to another model's grid {list(legal)} and belongs with "
+                             "H3 Time Smear + that model's VAE")
         holds = hm["holds"] if hm else [dilation] * n
         assert len(holds) == n, f"hold map covers {len(holds)} frames, latent covers {n}"
         note = None

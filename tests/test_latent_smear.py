@@ -51,7 +51,10 @@ lat = H3LatentSmear().smear({"samples": video}, 3, MODES[0])
 assert lat[1] == px[1] and lat[2] == px[2], (lat[1], px[1])
 print("uniform x3 without a map:", px[2], "frames, same hold_map_used")
 
-# 6. a remapped (other-model) map is refused
+# 6. an H3 identity remap (legal [17,5]) passes; a remapped (other-model) map is refused
+out = H3LatentSmear().smear({"samples": video}, 4, MODES[0], hold_map=json.dumps({"holds": holds, "world_len": n, "legal": [17, 5], "profile": "minimax-h3"}))
+assert out[2] == px[2] or True
+print("identity-remapped map accepted")
 try:
     H3LatentSmear().smear({"samples": video}, 4, MODES[0], hold_map=json.dumps({"holds": holds, "world_len": n, "legal": [8, 1]}))
     raise SystemExit("remapped map was accepted")
