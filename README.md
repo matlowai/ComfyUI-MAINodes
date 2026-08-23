@@ -26,7 +26,11 @@ that length and the weight traffic hides under it. Alongside it: `H3 Memory
 Probe` (per-block, per-phase VRAM and RSS ledger with a hoverable timeline,
 plus an optional allocator trace), `H3 Free Cache` (return the allocator
 pool before VAE decode; 17 GiB back on the long pass), `H3 Evict Text
-Encoder`. All opt-in, nothing changes unless the node is in the graph. The
+Encoder`, and `H3 Evict Diffusion Model` (unload the DiT right before VAE
+Encode: before a VAE call core frees only the encoder's own estimate, so on
+a small card the encode runs in the few GB left beside the resident DiT and
+spills to shared memory on Windows; one report measured 50 s decode vs 500 s
+encode on 12 GB). All opt-in, nothing changes unless the node is in the graph. The
 memory numbers behind them are in the docstrings of `vram_lab.py`; the
 small-card recipe, what to expect and the environment it was measured in are
 in [LOWVRAM.md](LOWVRAM.md), with the example graph

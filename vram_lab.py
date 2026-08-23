@@ -1284,10 +1284,55 @@ class H3PrecisionProbe:
         return (m,)
 
 
-NODE_CLASS_MAPPINGS = {"H3StreamedBlocks": H3StreamedBlocks, "H3MemoryProbe": H3MemoryProbe, "H3FreeCache": H3FreeCache, "H3EvictTextEncoder": H3EvictTextEncoder,
+class H3EvictDiffusionModel:
+    """Passthrough that unloads the diffusion model (the MODEL's patcher and its
+    clones) right before a VAE stage, so the encode runs in dedicated VRAM
+    instead of the slice ComfyUI's planner leaves beside a resident DiT.
+
+    Why it exists (2026-08-22): before a VAE call core frees only
+    `memory_used_encode + minimum_inference_memory` (~4 GB at 1.2 MP), leaving
+    a lowvram-resident DiT in place; the encoder's real working set (weights,
+    ~2.3 GiB of activations per 17-frame clip, cuDNN workspace) overflows that,
+    and on Windows the overflow goes to shared memory silently: a community
+    report measured 50 s decode vs 500 s encode on a 12 GB card. Evicting the
+    DiT here costs its reload for pass 2 (seconds from RAM), not minutes.
+    Under --gpu-only it is a no-op (the offload device is the GPU).
+    Wire the IMAGE that feeds VAE Encode through it (or any value that has
+    to exist before the encode); wire the MODEL you want gone."""
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {"images": ("IMAGE",), "model": ("MODEL",)},
+                "optional": {"everything": ("BOOLEAN", {"default": False,
+                             "tooltip": "unload every loaded model (text encoder, VAEs, all), not just this MODEL"})}}
+    RETURN_TYPES = ("IMAGE", "STRING")
+    RETURN_NAMES = ("images", "report")
+    FUNCTION = "evict"
+    CATEGORY = "MAINodes/VRAM Lab"
+    DESCRIPTION = ("Unload the diffusion model (or everything) right before VAE Encode, passthrough for the IMAGE. "
+                   "On small cards the encode otherwise runs in the few GB the planner leaves beside the resident DiT "
+                   "and spills to shared memory (Windows) or OOMs.")
+    def evict(self, images, model, everything=False):
+        dev = comfy.model_management.get_torch_device()
+        before = comfy.model_management.get_free_memory(dev)
+        try:
+            if everything:
+                comfy.model_management.unload_all_models()
+            else:
+                comfy.model_management.unload_model_and_clones(model)
+        except Exception as e:  # noqa: BLE001
+            log.warning("H3EvictDiffusionModel: unload failed: %s", e)
+        comfy.model_management.soft_empty_cache()
+        after = comfy.model_management.get_free_memory(dev)
+        rep = f"H3EvictDiffusionModel: device free {before / 2**30:.1f} -> {after / 2**30:.1f} GiB ({'everything' if everything else 'diffusion model'})"
+        log.info(rep)
+        return (images, rep)
+
+
+NODE_CLASS_MAPPINGS = {"H3StreamedBlocks": H3StreamedBlocks, "H3MemoryProbe": H3MemoryProbe, "H3FreeCache": H3FreeCache, "H3EvictTextEncoder": H3EvictTextEncoder, "H3EvictDiffusionModel": H3EvictDiffusionModel,
                        "H3PrecisionProbe": H3PrecisionProbe}
 NODE_DISPLAY_NAME_MAPPINGS = {"H3StreamedBlocks": "H3 Streamed Blocks (exact low-VRAM, alpha)",
                               "H3MemoryProbe": "H3 Memory Probe (ledger + allocator trace, alpha)",
                               "H3FreeCache": "H3 Free Cache (empty allocator between stages)",
                               "H3EvictTextEncoder": "H3 Evict Text Encoder (unload after encode)",
+                              "H3EvictDiffusionModel": "H3 Evict Diffusion Model (unload before VAE Encode)",
                               "H3PrecisionProbe": "H3 Precision Probe (A6: 4-bit vs 8-bit activation map, alpha)"}
