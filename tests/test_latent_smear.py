@@ -61,3 +61,29 @@ try:
 except ValueError:
     print("remapped map refused")
 print("OK")
+
+# 7. hermite and flow: anchors exact; flow beats lerp on a translating pattern
+from latent_smear import flow_between, hermite_between, latent_confidence, latent_smear_plan
+import math
+H, Wd = 24, 32
+yy, xx = torch.meshgrid(torch.arange(H).float(), torch.arange(Wd).float(), indexing="ij")
+def pattern(shift):   # smooth blob + stripes translated by `shift` latent px in x
+    return torch.stack([torch.exp(-((xx - 10 - shift) ** 2 + (yy - 12) ** 2) / 12.0) * (k + 1) / 8 + 0.2 * torch.sin((xx - shift) / 2.0 + k) for k in range(24)])
+z0, z1, zt = pattern(0.0), pattern(3.0), pattern(1.5)
+lerp = 0.5 * (z0 + z1); fl = flow_between(z0, z1, 0.5)
+e_lerp, e_flow = (lerp - zt).abs().mean().item(), (fl - zt).abs().mean().item()
+print(f"translating blob, 3 px over one token: lerp err {e_lerp:.4f}, flow err {e_flow:.4f}")
+assert e_flow < 0.5 * e_lerp, (e_lerp, e_flow)
+assert torch.allclose(hermite_between(z0, z0, z1, z1, 0.0), z0) and torch.allclose(hermite_between(z0, z0, z1, z1, 1.0), z1)
+vid = torch.stack([pattern(float(k)) for k in range(t_src)], 1)[None]
+for mode in MODES[2:]:
+    out = H3LatentSmear().smear({"samples": vid}, 4, mode, hold_map=hm)
+    assert out[0]["samples"].shape[2] == 42 and out[4].shape[0] == out[2], (mode, out[0]["samples"].shape, out[4].shape, out[2])
+    ones = H3LatentSmear().smear({"samples": vid}, 4, mode, hold_map=json.dumps({"holds": [1] * n, "world_len": n}), expand_to_end=False)
+    assert torch.equal(ones[0]["samples"], vid), mode + " not identity on rate-1"
+    assert float(ones[4].max()) == 0.0, mode + " regen mask should be 0 everywhere on an exact map"
+print("hermite / flow: identity on rate-1, regen mask 0 there; dilated shapes match")
+plan = latent_smear_plan(json.loads(px[1])["holds"], n, MODES[1])
+conf = latent_confidence(plan, json.loads(px[1])["holds"], n)
+print("confidence on the test map:", [round(c, 2) for c in conf[:16]], "...  exact:", sum(c >= 0.999 for c in conf), "/", len(conf))
+print("OK2")

@@ -44,7 +44,8 @@ except ImportError:                      # tests import top-level
                         _video_component, expand_hold_map_to_end, OVERHEAD_S,
                         _cost_widgets)
 
-MODES = ["repeat (hold the token)", "lerp (slide between tokens)"]
+MODES = ["repeat (hold the token)", "lerp (slide between tokens)",
+         "hermite (curve through four tokens)", "flow (warp along latent motion)"]
 
 
 def _token_count(frames):
@@ -98,8 +99,103 @@ def latent_smear_plan(holds, world_len, mode):
         else:
             lo, hi = centers[j - 1], centers[j]
             w = (pos - lo) / (hi - lo)
-            plan.append((j - 1, j, float(w)) if w > 0 else (j - 1, j - 1, 0.0))
+            if w <= 1e-6:
+                plan.append((j - 1, j - 1, 0.0))        # exactly on a source centre
+            elif w >= 1.0 - 1e-6:
+                plan.append((j, j, 0.0))
+            else:
+                plan.append((j - 1, j, float(w)))
     return plan
+
+
+def latent_confidence(plan, holds, world_len):
+    """Per dilated token, how much to trust the constructed latent, in [0, 1]:
+    1.0 = an exact source token (w == 0, and the source frame sits at a token
+    centre); interpolated tokens score 1 - 2*min(w, 1-w) (mid-way = 0); tokens
+    whose frames straddle a hold transition lose another half. The MASK built
+    from it (1 - confidence) tells H3V2VInit where to let pass 2 regenerate."""
+    idx = [i for i, h in enumerate(holds) for _ in range(h)]
+    dil = len(idx)
+    conf = []
+    for t, (a, b, w) in enumerate(plan):
+        c = 1.0 if (a == b or w <= 1e-6) else 1.0 - 2.0 * min(w, 1.0 - w)
+        f0, f1 = _token_span(t, dil)
+        hs = {holds[idx[f]] for f in range(f0, f1)}
+        if len(hs) > 1:
+            c *= 0.5
+        conf.append(max(0.0, min(1.0, c)))
+    return conf
+
+
+def _lk_flow(a, b, iters=3, win=5, levels=3):
+    """Lucas-Kanade flow a->b on latent maps (C, H, W), all channels as
+    constraints, coarse-to-fine. Returns (2, H, W) in pixels of the latent grid.
+    Tiny on purpose: an 80x60 field is the whole problem at 1.2 MP."""
+    import torch.nn.functional as F
+    C, H, W = a.shape
+    import math as _m
+    levels = max(1, min(levels, int(_m.log2(max(min(H, W) // 4, 1))) + 1))   # never pool below ~4 px
+    pyr = []
+    aa, bb = a[None], b[None]
+    for l in range(levels):
+        pyr.append((aa[0], bb[0]))
+        if l < levels - 1:
+            aa = F.avg_pool2d(aa, 2, ceil_mode=True); bb = F.avg_pool2d(bb, 2, ceil_mode=True)
+    flow = torch.zeros(2, pyr[-1][0].shape[1], pyr[-1][0].shape[2], dtype=a.dtype, device=a.device)
+    for l in range(levels - 1, -1, -1):
+        al, bl = pyr[l]
+        h, w = al.shape[1], al.shape[2]
+        if flow.shape[1] != h or flow.shape[2] != w:
+            flow = F.interpolate(flow[None], size=(h, w), mode="bilinear", align_corners=False)[0] * (h / flow.shape[1])
+        for _ in range(iters):
+            bw = _warp(bl, flow)                                   # b sampled at x+flow
+            gy, gx = torch.gradient(bw, dim=(1, 2))
+            it = bw - al
+            Ixx = F.avg_pool2d((gx * gx).sum(0, keepdim=True)[None], win, 1, win // 2)[0, 0]
+            Iyy = F.avg_pool2d((gy * gy).sum(0, keepdim=True)[None], win, 1, win // 2)[0, 0]
+            Ixy = F.avg_pool2d((gx * gy).sum(0, keepdim=True)[None], win, 1, win // 2)[0, 0]
+            Ixt = F.avg_pool2d((gx * it).sum(0, keepdim=True)[None], win, 1, win // 2)[0, 0]
+            Iyt = F.avg_pool2d((gy * it).sum(0, keepdim=True)[None], win, 1, win // 2)[0, 0]
+            det = Ixx * Iyy - Ixy * Ixy + 1e-6
+            du = -(Iyy * Ixt - Ixy * Iyt) / det
+            dv = -(Ixx * Iyt - Ixy * Ixt) / det
+            flow = flow + torch.stack([du, dv]).clamp(-4, 4)
+    return flow
+
+
+def _warp(x, flow):
+    """Sample x (C, H, W) at position + flow (2, H, W): x_warped(p) = x(p + flow(p))."""
+    import torch.nn.functional as F
+    C, H, W = x.shape
+    ys, xs = torch.meshgrid(torch.arange(H, dtype=x.dtype, device=x.device),
+                            torch.arange(W, dtype=x.dtype, device=x.device), indexing="ij")
+    gx = (xs + flow[0]) / max(W - 1, 1) * 2 - 1
+    gy = (ys + flow[1]) / max(H - 1, 1) * 2 - 1
+    grid = torch.stack([gx, gy], -1)[None]
+    return F.grid_sample(x[None], grid, mode="bilinear", padding_mode="border", align_corners=True)[0]
+
+
+def flow_between(z0, z1, w):
+    """Motion-compensated in-between of two latent frames (C, H, W) at fraction
+    w of the way from z0 to z1: warp each endpoint toward the other along the
+    estimated latent flow and blend. Large displacements become displacement,
+    not a double exposure."""
+    if min(z0.shape[1], z0.shape[2]) < 8:          # nothing to estimate motion on
+        return z0 * (1.0 - w) + z1 * w
+    f01 = _lk_flow(z0, z1); f10 = _lk_flow(z1, z0)
+    # _lk_flow solves b(x + f01(x)) = a(x): content at x in z0 sits at x + f01 in z1.
+    # The in-between frame is that content moved w of the way: I(p) = z0(p - w*f01).
+    a = _warp(z0, -f01 * w)          # z0's content pushed forward by w of its motion
+    b = _warp(z1, -f10 * (1.0 - w))  # z1's content pulled back by the rest
+    return a * (1.0 - w) + b * w
+
+
+def hermite_between(zm, z0, z1, z2, w):
+    """Catmull-Rom through z0, z1 with tangents from the neighbours (zm, z2)."""
+    m0 = (z1 - zm) * 0.5; m1 = (z2 - z0) * 0.5
+    w2, w3 = w * w, w * w * w
+    return ((2 * w3 - 3 * w2 + 1) * z0 + (w3 - 2 * w2 + w) * m0
+            + (-2 * w3 + 3 * w2) * z1 + (w3 - w2) * m1)
 
 
 class H3LatentSmear:
@@ -128,8 +224,8 @@ class H3LatentSmear:
             **_cost_widgets(with_fps=True),
         }}
 
-    RETURN_TYPES = ("LATENT", "STRING", "INT", "STRING")
-    RETURN_NAMES = ("samples", "hold_map_used", "length", "report")
+    RETURN_TYPES = ("LATENT", "STRING", "INT", "STRING", "MASK")
+    RETURN_NAMES = ("samples", "hold_map_used", "length", "report", "regen_mask")
     FUNCTION = "smear"
     CATEGORY = "latent/minimax/motion"
 
@@ -162,18 +258,44 @@ class H3LatentSmear:
         b = torch.tensor([p[1] for p in plan], device=video.device)
         w = torch.tensor([p[2] for p in plan], device=video.device, dtype=video.dtype).view(1, 1, -1, 1, 1)
         za = video.index_select(2, a)
-        out = za if mode.startswith("repeat") else za + (video.index_select(2, b) - za) * w
+        if mode.startswith("repeat"):
+            out = za
+        elif mode.startswith("lerp"):
+            out = za + (video.index_select(2, b) - za) * w
+        else:
+            cols = []
+            for t, (ia, ib, ww) in enumerate(plan):
+                if ib == ia or ww <= 1e-6:
+                    cols.append(video[0, :, ia]); continue
+                z0, z1 = video[0, :, ia].float(), video[0, :, ib].float()
+                if mode.startswith("hermite"):
+                    zm = video[0, :, max(ia - 1, 0)].float(); z2 = video[0, :, min(ib + 1, t_src - 1)].float()
+                    cols.append(hermite_between(zm, z0, z1, z2, ww).to(video.dtype))
+                else:
+                    cols.append(flow_between(z0, z1, ww).to(video.dtype))
+            out = torch.stack(cols, 1)[None]
+        conf = latent_confidence(plan, holds, n)
+        # MASK for H3V2VInit (mask = where pass 2 may REGENERATE; time_varying on):
+        # one frame per dilated frame, uniform over space, 1 - confidence of its token
+        dil_frames = sum(holds)
+        per_frame = []
+        for t, c in enumerate(conf):
+            f0, f1 = _token_span(t, dil_frames)
+            per_frame += [1.0 - c] * (f1 - f0)
+        regen = torch.tensor(per_frame[:dil_frames], dtype=torch.float32).view(-1, 1, 1).expand(-1, video.shape[3], video.shape[4]).contiguous()
         used = dict(hm, holds=holds, world_len=n) if hm else {"holds": holds, "world_len": n}
         used = json.dumps(used)
         tag = ("uniform x{}".format(dilation) if not hold_map.strip()
                else "adaptive, {} of {} frames held".format(n_held, n))
+        exact = sum(1 for c in conf if c >= 0.999)
         report = _cost_report(n, target, fps, s_per_step, est_steps, overhead_s,
-                              tail=tag + "; latent " + mode.split(" ")[0] + ", no VAE encode")
+                              tail=tag + "; latent " + mode.split(" ")[0] + ", no VAE encode; "
+                              f"{exact} of {len(conf)} tokens exact, mean confidence {sum(conf)/len(conf):.2f}")
         if note:
             report += "\n" + note
         result = dict(samples)
         result["samples"] = out.contiguous()
-        return (result, used, int(target), report)
+        return (result, used, int(target), report, regen)
 
 
 NODE_CLASS_MAPPINGS = {"H3LatentSmear": H3LatentSmear}
