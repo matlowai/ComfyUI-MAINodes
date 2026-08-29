@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#916;</text></svg>">
+<title>MiniMax H3: what the pass-1 solver does to the movie</title>
+<style>
+:root{color-scheme:dark}
+body{background:#131417;color:#e8e8ea;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;margin:0;padding:26px 20px 60px}
+main{max-width:1180px;margin:0 auto}
+h1{font-size:23px;margin:0 0 4px}h2{font-size:17px;margin:30px 0 8px;color:#cdd3e0}
+p{max-width:76ch;color:#c3c6cd}a{color:#7aa8ff}
+.lede{font-size:16px;color:#dfe2e8}
+table{border-collapse:collapse;width:100%;margin-top:12px;font-size:13.5px}
+th,td{border-bottom:1px solid #2c2e35;padding:6px 9px;text-align:left}
+th{color:#9aa0ac;font-weight:600;white-space:nowrap}
+tr[data-stem]{cursor:pointer}tr[data-stem]:hover{background:#1c2333}
+tr.isref{background:#26221a}
+.tag{color:#8d93a0;font-size:12px}
+.bar{margin:16px 0;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+button{font:13px system-ui;padding:4px 11px;border:1px solid #3a3d46;background:#1b1c21;color:#dfe2e8;border-radius:5px;cursor:pointer}
+button.on{background:#2456c8;border-color:#2456c8;color:#fff}
+select{font:13px system-ui;padding:4px;background:#1b1c21;color:#dfe2e8;border:1px solid #3a3d46;border-radius:5px}
+#stage{margin:14px 0;min-height:60px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pair.flip{grid-template-columns:1fr}.pair.flip .b{display:none}.pair.flip.showb .a{display:none}.pair.flip.showb .b{display:block}
+figure{margin:0}figure video,figure img{width:100%;border-radius:7px;display:block;background:#000}
+figcaption{font-size:12.5px;color:#9aa0ac;padding:4px 2px}
+.shelf{display:grid;grid-template-columns:1fr 1fr;gap:10px;cursor:pointer;position:relative}
+.shelf .badge{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#2456c8;color:#fff;
+  padding:7px 15px;border-radius:20px;font-size:13px;pointer-events:none}
+.note{color:#9aa0ac;font-size:13px}
+code{background:#1e1f25;padding:1px 5px;border-radius:3px;font-size:12.5px}
+</style></head><body><main>
+<h1>MiniMax H3: what the pass-1 solver does to the movie</h1>
+<p class=lede>Thirteen takes of <b>one</b> scene. Same prompt, same seed, same
+1024&times;1024, same 124 frames, same checkpoint. <b>The only thing that changes is the
+pass-1 sampler, scheduler and step count, and there is no second pass anywhere.</b>
+We are curious which ones you like, and why.</p>
+
+<p>Why we ran it: we froze a new pass 1 for a pass-2 sampler study and the clips
+came back visibly different from the scene we bench against. They were not a
+variation on it, they were a different take. So we measured it.</p>
+
+<h2>The one number that makes the rest readable</h2>
+<p>Re-running the <i>exact</i> recipe behind our shipped clip today, three weeks
+and a core update later, reproduces it at <b>39.9&nbsp;dB</b> &mdash; tighter than that
+clip's own re-encode (37.8&nbsp;dB). So the pipeline is reproducible, and every
+other difference below is caused by the setting rather than by drift in the stack.
+<b>Every other take lands 14-18&nbsp;dB from the reference</b>, i.e. further apart
+than two different pass-2 samplers on an identical pass 1 (23-26&nbsp;dB). There
+appears to be no small change to pass 1: change any part of the solve and you get
+a different movie, not a nudged one.</p>
+
+<h2>Read the clips, not the table</h2>
+<p><code>drift</code> is distance from the reference take, not quality.
+<code>motion</code> is mean frame-to-frame luminance difference, and on a lateral pan
+that is dominated by the camera, so it ranks gross energy and cannot see whether a
+character's turn reads well. That is the part we want eyes on. We have our own
+ordering and are deliberately not stating it here so as not to anchor yours.</p>
+<p class=note>Click any row to load it against the reference. One pair plays at a
+time, on purpose. Posters until you click.</p>
+
+<div class=bar>
+  <span class=tag>Reference</span><select id=ref></select>
+  <span class=tag>View</span>
+  <button id=m-side class=on>Side by side</button><button id=m-flip>Flip A/B</button>
+  <span class=tag>Speed</span>
+  <button class="rate on" data-r="1">1x</button><button class=rate data-r="0.5">half</button>
+  <button class=rate data-r="0.25">quarter</button>
+  <button id=close>Close</button>
+</div>
+<div id=stage></div>
+<table id=tbl></table>
+
+<h2>What we already know it does not explain</h2>
+<p>Drift does not track preference: in our own viewing the two furthest-drifting
+takes sit at opposite ends of the ranking. Step count does not behave uniformly
+either &mdash; <code>res_multistep</code>&nbsp;+&nbsp;<code>simple</code> and
+<code>er_sde</code>&nbsp;+&nbsp;<code>beta</code> gain gross motion as steps rise, while both
+<code>gradient_estimation</code> recipes lose it. One scene, one seed, so treat all of
+that as a starting point rather than a result.</p>
+<p class=note>Part of the <a href="https://github.com/matlowai/ComfyUI-MAINodes">MAINodes</a>
+Motion Lab work. <a href="../index.html">Back to the demo page</a>.</p>
+
+<script>
+const ROWS=[{"stem": "panrun_p112_ersde_beta_baseline", "arm": "p112_ersde_beta", "sampler": "er_sde", "sched": "beta", "steps": 12, "psnr": 15.91, "mmean": 9.781, "mpeak": 16.555, "note": ""}, {"stem": "panrun_p112_ge_beta_baseline", "arm": "p112_ge_beta", "sampler": "gradient_estimation", "sched": "beta", "steps": 12, "psnr": 15.18, "mmean": 16.694, "mpeak": 28.004, "note": ""}, {"stem": "panrun_p112_ersde_lq_baseline", "arm": "p112_ersde_lq", "sampler": "er_sde", "sched": "linear_quadratic", "steps": 12, "psnr": 14.88, "mmean": 11.641, "mpeak": 23.459, "note": ""}, {"stem": "panrun_p112_ge_lq_baseline", "arm": "p112_ge_lq", "sampler": "gradient_estimation", "sched": "linear_quadratic", "steps": 12, "psnr": 17.19, "mmean": 15.618, "mpeak": 32.477, "note": "the shipped 12-step pass 1"}, {"stem": "panrun_p112_resms_simple_baseline", "arm": "p112_resms_simple", "sampler": "res_multistep", "sched": "simple", "steps": 12, "psnr": 16.77, "mmean": 8.91, "mpeak": 18.923, "note": ""}, {"stem": "panrun_p1d_ersde_beta_baseline", "arm": "p1d_ersde_beta", "sampler": "er_sde", "sched": "beta", "steps": 16, "psnr": 14.67, "mmean": 12.248, "mpeak": 21.564, "note": ""}, {"stem": "panrun_p1c_ge_beta_baseline", "arm": "p1c_ge_beta", "sampler": "gradient_estimation", "sched": "beta", "steps": 16, "psnr": 15.04, "mmean": 13.489, "mpeak": 25.863, "note": ""}, {"stem": "panrun_p1b_ersde_lq_baseline", "arm": "p1b_ersde_lq", "sampler": "er_sde", "sched": "linear_quadratic", "steps": 16, "psnr": 14.38, "mmean": 12.349, "mpeak": 27.897, "note": ""}, {"stem": "panrun_p1_16ge_baseline", "arm": "p1_16ge", "sampler": "gradient_estimation", "sched": "linear_quadratic", "steps": 16, "psnr": 17.76, "mmean": 13.973, "mpeak": 26.367, "note": ""}, {"stem": "panrun_p1e_resms_simple16_baseline", "arm": "p1e_resms_simple16", "sampler": "res_multistep", "sched": "simple", "steps": 16, "psnr": 17.81, "mmean": 10.374, "mpeak": 21.809, "note": ""}, {"stem": "panrun_p1f_ge_lq25_baseline", "arm": "p1f_ge_lq25", "sampler": "gradient_estimation", "sched": "linear_quadratic", "steps": 25, "psnr": 17.69, "mmean": 13.435, "mpeak": 26.763, "note": ""}, {"stem": "panrun_baseline", "arm": "showcase (reference)", "sampler": "res_multistep", "sched": "simple", "steps": 25, "psnr": null, "mmean": 12.339, "mpeak": 23.918, "note": "the take shipped in the showcase clip"}, {"stem": "panrun_p1g_resms_simple25_baseline", "arm": "p1g_resms_simple25", "sampler": "res_multistep", "sched": "simple", "steps": 25, "psnr": 39.86, "mmean": 12.285, "mpeak": 23.646, "note": "the same recipe re-run today: 39.9 dB against the shipped take, i.e. the same movie"}], BASE="https://matlowai.github.io/MAINodes-media/p1-variation";
+const $=s=>document.querySelector(s);
+let ref=ROWS.find(r=>r.psnr===null).stem, cur=null, mode="side", rate=1;
+const fmt=(v,n)=>v===null||v===undefined?"&mdash;":Number(v).toFixed(n);
+function fillRef(){$("#ref").innerHTML=ROWS.map(r=>`<option value="${r.stem}">${r.arm}</option>`).join("");$("#ref").value=ref;}
+function draw(){
+  fillRef();
+  $("#tbl").innerHTML="<thead><tr><th>take</th><th>sampler</th><th>scheduler</th><th>steps</th>"
+    +"<th>drift vs reference</th><th>motion mean</th><th>motion peak</th></tr></thead><tbody>"
+    +ROWS.map(r=>`<tr data-stem="${r.stem}" class="${r.stem===ref?'isref':''}">
+      <td><b>${r.arm}</b>${r.note?` <span class=tag>${r.note}</span>`:""}</td>
+      <td>${r.sampler}</td><td>${r.sched}</td><td>${r.steps}</td>
+      <td>${r.psnr===null?'<span class=tag>reference</span>':fmt(r.psnr,2)+" dB"}</td>
+      <td>${fmt(r.mmean,3)}</td><td>${fmt(r.mpeak,3)}</td></tr>`).join("")+"</tbody>";
+  $("#tbl").querySelectorAll("tr[data-stem]").forEach(tr=>tr.onclick=()=>show(tr.dataset.stem));
+}
+function fig(r,cls){return `<figure class="${cls}"><video preload="none" playsinline loop muted
+   poster="${BASE}/posters/${r.stem}.jpg" src="${BASE}/media/${r.stem}.mp4"></video>
+   <figcaption>${cls.toUpperCase()} &middot; ${r.arm} &middot; ${r.sampler} + ${r.sched} @ ${r.steps}</figcaption></figure>`;}
+function show(stem){
+  if(stem===ref) return;
+  const A=ROWS.find(r=>r.stem===ref), B=ROWS.find(r=>r.stem===stem); if(!A||!B) return;
+  cur=stem;
+  $("#stage").innerHTML=`<div class="shelf">
+      <img src="${BASE}/posters/${A.stem}.jpg" alt=""><img src="${BASE}/posters/${B.stem}.jpg" alt="">
+      <span class=badge>Play this pair</span></div>`;
+  $("#stage").querySelector(".shelf").onclick=()=>{
+    $("#stage").innerHTML=`<div class="pair ${mode}">${fig(A,"a")}${fig(B,"b")}</div>`;
+    const vs=$("#stage").querySelectorAll("video");
+    vs.forEach(v=>{v.playbackRate=rate;v.play().catch(()=>{});});
+    if(mode==="flip"){$("#stage").querySelector(".pair").onclick=()=>$("#stage").querySelector(".pair").classList.toggle("showb");}
+  };
+  draw();
+}
+$("#ref").onchange=e=>{ref=e.target.value;const c=cur;cur=null;draw();if(c&&c!==ref)show(c);};
+$("#close").onclick=()=>{$("#stage").innerHTML="";cur=null;};
+$("#m-side").onclick=()=>{mode="side";$("#m-side").classList.add("on");$("#m-flip").classList.remove("on");if(cur){const c=cur;cur=null;show(c);}};
+$("#m-flip").onclick=()=>{mode="flip";$("#m-flip").classList.add("on");$("#m-side").classList.remove("on");if(cur){const c=cur;cur=null;show(c);}};
+document.querySelectorAll(".rate").forEach(b=>b.onclick=()=>{
+  rate=parseFloat(b.dataset.r);
+  document.querySelectorAll(".rate").forEach(x=>x.classList.toggle("on",x===b));
+  $("#stage").querySelectorAll("video").forEach(v=>v.playbackRate=rate);});
+draw();
+</script></main></body></html>
