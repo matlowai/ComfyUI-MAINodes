@@ -1881,6 +1881,9 @@ class H3TrueClock:
         holds = json.loads(hold_map)["holds"]
         spans = true_clock_spans(holds)
         _install_true_clock_patch()
+        # a guide's cond rows must ride this clock too, whoever built them
+        # (this node's H3 Add Latent Guide or core's image Add Guide)
+        _install_guide_layout_patch()
         _TRUE_CLOCK["spans"] = spans   # armed NOW, before extra_conds builds the layout
         return (_TrueClockSampler(sampler, spans),)
 
@@ -2060,12 +2063,21 @@ def _install_dyrope_rope_patch():
             mixed = [w * float(a) + (1.0 - w) * float(b) for a, b in zip(first, second)]
             g_default, g_alt = dyrope_grid(mixed, origin), None
 
+        # aligned latent guides: cond rows duplicate target rows, so they have
+        # to follow them onto whichever grid this table is being built for.
+        # Keyed on EXACT sequence length, the same guard shape True Clock uses.
+        rec = _GUIDE_LAYOUTS.get(total)
+
         pos_default = (position_ids if g_default is want
                        else dyrope_retimed_position_ids(position_ids, start, rpf, g_default))
+        if rec is not None:
+            pos_default = guide_retimed_position_ids(pos_default, rec, "H3 DyRoPE")
         angles = prev(self, pos_default, device)
         if g_alt is not None:
             pos_alt = (position_ids if g_alt is want
                        else dyrope_retimed_position_ids(position_ids, start, rpf, g_alt))
+            if rec is not None:
+                pos_alt = guide_retimed_position_ids(pos_alt, rec, "H3 DyRoPE")
             st["alt_angles"] = prev(self, pos_alt, device)
         return angles
 
@@ -2236,6 +2248,7 @@ class H3DyRoPE:
         }
 
         _install_true_clock_patch()
+        _install_guide_layout_patch()   # cond rows follow the target's grid
         if state["active"]:
             _install_dyrope_rope_patch()
         # armed NOW, before extra_conds builds the layout
@@ -2788,6 +2801,319 @@ class H3TemporalInsert:
             rep.insert(1, note)
         used = json.dumps({"holds": holds, "world_len": len(holds)})
         return (out, {"samples": nm}, used, "\n".join(rep))
+
+
+# -------------------------------------------------- aligned latent guides
+# Hand the model the movie as CLEAN CONDITION ROWS on the target's own rotary
+# coordinates, instead of smearing it into x_t. Measured on the trainer's
+# ruler (h3 research_inbox/RESULT_aligned_guide_abc_2026-08-28.md): the same
+# lerp movie read as aligned guide rows scores 0.406-0.433 of the lerp
+# baseline with NO adapter at all, against 0.464 for a LoRA trained on the
+# in-x_t arrangement — and 0.238-0.254 for one trained on the guide.
+#
+# Core already packs keyframe latents exactly that way
+# (comfy/ldm/minimax/model.py:322-360): each keyframe latent becomes its own
+# ("cond", vt * frame_rows) segment right after the text, on the TARGET's
+# spatial grid, with t origin cursor + FRAME_RESCALE * resolved_frame_index
+# and img_update False. What core does NOT do is follow a rewritten clock —
+# the cond t column is built from the stock spans and the stock origin. Under
+# H3 True Clock a FULL-grid guide inherits the rewritten spans by accident
+# (the exact-length guard matches, motion.py _install_true_clock_patch) while
+# a PARTIAL one does not; under H3 DyRoPE nothing does, because the rope
+# wrapper rewrites out[start:, 0] — the target segment — only. The trainer
+# measured what that costs: on a dense sample the rewrite moves the target
+# 156.7 (57 tokens) / 447.5 (107 tokens) rotary units, so an unretimed guide
+# sits that far from the rows it duplicates and the model reads it as a
+# different take. So: identify the cond rows from the layout's own segment
+# KINDS and give every one of them the RETIMED t of the target row it
+# duplicates — or raise. Never a silent stock-grid fallback.
+
+_GUIDE_LAYOUTS = {}   # seq_len -> record, filled by the PackedLayout wrapper
+
+
+def guide_frame_index(token_idx):
+    """resolved_frame_index for a guide whose first token is target token
+    token_idx. Core anchors keyframes in PIXEL frames and a token covers
+    FRAME_PER_TOKEN = (1, 4, 4, 4, 4) of them per 5."""
+    import comfy.ldm.minimax.model as _mm
+    fpt = _mm.FRAME_PER_TOKEN
+    return sum(fpt[k % len(fpt)] for k in range(int(token_idx)))
+
+
+def guide_token_index(resolved_frame_index):
+    """Inverse of guide_frame_index; None when that pixel frame is not a token
+    boundary (core's image AddGuide may anchor anywhere, and a guide that
+    starts mid-token duplicates no single target row)."""
+    import comfy.ldm.minimax.model as _mm
+    fpt = _mm.FRAME_PER_TOKEN
+    target = int(resolved_frame_index)
+    if target < 0:
+        return None
+    f, k = 0, 0
+    while f < target:
+        f += fpt[k % len(fpt)]
+        k += 1
+    return k if f == target else None
+
+
+def _guide_clock_name():
+    """Which clock is armed right now — the name that goes in the raise."""
+    if _DYROPE.get("active"):
+        return "H3 DyRoPE"
+    if _TRUE_CLOCK.get("spans") is not None:
+        return "H3 True Clock"
+    return "stock"
+
+
+def guide_layout_record(layout, latent_t, keyframes):
+    """Cond-video-row map of a packed layout, or None when it has none.
+
+    Rows are identified by the layout's own segment KINDS, never by value
+    coincidence: audio rows live on the same t axis as video rows and their
+    values collide freely (comfy/ldm/minimax/model.py:_audio_grid)."""
+    conds = [(a, b) for a, b, kind in layout.segments if kind == "cond"]
+    if not conds:
+        return None
+    video = [(a, b) for a, b, kind in layout.segments if kind == "video"]
+    latent_t = int(latent_t)
+    if not video or latent_t <= 0:
+        return None
+    v_start, v_stop = video[-1]
+    rows_per_frame, rem = divmod(v_stop - v_start, latent_t)
+    if rem or rows_per_frame <= 0:
+        return None
+    kfs = [kf for kf in (keyframes or ()) if kf.get("latent") is not None]
+    blocks = []
+    for i, (a, b) in enumerate(conds):
+        vt, vrem = divmod(b - a, rows_per_frame)
+        token_idx, reason = None, ""
+        if vrem:
+            reason = ("%d rows is not a whole number of %d-row frames"
+                      % (b - a, rows_per_frame))
+        elif i >= len(kfs):
+            reason = ("no keyframe latent carries this segment (%d cond "
+                      "segments, %d keyframes with a latent)"
+                      % (len(conds), len(kfs)))
+        else:
+            rfi = int(kfs[i]["resolved_frame_index"])
+            token_idx = guide_token_index(rfi)
+            if token_idx is None:
+                reason = ("resolved_frame_index %d is not a token boundary "
+                          "(tokens start at pixel frames 0, 1, 5, 9, 13, 17...)"
+                          % rfi)
+            elif token_idx + vt > latent_t:
+                reason = ("token %d + %d guide tokens overruns the target's %d"
+                          % (token_idx, vt, latent_t))
+                token_idx = None
+        blocks.append({"start": int(a), "stop": int(b), "vt": int(vt),
+                       "token_idx": token_idx, "reason": reason})
+    return {"seq_len": int(layout.seq_len), "video_start": int(v_start),
+            "rows_per_frame": int(rows_per_frame), "latent_t": latent_t,
+            "blocks": blocks}
+
+
+def guide_retimed_position_ids(position_ids, record, clock):
+    """Copy of position_ids whose cond VIDEO rows carry the t of the target
+    rows they duplicate. Every other row is bit-identical.
+
+    Under the stock clock this is the value core already computed (cond_t +
+    cumsum of the stock spans IS the target's grid from that token on), so the
+    copy is a no-op receipt; under a rewritten clock it is the whole point. A
+    block that cannot be mapped RAISES under a rewritten clock. Under the
+    stock clock it is left exactly as core built it — that is the correct
+    answer there, not a fallback, and it is the only way core's own image
+    AddGuide keeps working off a token boundary."""
+    out = None
+    v_start = record["video_start"]
+    rpf = record["rows_per_frame"]
+    for blk in record["blocks"]:
+        tok = blk["token_idx"]
+        if tok is None:
+            if clock == "stock":
+                continue
+            raise RuntimeError(
+                "H3 Add Latent Guide: condition rows %d..%d cannot be mapped "
+                "onto target video tokens, so the %s clock cannot retime them "
+                "(%s). Refusing to leave a guide on the stock grid — it would "
+                "sit off the rows it duplicates (the rewrite moves a dense "
+                "target by hundreds of rotary units) and the model would read "
+                "it as a different take."
+                % (blk["start"], blk["stop"], clock, blk["reason"]))
+        if blk["vt"] <= 0:
+            continue
+        if out is None:
+            out = position_ids.clone()
+        idx = v_start + (tok + torch.arange(blk["vt"], device=position_ids.device)) * rpf
+        out[blk["start"]:blk["stop"], 0] = position_ids[idx, 0].repeat_interleave(rpf)
+    return position_ids if out is None else out
+
+
+def _install_guide_layout_patch():
+    """Chain the cond-row retime onto PackedLayout.__init__, once.
+
+    Same sanctioned chaining shape as _install_true_clock_patch and
+    _install_dyrope_rope_patch: wrap whatever is currently bound, and do
+    nothing at all when the layout carries no cond video rows — so a graph
+    without a guide is bit-identical to one built with this pack unloaded.
+    The layout is built in extra_conds BEFORE sampler.sample runs, which is
+    why the retime happens here and not in the sampler wrapper."""
+    import comfy.ldm.minimax.model as _mm
+    if getattr(_mm.PackedLayout.__init__, "_h3_guide_rows", False):
+        return
+    prev = _mm.PackedLayout.__init__
+
+    def patched(self, text_len, latent_t, latent_h, latent_w, audio_t,
+                keyframes=None, refs=None):
+        prev(self, text_len, latent_t, latent_h, latent_w, audio_t,
+             keyframes=keyframes, refs=refs)
+        record = guide_layout_record(self, latent_t, keyframes)
+        if record is None:
+            return
+        _GUIDE_LAYOUTS[int(self.seq_len)] = record
+        self.position_ids = guide_retimed_position_ids(
+            self.position_ids, record, _guide_clock_name())
+
+    patched._h3_guide_rows = True
+    _mm.PackedLayout.__init__ = patched
+
+
+class H3AddLatentGuide:
+    """Pack a LATENT as H3's keyframe guide: the movie as clean condition rows
+    on the target's own rotary coordinates. No VAE, no mp4, no images."""
+
+    DESCRIPTION = (
+        "EXPERIMENTAL. Hands the model a whole video LATENT as an ALIGNED "
+        "GUIDE — H3's keyframe condition rows, which pack right after the "
+        "text on the target's own spatial grid and time axis, arrive nearly "
+        "clean (noise_aug 0.999) and are never denoised. Core's Add Guide "
+        "node takes IMAGES and VAE-encodes them; this one takes the latent "
+        "you already have, so a latent-space init (H3 Temporal Insert's lerp, "
+        "a bank, a previous pass) never makes a round trip through pixels.\n\n"
+        "Why bother: measured on the trainer's ruler, the same lerp movie "
+        "read as aligned guide rows scores 0.41-0.43 of the lerp baseline "
+        "with NO adapter at all, where a LoRA trained on the in-x_t "
+        "arrangement gets 0.46 — the base model can read a "
+        "correctly-positioned guide and does not need to be taught to. "
+        "Keeping the lerp in x_t as well buys nothing (it measures as the "
+        "in-x_t arm again), so the intended pairing is H3 Temporal Insert "
+        "with init_mode=noise into the sampler and a SECOND one with "
+        "init_mode=lerp into this node, on a FULL schedule.\n\n"
+        "token_idx is the LATENT-TOKEN offset of the guide's first token "
+        "inside the target grid (0 = a full-length guide starting at the "
+        "top). Tokens cover (1, 4, 4, 4, 4) pixel frames per 5, and this node "
+        "converts to the pixel-frame anchor core wants for you.\n\n"
+        "Clock-correct by construction: under H3 True Clock or H3 DyRoPE the "
+        "guide's rows are retimed to the exact t of the target rows they "
+        "duplicate, and a guide that cannot be mapped RAISES instead of "
+        "silently sitting on the stock grid (which, on a dense clip, is "
+        "hundreds of rotary units away from what it is supposed to align "
+        "with).\n\n"
+        "Costs one target-video-worth of sequence length per full guide — "
+        "roughly a doubling of the video rows, which is superlinear in step "
+        "time. A short guide over the span you care about costs "
+        "proportionally less; that is what token_idx is for.\n\n"
+        "Do NOT pair with the published Motion Adapter: it was trained on "
+        "the in-x_t arrangement and measured WORSE with a guide than the "
+        "base model is (0.87 vs 0.41 of the lerp baseline).")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "positive": ("CONDITIONING",),
+            "latent": ("LATENT", {"tooltip": "the TARGET AV latent the sampler will denoise — the shape authority"}),
+            "guide": ("LATENT", {"tooltip": "the guide movie as a latent: a video latent [1,24,vt,h,w] or a "
+                                            "nested AV latent (the video half is used, audio is ignored). "
+                                            "Must share the target's (h, w)"}),
+            "token_idx": ("INT", {"default": 0, "min": 0, "max": 4096,
+                          "tooltip": "latent-token offset of the guide's first token inside the target grid. "
+                                     "0 = aligned from the top (a full-length guide). Converted to core's "
+                                     "pixel-frame anchor via (1,4,4,4,4) frames per token"}),
+            "noise_aug": ("FLOAT", {"default": 0.999, "min": 0.0, "max": 1.0, "step": 0.001,
+                          "tooltip": "how clean the condition rows arrive: rows = aug*guide + (1-aug)*noise, "
+                                     "and the row timestep is max(t_video, aug). 0.999 is core's default and "
+                                     "the value the guide arms were trained at. Applies to EVERY keyframe on "
+                                     "this conditioning, not just this node's"}),
+        }}
+
+    RETURN_TYPES = ("CONDITIONING", "STRING")
+    RETURN_NAMES = ("positive", "report")
+    FUNCTION = "add"
+    CATEGORY = "conditioning/minimax/motion"
+
+    def add(self, positive, latent, guide, token_idx=0, noise_aug=0.999):
+        import comfy.ldm.minimax.model as _mm
+        import node_helpers
+
+        target = _video_component(latent)
+        g = _video_component(guide)
+        if g.dim() == 4:
+            g = g[None]
+        if target.dim() != 5 or g.dim() != 5:
+            raise ValueError(
+                "H3 Add Latent Guide: expected 5D video latents (B, C, t, h, w), "
+                "got target %r and guide %r" % (tuple(target.shape), tuple(g.shape)))
+        if target.shape[0] != 1 or g.shape[0] != 1:
+            raise ValueError(
+                "H3 Add Latent Guide: batch must be 1 on both sides (target B=%d, "
+                "guide B=%d). Core packs one keyframe latent per condition; a "
+                "batch would silently pack only the first."
+                % (target.shape[0], g.shape[0]))
+        if g.shape[1] != target.shape[1]:
+            raise ValueError(
+                "H3 Add Latent Guide: guide has %d channels, the target has %d"
+                % (g.shape[1], target.shape[1]))
+        if tuple(g.shape[3:]) != tuple(target.shape[3:]):
+            raise ValueError(
+                "H3 Add Latent Guide: guide (h, w) = %r must equal the target's %r. "
+                "Core packs cond rows on the TARGET's spatial grid, so a "
+                "different resolution does not misalign — it produces the wrong "
+                "number of rows and fails deep in the model."
+                % (tuple(g.shape[3:]), tuple(target.shape[3:])))
+        t_lat = int(target.shape[2])
+        vt = int(g.shape[2])
+        token_idx = int(token_idx)
+        if token_idx + vt > t_lat:
+            raise ValueError(
+                "H3 Add Latent Guide: a %d-token guide at token_idx %d overruns "
+                "the target's %d tokens" % (vt, token_idx, t_lat))
+
+        resolved_frame_index = guide_frame_index(token_idx)
+        # receipt: core's cond origin (FRAME_RESCALE * resolved_frame_index) is
+        # the target's own stock t at this token. dyrope_stock_spans/dyrope_grid
+        # read the core constants and reproduce _video_t_grid bit for bit
+        # WITHOUT going through the patched _video_t_spans symbol.
+        origin_t = _mm.FRAME_RESCALE * resolved_frame_index
+        stock_t = dyrope_grid(dyrope_stock_spans(token_idx + 1), 0.0)[token_idx]
+        assert abs(origin_t - stock_t) < 1e-9, (
+            "H3 Add Latent Guide: token %d maps to pixel frame %d -> cond origin "
+            "%.12f, but the target's stock t there is %.12f"
+            % (token_idx, resolved_frame_index, origin_t, stock_t))
+
+        keyframes = list(positive[0][1].get("minimax_keyframes", []))
+        keyframes.append({"resolved_frame_index": int(resolved_frame_index),
+                          "latent": g})
+        out = node_helpers.conditioning_set_values(
+            positive, {"minimax_keyframes": keyframes,
+                       "minimax_visual_cond_noise_aug": float(noise_aug)})
+        _install_guide_layout_patch()
+
+        frame_rows = (target.shape[3] // 2) * (target.shape[4] // 2)
+        rows = vt * frame_rows
+        target_rows = t_lat * frame_rows
+        report = (
+            "H3 Add Latent Guide: %d guide tokens at token_idx %d "
+            "(pixel-frame anchor %d, cond t origin %.6f == target stock t %.6f)\n"
+            "guide %r -> %d rows (%d tokens x %d rows/frame); the target video "
+            "is %d rows, so this guide adds %.2fx of it\n"
+            "keyframes on this conditioning: %d   noise_aug %.4f (applies to "
+            "all of them)\n"
+            "clock: retimed to the target rows under H3 True Clock / H3 DyRoPE; "
+            "raises rather than falling back to the stock grid"
+            % (vt, token_idx, resolved_frame_index, origin_t, stock_t,
+               tuple(g.shape), rows, vt, frame_rows, target_rows,
+               rows / float(target_rows), len(keyframes), float(noise_aug)))
+        print("[MAINodes] " + report.splitlines()[0])
+        return (out, report)
 
 
 LATENT_CELL = 16   # image pixels per latent spatial cell (H3 video VAE)
@@ -5039,6 +5365,7 @@ TIMESMEAR_CLASS_MAPPINGS = {
     "H3DyRoPE": H3DyRoPE,
     "H3V2VInit": H3V2VInit,
     "H3TemporalInsert": H3TemporalInsert,
+    "H3AddLatentGuide": H3AddLatentGuide,
     "H3LatentUpscale": H3LatentUpscale,
     "H3InjectSchedule": H3InjectSchedule,
     "H3JerkHeatmap": H3JerkHeatmap,
@@ -5069,6 +5396,7 @@ TIMESMEAR_DISPLAY_MAPPINGS = {
     "H3DyRoPE": "H3 DyRoPE (layer-wise / sigma-faded time geometry) [experimental]",
     "H3V2VInit": "H3 V2V Init (nested AV latent)",
     "H3TemporalInsert": "H3 Temporal Insert (insert token-times, freeze originals) [experimental]",
+    "H3AddLatentGuide": "H3 Add Latent Guide (aligned latent rows) [experimental]",
     "H3LatentUpscale": "H3 Latent Upscale (video only, audio kept) [experimental]",
     "H3InjectSchedule": "H3 Inject Schedule (v2v sigmas, 0.70)",
     "H3JerkHeatmap": "H3 Jerk Heatmap (oracle overlay tile)",
