@@ -21,7 +21,7 @@
        cond rows equal the target's rows k..k+vt-1. The unpatched build is
        shown to FAIL the same check, with the deviation in rotary units —
        that is the trap this node exists to prevent
-       (h3 research_inbox/RESULT_aligned_guide_abc_2026-08-28.md,
+       (the aligned-guide A/B/C study, 2026-08-28,
        "Instrument gate": 156.7 / 447.5 units off on dense samples),
     5. VALIDATION: mismatched (h, w) raises, token_idx overflow raises, a
        batched guide raises, and an unmappable block raises under a rewritten

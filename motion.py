@@ -3166,7 +3166,7 @@ class H3MidInsert:
 # -------------------------------------------------- aligned latent guides
 # Hand the model the movie as CLEAN CONDITION ROWS on the target's own rotary
 # coordinates, instead of smearing it into x_t. Measured on the trainer's
-# ruler (h3 research_inbox/RESULT_aligned_guide_abc_2026-08-28.md): the same
+# ruler (the aligned-guide A/B/C study, 2026-08-28): the same
 # lerp movie read as aligned guide rows scores 0.406-0.433 of the lerp
 # baseline with NO adapter at all, against 0.464 for a LoRA trained on the
 # in-x_t arrangement — and 0.238-0.254 for one trained on the guide.
@@ -3349,15 +3349,23 @@ class H3AddLatentGuide:
         "node takes IMAGES and VAE-encodes them; this one takes the latent "
         "you already have, so a latent-space init (H3 Temporal Insert's lerp, "
         "a bank, a previous pass) never makes a round trip through pixels.\n\n"
-        "Why bother: measured on the trainer's ruler, the same lerp movie "
-        "read as aligned guide rows scores 0.41-0.43 of the lerp baseline "
-        "with NO adapter at all, where a LoRA trained on the in-x_t "
-        "arrangement gets 0.46 — the base model can read a "
-        "correctly-positioned guide and does not need to be taught to. "
-        "Keeping the lerp in x_t as well buys nothing (it measures as the "
-        "in-x_t arm again), so the intended pairing is H3 Temporal Insert "
-        "with init_mode=noise into the sampler and a SECOND one with "
+        "Why bother: measured on the trainer's ruler (the aligned-guide "
+        "A/B/C study, 2026-08-28), the same lerp movie read as aligned guide "
+        "rows scores 0.41-0.43 of the lerp baseline with NO adapter at all, "
+        "where a LoRA trained on the in-x_t arrangement gets 0.46: the base "
+        "model can read a correctly-positioned guide and does not need to be "
+        "taught to. Keeping the lerp in x_t as well buys nothing (it measures "
+        "as the in-x_t arm again), so the intended pairing is H3 Temporal "
+        "Insert with init_mode=noise into the sampler and a SECOND one with "
         "init_mode=lerp into this node, on a FULL schedule.\n\n"
+        "What that buys DECODED, and what it costs (one clip, same-seed rerun "
+        "band measured 2026-09-01): the guide keeps the inserted span at the "
+        "source's speed, as the Motion Adapter recipe does, and invents less "
+        "in the frame; it also costs about 12% of the source's detail (0.88 of "
+        "source sharpness, rerun band 0.003), and on playback the guide arms "
+        "were judged WORSE than the adapter recipe for exactly that reason. "
+        "Read this node as a 'protect what is already right' instrument, not "
+        "as a sharper de-rope.\n\n"
         "token_idx is the LATENT-TOKEN offset of the guide's first token "
         "inside the target grid (0 = a full-length guide starting at the "
         "top). Tokens cover (1, 4, 4, 4, 4) pixel frames per 5, and this node "
