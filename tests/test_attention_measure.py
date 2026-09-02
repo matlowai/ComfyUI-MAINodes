@@ -55,8 +55,10 @@ def backend(q, k, v, heads, mask=None, attn_precision=None,
     out = torch.nn.functional.scaled_dot_product_attention(
         q, k, v, attn_mask=mask, dropout_p=0.0, is_causal=False, **extra)
     if not skip_output_reshape:
-        b, h, s, d = out.shape
-        out = out.transpose(1, 2).reshape(b, s, h * d)
+        # comfy reads dim_head off Q, not off the output (attention.py:546
+        # then :568), which is exactly what breaks a q-only widening
+        b, s = out.shape[0], out.shape[2]
+        out = out.transpose(1, 2).reshape(b, s, heads * q.shape[-1])
     return out
 
 
@@ -99,6 +101,26 @@ for dtype in (torch.float64, torch.float32, torch.float16, torch.bfloat16):
           "max|dx| = %.3e = %.1f ulp (1 ulp = %.3e, |ref|max = %.3f, "
           "bit-identical = %s)"
           % (dx, dx / ulp, ulp, scale_, torch.equal(got, ref)))
+
+# THE RESHAPED CALL PATH. H3 asks for skip_reshape=True and leaves
+# skip_output_reshape False (comfy/ldm/minimax/model.py:199), and comfy reads
+# the output head width off Q. A q-and-k-only widening therefore reshaped the
+# result to heads * 136 and raised "shape '[1, -1, 7616]' is invalid" on the
+# first real render (2026-09-01). v is widened with zeros and the extra
+# channels sliced off, which this locks.
+torch.manual_seed(1)
+q = torch.randn(1, 4, S, 128, dtype=torch.float32)
+k = torch.randn(1, 4, S, 128, dtype=torch.float32)
+v = torch.randn(1, 4, S, 128, dtype=torch.float32)
+ov = m.make_override([1] * 34, 1.0)
+got = ov(backend, q, k, v, 4, mask=None, skip_reshape=True,
+         transformer_options={"mainodes_h3_layout": LAY})
+ref = backend(q, k, v, 4, mask=None, skip_reshape=True)
+check("reshaped output path keeps V's width (the 7616 bug)",
+      got.shape == ref.shape and torch.equal(got, ref),
+      "got %s, ref %s, max|dx| = %.3e"
+      % (tuple(got.shape), tuple(ref.shape),
+         (got - ref).abs().max().item()))
 
 lw = m.token_logw(LT, [1] * 34, 1.0)
 check("uniform map gives exactly zero log w",

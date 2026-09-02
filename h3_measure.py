@@ -189,14 +189,15 @@ def make_override(holds, strength, blocks=None, previous=None, state=None):
     def override(func, q, k, v, heads, mask=None, attn_precision=None,
                  skip_reshape=False, skip_output_reshape=False, **kwargs):
 
-        def dense(qq, kk, vv, sr, extra=None):
+        def dense(qq, kk, vv, sr, extra=None, sor=None):
             target = func if previous is None else _partial_previous(previous, func)
             kw = dict(kwargs)
             if extra:
                 kw.update(extra)
             return target(qq, kk, vv, heads, mask=mask,
                           attn_precision=attn_precision, skip_reshape=sr,
-                          skip_output_reshape=skip_output_reshape, **kw)
+                          skip_output_reshape=(skip_output_reshape
+                                               if sor is None else sor), **kw)
 
         to = kwargs.get("transformer_options") or {}
         layout = to.get("mainodes_h3_layout")
@@ -253,9 +254,26 @@ def make_override(holds, strength, blocks=None, previous=None, state=None):
         pad_q[..., 0] = const
         pad_k = k.new_zeros((b, h, s, PAD))
         pad_k[..., 0:1] = logw
-        return dense(torch.cat((q, pad_q), dim=-1),
-                     torch.cat((k, pad_k), dim=-1), v, True,
-                     extra={"scale": scale})
+        # V IS WIDENED TOO. Every comfy backend derives the OUTPUT head width
+        # from Q, not from V (attention.py:568 and :846,
+        # `out.transpose(1, 2).reshape(b, -1, heads * dim_head)` with
+        # dim_head read off q at :546). A wide q against a narrow v therefore
+        # reshapes the result to the wrong width and raises. The appended v
+        # channels are zeros, so the extra output channels are exactly zero
+        # whatever the attention weights are, and they are sliced off here.
+        # We always ask the backend for the unreshaped [b, heads, S, d] form
+        # and do the caller's reshape ourselves on the sliced tensor.
+        dv = v.shape[-1]
+        pad_v = v.new_zeros(v.shape[:-1] + (PAD,))
+        out = dense(torch.cat((q, pad_q), dim=-1),
+                    torch.cat((k, pad_k), dim=-1),
+                    torch.cat((v, pad_v), dim=-1), True,
+                    extra={"scale": scale}, sor=True)
+        out = out[..., :dv]
+        if skip_output_reshape:
+            return out
+        return out.transpose(1, 2).reshape(out.shape[0], -1,
+                                           out.shape[1] * dv)
 
     override.mainodes_attention_measure = True
     return override
