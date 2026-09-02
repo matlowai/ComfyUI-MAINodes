@@ -279,3 +279,14 @@ numbers only mean something next to a reference arm. FakeQuant ships;
 Sol Attention stays unregistered until it gets the DyRoPE arm/disarm
 pattern, because it rebinds attention process-globally with no restore
 path.
+
+## Attention measure (experimental)
+
+`h3_measure.py`, node `H3 Attention Measure`. From the hold map a retime
+used, it adds `strength * log(1 / duplication)` to the pre-softmax logit of
+every target video key, so a temporal cell split into n near-identical
+children stops collecting n times the softmax mass it represents.
+
+Hypothesis under test, nothing measured yet: the uniform case is a no-op by
+construction (`tests/test_attention_measure.py`), and whether the correction
+changes a real render is exactly the open question.

@@ -36,7 +36,8 @@ NODE_DISPLAY_NAME_MAPPINGS = dict(TIMESMEAR_DISPLAY_MAPPINGS)
 # executor; same rule.
 for _mod in ("window_loop", "window_expand", "timeline.nodes",
              "concept_lab.nodes", "vram_lab", "derope_any", "video_out", "video_compare",
-             "h3_capabilities", "h3_extend", "h3_repair", "h3_drift", "h3_color_carry"):
+             "h3_capabilities", "h3_extend", "h3_repair", "h3_drift", "h3_color_carry",
+             "h3_measure"):
     try:
         _m = __import__(f"{__name__}.{_mod}", fromlist=["*"])
     except Exception as _e:                       # an alpha module must never
