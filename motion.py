@@ -2987,6 +2987,8 @@ class H3MidInsert:
                        "tooltip": "0 = derive the base length from the latent; nonzero asserts this exact base length"}),
             "sigma_s": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.001,
                         "tooltip": "REPORT ONLY, changes nothing: the handoff sigma pass A ended on. Given it, the report prints the noise-only variance deficit the flow parameterisation predicts, to compare against the measured one"}),
+            "init_mode": (["lerp", "duplicate"], {"default": "lerp",
+                          "tooltip": "lerp = blend the bracketing base tokens (the default, what every earlier arm ran). duplicate = each inserted token-time is a VERBATIM copy of the nearer base token, state and noise realisation both, so the remesh adds no new content at all; noise_topup is ignored in that mode"}),
         }}
 
     RETURN_TYPES = ("LATENT", "STRING", "STRING")
@@ -2995,7 +2997,7 @@ class H3MidInsert:
     CATEGORY = "latent/minimax/motion"
 
     def insert(self, samples, hold_map, noise_topup=1.0, seed=0,
-               expand_to_end=False, length=0, sigma_s=0.0):
+               expand_to_end=False, length=0, sigma_s=0.0, init_mode="lerp"):
         import comfy.nested_tensor
 
         parsed = json.loads(hold_map)
@@ -3029,6 +3031,19 @@ class H3MidInsert:
         out_v, copied, inserted, brackets = temporal_insert_fill(
             video, plan, t_dil)
 
+        # duplicate init: the "stupid remesh". Every inserted token-time
+        # becomes a verbatim copy of the NEARER bracketing base token (state
+        # and noise realisation both), so the grid gains token count and
+        # nothing else. Nothing is blended and nothing is added, so the
+        # variance top-up does not apply and is ignored.
+        dup = (init_mode == "duplicate")
+        dup_src = {}
+        if dup:
+            for n, lo, hi, w in brackets:
+                src = hi if w >= 0.5 else lo
+                dup_src[n] = src
+                out_v[:, :, n] = video[:, :, src]
+
         # the top-up: measured per inserted token, per channel. See the block
         # comment above this class for the derivation of deficit = w(1-w)Var(r).
         vf = video.float()
@@ -3046,11 +3061,14 @@ class H3MidInsert:
                    / (2.0 * (v_lo * v_hi).clamp_min(1e-20).sqrt()))
             # identity self-check: the lerp we actually built must have the
             # variance (*) predicts, v_tgt - deficit
-            v_lerp = out_v[:, :, n].float().var(dim=dims, unbiased=False)
-            ident = max(ident, float((v_lerp - (v_tgt - deficit)).abs().max()
-                                     / max(float(v_tgt.abs().max()), 1e-20)))
-            std = (float(noise_topup) * deficit).clamp_min(0.0).sqrt()
-            if noise_topup > 0.0:
+            if not dup:
+                v_lerp = out_v[:, :, n].float().var(dim=dims, unbiased=False)
+                ident = max(ident,
+                            float((v_lerp - (v_tgt - deficit)).abs().max()
+                                  / max(float(v_tgt.abs().max()), 1e-20)))
+            std = (float(0.0 if dup else noise_topup)
+                   * deficit).clamp_min(0.0).sqrt()
+            if noise_topup > 0.0 and not dup:
                 g = torch.randn(tuple(a.shape), generator=gen).to(
                     video.device, torch.float32)
                 out_v[:, :, n] = (out_v[:, :, n].float()
@@ -3108,12 +3126,18 @@ class H3MidInsert:
             f"{def_m:.5f} = {100.0 * def_m / max(tgt_m, 1e-20):.1f}% of the "
             f"target token variance {tgt_m:.5f}; range "
             f"[{def_lo:.5f}, {def_hi:.5f}]",
+            (f"init_mode duplicate: {len(inserted)} inserted token-times are "
+             f"verbatim copies of base tokens "
+             f"{sorted(set(dup_src.values()))}; noise_topup ignored"
+             if dup else "init_mode lerp (the default blend)"),
             f"top-up applied: noise_topup {noise_topup:.2f} -> fresh gaussian "
             f"std mean {std_m:.5f}, max {std_hi:.5f}, seed {int(seed)}"
             + ("" if noise_topup > 0.0 else "  (RAW LERP: nothing added)"),
-            f"identity self-check |Var(lerp) - (v_tgt - deficit)| / v_tgt: "
-            f"{ident:.3e} (must be ~0; it is the derivation, verified on this "
-            f"tensor)",
+            ("identity self-check: n/a, duplicate init builds no lerp"
+             if dup else
+             f"identity self-check |Var(lerp) - (v_tgt - deficit)| / v_tgt: "
+             f"{ident:.3e} (must be ~0; it is the derivation, verified on "
+             f"this tensor)"),
         ]
         if sigma_s >= 1.0:
             # report only, and the bound divides by (1 - sigma_s): at sigma_s 1
