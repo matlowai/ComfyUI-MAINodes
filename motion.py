@@ -2779,6 +2779,8 @@ class H3TemporalInsert:
                        "tooltip": "0 = derive the base length from the latent (recommended); nonzero asserts this exact base length"}),
             "noise_seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff,
                            "tooltip": "only used by init_mode 'noise'; fixed so the init is reproducible"}),
+            "anchor_strength": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01,
+                                "tooltip": "how much rewrite freedom each COPIED (baseline) token gets. 0.0 (default) is the original behaviour exactly: copied tokens are hard-frozen and only the inserted in-betweens are generated. Above 0 they become SOFT ANCHORS - the pose is seeded but the model may move it - which is a different axis from dilation: dilation supplies temporal capacity, this controls how far each existing pose may travel while the enlarged trajectory is repaired. Aimed at the repeated-beat failure (one backflip becoming two). REQUIRES the #15988 conversion (H3 Mask Conversion, mode 'on'): a fractional mask row is evaluated at m*sigma, and without the fix its velocity is converted over the full sigma, so every value between 0 and 1 is mis-scaled. Off the fix, use 0.0 only."}),
         }}
 
     RETURN_TYPES = ("LATENT", "LATENT", "STRING", "STRING")
@@ -2787,7 +2789,7 @@ class H3TemporalInsert:
     CATEGORY = "latent/minimax/motion"
 
     def insert(self, samples, hold_map, init_mode="lerp", expand_to_end=True,
-               length=0, noise_seed=0):
+               length=0, noise_seed=0, anchor_strength=0.0):
         import comfy.nested_tensor
 
         parsed = json.loads(hold_map)
@@ -2819,8 +2821,12 @@ class H3TemporalInsert:
 
         out_v, copied, inserted, _brackets = temporal_insert_fill(
             video, plan, t_dil)
-        mask_v = torch.zeros(1, 1, t_dil, video.shape[3], video.shape[4],
-                             device=video.device, dtype=video.dtype)
+        # copied (baseline) tokens are hard-frozen at 0.0 by default; a nonzero
+        # anchor_strength turns them into SOFT anchors. Inserted tokens are
+        # always 1.0. anchor_strength 0.0 reproduces the original mask exactly.
+        anchor = float(max(0.0, min(1.0, anchor_strength)))
+        mask_v = torch.full((1, 1, t_dil, video.shape[3], video.shape[4]), anchor,
+                            device=video.device, dtype=video.dtype)
         gen = torch.Generator(device="cpu").manual_seed(int(noise_seed))
         for n in inserted:
             mask_v[:, :, n] = 1.0
@@ -2853,8 +2859,14 @@ class H3TemporalInsert:
             f"temporal insert ({init_mode}): world {len(holds)}f -> dilated "
             f"{dilated}f, t_lat {t_base} -> {t_dil} tokens "
             f"(+{t_dil - t_base}); video {video.shape[3]}x{video.shape[4]} cells",
-            f"copied verbatim (mask 0, frozen): {len(copied)} token-times "
-            f"[{_index_runs(copied)}]",
+            (f"copied verbatim (mask 0, frozen): {len(copied)} token-times "
+             f"[{_index_runs(copied)}]" if anchor == 0.0 else
+             f"copied as SOFT ANCHORS (mask {anchor:.2f}, seeded but free to "
+             f"move): {len(copied)} token-times [{_index_runs(copied)}]. This "
+             f"is a FRACTIONAL mask row: it is only correct with H3 Mask "
+             f"Conversion in mode 'on' (ComfyUI PR #15988). Without it the "
+             f"row is evaluated at {anchor:.2f}*sigma and converted over the "
+             f"full sigma"),
             f"inserted (mask 1, regenerate): {len(inserted)} token-times "
             f"[{_index_runs(inserted)}]",
             (f"T2a rule 1 - hold spans start at frames [{_index_runs(starts)}]; "
