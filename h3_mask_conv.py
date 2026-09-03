@@ -47,11 +47,32 @@ Wire: between the model and the sampler, like any model patch. It is a no-op
 on any pass whose masks are all ones, and on any pass with no mask at all.
 """
 
+import datetime
 import logging
+import os
 
 import torch
 
 log = logging.getLogger("MAINodes.h3_mask_conv")
+
+# Where the wrapper records that it ran. Override per run so a night loop can
+# keep one file per arm; the default is deliberately outside any git checkout.
+FIRED_LOG = os.environ.get("MAINODES_MASKCONV_LOG", "/tmp/h3maskconv_fired.log")
+
+
+def _now():
+    return datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def _note(line):
+    """Append one line to FIRED_LOG. Never raises: a diagnostic must not be
+    able to kill a render."""
+    try:
+        with open(FIRED_LOG, "a") as fh:
+            fh.write(line + "\n")
+    except Exception:
+        pass
+
 
 MODES = ("off", "on")
 SCOPES = ("both", "video only", "audio only")
@@ -116,17 +137,67 @@ def _wrappers_diffusion_model():
     return WrappersMP.DIFFUSION_MODEL
 
 
+WRAPPER_KEY = "h3_mask_conversion"
+
+
+def reorder_first(wrappers, key):
+    """Move `key` to the FRONT of a `{key: [wrapper, ...]}` dict, in place.
+
+    THIS IS NOT COSMETIC. `WrapperExecutor` calls the list in order, each
+    wrapper expected to call `executor(...)` so the next one runs. A wrapper
+    that calls `executor.original(...)` instead jumps straight to the wrapped
+    function and SILENTLY SKIPS EVERY WRAPPER AFTER IT.
+
+    The SLA pack does exactly that (`ComfyUI-PlagueKind-Nodes-only-sparse/
+    sla/patch.py:202`, `out = executor.original(...)`). Since a model patch
+    node registers its wrapper when it runs, and SLA is wired before the
+    sampler, anything downstream of SLA lands later in the list and never
+    executes. This node was inert on every SLA graph until it was put first,
+    and the failure was invisible: the node logged that it had installed, the
+    render succeeded, and the arm silently reproduced the control.
+
+    First is also the CORRECT position on its own merits: #15988 scales the
+    velocity the model finally returns, so this wants to be the outermost
+    wrapper, seeing whatever the rest of the chain produced.
+
+    Returns the keys that were behind us and are now after us.
+    """
+    if key not in wrappers:
+        return []
+    others = [k for k in wrappers if k != key]
+    mine = wrappers[key]
+    kept = {k: wrappers[k] for k in others}
+    wrappers.clear()
+    wrappers[key] = mine
+    wrappers.update(kept)
+    return others
+
+
+def install_first(patcher):
+    """Put our diffusion_model wrapper ahead of every other one on `patcher`."""
+    wrappers = patcher.wrappers.get(_wrappers_diffusion_model())
+    if not wrappers:
+        return []
+    return reorder_first(wrappers, WRAPPER_KEY)
+
+
 def _make_wrapper(scope, state):
     def wrapper(executor, *args, **kwargs):
         out = executor(*args, **kwargs)
         dm = kwargs.get("denoise_mask")
         am = kwargs.get("audio_denoise_mask")
         if state["calls"] == 0:
-            # once per run, so the ledger and the console can say whether this
-            # pass had any fractional row for the fix to act on
-            log.info("H3MaskConversion: scope=%s | %s | %s", scope,
-                     mask_summary(dm, "video mask"),
-                     mask_summary(am, "audio mask"))
+            # WHY A FILE AND NOT THE CONSOLE. Measured 2026-09-03: a log call
+            # from inside a diffusion_model wrapper does not reach the journal,
+            # while the node's own patch-time log on the SAME logger does, and
+            # other modules' WARNINGs do. The mechanism was not chased; the
+            # observation is enough to say the console is not a usable channel
+            # from in here. This file is how a run proves the wrapper actually
+            # executed and what mask shapes it saw - which matters because the
+            # failure mode this node already hit once was silent.
+            _note("%s | scope=%s | %s | %s"
+                  % (_now(), scope, mask_summary(dm, "video mask"),
+                     mask_summary(am, "audio mask")))
             state["first"] = (mask_summary(dm, "video mask"),
                               mask_summary(am, "audio mask"))
         state["calls"] += 1
@@ -185,8 +256,9 @@ class H3MaskConversion:
         m = model.clone()
         state = {"calls": 0, "first": None}
         m.add_wrapper_with_key(_wrappers_diffusion_model(),
-                               "h3_mask_conversion",
+                               WRAPPER_KEY,
                                _make_wrapper(scope, state))
+        skipped = install_first(m)
         rep = ("H3 mask conversion ON (PR #15988), scope '%s': the returned "
                "velocity is scaled by the denoise mask before the x0 "
                "conversion, so a row masked at m converts over m*sigma - the "
@@ -195,7 +267,14 @@ class H3MaskConversion:
                "done in float32 and cast back, which is bit-exact at m=1 "
                "(the PR promotes instead, so the last bits will differ from "
                "a future upstream merge)." % scope)
-        log.info("H3MaskConversion: on, scope %s", scope)
+        if skipped:
+            rep += ("\n\nInstalled AHEAD of the diffusion_model wrapper(s) %s. "
+                    "A wrapper that calls executor.original() skips every "
+                    "wrapper after it (the SLA pack does), so being last would "
+                    "have made this node inert while still reporting success."
+                    % sorted(skipped))
+        log.info("H3MaskConversion: on, scope %s, ahead of %s",
+                 scope, sorted(skipped) or "nothing else")
         return (m, rep)
 
 

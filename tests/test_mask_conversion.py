@@ -158,6 +158,51 @@ if have_comfy():
 else:
     print("\n4/5/6. SKIPPED (comfy not importable)")
 
+# ------------------------------- 6b. WRAPPER ORDER (the SLA skip hazard)
+print("\n6b. WRAPPER ORDER: we must run FIRST")
+print("   (a wrapper calling executor.original() skips every wrapper after it;")
+print("    the SLA pack does exactly that at sla/patch.py:202)")
+
+w = {"h3_sla_state": ["sla"], "h3_mask_conversion": ["mine"], "other": ["o"]}
+moved = m.reorder_first(w, "h3_mask_conversion")
+check("   our key is moved to the front", list(w)[0] == "h3_mask_conversion",
+      str(list(w)))
+check("   every other key survives, in order",
+      list(w)[1:] == ["h3_sla_state", "other"] and moved == ["h3_sla_state", "other"],
+      str(list(w)))
+check("   the wrapper lists are the same objects",
+      w["h3_sla_state"] == ["sla"] and w["h3_mask_conversion"] == ["mine"])
+w2 = {"only": ["x"]}
+check("   a dict without our key is untouched",
+      m.reorder_first(w2, "h3_mask_conversion") == [] and list(w2) == ["only"])
+
+# and the real hazard, end to end: a skipping wrapper must not silence us
+class FakeExec:
+    def __init__(self, wrappers, original):
+        self.wrappers, self.original, self.idx = list(wrappers), original, 0
+    def __call__(self, *a, **k):
+        nxt = FakeExec(self.wrappers, self.original); nxt.idx = self.idx + 1
+        return nxt.execute(*a, **k)
+    def execute(self, *a, **k):
+        if self.idx >= len(self.wrappers):
+            return self.original(*a, **k)
+        return self.wrappers[self.idx](self, *a, **k)
+
+def skipping_wrapper(executor, *a, **k):      # what SLA does
+    return executor.original(*a, **k)
+
+fired = {"n": 0}
+def ours(executor, *a, **k):
+    fired["n"] += 1
+    return executor(*a, **k)
+
+orig = lambda *a, **k: ["out"]
+FakeExec([skipping_wrapper, ours], orig).execute()
+check("   BEHIND a skipping wrapper we never run (the bug)", fired["n"] == 0)
+fired["n"] = 0
+FakeExec([ours, skipping_wrapper], orig).execute()
+check("   AHEAD of it we do (the fix)", fired["n"] == 1)
+
 # ------------------------------------------------------ 7. no mutation
 print("\n7. NO MUTATION of the model's output list")
 v = torch.full((2, 2), 2.0)
