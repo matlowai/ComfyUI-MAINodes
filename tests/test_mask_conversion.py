@@ -48,9 +48,16 @@ def check(name, cond, detail=""):
 
 
 def have_comfy():
-    root = os.path.dirname(os.path.dirname(HERE))      # .../ComfyUI
-    if root not in sys.path:
-        sys.path.insert(0, root)
+    # installed layout is <ComfyUI>/custom_nodes/<pack>; a git worktree of the
+    # pack lives anywhere, and silently skipping 4/5/6 there loses the PR
+    # contract checks exactly where the work is being done.
+    for root in (os.path.dirname(os.path.dirname(HERE)),
+                 os.environ.get("COMFYUI_ROOT", ""),
+                 "/mnt/work/ai/apps/ComfyUI"):
+        if root and os.path.isdir(os.path.join(root, "comfy", "ldm", "minimax")):
+            if root not in sys.path:
+                sys.path.insert(0, root)
+            break
     try:
         import comfy.model_sampling  # noqa: F401
         return True
@@ -77,6 +84,31 @@ mask[0, 0, 1] = 0.5
 out = m.apply_mask_conversion([v, None], mask, None, "video only")[0]
 check("   one fractional row moves, the rest do not",
       torch.equal(out[0, 0, 0], v[0, 0, 0]) and torch.equal(out[0, 0, 1], v[0, 0, 1] * 0.5))
+
+# ------------------------------------------------------ 1b. real dtypes
+print("\n1b. REAL DTYPES: what core actually hands the wrapper")
+print("   (model_base.py:232 casts the mask to the inference dtype; :2232")
+print("    quantises it to k/256; :253 floats the output before CONST)")
+k = torch.arange(0, 257, dtype=torch.float32) / 256.0
+check("   the k/256 mask grid is bf16-exact (257 values)",
+      torch.equal(k.to(torch.bfloat16).to(torch.float32), k))
+g = torch.Generator().manual_seed(1)
+v = torch.randn(1, 24, 3, 4, 4, generator=g).to(torch.bfloat16)
+mk = torch.randint(0, 257, (1, 1, 3, 4, 4), generator=g).float() / 256.0
+pr_real = v * mk.to(torch.bfloat16)                       # the PR's line, real dtypes
+check("   bf16 velocity x bf16 mask: ours == the PR's expression bit-for-bit",
+      torch.equal(m.scale_by_mask(v, mk.to(torch.bfloat16)), pr_real)
+      and pr_real.dtype is torch.bfloat16)
+pr_f32 = v * torch.ones_like(mk)                          # the unit-test scenario
+check("   fp32 mask at m=1: the PR promotes to %s yet equals the off arm "
+      "after model_base's .float()" % str(pr_f32.dtype).replace("torch.", ""),
+      pr_f32.dtype is torch.float32 and torch.equal(pr_f32, v.float()))
+for dtype in (torch.float32, torch.bfloat16, torch.float16):
+    tt = torch.randn(256, generator=g).to(dtype)
+    mm = torch.rand(256, generator=g)
+    check("   %-9s promoted product == explicit fp32 product, rounded once"
+          % str(dtype).replace("torch.", ""),
+          torch.equal(m.scale_by_mask(tt, mm), (tt.float() * mm).to(dtype)))
 
 # ------------------------------------------------------ 2. no mask
 print("\n2. NO MASK: pass-through by reference")
