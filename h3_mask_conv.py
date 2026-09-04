@@ -186,20 +186,25 @@ def _make_wrapper(scope, state):
         out = executor(*args, **kwargs)
         dm = kwargs.get("denoise_mask")
         am = kwargs.get("audio_denoise_mask")
-        if state["calls"] == 0:
+        sig = (mask_summary(dm, "video mask"), mask_summary(am, "audio mask"))
+        if sig != state.get("last"):
+            # RECORD ON CHANGE, not once per run. A multi-pass graph runs pass 1
+            # with no mask and pass 2 with the fractional one through the SAME
+            # node instance, so a first-call-only probe records "no masks" and
+            # says nothing about the pass the fix actually acts on.
+            #
             # WHY A FILE AND NOT THE CONSOLE. Measured 2026-09-03: a log call
             # from inside a diffusion_model wrapper does not reach the journal,
             # while the node's own patch-time log on the SAME logger does, and
             # other modules' WARNINGs do. The mechanism was not chased; the
             # observation is enough to say the console is not a usable channel
             # from in here. This file is how a run proves the wrapper actually
-            # executed and what mask shapes it saw - which matters because the
-            # failure mode this node already hit once was silent.
-            _note("%s | scope=%s | %s | %s"
-                  % (_now(), scope, mask_summary(dm, "video mask"),
-                     mask_summary(am, "audio mask")))
-            state["first"] = (mask_summary(dm, "video mask"),
-                              mask_summary(am, "audio mask"))
+            # executed and on what - the failure mode this node already hit
+            # once was silent in every other channel.
+            _note("%s | call %d | scope=%s | %s | %s"
+                  % (_now(), state["calls"], scope, sig[0], sig[1]))
+            state["last"] = sig
+            state["first"] = state.get("first") or sig
         state["calls"] += 1
         if dm is None and am is None:
             return out
