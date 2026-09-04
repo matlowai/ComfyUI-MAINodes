@@ -234,6 +234,35 @@ appended-head-dim trick already avoids it.
 Adapter LoRA (foveated precedent) / true 1x1 child decomposition / sparse /8
 residual / indecision-benefit pilot. Not planned further until C6 exists.
 
+## 2b. Design principles carried across every node (from the 09-04 synthesis)
+
+1. **Carry cell geometry, not indices.** A token is `(x, y, t, dx, dy, dt)`. #15982's
+   second finding (the causal-window fix treats one latent row as one uniform
+   timestep while the VAE groups frames 1,4,4,4,4) is the temporal version of the
+   mistake AMR would make spatially. So `SpatialRowMeta` in C0 carries the anchor
+   AND the support size from day one, and the measure `dx*dy` is what C5 feeds
+   into H3 Attention Measure. Never let "position = ordinal index in the packed
+   sequence" creep back in.
+2. **Coordinates before quality.** C3's B-vs-C control (same latent information,
+   correct vs rebased XY) runs BEFORE any sweep. If B is not clearly better than C,
+   nothing in C4/C5 is interpretable.
+3. **A tiny AMR adapter is an EXPECTED outcome, not a failure.** The temporal
+   precedent is exact: de-rope works conceptually, base H3 goes advance/snap
+   out-of-distribution on the stretched clock, the motion adapter fixes it.
+   Foveated Diffusion found the same for mixed spatial resolution. If C3 shows
+   more detail plus boundary instability, that is Case C in the AMR handoff and
+   routes to D0 (mixed-lattice LoRA), not to "kill".
+4. **#15375's per-token rows are plumbing for local adaptive computation.** Once A1
+   slices them correctly through streamed chunks, `sigma_j = f(indecision_j)` and
+   per-region solver effort are one more row vector, not a new architecture. Keep
+   A1's helpers general (any per-token vector, not just modulation rows).
+5. **#15982 placement.** The chat put "global temporal coordinates correct" under
+   core correctness; this DAG puts it in B2 as instrument-first, because our
+   burst windows may legitimately use a local origin and the compat handoff
+   forbids merging an offset without a MAINodes-specific reproduction. It is a
+   gate for Phase C only in the sense that C3's coordinate control is the same
+   principle; it is not a blocker for A7.
+
 ## 3. Reminders by moment
 
 **Before touching core or a wrapper**: `systemctl --user is-active orithra-comfyui@workstation orithra-comfyui@maxq`; never hand-start on 8188/8189; worktree for any core change; `custom_nodes` is live, a checkout changes the next restart; survey installed packs first (grep custom_nodes before claiming the field lacks something).
