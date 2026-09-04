@@ -33,6 +33,8 @@ import sys
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PY = sys.executable
+# keep the fired-log probe out of the shared default file
+os.environ.setdefault("MAINODES_MASKCONV_LOG", os.path.join(os.environ.get("TMPDIR", "/tmp"), "h3maskconv_parity_test.log"))
 
 
 def child(root, out_path):
