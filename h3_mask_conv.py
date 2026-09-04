@@ -74,7 +74,7 @@ def _note(line):
         pass
 
 
-MODES = ("off", "on")
+MODES = ("auto", "off", "on")
 SCOPES = ("both", "video only", "audio only")
 
 
@@ -212,6 +212,145 @@ def _make_wrapper(scope, state):
     return wrapper
 
 
+# --------------------------------------------------------------------------
+# one helper, three entry points (the node below, H3 Core Compatibility,
+# and H3StreamedBlocks)
+# --------------------------------------------------------------------------
+
+REPORTS = {
+    "off": ("H3 mask conversion OFF: stock ComfyUI. Masked rows are evaluated "
+            "at m*sigma and converted with the global sigma. This is the arm "
+            "every pre-2026-09-03 fractional-mask result was measured on."),
+    "native": ("H3 mask conversion not installed: the running core already "
+               "scales the returned velocity by the denoise mask "
+               "(#15988 semantics are native). Installing ours too would give "
+               "mask^2 * v."),
+    "legacy_no_model_mask": ("H3 mask conversion not installed: this core "
+                             "predates #15375, so H3 never puts a masked row "
+                             "at its own local sigma and there is nothing to "
+                             "correct. The sampler's mask blending is "
+                             "untouched."),
+    "not_h3": ("H3 mask conversion not installed: this MODEL's diffusion_model "
+               "is not a MiniMax H3 model. The correction is H3-specific and a "
+               "generic diffusion_model mask scaler would be wrong."),
+}
+
+
+def core_mask_velocity_state():
+    """`mask_velocity_conversion` from the capability probe, or 'unknown'.
+
+    Kept as a module function on purpose: it is the single seam a test can
+    stand a known core state on without a second ComfyUI checkout.
+    """
+    try:
+        try:
+            from . import h3_capabilities as caps      # inside the pack
+        except ImportError:                            # loaded file-by-path
+            import h3_capabilities as caps
+        return caps.probe_core().get("mask_velocity_conversion", "unknown")
+    except Exception as e:                             # noqa: BLE001
+        log.warning("H3 mask conversion: capability probe failed (%s: %s); "
+                    "treating the core as unknown", type(e).__name__, e)
+        return "unknown"
+
+
+def is_h3_model(model):
+    """True when this ModelPatcher wraps a MiniMax H3 diffusion model."""
+    dm = getattr(getattr(model, "model", None), "diffusion_model", None)
+    if dm is None:
+        return False
+    for cls in type(dm).__mro__:
+        if cls.__name__ == "MiniMaxH3Model":
+            return True
+        if "minimax" in (getattr(cls, "__module__", "") or "").lower():
+            return True
+    return False
+
+
+def apply_h3_mask_velocity_compat(model, scope="both", mode="auto"):
+    """Install the #15988 correction on `model` iff it is wanted and safe.
+
+    Returns ``(model, report)``. The model is a clone whenever anything was
+    installed, and the ORIGINAL object when nothing was.
+
+    mode:
+      auto  consult the capability probe. compat_needed -> install;
+            native or legacy -> no-op with a report line; unknown -> warn and
+            no-op (an unprovable core is the double-scaling risk).
+      on    research override: install regardless of the core state.
+      off   research override: install nothing.
+
+    The install is idempotent: our key is removed before it is added, so a
+    graph that runs H3StreamedBlocks and the compatibility node on the same
+    chain ends with ONE wrapper, not a squared mask.
+    """
+    if mode not in MODES:
+        raise ValueError("mode must be one of %s" % (MODES,))
+    if scope not in SCOPES:
+        raise ValueError("scope must be one of %s" % (SCOPES,))
+
+    if mode == "off":
+        log.info("H3 mask conversion: off, nothing installed")
+        return model, REPORTS["off"]
+
+    state = core_mask_velocity_state() if mode == "auto" else None
+    if mode == "auto":
+        if state in ("native", "legacy_no_model_mask"):
+            log.info("H3 mask conversion: core state %s, nothing installed", state)
+            return model, REPORTS[state]
+        if state != "compat_needed":
+            log.warning("H3 mask conversion NOT applied: core state=%s; refusing "
+                        "to risk scaling the velocity twice. Run the H3 "
+                        "Capability Probe to see who owns "
+                        "MiniMaxH3Model.forward.", state)
+            return model, (
+                "H3 mask conversion not installed: the capability probe reports "
+                "core state '%s', so it cannot be proven that nothing else "
+                "already scales the velocity. Refusing rather than risking "
+                "mask^2 * v. Force it with mode 'on' if you know the core."
+                % state)
+
+    if not is_h3_model(model):
+        log.warning("H3 mask conversion NOT applied: diffusion_model is %s, not "
+                    "MiniMax H3",
+                    type(getattr(getattr(model, "model", None),
+                                 "diffusion_model", None)).__name__)
+        return model, REPORTS["not_h3"]
+
+    m = model.clone()
+    wtype = _wrappers_diffusion_model()
+    try:
+        # ALWAYS remove ours first. Both entry points may run on one chain,
+        # and add_wrapper_with_key APPENDS to the key's list.
+        m.remove_wrappers_with_key(wtype, WRAPPER_KEY)
+    except AttributeError:                                  # pragma: no cover
+        log.warning("H3 mask conversion: this ComfyUI's ModelPatcher has no "
+                    "remove_wrappers_with_key; a second application would "
+                    "stack a second wrapper")
+    state_box = {"calls": 0, "first": None}
+    m.add_wrapper_with_key(wtype, WRAPPER_KEY, _make_wrapper(scope, state_box))
+    skipped = install_first(m)
+
+    rep = ("H3 mask conversion ON (PR #15988), scope '%s'%s: the returned "
+           "velocity is scaled by the denoise mask before the x0 conversion, "
+           "so a row masked at m converts over m*sigma - the same distance it "
+           "was evaluated at. Endpoints are unchanged; only rows strictly "
+           "between 0 and 1 move. Multiplication is done in float32 and cast "
+           "back, which is bit-exact at m=1 (the PR promotes instead, so the "
+           "last bits will differ from a future upstream merge)."
+           % (scope, ", core state 'compat_needed'" if mode == "auto"
+              else ", forced by mode 'on'"))
+    if skipped:
+        rep += ("\n\nInstalled AHEAD of the diffusion_model wrapper(s) %s. "
+                "A wrapper that calls executor.original() skips every wrapper "
+                "after it (the SLA pack does), so being last would have made "
+                "this node inert while still reporting success." % sorted(skipped))
+    rep += "\n\nProof that it ran: %s (one line per change of mask shape)." % FIRED_LOG
+    log.info("H3MaskConversion: on (mode %s), scope %s, ahead of %s",
+             mode, scope, sorted(skipped) or "nothing else")
+    return m, rep
+
+
 class H3MaskConversion:
     """Install (or not) the #15988 fractional-mask velocity conversion."""
 
@@ -221,12 +360,17 @@ class H3MaskConversion:
             "required": {
                 "model": ("MODEL", {"tooltip":
                     "the H3 model this pass samples with"}),
-                "mode": (list(MODES), {"default": "off", "tooltip":
-                    "off = stock ComfyUI, the arm every existing result was "
-                    "measured on. on = PR #15988 semantics, velocity scaled "
-                    "by the denoise mask before the x0 conversion. A pass "
-                    "whose masks are all 0 or 1 renders identically either "
-                    "way; only fractional rows move."}),
+                "mode": (list(MODES), {"default": "auto", "tooltip":
+                    "auto = ask the running core (H3 Capability Probe's "
+                    "mask_velocity_conversion) and install only when it is "
+                    "'compat_needed'; native, pre-#15375 and unprovable cores "
+                    "get nothing. off = stock ComfyUI, the arm every "
+                    "pre-2026-09-03 result was measured on. on = force PR "
+                    "#15988 semantics, velocity scaled by the denoise mask "
+                    "before the x0 conversion. off and on are the research "
+                    "override: they are how an A/B is a widget instead of a "
+                    "restart. A pass whose masks are all 0 or 1 renders "
+                    "identically either way; only fractional rows move."}),
             },
             "optional": {
                 "scope": (list(SCOPES), {"default": "both", "tooltip":
@@ -245,42 +389,7 @@ class H3MaskConversion:
     DESCRIPTION = __doc__
 
     def patch(self, model, mode, scope="both"):
-        if mode not in MODES:
-            raise ValueError("mode must be one of %s" % (MODES,))
-        if scope not in SCOPES:
-            raise ValueError("scope must be one of %s" % (SCOPES,))
-
-        if mode == "off":
-            rep = ("H3 mask conversion OFF: stock ComfyUI. Masked rows are "
-                   "evaluated at m*sigma and converted with the global sigma. "
-                   "This is the arm every pre-2026-09-03 fractional-mask "
-                   "result was measured on.")
-            log.info("H3MaskConversion: off, nothing installed")
-            return (model, rep)
-
-        m = model.clone()
-        state = {"calls": 0, "first": None}
-        m.add_wrapper_with_key(_wrappers_diffusion_model(),
-                               WRAPPER_KEY,
-                               _make_wrapper(scope, state))
-        skipped = install_first(m)
-        rep = ("H3 mask conversion ON (PR #15988), scope '%s': the returned "
-               "velocity is scaled by the denoise mask before the x0 "
-               "conversion, so a row masked at m converts over m*sigma - the "
-               "same distance it was evaluated at. Endpoints are unchanged; "
-               "only rows strictly between 0 and 1 move. Multiplication is "
-               "done in float32 and cast back, which is bit-exact at m=1 "
-               "(the PR promotes instead, so the last bits will differ from "
-               "a future upstream merge)." % scope)
-        if skipped:
-            rep += ("\n\nInstalled AHEAD of the diffusion_model wrapper(s) %s. "
-                    "A wrapper that calls executor.original() skips every "
-                    "wrapper after it (the SLA pack does), so being last would "
-                    "have made this node inert while still reporting success."
-                    % sorted(skipped))
-        log.info("H3MaskConversion: on, scope %s, ahead of %s",
-                 scope, sorted(skipped) or "nothing else")
-        return (m, rep)
+        return apply_h3_mask_velocity_compat(model, scope, mode)
 
 
 NODE_CLASS_MAPPINGS = {"H3MaskConversion": H3MaskConversion}

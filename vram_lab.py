@@ -1567,6 +1567,19 @@ class H3StreamedBlocks:
         except Exception as _e:  # noqa: BLE001
             log.info("H3StreamedBlocks: collision report skipped (%s)", _e)
         m = model.clone()
+        # #15988 mask-velocity compat (A5, 2026-09-04). A low-VRAM graph that
+        # carries a fractional mask needs the correction too, and the node that
+        # builds the mask (H3TemporalInsert) emits a LATENT and cannot patch a
+        # model. One helper, two entry points; it is keyed and idempotent, so
+        # adding H3 Core Compatibility to the same chain is safe. It installs
+        # only when the capability probe says 'compat_needed'.
+        try:
+            from .h3_mask_conv import apply_h3_mask_velocity_compat
+            m, _mc_rep = apply_h3_mask_velocity_compat(m, "both", "auto")
+            log.info("H3StreamedBlocks: %s", _mc_rep.splitlines()[0])
+        except Exception as _e:  # noqa: BLE001  never block the block patcher
+            log.warning("H3StreamedBlocks: mask-velocity compat skipped (%s: %s)",
+                        type(_e).__name__, _e)
         for i, block in enumerate(blocks):
             m.set_model_patch_replace(_make_replacement(block, cfg, i), "dit", "double_block", i)
         fl = getattr(dm, "final_layer", None)
