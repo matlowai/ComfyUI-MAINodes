@@ -173,12 +173,47 @@ def _balanced_ranges(n, size, min_size):
     return out
 
 
+def _mod_row_range(vec, row, a, lo, hi):
+    """vec[row] for the rows [lo, hi) of a segment that starts at packed row `a`.
+
+    The counterpart of core's ``_mod_row`` (comfy/ldm/minimax/model.py:230) for a
+    CHUNKED consumer. Since ComfyUI #15375 a ``mod_segments`` row is either a
+    scalar mod-row index (all rows of the segment share a timestep) or a per-token
+    LongTensor with one index per row OF THAT SEGMENT, which is what a non-uniform
+    video/audio noise mask produces (model.py:669/671). A whole-segment row tensor
+    cannot broadcast against a chunk-sized slice of `h`, so it is sliced to the same
+    window; `lo - a` / `hi - a` convert packed coordinates to segment-relative ones.
+    Callers whose lo/hi are ALREADY segment-relative pass a=0 (see
+    streamed_final_layer_forward). MAINodes issue #5.
+    """
+    return vec[row[lo - a:hi - a]] if torch.is_tensor(row) else vec[row]
+
+
+def _mod_seg_kind(row):
+    """The modality tag of a segment (row % 3), whichever row form it carries.
+
+    Reading element 0 is exact, not a heuristic: core builds a per-token row as
+    ``rows_to_mod_index(rows_t, tag) = t_row[v] * 3 + tag`` (model.py:649-655) and
+    every call site passes ONE ``tag`` for the whole segment (``seg_tag[kind]``,
+    model.py:669/671). Only the timestep index t_row varies within a segment; the
+    modality tag is constant, so any element answers for all of them. Verified
+    against core 7d2640b3 (h3-fc-vsa-0829).
+    """
+    if torch.is_tensor(row):
+        if row.numel() == 0:
+            raise ValueError("empty per-token modulation row")
+        return int(row.reshape(-1)[0])
+    return int(row)
+
+
 def _mod_scale_shift_range(h, shift, scale, segments, c0, c1):
     """h is norm(x[c0:c1]); apply the per-segment affine restricted to [c0, c1)."""
     for a, b, row in segments:
         lo, hi = max(a, c0), min(b, c1)
         if lo < hi:
-            h[lo - c0:hi - c0].mul_(1.0 + scale[row].to(h.dtype)).add_(shift[row].to(h.dtype))
+            h[lo - c0:hi - c0].mul_(
+                1.0 + _mod_row_range(scale, row, a, lo, hi).to(h.dtype)
+            ).add_(_mod_row_range(shift, row, a, lo, hi).to(h.dtype))
     return h
 
 
@@ -187,7 +222,8 @@ def _mod_gate_range(x, gate, other, segments, c0, c1):
     for a, b, row in segments:
         lo, hi = max(a, c0), min(b, c1)
         if lo < hi:
-            x[lo:hi].addcmul_(other[lo - c0:hi - c0], gate[row].to(x.dtype))
+            x[lo:hi].addcmul_(other[lo - c0:hi - c0],
+                              _mod_row_range(gate, row, a, lo, hi).to(x.dtype))
     return x
 
 
@@ -528,7 +564,7 @@ def _exact_av_rows(o, qc, st, segments, c0, c1, out_dtype):
     global _EXACT_AV_LOGGED
     n = 0
     for sa, sb, row in segments:
-        if row % 3 == 0:                       # video rides the fp4 store
+        if _mod_seg_kind(row) % 3 == 0:        # video rides the fp4 store
             continue
         lo, hi = max(sa, c0), min(sb, c1)
         if lo >= hi:
@@ -820,7 +856,7 @@ def _exact_av_rows_mixed(o, qc, st, segments, c0, c1, out_dtype):
     global _EXACT_AV_LOGGED
     n = 0
     for sa, sb, row in segments:
-        if row % 3 == 0:                       # video rides the quantised stores
+        if _mod_seg_kind(row) % 3 == 0:        # video rides the quantised stores
             continue
         lo, hi = max(sa, c0), min(sb, c1)
         if lo >= hi:
@@ -1037,7 +1073,14 @@ class _PrecProbe:
 
     @staticmethod
     def _seg_kind(row):
-        return ("cond_" if row >= 3 else "") + ("video", "text", "audio")[row % 3]
+        # Diagnostic label only; never feeds the maths. The modality half is exact
+        # for both row forms (see _mod_seg_kind). The "cond_" half is a heuristic
+        # that reads t_row != 0 as a conditioning segment, and under per-token rows
+        # (#15375) a masked TARGET video segment can land on t_row >= 1 and be
+        # labelled cond_video. Left as is on purpose: the label is also the key of
+        # _FakeQuant's `segs` filter, so renaming it would change what that selects.
+        r = _mod_seg_kind(row)
+        return ("cond_" if r >= 3 else "") + ("video", "text", "audio")[r % 3]
 
     def _fq_nvfp4(self, x2d):
         from comfy_kitchen.tensor.nvfp4 import TensorCoreNVFP4Layout
@@ -1459,6 +1502,10 @@ def streamed_final_layer_forward(fl, x, t_emb, video_seg, audio_seg, chunk=16384
     shift, scale = fl.adaln_proj(t_emb)
 
     def head(a, b, row, out_mod):
+        # Since #15375 `row` may be a per-token LongTensor over THIS segment (one
+        # entry per row of [a, b)). c0/c1 below are already segment-relative -- they
+        # index x as x[a + c0:a + c1] -- so the row window is row[c0:c1] and the
+        # segment start `a` must NOT be subtracted again: _mod_row_range takes a=0.
         n = b - a
         if exact_gemm:
             # exact tier: chunk only the norm/mod/fp32 promotion into ONE fp32 buffer,
@@ -1466,7 +1513,9 @@ def streamed_final_layer_forward(fl, x, t_emb, video_seg, audio_seg, chunk=16384
             # Transient: one [n, hidden] fp32 (4.28 GiB at 213k rows) instead of ~10.7.
             hbuf = torch.empty((n, x.shape[1]), dtype=torch.float32, device=x.device)
             for c0, c1 in _ranges(n, chunk):
-                hbuf[c0:c1] = fl.norm(x[a + c0:a + c1]) * (1.0 + scale[row]) + shift[row]
+                hbuf[c0:c1] = (fl.norm(x[a + c0:a + c1])
+                               * (1.0 + _mod_row_range(scale, row, 0, c0, c1))
+                               + _mod_row_range(shift, row, 0, c0, c1))
             out = out_mod(hbuf)
             del hbuf
             return out
@@ -1474,7 +1523,9 @@ def streamed_final_layer_forward(fl, x, t_emb, video_seg, audio_seg, chunk=16384
         # measured max |d| ~5e-6 vs stock on random weights). Transient ~chunk-sized.
         parts = []
         for c0, c1 in _ranges(n, chunk):
-            h = (fl.norm(x[a + c0:a + c1]) * (1.0 + scale[row]) + shift[row]).to(torch.float32)
+            h = (fl.norm(x[a + c0:a + c1])
+                 * (1.0 + _mod_row_range(scale, row, 0, c0, c1))
+                 + _mod_row_range(shift, row, 0, c0, c1)).to(torch.float32)
             parts.append(out_mod(h))
             del h
         return parts[0] if len(parts) == 1 else torch.cat(parts, dim=0)
