@@ -48,9 +48,16 @@ def check(name, cond, detail=""):
 
 
 def have_comfy():
-    root = os.path.dirname(os.path.dirname(HERE))      # .../ComfyUI
-    if root not in sys.path:
-        sys.path.insert(0, root)
+    # installed layout is <ComfyUI>/custom_nodes/<pack>; a git worktree of the
+    # pack lives anywhere, and silently skipping 4/5/6 there loses the PR
+    # contract checks exactly where the work is being done.
+    for root in (os.path.dirname(os.path.dirname(HERE)),
+                 os.environ.get("COMFYUI_ROOT", ""),
+                 "/mnt/work/ai/apps/ComfyUI"):
+        if root and os.path.isdir(os.path.join(root, "comfy", "ldm", "minimax")):
+            if root not in sys.path:
+                sys.path.insert(0, root)
+            break
     try:
         import comfy.model_sampling  # noqa: F401
         return True
