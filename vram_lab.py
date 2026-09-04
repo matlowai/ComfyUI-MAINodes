@@ -1539,6 +1539,61 @@ def streamed_final_layer_forward(fl, x, t_emb, video_seg, audio_seg, chunk=16384
     return v, a
 
 
+def _final_layer_head_bank(fl):
+    """How many PDD heads FinalLayer's output weights are stacked into, or None
+    if that cannot be read off this model.
+
+    ComfyUI #15908 lets a PDD LoRA stack n heads into video_out/audio_out and
+    blends the ones a step spans, dt-weighted (model.py:317-332).
+    streamed_final_layer_forward predates the bank: it would silently return head
+    0's prediction, which is wrong output with no error. So the rule is prove
+    n == 1 or do not stream -- a quantised or proxy weight whose `.weight.shape`
+    does not divide `out_features` reads as unknown, not as one head.
+    """
+    try:
+        vo = fl.video_out
+        rows, out = int(vo.weight.shape[0]), int(vo.out_features)
+    except Exception:  # noqa: BLE001  (proxy/quantised weight without a plain shape)
+        return None
+    if out <= 0 or rows <= 0 or rows % out:
+        return None
+    return rows // out
+
+
+_FL_STOCK_LOGGED = False
+
+
+def _final_layer_forward_factory(fl, chunk, exact, min_tokens, probe_owner=None):
+    """The object patch installed over `diffusion_model.final_layer.forward`.
+
+    Signature note (MAINodes issue #4): core's FinalLayer.forward grew three
+    positional arguments in #15908 (sigma, sample_sigmas, shifts). The captured
+    values used to sit in the 5th/6th/7th parameter slots, so core's new
+    positionals bound INTO them -- `_fl` became a Tensor and the first
+    dereference raised `'Tensor' object has no attribute 'adaln_proj'`. `*extra`
+    makes the captures keyword-only; `**kwargs` is there for the next time core
+    grows an argument. Everything core passes is forwarded to the stock path.
+    """
+    def _fl_forward(x, t_emb, video_seg, audio_seg, *extra,
+                    _fl=fl, _c=int(chunk), _e=bool(exact), **kwargs):
+        global _FL_STOCK_LOGGED
+        n_heads = _final_layer_head_bank(_fl)
+        if n_heads != 1:                       # >1 head, or unproven: stock, never stream
+            if not _FL_STOCK_LOGGED:
+                _FL_STOCK_LOGGED = True
+                log.warning("H3StreamedBlocks: final-layer streaming OFF (%s); "
+                            "blocks still stream, only the final layer runs stock",
+                            "PDD head bank of %d" % n_heads if n_heads
+                            else "the output head bank could not be read")
+            return type(_fl).forward(_fl, x, t_emb, video_seg, audio_seg, *extra, **kwargs)
+        if x.shape[0] < min_tokens:
+            return type(_fl).forward(_fl, x, t_emb, video_seg, audio_seg, *extra, **kwargs)
+        return streamed_final_layer_forward(_fl, x, t_emb, video_seg, audio_seg, chunk=_c,
+                                            probe=getattr(probe_owner, "_h3_memprobe", None),
+                                            exact_gemm=_e)
+    return _fl_forward
+
+
 # --------------------------------------------------------------------------- node
 
 class H3StreamedBlocks:
@@ -1624,12 +1679,9 @@ class H3StreamedBlocks:
         if final_layer_chunk and fl is not None and hasattr(fl, "video_out") and hasattr(fl, "audio_out"):
             _exact = str(final_layer_gemm).startswith("exact")
 
-            def _fl_forward(x, t_emb, video_seg, audio_seg, _fl=fl, _c=int(final_layer_chunk), _e=_exact):
-                if x.shape[0] < cfg["min_tokens"]:
-                    return type(_fl).forward(_fl, x, t_emb, video_seg, audio_seg)
-                return streamed_final_layer_forward(_fl, x, t_emb, video_seg, audio_seg, chunk=_c,
-                                                    probe=getattr(dm, "_h3_memprobe", None), exact_gemm=_e)
-            m.add_object_patch("diffusion_model.final_layer.forward", _fl_forward)
+            m.add_object_patch("diffusion_model.final_layer.forward",
+                               _final_layer_forward_factory(fl, final_layer_chunk, _exact,
+                                                            cfg["min_tokens"], dm))
         if trim_forward:
             sha = _stock_forward_sha()
             if sha == _STOCK_FORWARD_SHA and hasattr(dm, "_forward"):
