@@ -290,3 +290,29 @@ children stops collecting n times the softmax mass it represents.
 Hypothesis under test, nothing measured yet: the uniform case is a no-op by
 construction (`tests/test_attention_measure.py`), and whether the correction
 changes a real render is exactly the open question.
+
+## Core compatibility (H3 Core Compatibility, H3 Mask Conversion)
+
+`h3_core_compat.py` and `h3_mask_conv.py`, nodes `H3 Core Compatibility
+(alpha)` and `H3 Mask Conversion (alpha)`, both MODEL -> MODEL. Since ComfyUI
+#15375 a masked H3 row is labelled at `m * sigma` inside the network, but the
+velocity it returns is converted to x0 at the full sigma. Every fractional
+mask value lands off target (endpoints 0 and 1 are unaffected). ComfyUI PR
+#15988 fixes it in core; until that merges, these nodes install the same
+correction as a keyed `DIFFUSION_MODEL` wrapper at the PR's insertion point.
+
+`H3 Core Compatibility` is the one to wire: `auto` installs the correction
+only when `H3 Capability Probe` reads the running core as `compat_needed`, and
+does nothing on a core that already carries #15988, on a core older than
+#15375, or on any core whose `forward` cannot be attributed (a second scaling
+would give mask^2 * v, worse than the bug). `H3 Streamed Blocks` calls the same
+helper, so low-VRAM graphs need no rewiring, and applying both is safe.
+`H3 Mask Conversion` is the instrument form: `off` / `on` / `scope`
+(video, audio, both) for A/Bs on one warm process.
+
+Measured 2026-09-04 on one machine: bit-exact against a core with #15988
+applied, on tensors, on real weights, and on same-seed renders (identical
+audio and video, with a mode-off control that differs in every frame).
+Alpha because the capability probe reads core source, and a core that
+rewrites `MiniMaxH3Model.forward` in a way the probe has not seen turns the
+node off with a warning rather than guessing.
