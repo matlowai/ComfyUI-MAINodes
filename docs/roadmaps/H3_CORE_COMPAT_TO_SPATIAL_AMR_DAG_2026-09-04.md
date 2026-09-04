@@ -36,6 +36,9 @@ written back here.
 | USDU H3 fork history (cloned read-only to `ComfyUI-ModelCatalog/reference/usdu_h3`, gitignored) | `8360ef6` 2026-08-16 adds the nested mask (video ones, audio zeros) and RETURNS it; `6836cf3` 2026-08-21 "Audio mask issue fixing" removes only the return. #15375 merged 2026-08-17/18 between them: the same mask went from sampler-only (video all-ones = no-op, audio zeros = sampler blend of an empty template) to MODEL-SIDE (audio rows injected at cond strength from an empty template, per-row labels, audio rescale). The rollback correlates with #15375 first; #15988 (#15981 filed 08-30) is a second, later layer. Reproduce, do not assume |
 | Successor tiler (`reference/catr`, GPL-3.0, cloned read-only) | Carries `docs/h3-video-chunking-findings.md`: a full H3 seam investigation dated 2026-08-11/12 on ComfyUI 0.31/0.32, i.e. PRE-#15375. Spatial tile seam 0.2-1.5/255 after DC match, seed-dependent (seed moves it 3x, context_anchor 0.05), overlap width 32->128 null, "seamless on static, unusable on pans". Temporal frozen head WORKS with three levers. VAE round trip costs 1.849/255. H3 does not tolerate latent_t=1 (5-frame floor). Their harness is `tests-AB/run_ab_h3seam.py` |
 | Which of those three levers are native NOW | hold anchor: NATIVE since #15375 (`MiniMaxH3.scale_latent_inpaint` injects preserved video at 0.999 clean + rescales audio; Blakeem hand-patched this on 0.32). clean label: NATIVE since #15375 (per-row `t_pin_v = 0.999` for m=0 rows). continued/global noise: NOT native, NOT in MAINodes (no `prepare_noise` or noise-offset anywhere in our tree). Their "untested spatial lever, per-row timesteps for a non-contiguous ring" is exactly what #15375 now provides, so S1 is that experiment |
+| V1 result (night 09-04, `ModelCatalog/docs/measurements/night_0904_E4/`) | The VAE does NOT own the tile seam on fresh content: band excess did not follow the bands when the crop moved them (z=+1.42, p=0.085) and stayed with the content (z=+4.20). The panrun plate is itself an H3 decode and arrives PRE-STAMPED at 192/384/576/768 (y only, z=+7.79); real GoPro footage is not. What is real: the /16 decoder patch lattice (1.15-1.60x everywhere), and +0.080/255 for a region crossing two bands vs single-tile. Whole round trip 2.6-4.9/255, the 1.85/255 prior is not a constant. `tile_size`/`tile_overlap_min` are NOT reachable from a graph (sd.py:1000, vae.py:691-696 discard comfy kwargs), so V2 larger-overlap cannot run without a node |
+| C1 result (E0 assay, anime plate, no photo rung) | Face destroyed <=31 px (SSIM <0.48), degraded 50-63 px (SSIM 0.73-0.82, ~50% edge energy), usable from 94 px (SSIM 0.91), clean at 180. Hands track the same curve. The EYE binds: 23 px inside a 94 px face at 0.75 edge retention. At 64 px the VAE is already the constraint, so a stride-1 win there is un-attributable: E2/C3 use faces >= 96 px |
+| Phase A status | A0/A8/A1/A2/A3/A5 DONE on branch `night-0904-int` (pushed, not merged): per-token rows, FinalLayer + PDD fallback, 4-state capability, auto-gated shim, H3 Core Compatibility node, mask-shape contract. Owed: A6 parity on `/mnt/work/ai/apps/ComfyUI-15988` (core-15988-parity = 7d2640b3 + bdafd192) incl. the four cuda/H3_CKPT vram_lab tests, then A7 |
 | Issues open | #4, #5 (FaceRefine author, fix branches offered), #6 (temporal pass smearing, awaiting the reporter's workflow) |
 | Void measurements | 169 `audio_strength 0.5` instances and all drift-control rows are void until replayed under corrected mask math (memory card 2026-09-03) |
 
@@ -257,7 +260,7 @@ stock / late / always. THINK: this is a smoke test, not a benchmark; if both are
 catastrophic, check position ids, row order, scatter, modulation segments before
 declaring the idea dead.
 
-**C3 E2 face ROI A/B + coordinate control** (one evening). Stock / AMR halo 1
+**C3 E2 face ROI A/B + coordinate control** (one evening). Face >= 96 px (C1: below that the VAE binds, not the DiT). Stock / AMR halo 1
 sigma_start 0.85 / FaceRefine. Add the chat's control: B stride-1 with correct XY vs
 C stride-1 with deliberately rebased XY. B >> C reproduces #15982 spatially and is
 the cleanest possible proof that coordinates, not density, carry the effect. THINK:
@@ -408,7 +411,11 @@ residual / indecision-benefit pilot. Not planned further until C6 exists.
    context), coordinate/RoPE drift (#15982 in time, S5 in space), noise-field
    discontinuity (B4/S4 global noise), VAE/codec crop framing (V1), and
    compositing/photometric mismatch (hard vs soft mask, native geometry, DC).
-   A motion seam is a symptom of any of the first four, never a sixth cause. A seam report names a
+   A motion seam is a symptom of any of the first four, never a sixth cause.
+   Sixth PROVENANCE check, not a family: a plate that is itself an H3 decode is
+   pre-stamped at the VAE band positions (V1, y-axis z=+7.79 on panrun). Run
+   `benchmarks/scripts/vae_source_band_stamp.py` on the SOURCE before assigning
+   any seam to a family. A seam report names a
    symptom, not a family; V1 and the seam-position map assign the family before
    anything is "fixed".
 7. **Hard model mask is never the soft output feather.** A Gaussian tail of 1e-4
