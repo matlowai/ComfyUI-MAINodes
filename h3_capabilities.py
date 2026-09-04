@@ -27,6 +27,7 @@ from __future__ import annotations
 import inspect
 import logging
 import os
+import re
 import subprocess
 import sys
 
@@ -68,6 +69,104 @@ def _git_head(root):
         return None
 
 
+# ---- #15988: is the mask-velocity conversion native, needed, or unsafe? -----
+#
+# H3 evaluates a row masked at m as if it were at `m * sigma` (#15375, merged
+# 2026-08-18), but the outer CONST conversion still divides by the GLOBAL
+# sigma, so a fractional row converts over the wrong distance. Community PR
+# #15988 fixes it with two multiplications inserted after the wrapped
+# `_forward` and before the audio carry. This pack can install the same
+# correction as a DIFFUSION_MODEL wrapper (h3_mask_conv.py) - but only when
+# nothing else already does it, because a second multiplication gives
+# `mask^2 * v`, which is a WORSE error than the bug.
+#
+# So the detector is deliberately asymmetric: it must never say
+# `compat_needed` when some other implementation could already be scaling.
+# Everything it cannot prove is `unknown`, and `unknown` means hands off.
+#
+# Whitespace and `*=` variants are tolerated; the PR may be reformatted or
+# rebased before it merges, and a hash would be stale the day it lands.
+_MASK_MULT_VIDEO = re.compile(
+    r"out\s*\[\s*0\s*\]\s*(?:\*=|=\s*out\s*\[\s*0\s*\]\s*\*)\s*denoise_mask\b")
+_MASK_MULT_AUDIO = re.compile(
+    r"out\s*\[\s*1\s*\]\s*(?:\*=|=\s*out\s*\[\s*1\s*\]\s*\*)\s*audio_denoise_mask\b")
+# the wrapped call: `WrapperExecutor.new_class_executor(self._forward, ...)`
+_WRAPPED_FORWARD = re.compile(r"WrapperExecutor[\s\S]{0,400}?self\._forward")
+# the outer audio carry, a single line assigning out[1] from the carried variable
+_AUDIO_CARRY = re.compile(r"^[^\n\S]*out\s*\[\s*1\s*\]\s*=[^\n]*\bcarry\b[^\n]*$", re.M)
+
+MASK_VELOCITY_STATES = ("native", "compat_needed", "legacy_no_model_mask", "unknown")
+
+
+def classify_mask_velocity(forward_src, forward_owner, per_token_masks):
+    """The `mask_velocity_conversion` state from `MiniMaxH3Model.forward` alone.
+
+    ``forward_src`` is the source of THAT FUNCTION, not of the module: the
+    module also holds tests, comments and the `mask_row_values` helper, any of
+    which could spell the two multiplications without performing them.
+
+    ``per_token_masks`` is the #15375 capability (True / False / "unknown").
+    """
+    src = forward_src or ""
+    video = bool(_MASK_MULT_VIDEO.search(src))
+    audio = bool(_MASK_MULT_AUDIO.search(src))
+    if video and audio:
+        # Someone already scales BOTH streams at the right point: core after
+        # #15988 merges, or a pack that carries it. Either way we install
+        # nothing. Ownership is not consulted here on purpose - the risk this
+        # state exists to avoid is double scaling.
+        return "native"
+    if per_token_masks is False:
+        # pre-#15375: no model-side local row timestep exists to correct
+        return "legacy_no_model_mask"
+    if video or audio:
+        return "unknown"          # half a fix; completing it is not our call
+    if per_token_masks is not True:
+        return "unknown"          # comfy.model_base source unreadable
+    if not src:
+        return "unknown"          # forward source unreadable (compiled/exec'd)
+    w = _WRAPPED_FORWARD.search(src)
+    if w is None:
+        return "unknown"          # no WrapperExecutor: our wrapper would never fire
+    c = _AUDIO_CARRY.search(src)
+    if c is None or c.start() < w.end():
+        return "unknown"          # carry missing, or BEFORE the wrapped call
+    if forward_owner != "comfy core":
+        return "unknown"          # a foreign rewrite; its semantics are unproven
+    return "compat_needed"
+
+
+H3_MODEL_MODULE = "comfy.ldm.minimax.model"
+
+
+def _forward_owner(fn):
+    """Owner label for a core method, from BOTH its file and its __module__.
+
+    `_owner_of` reads `co_filename`, which is the harder of the two to fake;
+    `__module__` catches the case where a pack assigns a function it defined
+    elsewhere onto the class. A rewrite this pack has actually met on disk
+    reassigns `MiniMaxH3Model.forward`, `._forward` and `FinalLayer.forward`
+    process-wide at node-execution time, so the class object alone proves
+    nothing about what will run: both signals must say core, or the answer is
+    the pack, and the mask-velocity state degrades to `unknown`.
+    """
+    owner = _owner_of(fn)
+    mod = getattr(fn, "__module__", None)
+    if owner == "comfy core" and mod and mod != H3_MODEL_MODULE:
+        return mod
+    return owner
+
+
+def _h3_forward():
+    """(source, owner) of the running `MiniMaxH3Model.forward`."""
+    h3m = _import("comfy.ldm.minimax.model")
+    cls = getattr(h3m, "MiniMaxH3Model", None) if h3m is not None else None
+    fn = getattr(cls, "forward", None) if cls is not None else None
+    if fn is None:
+        return "", "?"
+    return _src(fn), _forward_owner(fn)
+
+
 def probe_core() -> dict:
     """Capabilities of the running ComfyUI for H3, read from source.
 
@@ -101,6 +200,10 @@ def probe_core() -> dict:
     s = _src(h3m)
     caps["arbitrary_keyframe_position"] = ("resolved_frame_index" in s) if s else "unknown"
     caps["mask_rows_fractional"] = ("def mask_row_values" in s) if s else "unknown"
+    _fsrc, _fowner = _h3_forward()
+    caps["mask_velocity_conversion"] = classify_mask_velocity(
+        _fsrc, _fowner, caps.get("per_token_masks"))
+    caps["h3_forward_owner"] = _fowner
 
     nodes = _import("comfy_extras.nodes_minimax_h3")
     s = _src(nodes)
@@ -219,7 +322,8 @@ def format_report(caps: dict, rep: dict) -> str:
     lines = ["H3 capabilities (read from the installed source, not a version number)"]
     if caps.get("comfy_commit"):
         lines.append(f"  comfy: {caps['comfy_commit']}  ({caps.get('comfy_root')})")
-    order = ("per_token_masks", "mask_rows_fractional", "clip_guide", "audio_guide",
+    order = ("per_token_masks", "mask_rows_fractional", "mask_velocity_conversion",
+             "clip_guide", "audio_guide",
              "arbitrary_keyframe_position", "keyframe_plus_refs", "length_rounds_up",
              "tokenizer_special_tokens", "visual_cond_noise_aug", "audio_cond_noise_aug",
              "qwen_ref_video_2fps", "tae_h3_decoder", "sageattention")
@@ -230,10 +334,21 @@ def format_report(caps: dict, rep: dict) -> str:
         "mask_rows_fractional": "the H3 path accepts fractional mask rows; the generic mask path rounds to binary first",
         "length_rounds_up": "generation length rounds UP to 17k+5; clip guides and ref video round DOWN",
     }
+    mvc_notes = {
+        "native": "#15988 behaviour present in MiniMaxH3Model.forward; the MAINodes shim stays OFF",
+        "compat_needed": "#15988 NOT native; H3 Core Compatibility / H3 Mask Conversion can correct it",
+        "legacy_no_model_mask": "pre-#15375 core: no model-side mask timesteps, nothing to correct",
+        "unknown": "cannot prove who scales the velocity; the shim stays OFF rather than risk mask^2*v",
+    }
     for k in order:
         v = caps.get(k, "unknown")
         tag = {True: "yes", False: "NO"}.get(v, str(v))
         n = notes.get(k, "")
+        if k == "mask_velocity_conversion":
+            n = mvc_notes.get(str(v), "")
+            if str(v) == "unknown" and caps.get("h3_forward_owner") not in (None, "comfy core", "?"):
+                n += f" (MiniMaxH3Model.forward is owned by {caps['h3_forward_owner']})"
+            tag = f"{tag:20s}"
         lines.append(f"  {k:28s} {tag:10s} {n}")
     lines.append("who has a hand on this model")
     if rep.get("double_block_owners"):
