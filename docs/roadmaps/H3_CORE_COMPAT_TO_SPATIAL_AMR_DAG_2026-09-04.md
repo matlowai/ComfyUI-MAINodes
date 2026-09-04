@@ -33,6 +33,9 @@ written back here.
 | H3 USDU fork the supplement audits (`lisitskyaa/...Guider_H3`) | NOT installed here. Installed: `Comfyui-MMH3-UltimateUpscale` (bbaudio, 850f4dc) and a latent upscaler from the review tree. S0 must decide which tree to patch |
 | H3 VAE (`comfy/ldm/minimax/vae.py`) | `space_down` ratio 16, `time_down` ratio 4, `tile_size=256`, `tile_overlap_min=64`, `tiling=True`, `ViT3DDecoder`. Memory: H3 ignores comfy's generic VAE tiling knobs; standalone decode has no `no_grad` (77-89 GiB OOM) |
 | Time-first machinery | `H3TimeSmear`, `H3ExactRecover`, `H3SegmentCrop` in `motion.py`; `H3RepairPlan/Splice` in `h3_repair.py`; crop-refine + shift-12 denoise table in the `h3-spatial-refine` skill. Stage S already has a home |
+| USDU H3 fork history (cloned read-only to `ComfyUI-ModelCatalog/reference/usdu_h3`, gitignored) | `8360ef6` 2026-08-16 adds the nested mask (video ones, audio zeros) and RETURNS it; `6836cf3` 2026-08-21 "Audio mask issue fixing" removes only the return. #15375 merged 2026-08-17/18 between them: the same mask went from sampler-only (video all-ones = no-op, audio zeros = sampler blend of an empty template) to MODEL-SIDE (audio rows injected at cond strength from an empty template, per-row labels, audio rescale). The rollback correlates with #15375 first; #15988 (#15981 filed 08-30) is a second, later layer. Reproduce, do not assume |
+| Successor tiler (`reference/catr`, GPL-3.0, cloned read-only) | Carries `docs/h3-video-chunking-findings.md`: a full H3 seam investigation dated 2026-08-11/12 on ComfyUI 0.31/0.32, i.e. PRE-#15375. Spatial tile seam 0.2-1.5/255 after DC match, seed-dependent (seed moves it 3x, context_anchor 0.05), overlap width 32->128 null, "seamless on static, unusable on pans". Temporal frozen head WORKS with three levers. VAE round trip costs 1.849/255. H3 does not tolerate latent_t=1 (5-frame floor). Their harness is `tests-AB/run_ab_h3seam.py` |
+| Which of those three levers are native NOW | hold anchor: NATIVE since #15375 (`MiniMaxH3.scale_latent_inpaint` injects preserved video at 0.999 clean + rescales audio; Blakeem hand-patched this on 0.32). clean label: NATIVE since #15375 (per-row `t_pin_v = 0.999` for m=0 rows). continued/global noise: NOT native, NOT in MAINodes (no `prepare_noise` or noise-offset anywhere in our tree). Their "untested spatial lever, per-row timesteps for a non-contiguous ring" is exactly what #15375 now provides, so S1 is that experiment |
 | Issues open | #4, #5 (FaceRefine author, fix branches offered), #6 (temporal pass smearing, awaiting the reporter's workflow) |
 | Void measurements | 169 `audio_strength 0.5` instances and all drift-control rows are void until replayed under corrected mask math (memory card 2026-09-03) |
 
@@ -54,14 +57,25 @@ graph TD
   A7 --> B1
   A7 --> B2
   A7 --> C0
-  A7 --> S0
+  A0 --> S0
+  A0 --> V1
+  A7 --> S1
+  A8[A8 mask-shape contract test:
+nested mask before/after comfy prep] --> A5
+  A0 --> A8
+  A7 --> B4
+  B4[B4 continued noise for OUR chains:
+draw long, slice at global offset,
+extend/heal + TemporalInsert A/B] --> B3
   S0[S0 audit: which H3 tiler is on disk,
 pin commit, instrument crop/mask/latent geometry] --> S1
+  T1[T1 mask-history triangulation:
+core version x mask, 4 arms] --> S2
+  A7 --> T1
   S1[S1 hard mask split + nested H3 frozen-context mask,
 sequential batch=1, 3x640x1088, 64px, no blur, no seam-fix] --> S2
   S2[S2 A vs C: does frozen neighbour
 kill the moving seam] --> S3
-  S2 --> V1
   S3[S3 native /32 crops, no resize-in/out] --> S4
   V1[V1 pure VAE roundtrip seam test,
 no DiT: which subsystem owns the seam] --> S4
@@ -145,6 +159,8 @@ six cases in the compat handoff s.6.3. `format_report` line. GATE: never
 detector is the only thing standing between users and `mask^2 * v`; over-caution
 is correct here.
 
+**A8 mask-shape contract test** (30 min, needs only A0). Record the nested (video, audio) mask shape and dtype before and after comfy's mask preparation and `_pool_masks_to_token_grid` on this exact core, for a 5-D video latent and the audio latent. The successor tiler normalises to a single-channel broadcastable form because channel-expanded masks get re-prepared wrongly; the USDU fork used `ones_like(video_latent)` (channel-expanded). Pin which form H3 wants. THINK: this is the cheapest test in the plan and it de-risks S1, TemporalInsert, and every mask the AMR ROI will build.
+
 **A5 the shim grows up** (2 h). `h3_mask_conv.py` already does the math; add:
 consult A3 (`native` or `legacy` -> no-op with a report line; `unknown` -> warn,
 no-op; `compat_needed` -> install), `remove_wrappers_with_key` before add so
@@ -214,6 +230,8 @@ changing it moves the window-period power. THINK: a local subclip with a local o
 is legitimate if all its conditioning is local; this is instrument-first, patch never,
 until the table exists.
 
+**B4 continued noise for our own chains** (half day + one night). Neither core nor MAINodes draws one long noise field and slices it at a global offset; every chunk at the same seed restarts the field at its join. The successor's measurement on a 5-frame frozen head: DC blue +1.37 -> +0.13, green +2.11 -> +0.78 from this alone. Build it as a noise provider node (seed, global length, offset), then A/B on the extend/heal reference chain and on a TemporalInsert render. GATE: same-seed identity when offset=0 and global length equals local length. THINK: this is the one lever from their frozen-head recipe that did not go native with #15375; hold-anchor and clean-label already did, so do not re-implement those.
+
 **B3 fold** (1 h). One page: which effects were the bug, which are model behaviour,
 what the adapter still earns. Prune the verdict queue the moment a ruling lands.
 
@@ -255,13 +273,21 @@ appended-head-dim trick already avoids it.
 
 ### Phase S: spatial context and tiling (supplement #2 is the spec; sibling of C, same gate)
 
-Runs beside Phase C on the other card. Both need A7. Neither needs the other,
-except S5 and C0 share one piece of code.
+Runs beside Phase C on the other card (ruling 09-04: separate cards, independently
+reproducible, first C+S integration only after each beats its own baseline). Gate is
+per-experiment, not per-phase: S0, V1, A8, layout tests, and the noise-field
+infrastructure need only A0; anything that hands H3 a denoise mask waits for A7.
+S5 and C0 share one piece of code.
 
-**S0 audit** (1 h). The supplement audits a USDU fork that is not on this box.
-Decide: install that fork into the lab tree (never production custom_nodes), or
-port its three findings (discarded nested mask, H3 excluded from anchor_context,
-LANCZOS resize-in/out) into whichever tiler we actually run. Pin the commit.
+**S0 two-repo audit** (2 h, needs A0 only). Ruling 09-04: the behavioural fixture
+is the USDU H3 fork (pin `6836cf3` current and `8360ef6` historical), installed into
+the LAB tree only, never production custom_nodes; the design reference is the
+successor tiler; neither becomes the long-term owner, the deliverable lands in
+MAINodes. Read `reference/catr/docs/h3-video-chunking-findings.md` in full first;
+it is the only measured H3 seam study we have and it predates #15375, so re-derive
+which of its levers are now native (table in s.0) before copying any of them.
+Derive editability from core/crop/history geometry, never from the fork's
+`ProcessedRegionTracker` (initialised None; CONTEXT_ONLY silently skips without it).
 Instrument: crop region, actual crop size, processing size, encoded latent shape,
 mask min/max/unique, committed core, tile order. THINK: survey installed packs
 first; the installed pack may already do some of this.
@@ -277,7 +303,20 @@ whole row live; frozen is token-level, the VAE spreads decoded content across th
 boundary (memory: frozen-is-token-level), so expect a residual VAE band even when
 the diffusion seam is gone.
 
-**S2 A vs C** (one evening). Same clip/seed/schedule/denoise. Arms: A current,
+**T1 mask-history triangulation** (one evening, after A7). The variable is
+core version x mask, not just mask. Arms: (1) `6836cf3` as shipped, no mask;
+(2) `8360ef6` mask returned on current core (video ones, audio zeros: empty audio
+injected clean); (3) arm 2 + the #15988 shim; (4) arm 3 + the S1 frozen-neighbour
+video mask. Optional (5): arm 2 on a pre-#15375 worktree to reproduce the fork's
+original working state. GATE: says separately whether #15375/#15988 explain the
+rollback and whether frozen context moves the seam. THINK: the "audio mask issue"
+most plausibly is empty-template audio rows arriving at cond strength; log the
+audio rows' label and content, not just the video.
+
+**S2 A vs C** (one evening). Two seeds minimum: the successor measured the H3 tile
+seam as seed-dependent (3x) and context_anchor as non-replicating across seeds, so a
+one-seed win is not a result. Prefer pan/action content (their "unusable" regime;
+the panrun reference scene qualifies). Same clip/seed/schedule/denoise. Arms: A current,
 B mask attached only (video all-ones, audio frozen empty), C B + hard frozen
 neighbour, D C + 8/16 px feather. Seam metrics at x=640/1280 over time (gradient,
 flow discontinuity, their temporal derivatives) with control columns away from the
@@ -288,16 +327,20 @@ template and that can change video conditioning.
 **S3 native geometry** (2 h + rerun). Move H3 detection before the resize decision,
 /32-aligned crop, no LANCZOS either way, commit only core. Rerun S2's clip.
 
-**V1 VAE roundtrip** (parallel, no DiT). Source -> encode -> decode at stock
+**V1 VAE roundtrip** (needs A0 only, no DiT, promoted ahead of every masked render; prior 1.849/255 per round trip). Source -> encode -> decode at stock
 tiling, larger overlap, halo/commit-interior prototype, whole-frame gold where
 VRAM permits. Map seam energy to diffusion boundaries vs the VAE's 256/64 tiling
 vs composite boundaries. THINK: the decoder is a ViT, no finite conv halo gives
 exact parity, sweep it; wrap decode in no_grad; comfy's tiled-decode widgets do not
 reach this VAE.
 
-**S4 residual isolation**, in order and one at a time: context 64/96/128; feather;
-global noise field cropped per tile (prepare once at global latent shape, /32 crops,
-same sigmas); frozen REAL audio (encode the chosen performance once, reuse for every
+**S4 residual isolation**, in order and one at a time: context 64/96/128 (prior:
+null in their data); feather; global noise field cropped per tile (prepare once at
+global latent shape, /32 crops, same sigmas; first-class in the S6 design, per-tile
+noise stays as the control); anchor-vs-overlap source: (a) finished neighbour frozen
+to the core edge, zero shared diffused band, (b) frozen anchor + shared overlap taken
+from the RAW source, (c) re-diffuse the finished neighbour's band (double VAE+diffusion
+in series, expected worst); frozen REAL audio (encode the chosen performance once, reuse for every
 tile, audio mask 0, never return Stage-S audio unless asked). THINK: audio is the
 product elsewhere in this program; Stage S must not silently replace it.
 
@@ -361,18 +404,23 @@ residual / indecision-benefit pilot. Not planned further until C6 exists.
    forbids merging an offset without a MAINodes-specific reproduction. It is a
    gate for Phase C only in the sense that C3's coordinate control is the same
    principle; it is not a blocker for A7.
-6. **Four seam families, four rulers.** Diffusion/world disagreement (fix: frozen
-   context), VAE reconstruction tiling (fix: VAE chunk strategy, V1 decides),
-   pixel compositing (fix: hard mask vs soft feather, native geometry), and
-   coordinate/window error (#15982 in time, S5 in space). A seam report names a
+6. **Five ownership classes, five rulers.** Diffusion/context drift (frozen
+   context), coordinate/RoPE drift (#15982 in time, S5 in space), noise-field
+   discontinuity (B4/S4 global noise), VAE/codec crop framing (V1), and
+   compositing/photometric mismatch (hard vs soft mask, native geometry, DC).
+   A motion seam is a symptom of any of the first four, never a sixth cause. A seam report names a
    symptom, not a family; V1 and the seam-position map assign the family before
    anything is "fixed".
 7. **Hard model mask is never the soft output feather.** A Gaussian tail of 1e-4
    thresholded at >0 makes a row fully live. Sampling/freeze semantics and blend
    semantics are separate tensors with separate knobs, in S1 and in C0's ROI mask.
-8. **One subproblem abstraction.** World extent (global t, x, y) / local compute
-   crop / position transform local->global / editability mask / immutable context
-   source. De-rope, temporal insert, tiles, ROI refine, and windows are all
+8. **One subproblem abstraction, as a value object.** `WorldViewSpec`: world
+   extent (global t, x, y) / crop extent / position transform local->global /
+   editability (hard ownership) / context source (raw, live, finished neighbour) /
+   noise mapping (global-coordinate field) / latent mapping (pixels <-> VAE <-> rows).
+   One `H3LayoutAdapter` consumes it; a `WritebackPolicy` (owned core, overlap,
+   feather, DC) sits downstream, never inside it. Immutable value + adapter, not a
+   subclass hierarchy. De-rope, temporal insert, tiles, ROI refine, and windows are all
    instances. Do not build the framework before S2 and C3 report, but name every
    new interface in these terms so it folds later.
 
@@ -401,5 +449,6 @@ core whose mask math is unverified. Train anything before C6. Judge masked tilin
 1. Commit the compat handoff as received (names the reporter as a person), scrub, or keep local?
 2. Reply to #4/#5 now with "taking both, capability-gated" or after A7 lands?
 3. v0 AMR: T2V-only, or carry A1's per-row timesteps into the mixed segment from the start?
-4. S0: install the supplement's USDU fork into the lab tree, or port its three findings into the installed MMH3-UltimateUpscale pack?
-5. Card plan: C on one card and S on the other once A7 lands, or serial?
+4. RESOLVED 09-04: fixture = USDU H3 fork in the lab tree, design reference = successor tiler, owner = MAINodes.
+5. RESOLVED 09-04: separate cards, independent baselines, integrate only after both pass.
+6. The successor tiler is GPL-3.0 and its H3 study is the closest prior work to Phase S and B4. Cite it in the release note when B4/S ship? (our repos are GPL-3.0 too, so code reuse is licence-compatible, but the house rule prefers rebuilding from our own example)
