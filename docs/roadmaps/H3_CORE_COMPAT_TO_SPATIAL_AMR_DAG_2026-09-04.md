@@ -4,6 +4,7 @@ Written 2026-09-04. One ordering for three packets that arrived together:
 
 - `docs/roadmaps/MAINodes_H3_mask_streaming_core_compat_handoff_2026-09-04.md` (issues #4/#5, #15988 shim, #15982 lead, motion-adapter causality)
 - `docs/roadmaps/H3_SPATIAL_AMR_OVERNIGHT_HANDOFF_2026-09-04.md` (stride-1 ROI patches)
+- `docs/roadmaps/MAINodes_H3_spatial_context_VAE_pipeline_supplement_2026-09-04.md` (supplement #2: frozen-context tiling, USDU geometry, VAE seams, spatial true coordinates, time-first/space-second)
 - the chat analysis tying them together: every one of these is the same rule twice,
   **a token's coordinate and its measure must describe its real physical support**,
   and **once cells get different sampling treatment, every layer between local token
@@ -29,6 +30,9 @@ written back here.
 | `_STOCK_FORWARD_SHA` | `f40e52b23fb2f9c7`, stale on purpose; trim_forward fails safe |
 | AMR gates A/B/C | PASS on this core (unfold==patchify; slots stride 4; patch=1 grid nests patch=2 exactly) |
 | Local `_forward` shape | prebuilt `PackedLayout` from extra_conds keyed by `(text_len, T, H, W, audio_t)`; per-row timesteps when a fractional mask is present. A mixed spatial packing must own its layout, not just repack rows |
+| H3 USDU fork the supplement audits (`lisitskyaa/...Guider_H3`) | NOT installed here. Installed: `Comfyui-MMH3-UltimateUpscale` (bbaudio, 850f4dc) and a latent upscaler from the review tree. S0 must decide which tree to patch |
+| H3 VAE (`comfy/ldm/minimax/vae.py`) | `space_down` ratio 16, `time_down` ratio 4, `tile_size=256`, `tile_overlap_min=64`, `tiling=True`, `ViT3DDecoder`. Memory: H3 ignores comfy's generic VAE tiling knobs; standalone decode has no `no_grad` (77-89 GiB OOM) |
+| Time-first machinery | `H3TimeSmear`, `H3ExactRecover`, `H3SegmentCrop` in `motion.py`; `H3RepairPlan/Splice` in `h3_repair.py`; crop-refine + shift-12 denoise table in the `h3-spatial-refine` skill. Stage S already has a home |
 | Issues open | #4, #5 (FaceRefine author, fix branches offered), #6 (temporal pass smearing, awaiting the reporter's workflow) |
 | Void measurements | 169 `audio_strength 0.5` instances and all drift-control rows are void until replayed under corrected mask math (memory card 2026-09-03) |
 
@@ -50,6 +54,26 @@ graph TD
   A7 --> B1
   A7 --> B2
   A7 --> C0
+  A7 --> S0
+  S0[S0 audit: which H3 tiler is on disk,
+pin commit, instrument crop/mask/latent geometry] --> S1
+  S1[S1 hard mask split + nested H3 frozen-context mask,
+sequential batch=1, 3x640x1088, 64px, no blur, no seam-fix] --> S2
+  S2[S2 A vs C: does frozen neighbour
+kill the moving seam] --> S3
+  S2 --> V1
+  S3[S3 native /32 crops, no resize-in/out] --> S4
+  V1[V1 pure VAE roundtrip seam test,
+no DiT: which subsystem owns the seam] --> S4
+  S4[S4 residual isolation: context sweep,
+feather, global noise, frozen real audio] --> S5
+  S5[S5 spatial true coordinates:
+global layout for a tile] --> S6
+  C0 -. same PackedLayout subclass .-> S5
+  S6[S6 MAINodes Stage-S node: core/context/feather,
+audio policy, one model alive across tiles] --> S7
+  S7[S7 shared latent canvas, then
+synchronised same-sigma tiling]
   B0[B0 replay the void rows:\naudio_strength ladder, drift control] --> B3
   B1[B1 motion adapter 4-arm + killer control\nA broken / B shim / C native / D adapter] --> B3
   B2[B2 #15982 instrument: log target start\ncoord per window in H3WindowPlan;\nContextWindowsManual repro; FFT at window period] --> B3
@@ -229,6 +253,81 @@ appended-head-dim trick already avoids it.
 
 **C6 go/no-go** answers the AMR handoff's five questions with the s.23 table filled.
 
+### Phase S: spatial context and tiling (supplement #2 is the spec; sibling of C, same gate)
+
+Runs beside Phase C on the other card. Both need A7. Neither needs the other,
+except S5 and C0 share one piece of code.
+
+**S0 audit** (1 h). The supplement audits a USDU fork that is not on this box.
+Decide: install that fork into the lab tree (never production custom_nodes), or
+port its three findings (discarded nested mask, H3 excluded from anchor_context,
+LANCZOS resize-in/out) into whichever tiler we actually run. Pin the commit.
+Instrument: crop region, actual crop size, processing size, encoded latent shape,
+mask min/max/unique, committed core, tile order. THINK: survey installed packs
+first; the installed pack may already do some of this.
+
+**S1 frozen-context MVP** (2 h). Save hard masks before any blur; nested H3 mask
+(video: 0 on finished neighbour, 1 on core; audio: explicit policy), NEAREST only,
+binary, /32-aligned; static over all latent time; remove the H3 exclusion;
+force sequential batch=1; 3 full-height 640x1088 cores, 64 px context, no seam-fix,
+no mask blur. GATE: the mask actually reaches the sampler (log it) and the shim's
+fired-log shows it ran. THINK: masks snap to tokens (repair-verb rule);
+`mask_row_values` amax-pools per 2x2 patch so a seam through a 32 px row makes the
+whole row live; frozen is token-level, the VAE spreads decoded content across the
+boundary (memory: frozen-is-token-level), so expect a residual VAE band even when
+the diffusion seam is gone.
+
+**S2 A vs C** (one evening). Same clip/seed/schedule/denoise. Arms: A current,
+B mask attached only (video all-ones, audio frozen empty), C B + hard frozen
+neighbour, D C + 8/16 px feather. Seam metrics at x=640/1280 over time (gradient,
+flow discontinuity, their temporal derivatives) with control columns away from the
+seam; side-by-side + 8x crop + temporal difference view. GATE: A vs C answered in
+playback. THINK: B is a diagnostic, not a design; it freezes an EMPTY audio
+template and that can change video conditioning.
+
+**S3 native geometry** (2 h + rerun). Move H3 detection before the resize decision,
+/32-aligned crop, no LANCZOS either way, commit only core. Rerun S2's clip.
+
+**V1 VAE roundtrip** (parallel, no DiT). Source -> encode -> decode at stock
+tiling, larger overlap, halo/commit-interior prototype, whole-frame gold where
+VRAM permits. Map seam energy to diffusion boundaries vs the VAE's 256/64 tiling
+vs composite boundaries. THINK: the decoder is a ViT, no finite conv halo gives
+exact parity, sweep it; wrap decode in no_grad; comfy's tiled-decode widgets do not
+reach this VAE.
+
+**S4 residual isolation**, in order and one at a time: context 64/96/128; feather;
+global noise field cropped per tile (prepare once at global latent shape, /32 crops,
+same sigmas); frozen REAL audio (encode the chosen performance once, reuse for every
+tile, audio mask 0, never return Stage-S audio unless asked). THINK: audio is the
+product elsewhere in this program; Stage S must not silently replace it.
+
+**S5 spatial true coordinates** (half day, only if S4 leaves a motion warp). Build
+the tile's `PackedLayout` from the FULL global frame grid and slice the tile's
+rows; audio rows take the global w extrema. Layout tests: full-frame crop == stock;
+the same global row in two overlapping tiles has identical ids; adjacent crops are
+monotone at the boundary; refs unsupported or correct, never silent. THIS IS THE
+SAME LAYOUT SUBCLASS AS C0: one class that owns the target-video row set and its
+position ids, parameterised by (global extent, local crop, stride map). Build it
+once. THINK: this is a MAINodes extension, not an upstream bug claim; #15982 is
+the temporal twin.
+
+**S6 MAINodes Stage-S node** (after S2..S4 are understood). Semantic knobs:
+core width, context_anchor_px, live_overlap_px (default 0), output_feather_px
+(default 0), traversal (linear / center-out), spatial_coordinate_mode
+(local / global_experimental), audio_context_mode (empty_locked / original_locked /
+recovered_pass_locked). One model/guider/VAE alive across the loop; exact frame
+count; every tile reports global coordinates. Acceptance list: supplement s.21.
+
+**S7 shared latent canvas, then synchronised same-sigma tiling** (P4). Encode once,
+commit tile latents into one canvas, decode once; then step all tiles one sigma at a
+time against the shared canvas. Not before S6 exists and the seam data says the VAE
+boundary still matters.
+
+**Time first, space second** binds all of S: Stage T (smear -> de-rope ->
+decode -> ExactRecover) emits real frames; Stage S consumes only those. Never run
+high-res spatial work over dilation frames ExactRecover will discard; USDU hiding
+the VAE node does not hide the VAE.
+
 ### Phase D: branches (one, chosen by C6)
 
 Adapter LoRA (foveated precedent) / true 1x1 child decomposition / sparse /8
@@ -262,6 +361,20 @@ residual / indecision-benefit pilot. Not planned further until C6 exists.
    forbids merging an offset without a MAINodes-specific reproduction. It is a
    gate for Phase C only in the sense that C3's coordinate control is the same
    principle; it is not a blocker for A7.
+6. **Four seam families, four rulers.** Diffusion/world disagreement (fix: frozen
+   context), VAE reconstruction tiling (fix: VAE chunk strategy, V1 decides),
+   pixel compositing (fix: hard mask vs soft feather, native geometry), and
+   coordinate/window error (#15982 in time, S5 in space). A seam report names a
+   symptom, not a family; V1 and the seam-position map assign the family before
+   anything is "fixed".
+7. **Hard model mask is never the soft output feather.** A Gaussian tail of 1e-4
+   thresholded at >0 makes a row fully live. Sampling/freeze semantics and blend
+   semantics are separate tensors with separate knobs, in S1 and in C0's ROI mask.
+8. **One subproblem abstraction.** World extent (global t, x, y) / local compute
+   crop / position transform local->global / editability mask / immutable context
+   source. De-rope, temporal insert, tiles, ROI refine, and windows are all
+   instances. Do not build the framework before S2 and C3 report, but name every
+   new interface in these terms so it folds later.
 
 ## 3. Reminders by moment
 
@@ -281,10 +394,12 @@ Refresh `_STOCK_FORWARD_SHA`. Suppress model-side masks as the general answer
 (FaceRefine's workaround is an alternate algorithm, not our fix). Put the audio
 multiplication after the carry. Install the shim when native or unknown. Merge a
 #15982 offset without B2's table. Retire the adapter on theory. Start Phase C on a
-core whose mask math is unverified. Train anything before C6.
+core whose mask math is unverified. Train anything before C6. Judge masked tiling on pre-#15988 core. Use output blur as the freeze mask. Treat `seam_fix=None` as a defect (prevention beats a repair pass). Spatial-batch context-dependent tiles and call them anchored. Assume comfy's tiled-decode widgets control H3's internal VAE tiler. Call local spatial RoPE an upstream bug.
 
 ## 5. Open for the operator
 
 1. Commit the compat handoff as received (names the reporter as a person), scrub, or keep local?
 2. Reply to #4/#5 now with "taking both, capability-gated" or after A7 lands?
 3. v0 AMR: T2V-only, or carry A1's per-row timesteps into the mixed segment from the start?
+4. S0: install the supplement's USDU fork into the lab tree, or port its three findings into the installed MMH3-UltimateUpscale pack?
+5. Card plan: C on one card and S on the other once A7 lands, or serial?
