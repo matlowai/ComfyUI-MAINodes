@@ -292,6 +292,15 @@ def is_h3_model(model):
     return False
 
 
+def _has_our_wrapper(model, wtype):
+    """True when `model` already carries the keyed #15988 wrapper.
+    ModelPatcher keeps them in `wrappers[type][key] -> list`."""
+    try:
+        return bool(model.wrappers.get(wtype, {}).get(WRAPPER_KEY))
+    except AttributeError:
+        return False
+
+
 def apply_h3_mask_velocity_compat(model, scope="both", mode="auto"):
     """Install the #15988 correction on `model` iff it is wanted and safe.
 
@@ -315,8 +324,24 @@ def apply_h3_mask_velocity_compat(model, scope="both", mode="auto"):
         raise ValueError("scope must be one of %s" % (SCOPES,))
 
     if mode == "off":
-        log.info("H3 mask conversion: off, nothing installed")
-        return model, REPORTS["off"]
+        # "off" must MEAN off. Since A5 (2026-09-04) H3StreamedBlocks installs
+        # this wrapper itself (mode auto) earlier on the same chain, so an
+        # explicit off that merely returned the model would leave that copy
+        # in place and the control arm would render with the correction ON,
+        # silently. Strip our key if it is there; untouched model otherwise.
+        wtype = _wrappers_diffusion_model()
+        present = _has_our_wrapper(model, wtype)
+        if not present:
+            log.info("H3 mask conversion: off, nothing installed")
+            return model, REPORTS["off"]
+        m = model.clone()
+        m.remove_wrappers_with_key(wtype, WRAPPER_KEY)
+        log.info("H3 mask conversion: off, REMOVED the wrapper an earlier node "
+                 "on this chain had installed")
+        return m, (REPORTS["off"] + "\n\nAn earlier node on this chain "
+                   "(H3StreamedBlocks auto-install, or a second H3 Mask "
+                   "Conversion / H3 Core Compatibility) had installed the "
+                   "correction; off removed it, so this arm renders stock.")
 
     state = core_mask_velocity_state() if mode == "auto" else None
     if mode == "auto":

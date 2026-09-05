@@ -249,6 +249,21 @@ except ValueError:
 check("   'auto' is the default mode of the H3MaskConversion node",
       mc.H3MaskConversion.INPUT_TYPES()["required"]["mode"][1]["default"] == "auto")
 
+# off must be able to UNDO an earlier install on the same chain (2026-09-04):
+# H3StreamedBlocks applies mode auto before the guider, so an explicit off
+# downstream that only returned its input would render the control arm ON.
+_on, _ = mc.apply_h3_mask_velocity_compat(src, "both", "on")
+check("   on installed one wrapper (precondition)",
+      len(_on.wrappers.get(DM, {}).get(mc.WRAPPER_KEY, [])) == 1)
+_off, _rep_off = mc.apply_h3_mask_velocity_compat(_on, "both", "off")
+check("   off REMOVES a wrapper installed earlier on the chain",
+      len(_off.wrappers.get(DM, {}).get(mc.WRAPPER_KEY, [])) == 0, _rep_off.splitlines()[-1][:80])
+check("   off on a clean model returns the same object (no clone)",
+      mc.apply_h3_mask_velocity_compat(src, "both", "off")[0] is src)
+check("   the on model is untouched by the downstream off (clone semantics)",
+      len(_on.wrappers.get(DM, {}).get(mc.WRAPPER_KEY, [])) == 1)
+
+
 # --------------------------------------- 5. order: ahead of a skipping wrapper
 print("\n5. INSTALL ORDER (the SLA hazard: executor.original() skips the rest)")
 with_state("compat_needed")
