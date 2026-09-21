@@ -96,6 +96,9 @@ def patcher(dm=None):
     return ModelPatcher(Container(H3 if dm is None else dm), CPU, CPU)
 
 
+LIVE_STATE = None                 # the real probe verdict, read once below
+
+
 def with_state(state):
     mc.core_mask_velocity_state = lambda: state
 
@@ -127,14 +130,87 @@ def stub_forward(pre_scale=False):
     return _fwd
 
 
-def run(model, vmask, amask, audio_scale=1.0, pre_scale=False):
-    """Real MiniMaxH3Model.forward, real WrapperExecutor, whatever wrappers
-    `model` carries."""
+# ----------------------------------------- the pinned pre-#15988 forward
+# WHY PINNED, AS OF 2026-09-20. This file measures what OUR WRAPPER does to
+# the velocity, which is only observable on a forward that does not already
+# do it. Core merged #15988 in 421a1c24, so on 0.37.0 the live forward scales
+# too and every arithmetic case here read the PRODUCT of both - 13 failures
+# that were fixture rot, not a regression (forcing the shim over a native
+# core really does square the mask, which is exactly what
+# parity_15988_cores.py asserts on purpose).
+#
+# So the outer forward is pinned to ComfyUI 0d0b6b56, the commit before
+# #15988, read from the same stored fixture the capability test uses. What
+# the INSTALLED core does is a separate question, asked once at the end.
+import textwrap                                                    # noqa: E402
+import comfy.ldm.minimax.model as _h3mod                           # noqa: E402
+
+FIXTURE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                       "fixtures", "h3_forward_pre15988.txt")
+FIXTURE_COMMIT = "0d0b6b56"
+with open(FIXTURE) as _fh:
+    _pre_src = textwrap.dedent(_fh.read())
+_ns = dict(vars(_h3mod))
+exec(compile(_pre_src, FIXTURE, "exec"), _ns)
+PRE_FORWARD = _ns["forward"]            # unbound: takes self first
+
+
+def _pinned_runs():
+    """Can the pinned forward execute against THIS checkout's module globals?
+
+    It cannot on a core older than the pin: 0d0b6b56's forward reaches for
+    `comfy.model_prefetch.malloc_graph_enabled`, which a 0.33-era checkout
+    does not have. That is not a failure of anything under test, so the
+    choice of outer forward degrades in the one direction that stays
+    meaningful - see OUTER below.
+    """
+    H3._forward = stub_forward(False)
+    try:
+        PRE_FORWARD(H3, [VIDEO, AUDIO], TIMESTEP, CTX,
+                    transformer_options={"wrappers": {}},
+                    minimax_payload={"audio_scale": 1.0},
+                    denoise_mask=None, audio_denoise_mask=None)
+        return True
+    except Exception as e:                                       # noqa: BLE001
+        print("   (pinned forward will not run on this core: %s: %s)"
+              % (type(e).__name__, e))
+        return False
+
+
+# Which outer forward the arithmetic cases use, in order of preference:
+#   1. the pinned pre-#15988 fixture - core-independent, the default;
+#   2. this core's OWN forward, when the probe says it predates #15988, in
+#      which case it is itself a valid pre-fix outer (this is how the file
+#      still runs on the 0.33-era checkout the fixture is too new for);
+#   3. neither -> the wrapper's own scaling is not observable here, so say so
+#      instead of asserting a product of two fixes.
+_LIVE_AT_IMPORT = mc.core_mask_velocity_state()      # before any with_state()
+if _pinned_runs():
+    OUTER, OUTER_WHAT = None, "pinned pre-#15988 fixture (ComfyUI %s)" % FIXTURE_COMMIT
+elif _LIVE_AT_IMPORT != "native":
+    OUTER, OUTER_WHAT = "live", "this core's own forward (probe says %s, so it predates #15988)" % _LIVE_AT_IMPORT
+else:
+    print("CANNOT RUN: the pinned forward does not execute here and the live "
+          "core already carries #15988, so this file cannot observe the "
+          "wrapper's own scaling in isolation.")
+    sys.exit(2)
+
+
+def run(model, vmask, amask, audio_scale=1.0, pre_scale=False, forward=None):
+    """The PINNED pre-#15988 forward, real WrapperExecutor, whatever wrappers
+    `model` carries. Pass `forward=H3.forward` to run the installed core's
+    own instead."""
     H3._forward = stub_forward(pre_scale)
     to = {"wrappers": getattr(model, "wrappers", {})}
-    return H3.forward([VIDEO, AUDIO], TIMESTEP, CTX, transformer_options=to,
-                      minimax_payload={"audio_scale": audio_scale},
-                      denoise_mask=vmask, audio_denoise_mask=amask)
+    args = ([VIDEO, AUDIO], TIMESTEP, CTX)
+    kw = dict(transformer_options=to,
+              minimax_payload={"audio_scale": audio_scale},
+              denoise_mask=vmask, audio_denoise_mask=amask)
+    if forward is not None:
+        return forward(*args, **kw)
+    if OUTER == "live":
+        return H3.forward(*args, **kw)
+    return PRE_FORWARD(H3, *args, **kw)
 
 
 def n_wrappers(model):
@@ -143,12 +219,14 @@ def n_wrappers(model):
 
 # ------------------------------------------------------------ 0. the fixtures
 print("\n0. real objects, no mocks")
+print("   outer forward under test: %s" % OUTER_WHAT)
 p = patcher()
 check("   a real ModelPatcher over a real MiniMaxH3Model",
       isinstance(p, ModelPatcher) and type(p.model.diffusion_model).__name__ == "MiniMaxH3Model")
 check("   is_h3_model says yes", mc.is_h3_model(p) is True)
 notp = patcher(nn.Linear(4, 4))
 check("   is_h3_model says no for a non-H3 diffusion_model", mc.is_h3_model(notp) is False)
+LIVE_STATE = mc.core_mask_velocity_state()     # before any with_state() call
 check("   the live capability probe on this box reports a legal state",
       mc.core_mask_velocity_state() in
       ("native", "compat_needed", "legacy_no_model_mask", "unknown"),
@@ -246,6 +324,27 @@ try:
     check("   an unknown mode is refused", False, "no error raised")
 except ValueError:
     check("   an unknown mode is refused", True)
+# ------------------------------------------------- 4b. the installed core
+# The one question about the LIVE core, asked with the live forward instead of
+# the pinned one. It asserts AGREEMENT - the probe's verdict and what the
+# forward actually does to the velocity must match - never a particular
+# answer, so this section survives core merging (or reverting) the fix again.
+print("\n4b. and what the LIVE core does with the same wrapper")
+live_state = LIVE_STATE
+live_native = live_state == "native"
+bare = run(patcher(), VMASK, None, forward=H3.forward)
+live_scales = torch.equal(bare[0], V_RAW * VMASK)
+check("   the live forward scales the velocity itself iff the probe says native",
+      live_scales == live_native,
+      "probe=%s, live forward %s the mask"
+      % (live_state, "applies" if live_scales else "ignores"))
+with_state(live_state)
+m_live, rep_live = mc.apply_h3_mask_velocity_compat(patcher(), "both", "auto")
+check("   auto on the installed core installs %s"
+      % ("nothing" if live_native else "the wrapper"),
+      (n_wrappers(m_live) == 0) == live_native, rep_live.splitlines()[0][:70])
+with_state("compat_needed")
+
 check("   'auto' is the default mode of the H3MaskConversion node",
       mc.H3MaskConversion.INPUT_TYPES()["required"]["mode"][1]["default"] == "auto")
 

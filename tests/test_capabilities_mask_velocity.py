@@ -4,14 +4,25 @@ h3_capabilities.py. CPU only, no GPU, no weights.
 
     /mnt/work/ai/venvs/comfyui-cu132/bin/python tests/test_capabilities_mask_velocity.py
 
-THE FIXTURES ARE REAL SOURCE. The `compat_needed` case is
-`inspect.getsource(MiniMaxH3Model.forward)` from the installed ComfyUI - the
-exact text the detector will meet in production - and every other case is a
-mechanical edit of that same text: the native case inserts the PR's two lines
-where the PR inserts them, the truncated case cuts the function short, the
-half case deletes one of the two lines. Nothing here invents a plausible-
-looking forward, because a detector tested against a paraphrase of core only
-proves it can read the paraphrase.
+THE FIXTURES ARE REAL SOURCE, PINNED. The `compat_needed` case is
+`MiniMaxH3Model.forward` as it stood at ComfyUI `0d0b6b56` - the commit before
+#15988 merged in `421a1c24` - stored verbatim in
+`tests/fixtures/h3_forward_pre15988.txt`. Every other case is a mechanical
+edit of that same text: the native case inserts the PR's two lines where the
+PR inserts them, the truncated case cuts the function short, the half case
+deletes one of the two lines. Nothing here invents a plausible-looking
+forward, because a detector tested against a paraphrase of core only proves
+it can read the paraphrase.
+
+WHY PINNED, AS OF 2026-09-20. These cases are the classifier's HISTORY: they
+ask what it says about shapes core has had. They used to be built by mutating
+whatever `inspect.getsource` returned from the installed ComfyUI, which
+worked exactly as long as the installed core still needed the fix. On 0.37.0
+core carries #15988 natively, so every case inherited the native
+multiplications and 13 of them failed - fixture rot, not a regression. A test
+of historical shapes must carry its history; what the INSTALLED core does is
+a separate question, asked at the end against the live source and asserted
+only for agreement with the probe, never for a particular answer.
 
 The six cases are the compat handoff s.6.3 list, plus the pre-#15375 case:
   1. real current core                      -> compat_needed
@@ -64,10 +75,21 @@ def state(src, owner="comfy core", ptm=True):
     return caps_mod.classify_mask_velocity(src, owner, ptm)
 
 
-# --------------------------------------------------- the real core fixture
+# ------------------------------------------- the pinned pre-#15988 fixture
+FIXTURE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                       "fixtures", "h3_forward_pre15988.txt")
+FIXTURE_COMMIT = "0d0b6b56"        # the commit before #15988 (421a1c24)
+try:
+    with open(FIXTURE) as fh:
+        REAL = fh.read()
+except OSError as e:
+    print("CANNOT RUN: the pinned forward fixture is missing: %s" % e)
+    sys.exit(2)
+
+# the live core, for the agreement check at the end only
 try:
     from comfy.ldm.minimax.model import MiniMaxH3Model
-    REAL = inspect.getsource(MiniMaxH3Model.forward)
+    LIVE = inspect.getsource(MiniMaxH3Model.forward)
 except Exception as e:                                   # noqa: BLE001
     print("CANNOT RUN: comfy.ldm.minimax.model is not importable here: %s: %s"
           % (type(e).__name__, e))
@@ -91,18 +113,18 @@ HALF = "\n".join(lines[:carry_if] + PR_LINES[:2] + lines[carry_if:])
 TRUNCATED = "\n".join(lines[:carry_if])
 FOREIGN_OWNER = "ComfyUI-SomeOtherH3Pack"
 
-print("\n0. the fixture is the installed core, not a paraphrase")
-check("   real forward source read from MiniMaxH3Model.forward",
+print("\n0. the fixture is real pinned core, not a paraphrase")
+check("   pinned forward source read from the fixture",
       "WrapperExecutor" in REAL and "self._forward" in REAL,
-      "%d lines" % len(lines))
+      "%d lines, ComfyUI %s" % (len(lines), FIXTURE_COMMIT))
 check("   the PR's insertion point exists (carry block follows the wrapped call)",
       carry_if > w_idx, "WrapperExecutor line %d, carry block line %d" % (w_idx, carry_if))
-check("   the real source does NOT already carry #15988",
+check("   the pinned source does NOT already carry #15988",
       not caps_mod._MASK_MULT_VIDEO.search(REAL)
       and not caps_mod._MASK_MULT_AUDIO.search(REAL))
 
 print("\n1..7. the six handoff cases plus pre-#15375")
-check("   1 real current core          -> compat_needed",
+check("   1 pinned pre-#15988 core     -> compat_needed",
       state(REAL) == "compat_needed", state(REAL))
 check("   2 + the PR's two lines       -> native",
       state(NATIVE) == "native", state(NATIVE))
@@ -135,9 +157,18 @@ check("   carry BEFORE the wrapped call -> unknown", state(swapped) == "unknown"
 # compat_needed, which is the direction that matters. The real protection
 # against false positives is that only forward's own source is read, not the
 # module's tests and comments.
-commented = REAL.replace(
-    "        out = comfy",
-    "        # #15988 would add: out[1] = out[1] * audio_denoise_mask\n        out = comfy")
+# Anchored on the WRAPPED CALL's own line, found above, not on a variable
+# name: this case used to splice ahead of "        out = comfy", and upstream
+# later renamed that binding to `graph_out`, which turned the mutation into a
+# silent no-op - the same fixture rot that pinned this file. Hence the
+# assertion that the edit actually happened.
+w_indent = lines[w_idx][:len(lines[w_idx]) - len(lines[w_idx].lstrip())]
+commented = "\n".join(
+    lines[:w_idx]
+    + [w_indent + "# #15988 would add: out[1] = out[1] * audio_denoise_mask"]
+    + lines[w_idx:])
+check("   the comment was actually spliced in (the anchor still exists)",
+      commented != REAL and len(commented.splitlines()) == len(lines) + 1)
 check("   a comment inside forward degrades to unknown, not to compat_needed",
       state(commented) == "unknown", state(commented))
 
@@ -203,8 +234,21 @@ live = caps.get("mask_velocity_conversion")
 check("   probe_core reports a legal state", live in caps_mod.MASK_VELOCITY_STATES,
       "mask_velocity_conversion = %s, forward owner = %s, per_token_masks = %s"
       % (live, caps.get("h3_forward_owner"), caps.get("per_token_masks")))
-check("   and it agrees with the direct classification of the same source",
-      live == state(REAL, caps.get("h3_forward_owner"), caps.get("per_token_masks")))
+# AGAINST THE LIVE SOURCE, not the pinned fixture: this is the one check that
+# asks what the INSTALLED core does, and it asserts only that the probe and
+# the classifier agree about it. Any of the four states is a pass - on 0.37.0
+# the honest answer is "native", because core merged #15988 in 421a1c24.
+check("   and it agrees with the direct classification of the LIVE source",
+      live == state(LIVE, caps.get("h3_forward_owner"), caps.get("per_token_masks")),
+      "probe %s vs classifier %s"
+      % (live, state(LIVE, caps.get("h3_forward_owner"), caps.get("per_token_masks"))))
+check("   the live core is classified, and the shim obeys it",
+      live in caps_mod.MASK_VELOCITY_STATES,
+      "installed core: %s (%s)"
+      % (live, {"native": "carries #15988 itself; the shim stays off",
+                "compat_needed": "the shim can correct it",
+                "legacy_no_model_mask": "pre-#15375; nothing to correct",
+                "unknown": "unprovable; the shim refuses"}.get(live, "?")))
 text = caps_mod.format_report(caps, caps_mod.block_patch_report(None))
 line = [l for l in text.splitlines() if "mask_velocity_conversion" in l]
 check("   format_report carries exactly one mask_velocity_conversion line",

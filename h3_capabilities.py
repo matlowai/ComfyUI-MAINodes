@@ -136,6 +136,62 @@ def classify_mask_velocity(forward_src, forward_owner, per_token_masks):
     return "compat_needed"
 
 
+# a reference advance accumulated into the packing cursor before the guides
+_REF_SPAN_ADVANCE = re.compile(r"cursor\s*\+=\s*_ref_t_span\s*\(", re.M)
+
+KEYFRAME_ANCHOR_STATES = ("pin", "float", "unknown")
+
+
+def classify_keyframe_anchor(model_src):
+    """Where core measures guide anchors from: "pin" / "float" / "unknown".
+
+    ``model_src`` is the source of the MODULE FILE, not of the running
+    `PackedLayout.__init__`: this pack's own `_install_guide_layout_patch`
+    chains that method at node-execution time, so `inspect.getsource` of the
+    bound method can return a wrapper from `motion.py` that says nothing
+    about the placement core computes underneath it. The file on disk cannot
+    be monkeypatched.
+
+    pin   the keyframe origin includes the reference advance, so `frame_idx`
+          names a frame of the target whatever is attached (core since the
+          reference-advance fix; also this pack's pre-upstream patch, which
+          spelled the advance `_ref_cursor_advance`).
+    float the origin is `text_len` alone, so every reference slides every
+          guide earlier by its own span (core before that fix).
+
+    Anything else is "unknown" — the two are one sign apart, so a caller that
+    guesses does not fail, it moves guides by the whole reference span in the
+    wrong direction.
+    """
+    src = model_src or ""
+    i = src.find("class PackedLayout")
+    if i < 0:
+        return "unknown"
+    block = src[i:]
+    nxt = re.search(r"^class ", block[1:], re.M)
+    if nxt is not None:
+        block = block[:nxt.start() + 1]
+    k = block.find("if keyframes")
+    if k < 0:
+        return "unknown"
+    head, kf_block = block[:k], block[k:]
+    kf_block = kf_block[:kf_block.find("if refs")] if "if refs" in kf_block else kf_block
+    if "cond_t" not in kf_block:
+        return "unknown"
+    # our own pre-upstream form: the advance is named and added in the block
+    if "_ref_cursor_advance" in kf_block:
+        return "pin"
+    # upstream form: a cursor advanced by every reference BEFORE the block,
+    # and anchors measured from it
+    if _REF_SPAN_ADVANCE.search(head) and re.search(r"cond_t\s*=\s*cursor\b", kf_block):
+        return "pin"
+    if re.search(r"cond_t\s*=\s*float\(\s*text_len\s*\)", kf_block):
+        return "float"
+    if re.search(r"target_origin\s*=\s*float\(\s*text_len\s*\)\s*$", kf_block, re.M):
+        return "float"
+    return "unknown"
+
+
 H3_MODEL_MODULE = "comfy.ldm.minimax.model"
 
 
@@ -200,6 +256,7 @@ def probe_core() -> dict:
     s = _src(h3m)
     caps["arbitrary_keyframe_position"] = ("resolved_frame_index" in s) if s else "unknown"
     caps["mask_rows_fractional"] = ("def mask_row_values" in s) if s else "unknown"
+    caps["keyframe_anchor"] = classify_keyframe_anchor(s)
     _fsrc, _fowner = _h3_forward()
     caps["mask_velocity_conversion"] = classify_mask_velocity(
         _fsrc, _fowner, caps.get("per_token_masks"))
@@ -324,7 +381,8 @@ def format_report(caps: dict, rep: dict) -> str:
         lines.append(f"  comfy: {caps['comfy_commit']}  ({caps.get('comfy_root')})")
     order = ("per_token_masks", "mask_rows_fractional", "mask_velocity_conversion",
              "clip_guide", "audio_guide",
-             "arbitrary_keyframe_position", "keyframe_plus_refs", "length_rounds_up",
+             "arbitrary_keyframe_position", "keyframe_plus_refs", "keyframe_anchor",
+             "length_rounds_up",
              "tokenizer_special_tokens", "visual_cond_noise_aug", "audio_cond_noise_aug",
              "qwen_ref_video_2fps", "tae_h3_decoder", "sageattention")
     notes = {
@@ -332,6 +390,7 @@ def format_report(caps: dict, rep: dict) -> str:
         "tokenizer_special_tokens": "#15808 (2026-08-22): <d> and six other tags tokenize as ONE token; dialogue/audio readings before it are suspect",
         "keyframe_plus_refs": "references and keyframe anchors in one graph; BROKEN on v0.33.1 and earlier",
         "mask_rows_fractional": "the H3 path accepts fractional mask rows; the generic mask path rounds to binary first",
+        "keyframe_anchor": "pin = frame_idx names a target frame whatever references are attached (#15439 and later); float = each reference slides every guide earlier by its own span. H3 Guide Anchor reads this to know which way to shift",
         "length_rounds_up": "generation length rounds UP to 17k+5; clip guides and ref video round DOWN",
     }
     mvc_notes = {
