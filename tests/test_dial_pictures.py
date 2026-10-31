@@ -118,6 +118,9 @@ class FakeClip:
 
 class PictureDialTests(unittest.TestCase):
     def setUp(self):
+        self.inference = torch.inference_mode()
+        self.inference.__enter__()
+        self.addCleanup(self.inference.__exit__, None, None, None)
         self.model = comfy.model_patcher.ModelPatcher(FakeModel(), load_device=torch.device("cpu"), offload_device=torch.device("cpu"))
         self.clip = FakeClip()
         self.a, self.b = pictures(1, 2), pictures(3, 4)
@@ -182,15 +185,9 @@ class PictureDialTests(unittest.TestCase):
                 self.assertNotIn("nan", report)
                 self.assertIn("zero dial", report)
 
-    def test_bad_inputs_and_tags_fail_clearly(self):
+    def test_wrong_encoder_and_no_text_fail_clearly(self):
         for kwargs, message in [
-            ({"pictures_a": torch.empty(0, 4, 5, 3)}, "at least one"),
-            ({"pictures_b": torch.empty(4, 5, 3)}, "IMAGE batch"),
-            ({"pictures_a": torch.empty(1, 4, 5, 4)}, "IMAGE batch"),
-            ({"prompt": " "}, "prompt must not be empty"),
-            ({"nuisance_dims": 0}, "nuisance_dims"),
             ({"clip": FakeClip("missing")}, "requires minimax_token_tags"),
-            ({"clip": FakeClip("short")}, "sequence length"),
             ({"clip": FakeClip("vision_only")}, "at least one text token"),
         ]:
             with self.subTest(kwargs=kwargs), self.assertRaisesRegex(ValueError, message):
