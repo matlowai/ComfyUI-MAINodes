@@ -30,6 +30,11 @@ Order follows the 4D Control Field blueprint (`MATLOWAI_Dials_4D_Control_Field_R
   dials.
 
 ## Later
+- **Picture / video pairs (Dylan):** contrasts made from reference pictures or clips instead of words (H3's encoder is
+  Qwen3-VL, so they reach the same seam); read out over the text tokens after the vision block. Voice pairs need a
+  different seam (audio never enters Qwen).
+- **Dials for LLMs / VLMs (Dylan):** apply prompt-pair dials to a language/vision-language model's hidden states and
+  measure the effect on generated text (tone, verbosity, captions of the same image). Qwen3-VL is the obvious first target.
 - **Vector-space explorer (Dylan):** show dials as points in a 2D view of their directions and let people drag a point
   carefully to make a new mixture, with live readouts (how much of each dial, size of the shift, distance from
   tested territory) and a render-sweep button. Builds on the rack's overlap report and the XY pad.
