@@ -292,3 +292,13 @@ numbers only mean something next to a reference arm. FakeQuant ships;
 Sol Attention stays unregistered until it gets the DyRoPE arm/disarm
 pattern, because it rebinds attention process-globally with no restore
 path.
+
+## Dials
+
+`dials/`, nodes `Dial Rack (alpha)`, `Make Dial (alpha)` and `Combine Dials (alpha)`; frontend `web/dial_rack.js`.
+
+Prompt-pair steering ported from ComfyUI-Dials, plus a rack that stacks any number of dials with on/off, strength and
+solo per row. The dial math is the released ComfyUI-Dials math (motion and villainy packs, measured there). New here:
+the rack. CPU test `tests/test_dial_rack.py` proves rack = chain bit for bit and the off/zero/solo/all-off semantics on
+ComfyUI's own ModelPatcher; the UI was driven headless (rows, solo, a wired Make Dial). Owed: a same-seed H3 render of
+one rack vs the single-dial chain, and a human pass on the rack UI in both front ends. See `dials/README.md`.

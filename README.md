@@ -987,6 +987,13 @@ starts also quantize to a 17-frame lattice, 0.708 s at 24 fps, which is why
 The arithmetic, the failure signature and the procedure are in
 [docs/WINDOW_MODE.md](docs/WINDOW_MODE.md).
 
+## Dials (alpha)
+
+Training-free steering for H3 from prompt pairs: a **Dial Rack** stacks any number of dials (motion, the villainy
+pack, and your own) on one model, one row each with on/off, strength and solo; **Make Dial** turns your own
+`A ||| B` prompt pairs into a new dial in about a minute. Ported from ComfyUI-Dials. See
+[`dials/README.md`](dials/README.md); dial library on [Hugging Face](https://huggingface.co/MATLOWAI/H3-Dials).
+
 ## Contact-Sheet diffusion
 
 Five standalone image latents packed on the model's time axis, jointly
