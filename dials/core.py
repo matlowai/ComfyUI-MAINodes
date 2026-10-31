@@ -185,6 +185,10 @@ def dial_label(dial):
             f"pair agreement cos {m.get('pair_agreement_cos', '?')}, |dial| {float(dial['vec'].norm()):.1f}")
 
 
+def nuisance_basis(diffs, dims):
+    return torch.linalg.svd(diffs, full_matrices=False)[2][:dims].T
+
+
 def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=True, nuisance_dims=3):
     """Returns (dial, report). mode: "post" (hook) or "pre" (LoRA file)."""
     (pre_name, post_name), proj, refiner = text_modules(model)
@@ -208,10 +212,10 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
     def diffs(pp, which):
         return torch.stack([side(b, which) - side(a, which) for a, b in pp])
 
-    def nuisance_basis(which):
+    def basis_for(which):
         if not nuisance:
             return None
-        return torch.linalg.svd(diffs(nuisance, which), full_matrices=False)[2][:nuisance_dims].T  # [hidden, k]
+        return nuisance_basis(diffs(nuisance, which), nuisance_dims)
 
     def remove(v, basis):
         return v - basis @ (basis.T @ v) if basis is not None else v
@@ -222,7 +226,7 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
         return hold_basis([diffs(pp, which).mean(0) for pp in holds.values()], basis)
 
     which = 1 if mode == "pre" else 2
-    d, basis = diffs(prompts, which), nuisance_basis(which)
+    d, basis = diffs(prompts, which), basis_for(which)
     hold = hold_directions(which, basis)
     raw = d.mean(0)
     debiased = remove(raw, basis)
@@ -238,7 +242,7 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
             note = f"; hold pairs removed {held:.0%} of the dial"
     if calibrate and mode == "pre":
         # the refiner's final RMSNorm shrinks a pre-refiner shift: rescale so strength 1 = one average pair difference after it
-        basis2 = nuisance_basis(2)
+        basis2 = basis_for(2)
         post_target = remove(remove(diffs(prompts, 2).mean(0), basis2), hold_directions(2, basis2))
         probe = [plain_text(t) for pair in prompts[:8] for t in pair]
         shift = torch.stack([refiner(encode(t)[0] + vec.to(dtype)).float().mean(0) - encode(t)[2] for t in probe]).mean(0)
@@ -281,6 +285,72 @@ def rack_hold_shift(rows, holds):
     lines += [f"H  {label}: removed {float(shares[i]):.1%} of the summed shift's squared norm"
               for i, (label, _, _) in enumerate(holds)]
     return dict(holds[0][1], vec=shift.float()), "\n".join(lines)
+
+
+def make_picture_dial(clip, model, pictures_a, pictures_b, prompt, name, debias=True, nuisance_dims=3):
+    """Make a post-refiner dial from two IMAGE batches; pool tag-1 tokens only, with equal weight per picture.
+
+    The full vision/text sequence passes through the projection and refiner before pooling. Equal-size batches
+    pair by index for agreement; unequal batches use B's mean minus A's mean without a pair-agreement estimate.
+    """
+    (_, post_name), proj, refiner = text_modules(model)
+    comfy.model_management.load_models_gpu([model])
+    device = comfy.model_management.get_torch_device()
+    dtype = model.model.get_dtype_inference()
+
+    def encode(text, picture=None):
+        kwargs = {} if picture is None else {"minimax_ref_items": [{"type": "image", "data": picture}]}
+        ctx, extra = clip.encode_from_tokens_scheduled(clip.tokenize(text, **kwargs))[0]
+        ctx = ctx[0].to(device, dtype)
+        if picture is None:
+            mask = torch.ones(ctx.shape[0], dtype=torch.bool, device=device)
+        else:
+            tags = extra.get("minimax_token_tags")
+            if tags is None:
+                raise ValueError("picture dial requires minimax_token_tags from the H3 text encoder")
+            tags = torch.as_tensor(tags, device=device)
+            mask = tags.reshape(-1) == 1
+            if not mask.any():
+                raise ValueError("picture dial needs at least one text token (minimax_token_tags == 1)")
+        return refiner(proj(ctx))[mask].float().mean(0)
+
+    a = torch.stack([encode(prompt, pictures_a[i:i + 1]) for i in range(len(pictures_a))])
+    b = torch.stack([encode(prompt, pictures_b[i:i + 1]) for i in range(len(pictures_b))])
+    paired = len(a) == len(b)
+    diffs = b - a if paired else None
+    raw = diffs.mean(0) if paired else b.mean(0) - a.mean(0)
+    basis = None
+    if debias:
+        nuisance = parse_pairs("\n".join(NUISANCE_PAIRS), NUISANCE_SUBJECTS)[0]
+        cache = {}
+        for pair in nuisance:
+            for text in pair:
+                if text not in cache:
+                    cache[text] = encode(text)
+        nuisance_diffs = torch.stack([cache[y] - cache[x] for x, y in nuisance])
+        basis = nuisance_basis(nuisance_diffs, nuisance_dims)
+    vec = raw - basis @ (basis.T @ raw) if basis is not None else raw
+    removed = 1 - float(vec.norm().square() / raw.norm().square().clamp_min(1e-12)) if raw.norm() > 0 else 0.0
+    agree = None
+    if paired and vec.norm() > 0:
+        clean = diffs - (diffs @ basis) @ basis.T if basis is not None else diffs
+        agree = float(torch.nn.functional.cosine_similarity(clean, vec.unsqueeze(0)).mean())
+    dial = {"vec": vec.cpu(), "target": post_name, "mode": "post",
+            "meta": {"name": name, "pairs": [[i, i] for i in range(len(a))] if paired else [],
+                     "n_pairs": str(len(a)) if paired else "0", "pair_agreement_cos": f"{agree:.3f}" if agree is not None else "n/a",
+                     "inject": "post_refiner", "debias_removed": f"{removed:.3f}" if debias else "off",
+                     "calibrated": "False", "format": "ComfyUI-Dials v1", "source": "pictures", "prompt": prompt,
+                     "n_pictures_a": len(a), "n_pictures_b": len(b), "paired_by_index": paired,
+                     "token_pooling": "minimax_token_tags == 1"}}
+    report = dial_label(dial) + f"; pictures A={len(a)}, B={len(b)}; text tokens only"
+    report += "; paired by index" if paired else "; side means only; pair agreement n/a (unequal picture counts)"
+    if debias:
+        report += f"; debias removed {removed:.0%} of the raw dial (generic wording shift)"
+    if vec.norm() == 0:
+        report += "\nzero dial: the picture sides have no remaining mean difference; pair agreement n/a"
+    elif agree is not None and agree < 0.4:
+        report += "\nlow pair agreement: the pictures differ in more than one way; match framing, light and background"
+    return dial, report
 
 
 def rack_report(rows):

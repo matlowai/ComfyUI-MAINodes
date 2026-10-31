@@ -114,6 +114,39 @@ class MakeDial(io.ComfyNode):
         return io.NodeOutput(dial, ui=ui.PreviewText(report))
 
 
+class MakeDialFromPictures(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="MAIDialMakeFromPictures",
+            display_name="Make Dial from Pictures (alpha)",
+            category="MAINodes/Dials",
+            description="Make a post-refiner dial from picture batches: negative strength moves toward A, positive toward B. "
+                        "Use the same prompt for both sides and match framing, light and background by picture index.",
+            inputs=[
+                io.Clip.Input("clip"),
+                io.Model.Input("model"),
+                io.Image.Input("pictures_a", tooltip="A pictures as an image batch; negative dial strength moves toward this side."),
+                io.Image.Input("pictures_b", tooltip="B pictures as an image batch; equal counts pair by index for the agreement report."),
+                io.String.Input("prompt", multiline=True, default="A video in the style and content of <Picture 1>."),
+                io.String.Input("name", default="my_picture_dial", tooltip="Saved as models/loras/dials/<name>.safetensors (empty = don't save)."),
+                io.Boolean.Input("debias", default=True, advanced=True,
+                                 tooltip="Project out the same generic wording directions used by Make Dial."),
+                io.Int.Input("nuisance_dims", default=3, min=1, max=12, advanced=True),
+            ],
+            outputs=[Dial.Output(display_name="dial")],
+            is_output_node=True,
+        )
+
+    @classmethod
+    def execute(cls, clip, model, pictures_a, pictures_b, prompt, name, debias=True, nuisance_dims=3) -> io.NodeOutput:
+        dial, report = core.make_picture_dial(clip, model, pictures_a, pictures_b, prompt, name or "unsaved",
+                                              debias=debias, nuisance_dims=nuisance_dims)
+        if name:
+            report += f"\nsaved {core.save_dial(dial, name)}"
+        return io.NodeOutput(dial, ui=ui.PreviewText(report))
+
+
 class CombineDials(io.ComfyNode):
     @classmethod
     def define_schema(cls):
@@ -153,7 +186,7 @@ class CombineDials(io.ComfyNode):
 
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
-for _cls in (DialRack, MakeDial, CombineDials):
+for _cls in (DialRack, MakeDial, MakeDialFromPictures, CombineDials):
     _schema = _cls.GET_SCHEMA()
     NODE_CLASS_MAPPINGS[_schema.node_id] = _cls
     NODE_DISPLAY_NAME_MAPPINGS[_schema.node_id] = _schema.display_name
