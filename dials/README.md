@@ -16,7 +16,7 @@ second. Ported from [ComfyUI-Dials](https://github.com/matlowai/ComfyUI-Dials); 
 **Strength:** +0.5 to +1 is the everyday range. Past about 1.5 side effects appear (the scene restages, characters
 morph), and on Pika H3 Flex's 6-step schedule even sooner. The motion dial at −2 and +2 shows the extremes.
 
-**Rack = chain:** the rack applies its rows in order with exactly the patches a chain of single-dial nodes makes, so
+**Rack = chain:** a rack without envelopes applies its rows in order with exactly the patches a chain of single-dial nodes makes, so
 one rack is bit-for-bit the same as that chain (`tests/test_dial_rack.py`). Off rows, zero-strength rows and
 non-solo rows while something is soloed change nothing; a rack with nothing active returns the model untouched.
 
@@ -30,6 +30,39 @@ Two kinds of dial file:
   faithful; use these in the rack.
 - **LoRA file** (`pre_refiner`): a `condition_proj` bias diff the stock *Load LoRA (model only)* node also applies.
   Only an approximation of the hook; above ~1 it starts to wash out the prompt.
+
+## Step envelopes
+
+Each rack row can shape its strength across denoising: **constant**, **early** (falls to zero by the midpoint),
+**late** (rises from zero after the midpoint), **bell** (a triangular middle peak), or **manual** `[progress, gain]`
+points. Gains multiply the row's strength; they are not automatically normalized. Manual points interpolate linearly
+and hold their endpoint values outside the specified range. Progress runs from 0 at the first model step to 1 at
+the last, excluding the terminal sigma; a one-step schedule uses progress 0. This controls denoising, not video time.
+
+Envelopes support **post-refiner** dials. H3 caches refined text before sampling, so an enveloped rack shifts that
+cached context at each diffusion-model call. It compiles against the actual sampler sigmas at sample time, uses the
+same strength for repeated CFG calls at one sigma, and interpolates between compiled strengths for intermediate
+solver evaluations. All post rows in that rack keep their addition order, including constant rows. An absent
+envelope keeps the original hook path when no upstream rack is scheduled; an explicit constant envelope has the
+same tensor result. Zero-gain steps skip addition. Pre-refiner rows can coexist but cannot have envelopes.
+
+The rack report updates when sampling starts with the sigma schedule and evaluated per-step strengths; these are
+also logged to the server console. The live update is a `mai-dial-envelope` WebSocket event (including structured
+`sigmas`, `progress`, and `rows`); the earlier API history preview says the values are pending. Each sampler run
+compiles its own wrapper, so reused models and cloned workflows do not share a step counter or cached schedule.
+Keep scheduled and constant post rows in racks: an external Apply Dial node downstream still changes H3's cached
+text before envelope evaluation and can therefore change bf16 addition order.
+
+API row examples (the `envelope` field is optional):
+
+```json
+[
+  {"dial": "dials/h3_motion.safetensors", "strength": 1, "on": true, "envelope": "early"},
+  {"input": "dial_0", "strength": 0.5, "envelope": {"type": "manual", "points": [[0, 0], [0.5, 1], [1, 0]]}}
+]
+```
+
+CPU parity and lifecycle checks: `tests/test_dial_envelopes.py`. GPU envelope behavior is still experimental.
 
 ## Writing good pairs
 
