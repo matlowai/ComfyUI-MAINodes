@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Dial Rack parity and row semantics.
 
-  python tests/test_dial_rack.py      (from anywhere; uses the ComfyUI checkout two levels up)
+  python tests/test_dial_rack.py      (uses the ComfyUI checkout two levels up, or $COMFYUI_ROOT)
 
 CPU only, no model files: a stand-in model with H3's text-module names (condition_proj, token_refiner) wrapped in a
 real ComfyUI ModelPatcher, so the test exercises ComfyUI's own object-patch nesting and weight-patch stacking.
@@ -24,7 +24,7 @@ import tempfile
 import torch
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-COMFY = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
+COMFY = os.environ.get("COMFYUI_ROOT") or os.path.abspath(os.path.join(HERE, "..", "..", ".."))  # COMFYUI_ROOT for checkouts outside custom_nodes
 sys.path.insert(0, COMFY)
 
 import comfy.cli_args  # noqa: E402
