@@ -48,6 +48,8 @@ Two extras in Make Dial's pair text (not in ComfyUI-Dials):
   `! {subject} speaks at a low volume. ||| {subject} speaks at a high volume.` give a face dial that leaves loudness
   alone (the plain face dial shares cos 0.45 with loudness). The report says how much of the dial the hold removed.
   This is linear: it removes the held direction from the vector, and H3 may still couple the two qualities downstream.
+  All `!` lines average into one held direction, so hold one quality per dial for now. Measured on Pika (kitchen line,
+  3 seeds): the face dial at +1 raises voice level +4.8 dB; with loudness held, +1.7 dB and the faces stay animated.
 - **`(words:w)` weighs words.** Inside A or B, the words count `w` times what they add to the text around them
   (`enc(text without them) + w * (enc(text) - enc(text without them))`, on token means). Useful for tilting a mix
   within one side, e.g. `{subject} talks with an (expressive:2) face, (eyebrows raised:0.5)`, or a negative weight to
