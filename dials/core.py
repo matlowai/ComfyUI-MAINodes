@@ -10,6 +10,13 @@ A dial is one vector added to every prompt token, at one of two seams:
 Making a dial: for each pair (A, B), d = mean_tokens(enc(B)) - mean_tokens(enc(A)) at the chosen seam, averaged over pairs,
 with the generic "more wording" directions (from built-in nuisance pairs) projected out (debias). File format and
 folder (models/loras/dials/) are shared with ComfyUI-Dials, so dials made by either pack load in both.
+
+Two pair-text extensions (MAINodes only):
+  ! A ||| B      a hold pair: the mean of these pairs is projected out of the dial, so the dial cannot move that quality
+                 (e.g. an expressive-face dial that keeps the voice's loudness unchanged).
+  (words:w)      inside A or B: those words count w times what they add to the text around them, i.e.
+                 enc = enc(text without the span) + w * (enc(text) - enc(text without the span)), in token-mean space.
+                 H3's tokenizer ignores prompt weights, so this is the only place the syntax means anything.
 """
 import json
 import os
@@ -67,20 +74,49 @@ def apply_dial(m, dial, strength):
 
 
 def parse_pairs(pairs, subjects):
+    """-> (pairs, hold pairs); lines starting with '!' are hold pairs."""
     subs = [s.strip() for s in subjects.splitlines() if s.strip() and not s.strip().startswith("#")] or [None]
-    out = []
+    out, holds = [], []
     for line in pairs.splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
             continue
+        dest = holds if line.startswith("!") else out
+        line = line.lstrip("!").strip()
         if "|||" not in line:
             raise ValueError(f"each pair line needs 'A ||| B', got: {line[:80]}")
         a, b = (x.strip() for x in line.split("|||", 1))
         for s in subs:
-            out.append((a.replace("{subject}", s), b.replace("{subject}", s)) if s else (a, b))
+            dest.append((a.replace("{subject}", s), b.replace("{subject}", s)) if s else (a, b))
     if not out:
         raise ValueError("no prompt pairs given")
-    return out
+    return out, holds
+
+
+WEIGHTED_SPAN = re.compile(r"\(([^():]+):\s*(-?\d+(?:\.\d+)?)\)")
+
+
+def weighted_terms(text):
+    """'(words:w)' markup -> [(prompt, coefficient)]; the coefficient-weighted sum of the prompts' encodings is the weighted
+    encoding. Each span adds w times its own contribution over the text without any spans (first order, no cross terms)."""
+    spans = list(WEIGHTED_SPAN.finditer(text))
+    if not spans:
+        return [(text, 1.0)]
+
+    def keep(i):
+        out, pos = [], 0
+        for j, m in enumerate(spans):
+            out += [text[pos:m.start()], m.group(1) if j == i else ""]
+            pos = m.end()
+        return re.sub(r" ([,.;:!?])", r"\1", re.sub(r"\s+", " ", "".join(out + [text[pos:]]))).strip()
+
+    weights = [float(m.group(2)) for m in spans]
+    terms = [(keep(None), 1.0 - sum(weights))] + [(keep(i), w) for i, w in enumerate(weights)]
+    return [(t, c) for t, c in terms if c != 0]
+
+
+def plain_text(text):
+    return WEIGHTED_SPAN.sub(r"\1", text)
 
 
 def dial_files():
@@ -123,8 +159,8 @@ def dial_label(dial):
 def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=True, nuisance_dims=3):
     """Returns (dial, report). mode: "post" (hook) or "pre" (LoRA file)."""
     (pre_name, post_name), proj, refiner = text_modules(model)
-    prompts = parse_pairs(pairs, subjects)
-    nuisance = parse_pairs("\n".join(NUISANCE_PAIRS), subjects if subjects.strip() else NUISANCE_SUBJECTS) if debias else []
+    prompts, holds = parse_pairs(pairs, subjects)
+    nuisance = parse_pairs("\n".join(NUISANCE_PAIRS), subjects if subjects.strip() else NUISANCE_SUBJECTS)[0] if debias else []
     comfy.model_management.load_models_gpu([model])
     device = comfy.model_management.get_torch_device()
     dtype = model.model.get_dtype_inference()
@@ -137,8 +173,11 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
             cache[text] = (pre, pre.float().mean(0), refiner(pre).float().mean(0))
         return cache[text]
 
+    def side(text, which):
+        return sum(c * encode(t)[which] for t, c in weighted_terms(text))
+
     def diffs(pp, which):
-        return torch.stack([encode(b)[which] - encode(a)[which] for a, b in pp])
+        return torch.stack([side(b, which) - side(a, which) for a, b in pp])
 
     def nuisance_basis(which):
         if not nuisance:
@@ -148,26 +187,38 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
     def remove(v, basis):
         return v - basis @ (basis.T @ v) if basis is not None else v
 
+    def hold_direction(which, basis):  # unit hold direction, orthogonal to the nuisance basis -> [hidden, 1]
+        if not holds:
+            return None
+        h = remove(diffs(holds, which).mean(0), basis)
+        return (h / h.norm()).unsqueeze(1)
+
     which = 1 if mode == "pre" else 2
     d, basis = diffs(prompts, which), nuisance_basis(which)
+    hold = hold_direction(which, basis)
     raw = d.mean(0)
-    vec = remove(raw, basis)
-    removed = 1 - float(vec.norm() ** 2 / raw.norm() ** 2)
-    agree = float(torch.nn.functional.cosine_similarity(torch.stack([remove(x, basis) for x in d]), vec.unsqueeze(0)).mean())
-    note = ""
+    debiased = remove(raw, basis)
+    vec = remove(debiased, hold)
+    removed = 1 - float(debiased.norm() ** 2 / raw.norm() ** 2)
+    held = 1 - float(vec.norm() ** 2 / debiased.norm() ** 2)
+    agree = float(torch.nn.functional.cosine_similarity(torch.stack([remove(remove(x, basis), hold) for x in d]), vec.unsqueeze(0)).mean())
+    note = f"; hold pairs removed {held:.0%} of the dial (cos with the held quality {float(debiased @ hold[:, 0]) / float(debiased.norm()):+.2f})" if holds else ""
     if calibrate and mode == "pre":
         # the refiner's final RMSNorm shrinks a pre-refiner shift: rescale so strength 1 = one average pair difference after it
-        post_target = remove(diffs(prompts, 2).mean(0), nuisance_basis(2))
-        probe = [t for pair in prompts[:8] for t in pair]
+        basis2 = nuisance_basis(2)
+        post_target = remove(remove(diffs(prompts, 2).mean(0), basis2), hold_direction(2, basis2))
+        probe = [plain_text(t) for pair in prompts[:8] for t in pair]
         shift = torch.stack([refiner(encode(t)[0] + vec.to(dtype)).float().mean(0) - encode(t)[2] for t in probe]).mean(0)
         along = float(shift @ (post_target / post_target.norm().clamp_min(1e-12)))
         scale = float(post_target.norm()) / along if along > 0 else 1.0
         vec = vec * scale
-        note = f", calibrated x{scale:.2f}"
+        note += f", calibrated x{scale:.2f}"
     dial = {"vec": vec.cpu(), "target": pre_name if mode == "pre" else post_name, "mode": mode,
             "meta": {"name": name, "pairs": prompts, "n_pairs": str(len(prompts)), "pair_agreement_cos": f"{agree:.3f}",
                      "inject": f"{mode}_refiner", "debias_removed": f"{removed:.3f}" if debias else "off",
                      "calibrated": str(bool(calibrate and mode == "pre")), "format": "ComfyUI-Dials v1"}}
+    if holds:
+        dial["meta"].update({"holds": holds, "hold_removed": f"{held:.3f}"})
     report = dial_label(dial) + (f"; debias removed {removed:.0%} of the raw dial (generic wording shift)" if debias else "") + note
     if agree < 0.4:
         report += "\nlow pair agreement: the pairs differ in more than one way; tighten the wording"

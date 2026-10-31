@@ -74,7 +74,8 @@ class MakeDial(io.ComfyNode):
                 io.Model.Input("model"),
                 io.String.Input("pairs", multiline=True,
                                 default="{subject} stands perfectly still, posing for a photograph. ||| {subject} runs quickly across the scene, moving energetically.",
-                                tooltip="One pair per line: 'A ||| B', identical except for the quality to steer. {subject} expands over the subjects list. # starts a comment."),
+                                tooltip="One pair per line: 'A ||| B', identical except for the quality to steer. {subject} expands over the subjects list. # starts a comment. "
+                                        "'! A ||| B' is a hold pair: the dial is kept from moving that quality. '(words:2)' counts those words twice."),
                 io.String.Input("subjects", multiline=True, default="A young woman\nAn old man\nA golden dog\nA horse",
                                 tooltip="Optional: one subject per line, substituted for {subject}. Varied subjects cancel out, leaving only the A→B difference."),
                 io.String.Input("name", default="my_dial", tooltip="Saved as models/loras/dials/<name>.safetensors (empty = don't save)."),

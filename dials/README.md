@@ -39,6 +39,22 @@ Two kinds of dial file:
   leave the frame.
 - Dials steer H3's audio too: a mood dial can change voices (sinister crushes speech); check dialogue scenes by ear.
 
+## Hold pairs and word weights
+
+Two extras in Make Dial's pair text (not in ComfyUI-Dials):
+
+- **`! A ||| B` holds a quality.** Lines starting with `!` are averaged into one direction that is projected out of
+  the dial, so the dial cannot move that quality. Example: the expressive-face pairs plus
+  `! {subject} speaks at a low volume. ||| {subject} speaks at a high volume.` give a face dial that leaves loudness
+  alone (the plain face dial shares cos 0.45 with loudness). The report says how much of the dial the hold removed.
+  This is linear: it removes the held direction from the vector, and H3 may still couple the two qualities downstream.
+- **`(words:w)` weighs words.** Inside A or B, the words count `w` times what they add to the text around them
+  (`enc(text without them) + w * (enc(text) - enc(text without them))`, on token means). Useful for tilting a mix
+  within one side, e.g. `{subject} talks with an (expressive:2) face, (eyebrows raised:0.5)`, or a negative weight to
+  subtract a word's pull. A single weighted span on one side just scales the whole dial (same as strength), and
+  spans add independently (no interaction terms). H3's own prompt box ignores this syntax: ComfyUI tokenizes H3
+  prompts with weights disabled, so `(quiet:2)` in a normal prompt reaches the model as literal text.
+
 ## License
 
 The node code is GPL-3.0 with the rest of this pack. Dial weight files are Model Derivatives of MiniMax H3 and fall
