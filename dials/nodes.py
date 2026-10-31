@@ -136,9 +136,12 @@ class CombineDials(io.ComfyNode):
         return io.NodeOutput(dial, ui=ui.PreviewText(report))
 
 
+from .D1_trace import D1TraceRefiner, D1RefinerTraceReport
+
+
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
-for _cls in (DialRack, MakeDial, CombineDials):
+for _cls in (DialRack, MakeDial, CombineDials, D1TraceRefiner, D1RefinerTraceReport):
     _schema = _cls.GET_SCHEMA()
     NODE_CLASS_MAPPINGS[_schema.node_id] = _cls
     NODE_DISPLAY_NAME_MAPPINGS[_schema.node_id] = _schema.display_name
