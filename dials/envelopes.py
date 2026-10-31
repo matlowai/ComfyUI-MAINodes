@@ -1,6 +1,9 @@
-"""Sample-time envelopes for H3's cached post-refiner text context."""
+"""Sample-time envelopes for H3's cached post-refiner text context.
+
+Progress runs from 0 to 1 over the steps of each sampler call: with two sampler stages (split sigmas, or a second
+pass at denoise < 1) an envelope is applied to each stage on its own.
+"""
 import bisect
-import logging
 import math
 
 from comfy.patcher_extension import (WrappersMP, add_wrapper_with_key, copy_nested_dicts)
@@ -60,14 +63,10 @@ class EnvelopeForward:
                      for label, dial, strength, points in rows]
 
     def report(self):
-        intervals = [a - b for a, b in zip(self.sigmas, self.sigmas[1:])]
-        rows = [{"label": label, "strengths": values,
-                 "sigma_integrated_gain": sum(v * ds for v, ds in zip(values, intervals))}
-                for label, _, values in self.rows]
         text = "envelope sigmas (terminal omitted): " + ", ".join(f"{s:.6g}" for s in self.sigmas[:-1])
-        for row in rows:
-            text += f"\n{row['label']} sampled strengths: " + ", ".join(f"{v:+.6g}" for v in row["strengths"])
-        return {"sigmas": self.sigmas, "progress": self.progress, "rows": rows, "text": text}
+        for label, _, values in self.rows:
+            text += f"\n{label} sampled strengths: " + ", ".join(f"{v:+.6g}" for v in values)
+        return text
 
     def __call__(self, executor, x, timestep, context, transformer_options, **kwargs):
         sigma = transformer_options.get("sigmas")
@@ -76,9 +75,7 @@ class EnvelopeForward:
         current = float(sigma.flatten()[0])
         if not math.isfinite(current) or not bool((sigma == current).all()):
             raise ValueError("dial envelopes need one finite shared sigma per H3 model call")
-        dm = executor.class_obj
-        if context.shape[-1] != dm.hidden_size:
-            context = dm.preprocess_text_embeds(context)
+        context = executor.class_obj.preprocess_text_embeds(context)  # no-op when extra_conds already refined it
         for _, dial, values in self.rows:
             strength = interpolate(list(zip([-s for s in self.sigmas[:-1]], values)), -current)
             if strength != 0:
@@ -98,12 +95,10 @@ class EnvelopeSampler:
         extra_args["model_options"] = copy_nested_dicts(extra_args["model_options"])
         options = extra_args["model_options"].setdefault("transformer_options", {})
         add_wrapper_with_key(WrappersMP.DIFFUSION_MODEL, WRAPPER_KEY, compiled, options)
-        report = compiled.report()
-        report["text"] = self.base_report + "\n" + report["text"]
-        logging.info(report["text"])
         if self.node_id is not None:
-            from server import PromptServer
-            PromptServer.instance.send_sync("mai-dial-envelope", {"node": self.node_id, **report}, PromptServer.instance.client_id)
+            from server import PromptServer  # only inside a running ComfyUI; keeps the module importable in tests
+            PromptServer.instance.send_sync("mai-dial-envelope", {"node": self.node_id, "text": self.base_report + "\n" + compiled.report()},
+                                            PromptServer.instance.client_id)
         return executor(model, sigmas, extra_args, *args, **kwargs)
 
 

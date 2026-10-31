@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Rack preset round-trip, changed/missing files, format and name validation (CPU, no model weights)."""
 import hashlib
+import importlib
 import importlib.util
 import json
 import os
@@ -11,11 +12,15 @@ import tempfile
 HERE = Path(__file__).resolve().parent
 COMFY = os.environ.get("COMFYUI_ROOT") or str(HERE.parents[2])
 sys.path.insert(0, COMFY)
-import folder_paths
+import comfy.cli_args  # noqa: E402
+comfy.cli_args.args.cpu = True  # before model_management picks a device
+import folder_paths  # noqa: E402
 
-spec = importlib.util.spec_from_file_location("dial_presets", HERE.parent / "dials" / "presets.py")
-presets = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(presets)
+pkg_dir = HERE.parent / "dials"
+spec = importlib.util.spec_from_file_location("mai_dials", pkg_dir / "__init__.py", submodule_search_locations=[str(pkg_dir)])
+sys.modules["mai_dials"] = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(sys.modules["mai_dials"])
+presets = importlib.import_module("mai_dials.presets")
 
 
 def rejects(fn, *args, exception=ValueError):
@@ -27,7 +32,8 @@ def rejects(fn, *args, exception=ValueError):
 
 
 def main():
-    root = Path(tempfile.mkdtemp(prefix="B2_presets_"))
+    scratch = tempfile.TemporaryDirectory(prefix="B2_presets_")
+    root = Path(scratch.name)
     folder_paths.add_model_folder_path("loras", str(root), is_default=True)
     (root / "dials").mkdir()
     dial = root / "dials" / "test.safetensors"
@@ -85,7 +91,10 @@ def main():
         presets.preset_path(f"bad_{i}").write_text(json.dumps(value))
         rejects(presets.load_preset, f"bad_{i}")
     print("dial presets: all checks passed (round-trip, hash mismatch, missing rows, no overwrite, names, schema)")
-    print(f"fixtures retained at {root}")
+    for bad in ({"type": "wobble"}, {"type": "manual", "points": [[0.5, 1], [0.2, 0]]}, {}, 7):
+        rejects(presets.preset_rows, [dict(dial="dials/x.safetensors", strength=1, envelope=bad)])
+    rejects(presets.preset_rows, [dict(dial="dials/x.safetensors", strength=1, hold=True, envelope="early")])
+    scratch.cleanup()
 
 
 if __name__ == "__main__":

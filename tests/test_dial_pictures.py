@@ -7,6 +7,7 @@ import importlib
 import importlib.util
 import os
 from pathlib import Path
+import shutil
 import sys
 import tempfile
 import unittest
@@ -127,7 +128,7 @@ class PictureDialTests(unittest.TestCase):
 
     def make(self, **kwargs):
         args = dict(clip=self.clip, model=self.model, pictures_a=self.a, pictures_b=self.b,
-                    prompt=PROMPT, name="pictures_test", debias=False)
+                    prompt=PROMPT, name="pictures_test", debias=False, nuisance_dims=3)
         args.update(kwargs)
         return core.make_picture_dial(**args)
 
@@ -203,17 +204,17 @@ class PictureDialTests(unittest.TestCase):
         self.assertEqual(inputs["pictures_b"].io_type, "IMAGE")
         # Retain test artifacts: the study's rules forbid deleting even temporary output files.
         scratch = tempfile.mkdtemp(prefix="C1_picture_dial_")
+        self.addCleanup(shutil.rmtree, scratch)
         with patch.dict(folder_paths.folder_names_and_paths, {"loras": ([scratch], {".safetensors"})}):
-            result = cls.execute(self.clip, self.model, self.a, self.b, PROMPT, "C1_picture_test", debias=False)
+            result = cls.execute(self.clip, self.model, self.a, self.b, PROMPT, "C1_picture_test", debias=False, nuisance_dims=3)
             loaded = core.load_dial("dials/C1_picture_test.safetensors")
             self.assertTrue(torch.equal(loaded["vec"], result.result[0]["vec"].to(torch.bfloat16).float()))
             self.assertEqual(loaded["meta"]["source"], "pictures")
             self.assertIn("saved", result.ui.as_dict()["text"][0])
             with patch.object(core, "save_dial") as save:
-                unsaved = cls.execute(self.clip, self.model, self.a, self.b, PROMPT, "", debias=False)
+                unsaved = cls.execute(self.clip, self.model, self.a, self.b, PROMPT, "", debias=False, nuisance_dims=3)
                 save.assert_not_called()
                 self.assertEqual(unsaved.result[0]["meta"]["name"], "unsaved")
-        print(f"C1 retained roundtrip artifact: {scratch}/dials/C1_picture_test.safetensors")
 
 
 if __name__ == "__main__":

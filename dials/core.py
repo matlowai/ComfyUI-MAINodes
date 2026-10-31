@@ -28,6 +28,8 @@ from safetensors import safe_open
 from safetensors.torch import save_file
 
 import comfy.model_management
+import comfy.utils
+from comfy_extras.nodes_minimax_h3 import CANVAS_MULTIPLE, REF_IMAGE_SHORT_EDGE, adapt_canvas
 import folder_paths
 
 # diffusion model class -> (text projection layer the pre seam biases, text refiner whose output the post seam shifts)
@@ -145,7 +147,7 @@ def hold_basis(directions, nuisance):
     if len(directions) == 1:
         h = directions[0]
         h = h - nuisance @ (nuisance.T @ h) if nuisance is not None else h
-        return (h / h.norm()).unsqueeze(1)
+        return (h / h.norm().clamp_min(1e-12)).unsqueeze(1)
     basis = nuisance if nuisance is not None else directions[0].new_empty((directions[0].numel(), 0))
     columns = []
     for h in directions:
@@ -186,13 +188,13 @@ def plain_text(text):
     return WEIGHTED_SPAN.sub(r"\1", text)
 
 
-def dial_files():
-    return [f for f in folder_paths.get_filename_list("loras") if f.replace("\\", "/").startswith(f"{DIAL_SUBDIR}/")]
+def check_dial_name(name):
+    if not re.fullmatch(r"[A-Za-z0-9_\-]{1,80}", name):
+        raise ValueError("dial name: letters, digits, '_' and '-' only (max 80)")
 
 
 def save_dial(dial, name):
-    if not re.fullmatch(r"[A-Za-z0-9_\-]{1,80}", name):
-        raise ValueError("dial name: letters, digits, '_' and '-' only (max 80)")
+    check_dial_name(name)
     root = os.path.join(folder_paths.get_folder_paths("loras")[0], DIAL_SUBDIR)
     os.makedirs(root, exist_ok=True)
     path = os.path.join(root, f"{name}.safetensors")
@@ -284,12 +286,12 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
     removed = 1 - float(debiased.norm() ** 2 / raw.norm() ** 2)
     held = 1 - float(vec.norm() ** 2 / debiased.norm() ** 2)
     agree = float(torch.nn.functional.cosine_similarity(torch.stack([remove(remove(x, basis), hold) for x in d]), vec.unsqueeze(0)).mean())
-    note = f"; hold pairs removed {held:.0%} of the dial (cos with the held quality {float(debiased @ hold[:, 0]) / float(debiased.norm()):+.2f})" if holds else ""
+    note, shares = "", {}
     if holds:
-        shares = {group: float((debiased @ hold[:, i]) ** 2 / debiased.square().sum().clamp_min(1e-24))
-                  for i, group in enumerate(holds)}
-        if len(holds) > 1:
-            note = f"; hold pairs removed {held:.0%} of the dial"
+        shares = {group: float((debiased @ hold[:, i]) ** 2 / debiased.square().sum().clamp_min(1e-24)) for i, group in enumerate(holds)}
+        note = f"; hold pairs removed {held:.0%} of the dial"
+        if len(holds) == 1:
+            note += f" (cos with the held quality {float(debiased @ hold[:, 0]) / float(debiased.norm()):+.2f})"
     if calibrate and mode == "pre":
         # the refiner's final RMSNorm shrinks a pre-refiner shift: rescale so strength 1 = one average pair difference after it
         basis2 = basis_for(2)
@@ -300,7 +302,7 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
         scale = float(post_target.norm()) / along if along > 0 else 1.0
         vec = vec * scale
         note += f", calibrated x{scale:.2f}"
-    if holds:
+    if len(holds) > 1:
         note += "\n" + "; ".join(f"hold group [{group}] removed {share:.1%}" for group, share in shares.items())
     dial = {"vec": vec.cpu(), "target": pre_name if mode == "pre" else post_name, "mode": mode,
             "meta": {"name": name, "pairs": prompts, "n_pairs": str(len(prompts)),
@@ -308,8 +310,7 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
                      "inject": f"{mode}_refiner", "debias_removed": f"{removed:.3f}" if debias else "off",
                      "calibrated": str(bool(calibrate and mode == "pre")), "format": "ComfyUI-Dials v1"}}
     if holds:
-        dial["meta"].update({"holds": [pair for pp in holds.values() for pair in pp], "hold_removed": f"{held:.3f}",
-                             "hold_groups": holds, "hold_group_removed": shares})
+        dial["meta"].update({"hold_groups": holds, "hold_removed": f"{held:.3f}", "hold_group_removed": shares})
     report = dial_label(dial) + (f"; debias removed {removed:.0%} of the raw dial (generic wording shift)" if debias else "") + note
     if agree < 0.4:
         report += "\nlow pair agreement: the pairs differ in more than one way; tighten the wording"
@@ -345,25 +346,42 @@ def make_picture_dial(clip, model, pictures_a, pictures_b, prompt, name, debias=
     pair by index for agreement; unequal batches use B's mean minus A's mean without a pair-agreement estimate.
     """
     def items(pictures):
-        return ({"type": "image", "data": pictures[i:i + 1]} for i in range(len(pictures)))
+        h, w = pictures.shape[1:3]
+        scale = min(1.0, REF_IMAGE_SHORT_EDGE / min(w, h))
+        return ({"type": "image", "data": resize(pictures[i:i + 1], w * scale, h * scale)} for i in range(len(pictures)))
     return _make_reference_dial(clip, model, items(pictures_a), items(pictures_b), prompt, name,
                                 "pictures", debias, nuisance_dims)
 
 
-def video_reference(frames, fps):
-    """Sample a decoded IMAGE batch at 2 fps (or its lower native rate), retaining source timestamps."""
-    indices = torch.arange(0, len(frames), max(float(fps) / 2, 1)).long()
-    return {"type": "video", "data": frames[indices], "timestamps": (indices.double() / float(fps)).tolist()}
+MAX_VIDEO_SAMPLES = 16  # 8 s at 2 fps
+
+
+def resize(images, w, h):
+    """Shrink an IMAGE batch to about w x h (CANVAS_MULTIPLE steps, as ComfyUI sizes H3 references); never enlarge."""
+    if w >= images.shape[2] and h >= images.shape[1]:
+        return images
+    w = max(CANVAS_MULTIPLE, round(w / CANVAS_MULTIPLE) * CANVAS_MULTIPLE)
+    h = max(CANVAS_MULTIPLE, round(h / CANVAS_MULTIPLE) * CANVAS_MULTIPLE)
+    return comfy.utils.common_upscale(images.movedim(-1, 1), w, h, "lanczos", "disabled").movedim(1, -1)
+
+
+def video_reference(frames, fps, samples=MAX_VIDEO_SAMPLES):
+    """First `samples` frames at 2 fps (or the native rate if lower), on the H3 reference canvas, with timestamps."""
+    indices = torch.arange(0, len(frames), max(float(fps) / 2, 1)).long()[:samples]
+    cw, ch = adapt_canvas(frames.shape[2], frames.shape[1])
+    return {"type": "video", "data": resize(frames[indices], cw, ch), "timestamps": (indices.double() / float(fps)).tolist()}
 
 
 def make_video_dial(clip, model, videos_a, videos_b, prompt, name, debias=True, nuisance_dims=3):
-    """Video sides are iterables of (frames, fps); each clip contributes one text-token mean."""
-    a = [video_reference(frames, fps) for frames, fps in videos_a]
-    b = [video_reference(frames, fps) for frames, fps in videos_b]
+    """Video sides are lists of (frames, fps); each clip contributes one text-token mean. Every clip is cut to the same
+    number of 2 fps samples, so the per-block timestamp tokens match on both sides and cannot become part of the dial."""
+    samples = min([MAX_VIDEO_SAMPLES] + [len(torch.arange(0, len(f), max(float(fps) / 2, 1))) for f, fps in videos_a + videos_b])
+    a = [video_reference(frames, fps, samples) for frames, fps in videos_a]
+    b = [video_reference(frames, fps, samples) for frames, fps in videos_b]
     dial, report = _make_reference_dial(clip, model, a, b, prompt, name, "videos", debias, nuisance_dims)
     dial["meta"].update({"video_sample_fps": 2, "timestamps_a": [x["timestamps"] for x in a],
                          "timestamps_b": [x["timestamps"] for x in b]})
-    return dial, report + "; video sampled at up to 2 fps with timestamps; audio excluded"
+    return dial, report + f"; every clip cut to {samples} samples at up to 2 fps (equal timestamps on both sides); audio excluded"
 
 
 def _make_reference_dial(clip, model, items_a, items_b, prompt, name, source, debias, nuisance_dims):
@@ -404,7 +422,7 @@ def _make_reference_dial(clip, model, items_a, items_b, prompt, name, source, de
         nuisance_diffs = torch.stack([cache[y] - cache[x] for x, y in nuisance])
         basis = nuisance_basis(nuisance_diffs, nuisance_dims)
     vec = raw - basis @ (basis.T @ raw) if basis is not None else raw
-    removed = 1 - float(vec.norm().square() / raw.norm().square().clamp_min(1e-12)) if raw.norm() > 0 else 0.0
+    removed = 1 - float(vec.norm().square() / raw.norm().square().clamp_min(1e-12))
     agree = None
     if paired and vec.norm() > 0:
         clean = diffs - (diffs @ basis) @ basis.T if basis is not None else diffs

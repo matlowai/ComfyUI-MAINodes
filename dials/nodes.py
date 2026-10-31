@@ -70,7 +70,7 @@ class DialRack(io.ComfyNode):
             applied = [row for row in applied if row[1]["mode"] == "pre"] + (
                 [("post shift after holds", combined, 1.0)] if any(d["mode"] == "post" for _, d, _ in applied) else [])
             specs = [None] * len(applied)
-        scheduled = envelopes.apply_rack(m, applied, specs, getattr(cls.hidden, "unique_id", None), report)
+        scheduled = envelopes.apply_rack(m, applied, specs, cls.hidden.unique_id, report)
         if scheduled:
             report += "\nenvelopes: sampled strengths appear here when sampling starts"
         return io.NodeOutput(m, ui=ui.PreviewText(report))
@@ -108,6 +108,8 @@ class MakeDial(io.ComfyNode):
 
     @classmethod
     def execute(cls, clip, model, pairs, subjects, name, inject, debias, nuisance_dims) -> io.NodeOutput:
+        if name:
+            core.check_dial_name(name)
         mode = "post" if inject.startswith("post") else "pre"
         dial, report = core.make_dial(clip, model, pairs, subjects, name or "unsaved", mode, debias=debias, nuisance_dims=nuisance_dims)
         if name:
@@ -140,7 +142,9 @@ class MakeDialFromPictures(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, clip, model, pictures_a, pictures_b, prompt, name, debias=True, nuisance_dims=3) -> io.NodeOutput:
+    def execute(cls, clip, model, pictures_a, pictures_b, prompt, name, debias, nuisance_dims) -> io.NodeOutput:
+        if name:
+            core.check_dial_name(name)
         dial, report = core.make_picture_dial(clip, model, pictures_a, pictures_b, prompt, name or "unsaved",
                                               debias=debias, nuisance_dims=nuisance_dims)
         if name:
@@ -174,11 +178,12 @@ class MakeDialFromVideos(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, clip, model, videos_a, videos_b, prompt, name, debias=True, nuisance_dims=3) -> io.NodeOutput:
+    def execute(cls, clip, model, videos_a, videos_b, prompt, name, debias, nuisance_dims) -> io.NodeOutput:
+        if name:
+            core.check_dial_name(name)
+
         def components(videos):
-            for key in sorted(videos, key=lambda x: int(x.rsplit("_", 1)[1])):
-                video = videos[key].get_components()
-                yield video.images, video.frame_rate
+            return [(c.images, c.frame_rate) for c in (videos[k].get_components() for k in sorted(videos, key=lambda x: int(x.rsplit("_", 1)[1])))]
         dial, report = core.make_video_dial(clip, model, components(videos_a), components(videos_b), prompt,
                                             name or "unsaved", debias=debias, nuisance_dims=nuisance_dims)
         if name:

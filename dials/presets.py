@@ -8,20 +8,24 @@ from pathlib import Path
 
 import folder_paths
 
-from . import core
+from . import core, envelopes
 
 FORMAT = "MAIDialRack preset"
 VERSION = 1
 
 
+def preset_dir():
+    return Path(folder_paths.get_folder_paths("loras")[0]) / "dials" / "presets"
+
+
 def preset_path(name):
     if not re.fullmatch(r"[A-Za-z0-9_\-]{1,80}", name):
         raise ValueError("preset name: letters, digits, '_' and '-' only (max 80)")
-    return Path(folder_paths.get_folder_paths("loras")[0]) / "dials" / "presets" / f"{name}.json"
+    return preset_dir() / f"{name}.json"
 
 
 def list_presets():
-    root = preset_path("unused").parent
+    root = preset_dir()
     return sorted(p.stem for p in root.glob("*.json") if re.fullmatch(r"[A-Za-z0-9_\-]{1,80}", p.stem))
 
 
@@ -52,6 +56,12 @@ def preset_rows(rows):
                 raise ValueError("preset hold must be a boolean")
             result[-1]["hold"] = row["hold"]
         if "envelope" in row:
+            if row.get("hold"):
+                raise ValueError("a hold row cannot have a step envelope")
+            try:
+                envelopes.envelope_points(row["envelope"])
+            except (KeyError, TypeError) as e:
+                raise ValueError(f"invalid preset envelope: {row['envelope']!r}") from e
             result[-1]["envelope"] = row["envelope"]
     return result
 
@@ -61,7 +71,7 @@ def dial_sha256(dial):
     if path is None:
         return None
     with open(path, "rb") as f:
-        return hashlib.file_digest(f, "sha256").hexdigest()
+        return hashlib.sha256(f.read()).hexdigest()
 
 
 def check_rows(rows):
@@ -117,7 +127,7 @@ def install_routes():
             return web.json_response({"error": "Preset already exists. Choose a new name."}, status=409)
         except FileNotFoundError:
             return web.json_response({"error": "Preset not found."}, status=404)
-        except (ValueError, TypeError, AttributeError) as e:
+        except ValueError as e:
             return web.json_response({"error": str(e)}, status=400)
 
     @srv.routes.get("/mainodes/dials/presets/{name}")

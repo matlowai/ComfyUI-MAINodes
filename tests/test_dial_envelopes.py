@@ -48,7 +48,7 @@ def sample(patcher, x, sigmas, calls=None, raw=False):
             outputs, reports = [], []
             for wrapper in get_all_wrappers(WrappersMP.DIFFUSION_MODEL, opts):
                 if isinstance(wrapper, envelopes.EnvelopeForward):
-                    reports.append(wrapper.report())
+                    reports.append(wrapper)
             for sigma, branch in calls or [(s, 0) for s in schedule[:-1]]:
                 call_opts = {**opts, "sigmas": torch.tensor([float(sigma)]), "cond_or_uncond": [branch]}
                 outputs.append(dm([torch.zeros(1), torch.zeros(1)], float(sigma) * 1000, context,
@@ -95,17 +95,17 @@ def main():
             expected, _ = sample(old, x, schedule)
             got, reports = sample(constant, x, schedule)
             equal(got, expected)
-            assert reports[0]["rows"][0]["strengths"] == [1.3] * (len(schedule) - 1)
+            assert reports[0].rows[0][2] == [1.3] * (len(schedule) - 1)
             evidence.append({"dtype": str(dtype), "schedule": name, "constant_max_abs_diff": 0.0, "steps": len(got)})
 
         zero = rack(base, [row(0, 2., envelope={"type": "manual", "points": [[0, 0], [1, 0]]})], ins)
         plain, _ = sample(base, x, PIKA)
         equal(sample(zero, x, PIKA)[0], plain)
-        assert sample(zero, x, PIKA)[1][0]["rows"][0]["strengths"] == [0.] * 6
+        assert sample(zero, x, PIKA)[1][0].rows[0][2] == [0.] * 6
 
         early = rack(base, [row(0, 1., envelope="early"), row(1, -.5)], ins)
         got, reports = sample(early, x, PIKA)
-        values = reports[0]["rows"][0]["strengths"]
+        values = reports[0].rows[0][2]
         assert all(abs(a - b) < 1e-12 for a, b in zip(values, [1., .6, .2, 0., 0., 0.]))
         for i, strength in enumerate(values):
             steps = ([(a, strength)] if strength else []) + [(b, -.5)]
@@ -151,7 +151,7 @@ def main():
     for shape, expected in (("constant", [1., 1., 1., 1., 1., 1.]), ("early", [1., .6, .2, 0., 0., 0.]),
                             ("late", [0., 0., 0., .2, .6, 1.]), ("bell", [0., .4, .8, .8, .4, 0.])):
         compiled = envelopes.EnvelopeForward([("a", a, 1., envelopes.envelope_points(shape))], PIKA)
-        actual = compiled.report()["rows"][0]["strengths"]
+        actual = compiled.rows[0][2]
         assert len(actual) == 6 and all(abs(a - b) < 1e-12 for a, b in zip(actual, expected))
         fails(lambda: compiled(None, None, None, None, {}), "no sampler sigma")
         fails(lambda: compiled(None, None, None, None, {"sigmas": torch.tensor([1., .5])}), "shared sigma")

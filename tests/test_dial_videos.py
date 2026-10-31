@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """CPU video-pair contracts; run with COMFYUI_ROOT and CUDA_VISIBLE_DEVICES=."""
 from fractions import Fraction
+import shutil
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -67,7 +68,7 @@ class VideoDialTests(unittest.TestCase):
 
     def make(self, **kwargs):
         args = dict(clip=self.clip, model=self.model, videos_a=self.a, videos_b=self.b,
-                    prompt=PROMPT, name="video_test", debias=False)
+                    prompt=PROMPT, name="video_test", debias=False, nuisance_dims=3)
         args.update(kwargs)
         return core.make_video_dial(**args)
 
@@ -86,14 +87,15 @@ class VideoDialTests(unittest.TestCase):
 
     def test_text_pooling_after_refinement_and_equal_clip_weight(self):
         dial, report = self.make()
-        a = torch.stack([expected(core.video_reference(*v)) for v in self.a])
-        b = torch.stack([expected(core.video_reference(*v)) for v in self.b])
+        # every clip is cut to the shortest clip's samples (2 here), so timestamps match on both sides
+        a = torch.stack([expected(core.video_reference(*v, 2)) for v in self.a])
+        b = torch.stack([expected(core.video_reference(*v, 2)) for v in self.b])
         diff = b - a
         torch.testing.assert_close(dial["vec"], diff.mean(0))
         agreement = float(torch.nn.functional.cosine_similarity(diff, diff.mean(0)[None, :]).mean())
         self.assertEqual(dial["meta"]["pair_agreement_cos"], f"{agreement:.3f}")
         self.assertEqual(dial["meta"]["pairs"], [[0, 0], [1, 1]])
-        self.assertEqual(dial["meta"]["timestamps_a"], [[0, .5, 1], [0, .5]])
+        self.assertEqual(dial["meta"]["timestamps_a"], [[0, .5], [0, .5]])
         self.assertEqual((dial["target"], dial["mode"]), ("token_refiner", "post"))
         self.assertIn("audio excluded", report)
         self.assertEqual([text for text, _ in self.clip.calls], [PROMPT] * 4)
@@ -102,7 +104,7 @@ class VideoDialTests(unittest.TestCase):
 
     def test_unequal_counts_average_clips_and_report_na(self):
         dial, report = self.make(videos_a=self.a[:1])
-        target = torch.stack([expected(core.video_reference(*v)) for v in self.b]).mean(0) - expected(core.video_reference(*self.a[0]))
+        target = torch.stack([expected(core.video_reference(*v, 3)) for v in self.b]).mean(0) - expected(core.video_reference(*self.a[0], 3))
         torch.testing.assert_close(dial["vec"], target)
         self.assertEqual(dial["meta"]["pair_agreement_cos"], "n/a")
         self.assertEqual((dial["meta"]["n_videos_a"], dial["meta"]["n_videos_b"]), (1, 2))
@@ -135,8 +137,9 @@ class VideoDialTests(unittest.TestCase):
         a = {"video_a_10": FakeVideo(self.a[1]), "video_a_2": FakeVideo(self.a[0])}
         b = {"video_b_2": FakeVideo(self.b[0]), "video_b_10": FakeVideo(self.b[1])}
         scratch = tempfile.mkdtemp(prefix="C4_video_dial_")
+        self.addCleanup(shutil.rmtree, scratch)
         with patch.dict(pictures.folder_paths.folder_names_and_paths, {"loras": ([scratch], {".safetensors"})}):
-            result = cls.execute(self.clip, self.model, a, b, PROMPT, "C4_video_test", debias=False)
+            result = cls.execute(self.clip, self.model, a, b, PROMPT, "C4_video_test", debias=False, nuisance_dims=3)
             reference, _ = self.make()
             self.assertTrue(torch.equal(result.result[0]["vec"], reference["vec"]))
             saved = core.load_dial("dials/C4_video_test.safetensors")
@@ -144,9 +147,8 @@ class VideoDialTests(unittest.TestCase):
             self.assertEqual(saved["meta"]["source"], "videos")
             self.assertIn("saved", result.ui.as_dict()["text"][0])
             with patch.object(core, "save_dial") as save:
-                cls.execute(self.clip, self.model, a, b, PROMPT, "", debias=False)
+                cls.execute(self.clip, self.model, a, b, PROMPT, "", debias=False, nuisance_dims=3)
                 save.assert_not_called()
-        print(f"C4 retained artifact: {scratch}/dials/C4_video_test.safetensors")
 
 
 if __name__ == "__main__":

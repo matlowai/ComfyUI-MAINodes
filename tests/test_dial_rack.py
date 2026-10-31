@@ -44,6 +44,7 @@ def load_dials_package():
 
 
 core, nodes = load_dials_package()
+nodes.DialRack.hidden = type("Hidden", (), {"unique_id": None})  # set by the executor in ComfyUI
 H = 16
 
 
@@ -193,7 +194,8 @@ def main():
     assert rack(base, [row(0, 1.0, on=False)], ins) is base, "all-off rack must return the input model"
     assert torch.equal(run(base, x), plain), "the input model was modified"
 
-    tmp = tempfile.mkdtemp(prefix="B5_rack_")
+    scratch = tempfile.TemporaryDirectory(prefix="B5_rack_")
+    tmp = scratch.name
     folder_paths.add_model_folder_path("loras", tmp, is_default=True)
     core.save_dial(A, "rack_test_a")
     loaded = core.load_dial("dials/rack_test_a.safetensors")
@@ -201,7 +203,6 @@ def main():
     by_file = rack(base, [{"on": True, "dial": "dials/rack_test_a.safetensors", "strength": 1.0}])
     # the file is stored in bf16, so compare against the chain with the loaded (rounded) vector
     assert torch.equal(run(by_file, x), run(chain(base, [(loaded, 1.0)]), x)), "file row != chain"
-    assert "dials/rack_test_a.safetensors" in core.dial_files()
     held_file = rack(base, [{"dial": "dials/rack_test_a.safetensors", "strength": 1},
                             {"dial": "dials/rack_test_a.safetensors", "strength": 0, "hold": True}])
     assert torch.equal(run(held_file, x), plain), "file hold did not cancel its dial"
@@ -218,7 +219,7 @@ def main():
     assert "overlap" in report and "reinforce" in report, report
     print(json.dumps({"hold_checks": [check_holds(dtype) for dtype in (torch.float32, torch.bfloat16)]}))
     print("dial rack: all checks passed")
-    print(f"fixtures retained at {tmp}")
+    scratch.cleanup()
 
 
 if __name__ == "__main__":

@@ -114,7 +114,7 @@ def main():
     assert float(torch.nn.functional.cosine_similarity(free["vec"], held["vec"], dim=0)) != 0
     free_again, _ = core.make_dial(clip, model, face, subjects, "face", "post")
     assert torch.equal(free["vec"], free_again["vec"])
-    assert "holds" in kept["meta"] and "holds" not in free["meta"]
+    assert "hold_groups" in kept["meta"] and "hold_groups" not in free["meta"]
     pre, report_pre = core.make_dial(clip, model, face + "\n" + loud, subjects, "face_hold_pre", "pre")
     assert "calibrated" in report_pre and "hold pairs removed" in report_pre, report_pre
 
@@ -179,6 +179,8 @@ def main():
             raise AssertionError(f"accepted: {bad}")
         except ValueError:
             pass
+    degenerate, _ = core.make_dial(clip, model, face + "\n! {subject} speaks. ||| {subject} speaks.", subjects, "deg", "post")
+    assert torch.isfinite(degenerate["vec"]).all(), "a hold group with no difference must remove nothing, not make NaN"
     print("dial pairs: all checks passed")
 
 

@@ -9,10 +9,11 @@ second. Ported from [ComfyUI-Dials](https://github.com/matlowai/ComfyUI-Dials); 
 
 | node | what it does |
 |---|---|
-| **Dial Rack** | Any number of dials on one model. One row per dial: on/off, dial, strength (slider and number), solo, **H** to hold a direction. **+ Add dial** adds a row; dials wired into the `dial_N` inputs (straight from Make Dial) appear as rows too. After a run the node shows each dial's size, the combined shift, and dials that overlap (reinforce or cancel). |
-| **Make Dial** | Prompt pairs (`A ||| B` per line, `{subject}` expanded over a subjects list) to a dial. Saves to `models/loras/dials/<name>.safetensors` and outputs the dial for a rack input. Shows pair agreement (above 0.6 is a clean direction) and how much generic wording shift was removed. |
+| **Dial Rack** | Any number of dials on one model. One row per dial: on/off, dial, strength (slider and number), solo, **H** to hold a direction. **+ Add dial** adds a row; dials wired into the `dial_N` inputs (straight from Make Dial) appear as rows too. After a run the node shows each dial's size, the combined shift, and dials that overlap (reinforce or cancel). A **Pad** moves two rows together on a 2D square (the dot is your prompt). |
+| **Make Dial** | Prompt pairs (`A ||| B` per line, `{subject}` expanded over a subjects list) to a dial. Saves to `models/loras/dials/<name>.safetensors` and outputs the dial for a rack input. Shows pair agreement (above 0.6 is a clean direction) and how much generic wording shift was removed. Also takes weighted pairs (`A ||| B :: 2`) and prompt sets (`+1 …` / `-1 …` lines). |
 | **Combine Dials** | `weight_a * a + weight_b * b` as one new dial, optionally removing b's direction from a first (orthogonalize). Plain mixing is easier in the rack. |
 | **Make Dial from Pictures** | Two image batches and one shared prompt to a post-refiner dial. Negative strength moves toward A, positive toward B. Equal batch sizes pair by index for agreement; unequal sizes use side means and report agreement as n/a. Saves and connects to the rack like Make Dial. |
+| **Make Dial from Videos** | Matched clips (up to 12 per side) and one shared prompt to a post-refiner dial; clips are sampled at 2 fps and cut to equal length. Experimental. |
 
 **Strength:** +0.5 to +1 is the everyday range. Past about 1.5 side effects appear (the scene restages, characters
 morph), and on Pika H3 Flex's 6-step schedule even sooner. The motion dial at −2 and +2 shows the extremes.
@@ -50,6 +51,17 @@ changed SHA-256 hashes and keeps every row, including off/solo settings; absent 
 Presets use saved files: save wired dials and select their files before saving a preset, and disconnect wired dials
 before loading one. Save under a new name to accept changed files' current hashes.
 
+## The pad: drag your prompt
+
+**Pad** in the rack bar opens a square where two rows (picked as X and Y) move together. The dot is your prompt:
+dragging it sets both strengths. **Shift+drag** moves at a fifth of the speed for careful nudging, arrow keys step
+by 0.05 (Shift: 0.25), and a double-click puts both back to 0. Rings mark the everyday range (strength 1) and where
+side effects start (1.5). The readout gives both strengths, how much the two dials overlap (cosine), and the
+combined push in units of "one dial at +1", measured from the dial files, so you can see when two reinforcing dials
+add up to more than either looks. **Sweep 3×3** queues nine renders on a grid around the dot (spacing set by
+*sweep step*) and then puts the dot back. The pad's settings are saved with the workflow and never reach the backend;
+it only edits the two rows' strengths. Wired `dial_N` rows can be axes but have no file to measure.
+
 ## Example workflows
 
 These complete text-to-video graphs use one Dial Rack, seed 42, an adult kitchen scene, and video plus audio output.
@@ -77,6 +89,8 @@ Each rack row can shape its strength across denoising: **constant**, **early** (
 points. Gains multiply the row's strength; they are not automatically normalized. Manual points interpolate linearly
 and hold their endpoint values outside the specified range. Progress runs from 0 at the first model step to 1 at
 the last, excluding the terminal sigma; a one-step schedule uses progress 0. This controls denoising, not video time.
+Progress is measured within each sampler call: with two sampler stages (split sigmas, or a second pass at
+denoise < 1) the envelope is applied to each stage on its own.
 
 Envelopes support **post-refiner** dials. H3 caches refined text before sampling, so an enveloped rack shifts that
 cached context at each diffusion-model call. It compiles against the actual sampler sigmas at sample time, uses the
@@ -85,9 +99,8 @@ solver evaluations. All post rows in that rack keep their addition order, includ
 envelope keeps the original hook path when no upstream rack is scheduled; an explicit constant envelope has the
 same tensor result. Zero-gain steps skip addition. Pre-refiner rows can coexist but cannot have envelopes.
 
-The rack report updates when sampling starts with the sigma schedule and evaluated per-step strengths; these are
-also logged to the server console. The live update is a `mai-dial-envelope` WebSocket event (including structured
-`sigmas`, `progress`, and `rows`); the earlier API history preview says the values are pending. Each sampler run
+The rack report updates when sampling starts with the sigma schedule and evaluated per-step strengths (a
+`mai-dial-envelope` WebSocket event carrying that text); the earlier API history preview says the values are pending. Each sampler run
 compiles its own wrapper, so reused models and cloned workflows do not share a step counter or cached schedule.
 Keep scheduled and constant post rows in racks: an external Apply Dial node downstream still changes H3's cached
 text before envelope evaluation and can therefore change bf16 addition order.
@@ -101,7 +114,12 @@ API row examples (the `envelope` field is optional):
 ]
 ```
 
-CPU parity and lifecycle checks: `tests/test_dial_envelopes.py`. GPU envelope behavior is still experimental.
+CPU parity and lifecycle checks: `tests/test_dial_envelopes.py`. A constant envelope reproduces the plain hook in a
+real render (pixel difference 0). **What envelopes do on Pika H3 Flex (6 steps), so far:** prompt-side dials act only in
+the first steps. A late envelope at +2 and even +8 left dream, claymation, underwater and day/night renders unchanged,
+and for the motion dial constant beat every other shape per unit of gain. An early envelope at high strength (+6)
+scrambles the scene in a dial-specific direction, which can be a creative tool but is not a controlled edit. Base H3's
+longer schedules are untested.
 
 ## Writing good pairs
 
@@ -110,6 +128,22 @@ CPU parity and lifecycle checks: `tests/test_dial_envelopes.py`. GPU envelope be
 - Describe the effect you actually want, in place. Pairs teach *literally*: "runs past the camera" teaches subjects to
   leave the frame.
 - Dials steer H3's audio too: a mood dial can change voices (sinister crushes speech); check dialogue scenes by ear.
+
+## Prompt sets and pair weights
+
+- **`A ||| B :: 2`** counts that pair twice in the mean (any non-zero number; hold pairs take no weight).
+- **Prompt sets:** lines `+w prompt` and `-w prompt` (w defaults to 1, the sign goes in front) build the dial from more
+  than two prompts: the weighted mean of the `+` prompts minus the weighted mean of the `-` prompts, e.g.
+
+  ```
+  +2 {subject} walks through rain at night
+  +1 {subject} under flickering neon signs
+  -1 {subject} in bright midday sun
+  ```
+
+  One `+1` and one `-1` line give exactly the plain pair `A ||| B`; the example equals the weighted pairs
+  `midday ||| rain :: 2` and `midday ||| neon :: 1`. `{subject}` expands as usual (one set per subject), sets combine
+  with ordinary pairs, and word weights work inside set prompts. A set needs at least one `+` and one `-` line.
 
 ## Hold pairs and word weights
 
@@ -139,12 +173,16 @@ Two extras in Make Dial's pair text (not in ComfyUI-Dials):
 Connect matched clips from **Load Video** to **Make Dial from Videos** (`MAIDialMakeFromVideos`), with up to
 12 inputs per side. Inputs pair by numeric suffix within each side. The shared prompt defaults to
 `A video in the style and content of <Video 1>.`. Clips are sampled at 2 fps with source timestamps (lower-rate
-clips retain their native rate); audio is excluded. The full sequence passes through the text projection and
-refiner before pooling text-tag positions, including video labels and timestamps. Each clip has equal weight.
+clips retain their native rate), shrunk to the canvas ComfyUI's H3 reference videos use, and every clip is cut to the
+same number of samples (the shortest clip's, at most 16 = 8 s), so the timestamp tokens are identical on both sides
+and clip length cannot leak into the dial. Audio is excluded. The full sequence passes through the text projection
+and refiner before pooling text-tag positions, including video labels and timestamps. Each clip has equal weight.
 Negative strength moves toward A and positive toward B. Equal counts report indexed pair agreement; unequal
 counts use side means with agreement n/a. The same generic wording debiasing applies as for picture pairs.
-Keep framing, subjects, duration and frame rate matched, changing only the quality to steer; short clips keep
-encoding costs manageable. CPU contracts: `tests/test_dial_videos.py`.
+Keep framing, subjects, duration and frame rate matched, changing only the quality to steer. Load Video decodes the
+whole clip before sampling, so trim long or high-resolution clips first. CPU contracts: `tests/test_dial_videos.py`.
+**Measured so far:** a real-time vs timelapse dial from two generated pairs made no clear timelapse at +2 (1 seed);
+the pairs also differed in framing and light. Treat this node as an experiment.
 
 ## Picture pairs
 
@@ -155,8 +193,11 @@ is encoded separately as an H3 reference image. The full sequence passes through
 then only text positions (`minimax_token_tags == 1`) contribute to its mean. Each picture has equal weight, regardless
 of token count. The dial is B minus A, with Make Dial's generic wording debiasing enabled by default.
 
-This node makes hook dials only. No image VAE is needed. A missing text-token tag map is an error; vision tokens are
-never silently included in the mean. CPU checks with a tagged fake encoder: `tests/test_dial_pictures.py`.
+This node makes hook dials only. No image VAE is needed. Pictures with a short edge above 2048 px are shrunk as
+ComfyUI's H3 reference images are. A missing text-token tag map is an error; vision tokens are never silently included
+in the mean. CPU checks with a tagged fake encoder: `tests/test_dial_pictures.py`. **Measured so far:** a lizard vs
+squirrel dial from 12 generated photo pairs points 0.49 the same way as the text dial but is 0.6x its size, and did
+not reach a lizard by -3 where the text dial did by -2 (1 seed); it has not yet been tried at matched size.
 
 ## License
 

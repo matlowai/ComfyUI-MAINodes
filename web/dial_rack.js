@@ -422,6 +422,10 @@ class DialRackUI {
         const option = this.el("option", {}, envelope, kind); option.value = kind;
       }
       envelope.value = typeof r.envelope === "string" ? r.envelope : r.envelope?.type || "constant";
+      if (this.rows.some((x) => x.on && x.hold)) {  // the backend refuses envelopes in a rack with active holds
+        envelope.disabled = true;
+        envelope.title = "Envelopes and hold rows cannot share a rack: turn the hold rows off to schedule this row.";
+      }
       envelope.onchange = () => {
         if (envelope.value === "constant") delete r.envelope;
         else r.envelope = envelope.value === "manual" ? { type: "manual", points: [[0, 0], [0.5, 1], [1, 0]] } : envelope.value;
