@@ -7,6 +7,9 @@ const DEFAULT_STRENGTH = 0.5;   // the sane everyday range is +0.5 .. +1
 const SLIDER = [-3, 3];
 const NUMBER = [-20, 20];
 const PRESETS = "/mainodes/dials/presets";
+const PAD_PX = 240;
+const PAD_RANGES = [1.5, 3, 6];
+const SWEEP_STEPS = [0.25, 0.5, 1];
 
 async function presetRequest(path = "", options) {
   const response = await api.fetchApi(PRESETS + path, options);
@@ -36,6 +39,8 @@ function labels(files) {
   return (f) => (count[shortName(f)] > 1 ? f.replace(/^dials\//, "").replace(/\.safetensors$/, "") : shortName(f));
 }
 const fmt = (v) => (v >= 0 ? "+" : "") + Number(v).toFixed(2);
+const snap = (v) => Math.round(v * 20) / 20;
+const clampStrength = (v) => Math.min(NUMBER[1], Math.max(NUMBER[0], v));
 
 class DialRackUI {
   constructor(node) {
@@ -84,21 +89,220 @@ class DialRackUI {
       width: "100%", background: "#16171b", borderRadius: "6px", fontFamily: "sans-serif", fontSize: "12px", color: "#ddd" });
     for (const ev of ["pointerdown", "keydown", "wheel"]) root.addEventListener(ev, (e) => e.stopPropagation());
     this.list = this.el("div", { display: "flex", flexDirection: "column", gap: "4px" }, root);
+    this.buildPad(root);
     const bar = this.el("div", { display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }, root);
     this.button(bar, "+ Add dial", "add a dial row", () => this.addRow(), { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145" });
     this.button(bar, "↻", "refresh the list of dial files", async () => { await listDials(true); this.render(); });
     this.button(bar, "Save preset", "save these rows as a named preset", () => this.savePreset());
     this.button(bar, "Load preset", "replace these rows with a saved preset", () => this.loadPreset());
+    this.padButton = this.button(bar, "Pad", "move two dials together on a 2D pad: the dot is your prompt", () => {
+      this.pad.open = !this.pad.open; this.render();
+    });
     this.hint = this.el("span", { color: "#888", marginLeft: "auto" }, bar);
     this.presetBar = this.el("div", { display: "none", gap: "6px", alignItems: "center" }, root);
     this.notice = this.el("div", { display: "none", color: "#ffc145", whiteSpace: "pre-wrap" }, root);
     this.out = this.el("pre", { margin: 0, whiteSpace: "pre-wrap", color: "#9a9ba0", fontSize: "11px", display: "none",
       borderTop: "1px solid #2a2c33", paddingTop: "4px" }, root);
     this.widget = this.node.addDOMWidget("dial_rack_ui", "div", root, { serialize: false });
-    this.widget.computeSize = (w) => [w, 64 + 34 * Math.max(this.rows.length, 1) + 28 * this.rows.filter((r) => r.envelope?.type === "manual").length +
+    this.widget.computeSize = (w) => [w, 64 + 34 * Math.max(this.rows.length, 1) + (this.pad.open ? PAD_PX + 96 : 0) + 28 * this.rows.filter((r) => r.envelope?.type === "manual").length +
       (this.presetBar.style.display !== "none" ? 32 : 0) + (this.presetMessage ? 18 * this.presetMessage.split("\n").length + 8 : 0) +
       (this.report ? 18 * this.report.split("\n").length + 8 : 0)];
     this.root = root;
+  }
+
+  // ---------- pad: two rows as X/Y axes; the dot is the prompt, dragging it sets both strengths ----------
+  get pad() {
+    const p = (this.node.properties ||= {}).dialPad ||= {};
+    p.range ??= 3; p.step ??= 0.5;
+    return p;
+  }
+
+  padAxes() {  // rows that can be an axis: everything but hold rows
+    return this.rows.map((r, i) => i).filter((i) => !this.rows[i].hold);
+  }
+
+  rowName(i) {
+    const r = this.rows[i];
+    return `${i + 1}. ` + ("input" in r ? r.input : shortName(r.dial || "?"));
+  }
+
+  buildPad(root) {
+    const box = this.el("div", { display: "none", flexDirection: "column", gap: "4px", borderTop: "1px solid #2a2c33", paddingTop: "6px" }, root);
+    const controls = this.el("div", { display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }, box);
+    const pick = (label, title) => {
+      this.el("span", { color: "#888" }, controls, label);
+      const sel = this.el("select", { background: "#111", color: "#eee", border: "1px solid #333", maxWidth: "150px" }, controls);
+      sel.title = title;
+      return sel;
+    };
+    this.padX = pick("X", "row moved by left/right");
+    this.padY = pick("Y", "row moved by up/down");
+    this.padRange = pick("range ±", "how far the pad edges reach");
+    for (const v of PAD_RANGES) this.el("option", {}, this.padRange, String(v)).value = v;
+    this.padStep = pick("sweep step", "spacing of the 3×3 sweep around the dot");
+    for (const v of SWEEP_STEPS) this.el("option", {}, this.padStep, String(v)).value = v;
+    this.padX.onchange = () => { this.pad.x = Number(this.padX.value); this.render(); };
+    this.padY.onchange = () => { this.pad.y = Number(this.padY.value); this.render(); };
+    this.padRange.onchange = () => { this.pad.range = Number(this.padRange.value); this.render(); };
+    this.padStep.onchange = () => { this.pad.step = Number(this.padStep.value); this.drawPad(); };
+    this.sweepButton = this.button(controls, "Sweep 3×3", "queue 9 renders on a grid around the dot, then put the dot back", () => this.sweep());
+    const canvas = this.el("canvas", { width: PAD_PX + "px", height: PAD_PX + "px", cursor: "crosshair", alignSelf: "flex-start",
+      borderRadius: "4px", outline: "none" }, box);
+    canvas.width = canvas.height = PAD_PX * (window.devicePixelRatio || 1);
+    canvas.tabIndex = 0;
+    canvas.title = "drag: move both dials · Shift+drag: fine · arrows: ±0.05 (Shift ±0.25) · double-click: back to 0";
+    this.padReadout = this.el("div", { color: "#9a9ba0", fontSize: "11px", whiteSpace: "pre-wrap" }, box);
+    this.padCanvas = canvas;
+    this.padBox = box;
+    this.padGeometry = {};
+
+    const axes = () => [this.rows[this.pad.x], this.rows[this.pad.y]];
+    const toStrength = (px) => (px / PAD_PX * 2 - 1) * this.pad.range;
+    let drag = null;
+    canvas.addEventListener("pointerdown", (e) => {
+      const [rx, ry] = axes();
+      if (!rx || !ry) return;
+      canvas.setPointerCapture(e.pointerId);
+      drag = { x0: e.offsetX, y0: e.offsetY, sx: Number(rx.strength), sy: Number(ry.strength) };
+      if (!e.shiftKey) this.setPad(toStrength(e.offsetX), -toStrength(e.offsetY));
+    });
+    canvas.addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      if (e.shiftKey) {  // fine: relative motion at a fifth of the speed
+        const k = 0.2 * 2 * this.pad.range / PAD_PX;
+        this.setPad(drag.sx + (e.offsetX - drag.x0) * k, drag.sy - (e.offsetY - drag.y0) * k);
+      } else {
+        this.setPad(toStrength(e.offsetX), -toStrength(e.offsetY));
+        drag = { x0: e.offsetX, y0: e.offsetY, sx: Number(axes()[0].strength), sy: Number(axes()[1].strength) };
+      }
+    });
+    canvas.addEventListener("pointerup", () => { drag = null; });
+    canvas.addEventListener("dblclick", () => this.setPad(0, 0));
+    canvas.addEventListener("keydown", (e) => {
+      const d = e.shiftKey ? 0.25 : 0.05;
+      const move = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, d], ArrowDown: [0, -d] }[e.key];
+      const [rx, ry] = axes();
+      if (!move || !rx || !ry) return;
+      e.preventDefault();
+      this.setPad(Number(rx.strength) + move[0], Number(ry.strength) + move[1]);
+    });
+  }
+
+  setPad(sx, sy) {
+    const rx = this.rows[this.pad.x], ry = this.rows[this.pad.y];
+    rx.strength = snap(clampStrength(sx));
+    ry.strength = snap(clampStrength(sy));
+    this.commit();
+    this.render();
+  }
+
+  async padNorms(rx, ry) {
+    if ("input" in rx || "input" in ry) return null;
+    const key = rx.dial + "|" + ry.dial;
+    if (!(key in this.padGeometry)) {
+      this.padGeometry[key] = null;
+      try {
+        const r = await api.fetchApi("/mainodes/dials/geometry", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dials: [rx.dial, ry.dial] }) });
+        this.padGeometry[key] = r.ok ? await r.json() : { error: (await r.json()).error };
+      } catch (e) { this.padGeometry[key] = { error: e.message }; }
+      this.drawPad();
+    }
+    return this.padGeometry[key];
+  }
+
+  renderPad() {
+    this.padBox.style.display = this.pad.open ? "flex" : "none";
+    this.padButton.style.borderColor = this.pad.open ? "#ffc145" : "#444";
+    if (!this.pad.open) return;
+    const axes = this.padAxes();
+    if (!axes.includes(this.pad.x)) this.pad.x = axes[0];
+    if (!axes.includes(this.pad.y) || (this.pad.y === this.pad.x && axes.length > 1)) this.pad.y = axes.find((i) => i !== this.pad.x) ?? axes[0];
+    for (const [sel, v] of [[this.padX, this.pad.x], [this.padY, this.pad.y]]) {
+      sel.replaceChildren();
+      for (const i of axes) this.el("option", {}, sel, this.rowName(i)).value = i;
+      if (v !== undefined) sel.value = v;
+    }
+    this.padRange.value = this.pad.range;
+    this.padStep.value = this.pad.step;
+    this.drawPad();
+  }
+
+  drawPad() {
+    const c = this.padCanvas, g = c.getContext("2d"), dpr = c.width / PAD_PX, R = this.pad.range;
+    const rx = this.rows[this.pad.x], ry = this.rows[this.pad.y];
+    const px = (v) => (v / R + 1) / 2 * PAD_PX;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.fillStyle = "#101114"; g.fillRect(0, 0, PAD_PX, PAD_PX);
+    g.strokeStyle = "#1e2026"; g.lineWidth = 1;
+    for (let v = -R; v <= R + 1e-9; v += 0.5) {
+      g.beginPath(); g.moveTo(px(v), 0); g.lineTo(px(v), PAD_PX); g.moveTo(0, px(v)); g.lineTo(PAD_PX, px(v)); g.stroke();
+    }
+    g.strokeStyle = "#3a3d46"; g.beginPath(); g.moveTo(px(0), 0); g.lineTo(px(0), PAD_PX); g.moveTo(0, px(0)); g.lineTo(PAD_PX, px(0)); g.stroke();
+    const ring = (r, color, dash) => {
+      g.setLineDash(dash); g.strokeStyle = color; g.beginPath();
+      g.ellipse(px(0), px(0), r / R * PAD_PX / 2, r / R * PAD_PX / 2, 0, 0, 2 * Math.PI); g.stroke(); g.setLineDash([]);
+    };
+    ring(1, "#3f6b4a", []);      // everyday range
+    ring(1.5, "#7a5a22", [4, 4]);  // side effects start
+    g.fillStyle = "#666"; g.font = "10px sans-serif";
+    g.fillText("±1 everyday", px(0) + 3, px(1) + 11);
+    g.fillText("±1.5 side effects", px(0) + 3, px(1.5) + 11);
+    if (!rx || !ry || rx === ry) {
+      g.fillStyle = "#888"; g.fillText(this.rows.length < 2 ? "add two dial rows to use the pad" : "pick two different rows", 8, 16);
+      this.padReadout.textContent = "";
+      this.sweepButton.disabled = true;
+      return;
+    }
+    this.sweepButton.disabled = !!this.sweeping;
+    const sx = Number(rx.strength), sy = Number(ry.strength), step = this.pad.step;
+    g.fillStyle = "#4a4d57";
+    for (const dy of [-step, 0, step]) for (const dx of [-step, 0, step]) {
+      if (dx || dy) { g.beginPath(); g.arc(px(sx + dx), px(-(sy + dy)), 2, 0, 2 * Math.PI); g.fill(); }
+    }
+    const dotX = px(Math.max(-R, Math.min(R, sx))), dotY = px(-Math.max(-R, Math.min(R, sy)));
+    g.fillStyle = Math.hypot(sx, sy) > 1.5 ? "#ff8a5c" : "#ffc145";
+    g.beginPath(); g.arc(dotX, dotY, 6, 0, 2 * Math.PI); g.fill();
+    g.fillStyle = "#ddd"; g.fillText(`${this.rowName(this.pad.x)} →`, PAD_PX - 4 - g.measureText(`${this.rowName(this.pad.x)} →`).width, px(0) - 4);
+    g.fillText(`↑ ${this.rowName(this.pad.y)}`, px(0) + 4, 12);
+    let text = `X ${this.rowName(this.pad.x)} ${fmt(sx)}   ·   Y ${this.rowName(this.pad.y)} ${fmt(sy)}`;
+    const geo = this.padGeometry[rx.dial + "|" + ry.dial];
+    if (geo === undefined) this.padNorms(rx, ry);
+    if (geo?.error) text += `\n${geo.error}`;
+    else if (geo && geo.mode[0] !== geo.mode[1]) text += "\ndifferent injection points (pre/post): no combined readout";
+    else if (geo && geo.cos[0][1] !== null) {
+      const [nx, ny] = geo.norm, cos = geo.cos[0][1];
+      const push = Math.sqrt(Math.max(0, (sx * nx) ** 2 + (sy * ny) ** 2 + 2 * sx * sy * nx * ny * cos)) / ((nx + ny) / 2);
+      text += `\noverlap cos ${fmt(cos)}${Math.abs(cos) >= 0.5 ? (cos > 0 ? " (they reinforce)" : " (they cancel)") : ""}` +
+        `   ·   combined push ≈ ${push.toFixed(2)}× one dial at +1${push > 1.5 ? "  — past the tested range" : ""}`;
+    } else if ("input" in rx || "input" in ry) text += "\nwired dial: strengths only (no file to measure)";
+    this.padReadout.textContent = text;
+  }
+
+  async sweep() {
+    const rx = this.rows[this.pad.x], ry = this.rows[this.pad.y], step = this.pad.step;
+    const sx = Number(rx.strength), sy = Number(ry.strength);
+    this.sweeping = true;
+    this.drawPad();
+    let queued = 0;
+    try {
+      for (const dy of [step, 0, -step]) for (const dx of [-step, 0, step]) {
+        rx.strength = snap(clampStrength(sx + dx));
+        ry.strength = snap(clampStrength(sy + dy));
+        this.commit();
+        await app.queuePrompt(0, 1);
+        queued++;
+      }
+      this.presetMessage = `Queued ${queued} renders: ${this.rowName(this.pad.x)} ${fmt(sx - step)}…${fmt(sx + step)}, ` +
+        `${this.rowName(this.pad.y)} ${fmt(sy - step)}…${fmt(sy + step)} (rows top to bottom = Y high to low).`;
+    } catch (e) {
+      this.presetMessage = `Sweep stopped after ${queued} of 9: ${e.message}`;
+    } finally {
+      rx.strength = sx; ry.strength = sy;
+      this.sweeping = false;
+      this.commit();
+      this.render();
+    }
   }
 
   showPresetMessage(message) {
@@ -250,6 +454,7 @@ class DialRackUI {
     this.out.textContent = this.report;
     this.notice.style.display = this.presetMessage ? "block" : "none";
     this.notice.textContent = this.presetMessage;
+    this.renderPad();
     this.node.setSize([Math.max(this.node.size[0], 600), this.node.computeSize()[1]]);
     this.node.setDirtyCanvas(true, true);
   }

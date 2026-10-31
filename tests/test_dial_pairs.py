@@ -77,15 +77,15 @@ def main():
     assert core.weighted_terms("a man talks (loudly:2).") == [("a man talks.", -1.0), ("a man talks loudly.", 2.0)], core.weighted_terms("a man talks (loudly:2).")
     assert core.weighted_terms("he says (softly:1), then (smiles:0.5)") == [("he says, then", -0.5), ("he says softly, then", 1.0), ("he says, then smiles", 0.5)]
     assert core.plain_text("a man talks (very loudly:2).") == "a man talks very loudly."
-    pairs, holds = core.parse_pairs("x ||| y\n! q ||| l\n# note", "")
+    pairs, _, holds = core.parse_pairs("x ||| y\n! q ||| l\n# note", "")
     assert pairs == [("x", "y")] and holds == {"": [("q", "l")]}
-    pairs, holds = core.parse_pairs("{subject} a ||| {subject} b\n![voice] q ||| l\n! u ||| v\n"
+    pairs, _, holds = core.parse_pairs("{subject} a ||| {subject} b\n![voice] q ||| l\n! u ||| v\n"
                                    "![motion] s ||| t\n![voice] w ||| z", "A man\n# skip\nA woman")
     assert pairs == [("A man a", "A man b"), ("A woman a", "A woman b")]
     assert list(holds) == ["voice", "", "motion"]
     assert holds["voice"] == [("q", "l"), ("q", "l"), ("w", "z"), ("w", "z")]
     assert holds[""] == [("u", "v"), ("u", "v")]
-    assert core.parse_pairs("a ||| b\n![] c ||| d\n! e ||| f", "")[1] == {"": [("c", "d"), ("e", "f")]}
+    assert core.parse_pairs("a ||| b\n![] c ||| d\n! e ||| f", "")[2] == {"": [("c", "d"), ("e", "f")]}
     try:
         core.parse_pairs("a ||| b\n![voice c ||| d", "")
     except ValueError as exc:
@@ -163,6 +163,22 @@ def main():
     full = core.hold_basis([*axes, axes[1]], None)
     assert torch.allclose(full[:, :5].T @ full[:, :5], torch.eye(5), atol=1e-6)
     assert torch.equal(full[:, 5], torch.zeros(5)), "a full basis cannot gain another direction"
+    # prompt sets and pair weights (debias off so the comparisons are exact arithmetic)
+    one_pair, _ = core.make_dial(clip, model, "a calm street ||| a stormy street", "", "p", "post", debias=False)
+    one_set, _ = core.make_dial(clip, model, "+1 a stormy street\n-1 a calm street", "", "s", "post", debias=False)
+    assert torch.allclose(one_set["vec"], one_pair["vec"], atol=1e-5), "a +1/-1 prompt set must equal the plain pair"
+    weighted_set, _ = core.make_dial(clip, model, "+2 rain at night\n+ neon signs\n-1 bright midday", "", "ws", "post", debias=False)
+    as_pairs, _ = core.make_dial(clip, model, "bright midday ||| rain at night :: 2\nbright midday ||| neon signs :: 1", "", "wp", "post", debias=False)
+    assert torch.allclose(weighted_set["vec"], as_pairs["vec"], atol=1e-5), "a weighted set must equal the same mix as weighted pairs"
+    assert as_pairs["meta"]["pair_weights"] == [2.0, 1.0] and "pair_weights" not in one_pair["meta"]
+    _, w, _ = core.parse_pairs("+ {subject} smiles\n- {subject} frowns\nx ||| y :: 0.5", "A man\nA woman")
+    assert w == [0.5, 0.5, 1.0, 1.0], w  # the pair once per subject (as every pair line), then one set per subject
+    for bad in ("+1 only plus", "a ||| b\n! c ||| d :: 2", "+0 zero weight\n-1 x"):
+        try:
+            core.parse_pairs(bad, "")
+            raise AssertionError(f"accepted: {bad}")
+        except ValueError:
+            pass
     print("dial pairs: all checks passed")
 
 

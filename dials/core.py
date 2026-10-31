@@ -74,14 +74,33 @@ def apply_dial(m, dial, strength):
         m.add_object_patch(name, ShiftedForward(m.get_model_object(name), dial["vec"] * strength))
 
 
+PAIR_WEIGHT = re.compile(r"\s+::\s*(-?\d+(?:\.\d+)?)\s*$")
+SET_LINE = re.compile(r"([+-])\s*(\d+(?:\.\d+)?)?\s+(.+)")
+
+
 def parse_pairs(pairs, subjects):
-    """-> (pairs, {name: hold pairs}); bare '!' lines belong to group ""."""
+    """-> (pairs, weights, {name: hold pairs}); bare '!' lines belong to group "".
+
+    A side is a text (with optional (words:w) spans) or a prompt set [(text, weight)]. 'A ||| B :: w' weights a pair in
+    the mean. Lines '+w text' / '-w text' (w defaults to 1) form one prompt set per subject: the weighted mean of the +
+    prompts minus that of the - prompts, so one '+1' and one '-1' line equal a plain 'A ||| B' pair.
+    """
     subs = [s.strip() for s in subjects.splitlines() if s.strip() and not s.strip().startswith("#")] or [None]
-    out, holds = [], {}
+    out, weights, holds, members = [], [], {}, []
     for line in pairs.splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
             continue
+        m = SET_LINE.fullmatch(line) if "|||" not in line else None
+        if m:
+            w = float(m.group(2) or 1)
+            if w <= 0:
+                raise ValueError(f"prompt set weights must be positive (the sign goes in front): {line[:80]}")
+            members.append((w if m.group(1) == "+" else -w, m.group(3).strip()))
+            continue
+        weight = PAIR_WEIGHT.search(line)
+        if weight:
+            line = line[:weight.start()]
         dest = out
         if line.startswith("!"):
             line = line.lstrip("!").strip()
@@ -92,14 +111,33 @@ def parse_pairs(pairs, subjects):
                 group, line = line[1:].split("]", 1)
                 group, line = group.strip(), line.strip()
             dest = holds.setdefault(group, [])
+            if weight:
+                raise ValueError("'::' weights apply to dial pairs, not hold pairs")
         if "|||" not in line:
             raise ValueError(f"each pair line needs 'A ||| B', got: {line[:80]}")
         a, b = (x.strip() for x in line.split("|||", 1))
         for s in subs:
             dest.append((a.replace("{subject}", s), b.replace("{subject}", s)) if s else (a, b))
+            if dest is out:
+                weights.append(float(weight.group(1)) if weight else 1.0)
+    if members:
+        neg, pos = [(-w, t) for w, t in members if w < 0], [(w, t) for w, t in members if w > 0]
+        if not neg or not pos:
+            raise ValueError("a prompt set needs at least one '+' line and one '-' line")
+        for s in subs:
+            side = lambda ms: [(t.replace("{subject}", s) if s else t, w / sum(w for w, _ in ms)) for w, t in ms]
+            out.append((side(neg), side(pos)))
+            weights.append(1.0)
     if not out:
         raise ValueError("no prompt pairs given")
-    return out, holds
+    return out, weights, holds
+
+
+def side_terms(side):
+    """A pair side -> [(prompt, coefficient)] whose weighted encodings sum to the side's encoding."""
+    if isinstance(side, str):
+        return weighted_terms(side)
+    return [(t, w * c) for text, w in side for t, c in weighted_terms(text)]
 
 
 def hold_basis(directions, nuisance):
@@ -179,6 +217,14 @@ def load_dial(dial_name):
     return {"vec": vec, "target": target, "mode": mode, "meta": meta}
 
 
+def dial_geometry(names):
+    """Rack UI readouts for dial files: vector norm, injection mode, and cosine between every two dials."""
+    dials = [load_dial(n) for n in names]
+    vecs = [d["vec"].float() for d in dials]
+    return {"norm": [float(v.norm()) for v in vecs], "mode": [d["mode"] for d in dials],
+            "cos": [[float(torch.nn.functional.cosine_similarity(a, b, dim=0)) if a.shape == b.shape else None for b in vecs] for a in vecs]}
+
+
 def dial_label(dial):
     m = dial["meta"]
     return (f"{m.get('name', '?')} ({dial['mode']}_refiner, {dial['target']}): {m.get('n_pairs', '?')} pairs, "
@@ -192,8 +238,9 @@ def nuisance_basis(diffs, dims):
 def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=True, nuisance_dims=3):
     """Returns (dial, report). mode: "post" (hook) or "pre" (LoRA file)."""
     (pre_name, post_name), proj, refiner = text_modules(model)
-    prompts, holds = parse_pairs(pairs, subjects)
+    prompts, weights, holds = parse_pairs(pairs, subjects)
     nuisance = parse_pairs("\n".join(NUISANCE_PAIRS), subjects if subjects.strip() else NUISANCE_SUBJECTS)[0] if debias else []
+    weights = torch.tensor(weights)
     comfy.model_management.load_models_gpu([model])
     device = comfy.model_management.get_torch_device()
     dtype = model.model.get_dtype_inference()
@@ -206,8 +253,11 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
             cache[text] = (pre, pre.float().mean(0), refiner(pre).float().mean(0))
         return cache[text]
 
-    def side(text, which):
-        return sum(c * encode(t)[which] for t, c in weighted_terms(text))
+    def side(s, which):
+        return sum(c * encode(t)[which] for t, c in side_terms(s))
+
+    def mean(d):  # pair-weighted mean of pair differences
+        return (weights.to(d.device)[:, None] * d).sum(0) / weights.abs().sum()
 
     def diffs(pp, which):
         return torch.stack([side(b, which) - side(a, which) for a, b in pp])
@@ -228,7 +278,7 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
     which = 1 if mode == "pre" else 2
     d, basis = diffs(prompts, which), basis_for(which)
     hold = hold_directions(which, basis)
-    raw = d.mean(0)
+    raw = mean(d)
     debiased = remove(raw, basis)
     vec = remove(debiased, hold)
     removed = 1 - float(debiased.norm() ** 2 / raw.norm() ** 2)
@@ -243,8 +293,8 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
     if calibrate and mode == "pre":
         # the refiner's final RMSNorm shrinks a pre-refiner shift: rescale so strength 1 = one average pair difference after it
         basis2 = basis_for(2)
-        post_target = remove(remove(diffs(prompts, 2).mean(0), basis2), hold_directions(2, basis2))
-        probe = [plain_text(t) for pair in prompts[:8] for t in pair]
+        post_target = remove(remove(mean(diffs(prompts, 2)), basis2), hold_directions(2, basis2))
+        probe = [plain_text(t) for pair in prompts[:8] for s in pair for t, _ in ([(s, 1)] if isinstance(s, str) else s)]
         shift = torch.stack([refiner(encode(t)[0] + vec.to(dtype)).float().mean(0) - encode(t)[2] for t in probe]).mean(0)
         along = float(shift @ (post_target / post_target.norm().clamp_min(1e-12)))
         scale = float(post_target.norm()) / along if along > 0 else 1.0
@@ -253,7 +303,8 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
     if holds:
         note += "\n" + "; ".join(f"hold group [{group}] removed {share:.1%}" for group, share in shares.items())
     dial = {"vec": vec.cpu(), "target": pre_name if mode == "pre" else post_name, "mode": mode,
-            "meta": {"name": name, "pairs": prompts, "n_pairs": str(len(prompts)), "pair_agreement_cos": f"{agree:.3f}",
+            "meta": {"name": name, "pairs": prompts, "n_pairs": str(len(prompts)),
+                     **({"pair_weights": weights.tolist()} if bool((weights != 1).any()) else {}), "pair_agreement_cos": f"{agree:.3f}",
                      "inject": f"{mode}_refiner", "debias_removed": f"{removed:.3f}" if debias else "off",
                      "calibrated": str(bool(calibrate and mode == "pre")), "format": "ComfyUI-Dials v1"}}
     if holds:

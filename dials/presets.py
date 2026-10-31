@@ -8,6 +8,8 @@ from pathlib import Path
 
 import folder_paths
 
+from . import core
+
 FORMAT = "MAIDialRack preset"
 VERSION = 1
 
@@ -121,6 +123,17 @@ def install_routes():
     @srv.routes.get("/mainodes/dials/presets/{name}")
     async def load(request):
         return await respond(load_preset, request.match_info["name"])
+
+    @srv.routes.post("/mainodes/dials/geometry")
+    async def geometry(request):  # norms and cosines for the rack's pad readouts
+        try:
+            names = (await request.json())["dials"]
+        except (ValueError, KeyError, TypeError):
+            return web.json_response({"error": "Expected {\"dials\": [dial file names]}."}, status=400)
+        try:
+            return web.json_response(await asyncio.to_thread(core.dial_geometry, names))
+        except (FileNotFoundError, ValueError) as e:
+            return web.json_response({"error": str(e)}, status=400)
 
     @srv.routes.post("/mainodes/dials/presets/{name}")
     async def save(request):
