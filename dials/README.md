@@ -134,6 +134,18 @@ Two extras in Make Dial's pair text (not in ComfyUI-Dials):
   spans add independently (no interaction terms). H3's own prompt box ignores this syntax: ComfyUI tokenizes H3
   prompts with weights disabled, so `(quiet:2)` in a normal prompt reaches the model as literal text.
 
+## Video pairs
+
+Connect matched clips from **Load Video** to **Make Dial from Videos** (`MAIDialMakeFromVideos`), with up to
+12 inputs per side. Inputs pair by numeric suffix within each side. The shared prompt defaults to
+`A video in the style and content of <Video 1>.`. Clips are sampled at 2 fps with source timestamps (lower-rate
+clips retain their native rate); audio is excluded. The full sequence passes through the text projection and
+refiner before pooling text-tag positions, including video labels and timestamps. Each clip has equal weight.
+Negative strength moves toward A and positive toward B. Equal counts report indexed pair agreement; unequal
+counts use side means with agreement n/a. The same generic wording debiasing applies as for picture pairs.
+Keep framing, subjects, duration and frame rate matched, changing only the quality to steer; short clips keep
+encoding costs manageable. CPU contracts: `tests/test_dial_videos.py`.
+
 ## Picture pairs
 
 Connect two IMAGE batches to **Make Dial from Pictures** (`MAIDialMakeFromPictures`) with the H3 CLIP and MODEL.
