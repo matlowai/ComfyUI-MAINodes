@@ -48,6 +48,25 @@ changed SHA-256 hashes and keeps every row, including off/solo settings; absent 
 Presets use saved files: save wired dials and select their files before saving a preset, and disconnect wired dials
 before loading one. Save under a new name to accept changed files' current hashes.
 
+## Example workflows
+
+These complete text-to-video graphs use one Dial Rack, seed 42, an adult kitchen scene, and video plus audio output.
+
+| Example | API graph | Settings |
+|---|---|---|
+| One dial | [one_dial_api.json](../examples/dials/one_dial_api.json) | Base H3, motion +1, 20-step `res_multistep`, 832×480, 124 frames |
+| Four dials | [four_dials_api.json](../examples/dials/four_dials_api.json) | Base H3, motion +0.5 / dread +1 / warm–cold −0.5 / reserved–lively +0.5, same 20-step settings |
+| Pika rack | [pika_rack_api.json](../examples/dials/pika_rack_api.json) | Same four rows, Pika H3 Flex LoRA +1, 6-step LCM with manual sigmas, 1280×704, 141 frames |
+
+All run at 24 fps and save MP4s under `output/video/dials/`. The graphs use the local `h3/` subfolder in
+`models/diffusion_models`, `models/text_encoders`, `models/vae`, and (Pika only) `models/loras`; adjust the loader
+filenames to your installation. They require the H3 model, Qwen3-VL text encoder, video/audio VAEs, and the selected
+dial files in `models/loras/dials/`. The four-row examples also require the warm–cold and reserved–lively candidate
+dials from pack 2. ComfyUI-Dials nodes are not required. No weights are included in the workflows.
+
+To queue an API graph, POST `{"prompt": <contents of the API JSON>}` to your ComfyUI server's `/prompt` endpoint.
+Keep the four-row order when reproducing a result: reordering post-refiner additions can change the generated video.
+
 ## Writing good pairs
 
 - Keep A and B identical except for the one quality you want.
