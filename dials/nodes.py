@@ -5,7 +5,9 @@ import json
 import torch
 from comfy_api.latest import io, ui
 
-from . import core
+from . import core, presets
+
+presets.install_routes()
 
 Dial = io.Custom("DIAL")
 

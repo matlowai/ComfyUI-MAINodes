@@ -8,6 +8,7 @@ Order follows the 4D Control Field blueprint (`MATLOWAI_Dials_4D_Control_Field_R
 - [ ] Same-seed H3 render: one rack vs the single-dial chain; all-off vs base.
 - [ ] Human pass on the rack UI (old and new front end).
 - [ ] Example workflows: one dial, four dials, Pika + rack.
+- [x] Rack presets (blueprint P1): versioned JSON with dial names, SHA-256 hashes, strengths, on/solo; missing-file and hash warnings on load.
 - [x] Make Dial hold pairs (`!`) and word weights (`(words:w)`); face dial with loudness held: +1.7 dB vs +4.8 dB for the plain face dial, faces still animated (eval26, 3 seeds).
 - [ ] Named hold groups (`![loudness]`, `![motion]`): today all `!` lines average into one held direction.
 - [ ] Dial pack 2 (17 candidates in the study's `dials/pack2/`: camera, light and mood, face and voice, weather and
@@ -18,8 +19,6 @@ Order follows the 4D Control Field blueprint (`MATLOWAI_Dials_4D_Control_Field_R
 - **Hold rows in the rack:** a row mode that projects its dial's direction out of the rack's summed post-refiner shift
   (rack-level version of Make Dial's `!` hold pairs: "everything I dial, but keep loudness where it is"). Needs a
   defined order (hold after summing) and the parity test extended; pre-refiner rows can't take part.
-- **Rack presets (blueprint P1):** save/load a versioned rack as JSON (dial names + hashes, strengths, on/solo), never
-  the dial weights themselves.
 - **A/V per row:** a "video only" toggle on a rack row (the A/V split prototype on ComfyUI-Dials'
   `experimental/split-and-dial-to-lora` branch: sinister picture, intelligible speech). Costs a second pass only for
   early steps.

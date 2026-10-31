@@ -6,6 +6,14 @@ import { api } from "../../scripts/api.js";
 const DEFAULT_STRENGTH = 0.5;   // the sane everyday range is +0.5 .. +1
 const SLIDER = [-3, 3];
 const NUMBER = [-20, 20];
+const PRESETS = "/mainodes/dials/presets";
+
+async function presetRequest(path = "", options) {
+  const response = await api.fetchApi(PRESETS + path, options);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || `Preset request failed (${response.status})`);
+  return data;
+}
 
 let dialFiles = null;
 async function listDials(force) {
@@ -34,6 +42,8 @@ class DialRackUI {
     this.node = node;
     this.rows = [];
     this.report = "";
+    this.presetWarnings = [];
+    this.presetMessage = "";
     this.sw = node.widgets.find((w) => w.name === "rack");
     if (this.sw) {
       this.sw.hidden = true;
@@ -74,15 +84,83 @@ class DialRackUI {
       width: "100%", background: "#16171b", borderRadius: "6px", fontFamily: "sans-serif", fontSize: "12px", color: "#ddd" });
     for (const ev of ["pointerdown", "keydown", "wheel"]) root.addEventListener(ev, (e) => e.stopPropagation());
     this.list = this.el("div", { display: "flex", flexDirection: "column", gap: "4px" }, root);
-    const bar = this.el("div", { display: "flex", gap: "6px", alignItems: "center" }, root);
+    const bar = this.el("div", { display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }, root);
     this.button(bar, "+ Add dial", "add a dial row", () => this.addRow(), { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145" });
     this.button(bar, "↻", "refresh the list of dial files", async () => { await listDials(true); this.render(); });
+    this.button(bar, "Save preset", "save these rows as a named preset", () => this.savePreset());
+    this.button(bar, "Load preset", "replace these rows with a saved preset", () => this.loadPreset());
     this.hint = this.el("span", { color: "#888", marginLeft: "auto" }, bar);
+    this.presetBar = this.el("div", { display: "none", gap: "6px", alignItems: "center" }, root);
+    this.notice = this.el("div", { display: "none", color: "#ffc145", whiteSpace: "pre-wrap" }, root);
     this.out = this.el("pre", { margin: 0, whiteSpace: "pre-wrap", color: "#9a9ba0", fontSize: "11px", display: "none",
       borderTop: "1px solid #2a2c33", paddingTop: "4px" }, root);
     this.widget = this.node.addDOMWidget("dial_rack_ui", "div", root, { serialize: false });
-    this.widget.computeSize = (w) => [w, 64 + 34 * Math.max(this.rows.length, 1) + (this.report ? 18 * this.report.split("\n").length + 8 : 0)];
+    this.widget.computeSize = (w) => [w, 64 + 34 * Math.max(this.rows.length, 1) +
+      (this.presetBar.style.display !== "none" ? 32 : 0) + (this.presetMessage ? 18 * this.presetMessage.split("\n").length + 8 : 0) +
+      (this.report ? 18 * this.report.split("\n").length + 8 : 0)];
     this.root = root;
+  }
+
+  showPresetMessage(message) {
+    this.presetMessage = message;
+    this.render();
+  }
+
+  presetEditor(tag) {
+    this.presetBar.replaceChildren();
+    this.presetBar.style.display = "flex";
+    const field = this.el(tag, { flex: "1", minWidth: "80px", background: "#111", color: "#eee", border: "1px solid #444" }, this.presetBar);
+    this.button(this.presetBar, "Cancel", "close preset controls", () => { this.presetBar.style.display = "none"; this.render(); });
+    return field;
+  }
+
+  savePreset() {
+    const name = this.presetEditor("input");
+    name.placeholder = "Preset name"; name.maxLength = 80; name.setAttribute("aria-label", "Preset name");
+    this.button(this.presetBar, "Save", "save to the dial presets folder", async (button) => {
+      button.disabled = true;
+      try {
+        if (!/^[A-Za-z0-9_-]{1,80}$/.test(name.value)) throw new Error("Preset name: letters, digits, '_' and '-' only (max 80).");
+        const data = await presetRequest(`/${encodeURIComponent(name.value)}`, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(this.rows),
+        });
+        this.presetWarnings = data.warnings;
+        this.presetBar.style.display = "none";
+        this.showPresetMessage(`Saved preset ${name.value}.` + this.warningText());
+      } catch (e) { this.showPresetMessage(e.message); }
+      finally { button.disabled = false; }
+    });
+    this.render(); name.focus();
+  }
+
+  async loadPreset() {
+    try {
+      if (this.rows.some((row) => "input" in row)) throw new Error("Disconnect wired dials before loading a preset.");
+      const names = await presetRequest();
+      if (!names.length) { this.showPresetMessage("No saved presets yet."); return; }
+      const select = this.presetEditor("select");
+      select.setAttribute("aria-label", "Saved preset");
+      for (const name of names) this.el("option", {}, select, name).value = name;
+      this.button(this.presetBar, "Load", "load the selected preset", async (button) => {
+        button.disabled = true;
+        try {
+          const data = await presetRequest(`/${encodeURIComponent(select.value)}`);
+          await listDials(true);
+          this.rows = data.preset.rows;
+          this.presetWarnings = data.warnings;
+          this.report = "";
+          this.commit();
+          this.presetBar.style.display = "none";
+          this.showPresetMessage(`Loaded preset ${select.value}.` + this.warningText());
+        } catch (e) { this.showPresetMessage(e.message); }
+        finally { button.disabled = false; }
+      });
+      this.render();
+    } catch (e) { this.showPresetMessage(e.message); }
+  }
+
+  warningText() {
+    return this.presetWarnings.map((w) => `\nRow ${w.row + 1}: ${w.dial} — ${w.reason}`).join("");
   }
 
   addRow(row) {
@@ -139,6 +217,8 @@ class DialRackUI {
     this.hint.textContent = anySolo ? `solo · ${n} active` : `${n} active`;
     this.out.style.display = this.report ? "block" : "none";
     this.out.textContent = this.report;
+    this.notice.style.display = this.presetMessage ? "block" : "none";
+    this.notice.textContent = this.presetMessage;
     this.node.setSize([Math.max(this.node.size[0], 470), this.node.computeSize()[1]]);
     this.node.setDirtyCanvas(true, true);
   }

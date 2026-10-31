@@ -31,6 +31,14 @@ Two kinds of dial file:
 - **LoRA file** (`pre_refiner`): a `condition_proj` bias diff the stock *Load LoRA (model only)* node also applies.
   Only an approximation of the hook; above ~1 it starts to wash out the prompt.
 
+**Rack presets:** use **Save preset** / **Load preset** in the rack bar. Presets live in
+`models/loras/dials/presets/<name>.json`, with format `MAIDialRack preset`, version `1`, and ordered rows containing
+`dial`, `sha256`, `strength`, `on`, and `solo`. They store file references and settings, never weights. Names accept
+letters, digits, `_` and `-` (1–80 characters); saving requires a new name. Loading warns about missing files or
+changed SHA-256 hashes and keeps every row, including off/solo settings; absent files remain marked **(missing)**.
+Presets use saved files: save wired dials and select their files before saving a preset, and disconnect wired dials
+before loading one. Save under a new name to accept changed files' current hashes.
+
 ## Writing good pairs
 
 - Keep A and B identical except for the one quality you want.
