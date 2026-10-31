@@ -8,7 +8,9 @@ exact and the checks are algebraic:
   1. weighted_terms expands spans as enc(without) + w * (enc(with) - enc(without)), with tidy spacing;
   2. a one-sided span at weight w gives exactly w times the weight-1 dial (debias is linear);
   3. hold pairs leave the dial orthogonal to the held direction, and the report says how much they removed;
-  4. a dial built without holds is unchanged by this feature.
+  4. a dial built without holds is unchanged by this feature;
+  5. named groups remove both directions, including their nuisance components, with shares summing to the total;
+  6. one named or unnamed group uses the original projection bit for bit; redundant groups add no constraint.
 Exit code 0 = pass.
 """
 import importlib
@@ -76,7 +78,20 @@ def main():
     assert core.weighted_terms("he says (softly:1), then (smiles:0.5)") == [("he says, then", -0.5), ("he says softly, then", 1.0), ("he says, then smiles", 0.5)]
     assert core.plain_text("a man talks (very loudly:2).") == "a man talks very loudly."
     pairs, holds = core.parse_pairs("x ||| y\n! q ||| l\n# note", "")
-    assert pairs == [("x", "y")] and holds == [("q", "l")]
+    assert pairs == [("x", "y")] and holds == {"": [("q", "l")]}
+    pairs, holds = core.parse_pairs("{subject} a ||| {subject} b\n![voice] q ||| l\n! u ||| v\n"
+                                   "![motion] s ||| t\n![voice] w ||| z", "A man\n# skip\nA woman")
+    assert pairs == [("A man a", "A man b"), ("A woman a", "A woman b")]
+    assert list(holds) == ["voice", "", "motion"]
+    assert holds["voice"] == [("q", "l"), ("q", "l"), ("w", "z"), ("w", "z")]
+    assert holds[""] == [("u", "v"), ("u", "v")]
+    assert core.parse_pairs("a ||| b\n![] c ||| d\n! e ||| f", "")[1] == {"": [("c", "d"), ("e", "f")]}
+    try:
+        core.parse_pairs("a ||| b\n![voice c ||| d", "")
+    except ValueError as exc:
+        assert "![name]" in str(exc)
+    else:
+        raise AssertionError("an unclosed group name must report the syntax error")
 
     model = comfy.model_patcher.ModelPatcher(Fake(), load_device=torch.device("cpu"), offload_device=torch.device("cpu"))
     clip = FakeClip()
@@ -102,6 +117,52 @@ def main():
     assert "holds" in kept["meta"] and "holds" not in free["meta"]
     pre, report_pre = core.make_dial(clip, model, face + "\n" + loud, subjects, "face_hold_pre", "pre")
     assert "calibrated" in report_pre and "hold pairs removed" in report_pre, report_pre
+
+    motion = "{subject} stands still. ||| {subject} walks.\n{subject} sits still. ||| {subject} dances."
+    groups = loud.replace("! ", "![voice] ") + "\n" + "\n".join("![motion] " + line for line in motion.splitlines())
+    for mode in ("post", "pre"):
+        for debias in (False, True):
+            kwargs = dict(debias=debias, calibrate=False)
+            free, _ = core.make_dial(clip, model, face, subjects, "free", mode, **kwargs)
+            voice, _ = core.make_dial(clip, model, loud.replace("! ", ""), subjects, "voice", mode, **kwargs)
+            moving, _ = core.make_dial(clip, model, motion, subjects, "motion", mode, **kwargs)
+            named, report = core.make_dial(clip, model, face + "\n" + groups, subjects, "named", mode, **kwargs)
+            for direction in (voice["vec"], moving["vec"]):
+                cos = float(torch.nn.functional.cosine_similarity(named["vec"], direction, dim=0))
+                assert abs(cos) < 1e-5, (mode, debias, cos)
+            shares = named["meta"]["hold_group_removed"]
+            removed = float(1 - named["vec"].square().sum() / free["vec"].square().sum())
+            assert abs(sum(shares.values()) - removed) < 1e-6, (shares, removed)
+            assert all(0 <= share <= 1 for share in shares.values()), shares
+            assert "hold group [voice] removed" in report and "hold group [motion] removed" in report
+            reversed_groups = "\n".join(reversed(groups.splitlines()))
+            reordered, _ = core.make_dial(clip, model, face + "\n" + reversed_groups, subjects, "reordered", mode, **kwargs)
+            assert torch.allclose(named["vec"], reordered["vec"], atol=1e-6)
+            mixed, _ = core.make_dial(clip, model, face + "\n" + groups.replace("![voice]", "!"), subjects, "mixed", mode, **kwargs)
+            assert torch.equal(mixed["vec"], named["vec"])
+            assert list(mixed["meta"]["hold_groups"]) == ["", "motion"]
+
+            unit = (voice["vec"] / voice["vec"].norm()).unsqueeze(1)
+            legacy = free["vec"] - unit @ (unit.T @ free["vec"])
+            for prefix in ("!", "![voice]"):
+                single, _ = core.make_dial(clip, model, face + "\n" + loud.replace("!", prefix), subjects, "single", mode, **kwargs)
+                assert torch.equal(single["vec"], legacy), (mode, debias, prefix)
+    named_pre, _ = core.make_dial(clip, model, face + "\n" + loud.replace("!", "![voice]"), subjects, "named_pre", "pre")
+    assert torch.equal(named_pre["vec"], pre["vec"]), "naming one group must also preserve pre calibration"
+
+    axes = torch.eye(5)
+    nuisance = axes[:, :1]
+    directions = [torch.zeros(5), axes[0] + axes[1], 2 * (axes[0] + axes[1]), axes[1] + axes[2], axes[0]]
+    basis = core.hold_basis(directions, nuisance)
+    assert torch.equal(basis[:, [0, 2, 4]], torch.zeros(5, 3)), "zero, duplicate and nuisance-only groups add no constraint"
+    assert torch.allclose(basis[:, [1, 3]].T @ basis[:, [1, 3]], torch.eye(2), atol=1e-6)
+    raw = torch.tensor([0., 2., 3., 4., 5.])
+    projected = raw - basis @ (basis.T @ raw)
+    assert torch.allclose(projected, torch.tensor([0., 0., 0., 4., 5.]), atol=1e-6), projected
+    assert torch.allclose(torch.stack(directions) @ projected, torch.zeros(5), atol=1e-6)
+    full = core.hold_basis([*axes, axes[1]], None)
+    assert torch.allclose(full[:, :5].T @ full[:, :5], torch.eye(5), atol=1e-6)
+    assert torch.equal(full[:, 5], torch.zeros(5)), "a full basis cannot gain another direction"
     print("dial pairs: all checks passed")
 
 

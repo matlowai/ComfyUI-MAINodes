@@ -10,7 +10,7 @@ Order follows the 4D Control Field blueprint (`MATLOWAI_Dials_4D_Control_Field_R
 - [ ] Example workflows: one dial, four dials, Pika + rack.
 - [x] Rack presets (blueprint P1): versioned JSON with dial names, SHA-256 hashes, strengths, on/solo; missing-file and hash warnings on load.
 - [x] Make Dial hold pairs (`!`) and word weights (`(words:w)`); face dial with loudness held: +1.7 dB vs +4.8 dB for the plain face dial, faces still animated (eval26, 3 seeds).
-- [ ] Named hold groups (`![loudness]`, `![motion]`): today all `!` lines average into one held direction.
+- [x] Named hold groups (`![loudness]`, `![motion]`): separate mean directions, QR with the nuisance basis, per-group removed shares; bare `!` keeps the unnamed group.
 - [ ] Dial pack 2 (17 candidates in the study's `dials/pack2/`: camera, light and mood, face and voice, weather and
       world, plus creature swap, scale, time feel, claymation, zero gravity, dream, crowd, underwater). Ship only what
       passes at +0.5 / +1 on held-out prompts, with notes on side effects.

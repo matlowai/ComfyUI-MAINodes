@@ -14,6 +14,7 @@ folder (models/loras/dials/) are shared with ComfyUI-Dials, so dials made by eit
 Two pair-text extensions (MAINodes only):
   ! A ||| B      a hold pair: the mean of these pairs is projected out of the dial, so the dial cannot move that quality
                  (e.g. an expressive-face dial that keeps the voice's loudness unchanged).
+  ![name] A ||| B  a named hold group: each group's mean is projected out separately; unnamed holds form group "".
   (words:w)      inside A or B: those words count w times what they add to the text around them, i.e.
                  enc = enc(text without the span) + w * (enc(text) - enc(text without the span)), in token-mean space.
                  H3's tokenizer ignores prompt weights, so this is the only place the syntax means anything.
@@ -74,15 +75,23 @@ def apply_dial(m, dial, strength):
 
 
 def parse_pairs(pairs, subjects):
-    """-> (pairs, hold pairs); lines starting with '!' are hold pairs."""
+    """-> (pairs, {name: hold pairs}); bare '!' lines belong to group ""."""
     subs = [s.strip() for s in subjects.splitlines() if s.strip() and not s.strip().startswith("#")] or [None]
-    out, holds = [], []
+    out, holds = [], {}
     for line in pairs.splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
             continue
-        dest = holds if line.startswith("!") else out
-        line = line.lstrip("!").strip()
+        dest = out
+        if line.startswith("!"):
+            line = line.lstrip("!").strip()
+            group = ""
+            if line.startswith("["):
+                if "]" not in line:
+                    raise ValueError("named hold pair needs '![name] A ||| B'")
+                group, line = line[1:].split("]", 1)
+                group, line = group.strip(), line.strip()
+            dest = holds.setdefault(group, [])
         if "|||" not in line:
             raise ValueError(f"each pair line needs 'A ||| B', got: {line[:80]}")
         a, b = (x.strip() for x in line.split("|||", 1))
@@ -91,6 +100,26 @@ def parse_pairs(pairs, subjects):
     if not out:
         raise ValueError("no prompt pairs given")
     return out, holds
+
+
+def hold_basis(directions, nuisance):
+    """One column per group; redundant groups contribute zero. Keep the original one-group arithmetic."""
+    if len(directions) == 1:
+        h = directions[0]
+        h = h - nuisance @ (nuisance.T @ h) if nuisance is not None else h
+        return (h / h.norm()).unsqueeze(1)
+    basis = nuisance if nuisance is not None else directions[0].new_empty((directions[0].numel(), 0))
+    columns = []
+    for h in directions:
+        unit = (h / h.norm().clamp_min(1e-12)).unsqueeze(1)
+        q, r = torch.linalg.qr(torch.cat((basis, unit), dim=1), mode="reduced")
+        tol = torch.finfo(h.dtype).eps * max(q.shape)
+        if basis.shape[1] < h.numel() and abs(float(r[-1, -1])) > tol:
+            columns.append(basis.shape[1])
+            basis = q
+        else:
+            columns.append(None)
+    return torch.stack([basis[:, i] if i is not None else torch.zeros_like(directions[0]) for i in columns], dim=1)
 
 
 WEIGHTED_SPAN = re.compile(r"\(([^():]+):\s*(-?\d+(?:\.\d+)?)\)")
@@ -187,15 +216,14 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
     def remove(v, basis):
         return v - basis @ (basis.T @ v) if basis is not None else v
 
-    def hold_direction(which, basis):  # unit hold direction, orthogonal to the nuisance basis -> [hidden, 1]
+    def hold_directions(which, basis):
         if not holds:
             return None
-        h = remove(diffs(holds, which).mean(0), basis)
-        return (h / h.norm()).unsqueeze(1)
+        return hold_basis([diffs(pp, which).mean(0) for pp in holds.values()], basis)
 
     which = 1 if mode == "pre" else 2
     d, basis = diffs(prompts, which), nuisance_basis(which)
-    hold = hold_direction(which, basis)
+    hold = hold_directions(which, basis)
     raw = d.mean(0)
     debiased = remove(raw, basis)
     vec = remove(debiased, hold)
@@ -203,22 +231,30 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
     held = 1 - float(vec.norm() ** 2 / debiased.norm() ** 2)
     agree = float(torch.nn.functional.cosine_similarity(torch.stack([remove(remove(x, basis), hold) for x in d]), vec.unsqueeze(0)).mean())
     note = f"; hold pairs removed {held:.0%} of the dial (cos with the held quality {float(debiased @ hold[:, 0]) / float(debiased.norm()):+.2f})" if holds else ""
+    if holds:
+        shares = {group: float((debiased @ hold[:, i]) ** 2 / debiased.square().sum().clamp_min(1e-24))
+                  for i, group in enumerate(holds)}
+        if len(holds) > 1:
+            note = f"; hold pairs removed {held:.0%} of the dial"
     if calibrate and mode == "pre":
         # the refiner's final RMSNorm shrinks a pre-refiner shift: rescale so strength 1 = one average pair difference after it
         basis2 = nuisance_basis(2)
-        post_target = remove(remove(diffs(prompts, 2).mean(0), basis2), hold_direction(2, basis2))
+        post_target = remove(remove(diffs(prompts, 2).mean(0), basis2), hold_directions(2, basis2))
         probe = [plain_text(t) for pair in prompts[:8] for t in pair]
         shift = torch.stack([refiner(encode(t)[0] + vec.to(dtype)).float().mean(0) - encode(t)[2] for t in probe]).mean(0)
         along = float(shift @ (post_target / post_target.norm().clamp_min(1e-12)))
         scale = float(post_target.norm()) / along if along > 0 else 1.0
         vec = vec * scale
         note += f", calibrated x{scale:.2f}"
+    if holds:
+        note += "\n" + "; ".join(f"hold group [{group}] removed {share:.1%}" for group, share in shares.items())
     dial = {"vec": vec.cpu(), "target": pre_name if mode == "pre" else post_name, "mode": mode,
             "meta": {"name": name, "pairs": prompts, "n_pairs": str(len(prompts)), "pair_agreement_cos": f"{agree:.3f}",
                      "inject": f"{mode}_refiner", "debias_removed": f"{removed:.3f}" if debias else "off",
                      "calibrated": str(bool(calibrate and mode == "pre")), "format": "ComfyUI-Dials v1"}}
     if holds:
-        dial["meta"].update({"holds": holds, "hold_removed": f"{held:.3f}"})
+        dial["meta"].update({"holds": [pair for pp in holds.values() for pair in pp], "hold_removed": f"{held:.3f}",
+                             "hold_groups": holds, "hold_group_removed": shares})
     report = dial_label(dial) + (f"; debias removed {removed:.0%} of the raw dial (generic wording shift)" if debias else "") + note
     if agree < 0.4:
         report += "\nlow pair agreement: the pairs differ in more than one way; tighten the wording"
