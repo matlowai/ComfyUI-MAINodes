@@ -12,6 +12,7 @@ second. Ported from [ComfyUI-Dials](https://github.com/matlowai/ComfyUI-Dials); 
 | **Dial Rack** | Any number of dials on one model. One row per dial: on/off, dial, strength (slider and number), solo. **+ Add dial** adds a row; dials wired into the `dial_N` inputs (straight from Make Dial) appear as rows too. After a run the node shows each dial's size, the combined shift, and dials that overlap (reinforce or cancel). |
 | **Make Dial** | Prompt pairs (`A ||| B` per line, `{subject}` expanded over a subjects list) to a dial. Saves to `models/loras/dials/<name>.safetensors` and outputs the dial for a rack input. Shows pair agreement (above 0.6 is a clean direction) and how much generic wording shift was removed. |
 | **Combine Dials** | `weight_a * a + weight_b * b` as one new dial, optionally removing b's direction from a first (orthogonalize). Plain mixing is easier in the rack. |
+| **Make Dial from Pictures** | Two image batches and one shared prompt to a post-refiner dial. Negative strength moves toward A, positive toward B. Equal batch sizes pair by index for agreement; unequal sizes use side means and report agreement as n/a. Saves and connects to the rack like Make Dial. |
 
 **Strength:** +0.5 to +1 is the everyday range. Past about 1.5 side effects appear (the scene restages, characters
 morph), and on Pika H3 Flex's 6-step schedule even sooner. The motion dial at −2 and +2 shows the extremes.
@@ -56,6 +57,18 @@ Two extras in Make Dial's pair text (not in ComfyUI-Dials):
   subtract a word's pull. A single weighted span on one side just scales the whole dial (same as strength), and
   spans add independently (no interaction terms). H3's own prompt box ignores this syntax: ComfyUI tokenizes H3
   prompts with weights disabled, so `(quiet:2)` in a normal prompt reaches the model as literal text.
+
+## Picture pairs
+
+Connect two IMAGE batches to **Make Dial from Pictures** (`MAIDialMakeFromPictures`) with the H3 CLIP and MODEL.
+Use the same framing, light and background at each index, changing only the quality to steer. The default prompt is
+`A video in the style and content of <Picture 1>.`; it is used unchanged for every picture on both sides. Each picture
+is encoded separately as an H3 reference image. The full sequence passes through the projection and token refiner,
+then only text positions (`minimax_token_tags == 1`) contribute to its mean. Each picture has equal weight, regardless
+of token count. The dial is B minus A, with Make Dial's generic wording debiasing enabled by default.
+
+This node makes hook dials only. No image VAE is needed. A missing text-token tag map is an error; vision tokens are
+never silently included in the mean. CPU checks with a tagged fake encoder: `tests/test_dial_pictures.py`.
 
 ## License
 
