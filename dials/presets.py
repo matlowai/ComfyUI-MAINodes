@@ -45,6 +45,10 @@ def preset_rows(rows):
         if sha is not None and (not isinstance(sha, str) or not re.fullmatch(r"[a-f0-9]{64}", sha)):
             raise ValueError("preset sha256 must be a lowercase SHA-256 hash or null")
         result.append(dict(dial=dial, sha256=sha, strength=strength, on=on, solo=solo))
+        if "hold" in row:
+            if not isinstance(row["hold"], bool):
+                raise ValueError("preset hold must be a boolean")
+            result[-1]["hold"] = row["hold"]
     return result
 
 

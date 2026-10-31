@@ -1,4 +1,4 @@
-// Dial Rack — one row per dial (on/off, dial, strength, solo) over the MAIDialRack node's hidden `rack` JSON widget.
+// Dial Rack — one row per dial (on/off, dial, strength, solo, hold) over the MAIDialRack node's hidden `rack` JSON widget.
 // The widget IS the state (saved with the workflow, read by the backend); this UI only edits it.
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
@@ -182,10 +182,11 @@ class DialRackUI {
   render() {
     this.list.replaceChildren();
     const files = dialFiles || [];
-    const anySolo = this.rows.some((r) => r.on && r.solo);
+    const active = (r) => r.on && (r.hold || Number(r.strength) !== 0);
+    const anySolo = this.rows.some((r) => active(r) && r.solo);
     if (!this.rows.length) this.el("div", { color: "#777", padding: "4px 2px" }, this.list, "No dials yet: add one, or wire a dial into a dial_ input.");
     this.rows.forEach((r, i) => {
-      const live = r.on && (!anySolo || r.solo);
+      const live = active(r) && (!anySolo || r.solo);
       const row = this.el("div", { display: "flex", alignItems: "center", gap: "6px", padding: "3px 4px", borderRadius: "4px",
         background: live ? "#1f2128" : "#191a1e", opacity: live ? "1" : "0.55" }, this.list);
       const on = this.el("input", { margin: 0, cursor: "pointer" }, row);
@@ -206,14 +207,20 @@ class DialRackUI {
       const num = this.el("input", { width: "58px", background: "#111", color: "#ffc145", border: "1px solid #333", borderRadius: "3px", textAlign: "right" }, row);
       Object.assign(num, { type: "number", min: NUMBER[0], max: NUMBER[1], step: 0.05, value: Number(r.strength).toFixed(2) });
       num.title = "negative = toward the pairs' A side, positive = toward B. +0.5 to +1 is the sane range; past ~1.5 side effects appear";
+      slider.disabled = num.disabled = !!r.hold;
+      if (r.hold) slider.title = num.title = "Hold removes this direction fully; strength is retained for when H is turned off.";
       slider.oninput = () => { r.strength = parseFloat(slider.value); num.value = r.strength.toFixed(2); this.commit(); };
       num.onchange = () => { const v = Math.min(NUMBER[1], Math.max(NUMBER[0], parseFloat(num.value) || 0)); r.strength = v; slider.value = v; num.value = v.toFixed(2); this.commit(); };
       slider.ondblclick = () => { r.strength = 0; slider.value = 0; num.value = "0.00"; this.commit(); };
       this.button(row, "S", "solo: hear only the soloed rows", () => { r.solo = !r.solo; this.commit(); this.render(); },
         r.solo ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145", padding: "2px 6px" } : { padding: "2px 6px" });
+      const hold = this.button(row, "H", "hold: remove this direction from the summed shift (post-refiner dials only)",
+        () => { r.hold = !r.hold; this.commit(); this.render(); },
+        r.hold ? { background: "#20323b", borderColor: "#8fb4ff", color: "#8fb4ff", padding: "2px 6px" } : { padding: "2px 6px" });
+      hold.setAttribute("aria-pressed", String(!!r.hold));
       if (!("input" in r)) this.button(row, "✕", "remove row", () => { this.rows.splice(i, 1); this.commit(); this.render(); }, { padding: "2px 6px" });
     });
-    const n = this.rows.filter((r) => r.on && (!anySolo || r.solo) && Number(r.strength) !== 0).length;
+    const n = this.rows.filter((r) => active(r) && (!anySolo || r.solo)).length;
     this.hint.textContent = anySolo ? `solo · ${n} active` : `${n} active`;
     this.out.style.display = this.report ? "block" : "none";
     this.out.textContent = this.report;

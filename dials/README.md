@@ -9,16 +9,25 @@ second. Ported from [ComfyUI-Dials](https://github.com/matlowai/ComfyUI-Dials); 
 
 | node | what it does |
 |---|---|
-| **Dial Rack** | Any number of dials on one model. One row per dial: on/off, dial, strength (slider and number), solo. **+ Add dial** adds a row; dials wired into the `dial_N` inputs (straight from Make Dial) appear as rows too. After a run the node shows each dial's size, the combined shift, and dials that overlap (reinforce or cancel). |
+| **Dial Rack** | Any number of dials on one model. One row per dial: on/off, dial, strength (slider and number), solo, **H** to hold a direction. **+ Add dial** adds a row; dials wired into the `dial_N` inputs (straight from Make Dial) appear as rows too. After a run the node shows each dial's size, the combined shift, and dials that overlap (reinforce or cancel). |
 | **Make Dial** | Prompt pairs (`A ||| B` per line, `{subject}` expanded over a subjects list) to a dial. Saves to `models/loras/dials/<name>.safetensors` and outputs the dial for a rack input. Shows pair agreement (above 0.6 is a clean direction) and how much generic wording shift was removed. |
 | **Combine Dials** | `weight_a * a + weight_b * b` as one new dial, optionally removing b's direction from a first (orthogonalize). Plain mixing is easier in the rack. |
 
 **Strength:** +0.5 to +1 is the everyday range. Past about 1.5 side effects appear (the scene restages, characters
 morph), and on Pika H3 Flex's 6-step schedule even sooner. The motion dial at −2 and +2 shows the extremes.
 
-**Rack = chain:** the rack applies its rows in order with exactly the patches a chain of single-dial nodes makes, so
-one rack is bit-for-bit the same as that chain (`tests/test_dial_rack.py`). Off rows, zero-strength rows and
+**Rack = chain without holds:** the rack applies its rows in order with exactly the patches a chain of single-dial
+nodes makes, so one rack is bit-for-bit the same as that chain (`tests/test_dial_rack.py`). Off rows, zero-strength rows and
 non-solo rows while something is soloed change nothing; a rack with nothing active returns the model untouched.
+
+**Hold rows:** toggle **H** to remove that dial's direction from the sum of the rack's active post-refiner shifts.
+Hold directions are orthonormalized together before projection, then the rack installs one combined post shift.
+Duplicate or zero directions add no constraint. Holds follow on/off and solo; their strength is ignored (even zero),
+and the disabled strength controls retain the value for when H is turned off. A rack containing only holds changes
+nothing. Pre-refiner dials cannot be hold rows; ordinary pre-refiner rows still apply as usual. Holds affect this
+rack's post shift, including cancellation between its rows; they do not remove upstream patches or guarantee that
+H3 leaves the corresponding visual/audio quality unchanged. The report gives the remaining shift and each hold's
+share of the original summed shift's squared norm removed, crediting overlapping holds in row order.
 
 **Dial files** live in `models/loras/dials/`. The dial library is on Hugging Face:
 [MATLOWAI/H3-Dials](https://huggingface.co/MATLOWAI/H3-Dials). Folders starting with `_` are not listed (park
@@ -33,8 +42,8 @@ Two kinds of dial file:
 
 **Rack presets:** use **Save preset** / **Load preset** in the rack bar. Presets live in
 `models/loras/dials/presets/<name>.json`, with format `MAIDialRack preset`, version `1`, and ordered rows containing
-`dial`, `sha256`, `strength`, `on`, and `solo`. They store file references and settings, never weights. Names accept
-letters, digits, `_` and `-` (1–80 characters); saving requires a new name. Loading warns about missing files or
+`dial`, `sha256`, `strength`, `on`, and `solo`, plus optional `hold` (absent means false). They store file references
+and settings, never weights. Names accept letters, digits, `_` and `-` (1–80 characters); saving requires a new name. Loading warns about missing files or
 changed SHA-256 hashes and keeps every row, including off/solo settings; absent files remain marked **(missing)**.
 Presets use saved files: save wired dials and select their files before saving a preset, and disconnect wired dials
 before loading one. Save under a new name to accept changed files' current hashes.

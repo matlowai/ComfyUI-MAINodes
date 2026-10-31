@@ -46,6 +46,11 @@ def main():
     assert document["format"] == "MAIDialRack preset" and document["version"] == 1
     assert all(set(row) == {"dial", "sha256", "strength", "on", "solo"} for row in document["rows"])
     assert "sha256" not in rows[0], "save mutated caller rows"
+    held_rows = [dict(rows[0], hold=True, strength=0), dict(rows[1], hold=False)]
+    held = presets.save_preset("holds", held_rows)
+    assert presets.load_preset("holds") == held
+    assert [r["hold"] for r in held["preset"]["rows"]] == [True, False]
+    assert held["preset"]["rows"][0]["strength"] == 0
 
     dial.write_bytes(b"changed dial contents")
     changed = presets.load_preset("test_-9")
@@ -56,7 +61,7 @@ def main():
     missing = presets.load_preset("test_-9")
     assert missing["preset"] == document
     assert [w["reason"] for w in missing["warnings"]] == ["missing", "missing"]
-    assert presets.list_presets() == ["test_-9"]
+    assert presets.list_presets() == ["holds", "test_-9"]
     rejects(presets.save_preset, "test_-9", [], exception=FileExistsError)
     assert json.loads(presets.preset_path("test_-9").read_text()) == document
     assert presets.save_preset("empty", [])["preset"]["rows"] == []
@@ -66,7 +71,7 @@ def main():
         rejects(presets.load_preset, name)
     for row in (dict(input="dial_0"), dict(dial="../escape"), dict(dial="dials/../escape"),
                 dict(dial="dials/x", strength=float("nan")), dict(dial="dials/x", strength=float("inf")),
-                dict(dial="dials/x", solo="false"), dict(dial="dials/x", sha256="oops")):
+                dict(dial="dials/x", solo="false"), dict(dial="dials/x", hold="false"), dict(dial="dials/x", sha256="oops")):
         rejects(presets.save_preset, "invalid", [row])
     for i, value in enumerate((dict(format="other", version=1, rows=[]),
                                dict(format=presets.FORMAT, version=2, rows=[]),

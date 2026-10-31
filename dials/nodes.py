@@ -13,10 +13,8 @@ Dial = io.Custom("DIAL")
 
 
 class DialRack(io.ComfyNode):
-    """Any number of dials on one model, each row with on/off, strength and solo (edited in the node's rack UI).
-    Rows are applied in order with the same patches a chain of single Apply Dial nodes would make, so a rack is
-    bit-for-bit identical to that chain. Dials wired into the `dial_N` inputs (e.g. straight from Make Dial) appear as
-    rows too."""
+    """Rows without holds use the exact single-dial chain. Hold rows project directions out of one summed post shift.
+    Dials wired into the `dial_N` inputs (e.g. straight from Make Dial) appear as rows too."""
 
     @classmethod
     def define_schema(cls):
@@ -24,7 +22,7 @@ class DialRack(io.ComfyNode):
             node_id="MAIDialRack",
             display_name="Dial Rack (alpha)",
             category="MAINodes/Dials",
-            description="Stack any number of steering dials on a MiniMax H3 model: one row per dial with strength, on/off and solo.",
+            description="Stack steering dials on a MiniMax H3 model: strength, on/off, solo, and H to hold a post-refiner direction.",
             inputs=[
                 io.Model.Input("model"),
                 io.String.Input("rack", default="[]", tooltip="Rack rows as JSON; edited through the rack UI."),
@@ -40,10 +38,10 @@ class DialRack(io.ComfyNode):
         rows = json.loads(rack or "[]")
         if not isinstance(rows, list):
             raise ValueError("rack must be a JSON list of rows")
-        active = [r for r in rows if r.get("on", True) and float(r.get("strength", 0)) != 0]
+        active = [r for r in rows if r.get("on", True) and (r.get("hold") or float(r.get("strength", 0)) != 0)]
         if any(r.get("solo") for r in active):
             active = [r for r in active if r.get("solo")]
-        applied = []
+        applied, holds = [], []
         for r in active:
             if "input" in r:
                 dial = (dials or {}).get(r["input"])
@@ -53,14 +51,23 @@ class DialRack(io.ComfyNode):
             else:
                 dial = core.load_dial(r["dial"])
                 label = dial["meta"]["name"]
-            applied.append((label, dial, float(r["strength"])))
+            if r.get("hold") and dial["mode"] != "post":
+                raise ValueError(f"{label}: pre-refiner rows cannot be hold rows; choose a post-refiner dial")
+            (holds if r.get("hold") else applied).append((label, dial, float(r.get("strength", 0))))
+        report = core.rack_report(applied)
+        if holds:
+            combined, hold_report = core.rack_hold_shift(applied, holds)
+            report += "\n" + hold_report
         if not applied:
-            return io.NodeOutput(model, ui=ui.PreviewText(core.rack_report([])))
+            return io.NodeOutput(model, ui=ui.PreviewText(report))
         core.text_modules(model)  # clear error for a non-H3 model before patching
         m = model.clone()
         for _, dial, strength in applied:
-            core.apply_dial(m, dial, strength)
-        return io.NodeOutput(m, ui=ui.PreviewText(core.rack_report(applied)))
+            if not holds or dial["mode"] == "pre":
+                core.apply_dial(m, dial, strength)
+        if holds and any(d["mode"] == "post" for _, d, _ in applied):
+            core.apply_dial(m, combined, 1.0)
+        return io.NodeOutput(m, ui=ui.PreviewText(report))
 
 
 class MakeDial(io.ComfyNode):

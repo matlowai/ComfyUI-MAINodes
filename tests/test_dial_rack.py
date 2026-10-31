@@ -12,7 +12,8 @@ Checks:
   3. an all-off rack returns the input model untouched;
   4. dials saved to models/loras/dials round-trip and are found by the rack by file name;
   5. a row naming an unwired input fails with a clear error;
-  6. the report flags strongly overlapping dials.
+  6. the report flags strongly overlapping dials;
+  7. holds cancel identical dials, remove overlapping directions together, and leave the no-hold path exact.
 Exit code 0 = pass.
 """
 import importlib.util
@@ -86,6 +87,92 @@ def rack(base, rows, dials=None):
     return nodes.DialRack.execute(model=base, rack=json.dumps(rows), dials=dials).result[0]
 
 
+def check_holds(dtype):
+    torch.manual_seed(5)
+    base = comfy.model_patcher.ModelPatcher(Fake().to(dtype), load_device=torch.device("cpu"), offload_device=torch.device("cpu"))
+    x = torch.randn(5, H).to(dtype)
+    A, B, C = dial("post", 1, "a"), dial("post", 2, "b"), dial("pre", 3, "c")
+    ins = {"dial_0": A, "dial_1": B, "dial_2": C, "dial_3": A}
+    row = lambda i, s, **kw: dict(input=f"dial_{i}", strength=s, **kw)
+    rows = [row(0, 1), row(1, -0.5), row(2, 0.7)]
+    expected = run(chain(base, [(A, 1), (B, -0.5), (C, 0.7)]), x)
+    variants = [rows, [dict(r, hold=False) for r in rows], rows + [row(3, 1, hold=True, on=False)],
+                [dict(r, solo=True) for r in rows] + [row(3, 1, hold=True)]]
+    for variant in variants:
+        assert torch.equal(run(rack(base, variant, ins), x), expected), "no-hold path changed"
+
+    plain = run(base, x)
+    identical = rack(base, [row(0, 1), row(3, 1, hold=True)], ins)
+    cancelled = run(identical, x)
+    assert torch.equal(cancelled, plain), "identical hold did not cancel its dial"
+    for strength in (-3, 0, 4):
+        assert torch.equal(run(rack(base, [row(0, 1), row(3, strength, hold=True)], ins), x), plain)
+    assert rack(base, [row(3, 0, hold=True)], ins) is base, "hold-only rack changed the model"
+    assert rack(base, [row(0, 1), row(3, 0, hold=True, solo=True)], ins) is base, "solo hold failed to isolate"
+    pre_only = rack(base, [row(2, 0.7), row(3, 0, hold=True)], ins)
+    assert torch.equal(run(pre_only, x), run(chain(base, [(C, 0.7)]), x)), "hold changed a pre-refiner shift"
+
+    near = dict(A, vec=A["vec"] + 0.3 * B["vec"], meta={"name": "near"})
+    zero = dict(A, vec=torch.zeros(H), meta={"name": "zero"})
+    post = [("a", A, 1), ("b", B, -0.5)]
+    holds = [("a", A, 0), ("near", near, 1), ("duplicate", A, -1), ("zero", zero, 1)]
+    combined, report = core.rack_hold_shift(post, holds)
+    directions = torch.stack([A["vec"], near["vec"]], dim=1).double()
+    total = A["vec"].double() - 0.5 * B["vec"].double()
+    reference = total - directions @ (torch.linalg.pinv(directions) @ total)
+    assert torch.allclose(combined["vec"].double(), reference, atol=1e-12, rtol=1e-6)
+    assert float((directions.T @ combined["vec"].double()).abs().max()) < 1e-12
+    reordered, _ = core.rack_hold_shift(post, list(reversed(holds)))
+    assert torch.allclose(combined["vec"], reordered["vec"], atol=1e-12, rtol=1e-6)
+    assert "H  duplicate: removed 0.0%" in report and "H  zero: removed 0.0%" in report, report
+    full_basis = [(str(i), dict(A, vec=torch.eye(H)[i]), 1) for i in range(H)] + holds
+    fully_held, _ = core.rack_hold_shift(post, full_basis)
+    assert torch.equal(fully_held["vec"], torch.zeros(H))
+
+    e0, e1 = torch.eye(H)[:2]
+    first = dict(A, vec=e0, meta={"name": "first"})
+    overlap = dict(A, vec=e0 + e1, meta={"name": "overlap"})
+    drive = dict(A, vec=3 * e0 + 4 * e1, meta={"name": "drive"})
+    _, shares = core.rack_hold_shift([("drive", drive, 1)], [("first", first, 1), ("overlap", overlap, 1)])
+    assert "H  first: removed 36.0%" in shares and "H  overlap: removed 64.0%" in shares, shares
+    outside = dict(drive, vec=drive["vec"] + 5 * torch.eye(H)[2])
+    retained, _ = core.rack_hold_shift([("outside", outside, 1)], [("first", first, 1), ("overlap", overlap, 1)])
+    assert torch.allclose(retained["vec"], 5 * torch.eye(H)[2], atol=1e-12, rtol=0), "holds removed the orthogonal component"
+
+    ins.update(dial_3=near, dial_4=zero)
+    partial = rack(base, rows + [row(3, 0, hold=True), row(4, 1, hold=True)], ins)
+    projected, _ = core.rack_hold_shift(post, [("near", near, 0), ("zero", zero, 1)])
+    expected = run(chain(base, [(C, 0.7), (projected, 1)]), x)
+    assert torch.equal(run(partial, x), expected), "held rack did not apply its combined shift"
+    wrapper = partial.get_model_object("diffusion_model.token_refiner.forward")
+    assert isinstance(wrapper, core.ShiftedForward) and not isinstance(wrapper.forward, core.ShiftedForward)
+    zero_shift, _ = core.rack_hold_shift(post, [("zero", zero, 1)])
+    assert torch.equal(zero_shift["vec"], total.float()), "zero hold removed an arbitrary direction"
+    upstream = chain(base, [(B, 0.25)])
+    ins["dial_3"] = A
+    assert torch.equal(run(rack(upstream, [row(0, 1), row(3, 1, hold=True)], ins), x), run(upstream, x))
+    for bad_rows, message in (([row(0, 1), row(2, 0, hold=True)], "pre-refiner rows cannot be hold rows"),
+                              ([row(2, 1, hold=True)], "pre-refiner rows cannot be hold rows")):
+        try:
+            rack(base, bad_rows, ins)
+            raise AssertionError("pre-refiner hold accepted")
+        except ValueError as e:
+            assert message in str(e)
+    try:
+        core.rack_hold_shift(post, [("wrong", dict(A, target="other_refiner"), 1)])
+        raise AssertionError("different targets accepted")
+    except ValueError as e:
+        assert "same target" in str(e)
+    output = nodes.DialRack.execute(model=base, rack=json.dumps([row(0, 1), row(3, 1, hold=True)]), dials=ins)
+    report = output.ui.as_dict()["text"][0]
+    assert "post-refiner shift after holds |0.0|" in report and "removed 100.0%" in report, report
+    assert torch.equal(run(base, x), plain), "holds modified the input model"
+    return dict(dtype=str(dtype), exact_no_hold_cases=len(variants), identical_hold_max_abs=float((cancelled - plain).abs().max()),
+                two_hold_max_abs_dot=float((directions.T @ combined["vec"].double()).abs().max()),
+                projection_reference_max_abs=float((combined["vec"].double() - reference).abs().max()),
+                retained_orthogonal_norm=float(retained["vec"].norm()), report=report)
+
+
 def main():
     torch.manual_seed(0)
     base = comfy.model_patcher.ModelPatcher(Fake(), load_device=torch.device("cpu"), offload_device=torch.device("cpu"))
@@ -106,15 +193,18 @@ def main():
     assert rack(base, [row(0, 1.0, on=False)], ins) is base, "all-off rack must return the input model"
     assert torch.equal(run(base, x), plain), "the input model was modified"
 
-    with tempfile.TemporaryDirectory() as tmp:
-        folder_paths.add_model_folder_path("loras", tmp, is_default=True)
-        core.save_dial(A, "rack_test_a")
-        loaded = core.load_dial("dials/rack_test_a.safetensors")
-        assert loaded["mode"] == "post" and loaded["target"] == "token_refiner"
-        by_file = rack(base, [{"on": True, "dial": "dials/rack_test_a.safetensors", "strength": 1.0}])
-        # the file is stored in bf16, so compare against the chain with the loaded (rounded) vector
-        assert torch.equal(run(by_file, x), run(chain(base, [(loaded, 1.0)]), x)), "file row != chain"
-        assert "dials/rack_test_a.safetensors" in core.dial_files()
+    tmp = tempfile.mkdtemp(prefix="B5_rack_")
+    folder_paths.add_model_folder_path("loras", tmp, is_default=True)
+    core.save_dial(A, "rack_test_a")
+    loaded = core.load_dial("dials/rack_test_a.safetensors")
+    assert loaded["mode"] == "post" and loaded["target"] == "token_refiner"
+    by_file = rack(base, [{"on": True, "dial": "dials/rack_test_a.safetensors", "strength": 1.0}])
+    # the file is stored in bf16, so compare against the chain with the loaded (rounded) vector
+    assert torch.equal(run(by_file, x), run(chain(base, [(loaded, 1.0)]), x)), "file row != chain"
+    assert "dials/rack_test_a.safetensors" in core.dial_files()
+    held_file = rack(base, [{"dial": "dials/rack_test_a.safetensors", "strength": 1},
+                            {"dial": "dials/rack_test_a.safetensors", "strength": 0, "hold": True}])
+    assert torch.equal(run(held_file, x), plain), "file hold did not cancel its dial"
 
     try:
         rack(base, [row(5, 1.0)], ins)
@@ -126,7 +216,9 @@ def main():
     near["vec"] = A["vec"] + 0.1 * B["vec"]
     report = nodes.DialRack.execute(model=base, rack=json.dumps([row(0, 1.0), row(1, 1.0)]), dials={"dial_0": A, "dial_1": near}).ui.as_dict()["text"][0]
     assert "overlap" in report and "reinforce" in report, report
+    print(json.dumps({"hold_checks": [check_holds(dtype) for dtype in (torch.float32, torch.bfloat16)]}))
     print("dial rack: all checks passed")
+    print(f"fixtures retained at {tmp}")
 
 
 if __name__ == "__main__":

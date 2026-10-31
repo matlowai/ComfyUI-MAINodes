@@ -261,6 +261,28 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
     return dial, report
 
 
+def rack_hold_shift(rows, holds):
+    """Project the summed post shift out of the holds' span; report squared-norm shares in row order."""
+    post = [(label, d, s) for label, d, s in rows if d["mode"] == "post"]
+    target = holds[0][1]["target"]
+    if any(d["target"] != target for _, d, _ in post + holds):
+        raise ValueError("hold rows and active post-refiner rows must use the same target")
+    directions = [d["vec"].double() for _, d, _ in holds]
+    total = sum((s * d["vec"].double() for _, d, s in post), torch.zeros_like(directions[0]))
+    if len(directions) == 1:
+        h = directions[0]
+        basis = (h / h.norm().clamp_min(1e-12)).unsqueeze(1)
+    else:
+        basis = hold_basis(directions, None)
+    along = basis.T @ total
+    shift = total - basis @ along
+    shares = along.square() / total.square().sum().clamp_min(1e-24)
+    lines = [f"post-refiner shift after holds |{float(shift.norm()):.1f}| (before {float(total.norm()):.1f})"]
+    lines += [f"H  {label}: removed {float(shares[i]):.1%} of the summed shift's squared norm"
+              for i, (label, _, _) in enumerate(holds)]
+    return dict(holds[0][1], vec=shift.float()), "\n".join(lines)
+
+
 def rack_report(rows):
     """rows: [(label, dial, strength)] actually applied. Norms, the combined post-refiner shift, and overlapping pairs."""
     if not rows:
