@@ -95,7 +95,7 @@ class DialRackUI {
     this.out = this.el("pre", { margin: 0, whiteSpace: "pre-wrap", color: "#9a9ba0", fontSize: "11px", display: "none",
       borderTop: "1px solid #2a2c33", paddingTop: "4px" }, root);
     this.widget = this.node.addDOMWidget("dial_rack_ui", "div", root, { serialize: false });
-    this.widget.computeSize = (w) => [w, 64 + 34 * Math.max(this.rows.length, 1) +
+    this.widget.computeSize = (w) => [w, 64 + 34 * Math.max(this.rows.length, 1) + 28 * this.rows.filter((r) => r.envelope?.type === "manual").length +
       (this.presetBar.style.display !== "none" ? 32 : 0) + (this.presetMessage ? 18 * this.presetMessage.split("\n").length + 8 : 0) +
       (this.report ? 18 * this.report.split("\n").length + 8 : 0)];
     this.root = root;
@@ -212,6 +212,17 @@ class DialRackUI {
       slider.oninput = () => { r.strength = parseFloat(slider.value); num.value = r.strength.toFixed(2); this.commit(); };
       num.onchange = () => { const v = Math.min(NUMBER[1], Math.max(NUMBER[0], parseFloat(num.value) || 0)); r.strength = v; slider.value = v; num.value = v.toFixed(2); this.commit(); };
       slider.ondblclick = () => { r.strength = 0; slider.value = 0; num.value = "0.00"; this.commit(); };
+      const envelope = this.el("select", { width: "76px", background: "#111", color: "#ddd", border: "1px solid #333" }, row);
+      envelope.title = "Strength over denoising progress: early, late, bell, or manual points (post-refiner dials only)";
+      for (const kind of ["constant", "early", "late", "bell", "manual"]) {
+        const option = this.el("option", {}, envelope, kind); option.value = kind;
+      }
+      envelope.value = typeof r.envelope === "string" ? r.envelope : r.envelope?.type || "constant";
+      envelope.onchange = () => {
+        if (envelope.value === "constant") delete r.envelope;
+        else r.envelope = envelope.value === "manual" ? { type: "manual", points: [[0, 0], [0.5, 1], [1, 0]] } : envelope.value;
+        this.commit(); this.render();
+      };
       this.button(row, "S", "solo: hear only the soloed rows", () => { r.solo = !r.solo; this.commit(); this.render(); },
         r.solo ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145", padding: "2px 6px" } : { padding: "2px 6px" });
       const hold = this.button(row, "H", "hold: remove this direction from the summed shift (post-refiner dials only)",
@@ -219,6 +230,19 @@ class DialRackUI {
         r.hold ? { background: "#20323b", borderColor: "#8fb4ff", color: "#8fb4ff", padding: "2px 6px" } : { padding: "2px 6px" });
       hold.setAttribute("aria-pressed", String(!!r.hold));
       if (!("input" in r)) this.button(row, "✕", "remove row", () => { this.rows.splice(i, 1); this.commit(); this.render(); }, { padding: "2px 6px" });
+      if (r.envelope?.type === "manual") {
+        const points = this.el("input", { boxSizing: "border-box", width: "100%", background: "#111", color: "#ddd", border: "1px solid #333" }, this.list);
+        points.value = JSON.stringify(r.envelope.points);
+        points.title = "JSON [progress, gain] points; progress increases from 0 to 1; gain multiplies the row strength";
+        points.onchange = () => {
+          try {
+            const v = JSON.parse(points.value);
+            if (!Array.isArray(v) || v.length < 2 || !v.every((p, i) => Array.isArray(p) && p.length === 2 &&
+              p.every((n) => typeof n === "number" && Number.isFinite(n)) && p[0] >= 0 && p[0] <= 1 && (!i || p[0] > v[i - 1][0]))) throw new Error("Use increasing [progress, gain] pairs within progress 0..1");
+            r.envelope.points = v; points.setCustomValidity(""); this.commit();
+          } catch (e) { points.setCustomValidity(e.message); points.reportValidity(); }
+        };
+      }
     });
     const n = this.rows.filter((r) => active(r) && (!anySolo || r.solo)).length;
     this.hint.textContent = anySolo ? `solo · ${n} active` : `${n} active`;
@@ -226,13 +250,19 @@ class DialRackUI {
     this.out.textContent = this.report;
     this.notice.style.display = this.presetMessage ? "block" : "none";
     this.notice.textContent = this.presetMessage;
-    this.node.setSize([Math.max(this.node.size[0], 470), this.node.computeSize()[1]]);
+    this.node.setSize([Math.max(this.node.size[0], 600), this.node.computeSize()[1]]);
     this.node.setDirtyCanvas(true, true);
   }
 }
 
 app.registerExtension({
   name: "MAINodes.DialRack",
+  setup() {
+    api.addEventListener("mai-dial-envelope", ({ detail }) => {
+      const rack = app.graph?.getNodeById(detail.node)?.dialRack;
+      if (rack) { rack.report = detail.text; rack.render(); }
+    });
+  },
   async beforeRegisterNodeDef(nodeType, nodeData) {
     if (nodeData.name !== "MAIDialRack") return;
     const created = nodeType.prototype.onNodeCreated;

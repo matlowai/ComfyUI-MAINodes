@@ -16,8 +16,8 @@ second. Ported from [ComfyUI-Dials](https://github.com/matlowai/ComfyUI-Dials); 
 **Strength:** +0.5 to +1 is the everyday range. Past about 1.5 side effects appear (the scene restages, characters
 morph), and on Pika H3 Flex's 6-step schedule even sooner. The motion dial at −2 and +2 shows the extremes.
 
-**Rack = chain without holds:** the rack applies its rows in order with exactly the patches a chain of single-dial
-nodes makes, so one rack is bit-for-bit the same as that chain (`tests/test_dial_rack.py`). Off rows, zero-strength rows and
+**Rack = chain without holds or envelopes:** the rack applies its rows in order with exactly the patches a chain of
+single-dial nodes makes, so one rack is bit-for-bit the same as that chain (`tests/test_dial_rack.py`). Off rows, zero-strength rows and
 non-solo rows while something is soloed change nothing; a rack with nothing active returns the model untouched.
 
 **Hold rows:** toggle **H** to remove that dial's direction from the sum of the rack's active post-refiner shifts.
@@ -28,6 +28,7 @@ nothing. Pre-refiner dials cannot be hold rows; ordinary pre-refiner rows still 
 rack's post shift, including cancellation between its rows; they do not remove upstream patches or guarantee that
 H3 leaves the corresponding visual/audio quality unchanged. The report gives the remaining shift and each hold's
 share of the original summed shift's squared norm removed, crediting overlapping holds in row order.
+Hold rows and explicit step envelopes cannot share a rack; use constant rows with no `envelope` field for holds.
 
 **Dial files** live in `models/loras/dials/`. The dial library is on Hugging Face:
 [MATLOWAI/H3-Dials](https://huggingface.co/MATLOWAI/H3-Dials). Folders starting with `_` are not listed (park
@@ -42,7 +43,7 @@ Two kinds of dial file:
 
 **Rack presets:** use **Save preset** / **Load preset** in the rack bar. Presets live in
 `models/loras/dials/presets/<name>.json`, with format `MAIDialRack preset`, version `1`, and ordered rows containing
-`dial`, `sha256`, `strength`, `on`, and `solo`, plus optional `hold` (absent means false). They store file references
+`dial`, `sha256`, `strength`, `on`, and `solo`, plus optional `hold` (absent means false) and `envelope`. They store file references
 and settings, never weights. Names accept letters, digits, `_` and `-` (1–80 characters); saving requires a new name. Loading warns about missing files or
 changed SHA-256 hashes and keeps every row, including off/solo settings; absent files remain marked **(missing)**.
 Presets use saved files: save wired dials and select their files before saving a preset, and disconnect wired dials
@@ -52,11 +53,11 @@ before loading one. Save under a new name to accept changed files' current hashe
 
 These complete text-to-video graphs use one Dial Rack, seed 42, an adult kitchen scene, and video plus audio output.
 
-| Example | API graph | Settings |
-|---|---|---|
-| One dial | [one_dial_api.json](../examples/dials/one_dial_api.json) | Base H3, motion +1, 20-step `res_multistep`, 832×480, 124 frames |
-| Four dials | [four_dials_api.json](../examples/dials/four_dials_api.json) | Base H3, motion +0.5 / dread +1 / warm–cold −0.5 / reserved–lively +0.5, same 20-step settings |
-| Pika rack | [pika_rack_api.json](../examples/dials/pika_rack_api.json) | Same four rows, Pika H3 Flex LoRA +1, 6-step LCM with manual sigmas, 1280×704, 141 frames |
+| Example | UI workflow | API graph | Settings |
+|---|---|---|---|
+| One dial | [one_dial.json](../examples/dials/one_dial.json) | [one_dial_api.json](../examples/dials/one_dial_api.json) | Base H3, motion +1, 20-step `res_multistep`, 832×480, 124 frames |
+| Four dials | [four_dials.json](../examples/dials/four_dials.json) | [four_dials_api.json](../examples/dials/four_dials_api.json) | Base H3, motion +0.5 / dread +1 / warm–cold −0.5 / reserved–lively +0.5, same 20-step settings |
+| Pika rack | [pika_rack.json](../examples/dials/pika_rack.json) | [pika_rack_api.json](../examples/dials/pika_rack_api.json) | Same four rows, Pika H3 Flex LoRA +1, 6-step LCM with manual sigmas, 1280×704, 141 frames |
 
 All run at 24 fps and save MP4s under `output/video/dials/`. The graphs use the local `h3/` subfolder in
 `models/diffusion_models`, `models/text_encoders`, `models/vae`, and (Pika only) `models/loras`; adjust the loader
@@ -64,8 +65,42 @@ filenames to your installation. They require the H3 model, Qwen3-VL text encoder
 dial files in `models/loras/dials/`. The four-row examples also require the warm–cold and reserved–lively candidate
 dials from pack 2. ComfyUI-Dials nodes are not required. No weights are included in the workflows.
 
-To queue an API graph, POST `{"prompt": <contents of the API JSON>}` to your ComfyUI server's `/prompt` endpoint.
+Drag a UI workflow into ComfyUI, select your local files, and queue it. To queue an API graph, POST
+`{"prompt": <contents of the API JSON>}` to your ComfyUI server's `/prompt` endpoint.
 Keep the four-row order when reproducing a result: reordering post-refiner additions can change the generated video.
+
+## Step envelopes
+
+Each rack row can shape its strength across denoising: **constant**, **early** (falls to zero by the midpoint),
+**late** (rises from zero after the midpoint), **bell** (a triangular middle peak), or **manual** `[progress, gain]`
+points. Gains multiply the row's strength; they are not automatically normalized. Manual points interpolate linearly
+and hold their endpoint values outside the specified range. Progress runs from 0 at the first model step to 1 at
+the last, excluding the terminal sigma; a one-step schedule uses progress 0. This controls denoising, not video time.
+
+Envelopes support **post-refiner** dials. H3 caches refined text before sampling, so an enveloped rack shifts that
+cached context at each diffusion-model call. It compiles against the actual sampler sigmas at sample time, uses the
+same strength for repeated CFG calls at one sigma, and interpolates between compiled strengths for intermediate
+solver evaluations. All post rows in that rack keep their addition order, including constant rows. An absent
+envelope keeps the original hook path when no upstream rack is scheduled; an explicit constant envelope has the
+same tensor result. Zero-gain steps skip addition. Pre-refiner rows can coexist but cannot have envelopes.
+
+The rack report updates when sampling starts with the sigma schedule and evaluated per-step strengths; these are
+also logged to the server console. The live update is a `mai-dial-envelope` WebSocket event (including structured
+`sigmas`, `progress`, and `rows`); the earlier API history preview says the values are pending. Each sampler run
+compiles its own wrapper, so reused models and cloned workflows do not share a step counter or cached schedule.
+Keep scheduled and constant post rows in racks: an external Apply Dial node downstream still changes H3's cached
+text before envelope evaluation and can therefore change bf16 addition order.
+
+API row examples (the `envelope` field is optional):
+
+```json
+[
+  {"dial": "dials/h3_motion.safetensors", "strength": 1, "on": true, "envelope": "early"},
+  {"input": "dial_0", "strength": 0.5, "envelope": {"type": "manual", "points": [[0, 0], [0.5, 1], [1, 0]]}}
+]
+```
+
+CPU parity and lifecycle checks: `tests/test_dial_envelopes.py`. GPU envelope behavior is still experimental.
 
 ## Writing good pairs
 

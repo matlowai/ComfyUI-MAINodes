@@ -51,6 +51,11 @@ def main():
     assert presets.load_preset("holds") == held
     assert [r["hold"] for r in held["preset"]["rows"]] == [True, False]
     assert held["preset"]["rows"][0]["strength"] == 0
+    shaped_rows = [dict(rows[0], envelope="early"),
+                   dict(rows[1], envelope={"type": "manual", "points": [[0, 0], [0.5, 1], [1, 0]]})]
+    shaped = presets.save_preset("envelopes", shaped_rows)
+    assert presets.load_preset("envelopes") == shaped
+    assert [r["envelope"] for r in shaped["preset"]["rows"]] == [r["envelope"] for r in shaped_rows]
 
     dial.write_bytes(b"changed dial contents")
     changed = presets.load_preset("test_-9")
@@ -61,7 +66,7 @@ def main():
     missing = presets.load_preset("test_-9")
     assert missing["preset"] == document
     assert [w["reason"] for w in missing["warnings"]] == ["missing", "missing"]
-    assert presets.list_presets() == ["holds", "test_-9"]
+    assert presets.list_presets() == ["envelopes", "holds", "test_-9"]
     rejects(presets.save_preset, "test_-9", [], exception=FileExistsError)
     assert json.loads(presets.preset_path("test_-9").read_text()) == document
     assert presets.save_preset("empty", [])["preset"]["rows"] == []

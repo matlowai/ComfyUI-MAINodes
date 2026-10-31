@@ -142,7 +142,10 @@
       "audio": [
         "17",
         0
-      ]
+      ],
+      "bit_depth": "auto",
+      "color_space": "sRGB",
+      "codec": "none"
     }
   },
   "19": {
@@ -154,7 +157,10 @@
       "video": [
         "18",
         0
-      ]
+      ],
+      "codec.encoding": "auto",
+      "format.codec": "h264",
+      "format.codec.encoding": "auto"
     }
   },
   "100": {

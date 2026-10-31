@@ -5,7 +5,7 @@ import json
 import torch
 from comfy_api.latest import io, ui
 
-from . import core, presets
+from . import core, envelopes, presets
 
 presets.install_routes()
 
@@ -13,8 +13,8 @@ Dial = io.Custom("DIAL")
 
 
 class DialRack(io.ComfyNode):
-    """Rows without holds use the exact single-dial chain. Hold rows project directions out of one summed post shift.
-    Dials wired into the `dial_N` inputs (e.g. straight from Make Dial) appear as rows too."""
+    """Constant rows without holds use the single-dial chain. Holds project one summed post shift;
+    envelopes shift cached text at each denoising call. Wired dials appear as rack rows too."""
 
     @classmethod
     def define_schema(cls):
@@ -31,6 +31,7 @@ class DialRack(io.ComfyNode):
                     prefix="dial_", min=0, max=8)),
             ],
             outputs=[io.Model.Output()],
+            hidden=[io.Hidden.unique_id],
         )
 
     @classmethod
@@ -62,11 +63,16 @@ class DialRack(io.ComfyNode):
             return io.NodeOutput(model, ui=ui.PreviewText(report))
         core.text_modules(model)  # clear error for a non-H3 model before patching
         m = model.clone()
-        for _, dial, strength in applied:
-            if not holds or dial["mode"] == "pre":
-                core.apply_dial(m, dial, strength)
-        if holds and any(d["mode"] == "post" for _, d, _ in applied):
-            core.apply_dial(m, combined, 1.0)
+        specs = [r.get("envelope") for r in active]
+        if holds:
+            if any(spec is not None for spec in specs):
+                raise ValueError("hold rows and step envelopes cannot share a rack; use constant rows without an envelope")
+            applied = [row for row in applied if row[1]["mode"] == "pre"] + (
+                [("post shift after holds", combined, 1.0)] if any(d["mode"] == "post" for _, d, _ in applied) else [])
+            specs = [None] * len(applied)
+        scheduled = envelopes.apply_rack(m, applied, specs, getattr(cls.hidden, "unique_id", None), report)
+        if scheduled:
+            report += "\nenvelopes: sampled strengths appear here when sampling starts"
         return io.NodeOutput(m, ui=ui.PreviewText(report))
 
 

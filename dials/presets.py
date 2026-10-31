@@ -49,6 +49,8 @@ def preset_rows(rows):
             if not isinstance(row["hold"], bool):
                 raise ValueError("preset hold must be a boolean")
             result[-1]["hold"] = row["hold"]
+        if "envelope" in row:
+            result[-1]["envelope"] = row["envelope"]
     return result
 
 
