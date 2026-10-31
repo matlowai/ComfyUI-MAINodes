@@ -5,16 +5,15 @@ import json
 import torch
 from comfy_api.latest import io, ui
 
-from . import core
+from . import core, envelopes
 
 Dial = io.Custom("DIAL")
 
 
 class DialRack(io.ComfyNode):
     """Any number of dials on one model, each row with on/off, strength and solo (edited in the node's rack UI).
-    Rows are applied in order with the same patches a chain of single Apply Dial nodes would make, so a rack is
-    bit-for-bit identical to that chain. Dials wired into the `dial_N` inputs (e.g. straight from Make Dial) appear as
-    rows too."""
+    Constant rows use the same patches as a chain of single Apply Dial nodes. Envelopes shift cached text at each
+    denoising call. Dials wired into the `dial_N` inputs (e.g. straight from Make Dial) appear as rows too."""
 
     @classmethod
     def define_schema(cls):
@@ -31,6 +30,7 @@ class DialRack(io.ComfyNode):
                     prefix="dial_", min=0, max=8)),
             ],
             outputs=[io.Model.Output()],
+            hidden=[io.Hidden.unique_id],
         )
 
     @classmethod
@@ -56,9 +56,12 @@ class DialRack(io.ComfyNode):
             return io.NodeOutput(model, ui=ui.PreviewText(core.rack_report([])))
         core.text_modules(model)  # clear error for a non-H3 model before patching
         m = model.clone()
-        for _, dial, strength in applied:
-            core.apply_dial(m, dial, strength)
-        return io.NodeOutput(m, ui=ui.PreviewText(core.rack_report(applied)))
+        report = core.rack_report(applied)
+        scheduled = envelopes.apply_rack(m, applied, [r.get("envelope") for r in active],
+                                        getattr(cls.hidden, "unique_id", None), report)
+        if scheduled:
+            report += "\nenvelopes: sampled strengths appear here when sampling starts"
+        return io.NodeOutput(m, ui=ui.PreviewText(report))
 
 
 class MakeDial(io.ComfyNode):
