@@ -34,8 +34,9 @@ def info_from(description, negative_label, positive_label, useful, overcook):
 
 
 class DialRack(io.ComfyNode):
-    """Constant rows without holds use the single-dial chain. Holds project one summed post shift;
-    envelopes shift cached text at each denoising call. Wired dials appear as rack rows too."""
+    """Pre rows use the single-dial chain; constant post rows become one shift summed in float64, so row order cannot
+    change the output. Holds project that summed shift; envelopes shift cached text at each denoising call. Wired dials
+    appear as rack rows too."""
 
     @classmethod
     def define_schema(cls):
@@ -90,6 +91,9 @@ class DialRack(io.ComfyNode):
                 raise ValueError("hold rows and step envelopes cannot share a rack; use constant rows without an envelope")
             applied = [row for row in applied if row[1]["mode"] == "pre"] + (
                 [("post shift after holds", combined, 1.0)] if any(d["mode"] == "post" for _, d, _ in applied) else [])
+            specs = [None] * len(applied)
+        elif sum(d["mode"] == "post" for _, d, _ in applied) > 1 and all(spec is None for spec in specs):
+            applied = [row for row in applied if row[1]["mode"] == "pre"] + [("summed post shift", core.rack_post_shift(applied), 1.0)]
             specs = [None] * len(applied)
         scheduled = envelopes.apply_rack(m, applied, specs, cls.hidden.unique_id, report)
         if scheduled:

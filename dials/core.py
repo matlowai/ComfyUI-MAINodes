@@ -362,6 +362,12 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
     return dial, report
 
 
+def rack_post_shift(rows):
+    """All post rows as one shift summed in float64: chained bf16 hook additions round differently in each row order."""
+    post = [(d, s) for _, d, s in rows if d["mode"] == "post"]
+    return dict(post[0][0], vec=sum(s * d["vec"].double() for d, s in post).float())
+
+
 def rack_hold_shift(rows, holds):
     """Project the summed post shift out of the holds' span; report squared-norm shares in row order."""
     post = [(label, d, s) for label, d, s in rows if d["mode"] == "post"]
