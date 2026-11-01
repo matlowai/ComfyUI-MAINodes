@@ -49,6 +49,16 @@ one seed; treat them as starting points.
   look like it pushes all three.
 - **Pair wording leaks into profiles:** an evil dial whose pairs said "coldly" and "icy" loads on colour temperature.
 
+## Where in the model
+- **H3 does a dial's work in its first half.** Injecting only in blocks 0-24 gives the full effect (motion 1.08x,
+  colour 1.10x of all blocks); only 25-49 (or the 26-37 range from the LoRA study) changes the clip by about 0.4x
+  without moving the dial's quality: a perturbation, not an edit (2 seeds). No block range separated look from motion.
+- **Today's post hook shifts every row of the text span,** vision-pad rows included, not only text-tagged rows.
+
+## Editing dials
+- **Remove a probe axis with the joint fit.** Taking colour temperature out of evil cold left every other axis within
+  0.01 under the joint fit; the direct fit also took 0.14 off night and 0.10 off mood, because those probes overlap.
+
 ## Strength over denoising
 - **On Pika, the prompt only matters in the first steps.** Late envelopes at +2 and even +8 changed nothing; constant
   beat every other shape for motion per unit of gain.
