@@ -116,13 +116,13 @@ class MakeDial(io.ComfyNode):
                 io.String.Input("subjects", multiline=True, default="A young woman\nAn old man\nA golden dog\nA horse",
                                 tooltip="Optional: one subject per line, substituted for {subject}. Varied subjects cancel out, leaving only the A→B difference."),
                 io.String.Input("name", default="my_dial", tooltip="Saved as models/loras/dials/<name>.safetensors (empty = don't save)."),
-                *info_inputs(),
                 io.Combo.Input("inject", options=["post_refiner (hook)", "pre_refiner (LoRA file)"], default="post_refiner (hook)", advanced=True,
                                tooltip="post_refiner: where the DiT reads the prompt, most faithful (use with Dial Rack). "
                                        "pre_refiner: a bias diff the stock LoRA loader can apply; keep it at strength <= 1."),
                 io.Boolean.Input("debias", default=True, advanced=True,
                                  tooltip="Project out the generic 'more wording' directions that every prompt-pair difference shares."),
                 io.Int.Input("nuisance_dims", default=3, min=1, max=12, advanced=True, tooltip="How many nuisance directions to remove."),
+                *info_inputs(),  # last, so workflows saved before these fields load unchanged
             ],
             outputs=[Dial.Output(display_name="dial")],
             is_output_node=True,
@@ -156,10 +156,10 @@ class MakeDialFromPictures(io.ComfyNode):
                 io.Image.Input("pictures_b", tooltip="B pictures as an image batch; equal counts pair by index for the agreement report."),
                 io.String.Input("prompt", multiline=True, default="A video in the style and content of <Picture 1>."),
                 io.String.Input("name", default="my_picture_dial", tooltip="Saved as models/loras/dials/<name>.safetensors (empty = don't save)."),
-                *info_inputs(),
                 io.Boolean.Input("debias", default=True, advanced=True,
                                  tooltip="Project out the same generic wording directions used by Make Dial."),
                 io.Int.Input("nuisance_dims", default=3, min=1, max=12, advanced=True),
+                *info_inputs(),  # last, so workflows saved before these fields load unchanged
             ],
             outputs=[Dial.Output(display_name="dial")],
             is_output_node=True,
@@ -195,9 +195,9 @@ class MakeDialFromVideos(io.ComfyNode):
                     input=io.Video.Input("video_b"), prefix="video_b_", min=1, max=12)),
                 io.String.Input("prompt", multiline=True, default="A video in the style and content of <Video 1>."),
                 io.String.Input("name", default="my_video_dial", tooltip="Saved as models/loras/dials/<name>.safetensors (empty = don't save)."),
-                *info_inputs(),
                 io.Boolean.Input("debias", default=True, advanced=True),
                 io.Int.Input("nuisance_dims", default=3, min=1, max=12, advanced=True),
+                *info_inputs(),  # last, so workflows saved before these fields load unchanged
             ],
             outputs=[Dial.Output(display_name="dial")],
             is_output_node=True,
@@ -234,7 +234,7 @@ class CombineDials(io.ComfyNode):
                 io.Float.Input("weight_b", default=0.0, min=-20.0, max=20.0, step=0.05),
                 io.Boolean.Input("orthogonalize", default=False, tooltip="Remove b's direction from a before mixing."),
                 io.String.Input("name", default="", tooltip="Save as models/loras/dials/<name>.safetensors (empty = don't save)."),
-                *info_inputs(),
+                *info_inputs(),  # last, so workflows saved before these fields load unchanged
             ],
             outputs=[Dial.Output(display_name="dial")],
         )
