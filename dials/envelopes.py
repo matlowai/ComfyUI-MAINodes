@@ -68,16 +68,20 @@ class EnvelopeForward:
             text += f"\n{label} sampled strengths: " + ", ".join(f"{v:+.6g}" for v in values)
         return text
 
-    def __call__(self, executor, x, timestep, context, transformer_options, **kwargs):
+    def strengths(self, transformer_options):
+        """Each row's strength at this model call's sigma."""
         sigma = transformer_options.get("sigmas")
         if sigma is None:
             raise ValueError("dial envelope: diffusion-model call has no sampler sigma")
         current = float(sigma.flatten()[0])
         if not math.isfinite(current) or not bool((sigma == current).all()):
             raise ValueError("dial envelopes need one finite shared sigma per H3 model call")
+        return [interpolate(list(zip([-s for s in self.sigmas[:-1]], values)), -current) for _, _, values in self.rows]
+
+    def __call__(self, executor, x, timestep, context, transformer_options, **kwargs):
+        strengths = self.strengths(transformer_options)
         context = executor.class_obj.preprocess_text_embeds(context)  # no-op when extra_conds already refined it
-        for _, dial, values in self.rows:
-            strength = interpolate(list(zip([-s for s in self.sigmas[:-1]], values)), -current)
+        for (_, dial, _), strength in zip(self.rows, strengths):
             if strength != 0:
                 context = context + (dial["vec"] * strength).to(device=context.device, dtype=context.dtype)
         return executor(x, timestep, context, transformer_options, **kwargs)
@@ -89,8 +93,11 @@ class EnvelopeSampler:
         self.node_id = node_id
         self.base_report = report
 
+    def compile(self, sigmas):
+        return EnvelopeForward(self.rows, sigmas)
+
     def __call__(self, executor, model, sigmas, extra_args, *args, **kwargs):
-        compiled = EnvelopeForward(self.rows, sigmas)
+        compiled = self.compile(sigmas)
         extra_args = extra_args.copy()
         extra_args["model_options"] = copy_nested_dicts(extra_args["model_options"])
         options = extra_args["model_options"].setdefault("transformer_options", {})

@@ -66,6 +66,11 @@ def preset_rows(rows):
             except (KeyError, TypeError) as e:
                 raise ValueError(f"invalid preset envelope: {row['envelope']!r}") from e
             result[-1]["envelope"] = row["envelope"]
+        if "blocks" in row:
+            w = row["blocks"]
+            if not isinstance(w, list) or not all(isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x) for x in w):
+                raise ValueError("preset blocks must be a list of finite numbers")
+            result[-1]["blocks"] = w
     return result
 
 

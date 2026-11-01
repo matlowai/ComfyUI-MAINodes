@@ -17,6 +17,36 @@ const EVIDENCE = ["creator", "one-seed", "multi-seed", "multi-scene"];
 const QUADRANTS = [[1, -1], [-1, -1], [1, 1], [-1, 1]];  // [x sign, y sign] of the map's quarters; ring labels go in the first drawn
 const side = (info, s) => (s < 0 ? info.neg : info.pos);
 const SWEEP_STEPS = [0.25, 0.5, 1];
+const BLOCKS = 50;  // MiniMax H3's DiT blocks, until a run reports the model's count
+const BLOCK_PRESETS = [
+  ["all", "every block: the plain post-refiner hook", () => true],
+  ["none", "no block: the row adds nothing", () => false],
+  ["first half", "blocks 0 to n/2 - 1", (i, n) => i < n / 2],
+  ["second half", "blocks n/2 to n - 1", (i, n) => i >= n / 2],
+  ["26–37", "blocks 26 to 37 only", (i) => i >= 26 && i <= 37],
+  ["odd", "odd blocks", (i) => i % 2 === 1],
+  ["even", "even blocks", (i) => i % 2 === 0],
+];
+const BLOCKS_HELP = "How much of the dial the text tokens carry into each block, times the row strength. Lowering a later " +
+  "block subtracts the dial there; the blocks before it have already read it.";
+
+// one bar per block, height = strength 0..1; also the row's mini strip
+function drawBlocks(c, w, hover, W, H) {
+  const dpr = window.devicePixelRatio || 1;
+  c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+  const g = c.getContext("2d"), cw = W / w.length, gap = cw > 3 ? 1 : 0;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = "#101114"; g.fillRect(0, 0, W, H);
+  w.forEach((v, i) => {
+    g.fillStyle = i % 10 === 0 && gap ? "#252831" : "#1b1d23";
+    g.fillRect(i * cw, 0, cw - gap, H);
+    g.fillStyle = i === hover ? "#ffe2a0" : "#ffc145";
+    g.fillRect(i * cw, H * (1 - v), cw - gap, H * v);
+  });
+  if (H < 30) return;
+  g.fillStyle = "#777"; g.font = "9px sans-serif";
+  for (let i = 0; i < w.length; i += 10) g.fillText(String(i), i * cw + 2, 10);
+}
 
 async function presetRequest(path = "", options) {
   const response = await api.fetchApi(PRESETS + path, options);
@@ -684,6 +714,45 @@ class DialRackUI {
     this.button(actions, "Cancel", "close without saving", () => { this.editing = null; this.render(); });
   }
 
+  blocksEditor(r, name) {
+    const w = r.blocks ? [...r.blocks] : Array(this.node.properties?.dialBlocks || BLOCKS).fill(1), n = w.length;
+    const box = this.el("div", { display: "flex", flexDirection: "column", gap: "4px", padding: "6px", background: "#1b1d23",
+      border: "1px solid #2f323b", borderRadius: "4px" }, this.list);
+    const bar = this.el("div", { display: "flex", gap: "4px", alignItems: "center", flexWrap: "wrap" }, box);
+    this.el("span", { color: "#888" }, bar, `${name} · blocks`);
+    let hover = null;
+    const canvas = this.el("canvas", { display: "block", width: "100%", height: "64px", cursor: "crosshair", touchAction: "none" }, box);
+    const draw = () => drawBlocks(canvas, w, hover, canvas.clientWidth, 64);
+    const save = () => {
+      if (w.every((v) => v === 1)) delete r.blocks; else r.blocks = w.map((v) => Math.round(v * 100) / 100);
+      this.commit(); draw();
+    };
+    for (const [label, title, on] of BLOCK_PRESETS) this.button(bar, label, title, () => {
+      w.forEach((_, i) => { w[i] = on(i, n) ? 1 : 0; }); save(); this.render();
+    }, { padding: "1px 6px" });
+    const readout = this.el("span", { color: "#ffc145", marginLeft: "auto", minWidth: "90px", textAlign: "right" }, bar);
+    this.button(bar, "Done", "close the block strengths", () => { this.blocksEditing = null; this.render(); }, { padding: "1px 6px" });
+    this.el("div", { color: "#888", fontSize: "11px" }, box, BLOCKS_HELP + " Click or drag to paint: top = 1, bottom = 0.");
+    canvas.title = "click or drag to paint each block's strength (top = 1, bottom = 0)";
+    const at = (e) => {
+      const b = canvas.getBoundingClientRect();
+      return [Math.min(n - 1, Math.max(0, Math.floor((e.clientX - b.left) / b.width * n))),
+        Math.min(1, Math.max(0, Math.round((1 - (e.clientY - b.top) / b.height) * 20) / 20))];
+    };
+    let last = null;
+    const show = (i) => { hover = i; readout.textContent = i == null ? "" : `block ${i}: ${w[i].toFixed(2)}`; };
+    const paint = (e) => {  // fill the cells between drag events so a fast stroke leaves no gaps
+      const [i, v] = at(e);
+      for (let k = Math.min(last ?? i, i); k <= Math.max(last ?? i, i); k++) w[k] = v;
+      last = i; show(i); save();
+    };
+    canvas.addEventListener("pointerdown", (e) => { canvas.setPointerCapture(e.pointerId); last = null; paint(e); });
+    canvas.addEventListener("pointermove", (e) => { if (last !== null) paint(e); else { show(at(e)[0]); draw(); } });
+    canvas.addEventListener("pointerup", () => { last = null; this.render(); });
+    canvas.addEventListener("pointerleave", () => { if (last === null) { show(null); draw(); } });
+    draw();
+  }
+
   async padNorms(rx, ry) {
     if ("input" in rx || "input" in ry) return;
     const key = rx.dial + "|" + ry.dial;
@@ -828,6 +897,14 @@ class DialRackUI {
         else r.envelope = envelope.value === "manual" ? { type: "manual", points: [[0, 0], [0.5, 1], [1, 0]] } : envelope.value;
         this.commit(); this.render();
       };
+      const strip = this.button(row, r.blocks ? "" : "blocks", "block strengths: " + BLOCKS_HELP,
+        () => { this.blocksEditing = this.blocksEditing === i ? null : i; this.render(); },
+        Object.assign({ padding: "1px 4px", width: "60px" }, this.blocksEditing === i ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145" } : {}));
+      if (r.blocks) drawBlocks(this.el("canvas", { display: "block", width: "50px", height: "12px" }, strip), r.blocks, null, 50, 12);
+      if (r.hold) {
+        strip.disabled = true; strip.style.opacity = "0.4";
+        strip.title = "Hold rows remove the whole direction; block strengths apply to strength rows.";
+      }
       if (!("input" in r)) this.button(row, "⚙", "dial info: description, what − and + give, useful and overcook strengths per side, evidence (saved in the dial file)",
         () => { this.editing = this.editing === i ? null : i; this.render(); },
         this.editing === i ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145", padding: "2px 6px" } : { padding: "2px 6px" });
@@ -839,6 +916,7 @@ class DialRackUI {
       hold.setAttribute("aria-pressed", String(!!r.hold));
       if (!("input" in r)) this.button(row, "✕", "remove row", () => { this.rows.splice(i, 1); this.commit(); this.render(); }, { padding: "2px 6px" });
       if (this.editing === i && !("input" in r)) this.infoEditor(r.dial);
+      if (this.blocksEditing === i && !r.hold) this.blocksEditor(r, this.rowName(i));
       if (r.envelope?.type === "manual") {
         const points = this.el("input", { boxSizing: "border-box", width: "100%", background: "#111", color: "#ddd", border: "1px solid #333" }, this.list);
         points.value = JSON.stringify(r.envelope.points);
@@ -864,7 +942,7 @@ class DialRackUI {
     this.left.style.flex = open ? `0 0 ${LEFT_PX}px` : "1 1 auto";
     this.padButton.style.borderColor = open ? "#ffc145" : "#444";
     if (open) { this.map.render(); this.matrix.draw(); }
-    const key = [this.rows.length, open, this.report, this.presetMessage, this.presetBar.style.display, this.editing].join("|");
+    const key = [this.rows.length, open, this.report, this.presetMessage, this.presetBar.style.display, this.editing, this.blocksEditing].join("|");
     if (key !== this.contentKey && this.root.clientHeight) {  // content changed: grow to show it; never shrink what the user sized
       // (before the widget is laid out, e.g. while a workflow loads, the saved size stands)
       this.contentKey = key;
@@ -908,7 +986,12 @@ app.registerExtension({
     const executed = nodeType.prototype.onExecuted;
     nodeType.prototype.onExecuted = function (message) {
       executed?.apply(this, arguments);
-      if (this.dialRack) { this.dialRack.report = (message?.text || []).join("\n"); this.dialRack.render(); }
+      if (this.dialRack) {
+        this.dialRack.report = (message?.text || []).join("\n");
+        const blocks = /block strengths over (\d+) model blocks/.exec(this.dialRack.report);
+        if (blocks) this.properties.dialBlocks = Number(blocks[1]);
+        this.dialRack.render();
+      }
     };
   },
 });

@@ -5,7 +5,7 @@ import json
 import torch
 from comfy_api.latest import io, ui
 
-from . import core, envelopes, presets
+from . import blocks, core, envelopes, presets
 
 presets.install_routes()
 
@@ -45,8 +45,8 @@ def info_from(description="", negative_label="", positive_label="", useful=1.0, 
 
 class DialRack(io.ComfyNode):
     """Pre rows use the single-dial chain; constant post rows become one shift summed in float64, so row order cannot
-    change the output. Holds project that summed shift; envelopes shift cached text at each denoising call. Wired dials
-    appear as rack rows too."""
+    change the output. Holds project that summed shift; envelopes shift cached text at each denoising call. A row with
+    block strengths moves every post row of the rack to per-block injection (blocks.py). Wired dials appear as rack rows too."""
 
     @classmethod
     def define_schema(cls):
@@ -96,9 +96,14 @@ class DialRack(io.ComfyNode):
         core.text_modules(model)  # clear error for a non-H3 model before patching
         m = model.clone()
         specs = [r.get("envelope") for r in active]
+        if holds and any(spec is not None for spec in specs):
+            raise ValueError("hold rows and step envelopes cannot share a rack; use constant rows without an envelope")
+        profiles = [r.get("blocks") for r in active if not r.get("hold")]
+        if any(p is not None for p in profiles):
+            report += "\n" + blocks.apply_rack(m, applied, [r.get("envelope") for r in active if not r.get("hold")], profiles,
+                                               holds, cls.hidden.unique_id, report)
+            return io.NodeOutput(m, ui=ui.PreviewText(report))
         if holds:
-            if any(spec is not None for spec in specs):
-                raise ValueError("hold rows and step envelopes cannot share a rack; use constant rows without an envelope")
             applied = [row for row in applied if row[1]["mode"] == "pre"] + (
                 [("post shift after holds", combined, 1.0)] if any(d["mode"] == "post" for _, d, _ in applied) else [])
             specs = [None] * len(applied)
