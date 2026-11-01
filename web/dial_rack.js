@@ -865,7 +865,8 @@ class DialRackUI {
     this.padButton.style.borderColor = open ? "#ffc145" : "#444";
     if (open) { this.map.render(); this.matrix.draw(); }
     const key = [this.rows.length, open, this.report, this.presetMessage, this.presetBar.style.display, this.editing].join("|");
-    if (key !== this.contentKey) {  // content changed: grow to show it; never shrink what the user sized
+    if (key !== this.contentKey && this.root.clientHeight) {  // content changed: grow to show it; never shrink what the user sized
+      // (before the widget is laid out, e.g. while a workflow loads, the saved size stands)
       this.contentKey = key;
       const rowsHeight = [...this.left.children].reduce((h, c) => h + (c.offsetParent ? c.offsetHeight + 6 : 0), 12);
       const extra = Math.max(this.node.size[1] - this.root.clientHeight, 30);  // title bar and inputs
