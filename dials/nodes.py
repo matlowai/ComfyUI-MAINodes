@@ -15,7 +15,7 @@ Dial = io.Custom("DIAL")
 def info_inputs():
     """Dial info saved into the dial file: the rack shows it and its map draws the useful and overcook ellipses."""
     return [
-        io.String.Input("description", multiline=True, default="", optional=True,
+        io.String.Input("description", default="", optional=True,
                         tooltip="What the dial does, for whoever loads it; shown as the dial's tooltip in the Dial Rack."),
         io.String.Input("negative_label", default="", optional=True, tooltip="What negative strength gives, e.g. 'stoic'; labels the map axis."),
         io.String.Input("positive_label", default="", optional=True, tooltip="What positive strength gives, e.g. 'lively'; labels the map axis."),
@@ -168,7 +168,9 @@ class MakeDialFromPictures(io.ComfyNode):
                 io.Model.Input("model"),
                 io.Image.Input("pictures_a", tooltip="A pictures as an image batch; negative dial strength moves toward this side."),
                 io.Image.Input("pictures_b", tooltip="B pictures as an image batch; equal counts pair by index for the agreement report."),
-                io.String.Input("prompt", multiline=True, default="A video in the style and content of <Picture 1>."),
+                io.String.Input("prompt", display_name="picture prompt", default="A video in the style and content of <Picture 1>.", advanced=True,
+                                tooltip="Text every picture is encoded with; <Picture 1> stands for the picture. Both sides use it, so only the "
+                                        "pictures differ. The default works; change it to frame the pictures, e.g. 'A close-up photo of <Picture 1>'."),
                 io.String.Input("name", default="my_picture_dial", tooltip="Saved as models/loras/dials/<name>.safetensors (empty = don't save)."),
                 io.Boolean.Input("debias", default=True, advanced=True,
                                  tooltip="Project out the same generic wording directions used by Make Dial."),
@@ -207,7 +209,9 @@ class MakeDialFromVideos(io.ComfyNode):
                     input=io.Video.Input("video_a"), prefix="video_a_", min=1, max=12)),
                 io.Autogrow.Input("videos_b", template=io.Autogrow.TemplatePrefix(
                     input=io.Video.Input("video_b"), prefix="video_b_", min=1, max=12)),
-                io.String.Input("prompt", multiline=True, default="A video in the style and content of <Video 1>."),
+                io.String.Input("prompt", display_name="clip prompt", default="A video in the style and content of <Video 1>.", advanced=True,
+                                tooltip="Text every clip is encoded with; <Video 1> stands for the clip. Both sides use it, so only the clips "
+                                        "differ. The default works; change it to frame the clips."),
                 io.String.Input("name", default="my_video_dial", tooltip="Saved as models/loras/dials/<name>.safetensors (empty = don't save)."),
                 io.Boolean.Input("debias", default=True, advanced=True),
                 io.Int.Input("nuisance_dims", default=3, min=1, max=12, advanced=True),
