@@ -11,7 +11,7 @@ from safetensors import safe_open
 
 import folder_paths
 
-from . import analysis, core, envelopes
+from . import analysis, core, envelopes, timecurve
 
 FORMAT = "MAIDialRack preset"
 VERSION = 1
@@ -71,6 +71,12 @@ def preset_rows(rows):
             if not isinstance(w, list) or not all(isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x) for x in w):
                 raise ValueError("preset blocks must be a list of finite numbers")
             result[-1]["blocks"] = w
+        if "time" in row:
+            try:
+                timecurve.check_spec(row["time"])
+            except (KeyError, TypeError, AttributeError) as e:
+                raise ValueError(f"invalid preset time curve: {row['time']!r}") from e
+            result[-1]["time"] = row["time"]
     return result
 
 

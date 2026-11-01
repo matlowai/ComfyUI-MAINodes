@@ -48,6 +48,88 @@ function drawBlocks(c, w, hover, W, H) {
   for (let i = 0; i < w.length; i += 10) g.fillText(String(i), i * cw + 2, 10);
 }
 
+const CLIP_SECONDS = 124 / 24;  // H3's default length, until a run reports the clip
+const FEATURES = ["onset", "rms", "low", "mid", "high"];
+const SHAPING = { gain: 1, offset: 0, threshold: 0, attack: 0.01, release: 0.15 };
+const TIME_HELP = "Strength over clip time: for the first k steps the model runs without and with this dial and blends the " +
+  "two per latent frame (about 1/6 s), v = v0 + M(t)·(v_dial − v0), M times the row strength; the dial is off after step k. " +
+  "Each blended step costs one more model call. Audio: follow uses the same curve on the soundtrack, protect keeps the " +
+  "soundtrack undialled.";
+const TIME_KEYS = [
+  ["off → on", "0 for the first half, 1 for the second", [[0, 0], [0.5, 1]], "step"],
+  ["on → off", "1 for the first half, 0 for the second", [[0, 1], [0.5, 0]], "step"],
+  ["ramp up", "0 at the start to 1 at the end", [[0, 0], [1, 1]], "linear"],
+  ["ramp down", "1 at the start to 0 at the end", [[0, 1], [1, 0]], "linear"],
+];
+
+// M(t) of a row's time curve at the given seconds (mirrors dials/timecurve.py curve_fn and shape)
+function timeCurve(spec, seconds, times, audio) {
+  if (spec.type === "audio") {
+    const x = audio?.features?.[spec.feature || "onset"];
+    if (!x) return null;
+    const s = Object.assign({}, SHAPING, spec), rate = audio.rate;
+    const coef = [s.attack, s.release].map((v) => (v > 0 ? 1 - Math.exp(-1 / (v * rate)) : 1));
+    let level = Math.max(0, (x[0] - s.threshold) / (1 - s.threshold));
+    const y = x.map((v) => {
+      v = Math.max(0, (v - s.threshold) / (1 - s.threshold));
+      level += coef[v > level ? 0 : 1] * (v - level);
+      return s.offset + s.gain * (s.invert ? 1 - level : level);
+    });
+    return times.map((t) => { const i = Math.min(y.length - 1, Math.max(0, t * rate)), a = Math.floor(i); return y[a] + (y[Math.min(a + 1, y.length - 1)] - y[a]) * (i - a); });
+  }
+  const scale = (spec.unit || "normalized") === "normalized" ? seconds : 1;
+  const p = (spec.points || []).map(([t, m]) => [t * scale, m]);
+  if (!p.length) return null;
+  return times.map((t) => {
+    const i = p.findIndex(([pt]) => pt > t);
+    if (i === 0) return p[0][1];
+    if (i < 0) return p[p.length - 1][1];
+    if (spec.interp === "step") return p[i - 1][1];
+    const [t0, m0] = p[i - 1], [t1, m1] = p[i];
+    return m0 + (m1 - m0) * (t - t0) / (t1 - t0);
+  });
+}
+
+// the curve over the clip: waveform behind, the curve, and the M each video latent frame gets
+function drawTime(c, spec, seconds, audio, W, H) {
+  const dpr = window.devicePixelRatio || 1;
+  c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+  const g = c.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = "#101114"; g.fillRect(0, 0, W, H);
+  if (audio?.peaks && H >= 30) {
+    g.fillStyle = "#2b3442";
+    const n = audio.peaks.length, per = audio.seconds / n;
+    for (let i = 0; i < n && i * per < seconds; i++) {
+      const h = audio.peaks[i] * (H - 4);
+      g.fillRect(i * per / seconds * W, (H - h) / 2, Math.max(1, per / seconds * W), h);
+    }
+  }
+  const times = Array.from({ length: W }, (_, i) => (i / W) * seconds);
+  const m = timeCurve(spec, seconds, times, audio);
+  if (!m) {
+    if (H >= 30) { g.fillStyle = "#777"; g.font = "10px sans-serif"; g.fillText("run once with curve_audio connected to see the music's curve", 6, H / 2); }
+    return;
+  }
+  const lo = Math.min(0, ...m), hi = Math.max(1, ...m), y = (v) => H - 2 - (v - lo) / (hi - lo) * (H - 4);
+  if (H >= 30) {  // per latent frame: 1, 4, 4, 4, 4 pixel frames at 24 fps
+    g.strokeStyle = "#ffc145"; g.lineWidth = 1.5; g.beginPath();
+    for (let f = 0, k = 0; f < Math.round(seconds * 24); k++) {
+      const n = [1, 4, 4, 4, 4][k % 5], frames = Array.from({ length: n }, (_, j) => (f + j) / 24);
+      const v = timeCurve(spec, seconds, frames, audio).reduce((a, b) => a + b, 0) / n;
+      g.lineTo(f / 24 / seconds * W, y(v)); g.lineTo((f + n) / 24 / seconds * W, y(v));
+      f += n;
+    }
+    g.stroke();
+    g.fillStyle = "#777"; g.font = "9px sans-serif";
+    g.fillText(`${hi.toFixed(2)}`, 2, 10); g.fillText(`${lo.toFixed(2)}`, 2, H - 3);
+    g.fillText(`${seconds.toFixed(2)} s`, W - 34, H - 3);
+  }
+  g.strokeStyle = H >= 30 ? "#8fb4ff" : "#ffc145"; g.lineWidth = 1; g.beginPath();
+  m.forEach((v, i) => g.lineTo(i, y(v)));
+  g.stroke();
+}
+
 async function presetRequest(path = "", options) {
   const response = await api.fetchApi(PRESETS + path, options);
   const data = await response.json();
@@ -753,6 +835,83 @@ class DialRackUI {
     draw();
   }
 
+  timeEditor(r, name) {
+    const spec = r.time || { type: "keys", points: [[0, 0], [0.5, 1]], unit: "normalized", interp: "step", steps: 2, audio: "follow" };
+    const box = this.el("div", { display: "flex", flexDirection: "column", gap: "4px", padding: "6px", background: "#1b1d23",
+      border: "1px solid #2f323b", borderRadius: "4px" }, this.list);
+    const bar = this.el("div", { display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }, box);
+    this.el("span", { color: "#888" }, bar, `${name} · clip time`);
+    const save = () => { this.commit(); this.render(); };
+    const select = (parent, options, value, title, cb) => {
+      const e = this.el("select", { background: "#111", color: "#ddd", border: "1px solid #333" }, parent);
+      for (const [v, label] of options) this.el("option", {}, e, label).value = v;
+      e.value = value; e.title = title; e.onchange = () => cb(e.value);
+      return e;
+    };
+    const number = (parent, label, value, title, cb, attrs) => {
+      this.el("span", { color: "#888" }, parent, label);
+      const e = this.el("input", { width: "52px", background: "#111", color: "#ffc145", border: "1px solid #333", textAlign: "right" }, parent);
+      Object.assign(e, { type: "number", step: 0.05, value, title }, attrs || {});
+      e.onchange = () => { const v = parseFloat(e.value); if (Number.isFinite(v)) cb(v); save(); };
+      return e;
+    };
+    select(bar, [["off", "off"], ["keys", "keyframes"], ["audio", "audio-driven"]], r.time ? spec.type : "off",
+      "off: constant over the clip (today's dial); keyframes: points over the clip; audio-driven: a feature of the music on curve_audio", (v) => {
+        if (v === "off") delete r.time;
+        else r.time = v === "keys" ? { type: "keys", points: [[0, 0], [0.5, 1]], unit: "normalized", interp: "step", steps: spec.steps, audio: spec.audio }
+          : { type: "audio", feature: "onset", ...SHAPING, invert: false, steps: spec.steps, audio: spec.audio };
+        save();
+      });
+    if (r.time) {
+      number(bar, "steps", spec.steps ?? 2, "k: how many first sampling steps blend the two branches; the dial is off after", (v) => { spec.steps = Math.max(1, Math.round(v)); }, { step: 1, min: 1, max: 50 });
+      select(bar, [["follow", "audio: follow"], ["protect", "audio: protect"]], spec.audio || "follow",
+        "follow: the soundtrack gets the same curve; protect: the soundtrack comes from the undialled branch (M_audio = 0)", (v) => { spec.audio = v; save(); });
+    }
+    this.button(bar, "Done", "close the time curve", () => { this.timeEditing = null; this.render(); }, { padding: "1px 6px", marginLeft: "auto" });
+    if (r.time?.type === "keys") {
+      const keys = this.el("div", { display: "flex", gap: "4px", alignItems: "center", flexWrap: "wrap" }, box);
+      for (const [label, title, points, interp] of TIME_KEYS) this.button(keys, label, title, () => {
+        Object.assign(spec, { points, interp, unit: "normalized" }); save();
+      }, { padding: "1px 6px" });
+      select(keys, [["normalized", "0..1 of the clip"], ["seconds", "seconds"]], spec.unit || "normalized", "keyframe times", (v) => { spec.unit = v; save(); });
+      select(keys, [["linear", "linear"], ["step", "step"]], spec.interp || "linear", "between keyframes: ramp, or hold until the next", (v) => { spec.interp = v; save(); });
+      const points = this.el("input", { flex: "1 1 120px", minWidth: "0", background: "#111", color: "#ddd", border: "1px solid #333" }, keys);
+      points.value = JSON.stringify(spec.points);
+      points.title = "JSON [time, M] points with increasing times; M multiplies the row strength";
+      points.onchange = () => {
+        try {
+          const v = JSON.parse(points.value);
+          if (!Array.isArray(v) || !v.length || !v.every((p, i) => Array.isArray(p) && p.length === 2 &&
+            p.every((n) => typeof n === "number" && Number.isFinite(n)) && (!i || p[0] > v[i - 1][0]))) throw new Error("Use [time, M] pairs with increasing times");
+          spec.points = v; points.setCustomValidity(""); save();
+        } catch (e) { points.setCustomValidity(e.message); points.reportValidity(); }
+      };
+    } else if (r.time?.type === "audio") {
+      const shaping = this.el("div", { display: "flex", gap: "4px", alignItems: "center", flexWrap: "wrap" }, box);
+      select(shaping, FEATURES.map((f) => [f, { onset: "onsets", rms: "loudness (RMS)", low: "low band", mid: "mid band", high: "high band" }[f]]),
+        spec.feature || "onset", "music feature per frame, scaled to 0..1 over the track", (v) => { spec.feature = v; save(); });
+      for (const [key, title] of [["gain", "M = offset + gain × feature"], ["offset", "M = offset + gain × feature"],
+        ["threshold", "feature below this counts as 0 (0..1)"], ["attack", "rise time in seconds"], ["release", "fall time in seconds"]]) {
+        number(shaping, key, spec[key] ?? SHAPING[key], title, (v) => { spec[key] = key === "threshold" ? Math.min(0.99, Math.max(0, v)) : ["attack", "release"].includes(key) ? Math.max(0, v) : v; },
+          ["threshold", "attack", "release"].includes(key) ? { step: 0.01, min: 0 } : {});
+      }
+      const invert = this.el("input", { margin: 0 }, shaping);
+      invert.type = "checkbox"; invert.checked = !!spec.invert; invert.title = "invert: quiet parts get the dial";
+      invert.onchange = () => { spec.invert = invert.checked; save(); };
+      this.el("span", { color: "#888" }, shaping, "invert");
+    }
+    if (r.time) {
+      const canvas = this.el("canvas", { display: "block", width: "100%", height: "64px" }, box);
+      requestAnimationFrame(() => drawTime(canvas, spec, this.clipSeconds(), this.curveAudio, canvas.clientWidth || 400, 64));
+      canvas.title = "amber: M per video latent frame; blue: the curve; grey: the music on curve_audio (after a run)";
+    }
+    this.el("div", { color: "#888", fontSize: "11px" }, box, TIME_HELP);
+  }
+
+  clipSeconds() {
+    return this.node.properties?.dialClipSeconds || CLIP_SECONDS;
+  }
+
   async padNorms(rx, ry) {
     if ("input" in rx || "input" in ry) return;
     const key = rx.dial + "|" + ry.dial;
@@ -905,6 +1064,18 @@ class DialRackUI {
         strip.disabled = true; strip.style.opacity = "0.4";
         strip.title = "Hold rows remove the whole direction; block strengths apply to strength rows.";
       }
+      const clip = this.button(row, r.time ? "" : "time", "time curve: " + TIME_HELP,
+        () => { this.timeEditing = this.timeEditing === i ? null : i; this.render(); },
+        Object.assign({ padding: "1px 4px", width: "60px" }, this.timeEditing === i ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145" } : {}));
+      if (r.time) drawTime(this.el("canvas", { display: "block", width: "50px", height: "12px" }, clip), r.time, this.clipSeconds(), this.curveAudio, 50, 12);
+      const blocker = r.hold ? "Hold rows remove the whole direction; time curves apply to strength rows."
+        : this.rows.some((x) => x.on && x.hold) ? "Time curves and hold rows cannot share a rack: turn the hold rows off."
+          : r.envelope || r.blocks ? "A time curve replaces the row's step envelope and block strengths: set them back to constant / all." : "";
+      if (blocker && !r.time) { clip.disabled = true; clip.style.opacity = "0.4"; clip.title = blocker; }
+      if (r.time) {
+        envelope.disabled = strip.disabled = true;
+        envelope.title = strip.title = "This row has a time curve, which runs its own early-step schedule.";
+      }
       if (!("input" in r)) this.button(row, "⚙", "dial info: description, what − and + give, useful and overcook strengths per side, evidence (saved in the dial file)",
         () => { this.editing = this.editing === i ? null : i; this.render(); },
         this.editing === i ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145", padding: "2px 6px" } : { padding: "2px 6px" });
@@ -917,6 +1088,7 @@ class DialRackUI {
       if (!("input" in r)) this.button(row, "✕", "remove row", () => { this.rows.splice(i, 1); this.commit(); this.render(); }, { padding: "2px 6px" });
       if (this.editing === i && !("input" in r)) this.infoEditor(r.dial);
       if (this.blocksEditing === i && !r.hold) this.blocksEditor(r, this.rowName(i));
+      if (this.timeEditing === i && !r.hold) this.timeEditor(r, this.rowName(i));
       if (r.envelope?.type === "manual") {
         const points = this.el("input", { boxSizing: "border-box", width: "100%", background: "#111", color: "#ddd", border: "1px solid #333" }, this.list);
         points.value = JSON.stringify(r.envelope.points);
@@ -942,7 +1114,7 @@ class DialRackUI {
     this.left.style.flex = open ? `0 0 ${LEFT_PX}px` : "1 1 auto";
     this.padButton.style.borderColor = open ? "#ffc145" : "#444";
     if (open) { this.map.render(); this.matrix.draw(); }
-    const key = [this.rows.length, open, this.report, this.presetMessage, this.presetBar.style.display, this.editing, this.blocksEditing].join("|");
+    const key = [this.rows.length, open, this.report, this.presetMessage, this.presetBar.style.display, this.editing, this.blocksEditing, this.timeEditing, this.rows[this.timeEditing]?.time?.type].join("|");
     if (key !== this.contentKey && this.root.clientHeight) {  // content changed: grow to show it; never shrink what the user sized
       // (before the widget is laid out, e.g. while a workflow loads, the saved size stands)
       this.contentKey = key;
@@ -960,7 +1132,11 @@ app.registerExtension({
   setup() {
     api.addEventListener("mai-dial-envelope", ({ detail }) => {
       const rack = app.graph?.getNodeById(detail.node)?.dialRack;
-      if (rack) { rack.report = detail.text; rack.render(); }
+      if (!rack) return;
+      rack.report = detail.text;
+      const clip = /time curves over a ([\d.]+) s clip/.exec(detail.text);
+      if (clip) rack.node.properties.dialClipSeconds = Number(clip[1]);
+      rack.render();
     });
   },
   async beforeRegisterNodeDef(nodeType, nodeData) {
@@ -990,6 +1166,7 @@ app.registerExtension({
         this.dialRack.report = (message?.text || []).join("\n");
         const blocks = /block strengths over (\d+) model blocks/.exec(this.dialRack.report);
         if (blocks) this.properties.dialBlocks = Number(blocks[1]);
+        if (message?.timecurve) this.dialRack.curveAudio = message.timecurve[0];
         this.dialRack.render();
       }
     };

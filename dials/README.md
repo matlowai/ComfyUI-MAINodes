@@ -45,7 +45,7 @@ Two kinds of dial file:
 
 **Rack presets:** use **Save preset** / **Load preset** in the rack bar. Presets live in
 `models/loras/dials/presets/<name>.json`, with format `MAIDialRack preset`, version `1`, and ordered rows containing
-`dial`, `sha256`, `strength`, `on`, and `solo`, plus optional `hold` (absent means false), `envelope` and `blocks`. They store file references
+`dial`, `sha256`, `strength`, `on`, and `solo`, plus optional `hold` (absent means false), `envelope`, `blocks` and `time`. They store file references
 and settings, never weights. Names accept letters, digits, `_` and `-` (1–80 characters); saving requires a new name. Loading warns about missing files or
 changed SHA-256 hashes and keeps every row, including off/solo settings; absent files remain marked **(missing)**.
 Presets use saved files: save wired dials and select their files before saving a preset, and disconnect wired dials

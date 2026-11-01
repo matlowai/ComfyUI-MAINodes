@@ -5,7 +5,7 @@ import json
 import torch
 from comfy_api.latest import io, ui
 
-from . import blocks, core, envelopes, presets
+from . import blocks, core, envelopes, presets, timecurve
 
 presets.install_routes()
 
@@ -41,12 +41,22 @@ def info_from(description="", negative_label="", positive_label="", useful=1.0, 
                                  "evidence": None if evidence == "unknown" else evidence, "pipeline": pipeline})
 
 
+def row_dial(r, dials):
+    """-> (label, dial) of a rack row: a wired input or a dial file."""
+    if "input" in r:
+        dial = (dials or {}).get(r["input"])
+        if dial is None:
+            raise ValueError(f"rack row uses input {r['input']}, which is not connected")
+        return f"{r['input']}: {dial['meta'].get('name', '?')}", dial
+    dial = core.load_dial(r["dial"])
+    return dial["meta"]["name"], dial
 
 
 class DialRack(io.ComfyNode):
     """Pre rows use the single-dial chain; constant post rows become one shift summed in float64, so row order cannot
     change the output. Holds project that summed shift; envelopes shift cached text at each denoising call. A row with
-    block strengths moves every post row of the rack to per-block injection (blocks.py). Wired dials appear as rack rows too."""
+    block strengths moves every post row of the rack to per-block injection (blocks.py). Rows with a time curve vary over
+    clip time on top of the other rows (timecurve.py). Wired dials appear as rack rows too."""
 
     @classmethod
     def define_schema(cls):
@@ -61,29 +71,27 @@ class DialRack(io.ComfyNode):
                 io.Autogrow.Input("dials", optional=True, template=io.Autogrow.TemplatePrefix(
                     input=Dial.Input("dial", tooltip="A dial from Make Dial or Combine Dials; set its strength in the rack."),
                     prefix="dial_", min=0, max=8)),
+                io.Audio.Input("curve_audio", optional=True,
+                               tooltip="Music for audio-driven time curves: give H3 the same track as reference audio. "
+                                       "Its waveform shows under the rows' time curves after a run."),
             ],
             outputs=[io.Model.Output()],
             hidden=[io.Hidden.unique_id],
         )
 
     @classmethod
-    def execute(cls, model, rack, dials=None) -> io.NodeOutput:
+    def execute(cls, model, rack, dials=None, curve_audio=None) -> io.NodeOutput:
         rows = json.loads(rack or "[]")
         if not isinstance(rows, list):
             raise ValueError("rack must be a JSON list of rows")
         active = [r for r in rows if r.get("on", True) and (r.get("hold") or float(r.get("strength", 0)) != 0)]
         if any(r.get("solo") for r in active):
             active = [r for r in active if r.get("solo")]
+        if any(r.get("time") for r in active):
+            return cls.timed(model, active, dials, curve_audio)
         applied, holds = [], []
         for r in active:
-            if "input" in r:
-                dial = (dials or {}).get(r["input"])
-                if dial is None:
-                    raise ValueError(f"rack row uses input {r['input']}, which is not connected")
-                label = f"{r['input']}: {dial['meta'].get('name', '?')}"
-            else:
-                dial = core.load_dial(r["dial"])
-                label = dial["meta"]["name"]
+            label, dial = row_dial(r, dials)
             if r.get("hold") and dial["mode"] != "post":
                 raise ValueError(f"{label}: pre-refiner rows cannot be hold rows; choose a post-refiner dial")
             (holds if r.get("hold") else applied).append((label, dial, float(r.get("strength", 0))))
@@ -117,6 +125,25 @@ class DialRack(io.ComfyNode):
         if scheduled:
             report += "\nenvelopes: sampled strengths appear here when sampling starts"
         return io.NodeOutput(m, ui=ui.PreviewText(report))
+
+    @classmethod
+    def timed(cls, model, active, dials, curve_audio):
+        """Rows with a time curve blend over clip time (timecurve.py) on top of the model the other rows make."""
+        timed = [r for r in active if r.get("time")]
+        if any(r.get("hold") for r in active):
+            raise ValueError("hold rows and time curves cannot share a rack; turn the hold rows off")
+        if any(r.get("envelope") is not None or r.get("blocks") is not None for r in timed):
+            raise ValueError("a time-curve row cannot also take a step envelope or block strengths")
+        rest = [r for r in active if not r.get("time")]
+        out = cls.execute(model, json.dumps(rest), dials)
+        rows = [(*row_dial(r, dials), float(r["strength"])) for r in timed]
+        path = core.text_path(model)
+        for _, dial, _ in rows:
+            core.check_family(dial, path)
+        m = out.result[0].clone()
+        report = (out.ui.as_dict()["text"][0] + "\n" if rest else "") + core.rack_report(rows)
+        text, data = timecurve.apply_rack(m, rows, [r["time"] for r in timed], curve_audio, cls.hidden.unique_id, report)
+        return io.NodeOutput(m, ui={"text": [report + "\n" + text], "timecurve": [data]} if data else ui.PreviewText(report + "\n" + text))
 
 
 class MakeDial(io.ComfyNode):
