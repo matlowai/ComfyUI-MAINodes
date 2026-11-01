@@ -5,9 +5,10 @@ import json
 import torch
 from comfy_api.latest import io, ui
 
-from . import blocks, core, envelopes, presets
+from . import blocks, core, editor, envelopes, presets
 
 presets.install_routes()
+editor.install_routes()
 
 Dial = io.Custom("DIAL")
 
@@ -261,15 +262,6 @@ class MakeDialFromVideos(io.ComfyNode):
         return io.NodeOutput(dial, ui=ui.PreviewText(report))
 
 
-def parent(dial):
-    """A Combine input as recorded in the recipe: name, vector hash, and its own recipe when it was combined too."""
-    out = {"name": dial["meta"].get("name"), "vector_sha256": core.vector_sha256(dial)}
-    recipe = dial["meta"].get("composition")
-    if recipe:
-        out["composition"] = json.loads(recipe) if isinstance(recipe, str) else recipe
-    return out
-
-
 class CombineDials(io.ComfyNode):
     @classmethod
     def define_schema(cls):
@@ -309,7 +301,7 @@ class CombineDials(io.ComfyNode):
         dial = {"vec": weight_a * va + weight_b * vb, "target": a["target"], "mode": a["mode"],
                 "meta": {"name": name or label, "model_family": core.dial_family(a), "parents": [a["meta"].get("name"), b["meta"].get("name")]}}
         dial["meta"]["composition"] = {"kind": "combine", "weight_a": weight_a, "weight_b": weight_b, "orthogonalize_a_against_b": orthogonalize,
-                                       "a": parent(a), "b": parent(b), "result_sha256": core.vector_sha256(dial)}
+                                       "a": core.dial_parent(a), "b": core.dial_parent(b), "result_sha256": core.vector_sha256(dial)}
         report = f"cos(a, b) = {cos:.3f}; {core.dial_label(dial)}{note}"
         if name:
             report += f"\nsaved {core.save_dial(dial, name, info)}"
