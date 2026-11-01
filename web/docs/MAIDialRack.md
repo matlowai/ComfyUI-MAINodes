@@ -21,12 +21,14 @@ not a render test.
 
 ## Time curve (time)
 Makes a dial come in, go out, swell or reverse during the clip, e.g. dark only after 3 s. Pick **keyframes** and draw
-the level over the clip on the canvas: 0 = dial off, 1 = the row's strength, above 1 = stronger, below 0 = the dial
-reversed (a motion row at strength 1 with level −2 runs motion at −2). **bottom** and **top** set the level range you
+the level over the clip on the canvas: 0 = dial off, 1 = the row's strength. Levels between 0 and 1 are exact. Levels
+above 1 or below 0 extrapolate the blend between the plain and the dialled prediction, which is weaker than a real
+strength: level −2 on a motion row at +1 did not freeze anything where a −2 row did. For a real negative strength in
+one stretch, add a second row of the same dial at the negative strength with a 0-to-1 curve. **bottom** and **top** set the level range you
 can reach with the mouse; both widen by themselves when a typed or pasted curve goes past them. The solid line is 0.
 The amber steps are what the model actually gets: one value per latent frame, about 1/6 s.
 
-- **Strength readout:** level × row strength is the dial strength the model gets. The readout next to the cursor and
+- **Strength readout:** level × row strength, the strength the curve asks for (exact between levels 0 and 1). The readout next to the cursor and
   the selected point both show it (`2.40 s · level -2.00 · strength -2.00`), and when the row strength is not 1 a
   second axis on the right is labelled in strength.
 - **Click** empty canvas: add a point (hold the button to keep dragging it). **Drag** a point to move it; **Shift**
