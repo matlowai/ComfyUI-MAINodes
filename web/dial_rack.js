@@ -10,7 +10,11 @@ const PRESETS = "/mainodes/dials/presets";
 const LEFT_PX = 590;     // the rows column keeps this width; the map takes the rest of the node
 const MAP_MIN = 160;
 const PAD_RANGES = ["auto", 1.5, 3, 6, 12];
-const INFO_DEFAULTS = { description: "", negative: "", positive: "", useful: 1, overcook: 1.5 };
+const UNKNOWN = { useful: null, overcook: null };
+const INFO_DEFAULTS = { version: 2, description: "", negative: "", positive: "", neg: UNKNOWN, pos: UNKNOWN, evidence: null, pipeline: "", notes: "" };
+const EVIDENCE = ["creator", "one-seed", "multi-seed", "multi-scene"];
+const QUADRANTS = [[1, -1], [-1, -1], [1, 1], [-1, 1]];  // [x sign, y sign] of the map's quarters; ring labels go in the first drawn
+const side = (info, s) => (s < 0 ? info.neg : info.pos);
 const SWEEP_STEPS = [0.25, 0.5, 1];
 
 async function presetRequest(path = "", options) {
@@ -171,8 +175,10 @@ class DialMap {
     const [rx, ry] = this.axes();
     const info = (r) => (r && !("input" in r) ? rack.dialInfo(r.dial) : INFO_DEFAULTS);
     const ix = info(rx), iy = info(ry);
-    // auto range: room for both dials' overcook ellipse plus a margin
-    const R = this.R = rack.pad.range === "auto" ? Math.max(1.5, Math.ceil(Math.max(ix.overcook, iy.overcook) * 1.25 * 2) / 2) : rack.pad.range;
+    // auto range: room for the largest known overcook plus a margin
+    const overcooks = [ix.neg, ix.pos, iy.neg, iy.pos].map((v) => v.overcook).filter((v) => v != null);
+    const R = this.R = rack.pad.range !== "auto" ? rack.pad.range
+      : overcooks.length ? Math.max(1.5, Math.ceil(Math.max(...overcooks) * 1.25 * 2) / 2) : 3;
     const px = (v) => (v / R + 1) / 2 * S;
     g.setTransform(c.width / S, 0, 0, c.width / S, 0, 0);
     g.fillStyle = "#101114"; g.fillRect(0, 0, S, S);
@@ -182,15 +188,29 @@ class DialMap {
       g.beginPath(); g.moveTo(px(v), 0); g.lineTo(px(v), S); g.moveTo(0, px(v)); g.lineTo(S, px(v)); g.stroke();
     }
     g.strokeStyle = "#3a3d46"; g.beginPath(); g.moveTo(px(0), 0); g.lineTo(px(0), S); g.moveTo(0, px(0)); g.lineTo(S, px(0)); g.stroke();
-    const ring = (rxv, ryv, color, dash) => {  // per-axis radii from each dial's own info
-      g.setLineDash(dash); g.strokeStyle = color; g.beginPath();
-      g.ellipse(px(0), px(0), rxv / R * S / 2, ryv / R * S / 2, 0, 0, 2 * Math.PI); g.stroke(); g.setLineDash([]);
-    };
-    ring(ix.useful, iy.useful, "#3f6b4a", []);
-    ring(ix.overcook, iy.overcook, "#7a5a22", [4, 4]);
-    g.fillStyle = "#666"; g.font = "10px sans-serif";
-    g.fillText("useful", px(0) + 3, px(iy.useful) + 11);
-    g.fillText("overcooked", px(0) + 3, px(iy.overcook) + 11);
+    // a quarter-ellipse per quadrant from the matching sides' info; a quadrant without any known ring is uncalibrated
+    g.font = "10px sans-serif";
+    const labelled = new Set();
+    for (const [qx, qy] of QUADRANTS) {
+      const a0 = qy > 0 ? (qx > 0 ? -Math.PI / 2 : Math.PI) : (qx > 0 ? 0 : Math.PI / 2);
+      const arc = (rxv, ryv, color, dash, text) => {
+        const ax = rxv / R * S / 2, ay = ryv / R * S / 2;
+        g.setLineDash(dash); g.strokeStyle = color; g.beginPath();
+        g.ellipse(px(0), px(0), ax, ay, 0, a0, a0 + Math.PI / 2); g.stroke(); g.setLineDash([]);
+        if (labelled.has(text)) return;
+        labelled.add(text);
+        g.fillStyle = "#666";
+        g.fillText(text, px(0) + 3, px(0) - qy * ay + 11);
+      };
+      const hx = side(ix, qx), hy = side(iy, qy);
+      let known = false;
+      for (const [kind, color, dash, text] of [["useful", "#3f6b4a", [], "useful"], ["overcook", "#7a5a22", [4, 4], "overcooked"]]) {
+        if (hx[kind] == null || hy[kind] == null) continue;
+        arc(hx[kind], hy[kind], color, dash, text);
+        known = true;
+      }
+      if (!known) arc(1, 1, "#5d6069", [2, 4], "uncalibrated");
+    }
     if (!rx || !ry || rx === ry) {
       g.fillStyle = "#888"; g.fillText(rack.rows.length < 2 ? "add two dial rows to use the map" : "pick two different rows", 8, 16);
       this.readout.textContent = "";
@@ -203,8 +223,20 @@ class DialMap {
     for (const dy of [-step, 0, step]) for (const dx of [-step, 0, step]) {
       if (dx || dy) { g.beginPath(); g.arc(px(sx + dx), px(-(sy + dy)), 2, 0, 2 * Math.PI); g.fill(); }
     }
-    const past = Math.hypot(sx / ix.useful, sy / iy.useful) > 1, cooked = Math.hypot(sx / ix.overcook, sy / iy.overcook) > 1;
-    g.fillStyle = cooked ? "#ff6b5c" : past ? "#ffa64d" : "#ffc145";
+    const reach = (kind) => {  // the dot's ellipse distance in its own quadrant; null when a side it leans on is unknown
+      let d = 0;
+      for (const [s, info] of [[sx, ix], [sy, iy]]) {
+        if (!s) continue;
+        const r = side(info, s)[kind];
+        if (r == null) return null;
+        d += (s / r) ** 2;
+      }
+      return Math.sqrt(d);
+    };
+    const useful = reach("useful"), over = reach("overcook");
+    const status = over > 1 ? "overcooked" : useful === null ? "uncalibrated" : useful <= 1 ? "within useful"
+      : over === null ? "past useful (overcook unknown)" : "past useful";
+    g.fillStyle = { overcooked: "#ff6b5c", uncalibrated: "#b4b7bf", "within useful": "#ffc145" }[status] || "#ffa64d";
     g.beginPath(); g.arc(px(Math.max(-R, Math.min(R, sx))), px(-Math.max(-R, Math.min(R, sy))), 6, 0, 2 * Math.PI); g.fill();
     g.fillStyle = "#ddd";
     const xl = `${ix.positive || rack.rowName(this.pair.x)} →`;
@@ -212,8 +244,7 @@ class DialMap {
     if (ix.negative) g.fillText(`← ${ix.negative}`, 4, px(0) - 4);
     g.fillText(`↑ ${iy.positive || rack.rowName(this.pair.y)}`, px(0) + 4, 12);
     if (iy.negative) g.fillText(`↓ ${iy.negative}`, px(0) + 4, S - 6);
-    let text = `X ${rack.rowName(this.pair.x)} ${fmt(sx)}  ·  Y ${rack.rowName(this.pair.y)} ${fmt(sy)}  ·  ` +
-      (cooked ? "overcooked" : past ? "past useful" : "within useful");
+    let text = `X ${rack.rowName(this.pair.x)} ${fmt(sx)}  ·  Y ${rack.rowName(this.pair.y)} ${fmt(sy)}  ·  ${status}`;
     const geo = rack.padGeometry[rx.dial + "|" + ry.dial];
     if (geo === undefined) rack.padNorms(rx, ry);
     if (geo?.error) text += `\n${geo.error}`;
@@ -221,7 +252,7 @@ class DialMap {
     else if (geo && geo.cos[0][1] !== null) {
       const [nx, ny] = geo.norm, cos = geo.cos[0][1];
       const push = Math.sqrt(Math.max(0, (sx * nx) ** 2 + (sy * ny) ** 2 + 2 * sx * sy * nx * ny * cos)) / ((nx + ny) / 2);
-      text += `\noverlap cos ${fmt(cos)}${Math.abs(cos) >= 0.5 ? (cos > 0 ? " (they reinforce)" : " (they cancel)") : ""}` +
+      text += `\noverlap cos ${fmt(cos)}${Math.abs(cos) >= 0.5 ? (sx * sy * cos > 0 ? " (they reinforce)" : sx * sy * cos < 0 ? " (they cancel)" : "") : ""}` +
         `  ·  push ≈ ${push.toFixed(2)}× one dial at +1`;
     } else if ("input" in rx || "input" in ry) text += "\nwired dial: strengths only (no file to measure)";
     this.readout.textContent = text;
@@ -251,6 +282,109 @@ class DialMap {
       rack.commit();
       rack.render();
     }
+  }
+}
+
+// Exact energy bookkeeping of stacked post-refiner rows, as core.interactions: own_i = s_i²|v_i|², pair_ij = 2 s_i s_j v_i·v_j
+// (warm = reinforcing, blue = cancelling), both as shares of |Σ s_i v_i|², and push_i = s_i v_i·u along the unit sum.
+function interactions(dots, s) {
+  const w = dots.map((r, i) => r.map((d, j) => s[i] * s[j] * d));
+  const own = w.map((r, i) => r[i]);
+  const energy = w.flat().reduce((a, b) => a + b, 0);
+  const cancelled = energy <= 1e-12 * own.reduce((a, b) => a + b, 0);
+  const combined = cancelled ? 0 : Math.sqrt(energy);
+  const norm = dots.map((r, i) => Math.sqrt(Math.max(0, r[i])));
+  return {
+    combined,
+    cos: dots.map((r, i) => r.map((d, j) => (norm[i] * norm[j] > 0 ? d / (norm[i] * norm[j]) : 0))),
+    pair: w.map((r, i) => r.map((v, j) => (i === j || cancelled ? 0 : 2 * v / energy))),
+    own: own.map((v) => (cancelled ? 0 : v / energy)),
+    push: w.map((r) => (combined ? r.reduce((a, b) => a + b, 0) / combined / combined : 0)),
+  };
+}
+
+const pct = (v) => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(Math.round(v * 100)) + "%";
+const shade = (v) => (Math.abs(v) < 0.005 ? "#1b1d23" : v > 0 ? `rgba(255,140,60,${0.15 + 0.7 * Math.min(1, v / 0.5)})`
+  : `rgba(80,140,255,${0.15 + 0.7 * Math.min(1, -v / 0.5)})`);
+
+// Under the map: rows × rows matrix of the live post-refiner rows and a "who pushes" bar per row. Dot products come from
+// the server once per set of dial files; strengths are applied here, so it follows the sliders without a request.
+class DialMatrix {
+  constructor(rack, parent) {
+    this.rack = rack;
+    this.dots = {};
+    this.box = rack.el("div", { flex: "0 0 auto", display: "flex", flexDirection: "column", gap: "4px", fontSize: "11px", color: "#9a9ba0" }, parent);
+  }
+
+  live() {  // rows the rack applies, in the backend's on / strength / solo terms, minus holds
+    const rows = this.rack.rows, active = (r) => r.on && (r.hold || Number(r.strength) !== 0);
+    const anySolo = rows.some((r) => active(r) && r.solo);
+    return rows.map((r, i) => i).filter((i) => active(rows[i]) && (!anySolo || rows[i].solo) && !rows[i].hold);
+  }
+
+  async fetch(key, files) {
+    this.dots[key] = null;
+    try {
+      const r = await api.fetchApi("/mainodes/dials/interactions", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows: files.map((dial) => ({ dial, strength: 1 })) }) });
+      const data = await r.json();
+      this.dots[key] = r.ok ? { files, ...data } : { error: data.error };
+    } catch (e) { this.dots[key] = { error: e.message }; }
+    this.draw();
+  }
+
+  draw() {
+    const rack = this.rack, rows = rack.rows, live = this.live(), el = (...a) => rack.el(...a);
+    this.box.replaceChildren();
+    const files = [...new Set(live.filter((i) => !("input" in rows[i])).map((i) => rows[i].dial))].sort();
+    const key = files.join("|"), geo = this.dots[key];
+    if (files.length && geo === undefined) this.fetch(key, files);
+    if (!geo) { if (files.length) el("div", {}, this.box, "interactions: measuring…"); return; }
+    if (geo.error) { el("div", { color: "#ff8a5c" }, this.box, `interactions: ${geo.error}`); return; }
+    const at = (i) => geo.files.indexOf(rows[i].dial);
+    const post = live.filter((i) => !("input" in rows[i]) && geo.mode[at(i)] === "post");
+    const notes = [];
+    const pre = live.filter((i) => !("input" in rows[i]) && geo.mode[at(i)] === "pre");
+    if (pre.length) notes.push(`pre-refiner rows are a separate space, not in the matrix: ${pre.map((i) => rack.rowName(i)).join(", ")}`);
+    const wired = live.filter((i) => "input" in rows[i]);
+    if (wired.length) notes.push(`wired rows are not measured: ${wired.map((i) => rows[i].input).join(", ")}`);
+    if (post.length < 2) notes.unshift("interactions: needs two live post-refiner dial rows");
+    else this.matrix(post, interactions(post.map((i) => post.map((j) => geo.dot[at(i)][at(j)])), post.map((i) => Number(rows[i].strength))));
+    for (const n of notes) el("div", {}, this.box, n);
+  }
+
+  matrix(post, it) {
+    const rack = this.rack, el = (...a) => rack.el(...a), n = post.length;
+    const pairs = it.pair.flat().reduce((a, b) => a + b, 0) / 2;
+    el("div", { color: "#ccc" }, this.box, it.combined ? `interactions · |sum| ${it.combined.toFixed(1)} · pairs add ${pct(pairs)} of |sum|²` : "interactions · the rows sum to zero");
+    const grid = el("div", { display: "grid", gridTemplateColumns: `minmax(60px, max-content) repeat(${n}, 38px)`, gap: "2px", alignItems: "center" }, this.box);
+    el("span", {}, grid, "");
+    for (const j of post) el("span", { textAlign: "center", color: "#888" }, grid, String(j + 1));
+    post.forEach((i, a) => {
+      el("span", { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "140px" }, grid, rack.rowName(i));
+      post.forEach((j, b) => {
+        const v = a === b ? it.own[a] : it.pair[a][b];
+        const cell = el("span", { textAlign: "center", padding: "2px 0", borderRadius: "3px", color: "#eee",
+          background: a === b ? "#2a2c33" : shade(v) }, grid, it.combined ? pct(v) : "·");
+        cell.title = a === b
+          ? `${rack.rowName(i)} alone: ${pct(v)} of |sum|²`
+          : `${rack.rowName(i)} × ${rack.rowName(j)}: cos ${fmt(it.cos[a][b])}, pair energy ${pct(v)} of |sum|² — ` +
+            (v > 0.005 ? "reinforcing: they push the same way" : v < -0.005 ? "cancelling: they push against each other" : "about independent") +
+            "\nexact vector math on the dial files; the output effect is untested";
+      });
+    });
+    el("div", { color: "#ccc", marginTop: "2px" }, this.box, "who pushes (along the sum)");
+    const bars = el("div", { display: "grid", gridTemplateColumns: "minmax(60px, max-content) 120px 40px", gap: "2px 6px", alignItems: "center" }, this.box);
+    post.forEach((i, a) => {
+      const v = it.push[a], w = Math.min(1, Math.abs(v)) * 60;
+      el("span", { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "140px" }, bars, rack.rowName(i));
+      const track = el("span", { position: "relative", height: "8px", background: "#1b1d23", borderRadius: "2px" }, bars);
+      el("span", { position: "absolute", top: 0, bottom: 0, left: v >= 0 ? "60px" : `${60 - w}px`, width: `${w}px`,
+        background: v >= 0 ? "#ffa64d" : "#5a8cff", borderRadius: "2px" }, track);
+      el("span", { position: "absolute", top: "-2px", bottom: "-2px", left: "60px", width: "1px", background: "#555" }, track);
+      track.title = `${rack.rowName(i)} moves the combined shift by ${pct(v)} of |sum| (negative: it pulls against the others)`;
+      el("span", { textAlign: "right" }, bars, pct(v));
+    });
   }
 }
 
@@ -321,6 +455,7 @@ class DialRackUI {
     this.padGeometry = {};
     this.info = {};
     this.map = new DialMap(this, this.mapColumn);
+    this.matrix = new DialMatrix(this, this.map.box);
     this.widget = this.node.addDOMWidget("dial_rack_ui", "div", root, { serialize: false, getMinHeight: () => 140 });
     this.root = root;
   }
@@ -372,18 +507,31 @@ class DialRackUI {
     const desc = input("description", info.description, { tag: "textarea", props: { rows: 2, maxLength: 2000 } }, true);
     const neg = input("− gives", info.negative, { props: { maxLength: 60, placeholder: "e.g. stoic" } });
     const pos = input("+ gives", info.positive, { props: { maxLength: 60, placeholder: "e.g. lively" } });
-    const useful = input("useful ±", info.useful, { props: { type: "number", min: 0.05, max: 20, step: 0.05,
-      title: "strength where the effect is clearly there (inner ellipse on the map)" } });
-    const over = input("overcook ±", info.overcook, { props: { type: "number", min: 0.05, max: 20, step: 0.05,
-      title: "strength where side effects take over (outer ellipse on the map)" } });
+    const strength = (label, value, title) => input(label, value ?? "", { props: { type: "number", min: 0.05, max: 20, step: 0.05,
+      placeholder: "unknown", title: title + "; empty = unknown" } });
+    const negUseful = strength("− useful", info.neg.useful, "negative strength where the effect is clearly there (inner ring, left/bottom)");
+    const posUseful = strength("+ useful", info.pos.useful, "positive strength where the effect is clearly there (inner ring, right/top)");
+    const negOver = strength("− overcook", info.neg.overcook, "negative strength where side effects take over (outer ring)");
+    const posOver = strength("+ overcook", info.pos.overcook, "positive strength where side effects take over (outer ring)");
+    this.el("span", { color: "#888" }, box, "evidence");
+    const evidence = this.el("select", { background: "#111", color: "#eee", border: "1px solid #333", minWidth: "0" }, box);
+    evidence.title = "where the strengths come from";
+    for (const v of ["", ...EVIDENCE]) this.el("option", {}, evidence, v || "unknown").value = v;
+    evidence.value = info.evidence ?? "";
+    const pipeline = input("pipeline", info.pipeline, { props: { maxLength: 60, placeholder: "e.g. Pika H3 Flex 6-step",
+      title: "what the strengths were measured on" } });
+    const notes = input("notes", info.notes, { tag: "textarea", props: { rows: 2, maxLength: 500,
+      placeholder: "failures seen, e.g. the − side never lands" } }, true);
+    const num = (e) => (e.value.trim() === "" ? null : parseFloat(e.value));
     const actions = this.el("div", { gridColumn: "span 4", display: "flex", gap: "6px", alignItems: "center" }, box);
     const msg = this.el("span", { color: "#ff8a5c" }, actions);
     this.button(actions, "Save to dial file", "write this info into the dial's .safetensors metadata (the vector is unchanged)", async (b) => {
       b.disabled = true;
       try {
         const r = await api.fetchApi("/mainodes/dials/info", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ dial: file, info: { description: desc.value, negative: neg.value, positive: pos.value,
-            useful: parseFloat(useful.value), overcook: parseFloat(over.value) } }) });
+          body: JSON.stringify({ dial: file, info: { version: 2, description: desc.value, negative: neg.value, positive: pos.value,
+            neg: { useful: num(negUseful), overcook: num(negOver) }, pos: { useful: num(posUseful), overcook: num(posOver) },
+            evidence: evidence.value || null, pipeline: pipeline.value, notes: notes.value } }) });
         const data = await r.json();
         if (!r.ok) throw new Error(data.error);
         this.info[file] = data;
@@ -507,8 +655,10 @@ class DialRackUI {
         for (const f of opts) { const o = this.el("option", {}, sel, label(f) + (files.includes(f) ? "" : "  (missing)")); o.value = f; }
         sel.value = r.dial;
         const about = this.dialInfo(r.dial);
+        const range = (v) => `useful ${v.useful ?? "?"}, overcook ${v.overcook ?? "?"}`;
         sel.title = r.dial + (about.description ? "\n\n" + about.description : "") +
-          `\nuseful ±${about.useful}, overcooked past ±${about.overcook}`;
+          `\n− ${range(about.neg)}  ·  + ${range(about.pos)}  (? = unknown)\nevidence: ${about.evidence || "unknown"}` +
+          (about.pipeline ? `, ${about.pipeline}` : "") + (about.notes ? `\n${about.notes}` : "");
         sel.onchange = () => { r.dial = sel.value; this.commit(); this.render(); };
       }
       const slider = this.el("input", { width: "110px", accentColor: "#ffc145" }, row);
@@ -518,8 +668,8 @@ class DialRackUI {
       num.title = "negative = toward the pairs' A side, positive = toward B. +0.5 to +1 is the sane range; past ~1.5 side effects appear";
       slider.disabled = num.disabled = !!r.hold;
       if (r.hold) slider.title = num.title = "Hold removes this direction fully; strength is retained for when H is turned off.";
-      slider.oninput = () => { r.strength = parseFloat(slider.value); num.value = r.strength.toFixed(2); this.commit(); };
-      num.onchange = () => { const v = Math.min(NUMBER[1], Math.max(NUMBER[0], parseFloat(num.value) || 0)); r.strength = v; slider.value = v; num.value = v.toFixed(2); this.commit(); };
+      slider.oninput = () => { r.strength = parseFloat(slider.value); num.value = r.strength.toFixed(2); this.commit(); if (this.pad.open) { this.map.draw(); this.matrix.draw(); } };
+      num.onchange = () => { const v = Math.min(NUMBER[1], Math.max(NUMBER[0], parseFloat(num.value) || 0)); r.strength = v; slider.value = v; num.value = v.toFixed(2); this.commit(); if (this.pad.open) { this.map.draw(); this.matrix.draw(); } };
       slider.ondblclick = () => { r.strength = 0; slider.value = 0; num.value = "0.00"; this.commit(); };
       const envelope = this.el("select", { width: "76px", background: "#111", color: "#ddd", border: "1px solid #333" }, row);
       envelope.title = "Strength over denoising progress: early, late, bell, or manual points (post-refiner dials only)";
@@ -536,7 +686,7 @@ class DialRackUI {
         else r.envelope = envelope.value === "manual" ? { type: "manual", points: [[0, 0], [0.5, 1], [1, 0]] } : envelope.value;
         this.commit(); this.render();
       };
-      if (!("input" in r)) this.button(row, "⚙", "dial info: description, what − and + give, useful and overcook strengths (saved in the dial file)",
+      if (!("input" in r)) this.button(row, "⚙", "dial info: description, what − and + give, useful and overcook strengths per side, evidence (saved in the dial file)",
         () => { this.editing = this.editing === i ? null : i; this.render(); },
         this.editing === i ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145", padding: "2px 6px" } : { padding: "2px 6px" });
       this.button(row, "S", "solo: hear only the soloed rows", () => { r.solo = !r.solo; this.commit(); this.render(); },
@@ -571,14 +721,14 @@ class DialRackUI {
     this.mapColumn.style.display = open ? "block" : "none";
     this.left.style.flex = open ? `0 0 ${LEFT_PX}px` : "1 1 auto";
     this.padButton.style.borderColor = open ? "#ffc145" : "#444";
-    if (open) this.map.render();
+    if (open) { this.map.render(); this.matrix.draw(); }
     const key = [this.rows.length, open, this.report, this.presetMessage, this.presetBar.style.display, this.editing].join("|");
     if (key !== this.contentKey) {  // content changed: grow to show it; never shrink what the user sized
       this.contentKey = key;
       const rowsHeight = [...this.left.children].reduce((h, c) => h + (c.offsetParent ? c.offsetHeight + 6 : 0), 12);
       const extra = Math.max(this.node.size[1] - this.root.clientHeight, 30);  // title bar and inputs
       const minW = open ? LEFT_PX + 10 + 360 + 24 : 600;
-      this.node.setSize([Math.max(this.node.size[0], minW), Math.max(this.node.size[1], Math.max(rowsHeight, open ? 420 : 0) + extra)]);
+      this.node.setSize([Math.max(this.node.size[0], minW), Math.max(this.node.size[1], Math.max(rowsHeight, open ? 560 : 0) + extra)]);
     }
     this.node.setDirtyCanvas(true, true);
   }

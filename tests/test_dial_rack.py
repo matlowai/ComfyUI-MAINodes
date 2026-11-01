@@ -6,17 +6,18 @@
 CPU only, no model files: a stand-in model with H3's text-module names (condition_proj, token_refiner) wrapped in a
 real ComfyUI ModelPatcher, so the test exercises ComfyUI's own object-patch nesting and weight-patch stacking.
 Checks:
-  1. a rack equals the chain of single Apply Dial steps (clone + apply per dial), bit for bit, for post (hook) and
-     pre (LoRA-file) dials mixed;
+  1. a rack equals the chain of single Apply Dial steps (clone + apply per dial), bit for bit, for one post (hook) row
+     and pre (LoRA-file) rows; two or more post rows equal one Apply Dial of their float64 sum, in any row order;
   2. off rows, zero-strength rows and non-solo rows (when something is soloed) change nothing;
   3. an all-off rack returns the input model untouched;
   4. dials saved to models/loras/dials round-trip and are found by the rack by file name;
   5. a row naming an unwired input fails with a clear error;
-  6. the report flags strongly overlapping dials;
+  6. the report names the rows that reinforce each other;
   7. holds cancel identical dials, remove overlapping directions together, and leave the no-hold path exact.
 Exit code 0 = pass.
 """
 import importlib.util
+import itertools
 import json
 import os
 import sys
@@ -84,6 +85,10 @@ def chain(base, steps):
     return m
 
 
+def summed(steps):  # what the rack applies for several post rows: one dial at strength 1
+    return dict(steps[0][0], vec=sum(s * d["vec"].double() for d, s in steps).float())
+
+
 def rack(base, rows, dials=None):
     return nodes.DialRack.execute(model=base, rack=json.dumps(rows), dials=dials).result[0]
 
@@ -96,7 +101,9 @@ def check_holds(dtype):
     ins = {"dial_0": A, "dial_1": B, "dial_2": C, "dial_3": A}
     row = lambda i, s, **kw: dict(input=f"dial_{i}", strength=s, **kw)
     rows = [row(0, 1), row(1, -0.5), row(2, 0.7)]
-    expected = run(chain(base, [(A, 1), (B, -0.5), (C, 0.7)]), x)
+    expected = run(chain(base, [(C, 0.7), (summed([(A, 1), (B, -0.5)]), 1)]), x)
+    for order in itertools.permutations(rows):
+        assert torch.equal(run(rack(base, list(order), ins), x), expected), "row order changed the rack output"
     variants = [rows, [dict(r, hold=False) for r in rows], rows + [row(3, 1, hold=True, on=False)],
                 [dict(r, solo=True) for r in rows] + [row(3, 1, hold=True)]]
     for variant in variants:
@@ -184,7 +191,9 @@ def main():
     plain = run(base, x)
 
     full = rack(base, [row(0, 1.0), row(1, -0.5), row(2, 0.7)], ins)
-    assert torch.equal(run(full, x), run(chain(base, [(A, 1.0), (B, -0.5), (C, 0.7)]), x)), "rack != chain"
+    assert torch.equal(run(full, x), run(chain(base, [(C, 0.7), (summed([(A, 1.0), (B, -0.5)]), 1)]), x)), "rack != chain"
+    one = rack(base, [row(0, 0.35), row(2, 0.7)], ins)
+    assert torch.equal(run(one, x), run(chain(base, [(A, 0.35), (C, 0.7)]), x)), "one post row != chain"
     assert not torch.equal(run(full, x), plain), "rack had no effect"
 
     off = rack(base, [row(0, 1.0), row(1, -0.5, on=False), row(2, 0.0)], ins)
@@ -216,7 +225,7 @@ def main():
     near = dial("post", 1, "a2")
     near["vec"] = A["vec"] + 0.1 * B["vec"]
     report = nodes.DialRack.execute(model=base, rack=json.dumps([row(0, 1.0), row(1, 1.0)]), dials={"dial_0": A, "dial_1": near}).ui.as_dict()["text"][0]
-    assert "overlap" in report and "reinforce" in report, report
+    assert "reinforcing: dial_0: a × dial_1: a2 +" in report and "push along the sum" in report, report
     print(json.dumps({"hold_checks": [check_holds(dtype) for dtype in (torch.float32, torch.bfloat16)]}))
     print("dial rack: all checks passed")
     scratch.cleanup()

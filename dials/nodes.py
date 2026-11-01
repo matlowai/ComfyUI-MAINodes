@@ -23,19 +23,30 @@ def info_inputs():
                        tooltip="Strength where the effect is clearly there (the map's inner ellipse)."),
         io.Float.Input("overcook", default=1.5, min=0.05, max=20.0, step=0.05, optional=True,
                        tooltip="Strength where side effects take over (the map's outer ellipse)."),
+        io.Float.Input("negative_useful", default=0.0, min=0.0, max=20.0, step=0.05, optional=True,
+                       tooltip="Useful strength on the negative side when it differs from the positive side (0 = same as useful)."),
+        io.Float.Input("negative_overcook", default=0.0, min=0.0, max=20.0, step=0.05, optional=True,
+                       tooltip="Overcook strength on the negative side when it differs (0 = same as overcook)."),
+        io.Combo.Input("evidence", options=["unknown", *core.INFO_EVIDENCE], default="creator", optional=True,
+                       tooltip="Where the strengths come from: your own setting, one seed, several seeds or several scenes."),
+        io.String.Input("pipeline", default="", optional=True, tooltip="What the strengths were measured on, e.g. 'Pika H3 Flex 6-step'."),
     ]
 
 
-def info_from(description, negative_label, positive_label, useful, overcook):
-    return core.check_dial_info({"description": description, "negative": negative_label, "positive": positive_label,
-                                 "useful": useful, "overcook": overcook})
+def info_from(description="", negative_label="", positive_label="", useful=1.0, overcook=1.5, negative_useful=0.0,
+              negative_overcook=0.0, evidence="creator", pipeline=""):
+    return core.check_dial_info({"version": 2, "description": description, "negative": negative_label, "positive": positive_label,
+                                 "neg": {"useful": negative_useful or useful, "overcook": negative_overcook or overcook},
+                                 "pos": {"useful": useful, "overcook": overcook},
+                                 "evidence": None if evidence == "unknown" else evidence, "pipeline": pipeline})
 
 
 
 
 class DialRack(io.ComfyNode):
-    """Constant rows without holds use the single-dial chain. Holds project one summed post shift;
-    envelopes shift cached text at each denoising call. Wired dials appear as rack rows too."""
+    """Pre rows use the single-dial chain; constant post rows become one shift summed in float64, so row order cannot
+    change the output. Holds project that summed shift; envelopes shift cached text at each denoising call. Wired dials
+    appear as rack rows too."""
 
     @classmethod
     def define_schema(cls):
@@ -91,6 +102,9 @@ class DialRack(io.ComfyNode):
             applied = [row for row in applied if row[1]["mode"] == "pre"] + (
                 [("post shift after holds", combined, 1.0)] if any(d["mode"] == "post" for _, d, _ in applied) else [])
             specs = [None] * len(applied)
+        elif sum(d["mode"] == "post" for _, d, _ in applied) > 1 and all(spec is None for spec in specs):
+            applied = [row for row in applied if row[1]["mode"] == "pre"] + [("summed post shift", core.rack_post_shift(applied), 1.0)]
+            specs = [None] * len(applied)
         scheduled = envelopes.apply_rack(m, applied, specs, cls.hidden.unique_id, report)
         if scheduled:
             report += "\nenvelopes: sampled strengths appear here when sampling starts"
@@ -129,8 +143,8 @@ class MakeDial(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, clip, model, pairs, subjects, name, inject, debias, nuisance_dims, description="", negative_label="", positive_label="", useful=1.0, overcook=1.5) -> io.NodeOutput:
-        info = info_from(description, negative_label, positive_label, useful, overcook)
+    def execute(cls, clip, model, pairs, subjects, name, inject, debias, nuisance_dims, **info) -> io.NodeOutput:
+        info = info_from(**info)
         if name:
             core.check_dial_name(name)
         mode = "post" if inject.startswith("post") else "pre"
@@ -166,8 +180,8 @@ class MakeDialFromPictures(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, clip, model, pictures_a, pictures_b, prompt, name, debias, nuisance_dims, description="", negative_label="", positive_label="", useful=1.0, overcook=1.5) -> io.NodeOutput:
-        info = info_from(description, negative_label, positive_label, useful, overcook)
+    def execute(cls, clip, model, pictures_a, pictures_b, prompt, name, debias, nuisance_dims, **info) -> io.NodeOutput:
+        info = info_from(**info)
         if name:
             core.check_dial_name(name)
         dial, report = core.make_picture_dial(clip, model, pictures_a, pictures_b, prompt, name or "unsaved",
@@ -204,8 +218,8 @@ class MakeDialFromVideos(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, clip, model, videos_a, videos_b, prompt, name, debias, nuisance_dims, description="", negative_label="", positive_label="", useful=1.0, overcook=1.5) -> io.NodeOutput:
-        info = info_from(description, negative_label, positive_label, useful, overcook)
+    def execute(cls, clip, model, videos_a, videos_b, prompt, name, debias, nuisance_dims, **info) -> io.NodeOutput:
+        info = info_from(**info)
         if name:
             core.check_dial_name(name)
 
@@ -216,6 +230,15 @@ class MakeDialFromVideos(io.ComfyNode):
         if name:
             report += f"\nsaved {core.save_dial(dial, name, info)}"
         return io.NodeOutput(dial, ui=ui.PreviewText(report))
+
+
+def parent(dial):
+    """A Combine input as recorded in the recipe: name, vector hash, and its own recipe when it was combined too."""
+    out = {"name": dial["meta"].get("name"), "vector_sha256": core.vector_sha256(dial)}
+    recipe = dial["meta"].get("composition")
+    if recipe:
+        out["composition"] = json.loads(recipe) if isinstance(recipe, str) else recipe
+    return out
 
 
 class CombineDials(io.ComfyNode):
@@ -240,18 +263,23 @@ class CombineDials(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, a, b, weight_a, weight_b, orthogonalize, name, description="", negative_label="", positive_label="", useful=1.0, overcook=1.5) -> io.NodeOutput:
-        info = info_from(description, negative_label, positive_label, useful, overcook)
+    def execute(cls, a, b, weight_a, weight_b, orthogonalize, name, **info) -> io.NodeOutput:
+        info = info_from(**info)
         if (a["target"], a["mode"]) != (b["target"], b["mode"]):
             raise ValueError(f"dials use different injection points: {a['mode']} {a['target']} vs {b['mode']} {b['target']}")
         va, vb = a["vec"].float(), b["vec"].float()
         cos = float(torch.nn.functional.cosine_similarity(va, vb, dim=0))
-        if orthogonalize:
+        note = ""
+        if orthogonalize and float(vb @ vb) > 0:
             va = va - (va @ vb) / (vb @ vb) * vb
+        elif orthogonalize:
+            note = "\nb is a zero vector: orthogonalize left a unchanged"
         label = f"{a['meta'].get('name', 'a')}*{weight_a:g}{'-proj' if orthogonalize else ''}+{b['meta'].get('name', 'b')}*{weight_b:g}"
         dial = {"vec": weight_a * va + weight_b * vb, "target": a["target"], "mode": a["mode"],
                 "meta": {"name": name or label, "parents": [a["meta"].get("name"), b["meta"].get("name")]}}
-        report = f"cos(a, b) = {cos:.3f}; {core.dial_label(dial)}"
+        dial["meta"]["composition"] = {"kind": "combine", "weight_a": weight_a, "weight_b": weight_b, "orthogonalize_a_against_b": orthogonalize,
+                                       "a": parent(a), "b": parent(b), "result_sha256": core.vector_sha256(dial)}
+        report = f"cos(a, b) = {cos:.3f}; {core.dial_label(dial)}{note}"
         if name:
             report += f"\nsaved {core.save_dial(dial, name, info)}"
         return io.NodeOutput(dial, ui=ui.PreviewText(report))

@@ -19,6 +19,7 @@ Two pair-text extensions (MAINodes only):
                  enc = enc(text without the span) + w * (enc(text) - enc(text without the span)), in token-mean space.
                  H3's tokenizer ignores prompt weights, so this is the only place the syntax means anything.
 """
+import hashlib
 import json
 import math
 import os
@@ -206,6 +207,13 @@ def save_dial(dial, name, info=None):
     return path
 
 
+def vector_sha256(dial):
+    """Hash of the tensor the dial saves as, equal to presets.dial_sha256 of its file, so recipes find parents by content."""
+    h = hashlib.sha256(f"diffusion_model.{dial['target']}.{KEY_SUFFIX[dial['mode']]}".encode())
+    h.update(dial["vec"].to(torch.bfloat16).contiguous().view(-1).view(torch.uint8).numpy().tobytes())
+    return h.hexdigest()
+
+
 def load_dial(dial_name):
     path = folder_paths.get_full_path_or_raise("loras", dial_name)  # resolves inside the loras folders only
     with safe_open(path, "pt") as f:
@@ -378,6 +386,12 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
     return dial, report
 
 
+def rack_post_shift(rows):
+    """All post rows as one shift summed in float64: chained bf16 hook additions round differently in each row order."""
+    post = [(d, s) for _, d, s in rows if d["mode"] == "post"]
+    return dict(post[0][0], vec=sum(s * d["vec"].double() for d, s in post).float())
+
+
 def rack_hold_shift(rows, holds):
     """Project the summed post shift out of the holds' span; report squared-norm shares in row order."""
     post = [(label, d, s) for label, d, s in rows if d["mode"] == "post"]
@@ -506,19 +520,68 @@ def _make_reference_dial(clip, model, items_a, items_b, prompt, name, source, de
     return dial, report
 
 
+def interactions(dots, strengths):
+    """Exact energy bookkeeping for rows of one space (never mix pre and post), from their dot products v_i·v_j.
+
+    |sum s_i v_i|^2 = sum_i own_i + sum_{i<j} pair_ij with own_i = s_i^2 |v_i|^2 and pair_ij = 2 s_i s_j v_i·v_j
+    (> 0 reinforcing, < 0 cancelling); shares are of |sum s_i v_i|^2. push_i = s_i v_i·u along the unit combined shift
+    u, so the pushes add up to |sum s_i v_i|. Zero vectors and a fully cancelled sum give 0, never NaN."""
+    dots = torch.as_tensor(dots, dtype=torch.float64)
+    s = torch.as_tensor(strengths, dtype=torch.float64)
+    norm = dots.diagonal().clamp_min(0).sqrt()
+    scale = torch.outer(norm, norm)
+    cos = torch.where(scale > 0, dots / scale.clamp_min(1e-300), 0.0)
+    weighted = torch.outer(s, s) * dots
+    own = weighted.diagonal()
+    pair = 2 * (weighted - torch.diag(own))
+    energy = float(weighted.sum())
+    cancelled = energy <= 1e-12 * float(own.sum())  # rounding residue of an exact cancellation
+    combined = 0.0 if cancelled else math.sqrt(energy)
+    share = 0.0 if cancelled else 1 / energy
+    return {"norm": norm.tolist(), "cos": cos.tolist(), "own": own.tolist(), "pair": pair.tolist(), "combined": combined,
+            "own_share": (own * share).tolist(), "pair_share": (pair * share).tolist(),
+            "push": (weighted.sum(1) / combined if combined else torch.zeros_like(own)).tolist()}
+
+
+def interaction_lines(labels, it, threshold=0.05):
+    """Compact rack-report summary: the pairs that reinforce or cancel by at least `threshold` of |sum|^2, and who pushes."""
+    if not it["combined"]:
+        return ["the post-refiner rows sum to zero"]
+    n = len(labels)
+    pairs = sorted((it["pair_share"][i][j], f"{labels[i]} × {labels[j]}") for i in range(n) for j in range(i + 1, n))
+    lines = [f"pairs add {sum(p for p, _ in pairs):+.0%} of |sum|² to the rows alone"]
+    for word, chosen in (("reinforcing", [x for x in reversed(pairs) if x[0] >= threshold]), ("cancelling", [x for x in pairs if x[0] <= -threshold])):
+        if chosen:
+            lines.append(f"{word}: " + ", ".join(f"{name} {p:+.0%}" for p, name in chosen[:3]))
+    lines.append("push along the sum: " + ", ".join(f"{label} {p / it['combined']:+.0%}" for label, p in zip(labels, it["push"])))
+    return lines
+
+
+def dial_interactions(rows):
+    """rows [{"dial": file, "strength": s}] -> dots between same-space dials (null across spaces), so the UI can redo the
+    bookkeeping for any strengths, plus the exact interactions of the post-refiner rows at these strengths."""
+    dials = [load_dial(r["dial"]) for r in rows]
+    vecs = [d["vec"].double() for d in dials]
+    space = [(d["mode"], d["target"], d["vec"].shape) for d in dials]
+    dots = [[float(a @ b) if space[i] == space[j] else None for j, b in enumerate(vecs)] for i, a in enumerate(vecs)]
+    post = [i for i, d in enumerate(dials) if d["mode"] == "post"]
+    out = {"mode": [d["mode"] for d in dials], "dot": dots, "post": post}
+    if post:
+        out["interactions"] = interactions([[dots[i][j] for j in post] for i in post], [float(rows[i]["strength"]) for i in post])
+    return out
+
+
 def rack_report(rows):
-    """rows: [(label, dial, strength)] actually applied. Norms, the combined post-refiner shift, and overlapping pairs."""
+    """rows: [(label, dial, strength)] actually applied. Norms, the combined post-refiner shift, and which rows reinforce
+    or cancel each other."""
     if not rows:
         return "no active dials: model unchanged"
     lines = [f"{s:+.2f}  {label}  |dial| {float(d['vec'].norm()):.1f}  ({d['mode']})" for label, d, s in rows]
-    post = [(label, d["vec"].float(), s) for label, d, s in rows if d["mode"] == "post"]
+    post = [(label, d["vec"].double(), s) for label, d, s in rows if d["mode"] == "post"]
     if len(post) > 1:
-        total = sum(s * v for _, v, s in post)
-        biggest = max(abs(s) * float(v.norm()) for _, v, s in post)
-        lines.append(f"combined post-refiner shift |{float(total.norm()):.1f}| (largest single row {biggest:.1f})")
-        for i in range(len(post)):
-            for j in range(i + 1, len(post)):
-                c = float(torch.nn.functional.cosine_similarity(post[i][1], post[j][1], dim=0))
-                if abs(c) >= 0.5:
-                    lines.append(f"overlap: {post[i][0]} and {post[j][0]} cos {c:+.2f}" + (" (they reinforce)" if c > 0 else " (they cancel)"))
+        v = torch.stack([x for _, x, _ in post])
+        it = interactions(v @ v.T, [s for _, _, s in post])
+        biggest = max(abs(s) * float(x.norm()) for _, x, s in post)
+        lines.append(f"combined post-refiner shift |{it['combined']:.1f}| (largest single row {biggest:.1f})")
+        lines += interaction_lines([label for label, _, _ in post], it)
     return "\n".join(lines)
