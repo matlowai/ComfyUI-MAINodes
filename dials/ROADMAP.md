@@ -37,6 +37,15 @@ Evidence for the 2026-10-31 items is in the study `studies/2026-10-28-h3-motion/
 - **Envelopes, what they are for.** On Pika 6-step, prompt-side dials act only in the first steps: late at +2 and +8 =
   base (eval29). An early kick (+6) is a reproducible creative scrambler (day/night: cloaked figure in a dark tunnel).
   Next: the same test on base H3 20-step, where a late "style pass" might exist.
+- **Dial on a time window (Dylan).** A dial can't vary over clip time at the prompt (every frame reads the same prompt;
+  envelopes are over denoising steps). What works with existing nodes: render the clip, then a V2V pass with the dial on
+  and H3 V2V Init's time-varying mask regenerating only frames t0..t1 (the rest frozen to the clip, audio from pass 1).
+  On/off per latent token (about 3-4 frames), edges can pop unless aligned to the 17-frame grid. Needs a small
+  "Dial Time Window" node (seconds -> token-aligned MASK) and a Pika workflow (pass 1 -> windowed dial pass -> de-rope).
+- **Dial strength over clip time (Dylan), research.** Per-frame strength needs a different seam: (1) attention: let
+  video tokens at frame t attend to "prompt + w(t) x dial" (compute the text part at a few strength levels and merge;
+  text is short, so it's cheap), which reuses today's dial vectors; or (2) video-token injection per frame (Concept Lab
+  route), which needs video-space dial directions and proof they mean the same thing.
 - **A/V per row:** a "video only" toggle on a rack row (ComfyUI-Dials `experimental/split-and-dial-to-lora`: sinister
   picture, intelligible speech).
 - **Semantic XY pad:** two signed dials on a plane, then four-corner presets. Endpoints must equal the single dials.
