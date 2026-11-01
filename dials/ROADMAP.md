@@ -147,7 +147,7 @@ Keep every node, but give most people a clean front door. ComfyUI loads subgraph
       name, labels, one dial out). Exposed controls only; double-click opens the graph for tinkerers.
 - [ ] **De-rope as a switch, not a second workflow:** one boolean on the Simple workflow feeds core's lazy If/Else Switch
       (`ComfySwitchNode`) between pass 1's video and the de-roped video; with it off, stage 2 (oracle, smear, pass 2, rack
-      copy) must not run. Proof run on the charge scene: off ~ one plain render, on ~ 2x (study `codex/derope_switch/`).
+      copy) must not run. Proof run on the charge scene (1 seed): off 75 s and pixel-identical to plain pass 1; on 330 s and identical to the de-roped clip, so stage 2 is skipped when off (scripts in the session scratchpad `derope_switch.py`).
 - [ ] **One rack for both stages:** an "attach hold map to MODEL" node (or equivalent) so a subgraph needs a single rack
       and rows never go out of sync. Prerequisite for the de-rope subgraph.
 - [ ] **Calmer rack rows:** each row shows on/off, dial, slider and value; everything else (envelope, blocks, time, info,
