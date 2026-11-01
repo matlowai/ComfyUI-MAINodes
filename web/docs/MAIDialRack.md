@@ -9,6 +9,7 @@ gets its own row.
   +0.5 to +1 is the everyday range; past about 1.5 side effects appear.
 - **constant / early / late / bell / manual**: strength over the denoising steps.
 - **blocks**: how much of the dial each model block reads (all ones = the plain dial).
+- **time**: the dial's strength over the clip (MiniMax H3; see below).
 - **⚙**: the dial's info (what − and + give, useful and overcook strengths, evidence), saved into the dial file.
 - **✎**: the dial editor (below).
 - **S** solo, **H** hold (removes this direction from the other rows instead of adding it), **✕** remove.
@@ -17,6 +18,26 @@ gets its own row.
 rows on X and Y, the dot is your prompt; switch it to the **wheel** to see every live row on the probe axes. Under it,
 the interaction grid shows which rows reinforce (warm) or cancel (blue) each other. This is vector math on the files,
 not a render test.
+
+## Time curve (time)
+Makes a dial come in, go out or swell during the clip, e.g. dark only after 3 s. Pick **keyframes** and draw the
+strength over the clip on the canvas: 0 = dial off, 1 = the row's strength, above 1 = stronger (raise **top** to drag
+there). The amber steps are what the model actually gets: one value per latent frame, about 1/6 s.
+
+- **Click** empty canvas: add a point (hold the button to keep dragging it). **Drag** a point to move it; **Shift**
+  moves it slowly and freely, **Alt** turns snapping off. **Double-click** or **right-click** a point: delete it.
+- **Click a point** to select it: type its exact **time (s)** and **level**, nudge it with the **arrow keys**
+  (Shift: 10x), remove it with **Delete**. **Ctrl+Z / Ctrl+Shift+Z** undo and redo; **Reset** goes back to the curve
+  you opened.
+- **snap** places points on 0.1 s, 0.5 s or 1 s, on latent frames, or (after a run with music on `curve_audio`) on the
+  music's onsets, which are drawn with the waveform behind the curve.
+- **times**: `0..1 of the clip` stretches with the clip length, `seconds` stays put (use it to match "(1-6 s)" in a
+  prompt). Switching converts the points without moving them. **clip s** is the length the editor draws; a run sets it.
+- The text box under the canvas holds the points as `[[time, level], ...]`: type there for exact numbers.
+- **Copy / Paste** move a curve to another row or another rack (for de-rope, copy it to the stage-2 rack).
+- Points stay at least 1/6 s apart and a curve keeps at least two. Changes sharper than a latent frame are averaged,
+  and renders ramp over about 1.5 s, so draw sections and swells rather than single beats.
+- **audio-driven** curves follow a feature of the music; **→ keyframes** turns one into points you can edit.
 
 ## Dial editor (✎)
 Opens a dial to see it in the vector space and nudge it into a new dial. It works on post-refiner dials of a model that

@@ -51,6 +51,9 @@ leaves the canvas.
   block strip). Negative levels and times outside the clip can still be typed in the JSON; the canvas widens to show
   points past the clip end and shades that part.
 - The axes stay fixed during a drag, so the curve does not rescale under the cursor.
+- Keys go through a hidden read-only input that the canvas focuses: ComfyUI's workflow undo listens for Ctrl+Z on
+  `window` in the capture phase and only leaves inputs alone, so a focused canvas would undo the whole workflow
+  (and reload the node) along with the curve.
 
 ## Not built, and why
 - **Zoom / pan of the time axis:** a clip is 5-10 s and the model resolves 1/6 s; the canvas is wide enough (about 30 px
