@@ -1,9 +1,14 @@
-"""Sample-time envelopes for H3's cached post-refiner text context.
+"""Sample-time envelopes for post-refiner dials.
+
+H3 refines the prompt once per sampling, so its envelopes shift the cached context at each diffusion-model call. Families
+that refine the prompt inside every call (MOSS-Image, Krea 2) get the shift at the post module instead: an apply-model
+wrapper sets it for the duration of the call and the post module's ScheduledForward adds it.
 
 Progress runs from 0 to 1 over the steps of each sampler call: with two sampler stages (split sigmas, or a second
 pass at denoise < 1) an envelope is applied to each stage on its own.
 """
 import bisect
+import contextvars
 import math
 
 from comfy.patcher_extension import (WrappersMP, add_wrapper_with_key, copy_nested_dicts)
@@ -12,6 +17,7 @@ from . import core
 
 
 WRAPPER_KEY = "mai_dial_envelopes"
+SHIFT = contextvars.ContextVar("mai_dial_shift", default=None)  # set only while one apply-model call runs
 SHAPES = {
     "constant": [(0., 1.), (1., 1.)],
     "early": [(0., 1.), (.5, 0.), (1., 0.)],
@@ -75,33 +81,62 @@ class EnvelopeForward:
             raise ValueError("dial envelope: diffusion-model call has no sampler sigma")
         current = float(sigma.flatten()[0])
         if not math.isfinite(current) or not bool((sigma == current).all()):
-            raise ValueError("dial envelopes need one finite shared sigma per H3 model call")
+            raise ValueError("dial envelopes need one finite shared sigma per model call")
         return [interpolate(list(zip([-s for s in self.sigmas[:-1]], values)), -current) for _, _, values in self.rows]
 
+    def shifts(self, transformer_options):
+        return [dial["vec"] * strength for (_, dial, _), strength in zip(self.rows, self.strengths(transformer_options)) if strength != 0]
+
     def __call__(self, executor, x, timestep, context, transformer_options, **kwargs):
-        strengths = self.strengths(transformer_options)
+        shifts = self.shifts(transformer_options)
         context = executor.class_obj.preprocess_text_embeds(context)  # no-op when extra_conds already refined it
-        for (_, dial, _), strength in zip(self.rows, strengths):
-            if strength != 0:
-                context = context + (dial["vec"] * strength).to(device=context.device, dtype=context.dtype)
+        for shift in shifts:
+            context = context + shift.to(device=context.device, dtype=context.dtype)
         return executor(x, timestep, context, transformer_options, **kwargs)
 
 
+class EnvelopeShift(EnvelopeForward):
+    """Apply-model wrapper for families whose post module runs inside every call; adds to the shift of outer racks."""
+
+    def __call__(self, executor, x, t, c_concat=None, c_crossattn=None, control=None, transformer_options={}, **kwargs):
+        total = SHIFT.get()
+        for shift in self.shifts(transformer_options):
+            total = shift if total is None else total + shift
+        token = SHIFT.set(total)
+        try:
+            return executor(x, t, c_concat, c_crossattn, control, transformer_options, **kwargs)
+        finally:
+            SHIFT.reset(token)
+
+
+class ScheduledForward:
+    """Post module forward that adds the envelope shift of the running apply-model call (none outside sampling)."""
+
+    def __init__(self, forward):
+        self.forward = forward
+
+    def __call__(self, *args, **kwargs):
+        out = self.forward(*args, **kwargs)
+        shift = SHIFT.get()
+        return out if shift is None else out + shift.to(device=out.device, dtype=out.dtype)
+
+
 class EnvelopeSampler:
-    def __init__(self, rows, node_id=None, report=""):
+    def __init__(self, rows, node_id=None, report="", cached=True):
         self.rows = rows
         self.node_id = node_id
         self.base_report = report
+        self.cached = cached
 
     def compile(self, sigmas):
-        return EnvelopeForward(self.rows, sigmas)
+        return (EnvelopeForward if self.cached else EnvelopeShift)(self.rows, sigmas)
 
     def __call__(self, executor, model, sigmas, extra_args, *args, **kwargs):
         compiled = self.compile(sigmas)
         extra_args = extra_args.copy()
         extra_args["model_options"] = copy_nested_dicts(extra_args["model_options"])
         options = extra_args["model_options"].setdefault("transformer_options", {})
-        add_wrapper_with_key(WrappersMP.DIFFUSION_MODEL, WRAPPER_KEY, compiled, options)
+        add_wrapper_with_key(WrappersMP.DIFFUSION_MODEL if self.cached else WrappersMP.APPLY_MODEL, WRAPPER_KEY, compiled, options)
         if self.node_id is not None:
             from server import PromptServer  # only inside a running ComfyUI; keeps the module importable in tests
             PromptServer.instance.send_sync("mai-dial-envelope", {"node": self.node_id, "text": self.base_report + "\n" + compiled.report()},
@@ -110,15 +145,20 @@ class EnvelopeSampler:
 
 
 def apply_rack(model, rows, specs, node_id=None, report=""):
-    scheduled = any(s is not None for s in specs) or bool(model.get_wrappers(WrappersMP.SAMPLER_SAMPLE, WRAPPER_KEY))
+    path = core.text_path(model)
+    outer = bool(model.get_wrappers(WrappersMP.SAMPLER_SAMPLE, WRAPPER_KEY))
+    scheduled = any(s is not None for s in specs) or outer
     post = []
     for (label, dial, strength), spec in zip(rows, specs):
-        if spec is not None and (dial["mode"] != "post" or dial["target"] != "token_refiner"):
-            raise ValueError("step envelopes support post-refiner token_refiner dials only; pre-refiner rows cannot be scheduled")
+        if spec is not None and (dial["mode"] != "post" or dial["target"] != path.post):
+            raise ValueError(f"step envelopes support post-refiner {path.post} dials only; pre-refiner rows cannot be scheduled")
         if scheduled and dial["mode"] == "post":
             post.append((label, dial, strength, envelope_points(spec)))
         else:
             core.apply_dial(model, dial, strength)
     if post:
-        model.add_wrapper_with_key(WrappersMP.SAMPLER_SAMPLE, WRAPPER_KEY, EnvelopeSampler(post, node_id, report))
+        if not path.cached and not outer:  # one ScheduledForward reads the shift every envelope rack adds to
+            name = f"diffusion_model.{path.post}.forward"
+            model.add_object_patch(name, ScheduledForward(model.get_model_object(name)))
+        model.add_wrapper_with_key(WrappersMP.SAMPLER_SAMPLE, WRAPPER_KEY, EnvelopeSampler(post, node_id, report, path.cached))
     return bool(post)

@@ -54,7 +54,7 @@ class DialRack(io.ComfyNode):
             node_id="MAIDialRack",
             display_name="Dial Rack (alpha)",
             category="MAINodes/Dials",
-            description="Stack steering dials on a MiniMax H3 model: strength, on/off, solo, and H to hold a post-refiner direction.",
+            description="Stack steering dials on a MiniMax H3, MOSS-Image or Krea 2 model: strength, on/off, solo, and H to hold a post-refiner direction.",
             inputs=[
                 io.Model.Input("model"),
                 io.String.Input("rack", default="[]", tooltip="Rack rows as JSON; edited through the rack UI."),
@@ -87,13 +87,16 @@ class DialRack(io.ComfyNode):
             if r.get("hold") and dial["mode"] != "post":
                 raise ValueError(f"{label}: pre-refiner rows cannot be hold rows; choose a post-refiner dial")
             (holds if r.get("hold") else applied).append((label, dial, float(r.get("strength", 0))))
+        if applied:
+            path = core.text_path(model)  # clear errors for an unsupported model or another family's dial before patching
+            for _, dial, _ in applied + holds:
+                core.check_family(dial, path)
         report = core.rack_report(applied)
         if holds:
             combined, hold_report = core.rack_hold_shift(applied, holds)
             report += "\n" + hold_report
         if not applied:
             return io.NodeOutput(model, ui=ui.PreviewText(report))
-        core.text_modules(model)  # clear error for a non-H3 model before patching
         m = model.clone()
         specs = [r.get("envelope") for r in active]
         if holds and any(spec is not None for spec in specs):
@@ -185,7 +188,9 @@ class MakeDialFromPictures(io.ComfyNode):
                 *info_inputs(),  # last, so workflows saved before these fields load unchanged
                 io.Combo.Input("framing", options=["picture prompt", *core.PICTURE_FRAMINGS, "all averaged"], default="picture prompt",
                                optional=True, tooltip="How the pictures are read: your picture prompt, a fixed framing (content: "
-                               "what is in the picture; look: colours and light; bare: no hint), or all of them averaged per picture."),
+                               "what is in the picture; look: colours and light; bare: no hint), or all of them averaged per picture. "
+                               "For subject swaps, content (or all averaged) steered best in testing; naming the kind of subject in "
+                               "your own picture prompt ('the animal in <Picture 1>') helps further."),
                 io.Autogrow.Input("group_a", optional=True, template=io.Autogrow.TemplatePrefix(
                     io.Image.Input("a", tooltip="Another group A picture, any size; adds to pictures_a."), prefix="a", min=0, max=50)),
                 io.Autogrow.Input("group_b", optional=True, template=io.Autogrow.TemplatePrefix(
@@ -290,6 +295,8 @@ class CombineDials(io.ComfyNode):
     @classmethod
     def execute(cls, a, b, weight_a, weight_b, orthogonalize, name, **info) -> io.NodeOutput:
         info = info_from(**info)
+        if core.dial_family(a) != core.dial_family(b):
+            raise ValueError(f"dial a was made for {core.dial_family(a)}, dial b for {core.dial_family(b)}")
         if (a["target"], a["mode"]) != (b["target"], b["mode"]):
             raise ValueError(f"dials use different injection points: {a['mode']} {a['target']} vs {b['mode']} {b['target']}")
         va, vb = a["vec"].float(), b["vec"].float()
@@ -301,7 +308,7 @@ class CombineDials(io.ComfyNode):
             note = "\nb is a zero vector: orthogonalize left a unchanged"
         label = f"{a['meta'].get('name', 'a')}*{weight_a:g}{'-proj' if orthogonalize else ''}+{b['meta'].get('name', 'b')}*{weight_b:g}"
         dial = {"vec": weight_a * va + weight_b * vb, "target": a["target"], "mode": a["mode"],
-                "meta": {"name": name or label, "parents": [a["meta"].get("name"), b["meta"].get("name")]}}
+                "meta": {"name": name or label, "model_family": core.dial_family(a), "parents": [a["meta"].get("name"), b["meta"].get("name")]}}
         dial["meta"]["composition"] = {"kind": "combine", "weight_a": weight_a, "weight_b": weight_b, "orthogonalize_a_against_b": orthogonalize,
                                        "a": parent(a), "b": parent(b), "result_sha256": core.vector_sha256(dial)}
         report = f"cos(a, b) = {cos:.3f}; {core.dial_label(dial)}{note}"

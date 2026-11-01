@@ -87,6 +87,8 @@ def runs(w):
 def apply_rack(model, rows, specs, profiles, holds=(), node_id=None, report=""):
     """rows [(label, dial, strength)] with their envelopes and block profiles (None = all ones); pre rows keep the
     single-dial chain. Returns the report lines for the profiles."""
+    if core.text_path(model).family != "MiniMax H3":
+        raise ValueError("block strengths support MiniMax H3 only; remove the row's block profile")
     n = len(model.model.diffusion_model.blocks)
     post, weights = [], []
     for (label, dial, strength), spec, w in zip(rows, specs, profiles):

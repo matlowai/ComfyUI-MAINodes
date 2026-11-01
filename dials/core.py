@@ -1,6 +1,7 @@
-"""Dials: training-free steering directions for MiniMax H3, built from prompt pairs (ported from ComfyUI-Dials).
+"""Dials: training-free steering directions for MiniMax H3, MOSS-Image and Krea 2, built from prompt pairs (ported from
+ComfyUI-Dials). TEXT_PATHS says where each model family's seams are; a dial file records its family.
 
-A dial is one vector added to every prompt token, at one of two seams:
+A dial is one vector added to every prompt token, at one of two seams (H3 names; TEXT_PATHS has the others):
   post  after H3's token_refiner, exactly where the DiT reads the prompt ("hook"). Applied as a ModelPatcher object
         patch that wraps token_refiner.forward, so the module tree and weight paths stay unchanged and dials stack.
   pre   into the bias of `condition_proj` (text encoder output -> DiT hidden). Saved as a standard `<layer>.diff_b` LoRA
@@ -19,6 +20,7 @@ Two pair-text extensions (MAINodes only):
                  enc = enc(text without the span) + w * (enc(text) - enc(text without the span)), in token-mean space.
                  H3's tokenizer ignores prompt weights, so this is the only place the syntax means anything.
 """
+import collections
 import hashlib
 import json
 import math
@@ -34,8 +36,28 @@ import comfy.utils
 from comfy_extras.nodes_minimax_h3 import CANVAS_MULTIPLE, REF_IMAGE_SHORT_EDGE, adapt_canvas
 import folder_paths
 
-# diffusion model class -> (text projection layer the pre seam biases, text refiner whose output the post seam shifts)
-TEXT_PROJECTIONS = {"MiniMaxH3Model": ("condition_proj", "token_refiner")}
+# One model family's prompt path. pre: Linear whose bias a pre dial shifts (None: post dials only). post: module whose
+# output a post dial shifts. refine(dm, tokens): [n, dim] from the pre seam's output (the encoder output when there is no
+# pre seam) to the post seam's output. cached: extra_conds refines the prompt once, so the DiT's context is the post seam.
+TextPath = collections.namedtuple("TextPath", "family pre post refine cached")
+
+
+def _moss_refine(dm, x):  # TextEmbedder.forward after its proj; text rope positions 0..n-1, as without references
+    pe = dm.rope(0, 0, x.shape[0], x.device)
+    x = x[None]
+    for block in dm.text_embedder.blocks:
+        x = block(x, pe)
+    return x[0]
+
+
+# diffusion model class -> its prompt path
+TEXT_PATHS = {
+    "MiniMaxH3Model": TextPath("MiniMax H3", "condition_proj", "token_refiner", lambda dm, x: dm.token_refiner(x), True),
+    "MOSSImage": TextPath("MOSS-Image", "text_embedder.proj", "text_embedder", _moss_refine, False),
+    # txtfusion has no biased projection up front; txtmlp ends in a Linear, so a post dial equals a txtmlp.3 bias diff
+    "SingleStreamDiT": TextPath("Krea 2", None, "txtmlp", lambda dm, x: dm.txtmlp(dm.txtfusion(dm._unpack_context(x[None])))[0], False),
+}
+DEFAULT_FAMILY = "MiniMax H3"  # dial files from before families were recorded
 NUISANCE_PAIRS = [
     "{subject}. ||| {subject}, seen on an ordinary afternoon in natural light.",
     "{subject} in a room. ||| {subject} in a room with a window, a wooden table and two chairs.",
@@ -49,12 +71,20 @@ DIAL_SUBDIR = "dials"
 KEY_SUFFIX = {"pre": "diff_b", "post": "dials_shift"}  # file key: diffusion_model.<target>.<suffix>
 
 
-def text_modules(model):
-    dm = model.model.diffusion_model
-    names = TEXT_PROJECTIONS.get(type(dm).__name__)
-    if names is None:
-        raise ValueError(f"Dials support {', '.join(TEXT_PROJECTIONS)} so far, got {type(dm).__name__}")
-    return names, dm.get_submodule(names[0]), dm.get_submodule(names[1])
+def text_path(model):
+    path = TEXT_PATHS.get(type(model.model.diffusion_model).__name__)
+    if path is None:
+        raise ValueError(f"Dials support {', '.join(p.family for p in TEXT_PATHS.values())} so far, got {type(model.model.diffusion_model).__name__}")
+    return path
+
+
+def dial_family(dial):
+    return dial["meta"].get("model_family", DEFAULT_FAMILY)
+
+
+def check_family(dial, path):
+    if dial_family(dial) != path.family:
+        raise ValueError(f"dial {dial['meta'].get('name', '?')} was made for {dial_family(dial)}; this model is {path.family}")
 
 
 class ShiftedForward:
@@ -308,7 +338,11 @@ def nuisance_basis(diffs, dims):
 
 def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=True, nuisance_dims=3):
     """Returns (dial, report). mode: "post" (hook) or "pre" (LoRA file)."""
-    (pre_name, post_name), proj, refiner = text_modules(model)
+    path = text_path(model)
+    if mode == "pre" and path.pre is None:
+        raise ValueError(f"{path.family} has no pre_refiner seam (no biased projection before its text refiner); use post_refiner")
+    dm = model.model.diffusion_model
+    proj = dm.get_submodule(path.pre) if path.pre else None
     prompts, weights, holds = parse_pairs(pairs, subjects)
     nuisance = parse_pairs("\n".join(NUISANCE_PAIRS), subjects if subjects.strip() else NUISANCE_SUBJECTS)[0] if debias else []
     weights = torch.tensor(weights)
@@ -320,8 +354,8 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
     def encode(text):  # -> (pre-refiner tokens, pre token mean, post token mean), means in float32
         if text not in cache:
             ctx = clip.encode_from_tokens_scheduled(clip.tokenize(text))[0][0][0].to(device, dtype)
-            pre = proj(ctx)
-            cache[text] = (pre, pre.float().mean(0), refiner(pre).float().mean(0))
+            pre = proj(ctx) if proj is not None else ctx
+            cache[text] = (pre, pre.float().mean(0), path.refine(dm, pre).float().mean(0))
         return cache[text]
 
     def side(s, which):
@@ -366,15 +400,15 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
         basis2 = basis_for(2)
         post_target = remove(remove(mean(diffs(prompts, 2)), basis2), hold_directions(2, basis2))
         probe = [plain_text(t) for pair in prompts[:8] for s in pair for t, _ in ([(s, 1)] if isinstance(s, str) else s)]
-        shift = torch.stack([refiner(encode(t)[0] + vec.to(dtype)).float().mean(0) - encode(t)[2] for t in probe]).mean(0)
+        shift = torch.stack([path.refine(dm, encode(t)[0] + vec.to(dtype)).float().mean(0) - encode(t)[2] for t in probe]).mean(0)
         along = float(shift @ (post_target / post_target.norm().clamp_min(1e-12)))
         scale = float(post_target.norm()) / along if along > 0 else 1.0
         vec = vec * scale
         note += f", calibrated x{scale:.2f}"
     if len(holds) > 1:
         note += "\n" + "; ".join(f"hold group [{group}] removed {share:.1%}" for group, share in shares.items())
-    dial = {"vec": vec.cpu(), "target": pre_name if mode == "pre" else post_name, "mode": mode,
-            "meta": {"name": name, "pairs": prompts, "n_pairs": str(len(prompts)),
+    dial = {"vec": vec.cpu(), "target": path.pre if mode == "pre" else path.post, "mode": mode,
+            "meta": {"name": name, "model_family": path.family, "pairs": prompts, "n_pairs": str(len(prompts)),
                      **({"pair_weights": weights.tolist()} if bool((weights != 1).any()) else {}), "pair_agreement_cos": f"{agree:.3f}",
                      "inject": f"{mode}_refiner", "debias_removed": f"{removed:.3f}" if debias else "off",
                      "calibrated": str(bool(calibrate and mode == "pre")), "format": "ComfyUI-Dials v1"}}
@@ -470,7 +504,11 @@ def make_video_dial(clip, model, videos_a, videos_b, prompt, name, debias=True, 
 
 
 def _make_reference_dial(clip, model, items_a, items_b, prompts, name, source, debias, nuisance_dims):
-    (_, post_name), proj, refiner = text_modules(model)
+    path = text_path(model)
+    if path.family != "MiniMax H3":
+        raise ValueError(f"dials from {source} work on MiniMax H3 only (its encoder reads them); this model is {path.family}")
+    dm = model.model.diffusion_model
+    proj, refiner = dm.get_submodule(path.pre), dm.get_submodule(path.post)
     comfy.model_management.load_models_gpu([model])
     device = comfy.model_management.get_torch_device()
     dtype = model.model.get_dtype_inference()
@@ -512,8 +550,8 @@ def _make_reference_dial(clip, model, items_a, items_b, prompts, name, source, d
     if paired and vec.norm() > 0:
         clean = diffs - (diffs @ basis) @ basis.T if basis is not None else diffs
         agree = float(torch.nn.functional.cosine_similarity(clean, vec.unsqueeze(0)).mean())
-    dial = {"vec": vec.cpu(), "target": post_name, "mode": "post",
-            "meta": {"name": name, "pairs": [[i, i] for i in range(len(a))] if paired else [],
+    dial = {"vec": vec.cpu(), "target": path.post, "mode": "post",
+            "meta": {"name": name, "model_family": path.family, "pairs": [[i, i] for i in range(len(a))] if paired else [],
                      "n_pairs": str(len(a)) if paired else "0", "pair_agreement_cos": f"{agree:.3f}" if agree is not None else "n/a",
                      "inject": "post_refiner", "debias_removed": f"{removed:.3f}" if debias else "off",
                      "calibrated": "False", "format": "ComfyUI-Dials v1", "source": source, "prompt": "\n".join(prompts),
