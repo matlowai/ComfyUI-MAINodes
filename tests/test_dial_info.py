@@ -24,6 +24,7 @@ sys.modules["mai_dials"] = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(sys.modules["mai_dials"])
 core = importlib.import_module("mai_dials.core")
 presets = importlib.import_module("mai_dials.presets")
+nodes = importlib.import_module("mai_dials.nodes")
 
 V1 = {"description": "Lizard to squirrel. Measured on Pika H3 Flex, 1 seed.", "negative": "lizard", "positive": "squirrel",
       "useful": 3.0, "overcook": 5.0}
@@ -83,7 +84,21 @@ def main():
             rejects(core.check_dial_info, bad)
         rejects(core.save_dial_info, "dials/old.safetensors", dict(v2, evidence="two-seed"))
         assert core.dial_info("dials/old.safetensors") == edited, "a rejected write must leave the file alone"
-    print("dial info: all checks passed (v1 -> v2, unknown sides, round trip keeps the vector, bad input rejected)")
+
+    # Make Dial nodes: the v1 info inputs keep their positions and the v2 ones come last (widget values load by position)
+    info_ids = ["description", "negative_label", "positive_label", "useful", "overcook",
+                "negative_useful", "negative_overcook", "evidence", "pipeline"]
+    for node_id in ("MAIDialMake", "MAIDialMakeFromPictures", "MAIDialMakeFromVideos", "MAIDialCombine"):
+        ids = [i.id for i in nodes.NODE_CLASS_MAPPINGS[node_id].GET_SCHEMA().inputs]
+        assert ids[-len(info_ids):] == info_ids, (node_id, ids)
+    same = nodes.info_from(useful=2, overcook=3)
+    assert same["neg"] == same["pos"] == {"useful": 2.0, "overcook": 3.0} and same["evidence"] == "creator"
+    assert nodes.info_from() == core.check_dial_info({"useful": 1.0, "overcook": 1.5}), "a workflow saved before v2 saves what v1 did"
+    split = nodes.info_from(useful=1, overcook=2, negative_useful=3, negative_overcook=5, evidence="unknown", pipeline="Pika H3 Flex 6-step")
+    assert split["neg"] == {"useful": 3.0, "overcook": 5.0} and split["pos"] == {"useful": 1.0, "overcook": 2.0}
+    assert split["evidence"] is None and split["pipeline"] == "Pika H3 Flex 6-step"
+    rejects(nodes.info_from, "", "", "", 1.0, 1.5, 3.0)  # negative useful above the inherited overcook
+    print("dial info: all checks passed (v1 -> v2, unknown sides, round trip keeps the vector, bad input rejected, node inputs)")
 
 
 if __name__ == "__main__":

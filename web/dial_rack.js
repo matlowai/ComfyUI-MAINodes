@@ -10,7 +10,11 @@ const PRESETS = "/mainodes/dials/presets";
 const LEFT_PX = 590;     // the rows column keeps this width; the map takes the rest of the node
 const MAP_MIN = 160;
 const PAD_RANGES = ["auto", 1.5, 3, 6, 12];
-const INFO_DEFAULTS = { description: "", negative: "", positive: "", useful: 1, overcook: 1.5 };
+const UNKNOWN = { useful: null, overcook: null };
+const INFO_DEFAULTS = { version: 2, description: "", negative: "", positive: "", neg: UNKNOWN, pos: UNKNOWN, evidence: null, pipeline: "", notes: "" };
+const EVIDENCE = ["creator", "one-seed", "multi-seed", "multi-scene"];
+const QUADRANTS = [[1, -1], [-1, -1], [1, 1], [-1, 1]];  // [x sign, y sign] of the map's quarters; ring labels go in the first drawn
+const side = (info, s) => (s < 0 ? info.neg : info.pos);
 const SWEEP_STEPS = [0.25, 0.5, 1];
 
 async function presetRequest(path = "", options) {
@@ -171,8 +175,10 @@ class DialMap {
     const [rx, ry] = this.axes();
     const info = (r) => (r && !("input" in r) ? rack.dialInfo(r.dial) : INFO_DEFAULTS);
     const ix = info(rx), iy = info(ry);
-    // auto range: room for both dials' overcook ellipse plus a margin
-    const R = this.R = rack.pad.range === "auto" ? Math.max(1.5, Math.ceil(Math.max(ix.overcook, iy.overcook) * 1.25 * 2) / 2) : rack.pad.range;
+    // auto range: room for the largest known overcook plus a margin
+    const overcooks = [ix.neg, ix.pos, iy.neg, iy.pos].map((v) => v.overcook).filter((v) => v != null);
+    const R = this.R = rack.pad.range !== "auto" ? rack.pad.range
+      : overcooks.length ? Math.max(1.5, Math.ceil(Math.max(...overcooks) * 1.25 * 2) / 2) : 3;
     const px = (v) => (v / R + 1) / 2 * S;
     g.setTransform(c.width / S, 0, 0, c.width / S, 0, 0);
     g.fillStyle = "#101114"; g.fillRect(0, 0, S, S);
@@ -182,15 +188,29 @@ class DialMap {
       g.beginPath(); g.moveTo(px(v), 0); g.lineTo(px(v), S); g.moveTo(0, px(v)); g.lineTo(S, px(v)); g.stroke();
     }
     g.strokeStyle = "#3a3d46"; g.beginPath(); g.moveTo(px(0), 0); g.lineTo(px(0), S); g.moveTo(0, px(0)); g.lineTo(S, px(0)); g.stroke();
-    const ring = (rxv, ryv, color, dash) => {  // per-axis radii from each dial's own info
-      g.setLineDash(dash); g.strokeStyle = color; g.beginPath();
-      g.ellipse(px(0), px(0), rxv / R * S / 2, ryv / R * S / 2, 0, 0, 2 * Math.PI); g.stroke(); g.setLineDash([]);
-    };
-    ring(ix.useful, iy.useful, "#3f6b4a", []);
-    ring(ix.overcook, iy.overcook, "#7a5a22", [4, 4]);
-    g.fillStyle = "#666"; g.font = "10px sans-serif";
-    g.fillText("useful", px(0) + 3, px(iy.useful) + 11);
-    g.fillText("overcooked", px(0) + 3, px(iy.overcook) + 11);
+    // a quarter-ellipse per quadrant from the matching sides' info; a quadrant without any known ring is uncalibrated
+    g.font = "10px sans-serif";
+    const labelled = new Set();
+    for (const [qx, qy] of QUADRANTS) {
+      const a0 = qy > 0 ? (qx > 0 ? -Math.PI / 2 : Math.PI) : (qx > 0 ? 0 : Math.PI / 2);
+      const arc = (rxv, ryv, color, dash, text) => {
+        const ax = rxv / R * S / 2, ay = ryv / R * S / 2;
+        g.setLineDash(dash); g.strokeStyle = color; g.beginPath();
+        g.ellipse(px(0), px(0), ax, ay, 0, a0, a0 + Math.PI / 2); g.stroke(); g.setLineDash([]);
+        if (labelled.has(text)) return;
+        labelled.add(text);
+        g.fillStyle = "#666";
+        g.fillText(text, px(0) + 3, px(0) - qy * ay + 11);
+      };
+      const hx = side(ix, qx), hy = side(iy, qy);
+      let known = false;
+      for (const [kind, color, dash, text] of [["useful", "#3f6b4a", [], "useful"], ["overcook", "#7a5a22", [4, 4], "overcooked"]]) {
+        if (hx[kind] == null || hy[kind] == null) continue;
+        arc(hx[kind], hy[kind], color, dash, text);
+        known = true;
+      }
+      if (!known) arc(1, 1, "#5d6069", [2, 4], "uncalibrated");
+    }
     if (!rx || !ry || rx === ry) {
       g.fillStyle = "#888"; g.fillText(rack.rows.length < 2 ? "add two dial rows to use the map" : "pick two different rows", 8, 16);
       this.readout.textContent = "";
@@ -203,8 +223,20 @@ class DialMap {
     for (const dy of [-step, 0, step]) for (const dx of [-step, 0, step]) {
       if (dx || dy) { g.beginPath(); g.arc(px(sx + dx), px(-(sy + dy)), 2, 0, 2 * Math.PI); g.fill(); }
     }
-    const past = Math.hypot(sx / ix.useful, sy / iy.useful) > 1, cooked = Math.hypot(sx / ix.overcook, sy / iy.overcook) > 1;
-    g.fillStyle = cooked ? "#ff6b5c" : past ? "#ffa64d" : "#ffc145";
+    const reach = (kind) => {  // the dot's ellipse distance in its own quadrant; null when a side it leans on is unknown
+      let d = 0;
+      for (const [s, info] of [[sx, ix], [sy, iy]]) {
+        if (!s) continue;
+        const r = side(info, s)[kind];
+        if (r == null) return null;
+        d += (s / r) ** 2;
+      }
+      return Math.sqrt(d);
+    };
+    const useful = reach("useful"), over = reach("overcook");
+    const status = over > 1 ? "overcooked" : useful === null ? "uncalibrated" : useful <= 1 ? "within useful"
+      : over === null ? "past useful (overcook unknown)" : "past useful";
+    g.fillStyle = { overcooked: "#ff6b5c", uncalibrated: "#b4b7bf", "within useful": "#ffc145" }[status] || "#ffa64d";
     g.beginPath(); g.arc(px(Math.max(-R, Math.min(R, sx))), px(-Math.max(-R, Math.min(R, sy))), 6, 0, 2 * Math.PI); g.fill();
     g.fillStyle = "#ddd";
     const xl = `${ix.positive || rack.rowName(this.pair.x)} →`;
@@ -212,8 +244,7 @@ class DialMap {
     if (ix.negative) g.fillText(`← ${ix.negative}`, 4, px(0) - 4);
     g.fillText(`↑ ${iy.positive || rack.rowName(this.pair.y)}`, px(0) + 4, 12);
     if (iy.negative) g.fillText(`↓ ${iy.negative}`, px(0) + 4, S - 6);
-    let text = `X ${rack.rowName(this.pair.x)} ${fmt(sx)}  ·  Y ${rack.rowName(this.pair.y)} ${fmt(sy)}  ·  ` +
-      (cooked ? "overcooked" : past ? "past useful" : "within useful");
+    let text = `X ${rack.rowName(this.pair.x)} ${fmt(sx)}  ·  Y ${rack.rowName(this.pair.y)} ${fmt(sy)}  ·  ${status}`;
     const geo = rack.padGeometry[rx.dial + "|" + ry.dial];
     if (geo === undefined) rack.padNorms(rx, ry);
     if (geo?.error) text += `\n${geo.error}`;
@@ -372,18 +403,31 @@ class DialRackUI {
     const desc = input("description", info.description, { tag: "textarea", props: { rows: 2, maxLength: 2000 } }, true);
     const neg = input("− gives", info.negative, { props: { maxLength: 60, placeholder: "e.g. stoic" } });
     const pos = input("+ gives", info.positive, { props: { maxLength: 60, placeholder: "e.g. lively" } });
-    const useful = input("useful ±", info.useful, { props: { type: "number", min: 0.05, max: 20, step: 0.05,
-      title: "strength where the effect is clearly there (inner ellipse on the map)" } });
-    const over = input("overcook ±", info.overcook, { props: { type: "number", min: 0.05, max: 20, step: 0.05,
-      title: "strength where side effects take over (outer ellipse on the map)" } });
+    const strength = (label, value, title) => input(label, value ?? "", { props: { type: "number", min: 0.05, max: 20, step: 0.05,
+      placeholder: "unknown", title: title + "; empty = unknown" } });
+    const negUseful = strength("− useful", info.neg.useful, "negative strength where the effect is clearly there (inner ring, left/bottom)");
+    const posUseful = strength("+ useful", info.pos.useful, "positive strength where the effect is clearly there (inner ring, right/top)");
+    const negOver = strength("− overcook", info.neg.overcook, "negative strength where side effects take over (outer ring)");
+    const posOver = strength("+ overcook", info.pos.overcook, "positive strength where side effects take over (outer ring)");
+    this.el("span", { color: "#888" }, box, "evidence");
+    const evidence = this.el("select", { background: "#111", color: "#eee", border: "1px solid #333", minWidth: "0" }, box);
+    evidence.title = "where the strengths come from";
+    for (const v of ["", ...EVIDENCE]) this.el("option", {}, evidence, v || "unknown").value = v;
+    evidence.value = info.evidence ?? "";
+    const pipeline = input("pipeline", info.pipeline, { props: { maxLength: 60, placeholder: "e.g. Pika H3 Flex 6-step",
+      title: "what the strengths were measured on" } });
+    const notes = input("notes", info.notes, { tag: "textarea", props: { rows: 2, maxLength: 500,
+      placeholder: "failures seen, e.g. the − side never lands" } }, true);
+    const num = (e) => (e.value.trim() === "" ? null : parseFloat(e.value));
     const actions = this.el("div", { gridColumn: "span 4", display: "flex", gap: "6px", alignItems: "center" }, box);
     const msg = this.el("span", { color: "#ff8a5c" }, actions);
     this.button(actions, "Save to dial file", "write this info into the dial's .safetensors metadata (the vector is unchanged)", async (b) => {
       b.disabled = true;
       try {
         const r = await api.fetchApi("/mainodes/dials/info", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ dial: file, info: { description: desc.value, negative: neg.value, positive: pos.value,
-            useful: parseFloat(useful.value), overcook: parseFloat(over.value) } }) });
+          body: JSON.stringify({ dial: file, info: { version: 2, description: desc.value, negative: neg.value, positive: pos.value,
+            neg: { useful: num(negUseful), overcook: num(negOver) }, pos: { useful: num(posUseful), overcook: num(posOver) },
+            evidence: evidence.value || null, pipeline: pipeline.value, notes: notes.value } }) });
         const data = await r.json();
         if (!r.ok) throw new Error(data.error);
         this.info[file] = data;
@@ -507,8 +551,10 @@ class DialRackUI {
         for (const f of opts) { const o = this.el("option", {}, sel, label(f) + (files.includes(f) ? "" : "  (missing)")); o.value = f; }
         sel.value = r.dial;
         const about = this.dialInfo(r.dial);
+        const range = (v) => `useful ${v.useful ?? "?"}, overcook ${v.overcook ?? "?"}`;
         sel.title = r.dial + (about.description ? "\n\n" + about.description : "") +
-          `\nuseful ±${about.useful}, overcooked past ±${about.overcook}`;
+          `\n− ${range(about.neg)}  ·  + ${range(about.pos)}  (? = unknown)\nevidence: ${about.evidence || "unknown"}` +
+          (about.pipeline ? `, ${about.pipeline}` : "") + (about.notes ? `\n${about.notes}` : "");
         sel.onchange = () => { r.dial = sel.value; this.commit(); this.render(); };
       }
       const slider = this.el("input", { width: "110px", accentColor: "#ffc145" }, row);
@@ -536,7 +582,7 @@ class DialRackUI {
         else r.envelope = envelope.value === "manual" ? { type: "manual", points: [[0, 0], [0.5, 1], [1, 0]] } : envelope.value;
         this.commit(); this.render();
       };
-      if (!("input" in r)) this.button(row, "⚙", "dial info: description, what − and + give, useful and overcook strengths (saved in the dial file)",
+      if (!("input" in r)) this.button(row, "⚙", "dial info: description, what − and + give, useful and overcook strengths per side, evidence (saved in the dial file)",
         () => { this.editing = this.editing === i ? null : i; this.render(); },
         this.editing === i ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145", padding: "2px 6px" } : { padding: "2px 6px" });
       this.button(row, "S", "solo: hear only the soloed rows", () => { r.solo = !r.solo; this.commit(); this.render(); },
