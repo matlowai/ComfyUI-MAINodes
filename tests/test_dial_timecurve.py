@@ -46,7 +46,7 @@ class Guider:
         self.inner_model = type("BaseModel", (), {"latent_shapes": shapes})()
 
 
-def sample(patcher, text, latents, sigmas=PIKA):
+def sample(patcher, text, latents, sigmas=PIKA, shapes=SHAPES):
     """-> (per-step [video, audio] predictions, diffusion-model calls)."""
     patcher.patch_model()
     try:
@@ -59,7 +59,7 @@ def sample(patcher, text, latents, sigmas=PIKA):
             return [[t.detach().clone() for t in dm(latents, torch.tensor([float(s) * 1000]), context, {**opts, "sigmas": torch.tensor([float(s)])})]
                     for s in schedule[:-1]]
         extra_args = {"model_options": {"transformer_options": {"wrappers": patcher.wrappers}}}
-        out = WrapperExecutor.new_executor(run, patcher.get_all_wrappers(WrappersMP.SAMPLER_SAMPLE)).execute(Guider(SHAPES), sigmas, extra_args)
+        out = WrapperExecutor.new_executor(run, patcher.get_all_wrappers(WrappersMP.SAMPLER_SAMPLE)).execute(Guider(shapes), sigmas, extra_args)
         return out, dm.calls
     finally:
         patcher.unpatch_model()
@@ -218,7 +218,7 @@ def check_ui():
     assert presets.preset_rows([{"dial": "dials/x.safetensors", "strength": 1, "time": spec}])[0]["time"] == spec
     fails(lambda: presets.preset_rows([{"dial": "dials/x.safetensors", "strength": 1, "time": {"type": "keys"}}]), "invalid preset time curve")
     inputs = nodes.DialRack.GET_SCHEMA().inputs
-    assert inputs[-1].id == "curve_audio" and inputs[-1].optional
+    assert inputs[-2].id == "curve_audio" and inputs[-2].optional
 
 
 def main():

@@ -14,7 +14,13 @@ Curves: keyframes [[t, m], ...] in seconds or normalized clip time (0 = first fr
 interpolation, or a feature of the rack's curve_audio (the music given to H3 as reference audio), shaped as
 M = offset + gain * f with f = the feature scaled to 0..1 over the track, thresholded, attack/release smoothed and
 optionally inverted.
+
+De-rope (two passes): with Time Smear's hold_map_used on the rack, a sampler whose clip has the stretched length evaluates
+the curves in real clip time. Stretched pixel frame s shows real frame r(s) (the held copies of a frame all show it) and
+takes the curve at r(s) / 24 s; audio is stretched continuously by Audio Smear, so an audio frame takes the curve at its
+start mapped piecewise linearly through the holds. A clip with the real length samples as without a hold map.
 """
+import json
 import math
 
 import numpy as np
@@ -111,9 +117,14 @@ def clip_clock(latent_t, audio_t):
     return [range(starts[i], starts[i + 1]) for i in range(latent_t)], np.arange(audio_t) / AUDIO_LATENT_FPS, starts[-1] / FPS
 
 
-def frame_weights(spec, latent_t, audio_t, features=None):
-    """-> (M per video latent frame, M per audio latent frame), lists of floats."""
+def frame_weights(spec, latent_t, audio_t, features=None, holds=None):
+    """-> (M per video latent frame, M per audio latent frame), lists of floats; holds: the stretched clip's hold map."""
     frames, audio_times, duration = clip_clock(latent_t, audio_t)
+    if holds is not None:
+        real = np.repeat(np.arange(len(holds)), holds)
+        frames = [real[r.start:r.stop] for r in frames]
+        audio_times = np.interp(audio_times, np.cumsum([0] + holds) / FPS, np.arange(len(holds) + 1) / FPS)
+        duration = len(holds) / FPS
     f = curve_fn(spec, duration, features)
     video = [float(np.mean(f(np.array(r) / FPS))) for r in frames]
     audio = [0.] * audio_t if spec["audio"] == "protect" else [float(v) for v in f(audio_times)]
@@ -166,23 +177,32 @@ class TimeCurveSampler:
     """Sampler wrapper; rows [(label, dial, strength, spec)] with the same spec share one dialled branch (shifts summed in
     float64). The clip's latent shapes come from the model being sampled."""
 
-    def __init__(self, rows, features, node_id=None, report=""):
+    def __init__(self, rows, features, holds=None, node_id=None, report=""):
         self.rows = rows
         self.features = features
+        self.holds = holds
         self.node_id = node_id
         self.base_report = report
 
     def compile(self, sigmas, latent_shapes):
         latent_t, audio_t = latent_shapes[0][2], latent_shapes[1][-1]
+        frames = clip_clock(latent_t, 0)[0][-1].stop
+        holds, clock = self.holds, ""
+        if holds is not None and frames == len(holds):
+            holds, clock = None, f", real time ({frames} frames, the hold map's real length)"
+        elif holds is not None:
+            if frames != sum(holds):
+                raise ValueError(f"the rack's hold map covers {len(holds)} real and {sum(holds)} stretched frames, but this sampler's "
+                                 f"clip has {frames}: wire hold_map_used from the H3 Time Smear that made this clip")
+            clock = f", curves in real time through the hold map ({len(holds)} real frames stretched to {frames})"
         groups = {}
         for label, dial, strength, spec in self.rows:
             groups.setdefault(repr(spec), (spec, []))[1].append((label, dial, strength))
         compiled = []
         for spec, rows in groups.values():
             shift = core.rack_post_shift(rows)["vec"] if len(rows) > 1 else rows[0][1]["vec"] * rows[0][2]
-            compiled.append((" + ".join(label for label, _, _ in rows), shift, spec, *frame_weights(spec, latent_t, audio_t, self.features)))
-        seconds = clip_clock(latent_t, 0)[2]
-        return TimeCurveForward(compiled, sigmas, f"a {seconds:.3f} s clip ({latent_t} video, {audio_t} audio latent frames)")
+            compiled.append((" + ".join(label for label, _, _ in rows), shift, spec, *frame_weights(spec, latent_t, audio_t, self.features, holds)))
+        return TimeCurveForward(compiled, sigmas, f"a {frames / FPS:.3f} s clip ({latent_t} video, {audio_t} audio latent frames){clock}")
 
     def __call__(self, executor, model, sigmas, extra_args, *args, **kwargs):
         compiled = self.compile(sigmas, model.inner_model.latent_shapes)
@@ -197,8 +217,9 @@ class TimeCurveSampler:
         return executor(model, sigmas, extra_args, *args, **kwargs)
 
 
-def apply_rack(model, rows, specs, curve_audio=None, node_id=None, report=""):
-    """rows [(label, dial, strength)] with their time specs, on a clone. Returns (report lines, UI data for the curves)."""
+def apply_rack(model, rows, specs, curve_audio=None, hold_map=None, node_id=None, report=""):
+    """rows [(label, dial, strength)] with their time specs, on a clone; hold_map: H3 Time Smear's hold_map_used JSON.
+    Returns (report lines, UI data for the curves)."""
     if core.text_path(model).family != "MiniMax H3":
         raise ValueError("time curves support MiniMax H3 only (they blend video and audio latent frames); remove the row's time curve")
     specs = [check_spec(s) for s in specs]
@@ -211,7 +232,8 @@ def apply_rack(model, rows, specs, curve_audio=None, node_id=None, report=""):
             raise ValueError("an audio-driven time curve needs the music: connect it to the rack's curve_audio input")
         features = audio_features(curve_audio)
     model.add_wrapper_with_key(WrappersMP.SAMPLER_SAMPLE, WRAPPER_KEY,
-                               TimeCurveSampler([(*row, spec) for row, spec in zip(rows, specs)], features, node_id, report))
+                               TimeCurveSampler([(*row, spec) for row, spec in zip(rows, specs)], features,
+                                                [int(h) for h in json.loads(hold_map)["holds"]] if hold_map else None, node_id, report))
     text = "\n".join(f"  {label}: {spec['type']} curve, first {spec['steps']} steps, audio {spec['audio']}" for (label, *_), spec in zip(rows, specs))
     ui = {}
     if curve_audio is not None:

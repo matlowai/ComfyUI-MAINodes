@@ -75,13 +75,16 @@ class DialRack(io.ComfyNode):
                 io.Audio.Input("curve_audio", optional=True,
                                tooltip="Music for audio-driven time curves: give H3 the same track as reference audio. "
                                        "Its waveform shows under the rows' time curves after a run."),
+                io.String.Input("hold_map", optional=True, force_input=True,
+                                tooltip="De-rope: hold_map_used from H3 Time Smear. Time curves then follow real clip time in the "
+                                        "stretched second pass; a clip with the real length samples as without it."),
             ],
             outputs=[io.Model.Output()],
             hidden=[io.Hidden.unique_id],
         )
 
     @classmethod
-    def execute(cls, model, rack, dials=None, curve_audio=None) -> io.NodeOutput:
+    def execute(cls, model, rack, dials=None, curve_audio=None, hold_map=None) -> io.NodeOutput:
         rows = json.loads(rack or "[]")
         if not isinstance(rows, list):
             raise ValueError("rack must be a JSON list of rows")
@@ -89,7 +92,7 @@ class DialRack(io.ComfyNode):
         if any(r.get("solo") for r in active):
             active = [r for r in active if r.get("solo")]
         if any(r.get("time") for r in active):
-            return cls.timed(model, active, dials, curve_audio)
+            return cls.timed(model, active, dials, curve_audio, hold_map)
         applied, holds = [], []
         for r in active:
             label, dial = row_dial(r, dials)
@@ -128,7 +131,7 @@ class DialRack(io.ComfyNode):
         return io.NodeOutput(m, ui=ui.PreviewText(report))
 
     @classmethod
-    def timed(cls, model, active, dials, curve_audio):
+    def timed(cls, model, active, dials, curve_audio, hold_map):
         """Rows with a time curve blend over clip time (timecurve.py) on top of the model the other rows make."""
         timed = [r for r in active if r.get("time")]
         if any(r.get("hold") for r in active):
@@ -143,7 +146,7 @@ class DialRack(io.ComfyNode):
             core.check_family(dial, path)
         m = out.result[0].clone()
         report = (out.ui.as_dict()["text"][0] + "\n" if rest else "") + core.rack_report(rows)
-        text, data = timecurve.apply_rack(m, rows, [r["time"] for r in timed], curve_audio, cls.hidden.unique_id, report)
+        text, data = timecurve.apply_rack(m, rows, [r["time"] for r in timed], curve_audio, hold_map, cls.hidden.unique_id, report)
         return io.NodeOutput(m, ui={"text": [report + "\n" + text], "timecurve": [data]} if data else ui.PreviewText(report + "\n" + text))
 
 

@@ -1220,7 +1220,9 @@ class DialRackUI {
     const box = this.el("div", { display: "flex", flexDirection: "column", gap: "4px", padding: "6px", background: "#1b1d23",
       border: "1px solid #2f323b", borderRadius: "4px" }, this.list);
     const bar = this.el("div", { display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }, box);
-    this.el("span", { color: "#888" }, bar, `${name} · clip time`);
+    const held = this.node.inputs?.some((i) => i.name === "hold_map" && i.link != null);
+    this.el("span", { color: "#888" }, bar, `${name} · clip time`).title = held
+      ? "hold_map connected: times are real clip time; in the stretched de-rope pass they are mapped through the hold map" : "";
     const save = () => { this.commit(); this.render(); };
     const select = (parent, options, value, title, cb) => {
       const e = this.el("select", { background: "#111", color: "#ddd", border: "1px solid #333" }, parent);
