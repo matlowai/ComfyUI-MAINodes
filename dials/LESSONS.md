@@ -1,6 +1,6 @@
 # Dials: lessons learned
 
-What the 2026-10-30 to 11-01 sessions taught, so nobody has to relearn it. Numbers are from Pika H3 Flex (6 steps), mostly
+What the 2026-10-30 to 11-01 sessions taught (updated at the end of 2026-11-01), so nobody has to relearn it. Numbers are from Pika H3 Flex (6 steps), mostly
 one seed; treat them as starting points.
 
 ## Writing pairs
@@ -19,6 +19,18 @@ one seed; treat them as starting points.
 - **Equal slider numbers are not equal pushes.** Dials differ in size (a picture dial came out 0.6x its text twin), so
   compare dials at matched size, and use the map's combined-push readout.
 - **Prompt sets are clean:** weighted `+`/`-` lines gave pair agreement 0.97; one `+1` and one `-1` line equal a pair.
+
+- **Don't give every dial the same pleasant pole.** MOSS's day/night, grade and weather dials all had a "sunny, calm,
+  pleasant" A side, so all three negatives pulled toward the same close-up tourist portrait. Give each A side its own
+  neutral opposite. (v2 pairs not yet built.)
+- **Keep time-of-day words out of a grade dial** ("sunset" vs "moonlight" put a sun in the frame), and keep actions out
+  of weather ("pouring", "raging" made the person lunge).
+- **A prompt that fights the test dial hides it:** a yellow raincoat made "calm, dry" look like a failed dial.
+- **Asking for UI in the prompt gets UI:** "floating interface overlays, HP bar, skill window" produced a HUD menu in the
+  video; removing the line removed it. "A clean cinematic frame" is enough.
+- **A strong look dial replaces the character.** Psychedelic at +2.5 turned a dancer into a chrome fox and a rave outfit
+  (and an exposed one); a detailed outfit in the prompt made her recognisable again when it switched off, but didn't hold
+  her through the "on". Use a lower strength or a hold pair on the outfit, and keep public demos clearly SFW.
 
 ## Picture dials
 - **H3 reads the picture first:** each picture is encoded as `<Picture 1>: [image] <prompt>`, so every prompt word
@@ -65,6 +77,29 @@ one seed; treat them as starting points.
 - **Beware "equal total gain" normalization.** It forced the early envelope to a 12x peak on step 1, which scrambled the
   scene; that was a 12x dial, not "earliness". Compare envelopes at equal peak as well.
 - **An early kick (+6) is a creative tool,** reproducible per seed and dial-specific, not a controlled edit.
+
+## Time curves (clip-time strength inside one generation)
+- **Colour and style dials switch fast; lighting dials ramp slowly.** A psychedelic dial followed an on/off curve at
+  r = 0.93 and switched within 0.1-0.2 s; a day/night dial ramped over about 1.5 s with about 20% leaking into the "off"
+  half. Neither follows individual drum hits (a beat is 0.33 s).
+- **Levels between 0 and 1 are exact; levels outside extrapolate.** The blend is `v0 + M(v_dial - v0)` on predictions, so
+  M = -2 is not a true strength of -2 and froze nothing (motion 4.7 at the impact vs 1.0 for the stacked rows). Build a
+  curve that needs other strengths from stacked rows of the same dial, each with a 0-1 curve: a +0.5 constant, a +0.5 pulse
+  into the wind-up and a -2.5 pulse at the impact gave net 0.5 -> 1 -> -2 -> 0.5. (A true-strength blend between
+  predictions computed at the needed strengths is on the roadmap.)
+- **A motion dial at -2 for a second is a hit-pause:** mean frame change at a punch's impact fell from 8.8 (control) to 1.1
+  at -2 and 0.08 at -4, with a lurch (a motion spike) at each end of the freeze.
+- **In a de-rope run, the second stage is a longer clip.** Time Smear stretches the clip (124 to 277 frames on the charge
+  scene), so a curve defined as a fraction of the clip landed 0.3-0.5 s early in real time. The rack's `hold_map` input fixes
+  this, but Time Smear runs after stage 1, so stage 2 needs its own copy of the rack (same rows) with `hold_map_used` wired
+  in; one rack can't feed both (dependency cycle). A single-rack "attach hold map to MODEL" node is on the roadmap.
+- **Audio protect works but isn't perfect:** speech errors 0.29 to 0.00 in 3 of 4 cases, loudness +1.8 to +0.1 dB;
+  voice energy on one seed stayed bad. The video keeps 67-80% of the dial's effect.
+- **A lazy If/Else Switch skips the de-rope stage:** off 75 s (identical to pass 1), on 330 s (identical to the de-roped
+  clip), so one checkbox can replace a second workflow.
+- **Scene stability:** even a plain control clip can cut between a foreground view and a wide view; a freeze adds a lurch
+  at both ends. Anchoring with a first/last frame or a reference image is being tested (results in the study folder
+  `codex/punch_ref/` when done).
 
 ## Time and space
 - A prompt-side dial cannot vary over clip time: every frame reads the same prompt. Clip-time control needs a time
@@ -126,3 +161,18 @@ one seed; treat them as starting points.
 - **Scrub example workflows for absolute paths;** some node packs store a second copy in `widgets_values_named`.
 - **`flock` hands its lock to child processes:** start a long-lived server with `flock -o`, or it holds the lock.
 - **Test examples through the UI's Run button,** not only the API: it catches widget, layout and frontend problems.
+- **ComfyUI's workflow undo grabs Ctrl+Z** before a custom widget sees it: route editor keys through a hidden read-only
+  input. Background re-renders also drop keyboard focus, so restore it.
+- **Presets must be copied, not shared,** or a drag edits the built-in constant.
+- **A time-curve row is a blend of two model calls,** so levels are limited to 0-1 for exactness; the editor now reaches
+  negative levels and shows effective strength (level x row strength) because rows multiply.
+- **Dials in a subgraph:** ComfyUI loads subgraph blueprints shipped at `<custom_node>/subgraphs/*.json`; a lazy If/Else
+  Switch plus a boolean is the clean way to make de-rope optional.
+- **Working with several Claude agents:** brief them like peers (goal, files, rules, how to verify); give each its own
+  git worktree and have it fast-forward MAIN under `flock`; give a strong model (Opus) the items that need careful reading
+  of several systems; the auto-mode safety check blocks an agent from a GPU its brief told it never to touch, so tell it
+  which servers are its own. Two GPU lanes (study servers on :8288 and :8289) roughly halve wall-clock for render batches.
+- **Review before pushing:** run the full test suite, scan the diff for private paths and names, and look at the
+  screenshots yourself; several agents' own checks missed layout and wording problems.
+- **Private material stays local:** Dylan's music tracks drive local tests only; public pages use clips whose soundtrack
+  comes from the prompt.

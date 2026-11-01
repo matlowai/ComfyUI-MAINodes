@@ -95,6 +95,9 @@ live inside the generation; a V2V pass is too slow to be the main route.
       without it on charge2: the ramp landed 0.32-0.47 s early (exact, from the map). The rack that takes the map can only
       feed stage 2 (Time Smear runs after stage 1), so stage 2 gets a copy of the rack. Step envelopes and block profiles
       have no clip-time axis and need no link.
+- [ ] **True strength curves:** blend between predictions computed at the strengths a curve needs (e.g. -2, 0, 0.5, 1) so
+      levels outside 0-1 work and one row can do a signed envelope (today: stack rows with 0-1 curves, see LESSONS). Costs one
+      extra model call per distinct strength in the first k steps; warn in the editor for levels outside 0-1 until then.
 - [ ] **Route 2, blend inside attention (research):** two text copies (without / with the dial); video and audio tokens
       at time t mix their attention to them by M(t). Nearly free and per token at every step; needs a per-query
       attention bias or a second attention call per block.
@@ -164,6 +167,17 @@ Keep every node, but give most people a clean front door. ComfyUI loads subgraph
   "here are three options" menu format and sentence-shape habits don't move (decided in the first reply tokens).
 - Next: pool only the first reply tokens for format habits; 24+ varied cliché/specific pairs; blind preference reads;
   per-head analysis at the best layer; the picture-pair dial applied while the VLM captions an image.
+
+## Status at the end of 2026-11-01
+- `main` and `dials-rack` are at the same commit (merged at Dylan's request; version 1.2.0). Done since the first push: atlas,
+  picture groups and framing, MOSS-Image (Krea 2 partial), per-block strengths, time curves with a mouse-editable editor
+  (negative levels, scaling, multi-select, zoom), hold-map link, dial editor, help guides, README capability section.
+- Staged, not published: a demo-page update (Dials GitHub Pages lives in ComfyUI-Dials `docs/`); it needs a replacement for
+  the psychedelic video (Dylan: not great for work): the punch hit-pause clip.
+- Open, in order: scene anchoring for the punch demo (first/last frame or reference image); the single-rack hold-map node;
+  Workstream 6 (Simple subgraphs, calmer rack rows, de-rope switch); true strength curves; MOSS v2 pairs; Krea 2 seam before
+  its RMSNorm; style review of the Codex-written parts; dial pack 2 on Hugging Face (needs Dylan's go).
+- Dropped by Dylan: a base-H3 20-step retest (20 steps isn't right for de-rope anyway).
 
 ## Later / research
 - **Dial Doctor (back burner, Dylan 2026-11-01):** help people make better dials. Tiers: (0) a pair linter in Make Dial
