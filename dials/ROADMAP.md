@@ -78,6 +78,10 @@ live inside the generation; a V2V pass is too slow to be the main route.
 - [x] **Strength over denoising steps** = step envelopes (D2). Finding (eval29, Pika 6-step): prompt-side dials act only
       in the first steps; late envelopes at +2 and +8 change nothing; an early kick (+6) scrambles the scene in a
       dial-specific way. Next: test base H3 20-step, where a late "style pass" might exist.
+- [x] **Route 1 built (2026-11-01, `timecurve.py`, README "Time curves"):** identity exact on GPU (M = 0 / 1 pixel-identical);
+      no seams, but the dial leaks across the clip through the shared latent (M = 0 half gets ~20 %, M = 1 half 80–90 %,
+      seed 42; weak on seed 43) and changes ramp over 1.4–2 s; k = 1-6 alike, so use k = 1-2 (1.12x / 1.24x).
+      Not beat-accurate on music. Next: route 2 for sharper timing. Original plan:
 - [ ] **Route 1, two-branch blend in the early steps (build first):** run the first k steps without and with the dial
       and blend predictions per latent frame, `v = v0 + M(t)·(v_dial − v0)`, with separate video and audio curves; dial
       off after step k. About 1.33x on Pika (k = 2). Checks: M = 0 is bit-identical to no dial, M = 1 equals today's dial.
@@ -100,7 +104,9 @@ live inside the generation; a V2V pass is too slow to be the main route.
 Some dials break speech or Foley (expressive face +4.8 dB; evil dials change voices). Score each option on dials known
 to hurt audio: loudness change, Whisper word error rate against the undialled clip, spectral distance, and the video
 effect size. Single-seed results say so.
-- [ ] **E1:** route 1 with the audio curve at 0 (audio predictions from the undialled branch).
+- [x] **E1:** route 1 with the audio curve at 0 (audio predictions from the undialled branch). 2 seeds: face +1 voice gain
+      +2.6 -> +0.8 dB mean, voice energy +1 +5.0 -> +2.2 dB; video 0.7-0.8 of the dial's; k = 2 as good as k = 6; partial
+      (audio still reads dialled video). Row option "audio: protect" shipped.
 - [ ] **E2:** route 2 with audio tokens reading the undialled text copy.
 - [ ] **E3:** per-block strengths: leave the dial out of the blocks where audio queries attend most to text.
 - [ ] **E4:** compare with the A/V split in ComfyUI-Dials' `experimental/split-and-dial-to-lora`; the winner becomes a

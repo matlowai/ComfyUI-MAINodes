@@ -59,6 +59,12 @@ one seed; treat them as starting points.
 ## Time and space
 - A prompt-side dial cannot vary over clip time: every frame reads the same prompt. Clip-time control needs a time
   mask in a V2V pass (on/off per latent token), two-branch prediction blending, or a video-token / attention seam.
+- **Blending predictions per frame does not keep a dial in its frames.** With route 1 (plain and dialled predictions
+  blended per latent frame) the undialled frames still pick up about a fifth of the dial, because both branches read
+  the same partly dialled latent; changes ramp over 1.5-2 s and miss 0.33 s beats. Blending on more steps changes
+  nothing on Pika (k = 1-6 alike). Fine for sections and slow swells; beat-accurate needs another seam.
+- **Keeping the soundtrack on the undialled branch removes most, not all, of a dial's audio change** (voice energy
+  +5.0 -> +2.2 dB over 2 seeds): the audio tokens still attend to the dialled video.
 
 ## LLM dials (Gemma 4 31B)
 - **Read the outputs, not only the proxies.** A regex said "zero slop words" at +2 while the text still opened with

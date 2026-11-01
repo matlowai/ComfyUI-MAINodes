@@ -196,8 +196,20 @@ the change lands within ±5 frames of the step on seed 42 but as a ramp over 1.4
 still gets about 20 % of the darkening and the M = 1 half reaches 80–90 % (seed 42); on seed 43 the two halves differ
 only weakly. The leak comes through the shared latent (the undialled branch sees the dialled frames), so more steps do
 not fix it: k = 1, 2, 3 and 6 give the same transition (k = 1 already carries 86 % of the constant dial's darkening,
-k = 2 97 %), at 1.12x, 1.24x, 1.37x and 1.73x the render time. Use k = 1 or 2 and broad curves. CPU contracts:
-`tests/test_dial_timecurve.py`.
+k = 2 97 %), at 1.12x, 1.24x, 1.37x and 1.73x the render time. Use k = 1 or 2 and broad curves (changes over a
+second or more, sections rather than beats).
+
+**Audio-driven (8 s dancer clip, the track as H3 reference audio or anchored at frame 0, 1 seed):** H3 carries the
+music in time (onset envelope r = 0.78 as reference audio, 0.97 anchored), and the curve sets how much of the dial the
+clip gets (motion onset curve, mean M 0.49: a quarter of the constant dial's frame-difference change), but visible
+changes do not follow individual hits at this track's 0.33 s beat: per-frame effect vs M after removing the 1 s trend,
+r = 0.16 / −0.01 (motion) and −0.17 / −0.07 (day/night), all inside the shuffled-curve range.
+
+**audio: protect (2 seeds, kitchen dialogue, dial +1):** the expressive-face dial's voice gain fell from +1.8 / +3.3 dB
+to +0.1 / +1.4 dB and the voice-energy dial's from +5.5 / +4.6 dB to +0.6 / +3.8 dB, while the video stayed close to
+the dialled one (0.7–0.8 of the way from no dial to the dial, by pixel distance); k = 2 protects about as well as all
+six steps. The soundtrack still reads the dialled video through attention, so protection is partial and seed-dependent.
+CPU contracts: `tests/test_dial_timecurve.py`.
 
 ## Writing good pairs
 
