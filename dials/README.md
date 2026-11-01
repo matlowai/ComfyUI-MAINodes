@@ -100,7 +100,27 @@ without info are all unknown; version 1 info (one useful/overcook pair) reads as
 
 ## Example workflows
 
-**Start with the Pika + de-rope graphs.** Each runs a 6-step Pika H3 Flex pass with one Dial Rack feeding both passes,
+### Simple start
+
+Open [dials_simple_pika_derope.json](../examples/dials/dials_simple_pika_derope.json) ([api](../examples/dials/dials_simple_pika_derope_api.json)),
+or drag **Dials - Pika H3 + De-rope** from the node library (Subgraph Blueprints > MAINodes > Dials) and wire
+Load Diffusion Model (H3) -> Pika H3 Flex LoRA -> Dial Rack -> its `model` input. Four controls matter:
+
+1. **prompt** on the blueprint (Pika H3 layout: scene, soundscape, music); `first_frame` is optional.
+2. **Dial Rack** rows: tick a dial, drag its strength (about 1 is everyday, 1.5 shows side effects).
+3. **seed** and **length** (141 frames = 5.9 s at 24 fps).
+4. **de-rope**: off renders one pass; on adds the second pass that slows the jerky stretches and maps them back to
+   real time. Pass 1's audio is kept.
+
+What de-rope costs on one RTX 5090 (1280x704, 141 frames, Pika 6-step, seed 42): off 75 s, on 276 s. Turning it on
+after an off run of the same take reuses pass 1 from ComfyUI's cache: 202 s. With it off, stage 2 does not run (a lazy
+If/Else Switch). The same rack drives both passes; **Dial Hold Map** inside keeps time-curve rows in real time.
+**Dials - Pika H3** is the same blueprint without de-rope. The rack sits outside the blueprint because its rows can't be
+shown on a subgraph node. Double-click a blueprint to see or change the graph inside.
+
+### Full graphs
+
+**The Pika + de-rope graphs** show every node. Each runs a 6-step Pika H3 Flex pass with one Dial Rack feeding both passes,
 then a de-rope pass on the jerky stretches (H3 Jerk Oracle → hold frames → V2V Init at inject 0.48 → Exact Recover).
 The de-rope audio stage keeps pass 1's audio: V2V Init's audio rows are seeded with "follow the original performance"
 and Audio Recover is set to "keep the original performance", so the dialogue and foley from pass 1 survive. Both the
