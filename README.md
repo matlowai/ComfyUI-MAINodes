@@ -1,8 +1,12 @@
 # ComfyUI-MAINodes
 
-Custom nodes for MiniMax-H3. Two groups: **Motion Lab** (a test-time fix
-for fast-motion smearing) and **Contact-Sheet diffusion** (five views of
-one subject from one reference image).
+Custom nodes for MiniMax-H3. Three groups: **Motion Lab** (a test-time fix
+for fast-motion smearing), **Contact-Sheet diffusion** (five views of
+one subject from one reference image), and **Dials** (alpha): training-free
+steering sliders you make from prompt pairs or pictures, stack in a Dial
+Rack, and vary over clip time. Dials also run on MOSS-Image and, with
+limits, Krea 2. Try them: [`dials/README.md`](dials/README.md) and the
+`examples/dials/*_pika_derope*` workflows.
 
 Like it? A star helps. Want to feed the GPU? [Sponsor the experiments](#support-mainodes).
 
