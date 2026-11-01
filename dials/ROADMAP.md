@@ -1,95 +1,102 @@
 # Dials roadmap
 
-Order follows the 4D Control Field blueprint (`MATLOWAI_Dials_4D_Control_Field_Research_and_Implementation_Blueprint.md`,
-2026-10-30): ship the simple rack, then denoising envelopes, and earn spatial and clip-time control with H3 renders.
-Evidence for the 2026-10-31 items is in the study `studies/2026-10-28-h3-motion/codex/` (B*, C*, D*, A* reports) and
-`studies/2026-10-31-llm-dials/E3_E6_NOTES.md`.
+Dials are training-free steering vectors for MiniMax H3 made from prompt (or picture/video) contrasts. Work happens on
+the MAINodes branch `dials-rack` (local, not pushed; ComfyUI-Dials stays stable). Lessons learned: `dials/LESSONS.md`.
+Designs: `dials/docs/INTERACTION_ATLAS.md` (atlas), the 4D Control Field blueprint (automation order). Evidence for the
+2026-10-31 items lives in the H3 motion study (`codex/` A-D reports, `renders/eval25-30`) and the LLM dial study.
 
-## Now: first MAINodes release (everything on `dials-rack`, as alpha)
-- [x] **Multi-dial loader = Dial Rack.** Asked for in the community on 2026-10-31 ("gonna need a multi dial loader
-      soon, i'm getting spaghetti mode chaining dial apply"). Rows with on/off, strength, solo; wired dials become rows.
-- [x] Same-seed H3 render parity (B1): one row, four rows and all-off match the single-dial chain pixel for pixel.
-- [x] Example workflows: one dial, four dials, Pika + rack (B3, rendered).
-- [x] Rack presets: versioned JSON with dial names, SHA-256 hashes, strengths, on/solo; missing-file and hash warnings.
-- [x] Make Dial hold pairs (`!`), named hold groups (`![loudness]`), word weights (`(words:w)`); hold rows in the rack.
-- [x] Step envelopes (constant, early, late, bell, manual) compiled onto the sampler's sigmas; a constant envelope
-      reproduces the plain hook exactly (D2, D3).
-- [x] Make Dial from pictures and from video pairs (C1, C4): alpha, limits documented below.
-- [ ] Review pass on the Codex-written parts (presets, hold rows, envelopes, video dial, rack JS) for pack style.
-- [ ] Row order: reversing four rows changed a render (MAD 38/255, B1) although post rows add commutatively; isolate
-      pre vs post rows and dtype rounding (B6), and decide whether to sum post rows once in float32.
-- [ ] Dylan's hands-on pass on the rack UI in the real front end (only driven headless so far).
-- [ ] Dial pack 2 notes (draft in the study's `codex/A5_pack2_notes.md`); ship the dials that passed 3 seeds.
+## Done (alpha on `dials-rack`)
+- **Dial Rack** (the multi-dial loader the community asked for, "spaghetti mode chaining dial apply"): rows with on/off,
+  strength, solo, hold; wired dials become rows; presets; step envelopes. One row, four rows and all-off match the
+  single-dial chain pixel for pixel (B1).
+- **Map:** two rows on a 2D square, the dot is your prompt; saved pairings as chips; only the map resizes; Shift for fine
+  moves; Sweep 3×3; ellipses, auto range and axis labels from each dial's info.
+- **Make Dial:** pairs, hold pairs (`!`, `![group]`), word weights (`(words:w)`), pair weights (`A ||| B :: w`), prompt
+  sets (`+w prompt` / `-w prompt`); Make Dial from Pictures and from Videos (alpha); Combine Dials.
+- **Dial info in the dial file** (description, − / + labels, useful, overcook), set in every Make Dial node and edited
+  with ⚙ in the rack (metadata only; presets hash the vector). 37 dials seeded from the 2026-10-31 Pika renders.
+- **Example workflows:** Pika H3 Flex + de-rope with pass 1's audio preserved, for the rack, the picture dial and the
+  prompt set (`examples/dials/*_pika_derope*`), all rendered end to end.
 
-## Interaction atlas (design: `dials/docs/INTERACTION_ATLAS.md`, 2026-10-31)
+## Release blockers (before pushing to matlowai)
+- [ ] Dylan's hands-on pass in the real UI (restart ComfyUI to load the info routes).
+- [ ] Rebuild the three de-rope examples so their Make Dial nodes carry info (re-runs otherwise save default info).
+- [ ] Row order (B6): reversing four rows changed a render (MAD 38/255) although post rows add commutatively; isolate
+      pre vs post rows and bf16 rounding; consider summing post rows once in float32.
+- [ ] Review the Codex-written parts once more for pack style (presets, hold rows, envelopes, video dial).
+- [ ] Dial pack 2: ship the dials that passed 3 seeds (draft notes: study `codex/A5_pack2_notes.md`), with their info.
 
-Same-space vector math is exact; semantic labels are hypotheses; "overcooked" needs render evidence. Status here:
+## Workstream 1: interaction atlas (design `dials/docs/INTERACTION_ATLAS.md`)
+Rule: same-space vector math is exact; semantic labels are hypotheses; "overcooked" needs render evidence. No new
+Qwen or DiT passes during sampling; the user's strengths are never changed silently.
+- [ ] **Info v2 (first, it changes the file format):** separate negative and positive useful/overcook (the lizard dial
+      only works on one side); unknown as a real state (null, drawn as a grey dashed ring, never green); evidence kind
+      (creator-set / one seed / multi-scene) and pipeline (base H3 / Pika); optional failure notes. Old files and v1
+      info keep loading.
+- [ ] **Interaction matrix:** for the active post rows, each pair's signed share of the combined shift
+      (`s_i·s_j·v_i·v_j` over `|Σ s_i v_i|²`), reinforcing vs cancelling, and "who pushes" per row; in the rack report
+      and as a small matrix next to the map.
+- [ ] **Combine Dials provenance:** exact recipe in the file (weights, orthogonalize, parent vector hashes, result
+      hash); fix orthogonalize against a zero vector.
+- [ ] **Probe bank:** 12-16 bipolar probes built with Make Dial at the post-refiner seam (motion, camera, light, colour,
+      time of day, weather, texture/material, style, expression, mood, crowd/scene, voice), held-out subjects, matched
+      lengths; versioned; probes whose held-out agreement is weak are dropped or renamed.
+- [ ] **Per-dial profiles:** direct probe coefficients `s·(v·p)/(p·p)` and a ridge joint fit with the unexplained share
+      shown; cached by vector hash + bank version.
+- [ ] **Influence wheel:** fixed sectors, one coloured layer per dial, signed in/out around a zero ring, hover = per-dial
+      contributions; grey until a sector has calibration evidence.
+- [ ] **Drop a point on the frontier and move it (Dylan):** probes are dials, so a manual offset in one direction is a
+      probe row with a strength; drag a wheel sector to add/remove that probe, or ask for rack strengths that best
+      reach a target shape (least squares over the active rows, shown as a suggestion).
+- [ ] **Time × concept heatmap** (once automation exists): video time across, probes down, colour = summed steering.
+- Research, only after the above: seed-matched calibration sweeps to earn warnings; automated contrast search;
+  prompt-aware pre-refiner response; a shared H3 post-refiner SAE if probes miss real structure; denoiser interaction
+  residuals `f(A+B)-f(A)-f(B)+f(0)`, later for LoRAs.
 
-- **P0 vector math and provenance.** Have: pairwise cosines in the rack report, the map's overlap and combined-push
-  readout, presets keyed on the vector hash. Missing: a full signed interaction matrix in the rack (each pair's
-  `s_i·s_j·v_i·v_j` share of the combined shift, reinforcing vs cancelling, "who pushes"), a stable vector id in the
-  file, Combine Dials' exact expression tree (weights, orthogonalize, parent hashes), and Combine's zero-vector
-  orthogonalize (divides by `|b|²`).
-- **P0/P1 per-dial calibration.** Have: description, side labels, symmetric useful/overcook in the file, the ⚙ editor,
-  37 dials seeded from today's Pika renders. Missing: separate negative and positive ranges (the lizard dial only
-  works on one side), "unknown" as a real state drawn as a grey dashed ring instead of defaulting to 1 / 1.5,
-  evidence kind and scope (creator-set / one seed / multi-scene; base H3 vs Pika), failure categories.
-- **P1 probe atlas + influence wheel.** 12-16 bipolar probes built with Make Dial at the post-refiner seam (held-out
-  subjects, matched lengths), a versioned probe bank, per-dial profiles (direct affinity and a ridge joint fit with
-  the unexplained share shown), and a wheel: fixed sectors, one coloured layer per dial, signed in/out around a zero
-  ring, hover = per-dial contributions. Grey until a sector has calibration evidence; no red without it.
-- **Dylan: drop a point on the frontier and move it.** Probes are dials, so a manual offset in one direction is just a
-  probe row in the rack with a strength. On the wheel: drag a sector to add or remove that much of its probe (an
-  offset row), or ask for the rack strengths that best reach a target shape (least squares over the active rows,
-  shown as a suggestion, never applied silently).
-- **P2 and research:** seed-matched calibration sweeps (motion, speech/WER, prompt drift) to earn the warnings;
-  automated contrast search; prompt-aware pre-refiner response; a shared H3 post-refiner SAE (only if the probe atlas
-  misses real structure); denoiser interaction residuals `f(A+B)-f(A)-f(B)+f(0)`, later for LoRAs.
+## Workstream 2: dial automation (DAW-style)
+Two different clocks: denoising steps (when during sampling) and video time (when in the finished clip).
+- [x] **Strength over denoising steps** = step envelopes (D2). Finding (eval29, Pika 6-step): prompt-side dials act only
+      in the first steps; late envelopes at +2 and +8 change nothing; an early kick (+6) scrambles the scene in a
+      dial-specific way. Next: test base H3 20-step, where a late "style pass" might exist.
+- [ ] **Dial envelope format:** one reusable curve type (keyframes, interpolation, normalized time) usable for steps and
+      for video time, with an optional audio-envelope input.
+- [ ] **Dial on a time window (works with existing nodes):** render the clip, then a V2V pass with the dial on and H3
+      V2V Init's time-varying mask regenerating only frames t0..t1 (rest frozen, audio from pass 1). On/off per latent
+      token (about 3-4 frames); align edges to the 17-frame grid. Needs a small "Dial Time Window" node and a Pika
+      workflow (pass 1 -> windowed dial pass -> de-rope).
+- [ ] **Temporal steering prototype (baseline first):** two denoiser evaluations per step on the same latent, without
+      and with the dial, blended by a keyframed mask: `v_out = v0 + M(t,x,y)·(v_dial - v0)`. About 2x sampling cost; no
+      new dial math. Measure time leakage, flicker, effect on audio, and overhead.
+- [ ] **Faster per-frame route (after the baseline):** attention blend (video tokens at frame t attend to
+      "prompt + w(t)·dial", text computed at a few strength levels and merged) or per-frame video-token injection
+      (Concept Lab route; needs validated video-space directions).
+- [ ] **Audio-reactive envelopes:** RMS loudness, onsets and transients from an existing audio file turned into strength
+      keyframes (camera shake on drum hits, mood rising with a crescendo). For H3's own audio: two passes (generate,
+      analyse, re-render with the envelope); a live reaction during sampling is research.
+- [ ] **Animated spatial masks:** extend the proven temporal method with keyframed / tracked masks; temporal consistency
+      at mask edges is the main risk.
 
-## Next
-- **Dials from more than two prompts, with weights (Dylan).** Today a dial is the mean of A->B differences; word weights
-  tilt a phrase, holds remove a quality, Combine Dials mixes two. Next: a per-pair weight (`A ||| B :: 2`) and a
-  "prompt set" mode: several prompts, each with a signed weight (`+1 rain at night`, `+0.5 neon`, `-1 bright daylight`),
-  whose weighted mean, relative to a neutral prompt, is the dial. Test against the same mixture built as separate dials
-  in the rack (should match when the weights are the same).
-- **Picture-contrast dials, proper test.** C3: the lizard picture dial is 0.59x the size of the text dial and only 0.49
-  aligned with it, and was tested at the same slider numbers, so it was under-driven. Re-test at matched norm
-  (-4 to -6), add more varied pictures per side, and try picture + text pairs together.
-- **Video-contrast dials.** C4 built the video-pair route from 2 generated pairs; no timelapse at +2, and the pairs
-  differ in framing and light (confounds). The timelapse prompt control does work on Pika, so: (1) a text timelapse v3
-  using that control's wording (shadows sweep, clouds race, people blur, light changes), (2) video pairs from real
-  matched footage (same camera, time-compressed vs real-time), 6+ pairs.
-- **Envelopes, what they are for.** On Pika 6-step, prompt-side dials act only in the first steps: late at +2 and +8 =
-  base (eval29). An early kick (+6) is a reproducible creative scrambler (day/night: cloaked figure in a dark tunnel).
-  Next: the same test on base H3 20-step, where a late "style pass" might exist.
-- **Dial on a time window (Dylan).** A dial can't vary over clip time at the prompt (every frame reads the same prompt;
-  envelopes are over denoising steps). What works with existing nodes: render the clip, then a V2V pass with the dial on
-  and H3 V2V Init's time-varying mask regenerating only frames t0..t1 (the rest frozen to the clip, audio from pass 1).
-  On/off per latent token (about 3-4 frames), edges can pop unless aligned to the 17-frame grid. Needs a small
-  "Dial Time Window" node (seconds -> token-aligned MASK) and a Pika workflow (pass 1 -> windowed dial pass -> de-rope).
-- **Dial strength over clip time (Dylan), research.** Per-frame strength needs a different seam: (1) attention: let
-  video tokens at frame t attend to "prompt + w(t) x dial" (compute the text part at a few strength levels and merge;
-  text is short, so it's cheap), which reuses today's dial vectors; or (2) video-token injection per frame (Concept Lab
-  route), which needs video-space dial directions and proof they mean the same thing.
-- **A/V per row:** a "video only" toggle on a rack row (ComfyUI-Dials `experimental/split-and-dial-to-lora`: sinister
-  picture, intelligible speech).
-- **Semantic XY pad:** two signed dials on a plane, then four-corner presets. Endpoints must equal the single dials.
+## Workstream 3: dial library
+- [ ] Pack 2 release (see blockers). Rejected so far: handheld v1, shaky v2, storm v1, time feel v1/v2, zero gravity,
+      the squirrel side.
+- [ ] **Picture dials, proper test:** the lizard photo dial is 0.6x the text dial's size and 0.49 aligned; at −4 it gave
+      a lizard-pawed hybrid. Test at matched size (−4 to −6), more varied pictures, picture + text together.
+- [ ] **Video dials:** two generated pairs gave no timelapse; the timelapse prompt itself works on Pika, so try a text
+      timelapse v3 with that wording and real matched footage (6+ pairs).
+- [ ] **Prompt sets:** night-rain set (agreement 0.97) gives evening/night but not visible rain at +1; weight rain up or
+      split it into its own row.
+- [ ] **A/V per row:** a "video only" toggle (sinister picture, intelligible speech), from ComfyUI-Dials'
+      `experimental/split-and-dial-to-lora`.
 
-## Later
-- **Nudge a prompt and drag it (Dylan).** Show the user's own prompt as a point among the dial directions (2D view of
-  the rack's dials, PCA or the two chosen axes), let them drag the point carefully, and render what that position
-  means, with live readouts: how much of each dial, size of the shift, distance from tested territory, and a
-  render-sweep button. Extends the vector-space explorer idea and the XY pad.
-- **Dials for LLMs / VLMs (Dylan), started 2026-10-31 on Gemma 4 31B.** Harness in `studies/2026-10-31-llm-dials`.
-  Style dials work at the middle layer; deslop findings: cliche <-> specific pairs read as the model's own reply work
-  at layer 29 +2; vocabulary steers; the "here are three options" menu format and sentence-shape habits (not just X,
-  em-dash codas, triplets) don't move. Next: pool only the first reply tokens for format habits, 24+ varied
-  cliche/specific pairs, blind preference reads, and the picture-pair dial applied while a VLM captions an image.
-- **Where to steer (Dylan).** The seam matters: as the model's own writing the slop contrast is cleaner than as the
-  user's message; agreement peaks around layers 10-20; format decisions live in the first tokens. Next: per-head
-  analysis at the best layer, then steer only those heads.
-- **Voice-contrast dials.** Audio never enters H3's text encoder, so voice pairs need the DiT's audio-token seam
-  (Concept Lab style capture/inject).
-- **Research bridge (blueprint P4+):** prompt-space dial to video-token direction via Concept Lab; only then clip-time
+## Workstream 4: dials for LLMs / VLMs (study `2026-10-31-llm-dials`, Gemma 4 31B)
+- Style dials (formal, terse, mood, poetic captions) work at the middle layer (29 of 60); late layers collapse.
+- Deslop: cliché ↔ specific pairs read as the model's own reply work at layer 29 +2; vocabulary steers; the
+  "here are three options" menu format and sentence-shape habits don't move (decided in the first reply tokens).
+- Next: pool only the first reply tokens for format habits; 24+ varied cliché/specific pairs; blind preference reads;
+  per-head analysis at the best layer; the picture-pair dial applied while the VLM captions an image.
+
+## Later / research
+- **Voice-contrast dials:** audio never enters H3's text encoder; needs the DiT's audio-token seam.
+- **Research bridge (blueprint P4+):** prompt-space dial -> video-token direction via Concept Lab; then clip-time
   curves, painted regions and the motion-oracle sidechain with De-Rope.
-- **Ideas from DiffSynth-Studio** worth adapting as lab workbench tools once the rack UX is settled.
+- **Ideas from DiffSynth-Studio** as lab tools once the rack UX settles.
