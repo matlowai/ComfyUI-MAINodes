@@ -90,6 +90,11 @@ live inside the generation; a V2V pass is too slow to be the main route.
       source option; per-row curve editor over the clip timeline with the waveform.
 - [ ] **Audio-reactive from the user's music (main case):** the track goes into H3 as reference audio and the same file
       drives M(t): loudness, onsets, beat grid, low / mid / high bands; gain, offset, threshold, attack / release.
+- [ ] **Hold map -> dial envelope link (Dylan):** an optional `hold_map` input on the rack (the De-Rope oracle's map) so
+      clip-time curves are defined in real clip time and warped through the hold map into stage 2's stretched timeline
+      (and Exact Recover maps back). Without it, a curve in a de-rope run is stretched over the longer stage-2 clip and its
+      edges drift by the hold stretch; measure the drift on the charge2 de-rope clips first. Also lets step envelopes and
+      block profiles follow the real timeline.
 - [ ] **Route 2, blend inside attention (research):** two text copies (without / with the dial); video and audio tokens
       at time t mix their attention to them by M(t). Nearly free and per token at every step; needs a per-query
       attention bias or a second attention call per block.

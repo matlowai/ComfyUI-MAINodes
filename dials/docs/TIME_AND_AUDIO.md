@@ -27,6 +27,13 @@ latent with the dial off (on Pika the later steps don't respond to it anyway).
   still reading dialled video tokens through attention.
 - Works for any model the rack supports; on image models M becomes a spatial mask.
 
+## De-rope: curves through the hold map
+H3 Time Smear holds the jerky frames, so stage 2 renders a longer clip than real time, and Exact Recover drops the held
+frames afterwards. A curve defined as a fraction of the clip is stretched over that longer clip, so its edges drift by the
+hold stretch (not yet measured). Plan: an optional `hold_map` input on the rack; a curve keyed in real seconds (or from the
+user's audio, which is real time) is mapped through the hold map to the stage-2 latent frames, so the effect lands at the
+same real moment in both passes. Identity check: an empty hold map gives today's behaviour exactly.
+
 ## Route 2, research: blend inside attention
 Keep two copies of the text, without and with the dial. Video and audio tokens at time t mix their attention to the
 two copies by `M(t)` (a per-query bias of log(1−M) and log(M) on the copies' keys, or two attention calls blended by
