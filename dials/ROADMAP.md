@@ -21,6 +21,31 @@ Evidence for the 2026-10-31 items is in the study `studies/2026-10-28-h3-motion/
 - [ ] Dylan's hands-on pass on the rack UI in the real front end (only driven headless so far).
 - [ ] Dial pack 2 notes (draft in the study's `codex/A5_pack2_notes.md`); ship the dials that passed 3 seeds.
 
+## Interaction atlas (design: `dials/docs/INTERACTION_ATLAS.md`, 2026-10-31)
+
+Same-space vector math is exact; semantic labels are hypotheses; "overcooked" needs render evidence. Status here:
+
+- **P0 vector math and provenance.** Have: pairwise cosines in the rack report, the map's overlap and combined-push
+  readout, presets keyed on the vector hash. Missing: a full signed interaction matrix in the rack (each pair's
+  `s_i·s_j·v_i·v_j` share of the combined shift, reinforcing vs cancelling, "who pushes"), a stable vector id in the
+  file, Combine Dials' exact expression tree (weights, orthogonalize, parent hashes), and Combine's zero-vector
+  orthogonalize (divides by `|b|²`).
+- **P0/P1 per-dial calibration.** Have: description, side labels, symmetric useful/overcook in the file, the ⚙ editor,
+  37 dials seeded from today's Pika renders. Missing: separate negative and positive ranges (the lizard dial only
+  works on one side), "unknown" as a real state drawn as a grey dashed ring instead of defaulting to 1 / 1.5,
+  evidence kind and scope (creator-set / one seed / multi-scene; base H3 vs Pika), failure categories.
+- **P1 probe atlas + influence wheel.** 12-16 bipolar probes built with Make Dial at the post-refiner seam (held-out
+  subjects, matched lengths), a versioned probe bank, per-dial profiles (direct affinity and a ridge joint fit with
+  the unexplained share shown), and a wheel: fixed sectors, one coloured layer per dial, signed in/out around a zero
+  ring, hover = per-dial contributions. Grey until a sector has calibration evidence; no red without it.
+- **Dylan: drop a point on the frontier and move it.** Probes are dials, so a manual offset in one direction is just a
+  probe row in the rack with a strength. On the wheel: drag a sector to add or remove that much of its probe (an
+  offset row), or ask for the rack strengths that best reach a target shape (least squares over the active rows,
+  shown as a suggestion, never applied silently).
+- **P2 and research:** seed-matched calibration sweeps (motion, speech/WER, prompt drift) to earn the warnings;
+  automated contrast search; prompt-aware pre-refiner response; a shared H3 post-refiner SAE (only if the probe atlas
+  misses real structure); denoiser interaction residuals `f(A+B)-f(A)-f(B)+f(0)`, later for LoRAs.
+
 ## Next
 - **Dials from more than two prompts, with weights (Dylan).** Today a dial is the mean of A->B differences; word weights
   tilt a phrase, holds remove a quality, Combine Dials mixes two. Next: a per-pair weight (`A ||| B :: 2`) and a
