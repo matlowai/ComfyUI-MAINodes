@@ -252,7 +252,7 @@ class DialMap {
     else if (geo && geo.cos[0][1] !== null) {
       const [nx, ny] = geo.norm, cos = geo.cos[0][1];
       const push = Math.sqrt(Math.max(0, (sx * nx) ** 2 + (sy * ny) ** 2 + 2 * sx * sy * nx * ny * cos)) / ((nx + ny) / 2);
-      text += `\noverlap cos ${fmt(cos)}${Math.abs(cos) >= 0.5 ? (cos > 0 ? " (they reinforce)" : " (they cancel)") : ""}` +
+      text += `\noverlap cos ${fmt(cos)}${Math.abs(cos) >= 0.5 ? (sx * sy * cos > 0 ? " (they reinforce)" : sx * sy * cos < 0 ? " (they cancel)" : "") : ""}` +
         `  ·  push ≈ ${push.toFixed(2)}× one dial at +1`;
     } else if ("input" in rx || "input" in ry) text += "\nwired dial: strengths only (no file to measure)";
     this.readout.textContent = text;
@@ -668,8 +668,8 @@ class DialRackUI {
       num.title = "negative = toward the pairs' A side, positive = toward B. +0.5 to +1 is the sane range; past ~1.5 side effects appear";
       slider.disabled = num.disabled = !!r.hold;
       if (r.hold) slider.title = num.title = "Hold removes this direction fully; strength is retained for when H is turned off.";
-      slider.oninput = () => { r.strength = parseFloat(slider.value); num.value = r.strength.toFixed(2); this.commit(); if (this.pad.open) this.matrix.draw(); };
-      num.onchange = () => { const v = Math.min(NUMBER[1], Math.max(NUMBER[0], parseFloat(num.value) || 0)); r.strength = v; slider.value = v; num.value = v.toFixed(2); this.commit(); if (this.pad.open) this.matrix.draw(); };
+      slider.oninput = () => { r.strength = parseFloat(slider.value); num.value = r.strength.toFixed(2); this.commit(); if (this.pad.open) { this.map.draw(); this.matrix.draw(); } };
+      num.onchange = () => { const v = Math.min(NUMBER[1], Math.max(NUMBER[0], parseFloat(num.value) || 0)); r.strength = v; slider.value = v; num.value = v.toFixed(2); this.commit(); if (this.pad.open) { this.map.draw(); this.matrix.draw(); } };
       slider.ondblclick = () => { r.strength = 0; slider.value = 0; num.value = "0.00"; this.commit(); };
       const envelope = this.el("select", { width: "76px", background: "#111", color: "#ddd", border: "1px solid #333" }, row);
       envelope.title = "Strength over denoising progress: early, late, bell, or manual points (post-refiner dials only)";
