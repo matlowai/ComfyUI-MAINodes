@@ -20,8 +20,8 @@ Designs: `dials/docs/INTERACTION_ATLAS.md` (atlas), the 4D Control Field bluepri
 
 ## Release blockers (before pushing to matlowai)
 - [ ] Dylan's hands-on pass in the real UI (restart ComfyUI to load the info routes).
-- [ ] Rebuild the three de-rope examples so their Make Dial nodes carry info (re-runs otherwise save default info).
-- [ ] Row order (B6): reversing four rows changed a render (MAD 38/255) although post rows add commutatively; isolate
+- [x] Rebuild the three de-rope examples so their Make Dial nodes carry info (re-runs otherwise save default info).
+- [x] Row order (B6): reversing four rows changed a render (MAD 38/255) although post rows add commutatively; isolate
       pre vs post rows and bf16 rounding; consider summing post rows once in float32.
 - [ ] Review the Codex-written parts once more for pack style (presets, hold rows, envelopes, video dial).
 - [ ] Dial pack 2: ship the dials that passed 3 seeds (draft notes: study `codex/A5_pack2_notes.md`), with their info.
@@ -29,22 +29,23 @@ Designs: `dials/docs/INTERACTION_ATLAS.md` (atlas), the 4D Control Field bluepri
 ## Workstream 1: interaction atlas (design `dials/docs/INTERACTION_ATLAS.md`)
 Rule: same-space vector math is exact; semantic labels are hypotheses; "overcooked" needs render evidence. No new
 Qwen or DiT passes during sampling; the user's strengths are never changed silently.
-- [ ] **Info v2 (first, it changes the file format):** separate negative and positive useful/overcook (the lizard dial
+- [x] **Info v2 (first, it changes the file format):** separate negative and positive useful/overcook (the lizard dial
       only works on one side); unknown as a real state (null, drawn as a grey dashed ring, never green); evidence kind
       (creator-set / one seed / multi-scene) and pipeline (base H3 / Pika); optional failure notes. Old files and v1
       info keep loading.
-- [ ] **Interaction matrix:** for the active post rows, each pair's signed share of the combined shift
+- [x] **Interaction matrix:** for the active post rows, each pair's signed share of the combined shift
       (`s_i·s_j·v_i·v_j` over `|Σ s_i v_i|²`), reinforcing vs cancelling, and "who pushes" per row; in the rack report
       and as a small matrix next to the map.
-- [ ] **Combine Dials provenance:** exact recipe in the file (weights, orthogonalize, parent vector hashes, result
+- [x] **Combine Dials provenance:** exact recipe in the file (weights, orthogonalize, parent vector hashes, result
       hash); fix orthogonalize against a zero vector.
-- [ ] **Probe bank:** 12-16 bipolar probes built with Make Dial at the post-refiner seam (motion, camera, light, colour,
+- [x] **Probe bank:** 12-16 bipolar probes built with Make Dial at the post-refiner seam (motion, camera, light, colour,
       time of day, weather, texture/material, style, expression, mood, crowd/scene, voice), held-out subjects, matched
       lengths; versioned; probes whose held-out agreement is weak are dropped or renamed.
-- [ ] **Per-dial profiles:** direct probe coefficients `s·(v·p)/(p·p)` and a ridge joint fit with the unexplained share
+- [x] **Per-dial profiles:** direct probe coefficients `s·(v·p)/(p·p)` and a ridge joint fit with the unexplained share
       shown; cached by vector hash + bank version.
-- [ ] **Influence wheel:** fixed sectors, one coloured layer per dial, signed in/out around a zero ring, hover = per-dial
+- [x] **Influence wheel:** fixed sectors, one coloured layer per dial, signed in/out around a zero ring, hover = per-dial
       contributions; grey until a sector has calibration evidence.
+- [ ] **Wheel vs renders:** check that a dial's top probe axes show up in its renders (e.g. "toward night" looks darker); fold it into the next batch that renders anyway. Until then the wheel stays grey.
 - [ ] **Drop a point on the frontier and move it (Dylan):** probes are dials, so a manual offset in one direction is a
       probe row with a strength; drag a wheel sector to add/remove that probe, or ask for rack strengths that best
       reach a target shape (least squares over the active rows, shown as a suggestion).
