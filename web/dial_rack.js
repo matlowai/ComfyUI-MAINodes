@@ -1455,6 +1455,7 @@ class DialRackUI {
       if (blocker && !r.time) { clip.disabled = true; clip.style.opacity = "0.4"; clip.title = blocker; }
       if (r.time) {
         envelope.disabled = strip.disabled = true;
+        envelope.style.opacity = strip.style.opacity = "0.4";
         envelope.title = strip.title = "This row has a time curve, which runs its own early-step schedule.";
       }
       if (!("input" in r)) this.button(row, "⚙", "dial info: description, what − and + give, useful and overcook strengths per side, evidence (saved in the dial file)",
