@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Rack preset round-trip, changed/missing files, format and name validation (CPU, no model weights)."""
-import hashlib
 import importlib
 import importlib.util
 import json
@@ -15,6 +14,8 @@ sys.path.insert(0, COMFY)
 import comfy.cli_args  # noqa: E402
 comfy.cli_args.args.cpu = True  # before model_management picks a device
 import folder_paths  # noqa: E402
+import torch  # noqa: E402
+from safetensors.torch import save_file  # noqa: E402
 
 pkg_dir = HERE.parent / "dials"
 spec = importlib.util.spec_from_file_location("mai_dials", pkg_dir / "__init__.py", submodule_search_locations=[str(pkg_dir)])
@@ -37,8 +38,18 @@ def main():
     folder_paths.add_model_folder_path("loras", str(root), is_default=True)
     (root / "dials").mkdir()
     dial = root / "dials" / "test.safetensors"
-    dial.write_bytes(b"first dial contents")
-    expected = hashlib.sha256(dial.read_bytes()).hexdigest()
+    save_file({"diffusion_model.token_refiner.dials_shift": torch.ones(8)}, str(dial))
+    expected = presets.dial_sha256("dials/test.safetensors")
+    core = importlib.import_module("mai_dials.core")
+    core.save_dial_info("dials/test.safetensors", {"description": "an edited description", "useful": 2, "overcook": 3})
+    assert presets.dial_sha256("dials/test.safetensors") == expected, "editing dial info must not change the preset hash"
+    assert core.dial_info("dials/test.safetensors")["useful"] == 2.0
+    for bad in ({"useful": 0}, {"useful": 3, "overcook": 2}, {"useful": True}, {"description": "x" * 2001}, {"negative": 5}, [], {"overcook": 21}):
+        rejects(core.check_dial_info, bad)
+    rejects(core.save_dial_info, "../../etc/passwd", {}, exception=FileNotFoundError)
+    plain = root / "dials" / "plain.safetensors"
+    save_file({"diffusion_model.token_refiner.dials_shift": torch.ones(8)}, str(plain))
+    assert core.dial_info("dials/plain.safetensors") == core.INFO_DEFAULTS, "a dial without info reads as the defaults"
     rows = [dict(dial="dials/test.safetensors", strength=-0.5, on=True, solo=True),
             dict(dial="dials/missing.safetensors", strength=2, on=False, solo=False, sha256="a" * 64)]
     saved = presets.save_preset("test_-9", rows)
@@ -63,11 +74,11 @@ def main():
     assert presets.load_preset("envelopes") == shaped
     assert [r["envelope"] for r in shaped["preset"]["rows"]] == [r["envelope"] for r in shaped_rows]
 
-    dial.write_bytes(b"changed dial contents")
+    save_file({"diffusion_model.token_refiner.dials_shift": torch.zeros(8)}, str(dial))
     changed = presets.load_preset("test_-9")
     assert changed["preset"] == document, "load must preserve the expected hash and all rows"
     assert [w["reason"] for w in changed["warnings"]] == ["sha256 mismatch", "missing"]
-    assert changed["warnings"][0]["actual"] == hashlib.sha256(dial.read_bytes()).hexdigest()
+    assert changed["warnings"][0]["actual"] == presets.dial_sha256("dials/test.safetensors") != expected
     dial.rename(dial.with_suffix(".parked"))
     missing = presets.load_preset("test_-9")
     assert missing["preset"] == document

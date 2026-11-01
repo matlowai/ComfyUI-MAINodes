@@ -12,6 +12,27 @@ presets.install_routes()
 Dial = io.Custom("DIAL")
 
 
+def info_inputs():
+    """Dial info saved into the dial file: the rack shows it and its map draws the useful and overcook ellipses."""
+    return [
+        io.String.Input("description", multiline=True, default="", optional=True,
+                        tooltip="What the dial does, for whoever loads it; shown as the dial's tooltip in the Dial Rack."),
+        io.String.Input("negative_label", default="", optional=True, tooltip="What negative strength gives, e.g. 'stoic'; labels the map axis."),
+        io.String.Input("positive_label", default="", optional=True, tooltip="What positive strength gives, e.g. 'lively'; labels the map axis."),
+        io.Float.Input("useful", default=1.0, min=0.05, max=20.0, step=0.05, optional=True,
+                       tooltip="Strength where the effect is clearly there (the map's inner ellipse)."),
+        io.Float.Input("overcook", default=1.5, min=0.05, max=20.0, step=0.05, optional=True,
+                       tooltip="Strength where side effects take over (the map's outer ellipse)."),
+    ]
+
+
+def info_from(description, negative_label, positive_label, useful, overcook):
+    return core.check_dial_info({"description": description, "negative": negative_label, "positive": positive_label,
+                                 "useful": useful, "overcook": overcook})
+
+
+
+
 class DialRack(io.ComfyNode):
     """Constant rows without holds use the single-dial chain. Holds project one summed post shift;
     envelopes shift cached text at each denoising call. Wired dials appear as rack rows too."""
@@ -95,6 +116,7 @@ class MakeDial(io.ComfyNode):
                 io.String.Input("subjects", multiline=True, default="A young woman\nAn old man\nA golden dog\nA horse",
                                 tooltip="Optional: one subject per line, substituted for {subject}. Varied subjects cancel out, leaving only the A→B difference."),
                 io.String.Input("name", default="my_dial", tooltip="Saved as models/loras/dials/<name>.safetensors (empty = don't save)."),
+                *info_inputs(),
                 io.Combo.Input("inject", options=["post_refiner (hook)", "pre_refiner (LoRA file)"], default="post_refiner (hook)", advanced=True,
                                tooltip="post_refiner: where the DiT reads the prompt, most faithful (use with Dial Rack). "
                                        "pre_refiner: a bias diff the stock LoRA loader can apply; keep it at strength <= 1."),
@@ -107,13 +129,14 @@ class MakeDial(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, clip, model, pairs, subjects, name, inject, debias, nuisance_dims) -> io.NodeOutput:
+    def execute(cls, clip, model, pairs, subjects, name, inject, debias, nuisance_dims, description="", negative_label="", positive_label="", useful=1.0, overcook=1.5) -> io.NodeOutput:
+        info = info_from(description, negative_label, positive_label, useful, overcook)
         if name:
             core.check_dial_name(name)
         mode = "post" if inject.startswith("post") else "pre"
         dial, report = core.make_dial(clip, model, pairs, subjects, name or "unsaved", mode, debias=debias, nuisance_dims=nuisance_dims)
         if name:
-            report += f"\nsaved {core.save_dial(dial, name)}"
+            report += f"\nsaved {core.save_dial(dial, name, info)}"
         return io.NodeOutput(dial, ui=ui.PreviewText(report))
 
 
@@ -133,6 +156,7 @@ class MakeDialFromPictures(io.ComfyNode):
                 io.Image.Input("pictures_b", tooltip="B pictures as an image batch; equal counts pair by index for the agreement report."),
                 io.String.Input("prompt", multiline=True, default="A video in the style and content of <Picture 1>."),
                 io.String.Input("name", default="my_picture_dial", tooltip="Saved as models/loras/dials/<name>.safetensors (empty = don't save)."),
+                *info_inputs(),
                 io.Boolean.Input("debias", default=True, advanced=True,
                                  tooltip="Project out the same generic wording directions used by Make Dial."),
                 io.Int.Input("nuisance_dims", default=3, min=1, max=12, advanced=True),
@@ -142,13 +166,14 @@ class MakeDialFromPictures(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, clip, model, pictures_a, pictures_b, prompt, name, debias, nuisance_dims) -> io.NodeOutput:
+    def execute(cls, clip, model, pictures_a, pictures_b, prompt, name, debias, nuisance_dims, description="", negative_label="", positive_label="", useful=1.0, overcook=1.5) -> io.NodeOutput:
+        info = info_from(description, negative_label, positive_label, useful, overcook)
         if name:
             core.check_dial_name(name)
         dial, report = core.make_picture_dial(clip, model, pictures_a, pictures_b, prompt, name or "unsaved",
                                               debias=debias, nuisance_dims=nuisance_dims)
         if name:
-            report += f"\nsaved {core.save_dial(dial, name)}"
+            report += f"\nsaved {core.save_dial(dial, name, info)}"
         return io.NodeOutput(dial, ui=ui.PreviewText(report))
 
 
@@ -170,6 +195,7 @@ class MakeDialFromVideos(io.ComfyNode):
                     input=io.Video.Input("video_b"), prefix="video_b_", min=1, max=12)),
                 io.String.Input("prompt", multiline=True, default="A video in the style and content of <Video 1>."),
                 io.String.Input("name", default="my_video_dial", tooltip="Saved as models/loras/dials/<name>.safetensors (empty = don't save)."),
+                *info_inputs(),
                 io.Boolean.Input("debias", default=True, advanced=True),
                 io.Int.Input("nuisance_dims", default=3, min=1, max=12, advanced=True),
             ],
@@ -178,7 +204,8 @@ class MakeDialFromVideos(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, clip, model, videos_a, videos_b, prompt, name, debias, nuisance_dims) -> io.NodeOutput:
+    def execute(cls, clip, model, videos_a, videos_b, prompt, name, debias, nuisance_dims, description="", negative_label="", positive_label="", useful=1.0, overcook=1.5) -> io.NodeOutput:
+        info = info_from(description, negative_label, positive_label, useful, overcook)
         if name:
             core.check_dial_name(name)
 
@@ -187,7 +214,7 @@ class MakeDialFromVideos(io.ComfyNode):
         dial, report = core.make_video_dial(clip, model, components(videos_a), components(videos_b), prompt,
                                             name or "unsaved", debias=debias, nuisance_dims=nuisance_dims)
         if name:
-            report += f"\nsaved {core.save_dial(dial, name)}"
+            report += f"\nsaved {core.save_dial(dial, name, info)}"
         return io.NodeOutput(dial, ui=ui.PreviewText(report))
 
 
@@ -207,12 +234,14 @@ class CombineDials(io.ComfyNode):
                 io.Float.Input("weight_b", default=0.0, min=-20.0, max=20.0, step=0.05),
                 io.Boolean.Input("orthogonalize", default=False, tooltip="Remove b's direction from a before mixing."),
                 io.String.Input("name", default="", tooltip="Save as models/loras/dials/<name>.safetensors (empty = don't save)."),
+                *info_inputs(),
             ],
             outputs=[Dial.Output(display_name="dial")],
         )
 
     @classmethod
-    def execute(cls, a, b, weight_a, weight_b, orthogonalize, name) -> io.NodeOutput:
+    def execute(cls, a, b, weight_a, weight_b, orthogonalize, name, description="", negative_label="", positive_label="", useful=1.0, overcook=1.5) -> io.NodeOutput:
+        info = info_from(description, negative_label, positive_label, useful, overcook)
         if (a["target"], a["mode"]) != (b["target"], b["mode"]):
             raise ValueError(f"dials use different injection points: {a['mode']} {a['target']} vs {b['mode']} {b['target']}")
         va, vb = a["vec"].float(), b["vec"].float()
@@ -224,7 +253,7 @@ class CombineDials(io.ComfyNode):
                 "meta": {"name": name or label, "parents": [a["meta"].get("name"), b["meta"].get("name")]}}
         report = f"cos(a, b) = {cos:.3f}; {core.dial_label(dial)}"
         if name:
-            report += f"\nsaved {core.save_dial(dial, name)}"
+            report += f"\nsaved {core.save_dial(dial, name, info)}"
         return io.NodeOutput(dial, ui=ui.PreviewText(report))
 
 

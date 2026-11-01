@@ -6,6 +6,9 @@ import math
 import re
 from pathlib import Path
 
+import torch
+from safetensors import safe_open
+
 import folder_paths
 
 from . import core, envelopes
@@ -67,11 +70,16 @@ def preset_rows(rows):
 
 
 def dial_sha256(dial):
+    """Hash of the dial's tensor data only, so editing a dial's info metadata does not invalidate presets."""
     path = folder_paths.get_full_path("loras", dial)
     if path is None:
         return None
-    with open(path, "rb") as f:
-        return hashlib.sha256(f.read()).hexdigest()
+    h = hashlib.sha256()
+    with safe_open(path, "pt") as f:
+        for key in sorted(f.keys()):
+            h.update(key.encode())
+            h.update(f.get_tensor(key).contiguous().view(-1).view(torch.uint8).numpy().tobytes())
+    return h.hexdigest()
 
 
 def check_rows(rows):
@@ -142,6 +150,23 @@ def install_routes():
             return web.json_response({"error": "Expected {\"dials\": [dial file names]}."}, status=400)
         try:
             return web.json_response(await asyncio.to_thread(core.dial_geometry, names))
+        except (FileNotFoundError, ValueError) as e:
+            return web.json_response({"error": str(e)}, status=400)
+
+    @srv.routes.get("/mainodes/dials/info")
+    async def info(request):  # description, side labels, useful and overcook strengths for one dial file
+        try:
+            return web.json_response(await asyncio.to_thread(core.dial_info, request.query.get("dial", "")))
+        except (FileNotFoundError, ValueError) as e:
+            return web.json_response({"error": str(e)}, status=400)
+
+    @srv.routes.post("/mainodes/dials/info")
+    async def save_info(request):
+        try:
+            body = await request.json()
+            return web.json_response(await asyncio.to_thread(core.save_dial_info, body["dial"], body["info"]))
+        except (KeyError, TypeError):
+            return web.json_response({"error": "Expected {\"dial\": <dial file>, \"info\": {...}}."}, status=400)
         except (FileNotFoundError, ValueError) as e:
             return web.json_response({"error": str(e)}, status=400)
 

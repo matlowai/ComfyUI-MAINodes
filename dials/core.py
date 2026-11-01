@@ -20,6 +20,7 @@ Two pair-text extensions (MAINodes only):
                  H3's tokenizer ignores prompt weights, so this is the only place the syntax means anything.
 """
 import json
+import math
 import os
 import re
 
@@ -193,12 +194,14 @@ def check_dial_name(name):
         raise ValueError("dial name: letters, digits, '_' and '-' only (max 80)")
 
 
-def save_dial(dial, name):
+def save_dial(dial, name, info=None):
     check_dial_name(name)
     root = os.path.join(folder_paths.get_folder_paths("loras")[0], DIAL_SUBDIR)
     os.makedirs(root, exist_ok=True)
     path = os.path.join(root, f"{name}.safetensors")
     meta = {k: (v if isinstance(v, str) else json.dumps(v)) for k, v in dial["meta"].items()}
+    if info is not None:
+        meta["dial_info"] = json.dumps(check_dial_info(info))
     save_file({f"diffusion_model.{dial['target']}.{KEY_SUFFIX[dial['mode']]}": dial["vec"].to(torch.bfloat16).contiguous()}, path, metadata=meta)
     return path
 
@@ -219,11 +222,53 @@ def load_dial(dial_name):
     return {"vec": vec, "target": target, "mode": mode, "meta": meta}
 
 
+INFO_DEFAULTS = {"description": "", "negative": "", "positive": "", "useful": 1.0, "overcook": 1.5}
+
+
+def check_dial_info(info):
+    if not isinstance(info, dict):
+        raise ValueError("dial info must be an object")
+    out = {}
+    for key, limit in (("description", 2000), ("negative", 60), ("positive", 60)):
+        v = info.get(key, "")
+        if not isinstance(v, str) or len(v) > limit:
+            raise ValueError(f"dial info '{key}' must be text of at most {limit} characters")
+        out[key] = v
+    for key in ("useful", "overcook"):
+        v = info.get(key, INFO_DEFAULTS[key])
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or not 0 < v <= 20:
+            raise ValueError(f"dial info '{key}' must be a strength above 0 and at most 20")
+        out[key] = float(v)
+    if out["overcook"] < out["useful"]:
+        raise ValueError("the overcook strength must be at least the useful strength")
+    return out
+
+
+def dial_info(dial_name):
+    """The dial file's own 'dial_info' metadata (description, side labels, useful and overcook strengths), or defaults."""
+    with safe_open(folder_paths.get_full_path_or_raise("loras", dial_name), "pt") as f:
+        stored = (f.metadata() or {}).get("dial_info")
+    return check_dial_info(json.loads(stored)) if stored else dict(INFO_DEFAULTS)
+
+
+def save_dial_info(dial_name, info):
+    """Write the info into the dial file's metadata; the vector is copied unchanged and the file replaced atomically."""
+    info = check_dial_info(info)
+    path = folder_paths.get_full_path_or_raise("loras", dial_name)
+    with safe_open(path, "pt") as f:
+        tensors = {k: f.get_tensor(k) for k in f.keys()}
+        meta = dict(f.metadata() or {})
+    meta["dial_info"] = json.dumps(info)
+    save_file(tensors, path + ".tmp", metadata=meta)
+    os.replace(path + ".tmp", path)
+    return info
+
+
 def dial_geometry(names):
     """Rack UI readouts for dial files: vector norm, injection mode, and cosine between every two dials."""
     dials = [load_dial(n) for n in names]
     vecs = [d["vec"].float() for d in dials]
-    return {"norm": [float(v.norm()) for v in vecs], "mode": [d["mode"] for d in dials],
+    return {"norm": [float(v.norm()) for v in vecs], "mode": [d["mode"] for d in dials], "info": [dial_info(n) for n in names],
             "cos": [[float(torch.nn.functional.cosine_similarity(a, b, dim=0)) if a.shape == b.shape else None for b in vecs] for a in vecs]}
 
 

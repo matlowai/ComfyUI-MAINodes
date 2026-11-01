@@ -9,7 +9,8 @@ const NUMBER = [-20, 20];
 const PRESETS = "/mainodes/dials/presets";
 const LEFT_PX = 590;     // the rows column keeps this width; the map takes the rest of the node
 const MAP_MIN = 160;
-const PAD_RANGES = [1.5, 3, 6];
+const PAD_RANGES = ["auto", 1.5, 3, 6, 12];
+const INFO_DEFAULTS = { description: "", negative: "", positive: "", useful: 1, overcook: 1.5 };
 const SWEEP_STEPS = [0.25, 0.5, 1];
 
 async function presetRequest(path = "", options) {
@@ -67,7 +68,7 @@ class DialMap {
     for (const v of SWEEP_STEPS) el("option", {}, this.selStep, String(v)).value = v;
     this.selX.onchange = () => { this.pair.x = Number(this.selX.value); rack.render(); };
     this.selY.onchange = () => { this.pair.y = Number(this.selY.value); rack.render(); };
-    this.selRange.onchange = () => { rack.pad.range = Number(this.selRange.value); this.draw(); };
+    this.selRange.onchange = () => { rack.pad.range = this.selRange.value === "auto" ? "auto" : Number(this.selRange.value); this.draw(); };
     this.selStep.onchange = () => { rack.pad.step = Number(this.selStep.value); this.draw(); };
     this.sweepButton = rack.button(controls, "Sweep 3×3", "queue 9 renders on a grid around the dot, then put the dot back", () => this.sweep());
     this.stage = el("div", { flex: "1 1 auto", minHeight: "0", display: "flex", alignItems: "flex-start", justifyContent: "center" }, this.box);
@@ -77,7 +78,7 @@ class DialMap {
     this.readout = el("div", { color: "#9a9ba0", fontSize: "11px", whiteSpace: "pre-wrap", flex: "0 0 auto" }, this.box);
     new ResizeObserver(() => this.fit()).observe(this.stage);
 
-    const toStrength = (px) => (px / this.size * 2 - 1) * rack.pad.range;
+    const toStrength = (px) => (px / this.size * 2 - 1) * this.R;
     let drag = null;
     this.canvas.addEventListener("pointerdown", (e) => {
       const [rx, ry] = this.axes();
@@ -89,7 +90,7 @@ class DialMap {
     this.canvas.addEventListener("pointermove", (e) => {
       if (!drag) return;
       if (e.shiftKey) {  // fine: relative motion at a fifth of the speed
-        const k = 0.2 * 2 * rack.pad.range / this.size;
+        const k = 0.2 * 2 * this.R / this.size;
         this.set(drag.sx + (e.offsetX - drag.x0) * k, drag.sy - (e.offsetY - drag.y0) * k);
       } else {
         this.set(toStrength(e.offsetX), -toStrength(e.offsetY));
@@ -158,7 +159,7 @@ class DialMap {
       for (const i of axes) rack.el("option", {}, sel, rack.rowName(i)).value = i;
       if (v !== undefined) sel.value = v;
     }
-    this.selRange.value = pad.range;
+    this.selRange.value = String(pad.range);
     this.selStep.value = pad.step;
     this.fit();
     this.draw();
@@ -166,25 +167,30 @@ class DialMap {
 
   draw() {
     if (!this.size) return;
-    const c = this.canvas, g = c.getContext("2d"), S = this.size, R = this.rack.pad.range, rack = this.rack;
+    const c = this.canvas, g = c.getContext("2d"), S = this.size, rack = this.rack;
     const [rx, ry] = this.axes();
+    const info = (r) => (r && !("input" in r) ? rack.dialInfo(r.dial) : INFO_DEFAULTS);
+    const ix = info(rx), iy = info(ry);
+    // auto range: room for both dials' overcook ellipse plus a margin
+    const R = this.R = rack.pad.range === "auto" ? Math.max(1.5, Math.ceil(Math.max(ix.overcook, iy.overcook) * 1.25 * 2) / 2) : rack.pad.range;
     const px = (v) => (v / R + 1) / 2 * S;
     g.setTransform(c.width / S, 0, 0, c.width / S, 0, 0);
     g.fillStyle = "#101114"; g.fillRect(0, 0, S, S);
     g.strokeStyle = "#1e2026"; g.lineWidth = 1;
-    for (let v = -R; v <= R + 1e-9; v += 0.5) {
+    const grid = R > 4 ? 1 : 0.5;
+    for (let v = -Math.floor(R / grid) * grid; v <= R + 1e-9; v += grid) {
       g.beginPath(); g.moveTo(px(v), 0); g.lineTo(px(v), S); g.moveTo(0, px(v)); g.lineTo(S, px(v)); g.stroke();
     }
     g.strokeStyle = "#3a3d46"; g.beginPath(); g.moveTo(px(0), 0); g.lineTo(px(0), S); g.moveTo(0, px(0)); g.lineTo(S, px(0)); g.stroke();
-    const ring = (r, color, dash) => {
+    const ring = (rxv, ryv, color, dash) => {  // per-axis radii from each dial's own info
       g.setLineDash(dash); g.strokeStyle = color; g.beginPath();
-      g.ellipse(px(0), px(0), r / R * S / 2, r / R * S / 2, 0, 0, 2 * Math.PI); g.stroke(); g.setLineDash([]);
+      g.ellipse(px(0), px(0), rxv / R * S / 2, ryv / R * S / 2, 0, 0, 2 * Math.PI); g.stroke(); g.setLineDash([]);
     };
-    ring(1, "#3f6b4a", []);      // everyday range
-    ring(1.5, "#7a5a22", [4, 4]);  // side effects start
+    ring(ix.useful, iy.useful, "#3f6b4a", []);
+    ring(ix.overcook, iy.overcook, "#7a5a22", [4, 4]);
     g.fillStyle = "#666"; g.font = "10px sans-serif";
-    g.fillText("±1 everyday", px(0) + 3, px(1) + 11);
-    g.fillText("±1.5 side effects", px(0) + 3, px(1.5) + 11);
+    g.fillText("useful", px(0) + 3, px(iy.useful) + 11);
+    g.fillText("overcooked", px(0) + 3, px(iy.overcook) + 11);
     if (!rx || !ry || rx === ry) {
       g.fillStyle = "#888"; g.fillText(rack.rows.length < 2 ? "add two dial rows to use the map" : "pick two different rows", 8, 16);
       this.readout.textContent = "";
@@ -197,13 +203,17 @@ class DialMap {
     for (const dy of [-step, 0, step]) for (const dx of [-step, 0, step]) {
       if (dx || dy) { g.beginPath(); g.arc(px(sx + dx), px(-(sy + dy)), 2, 0, 2 * Math.PI); g.fill(); }
     }
-    g.fillStyle = Math.hypot(sx, sy) > 1.5 ? "#ff8a5c" : "#ffc145";
+    const past = Math.hypot(sx / ix.useful, sy / iy.useful) > 1, cooked = Math.hypot(sx / ix.overcook, sy / iy.overcook) > 1;
+    g.fillStyle = cooked ? "#ff6b5c" : past ? "#ffa64d" : "#ffc145";
     g.beginPath(); g.arc(px(Math.max(-R, Math.min(R, sx))), px(-Math.max(-R, Math.min(R, sy))), 6, 0, 2 * Math.PI); g.fill();
     g.fillStyle = "#ddd";
-    const xl = `${rack.rowName(this.pair.x)} →`;
+    const xl = `${ix.positive || rack.rowName(this.pair.x)} →`;
     g.fillText(xl, S - 4 - g.measureText(xl).width, px(0) - 4);
-    g.fillText(`↑ ${rack.rowName(this.pair.y)}`, px(0) + 4, 12);
-    let text = `X ${rack.rowName(this.pair.x)} ${fmt(sx)}  ·  Y ${rack.rowName(this.pair.y)} ${fmt(sy)}`;
+    if (ix.negative) g.fillText(`← ${ix.negative}`, 4, px(0) - 4);
+    g.fillText(`↑ ${iy.positive || rack.rowName(this.pair.y)}`, px(0) + 4, 12);
+    if (iy.negative) g.fillText(`↓ ${iy.negative}`, px(0) + 4, S - 6);
+    let text = `X ${rack.rowName(this.pair.x)} ${fmt(sx)}  ·  Y ${rack.rowName(this.pair.y)} ${fmt(sy)}  ·  ` +
+      (cooked ? "overcooked" : past ? "past useful" : "within useful");
     const geo = rack.padGeometry[rx.dial + "|" + ry.dial];
     if (geo === undefined) rack.padNorms(rx, ry);
     if (geo?.error) text += `\n${geo.error}`;
@@ -212,7 +222,7 @@ class DialMap {
       const [nx, ny] = geo.norm, cos = geo.cos[0][1];
       const push = Math.sqrt(Math.max(0, (sx * nx) ** 2 + (sy * ny) ** 2 + 2 * sx * sy * nx * ny * cos)) / ((nx + ny) / 2);
       text += `\noverlap cos ${fmt(cos)}${Math.abs(cos) >= 0.5 ? (cos > 0 ? " (they reinforce)" : " (they cancel)") : ""}` +
-        `  ·  push ≈ ${push.toFixed(2)}× one dial at +1${push > 1.5 ? " — past the tested range" : ""}`;
+        `  ·  push ≈ ${push.toFixed(2)}× one dial at +1`;
     } else if ("input" in rx || "input" in ry) text += "\nwired dial: strengths only (no file to measure)";
     this.readout.textContent = text;
   }
@@ -309,6 +319,7 @@ class DialRackUI {
     this.out = this.el("pre", { margin: 0, whiteSpace: "pre-wrap", color: "#9a9ba0", fontSize: "11px", display: "none",
       borderTop: "1px solid #2a2c33", paddingTop: "4px" }, left);
     this.padGeometry = {};
+    this.info = {};
     this.map = new DialMap(this, this.mapColumn);
     this.widget = this.node.addDOMWidget("dial_rack_ui", "div", root, { serialize: false, getMinHeight: () => 140 });
     this.root = root;
@@ -319,12 +330,12 @@ class DialRackUI {
     const p = (this.node.properties ||= {}).dialPad ||= {};
     if (!p.pairs) {  // layouts saved earlier today: one pad {x, y} or several {pads: [...]}
       p.pairs = (p.pads || [p]).map((q) => ({ x: q.x, y: q.y }));
-      p.range ??= p.pads?.[0]?.range ?? 3;
+      p.range ??= p.pads?.[0]?.range ?? "auto";
       p.step ??= p.pads?.[0]?.step ?? 0.5;
       delete p.pads; delete p.x; delete p.y;
     }
     p.active = Math.min(p.active ?? 0, p.pairs.length - 1);
-    p.range ??= 3; p.step ??= 0.5;
+    p.range ??= "auto"; p.step ??= 0.5;
     return p;
   }
 
@@ -335,6 +346,52 @@ class DialRackUI {
   rowName(i) {
     const r = this.rows[i];
     return `${i + 1}. ` + ("input" in r ? r.input : shortName(r.dial || "?"));
+  }
+
+  dialInfo(file) {  // cached; fetched once per dial file, re-rendering when it arrives
+    if (!(file in this.info)) {
+      this.info[file] = INFO_DEFAULTS;
+      api.fetchApi(`/mainodes/dials/info?dial=${encodeURIComponent(file)}`).then(async (r) => {
+        if (r.ok) { this.info[file] = await r.json(); this.render(); }
+      });
+    }
+    return this.info[file];
+  }
+
+  infoEditor(file) {
+    const info = this.dialInfo(file);
+    const box = this.el("div", { display: "grid", gridTemplateColumns: "auto 1fr auto 1fr", gap: "4px 6px", alignItems: "center",
+      padding: "6px", background: "#1b1d23", border: "1px solid #2f323b", borderRadius: "4px" }, this.list);
+    const input = (label, value, attrs, span) => {
+      this.el("span", { color: "#888" }, box, label);
+      const e = this.el(attrs.tag || "input", { background: "#111", color: "#eee", border: "1px solid #333", gridColumn: span ? "span 3" : "",
+        minWidth: "0", resize: "vertical" }, box);
+      Object.assign(e, attrs.props || {}, { value });
+      return e;
+    };
+    const desc = input("description", info.description, { tag: "textarea", props: { rows: 2, maxLength: 2000 } }, true);
+    const neg = input("− gives", info.negative, { props: { maxLength: 60, placeholder: "e.g. stoic" } });
+    const pos = input("+ gives", info.positive, { props: { maxLength: 60, placeholder: "e.g. lively" } });
+    const useful = input("useful ±", info.useful, { props: { type: "number", min: 0.05, max: 20, step: 0.05,
+      title: "strength where the effect is clearly there (inner ellipse on the map)" } });
+    const over = input("overcook ±", info.overcook, { props: { type: "number", min: 0.05, max: 20, step: 0.05,
+      title: "strength where side effects take over (outer ellipse on the map)" } });
+    const actions = this.el("div", { gridColumn: "span 4", display: "flex", gap: "6px", alignItems: "center" }, box);
+    const msg = this.el("span", { color: "#ff8a5c" }, actions);
+    this.button(actions, "Save to dial file", "write this info into the dial's .safetensors metadata (the vector is unchanged)", async (b) => {
+      b.disabled = true;
+      try {
+        const r = await api.fetchApi("/mainodes/dials/info", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dial: file, info: { description: desc.value, negative: neg.value, positive: pos.value,
+            useful: parseFloat(useful.value), overcook: parseFloat(over.value) } }) });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error);
+        this.info[file] = data;
+        this.editing = null;
+        this.render();
+      } catch (e) { msg.textContent = e.message; b.disabled = false; }
+    }, { marginLeft: "auto", background: "#3b3220", borderColor: "#ffc145", color: "#ffc145" });
+    this.button(actions, "Cancel", "close without saving", () => { this.editing = null; this.render(); });
   }
 
   async padNorms(rx, ry) {
@@ -448,8 +505,11 @@ class DialRackUI {
         const opts = files.includes(r.dial) || !r.dial ? files : [r.dial, ...files];
         const label = labels(opts);
         for (const f of opts) { const o = this.el("option", {}, sel, label(f) + (files.includes(f) ? "" : "  (missing)")); o.value = f; }
-        sel.value = r.dial; sel.title = r.dial;
-        sel.onchange = () => { r.dial = sel.value; sel.title = sel.value; this.commit(); };
+        sel.value = r.dial;
+        const about = this.dialInfo(r.dial);
+        sel.title = r.dial + (about.description ? "\n\n" + about.description : "") +
+          `\nuseful ±${about.useful}, overcooked past ±${about.overcook}`;
+        sel.onchange = () => { r.dial = sel.value; this.commit(); this.render(); };
       }
       const slider = this.el("input", { width: "110px", accentColor: "#ffc145" }, row);
       Object.assign(slider, { type: "range", min: SLIDER[0], max: SLIDER[1], step: 0.05, value: r.strength });
@@ -476,6 +536,9 @@ class DialRackUI {
         else r.envelope = envelope.value === "manual" ? { type: "manual", points: [[0, 0], [0.5, 1], [1, 0]] } : envelope.value;
         this.commit(); this.render();
       };
+      if (!("input" in r)) this.button(row, "⚙", "dial info: description, what − and + give, useful and overcook strengths (saved in the dial file)",
+        () => { this.editing = this.editing === i ? null : i; this.render(); },
+        this.editing === i ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145", padding: "2px 6px" } : { padding: "2px 6px" });
       this.button(row, "S", "solo: hear only the soloed rows", () => { r.solo = !r.solo; this.commit(); this.render(); },
         r.solo ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145", padding: "2px 6px" } : { padding: "2px 6px" });
       const hold = this.button(row, "H", "hold: remove this direction from the summed shift (post-refiner dials only)",
@@ -483,6 +546,7 @@ class DialRackUI {
         r.hold ? { background: "#20323b", borderColor: "#8fb4ff", color: "#8fb4ff", padding: "2px 6px" } : { padding: "2px 6px" });
       hold.setAttribute("aria-pressed", String(!!r.hold));
       if (!("input" in r)) this.button(row, "✕", "remove row", () => { this.rows.splice(i, 1); this.commit(); this.render(); }, { padding: "2px 6px" });
+      if (this.editing === i && !("input" in r)) this.infoEditor(r.dial);
       if (r.envelope?.type === "manual") {
         const points = this.el("input", { boxSizing: "border-box", width: "100%", background: "#111", color: "#ddd", border: "1px solid #333" }, this.list);
         points.value = JSON.stringify(r.envelope.points);
@@ -508,7 +572,7 @@ class DialRackUI {
     this.left.style.flex = open ? `0 0 ${LEFT_PX}px` : "1 1 auto";
     this.padButton.style.borderColor = open ? "#ffc145" : "#444";
     if (open) this.map.render();
-    const key = [this.rows.length, open, this.report, this.presetMessage, this.presetBar.style.display].join("|");
+    const key = [this.rows.length, open, this.report, this.presetMessage, this.presetBar.style.display, this.editing].join("|");
     if (key !== this.contentKey) {  // content changed: grow to show it; never shrink what the user sized
       this.contentKey = key;
       const rowsHeight = [...this.left.children].reduce((h, c) => h + (c.offsetParent ? c.offsetHeight + 6 : 0), 12);
