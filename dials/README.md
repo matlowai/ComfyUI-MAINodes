@@ -201,6 +201,7 @@ not reach a lizard by -3 where the text dial did by -2 (1 seed); it has not yet 
 
 ## License
 
-The node code is GPL-3.0 with the rest of this pack. Dial weight files are Model Derivatives of MiniMax H3 and fall
+The node code is GPL-3.0-or-later with the rest of this pack. It started as a port of ComfyUI-Dials (AGPL-3.0, same
+author), which stays as it is; the code here is released under this pack's GPL. Dial weight files are Model Derivatives of MiniMax H3 and fall
 under the MiniMax H3 Community License Agreement (see the H3-Dials repository for the Agreement and NOTICE).
 Powered by MiniMax H3.
