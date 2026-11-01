@@ -71,6 +71,33 @@ one seed; treat them as starting points.
 - **Remove a probe axis with the joint fit.** Taking colour temperature out of evil cold left every other axis within
   0.01 under the joint fit; the direct fit also took 0.14 off night and 0.10 off mood, because those probes overlap.
 
+## Demo scenes, anchoring and prompting (2026-11-01 evening; single seed 42 unless noted)
+- **A reference image keeps the character and room steady.** H3's reference-to-video (one frame of the character as `ref_image_0`)
+  kept the same fighter in the same dojo through a hit-pause freeze; pinning the first and last frame (image-to-video) kept
+  the scene too but made the freeze softer. Scene drift from frame 0: 36 unanchored, 34 first+last frame, 26 reference image.
+- **Freeze depth with the reference image** (motion at the punch's impact, control 8.6): net -2 gives 3.1, net -4 gives 2.9,
+  net -6 gives 1.2. Anchoring makes the dial less able to override the motion, and the response is not smooth (-4 is no deeper
+  than -2); use about -6 for a clear hit-pause.
+- **Describing the transition in the prompt changes how it looks.** "The world begins to melt, slowly and smoothly, into flowing
+  rainbow light, building gently ... drifting back ... never sudden" turned hard cuts into visible in-between frames (colour
+  ribbons creeping over the scene) and added a swirling aurora background. The dial schedule still sets *when*.
+- **Strength ladder on an anime kitsune with a reference frame** (psychedelic dial on/off schedule; colour swing between on and
+  off windows): +1.0 +3, +1.5 +5, +1.8 +15, +2.0 +27, +2.2 +25, +2.5 +30, +3.0 +32, +4.0 +37. Below +1.5 she stays herself and the
+  world gets rainbow bursts; +1.8 is the threshold; from +2.0 she becomes a masked, rainbow-haired striped-suit figure every time;
+  +3 and +4 go further (spiky crown, dark nebula, +4 stiff and symmetrical) without breaking, and the "off" windows come back clean.
+  So the useful choices are +1.5 (her, trippy) or +2.0 (full transformation), not the values between.
+- **Active dancing needs choreography in the prompt.** "Dancing and casting spells" gave a gentle sway (mean frame change 8.4);
+  spins, leaps, high kicks, crouches and sweeping wand arcs on the drum hits nearly doubled it (15.7), at the same motion dial.
+- **Outfits: describe what is worn, not what isn't.** "Closed down to the ankles" was ignored (high-slit robe, stockings, garters);
+  "high-necked long-sleeved coat falling to the knees, dark fitted trousers tucked into tall boots, brown gloves" gave a covered
+  look. A long staff clipped through the character; a short wand did not and made nicer glowing sigil trails. Check public
+  clips frame by frame: even covered outfits can turn skin-tight when a look dial transforms the character.
+- **Human-faced kitsune (ears and tail) and anime style both work in H3** ("2D anime, cel-shaded, cinematic, soft volumetric
+  light" plus a clear character sheet); several seeds gave the same face.
+- **Ops:** a wait loop using `pgrep -f <script name>` matches its own command line and never exits: wait on the job PIDs
+  (`cmd & P=$!; wait $P`). A script that re-runs another script's top half can overwrite its own variables (a "which variant"
+  setting was reset, so two renders silently repeated the control): set arguments after the exec.
+
 ## Strength over denoising
 - **On Pika, the prompt only matters in the first steps.** Late envelopes at +2 and even +8 changed nothing; constant
   beat every other shape for motion per unit of gain.
