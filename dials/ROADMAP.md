@@ -133,6 +133,15 @@ effect size. Single-seed results say so.
   per-head analysis at the best layer; the picture-pair dial applied while the VLM captions an image.
 
 ## Later / research
+- **Dial Doctor (back burner, Dylan 2026-11-01):** help people make better dials. Tiers: (0) a pair linter in Make Dial
+  from the LESSONS rules (actions on one side, objects on one side, time words in non-time dials, every A side sharing
+  one "pleasant sunny" pole, length mismatch, subjects that clash with the pairs); (1) a Dial Check workflow: Make Dial
+  -> sweep contact sheet -> core Generate Text with a VLM and a knowledge pack (`DIAL_DOCTOR.md`: how dials work, the
+  failure catalogue with render signatures and fixes, per-model strength ranges) -> verdict, leaks, useful/overcook,
+  v2 pairs, one refinement round unrolled in the graph; (2) an agentic loop (driver script + Claude Code skill).
+  Small VLMs (Qwen3.5-9B and Qwen3-VL-4B on disk both have vision weights) should answer only narrow per-image
+  questions while code does the diagnosis; gate the design on a critic benchmark over our labelled sheets (framing,
+  MOSS v1, Krea grade, blocks), ~50 questions, Qwen3-VL-4B vs Qwen3.5-9B vs Gemma 4 31B.
 - **Voice-contrast dials:** audio never enters H3's text encoder; needs the DiT's audio-token seam.
 - **Research bridge (blueprint P4+):** prompt-space dial -> video-token direction via Concept Lab; then clip-time
   curves, painted regions and the motion-oracle sidechain with De-Rope.
