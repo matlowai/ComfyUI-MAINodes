@@ -97,6 +97,8 @@ one seed; treat them as starting points.
 - **Ops:** a wait loop using `pgrep -f <script name>` matches its own command line and never exits: wait on the job PIDs
   (`cmd & P=$!; wait $P`). A script that re-runs another script's top half can overwrite its own variables (a "which variant"
   setting was reset, so two renders silently repeated the control): set arguments after the exec.
+- **Quote heredocs** (`<<'EOF'`) when the text contains backticks or `$`: an unquoted one ran the backticked file paths as
+  commands and silently blanked them out of a handoff note. Re-read any note you edit by script.
 
 ## Strength over denoising
 - **On Pika, the prompt only matters in the first steps.** Late envelopes at +2 and even +8 changed nothing; constant
