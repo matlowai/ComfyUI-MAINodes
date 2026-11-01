@@ -640,6 +640,381 @@ class DialMatrix {
   }
 }
 
+// The dial editor: v' = v + Σ c_j q_j over the bank's probe vectors (c = Δβ in probe units) and the library's PC1/PC2 (unit
+// vectors). The server sends the Gram numbers once (/mainodes/dials/editor); every readout below is exact from them, and
+// export redoes the edit from the edit list on the server. Nothing here touches the rack's rows until "add as row".
+const dotv = (a, b) => a.reduce((t, x, i) => t + x * b[i], 0);
+const quad = (c, m) => c.reduce((t, x, i) => t + x * dotv(c, m[i]), 0);
+const NEAR = 5;  // labelled neighbours
+const signed = (v, d = 2) => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(d);
+function solve2(J, d) {  // J·[a, b] = d; a singular J (identical directions, a zero component) moves along the first only
+  const det = J[0][0] * J[1][1] - J[0][1] * J[1][0];
+  if (Math.abs(det) > 1e-9 * Math.abs(J[0][0] * J[1][1])) return [(d[0] * J[1][1] - d[1] * J[0][1]) / det, (d[1] * J[0][0] - d[0] * J[1][0]) / det];
+  return [J[0][0] ? d[0] / J[0][0] : 0, 0];
+}
+
+class DialEditor {
+  constructor(rack, r) {
+    this.rack = rack;
+    this.r = r;
+    this.file = r.dial;
+    this.ops = [];
+    this.view = "bars";
+    this.basis = { kind: "pca", x: 0, y: 1 };
+    const el = (...a) => rack.el(...a);
+    this.box = el("div", { display: "flex", flexDirection: "column", gap: "5px", padding: "6px", background: "#1b1d23",
+      border: "1px solid #2f323b", borderRadius: "4px" });
+    this.head = el("div", { display: "flex", gap: "5px", alignItems: "center", flexWrap: "wrap" }, this.box);
+    this.status = el("div", { color: "#9a9ba0" }, this.box, "loading the probe profile and the dial library…");
+    api.fetchApi(`/mainodes/dials/editor?dial=${encodeURIComponent(this.file)}`).then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      this.s = data;
+      this.build();
+    }).catch((e) => {
+      this.status.textContent = `Dial editor not available because ${e.message}.`;
+      this.status.style.color = "#ff8a5c";
+      rack.button(this.head, "Close", "close the dial editor", () => rack.closeEditor(), { padding: "1px 6px" });
+      rack.render();
+    });
+  }
+
+  get fit() { return this.rack.pad.fit || "direct"; }
+  get K() { return this.s.bank.axes.length; }
+
+  build() {
+    const rack = this.rack, el = (...a) => rack.el(...a), s = this.s;
+    this.status.remove();
+    el("span", { color: "#ffc145" }, this.head, `Dial editor · ${shortName(this.file)}`);
+    const pick = (label, options, value, title, cb) => {
+      el("span", { color: "#888" }, this.head, label);
+      const sel = el("select", { background: "#111", color: "#eee", border: "1px solid #333" }, this.head);
+      for (const [v, text] of options) el("option", {}, sel, text).value = v;
+      sel.value = value; sel.title = title; sel.onchange = () => cb(sel.value);
+      return sel;
+    };
+    this.selView = pick("view", [["bars", "probe bars"], ["library", "library map"]], this.view,
+      "probe bars: the dial's probe profile, drag a bar · library map: the dial among the saved dials, drag the dot", (v) => { this.view = v; this.draw(); });
+    this.selFit = pick("fit", [["direct", "direct"], ["joint", "joint"]], this.fit,
+      "direct (v·p)/(p·p), or the joint ridge fit that shares credit between correlated probes (same setting as the wheel)",
+      (v) => { rack.pad.fit = v; this.draw(); if (rack.pad.open) rack.map.draw(); });
+    rack.button(this.head, "Undo", "undo the last edit", () => { this.ops.pop(); this.draw(); }, { padding: "1px 6px" });
+    rack.button(this.head, "Reset", "back to the original dial", () => { this.ops = []; this.draw(); }, { padding: "1px 6px" });
+    rack.button(this.head, "Close", "close the editor (unsaved edits are dropped)", () => rack.closeEditor(), { padding: "1px 6px", marginLeft: "auto" });
+    this.axisBar = el("div", { display: "flex", gap: "5px", alignItems: "center", flexWrap: "wrap" }, this.box);
+    this.canvas = el("canvas", { display: "block", width: "100%", cursor: "ew-resize", touchAction: "none", borderRadius: "4px" }, this.box);
+    this.readout = el("div", { color: "#9a9ba0", fontSize: "11px", whiteSpace: "pre-wrap" }, this.box);
+    this.pointer();
+    this.exportForm();
+    rack.render();
+  }
+
+  // ---------- the math (exact, from the Gram numbers) ----------
+  coeffs() {
+    const K = this.K, c = Array(K + 2).fill(0), axes = this.s.bank.axes;
+    for (const op of this.ops) {
+      if (op.kind === "axis") c[axes.indexOf(op.axis)] += op.delta;
+      else if (op.basis === "probes") op.axes.forEach((a, i) => { c[axes.indexOf(a)] += op.delta[i]; });
+      else { c[K] += op.delta[0]; c[K + 1] += op.delta[1]; }
+    }
+    return c;
+  }
+  coef(c, fit, k) {  // fit coefficient of v' on probe k
+    const s = this.s, pp = s.qq[k][k];
+    return fit === "joint" ? s.joint[k] + c.reduce((t, x, j) => t + x * s.jq[j][k], 0)
+      : s.direct[k] + (pp > 0 ? c.reduce((t, x, j) => t + x * s.qq[j][k], 0) / pp : 0);
+  }
+  response(fit, k, j) {  // change of coefficient k per unit move along direction j
+    const s = this.s;
+    return fit === "joint" ? s.jq[j][k] : s.qq[k][k] > 0 ? s.qq[j][k] / s.qq[k][k] : 0;
+  }
+  measure(c) {
+    const s = this.s, K = this.K, n2 = Math.max(0, s.vv + 2 * dotv(c, s.vq) + quad(c, s.qq)), norm = Math.sqrt(n2);
+    const one = [1, ...c], r2 = Math.max(0, quad(one, s.rr));
+    const cosWith = (vw, qw, ww) => (n2 * ww > 0 ? (vw + dotv(c, qw)) / Math.sqrt(n2 * ww) : 0);
+    return {
+      norm, cos: cosWith(s.vv, s.vq, s.vv), unexplained: norm > 0 ? Math.sqrt(r2) / norm : 0,
+      direct: s.bank.axes.map((_, k) => this.coef(c, "direct", k)), joint: s.bank.axes.map((_, k) => this.coef(c, "joint", k)),
+      pc: [0, 1].map((i) => s.pc[i] + c.reduce((t, x, j) => t + x * s.qq[j][K + i], 0)),
+      lib: s.library.map((w) => ({ w, cos: cosWith(w.vw, w.qw, w.ww), was: s.vv * w.ww > 0 ? w.vw / Math.sqrt(s.vv * w.ww) : 0 })),
+    };
+  }
+  coords(m, w) {  // library-map position of v' (w = null) or of a library dial
+    const b = this.basis;
+    if (b.kind === "pca") return w ? w.pc : m.pc;
+    const src = w ? w[this.fit] : m[this.fit];
+    return [src[b.x], src[b.y]];
+  }
+
+  // ---------- drawing ----------
+  draw() {
+    if (!this.s) return;
+    const c = this.coeffs(), m = this.measure(c);
+    this.selFit.value = this.fit;
+    this.canvas.style.cursor = this.view === "bars" ? "ew-resize" : "move";
+    this.axisControls();
+    if (this.view === "bars") this.drawBars(m); else this.drawLibrary(m);
+    this.readouts(m);
+  }
+
+  surface(H) {
+    const W = this.canvas.clientWidth || 560, dpr = window.devicePixelRatio || 1;
+    this.canvas.style.height = H + "px";
+    this.canvas.width = Math.round(W * dpr); this.canvas.height = Math.round(H * dpr);
+    const g = this.canvas.getContext("2d");
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.fillStyle = "#101114"; g.fillRect(0, 0, W, H);
+    g.font = "10px sans-serif";
+    return [g, W, H];
+  }
+
+  barLayout(W) {
+    const left = 190, right = 110, row = 19, top = 16;
+    return { left, right, row, top, x0: left, x1: W - right, zero: (left + W - right) / 2 };
+  }
+
+  drawBars(m) {
+    const s = this.s, K = this.K, fit = this.fit, [g, W] = this.surface(16 + K * 19 + 18), L = this.barLayout(W);
+    const orig = s[fit], live = m[fit];
+    if (!this.drag) this.R = Math.max(0.5, Math.ceil(Math.max(...orig.map(Math.abs), ...live.map(Math.abs)) * 1.3 * 4) / 4);
+    const R = this.R, half = (L.x1 - L.x0) / 2, X = (v) => L.zero + Math.max(-1, Math.min(1, v / R)) * half;
+    this.barX = X; this.barValue = (px) => (px - L.zero) / half * R;
+    const clustered = new Set((s.bank.correlated || []).flat().filter((x) => typeof x === "string"));
+    g.fillStyle = "#777";
+    g.fillText(`${signed(-R)}`, L.x0, 11); g.fillText("0", L.zero - 3, 11); g.fillText(`${signed(R)}`, L.x1 - 24, 11);
+    s.bank.axes.forEach((axis, k) => {
+      const y = L.top + k * L.row, active = this.drag?.k === k || this.hover === k;
+      g.fillStyle = active ? "#1f2128" : k % 2 ? "#15161a" : "#121317"; g.fillRect(0, y, W, L.row - 1);
+      g.fillStyle = active ? "#eee" : "#bbb"; g.textAlign = "left";
+      g.fillText(axis + (clustered.has(axis) ? " ∿" : ""), 4, y + 13);
+      g.fillStyle = "#888"; g.textAlign = "right"; g.fillText(`− ${s.bank.negative[k]}`, L.x0 - 6, y + 13);
+      g.textAlign = "left"; g.fillText(`${s.bank.positive[k]} +`, L.x1 + 6, y + 13);
+      g.fillStyle = live[k] >= 0 ? "#ffa64d" : "#5a8cff";
+      g.fillRect(Math.min(X(0), X(live[k])), y + 4, Math.abs(X(live[k]) - X(0)), L.row - 9);
+      g.strokeStyle = "#d8d8d8"; g.setLineDash([2, 2]);
+      g.strokeRect(Math.min(X(0), X(orig[k])) + 0.5, y + 3.5, Math.abs(X(orig[k]) - X(0)), L.row - 8); g.setLineDash([]);
+      if (this.drag?.k === k) { g.fillStyle = "#ffc145"; g.fillRect(X(this.drag.target) - 1, y + 1, 2, L.row - 3); }
+      g.fillStyle = Math.abs(live[k] - orig[k]) > 0.005 ? "#ffc145" : "#9a9ba0"; g.textAlign = "right";
+      g.fillText(signed(live[k]), W - 4, y + 13);
+      g.textAlign = "left";
+    });
+    g.strokeStyle = "#555"; g.beginPath(); g.moveTo(L.zero + 0.5, L.top); g.lineTo(L.zero + 0.5, L.top + K * L.row); g.stroke();
+    g.fillStyle = "#777";
+    g.fillText(`${s.bank.bank} v${s.bank.version} · ${fit} · probe units · dashed = original, filled = edited · ∿ correlated probes`, 4, L.top + K * L.row + 12);
+  }
+
+  drawLibrary(m) {
+    const s = this.s, [g, W, H] = this.surface(300), self = s.vector_sha256;
+    const pts = s.library.filter((w) => w.vector_sha256 !== self).map((w) => ({ w, at: this.coords(m, w) }));
+    const here = this.coords(m, null), start = this.coords(this.measure(Array(this.K + 2).fill(0)), null);
+    if (!this.drag) {
+      const xs = [...pts.map((p) => p.at[0]), here[0], start[0]], ys = [...pts.map((p) => p.at[1]), here[1], start[1]];
+      const pad = (lo, hi) => { const d = (hi - lo) * 0.12 || 1; return [lo - d, hi + d]; };
+      this.frame = [pad(Math.min(...xs), Math.max(...xs)), pad(Math.min(...ys), Math.max(...ys))];
+    }
+    const [[x0, x1], [y0, y1]] = this.frame, M = 28;
+    const px = (v) => M + (v - x0) / (x1 - x0) * (W - 2 * M), py = (v) => H - M - (v - y0) / (y1 - y0) * (H - 2 * M);
+    this.libPx = { x: (v) => (v - x0) / (x1 - x0) * (W - 2 * M), y: (v) => (v - y0) / (y1 - y0) * (H - 2 * M) };
+    g.strokeStyle = "#2a2c33";
+    if (x0 < 0 && x1 > 0) { g.beginPath(); g.moveTo(px(0), M); g.lineTo(px(0), H - M); g.stroke(); }
+    if (y0 < 0 && y1 > 0) { g.beginPath(); g.moveTo(M, py(0)); g.lineTo(W - M, py(0)); g.stroke(); }
+    const near = new Set(m.lib.filter((l) => l.w.vector_sha256 !== self).sort((a, b) => b.cos - a.cos).slice(0, NEAR).map((l) => l.w));
+    const cos = new Map(m.lib.map((l) => [l.w, l.cos])), placed = [];
+    const label = (text, x, y) => {  // first of a few offsets that overlaps no earlier label
+      const w = g.measureText(text).width;
+      for (const dy of [-4, 12, -16, 24, -28]) {
+        if (!placed.some((r) => x < r[0] + r[2] && r[0] < x + w && y + dy - 9 < r[1] && r[1] - 9 < y + dy)) {
+          placed.push([x, y + dy, w]); return g.fillText(text, x, y + dy);
+        }
+      }
+      g.fillText(text, x, y - 4);
+    };
+    for (const p of pts) {
+      const on = near.has(p.w);
+      g.fillStyle = on ? "#8fb4ff" : "#4a4d57";
+      g.beginPath(); g.arc(px(p.at[0]), py(p.at[1]), on ? 3.5 : 2.5, 0, 2 * Math.PI); g.fill();
+    }
+    g.fillStyle = "#b8c4ff";
+    for (const p of pts) if (near.has(p.w)) label(`${shortName(p.w.names[0])} ${signed(cos.get(p.w))}`, px(p.at[0]) + 5, py(p.at[1]));
+    g.strokeStyle = "#d8d8d8"; g.setLineDash([3, 3]);
+    g.beginPath(); g.moveTo(px(start[0]), py(start[1])); g.lineTo(px(here[0]), py(here[1])); g.stroke(); g.setLineDash([]);
+    g.lineWidth = 1.5; g.beginPath(); g.arc(px(start[0]), py(start[1]), 6, 0, 2 * Math.PI); g.stroke(); g.lineWidth = 1;
+    g.fillStyle = "#ffc145"; g.beginPath(); g.arc(px(here[0]), py(here[1]), 6, 0, 2 * Math.PI); g.fill();
+    label(shortName(this.file) + (this.ops.length ? " (edited)" : ""), px(here[0]) + 8, py(here[1]) + 18);
+    const b = this.basis, names = b.kind === "pca" ? ["PC1", "PC2"] : [b.x, b.y].map((k) => s.bank.axes[k]);
+    g.fillStyle = "#999";
+    const xl = b.kind === "pca" ? "PC1 →" : `${s.bank.positive[b.x]} (${names[0]}) →`;
+    g.fillText(xl, W - M - g.measureText(xl).width, H - 8);
+    g.fillText(b.kind === "pca" ? "↑ PC2" : `↑ ${s.bank.positive[b.y]} (${names[1]})`, 4, 12);
+    g.fillStyle = "#777";
+    const scope = `${s.library.length} saved dials · ${s.family} post-refiner · ` + (b.kind === "pca" ? "top 2 principal components of the library" : `${this.fit} fit, probe units`);
+    g.fillText(scope, M, H - 8 - (g.measureText(scope).width + g.measureText(xl).width > W - 2 * M - 10 ? 12 : 0));
+  }
+
+  axisControls() {
+    const rack = this.rack, el = (...a) => rack.el(...a), s = this.s, b = this.basis;
+    this.axisBar.replaceChildren();
+    this.axisBar.style.display = this.view === "library" ? "flex" : "none";
+    if (this.view !== "library") return;
+    const sel = (value, options, cb) => {
+      const e = el("select", { background: "#111", color: "#eee", border: "1px solid #333" }, this.axisBar);
+      for (const [v, t] of options) el("option", {}, e, t).value = v;
+      e.value = value; e.onchange = () => { cb(e.value); this.draw(); };
+    };
+    el("span", { color: "#888" }, this.axisBar, "axes");
+    sel(b.kind, [["pca", "library PC1 / PC2"], ["probes", "two probe axes"]], (v) => {
+      b.kind = v;
+      if (v === "probes" && b.x === b.y) b.y = (b.x + 1) % this.K;
+    });
+    const axes = s.bank.axes.map((a, k) => [k, a]);
+    if (b.kind === "probes") {
+      el("span", { color: "#888" }, this.axisBar, "X"); sel(b.x, axes, (v) => { b.x = Number(v); });
+      el("span", { color: "#888" }, this.axisBar, "Y"); sel(b.y, axes, (v) => { b.y = Number(v); });
+    }
+    el("span", { color: "#888", flexBasis: "100%" }, this.axisBar, b.kind === "pca"
+      ? "Dragging moves the dial along PC1 and PC2 only (the library's two main directions of spread); every other direction stays."
+      : `Dragging moves the dial along the ${s.bank.axes[b.x]} and ${s.bank.axes[b.y]} probe vectors only; every other direction stays.`);
+    if (b.kind === "probes" && b.x === b.y) el("span", { color: "#ff8a5c" }, this.axisBar, "pick two different axes");
+  }
+
+  readouts(m) {
+    const s = this.s, fit = this.fit, el = (...a) => this.rack.el(...a), line = (t, colour) => el("div", { color: colour || "#9a9ba0" }, this.readout, t);
+    this.readout.replaceChildren();
+    const was = Math.sqrt(s.vv);
+    line(`size |v'| ${m.norm.toFixed(2)} (original ${was.toFixed(2)}${was > 0 ? `, ×${(m.norm / was).toFixed(2)}` : ""})  ·  ` +
+      `cos with the original ${signed(m.cos, 3)}  ·  unexplained by the bank ${m.unexplained.toFixed(2)} (was ${s.unexplained.toFixed(2)})`, "#ddd");
+    const near = m.lib.filter((l) => l.w.vector_sha256 !== s.vector_sha256).sort((a, b) => b.cos - a.cos).slice(0, NEAR);
+    line("nearest saved dials: " + near.map((l) => `${shortName(l.w.names[0])} ${signed(l.cos)}` +
+      (Math.abs(l.cos - l.was) >= 0.005 ? ` (was ${signed(l.was)})` : "")).join("  ·  "));
+    const change = s.bank.axes.map((a, k) => [a, m[fit][k] - s[fit][k]]).filter(([, d]) => Math.abs(d) >= 0.005).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+    line(`probe changes (${fit}): ` + (change.length ? change.map(([a, d]) => `${a} ${signed(d)}`).join(", ") : "none"));
+    if (this.ops.length) line("edits: " + this.ops.map((op) => (op.kind === "axis" ? `${op.axis} Δβ ${signed(op.delta)} (${op.fit})`
+      : op.basis === "probes" ? `drag ${op.axes.join("/")} Δβ ${op.delta.map((d) => signed(d)).join(", ")} (${op.fit})`
+        : `drag PC1/PC2 ${op.delta.map((d) => signed(d)).join(", ")}`)).join("  ·  "));
+    if (this.hover != null && this.view === "bars") {
+      const a = s.bank.axes[this.hover], partners = (s.bank.correlated || []).filter((c) => c[0] === a || c[1] === a);
+      line(`${a}: ${s.bank.negative[this.hover]} ↔ ${s.bank.positive[this.hover]} · original ${signed(s[fit][this.hover])} → ${signed(m[fit][this.hover])}` +
+        (partners.length ? ` · correlated with ${partners.map((c) => `${c[0] === a ? c[1] : c[0]} (cos ${c[2].toFixed(2)})`).join(", ")}: editing one moves the others` : ""), "#ddd");
+    }
+    line((this.view === "library" ? "" : fit === "joint"
+      ? `Joint fit (ridge λ ${s.bank.lambda}): a drag adds Δβ·p, Δβ = how far you dragged; dragging to 0 removes the fitted component β·p, ` +
+        "and the re-fit lands near 0, not on it (ridge shrinkage). "
+      : "Direct fit: a drag adds Δβ·p, Δβ = how far you dragged; dragging to 0 removes the dial's projection on that probe. ") +
+      "Probes are correlated (light, expression and mood are one \"intensity\" cluster, cos ≈ 0.56–0.59), so moving one moves others" +
+      (this.view === "library" ? ". " : "; double-click a bar to remove that axis. ") +
+      "Exact vector math; whether an edit shows in renders is untested.", "#777");
+  }
+
+  // ---------- dragging ----------
+  pointer() {
+    const cv = this.canvas, at = (e) => {  // in the canvas' own CSS pixels, whatever the graph zoom
+      const b = cv.getBoundingClientRect();
+      return [(e.clientX - b.left) * cv.clientWidth / b.width, (e.clientY - b.top) * cv.clientHeight / b.height];
+    };
+    const rowAt = (y) => { const L = this.barLayout(cv.clientWidth), k = Math.floor((y - L.top) / L.row); return k >= 0 && k < this.K ? k : null; };
+    const snap0 = (v) => (Math.abs(this.barX(v) - this.barX(0)) < 4 ? 0 : v);
+    const bank = () => ({ bank: this.s.bank.bank, bank_version: this.s.bank.version });
+    cv.addEventListener("pointerdown", (e) => {
+      if (!this.s) return;
+      const [x, y] = at(e), fit = this.fit, c = this.coeffs();
+      if (this.view === "bars") {
+        const k = rowAt(y);
+        if (k == null) return;
+        const op = { kind: "axis", axis: this.s.bank.axes[k], delta: 0, fit, ...bank() };
+        this.drag = { k, op, from: this.coef(c, fit, k), target: this.coef(c, fit, k) };
+      } else {
+        const b = this.basis;
+        if (b.kind === "probes" && b.x === b.y) return;
+        const dirs = b.kind === "pca" ? [this.K, this.K + 1] : [b.x, b.y];
+        const J = b.kind === "pca" ? dirs.map((i) => dirs.map((j) => this.s.qq[i][j])) : [b.x, b.y].map((k) => dirs.map((j) => this.response(fit, k, j)));
+        const op = b.kind === "pca" ? { kind: "drag", basis: "library_pca", library_sha256: this.s.library_sha256, components_sha256: this.s.components_sha256, delta: [0, 0] }
+          : { kind: "drag", basis: "probes", axes: [b.x, b.y].map((k) => this.s.bank.axes[k]), delta: [0, 0], fit, ...bank() };
+        this.drag = { J, op, x0: x, y0: y };
+      }
+      this.ops.push(this.drag.op);
+      cv.setPointerCapture(e.pointerId);
+      this.move(x, y, snap0);
+    });
+    cv.addEventListener("pointermove", (e) => {
+      const [x, y] = at(e);
+      if (this.drag) return this.move(x, y, snap0);
+      const k = this.view === "bars" ? rowAt(y) : null;
+      if (k !== this.hover) { this.hover = k; this.draw(); }
+    });
+    const end = () => {
+      if (!this.drag) return;
+      if (this.drag.op.delta === 0 || (Array.isArray(this.drag.op.delta) && this.drag.op.delta.every((d) => d === 0))) this.ops.pop();
+      this.drag = null; this.draw();
+    };
+    cv.addEventListener("pointerup", end);
+    cv.addEventListener("pointercancel", end);
+    cv.addEventListener("pointerleave", () => { if (!this.drag && this.hover != null) { this.hover = null; this.draw(); } });
+    cv.addEventListener("dblclick", (e) => {
+      if (this.view !== "bars" || !this.s) return;
+      const k = rowAt(at(e)[1]);
+      if (k == null) return;
+      const v = this.coef(this.coeffs(), this.fit, k);
+      if (v) { this.ops.push({ kind: "axis", axis: this.s.bank.axes[k], delta: -v, fit: this.fit, ...bank() }); this.draw(); }
+    });
+  }
+
+  move(x, y, snap0) {
+    const d = this.drag;
+    if (this.view === "bars") {
+      d.target = snap0(this.barValue(x));
+      d.op.delta = d.target - d.from;  // Δβ along p_k: lands exactly under direct, removes the fitted component under joint
+    } else {
+      const p = this.libPx;  // the frame stays fixed while dragging, so pixels per unit are constant
+      d.op.delta = solve2(d.J, [(x - d.x0) / (p.x(1) - p.x(0)), -(y - d.y0) / (p.y(1) - p.y(0))]);
+    }
+    this.draw();
+  }
+
+  // ---------- export ----------
+  exportForm() {
+    const rack = this.rack, el = (...a) => rack.el(...a), info = this.s.info, parent = this.file.replace(/^dials\//, "").replace(/\.safetensors$/, "");
+    const box = el("div", { display: "grid", gridTemplateColumns: "auto 1fr auto 1fr", gap: "4px 6px", alignItems: "center",
+      borderTop: "1px solid #2a2c33", paddingTop: "5px" }, this.box);
+    const input = (label, value, attrs, span) => {
+      el("span", { color: "#888" }, box, label);
+      const e = el(attrs.tag || "input", { background: "#111", color: "#eee", border: "1px solid #333", gridColumn: span ? "span 3" : "",
+        minWidth: "0", resize: "vertical" }, box);
+      Object.assign(e, attrs.props || {}, { value });
+      return e;
+    };
+    const name = input("new name", `${parent.split("/").pop()}_edit`, { props: { maxLength: 161, title: "saved as models/loras/dials/<name>.safetensors; folder/name puts it in a sub-folder (folders starting with _ stay out of the rack's list). An existing file is never replaced." } }, true);
+    const desc = input("description", info.description, { tag: "textarea", props: { rows: 2, maxLength: 2000 } }, true);
+    const neg = input("− gives", info.negative, { props: { maxLength: 60 } });
+    const pos = input("+ gives", info.positive, { props: { maxLength: 60 } });
+    const notes = input("notes", `made in the Dial editor from ${shortName(this.file)}; output untested`, { tag: "textarea", props: { rows: 1, maxLength: 500 } }, true);
+    el("span", { gridColumn: "span 4", color: "#777", fontSize: "11px" }, box,
+      "Useful and overcook strengths and the evidence start unknown: an edited dial has not been rendered yet. The file records the parent, its hash and every edit.");
+    const actions = el("div", { gridColumn: "span 4", display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }, box);
+    const msg = el("span", { color: "#9a9ba0", whiteSpace: "pre-wrap", flex: "1 1 200px" }, actions);
+    rack.button(actions, "Export new dial", "save the edited vector as a new dial file (never overwrites)", async (b) => {
+      b.disabled = true; msg.style.color = "#9a9ba0"; msg.textContent = "saving…";
+      try {
+        const r = await api.fetchApi("/mainodes/dials/editor/export", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dial: this.file, edits: this.ops, name: name.value.trim(), info: { version: 2, description: desc.value,
+            negative: neg.value, positive: pos.value, neg: UNKNOWN, pos: UNKNOWN, evidence: null, pipeline: "", notes: notes.value } }) });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error);
+        this.saved = data;
+        msg.style.color = "#ffc145";
+        msg.textContent = `saved ${data.file} · |v'| ${data.norm.toFixed(2)} · cos with the original ${signed(data.cos_parent, 3)} · nearest ` +
+          data.neighbours.slice(0, 3).map((n) => `${shortName(n.dial)} ${signed(n.cos)}`).join(", ");
+        this.addButton.style.display = "";
+        await listDials(true);
+      } catch (e) { msg.style.color = "#ff8a5c"; msg.textContent = e.message; }
+      finally { b.disabled = false; }
+    }, { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145" });
+    this.addButton = rack.button(actions, "add as row", "add the saved dial as a new rack row at this row's strength", () => {
+      rack.addRow({ on: true, dial: this.saved.file, strength: this.r.strength, solo: false });
+    });
+    this.addButton.style.display = "none";
+  }
+}
+
 class DialRackUI {
   constructor(node) {
     this.node = node;
@@ -1003,7 +1378,13 @@ class DialRackUI {
     if (JSON.stringify(this.rows) !== before) { this.commit(); this.render(); }
   }
 
+  closeEditor() {
+    this.dialEditor = null;
+    this.render();
+  }
+
   render() {
+    if (this.dialEditor && (!this.rows.includes(this.dialEditor.r) || this.dialEditor.r.dial !== this.dialEditor.file)) this.dialEditor = null;
     this.list.replaceChildren();
     const files = dialFiles || [];
     const active = (r) => r.on && (r.hold || Number(r.strength) !== 0);
@@ -1079,6 +1460,9 @@ class DialRackUI {
       if (!("input" in r)) this.button(row, "⚙", "dial info: description, what − and + give, useful and overcook strengths per side, evidence (saved in the dial file)",
         () => { this.editing = this.editing === i ? null : i; this.render(); },
         this.editing === i ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145", padding: "2px 6px" } : { padding: "2px 6px" });
+      if (!("input" in r)) this.button(row, "✎", "dial editor: see this dial's probe profile and its place among the saved dials, drag to edit, export as a new dial",
+        () => { this.dialEditor = this.dialEditor?.r === r ? null : new DialEditor(this, r); this.render(); },
+        this.dialEditor?.r === r ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145", padding: "2px 6px" } : { padding: "2px 6px" });
       this.button(row, "S", "solo: hear only the soloed rows", () => { r.solo = !r.solo; this.commit(); this.render(); },
         r.solo ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145", padding: "2px 6px" } : { padding: "2px 6px" });
       const hold = this.button(row, "H", "hold: remove this direction from the summed shift (post-refiner dials only)",
@@ -1089,6 +1473,7 @@ class DialRackUI {
       if (this.editing === i && !("input" in r)) this.infoEditor(r.dial);
       if (this.blocksEditing === i && !r.hold) this.blocksEditor(r, this.rowName(i));
       if (this.timeEditing === i && !r.hold) this.timeEditor(r, this.rowName(i));
+      if (this.dialEditor?.r === r) { this.list.appendChild(this.dialEditor.box); this.dialEditor.draw(); }
       if (r.envelope?.type === "manual") {
         const points = this.el("input", { boxSizing: "border-box", width: "100%", background: "#111", color: "#ddd", border: "1px solid #333" }, this.list);
         points.value = JSON.stringify(r.envelope.points);
@@ -1114,7 +1499,8 @@ class DialRackUI {
     this.left.style.flex = open ? `0 0 ${LEFT_PX}px` : "1 1 auto";
     this.padButton.style.borderColor = open ? "#ffc145" : "#444";
     if (open) { this.map.render(); this.matrix.draw(); }
-    const key = [this.rows.length, open, this.report, this.presetMessage, this.presetBar.style.display, this.editing, this.blocksEditing, this.timeEditing, this.rows[this.timeEditing]?.time?.type].join("|");
+    const key = [this.rows.length, open, this.report, this.presetMessage, this.presetBar.style.display, this.editing, this.blocksEditing, this.dialEditor?.file, this.dialEditor?.box.childElementCount,
+      this.timeEditing, this.rows[this.timeEditing]?.time?.type].join("|");
     if (key !== this.contentKey && this.root.clientHeight) {  // content changed: grow to show it; never shrink what the user sized
       // (before the widget is laid out, e.g. while a workflow loads, the saved size stands)
       this.contentKey = key;

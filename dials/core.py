@@ -244,6 +244,15 @@ def vector_sha256(dial):
     return h.hexdigest()
 
 
+def dial_parent(dial):
+    """A parent dial as recorded in a recipe: name, vector hash, and its own recipe when it was combined or edited too."""
+    out = {"name": dial["meta"].get("name"), "vector_sha256": vector_sha256(dial)}
+    recipe = dial["meta"].get("composition")
+    if recipe:
+        out["composition"] = json.loads(recipe) if isinstance(recipe, str) else recipe
+    return out
+
+
 def load_dial(dial_name):
     path = folder_paths.get_full_path_or_raise("loras", dial_name)  # resolves inside the loras folders only
     with safe_open(path, "pt") as f:
