@@ -93,7 +93,7 @@ pass-1 and the de-roped clip are saved. Same layout as ComfyUI-Dials' `dials_pik
 | Example | UI workflow | API graph | What it shows |
 |---|---|---|---|
 | Rack | [dials_rack_pika_derope.json](../examples/dials/dials_rack_pika_derope.json) | [api](../examples/dials/dials_rack_pika_derope_api.json) | Motion +0.5, warm–cold +0.6, day–night +0.8, reserved–lively (off), dream +6 with an early envelope (off); the map open on warm–cold × day–night. Train platform, seed 42 |
-| Picture dial | [dials_picture_pika_derope.json](../examples/dials/dials_picture_pika_derope.json) | [api](../examples/dials/dials_picture_pika_derope_api.json) | Make Dial from Pictures (two folders of matched photos, here lizard vs squirrel in `input/dials_pictures/`) wired into the rack at −4, the text lizard dial as an off row for comparison. Small animal on a fence |
+| Picture dial | [dials_picture_pika_derope.json](../examples/dials/dials_picture_pika_derope.json) | [api](../examples/dials/dials_picture_pika_derope_api.json) | Make Dial from Pictures (two folders of matched photos, here lizard vs squirrel in `input/dials_pictures/`; photos not included, point both KJNodes folder loaders at your own) wired into the rack at −4, the text lizard dial as an off row for comparison. Small animal on a fence |
 | Prompt set | [dials_prompt_set_pika_derope.json](../examples/dials/dials_prompt_set_pika_derope.json) | [api](../examples/dials/dials_prompt_set_pika_derope_api.json) | Make Dial with weighted `+`/`-` prompt lines (night rain, neon, mist vs bright midday) wired into the rack at +1 |
 
 Model filenames are the plain names ComfyUI-Dials uses; pick your local files in the loaders. The picture example's

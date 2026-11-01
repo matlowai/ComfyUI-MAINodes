@@ -1,0 +1,683 @@
+{
+  "1": {
+    "inputs": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "2": {
+    "inputs": {
+      "lora_name": "pika_h3_flex_fl2va_v1_bf16.safetensors",
+      "strength_model": 1,
+      "model": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "Pika H3 Flex LoRA (FL2VA)",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "7": {
+    "inputs": {
+      "value": "integrated_multimodal_description: [Shot 1] Cinematic, natural light. An adult woman in a red coat walks along an empty train platform at dusk as a train slowly pulls in beside her. The camera tracks with her.\n\noverall_soundscape: Her footsteps on concrete, the train's brakes hissing, a distant announcement echoing.\n\nnon_diegetic_music: N/A"
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "Prompt (both passes)",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "8": {
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "type": "minimax",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "9": {
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "10": {
+    "inputs": {
+      "prompt": [
+        "7",
+        0
+      ],
+      "width": 1280,
+      "height": 704,
+      "length": 141,
+      "clip": [
+        "8",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3ImageToVideo",
+    "_meta": {
+      "title": "Pass 1 (MiniMax H3)",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "11": {
+    "inputs": {
+      "noise_seed": 42
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "RandomNoise",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "12": {
+    "inputs": {
+      "model": [
+        "40",
+        0
+      ],
+      "conditioning": [
+        "10",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "Basic Guider",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "13": {
+    "inputs": {
+      "sampler_name": "lcm"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "Sampler: lcm (Pika)",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "14": {
+    "inputs": {
+      "sigmas": "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
+    },
+    "class_type": "ManualSigmas",
+    "_meta": {
+      "title": "Pika 6-step schedule (keep as is)",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "15": {
+    "inputs": {
+      "noise": [
+        "11",
+        0
+      ],
+      "guider": [
+        "12",
+        0
+      ],
+      "sampler": [
+        "13",
+        0
+      ],
+      "sigmas": [
+        "14",
+        0
+      ],
+      "latent_image": [
+        "10",
+        1
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "SamplerCustomAdvanced",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "16": {
+    "inputs": {
+      "samples": [
+        "15",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "17": {
+    "inputs": {
+      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Audio VAE",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "18": {
+    "inputs": {
+      "samples": [
+        "15",
+        0
+      ],
+      "vae": [
+        "17",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "VAE Decode Audio",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "19": {
+    "inputs": {
+      "fps": 24,
+      "bit_depth": 8,
+      "color_space": "sRGB",
+      "codec": "none",
+      "images": [
+        "16",
+        0
+      ],
+      "audio": [
+        "18",
+        0
+      ]
+    },
+    "class_type": "CreateVideo",
+    "_meta": {
+      "title": "Create Video",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "20": {
+    "inputs": {
+      "filename_prefix": "video/dials_prompt_set_pass1",
+      "format": "auto",
+      "format.codec": "auto",
+      "codec": "auto",
+      "video": [
+        "19",
+        0
+      ]
+    },
+    "class_type": "SaveVideo",
+    "_meta": {
+      "title": "Save Video",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "22": {
+    "inputs": {
+      "length": 141,
+      "q": 0.75,
+      "d_max": 4,
+      "ramp": true,
+      "preset": "balanced (default)",
+      "bridge": 8,
+      "profile_mode": "value |d3| (default)",
+      "abstain_below": 0,
+      "fps": 24,
+      "s_per_step": 0,
+      "est_steps": 18,
+      "overhead_s": 6.7,
+      "model_profile": "minimax-h3",
+      "protect_tail": 0,
+      "samples": [
+        "15",
+        0
+      ]
+    },
+    "class_type": "H3JerkOracle",
+    "_meta": {
+      "title": "Find jerky motion (length = pass 1)",
+      "cnr_id": "comfyui-mainodes",
+      "ver": "688a8a071cac649c60f9922c7933a54b93549c8e"
+    }
+  },
+  "23": {
+    "inputs": {
+      "model_profile": "minimax-h3",
+      "custom_block": 8,
+      "custom_hold_scale": 4,
+      "custom_legal_step": 8,
+      "custom_legal_offset": 1,
+      "custom_fps": 25,
+      "custom_cap_seconds": 0,
+      "hold_map": [
+        "22",
+        0
+      ]
+    },
+    "class_type": "H3ClockRemap",
+    "_meta": {
+      "title": "H3 Clock Remap (any model, presets)",
+      "cnr_id": "comfyui-mainodes",
+      "ver": "688a8a071cac649c60f9922c7933a54b93549c8e"
+    }
+  },
+  "24": {
+    "inputs": {
+      "dilation": 4,
+      "hold_map": [
+        "23",
+        0
+      ],
+      "expand_to_end": true,
+      "fps": 24,
+      "s_per_step": 0,
+      "est_steps": 18,
+      "overhead_s": 6.7,
+      "images": [
+        "16",
+        0
+      ]
+    },
+    "class_type": "H3TimeSmear",
+    "_meta": {
+      "title": "Hold frames (slow the jerky stretches)",
+      "cnr_id": "comfyui-mainodes",
+      "ver": "688a8a071cac649c60f9922c7933a54b93549c8e"
+    }
+  },
+  "25": {
+    "inputs": {
+      "hold_map": [
+        "24",
+        1
+      ],
+      "fps": 24,
+      "audio": [
+        "18",
+        0
+      ]
+    },
+    "class_type": "H3AudioSmear",
+    "_meta": {
+      "title": "H3 Audio Smear (hold-map stretch, pitch kept) [alpha]",
+      "cnr_id": "comfyui-mainodes",
+      "ver": "688a8a071cac649c60f9922c7933a54b93549c8e"
+    }
+  },
+  "26": {
+    "inputs": {
+      "audio": [
+        "25",
+        0
+      ],
+      "vae": [
+        "17",
+        0
+      ]
+    },
+    "class_type": "VAEEncodeAudio",
+    "_meta": {
+      "title": "VAE Encode Audio",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "27": {
+    "inputs": {
+      "pixels": [
+        "24",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE Encode",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "28": {
+    "inputs": {
+      "length": 0,
+      "freeze_threshold": 0,
+      "freeze_grow": 2,
+      "mask_feather": 0,
+      "invert_mask": false,
+      "time_varying": false,
+      "audio_mode": "follow the original performance (0.5)",
+      "audio_strength": 0.5,
+      "audio_prefix_ticks": 0,
+      "audio_prefix_release_ticks": 0,
+      "samples": [
+        "27",
+        0
+      ],
+      "audio_latent": [
+        "26",
+        0
+      ]
+    },
+    "class_type": "H3V2VInit",
+    "_meta": {
+      "title": "H3 V2V Init (nested AV latent)",
+      "cnr_id": "comfyui-mainodes",
+      "ver": "688a8a071cac649c60f9922c7933a54b93549c8e"
+    }
+  },
+  "29": {
+    "inputs": {
+      "prompt": [
+        "7",
+        0
+      ],
+      "width": 1280,
+      "height": 704,
+      "length": [
+        "24",
+        2
+      ],
+      "clip": [
+        "8",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3ImageToVideo",
+    "_meta": {
+      "title": "Pass 2 (slowed clip)",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "30": {
+    "inputs": {
+      "noise_seed": 43
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "RandomNoise",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "31": {
+    "inputs": {
+      "model": [
+        "40",
+        0
+      ],
+      "conditioning": [
+        "29",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "Basic Guider",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "32": {
+    "inputs": {
+      "sigmas": "0.917197, 0.8, 0.571429, 0.333333, 0.0"
+    },
+    "class_type": "ManualSigmas",
+    "_meta": {
+      "title": "De-rope steps: inject 0.48, Pika knots",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "33": {
+    "inputs": {
+      "noise": [
+        "30",
+        0
+      ],
+      "guider": [
+        "31",
+        0
+      ],
+      "sampler": [
+        "13",
+        0
+      ],
+      "sigmas": [
+        "32",
+        0
+      ],
+      "latent_image": [
+        "28",
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "SamplerCustomAdvanced",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "34": {
+    "inputs": {
+      "samples": [
+        "33",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "35": {
+    "inputs": {
+      "samples": [
+        "33",
+        0
+      ],
+      "vae": [
+        "17",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "VAE Decode Audio",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "36": {
+    "inputs": {
+      "hold_map": [
+        "24",
+        1
+      ],
+      "images": [
+        "34",
+        0
+      ]
+    },
+    "class_type": "H3ExactRecover",
+    "_meta": {
+      "title": "Back to real time",
+      "cnr_id": "comfyui-mainodes",
+      "ver": "688a8a071cac649c60f9922c7933a54b93549c8e"
+    }
+  },
+  "37": {
+    "inputs": {
+      "hold_map": [
+        "24",
+        1
+      ],
+      "fps": 24,
+      "reference_mix": 1,
+      "audio_source": "keep the original performance (safe default)",
+      "audio": [
+        "35",
+        0
+      ],
+      "reference": [
+        "18",
+        0
+      ]
+    },
+    "class_type": "H3AudioRecover",
+    "_meta": {
+      "title": "Audio: keep pass 1's original",
+      "cnr_id": "comfyui-mainodes",
+      "ver": "688a8a071cac649c60f9922c7933a54b93549c8e"
+    }
+  },
+  "38": {
+    "inputs": {
+      "fps": 24,
+      "bit_depth": 8,
+      "color_space": "sRGB",
+      "codec": "none",
+      "images": [
+        "36",
+        0
+      ],
+      "audio": [
+        "37",
+        0
+      ]
+    },
+    "class_type": "CreateVideo",
+    "_meta": {
+      "title": "Create Video",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "39": {
+    "inputs": {
+      "filename_prefix": "video/dials_prompt_set_derope",
+      "format": "auto",
+      "format.codec": "auto",
+      "codec": "auto",
+      "video": [
+        "38",
+        0
+      ]
+    },
+    "class_type": "SaveVideo",
+    "_meta": {
+      "title": "Save Video",
+      "cnr_id": "comfy-core",
+      "ver": "0.42.0"
+    }
+  },
+  "40": {
+    "inputs": {
+      "rack": "[{\"on\":true,\"dial\":\"dials/h3_motion.safetensors\",\"strength\":0.5,\"solo\":false},{\"on\":true,\"input\":\"dial_0\",\"strength\":1,\"solo\":false}]",
+      "model": [
+        "2",
+        0
+      ],
+      "dials.dial_0": [
+        "41",
+        0
+      ]
+    },
+    "class_type": "MAIDialRack",
+    "_meta": {
+      "title": "Dial Rack (both passes)",
+      "cnr_id": "comfyui-mainodes",
+      "ver": "688a8a071cac649c60f9922c7933a54b93549c8e"
+    }
+  },
+  "41": {
+    "inputs": {
+      "pairs": "+2 {subject}, at night in steady rain, the ground wet and shining.\n+1 {subject}, under flickering neon signs reflected in puddles.\n+0.5 {subject}, mist hanging in the air around the streetlights.\n-1 {subject}, in bright midday sun on a dry, clear day.",
+      "subjects": "A city street\nA train platform\nA small park\nA harbour with boats",
+      "name": "h3_night_rain_set",
+      "inject": "post_refiner (hook)",
+      "debias": true,
+      "nuisance_dims": 3,
+      "description": "Prompt set: night rain, neon and mist against bright midday. +1 evening blue, +2 night (restages). Measured on Pika H3 Flex, 1 seed.",
+      "negative_label": "bright midday",
+      "positive_label": "night rain",
+      "useful": 1,
+      "overcook": 2,
+      "negative_useful": 0,
+      "negative_overcook": 0,
+      "evidence": "one-seed",
+      "pipeline": "Pika H3 Flex 6-step",
+      "clip": [
+        "8",
+        0
+      ],
+      "model": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "MAIDialMake",
+    "_meta": {
+      "title": "Make Dial: prompt set",
+      "cnr_id": "comfyui-mainodes",
+      "ver": "688a8a071cac649c60f9922c7933a54b93549c8e"
+    }
+  }
+}
