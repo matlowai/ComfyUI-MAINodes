@@ -99,8 +99,8 @@ Fixes a real defect: a de-rope breaks speech, because the picture gets an
 init and obeys it while the audio starts from zeros, so pass 2 writes a
 fresh performance at natural rate and moves the mouth to that. Seeding the
 audio rows with the baseline performance stretched onto the same dilated
-clock makes pass 2 render a genuinely slowed take. The README's
-"Dialogue through a de-rope" section has the adoption steps.
+clock makes pass 2 render a genuinely slowed take.
+[Dialogue through a de-rope](docs/MOTION_LAB.md#dialogue-through-a-de-rope) has the adoption steps.
 
 **State: it works, on material we have not varied enough.** The geometry
 is solid: the smear/recover round trip is sample-exact in both directions
@@ -114,8 +114,8 @@ those, that result is worth reporting whichever way it goes.
 ## The motion adapter (pilot)
 
 A rank-16 LoRA trained on the de-rope task itself, applied to the de-rope
-pass only. Documented with its measured settings and its known costs in the
-README's "The motion adapter (pilot)" section, and released as an
+pass only. Documented with its measured settings and its known costs in
+[The motion adapter (pilot)](docs/MOTION_LAB.md#the-motion-adapter-pilot), and released as an
 intermediate option rather than a finished one. A more ambitious all-in-one
 adapter is in progress and may not work.
 
@@ -223,8 +223,8 @@ shimmer. Alpha because: one scene measured deeply, everything else untested.
 The audio twin of the video prefix freeze, with a half-cosine release.
 Bench-tested on chained music (overlap correlation ~0.92 in the full
 chain, 0.98 on the pass-1-only control; beat phase 0.0 ms). It carries local continuity (level, timbre, beat),
-not a track's global phrase structure. Alpha because: the caveat list in the
-README section is load-bearing; read it before wiring.
+not a track's global phrase structure. Alpha because: the caveat list in
+[Anchoring audio across a join](docs/MOTION_LAB.md#anchoring-audio-across-a-join-alpha) is load-bearing; read it before wiring.
 
 ## Drift Control
 

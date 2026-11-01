@@ -30,10 +30,56 @@ Exact Recover instead; it is exact.
 
 ## MAI Video Compare (2-6, synchronized)
 
-The player has grown since this page was written: a waveform timeline with
-loop brackets, a frame stepper, and a frame-exact export. The README's
-MAI Video Compare section is the current reference; this page keeps the
-original wiring notes.
+It is the review surface of `tools/compare_deck/` inside ComfyUI, grown
+into a full player. Wire 2 to 6 renders into the node and queue once: it
+writes each one as a small h264 preview (CPU, no VAE, no tensors kept) and
+the widget plays them as live `<video>` elements, so it costs no VRAM.
+Driving it, once the previews load:
+
+- **Pick the pair.** Keys 1 to 6 choose sources (the last two pressed are A
+  and B), and the mode buttons switch between side by side, flip, wipe and,
+  for more than two, a synchronized grid. Hover a source to hear it, click
+  to lock its audio there.
+- **Move together.** Space plays and pauses everything, the arrows step one
+  frame (shift steps 12), F flickers A against B. All sources stay on the
+  lead's clock.
+- **Loop the moment that matters.** The timeline draws the A side's stereo
+  waveform, and the loop brackets are always live: `i` and `o` set them from
+  the playhead, or drag the grab tabs, or double-click to reset to the whole
+  clip. Playback stays inside the brackets, which is how you watch one seam
+  fifty times without touching anything.
+- **Let the graph mark it up.** Wire `H3 Time Smear`'s `hold_map_used` into
+  the node's `hold_map` and the regenerated window is drawn as a band with
+  enter and exit blips as the playhead crosses it. `curves` takes
+  `{name: [per-frame floats]}` and draws each as a lane under the playhead.
+  Both inputs are optional and were appended last, so older graphs keep
+  their widget order.
+- **Keep the verdict.** Enter stars the B side, which sets the node's
+  `winner` widget; the NEXT queue passes that source through `winner_video`
+  and `winner_index`. Pick, then finalize in a second execution: a graph
+  never waits on a human mid-run.
+- **Export what you just watched.** The export button renders the current
+  pair, in the current mode, over the current loop, plus a two second end
+  card carrying each side's label, seed, frame count, fps and size. It is
+  frame-exact through WebCodecs (VP9, AV1 or H.264, up to 100 Mbps, Opus
+  audio) and falls back to real-time capture where WebCodecs or the muxers
+  are unavailable, which the dialog says before you press anything. The two
+  muxers are vendored under `web/vendor/` (MIT, see its README).
+- The gear panel holds the rest: region edit, the frame counter overlay, and
+  which blips fire. Its settings are per node and survive a reload.
+
+Known issues (alpha): in-node playback sync between sources is
+approximate and can drift or stagger, and scrubbing during playback can
+wedge the transport (re-queue or reload recovers). In clock sync mode
+audio follows only the clock-owning side, so locking audio to the other
+pane is silent until sync mode is flipped. The realtime export records
+audio from the locked side even when it is not one of the two playing
+panes; prefer the precise export. The standalone deck
+pages (`tools/compare_deck/`) are the reliable review surface today; a
+combined-single-stream preview that removes the sync problem by
+construction is the planned next iteration.
+
+The original wiring notes:
 
 A media UI, not a processing stage. The node writes each wired VIDEO once as a
 small h264 preview into the temp directory (CPU, no VAE, no tensors kept) and
@@ -107,6 +153,18 @@ catches API JSON first and routes it through the frontend's own `loadApiJson`
 (widgets built from the server schema, never by position). It replaces the
 graph, so a non-empty canvas asks first. The deck's "api" links and every
 `*_api.json` in `examples/` paste directly now.
+
+## Compare deck (outside ComfyUI)
+
+[`tools/compare_deck/`](tools/compare_deck/) builds the review page used for
+the sweeps in this pack: a manifest JSON in, one self-contained HTML file
+out, with a card grid, a sortable metric table, a synced A/B (side by side
+or wipe) on a waveform timeline, and a frame-exact export of the current
+view. `make_manifest.py` drafts the manifest from a folder of clips; you
+fill in the groups and descriptions. The clips stay where they are, so
+nothing but HTML is produced. A live deck built with it:
+<https://matlowai.github.io/flipbook/trueclock.html>. Standalone Python, no
+ComfyUI import, see [`tools/compare_deck/README.md`](tools/compare_deck/README.md).
 
 ## What these replace
 

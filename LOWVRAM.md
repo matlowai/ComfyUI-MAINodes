@@ -72,7 +72,7 @@ K/V store on. What is in it and why, in the order it runs (2026-08-18):
 | `LoraLoaderModelOnly` | lightx2v turbo 4-step v1.0 768p, strength 1.0 | pass 1 at 12 steps (`linear_quadratic`), pass 2 on a 6-step `beta` schedule with `inject 0.7` (the "faithful detail" preset), so the long de-rope pass costs a handful of forwards |
 | **`H3 Streamed Blocks`** | q/kv/mlp chunks 16384, `min_tokens` 32768, `final_layer_chunk` 16384, `final_layer_gemm` exact, **`kv_store` = kvi8r** | every DiT block in token chunks (never the whole-sequence QKV or SwiGLU), the output head streamed, and the K/V of the whole sequence held as rotated int8: forward peak +9.5 GiB at 217k tokens instead of +11.9 (exact store) or +21 (stock). Bit-equal to stock with `kv_store` = bf16; with kvi8r a sibling take that the operator judged "perfect for both" on the de-rope side by side |
 | `H3 Evict Text Encoder` (x2) | after each prompt encode | the 15 GB TE leaves the card as soon as its conditioning exists (1 to 2.5 GiB of peak on a 16 GB card, ~3 s per new prompt to bring back) |
-| `H3 Jerk Oracle`, `H3 Time Smear`, `H3 Audio Smear`, `H3 V2V Init` | `d_max 4`, dilation 4, audio 0.5 | the de-rope itself (see README) |
+| `H3 Jerk Oracle`, `H3 Time Smear`, `H3 Audio Smear`, `H3 V2V Init` | `d_max 4`, dilation 4, audio 0.5 | the de-rope itself (see [Motion Lab](docs/MOTION_LAB.md)) |
 | `H3 Free Cache` | between the pass-2 sampler and its decodes | returns the allocator pool before the VAE runs (17 GiB on the long pass under `--gpu-only`; the small-card win is that decode never competes with a stale pool) |
 | `H3 Exact Recover`, `H3 Audio Recover` | | back to real time, frame-exact |
 

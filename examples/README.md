@@ -179,8 +179,8 @@ flowchart LR
 In [`experimental/`](experimental/):
 
 - `motion_pipeline_adapter.json`: the motion adapter pilot, a LoRA trained
-  on the de-rope task, on the pass-2 model only. Known costs in the README
-  section [The motion adapter (pilot)](../README.md#the-motion-adapter-pilot).
+  on the de-rope task, on the pass-2 model only. Known costs in
+  [The motion adapter (pilot)](../docs/MOTION_LAB.md#the-motion-adapter-pilot).
 - `motion_window_pinned_adapter_api.json`: a clip you already have,
   regenerated at denoise 0.70 with first and last frames pinned, adapter on.
 - `time_burst_api.json`: a look, not a repair, and it breaks things on
