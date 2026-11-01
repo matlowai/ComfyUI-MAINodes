@@ -12,7 +12,7 @@ Checks:
   3. an all-off rack returns the input model untouched;
   4. dials saved to models/loras/dials round-trip and are found by the rack by file name;
   5. a row naming an unwired input fails with a clear error;
-  6. the report flags strongly overlapping dials;
+  6. the report names the rows that reinforce each other;
   7. holds cancel identical dials, remove overlapping directions together, and leave the no-hold path exact.
 Exit code 0 = pass.
 """
@@ -225,7 +225,7 @@ def main():
     near = dial("post", 1, "a2")
     near["vec"] = A["vec"] + 0.1 * B["vec"]
     report = nodes.DialRack.execute(model=base, rack=json.dumps([row(0, 1.0), row(1, 1.0)]), dials={"dial_0": A, "dial_1": near}).ui.as_dict()["text"][0]
-    assert "overlap" in report and "reinforce" in report, report
+    assert "reinforcing: dial_0: a × dial_1: a2 +" in report and "push along the sum" in report, report
     print(json.dumps({"hold_checks": [check_holds(dtype) for dtype in (torch.float32, torch.bfloat16)]}))
     print("dial rack: all checks passed")
     scratch.cleanup()

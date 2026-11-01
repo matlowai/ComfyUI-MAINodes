@@ -153,6 +153,16 @@ def install_routes():
         except (FileNotFoundError, ValueError) as e:
             return web.json_response({"error": str(e)}, status=400)
 
+    @srv.routes.post("/mainodes/dials/interactions")
+    async def interactions(request):  # dots once per set of files; the rack redoes the bookkeeping as sliders move
+        try:
+            rows = (await request.json())["rows"]
+            return web.json_response(await asyncio.to_thread(core.dial_interactions, rows))
+        except (KeyError, TypeError):
+            return web.json_response({"error": "Expected {\"rows\": [{\"dial\": <dial file>, \"strength\": <number>}]}."}, status=400)
+        except (FileNotFoundError, ValueError) as e:
+            return web.json_response({"error": str(e)}, status=400)
+
     @srv.routes.get("/mainodes/dials/info")
     async def info(request):  # description, side labels, useful and overcook strengths for one dial file
         try:
