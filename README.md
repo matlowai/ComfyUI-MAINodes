@@ -19,6 +19,7 @@ Like it? A star helps. Want to feed the GPU? [Sponsor the experiments](#support-
   system RAM rows, measured.
 - **Which dial for which symptom:** [`TUNING.md`](TUNING.md).
 - **What is still alpha:** [`ALPHA.md`](ALPHA.md).
+- **Steering sliders (Dials):** [`dials/README.md`](dials/README.md), summary [below](#dials-alpha), [demo page](https://matlowai.github.io/ComfyUI-Dials/).
 
 The short version: start from
 [`examples/motion_pipeline_ref2va_audioinit.json`](examples/motion_pipeline_ref2va_audioinit.json),
@@ -993,10 +994,40 @@ The arithmetic, the failure signature and the procedure are in
 
 ## Dials (alpha)
 
-Training-free steering for H3 from prompt pairs: a **Dial Rack** stacks any number of dials (motion, the villainy
-pack, and your own) on one model, one row each with on/off, strength and solo; **Make Dial** turns your own
-`A ||| B` prompt pairs into a new dial in about a minute. Ported from ComfyUI-Dials. See
-[`dials/README.md`](dials/README.md); dial library on [Hugging Face](https://huggingface.co/MATLOWAI/H3-Dials).
+Training-free steering sliders for MiniMax H3 (also MOSS-Image, and Krea 2 with limits). A **dial** is a ~14 KB file
+made from the difference between two prompts (or two groups of pictures); a negative strength pushes every generation
+toward the first side, a positive one toward the second. No training, about a minute to make one. Stack them in a
+**Dial Rack**, see how they interact, and vary them over the clip. Full guide: [`dials/README.md`](dials/README.md);
+what we learned: [`dials/LESSONS.md`](dials/LESSONS.md); what's next: [`dials/ROADMAP.md`](dials/ROADMAP.md);
+dial library on [Hugging Face](https://huggingface.co/MATLOWAI/H3-Dials). **See it in action:** the
+[Dials project page and demo video](https://matlowai.github.io/ComfyUI-Dials/). The original stable release, with the
+simple Load/Apply Dial nodes, is [ComfyUI-Dials](https://github.com/matlowai/ComfyUI-Dials); both packs share the same dial files.
+
+**What you can do with them**
+
+| capability | what it gives you |
+|---|---|
+| **Make a dial from prompts** | `A ||| B` pairs, prompt sets with weights, hold pairs (`!`) that keep a quality fixed |
+| **Make a dial from pictures or clips** | two groups of pictures of any size (or matched video clips); pick how they are read: `content`, `look`, `bare`, `all averaged` or your own sentence |
+| **Dial Rack** | any number of dials on one model: on/off, strength, solo, and **H** to hold a direction out of the mix. Row order never changes the result |
+| **See what dials do** | a 2D map of two dials with their useful and overcooked ranges, an interaction matrix (who reinforces or cancels whom), a "who pushes" bar, and an influence wheel over 14 probe axes (motion, light, colour, mood, voice...) |
+| **Edit a dial** | open a dial, see its probe profile, drag bars to add or remove a component (say, take the colour out of a dial), and export a new dial with its parentage recorded |
+| **Control it over time** | draw a strength curve over the clip with the mouse (click to add a point, drag, double-click to delete, snap to seconds or beats) or drive it from audio; the dial switches inside one generation, not in a second pass |
+| **Control it over depth** | a 50-cell strip sets how much of the dial each DiT block gets |
+| **Keep audio clean** | an "audio: protect" option leaves the soundtrack undialled (measured: speech errors 0.29 to 0.00 in 3 of 4 cases) |
+| **Works with de-rope** | a hold-map link keeps time curves in real clip time through a de-rope run |
+| **Other models** | the same nodes detect MOSS-Image (works, about 2-4x H3's strengths) and Krea 2 (partial); dial files remember their model family |
+| **Examples and help** | Pika H3 Flex + de-rope workflows for the rack, picture dials (folders, two pictures, groups) and prompt sets in [`examples/dials/`](examples/dials/); a Node Info guide on the Dial Rack and on Make Dial from Pictures |
+
+**Honest limits.** Dials are alpha. Strengths are starting points measured on Pika H3 Flex's 6-step schedule, mostly
+one seed. Time curves switch smoothly (a lighting dial ramps over about 1.5 s; colour and style dials switch much
+faster) and cannot follow individual drum hits. Picture dials come out weaker than text dials. Krea 2 steers on one
+side only. A dial can leak into other qualities (a "psychedelic" dial also brings rave outfits); the lessons file lists
+the known ones.
+
+**Quick start.** Load [`examples/dials/dials_rack_pika_derope.json`](examples/dials/dials_rack_pika_derope.json),
+drag a slider on the Dial Rack, and queue. To make your own, add **Make Dial**, write two prompts that differ in one
+quality, and wire its output into a rack row.
 
 ## Contact-Sheet diffusion
 

@@ -1,6 +1,6 @@
 [project]
 name = "comfyui-mainodes"
-description = "MatlowAI's MiniMax-H3 nodes: Contact-Sheet diffusion + Motion Lab (test-time de-roping of fast motion via oracle-guided v2v time-smear)"
+description = "MatlowAI's MiniMax-H3 nodes: Dials (training-free steering sliders, rack, time curves), Contact-Sheet diffusion, and Motion Lab (test-time de-roping of fast motion via oracle-guided v2v time-smear)"
 version = "1.2.0"
 license = { file = "LICENSE" }
 dependencies = []
