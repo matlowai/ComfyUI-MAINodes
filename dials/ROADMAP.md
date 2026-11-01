@@ -1,7 +1,7 @@
 # Dials roadmap
 
 Dials are training-free steering vectors for MiniMax H3 made from prompt (or picture/video) contrasts. Work happens on
-the MAINodes branch `dials-rack` (local, not pushed; ComfyUI-Dials stays stable). Lessons learned: `dials/LESSONS.md`.
+the MAINodes branch `dials-rack` (pushed for testers; ComfyUI-Dials stays stable). Lessons learned: `dials/LESSONS.md`.
 Designs: `dials/docs/INTERACTION_ATLAS.md` (atlas), the 4D Control Field blueprint (automation order). Evidence for the
 2026-10-31 items lives in the H3 motion study (`codex/` A-D reports, `renders/eval25-30`) and the LLM dial study.
 
@@ -15,8 +15,12 @@ Designs: `dials/docs/INTERACTION_ATLAS.md` (atlas), the 4D Control Field bluepri
   sets (`+w prompt` / `-w prompt`); Make Dial from Pictures and from Videos (alpha); Combine Dials.
 - **Dial info in the dial file** (description, − / + labels, useful, overcook), set in every Make Dial node and edited
   with ⚙ in the rack (metadata only; presets hash the vector). 37 dials seeded from the 2026-10-31 Pika renders.
-- **Example workflows:** Pika H3 Flex + de-rope with pass 1's audio preserved, for the rack, the picture dial and the
-  prompt set (`examples/dials/*_pika_derope*`), all rendered end to end.
+- **Example workflows:** Pika H3 Flex + de-rope with pass 1's audio preserved, for the rack, the picture dial (folders),
+  two pictures, picture groups and the prompt set (`examples/dials/*_pika_derope*`), all run end to end through the UI.
+- **Interaction atlas v1:** info v2 (per-side strengths, unknown, evidence, pipeline), interaction matrix and "who
+  pushes", Combine provenance, probe bank `h3-probes-v1` (14 axes), per-dial profiles, influence wheel.
+- **Make Dial from Pictures:** picture groups of any size on their own sockets, and a framing choice (picture prompt,
+  content, look, bare, all averaged).
 
 ## Release blockers (before pushing to matlowai)
 - [ ] Dylan's hands-on pass in the real UI (restart ComfyUI to load the info routes).
@@ -25,6 +29,8 @@ Designs: `dials/docs/INTERACTION_ATLAS.md` (atlas), the 4D Control Field bluepri
       pre vs post rows and bf16 rounding; consider summing post rows once in float32.
 - [ ] Review the Codex-written parts once more for pack style (presets, hold rows, envelopes, video dial).
 - [ ] Dial pack 2: ship the dials that passed 3 seeds (draft notes: study `codex/A5_pack2_notes.md`), with their info.
+- [ ] Small UI: a minimum rack node size (a tiny node hides the map); wheel labels clip at the edges; check the full rack
+      (map, matrix, wheel) in the Vue ("Nodes 2.0") node mode.
 
 ## Workstream 1: interaction atlas (design `dials/docs/INTERACTION_ATLAS.md`)
 Rule: same-space vector math is exact; semantic labels are hypotheses; "overcooked" needs render evidence. No new
@@ -54,6 +60,12 @@ Qwen or DiT passes during sampling; the user's strengths are never changed silen
   prompt-aware pre-refiner response; a shared H3 post-refiner SAE if probes miss real structure; denoiser interaction
   residuals `f(A+B)-f(A)-f(B)+f(0)`, later for LoRAs.
 
+## Workstream 1b: where in the model
+- [ ] **Per-block strengths (in progress, branch `claude/blocks`):** a 50-cell strip per rack row sets how much of the
+      dial is in the text tokens entering each H3 block (delta injection before each block; all-ones = today's dial).
+      Test: motion and grade dials on all / first half / second half / 26-37 / 0-25; does a block range separate look
+      from motion?
+
 ## Workstream 2: dial automation (DAW-style)
 Two different clocks: denoising steps (when during sampling) and video time (when in the finished clip).
 - [x] **Strength over denoising steps** = step envelopes (D2). Finding (eval29, Pika 6-step): prompt-side dials act only
@@ -81,13 +93,20 @@ Two different clocks: denoising steps (when during sampling) and video time (whe
 - [ ] Pack 2 release (see blockers). Rejected so far: handheld v1, shaky v2, storm v1, time feel v1/v2, zero gravity,
       the squirrel side.
 - [ ] **Picture dials, proper test:** the lizard photo dial is 0.6x the text dial's size and 0.49 aligned; at −4 it gave
-      a lizard-pawed hybrid. Test at matched size (−4 to −6), more varied pictures, picture + text together.
+      a lizard-pawed hybrid. Framing experiment running (study `codex/framing/`); then matched size (−4 to −6), more
+      varied pictures, picture + text together.
 - [ ] **Video dials:** two generated pairs gave no timelapse; the timelapse prompt itself works on Pika, so try a text
       timelapse v3 with that wording and real matched footage (6+ pairs).
 - [ ] **Prompt sets:** night-rain set (agreement 0.97) gives evening/night but not visible rain at +1; weight rain up or
       split it into its own row.
 - [ ] **A/V per row:** a "video only" toggle (sinister picture, intelligible speech), from ComfyUI-Dials'
       `experimental/split-and-dial-to-lora`.
+
+## Workstream 5: other models
+- [ ] **MOSS-Image and Krea 2 (in progress, branch `claude/models`):** the same nodes detect the model and pick its text
+      seam (MOSS `text_embedder`, Krea 2 `txtmlp`); dial files record their model family and refuse another model with a
+      clear message. Text dials, rack, Combine and envelopes first; picture dials stay H3-only.
+- [ ] Per-family probe banks for the wheel; Krea 2 picture dials if its vision encoder allows.
 
 ## Workstream 4: dials for LLMs / VLMs (study `2026-10-31-llm-dials`, Gemma 4 31B)
 - Style dials (formal, terse, mood, poetic captions) work at the middle layer (29 of 60); late layers collapse.
