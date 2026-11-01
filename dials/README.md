@@ -166,6 +166,39 @@ all-ones differs from the plain envelope path by bf16 rounding (1 ulp in the CPU
 delta; envelopes scale each row per denoising call (time × blocks). Pre-refiner rows cannot take block strengths.
 Racks and other block patches stack. CPU contracts: `tests/test_dial_blocks.py`.
 
+## Time curves (clip time)
+
+**time** on a rack row gives the row a strength that changes over the clip (MiniMax H3, post-refiner rows). For the first
+k sampling steps (default 2) the model runs on the same latent without and with the row's dial, and the two predictions
+are blended per latent frame, `v = v0 + M(t)·(v_dial − v0)`; after step k the row is off. One video latent frame covers
+1 or 4 pixel frames at 24 fps (17 frames per 5 latent frames, about 1/6 s each) and gets the curve's mean over them;
+audio latent frames run at 40 Hz. **audio: follow** blends the soundtrack with the same curve, **protect** keeps it from
+the undialled branch. H3 samples batch size 1, so the branches are two calls: each blended step costs one more model
+call. A curve that is 0 everywhere runs no extra call and renders bit-identical to the rack without the row; 1 on every
+step equals the constant row (both pixel-identical on Pika, seed 42).
+
+Curves are keyframes (`[time, M]` in clip fractions or seconds, linear or step) or **audio-driven**: connect the music to
+the rack's `curve_audio` input (and give H3 the same track) and pick a feature (onsets, loudness, low / mid / high band)
+with gain, offset, threshold, attack, release and invert; M = offset + gain × the feature scaled to 0..1 over the track.
+The editor draws M per latent frame over the clip, with the waveform after a run. API rows:
+
+```json
+{"dial": "dials/h3_day_night_hook.safetensors", "strength": 1.5,
+ "time": {"type": "keys", "points": [[0, 0], [0.5, 1]], "unit": "normalized", "interp": "step", "steps": 2, "audio": "follow"}}
+{"dial": "dials/h3_motion_hook.safetensors", "strength": 2,
+ "time": {"type": "audio", "feature": "onset", "gain": 2, "threshold": 0.1, "attack": 0.01, "release": 0.12, "steps": 2}}
+```
+
+Rows with the same curve share one dialled branch (their shifts summed in float64). A time row cannot also take an
+envelope or block strengths, and hold rows cannot share its rack. **On Pika H3 Flex (6 steps), day/night +1.5 with a
+step at mid-clip (seeds 42, 43):** no seam (frame-to-frame differences around the step stay at the clip's own level),
+the change lands within ±5 frames of the step on seed 42 but as a ramp over 1.4–2 s, and the dial leaks: the M = 0 half
+still gets about 20 % of the darkening and the M = 1 half reaches 80–90 % (seed 42); on seed 43 the two halves differ
+only weakly. The leak comes through the shared latent (the undialled branch sees the dialled frames), so more steps do
+not fix it: k = 1, 2, 3 and 6 give the same transition (k = 1 already carries 86 % of the constant dial's darkening,
+k = 2 97 %), at 1.12x, 1.24x, 1.37x and 1.73x the render time. Use k = 1 or 2 and broad curves. CPU contracts:
+`tests/test_dial_timecurve.py`.
+
 ## Writing good pairs
 
 - Keep A and B identical except for the one quality you want.
