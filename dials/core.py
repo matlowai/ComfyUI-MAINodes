@@ -19,6 +19,7 @@ Two pair-text extensions (MAINodes only):
                  enc = enc(text without the span) + w * (enc(text) - enc(text without the span)), in token-mean space.
                  H3's tokenizer ignores prompt weights, so this is the only place the syntax means anything.
 """
+import hashlib
 import json
 import math
 import os
@@ -204,6 +205,13 @@ def save_dial(dial, name, info=None):
         meta["dial_info"] = json.dumps(check_dial_info(info))
     save_file({f"diffusion_model.{dial['target']}.{KEY_SUFFIX[dial['mode']]}": dial["vec"].to(torch.bfloat16).contiguous()}, path, metadata=meta)
     return path
+
+
+def vector_sha256(dial):
+    """Hash of the tensor the dial saves as, equal to presets.dial_sha256 of its file, so recipes find parents by content."""
+    h = hashlib.sha256(f"diffusion_model.{dial['target']}.{KEY_SUFFIX[dial['mode']]}".encode())
+    h.update(dial["vec"].to(torch.bfloat16).contiguous().view(-1).view(torch.uint8).numpy().tobytes())
+    return h.hexdigest()
 
 
 def load_dial(dial_name):
@@ -557,7 +565,7 @@ def dial_interactions(rows):
     space = [(d["mode"], d["target"], d["vec"].shape) for d in dials]
     dots = [[float(a @ b) if space[i] == space[j] else None for j, b in enumerate(vecs)] for i, a in enumerate(vecs)]
     post = [i for i, d in enumerate(dials) if d["mode"] == "post"]
-    out = {"mode": [d["mode"] for d in dials], "dot": dots, "post": post, "info": [dial_info(r["dial"]) for r in rows]}
+    out = {"mode": [d["mode"] for d in dials], "dot": dots, "post": post}
     if post:
         out["interactions"] = interactions([[dots[i][j] for j in post] for i in post], [float(rows[i]["strength"]) for i in post])
     return out

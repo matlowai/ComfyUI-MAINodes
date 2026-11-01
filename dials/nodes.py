@@ -222,6 +222,15 @@ class MakeDialFromVideos(io.ComfyNode):
         return io.NodeOutput(dial, ui=ui.PreviewText(report))
 
 
+def parent(dial):
+    """A Combine input as recorded in the recipe: name, vector hash, and its own recipe when it was combined too."""
+    out = {"name": dial["meta"].get("name"), "vector_sha256": core.vector_sha256(dial)}
+    recipe = dial["meta"].get("composition")
+    if recipe:
+        out["composition"] = json.loads(recipe) if isinstance(recipe, str) else recipe
+    return out
+
+
 class CombineDials(io.ComfyNode):
     @classmethod
     def define_schema(cls):
@@ -250,12 +259,17 @@ class CombineDials(io.ComfyNode):
             raise ValueError(f"dials use different injection points: {a['mode']} {a['target']} vs {b['mode']} {b['target']}")
         va, vb = a["vec"].float(), b["vec"].float()
         cos = float(torch.nn.functional.cosine_similarity(va, vb, dim=0))
-        if orthogonalize:
+        note = ""
+        if orthogonalize and float(vb @ vb) > 0:
             va = va - (va @ vb) / (vb @ vb) * vb
+        elif orthogonalize:
+            note = "\nb is a zero vector: orthogonalize left a unchanged"
         label = f"{a['meta'].get('name', 'a')}*{weight_a:g}{'-proj' if orthogonalize else ''}+{b['meta'].get('name', 'b')}*{weight_b:g}"
         dial = {"vec": weight_a * va + weight_b * vb, "target": a["target"], "mode": a["mode"],
                 "meta": {"name": name or label, "parents": [a["meta"].get("name"), b["meta"].get("name")]}}
-        report = f"cos(a, b) = {cos:.3f}; {core.dial_label(dial)}"
+        dial["meta"]["composition"] = {"kind": "combine", "weight_a": weight_a, "weight_b": weight_b, "orthogonalize_a_against_b": orthogonalize,
+                                       "a": parent(a), "b": parent(b), "result_sha256": core.vector_sha256(dial)}
+        report = f"cos(a, b) = {cos:.3f}; {core.dial_label(dial)}{note}"
         if name:
             report += f"\nsaved {core.save_dial(dial, name, info)}"
         return io.NodeOutput(dial, ui=ui.PreviewText(report))

@@ -254,6 +254,109 @@ class DialMap {
   }
 }
 
+// Exact energy bookkeeping of stacked post-refiner rows, as core.interactions: own_i = s_i²|v_i|², pair_ij = 2 s_i s_j v_i·v_j
+// (warm = reinforcing, blue = cancelling), both as shares of |Σ s_i v_i|², and push_i = s_i v_i·u along the unit sum.
+function interactions(dots, s) {
+  const w = dots.map((r, i) => r.map((d, j) => s[i] * s[j] * d));
+  const own = w.map((r, i) => r[i]);
+  const energy = w.flat().reduce((a, b) => a + b, 0);
+  const cancelled = energy <= 1e-12 * own.reduce((a, b) => a + b, 0);
+  const combined = cancelled ? 0 : Math.sqrt(energy);
+  const norm = dots.map((r, i) => Math.sqrt(Math.max(0, r[i])));
+  return {
+    combined,
+    cos: dots.map((r, i) => r.map((d, j) => (norm[i] * norm[j] > 0 ? d / (norm[i] * norm[j]) : 0))),
+    pair: w.map((r, i) => r.map((v, j) => (i === j || cancelled ? 0 : 2 * v / energy))),
+    own: own.map((v) => (cancelled ? 0 : v / energy)),
+    push: w.map((r) => (combined ? r.reduce((a, b) => a + b, 0) / combined / combined : 0)),
+  };
+}
+
+const pct = (v) => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(Math.round(v * 100)) + "%";
+const shade = (v) => (Math.abs(v) < 0.005 ? "#1b1d23" : v > 0 ? `rgba(255,140,60,${0.15 + 0.7 * Math.min(1, v / 0.5)})`
+  : `rgba(80,140,255,${0.15 + 0.7 * Math.min(1, -v / 0.5)})`);
+
+// Under the map: rows × rows matrix of the live post-refiner rows and a "who pushes" bar per row. Dot products come from
+// the server once per set of dial files; strengths are applied here, so it follows the sliders without a request.
+class DialMatrix {
+  constructor(rack, parent) {
+    this.rack = rack;
+    this.dots = {};
+    this.box = rack.el("div", { flex: "0 0 auto", display: "flex", flexDirection: "column", gap: "4px", fontSize: "11px", color: "#9a9ba0" }, parent);
+  }
+
+  live() {  // rows the rack applies, in the backend's on / strength / solo terms, minus holds
+    const rows = this.rack.rows, active = (r) => r.on && (r.hold || Number(r.strength) !== 0);
+    const anySolo = rows.some((r) => active(r) && r.solo);
+    return rows.map((r, i) => i).filter((i) => active(rows[i]) && (!anySolo || rows[i].solo) && !rows[i].hold);
+  }
+
+  async fetch(key, files) {
+    this.dots[key] = null;
+    try {
+      const r = await api.fetchApi("/mainodes/dials/interactions", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows: files.map((dial) => ({ dial, strength: 1 })) }) });
+      const data = await r.json();
+      this.dots[key] = r.ok ? { files, ...data } : { error: data.error };
+    } catch (e) { this.dots[key] = { error: e.message }; }
+    this.draw();
+  }
+
+  draw() {
+    const rack = this.rack, rows = rack.rows, live = this.live(), el = (...a) => rack.el(...a);
+    this.box.replaceChildren();
+    const files = [...new Set(live.filter((i) => !("input" in rows[i])).map((i) => rows[i].dial))].sort();
+    const key = files.join("|"), geo = this.dots[key];
+    if (files.length && geo === undefined) this.fetch(key, files);
+    if (!geo) { if (files.length) el("div", {}, this.box, "interactions: measuring…"); return; }
+    if (geo.error) { el("div", { color: "#ff8a5c" }, this.box, `interactions: ${geo.error}`); return; }
+    const at = (i) => geo.files.indexOf(rows[i].dial);
+    const post = live.filter((i) => !("input" in rows[i]) && geo.mode[at(i)] === "post");
+    const notes = [];
+    const pre = live.filter((i) => !("input" in rows[i]) && geo.mode[at(i)] === "pre");
+    if (pre.length) notes.push(`pre-refiner rows are a separate space, not in the matrix: ${pre.map((i) => rack.rowName(i)).join(", ")}`);
+    const wired = live.filter((i) => "input" in rows[i]);
+    if (wired.length) notes.push(`wired rows are not measured: ${wired.map((i) => rows[i].input).join(", ")}`);
+    if (post.length < 2) notes.unshift("interactions: needs two live post-refiner dial rows");
+    else this.matrix(post, interactions(post.map((i) => post.map((j) => geo.dot[at(i)][at(j)])), post.map((i) => Number(rows[i].strength))));
+    for (const n of notes) el("div", {}, this.box, n);
+  }
+
+  matrix(post, it) {
+    const rack = this.rack, el = (...a) => rack.el(...a), n = post.length;
+    const pairs = it.pair.flat().reduce((a, b) => a + b, 0) / 2;
+    el("div", { color: "#ccc" }, this.box, it.combined ? `interactions · |sum| ${it.combined.toFixed(1)} · pairs add ${pct(pairs)} of |sum|²` : "interactions · the rows sum to zero");
+    const grid = el("div", { display: "grid", gridTemplateColumns: `minmax(60px, max-content) repeat(${n}, 38px)`, gap: "2px", alignItems: "center" }, this.box);
+    el("span", {}, grid, "");
+    for (const j of post) el("span", { textAlign: "center", color: "#888" }, grid, String(j + 1));
+    post.forEach((i, a) => {
+      el("span", { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "140px" }, grid, rack.rowName(i));
+      post.forEach((j, b) => {
+        const v = a === b ? it.own[a] : it.pair[a][b];
+        const cell = el("span", { textAlign: "center", padding: "2px 0", borderRadius: "3px", color: "#eee",
+          background: a === b ? "#2a2c33" : shade(v) }, grid, it.combined ? pct(v) : "·");
+        cell.title = a === b
+          ? `${rack.rowName(i)} alone: ${pct(v)} of |sum|²`
+          : `${rack.rowName(i)} × ${rack.rowName(j)}: cos ${fmt(it.cos[a][b])}, pair energy ${pct(v)} of |sum|² — ` +
+            (v > 0.005 ? "reinforcing: they push the same way" : v < -0.005 ? "cancelling: they push against each other" : "about independent") +
+            "\nexact vector math on the dial files; the output effect is untested";
+      });
+    });
+    el("div", { color: "#ccc", marginTop: "2px" }, this.box, "who pushes (along the sum)");
+    const bars = el("div", { display: "grid", gridTemplateColumns: "minmax(60px, max-content) 120px 40px", gap: "2px 6px", alignItems: "center" }, this.box);
+    post.forEach((i, a) => {
+      const v = it.push[a], w = Math.min(1, Math.abs(v)) * 60;
+      el("span", { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "140px" }, bars, rack.rowName(i));
+      const track = el("span", { position: "relative", height: "8px", background: "#1b1d23", borderRadius: "2px" }, bars);
+      el("span", { position: "absolute", top: 0, bottom: 0, left: v >= 0 ? "60px" : `${60 - w}px`, width: `${w}px`,
+        background: v >= 0 ? "#ffa64d" : "#5a8cff", borderRadius: "2px" }, track);
+      el("span", { position: "absolute", top: "-2px", bottom: "-2px", left: "60px", width: "1px", background: "#555" }, track);
+      track.title = `${rack.rowName(i)} moves the combined shift by ${pct(v)} of |sum| (negative: it pulls against the others)`;
+      el("span", { textAlign: "right" }, bars, pct(v));
+    });
+  }
+}
+
 class DialRackUI {
   constructor(node) {
     this.node = node;
@@ -321,6 +424,7 @@ class DialRackUI {
     this.padGeometry = {};
     this.info = {};
     this.map = new DialMap(this, this.mapColumn);
+    this.matrix = new DialMatrix(this, this.map.box);
     this.widget = this.node.addDOMWidget("dial_rack_ui", "div", root, { serialize: false, getMinHeight: () => 140 });
     this.root = root;
   }
@@ -518,8 +622,8 @@ class DialRackUI {
       num.title = "negative = toward the pairs' A side, positive = toward B. +0.5 to +1 is the sane range; past ~1.5 side effects appear";
       slider.disabled = num.disabled = !!r.hold;
       if (r.hold) slider.title = num.title = "Hold removes this direction fully; strength is retained for when H is turned off.";
-      slider.oninput = () => { r.strength = parseFloat(slider.value); num.value = r.strength.toFixed(2); this.commit(); };
-      num.onchange = () => { const v = Math.min(NUMBER[1], Math.max(NUMBER[0], parseFloat(num.value) || 0)); r.strength = v; slider.value = v; num.value = v.toFixed(2); this.commit(); };
+      slider.oninput = () => { r.strength = parseFloat(slider.value); num.value = r.strength.toFixed(2); this.commit(); if (this.pad.open) this.matrix.draw(); };
+      num.onchange = () => { const v = Math.min(NUMBER[1], Math.max(NUMBER[0], parseFloat(num.value) || 0)); r.strength = v; slider.value = v; num.value = v.toFixed(2); this.commit(); if (this.pad.open) this.matrix.draw(); };
       slider.ondblclick = () => { r.strength = 0; slider.value = 0; num.value = "0.00"; this.commit(); };
       const envelope = this.el("select", { width: "76px", background: "#111", color: "#ddd", border: "1px solid #333" }, row);
       envelope.title = "Strength over denoising progress: early, late, bell, or manual points (post-refiner dials only)";
@@ -571,14 +675,14 @@ class DialRackUI {
     this.mapColumn.style.display = open ? "block" : "none";
     this.left.style.flex = open ? `0 0 ${LEFT_PX}px` : "1 1 auto";
     this.padButton.style.borderColor = open ? "#ffc145" : "#444";
-    if (open) this.map.render();
+    if (open) { this.map.render(); this.matrix.draw(); }
     const key = [this.rows.length, open, this.report, this.presetMessage, this.presetBar.style.display, this.editing].join("|");
     if (key !== this.contentKey) {  // content changed: grow to show it; never shrink what the user sized
       this.contentKey = key;
       const rowsHeight = [...this.left.children].reduce((h, c) => h + (c.offsetParent ? c.offsetHeight + 6 : 0), 12);
       const extra = Math.max(this.node.size[1] - this.root.clientHeight, 30);  // title bar and inputs
       const minW = open ? LEFT_PX + 10 + 360 + 24 : 600;
-      this.node.setSize([Math.max(this.node.size[0], minW), Math.max(this.node.size[1], Math.max(rowsHeight, open ? 420 : 0) + extra)]);
+      this.node.setSize([Math.max(this.node.size[0], minW), Math.max(this.node.size[1], Math.max(rowsHeight, open ? 560 : 0) + extra)]);
     }
     this.node.setDirtyCanvas(true, true);
   }
