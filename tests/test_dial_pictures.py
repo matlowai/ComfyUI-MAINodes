@@ -219,16 +219,18 @@ class PictureDialTests(unittest.TestCase):
 
     def test_groups_add_to_batches_and_framings_average(self):
         cls = nodes.NODE_CLASS_MAPPINGS["MAIDialMakeFromPictures"]
-        split = cls.execute(self.clip, self.model, pictures(1), pictures(3, 4), PROMPT, "", debias=False, nuisance_dims=3,
+        split = cls.execute(self.clip, self.model, pictures(1), pictures(3, 4), PROMPT, "", debias=False, nuisance_dims=3, framing="picture prompt",
                             group_a={"a0": pictures(2)}).result[0]
         whole, _ = self.make()
         torch.testing.assert_close(split["vec"], whole["vec"])
-        only_groups = cls.execute(self.clip, self.model, None, None, PROMPT, "", debias=False, nuisance_dims=3,
+        only_groups = cls.execute(self.clip, self.model, None, None, PROMPT, "", debias=False, nuisance_dims=3, framing="picture prompt",
                                   group_a={"a0": self.a}, group_b={"b0": self.b}).result[0]
         torch.testing.assert_close(only_groups["vec"], whole["vec"])
         averaged = cls.execute(self.clip, self.model, self.a, self.b, PROMPT, "", debias=False, nuisance_dims=3, framing="all averaged")
         self.assertIn("4 framings averaged", averaged.ui.as_dict()["text"][0])
         self.assertEqual(averaged.result[0]["meta"]["prompt"].count("<Picture 1>"), 4)
+        default = cls.execute(self.clip, self.model, self.a, self.b, PROMPT, "", debias=False, nuisance_dims=3).result[0]
+        self.assertEqual(default["meta"]["prompt"], core.PICTURE_FRAMINGS["content"])
         with self.assertRaisesRegex(ValueError, "both sides"):
             cls.execute(self.clip, self.model, self.a, None, PROMPT, "", debias=False, nuisance_dims=3)
 

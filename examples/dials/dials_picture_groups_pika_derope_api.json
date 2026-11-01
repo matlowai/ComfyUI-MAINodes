@@ -662,7 +662,7 @@
       "negative_overcook": 0,
       "evidence": "unknown",
       "pipeline": "",
-      "framing": "picture prompt",
+      "framing": "content",
       "clip": [
         "8",
         0

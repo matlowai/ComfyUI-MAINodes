@@ -5,9 +5,10 @@ import json
 import torch
 from comfy_api.latest import io, ui
 
-from . import core, envelopes, presets
+from . import blocks, core, editor, envelopes, presets, timecurve
 
 presets.install_routes()
+editor.install_routes()
 
 Dial = io.Custom("DIAL")
 
@@ -41,12 +42,22 @@ def info_from(description="", negative_label="", positive_label="", useful=1.0, 
                                  "evidence": None if evidence == "unknown" else evidence, "pipeline": pipeline})
 
 
+def row_dial(r, dials):
+    """-> (label, dial) of a rack row: a wired input or a dial file."""
+    if "input" in r:
+        dial = (dials or {}).get(r["input"])
+        if dial is None:
+            raise ValueError(f"rack row uses input {r['input']}, which is not connected")
+        return f"{r['input']}: {dial['meta'].get('name', '?')}", dial
+    dial = core.load_dial(r["dial"])
+    return dial["meta"]["name"], dial
 
 
 class DialRack(io.ComfyNode):
     """Pre rows use the single-dial chain; constant post rows become one shift summed in float64, so row order cannot
-    change the output. Holds project that summed shift; envelopes shift cached text at each denoising call. Wired dials
-    appear as rack rows too."""
+    change the output. Holds project that summed shift; envelopes shift cached text at each denoising call. A row with
+    block strengths moves every post row of the rack to per-block injection (blocks.py). Rows with a time curve vary over
+    clip time on top of the other rows (timecurve.py). Wired dials appear as rack rows too."""
 
     @classmethod
     def define_schema(cls):
@@ -61,29 +72,27 @@ class DialRack(io.ComfyNode):
                 io.Autogrow.Input("dials", optional=True, template=io.Autogrow.TemplatePrefix(
                     input=Dial.Input("dial", tooltip="A dial from Make Dial or Combine Dials; set its strength in the rack."),
                     prefix="dial_", min=0, max=8)),
+                io.Audio.Input("curve_audio", optional=True,
+                               tooltip="Music for audio-driven time curves: give H3 the same track as reference audio. "
+                                       "Its waveform shows under the rows' time curves after a run."),
             ],
             outputs=[io.Model.Output()],
             hidden=[io.Hidden.unique_id],
         )
 
     @classmethod
-    def execute(cls, model, rack, dials=None) -> io.NodeOutput:
+    def execute(cls, model, rack, dials=None, curve_audio=None) -> io.NodeOutput:
         rows = json.loads(rack or "[]")
         if not isinstance(rows, list):
             raise ValueError("rack must be a JSON list of rows")
         active = [r for r in rows if r.get("on", True) and (r.get("hold") or float(r.get("strength", 0)) != 0)]
         if any(r.get("solo") for r in active):
             active = [r for r in active if r.get("solo")]
+        if any(r.get("time") for r in active):
+            return cls.timed(model, active, dials, curve_audio)
         applied, holds = [], []
         for r in active:
-            if "input" in r:
-                dial = (dials or {}).get(r["input"])
-                if dial is None:
-                    raise ValueError(f"rack row uses input {r['input']}, which is not connected")
-                label = f"{r['input']}: {dial['meta'].get('name', '?')}"
-            else:
-                dial = core.load_dial(r["dial"])
-                label = dial["meta"]["name"]
+            label, dial = row_dial(r, dials)
             if r.get("hold") and dial["mode"] != "post":
                 raise ValueError(f"{label}: pre-refiner rows cannot be hold rows; choose a post-refiner dial")
             (holds if r.get("hold") else applied).append((label, dial, float(r.get("strength", 0))))
@@ -99,9 +108,14 @@ class DialRack(io.ComfyNode):
             return io.NodeOutput(model, ui=ui.PreviewText(report))
         m = model.clone()
         specs = [r.get("envelope") for r in active]
+        if holds and any(spec is not None for spec in specs):
+            raise ValueError("hold rows and step envelopes cannot share a rack; use constant rows without an envelope")
+        profiles = [r.get("blocks") for r in active if not r.get("hold")]
+        if any(p is not None for p in profiles):
+            report += "\n" + blocks.apply_rack(m, applied, [r.get("envelope") for r in active if not r.get("hold")], profiles,
+                                               holds, cls.hidden.unique_id, report)
+            return io.NodeOutput(m, ui=ui.PreviewText(report))
         if holds:
-            if any(spec is not None for spec in specs):
-                raise ValueError("hold rows and step envelopes cannot share a rack; use constant rows without an envelope")
             applied = [row for row in applied if row[1]["mode"] == "pre"] + (
                 [("post shift after holds", combined, 1.0)] if any(d["mode"] == "post" for _, d, _ in applied) else [])
             specs = [None] * len(applied)
@@ -112,6 +126,25 @@ class DialRack(io.ComfyNode):
         if scheduled:
             report += "\nenvelopes: sampled strengths appear here when sampling starts"
         return io.NodeOutput(m, ui=ui.PreviewText(report))
+
+    @classmethod
+    def timed(cls, model, active, dials, curve_audio):
+        """Rows with a time curve blend over clip time (timecurve.py) on top of the model the other rows make."""
+        timed = [r for r in active if r.get("time")]
+        if any(r.get("hold") for r in active):
+            raise ValueError("hold rows and time curves cannot share a rack; turn the hold rows off")
+        if any(r.get("envelope") is not None or r.get("blocks") is not None for r in timed):
+            raise ValueError("a time-curve row cannot also take a step envelope or block strengths")
+        rest = [r for r in active if not r.get("time")]
+        out = cls.execute(model, json.dumps(rest), dials)
+        rows = [(*row_dial(r, dials), float(r["strength"])) for r in timed]
+        path = core.text_path(model)
+        for _, dial, _ in rows:
+            core.check_family(dial, path)
+        m = out.result[0].clone()
+        report = (out.ui.as_dict()["text"][0] + "\n" if rest else "") + core.rack_report(rows)
+        text, data = timecurve.apply_rack(m, rows, [r["time"] for r in timed], curve_audio, cls.hidden.unique_id, report)
+        return io.NodeOutput(m, ui={"text": [report + "\n" + text], "timecurve": [data]} if data else ui.PreviewText(report + "\n" + text))
 
 
 class MakeDial(io.ComfyNode):
@@ -164,8 +197,8 @@ class MakeDialFromPictures(io.ComfyNode):
             node_id="MAIDialMakeFromPictures",
             display_name="Make Dial from Pictures (alpha)",
             category="MAINodes/Dials",
-            description="Make a post-refiner dial from picture batches: negative strength moves toward A, positive toward B. "
-                        "Use the same prompt for both sides and match framing, light and background by picture index.",
+            description="Turn the difference between two groups of pictures into a dial: negative strength moves toward group A, "
+                        "positive toward group B. Match the pictures so only one thing changes. Open the node's help for a guide.",
             inputs=[
                 io.Clip.Input("clip"),
                 io.Model.Input("model"),
@@ -174,16 +207,17 @@ class MakeDialFromPictures(io.ComfyNode):
                 io.Image.Input("pictures_b", optional=True,
                                tooltip="Group B as an image batch; equal counts pair by index for the agreement report."),
                 io.String.Input("prompt", display_name="picture prompt", default="A video in the style and content of <Picture 1>.", advanced=True,
-                                tooltip="Text every picture is encoded with; <Picture 1> stands for the picture. Both sides use it, so only the "
-                                        "pictures differ. The default works; change it to frame the pictures, e.g. 'A close-up photo of <Picture 1>'."),
+                                tooltip="Your own sentence each picture is read through, used when framing is 'picture prompt'; <Picture 1> stands "
+                                        "for the picture. Naming the kind of subject helps, e.g. 'A video of the animal in <Picture 1>.'"),
                 io.String.Input("name", default="my_picture_dial", tooltip="Saved as models/loras/dials/<name>.safetensors (empty = don't save)."),
                 io.Boolean.Input("debias", default=True, advanced=True,
                                  tooltip="Project out the same generic wording directions used by Make Dial."),
                 io.Int.Input("nuisance_dims", default=3, min=1, max=12, advanced=True),
                 *info_inputs(),  # last, so workflows saved before these fields load unchanged
-                io.Combo.Input("framing", options=["picture prompt", *core.PICTURE_FRAMINGS, "all averaged"], default="picture prompt",
-                               optional=True, tooltip="How the pictures are read: your picture prompt, a fixed framing (content: "
-                               "what is in the picture; look: colours and light; bare: no hint), or all of them averaged per picture."),
+                io.Combo.Input("framing", options=["picture prompt", *core.PICTURE_FRAMINGS, "all averaged"], default="content",
+                               optional=True, tooltip="How the pictures are read. content: what is in them (subjects, objects; the default). "
+                               "look: colours and light. bare: no hint. all averaged: all of them. picture prompt: your own "
+                               "sentence (advanced; the original wording). Open the node's help for which to pick."),
                 io.Autogrow.Input("group_a", optional=True, template=io.Autogrow.TemplatePrefix(
                     io.Image.Input("a", tooltip="Another group A picture, any size; adds to pictures_a."), prefix="a", min=0, max=50)),
                 io.Autogrow.Input("group_b", optional=True, template=io.Autogrow.TemplatePrefix(
@@ -195,7 +229,7 @@ class MakeDialFromPictures(io.ComfyNode):
 
     @classmethod
     def execute(cls, clip, model, pictures_a=None, pictures_b=None, prompt="", name="", debias=True, nuisance_dims=3,
-                framing="picture prompt", group_a=None, group_b=None, **info) -> io.NodeOutput:
+                framing="content", group_a=None, group_b=None, **info) -> io.NodeOutput:
         info = info_from(**info)
         if name:
             core.check_dial_name(name)
@@ -255,15 +289,6 @@ class MakeDialFromVideos(io.ComfyNode):
         return io.NodeOutput(dial, ui=ui.PreviewText(report))
 
 
-def parent(dial):
-    """A Combine input as recorded in the recipe: name, vector hash, and its own recipe when it was combined too."""
-    out = {"name": dial["meta"].get("name"), "vector_sha256": core.vector_sha256(dial)}
-    recipe = dial["meta"].get("composition")
-    if recipe:
-        out["composition"] = json.loads(recipe) if isinstance(recipe, str) else recipe
-    return out
-
-
 class CombineDials(io.ComfyNode):
     @classmethod
     def define_schema(cls):
@@ -303,7 +328,7 @@ class CombineDials(io.ComfyNode):
         dial = {"vec": weight_a * va + weight_b * vb, "target": a["target"], "mode": a["mode"],
                 "meta": {"name": name or label, "model_family": core.dial_family(a), "parents": [a["meta"].get("name"), b["meta"].get("name")]}}
         dial["meta"]["composition"] = {"kind": "combine", "weight_a": weight_a, "weight_b": weight_b, "orthogonalize_a_against_b": orthogonalize,
-                                       "a": parent(a), "b": parent(b), "result_sha256": core.vector_sha256(dial)}
+                                       "a": core.dial_parent(a), "b": core.dial_parent(b), "result_sha256": core.vector_sha256(dial)}
         report = f"cos(a, b) = {cos:.3f}; {core.dial_label(dial)}{note}"
         if name:
             report += f"\nsaved {core.save_dial(dial, name, info)}"

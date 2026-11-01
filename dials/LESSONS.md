@@ -26,6 +26,11 @@ one seed; treat them as starting points.
   keeps the wording itself out of the dial.
 - **One matched pair already works,** just noisier: a single lizard/squirrel pair pointed 0.875 the same way as the
   12-pair dial and came out larger (|28.4| vs |23.4|); three pairs gave pair agreement 0.91.
+- **The framing decides what the dial learns.** On 12 lizard/squirrel pairs, "a video of the subject in <Picture 1>"
+  beat the default "style and content" wording on every measure (pair agreement 0.94 vs 0.89, split-half 0.96 vs 0.93,
+  cosine with the text dial 0.56 vs 0.49) and reached a lizard at −4 where the default gave a mammal hybrid (1 seed).
+  Naming the kind of subject ("the animal") was stronger still; averaging all framings also crossed. Size alone isn't
+  it: the averaged dial was smaller than the default and still crossed.
 - **Picture dials are weaker than text dials:** around −4 for what a text dial does at −2.
 - **Batching resizes:** core Batch Images scales every picture to the first one's size; give mixed sizes their own
   sockets instead.
@@ -43,6 +48,16 @@ one seed; treat them as starting points.
 - **Light, expression and mood are mostly one "intensity" direction** (a quarter of the bank's energy), so a dial can
   look like it pushes all three.
 - **Pair wording leaks into profiles:** an evil dial whose pairs said "coldly" and "icy" loads on colour temperature.
+
+## Where in the model
+- **H3 does a dial's work in its first half.** Injecting only in blocks 0-24 gives the full effect (motion 1.08x,
+  colour 1.10x of all blocks); only 25-49 (or the 26-37 range from the LoRA study) changes the clip by about 0.4x
+  without moving the dial's quality: a perturbation, not an edit (2 seeds). No block range separated look from motion.
+- **Today's post hook shifts every row of the text span,** vision-pad rows included, not only text-tagged rows.
+
+## Editing dials
+- **Remove a probe axis with the joint fit.** Taking colour temperature out of evil cold left every other axis within
+  0.01 under the joint fit; the direct fit also took 0.14 off night and 0.10 off mood, because those probes overlap.
 
 ## Strength over denoising
 - **On Pika, the prompt only matters in the first steps.** Late envelopes at +2 and even +8 changed nothing; constant

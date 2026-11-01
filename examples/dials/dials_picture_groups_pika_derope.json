@@ -3193,7 +3193,7 @@
         0,
         "unknown",
         "",
-        "picture prompt"
+        "content"
       ],
       "widgets_values_named": {
         "prompt": "A video in the style and content of <Picture 1>.",
@@ -3209,7 +3209,7 @@
         "negative_overcook": 0,
         "evidence": "unknown",
         "pipeline": "",
-        "framing": "picture prompt"
+        "framing": "content"
       }
     },
     {

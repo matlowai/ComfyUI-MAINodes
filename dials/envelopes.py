@@ -74,15 +74,18 @@ class EnvelopeForward:
             text += f"\n{label} sampled strengths: " + ", ".join(f"{v:+.6g}" for v in values)
         return text
 
-    def shifts(self, transformer_options):
+    def strengths(self, transformer_options):
+        """Each row's strength at this model call's sigma."""
         sigma = transformer_options.get("sigmas")
         if sigma is None:
             raise ValueError("dial envelope: diffusion-model call has no sampler sigma")
         current = float(sigma.flatten()[0])
         if not math.isfinite(current) or not bool((sigma == current).all()):
             raise ValueError("dial envelopes need one finite shared sigma per model call")
-        strengths = [interpolate(list(zip([-s for s in self.sigmas[:-1]], values)), -current) for _, _, values in self.rows]
-        return [dial["vec"] * strength for (_, dial, _), strength in zip(self.rows, strengths) if strength != 0]
+        return [interpolate(list(zip([-s for s in self.sigmas[:-1]], values)), -current) for _, _, values in self.rows]
+
+    def shifts(self, transformer_options):
+        return [dial["vec"] * strength for (_, dial, _), strength in zip(self.rows, self.strengths(transformer_options)) if strength != 0]
 
     def __call__(self, executor, x, timestep, context, transformer_options, **kwargs):
         shifts = self.shifts(transformer_options)
@@ -125,8 +128,11 @@ class EnvelopeSampler:
         self.base_report = report
         self.cached = cached
 
+    def compile(self, sigmas):
+        return (EnvelopeForward if self.cached else EnvelopeShift)(self.rows, sigmas)
+
     def __call__(self, executor, model, sigmas, extra_args, *args, **kwargs):
-        compiled = (EnvelopeForward if self.cached else EnvelopeShift)(self.rows, sigmas)
+        compiled = self.compile(sigmas)
         extra_args = extra_args.copy()
         extra_args["model_options"] = copy_nested_dicts(extra_args["model_options"])
         options = extra_args["model_options"].setdefault("transformer_options", {})

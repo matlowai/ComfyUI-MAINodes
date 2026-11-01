@@ -55,7 +55,7 @@ Qwen or DiT passes during sampling; the user's strengths are never changed silen
 - [ ] **Drop a point on the frontier and move it (Dylan):** probes are dials, so a manual offset in one direction is a
       probe row with a strength; drag a wheel sector to add/remove that probe, or ask for rack strengths that best
       reach a target shape (least squares over the active rows, shown as a suggestion).
-- [ ] **Dial editor (Dylan):** open a dial and see it in the vector space: its probe profile as bars, and a 2D view of
+- [x] **Dial editor (Dylan; render check pending):** open a dial and see it in the vector space: its probe profile as bars, and a 2D view of
       the dial library (two probe axes, or the library's top principal components) with the dial as a point. Drag bars
       to add or remove probe components (`v' = v + Σ Δβ_k·p_k`; dragging an axis to 0 removes that flavour), or drag
       the point; live readouts (size, cosine to the original and to neighbours). Export as a new dial file with
@@ -67,10 +67,10 @@ Qwen or DiT passes during sampling; the user's strengths are never changed silen
   residuals `f(A+B)-f(A)-f(B)+f(0)`, later for LoRAs.
 
 ## Workstream 1b: where in the model
-- [ ] **Per-block strengths (in progress, branch `claude/blocks`):** a 50-cell strip per rack row sets how much of the
-      dial is in the text tokens entering each H3 block (delta injection before each block; all-ones = today's dial).
-      Test: motion and grade dials on all / first half / second half / 26-37 / 0-25; does a block range separate look
-      from motion?
+- [x] **Per-block strengths:** a 50-cell strip per rack row (delta injection before each block; all-ones = today's dial,
+      bit-identical). Finding (2 seeds): blocks 0-24 carry the whole effect, look and motion together; 25-49 only
+      perturbs. No range separates look from motion (study `codex/blocks/BLOCKS.md`).
+- [ ] Finer early ranges (0-8, 8-16, 16-24) and base H3 20-step, before calling it closed.
 
 ## Workstream 2: dials over time and audio-reactive dials (design `dials/docs/TIME_AND_AUDIO.md`)
 Two clocks: denoising steps (when during sampling) and clip time (when in the finished clip). Clip-time control must
@@ -110,8 +110,9 @@ effect size. Single-seed results say so.
 - [ ] Pack 2 release (see blockers). Rejected so far: handheld v1, shaky v2, storm v1, time feel v1/v2, zero gravity,
       the squirrel side.
 - [ ] **Picture dials, proper test:** the lizard photo dial is 0.6x the text dial's size and 0.49 aligned; at −4 it gave
-      a lizard-pawed hybrid. Framing experiment running (study `codex/framing/`); then matched size (−4 to −6), more
-      varied pictures, picture + text together.
+      a lizard-pawed hybrid. Framing (study `codex/framing/FRAMING.md`, 1 seed): content framing and all-averaged reach a
+      lizard at −4, the default doesn't; decide the default, confirm on a second seed and scene; then more varied
+      pictures, picture + text together.
 - [ ] **Video dials:** two generated pairs gave no timelapse; the timelapse prompt itself works on Pika, so try a text
       timelapse v3 with that wording and real matched footage (6+ pairs).
 - [ ] **Prompt sets:** night-rain set (agreement 0.97) gives evening/night but not visible rain at +1; weight rain up or
@@ -132,6 +133,15 @@ effect size. Single-seed results say so.
   per-head analysis at the best layer; the picture-pair dial applied while the VLM captions an image.
 
 ## Later / research
+- **Dial Doctor (back burner, Dylan 2026-11-01):** help people make better dials. Tiers: (0) a pair linter in Make Dial
+  from the LESSONS rules (actions on one side, objects on one side, time words in non-time dials, every A side sharing
+  one "pleasant sunny" pole, length mismatch, subjects that clash with the pairs); (1) a Dial Check workflow: Make Dial
+  -> sweep contact sheet -> core Generate Text with a VLM and a knowledge pack (`DIAL_DOCTOR.md`: how dials work, the
+  failure catalogue with render signatures and fixes, per-model strength ranges) -> verdict, leaks, useful/overcook,
+  v2 pairs, one refinement round unrolled in the graph; (2) an agentic loop (driver script + Claude Code skill).
+  Small VLMs (Qwen3.5-9B and Qwen3-VL-4B on disk both have vision weights) should answer only narrow per-image
+  questions while code does the diagnosis; gate the design on a critic benchmark over our labelled sheets (framing,
+  MOSS v1, Krea grade, blocks), ~50 questions, Qwen3-VL-4B vs Qwen3.5-9B vs Gemma 4 31B.
 - **Voice-contrast dials:** audio never enters H3's text encoder; needs the DiT's audio-token seam.
 - **Research bridge (blueprint P4+):** prompt-space dial -> video-token direction via Concept Lab; then clip-time
   curves, painted regions and the motion-oracle sidechain with De-Rope.

@@ -5,7 +5,7 @@ import { api } from "../../scripts/api.js";
 
 const DEFAULT_STRENGTH = 0.5;   // the sane everyday range is +0.5 .. +1
 const SLIDER = [-3, 3];
-const NUMBER = [-20, 20];
+const NUMBER = [-1000, 1000];  // typed strengths: past any useful range on purpose; the slider covers everyday use
 const PRESETS = "/mainodes/dials/presets";
 const LEFT_PX = 590;     // the rows column keeps this width; the map takes the rest of the node
 const MAP_MIN = 160;
@@ -17,6 +17,119 @@ const EVIDENCE = ["creator", "one-seed", "multi-seed", "multi-scene"];
 const QUADRANTS = [[1, -1], [-1, -1], [1, 1], [-1, 1]];  // [x sign, y sign] of the map's quarters; ring labels go in the first drawn
 const side = (info, s) => (s < 0 ? info.neg : info.pos);
 const SWEEP_STEPS = [0.25, 0.5, 1];
+const BLOCKS = 50;  // MiniMax H3's DiT blocks, until a run reports the model's count
+const BLOCK_PRESETS = [
+  ["all", "every block: the plain post-refiner hook", () => true],
+  ["none", "no block: the row adds nothing", () => false],
+  ["first half", "blocks 0 to n/2 - 1", (i, n) => i < n / 2],
+  ["second half", "blocks n/2 to n - 1", (i, n) => i >= n / 2],
+  ["26–37", "blocks 26 to 37 only", (i) => i >= 26 && i <= 37],
+  ["odd", "odd blocks", (i) => i % 2 === 1],
+  ["even", "even blocks", (i) => i % 2 === 0],
+];
+const BLOCKS_HELP = "How much of the dial the text tokens carry into each block, times the row strength. Lowering a later " +
+  "block subtracts the dial there; the blocks before it have already read it.";
+
+// one bar per block, height = strength 0..top (top is at least 1); also the row's mini strip
+function drawBlocks(c, w, hover, W, H, top = Math.max(1, ...w)) {
+  const dpr = window.devicePixelRatio || 1;
+  c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+  const g = c.getContext("2d"), cw = W / w.length, gap = cw > 3 ? 1 : 0;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = "#101114"; g.fillRect(0, 0, W, H);
+  w.forEach((v, i) => {
+    g.fillStyle = i % 10 === 0 && gap ? "#252831" : "#1b1d23";
+    g.fillRect(i * cw, 0, cw - gap, H);
+    g.fillStyle = i === hover ? "#ffe2a0" : "#ffc145";
+    const h = Math.min(1, v / top);
+    g.fillRect(i * cw, H * (1 - h), cw - gap, H * h);
+  });
+  if (H < 30) return;
+  g.fillStyle = "#777"; g.font = "9px sans-serif";
+  for (let i = 0; i < w.length; i += 10) g.fillText(String(i), i * cw + 2, 10);
+}
+
+const CLIP_SECONDS = 124 / 24;  // H3's default length, until a run reports the clip
+const FEATURES = ["onset", "rms", "low", "mid", "high"];
+const SHAPING = { gain: 1, offset: 0, threshold: 0, attack: 0.01, release: 0.15 };
+const TIME_HELP = "Strength over clip time: for the first k steps the model runs without and with this dial and blends the " +
+  "two per latent frame (about 1/6 s), v = v0 + M(t)·(v_dial − v0), M times the row strength; the dial is off after step k. " +
+  "Each blended step costs one more model call. Audio: follow uses the same curve on the soundtrack, protect keeps the " +
+  "soundtrack undialled.";
+const TIME_KEYS = [
+  ["off → on", "0 for the first half, 1 for the second", [[0, 0], [0.5, 1]], "step"],
+  ["on → off", "1 for the first half, 0 for the second", [[0, 1], [0.5, 0]], "step"],
+  ["ramp up", "0 at the start to 1 at the end", [[0, 0], [1, 1]], "linear"],
+  ["ramp down", "1 at the start to 0 at the end", [[0, 1], [1, 0]], "linear"],
+];
+
+// M(t) of a row's time curve at the given seconds (mirrors dials/timecurve.py curve_fn and shape)
+function timeCurve(spec, seconds, times, audio) {
+  if (spec.type === "audio") {
+    const x = audio?.features?.[spec.feature || "onset"];
+    if (!x) return null;
+    const s = Object.assign({}, SHAPING, spec), rate = audio.rate;
+    const coef = [s.attack, s.release].map((v) => (v > 0 ? 1 - Math.exp(-1 / (v * rate)) : 1));
+    let level = Math.max(0, (x[0] - s.threshold) / (1 - s.threshold));
+    const y = x.map((v) => {
+      v = Math.max(0, (v - s.threshold) / (1 - s.threshold));
+      level += coef[v > level ? 0 : 1] * (v - level);
+      return s.offset + s.gain * (s.invert ? 1 - level : level);
+    });
+    return times.map((t) => { const i = Math.min(y.length - 1, Math.max(0, t * rate)), a = Math.floor(i); return y[a] + (y[Math.min(a + 1, y.length - 1)] - y[a]) * (i - a); });
+  }
+  const scale = (spec.unit || "normalized") === "normalized" ? seconds : 1;
+  const p = (spec.points || []).map(([t, m]) => [t * scale, m]);
+  if (!p.length) return null;
+  return times.map((t) => {
+    const i = p.findIndex(([pt]) => pt > t);
+    if (i === 0) return p[0][1];
+    if (i < 0) return p[p.length - 1][1];
+    if (spec.interp === "step") return p[i - 1][1];
+    const [t0, m0] = p[i - 1], [t1, m1] = p[i];
+    return m0 + (m1 - m0) * (t - t0) / (t1 - t0);
+  });
+}
+
+// the curve over the clip: waveform behind, the curve, and the M each video latent frame gets
+function drawTime(c, spec, seconds, audio, W, H) {
+  const dpr = window.devicePixelRatio || 1;
+  c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+  const g = c.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = "#101114"; g.fillRect(0, 0, W, H);
+  if (audio?.peaks && H >= 30) {
+    g.fillStyle = "#2b3442";
+    const n = audio.peaks.length, per = audio.seconds / n;
+    for (let i = 0; i < n && i * per < seconds; i++) {
+      const h = audio.peaks[i] * (H - 4);
+      g.fillRect(i * per / seconds * W, (H - h) / 2, Math.max(1, per / seconds * W), h);
+    }
+  }
+  const times = Array.from({ length: W }, (_, i) => (i / W) * seconds);
+  const m = timeCurve(spec, seconds, times, audio);
+  if (!m) {
+    if (H >= 30) { g.fillStyle = "#777"; g.font = "10px sans-serif"; g.fillText("run once with curve_audio connected to see the music's curve", 6, H / 2); }
+    return;
+  }
+  const lo = Math.min(0, ...m), hi = Math.max(1, ...m), y = (v) => H - 2 - (v - lo) / (hi - lo) * (H - 4);
+  if (H >= 30) {  // per latent frame: 1, 4, 4, 4, 4 pixel frames at 24 fps
+    g.strokeStyle = "#ffc145"; g.lineWidth = 1.5; g.beginPath();
+    for (let f = 0, k = 0; f < Math.round(seconds * 24); k++) {
+      const n = [1, 4, 4, 4, 4][k % 5], frames = Array.from({ length: n }, (_, j) => (f + j) / 24);
+      const v = timeCurve(spec, seconds, frames, audio).reduce((a, b) => a + b, 0) / n;
+      g.lineTo(f / 24 / seconds * W, y(v)); g.lineTo((f + n) / 24 / seconds * W, y(v));
+      f += n;
+    }
+    g.stroke();
+    g.fillStyle = "#777"; g.font = "9px sans-serif";
+    g.fillText(`${hi.toFixed(2)}`, 2, 10); g.fillText(`${lo.toFixed(2)}`, 2, H - 3);
+    g.fillText(`${seconds.toFixed(2)} s`, W - 34, H - 3);
+  }
+  g.strokeStyle = H >= 30 ? "#8fb4ff" : "#ffc145"; g.lineWidth = 1; g.beginPath();
+  m.forEach((v, i) => g.lineTo(i, y(v)));
+  g.stroke();
+}
 
 async function presetRequest(path = "", options) {
   const response = await api.fetchApi(PRESETS + path, options);
@@ -528,6 +641,381 @@ class DialMatrix {
   }
 }
 
+// The dial editor: v' = v + Σ c_j q_j over the bank's probe vectors (c = Δβ in probe units) and the library's PC1/PC2 (unit
+// vectors). The server sends the Gram numbers once (/mainodes/dials/editor); every readout below is exact from them, and
+// export redoes the edit from the edit list on the server. Nothing here touches the rack's rows until "add as row".
+const dotv = (a, b) => a.reduce((t, x, i) => t + x * b[i], 0);
+const quad = (c, m) => c.reduce((t, x, i) => t + x * dotv(c, m[i]), 0);
+const NEAR = 5;  // labelled neighbours
+const signed = (v, d = 2) => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(d);
+function solve2(J, d) {  // J·[a, b] = d; a singular J (identical directions, a zero component) moves along the first only
+  const det = J[0][0] * J[1][1] - J[0][1] * J[1][0];
+  if (Math.abs(det) > 1e-9 * Math.abs(J[0][0] * J[1][1])) return [(d[0] * J[1][1] - d[1] * J[0][1]) / det, (d[1] * J[0][0] - d[0] * J[1][0]) / det];
+  return [J[0][0] ? d[0] / J[0][0] : 0, 0];
+}
+
+class DialEditor {
+  constructor(rack, r) {
+    this.rack = rack;
+    this.r = r;
+    this.file = r.dial;
+    this.ops = [];
+    this.view = "bars";
+    this.basis = { kind: "pca", x: 0, y: 1 };
+    const el = (...a) => rack.el(...a);
+    this.box = el("div", { display: "flex", flexDirection: "column", gap: "5px", padding: "6px", background: "#1b1d23",
+      border: "1px solid #2f323b", borderRadius: "4px" });
+    this.head = el("div", { display: "flex", gap: "5px", alignItems: "center", flexWrap: "wrap" }, this.box);
+    this.status = el("div", { color: "#9a9ba0" }, this.box, "loading the probe profile and the dial library…");
+    api.fetchApi(`/mainodes/dials/editor?dial=${encodeURIComponent(this.file)}`).then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      this.s = data;
+      this.build();
+    }).catch((e) => {
+      this.status.textContent = `Dial editor not available because ${e.message}.`;
+      this.status.style.color = "#ff8a5c";
+      rack.button(this.head, "Close", "close the dial editor", () => rack.closeEditor(), { padding: "1px 6px" });
+      rack.render();
+    });
+  }
+
+  get fit() { return this.rack.pad.fit || "direct"; }
+  get K() { return this.s.bank.axes.length; }
+
+  build() {
+    const rack = this.rack, el = (...a) => rack.el(...a), s = this.s;
+    this.status.remove();
+    el("span", { color: "#ffc145" }, this.head, `Dial editor · ${shortName(this.file)}`);
+    const pick = (label, options, value, title, cb) => {
+      el("span", { color: "#888" }, this.head, label);
+      const sel = el("select", { background: "#111", color: "#eee", border: "1px solid #333" }, this.head);
+      for (const [v, text] of options) el("option", {}, sel, text).value = v;
+      sel.value = value; sel.title = title; sel.onchange = () => cb(sel.value);
+      return sel;
+    };
+    this.selView = pick("view", [["bars", "probe bars"], ["library", "library map"]], this.view,
+      "probe bars: the dial's probe profile, drag a bar · library map: the dial among the saved dials, drag the dot", (v) => { this.view = v; this.draw(); });
+    this.selFit = pick("fit", [["direct", "direct"], ["joint", "joint"]], this.fit,
+      "direct (v·p)/(p·p), or the joint ridge fit that shares credit between correlated probes (same setting as the wheel)",
+      (v) => { rack.pad.fit = v; this.draw(); if (rack.pad.open) rack.map.draw(); });
+    rack.button(this.head, "Undo", "undo the last edit", () => { this.ops.pop(); this.draw(); }, { padding: "1px 6px" });
+    rack.button(this.head, "Reset", "back to the original dial", () => { this.ops = []; this.draw(); }, { padding: "1px 6px" });
+    rack.button(this.head, "Close", "close the editor (unsaved edits are dropped)", () => rack.closeEditor(), { padding: "1px 6px", marginLeft: "auto" });
+    this.axisBar = el("div", { display: "flex", gap: "5px", alignItems: "center", flexWrap: "wrap" }, this.box);
+    this.canvas = el("canvas", { display: "block", width: "100%", cursor: "ew-resize", touchAction: "none", borderRadius: "4px" }, this.box);
+    this.readout = el("div", { color: "#9a9ba0", fontSize: "11px", whiteSpace: "pre-wrap" }, this.box);
+    this.pointer();
+    this.exportForm();
+    rack.render();
+  }
+
+  // ---------- the math (exact, from the Gram numbers) ----------
+  coeffs() {
+    const K = this.K, c = Array(K + 2).fill(0), axes = this.s.bank.axes;
+    for (const op of this.ops) {
+      if (op.kind === "axis") c[axes.indexOf(op.axis)] += op.delta;
+      else if (op.basis === "probes") op.axes.forEach((a, i) => { c[axes.indexOf(a)] += op.delta[i]; });
+      else { c[K] += op.delta[0]; c[K + 1] += op.delta[1]; }
+    }
+    return c;
+  }
+  coef(c, fit, k) {  // fit coefficient of v' on probe k
+    const s = this.s, pp = s.qq[k][k];
+    return fit === "joint" ? s.joint[k] + c.reduce((t, x, j) => t + x * s.jq[j][k], 0)
+      : s.direct[k] + (pp > 0 ? c.reduce((t, x, j) => t + x * s.qq[j][k], 0) / pp : 0);
+  }
+  response(fit, k, j) {  // change of coefficient k per unit move along direction j
+    const s = this.s;
+    return fit === "joint" ? s.jq[j][k] : s.qq[k][k] > 0 ? s.qq[j][k] / s.qq[k][k] : 0;
+  }
+  measure(c) {
+    const s = this.s, K = this.K, n2 = Math.max(0, s.vv + 2 * dotv(c, s.vq) + quad(c, s.qq)), norm = Math.sqrt(n2);
+    const one = [1, ...c], r2 = Math.max(0, quad(one, s.rr));
+    const cosWith = (vw, qw, ww) => (n2 * ww > 0 ? (vw + dotv(c, qw)) / Math.sqrt(n2 * ww) : 0);
+    return {
+      norm, cos: cosWith(s.vv, s.vq, s.vv), unexplained: norm > 0 ? Math.sqrt(r2) / norm : 0,
+      direct: s.bank.axes.map((_, k) => this.coef(c, "direct", k)), joint: s.bank.axes.map((_, k) => this.coef(c, "joint", k)),
+      pc: [0, 1].map((i) => s.pc[i] + c.reduce((t, x, j) => t + x * s.qq[j][K + i], 0)),
+      lib: s.library.map((w) => ({ w, cos: cosWith(w.vw, w.qw, w.ww), was: s.vv * w.ww > 0 ? w.vw / Math.sqrt(s.vv * w.ww) : 0 })),
+    };
+  }
+  coords(m, w) {  // library-map position of v' (w = null) or of a library dial
+    const b = this.basis;
+    if (b.kind === "pca") return w ? w.pc : m.pc;
+    const src = w ? w[this.fit] : m[this.fit];
+    return [src[b.x], src[b.y]];
+  }
+
+  // ---------- drawing ----------
+  draw() {
+    if (!this.s) return;
+    const c = this.coeffs(), m = this.measure(c);
+    this.selFit.value = this.fit;
+    this.canvas.style.cursor = this.view === "bars" ? "ew-resize" : "move";
+    this.axisControls();
+    if (this.view === "bars") this.drawBars(m); else this.drawLibrary(m);
+    this.readouts(m);
+  }
+
+  surface(H) {
+    const W = this.canvas.clientWidth || 560, dpr = window.devicePixelRatio || 1;
+    this.canvas.style.height = H + "px";
+    this.canvas.width = Math.round(W * dpr); this.canvas.height = Math.round(H * dpr);
+    const g = this.canvas.getContext("2d");
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.fillStyle = "#101114"; g.fillRect(0, 0, W, H);
+    g.font = "10px sans-serif";
+    return [g, W, H];
+  }
+
+  barLayout(W) {
+    const left = 190, right = 110, row = 19, top = 16;
+    return { left, right, row, top, x0: left, x1: W - right, zero: (left + W - right) / 2 };
+  }
+
+  drawBars(m) {
+    const s = this.s, K = this.K, fit = this.fit, [g, W] = this.surface(16 + K * 19 + 18), L = this.barLayout(W);
+    const orig = s[fit], live = m[fit];
+    if (!this.drag) this.R = Math.max(0.5, Math.ceil(Math.max(...orig.map(Math.abs), ...live.map(Math.abs)) * 1.3 * 4) / 4);
+    const R = this.R, half = (L.x1 - L.x0) / 2, X = (v) => L.zero + Math.max(-1, Math.min(1, v / R)) * half;
+    this.barX = X; this.barValue = (px) => (px - L.zero) / half * R;
+    const clustered = new Set((s.bank.correlated || []).flat().filter((x) => typeof x === "string"));
+    g.fillStyle = "#777";
+    g.fillText(`${signed(-R)}`, L.x0, 11); g.fillText("0", L.zero - 3, 11); g.fillText(`${signed(R)}`, L.x1 - 24, 11);
+    s.bank.axes.forEach((axis, k) => {
+      const y = L.top + k * L.row, active = this.drag?.k === k || this.hover === k;
+      g.fillStyle = active ? "#1f2128" : k % 2 ? "#15161a" : "#121317"; g.fillRect(0, y, W, L.row - 1);
+      g.fillStyle = active ? "#eee" : "#bbb"; g.textAlign = "left";
+      g.fillText(axis + (clustered.has(axis) ? " ∿" : ""), 4, y + 13);
+      g.fillStyle = "#888"; g.textAlign = "right"; g.fillText(`− ${s.bank.negative[k]}`, L.x0 - 6, y + 13);
+      g.textAlign = "left"; g.fillText(`${s.bank.positive[k]} +`, L.x1 + 6, y + 13);
+      g.fillStyle = live[k] >= 0 ? "#ffa64d" : "#5a8cff";
+      g.fillRect(Math.min(X(0), X(live[k])), y + 4, Math.abs(X(live[k]) - X(0)), L.row - 9);
+      g.strokeStyle = "#d8d8d8"; g.setLineDash([2, 2]);
+      g.strokeRect(Math.min(X(0), X(orig[k])) + 0.5, y + 3.5, Math.abs(X(orig[k]) - X(0)), L.row - 8); g.setLineDash([]);
+      if (this.drag?.k === k) { g.fillStyle = "#ffc145"; g.fillRect(X(this.drag.target) - 1, y + 1, 2, L.row - 3); }
+      g.fillStyle = Math.abs(live[k] - orig[k]) > 0.005 ? "#ffc145" : "#9a9ba0"; g.textAlign = "right";
+      g.fillText(signed(live[k]), W - 4, y + 13);
+      g.textAlign = "left";
+    });
+    g.strokeStyle = "#555"; g.beginPath(); g.moveTo(L.zero + 0.5, L.top); g.lineTo(L.zero + 0.5, L.top + K * L.row); g.stroke();
+    g.fillStyle = "#777";
+    g.fillText(`${s.bank.bank} v${s.bank.version} · ${fit} · probe units · dashed = original, filled = edited · ∿ correlated probes`, 4, L.top + K * L.row + 12);
+  }
+
+  drawLibrary(m) {
+    const s = this.s, [g, W, H] = this.surface(300), self = s.vector_sha256;
+    const pts = s.library.filter((w) => w.vector_sha256 !== self).map((w) => ({ w, at: this.coords(m, w) }));
+    const here = this.coords(m, null), start = this.coords(this.measure(Array(this.K + 2).fill(0)), null);
+    if (!this.drag) {
+      const xs = [...pts.map((p) => p.at[0]), here[0], start[0]], ys = [...pts.map((p) => p.at[1]), here[1], start[1]];
+      const pad = (lo, hi) => { const d = (hi - lo) * 0.12 || 1; return [lo - d, hi + d]; };
+      this.frame = [pad(Math.min(...xs), Math.max(...xs)), pad(Math.min(...ys), Math.max(...ys))];
+    }
+    const [[x0, x1], [y0, y1]] = this.frame, M = 28;
+    const px = (v) => M + (v - x0) / (x1 - x0) * (W - 2 * M), py = (v) => H - M - (v - y0) / (y1 - y0) * (H - 2 * M);
+    this.libPx = { x: (v) => (v - x0) / (x1 - x0) * (W - 2 * M), y: (v) => (v - y0) / (y1 - y0) * (H - 2 * M) };
+    g.strokeStyle = "#2a2c33";
+    if (x0 < 0 && x1 > 0) { g.beginPath(); g.moveTo(px(0), M); g.lineTo(px(0), H - M); g.stroke(); }
+    if (y0 < 0 && y1 > 0) { g.beginPath(); g.moveTo(M, py(0)); g.lineTo(W - M, py(0)); g.stroke(); }
+    const near = new Set(m.lib.filter((l) => l.w.vector_sha256 !== self).sort((a, b) => b.cos - a.cos).slice(0, NEAR).map((l) => l.w));
+    const cos = new Map(m.lib.map((l) => [l.w, l.cos])), placed = [];
+    const label = (text, x, y) => {  // first of a few offsets that overlaps no earlier label
+      const w = g.measureText(text).width;
+      for (const dy of [-4, 12, -16, 24, -28]) {
+        if (!placed.some((r) => x < r[0] + r[2] && r[0] < x + w && y + dy - 9 < r[1] && r[1] - 9 < y + dy)) {
+          placed.push([x, y + dy, w]); return g.fillText(text, x, y + dy);
+        }
+      }
+      g.fillText(text, x, y - 4);
+    };
+    for (const p of pts) {
+      const on = near.has(p.w);
+      g.fillStyle = on ? "#8fb4ff" : "#4a4d57";
+      g.beginPath(); g.arc(px(p.at[0]), py(p.at[1]), on ? 3.5 : 2.5, 0, 2 * Math.PI); g.fill();
+    }
+    g.fillStyle = "#b8c4ff";
+    for (const p of pts) if (near.has(p.w)) label(`${shortName(p.w.names[0])} ${signed(cos.get(p.w))}`, px(p.at[0]) + 5, py(p.at[1]));
+    g.strokeStyle = "#d8d8d8"; g.setLineDash([3, 3]);
+    g.beginPath(); g.moveTo(px(start[0]), py(start[1])); g.lineTo(px(here[0]), py(here[1])); g.stroke(); g.setLineDash([]);
+    g.lineWidth = 1.5; g.beginPath(); g.arc(px(start[0]), py(start[1]), 6, 0, 2 * Math.PI); g.stroke(); g.lineWidth = 1;
+    g.fillStyle = "#ffc145"; g.beginPath(); g.arc(px(here[0]), py(here[1]), 6, 0, 2 * Math.PI); g.fill();
+    label(shortName(this.file) + (this.ops.length ? " (edited)" : ""), px(here[0]) + 8, py(here[1]) + 18);
+    const b = this.basis, names = b.kind === "pca" ? ["PC1", "PC2"] : [b.x, b.y].map((k) => s.bank.axes[k]);
+    g.fillStyle = "#999";
+    const xl = b.kind === "pca" ? "PC1 →" : `${s.bank.positive[b.x]} (${names[0]}) →`;
+    g.fillText(xl, W - M - g.measureText(xl).width, H - 8);
+    g.fillText(b.kind === "pca" ? "↑ PC2" : `↑ ${s.bank.positive[b.y]} (${names[1]})`, 4, 12);
+    g.fillStyle = "#777";
+    const scope = `${s.library.length} saved dials · ${s.family} post-refiner · ` + (b.kind === "pca" ? "top 2 principal components of the library" : `${this.fit} fit, probe units`);
+    g.fillText(scope, M, H - 8 - (g.measureText(scope).width + g.measureText(xl).width > W - 2 * M - 10 ? 12 : 0));
+  }
+
+  axisControls() {
+    const rack = this.rack, el = (...a) => rack.el(...a), s = this.s, b = this.basis;
+    this.axisBar.replaceChildren();
+    this.axisBar.style.display = this.view === "library" ? "flex" : "none";
+    if (this.view !== "library") return;
+    const sel = (value, options, cb) => {
+      const e = el("select", { background: "#111", color: "#eee", border: "1px solid #333" }, this.axisBar);
+      for (const [v, t] of options) el("option", {}, e, t).value = v;
+      e.value = value; e.onchange = () => { cb(e.value); this.draw(); };
+    };
+    el("span", { color: "#888" }, this.axisBar, "axes");
+    sel(b.kind, [["pca", "library PC1 / PC2"], ["probes", "two probe axes"]], (v) => {
+      b.kind = v;
+      if (v === "probes" && b.x === b.y) b.y = (b.x + 1) % this.K;
+    });
+    const axes = s.bank.axes.map((a, k) => [k, a]);
+    if (b.kind === "probes") {
+      el("span", { color: "#888" }, this.axisBar, "X"); sel(b.x, axes, (v) => { b.x = Number(v); });
+      el("span", { color: "#888" }, this.axisBar, "Y"); sel(b.y, axes, (v) => { b.y = Number(v); });
+    }
+    el("span", { color: "#888", flexBasis: "100%" }, this.axisBar, b.kind === "pca"
+      ? "Dragging moves the dial along PC1 and PC2 only (the library's two main directions of spread); every other direction stays."
+      : `Dragging moves the dial along the ${s.bank.axes[b.x]} and ${s.bank.axes[b.y]} probe vectors only; every other direction stays.`);
+    if (b.kind === "probes" && b.x === b.y) el("span", { color: "#ff8a5c" }, this.axisBar, "pick two different axes");
+  }
+
+  readouts(m) {
+    const s = this.s, fit = this.fit, el = (...a) => this.rack.el(...a), line = (t, colour) => el("div", { color: colour || "#9a9ba0" }, this.readout, t);
+    this.readout.replaceChildren();
+    const was = Math.sqrt(s.vv);
+    line(`size |v'| ${m.norm.toFixed(2)} (original ${was.toFixed(2)}${was > 0 ? `, ×${(m.norm / was).toFixed(2)}` : ""})  ·  ` +
+      `cos with the original ${signed(m.cos, 3)}  ·  unexplained by the bank ${m.unexplained.toFixed(2)} (was ${s.unexplained.toFixed(2)})`, "#ddd");
+    const near = m.lib.filter((l) => l.w.vector_sha256 !== s.vector_sha256).sort((a, b) => b.cos - a.cos).slice(0, NEAR);
+    line("nearest saved dials: " + near.map((l) => `${shortName(l.w.names[0])} ${signed(l.cos)}` +
+      (Math.abs(l.cos - l.was) >= 0.005 ? ` (was ${signed(l.was)})` : "")).join("  ·  "));
+    const change = s.bank.axes.map((a, k) => [a, m[fit][k] - s[fit][k]]).filter(([, d]) => Math.abs(d) >= 0.005).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+    line(`probe changes (${fit}): ` + (change.length ? change.map(([a, d]) => `${a} ${signed(d)}`).join(", ") : "none"));
+    if (this.ops.length) line("edits: " + this.ops.map((op) => (op.kind === "axis" ? `${op.axis} Δβ ${signed(op.delta)} (${op.fit})`
+      : op.basis === "probes" ? `drag ${op.axes.join("/")} Δβ ${op.delta.map((d) => signed(d)).join(", ")} (${op.fit})`
+        : `drag PC1/PC2 ${op.delta.map((d) => signed(d)).join(", ")}`)).join("  ·  "));
+    if (this.hover != null && this.view === "bars") {
+      const a = s.bank.axes[this.hover], partners = (s.bank.correlated || []).filter((c) => c[0] === a || c[1] === a);
+      line(`${a}: ${s.bank.negative[this.hover]} ↔ ${s.bank.positive[this.hover]} · original ${signed(s[fit][this.hover])} → ${signed(m[fit][this.hover])}` +
+        (partners.length ? ` · correlated with ${partners.map((c) => `${c[0] === a ? c[1] : c[0]} (cos ${c[2].toFixed(2)})`).join(", ")}: editing one moves the others` : ""), "#ddd");
+    }
+    line((this.view === "library" ? "" : fit === "joint"
+      ? `Joint fit (ridge λ ${s.bank.lambda}): a drag adds Δβ·p, Δβ = how far you dragged; dragging to 0 removes the fitted component β·p, ` +
+        "and the re-fit lands near 0, not on it (ridge shrinkage). "
+      : "Direct fit: a drag adds Δβ·p, Δβ = how far you dragged; dragging to 0 removes the dial's projection on that probe. ") +
+      "Probes are correlated (light, expression and mood are one \"intensity\" cluster, cos ≈ 0.56–0.59), so moving one moves others" +
+      (this.view === "library" ? ". " : "; double-click a bar to remove that axis. ") +
+      "Exact vector math; whether an edit shows in renders is untested.", "#777");
+  }
+
+  // ---------- dragging ----------
+  pointer() {
+    const cv = this.canvas, at = (e) => {  // in the canvas' own CSS pixels, whatever the graph zoom
+      const b = cv.getBoundingClientRect();
+      return [(e.clientX - b.left) * cv.clientWidth / b.width, (e.clientY - b.top) * cv.clientHeight / b.height];
+    };
+    const rowAt = (y) => { const L = this.barLayout(cv.clientWidth), k = Math.floor((y - L.top) / L.row); return k >= 0 && k < this.K ? k : null; };
+    const snap0 = (v) => (Math.abs(this.barX(v) - this.barX(0)) < 4 ? 0 : v);
+    const bank = () => ({ bank: this.s.bank.bank, bank_version: this.s.bank.version });
+    cv.addEventListener("pointerdown", (e) => {
+      if (!this.s) return;
+      const [x, y] = at(e), fit = this.fit, c = this.coeffs();
+      if (this.view === "bars") {
+        const k = rowAt(y);
+        if (k == null) return;
+        const op = { kind: "axis", axis: this.s.bank.axes[k], delta: 0, fit, ...bank() };
+        this.drag = { k, op, from: this.coef(c, fit, k), target: this.coef(c, fit, k) };
+      } else {
+        const b = this.basis;
+        if (b.kind === "probes" && b.x === b.y) return;
+        const dirs = b.kind === "pca" ? [this.K, this.K + 1] : [b.x, b.y];
+        const J = b.kind === "pca" ? dirs.map((i) => dirs.map((j) => this.s.qq[i][j])) : [b.x, b.y].map((k) => dirs.map((j) => this.response(fit, k, j)));
+        const op = b.kind === "pca" ? { kind: "drag", basis: "library_pca", library_sha256: this.s.library_sha256, components_sha256: this.s.components_sha256, delta: [0, 0] }
+          : { kind: "drag", basis: "probes", axes: [b.x, b.y].map((k) => this.s.bank.axes[k]), delta: [0, 0], fit, ...bank() };
+        this.drag = { J, op, x0: x, y0: y };
+      }
+      this.ops.push(this.drag.op);
+      cv.setPointerCapture(e.pointerId);
+      this.move(x, y, snap0);
+    });
+    cv.addEventListener("pointermove", (e) => {
+      const [x, y] = at(e);
+      if (this.drag) return this.move(x, y, snap0);
+      const k = this.view === "bars" ? rowAt(y) : null;
+      if (k !== this.hover) { this.hover = k; this.draw(); }
+    });
+    const end = () => {
+      if (!this.drag) return;
+      if (this.drag.op.delta === 0 || (Array.isArray(this.drag.op.delta) && this.drag.op.delta.every((d) => d === 0))) this.ops.pop();
+      this.drag = null; this.draw();
+    };
+    cv.addEventListener("pointerup", end);
+    cv.addEventListener("pointercancel", end);
+    cv.addEventListener("pointerleave", () => { if (!this.drag && this.hover != null) { this.hover = null; this.draw(); } });
+    cv.addEventListener("dblclick", (e) => {
+      if (this.view !== "bars" || !this.s) return;
+      const k = rowAt(at(e)[1]);
+      if (k == null) return;
+      const v = this.coef(this.coeffs(), this.fit, k);
+      if (v) { this.ops.push({ kind: "axis", axis: this.s.bank.axes[k], delta: -v, fit: this.fit, ...bank() }); this.draw(); }
+    });
+  }
+
+  move(x, y, snap0) {
+    const d = this.drag;
+    if (this.view === "bars") {
+      d.target = snap0(this.barValue(x));
+      d.op.delta = d.target - d.from;  // Δβ along p_k: lands exactly under direct, removes the fitted component under joint
+    } else {
+      const p = this.libPx;  // the frame stays fixed while dragging, so pixels per unit are constant
+      d.op.delta = solve2(d.J, [(x - d.x0) / (p.x(1) - p.x(0)), -(y - d.y0) / (p.y(1) - p.y(0))]);
+    }
+    this.draw();
+  }
+
+  // ---------- export ----------
+  exportForm() {
+    const rack = this.rack, el = (...a) => rack.el(...a), info = this.s.info, parent = this.file.replace(/^dials\//, "").replace(/\.safetensors$/, "");
+    const box = el("div", { display: "grid", gridTemplateColumns: "auto 1fr auto 1fr", gap: "4px 6px", alignItems: "center",
+      borderTop: "1px solid #2a2c33", paddingTop: "5px" }, this.box);
+    const input = (label, value, attrs, span) => {
+      el("span", { color: "#888" }, box, label);
+      const e = el(attrs.tag || "input", { background: "#111", color: "#eee", border: "1px solid #333", gridColumn: span ? "span 3" : "",
+        minWidth: "0", resize: "vertical" }, box);
+      Object.assign(e, attrs.props || {}, { value });
+      return e;
+    };
+    const name = input("new name", `${parent.split("/").pop()}_edit`, { props: { maxLength: 161, title: "saved as models/loras/dials/<name>.safetensors; folder/name puts it in a sub-folder (folders starting with _ stay out of the rack's list). An existing file is never replaced." } }, true);
+    const desc = input("description", info.description, { tag: "textarea", props: { rows: 2, maxLength: 2000 } }, true);
+    const neg = input("− gives", info.negative, { props: { maxLength: 60 } });
+    const pos = input("+ gives", info.positive, { props: { maxLength: 60 } });
+    const notes = input("notes", `made in the Dial editor from ${shortName(this.file)}; output untested`, { tag: "textarea", props: { rows: 1, maxLength: 500 } }, true);
+    el("span", { gridColumn: "span 4", color: "#777", fontSize: "11px" }, box,
+      "Useful and overcook strengths and the evidence start unknown: an edited dial has not been rendered yet. The file records the parent, its hash and every edit.");
+    const actions = el("div", { gridColumn: "span 4", display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }, box);
+    const msg = el("span", { color: "#9a9ba0", whiteSpace: "pre-wrap", flex: "1 1 200px" }, actions);
+    rack.button(actions, "Export new dial", "save the edited vector as a new dial file (never overwrites)", async (b) => {
+      b.disabled = true; msg.style.color = "#9a9ba0"; msg.textContent = "saving…";
+      try {
+        const r = await api.fetchApi("/mainodes/dials/editor/export", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dial: this.file, edits: this.ops, name: name.value.trim(), info: { version: 2, description: desc.value,
+            negative: neg.value, positive: pos.value, neg: UNKNOWN, pos: UNKNOWN, evidence: null, pipeline: "", notes: notes.value } }) });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error);
+        this.saved = data;
+        msg.style.color = "#ffc145";
+        msg.textContent = `saved ${data.file} · |v'| ${data.norm.toFixed(2)} · cos with the original ${signed(data.cos_parent, 3)} · nearest ` +
+          data.neighbours.slice(0, 3).map((n) => `${shortName(n.dial)} ${signed(n.cos)}`).join(", ");
+        this.addButton.style.display = "";
+        await listDials(true);
+      } catch (e) { msg.style.color = "#ff8a5c"; msg.textContent = e.message; }
+      finally { b.disabled = false; }
+    }, { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145" });
+    this.addButton = rack.button(actions, "add as row", "add the saved dial as a new rack row at this row's strength", () => {
+      rack.addRow({ on: true, dial: this.saved.file, strength: this.r.strength, solo: false });
+    });
+    this.addButton.style.display = "none";
+  }
+}
+
 class DialRackUI {
   constructor(node) {
     this.node = node;
@@ -684,6 +1172,126 @@ class DialRackUI {
     this.button(actions, "Cancel", "close without saving", () => { this.editing = null; this.render(); });
   }
 
+  blocksEditor(r, name) {
+    const w = r.blocks ? [...r.blocks] : Array(this.node.properties?.dialBlocks || BLOCKS).fill(1), n = w.length;
+    const box = this.el("div", { display: "flex", flexDirection: "column", gap: "4px", padding: "6px", background: "#1b1d23",
+      border: "1px solid #2f323b", borderRadius: "4px" }, this.list);
+    const bar = this.el("div", { display: "flex", gap: "4px", alignItems: "center", flexWrap: "wrap" }, box);
+    this.el("span", { color: "#888" }, bar, `${name} · blocks`);
+    let hover = null, top = Math.max(this.blocksTop || 1, ...w);
+    const canvas = this.el("canvas", { display: "block", width: "100%", height: "64px", cursor: "crosshair", touchAction: "none" }, box);
+    const draw = () => drawBlocks(canvas, w, hover, canvas.clientWidth, 64, top);
+    const save = () => {
+      if (w.every((v) => v === 1)) delete r.blocks; else r.blocks = w.map((v) => Math.round(v * 100) / 100);
+      this.commit(); draw();
+    };
+    for (const [label, title, on] of BLOCK_PRESETS) this.button(bar, label, title, () => {
+      w.forEach((_, i) => { w[i] = on(i, n) ? 1 : 0; }); save(); this.render();
+    }, { padding: "1px 6px" });
+    this.el("span", { color: "#888" }, bar, "top");
+    const topBox = this.el("input", { width: "56px", background: "#111", color: "#eee", border: "1px solid #333" }, bar);
+    Object.assign(topBox, { type: "number", min: 1, step: 1, value: top, title: "strength at the top of the strip; raise it to paint blocks above 1 (e.g. 50)" });
+    topBox.onchange = () => { top = this.blocksTop = Math.max(1, parseFloat(topBox.value) || 1, ...w); topBox.value = top; draw(); };
+    const readout = this.el("span", { color: "#ffc145", marginLeft: "auto", minWidth: "90px", textAlign: "right" }, bar);
+    this.button(bar, "Done", "close the block strengths", () => { this.blocksEditing = null; this.render(); }, { padding: "1px 6px" });
+    this.el("div", { color: "#888", fontSize: "11px" }, box, BLOCKS_HELP + " Click or drag to paint: top = the top value, bottom = 0.");
+    canvas.title = "click or drag to paint each block's strength (top = the top value, bottom = 0)";
+    const at = (e) => {
+      const b = canvas.getBoundingClientRect();
+      return [Math.min(n - 1, Math.max(0, Math.floor((e.clientX - b.left) / b.width * n))),
+        Math.min(1, Math.max(0, Math.round((1 - (e.clientY - b.top) / b.height) * 20) / 20)) * top];
+    };
+    let last = null;
+    const show = (i) => { hover = i; readout.textContent = i == null ? "" : `block ${i}: ${w[i].toFixed(2)}`; };
+    const paint = (e) => {  // fill the cells between drag events so a fast stroke leaves no gaps
+      const [i, v] = at(e);
+      for (let k = Math.min(last ?? i, i); k <= Math.max(last ?? i, i); k++) w[k] = v;
+      last = i; show(i); save();
+    };
+    canvas.addEventListener("pointerdown", (e) => { canvas.setPointerCapture(e.pointerId); last = null; paint(e); });
+    canvas.addEventListener("pointermove", (e) => { if (last !== null) paint(e); else { show(at(e)[0]); draw(); } });
+    canvas.addEventListener("pointerup", () => { last = null; this.render(); });
+    canvas.addEventListener("pointerleave", () => { if (last === null) { show(null); draw(); } });
+    draw();
+  }
+
+  timeEditor(r, name) {
+    const spec = r.time || { type: "keys", points: [[0, 0], [0.5, 1]], unit: "normalized", interp: "step", steps: 2, audio: "follow" };
+    const box = this.el("div", { display: "flex", flexDirection: "column", gap: "4px", padding: "6px", background: "#1b1d23",
+      border: "1px solid #2f323b", borderRadius: "4px" }, this.list);
+    const bar = this.el("div", { display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }, box);
+    this.el("span", { color: "#888" }, bar, `${name} · clip time`);
+    const save = () => { this.commit(); this.render(); };
+    const select = (parent, options, value, title, cb) => {
+      const e = this.el("select", { background: "#111", color: "#ddd", border: "1px solid #333" }, parent);
+      for (const [v, label] of options) this.el("option", {}, e, label).value = v;
+      e.value = value; e.title = title; e.onchange = () => cb(e.value);
+      return e;
+    };
+    const number = (parent, label, value, title, cb, attrs) => {
+      this.el("span", { color: "#888" }, parent, label);
+      const e = this.el("input", { width: "52px", background: "#111", color: "#ffc145", border: "1px solid #333", textAlign: "right" }, parent);
+      Object.assign(e, { type: "number", step: 0.05, value, title }, attrs || {});
+      e.onchange = () => { const v = parseFloat(e.value); if (Number.isFinite(v)) cb(v); save(); };
+      return e;
+    };
+    select(bar, [["off", "off"], ["keys", "keyframes"], ["audio", "audio-driven"]], r.time ? spec.type : "off",
+      "off: constant over the clip (today's dial); keyframes: points over the clip; audio-driven: a feature of the music on curve_audio", (v) => {
+        if (v === "off") delete r.time;
+        else r.time = v === "keys" ? { type: "keys", points: [[0, 0], [0.5, 1]], unit: "normalized", interp: "step", steps: spec.steps, audio: spec.audio }
+          : { type: "audio", feature: "onset", ...SHAPING, invert: false, steps: spec.steps, audio: spec.audio };
+        save();
+      });
+    if (r.time) {
+      number(bar, "steps", spec.steps ?? 2, "k: how many first sampling steps blend the two branches; the dial is off after", (v) => { spec.steps = Math.max(1, Math.round(v)); }, { step: 1, min: 1, max: 50 });
+      select(bar, [["follow", "audio: follow"], ["protect", "audio: protect"]], spec.audio || "follow",
+        "follow: the soundtrack gets the same curve; protect: the soundtrack comes from the undialled branch (M_audio = 0)", (v) => { spec.audio = v; save(); });
+    }
+    this.button(bar, "Done", "close the time curve", () => { this.timeEditing = null; this.render(); }, { padding: "1px 6px", marginLeft: "auto" });
+    if (r.time?.type === "keys") {
+      const keys = this.el("div", { display: "flex", gap: "4px", alignItems: "center", flexWrap: "wrap" }, box);
+      for (const [label, title, points, interp] of TIME_KEYS) this.button(keys, label, title, () => {
+        Object.assign(spec, { points, interp, unit: "normalized" }); save();
+      }, { padding: "1px 6px" });
+      select(keys, [["normalized", "0..1 of the clip"], ["seconds", "seconds"]], spec.unit || "normalized", "keyframe times", (v) => { spec.unit = v; save(); });
+      select(keys, [["linear", "linear"], ["step", "step"]], spec.interp || "linear", "between keyframes: ramp, or hold until the next", (v) => { spec.interp = v; save(); });
+      const points = this.el("input", { flex: "1 1 120px", minWidth: "0", background: "#111", color: "#ddd", border: "1px solid #333" }, keys);
+      points.value = JSON.stringify(spec.points);
+      points.title = "JSON [time, M] points with increasing times; M multiplies the row strength";
+      points.onchange = () => {
+        try {
+          const v = JSON.parse(points.value);
+          if (!Array.isArray(v) || !v.length || !v.every((p, i) => Array.isArray(p) && p.length === 2 &&
+            p.every((n) => typeof n === "number" && Number.isFinite(n)) && (!i || p[0] > v[i - 1][0]))) throw new Error("Use [time, M] pairs with increasing times");
+          spec.points = v; points.setCustomValidity(""); save();
+        } catch (e) { points.setCustomValidity(e.message); points.reportValidity(); }
+      };
+    } else if (r.time?.type === "audio") {
+      const shaping = this.el("div", { display: "flex", gap: "4px", alignItems: "center", flexWrap: "wrap" }, box);
+      select(shaping, FEATURES.map((f) => [f, { onset: "onsets", rms: "loudness (RMS)", low: "low band", mid: "mid band", high: "high band" }[f]]),
+        spec.feature || "onset", "music feature per frame, scaled to 0..1 over the track", (v) => { spec.feature = v; save(); });
+      for (const [key, title] of [["gain", "M = offset + gain × feature"], ["offset", "M = offset + gain × feature"],
+        ["threshold", "feature below this counts as 0 (0..1)"], ["attack", "rise time in seconds"], ["release", "fall time in seconds"]]) {
+        number(shaping, key, spec[key] ?? SHAPING[key], title, (v) => { spec[key] = key === "threshold" ? Math.min(0.99, Math.max(0, v)) : ["attack", "release"].includes(key) ? Math.max(0, v) : v; },
+          ["threshold", "attack", "release"].includes(key) ? { step: 0.01, min: 0 } : {});
+      }
+      const invert = this.el("input", { margin: 0 }, shaping);
+      invert.type = "checkbox"; invert.checked = !!spec.invert; invert.title = "invert: quiet parts get the dial";
+      invert.onchange = () => { spec.invert = invert.checked; save(); };
+      this.el("span", { color: "#888" }, shaping, "invert");
+    }
+    if (r.time) {
+      const canvas = this.el("canvas", { display: "block", width: "100%", height: "64px" }, box);
+      requestAnimationFrame(() => drawTime(canvas, spec, this.clipSeconds(), this.curveAudio, canvas.clientWidth || 400, 64));
+      canvas.title = "amber: M per video latent frame; blue: the curve; grey: the music on curve_audio (after a run)";
+    }
+    this.el("div", { color: "#888", fontSize: "11px" }, box, TIME_HELP);
+  }
+
+  clipSeconds() {
+    return this.node.properties?.dialClipSeconds || CLIP_SECONDS;
+  }
+
   async padNorms(rx, ry) {
     if ("input" in rx || "input" in ry) return;
     const key = rx.dial + "|" + ry.dial;
@@ -775,7 +1383,13 @@ class DialRackUI {
     if (JSON.stringify(this.rows) !== before) { this.commit(); this.render(); }
   }
 
+  closeEditor() {
+    this.dialEditor = null;
+    this.render();
+  }
+
   render() {
+    if (this.dialEditor && (!this.rows.includes(this.dialEditor.r) || this.dialEditor.r.dial !== this.dialEditor.file)) this.dialEditor = null;
     this.list.replaceChildren();
     const files = dialFiles || [];
     const active = (r) => r.on && (r.hold || Number(r.strength) !== 0);
@@ -828,9 +1442,32 @@ class DialRackUI {
         else r.envelope = envelope.value === "manual" ? { type: "manual", points: [[0, 0], [0.5, 1], [1, 0]] } : envelope.value;
         this.commit(); this.render();
       };
+      const strip = this.button(row, r.blocks ? "" : "blocks", "block strengths: " + BLOCKS_HELP,
+        () => { this.blocksEditing = this.blocksEditing === i ? null : i; this.render(); },
+        Object.assign({ padding: "1px 4px", width: "60px" }, this.blocksEditing === i ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145" } : {}));
+      if (r.blocks) drawBlocks(this.el("canvas", { display: "block", width: "50px", height: "12px" }, strip), r.blocks, null, 50, 12);
+      if (r.hold) {
+        strip.disabled = true; strip.style.opacity = "0.4";
+        strip.title = "Hold rows remove the whole direction; block strengths apply to strength rows.";
+      }
+      const clip = this.button(row, r.time ? "" : "time", "time curve: " + TIME_HELP,
+        () => { this.timeEditing = this.timeEditing === i ? null : i; this.render(); },
+        Object.assign({ padding: "1px 4px", width: "60px" }, this.timeEditing === i ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145" } : {}));
+      if (r.time) drawTime(this.el("canvas", { display: "block", width: "50px", height: "12px" }, clip), r.time, this.clipSeconds(), this.curveAudio, 50, 12);
+      const blocker = r.hold ? "Hold rows remove the whole direction; time curves apply to strength rows."
+        : this.rows.some((x) => x.on && x.hold) ? "Time curves and hold rows cannot share a rack: turn the hold rows off."
+          : r.envelope || r.blocks ? "A time curve replaces the row's step envelope and block strengths: set them back to constant / all." : "";
+      if (blocker && !r.time) { clip.disabled = true; clip.style.opacity = "0.4"; clip.title = blocker; }
+      if (r.time) {
+        envelope.disabled = strip.disabled = true;
+        envelope.title = strip.title = "This row has a time curve, which runs its own early-step schedule.";
+      }
       if (!("input" in r)) this.button(row, "⚙", "dial info: description, what − and + give, useful and overcook strengths per side, evidence (saved in the dial file)",
         () => { this.editing = this.editing === i ? null : i; this.render(); },
         this.editing === i ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145", padding: "2px 6px" } : { padding: "2px 6px" });
+      if (!("input" in r)) this.button(row, "✎", "dial editor: see this dial's probe profile and its place among the saved dials, drag to edit, export as a new dial",
+        () => { this.dialEditor = this.dialEditor?.r === r ? null : new DialEditor(this, r); this.render(); },
+        this.dialEditor?.r === r ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145", padding: "2px 6px" } : { padding: "2px 6px" });
       this.button(row, "S", "solo: hear only the soloed rows", () => { r.solo = !r.solo; this.commit(); this.render(); },
         r.solo ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145", padding: "2px 6px" } : { padding: "2px 6px" });
       const hold = this.button(row, "H", "hold: remove this direction from the summed shift (post-refiner dials only)",
@@ -839,6 +1476,9 @@ class DialRackUI {
       hold.setAttribute("aria-pressed", String(!!r.hold));
       if (!("input" in r)) this.button(row, "✕", "remove row", () => { this.rows.splice(i, 1); this.commit(); this.render(); }, { padding: "2px 6px" });
       if (this.editing === i && !("input" in r)) this.infoEditor(r.dial);
+      if (this.blocksEditing === i && !r.hold) this.blocksEditor(r, this.rowName(i));
+      if (this.timeEditing === i && !r.hold) this.timeEditor(r, this.rowName(i));
+      if (this.dialEditor?.r === r) { this.list.appendChild(this.dialEditor.box); this.dialEditor.draw(); }
       if (r.envelope?.type === "manual") {
         const points = this.el("input", { boxSizing: "border-box", width: "100%", background: "#111", color: "#ddd", border: "1px solid #333" }, this.list);
         points.value = JSON.stringify(r.envelope.points);
@@ -864,7 +1504,8 @@ class DialRackUI {
     this.left.style.flex = open ? `0 0 ${LEFT_PX}px` : "1 1 auto";
     this.padButton.style.borderColor = open ? "#ffc145" : "#444";
     if (open) { this.map.render(); this.matrix.draw(); }
-    const key = [this.rows.length, open, this.report, this.presetMessage, this.presetBar.style.display, this.editing].join("|");
+    const key = [this.rows.length, open, this.report, this.presetMessage, this.presetBar.style.display, this.editing, this.blocksEditing, this.dialEditor?.file, this.dialEditor?.box.childElementCount,
+      this.timeEditing, this.rows[this.timeEditing]?.time?.type].join("|");
     if (key !== this.contentKey && this.root.clientHeight) {  // content changed: grow to show it; never shrink what the user sized
       // (before the widget is laid out, e.g. while a workflow loads, the saved size stands)
       this.contentKey = key;
@@ -882,7 +1523,11 @@ app.registerExtension({
   setup() {
     api.addEventListener("mai-dial-envelope", ({ detail }) => {
       const rack = app.graph?.getNodeById(detail.node)?.dialRack;
-      if (rack) { rack.report = detail.text; rack.render(); }
+      if (!rack) return;
+      rack.report = detail.text;
+      const clip = /time curves over a ([\d.]+) s clip/.exec(detail.text);
+      if (clip) rack.node.properties.dialClipSeconds = Number(clip[1]);
+      rack.render();
     });
   },
   async beforeRegisterNodeDef(nodeType, nodeData) {
@@ -908,7 +1553,13 @@ app.registerExtension({
     const executed = nodeType.prototype.onExecuted;
     nodeType.prototype.onExecuted = function (message) {
       executed?.apply(this, arguments);
-      if (this.dialRack) { this.dialRack.report = (message?.text || []).join("\n"); this.dialRack.render(); }
+      if (this.dialRack) {
+        this.dialRack.report = (message?.text || []).join("\n");
+        const blocks = /block strengths over (\d+) model blocks/.exec(this.dialRack.report);
+        if (blocks) this.properties.dialBlocks = Number(blocks[1]);
+        if (message?.timecurve) this.dialRack.curveAudio = message.timecurve[0];
+        this.dialRack.render();
+      }
     };
   },
 });

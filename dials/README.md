@@ -60,7 +60,7 @@ side of day/night and weather worked (to about −4), and colour grades saturate
 
 **Rack presets:** use **Save preset** / **Load preset** in the rack bar. Presets live in
 `models/loras/dials/presets/<name>.json`, with format `MAIDialRack preset`, version `1`, and ordered rows containing
-`dial`, `sha256`, `strength`, `on`, and `solo`, plus optional `hold` (absent means false) and `envelope`. They store file references
+`dial`, `sha256`, `strength`, `on`, and `solo`, plus optional `hold` (absent means false), `envelope`, `blocks` and `time`. They store file references
 and settings, never weights. Names accept letters, digits, `_` and `-` (1–80 characters); saving requires a new name. Loading warns about missing files or
 changed SHA-256 hashes and keeps every row, including off/solo settings; absent files remain marked **(missing)**.
 Presets use saved files: save wired dials and select their files before saving a preset, and disconnect wired dials
@@ -161,6 +161,25 @@ the first steps. A late envelope at +2 and even +8 left dream, claymation, under
 and for the motion dial constant beat every other shape per unit of gain. An early envelope at high strength (+6)
 scrambles the scene in a dial-specific direction, which can be a creative tool but is not a controlled edit. Base H3's
 longer schedules are untested.
+
+## Block strengths
+
+H3 is a single-stream DiT: the refined prompt enters the same residual stream as video and audio before block 0,
+which is where a post-refiner dial is added. **blocks** on a rack row opens a strip of one cell per DiT block (50 on
+H3); click or drag to paint each block's strength from 0 (bottom) to 1 (top), hover for the block and value, or use
+the presets (all, none, first half, second half, 26–37, odd, even). A cell is how much of the dial, times the row
+strength, the text tokens carry into that block: before block i the rack adds (w_i − w_{i−1}) · strength · dial to the
+text span (w_{−1} = 0). All ones is the plain hook. Lowering a later block subtracts the dial there; blocks before it
+have already read it, and their effect stays. A row with a profile shows it as a mini strip; "all" removes the
+`blocks` field again.
+
+API rows carry `"blocks": [w_0, …, w_49]` (one value per model block; the report names the count). A rack with any
+profiled row moves all its post rows to per-block injection through ModelPatcher dit block patches, summing each
+block's deltas over rows in float64; an all-ones profile gives the same tensors as the plain path (one row, summed
+rows, holds, one enveloped row). Two or more enveloped rows sum once per block instead of adding in row order, so
+all-ones differs from the plain envelope path by bf16 rounding (1 ulp in the CPU test). Holds project every block's
+delta; envelopes scale each row per denoising call (time × blocks). Pre-refiner rows cannot take block strengths.
+Racks and other block patches stack. CPU contracts: `tests/test_dial_blocks.py`.
 
 ## Writing good pairs
 
