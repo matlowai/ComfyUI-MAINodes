@@ -136,6 +136,25 @@ effect size. Single-seed results say so.
       clear message. Text dials, rack, Combine and envelopes first; picture dials stay H3-only.
 - [ ] Per-family probe banks for the wheel; Krea 2 picture dials if its vision encoder allows.
 
+## Workstream 6: simple by default (Dylan 2026-11-01: "all this is getting super complicated for most folks")
+Keep every node, but give most people a clean front door. ComfyUI loads subgraph blueprints shipped in a custom node at
+`<custom_node>/subgraphs/<name>.json` (`app/subgraph_manager.py`); they appear in the node library.
+- [ ] **Three tiers of start-here workflows:** Simple (one subgraph, a handful of controls), Pro (today's full graphs), Lab
+      (research nodes). The README's first screen points only at Simple.
+- [ ] **Shipped subgraphs** (MAIN `subgraphs/`): `Dials: Pika H3` (prompt, optional image, size, length, seed, the rack;
+      sampler, sigmas, decode and save hidden inside); `Dials: Pika H3 + De-rope` (both stages and the stage-2 rack copy
+      hidden; prompt, seed, rack in, pass-1 and de-roped video out); `Dials: Make Dial from Pictures` (two picture groups,
+      name, labels, one dial out). Exposed controls only; double-click opens the graph for tinkerers.
+- [ ] **One rack for both stages:** an "attach hold map to MODEL" node (or equivalent) so a subgraph needs a single rack
+      and rows never go out of sync. Prerequisite for the de-rope subgraph.
+- [ ] **Calmer rack rows:** each row shows on/off, dial, slider and value; everything else (envelope, blocks, time, info,
+      editor, solo, hold) moves behind one per-row "more" menu, and the map / matrix / wheel behind a single "analyze"
+      toggle. Advanced users lose nothing; first-time users see a slider list.
+- [ ] **Recipes:** a few ready-made rack presets with plain names ("cold night", "trip kicks in", "storm builds") on the
+      Simple workflow's preset menu.
+- [ ] **House style for example graphs:** titled groups, one colour per stage, notes for the three things to change, no
+      overlapping nodes (automatic overlap check in the examples test).
+
 ## Workstream 4: dials for LLMs / VLMs (study `2026-10-31-llm-dials`, Gemma 4 31B)
 - Style dials (formal, terse, mood, poetic captions) work at the middle layer (29 of 60); late layers collapse.
 - Deslop: cliché ↔ specific pairs read as the model's own reply work at layer 29 +2; vocabulary steers; the
