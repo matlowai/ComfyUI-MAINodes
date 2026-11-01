@@ -92,6 +92,7 @@ def bank_checks():
         p = analysis.dial_profile("dials/mix.safetensors", sha, bank)
         assert p["axes"] == ["motion", "light"] and p["positive"] == ["moving", "dramatic"] and close(p["direct"], [2.0, 0.0])
         assert 0.2 < p["unexplained"] < 0.3 and p["bank"] == "test-bank" and p["version"] == 1, p
+        assert p["correlated"] == [], "a bank without correlated pairs lists none"
         assert json.dumps(p, allow_nan=False)
 
         # cached by vector hash and bank version; a changed vector or bank version is recomputed

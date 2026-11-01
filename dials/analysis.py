@@ -56,7 +56,8 @@ def profile(dial, bank):
     return {"bank": bank["id"], "version": bank["version"], "lambda": bank["ridge_lambda"],
             "axes": [a["id"] for a in bank["axes"]], "negative": [a["negative"] for a in bank["axes"]],
             "positive": [a["positive"] for a in bank["axes"]], "direct": direct_coefficients(v, p).tolist(),
-            "joint": beta.tolist(), "unexplained": unexplained, "norm": float(v.norm()), "condition": gram_condition(p)}
+            "joint": beta.tolist(), "unexplained": unexplained, "norm": float(v.norm()), "condition": gram_condition(p),
+            "correlated": bank.get("correlated", [])}
 
 
 def dial_profile(dial_name, vector_hash, manifest=BANK):

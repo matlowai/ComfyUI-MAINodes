@@ -74,6 +74,12 @@ class DialMap {
     this.selY.onchange = () => { this.pair.y = Number(this.selY.value); rack.render(); };
     this.selRange.onchange = () => { rack.pad.range = this.selRange.value === "auto" ? "auto" : Number(this.selRange.value); this.draw(); };
     this.selStep.onchange = () => { rack.pad.step = Number(this.selStep.value); this.draw(); };
+    this.selView = pick("view", "map: two rows on X/Y · wheel: every live post row on the probe-bank axes");
+    for (const v of ["map", "wheel"]) el("option", {}, this.selView, v).value = v;
+    this.selFit = pick("fit", "wheel: direct probe coefficients, or the joint ridge fit (shares credit between correlated probes)");
+    for (const v of ["direct", "joint"]) el("option", {}, this.selFit, v).value = v;
+    this.selView.onchange = () => { rack.pad.view = this.selView.value; rack.render(); };
+    this.selFit.onchange = () => { rack.pad.fit = this.selFit.value; this.draw(); };
     this.sweepButton = rack.button(controls, "Sweep 3×3", "queue 9 renders on a grid around the dot, then put the dot back", () => this.sweep());
     this.stage = el("div", { flex: "1 1 auto", minHeight: "0", display: "flex", alignItems: "flex-start", justifyContent: "center" }, this.box);
     this.canvas = el("canvas", { cursor: "crosshair", borderRadius: "4px", outline: "none" }, this.stage);
@@ -132,6 +138,8 @@ class DialMap {
     const dpr = window.devicePixelRatio || 1;
     Object.assign(this.canvas.style, { width: size + "px", height: size + "px" });
     this.canvas.width = this.canvas.height = Math.round(size * dpr);
+    Object.assign(this.rack.wheel.canvas.style, { width: size + "px", height: size + "px" });
+    this.rack.wheel.canvas.width = this.rack.wheel.canvas.height = this.canvas.width;
     this.draw();
   }
 
@@ -164,6 +172,8 @@ class DialMap {
       if (v !== undefined) sel.value = v;
     }
     this.selRange.value = String(pad.range);
+    this.selView.value = pad.view || "map";
+    this.selFit.value = pad.fit || "direct";
     this.selStep.value = pad.step;
     this.fit();
     this.draw();
@@ -171,6 +181,10 @@ class DialMap {
 
   draw() {
     if (!this.size) return;
+    const wheel = this.rack.pad.view === "wheel";
+    this.canvas.style.display = wheel ? "none" : "";
+    this.rack.wheel.canvas.style.display = wheel ? "" : "none";
+    if (wheel) return this.rack.wheel.draw();
     const c = this.canvas, g = c.getContext("2d"), S = this.size, rack = this.rack;
     const [rx, ry] = this.axes();
     const info = (r) => (r && !("input" in r) ? rack.dialInfo(r.dial) : INFO_DEFAULTS);
@@ -309,6 +323,129 @@ const shade = (v) => (Math.abs(v) < 0.005 ? "#1b1d23" : v > 0 ? `rgba(255,140,60
 
 // Under the map: rows × rows matrix of the live post-refiner rows and a "who pushes" bar per row. Dot products come from
 // the server once per set of dial files; strengths are applied here, so it follows the sliders without a request.
+// Row layers on the wheel: identity colours only. Nothing here is a risk colour; the wheel stays uncalibrated (grey).
+const WHEEL_COLOURS = ["#8fb4ff", "#c39bff", "#6fd3c9", "#e3a6ec", "#9d9dff", "#7fd0ff", "#b8c4ff", "#a6e3e0"];
+const BANK_NOTES = {  // measured for the bank in the atlas P3 study
+  "h3-probes-v1": "Probe labels are hypotheses, not output evidence. Read the top few axes, not one: the single top axis " +
+    "flips between two wordings of the bank for 7 of 28 seeded dials. Unexplained: ≈0.53 is what a re-worded probe " +
+    "itself leaves (in-bank ceiling), ≈0.97 what a placebo direction leaves; seeded dials average ≈0.69.",
+};
+
+// The influence wheel: fixed sectors = the probe bank's axes; each live post row is a layer of its probe profile times its
+// strength, outward = the axis' + label, inward = its − label, around the zero ring; the sum is drawn on top.
+class DialWheel {
+  constructor(rack, map) {
+    this.rack = rack;
+    this.map = map;
+    this.profiles = {};
+    this.hover = null;
+    this.canvas = rack.el("canvas", { display: "none", borderRadius: "4px" }, map.stage);
+    this.canvas.addEventListener("pointermove", (e) => { this.hover = this.sectorAt(e.offsetX, e.offsetY); this.draw(); });
+    this.canvas.addEventListener("pointerleave", () => { this.hover = null; this.draw(); });
+  }
+
+  profile(file) {  // fetched once per file; the server caches by vector hash and bank version
+    if (!(file in this.profiles)) {
+      this.profiles[file] = null;
+      api.fetchApi(`/mainodes/dials/profile?dial=${encodeURIComponent(file)}`).then(async (r) => {
+        const data = await r.json();
+        this.profiles[file] = r.ok ? data : { error: data.error };
+        this.map.draw();
+      }).catch((e) => { this.profiles[file] = { error: e.message }; this.map.draw(); });
+    }
+    return this.profiles[file];
+  }
+
+  sectorAt(x, y) {
+    const n = this.axes?.length, c = this.map.size / 2;
+    if (!n || Math.hypot(x - c, y - c) > c) return null;
+    const a = Math.atan2(y - c, x - c) + Math.PI / 2;
+    return Math.round(((a / (2 * Math.PI)) * n + n) % n) % n;
+  }
+
+  layers() {
+    const rack = this.rack, rows = rack.rows, fit = rack.pad.fit || "direct", notes = [], layers = [];
+    let bank = null;
+    for (const i of rack.matrix.live()) {
+      if ("input" in rows[i]) { notes.push(`${rack.rowName(i)}: wired, not measured`); continue; }
+      const p = this.profile(rows[i].dial);
+      if (!p) { notes.push(`${rack.rowName(i)}: measuring…`); continue; }
+      if (p.error) { notes.push(`${rack.rowName(i)}: ${p.error}`); continue; }
+      bank ||= p;
+      if (p.bank !== bank.bank || p.version !== bank.version) { notes.push(`${rack.rowName(i)}: profile from another bank version`); continue; }
+      const s = Number(rows[i].strength);
+      layers.push({ i, values: p[fit].map((v) => s * v), unexplained: p.unexplained, colour: WHEEL_COLOURS[layers.length % WHEEL_COLOURS.length] });
+    }
+    const sum = bank ? bank.axes.map((_, j) => layers.reduce((t, l) => t + l.values[j], 0)) : [];
+    return { bank, layers, sum, notes, fit };
+  }
+
+  draw() {
+    const S = this.map.size, c = this.canvas, g = c.getContext("2d"), rack = this.rack, el = (...a) => rack.el(...a);
+    const { bank, layers, sum, notes, fit } = this.layers();
+    this.axes = bank?.axes;
+    g.setTransform(c.width / S, 0, 0, c.width / S, 0, 0);
+    g.fillStyle = "#101114"; g.fillRect(0, 0, S, S);
+    const readout = this.map.readout;
+    readout.replaceChildren();
+    if (!bank) {
+      g.fillStyle = "#888"; g.font = "11px sans-serif";
+      g.fillText(layers.length || notes.length ? "no post-refiner row with a probe profile" : "add a live post-refiner dial row", 8, 16);
+      for (const n of notes) el("div", {}, readout, n);
+      return;
+    }
+    const n = bank.axes.length, C = S / 2, outer = S / 2 - 26, zero = outer * 0.5;
+    const top = Math.max(0.25, ...sum.map(Math.abs), ...layers.flatMap((l) => l.values.map(Math.abs)));
+    const k = (outer - zero) * 0.95 / top;
+    const angle = (j) => -Math.PI / 2 + 2 * Math.PI * j / n;
+    const point = (j, v) => { const r = Math.max(4, zero + v * k); return [C + r * Math.cos(angle(j)), C + r * Math.sin(angle(j))]; };
+    const ring = (r, dash, colour) => { g.setLineDash(dash); g.strokeStyle = colour; g.beginPath(); g.arc(C, C, r, 0, 2 * Math.PI); g.stroke(); g.setLineDash([]); };
+    if (this.hover !== null) {
+      g.fillStyle = "#1c1e24"; g.beginPath(); g.moveTo(C, C);
+      g.arc(C, C, outer, angle(this.hover) - Math.PI / n, angle(this.hover) + Math.PI / n); g.fill();
+    }
+    g.strokeStyle = "#23252c"; g.lineWidth = 1;
+    for (let j = 0; j < n; j++) { g.beginPath(); g.moveTo(C, C); g.lineTo(C + outer * Math.cos(angle(j)), C + outer * Math.sin(angle(j))); g.stroke(); }
+    if (k < outer - zero) { ring(zero + k, [2, 4], "#3a3d46"); ring(Math.max(4, zero - k), [2, 4], "#3a3d46"); }
+    ring(zero, [5, 4], "#6a6d76");
+    const shape = (values, stroke, fill, width) => {
+      g.beginPath();
+      values.forEach((v, j) => { const [x, y] = point(j, v); j ? g.lineTo(x, y) : g.moveTo(x, y); });
+      g.closePath();
+      if (fill) { g.fillStyle = fill; g.fill(); }
+      g.lineWidth = width; g.strokeStyle = stroke; g.stroke(); g.lineWidth = 1;
+    };
+    for (const l of layers) shape(l.values, l.colour, l.colour + "26", 1.5);
+    shape(sum, "#d8d8d8", null, 2.5);
+    g.fillStyle = "#d8d8d8";
+    sum.forEach((v, j) => { const [x, y] = point(j, v); g.beginPath(); g.arc(x, y, 2.5, 0, 2 * Math.PI); g.fill(); });
+    g.font = "10px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    bank.axes.forEach((_, j) => {
+      g.fillStyle = j === this.hover ? "#eee" : "#9a9ba0";
+      g.fillText(bank.positive[j], C + (outer + 13) * Math.cos(angle(j)), C + (outer + 13) * Math.sin(angle(j)));
+      g.fillStyle = "#5c5f68";
+      g.fillText(bank.negative[j], C + zero * 0.55 * Math.cos(angle(j)), C + zero * 0.55 * Math.sin(angle(j)));
+    });
+    g.textAlign = "start"; g.textBaseline = "alphabetic";
+    g.fillStyle = "#777";
+    g.fillText(`${bank.bank} v${bank.version} · ${fit} · probe units · uncalibrated`, 6, S - 6);
+
+    const line = (text, colour) => el("div", { color: colour || "#9a9ba0" }, readout, text);
+    if (this.hover !== null) {
+      const j = this.hover;
+      line(`${bank.axes[j]}: ${bank.negative[j]} ↔ ${bank.positive[j]} (a probe dial from prompt pairs; the label is a hypothesis) · sum ${fmt(sum[j])}`, "#ddd");
+      for (const l of layers) line(`  ${rack.rowName(l.i)} ${fmt(l.values[j])}`, l.colour);
+      const partners = (bank.correlated || []).filter((c) => c[0] === bank.axes[j] || c[1] === bank.axes[j]);
+      if (partners.length) line(`correlated probes: ${partners.map((c) => `${c[0] === bank.axes[j] ? c[1] : c[0]} (cos ${c[2].toFixed(2)})`).join(", ")}: they share credit`);
+    } else {
+      for (const l of layers) line(`${rack.rowName(l.i)}: unexplained by the bank ${l.unexplained.toFixed(2)}`, l.colour);
+    }
+    for (const note of notes) line(note);
+    line(`${fit === "joint" ? `joint ridge fit (λ ${bank.lambda})` : "direct coefficients (v·p)/(p·p)"}; outward = + label, inward = − label, ` +
+      "dashed rings = ±1 probe. " + (BANK_NOTES[bank.bank] || "Probe labels are hypotheses, not output evidence."), "#777");
+  }
+}
+
 class DialMatrix {
   constructor(rack, parent) {
     this.rack = rack;
@@ -455,12 +592,13 @@ class DialRackUI {
     this.padGeometry = {};
     this.info = {};
     this.map = new DialMap(this, this.mapColumn);
+    this.wheel = new DialWheel(this, this.map);
     this.matrix = new DialMatrix(this, this.map.box);
     this.widget = this.node.addDOMWidget("dial_rack_ui", "div", root, { serialize: false, getMinHeight: () => 140 });
     this.root = root;
   }
 
-  // ---------- map: UI-only state saved with the workflow, {open, pairs: [{x, y}], active, range, step} ----------
+  // ---------- map: UI-only state saved with the workflow, {open, pairs: [{x, y}], active, range, step, view, fit} ----------
   get pad() {
     const p = (this.node.properties ||= {}).dialPad ||= {};
     if (!p.pairs) {  // layouts saved earlier today: one pad {x, y} or several {pads: [...]}
