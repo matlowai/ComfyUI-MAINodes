@@ -9,6 +9,7 @@ const NUMBER = [-20, 20];
 const PRESETS = "/mainodes/dials/presets";
 const LEFT_PX = 590;     // the rows column keeps this width; the map takes the rest of the node
 const MAP_MIN = 160;
+const READOUT_MIN = 44;   // the map leaves the readout this much; longer readouts (wheel hover) scroll instead of shrinking the map
 const PAD_RANGES = ["auto", 1.5, 3, 6, 12];
 const UNKNOWN = { useful: null, overcook: null };
 const INFO_DEFAULTS = { version: 2, description: "", negative: "", positive: "", neg: UNKNOWN, pos: UNKNOWN, evidence: null, pipeline: "", notes: "" };
@@ -81,12 +82,13 @@ class DialMap {
     this.selView.onchange = () => { rack.pad.view = this.selView.value; rack.render(); };
     this.selFit.onchange = () => { rack.pad.fit = this.selFit.value; this.draw(); };
     this.sweepButton = rack.button(controls, "Sweep 3×3", "queue 9 renders on a grid around the dot, then put the dot back", () => this.sweep());
-    this.stage = el("div", { flex: "1 1 auto", minHeight: "0", display: "flex", alignItems: "flex-start", justifyContent: "center" }, this.box);
+    this.stage = el("div", { flex: "0 0 auto", display: "flex", justifyContent: "center" }, this.box);
     this.canvas = el("canvas", { cursor: "crosshair", borderRadius: "4px", outline: "none" }, this.stage);
     this.canvas.tabIndex = 0;
     this.canvas.title = "drag: move both dials · Shift+drag: fine · arrows: ±0.05 (Shift ±0.25) · double-click: back to 0";
-    this.readout = el("div", { color: "#9a9ba0", fontSize: "11px", whiteSpace: "pre-wrap", flex: "0 0 auto" }, this.box);
-    new ResizeObserver(() => this.fit()).observe(this.stage);
+    this.readout = el("div", { color: "#9a9ba0", fontSize: "11px", whiteSpace: "pre-wrap", flex: "0 1 auto", minHeight: READOUT_MIN + "px", overflowY: "auto" }, this.box);
+    this.sizer = new ResizeObserver(() => this.fit());
+    this.sizer.observe(this.box);
 
     const toStrength = (px) => (px / this.size * 2 - 1) * this.R;
     let drag = null;
@@ -131,8 +133,10 @@ class DialMap {
     this.rack.render();
   }
 
-  fit() {  // the map is the only thing that follows the node's size: the largest square the stage can hold
-    const size = Math.max(MAP_MIN, Math.floor(Math.min(this.stage.clientWidth, this.stage.clientHeight || this.stage.clientWidth)));
+  fit() {  // the map is the only thing that follows the node's size: the largest square left after the controls and readouts
+    const shown = [...this.box.children].filter((c) => c !== this.stage && c !== this.readout && c.offsetHeight > 0);
+    const free = this.box.clientHeight - shown.reduce((h, c) => h + c.offsetHeight + 5, READOUT_MIN + 5);
+    const size = Math.max(MAP_MIN, Math.floor(Math.min(this.stage.clientWidth, free)));
     if (size === this.size) return;
     this.size = size;
     const dpr = window.devicePixelRatio || 1;
@@ -423,8 +427,7 @@ class DialWheel {
     bank.axes.forEach((_, j) => {
       g.fillStyle = j === this.hover ? "#eee" : "#9a9ba0";
       g.fillText(bank.positive[j], C + (outer + 13) * Math.cos(angle(j)), C + (outer + 13) * Math.sin(angle(j)));
-      g.fillStyle = "#5c5f68";
-      g.fillText(bank.negative[j], C + zero * 0.55 * Math.cos(angle(j)), C + zero * 0.55 * Math.sin(angle(j)));
+      if (j === this.hover) g.fillText(bank.negative[j], C + zero * 0.55 * Math.cos(angle(j)), C + zero * 0.55 * Math.sin(angle(j)));
     });
     g.textAlign = "start"; g.textBaseline = "alphabetic";
     g.fillStyle = "#777";
@@ -594,6 +597,7 @@ class DialRackUI {
     this.map = new DialMap(this, this.mapColumn);
     this.wheel = new DialWheel(this, this.map);
     this.matrix = new DialMatrix(this, this.map.box);
+    this.map.sizer.observe(this.matrix.box);
     this.widget = this.node.addDOMWidget("dial_rack_ui", "div", root, { serialize: false, getMinHeight: () => 140 });
     this.root = root;
   }
