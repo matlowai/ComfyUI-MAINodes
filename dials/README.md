@@ -9,7 +9,7 @@ second. Ported from [ComfyUI-Dials](https://github.com/matlowai/ComfyUI-Dials); 
 
 | node | what it does |
 |---|---|
-| **Dial Rack** | Any number of dials on one model. One row per dial: on/off, dial, strength (slider and number), solo, **H** to hold a direction. **+ Add dial** adds a row; dials wired into the `dial_N` inputs (straight from Make Dial) appear as rows too. After a run the node shows each dial's size, the combined shift, and dials that overlap (reinforce or cancel). A **Pad** moves two rows together on a 2D square (the dot is your prompt). |
+| **Dial Rack** | Any number of dials on one model. One row per dial: on/off, dial, strength (slider and number), solo, **H** to hold a direction. **+ Add dial** adds a row; dials wired into the `dial_N` inputs (straight from Make Dial) appear as rows too. After a run the node shows each dial's size, the combined shift, and dials that overlap (reinforce or cancel). A **Map** moves two rows together on a 2D square (the dot is your prompt), with saved pairings to switch between. |
 | **Make Dial** | Prompt pairs (`A ||| B` per line, `{subject}` expanded over a subjects list) to a dial. Saves to `models/loras/dials/<name>.safetensors` and outputs the dial for a rack input. Shows pair agreement (above 0.6 is a clean direction) and how much generic wording shift was removed. Also takes weighted pairs (`A ||| B :: 2`) and prompt sets (`+1 …` / `-1 …` lines). |
 | **Combine Dials** | `weight_a * a + weight_b * b` as one new dial, optionally removing b's direction from a first (orthogonalize). Plain mixing is easier in the rack. |
 | **Make Dial from Pictures** | Two image batches and one shared prompt to a post-refiner dial. Negative strength moves toward A, positive toward B. Equal batch sizes pair by index for agreement; unequal sizes use side means and report agreement as n/a. Saves and connects to the rack like Make Dial. |
@@ -51,36 +51,42 @@ changed SHA-256 hashes and keeps every row, including off/solo settings; absent 
 Presets use saved files: save wired dials and select their files before saving a preset, and disconnect wired dials
 before loading one. Save under a new name to accept changed files' current hashes.
 
-## The pad: drag your prompt
+## The map: drag your prompt
 
-**Pad** in the rack bar opens a square where two rows (picked as X and Y) move together. The dot is your prompt:
-dragging it sets both strengths. **Shift+drag** moves at a fifth of the speed for careful nudging, arrow keys step
-by 0.05 (Shift: 0.25), and a double-click puts both back to 0. Rings mark the everyday range (strength 1) and where
-side effects start (1.5). The readout gives both strengths, how much the two dials overlap (cosine), and the
-combined push in units of "one dial at +1", measured from the dial files, so you can see when two reinforcing dials
-add up to more than either looks. **Sweep 3×3** queues nine renders on a grid around the dot (spacing set by
-*sweep step*) and then puts the dot back. The pad's settings are saved with the workflow and never reach the backend;
-it only edits the two rows' strengths. Wired `dial_N` rows can be axes but have no file to measure.
+**Map** in the rack bar opens a square to the right of the rows: two rows (X and Y) move together and the dot is
+your prompt, so dragging it sets both strengths. The rows and buttons keep their size; only the map follows the node
+when you resize it. **Pairings** are the chips above the map: each remembers an X/Y pair of rows, clicking one switches
+the map to that pair (the dot jumps to their current strengths), **+ pairing** adds one and ✕ removes the active one.
+**Shift+drag** moves at a fifth of the speed for careful nudging, arrow keys step by 0.05 (Shift: 0.25), and a
+double-click puts both back to 0. Rings mark the everyday range (strength 1) and where side effects start (1.5). The
+readout gives both strengths, how much the two dials overlap (cosine), and the combined push in units of "one dial
+at +1", measured from the dial files. **Sweep 3×3** queues nine renders on a grid around the dot (spacing set by
+*step*) and then puts the dot back. Map settings are saved with the workflow and never reach the backend; the map only
+edits the rows' strengths. Wired `dial_N` rows can be axes but have no file to measure.
 
 ## Example workflows
 
-These complete text-to-video graphs use one Dial Rack, seed 42, an adult kitchen scene, and video plus audio output.
+**Start with the Pika + de-rope graphs.** Each runs a 6-step Pika H3 Flex pass with one Dial Rack feeding both passes,
+then a de-rope pass on the jerky stretches (H3 Jerk Oracle → hold frames → V2V Init at inject 0.48 → Exact Recover).
+The de-rope audio stage keeps pass 1's audio: V2V Init's audio rows are seeded with "follow the original performance"
+and Audio Recover is set to "keep the original performance", so the dialogue and foley from pass 1 survive. Both the
+pass-1 and the de-roped clip are saved. Same layout as ComfyUI-Dials' `dials_pika_h3_flex_derope` graph.
 
-| Example | UI workflow | API graph | Settings |
+| Example | UI workflow | API graph | What it shows |
 |---|---|---|---|
-| One dial | [one_dial.json](../examples/dials/one_dial.json) | [one_dial_api.json](../examples/dials/one_dial_api.json) | Base H3, motion +1, 20-step `res_multistep`, 832×480, 124 frames |
-| Four dials | [four_dials.json](../examples/dials/four_dials.json) | [four_dials_api.json](../examples/dials/four_dials_api.json) | Base H3, motion +0.5 / dread +1 / warm–cold −0.5 / reserved–lively +0.5, same 20-step settings |
-| Pika rack | [pika_rack.json](../examples/dials/pika_rack.json) | [pika_rack_api.json](../examples/dials/pika_rack_api.json) | Same four rows, Pika H3 Flex LoRA +1, 6-step LCM with manual sigmas, 1280×704, 141 frames |
+| Rack | [dials_rack_pika_derope.json](../examples/dials/dials_rack_pika_derope.json) | [api](../examples/dials/dials_rack_pika_derope_api.json) | Motion +0.5, warm–cold +0.6, day–night +0.8, reserved–lively (off), dream +6 with an early envelope (off); the map open on warm–cold × day–night. Train platform, seed 42 |
+| Picture dial | [dials_picture_pika_derope.json](../examples/dials/dials_picture_pika_derope.json) | [api](../examples/dials/dials_picture_pika_derope_api.json) | Make Dial from Pictures (two folders of matched photos, here lizard vs squirrel in `input/dials_pictures/`) wired into the rack at −4, the text lizard dial as an off row for comparison. Small animal on a fence |
+| Prompt set | [dials_prompt_set_pika_derope.json](../examples/dials/dials_prompt_set_pika_derope.json) | [api](../examples/dials/dials_prompt_set_pika_derope_api.json) | Make Dial with weighted `+`/`-` prompt lines (night rain, neon, mist vs bright midday) wired into the rack at +1 |
 
-All run at 24 fps and save MP4s under `output/video/dials/`. The graphs use the local `h3/` subfolder in
-`models/diffusion_models`, `models/text_encoders`, `models/vae`, and (Pika only) `models/loras`; adjust the loader
-filenames to your installation. They require the H3 model, Qwen3-VL text encoder, video/audio VAEs, and the selected
-dial files in `models/loras/dials/`. The four-row examples also require the warm–cold and reserved–lively candidate
-dials from pack 2. ComfyUI-Dials nodes are not required. No weights are included in the workflows.
+Model filenames are the plain names ComfyUI-Dials uses; pick your local files in the loaders. The picture example's
+folder loader is KJNodes' Load Images From Folder; put your own matched A and B pictures in two folders.
 
-Drag a UI workflow into ComfyUI, select your local files, and queue it. To queue an API graph, POST
-`{"prompt": <contents of the API JSON>}` to your ComfyUI server's `/prompt` endpoint.
-Keep the four-row order when reproducing a result: reordering post-refiner additions can change the generated video.
+Older single-pass examples (no de-rope), kept for reference: [one_dial.json](../examples/dials/one_dial.json) and
+[four_dials.json](../examples/dials/four_dials.json) (base H3, 20-step) and [pika_rack.json](../examples/dials/pika_rack.json)
+(Pika), each with an `_api.json`.
+
+To queue an API graph, POST `{"prompt": <contents of the API JSON>}` to your ComfyUI server's `/prompt` endpoint.
+Keep row order when reproducing a result: reordering rows changed one render (under investigation).
 
 ## Step envelopes
 
