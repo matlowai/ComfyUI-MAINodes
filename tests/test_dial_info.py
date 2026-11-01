@@ -85,12 +85,14 @@ def main():
         rejects(core.save_dial_info, "dials/old.safetensors", dict(v2, evidence="two-seed"))
         assert core.dial_info("dials/old.safetensors") == edited, "a rejected write must leave the file alone"
 
-    # Make Dial nodes: the v1 info inputs keep their positions and the v2 ones come last (widget values load by position)
+    # Make Dial nodes: the v1 info inputs keep their positions and the v2 ones follow them; inputs added later come after
+    # (widget values load by position)
     info_ids = ["description", "negative_label", "positive_label", "useful", "overcook",
                 "negative_useful", "negative_overcook", "evidence", "pipeline"]
+    later = {"MAIDialMakeFromPictures": ["framing", "group_a", "group_b"]}
     for node_id in ("MAIDialMake", "MAIDialMakeFromPictures", "MAIDialMakeFromVideos", "MAIDialCombine"):
         ids = [i.id for i in nodes.NODE_CLASS_MAPPINGS[node_id].GET_SCHEMA().inputs]
-        assert ids[-len(info_ids):] == info_ids, (node_id, ids)
+        assert ids[len(ids) - len(info_ids) - len(later.get(node_id, [])):] == info_ids + later.get(node_id, []), (node_id, ids)
     same = nodes.info_from(useful=2, overcook=3)
     assert same["neg"] == same["pos"] == {"useful": 2.0, "overcook": 3.0} and same["evidence"] == "creator"
     assert nodes.info_from() == core.check_dial_info({"useful": 1.0, "overcook": 1.5}), "a workflow saved before v2 saves what v1 did"

@@ -127,8 +127,8 @@ class PictureDialTests(unittest.TestCase):
         self.a, self.b = pictures(1, 2), pictures(3, 4)
 
     def make(self, **kwargs):
-        args = dict(clip=self.clip, model=self.model, pictures_a=self.a, pictures_b=self.b,
-                    prompt=PROMPT, name="pictures_test", debias=False, nuisance_dims=3)
+        args = dict(clip=self.clip, model=self.model, pictures_a=[self.a], pictures_b=[self.b],
+                    prompts=[PROMPT], name="pictures_test", debias=False, nuisance_dims=3)
         args.update(kwargs)
         return core.make_picture_dial(**args)
 
@@ -146,11 +146,11 @@ class PictureDialTests(unittest.TestCase):
         self.assertEqual([text for text, _ in self.clip.calls], [PROMPT] * 4)
         self.assertFalse(dial["vec"].requires_grad)
         self.assertEqual(dial["vec"].device.type, "cpu")
-        flipped, _ = self.make(pictures_a=self.b, pictures_b=self.a)
+        flipped, _ = self.make(pictures_a=[self.b], pictures_b=[self.a])
         torch.testing.assert_close(flipped["vec"], -expected)
 
     def test_unequal_counts_give_each_picture_equal_weight(self):
-        dial, report = self.make(pictures_b=pictures(3, 4, 5))
+        dial, report = self.make(pictures_b=[pictures(3, 4, 5)])
         expected = torch.stack([expected_mean(i) for i in (3, 4, 5)]).mean(0) - torch.stack([expected_mean(i) for i in (1, 2)]).mean(0)
         torch.testing.assert_close(dial["vec"], expected)
         self.assertFalse(dial["meta"]["paired_by_index"])
@@ -180,7 +180,7 @@ class PictureDialTests(unittest.TestCase):
     def test_identical_sides_report_finite_zero(self):
         for debias in (False, True):
             with self.subTest(debias=debias):
-                dial, report = self.make(pictures_b=self.a, debias=debias)
+                dial, report = self.make(pictures_b=[self.a], debias=debias)
                 self.assertEqual(float(dial["vec"].norm()), 0.0)
                 self.assertEqual(dial["meta"]["pair_agreement_cos"], "n/a")
                 self.assertNotIn("nan", report)
@@ -215,6 +215,22 @@ class PictureDialTests(unittest.TestCase):
                 unsaved = cls.execute(self.clip, self.model, self.a, self.b, PROMPT, "", debias=False, nuisance_dims=3)
                 save.assert_not_called()
                 self.assertEqual(unsaved.result[0]["meta"]["name"], "unsaved")
+
+
+    def test_groups_add_to_batches_and_framings_average(self):
+        cls = nodes.NODE_CLASS_MAPPINGS["MAIDialMakeFromPictures"]
+        split = cls.execute(self.clip, self.model, pictures(1), pictures(3, 4), PROMPT, "", debias=False, nuisance_dims=3,
+                            group_a={"a0": pictures(2)}).result[0]
+        whole, _ = self.make()
+        torch.testing.assert_close(split["vec"], whole["vec"])
+        only_groups = cls.execute(self.clip, self.model, None, None, PROMPT, "", debias=False, nuisance_dims=3,
+                                  group_a={"a0": self.a}, group_b={"b0": self.b}).result[0]
+        torch.testing.assert_close(only_groups["vec"], whole["vec"])
+        averaged = cls.execute(self.clip, self.model, self.a, self.b, PROMPT, "", debias=False, nuisance_dims=3, framing="all averaged")
+        self.assertIn("4 framings averaged", averaged.ui.as_dict()["text"][0])
+        self.assertEqual(averaged.result[0]["meta"]["prompt"].count("<Picture 1>"), 4)
+        with self.assertRaisesRegex(ValueError, "both sides"):
+            cls.execute(self.clip, self.model, self.a, None, PROMPT, "", debias=False, nuisance_dims=3)
 
 
 if __name__ == "__main__":

@@ -166,8 +166,10 @@ class MakeDialFromPictures(io.ComfyNode):
             inputs=[
                 io.Clip.Input("clip"),
                 io.Model.Input("model"),
-                io.Image.Input("pictures_a", tooltip="A pictures as an image batch; negative dial strength moves toward this side."),
-                io.Image.Input("pictures_b", tooltip="B pictures as an image batch; equal counts pair by index for the agreement report."),
+                io.Image.Input("pictures_a", optional=True,
+                               tooltip="Group A as an image batch (same size); negative dial strength moves toward this side."),
+                io.Image.Input("pictures_b", optional=True,
+                               tooltip="Group B as an image batch; equal counts pair by index for the agreement report."),
                 io.String.Input("prompt", display_name="picture prompt", default="A video in the style and content of <Picture 1>.", advanced=True,
                                 tooltip="Text every picture is encoded with; <Picture 1> stands for the picture. Both sides use it, so only the "
                                         "pictures differ. The default works; change it to frame the pictures, e.g. 'A close-up photo of <Picture 1>'."),
@@ -176,17 +178,31 @@ class MakeDialFromPictures(io.ComfyNode):
                                  tooltip="Project out the same generic wording directions used by Make Dial."),
                 io.Int.Input("nuisance_dims", default=3, min=1, max=12, advanced=True),
                 *info_inputs(),  # last, so workflows saved before these fields load unchanged
+                io.Combo.Input("framing", options=["picture prompt", *core.PICTURE_FRAMINGS, "all averaged"], default="picture prompt",
+                               optional=True, tooltip="How the pictures are read: your picture prompt, a fixed framing (content: "
+                               "what is in the picture; look: colours and light; bare: no hint), or all of them averaged per picture."),
+                io.Autogrow.Input("group_a", optional=True, template=io.Autogrow.TemplatePrefix(
+                    io.Image.Input("a", tooltip="Another group A picture, any size; adds to pictures_a."), prefix="a", min=0, max=50)),
+                io.Autogrow.Input("group_b", optional=True, template=io.Autogrow.TemplatePrefix(
+                    io.Image.Input("b", tooltip="Another group B picture, any size; adds to pictures_b."), prefix="b", min=0, max=50)),
             ],
             outputs=[Dial.Output(display_name="dial")],
             is_output_node=True,
         )
 
     @classmethod
-    def execute(cls, clip, model, pictures_a, pictures_b, prompt, name, debias, nuisance_dims, **info) -> io.NodeOutput:
+    def execute(cls, clip, model, pictures_a=None, pictures_b=None, prompt="", name="", debias=True, nuisance_dims=3,
+                framing="picture prompt", group_a=None, group_b=None, **info) -> io.NodeOutput:
         info = info_from(**info)
         if name:
             core.check_dial_name(name)
-        dial, report = core.make_picture_dial(clip, model, pictures_a, pictures_b, prompt, name or "unsaved",
+        a = [p for p in [pictures_a, *(group_a or {}).values()] if p is not None]
+        b = [p for p in [pictures_b, *(group_b or {}).values()] if p is not None]
+        if not a or not b:
+            raise ValueError("Make Dial from Pictures needs pictures on both sides: connect pictures_a / group_a and pictures_b / group_b")
+        framings = core.PICTURE_FRAMINGS
+        prompts = [prompt] if framing == "picture prompt" else [prompt, *framings.values()] if framing == "all averaged" else [framings[framing]]
+        dial, report = core.make_picture_dial(clip, model, a, b, prompts, name or "unsaved",
                                               debias=debias, nuisance_dims=nuisance_dims)
         if name:
             report += f"\nsaved {core.save_dial(dial, name, info)}"

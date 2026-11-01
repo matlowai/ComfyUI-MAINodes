@@ -414,17 +414,27 @@ def rack_hold_shift(rows, holds):
     return dict(holds[0][1], vec=shift.float()), "\n".join(lines)
 
 
-def make_picture_dial(clip, model, pictures_a, pictures_b, prompt, name, debias=True, nuisance_dims=3):
-    """Make a post-refiner dial from two IMAGE batches; pool tag-1 tokens only, with equal weight per picture.
+PICTURE_FRAMINGS = {
+    "content": "A video of the subject in <Picture 1>.",
+    "look": "A video with the colours, light and look of <Picture 1>.",
+    "bare": "A video of <Picture 1>.",
+}
 
-    The full vision/text sequence passes through the projection and refiner before pooling. Equal-size batches
-    pair by index for agreement; unequal batches use B's mean minus A's mean without a pair-agreement estimate.
+
+def make_picture_dial(clip, model, pictures_a, pictures_b, prompts, name, debias=True, nuisance_dims=3):
+    """Make a post-refiner dial from two lists of IMAGE batches (any sizes); pool tag-1 tokens only, with equal weight
+    per picture. Each picture is encoded with every prompt (framing) and its token means are averaged.
+
+    The full vision/text sequence passes through the projection and refiner before pooling. Equal picture counts
+    pair by index for agreement; unequal counts use B's mean minus A's mean without a pair-agreement estimate.
     """
-    def items(pictures):
-        h, w = pictures.shape[1:3]
-        scale = min(1.0, REF_IMAGE_SHORT_EDGE / min(w, h))
-        return ({"type": "image", "data": resize(pictures[i:i + 1], w * scale, h * scale)} for i in range(len(pictures)))
-    return _make_reference_dial(clip, model, items(pictures_a), items(pictures_b), prompt, name,
+    def items(batches):
+        for pictures in batches:
+            h, w = pictures.shape[1:3]
+            scale = min(1.0, REF_IMAGE_SHORT_EDGE / min(w, h))
+            for i in range(len(pictures)):
+                yield {"type": "image", "data": resize(pictures[i:i + 1], w * scale, h * scale)}
+    return _make_reference_dial(clip, model, items(pictures_a), items(pictures_b), prompts, name,
                                 "pictures", debias, nuisance_dims)
 
 
@@ -453,13 +463,13 @@ def make_video_dial(clip, model, videos_a, videos_b, prompt, name, debias=True, 
     samples = min([MAX_VIDEO_SAMPLES] + [len(torch.arange(0, len(f), max(float(fps) / 2, 1))) for f, fps in videos_a + videos_b])
     a = [video_reference(frames, fps, samples) for frames, fps in videos_a]
     b = [video_reference(frames, fps, samples) for frames, fps in videos_b]
-    dial, report = _make_reference_dial(clip, model, a, b, prompt, name, "videos", debias, nuisance_dims)
+    dial, report = _make_reference_dial(clip, model, a, b, [prompt], name, "videos", debias, nuisance_dims)
     dial["meta"].update({"video_sample_fps": 2, "timestamps_a": [x["timestamps"] for x in a],
                          "timestamps_b": [x["timestamps"] for x in b]})
     return dial, report + f"; every clip cut to {samples} samples at up to 2 fps (equal timestamps on both sides); audio excluded"
 
 
-def _make_reference_dial(clip, model, items_a, items_b, prompt, name, source, debias, nuisance_dims):
+def _make_reference_dial(clip, model, items_a, items_b, prompts, name, source, debias, nuisance_dims):
     (_, post_name), proj, refiner = text_modules(model)
     comfy.model_management.load_models_gpu([model])
     device = comfy.model_management.get_torch_device()
@@ -481,8 +491,8 @@ def _make_reference_dial(clip, model, items_a, items_b, prompt, name, source, de
                 raise ValueError("reference dial needs at least one text token (minimax_token_tags == 1)")
         return refiner(proj(ctx))[mask].float().mean(0)
 
-    a = torch.stack([encode(prompt, item) for item in items_a])
-    b = torch.stack([encode(prompt, item) for item in items_b])
+    a = torch.stack([torch.stack([encode(p, item) for p in prompts]).mean(0) for item in items_a])
+    b = torch.stack([torch.stack([encode(p, item) for p in prompts]).mean(0) for item in items_b])
     paired = len(a) == len(b)
     diffs = b - a if paired else None
     raw = diffs.mean(0) if paired else b.mean(0) - a.mean(0)
@@ -506,10 +516,12 @@ def _make_reference_dial(clip, model, items_a, items_b, prompt, name, source, de
             "meta": {"name": name, "pairs": [[i, i] for i in range(len(a))] if paired else [],
                      "n_pairs": str(len(a)) if paired else "0", "pair_agreement_cos": f"{agree:.3f}" if agree is not None else "n/a",
                      "inject": "post_refiner", "debias_removed": f"{removed:.3f}" if debias else "off",
-                     "calibrated": "False", "format": "ComfyUI-Dials v1", "source": source, "prompt": prompt,
+                     "calibrated": "False", "format": "ComfyUI-Dials v1", "source": source, "prompt": "\n".join(prompts),
                      f"n_{source}_a": len(a), f"n_{source}_b": len(b), "paired_by_index": paired,
                      "token_pooling": "minimax_token_tags == 1"}}
     report = dial_label(dial) + f"; {source} A={len(a)}, B={len(b)}; text tokens only"
+    if len(prompts) > 1:
+        report += f"; {len(prompts)} framings averaged"
     report += "; paired by index" if paired else f"; side means only; pair agreement n/a (unequal {source} counts)"
     if debias:
         report += f"; debias removed {removed:.0%} of the raw dial (generic wording shift)"
