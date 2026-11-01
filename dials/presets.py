@@ -11,7 +11,7 @@ from safetensors import safe_open
 
 import folder_paths
 
-from . import core, envelopes
+from . import analysis, core, envelopes
 
 FORMAT = "MAIDialRack preset"
 VERSION = 1
@@ -157,6 +157,14 @@ def install_routes():
     async def info(request):  # description, side labels, useful and overcook strengths for one dial file
         try:
             return web.json_response(await asyncio.to_thread(core.dial_info, request.query.get("dial", "")))
+        except (FileNotFoundError, ValueError) as e:
+            return web.json_response({"error": str(e)}, status=400)
+
+    @srv.routes.get("/mainodes/dials/profile")
+    async def profile(request):  # probe-bank coefficients of one post-refiner dial file (direct and ridge joint fit)
+        dial = request.query.get("dial", "")
+        try:
+            return web.json_response(await asyncio.to_thread(lambda: analysis.dial_profile(dial, dial_sha256(dial))))
         except (FileNotFoundError, ValueError) as e:
             return web.json_response({"error": str(e)}, status=400)
 
