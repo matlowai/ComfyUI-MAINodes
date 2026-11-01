@@ -23,12 +23,22 @@ def info_inputs():
                        tooltip="Strength where the effect is clearly there (the map's inner ellipse)."),
         io.Float.Input("overcook", default=1.5, min=0.05, max=20.0, step=0.05, optional=True,
                        tooltip="Strength where side effects take over (the map's outer ellipse)."),
+        io.Float.Input("negative_useful", default=0.0, min=0.0, max=20.0, step=0.05, optional=True,
+                       tooltip="Useful strength on the negative side when it differs from the positive side (0 = same as useful)."),
+        io.Float.Input("negative_overcook", default=0.0, min=0.0, max=20.0, step=0.05, optional=True,
+                       tooltip="Overcook strength on the negative side when it differs (0 = same as overcook)."),
+        io.Combo.Input("evidence", options=["unknown", *core.INFO_EVIDENCE], default="creator", optional=True,
+                       tooltip="Where the strengths come from: your own setting, one seed, several seeds or several scenes."),
+        io.String.Input("pipeline", default="", optional=True, tooltip="What the strengths were measured on, e.g. 'Pika H3 Flex 6-step'."),
     ]
 
 
-def info_from(description, negative_label, positive_label, useful, overcook):
-    return core.check_dial_info({"description": description, "negative": negative_label, "positive": positive_label,
-                                 "useful": useful, "overcook": overcook})
+def info_from(description="", negative_label="", positive_label="", useful=1.0, overcook=1.5, negative_useful=0.0,
+              negative_overcook=0.0, evidence="creator", pipeline=""):
+    return core.check_dial_info({"version": 2, "description": description, "negative": negative_label, "positive": positive_label,
+                                 "neg": {"useful": negative_useful or useful, "overcook": negative_overcook or overcook},
+                                 "pos": {"useful": useful, "overcook": overcook},
+                                 "evidence": None if evidence == "unknown" else evidence, "pipeline": pipeline})
 
 
 
@@ -133,8 +143,8 @@ class MakeDial(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, clip, model, pairs, subjects, name, inject, debias, nuisance_dims, description="", negative_label="", positive_label="", useful=1.0, overcook=1.5) -> io.NodeOutput:
-        info = info_from(description, negative_label, positive_label, useful, overcook)
+    def execute(cls, clip, model, pairs, subjects, name, inject, debias, nuisance_dims, **info) -> io.NodeOutput:
+        info = info_from(**info)
         if name:
             core.check_dial_name(name)
         mode = "post" if inject.startswith("post") else "pre"
@@ -170,8 +180,8 @@ class MakeDialFromPictures(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, clip, model, pictures_a, pictures_b, prompt, name, debias, nuisance_dims, description="", negative_label="", positive_label="", useful=1.0, overcook=1.5) -> io.NodeOutput:
-        info = info_from(description, negative_label, positive_label, useful, overcook)
+    def execute(cls, clip, model, pictures_a, pictures_b, prompt, name, debias, nuisance_dims, **info) -> io.NodeOutput:
+        info = info_from(**info)
         if name:
             core.check_dial_name(name)
         dial, report = core.make_picture_dial(clip, model, pictures_a, pictures_b, prompt, name or "unsaved",
@@ -208,8 +218,8 @@ class MakeDialFromVideos(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, clip, model, videos_a, videos_b, prompt, name, debias, nuisance_dims, description="", negative_label="", positive_label="", useful=1.0, overcook=1.5) -> io.NodeOutput:
-        info = info_from(description, negative_label, positive_label, useful, overcook)
+    def execute(cls, clip, model, videos_a, videos_b, prompt, name, debias, nuisance_dims, **info) -> io.NodeOutput:
+        info = info_from(**info)
         if name:
             core.check_dial_name(name)
 
@@ -253,8 +263,8 @@ class CombineDials(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, a, b, weight_a, weight_b, orthogonalize, name, description="", negative_label="", positive_label="", useful=1.0, overcook=1.5) -> io.NodeOutput:
-        info = info_from(description, negative_label, positive_label, useful, overcook)
+    def execute(cls, a, b, weight_a, weight_b, orthogonalize, name, **info) -> io.NodeOutput:
+        info = info_from(**info)
         if (a["target"], a["mode"]) != (b["target"], b["mode"]):
             raise ValueError(f"dials use different injection points: {a['mode']} {a['target']} vs {b['mode']} {b['target']}")
         va, vb = a["vec"].float(), b["vec"].float()

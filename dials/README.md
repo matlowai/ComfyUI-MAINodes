@@ -58,8 +58,9 @@ your prompt, so dragging it sets both strengths. The rows and buttons keep their
 when you resize it. **Pairings** are the chips above the map: each remembers an X/Y pair of rows, clicking one switches
 the map to that pair (the dot jumps to their current strengths), **+ pairing** adds one and ✕ removes the active one.
 **Shift+drag** moves at a fifth of the speed for careful nudging, arrow keys step by 0.05 (Shift: 0.25), and a
-double-click puts both back to 0. Two ellipses come from the dials' own info (below): the inner one is each dial's useful
-strength, the outer one where it overcooks, sized per axis, and the range (auto by default) leaves room for both. Axis
+double-click puts both back to 0. Two rings come from the dials' own info (below): the inner one is each dial's useful
+strength, the outer one where it overcooks, sized per axis and per side, and the range (auto by default) leaves room
+for the largest known overcook. Axis
 ends show what - and + give. The readout gives both strengths, whether the dot is within useful, past useful or
 overcooked, how much the two dials overlap (cosine), and the combined push in units of "one dial
 at +1", measured from the dial files. **Sweep 3×3** queues nine renders on a grid around the dot (spacing set by
@@ -70,11 +71,16 @@ edits the rows' strengths. Wired `dial_N` rows can be axes but have no file to m
 
 Every Make Dial node has fields for a **description**, what **negative** and **positive** strength give (e.g.
 "stoic" / "lively"), the **useful** strength (where the effect is clearly there) and the **overcook** strength (where
-side effects take over). They are saved inside the dial file's metadata (`dial_info`), so they travel with the
-`.safetensors`. In the rack, **⚙** on a row edits a dial's info and **Save to dial file** writes it back into that file:
-only the metadata changes, the vector stays byte-identical, and presets keep matching (they hash the vector). The
-description is the dial picker's tooltip, and the map draws its ellipses from the useful and overcook strengths. Dials
-without info read as useful 1, overcook 1.5.
+side effects take over). The negative side uses the same strengths unless **negative_useful** / **negative_overcook**
+say otherwise (0 = same as positive), because many dials work on one side only. **evidence** says where the numbers
+come from (creator, one-seed, multi-seed, multi-scene or unknown) and **pipeline** what they were measured on (e.g.
+"Pika H3 Flex 6-step"). They are saved inside the dial file's metadata (`dial_info`, version 2), so they travel with the
+`.safetensors`. In the rack, **⚙** on a row edits a dial's info, where an empty strength means unknown and **notes**
+records failures, and **Save to dial file** writes it back into that file: only the metadata changes, the vector stays
+byte-identical, and presets keep matching (they hash the vector). The description is the dial picker's tooltip. The map
+draws each quarter from the matching sides (right/top from +, left/bottom from −); a quarter with an unknown side shows
+a grey dashed ring at 1 marked *uncalibrated*, and the dot there reads "uncalibrated", never "within useful". Dials
+without info are all unknown; version 1 info (one useful/overcook pair) reads as the same pair on both sides.
 
 ## Example workflows
 
