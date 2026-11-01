@@ -98,6 +98,8 @@ def main():
     assert split["neg"] == {"useful": 3.0, "overcook": 5.0} and split["pos"] == {"useful": 1.0, "overcook": 2.0}
     assert split["evidence"] is None and split["pipeline"] == "Pika H3 Flex 6-step"
     rejects(nodes.info_from, "", "", "", 1.0, 1.5, 3.0)  # negative useful above the inherited overcook
+    lizard = nodes.info_from(useful=0, overcook=0, negative_useful=4, negative_overcook=6)
+    assert lizard["pos"] == {"useful": None, "overcook": None} and lizard["neg"] == {"useful": 4.0, "overcook": 6.0}, lizard
     print("dial info: all checks passed (v1 -> v2, unknown sides, round trip keeps the vector, bad input rejected, node inputs)")
 
 

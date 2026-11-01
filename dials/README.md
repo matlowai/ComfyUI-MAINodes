@@ -71,7 +71,7 @@ edits the rows' strengths. Wired `dial_N` rows can be axes but have no file to m
 
 Every Make Dial node has fields for a **description**, what **negative** and **positive** strength give (e.g.
 "stoic" / "lively"), the **useful** strength (where the effect is clearly there) and the **overcook** strength (where
-side effects take over). The negative side uses the same strengths unless **negative_useful** / **negative_overcook**
+side effects take over; 0 = unknown). The negative side uses the same strengths unless **negative_useful** / **negative_overcook**
 say otherwise (0 = same as positive), because many dials work on one side only. **evidence** says where the numbers
 come from (creator, one-seed, multi-seed, multi-scene or unknown) and **pipeline** what they were measured on (e.g.
 "Pika H3 Flex 6-step"). They are saved inside the dial file's metadata (`dial_info`, version 2), so they travel with the

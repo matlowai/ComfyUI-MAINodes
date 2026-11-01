@@ -19,10 +19,10 @@ def info_inputs():
                         tooltip="What the dial does, for whoever loads it; shown as the dial's tooltip in the Dial Rack."),
         io.String.Input("negative_label", default="", optional=True, tooltip="What negative strength gives, e.g. 'stoic'; labels the map axis."),
         io.String.Input("positive_label", default="", optional=True, tooltip="What positive strength gives, e.g. 'lively'; labels the map axis."),
-        io.Float.Input("useful", default=1.0, min=0.05, max=20.0, step=0.05, optional=True,
-                       tooltip="Strength where the effect is clearly there (the map's inner ellipse)."),
-        io.Float.Input("overcook", default=1.5, min=0.05, max=20.0, step=0.05, optional=True,
-                       tooltip="Strength where side effects take over (the map's outer ellipse)."),
+        io.Float.Input("useful", default=1.0, min=0.0, max=20.0, step=0.05, optional=True,
+                       tooltip="Strength where the effect is clearly there (the map's inner ellipse); 0 = unknown."),
+        io.Float.Input("overcook", default=1.5, min=0.0, max=20.0, step=0.05, optional=True,
+                       tooltip="Strength where side effects take over (the map's outer ellipse); 0 = unknown."),
         io.Float.Input("negative_useful", default=0.0, min=0.0, max=20.0, step=0.05, optional=True,
                        tooltip="Useful strength on the negative side when it differs from the positive side (0 = same as useful)."),
         io.Float.Input("negative_overcook", default=0.0, min=0.0, max=20.0, step=0.05, optional=True,
@@ -36,8 +36,8 @@ def info_inputs():
 def info_from(description="", negative_label="", positive_label="", useful=1.0, overcook=1.5, negative_useful=0.0,
               negative_overcook=0.0, evidence="creator", pipeline=""):
     return core.check_dial_info({"version": 2, "description": description, "negative": negative_label, "positive": positive_label,
-                                 "neg": {"useful": negative_useful or useful, "overcook": negative_overcook or overcook},
-                                 "pos": {"useful": useful, "overcook": overcook},
+                                 "neg": {"useful": negative_useful or useful or None, "overcook": negative_overcook or overcook or None},
+                                 "pos": {"useful": useful or None, "overcook": overcook or None},
                                  "evidence": None if evidence == "unknown" else evidence, "pipeline": pipeline})
 
 
