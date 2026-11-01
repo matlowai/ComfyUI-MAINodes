@@ -169,8 +169,8 @@ class MakeDialFromPictures(io.ComfyNode):
             node_id="MAIDialMakeFromPictures",
             display_name="Make Dial from Pictures (alpha)",
             category="MAINodes/Dials",
-            description="Make a post-refiner dial from picture batches: negative strength moves toward A, positive toward B. "
-                        "Use the same prompt for both sides and match framing, light and background by picture index.",
+            description="Turn the difference between two groups of pictures into a dial: negative strength moves toward group A, "
+                        "positive toward group B. Match the pictures so only one thing changes. Open the node's help for a guide.",
             inputs=[
                 io.Clip.Input("clip"),
                 io.Model.Input("model"),
@@ -179,18 +179,17 @@ class MakeDialFromPictures(io.ComfyNode):
                 io.Image.Input("pictures_b", optional=True,
                                tooltip="Group B as an image batch; equal counts pair by index for the agreement report."),
                 io.String.Input("prompt", display_name="picture prompt", default="A video in the style and content of <Picture 1>.", advanced=True,
-                                tooltip="Text every picture is encoded with; <Picture 1> stands for the picture. Both sides use it, so only the "
-                                        "pictures differ. The default works; change it to frame the pictures, e.g. 'A close-up photo of <Picture 1>'."),
+                                tooltip="Your own sentence each picture is read through, used when framing is 'picture prompt'; <Picture 1> stands "
+                                        "for the picture. Naming the kind of subject helps, e.g. 'A video of the animal in <Picture 1>.'"),
                 io.String.Input("name", default="my_picture_dial", tooltip="Saved as models/loras/dials/<name>.safetensors (empty = don't save)."),
                 io.Boolean.Input("debias", default=True, advanced=True,
                                  tooltip="Project out the same generic wording directions used by Make Dial."),
                 io.Int.Input("nuisance_dims", default=3, min=1, max=12, advanced=True),
                 *info_inputs(),  # last, so workflows saved before these fields load unchanged
-                io.Combo.Input("framing", options=["picture prompt", *core.PICTURE_FRAMINGS, "all averaged"], default="picture prompt",
-                               optional=True, tooltip="How the pictures are read: your picture prompt, a fixed framing (content: "
-                               "what is in the picture; look: colours and light; bare: no hint), or all of them averaged per picture. "
-                               "For subject swaps, content (or all averaged) steered best in testing; naming the kind of subject in "
-                               "your own picture prompt ('the animal in <Picture 1>') helps further."),
+                io.Combo.Input("framing", options=["picture prompt", *core.PICTURE_FRAMINGS, "all averaged"], default="content",
+                               optional=True, tooltip="How the pictures are read. content: what is in them (subjects, objects; the default). "
+                               "look: colours and light. bare: no hint. all averaged: all of them. picture prompt: your own "
+                               "sentence (advanced; the original wording). Open the node's help for which to pick."),
                 io.Autogrow.Input("group_a", optional=True, template=io.Autogrow.TemplatePrefix(
                     io.Image.Input("a", tooltip="Another group A picture, any size; adds to pictures_a."), prefix="a", min=0, max=50)),
                 io.Autogrow.Input("group_b", optional=True, template=io.Autogrow.TemplatePrefix(
@@ -202,7 +201,7 @@ class MakeDialFromPictures(io.ComfyNode):
 
     @classmethod
     def execute(cls, clip, model, pictures_a=None, pictures_b=None, prompt="", name="", debias=True, nuisance_dims=3,
-                framing="picture prompt", group_a=None, group_b=None, **info) -> io.NodeOutput:
+                framing="content", group_a=None, group_b=None, **info) -> io.NodeOutput:
         info = info_from(**info)
         if name:
             core.check_dial_name(name)
