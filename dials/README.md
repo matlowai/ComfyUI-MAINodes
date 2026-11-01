@@ -1,6 +1,6 @@
 # Dials (alpha)
 
-Training-free steering for MiniMax H3, made from prompt pairs. Write two prompts that differ in one quality
+Training-free steering for MiniMax H3 (also MOSS-Image and Krea 2), made from prompt pairs. Write two prompts that differ in one quality
 (*"stands perfectly still"* vs *"runs across the scene"*); Make Dial turns the difference into a ~14 KB file that
 works like a strength slider. Negative strength moves every generation toward the first prompt, positive toward the
 second. Ported from [ComfyUI-Dials](https://github.com/matlowai/ComfyUI-Dials); this is where new Dials work happens.
@@ -42,6 +42,21 @@ Two kinds of dial file:
   faithful; use these in the rack.
 - **LoRA file** (`pre_refiner`): a `condition_proj` bias diff the stock *Load LoRA (model only)* node also applies.
   Only an approximation of the hook; above ~1 it starts to wash out the prompt.
+
+**Model families:** the nodes read the family from the MODEL input; there is nothing to choose.
+
+| family | post seam (hook) | pre seam (LoRA file) |
+|---|---|---|
+| MiniMax H3 | `token_refiner` output | `condition_proj` bias |
+| MOSS-Image | `text_embedder` output (after its two text blocks) | `text_embedder.proj` bias |
+| Krea 2 | `txtmlp` output | none: `txtfusion` has no biased projection up front |
+
+Make Dial, Dial Rack, Combine Dials, holds and step envelopes work on all three. Make Dial from Pictures / Videos and
+the rack's probe-bank wheel are H3 only, and say so on other models. Each dial file records its family
+(`model_family` metadata), and a dial made for one family fails on another with a short error. Files without the field
+are H3 dials. Strength ranges differ by family. On MOSS-Image (SFT DeBand, cfg 3), text dials need about ±4
+for a clear effect and overcook near ±8. On Krea 2 (Raw, cfg 4), the post seam is not clean: only the "toward A"
+side of day/night and weather worked (to about −4), and colour grades saturate and break.
 
 **Rack presets:** use **Save preset** / **Load preset** in the rack bar. Presets live in
 `models/loras/dials/presets/<name>.json`, with format `MAIDialRack preset`, version `1`, and ordered rows containing

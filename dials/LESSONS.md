@@ -67,6 +67,16 @@ one seed; treat them as starting points.
 - **Check determinism first:** a dial harness needs strength 0 to equal the unhooked output exactly; an AWQ MoE model
   failed that, Gemma QAT passed.
 
+## Other model families (MOSS-Image, Krea 2)
+- **CFG halves a hook dial.** The hook shifts the negative branch too. On MOSS (cfg 3), shifting only the positive
+  branch moved the target quality about twice as far, so MOSS text dials need about ±4 where H3 Pika needs ±1.
+- **An unnormalized seam is fragile.** H3's refiner ends in an RMSNorm. Krea's `txtmlp` output does not: its token
+  norms range 37–685, and a dial at strength 1 is a quarter of a typical token. Krea dials flip non-monotonically
+  (+1 blown out while +0.5 and +1.5 are normal) and collapse into graphics at ±8. Shifting `txtfusion`'s output
+  instead, before `txtmlp`'s RMSNorm, is the next seam to try.
+- **The first render after a model swap can differ by one pixel level.** That came from ComfyUI, not the dial. Compare
+  parity runs warm.
+
 ## Engineering
 - **ComfyUI saves widget values by position.** Add new inputs at the end of a node, or every saved workflow loads with
   values in the wrong widgets.
