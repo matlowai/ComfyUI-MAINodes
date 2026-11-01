@@ -110,8 +110,9 @@ effect size. Single-seed results say so.
 - [ ] Pack 2 release (see blockers). Rejected so far: handheld v1, shaky v2, storm v1, time feel v1/v2, zero gravity,
       the squirrel side.
 - [ ] **Picture dials, proper test:** the lizard photo dial is 0.6x the text dial's size and 0.49 aligned; at −4 it gave
-      a lizard-pawed hybrid. Framing experiment running (study `codex/framing/`); then matched size (−4 to −6), more
-      varied pictures, picture + text together.
+      a lizard-pawed hybrid. Framing (study `codex/framing/FRAMING.md`, 1 seed): content framing and all-averaged reach a
+      lizard at −4, the default doesn't; decide the default, confirm on a second seed and scene; then more varied
+      pictures, picture + text together.
 - [ ] **Video dials:** two generated pairs gave no timelapse; the timelapse prompt itself works on Pika, so try a text
       timelapse v3 with that wording and real matched footage (6+ pairs).
 - [ ] **Prompt sets:** night-rain set (agreement 0.97) gives evening/night but not visible rain at +1; weight rain up or

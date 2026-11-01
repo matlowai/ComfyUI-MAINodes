@@ -26,6 +26,11 @@ one seed; treat them as starting points.
   keeps the wording itself out of the dial.
 - **One matched pair already works,** just noisier: a single lizard/squirrel pair pointed 0.875 the same way as the
   12-pair dial and came out larger (|28.4| vs |23.4|); three pairs gave pair agreement 0.91.
+- **The framing decides what the dial learns.** On 12 lizard/squirrel pairs, "a video of the subject in <Picture 1>"
+  beat the default "style and content" wording on every measure (pair agreement 0.94 vs 0.89, split-half 0.96 vs 0.93,
+  cosine with the text dial 0.56 vs 0.49) and reached a lizard at −4 where the default gave a mammal hybrid (1 seed).
+  Naming the kind of subject ("the animal") was stronger still; averaging all framings also crossed. Size alone isn't
+  it: the averaged dial was smaller than the default and still crossed.
 - **Picture dials are weaker than text dials:** around −4 for what a text dial does at −2.
 - **Batching resizes:** core Batch Images scales every picture to the first one's size; give mixed sizes their own
   sockets instead.

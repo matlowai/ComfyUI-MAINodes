@@ -183,7 +183,9 @@ class MakeDialFromPictures(io.ComfyNode):
                 *info_inputs(),  # last, so workflows saved before these fields load unchanged
                 io.Combo.Input("framing", options=["picture prompt", *core.PICTURE_FRAMINGS, "all averaged"], default="picture prompt",
                                optional=True, tooltip="How the pictures are read: your picture prompt, a fixed framing (content: "
-                               "what is in the picture; look: colours and light; bare: no hint), or all of them averaged per picture."),
+                               "what is in the picture; look: colours and light; bare: no hint), or all of them averaged per picture. "
+                               "For subject swaps, content (or all averaged) steered best in testing; naming the kind of subject in "
+                               "your own picture prompt ('the animal in <Picture 1>') helps further."),
                 io.Autogrow.Input("group_a", optional=True, template=io.Autogrow.TemplatePrefix(
                     io.Image.Input("a", tooltip="Another group A picture, any size; adds to pictures_a."), prefix="a", min=0, max=50)),
                 io.Autogrow.Input("group_b", optional=True, template=io.Autogrow.TemplatePrefix(
