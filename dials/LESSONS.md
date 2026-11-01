@@ -49,6 +49,16 @@ one seed; treat them as starting points.
   look like it pushes all three.
 - **Pair wording leaks into profiles:** an evil dial whose pairs said "coldly" and "icy" loads on colour temperature.
 
+## Where in the model
+- **H3 does a dial's work in its first half.** Injecting only in blocks 0-24 gives the full effect (motion 1.08x,
+  colour 1.10x of all blocks); only 25-49 (or the 26-37 range from the LoRA study) changes the clip by about 0.4x
+  without moving the dial's quality: a perturbation, not an edit (2 seeds). No block range separated look from motion.
+- **Today's post hook shifts every row of the text span,** vision-pad rows included, not only text-tagged rows.
+
+## Editing dials
+- **Remove a probe axis with the joint fit.** Taking colour temperature out of evil cold left every other axis within
+  0.01 under the joint fit; the direct fit also took 0.14 off night and 0.10 off mood, because those probes overlap.
+
 ## Strength over denoising
 - **On Pika, the prompt only matters in the first steps.** Late envelopes at +2 and even +8 changed nothing; constant
   beat every other shape for motion per unit of gain.
@@ -77,6 +87,16 @@ one seed; treat them as starting points.
   Sea*). Use modern prose and specific-vs-cliché contrasts instead.
 - **Check determinism first:** a dial harness needs strength 0 to equal the unhooked output exactly; an AWQ MoE model
   failed that, Gemma QAT passed.
+
+## Other model families (MOSS-Image, Krea 2)
+- **CFG halves a hook dial.** The hook shifts the negative branch too. On MOSS (cfg 3), shifting only the positive
+  branch moved the target quality about twice as far, so MOSS text dials need about ±4 where H3 Pika needs ±1.
+- **An unnormalized seam is fragile.** H3's refiner ends in an RMSNorm. Krea's `txtmlp` output does not: its token
+  norms range 37–685, and a dial at strength 1 is a quarter of a typical token. Krea dials flip non-monotonically
+  (+1 blown out while +0.5 and +1.5 are normal) and collapse into graphics at ±8. Shifting `txtfusion`'s output
+  instead, before `txtmlp`'s RMSNorm, is the next seam to try.
+- **The first render after a model swap can differ by one pixel level.** That came from ComfyUI, not the dial. Compare
+  parity runs warm.
 
 ## Engineering
 - **ComfyUI saves widget values by position.** Add new inputs at the end of a node, or every saved workflow loads with

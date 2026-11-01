@@ -5,7 +5,7 @@ import { api } from "../../scripts/api.js";
 
 const DEFAULT_STRENGTH = 0.5;   // the sane everyday range is +0.5 .. +1
 const SLIDER = [-3, 3];
-const NUMBER = [-20, 20];
+const NUMBER = [-1000, 1000];  // typed strengths: past any useful range on purpose; the slider covers everyday use
 const PRESETS = "/mainodes/dials/presets";
 const LEFT_PX = 590;     // the rows column keeps this width; the map takes the rest of the node
 const MAP_MIN = 160;
@@ -30,8 +30,8 @@ const BLOCK_PRESETS = [
 const BLOCKS_HELP = "How much of the dial the text tokens carry into each block, times the row strength. Lowering a later " +
   "block subtracts the dial there; the blocks before it have already read it.";
 
-// one bar per block, height = strength 0..1; also the row's mini strip
-function drawBlocks(c, w, hover, W, H) {
+// one bar per block, height = strength 0..top (top is at least 1); also the row's mini strip
+function drawBlocks(c, w, hover, W, H, top = Math.max(1, ...w)) {
   const dpr = window.devicePixelRatio || 1;
   c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
   const g = c.getContext("2d"), cw = W / w.length, gap = cw > 3 ? 1 : 0;
@@ -41,7 +41,8 @@ function drawBlocks(c, w, hover, W, H) {
     g.fillStyle = i % 10 === 0 && gap ? "#252831" : "#1b1d23";
     g.fillRect(i * cw, 0, cw - gap, H);
     g.fillStyle = i === hover ? "#ffe2a0" : "#ffc145";
-    g.fillRect(i * cw, H * (1 - v), cw - gap, H * v);
+    const h = Math.min(1, v / top);
+    g.fillRect(i * cw, H * (1 - h), cw - gap, H * h);
   });
   if (H < 30) return;
   g.fillStyle = "#777"; g.font = "9px sans-serif";
@@ -1177,9 +1178,9 @@ class DialRackUI {
       border: "1px solid #2f323b", borderRadius: "4px" }, this.list);
     const bar = this.el("div", { display: "flex", gap: "4px", alignItems: "center", flexWrap: "wrap" }, box);
     this.el("span", { color: "#888" }, bar, `${name} · blocks`);
-    let hover = null;
+    let hover = null, top = Math.max(this.blocksTop || 1, ...w);
     const canvas = this.el("canvas", { display: "block", width: "100%", height: "64px", cursor: "crosshair", touchAction: "none" }, box);
-    const draw = () => drawBlocks(canvas, w, hover, canvas.clientWidth, 64);
+    const draw = () => drawBlocks(canvas, w, hover, canvas.clientWidth, 64, top);
     const save = () => {
       if (w.every((v) => v === 1)) delete r.blocks; else r.blocks = w.map((v) => Math.round(v * 100) / 100);
       this.commit(); draw();
@@ -1187,14 +1188,18 @@ class DialRackUI {
     for (const [label, title, on] of BLOCK_PRESETS) this.button(bar, label, title, () => {
       w.forEach((_, i) => { w[i] = on(i, n) ? 1 : 0; }); save(); this.render();
     }, { padding: "1px 6px" });
+    this.el("span", { color: "#888" }, bar, "top");
+    const topBox = this.el("input", { width: "56px", background: "#111", color: "#eee", border: "1px solid #333" }, bar);
+    Object.assign(topBox, { type: "number", min: 1, step: 1, value: top, title: "strength at the top of the strip; raise it to paint blocks above 1 (e.g. 50)" });
+    topBox.onchange = () => { top = this.blocksTop = Math.max(1, parseFloat(topBox.value) || 1, ...w); topBox.value = top; draw(); };
     const readout = this.el("span", { color: "#ffc145", marginLeft: "auto", minWidth: "90px", textAlign: "right" }, bar);
     this.button(bar, "Done", "close the block strengths", () => { this.blocksEditing = null; this.render(); }, { padding: "1px 6px" });
-    this.el("div", { color: "#888", fontSize: "11px" }, box, BLOCKS_HELP + " Click or drag to paint: top = 1, bottom = 0.");
-    canvas.title = "click or drag to paint each block's strength (top = 1, bottom = 0)";
+    this.el("div", { color: "#888", fontSize: "11px" }, box, BLOCKS_HELP + " Click or drag to paint: top = the top value, bottom = 0.");
+    canvas.title = "click or drag to paint each block's strength (top = the top value, bottom = 0)";
     const at = (e) => {
       const b = canvas.getBoundingClientRect();
       return [Math.min(n - 1, Math.max(0, Math.floor((e.clientX - b.left) / b.width * n))),
-        Math.min(1, Math.max(0, Math.round((1 - (e.clientY - b.top) / b.height) * 20) / 20))];
+        Math.min(1, Math.max(0, Math.round((1 - (e.clientY - b.top) / b.height) * 20) / 20)) * top];
     };
     let last = null;
     const show = (i) => { hover = i; readout.textContent = i == null ? "" : `block ${i}: ${w[i].toFixed(2)}`; };
