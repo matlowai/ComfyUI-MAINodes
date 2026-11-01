@@ -61,6 +61,7 @@ const TIME_KEYS = [
   ["on → off", "1 for the first half, 0 for the second", [[0, 1], [0.5, 0]], "step"],
   ["ramp up", "0 at the start to 1 at the end", [[0, 0], [1, 1]], "linear"],
   ["ramp down", "1 at the start to 0 at the end", [[0, 1], [1, 0]], "linear"],
+  ["dip", "1, with a short dip to −1 (the dial reversed) in the middle", [[0, 1], [0.4, 1], [0.45, -1], [0.55, -1], [0.6, 1]], "linear"],
 ];
 
 // M(t) of a row's time curve at the given seconds (mirrors dials/timecurve.py curve_fn and shape)
@@ -94,7 +95,9 @@ function timeCurve(spec, seconds, times, audio) {
 const CURVE_GAP = 1 / 6;  // seconds a dragged point keeps from its neighbours: one latent frame
 const SNAPS = [["off", "snap: off"], ["frame", "snap: latent frames"], ["0.1", "snap: 0.1 s"], ["0.5", "snap: 0.5 s"], ["1", "snap: 1 s"], ["onset", "snap: onsets"]];
 const CURVE_HELP = "Click to add a point, drag to move it (Shift: fine, Alt: no snap), double-click or right-click to delete it. " +
-  "A clicked point gets time and level fields; arrows nudge it (Shift ×10), Delete removes it, Ctrl+Z / Ctrl+Shift+Z undo / redo. " +
+  "Shift+click adds points to the selection, Ctrl+drag selects a box; dragging a selected point moves them all. Arrows nudge the " +
+  "selection (Shift ×10), Delete removes it, Esc deselects, Ctrl+Z / Ctrl+Shift+Z undo / redo. Wheel zooms time, Shift+wheel " +
+  "or middle-drag pans. Level × the row strength = the dial strength (right axis). " +
   "The model resolves one latent frame (about 1/6 s, the ticks under the axis): sharper changes are averaged per frame, " +
   "and renders ramp over about 1.5 s.";
 let curveClipboard = null;  // Copy / Paste fallback when the browser clipboard is blocked
@@ -132,8 +135,10 @@ function onsetTimes(audio) {
 }
 
 // the curve over the clip: waveform behind, the curve, and the M each video latent frame gets. The editor's canvas (H >= 30)
-// adds a seconds grid, latent-frame ticks, onsets and the keyframes. Returns the axes (seconds and M <-> pixels) drawn with.
-// view: {axes (fixed during a drag), top, sel, hover, ghost [s, M], label}
+// adds a seconds grid, latent-frame ticks, onsets, level lines and the keyframes. Returns the axes (seconds and M <-> pixels).
+// view: {axes (span, lo, hi fixed during a drag), top, bottom, win [t0, t1] seconds shown (zoom), strength (the row's: a
+// second axis of level × strength when not 1), sel (selected indices), main (the primary one), hover, ghost [s, M],
+// box [x0, y0, x1, y1] (box select), label}
 function drawTime(c, spec, seconds, audio, W, H, view = {}) {
   const dpr = window.devicePixelRatio || 1;
   c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
@@ -143,32 +148,30 @@ function drawTime(c, spec, seconds, audio, W, H, view = {}) {
   const scale = (spec.unit || "normalized") === "normalized" ? seconds : 1;
   const points = keys ? (spec.points || []).map(([t, m]) => [t * scale, m]) : [];
   const span = view.axes?.span ?? Math.max(seconds, ...points.map(([t]) => t));
-  const [L, R, T, B] = big ? [30, 9, 9, 16] : [0, 0, 2, 2], pw = W - L - R, ph = H - T - B;
-  const x = (t) => L + t / span * pw;
+  const [t0, t1] = view.win || [0, span], strength = big && view.strength !== undefined && view.strength !== 1 ? view.strength : null;
+  const [L, R, T, B] = big ? [30, strength === null ? 9 : 44, 9, 16] : [0, 0, 2, 2], pw = W - L - R, ph = H - T - B;
+  const x = (t) => L + (t - t0) / (t1 - t0) * pw;
+  g.save(); g.beginPath(); g.rect(L, 0, pw, H); g.clip();
   if (audio?.peaks && big) {
     g.fillStyle = "#2b3442";
     const n = audio.peaks.length, per = audio.seconds / n;
     for (let i = 0; i < n && i * per < span; i++) {
       const h = audio.peaks[i] * ph;
-      g.fillRect(x(i * per), T + (ph - h) / 2, Math.max(1, per / span * pw), h);
+      g.fillRect(x(i * per), T + (ph - h) / 2, Math.max(1, per / (t1 - t0) * pw), h);
     }
   }
+  const step = [0.1, 0.2, 0.5, 1, 2, 5, 10, 30].find((s) => s / (t1 - t0) * pw >= 44 && (view.win || s >= 1)) ?? 60;
   if (big) {
     g.font = "10px sans-serif"; g.lineWidth = 1;
-    const step = [1, 2, 5, 10, 30].find((s) => s / span * pw >= 44) ?? 60;
-    for (let s = 0; s <= span + 1e-9; s += step / 2) {
-      const major = Math.abs(s / step - Math.round(s / step)) < 1e-6, px = Math.round(x(s)) + 0.5;
-      if (!major && step / 2 / span * pw < 30) continue;
-      g.strokeStyle = major ? "#262a33" : "#1a1c22";
+    for (let k = Math.ceil(t0 / step * 2); k * step / 2 <= t1 + 1e-9; k++) {
+      if (k % 2 && step / 2 / (t1 - t0) * pw < 30) continue;
+      const px = Math.round(x(k * step / 2)) + 0.5;
+      g.strokeStyle = k % 2 ? "#1a1c22" : "#262a33";
       g.beginPath(); g.moveTo(px, T); g.lineTo(px, T + ph); g.stroke();
-      if (!major) continue;
-      const text = `${+s.toFixed(1)} s`, w = g.measureText(text).width;
-      g.fillStyle = "#888"; g.fillText(text, Math.min(W - w, Math.max(0, px - w / 2)), H - 3);
     }
-    const f = frameStarts(span);
-    if (4 / 24 / span * pw >= 5) {
+    if (4 / 24 / (t1 - t0) * pw >= 5) {
       g.strokeStyle = "#4a4d57"; g.beginPath();
-      for (const v of f) { const px = Math.round(x(v / 24)) + 0.5; g.moveTo(px, T + ph - 4); g.lineTo(px, T + ph); }
+      for (const v of frameStarts(span)) { const px = Math.round(x(v / 24)) + 0.5; g.moveTo(px, T + ph - 4); g.lineTo(px, T + ph); }
       g.stroke();
     }
     if (span > seconds + 1e-9) {
@@ -179,25 +182,25 @@ function drawTime(c, spec, seconds, audio, W, H, view = {}) {
     for (const t of onsetTimes(audio)) if (t <= span) { const px = Math.round(x(t)) + 0.5; g.moveTo(px, T); g.lineTo(px, T + 5); }
     g.stroke();
   }
-  const times = Array.from({ length: pw + 1 }, (_, i) => (i / pw) * span);
+  const times = Array.from({ length: pw + 1 }, (_, i) => t0 + (i / pw) * (t1 - t0));
   const m = timeCurve(spec, seconds, times, audio);
   if (!m) {
+    g.restore();
     if (big) { g.fillStyle = "#777"; g.font = "10px sans-serif"; g.fillText("run once with curve_audio connected to see the music's curve", 12, H / 2); }
     return null;
   }
-  const lo = view.axes?.lo ?? Math.min(0, ...m), hi = view.axes?.hi ?? Math.max(view.top ?? 1, ...m);
+  const lo = view.axes?.lo ?? Math.min(view.bottom ?? 0, ...m), hi = view.axes?.hi ?? Math.max(view.top ?? 1, ...m);
   const y = (v) => T + (hi - v) / (hi - lo) * ph;
-  const axes = { span, lo, hi, x, y, t: (px) => (px - L) / pw * span, v: (py) => hi - (py - T) / ph * (hi - lo) };
-  if (big) {
+  const axes = { span, lo, hi, pw, x, y, t: (px) => t0 + (px - L) / pw * (t1 - t0), v: (py) => hi - (py - T) / ph * (hi - lo) };
+  const whole = hi - lo <= 8 ? Array.from({ length: Math.floor(hi) - Math.ceil(lo) + 1 }, (_, i) => Math.ceil(lo) + i) : [0, 1];
+  if (big) {  // dashed whole levels, zero solid
     g.strokeStyle = "#2f333d"; g.setLineDash([3, 3]); g.beginPath();
-    for (const v of [0, 1]) if (v > lo && v < hi) { g.moveTo(L, Math.round(y(v)) + 0.5); g.lineTo(L + pw, Math.round(y(v)) + 0.5); }
+    for (const v of whole) if (v && v > lo && v < hi) { g.moveTo(L, Math.round(y(v)) + 0.5); g.lineTo(L + pw, Math.round(y(v)) + 0.5); }
     g.stroke(); g.setLineDash([]);
+    if (lo < 0 && hi > 0) { g.strokeStyle = "#5b6070"; g.beginPath(); g.moveTo(L, Math.round(y(0)) + 0.5); g.lineTo(L + pw, Math.round(y(0)) + 0.5); g.stroke(); }
     g.strokeStyle = "#ffc145"; g.lineWidth = 1.5; g.beginPath();
     for (const [a, b, v] of frameCurve(spec, seconds, audio)) { g.lineTo(x(a), y(v)); g.lineTo(x(b), y(v)); }
     g.stroke();
-    g.fillStyle = "#888"; g.textAlign = "right";
-    g.fillText(`${+hi.toFixed(2)}`, L - 6, T + 8); g.fillText(`${+lo.toFixed(2)}`, L - 6, T + ph);
-    g.textAlign = "left";
   }
   g.strokeStyle = big ? "#8fb4ff" : "#ffc145"; g.lineWidth = big ? 1.5 : 1; g.beginPath();
   if (keys) {  // through the points, held flat past the first and last; step holds each level until the next point
@@ -206,20 +209,49 @@ function drawTime(c, spec, seconds, audio, W, H, view = {}) {
     g.lineTo(x(span), y(points[points.length - 1][1]));
   } else m.forEach((v, i) => g.lineTo(x(times[i]), y(v)));
   g.stroke();
-  if (!big || !keys) return axes;
+  g.restore();
+  if (!big) return axes;
+  g.font = "10px sans-serif"; g.fillStyle = "#888";
+  for (let k = Math.ceil(t0 / step); k * step <= t1 + 1e-9; k++) {
+    const text = `${+(k * step).toFixed(2)} s`, w = g.measureText(text).width;
+    g.fillText(text, Math.min(W - R - w, Math.max(0, x(k * step) - w / 2)), H - 3);
+  }
+  const marks = [];  // level labels left, strength labels right: top, bottom, then whole levels where they fit
+  for (const v of [hi, lo, ...whole]) {
+    const py = Math.min(T + ph, Math.max(T + 8, y(v) + 4));
+    if (v >= lo && v <= hi && marks.every(([, q]) => Math.abs(q - py) >= 13)) marks.push([v, py]);
+  }
+  for (const [v, py] of marks) {
+    g.textAlign = "right"; g.fillStyle = "#888"; g.fillText(`${+v.toFixed(2)}`, L - 6, py);
+    g.textAlign = "left"; g.fillStyle = "#c39bff";
+    if (strength !== null) g.fillText(`${+(v * strength).toFixed(2)}`, L + pw + 5, py);
+  }
+  if (strength !== null) {
+    g.save(); g.translate(W - 3, T + ph / 2); g.rotate(-Math.PI / 2); g.textAlign = "center";
+    g.fillText(`strength (×${+strength.toFixed(2)})`, 0, 0); g.restore();
+  }
+  if (!keys) return axes;
+  const sel = view.sel || [];
   points.forEach(([t, v], i) => {
-    g.beginPath(); g.arc(x(t), y(v), i === view.sel ? 6.5 : i === view.hover ? 6 : 5, 0, 2 * Math.PI);
-    g.fillStyle = i === view.sel ? "#ffc145" : i === view.hover ? "#c9dbff" : "#8fb4ff"; g.fill();
-    g.strokeStyle = "#101114"; g.lineWidth = 1.5; g.stroke();
+    if (x(t) < L - 7 || x(t) > L + pw + 7) return;
+    g.beginPath(); g.arc(x(t), y(v), i === view.main ? 7 : i === view.hover ? 6.5 : sel.includes(i) ? 6 : 5.5, 0, 2 * Math.PI);
+    g.fillStyle = sel.includes(i) ? "#ffc145" : i === view.hover ? "#c9dbff" : "#8fb4ff"; g.fill();
+    g.strokeStyle = i === view.main ? "#fff" : "#101114"; g.lineWidth = 1.5; g.stroke();
   });
   if (view.ghost) {
-    g.beginPath(); g.arc(x(view.ghost[0]), y(view.ghost[1]), 5, 0, 2 * Math.PI);
+    g.beginPath(); g.arc(x(view.ghost[0]), y(view.ghost[1]), 5.5, 0, 2 * Math.PI);
     g.strokeStyle = "#8fb4ff"; g.lineWidth = 1; g.stroke();
+  }
+  if (view.box) {
+    const [x0, y0, x1, y1] = view.box;
+    g.fillStyle = "rgba(255,193,69,0.08)"; g.fillRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0));
+    g.strokeStyle = "#ffc145"; g.lineWidth = 1; g.setLineDash([4, 3]);
+    g.strokeRect(Math.min(x0, x1) + 0.5, Math.min(y0, y1) + 0.5, Math.abs(x1 - x0), Math.abs(y1 - y0)); g.setLineDash([]);
   }
   if (view.label) {  // next to its point, flipped to stay inside the canvas
     const [t, v, text] = view.label, px = x(t), py = y(v);
     g.font = "11px sans-serif";
-    const w = g.measureText(text).width + 8, bx = px + 10 + w > W ? px - 10 - w : px + 10, by = py - 24 < 0 ? py + 8 : py - 24;
+    const w = g.measureText(text).width + 8, bx = px + 10 + w > W - R ? px - 10 - w : px + 10, by = py - 24 < 0 ? py + 8 : py - 24;
     g.fillStyle = "rgba(16,17,20,0.88)"; g.fillRect(bx, by, w, 16);
     g.fillStyle = "#eee"; g.fillText(text, bx + 4, by + 12);
   }
@@ -1391,16 +1423,18 @@ class DialRackUI {
   }
 
   // keyframes on a canvas: click adds, drag moves, double/right-click deletes; points, fields and JSON stay in sync.
-  // this.curve keeps the selection and undo history while the editor stays on one row (render() rebuilds this DOM).
+  // this.curve keeps the selection (point arrays, the primary last), level range, zoom and undo history while the editor
+  // stays on one row (render() rebuilds this DOM).
   keysEditor(r, box, mini, select) {
     const spec = r.time, seconds = this.clipSeconds(), H = this.curveTall ? 240 : 120, audio = this.curveAudio;
-    const st = this.curve?.r === r ? this.curve : (this.curve = { r, past: [], future: [], sel: null });
+    const st = this.curve?.r === r ? this.curve : (this.curve = { r, past: [], future: [], sel: [], top: 1, bottom: 0, win: null });
     const norm = () => (spec.unit || "normalized") === "normalized";
     const toS = (t) => (norm() ? t * seconds : t), fromS = (s) => Math.round((norm() ? s / seconds : s) * 1e4) / 1e4;
     const state = () => JSON.stringify([spec.points, spec.unit || "normalized", spec.interp || "linear"]);
+    const strength = () => Number(r.strength);
     st.opened ??= state();
     const onsets = onsetTimes(audio);
-    let axes = null, drag = null, hover = null, ghost = null, label = null;
+    let axes = null, drag = null, lasso = null, pan = null, hover = null, ghost = null, label = null;
 
     const shape = this.el("div", { display: "flex", gap: "4px", alignItems: "center", flexWrap: "wrap" }, box);
     for (const [name, title, preset, interp] of TIME_KEYS) this.button(shape, name, title, () => change(() => {
@@ -1416,38 +1450,76 @@ class DialRackUI {
       }));
     select(shape, SNAPS.filter(([v]) => v !== "onset" || onsets.length), this.curveSnap || "0.1",
       "where clicks and drags land in time (levels snap to 0.05); hold Alt or Shift to place freely", (v) => { this.curveSnap = v; });
-    this.el("span", { color: "#888" }, shape, "top");
-    const topBox = this.el("input", { width: "46px", background: "#111", color: "#eee", border: "1px solid #333" }, shape);
-    Object.assign(topBox, { type: "number", min: 1, step: 0.5, title: "level at the top of the canvas; raise it to drag points above 1 (overshoot kicks)" });
-    topBox.onchange = () => { this.curveTop = Math.max(1, parseFloat(topBox.value) || 1); refresh(); };
-    this.button(shape, this.curveTall ? "shorter" : "taller", "canvas height", () => { this.curveTall = !this.curveTall; this.render(); },
+    const range = (text, title, cb) => {
+      this.el("span", { color: "#888" }, shape, text);
+      const e = this.el("input", { width: "46px", background: "#111", color: "#eee", border: "1px solid #333" }, shape);
+      Object.assign(e, { type: "number", step: 0.5, title });
+      e.onchange = () => { cb(parseFloat(e.value) || 0); refresh(); };
+      return e;
+    };
+    const bottomBox = range("bottom", "level at the bottom of the canvas; lower it to drag points below 0 (at row strength 1, level −2 runs the dial at −2)",
+      (v) => { st.bottom = Math.min(0, v); });
+    const topBox = range("top", "level at the top of the canvas; raise it to drag points above 1 (overshoot kicks)", (v) => { st.top = Math.max(1, v); });
+    const fit = this.button(shape, "fit", "show the whole clip (wheel zooms the time axis, Shift+wheel or middle-drag pans)", () => zoom(null),
       { padding: "1px 6px", marginLeft: "auto" });
+    this.button(shape, this.curveTall ? "shorter" : "taller", "canvas height", () => { this.curveTall = !this.curveTall; this.render(); },
+      { padding: "1px 6px" });
 
     const canvas = this.el("canvas", { display: "block", width: "100%", height: H + "px", cursor: "crosshair", touchAction: "none", borderRadius: "3px" }, box);
     // the canvas's keys go through a hidden read-only input: ComfyUI's workflow undo takes Ctrl+Z from anything but an input
     const keys = this.el("input", { position: "absolute", width: "1px", height: "1px", opacity: "0", pointerEvents: "none" }, box);
     keys.readOnly = true;
-    keys.setAttribute("aria-label", "time curve: arrows nudge the selected point, Delete removes it, Ctrl+Z / Ctrl+Shift+Z undo / redo");
+    keys.setAttribute("aria-label", "time curve: arrows nudge the selected points, Delete removes them, Esc deselects, Ctrl+Z / Ctrl+Shift+Z undo / redo");
     keys.onfocus = () => { canvas.style.outline = "1px solid #5d6069"; };
     keys.onblur = () => { canvas.style.outline = "none"; };
     canvas.title = "amber: M per video latent frame; blue: the curve and its points; grey: the music on curve_audio (after a run)";
 
     const tools = this.el("div", { display: "flex", gap: "4px", alignItems: "center", flexWrap: "wrap" }, box);
-    const which = this.el("span", { color: "#888", minWidth: "110px" }, tools);
+    const which = this.el("span", { color: "#888", minWidth: "110px", marginRight: "6px" }, tools);
     const field = (text, title, cb) => {
       this.el("span", { color: "#888" }, tools, text);
       const e = this.el("input", { width: "58px", background: "#111", color: "#ffc145", border: "1px solid #333", textAlign: "right" }, tools);
       Object.assign(e, { type: "number", step: 0.05, title });
-      e.onchange = () => { const v = parseFloat(e.value); if (Number.isFinite(v) && spec.points[st.sel]) change(() => cb(v)); };
+      e.onchange = () => { const v = parseFloat(e.value), i = main(); if (Number.isFinite(v) && i >= 0) change(() => cb(i, v)); };
       return e;
     };
-    const timeBox = field("time (s)", "the selected point's time in seconds; it stops 1/6 s before a neighbour", (v) => place(st.sel, v, spec.points[st.sel][1], Infinity));
-    const levelBox = field("level", "the selected point's level: M multiplies the row strength", (v) => { spec.points[st.sel][1] = v; });
-    const del = this.button(tools, "delete point", "delete the selected point (Delete key)", () => remove(st.sel), { padding: "1px 6px" });
+    const timeBox = field("time (s)", "the selected point's time in seconds; it stops 1/6 s before a neighbour",
+      (i, v) => move([i], [[toS(spec.points[i][0]), spec.points[i][1]]], v - toS(spec.points[i][0]), 0, Infinity, [-Infinity, Infinity]));
+    const levelBox = field("level", "the selected point's level: M multiplies the row strength", (i, v) => { spec.points[i][1] = v; });
+    const effective = this.el("span", { color: "#c39bff", minWidth: "84px" }, tools);
+    effective.title = "level × the row's strength: the dial strength the model gets at this point";
+    const del = this.button(tools, "delete", "delete the selected points (Delete key); a curve keeps at least two", () => remove(picked()), { padding: "1px 6px" });
     const msg = this.el("span", { color: "#ff8a5c" }, tools);
     const undo = this.button(tools, "Undo", "undo (Ctrl+Z on the canvas)", () => step(st.past, st.future), { padding: "1px 6px", marginLeft: "auto" });
     const redo = this.button(tools, "Redo", "redo (Ctrl+Shift+Z or Ctrl+Y on the canvas)", () => step(st.future, st.past), { padding: "1px 6px" });
     this.button(tools, "Reset", "back to the curve this editor opened with", () => change(() => { [spec.points, spec.unit, spec.interp] = JSON.parse(st.opened); }), { padding: "1px 6px" });
+
+    // scale tools: on the selected points, or all of them
+    const scaling = this.el("div", { display: "flex", gap: "4px", alignItems: "center", flexWrap: "wrap" }, box);
+    const on = this.el("span", { color: "#888", minWidth: "110px" }, scaling);
+    const tool = (value, text, title, fn) => {
+      const e = value === null ? null : this.el("input", { width: "46px", background: "#111", color: "#eee", border: "1px solid #333", textAlign: "right" }, scaling);
+      if (e) Object.assign(e, { type: "number", step: 0.1, value, title });
+      this.button(scaling, text, title, () => {
+        const k = e ? parseFloat(e.value) : 0;
+        let note = "";
+        if (Number.isFinite(k)) change(() => { note = fn(targets(), k) || ""; });
+        msg.textContent = note;
+      }, { padding: "1px 6px", marginRight: "6px" });
+    };
+    const levels = (idx, f) => { for (const i of idx) spec.points[i][1] = Math.round(f(spec.points[i][1]) * 1e4) / 1e4; };
+    tool(2, "× level", "multiply the levels by this", (idx, k) => levels(idx, (v) => v * k));
+    tool(0.5, "+ level", "add this to the levels (negative lowers them)", (idx, k) => levels(idx, (v) => v + k));
+    tool(null, "flip", "negate the levels: 1 becomes −1, the dial reversed", (idx) => levels(idx, (v) => -v));
+    tool(1.5, "stretch time", "scale the times from the first to the last selected point (all points when none) about the first; " +
+      "points keep 1/6 s apart and stop before the next point", (idx, k) => {
+      const p = spec.points, s = p.map(([t]) => toS(t)), a = idx[0], z = idx.at(-1);
+      if (z === a) return "stretch needs two points";
+      const gap = Math.min(...s.slice(a + 1, z + 1).map((v, i) => v - s[a + i]));
+      const f = Math.min(z < p.length - 1 ? (s[z + 1] - CURVE_GAP - s[a]) / (s[z] - s[a]) : Infinity, Math.max(CURVE_GAP / gap, k));
+      for (let i = a + 1; i <= z; i++) p[i][0] = fromS(s[a] + (s[i] - s[a]) * f);
+      return Math.abs(f - k) > 1e-9 ? `stretch held at ×${f.toFixed(2)}: points keep 1/6 s apart` : "";
+    });
 
     const json = this.el("input", { boxSizing: "border-box", width: "100%", background: "#111", color: "#ddd", border: "1px solid #333" }, box);
     json.title = "JSON [time, M] points with increasing times, in the unit above; M multiplies the row strength";
@@ -1455,27 +1527,36 @@ class DialRackUI {
       try {
         const v = JSON.parse(json.value);
         if (!validPoints(v)) throw new Error("Use [time, M] pairs with increasing times");
-        change(() => { spec.points = v; st.sel = null; });
+        change(() => { spec.points = v; });
       } catch (e) { json.setCustomValidity(e.message); json.reportValidity(); }
     };
     this.el("div", { color: "#888", fontSize: "11px" }, box, CURVE_HELP);
 
-    const top = () => Math.max(this.curveTop || 1, ...spec.points.map((p) => p[1]));
+    const picked = () => spec.points.flatMap((p, i) => (st.sel.includes(p) ? [i] : []));
+    const main = () => spec.points.indexOf(st.sel.at(-1));
+    const targets = () => (st.sel.length ? picked() : spec.points.map((_, i) => i));
     const draw = () => {
-      axes = drawTime(canvas, spec, seconds, audio, canvas.clientWidth || 400, H, { axes: drag?.axes, top: top(), sel: st.sel, hover, ghost, label });
+      axes = drawTime(canvas, spec, seconds, audio, canvas.clientWidth || 400, H, { axes: drag?.axes, top: st.top, bottom: st.bottom, win: st.win,
+        strength: strength(), sel: picked(), main: main(), hover, ghost, box: lasso, label });
     };
     const show = () => {
+      st.sel = st.sel.filter((p) => spec.points.includes(p));
+      st.top = Math.max(st.top, ...spec.points.map((p) => p[1]));  // typed or pasted levels widen the range
+      st.bottom = Math.min(st.bottom, ...spec.points.map((p) => p[1]));
       json.value = JSON.stringify(spec.points); json.setCustomValidity("");
-      interpBox.value = spec.interp || "linear"; unitBox.value = spec.unit || "normalized"; topBox.value = top();
-      const p = spec.points[st.sel];
-      which.textContent = p ? `point ${st.sel + 1} of ${spec.points.length}:` : "no point selected:";
-      timeBox.disabled = levelBox.disabled = del.disabled = !p;
+      interpBox.value = spec.interp || "linear"; unitBox.value = spec.unit || "normalized"; topBox.value = st.top; bottomBox.value = st.bottom;
+      const i = main(), p = spec.points[i], n = st.sel.length;
+      which.textContent = p ? `point ${i + 1} of ${spec.points.length}${n > 1 ? ` (${n} selected)` : ""}:` : "no point selected:";
+      timeBox.disabled = levelBox.disabled = !p; del.disabled = !n;
       timeBox.value = p ? +toS(p[0]).toFixed(3) : ""; levelBox.value = p ? +p[1].toFixed(3) : "";
-      undo.disabled = !st.past.length; redo.disabled = !st.future.length;
+      effective.textContent = p ? `strength ${(p[1] * strength()).toFixed(2)}` : "";
+      on.textContent = n ? `${n} selected:` : `all ${spec.points.length} points:`;
+      undo.disabled = !st.past.length; redo.disabled = !st.future.length; fit.disabled = !st.win;
       msg.textContent = "";
       if (mini) drawTime(mini, spec, seconds, audio, 50, 12);
       draw();
     };
+    st.show = show;
     const refresh = () => { this.commit(); show(); };
     const change = (fn) => {
       const before = state();
@@ -1487,18 +1568,35 @@ class DialRackUI {
       if (!from.length) return;
       to.push(state());
       [spec.points, spec.unit, spec.interp] = JSON.parse(from.pop());
-      st.sel = null;
       refresh();
     };
-    const place = (i, s, v, end = axes.span) => {  // s in seconds, kept CURVE_GAP from the neighbours
-      const p = spec.points, a = i ? toS(p[i - 1][0]) + CURVE_GAP : 0, b = i < p.length - 1 ? toS(p[i + 1][0]) - CURVE_GAP : end;
-      if (a <= b) p[i][0] = fromS(Math.min(b, Math.max(a, s)));
-      p[i][1] = v;
+    // points idx (in time order) to from[k] + [dt seconds, dv]: dt keeps them CURVE_GAP from the points that stay and within
+    // 0..end, dv keeps the levels within lim
+    const move = (idx, from, dt, dv, end = axes.span, lim = [axes.lo, axes.hi]) => {
+      const p = spec.points, s = p.map(([t]) => toS(t));
+      let a = -Infinity, b = Infinity;
+      idx.forEach((i, k) => {
+        if (!idx.includes(i - 1)) a = Math.max(a, (i ? s[i - 1] + CURVE_GAP : 0) - from[k][0]);
+        if (!idx.includes(i + 1)) b = Math.min(b, (i < p.length - 1 ? s[i + 1] - CURVE_GAP : end) - from[k][0]);
+      });
+      const vs = from.map(([, v]) => v);
+      dt = a <= b ? Math.min(b, Math.max(a, dt)) : 0;
+      dv = Math.min(lim[1] - Math.max(...vs), Math.max(lim[0] - Math.min(...vs), dv));
+      idx.forEach((i, k) => { p[i][0] = fromS(from[k][0] + dt); p[i][1] = Math.round((from[k][1] + dv) * 1e4) / 1e4; });
     };
-    const remove = (i) => {
-      if (!spec.points[i]) return;
-      if (spec.points.length <= 2) { msg.textContent = "a curve keeps at least two points"; return; }
-      change(() => { spec.points.splice(i, 1); st.sel = hover = null; });
+    const remove = (idx) => {
+      if (!idx.length) return;
+      if (spec.points.length - idx.length < 2) { msg.textContent = "a curve keeps at least two points"; return; }
+      change(() => { spec.points = spec.points.filter((_, i) => !idx.includes(i)); hover = null; });
+    };
+    const zoom = (win) => {  // seconds shown: at least 0.5 s, inside the clip; the whole clip is no zoom
+      if (win) {
+        const w = Math.max(0.5, win[1] - win[0]), a = Math.min(axes.span - w, Math.max(0, win[0]));
+        win = w < axes.span ? [a, a + w] : null;
+      }
+      st.win = win;
+      fit.disabled = !win;
+      draw();
     };
     const snapTime = (s, free) => {
       const mode = this.curveSnap || "0.1", near = (list) => list.reduce((a, b) => (Math.abs(b - s) < Math.abs(a - s) ? b : a), list[0]);
@@ -1507,74 +1605,112 @@ class DialRackUI {
       if (mode === "onset") { const o = near(onsets); return Math.abs(o - s) < 0.3 ? o : s; }
       return Math.round(s / Number(mode)) * Number(mode);
     };
-    const snapLevel = (v, free) => Math.min(axes.hi, Math.max(axes.lo, free ? Math.round(v * 1000) / 1000 : Math.round(v * 20) / 20));
+    const snapLevel = (v, free) => {  // 0.05 steps; whole and half levels also pull from 3 px
+      const half = Math.round(v * 2) / 2;
+      v = free ? Math.round(v * 1000) / 1000 : Math.abs(axes.y(half) - axes.y(v)) <= 3 ? half : Math.round(v * 20) / 20;
+      return Math.min(axes.hi, Math.max(axes.lo, v));
+    };
     const at = (e) => {  // pointer -> canvas px; the node may be zoomed, so scale by the drawn size
       const b = canvas.getBoundingClientRect();
       return [(e.clientX - b.left) * canvas.clientWidth / b.width, (e.clientY - b.top) * H / b.height];
     };
     const hit = ([x, y]) => {
-      let best = null, d = 9;
+      let best = null, d = 10;
       spec.points.forEach(([t, v], i) => { const di = Math.hypot(axes.x(toS(t)) - x, axes.y(v) - y); if (di <= d) { d = di; best = i; } });
       return best;
     };
-    const readout = (s, v, prefix) => [s, v, `${prefix}${s.toFixed(2)} s${norm() ? ` (${Math.round(s / seconds * 100)} %)` : ""} · ${v.toFixed(2)}`];
+    const clampT = (px) => { const [t0, t1] = st.win || [0, axes.span]; return Math.min(t1, Math.max(t0, axes.t(px))); };
+    const readout = (s, v, prefix) => [s, v, `${prefix}${s.toFixed(2)} s${norm() ? ` (${Math.round(s / seconds * 100)} %)` : ""} · ` +
+      `level ${v.toFixed(2)} · strength ${(v * strength()).toFixed(2)}`];
+    const hovering = (pos, free) => {
+      hover = hit(pos);
+      ghost = hover === null ? [snapTime(clampT(pos[0]), free), snapLevel(axes.v(pos[1]), free)] : null;
+      label = hover === null ? readout(...ghost, "add: ") : readout(toS(spec.points[hover][0]), spec.points[hover][1], `point ${hover + 1}: `);
+      draw();
+    };
 
     canvas.addEventListener("pointerdown", (e) => {
-      if (e.button !== 0) return;
+      if (e.button !== 0 && e.button !== 1) return;
       keys.focus({ preventScroll: true });
-      const pos = at(e), before = state(), free = e.altKey || e.shiftKey;
+      canvas.setPointerCapture(e.pointerId);
+      const pos = at(e), free = e.altKey || e.shiftKey;
+      ghost = label = null;
+      if (e.button === 1) { e.preventDefault(); pan = { x: pos[0], win: st.win || [0, axes.span] }; return; }
+      if (e.ctrlKey || e.metaKey) { lasso = [...pos, ...pos, e.shiftKey]; return draw(); }
       let i = hit(pos);
+      if (i !== null && e.shiftKey) {  // Shift+click toggles a point in the selection
+        const p = spec.points[i];
+        st.sel = st.sel.includes(p) ? st.sel.filter((q) => q !== p) : [...st.sel, p];
+        return show();
+      }
+      const before = state();
       if (i === null) {  // add where clicked, unless a point is within one latent frame: then take that one
-        const s = snapTime(Math.min(axes.span, Math.max(0, axes.t(pos[0]))), free), k = spec.points.filter(([t]) => toS(t) < s).length;
+        const s = snapTime(clampT(pos[0]), free), k = spec.points.filter(([t]) => toS(t) < s).length;
         i = [k - 1, k].find((n) => spec.points[n] && Math.abs(toS(spec.points[n][0]) - s) < CURVE_GAP);
         if (i === undefined) { spec.points.splice(k, 0, [fromS(s), snapLevel(axes.v(pos[1]), free)]); i = k; }
       }
-      st.sel = i; ghost = null;
-      canvas.setPointerCapture(e.pointerId);
-      drag = { i, before, axes, x0: pos[0], y0: pos[1], s0: toS(spec.points[i][0]), v0: spec.points[i][1] };
-      label = readout(drag.s0, drag.v0, "");
+      const p = spec.points[i], grouped = st.sel.length > 1 && st.sel.includes(p);  // a selected point drags the selection
+      st.sel = grouped ? [...st.sel.filter((q) => q !== p), p] : [p];
+      const idx = picked();
+      drag = { idx, k: idx.indexOf(i), before, axes, grouped, x0: pos[0], y0: pos[1], from: idx.map((j) => [toS(spec.points[j][0]), spec.points[j][1]]) };
+      label = readout(...drag.from[drag.k], "");
       refresh();
     });
     canvas.addEventListener("pointermove", (e) => {
       const pos = at(e);
-      if (drag) {
-        if (e.shiftKey) {  // fine: relative to where Shift went down, at a fifth of the speed
-          place(drag.i, drag.s0 + (axes.t(pos[0]) - axes.t(drag.x0)) * 0.2, snapLevel(drag.v0 + (axes.v(pos[1]) - axes.v(drag.y0)) * 0.2, true));
-        } else {
-          place(drag.i, snapTime(axes.t(pos[0]), e.altKey), snapLevel(axes.v(pos[1]), e.altKey));
-          Object.assign(drag, { x0: pos[0], y0: pos[1], s0: toS(spec.points[drag.i][0]), v0: spec.points[drag.i][1] });
-        }
-        const [t, v] = spec.points[drag.i];
-        label = readout(toS(t), v, "");
-        return refresh();
+      if (pan) return zoom([pan.win[0] + (pan.x - pos[0]) / axes.pw * (pan.win[1] - pan.win[0]), pan.win[1] + (pan.x - pos[0]) / axes.pw * (pan.win[1] - pan.win[0])]);
+      if (lasso) { lasso[2] = pos[0]; lasso[3] = pos[1]; return draw(); }
+      if (!drag) return hovering(pos, e.altKey || e.shiftKey);
+      const [s0, v0] = drag.from[drag.k];
+      if (e.shiftKey) {  // fine: relative to where Shift went down, at a fifth of the speed
+        move(drag.idx, drag.from, (axes.t(pos[0]) - axes.t(drag.x0)) * 0.2, Math.round((axes.v(pos[1]) - axes.v(drag.y0)) * 200) / 1000);
+      } else {
+        move(drag.idx, drag.from, snapTime(axes.t(pos[0]), e.altKey) - s0, snapLevel(axes.v(pos[1]), e.altKey) - v0);
+        Object.assign(drag, { x0: pos[0], y0: pos[1], from: drag.idx.map((j) => [toS(spec.points[j][0]), spec.points[j][1]]) });
       }
-      hover = hit(pos);
-      const free = e.altKey || e.shiftKey, s = snapTime(Math.min(axes.span, Math.max(0, axes.t(pos[0]))), free);
-      ghost = hover === null ? [s, snapLevel(axes.v(pos[1]), free)] : null;
-      label = hover === null ? readout(...ghost, "add: ") : readout(toS(spec.points[hover][0]), spec.points[hover][1], `point ${hover + 1}: `);
-      draw();
-    });
-    canvas.addEventListener("pointerup", () => {
-      if (drag && state() !== drag.before) { st.past.push(drag.before); st.future = []; }
-      drag = null;
+      const [t, v] = spec.points[drag.idx[drag.k]];
+      label = readout(toS(t), v, "");
       refresh();
     });
-    canvas.addEventListener("pointerleave", () => { if (!drag) { hover = ghost = label = null; draw(); } });
-    canvas.addEventListener("dblclick", (e) => remove(hit(at(e))));
-    canvas.addEventListener("contextmenu", (e) => { e.preventDefault(); remove(hit(at(e))); });
+    canvas.addEventListener("pointerup", () => {
+      if (lasso) {  // box select; Ctrl+Shift adds to the selection
+        const [x0, y0, x1, y1, add] = lasso, inside = (a, b, c) => a >= Math.min(b, c) && a <= Math.max(b, c);
+        const boxed = spec.points.filter(([t, v]) => inside(axes.x(toS(t)), x0, x1) && inside(axes.y(v), y0, y1));
+        st.sel = add ? [...st.sel.filter((p) => !boxed.includes(p)), ...boxed] : boxed;
+      }
+      if (drag && state() !== drag.before) { st.past.push(drag.before); st.future = []; }
+      else if (drag?.grouped) st.sel = st.sel.slice(-1);  // a click without a move on a selected point selects only it
+      drag = lasso = pan = null;
+      refresh();
+    });
+    canvas.addEventListener("pointerleave", () => { if (!drag && !lasso && !pan) { hover = ghost = label = null; draw(); } });
+    canvas.addEventListener("wheel", (e) => {  // zoom the time axis around the cursor; Shift (or a sideways scroll) pans
+      e.preventDefault(); e.stopPropagation();
+      const pos = at(e), [t0, t1] = st.win || [0, axes.span];
+      if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        const d = (e.deltaX || e.deltaY) / axes.pw * (t1 - t0);
+        zoom([t0 + d, t1 + d]);
+      } else {
+        const t = axes.t(pos[0]), f = Math.exp(e.deltaY * 0.002);
+        zoom([t - (t - t0) * f, t + (t1 - t) * f]);
+      }
+      if (!drag) hovering(pos, e.altKey);
+    }, { passive: false });
+    canvas.addEventListener("dblclick", (e) => { const i = hit(at(e)); if (i !== null) remove([i]); });
+    canvas.addEventListener("contextmenu", (e) => { e.preventDefault(); const i = hit(at(e)); if (i !== null) remove([i]); });
     keys.addEventListener("keydown", (e) => {
       const key = e.key.toLowerCase();
       if ((e.ctrlKey || e.metaKey) && (key === "z" || key === "y")) {
         e.preventDefault();
         return key === "y" || e.shiftKey ? step(st.future, st.past) : step(st.past, st.future);
       }
-      if (e.key === "Escape") { st.sel = null; return refresh(); }
-      const p = spec.points[st.sel], d = e.shiftKey ? 10 : 1;
-      const move = { ArrowLeft: [-0.1 * d, 0], ArrowRight: [0.1 * d, 0], ArrowUp: [0, 0.05 * d], ArrowDown: [0, -0.05 * d] }[e.key];
-      if (!p || !(move || e.key === "Delete" || e.key === "Backspace")) return;
+      if (e.key === "Escape") { st.sel = []; return refresh(); }
+      const idx = picked(), d = e.shiftKey ? 10 : 1;
+      const nudge = { ArrowLeft: [-0.1 * d, 0], ArrowRight: [0.1 * d, 0], ArrowUp: [0, 0.05 * d], ArrowDown: [0, -0.05 * d] }[e.key];
+      if (!idx.length || !(nudge || e.key === "Delete" || e.key === "Backspace")) return;
       e.preventDefault();
-      if (!move) return remove(st.sel);
-      change(() => place(st.sel, toS(p[0]) + move[0], Math.max(Math.min(0, p[1]), Math.round((p[1] + move[1]) * 1000) / 1000)));
+      if (!nudge) return remove(idx);
+      change(() => move(idx, idx.map((i) => [toS(spec.points[i][0]), spec.points[i][1]]), ...nudge, axes.span, [-Infinity, Infinity]));
     });
     show();
     requestAnimationFrame(draw);
@@ -1719,9 +1855,10 @@ class DialRackUI {
       num.title = "negative = toward the pairs' A side, positive = toward B. +0.5 to +1 is the sane range; past ~1.5 side effects appear";
       slider.disabled = num.disabled = !!r.hold;
       if (r.hold) slider.title = num.title = "Hold removes this direction fully; strength is retained for when H is turned off.";
-      slider.oninput = () => { r.strength = parseFloat(slider.value); num.value = r.strength.toFixed(2); this.commit(); if (this.pad.open) { this.map.draw(); this.matrix.draw(); } };
-      num.onchange = () => { const v = Math.min(NUMBER[1], Math.max(NUMBER[0], parseFloat(num.value) || 0)); r.strength = v; slider.value = v; num.value = v.toFixed(2); this.commit(); if (this.pad.open) { this.map.draw(); this.matrix.draw(); } };
-      slider.ondblclick = () => { r.strength = 0; slider.value = 0; num.value = "0.00"; this.commit(); };
+      const strengthChanged = () => { this.commit(); if (this.pad.open) { this.map.draw(); this.matrix.draw(); } if (this.curve?.r === r) this.curve.show(); };
+      slider.oninput = () => { r.strength = parseFloat(slider.value); num.value = r.strength.toFixed(2); strengthChanged(); };
+      num.onchange = () => { const v = Math.min(NUMBER[1], Math.max(NUMBER[0], parseFloat(num.value) || 0)); r.strength = v; slider.value = v; num.value = v.toFixed(2); strengthChanged(); };
+      slider.ondblclick = () => { r.strength = 0; slider.value = 0; num.value = "0.00"; strengthChanged(); };
       const envelope = this.el("select", { width: "76px", background: "#111", color: "#ddd", border: "1px solid #333" }, row);
       envelope.title = "Strength over denoising progress: early, late, bell, or manual points (post-refiner dials only)";
       for (const kind of ["constant", "early", "late", "bell", "manual"]) {

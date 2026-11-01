@@ -20,23 +20,36 @@ the interaction grid shows which rows reinforce (warm) or cancel (blue) each oth
 not a render test.
 
 ## Time curve (time)
-Makes a dial come in, go out or swell during the clip, e.g. dark only after 3 s. Pick **keyframes** and draw the
-strength over the clip on the canvas: 0 = dial off, 1 = the row's strength, above 1 = stronger (raise **top** to drag
-there). The amber steps are what the model actually gets: one value per latent frame, about 1/6 s.
+Makes a dial come in, go out, swell or reverse during the clip, e.g. dark only after 3 s. Pick **keyframes** and draw
+the level over the clip on the canvas: 0 = dial off, 1 = the row's strength, above 1 = stronger, below 0 = the dial
+reversed (a motion row at strength 1 with level −2 runs motion at −2). **bottom** and **top** set the level range you
+can reach with the mouse; both widen by themselves when a typed or pasted curve goes past them. The solid line is 0.
+The amber steps are what the model actually gets: one value per latent frame, about 1/6 s.
 
+- **Strength readout:** level × row strength is the dial strength the model gets. The readout next to the cursor and
+  the selected point both show it (`2.40 s · level -2.00 · strength -2.00`), and when the row strength is not 1 a
+  second axis on the right is labelled in strength.
 - **Click** empty canvas: add a point (hold the button to keep dragging it). **Drag** a point to move it; **Shift**
   moves it slowly and freely, **Alt** turns snapping off. **Double-click** or **right-click** a point: delete it.
-- **Click a point** to select it: type its exact **time (s)** and **level**, nudge it with the **arrow keys**
-  (Shift: 10x), remove it with **Delete**. **Ctrl+Z / Ctrl+Shift+Z** undo and redo; **Reset** goes back to the curve
-  you opened.
+- **Click a point** to select it: type its exact **time (s)** and **level**. **Shift+click** adds points to the
+  selection (or drops them), **Ctrl+drag** draws a box that selects the points inside (Ctrl+Shift adds to the
+  selection). Dragging any selected point moves them all; the **arrow keys** nudge them (Shift: 10x), **Delete** removes
+  them (a curve keeps at least two points), **Esc** deselects. **Ctrl+Z / Ctrl+Shift+Z** undo and redo; **Reset** goes
+  back to the curve you opened.
+- **× level**, **+ level**, **flip** and **stretch time** act on the selected points, or on all of them when none is
+  selected: multiply the levels, add to them, negate them, or scale the times from the first selected point to the last
+  (points keep 1/6 s apart and stop before the next point).
+- **Zoom:** the mouse wheel zooms the time axis around the cursor, **Shift+wheel** or a **middle-drag** pans, **fit**
+  shows the whole clip again. Handy for placing a short dip; the zoom is not saved.
 - **snap** places points on 0.1 s, 0.5 s or 1 s, on latent frames, or (after a run with music on `curve_audio`) on the
-  music's onsets, which are drawn with the waveform behind the curve.
+  music's onsets, which are drawn with the waveform behind the curve. Levels snap to 0.05.
 - **times**: `0..1 of the clip` stretches with the clip length, `seconds` stays put (use it to match "(1-6 s)" in a
   prompt). Switching converts the points without moving them. **clip s** is the length the editor draws; a run sets it.
+- Presets: **off → on**, **on → off**, **ramp up**, **ramp down**, and **dip** (1 with a short dip to −1 in the middle).
 - The text box under the canvas holds the points as `[[time, level], ...]`: type there for exact numbers.
 - **Copy / Paste** move a curve to another row or another rack (for de-rope, copy it to the stage-2 rack).
-- Points stay at least 1/6 s apart and a curve keeps at least two. Changes sharper than a latent frame are averaged,
-  and renders ramp over about 1.5 s, so draw sections and swells rather than single beats.
+- Points stay at least 1/6 s apart. Changes sharper than a latent frame are averaged, and renders ramp over about
+  1.5 s, so draw sections and swells rather than single beats.
 - **audio-driven** curves follow a feature of the music; **→ keyframes** turns one into points you can edit.
 
 ## Dial editor (✎)
