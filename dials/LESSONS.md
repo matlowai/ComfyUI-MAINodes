@@ -1,6 +1,6 @@
 # Dials: lessons learned
 
-What the 2026-10-30/31 sessions taught, so nobody has to relearn it. Numbers are from Pika H3 Flex (6 steps), mostly
+What the 2026-10-30 to 11-01 sessions taught, so nobody has to relearn it. Numbers are from Pika H3 Flex (6 steps), mostly
 one seed; treat them as starting points.
 
 ## Writing pairs
@@ -19,6 +19,30 @@ one seed; treat them as starting points.
 - **Equal slider numbers are not equal pushes.** Dials differ in size (a picture dial came out 0.6x its text twin), so
   compare dials at matched size, and use the map's combined-push readout.
 - **Prompt sets are clean:** weighted `+`/`-` lines gave pair agreement 0.97; one `+1` and one `-1` line equal a pair.
+
+## Picture dials
+- **H3 reads the picture first:** each picture is encoded as `<Picture 1>: [image] <prompt>`, so every prompt word
+  sees it. The prompt is a lens on what gets read out of the picture (content, look, both); the same text on both sides
+  keeps the wording itself out of the dial.
+- **One matched pair already works,** just noisier: a single lizard/squirrel pair pointed 0.875 the same way as the
+  12-pair dial and came out larger (|28.4| vs |23.4|); three pairs gave pair agreement 0.91.
+- **Picture dials are weaker than text dials:** around −4 for what a text dial does at −2.
+- **Batching resizes:** core Batch Images scales every picture to the first one's size; give mixed sizes their own
+  sockets instead.
+
+## Combining dials
+- **Sum post rows once, in float64.** Adding four dials one after another in bf16 gave a different render for each
+  of the 24 orders (MAD 15-24/255, 1 seed); one float64 sum makes the order irrelevant (MAD 0).
+- **Most dials push the same way** (mean cosine +0.15 over 28 seeded dials). The clearest cancellations: evil cold ×
+  lively (−0.34), miniature × claymation (−0.23). Storm + handheld + motion push 37% harder together than alone.
+
+## Reading dials with probes
+- **Probe profiles explain about half of a dial:** unexplained share 0.69 on average, against 0.97 for a placebo bank
+  and 0.53 for a reworded probe (the ceiling). Read the top three axes; the single top axis flipped between two
+  wordings of the bank for 7 of 28 dials.
+- **Light, expression and mood are mostly one "intensity" direction** (a quarter of the bank's energy), so a dial can
+  look like it pushes all three.
+- **Pair wording leaks into profiles:** an evil dial whose pairs said "coldly" and "icy" loads on colour temperature.
 
 ## Strength over denoising
 - **On Pika, the prompt only matters in the first steps.** Late envelopes at +2 and even +8 changed nothing; constant
@@ -55,3 +79,12 @@ one seed; treat them as starting points.
 - **Tests clean up after themselves** (`TemporaryDirectory`), and paths from users go through `folder_paths` resolvers.
 - **UI that edits a hidden JSON widget** keeps workflows and the API in sync; size DOM widgets to fill the node and grow
   the node only when content changes, so users can shrink it.
+- **Don't size a DOM widget before it is laid out.** Measured during `onConfigure` its height reads 0, and a "grow to
+  fit" rule then grew the node on every workflow load.
+- **Re-saving a workflow in a newer UI can resize nodes;** check example workflows for overlapping nodes before shipping.
+- **The classic canvas draws multiline text without a label** and shows advanced inputs; the Vue ("Nodes 2.0") mode
+  labels both and folds advanced inputs away. One-line fields with a `display_name` read well in both.
+- **Core Load Image lists only files directly in `input/`,** not subfolders.
+- **Scrub example workflows for absolute paths;** some node packs store a second copy in `widgets_values_named`.
+- **`flock` hands its lock to child processes:** start a long-lived server with `flock -o`, or it holds the lock.
+- **Test examples through the UI's Run button,** not only the API: it catches widget, layout and frontend problems.

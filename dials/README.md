@@ -12,7 +12,7 @@ second. Ported from [ComfyUI-Dials](https://github.com/matlowai/ComfyUI-Dials); 
 | **Dial Rack** | Any number of dials on one model. One row per dial: on/off, dial, strength (slider and number), solo, **H** to hold a direction. **+ Add dial** adds a row; dials wired into the `dial_N` inputs (straight from Make Dial) appear as rows too. After a run the node shows each dial's size, the combined shift, and dials that overlap (reinforce or cancel). A **Map** moves two rows together on a 2D square (the dot is your prompt), with saved pairings to switch between. |
 | **Make Dial** | Prompt pairs (`A ||| B` per line, `{subject}` expanded over a subjects list) to a dial. Saves to `models/loras/dials/<name>.safetensors` and outputs the dial for a rack input. Shows pair agreement (above 0.6 is a clean direction) and how much generic wording shift was removed. Also takes weighted pairs (`A ||| B :: 2`) and prompt sets (`+1 …` / `-1 …` lines). |
 | **Combine Dials** | `weight_a * a + weight_b * b` as one new dial, optionally removing b's direction from a first (orthogonalize). Plain mixing is easier in the rack. |
-| **Make Dial from Pictures** | Two image batches and one shared prompt to a post-refiner dial. Negative strength moves toward A, positive toward B. Equal batch sizes pair by index for agreement; unequal sizes use side means and report agreement as n/a. Saves and connects to the rack like Make Dial. |
+| **Make Dial from Pictures** | Two picture groups (batches and/or any number of single pictures of any size) and a shared framing to a post-refiner dial. Negative strength moves toward A, positive toward B. Equal counts pair by index for agreement; unequal counts use group means and report agreement as n/a. Saves and connects to the rack like Make Dial. |
 | **Make Dial from Videos** | Matched clips (up to 12 per side) and one shared prompt to a post-refiner dial; clips are sampled at 2 fps and cut to equal length. Experimental. |
 
 **Strength:** +0.5 to +1 is the everyday range. Past about 1.5 side effects appear (the scene restages, characters
@@ -94,6 +94,8 @@ pass-1 and the de-roped clip are saved. Same layout as ComfyUI-Dials' `dials_pik
 |---|---|---|---|
 | Rack | [dials_rack_pika_derope.json](../examples/dials/dials_rack_pika_derope.json) | [api](../examples/dials/dials_rack_pika_derope_api.json) | Motion +0.5, warm–cold +0.6, day–night +0.8, reserved–lively (off), dream +6 with an early envelope (off); the map open on warm–cold × day–night. Train platform, seed 42 |
 | Picture dial | [dials_picture_pika_derope.json](../examples/dials/dials_picture_pika_derope.json) | [api](../examples/dials/dials_picture_pika_derope_api.json) | Make Dial from Pictures (two folders of matched photos, here lizard vs squirrel in `input/dials_pictures/`; photos not included, point both KJNodes folder loaders at your own) wired into the rack at −4, the text lizard dial as an off row for comparison. Small animal on a fence |
+| Two pictures | [dials_two_pictures_pika_derope.json](../examples/dials/dials_two_pictures_pika_derope.json) | [api](../examples/dials/dials_two_pictures_pika_derope_api.json) | One matched pair in two core Load Image nodes (A lizard, B squirrel; drop in your own) to Make Dial from Pictures, into the rack at −4. No extra node packs |
+| Picture groups | [dials_picture_groups_pika_derope.json](../examples/dials/dials_picture_groups_pika_derope.json) | [api](../examples/dials/dials_picture_groups_pika_derope_api.json) | Three pictures per group on the `group_a` / `group_b` sockets (connect more and new sockets appear), into the rack at −4. No extra node packs |
 | Prompt set | [dials_prompt_set_pika_derope.json](../examples/dials/dials_prompt_set_pika_derope.json) | [api](../examples/dials/dials_prompt_set_pika_derope_api.json) | Make Dial with weighted `+`/`-` prompt lines (night rain, neon, mist vs bright midday) wired into the rack at +1 |
 
 Model filenames are the plain names ComfyUI-Dials uses; pick your local files in the loaders. The picture example's
@@ -210,9 +212,12 @@ the pairs also differed in framing and light. Treat this node as an experiment.
 
 ## Picture pairs
 
-Connect two IMAGE batches to **Make Dial from Pictures** (`MAIDialMakeFromPictures`) with the H3 CLIP and MODEL.
-Use the same framing, light and background at each index, changing only the quality to steer. The default prompt is
-`A video in the style and content of <Picture 1>.`; it is used unchanged for every picture on both sides. Each picture
+Connect pictures to **Make Dial from Pictures** (`MAIDialMakeFromPictures`) with the H3 CLIP and MODEL: an IMAGE
+batch on `pictures_a` / `pictures_b`, and/or single pictures on the `group_a` / `group_b` sockets (a new socket appears
+for each one, up to 50; each keeps its own size, nothing is stretched). Use the same framing, light and background at
+each index, changing only the quality to steer. **framing** picks how pictures are read: `picture prompt` (the
+advanced `picture prompt` text, default `A video in the style and content of <Picture 1>.`), `content`, `look`,
+`bare`, or `all averaged` (every framing, averaged per picture). The same text is used for every picture on both sides. Each picture
 is encoded separately as an H3 reference image. The full sequence passes through the projection and token refiner,
 then only text positions (`minimax_token_tags == 1`) contribute to its mean. Each picture has equal weight, regardless
 of token count. The dial is B minus A, with Make Dial's generic wording debiasing enabled by default.
