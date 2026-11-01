@@ -27,12 +27,23 @@ latent with the dial off (on Pika the later steps don't respond to it anyway).
   still reading dialled video tokens through attention.
 - Works for any model the rack supports; on image models M becomes a spatial mask.
 
-## De-rope: curves through the hold map
+## De-rope: curves through the hold map (built)
 H3 Time Smear holds the jerky frames, so stage 2 renders a longer clip than real time, and Exact Recover drops the held
-frames afterwards. A curve defined as a fraction of the clip is stretched over that longer clip, so its edges drift by the
-hold stretch (not yet measured). Plan: an optional `hold_map` input on the rack; a curve keyed in real seconds (or from the
-user's audio, which is real time) is mapped through the hold map to the stage-2 latent frames, so the effect lands at the
-same real moment in both passes. Identity check: an empty hold map gives today's behaviour exactly.
+frames afterwards. Without a link, a curve is evaluated over that longer clip, so it lands early or late in real time by
+the hold stretch in front of it. On the charge2 clip (124 frames, Jerk Oracle map stretched to 277, the first 0.75 s held
+4x) a ramp from 0.8 s to 4.3 s landed 0.35 s, 0.47 s and 0.32 s early at its start, midpoint and top (exact, from the map).
+
+The rack's optional `hold_map` input takes Time Smear's `hold_map_used`. A sampler whose clip has the map's stretched
+length evaluates every curve in real time: stretched pixel frame s shows real frame r(s) (held copies all show the same
+frame, so they get its value) and a video latent frame takes the mean of M(r(s) / 24 s) over its pixel frames (1, 4, 4,
+4, 4 grouping); an audio frame's start is mapped piecewise linearly through the holds (Audio Smear stretches the sound
+continuously). A clip with the map's real length samples as without it; any other length is an error. No map, an
+empty string or an all-1 map is bit-identical to today. Renders (1 seed, stage 2's row on vs off on the same pass 1): the link moved
+stage 2's dial effect 0.42 s (psychedelic) and 0.19 s (space warp) later, the direction and size the map predicts.
+
+Time Smear runs after stage 1, so the rack that takes its map can only feed stage 2: put a copy of the rack (same rows)
+on stage 2 and wire `hold_map_used` into it. Step envelopes and block strengths have no clip-time axis, so they need no
+link (a step envelope already runs 0..1 over each sampler stage's own steps).
 
 ## Route 2, research: blend inside attention
 Keep two copies of the text, without and with the dial. Video and audio tokens at time t mix their attention to the

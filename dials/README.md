@@ -195,7 +195,12 @@ step equals the constant row (both pixel-identical on Pika, seed 42).
 Curves are keyframes (`[time, M]` in clip fractions or seconds, linear or step) or **audio-driven**: connect the music to
 the rack's `curve_audio` input (and give H3 the same track) and pick a feature (onsets, loudness, low / mid / high band)
 with gain, offset, threshold, attack, release and invert; M = offset + gain × the feature scaled to 0..1 over the track.
-The editor draws M per latent frame over the clip, with the waveform after a run. API rows:
+The editor draws M per latent frame over the clip, with the waveform after a run.
+
+**De-rope:** stage 2 renders the held (longer) clip, so without help a curve lands early or late in real time (0.3-0.5 s
+on the charge example). Put a copy of the rack (same rows) on stage 2 and wire H3 Time Smear's `hold_map_used` into its
+`hold_map` input: the curves are then evaluated in real clip time and mapped through the holds (held copies of a frame
+get that frame's value). Time Smear runs after stage 1, so the stage-1 rack can't take the map. API rows:
 
 ```json
 {"dial": "dials/h3_day_night_hook.safetensors", "strength": 1.5,

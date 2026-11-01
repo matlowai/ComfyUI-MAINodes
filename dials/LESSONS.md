@@ -73,6 +73,13 @@ one seed; treat them as starting points.
   blended per latent frame) the undialled frames still pick up about a fifth of the dial, because both branches read
   the same partly dialled latent; changes ramp over 1.5-2 s and miss 0.33 s beats. Blending on more steps changes
   nothing on Pika (k = 1-6 alike). Fine for sections and slow swells; beat-accurate needs another seam.
+- **De-rope moves clip-time curves unless they go through the hold map.** Stage 2 renders the held, longer clip; a curve
+  over that clip landed 0.32-0.47 s early in real time on charge2 (124 -> 277 frames, the opening 0.75 s held 4x; exact,
+  from the map). With the rack's `hold_map` link, stage 2's dial effect moved later by 0.42 s (psychedelic) and 0.19 s
+  (space warp) in a lag fit of the per-frame effect (stage-2 row on vs off), 1 seed. The rendered effect itself trails M
+  and is mixed with content changes, so renders confirm the direction and size, not a 1/6 s alignment.
+- **A rack can't take a hold map from its own render:** Time Smear runs after stage 1, so wiring it into the stage-1
+  rack is a cycle. The stage-2 rack is a copy with the same rows.
 - **Keeping the soundtrack on the undialled branch removes most, not all, of a dial's audio change** (voice energy
   +5.0 -> +2.2 dB over 2 seeds): the audio tokens still attend to the dialled video.
 
