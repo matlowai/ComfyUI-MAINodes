@@ -222,33 +222,49 @@ def load_dial(dial_name):
     return {"vec": vec, "target": target, "mode": mode, "meta": meta}
 
 
-INFO_DEFAULTS = {"description": "", "negative": "", "positive": "", "useful": 1.0, "overcook": 1.5}
+INFO_DEFAULTS = {"version": 2}  # every strength unknown, no evidence
+INFO_EVIDENCE = ("creator", "one-seed", "multi-seed", "multi-scene")
 
 
 def check_dial_info(info):
+    """-> info v2: labels, per-side ("neg", "pos") useful/overcook strengths where None means unknown, evidence, pipeline,
+    notes. A v1 record (no version, one useful/overcook pair) applies to both sides."""
     if not isinstance(info, dict):
         raise ValueError("dial info must be an object")
-    out = {}
-    for key, limit in (("description", 2000), ("negative", 60), ("positive", 60)):
+    if "version" not in info:
+        side = {"useful": info.get("useful", 1.0), "overcook": info.get("overcook", 1.5)}
+        info = dict(info, neg=side, pos=side, evidence="one-seed" if "1 seed" in str(info.get("description", "")) else "creator")
+    elif info["version"] != 2:
+        raise ValueError(f"unknown dial info version {info['version']!r}")
+    out = {"version": 2}
+    for key, limit in (("description", 2000), ("negative", 60), ("positive", 60), ("pipeline", 60), ("notes", 500)):
         v = info.get(key, "")
         if not isinstance(v, str) or len(v) > limit:
             raise ValueError(f"dial info '{key}' must be text of at most {limit} characters")
         out[key] = v
-    for key in ("useful", "overcook"):
-        v = info.get(key, INFO_DEFAULTS[key])
-        if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or not 0 < v <= 20:
-            raise ValueError(f"dial info '{key}' must be a strength above 0 and at most 20")
-        out[key] = float(v)
-    if out["overcook"] < out["useful"]:
-        raise ValueError("the overcook strength must be at least the useful strength")
+    for name in ("neg", "pos"):
+        side = info.get(name, {})
+        if not isinstance(side, dict):
+            raise ValueError(f"dial info '{name}' must be an object with useful and overcook")
+        out[name] = {}
+        for key in ("useful", "overcook"):
+            v = side.get(key)
+            if v is not None and (isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or not 0 < v <= 20):
+                raise ValueError(f"dial info '{name}.{key}' must be a strength above 0 and at most 20, or null (unknown)")
+            out[name][key] = None if v is None else float(v)
+        if None not in out[name].values() and out[name]["overcook"] < out[name]["useful"]:
+            raise ValueError(f"the {name} overcook strength must be at least its useful strength")
+    if info.get("evidence") not in (None, *INFO_EVIDENCE):
+        raise ValueError(f"dial info 'evidence' must be one of {', '.join(INFO_EVIDENCE)} or null")
+    out["evidence"] = info.get("evidence")
     return out
 
 
 def dial_info(dial_name):
-    """The dial file's own 'dial_info' metadata (description, side labels, useful and overcook strengths), or defaults."""
+    """The dial file's own 'dial_info' metadata (labels, per-side strengths, evidence), or all unknown."""
     with safe_open(folder_paths.get_full_path_or_raise("loras", dial_name), "pt") as f:
         stored = (f.metadata() or {}).get("dial_info")
-    return check_dial_info(json.loads(stored)) if stored else dict(INFO_DEFAULTS)
+    return check_dial_info(json.loads(stored) if stored else INFO_DEFAULTS)
 
 
 def save_dial_info(dial_name, info):

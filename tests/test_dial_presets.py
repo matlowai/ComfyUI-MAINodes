@@ -43,13 +43,13 @@ def main():
     core = importlib.import_module("mai_dials.core")
     core.save_dial_info("dials/test.safetensors", {"description": "an edited description", "useful": 2, "overcook": 3})
     assert presets.dial_sha256("dials/test.safetensors") == expected, "editing dial info must not change the preset hash"
-    assert core.dial_info("dials/test.safetensors")["useful"] == 2.0
+    assert core.dial_info("dials/test.safetensors")["pos"]["useful"] == 2.0
     for bad in ({"useful": 0}, {"useful": 3, "overcook": 2}, {"useful": True}, {"description": "x" * 2001}, {"negative": 5}, [], {"overcook": 21}):
         rejects(core.check_dial_info, bad)
     rejects(core.save_dial_info, "../../etc/passwd", {}, exception=FileNotFoundError)
     plain = root / "dials" / "plain.safetensors"
     save_file({"diffusion_model.token_refiner.dials_shift": torch.ones(8)}, str(plain))
-    assert core.dial_info("dials/plain.safetensors") == core.INFO_DEFAULTS, "a dial without info reads as the defaults"
+    assert core.dial_info("dials/plain.safetensors") == core.check_dial_info(core.INFO_DEFAULTS), "a dial without info reads as the defaults"
     rows = [dict(dial="dials/test.safetensors", strength=-0.5, on=True, solo=True),
             dict(dial="dials/missing.safetensors", strength=2, on=False, solo=False, sha256="a" * 64)]
     saved = presets.save_preset("test_-9", rows)
