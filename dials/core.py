@@ -480,11 +480,7 @@ def rack_hold_shift(rows, holds):
         raise ValueError("hold rows and active post-refiner rows must use the same target")
     directions = [d["vec"].double() for _, d, _ in holds]
     total = sum((s * d["vec"].double() for _, d, s in post), torch.zeros_like(directions[0]))
-    if len(directions) == 1:
-        h = directions[0]
-        basis = (h / h.norm().clamp_min(1e-12)).unsqueeze(1)
-    else:
-        basis = hold_basis(directions, None)
+    basis = hold_basis(directions, None)
     along = basis.T @ total
     shift = total - basis @ along
     shares = along.square() / total.square().sum().clamp_min(1e-24)
