@@ -66,7 +66,9 @@ def check_derope():
     s50 = render.derope_sigmas(MS, pika, 0.50)
     assert abs(float(s50[0]) - 0.9230769) < 1e-6 and len(s50) == 5 and float(s50[1]) == float(torch.tensor(0.8)), s50
     dmad = render.derope_sigmas(MS, render.stage_sigmas(MS, "simple", "", 4), 0.48)
-    assert len(dmad) == 3 and float(dmad[-1]) == 0.0, dmad
+    assert len(dmad) == 3 and float(dmad[-1]) == 0.0, dmad  # 4 steps: 0.917, 0.8, 0
+    dmad6 = render.derope_sigmas(MS, render.stage_sigmas(MS, "simple", "", 6), 0.48)
+    assert len(dmad6) == 4 and abs(float(dmad6[2]) - 0.7059) < 1e-3, dmad6  # 6 steps: 0.917, 0.857, 0.706, 0
     six = render.derope_sigmas(MS, pika, 0.48, steps=6)
     assert len(six) == 7 and float(six[0]) == float(s[0]) and float(six[-1]) == 0.0
     assert all(a > b for a, b in zip(six, six[1:]))
@@ -79,7 +81,7 @@ def check_presets():
         names = render.list_presets()
         assert names[:3] == ["Pika H3 Flex", "Pika + reference pictures", "DMAD speed LoRA"], names
         dmad = render.load_preset("DMAD speed LoRA")
-        assert (dmad["steps"], dmad["sampler"], dmad["shift_audio"], dmad["cfg"]) == (4, "lcm", 2.0, 1.0)
+        assert (dmad["steps"], dmad["lora_strength"], dmad["sampler"], dmad["shift_audio"], dmad["cfg"]) == (6, 0.8, "lcm", 2.0, 1.0)
         assert {k: render.load_preset("Pika H3 Flex")[k] for k in ("sampler", "schedule", "shift_video", "shift_audio")} == \
             {"sampler": "lcm", "schedule": "manual", "shift_video": 12.0, "shift_audio": 3.0}
         mine = dict(render.load_preset("Pika H3 Flex"), steps=8)

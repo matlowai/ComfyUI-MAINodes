@@ -29,10 +29,11 @@ PIKA_PRESET = dict(model="minimax_h3_fl2va_pruned_int8_convrot.safetensors", lor
 BUILTIN = {
     "Pika H3 Flex": PIKA_PRESET,
     "Pika + reference pictures": dict(PIKA_PRESET, conditioning=CONDITIONING[1]),
-    # the DMAD authors' settings (github.com/Yzmblog/DMAD, comfyui/): lcm + simple (lcm re-noises as the students were trained),
-    # 4 steps for the 4-step student, video shift 12 / audio shift 2, cfg 1, LoRA 1.0
-    "DMAD speed LoRA": dict(PIKA_PRESET, lora="minimax_h3_DMAD_4step_full_lora_avg_rank_39_bf16.safetensors", sampler="lcm",
-                            schedule="simple", sigmas="", steps=4, shift_audio=2.0),
+    # lcm + simple (the DMAD authors: lcm re-noises the way the students were trained), shifts 12 / 2, cfg 1; LoRA 0.8 and 6 steps
+    # as the Banodoco community runs it (the authors say 1.0 and 4): on our train-platform test it was the crisper of the two,
+    # in pass 1 and in the de-rope pass
+    "DMAD speed LoRA": dict(PIKA_PRESET, lora="minimax_h3_DMAD_4step_full_lora_avg_rank_39_bf16.safetensors", lora_strength=0.8,
+                            sampler="lcm", schedule="simple", sigmas="", steps=6, shift_audio=2.0),
 }
 
 
