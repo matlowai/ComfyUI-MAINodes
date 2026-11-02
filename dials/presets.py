@@ -1,17 +1,14 @@
 """Versioned rack presets: file references and settings, never dial weights."""
-import asyncio
 import json
 import math
 import re
 from pathlib import Path
 
-from aiohttp import web
 from safetensors import safe_open
 
 import folder_paths
-from server import PromptServer
 
-from . import analysis, core, envelopes, timecurve
+from . import core, envelopes, timecurve
 
 FORMAT = "MAIDialRack preset"
 VERSION = 1
@@ -121,79 +118,3 @@ def load_preset(name):
         raise ValueError("unsupported rack preset format or version (expected MAIDialRack preset v1)")
     rows = preset_rows(preset.get("rows"))
     return dict(preset=dict(format=FORMAT, version=VERSION, rows=rows), warnings=check_rows(rows))
-
-
-def install_routes():
-    routes = PromptServer.instance.routes
-
-    @routes.get("/mainodes/dials/presets")
-    async def listing(request):
-        return web.json_response(await asyncio.to_thread(list_presets))
-
-    async def respond(fn, *args):
-        try:
-            return web.json_response(await asyncio.to_thread(fn, *args))
-        except FileExistsError:
-            return web.json_response({"error": "Preset already exists. Choose a new name."}, status=409)
-        except FileNotFoundError:
-            return web.json_response({"error": "Preset not found."}, status=404)
-        except ValueError as e:
-            return web.json_response({"error": str(e)}, status=400)
-
-    @routes.get("/mainodes/dials/presets/{name}")
-    async def load(request):
-        return await respond(load_preset, request.match_info["name"])
-
-    @routes.post("/mainodes/dials/geometry")
-    async def geometry(request):  # norms and cosines for the rack's pad readouts
-        try:
-            names = (await request.json())["dials"]
-        except (ValueError, KeyError, TypeError):
-            return web.json_response({"error": "Expected {\"dials\": [dial file names]}."}, status=400)
-        try:
-            return web.json_response(await asyncio.to_thread(core.dial_geometry, names))
-        except (FileNotFoundError, ValueError) as e:
-            return web.json_response({"error": str(e)}, status=400)
-
-    @routes.post("/mainodes/dials/interactions")
-    async def interactions(request):  # dots once per set of files; the rack redoes the bookkeeping as sliders move
-        try:
-            rows = (await request.json())["rows"]
-            return web.json_response(await asyncio.to_thread(core.dial_interactions, rows))
-        except (KeyError, TypeError):
-            return web.json_response({"error": "Expected {\"rows\": [{\"dial\": <dial file>, \"strength\": <number>}]}."}, status=400)
-        except (FileNotFoundError, ValueError) as e:
-            return web.json_response({"error": str(e)}, status=400)
-
-    @routes.get("/mainodes/dials/info")
-    async def info(request):  # description, side labels, useful and overcook strengths for one dial file
-        try:
-            return web.json_response(await asyncio.to_thread(core.dial_info, request.query.get("dial", "")))
-        except (FileNotFoundError, ValueError) as e:
-            return web.json_response({"error": str(e)}, status=400)
-
-    @routes.get("/mainodes/dials/profile")
-    async def profile(request):  # probe-bank coefficients of one post-refiner dial file (direct and ridge joint fit)
-        dial = request.query.get("dial", "")
-        try:
-            return web.json_response(await asyncio.to_thread(analysis.dial_profile, dial))
-        except (FileNotFoundError, ValueError) as e:
-            return web.json_response({"error": str(e)}, status=400)
-
-    @routes.post("/mainodes/dials/info")
-    async def save_info(request):
-        try:
-            body = await request.json()
-            return web.json_response(await asyncio.to_thread(core.save_dial_info, body["dial"], body["info"]))
-        except (KeyError, TypeError):
-            return web.json_response({"error": "Expected {\"dial\": <dial file>, \"info\": {...}}."}, status=400)
-        except (FileNotFoundError, ValueError) as e:
-            return web.json_response({"error": str(e)}, status=400)
-
-    @routes.post("/mainodes/dials/presets/{name}")
-    async def save(request):
-        try:
-            rows = await request.json()
-        except ValueError:
-            return web.json_response({"error": "Expected rack rows as JSON."}, status=400)
-        return await respond(save_preset, request.match_info["name"], rows)

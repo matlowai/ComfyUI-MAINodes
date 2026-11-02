@@ -11,10 +11,9 @@ import folder_paths
 import node_helpers
 from comfy_api.latest import io, ui
 
-from . import blocks, core, editor, envelopes, presets, timecurve
+from . import blocks, core, envelopes, routes, timecurve
 
-presets.install_routes()
-editor.install_routes()
+routes.install()
 
 Dial = io.Custom("DIAL")
 

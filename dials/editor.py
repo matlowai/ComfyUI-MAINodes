@@ -10,17 +10,14 @@ edit list. Edits:
   {"kind": "drag", "basis": "library_pca", "library_sha256": h, "components_sha256": h, "n_library": n, "delta": [a, b]}
 Vector math only: whether an edit shows in renders is untested until someone renders it.
 """
-import asyncio
 import hashlib
 import json
 import math
 import os
 
 import torch
-from aiohttp import web
 
 import folder_paths
-from server import PromptServer
 
 from . import analysis, core
 
@@ -210,26 +207,3 @@ def export_edit(dial_name, edits, name, info=None):
     saved = dial["vec"].to(torch.bfloat16).double()
     return {"file": f"dials/{name}.safetensors", "path": path, "vector_sha256": dial["meta"]["composition"]["result_sha256"],
             "composition": dial["meta"]["composition"], "info": info, **readouts(ctx, saved)}
-
-
-def install_routes():
-    routes = PromptServer.instance.routes
-
-    @routes.get("/mainodes/dials/editor")
-    async def state(request):  # probe profile, library and Gram numbers for one post-refiner dial file
-        try:
-            return web.json_response(await asyncio.to_thread(editor_state, request.query.get("dial", "")))
-        except (FileNotFoundError, ValueError) as e:
-            return web.json_response({"error": str(e)}, status=400)
-
-    @routes.post("/mainodes/dials/editor/export")
-    async def export(request):
-        try:
-            body = await request.json()
-            return web.json_response(await asyncio.to_thread(export_edit, body["dial"], body["edits"], body["name"], body.get("info")))
-        except (KeyError, TypeError, json.JSONDecodeError):
-            return web.json_response({"error": "Expected {\"dial\": <dial file>, \"edits\": [...], \"name\": <new name>, \"info\": {...}}."}, status=400)
-        except FileExistsError:
-            return web.json_response({"error": "A dial with that name already exists. Choose a new name."}, status=409)
-        except (FileNotFoundError, ValueError) as e:
-            return web.json_response({"error": str(e)}, status=400)
