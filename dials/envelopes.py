@@ -7,9 +7,10 @@ wrapper sets it for the duration of the call and the rack's ScheduledShift adds 
 Progress runs from 0 to 1 over the steps of each sampler call: with two sampler stages (split sigmas, or a second
 pass at denoise < 1) an envelope is applied to each stage on its own.
 """
-import bisect
 import contextvars
 import math
+
+import numpy as np
 
 from comfy.patcher_extension import (WrappersMP, add_wrapper_with_key, copy_nested_dicts)
 from server import PromptServer
@@ -45,15 +46,7 @@ def envelope_points(spec):
 
 
 def interpolate(points, x):
-    i = bisect.bisect_right([p for p, _ in points], x)
-    if i == 0:
-        return points[0][1]
-    if i == len(points):
-        return points[-1][1]
-    a, b = points[i - 1], points[i]
-    if a[1] == b[1]:
-        return a[1]
-    return a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0])
+    return float(np.interp(x, [p for p, _ in points], [v for _, v in points]))
 
 
 class EnvelopeForward:
