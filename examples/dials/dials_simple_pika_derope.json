@@ -1,8 +1,8 @@
 {
-  "id": "b390270a-8f47-49f9-800e-1523d1336170",
+  "id": "1d3ef003-1d0d-488d-8b6a-ee64950bcfe6",
   "revision": 0,
   "last_node_id": 108,
-  "last_link_id": 75,
+  "last_link_id": 78,
   "nodes": [
     {
       "id": 1,
@@ -12,7 +12,7 @@
         0
       ],
       "size": [
-        270,
+        380,
         82
       ],
       "flags": {},
@@ -65,14 +65,14 @@
       "type": "LoraLoaderModelOnly",
       "pos": [
         0,
-        160
+        132
       ],
       "size": [
-        270,
+        380,
         82
       ],
       "flags": {},
-      "order": 2,
+      "order": 5,
       "mode": 0,
       "inputs": [
         {
@@ -124,10 +124,169 @@
       }
     },
     {
+      "id": 8,
+      "type": "CLIPLoader",
+      "pos": [
+        0,
+        264
+      ],
+      "size": [
+        380,
+        106
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "clip_name",
+          "name": "clip_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "type",
+          "name": "type",
+          "type": "COMBO",
+          "widget": {
+            "name": "type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "device",
+          "name": "device",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "CLIP",
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            68
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "minimax",
+        "default"
+      ],
+      "widgets_values_named": {
+        "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "type": "minimax",
+        "device": "default"
+      }
+    },
+    {
+      "id": 9,
+      "type": "VAELoader",
+      "pos": [
+        0,
+        420
+      ],
+      "size": [
+        380,
+        58
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "vae_name",
+          "name": "vae_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "vae_name"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "VAE",
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            69
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "minimax_h3_video_vae_fp16.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+      }
+    },
+    {
+      "id": 17,
+      "type": "VAELoader",
+      "pos": [
+        0,
+        528
+      ],
+      "size": [
+        380,
+        58
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "vae_name",
+          "name": "vae_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "vae_name"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "VAE",
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            77
+          ]
+        }
+      ],
+      "title": "Audio VAE",
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "minimax_h3_audio_vae_fp32.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+      }
+    },
+    {
       "id": 40,
       "type": "MAIDialRack",
       "pos": [
-        420,
+        440,
         0
       ],
       "size": [
@@ -135,7 +294,7 @@
         226
       ],
       "flags": {},
-      "order": 3,
+      "order": 6,
       "mode": 0,
       "inputs": [
         {
@@ -181,7 +340,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            74
+            76
           ]
         }
       ],
@@ -208,9 +367,9 @@
     },
     {
       "id": 107,
-      "type": "d0cd4545-fd44-4406-a3a8-5d190d3d1b29",
+      "type": "cca03694-9e59-4c1b-beb3-3ee8088330e3",
       "pos": [
-        1080,
+        1100,
         0
       ],
       "size": [
@@ -218,9 +377,22 @@
         420
       ],
       "flags": {},
-      "order": 4,
+      "order": 7,
       "mode": 0,
       "inputs": [
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 68
+        },
+        {
+          "label": "video_vae",
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "VAE",
+          "link": 69
+        },
         {
           "label": "first_frame (optional)",
           "localized_name": "first_frame",
@@ -280,7 +452,14 @@
           "localized_name": "model",
           "name": "model",
           "type": "MODEL",
-          "link": 74
+          "link": 76
+        },
+        {
+          "label": "audio_vae",
+          "localized_name": "vae_1",
+          "name": "vae_1",
+          "type": "VAE",
+          "link": 77
         },
         {
           "label": "de-rope",
@@ -319,25 +498,25 @@
       "id": 108,
       "type": "MarkdownNote",
       "pos": [
-        0,
-        380
+        440,
+        286
       ],
       "size": [
-        400,
-        330
+        600,
+        300
       ],
       "flags": {},
-      "order": 1,
+      "order": 4,
       "mode": 0,
       "inputs": [],
       "outputs": [],
       "title": "Start here",
       "properties": {},
       "widgets_values": [
-        "**Simple start: Dials + Pika H3 + de-rope**\n\nThe node on the right is the blueprint **Dials - Pika H3 + De-rope** (node library: Subgraph Blueprints > MAINodes > Dials). Change three things:\n\n1. **prompt** on the blueprint (Pika H3 layout: scene, soundscape, music). `first_frame` is optional.\n2. **Dial Rack** rows: tick a dial and drag its strength (+ Add dial for more). About 1 is an everyday push, 1.5 shows side effects.\n3. **de-rope**: off renders one pass. On adds a second pass that slows the jerky stretches and maps them back to real time, about 4x the time. Pass 1 is cached, so switching it on after a take you like runs only the second pass.\n\nThe one rack drives both passes (Dial Hold Map inside keeps time curves in real time). Double-click the blueprint to see or change the graph inside.\n"
+        "**Simple start: Dials + Pika H3 + de-rope**\n\nThe node on the right is the blueprint **Dials - Pika H3 + De-rope** (node library: Subgraph Blueprints > MAINodes > Dials). Change three things after the models:\n\n0. **Models**: pick your five files in the loaders on the left (H3 model, Pika H3 Flex LoRA, text encoder, video VAE, audio VAE).\n1. **prompt** on the blueprint (Pika H3 layout: scene, soundscape, music). `first_frame` is optional.\n2. **Dial Rack** rows: tick a dial and drag its strength (+ Add dial for more). About 1 is an everyday push, 1.5 shows side effects.\n3. **de-rope**: off renders one pass. On adds a second pass that slows the jerky stretches and maps them back to real time, about 4x the time. Pass 1 is cached, so switching it on after a take you like runs only the second pass.\n\nThe one rack drives both passes (Dial Hold Map inside keeps time curves in real time). Double-click the blueprint to see or change the graph inside.\n"
       ],
       "widgets_values_named": {
-        "text": "**Simple start: Dials + Pika H3 + de-rope**\n\nThe node on the right is the blueprint **Dials - Pika H3 + De-rope** (node library: Subgraph Blueprints > MAINodes > Dials). Change three things:\n\n1. **prompt** on the blueprint (Pika H3 layout: scene, soundscape, music). `first_frame` is optional.\n2. **Dial Rack** rows: tick a dial and drag its strength (+ Add dial for more). About 1 is an everyday push, 1.5 shows side effects.\n3. **de-rope**: off renders one pass. On adds a second pass that slows the jerky stretches and maps them back to real time, about 4x the time. Pass 1 is cached, so switching it on after a take you like runs only the second pass.\n\nThe one rack drives both passes (Dial Hold Map inside keeps time curves in real time). Double-click the blueprint to see or change the graph inside.\n"
+        "text": "**Simple start: Dials + Pika H3 + de-rope**\n\nThe node on the right is the blueprint **Dials - Pika H3 + De-rope** (node library: Subgraph Blueprints > MAINodes > Dials). Change three things after the models:\n\n0. **Models**: pick your five files in the loaders on the left (H3 model, Pika H3 Flex LoRA, text encoder, video VAE, audio VAE).\n1. **prompt** on the blueprint (Pika H3 layout: scene, soundscape, music). `first_frame` is optional.\n2. **Dial Rack** rows: tick a dial and drag its strength (+ Add dial for more). About 1 is an everyday push, 1.5 shows side effects.\n3. **de-rope**: off renders one pass. On adds a second pass that slows the jerky stretches and maps them back to real time, about 4x the time. Pass 1 is cached, so switching it on after a take you like runs only the second pass.\n\nThe one rack drives both passes (Dial Hold Map inside keeps time curves in real time). Double-click the blueprint to see or change the graph inside.\n"
       },
       "color": "#432",
       "bgcolor": "#653"
@@ -361,24 +540,48 @@
       "MODEL"
     ],
     [
-      74,
+      68,
+      8,
+      0,
+      107,
+      0,
+      "CLIP"
+    ],
+    [
+      69,
+      9,
+      0,
+      107,
+      1,
+      "VAE"
+    ],
+    [
+      76,
       40,
       0,
       107,
-      6,
+      8,
       "MODEL"
+    ],
+    [
+      77,
+      17,
+      0,
+      107,
+      9,
+      "VAE"
     ]
   ],
   "groups": [],
   "definitions": {
     "subgraphs": [
       {
-        "id": "d0cd4545-fd44-4406-a3a8-5d190d3d1b29",
+        "id": "cca03694-9e59-4c1b-beb3-3ee8088330e3",
         "version": 1,
         "state": {
           "lastGroupId": 2,
           "lastNodeId": 108,
-          "lastLinkId": 75,
+          "lastLinkId": 78,
           "lastRerouteId": 0
         },
         "revision": 0,
@@ -388,10 +591,10 @@
         "inputNode": {
           "id": -10,
           "bounding": [
-            -1220,
+            -700,
             0,
             128,
-            208
+            268
           ]
         },
         "outputNode": {
@@ -405,7 +608,39 @@
         },
         "inputs": [
           {
-            "id": "d6c09071-c901-41ea-bffa-a7986cea0429",
+            "id": "52b6ee89-d084-4396-9060-7098bed200ad",
+            "name": "clip",
+            "type": "CLIP",
+            "linkIds": [
+              6,
+              40
+            ],
+            "localized_name": "clip",
+            "pos": [
+              51,
+              24
+            ]
+          },
+          {
+            "id": "0f5862c2-41fa-4eb1-9b7c-ed77a7d83d39",
+            "name": "vae",
+            "type": "VAE",
+            "linkIds": [
+              7,
+              18,
+              33,
+              41,
+              51
+            ],
+            "localized_name": "vae",
+            "label": "video_vae",
+            "pos": [
+              51,
+              44
+            ]
+          },
+          {
+            "id": "80bbda4b-3d01-49f8-89c3-2054f5c4d29f",
             "name": "first_frame",
             "type": "IMAGE",
             "linkIds": [
@@ -417,11 +652,11 @@
             "shape": 7,
             "pos": [
               51,
-              24
+              64
             ]
           },
           {
-            "id": "aad88f23-7e29-44d2-9bfa-db7850d29a21",
+            "id": "873ec38d-d1b9-434d-a1e0-b2ed9180521d",
             "name": "prompt",
             "type": "STRING",
             "linkIds": [
@@ -431,11 +666,11 @@
             "localized_name": "prompt",
             "pos": [
               51,
-              44
+              84
             ]
           },
           {
-            "id": "19d58a23-f75e-4d54-8777-34a1e12d56c2",
+            "id": "3f589ba8-893f-428d-92d5-08972ea850e2",
             "name": "width",
             "type": "INT",
             "linkIds": [
@@ -445,11 +680,11 @@
             "localized_name": "width",
             "pos": [
               51,
-              64
+              104
             ]
           },
           {
-            "id": "c1c38551-4a43-4693-8f12-a01c1d5983ee",
+            "id": "98de98af-bf04-4348-99eb-835f039b091c",
             "name": "height",
             "type": "INT",
             "linkIds": [
@@ -459,11 +694,11 @@
             "localized_name": "height",
             "pos": [
               51,
-              84
+              124
             ]
           },
           {
-            "id": "b459335b-0a00-4288-8699-2993821e3b78",
+            "id": "1dd5fd9e-86c7-4b9a-9894-c3d6c754d81d",
             "name": "length",
             "type": "INT",
             "linkIds": [
@@ -473,11 +708,11 @@
             "localized_name": "length",
             "pos": [
               51,
-              104
+              144
             ]
           },
           {
-            "id": "b2420606-c061-4c76-8a5d-16ab3dfcb8fd",
+            "id": "61f5ff6a-5d34-493b-9774-f631f8954520",
             "name": "noise_seed",
             "type": "INT",
             "linkIds": [
@@ -487,11 +722,11 @@
             "label": "seed",
             "pos": [
               51,
-              124
+              164
             ]
           },
           {
-            "id": "967d7632-7d6a-4fd9-8821-0d1a1033b4a7",
+            "id": "4e85c9ac-2add-4b68-8e1f-005864b72f4a",
             "name": "model",
             "type": "MODEL",
             "linkIds": [
@@ -502,11 +737,27 @@
             "label": "model (from the Dial Rack)",
             "pos": [
               51,
-              144
+              184
             ]
           },
           {
-            "id": "689c3591-86a5-4e6f-b132-4983103ca80a",
+            "id": "8c080640-d9c4-4515-a3a2-7fc58d8536f5",
+            "name": "vae_1",
+            "type": "VAE",
+            "linkIds": [
+              20,
+              31,
+              53
+            ],
+            "localized_name": "vae_1",
+            "label": "audio_vae",
+            "pos": [
+              51,
+              204
+            ]
+          },
+          {
+            "id": "d7aea29c-9f1a-4b7d-aba0-dc8b72e570a1",
             "name": "switch",
             "type": "BOOLEAN",
             "linkIds": [
@@ -516,131 +767,13 @@
             "label": "de-rope",
             "pos": [
               51,
-              164
+              224
             ]
           }
         ],
         "outputs": [],
         "widgets": [],
         "nodes": [
-          {
-            "id": 8,
-            "type": "CLIPLoader",
-            "pos": [
-              -900,
-              0
-            ],
-            "size": [
-              320,
-              106
-            ],
-            "flags": {},
-            "order": 0,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "clip_name",
-                "name": "clip_name",
-                "type": "COMBO",
-                "widget": {
-                  "name": "clip_name"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "type",
-                "name": "type",
-                "type": "COMBO",
-                "widget": {
-                  "name": "type"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "device",
-                "name": "device",
-                "shape": 7,
-                "type": "COMBO",
-                "widget": {
-                  "name": "device"
-                },
-                "link": null
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "CLIP",
-                "name": "CLIP",
-                "type": "CLIP",
-                "links": [
-                  6,
-                  40
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "CLIPLoader"
-            },
-            "widgets_values": [
-              "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-              "minimax",
-              "default"
-            ],
-            "widgets_values_named": {
-              "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-              "type": "minimax",
-              "device": "default"
-            }
-          },
-          {
-            "id": 9,
-            "type": "VAELoader",
-            "pos": [
-              -900,
-              176
-            ],
-            "size": [
-              320,
-              58
-            ],
-            "flags": {},
-            "order": 1,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "vae_name",
-                "name": "vae_name",
-                "type": "COMBO",
-                "widget": {
-                  "name": "vae_name"
-                },
-                "link": null
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "VAE",
-                "name": "VAE",
-                "type": "VAE",
-                "links": [
-                  7,
-                  18,
-                  33,
-                  41,
-                  51
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "VAELoader"
-            },
-            "widgets_values": [
-              "minimax_h3_video_vae_fp16.safetensors"
-            ],
-            "widgets_values_named": {
-              "vae_name": "minimax_h3_video_vae_fp16.safetensors"
-            }
-          },
           {
             "id": 10,
             "type": "MiniMaxH3ImageToVideo",
@@ -653,7 +786,7 @@
               220
             ],
             "flags": {},
-            "order": 7,
+            "order": 4,
             "mode": 0,
             "inputs": [
               {
@@ -766,7 +899,7 @@
               82
             ],
             "flags": {},
-            "order": 8,
+            "order": 5,
             "mode": 0,
             "inputs": [
               {
@@ -813,7 +946,7 @@
               46
             ],
             "flags": {},
-            "order": 9,
+            "order": 6,
             "mode": 0,
             "inputs": [
               {
@@ -855,7 +988,7 @@
               58
             ],
             "flags": {},
-            "order": 2,
+            "order": 0,
             "mode": 0,
             "inputs": [
               {
@@ -902,7 +1035,7 @@
               58
             ],
             "flags": {},
-            "order": 3,
+            "order": 1,
             "mode": 0,
             "inputs": [
               {
@@ -948,7 +1081,7 @@
               106
             ],
             "flags": {},
-            "order": 10,
+            "order": 7,
             "mode": 0,
             "inputs": [
               {
@@ -1016,7 +1149,7 @@
               46
             ],
             "flags": {},
-            "order": 11,
+            "order": 8,
             "mode": 0,
             "inputs": [
               {
@@ -1048,54 +1181,6 @@
             }
           },
           {
-            "id": 17,
-            "type": "VAELoader",
-            "pos": [
-              -900,
-              304
-            ],
-            "size": [
-              320,
-              58
-            ],
-            "flags": {},
-            "order": 4,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "vae_name",
-                "name": "vae_name",
-                "type": "COMBO",
-                "widget": {
-                  "name": "vae_name"
-                },
-                "link": null
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "VAE",
-                "name": "VAE",
-                "type": "VAE",
-                "links": [
-                  20,
-                  31,
-                  53
-                ]
-              }
-            ],
-            "title": "Audio VAE",
-            "properties": {
-              "Node name for S&R": "VAELoader"
-            },
-            "widgets_values": [
-              "minimax_h3_audio_vae_fp32.safetensors"
-            ],
-            "widgets_values_named": {
-              "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
-            }
-          },
-          {
             "id": 18,
             "type": "VAEDecodeAudio",
             "pos": [
@@ -1107,7 +1192,7 @@
               46
             ],
             "flags": {},
-            "order": 12,
+            "order": 9,
             "mode": 0,
             "inputs": [
               {
@@ -1151,7 +1236,7 @@
               150
             ],
             "flags": {},
-            "order": 13,
+            "order": 10,
             "mode": 0,
             "inputs": [
               {
@@ -1245,7 +1330,7 @@
               470
             ],
             "flags": {},
-            "order": 14,
+            "order": 11,
             "mode": 0,
             "inputs": [
               {
@@ -1480,7 +1565,7 @@
               262
             ],
             "flags": {},
-            "order": 15,
+            "order": 12,
             "mode": 0,
             "inputs": [
               {
@@ -1621,7 +1706,7 @@
               262
             ],
             "flags": {},
-            "order": 16,
+            "order": 13,
             "mode": 0,
             "inputs": [
               {
@@ -1770,7 +1855,7 @@
               82
             ],
             "flags": {},
-            "order": 17,
+            "order": 14,
             "mode": 0,
             "inputs": [
               {
@@ -1832,7 +1917,7 @@
               46
             ],
             "flags": {},
-            "order": 18,
+            "order": 15,
             "mode": 0,
             "inputs": [
               {
@@ -1874,7 +1959,7 @@
               46
             ],
             "flags": {},
-            "order": 19,
+            "order": 16,
             "mode": 0,
             "inputs": [
               {
@@ -1916,7 +2001,7 @@
               334
             ],
             "flags": {},
-            "order": 20,
+            "order": 17,
             "mode": 0,
             "inputs": [
               {
@@ -2097,7 +2182,7 @@
               220
             ],
             "flags": {},
-            "order": 21,
+            "order": 18,
             "mode": 0,
             "inputs": [
               {
@@ -2208,7 +2293,7 @@
               82
             ],
             "flags": {},
-            "order": 5,
+            "order": 2,
             "mode": 0,
             "inputs": [
               {
@@ -2255,7 +2340,7 @@
               46
             ],
             "flags": {},
-            "order": 22,
+            "order": 19,
             "mode": 0,
             "inputs": [
               {
@@ -2297,7 +2382,7 @@
               58
             ],
             "flags": {},
-            "order": 6,
+            "order": 3,
             "mode": 0,
             "inputs": [
               {
@@ -2343,7 +2428,7 @@
               106
             ],
             "flags": {},
-            "order": 23,
+            "order": 20,
             "mode": 0,
             "inputs": [
               {
@@ -2410,7 +2495,7 @@
               46
             ],
             "flags": {},
-            "order": 24,
+            "order": 21,
             "mode": 0,
             "inputs": [
               {
@@ -2452,7 +2537,7 @@
               46
             ],
             "flags": {},
-            "order": 25,
+            "order": 22,
             "mode": 0,
             "inputs": [
               {
@@ -2494,7 +2579,7 @@
               58
             ],
             "flags": {},
-            "order": 26,
+            "order": 23,
             "mode": 0,
             "inputs": [
               {
@@ -2546,7 +2631,7 @@
               150
             ],
             "flags": {},
-            "order": 27,
+            "order": 24,
             "mode": 0,
             "inputs": [
               {
@@ -2640,7 +2725,7 @@
               150
             ],
             "flags": {},
-            "order": 28,
+            "order": 25,
             "mode": 0,
             "inputs": [
               {
@@ -2734,7 +2819,7 @@
               106
             ],
             "flags": {},
-            "order": 29,
+            "order": 26,
             "mode": 0,
             "inputs": [
               {
@@ -2815,7 +2900,7 @@
               46
             ],
             "flags": {},
-            "order": 30,
+            "order": 27,
             "mode": 0,
             "inputs": [
               {
@@ -2858,7 +2943,7 @@
               78
             ],
             "flags": {},
-            "order": 31,
+            "order": 28,
             "mode": 0,
             "inputs": [
               {
@@ -2909,18 +2994,6 @@
         ],
         "groups": [
           {
-            "id": "#3f5159",
-            "title": "Models",
-            "bounding": [
-              -920,
-              -60,
-              360,
-              442
-            ],
-            "color": "#3f789e",
-            "flags": {}
-          },
-          {
             "id": "#3f4f3f",
             "title": "Pass 1: Pika 6-step",
             "bounding": [
@@ -2970,22 +3043,6 @@
           }
         ],
         "links": [
-          {
-            "id": 6,
-            "origin_id": 8,
-            "origin_slot": 0,
-            "target_id": 10,
-            "target_slot": 0,
-            "type": "CLIP"
-          },
-          {
-            "id": 7,
-            "origin_id": 9,
-            "origin_slot": 0,
-            "target_id": 10,
-            "target_slot": 1,
-            "type": "VAE"
-          },
           {
             "id": 11,
             "origin_id": 10,
@@ -3043,28 +3100,12 @@
             "type": "LATENT"
           },
           {
-            "id": 18,
-            "origin_id": 9,
-            "origin_slot": 0,
-            "target_id": 16,
-            "target_slot": 1,
-            "type": "VAE"
-          },
-          {
             "id": 19,
             "origin_id": 15,
             "origin_slot": 0,
             "target_id": 18,
             "target_slot": 0,
             "type": "LATENT"
-          },
-          {
-            "id": 20,
-            "origin_id": 17,
-            "origin_slot": 0,
-            "target_id": 18,
-            "target_slot": 1,
-            "type": "VAE"
           },
           {
             "id": 21,
@@ -3139,28 +3180,12 @@
             "type": "AUDIO"
           },
           {
-            "id": 31,
-            "origin_id": 17,
-            "origin_slot": 0,
-            "target_id": 26,
-            "target_slot": 1,
-            "type": "VAE"
-          },
-          {
             "id": 32,
             "origin_id": 24,
             "origin_slot": 0,
             "target_id": 27,
             "target_slot": 0,
             "type": "IMAGE"
-          },
-          {
-            "id": 33,
-            "origin_id": 9,
-            "origin_slot": 0,
-            "target_id": 27,
-            "target_slot": 1,
-            "type": "VAE"
           },
           {
             "id": 34,
@@ -3177,22 +3202,6 @@
             "target_id": 28,
             "target_slot": 3,
             "type": "LATENT"
-          },
-          {
-            "id": 40,
-            "origin_id": 8,
-            "origin_slot": 0,
-            "target_id": 29,
-            "target_slot": 0,
-            "type": "CLIP"
-          },
-          {
-            "id": 41,
-            "origin_id": 9,
-            "origin_slot": 0,
-            "target_id": 29,
-            "target_slot": 1,
-            "type": "VAE"
           },
           {
             "id": 39,
@@ -3267,28 +3276,12 @@
             "type": "LATENT"
           },
           {
-            "id": 51,
-            "origin_id": 9,
-            "origin_slot": 0,
-            "target_id": 34,
-            "target_slot": 1,
-            "type": "VAE"
-          },
-          {
             "id": 52,
             "origin_id": 33,
             "origin_slot": 0,
             "target_id": 35,
             "target_slot": 0,
             "type": "LATENT"
-          },
-          {
-            "id": 53,
-            "origin_id": 17,
-            "origin_slot": 0,
-            "target_id": 35,
-            "target_slot": 1,
-            "type": "VAE"
           },
           {
             "id": 55,
@@ -3371,9 +3364,65 @@
             "type": "VIDEO"
           },
           {
-            "id": 8,
+            "id": 6,
             "origin_id": -10,
             "origin_slot": 0,
+            "target_id": 10,
+            "target_slot": 0,
+            "type": "CLIP"
+          },
+          {
+            "id": 40,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 29,
+            "target_slot": 0,
+            "type": "CLIP"
+          },
+          {
+            "id": 7,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 10,
+            "target_slot": 1,
+            "type": "VAE"
+          },
+          {
+            "id": 18,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 16,
+            "target_slot": 1,
+            "type": "VAE"
+          },
+          {
+            "id": 33,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 27,
+            "target_slot": 1,
+            "type": "VAE"
+          },
+          {
+            "id": 41,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 29,
+            "target_slot": 1,
+            "type": "VAE"
+          },
+          {
+            "id": 51,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 34,
+            "target_slot": 1,
+            "type": "VAE"
+          },
+          {
+            "id": 8,
+            "origin_id": -10,
+            "origin_slot": 2,
             "target_id": 10,
             "target_slot": 2,
             "type": "IMAGE"
@@ -3381,7 +3430,7 @@
           {
             "id": 42,
             "origin_id": -10,
-            "origin_slot": 0,
+            "origin_slot": 2,
             "target_id": 29,
             "target_slot": 2,
             "type": "IMAGE"
@@ -3389,7 +3438,7 @@
           {
             "id": 2,
             "origin_id": -10,
-            "origin_slot": 1,
+            "origin_slot": 3,
             "target_id": 10,
             "target_slot": 4,
             "type": "STRING"
@@ -3397,7 +3446,7 @@
           {
             "id": 36,
             "origin_id": -10,
-            "origin_slot": 1,
+            "origin_slot": 3,
             "target_id": 29,
             "target_slot": 4,
             "type": "STRING"
@@ -3405,7 +3454,7 @@
           {
             "id": 3,
             "origin_id": -10,
-            "origin_slot": 2,
+            "origin_slot": 4,
             "target_id": 10,
             "target_slot": 5,
             "type": "INT"
@@ -3413,7 +3462,7 @@
           {
             "id": 37,
             "origin_id": -10,
-            "origin_slot": 2,
+            "origin_slot": 4,
             "target_id": 29,
             "target_slot": 5,
             "type": "INT"
@@ -3421,7 +3470,7 @@
           {
             "id": 4,
             "origin_id": -10,
-            "origin_slot": 3,
+            "origin_slot": 5,
             "target_id": 10,
             "target_slot": 6,
             "type": "INT"
@@ -3429,7 +3478,7 @@
           {
             "id": 38,
             "origin_id": -10,
-            "origin_slot": 3,
+            "origin_slot": 5,
             "target_id": 29,
             "target_slot": 6,
             "type": "INT"
@@ -3437,7 +3486,7 @@
           {
             "id": 5,
             "origin_id": -10,
-            "origin_slot": 4,
+            "origin_slot": 6,
             "target_id": 10,
             "target_slot": 7,
             "type": "INT"
@@ -3445,7 +3494,7 @@
           {
             "id": 23,
             "origin_id": -10,
-            "origin_slot": 4,
+            "origin_slot": 6,
             "target_id": 22,
             "target_slot": 1,
             "type": "INT"
@@ -3453,7 +3502,7 @@
           {
             "id": 9,
             "origin_id": -10,
-            "origin_slot": 5,
+            "origin_slot": 7,
             "target_id": 11,
             "target_slot": 0,
             "type": "INT"
@@ -3461,7 +3510,7 @@
           {
             "id": 10,
             "origin_id": -10,
-            "origin_slot": 6,
+            "origin_slot": 8,
             "target_id": 12,
             "target_slot": 0,
             "type": "MODEL"
@@ -3469,15 +3518,39 @@
           {
             "id": 63,
             "origin_id": -10,
-            "origin_slot": 6,
+            "origin_slot": 8,
             "target_id": 41,
             "target_slot": 0,
             "type": "MODEL"
           },
           {
+            "id": 20,
+            "origin_id": -10,
+            "origin_slot": 9,
+            "target_id": 18,
+            "target_slot": 1,
+            "type": "VAE"
+          },
+          {
+            "id": 31,
+            "origin_id": -10,
+            "origin_slot": 9,
+            "target_id": 26,
+            "target_slot": 1,
+            "type": "VAE"
+          },
+          {
+            "id": 53,
+            "origin_id": -10,
+            "origin_slot": 9,
+            "target_id": 35,
+            "target_slot": 1,
+            "type": "VAE"
+          },
+          {
             "id": 65,
             "origin_id": -10,
-            "origin_slot": 7,
+            "origin_slot": 10,
             "target_id": 60,
             "target_slot": 2,
             "type": "BOOLEAN"

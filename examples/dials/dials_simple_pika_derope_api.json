@@ -23,6 +23,35 @@
       "title": "Pika H3 Flex LoRA (FL2VA)"
     }
   },
+  "8": {
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "type": "minimax",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "9": {
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "17": {
+    "inputs": {
+      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Audio VAE"
+    }
+  },
   "40": {
     "inputs": {
       "rack": "[{\"on\":true,\"dial\":\"dials/h3_motion.safetensors\",\"strength\":0.5,\"solo\":false},{\"on\":true,\"dial\":\"dials/h3_grade_warm_cold_hook.safetensors\",\"strength\":0.6,\"solo\":false},{\"on\":true,\"dial\":\"dials/h3_day_night_hook.safetensors\",\"strength\":0.8,\"solo\":false},{\"on\":false,\"dial\":\"dials/h3_perf_reserved_lively_hook.safetensors\",\"strength\":0.5,\"solo\":false},{\"on\":false,\"dial\":\"dials/h3_dream_surreal_hook.safetensors\",\"strength\":6,\"solo\":false,\"envelope\":\"early\"}]",
@@ -36,26 +65,6 @@
       "title": "Dial Rack (both passes)"
     }
   },
-  "107:8": {
-    "inputs": {
-      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-      "type": "minimax",
-      "device": "default"
-    },
-    "class_type": "CLIPLoader",
-    "_meta": {
-      "title": "Load CLIP"
-    }
-  },
-  "107:9": {
-    "inputs": {
-      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
-    },
-    "class_type": "VAELoader",
-    "_meta": {
-      "title": "Load VAE"
-    }
-  },
   "107:10": {
     "inputs": {
       "prompt": "integrated_multimodal_description: [Shot 1] Cinematic, natural light. An adult woman in a red coat walks along an empty train platform at dusk as a train slowly pulls in beside her. The camera tracks with her.\n\noverall_soundscape: Her footsteps on concrete, the train's brakes hissing, a distant announcement echoing.\n\nnon_diegetic_music: N/A",
@@ -63,11 +72,11 @@
       "height": 704,
       "length": 141,
       "clip": [
-        "107:8",
+        "8",
         0
       ],
       "vae": [
-        "107:9",
+        "9",
         0
       ]
     },
@@ -154,22 +163,13 @@
         0
       ],
       "vae": [
-        "107:9",
+        "9",
         0
       ]
     },
     "class_type": "VAEDecode",
     "_meta": {
       "title": "VAE Decode"
-    }
-  },
-  "107:17": {
-    "inputs": {
-      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
-    },
-    "class_type": "VAELoader",
-    "_meta": {
-      "title": "Audio VAE"
     }
   },
   "107:18": {
@@ -179,7 +179,7 @@
         0
       ],
       "vae": [
-        "107:17",
+        "17",
         0
       ]
     },
@@ -299,7 +299,7 @@
         0
       ],
       "vae": [
-        "107:17",
+        "17",
         0
       ]
     },
@@ -315,7 +315,7 @@
         0
       ],
       "vae": [
-        "107:9",
+        "9",
         0
       ]
     },
@@ -360,11 +360,11 @@
         2
       ],
       "clip": [
-        "107:8",
+        "8",
         0
       ],
       "vae": [
-        "107:9",
+        "9",
         0
       ]
     },
@@ -442,7 +442,7 @@
         0
       ],
       "vae": [
-        "107:9",
+        "9",
         0
       ]
     },
@@ -458,7 +458,7 @@
         0
       ],
       "vae": [
-        "107:17",
+        "17",
         0
       ]
     },

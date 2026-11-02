@@ -145,7 +145,7 @@ Keep every node, but give most people a clean front door. ComfyUI loads subgraph
 - [ ] **Three tiers of start-here workflows:** Simple (one subgraph, a handful of controls), Pro (today's full graphs), Lab
       (research nodes). The README's first screen points only at Simple.
 - [ ] **Shipped subgraphs** (MAIN `subgraphs/`): done: `Dials - Pika H3` and `Dials - Pika H3 + De-rope` (prompt,
-      optional first frame, width, height, length, seed, de-rope; the rack stays outside on the model input because its
+      optional first frame, width, height, length, seed, de-rope; the five model loaders and the rack stay outside on the model input because its
       rows can't be promoted onto a subgraph node; one saved video, no outputs) and the Simple example
       `examples/dials/dials_simple_pika_derope.json`. Open: `Dials - Make Dial from Pictures` (two picture groups, name,
       labels, one dial out).

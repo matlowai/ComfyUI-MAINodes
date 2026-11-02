@@ -5,9 +5,9 @@
   "nodes": [
     {
       "id": 107,
-      "type": "e2c344be-b1e6-4100-a722-6d4d380e3057",
+      "type": "85fe74be-f7b7-4963-aa54-7d82ab81cb0e",
       "pos": [
-        1080,
+        1100,
         0
       ],
       "size": [
@@ -15,9 +15,22 @@
         420
       ],
       "flags": {},
-      "order": 4,
+      "order": 7,
       "mode": 0,
       "inputs": [
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 25
+        },
+        {
+          "label": "video_vae",
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "VAE",
+          "link": 26
+        },
         {
           "label": "first_frame (optional)",
           "localized_name": "first_frame",
@@ -77,7 +90,14 @@
           "localized_name": "model",
           "name": "model",
           "type": "MODEL",
-          "link": 31
+          "link": 33
+        },
+        {
+          "label": "audio_vae",
+          "localized_name": "vae_1",
+          "name": "vae_1",
+          "type": "VAE",
+          "link": 34
         }
       ],
       "outputs": [],
@@ -106,12 +126,12 @@
   "definitions": {
     "subgraphs": [
       {
-        "id": "e2c344be-b1e6-4100-a722-6d4d380e3057",
+        "id": "85fe74be-f7b7-4963-aa54-7d82ab81cb0e",
         "version": 1,
         "state": {
           "lastGroupId": 1,
           "lastNodeId": 108,
-          "lastLinkId": 31,
+          "lastLinkId": 34,
           "lastRerouteId": 0
         },
         "revision": 0,
@@ -121,10 +141,10 @@
         "inputNode": {
           "id": -10,
           "bounding": [
-            -1220,
+            -700,
             0,
             128,
-            188
+            248
           ]
         },
         "outputNode": {
@@ -138,7 +158,35 @@
         },
         "inputs": [
           {
-            "id": "d51be924-5559-4fb5-a4e5-5893b6603b5c",
+            "id": "08896721-c24d-4f32-9b9e-1ff21ba7ddf0",
+            "name": "clip",
+            "type": "CLIP",
+            "linkIds": [
+              6
+            ],
+            "localized_name": "clip",
+            "pos": [
+              51,
+              24
+            ]
+          },
+          {
+            "id": "5aa150bf-214b-4ef0-9b4b-51e8bb928f17",
+            "name": "vae",
+            "type": "VAE",
+            "linkIds": [
+              7,
+              18
+            ],
+            "localized_name": "vae",
+            "label": "video_vae",
+            "pos": [
+              51,
+              44
+            ]
+          },
+          {
+            "id": "1bef84ff-98b5-428d-bc3c-a77b3b9d06ae",
             "name": "first_frame",
             "type": "IMAGE",
             "linkIds": [
@@ -149,11 +197,11 @@
             "shape": 7,
             "pos": [
               51,
-              24
+              64
             ]
           },
           {
-            "id": "9c00b100-5361-4fe1-b5d8-2f8f9df5babb",
+            "id": "03cbbf97-75c1-4621-9b40-13cb2db5004f",
             "name": "prompt",
             "type": "STRING",
             "linkIds": [
@@ -162,11 +210,11 @@
             "localized_name": "prompt",
             "pos": [
               51,
-              44
+              84
             ]
           },
           {
-            "id": "4a91e912-251f-4cef-bd0e-2e6aa84aefcb",
+            "id": "c99a0d6e-663f-4205-96be-395447a2347b",
             "name": "width",
             "type": "INT",
             "linkIds": [
@@ -175,11 +223,11 @@
             "localized_name": "width",
             "pos": [
               51,
-              64
+              104
             ]
           },
           {
-            "id": "632a360d-7b37-4b7d-9d62-b68d258896a6",
+            "id": "8cf5b9b6-8811-4b09-867f-ab3d5f3b2f2c",
             "name": "height",
             "type": "INT",
             "linkIds": [
@@ -188,11 +236,11 @@
             "localized_name": "height",
             "pos": [
               51,
-              84
+              124
             ]
           },
           {
-            "id": "337e2f5d-7382-4770-abd1-6673dec712e2",
+            "id": "1966d960-ec4b-477f-9273-ea0ba5da2f16",
             "name": "length",
             "type": "INT",
             "linkIds": [
@@ -201,11 +249,11 @@
             "localized_name": "length",
             "pos": [
               51,
-              104
+              144
             ]
           },
           {
-            "id": "536f18e1-06c8-4048-ac22-d2bc62b68661",
+            "id": "26065ac0-6b90-4bdd-8b13-1b9ebf78dd9a",
             "name": "noise_seed",
             "type": "INT",
             "linkIds": [
@@ -215,11 +263,11 @@
             "label": "seed",
             "pos": [
               51,
-              124
+              164
             ]
           },
           {
-            "id": "ad46e4c3-5079-4c41-a661-e70b0444dbec",
+            "id": "22b10eab-5bee-4510-b980-449408f3fa6c",
             "name": "model",
             "type": "MODEL",
             "linkIds": [
@@ -229,127 +277,27 @@
             "label": "model (from the Dial Rack)",
             "pos": [
               51,
-              144
+              184
+            ]
+          },
+          {
+            "id": "0a10f1f4-8065-41d2-98b8-8d9509eebeef",
+            "name": "vae_1",
+            "type": "VAE",
+            "linkIds": [
+              20
+            ],
+            "localized_name": "vae_1",
+            "label": "audio_vae",
+            "pos": [
+              51,
+              204
             ]
           }
         ],
         "outputs": [],
         "widgets": [],
         "nodes": [
-          {
-            "id": 8,
-            "type": "CLIPLoader",
-            "pos": [
-              -900,
-              0
-            ],
-            "size": [
-              320,
-              106
-            ],
-            "flags": {},
-            "order": 0,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "clip_name",
-                "name": "clip_name",
-                "type": "COMBO",
-                "widget": {
-                  "name": "clip_name"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "type",
-                "name": "type",
-                "type": "COMBO",
-                "widget": {
-                  "name": "type"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "device",
-                "name": "device",
-                "shape": 7,
-                "type": "COMBO",
-                "widget": {
-                  "name": "device"
-                },
-                "link": null
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "CLIP",
-                "name": "CLIP",
-                "type": "CLIP",
-                "links": [
-                  6
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "CLIPLoader"
-            },
-            "widgets_values": [
-              "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-              "minimax",
-              "default"
-            ],
-            "widgets_values_named": {
-              "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-              "type": "minimax",
-              "device": "default"
-            }
-          },
-          {
-            "id": 9,
-            "type": "VAELoader",
-            "pos": [
-              -900,
-              176
-            ],
-            "size": [
-              320,
-              58
-            ],
-            "flags": {},
-            "order": 1,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "vae_name",
-                "name": "vae_name",
-                "type": "COMBO",
-                "widget": {
-                  "name": "vae_name"
-                },
-                "link": null
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "VAE",
-                "name": "VAE",
-                "type": "VAE",
-                "links": [
-                  7,
-                  18
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "VAELoader"
-            },
-            "widgets_values": [
-              "minimax_h3_video_vae_fp16.safetensors"
-            ],
-            "widgets_values_named": {
-              "vae_name": "minimax_h3_video_vae_fp16.safetensors"
-            }
-          },
           {
             "id": 10,
             "type": "MiniMaxH3ImageToVideo",
@@ -362,7 +310,7 @@
               220
             ],
             "flags": {},
-            "order": 5,
+            "order": 2,
             "mode": 0,
             "inputs": [
               {
@@ -475,7 +423,7 @@
               82
             ],
             "flags": {},
-            "order": 6,
+            "order": 3,
             "mode": 0,
             "inputs": [
               {
@@ -522,7 +470,7 @@
               46
             ],
             "flags": {},
-            "order": 7,
+            "order": 4,
             "mode": 0,
             "inputs": [
               {
@@ -564,7 +512,7 @@
               58
             ],
             "flags": {},
-            "order": 2,
+            "order": 0,
             "mode": 0,
             "inputs": [
               {
@@ -610,7 +558,7 @@
               58
             ],
             "flags": {},
-            "order": 3,
+            "order": 1,
             "mode": 0,
             "inputs": [
               {
@@ -656,7 +604,7 @@
               106
             ],
             "flags": {},
-            "order": 8,
+            "order": 5,
             "mode": 0,
             "inputs": [
               {
@@ -723,7 +671,7 @@
               46
             ],
             "flags": {},
-            "order": 9,
+            "order": 6,
             "mode": 0,
             "inputs": [
               {
@@ -754,52 +702,6 @@
             }
           },
           {
-            "id": 17,
-            "type": "VAELoader",
-            "pos": [
-              -900,
-              304
-            ],
-            "size": [
-              320,
-              58
-            ],
-            "flags": {},
-            "order": 4,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "vae_name",
-                "name": "vae_name",
-                "type": "COMBO",
-                "widget": {
-                  "name": "vae_name"
-                },
-                "link": null
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "VAE",
-                "name": "VAE",
-                "type": "VAE",
-                "links": [
-                  20
-                ]
-              }
-            ],
-            "title": "Audio VAE",
-            "properties": {
-              "Node name for S&R": "VAELoader"
-            },
-            "widgets_values": [
-              "minimax_h3_audio_vae_fp32.safetensors"
-            ],
-            "widgets_values_named": {
-              "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
-            }
-          },
-          {
             "id": 18,
             "type": "VAEDecodeAudio",
             "pos": [
@@ -811,7 +713,7 @@
               46
             ],
             "flags": {},
-            "order": 10,
+            "order": 7,
             "mode": 0,
             "inputs": [
               {
@@ -853,7 +755,7 @@
               150
             ],
             "flags": {},
-            "order": 11,
+            "order": 8,
             "mode": 0,
             "inputs": [
               {
@@ -947,7 +849,7 @@
               106
             ],
             "flags": {},
-            "order": 12,
+            "order": 9,
             "mode": 0,
             "inputs": [
               {
@@ -1019,18 +921,6 @@
         ],
         "groups": [
           {
-            "id": "#3f5159",
-            "title": "Models",
-            "bounding": [
-              -920,
-              -60,
-              360,
-              442
-            ],
-            "color": "#3f789e",
-            "flags": {}
-          },
-          {
             "id": "#3f4f3f",
             "title": "Pass 1: Pika 6-step",
             "bounding": [
@@ -1056,22 +946,6 @@
           }
         ],
         "links": [
-          {
-            "id": 6,
-            "origin_id": 8,
-            "origin_slot": 0,
-            "target_id": 10,
-            "target_slot": 0,
-            "type": "CLIP"
-          },
-          {
-            "id": 7,
-            "origin_id": 9,
-            "origin_slot": 0,
-            "target_id": 10,
-            "target_slot": 1,
-            "type": "VAE"
-          },
           {
             "id": 11,
             "origin_id": 10,
@@ -1129,28 +1003,12 @@
             "type": "LATENT"
           },
           {
-            "id": 18,
-            "origin_id": 9,
-            "origin_slot": 0,
-            "target_id": 16,
-            "target_slot": 1,
-            "type": "VAE"
-          },
-          {
             "id": 19,
             "origin_id": 15,
             "origin_slot": 0,
             "target_id": 18,
             "target_slot": 0,
             "type": "LATENT"
-          },
-          {
-            "id": 20,
-            "origin_id": 17,
-            "origin_slot": 0,
-            "target_id": 18,
-            "target_slot": 1,
-            "type": "VAE"
           },
           {
             "id": 21,
@@ -1169,9 +1027,33 @@
             "type": "AUDIO"
           },
           {
-            "id": 8,
+            "id": 6,
             "origin_id": -10,
             "origin_slot": 0,
+            "target_id": 10,
+            "target_slot": 0,
+            "type": "CLIP"
+          },
+          {
+            "id": 7,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 10,
+            "target_slot": 1,
+            "type": "VAE"
+          },
+          {
+            "id": 18,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 16,
+            "target_slot": 1,
+            "type": "VAE"
+          },
+          {
+            "id": 8,
+            "origin_id": -10,
+            "origin_slot": 2,
             "target_id": 10,
             "target_slot": 2,
             "type": "IMAGE"
@@ -1179,7 +1061,7 @@
           {
             "id": 2,
             "origin_id": -10,
-            "origin_slot": 1,
+            "origin_slot": 3,
             "target_id": 10,
             "target_slot": 4,
             "type": "STRING"
@@ -1187,7 +1069,7 @@
           {
             "id": 3,
             "origin_id": -10,
-            "origin_slot": 2,
+            "origin_slot": 4,
             "target_id": 10,
             "target_slot": 5,
             "type": "INT"
@@ -1195,7 +1077,7 @@
           {
             "id": 4,
             "origin_id": -10,
-            "origin_slot": 3,
+            "origin_slot": 5,
             "target_id": 10,
             "target_slot": 6,
             "type": "INT"
@@ -1203,7 +1085,7 @@
           {
             "id": 5,
             "origin_id": -10,
-            "origin_slot": 4,
+            "origin_slot": 6,
             "target_id": 10,
             "target_slot": 7,
             "type": "INT"
@@ -1211,7 +1093,7 @@
           {
             "id": 9,
             "origin_id": -10,
-            "origin_slot": 5,
+            "origin_slot": 7,
             "target_id": 11,
             "target_slot": 0,
             "type": "INT"
@@ -1219,10 +1101,18 @@
           {
             "id": 10,
             "origin_id": -10,
-            "origin_slot": 6,
+            "origin_slot": 8,
             "target_id": 12,
             "target_slot": 0,
             "type": "MODEL"
+          },
+          {
+            "id": 20,
+            "origin_id": -10,
+            "origin_slot": 9,
+            "target_id": 18,
+            "target_slot": 1,
+            "type": "VAE"
           },
           {
             "id": 23,

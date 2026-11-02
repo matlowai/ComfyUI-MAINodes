@@ -104,7 +104,9 @@ without info are all unknown; version 1 info (one useful/overcook pair) reads as
 
 Open [dials_simple_pika_derope.json](../examples/dials/dials_simple_pika_derope.json) ([api](../examples/dials/dials_simple_pika_derope_api.json)),
 or drag **Dials - Pika H3 + De-rope** from the node library (Subgraph Blueprints > MAINodes > Dials) and wire
-Load Diffusion Model (H3) -> Pika H3 Flex LoRA -> Dial Rack -> its `model` input. Four controls matter:
+Load Diffusion Model (H3) -> Pika H3 Flex LoRA -> Dial Rack -> its `model` input, plus Load CLIP to `clip` and the video
+and audio VAE loaders to `video_vae` and `audio_vae`. First pick your five model files in those loaders (the example
+stacks them on the left); then four controls matter:
 
 1. **prompt** on the blueprint (Pika H3 layout: scene, soundscape, music); `first_frame` is optional.
 2. **Dial Rack** rows: tick a dial, drag its strength (about 1 is everyday, 1.5 shows side effects).
