@@ -12,7 +12,7 @@ import math
 
 import numpy as np
 
-from comfy.patcher_extension import (WrappersMP, add_wrapper_with_key, copy_nested_dicts)
+from comfy.patcher_extension import WrappersMP, add_wrapper_with_key
 from server import PromptServer
 
 from . import core
@@ -113,21 +113,23 @@ class ScheduledShift(core.PostShift):
 
 
 class EnvelopeSampler:
+    """Sampler wrapper: compiles the rows for this sampler call and adds them to the call's model options, which are the
+    call's own copy (CFGGuider.inner_sample clones them)."""
+    key = WRAPPER_KEY
+
     def __init__(self, rows, node_id=None, report="", cached=True):
         self.rows = rows
         self.node_id = node_id
         self.base_report = report
         self.cached = cached
 
-    def compile(self, sigmas):
+    def compile(self, sigmas, model):
         return (EnvelopeForward if self.cached else EnvelopeShift)(self.rows, sigmas)
 
     def __call__(self, executor, model, sigmas, extra_args, *args, **kwargs):
-        compiled = self.compile(sigmas)
-        extra_args = extra_args.copy()
-        extra_args["model_options"] = copy_nested_dicts(extra_args["model_options"])
-        options = extra_args["model_options"].setdefault("transformer_options", {})
-        add_wrapper_with_key(WrappersMP.DIFFUSION_MODEL if self.cached else WrappersMP.APPLY_MODEL, WRAPPER_KEY, compiled, options)
+        compiled = self.compile(sigmas, model)
+        add_wrapper_with_key(WrappersMP.DIFFUSION_MODEL if self.cached else WrappersMP.APPLY_MODEL, self.key, compiled,
+                             extra_args["model_options"], is_model_options=True)
         if self.node_id is not None:
             PromptServer.instance.send_sync("mai-dial-envelope", {"node": self.node_id, "text": self.base_report + "\n" + compiled.report()},
                                             PromptServer.instance.client_id)

@@ -26,7 +26,7 @@ import comfy.model_management
 import comfy.ops
 from comfy.ldm.krea2.model import SingleStreamDiT
 from comfy.ldm.moss_image.model import MOSSImage
-from comfy.patcher_extension import WrapperExecutor, WrappersMP, get_all_wrappers
+from comfy.patcher_extension import WrapperExecutor, WrappersMP, copy_nested_dicts, get_all_wrappers
 
 envelopes = importlib.import_module("mai_dials.envelopes")
 analysis = importlib.import_module("mai_dials.analysis")
@@ -123,7 +123,7 @@ def sample(m, sigmas=SIGMAS):
                 out.append(WrapperExecutor.new_executor(apply, get_all_wrappers(WrappersMP.APPLY_MODEL, call)).execute(None, s, None, None, None, call))
             return out
 
-        extra_args = {"model_options": {"transformer_options": {"wrappers": m.wrappers}}}
+        extra_args = {"model_options": copy_nested_dicts({"transformer_options": {"wrappers": m.wrappers}})}
         return WrapperExecutor.new_executor(run, m.get_all_wrappers(WrappersMP.SAMPLER_SAMPLE)).execute(m, sigmas, extra_args)
     finally:
         m.unpatch_model()

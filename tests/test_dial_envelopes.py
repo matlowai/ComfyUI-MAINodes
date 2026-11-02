@@ -4,7 +4,7 @@ import json
 import logging
 
 from test_dial_rack import H, core, nodes, comfy, torch, chain, dial, rack
-from comfy.patcher_extension import WrappersMP, WrapperExecutor, get_all_wrappers
+from comfy.patcher_extension import WrappersMP, WrapperExecutor, copy_nested_dicts, get_all_wrappers
 from comfy.ldm.minimax.model import MiniMaxH3Model as H3
 
 envelopes = importlib.import_module("mai_dials.envelopes")
@@ -40,7 +40,7 @@ def sample(patcher, x, sigmas, calls=None, raw=False):
         context = x if raw else dm.preprocess_text_embeds(x)
         saved = context.clone()
         options = {"wrappers": patcher.wrappers, "sample_sigmas": sigmas}
-        extra_args = {"model_options": {"transformer_options": options}}
+        extra_args = {"model_options": copy_nested_dicts({"transformer_options": options})}  # as CFGGuider.inner_sample
 
         def run(model, schedule, extra_args, marker):
             assert marker == "sampler args preserved"
@@ -58,8 +58,6 @@ def sample(patcher, x, sigmas, calls=None, raw=False):
 
         result = WrapperExecutor.new_executor(run, patcher.get_all_wrappers(WrappersMP.SAMPLER_SAMPLE)).execute(
             patcher, sigmas, extra_args, "sampler args preserved")
-        assert not any(isinstance(w, envelopes.EnvelopeForward) for w in get_all_wrappers(WrappersMP.DIFFUSION_MODEL, options)), \
-            "runtime wrapper leaked into input options"
         return result
     finally:
         patcher.unpatch_model()
