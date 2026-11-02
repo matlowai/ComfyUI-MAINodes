@@ -136,13 +136,13 @@ class TimeCurveForward:
 
     def __init__(self, groups, sigmas, clock=""):
         self.clock = clock
-        self.sigmas = sigmas.detach().double().cpu().tolist()
+        self.sigmas = sigmas.tolist()
         n = len(self.sigmas) - 1
         self.groups = []
-        for label, shift, spec, video, audio in groups:
-            weights = (torch.tensor(video).reshape(1, 1, -1, 1, 1), torch.tensor(audio).reshape(1, 1, 1, -1))
+        for label, shift, spec, video, audio in groups:  # tensors on the sampling device once, not copied per call
+            weights = (torch.tensor(video, device=sigmas.device).reshape(1, 1, -1, 1, 1), torch.tensor(audio, device=sigmas.device).reshape(1, 1, 1, -1))
             values = video + audio
-            self.groups.append({"label": label, "shift": shift, "steps": min(spec["steps"], n), "until": self.sigmas[min(spec["steps"], n)],
+            self.groups.append({"label": label, "shift": shift.to(sigmas.device), "steps": min(spec["steps"], n), "until": self.sigmas[min(spec["steps"], n)],
                                 "weights": weights, "zero": not any(values), "one": all(v == 1 for v in values), "video": video, "audio": audio})
 
     def report(self):

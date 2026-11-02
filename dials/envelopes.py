@@ -59,14 +59,14 @@ class EnvelopeForward:
     """Compiled once per sampler invocation; no call counter or mutable model/global state."""
 
     def __init__(self, rows, sigmas):
-        self.sigmas = sigmas.detach().double().cpu().tolist()
+        self.sigmas = sigmas.tolist()
         if len(self.sigmas) < 2 or any(not math.isfinite(s) for s in self.sigmas) or any(
                 a <= b for a, b in zip(self.sigmas, self.sigmas[1:])):
             raise ValueError("dial envelopes need a finite, strictly decreasing sampler sigma schedule")
         n = len(self.sigmas) - 1
         self.progress = [i / max(n - 1, 1) for i in range(n)]
-        self.rows = [(label, dial, [strength * interpolate(points, p) for p in self.progress])
-                     for label, dial, strength, points in rows]
+        self.rows = [(label, dict(dial, vec=dial["vec"].to(sigmas.device)), [strength * interpolate(points, p) for p in self.progress])
+                     for label, dial, strength, points in rows]  # vectors on the sampling device once, not copied per call
 
     def report(self):
         text = "envelope sigmas (terminal omitted): " + ", ".join(f"{s:.6g}" for s in self.sigmas[:-1])
