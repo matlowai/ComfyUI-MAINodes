@@ -6,12 +6,14 @@ import math
 import re
 
 import torch
+from aiohttp import web
 
 import comfy.samplers
 import folder_paths
 import nodes
 from comfy_api.latest import io
 from comfy_extras.nodes_minimax_h3 import MiniMaxH3SigmaShift
+from server import PromptServer
 
 from .dials.presets import preset_dir
 
@@ -115,12 +117,7 @@ def save_preset(name, preset):
 
 
 def install_routes():
-    from aiohttp import web
-    from server import PromptServer
-
-    srv = getattr(PromptServer, "instance", None)
-    if srv is None or getattr(srv, "_mai_render_preset_routes", False):
-        return
+    routes = PromptServer.instance.routes
 
     async def respond(fn, *args):
         try:
@@ -132,23 +129,21 @@ def install_routes():
         except ValueError as e:
             return web.json_response({"error": str(e)}, status=400)
 
-    @srv.routes.get("/mainodes/render/presets")
+    @routes.get("/mainodes/render/presets")
     async def listing(request):
         return await respond(list_presets)
 
-    @srv.routes.get("/mainodes/render/presets/{name}")
+    @routes.get("/mainodes/render/presets/{name}")
     async def load(request):
         return await respond(load_preset, request.match_info["name"])
 
-    @srv.routes.post("/mainodes/render/presets/{name}")
+    @routes.post("/mainodes/render/presets/{name}")
     async def save(request):
         try:
             preset = await request.json()
         except ValueError:
             return web.json_response({"error": "Expected the preset fields as JSON."}, status=400)
         return await respond(save_preset, request.match_info["name"], preset)
-
-    srv._mai_render_preset_routes = True
 
 
 install_routes()
