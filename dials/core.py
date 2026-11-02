@@ -385,7 +385,7 @@ def save_dial_info(dial_name, info):
 def dial_geometry(names):
     """Rack UI readouts for dial files: vector norm, injection mode, and cosine between every two dials."""
     dials = [load_dial(n) for n in names]
-    vecs = [d["vec"].float() for d in dials]
+    vecs = [d["vec"] for d in dials]
     return {"norm": [float(v.norm()) for v in vecs], "mode": [d["mode"] for d in dials], "info": [dial_info(n) for n in names],
             "cos": [[float(torch.nn.functional.cosine_similarity(a, b, dim=0)) if a.shape == b.shape else None for b in vecs] for a in vecs]}
 
@@ -416,7 +416,6 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, nuisance_di
     proj = dm.get_submodule(path.pre) if path.pre else None
     prompts, weights, holds = parse_pairs(pairs, subjects)
     nuisance = nuisance_pairs(subjects) if debias else []
-    weights = torch.tensor(weights)
     probe = [plain_text(t) for pair in prompts[:8] for s in pair for t, _ in ([(s, 1)] if isinstance(s, str) else s)] if mode == "pre" else []
     texts = [t for pp in (prompts, nuisance, *holds.values()) for pair in pp for s in pair for t, _ in side_terms(s)] + probe
     # every text through the encoder before the model loads, so a low-VRAM encoder load cannot evict the DiT mid-dial
@@ -424,6 +423,7 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, nuisance_di
     comfy.model_management.load_models_gpu([model])
     device = comfy.model_management.get_torch_device()
     dtype = model.model.get_dtype_inference()
+    pair_weights = torch.tensor(weights, device=device)
     cache = {}
 
     def encode(text):  # -> (pre-refiner tokens, pre token mean, post token mean), means in float32
@@ -437,7 +437,7 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, nuisance_di
         return sum(c * encode(t)[which] for t, c in side_terms(s))
 
     def mean(d):  # pair-weighted mean of pair differences
-        return (weights.to(d.device)[:, None] * d).sum(0) / weights.abs().sum()
+        return (pair_weights[:, None] * d).sum(0) / pair_weights.abs().sum()
 
     def diffs(pp, which):
         return torch.stack([side(b, which) - side(a, which) for a, b in pp])
@@ -481,7 +481,7 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, nuisance_di
         note += "\n" + "; ".join(f"hold group [{group}] removed {share:.1%}" for group, share in shares.items())
     dial = {"vec": vec.cpu(), "target": path.pre if mode == "pre" else path.post, "mode": mode,
             "meta": {"name": name, "model_family": path.family, "pairs": prompts, "n_pairs": str(len(prompts)),
-                     **({"pair_weights": weights.tolist()} if bool((weights != 1).any()) else {}), "pair_agreement_cos": f"{agree:.3f}",
+                     **({"pair_weights": weights} if any(w != 1 for w in weights) else {}), "pair_agreement_cos": f"{agree:.3f}",
                      "inject": f"{mode}_refiner", "debias_removed": f"{removed:.3f}" if debias else "off",
                      "calibrated": str(mode == "pre"), "format": "ComfyUI-Dials v1"}}
     if holds:
@@ -562,7 +562,7 @@ def video_reference(frames, fps, samples=MAX_VIDEO_SAMPLES):
 def make_video_dial(clip, model, videos_a, videos_b, prompt, name, debias=True, nuisance_dims=3):
     """Video sides are lists of (frames, fps); each clip contributes one text-token mean. Every clip is cut to the same
     number of 2 fps samples, so the per-block timestamp tokens match on both sides and cannot become part of the dial."""
-    samples = min([MAX_VIDEO_SAMPLES] + [len(torch.arange(0, len(f), max(float(fps) / 2, 1))) for f, fps in videos_a + videos_b])
+    samples = min([MAX_VIDEO_SAMPLES] + [math.ceil(len(f) / max(float(fps) / 2, 1)) for f, fps in videos_a + videos_b])
     a = [video_reference(frames, fps, samples) for frames, fps in videos_a]
     b = [video_reference(frames, fps, samples) for frames, fps in videos_b]
     dial, report = _make_reference_dial(clip, model, a, b, [prompt], name, "videos", debias, nuisance_dims)
