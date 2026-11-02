@@ -1826,10 +1826,19 @@ class DialRackUI {
     const active = (r) => r.on && (r.hold || Number(r.strength) !== 0);
     const anySolo = this.rows.some((r) => active(r) && r.solo);
     if (!this.rows.length) this.el("div", { color: "#777", padding: "4px 2px" }, this.list, "No dials yet: add one, or wire a dial into a dial_ input.");
+    else {
+      const head = this.el("div", { display: "flex", gap: "6px", padding: "0 4px", color: "#888", fontSize: "11px" }, this.list);
+      this.el("span", { flex: "1 1 auto", paddingLeft: "20px" }, head, "dial · strength");
+      this.el("span", { width: "76px" }, head, "steps").title = "strength over the denoising steps (constant, early, late, bell, manual)";
+      this.el("span", { width: "70px" }, head, "clip").title = "strength over the clip's time: click a row's curve to draw it";
+      this.el("span", { width: "60px" }, head, "");
+    }
     this.rows.forEach((r, i) => {
       const live = active(r) && (!anySolo || r.solo);
       const row = this.el("div", { display: "flex", alignItems: "center", gap: "6px", padding: "3px 4px", borderRadius: "4px",
         background: live ? "#1f2128" : "#191a1e", opacity: live ? "1" : "0.55" }, this.list);
+      // calm row: on, dial, strength, steps envelope, clip curve; blocks, info, editor, solo and hold sit behind ⋯
+      const more = this.el("div", { display: this.moreOpen === i ? "flex" : "none", alignItems: "center", gap: "6px", padding: "0 4px 3px 24px" }, this.list);
       const on = this.el("input", { margin: 0, cursor: "pointer" }, row);
       on.type = "checkbox"; on.checked = !!r.on; on.title = "on / off";
       on.onchange = () => { r.on = on.checked; this.commit(); this.render(); };
@@ -1874,7 +1883,7 @@ class DialRackUI {
         else r.envelope = envelope.value === "manual" ? { type: "manual", points: [[0, 0], [0.5, 1], [1, 0]] } : envelope.value;
         this.commit(); this.render();
       };
-      const strip = this.button(row, r.blocks ? "" : "blocks", "block strengths: " + BLOCKS_HELP,
+      const strip = this.button(more, r.blocks ? "" : "blocks", "block strengths: " + BLOCKS_HELP,
         () => { this.blocksEditing = this.blocksEditing === i ? null : i; this.render(); },
         Object.assign({ padding: "1px 4px", width: "60px" }, this.blocksEditing === i ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145" } : {}));
       if (r.blocks) drawBlocks(this.el("canvas", { display: "block", width: "50px", height: "12px" }, strip), r.blocks, null, 50, 12);
@@ -1882,11 +1891,12 @@ class DialRackUI {
         strip.disabled = true; strip.style.opacity = "0.4";
         strip.title = "Hold rows remove the whole direction; block strengths apply to strength rows.";
       }
-      const clip = this.button(row, r.time ? "" : "time", "time curve: " + TIME_HELP,
+      const clip = this.button(row, "", "clip: strength over the clip's time (click to draw a curve). " + TIME_HELP,
         () => { this.timeEditing = this.timeEditing === i ? null : i; this.curve = null; this.render(); },
         Object.assign({ padding: "1px 4px", width: "60px" }, this.timeEditing === i ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145" } : {}));
-      const mini = r.time && this.el("canvas", { display: "block", width: "50px", height: "12px" }, clip);
-      if (mini) drawTime(mini, r.time, this.clipSeconds(), this.curveAudio, 50, 12);
+      const mini = this.el("canvas", { display: "block", width: "50px", height: "12px" }, clip);
+      drawTime(mini, r.time || { type: "keys", points: [[0, 1], [1, 1]], unit: "normalized", interp: "linear" }, this.clipSeconds(), this.curveAudio, 50, 12);
+      if (!r.time) mini.style.opacity = "0.45";  // flat: the whole clip at the row's strength
       const blocker = r.hold ? "Hold rows remove the whole direction; time curves apply to strength rows."
         : this.rows.some((x) => x.on && x.hold) ? "Time curves and hold rows cannot share a rack: turn the hold rows off."
           : r.envelope || r.blocks ? "A time curve replaces the row's step envelope and block strengths: set them back to constant / all." : "";
@@ -1896,19 +1906,23 @@ class DialRackUI {
         envelope.style.opacity = strip.style.opacity = "0.4";
         envelope.title = strip.title = "This row has a time curve, which runs its own early-step schedule.";
       }
-      if (!("input" in r)) this.button(row, "⚙", "dial info: description, what − and + give, useful and overcook strengths per side, evidence (saved in the dial file)",
+      const set = [r.blocks && "blocks", r.solo && "S", r.hold && "H"].filter(Boolean).join(" ");
+      this.button(row, set ? "⋯ " + set : "⋯", "more: block strengths, dial info (⚙), dial editor (✎), solo (S), hold (H)",
+        () => { this.moreOpen = this.moreOpen === i ? null : i; this.render(); },
+        Object.assign({ padding: "2px 6px" }, this.moreOpen === i || set ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145" } : {}));
+      if (!("input" in r)) this.button(row, "✕", "remove row", () => { this.rows.splice(i, 1); this.commit(); this.render(); }, { padding: "2px 6px" });
+      if (!("input" in r)) this.button(more, "⚙", "dial info: description, what − and + give, useful and overcook strengths per side, evidence (saved in the dial file)",
         () => { this.editing = this.editing === i ? null : i; this.render(); },
         this.editing === i ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145", padding: "2px 6px" } : { padding: "2px 6px" });
-      if (!("input" in r)) this.button(row, "✎", "dial editor: see this dial's probe profile and its place among the saved dials, drag to edit, export as a new dial",
+      if (!("input" in r)) this.button(more, "✎", "dial editor: see this dial's probe profile and its place among the saved dials, drag to edit, export as a new dial",
         () => { this.dialEditor = this.dialEditor?.r === r ? null : new DialEditor(this, r); this.render(); },
         this.dialEditor?.r === r ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145", padding: "2px 6px" } : { padding: "2px 6px" });
-      this.button(row, "S", "solo: hear only the soloed rows", () => { r.solo = !r.solo; this.commit(); this.render(); },
+      this.button(more, "S", "solo: hear only the soloed rows", () => { r.solo = !r.solo; this.commit(); this.render(); },
         r.solo ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145", padding: "2px 6px" } : { padding: "2px 6px" });
-      const hold = this.button(row, "H", "hold: remove this direction from the summed shift (post-refiner dials only)",
+      const hold = this.button(more, "H", "hold: remove this direction from the summed shift (post-refiner dials only)",
         () => { r.hold = !r.hold; this.commit(); this.render(); },
         r.hold ? { background: "#20323b", borderColor: "#8fb4ff", color: "#8fb4ff", padding: "2px 6px" } : { padding: "2px 6px" });
       hold.setAttribute("aria-pressed", String(!!r.hold));
-      if (!("input" in r)) this.button(row, "✕", "remove row", () => { this.rows.splice(i, 1); this.commit(); this.render(); }, { padding: "2px 6px" });
       if (this.editing === i && !("input" in r)) this.infoEditor(r.dial);
       if (this.blocksEditing === i && !r.hold) this.blocksEditor(r, this.rowName(i));
       if (this.timeEditing === i && !r.hold) this.timeEditor(r, this.rowName(i), mini);
@@ -1939,7 +1953,7 @@ class DialRackUI {
     this.padButton.style.borderColor = open ? "#ffc145" : "#444";
     if (open) { this.map.render(); this.matrix.draw(); }
     const key = [this.rows.length, open, this.report, this.presetMessage, this.presetBar.style.display, this.editing, this.blocksEditing, this.dialEditor?.file, this.dialEditor?.box.childElementCount,
-      this.timeEditing, this.rows[this.timeEditing]?.time?.type, this.curveTall].join("|");
+      this.timeEditing, this.rows[this.timeEditing]?.time?.type, this.curveTall, this.moreOpen].join("|");
     if (key !== this.contentKey && this.root.clientHeight) {  // content changed: grow to show it; never shrink what the user sized
       // (before the widget is laid out, e.g. while a workflow loads, the saved size stands)
       this.contentKey = key;
@@ -1955,6 +1969,12 @@ class DialRackUI {
 app.registerExtension({
   name: "MAINodes.DialRack",
   setup() {
+    // a Make Dial node that saved a file: offer it in every rack's dial list without a click on ↻
+    api.addEventListener("executed", async ({ detail }) => {
+      if (!(detail?.output?.text || []).some((t) => /^saved .+\.safetensors$/m.test(t))) return;
+      await listDials(true);
+      for (const n of app.graph?._nodes || []) n.dialRack?.render();
+    });
     api.addEventListener("mai-dial-envelope", ({ detail }) => {
       const rack = app.graph?.getNodeById(detail.node)?.dialRack;
       if (!rack) return;
