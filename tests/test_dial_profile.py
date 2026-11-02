@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Probe-bank profiles: direct coefficients, ridge joint fit, unexplained share, zero vectors, space checks, cache (CPU)."""
+"""Probe-bank profiles: direct coefficients, ridge joint fit, unexplained share, zero vectors, space checks (CPU)."""
 import importlib
 import importlib.util
 import json
@@ -22,7 +22,6 @@ spec = importlib.util.spec_from_file_location("mai_dials", pkg_dir / "__init__.p
 sys.modules["mai_dials"] = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(sys.modules["mai_dials"])
 analysis = importlib.import_module("mai_dials.analysis")
-presets = importlib.import_module("mai_dials.presets")
 
 D = 32
 POST = "diffusion_model.token_refiner.dials_shift"
@@ -85,28 +84,26 @@ def bank_checks():
             axes.append({"id": axis, "negative": neg, "positive": pos, "file": f"dials/_probes/{axis}.safetensors"})
         manifest = root / "dials" / "_probes" / "bank.json"
         manifest.write_text(json.dumps({"id": "test-bank", "version": 1, "ridge_lambda": 0.01, "axes": axes}))
-        bank = "dials/_probes/bank.json"
+        analysis.BANKS["MiniMax H3"] = "dials/_probes/bank.json"
 
         save_file({POST: (e(0, 4.0) + e(9)).to(torch.bfloat16)}, str(root / "dials" / "mix.safetensors"))
-        sha = presets.dial_sha256("dials/mix.safetensors")
-        p = analysis.dial_profile("dials/mix.safetensors", sha, bank)
+        p = analysis.dial_profile("dials/mix.safetensors")
         assert p["axes"] == ["motion", "light"] and p["positive"] == ["moving", "dramatic"] and close(p["direct"], [2.0, 0.0])
         assert 0.2 < p["unexplained"] < 0.3 and p["bank"] == "test-bank" and p["version"] == 1, p
         assert p["correlated"] == [], "a bank without correlated pairs lists none"
         assert json.dumps(p, allow_nan=False)
 
-        # cached by vector hash and bank version; a changed vector or bank version is recomputed
-        assert analysis.dial_profile("dials/mix.safetensors", sha, bank) is p
+        # a changed vector or bank shows at once
         save_file({POST: e(1, 2.0).to(torch.bfloat16)}, str(root / "dials" / "mix.safetensors"))
-        changed = analysis.dial_profile("dials/mix.safetensors", presets.dial_sha256("dials/mix.safetensors"), bank)
+        changed = analysis.dial_profile("dials/mix.safetensors")
         assert close(changed["direct"], [0.0, 1.0]) and changed["unexplained"] < 0.2, changed
         manifest.write_text(json.dumps({"id": "test-bank", "version": 2, "ridge_lambda": 0.01, "axes": axes[::-1]}))
-        assert analysis.dial_profile("dials/mix.safetensors", presets.dial_sha256("dials/mix.safetensors"), bank)["axes"] == ["light", "motion"]
+        assert analysis.dial_profile("dials/mix.safetensors")["axes"] == ["light", "motion"]
 
         # a pre-refiner dial is a different space: refused, not projected
         save_file({"diffusion_model.condition_proj.diff_b": e(0).to(torch.bfloat16)}, str(root / "dials" / "pre.safetensors"))
         try:
-            analysis.dial_profile("dials/pre.safetensors", presets.dial_sha256("dials/pre.safetensors"), bank)
+            analysis.dial_profile("dials/pre.safetensors")
         except ValueError as err:
             assert "different space" in str(err)
         else:

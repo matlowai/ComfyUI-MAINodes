@@ -243,7 +243,7 @@ def check_files(models):
         fails(lambda: rack(moss, [{"dial": "dials/moss_night.safetensors", "strength": 1}, {"dial": "dials/old_h3.safetensors", "hold": True}], None),
               "was made for MiniMax H3")
         assert rack(krea, [{"dial": "dials/moss_night.safetensors", "strength": 0}], None) is krea, "an inactive row was checked"
-        fails(lambda: analysis.dial_profile("dials/krea_night.safetensors", presets.dial_sha256("dials/krea_night.safetensors")),
+        fails(lambda: analysis.dial_profile("dials/krea_night.safetensors"),
               "no probe bank for Krea 2 yet")
         combine = lambda a, b: nodes.CombineDials.execute(a=a, b=b, weight_a=1., weight_b=.5, orthogonalize=False, name="").result[0]
         fails(lambda: combine(loaded, core.load_dial("dials/old_h3.safetensors")), "dial a was made for MOSS-Image, dial b for MiniMax H3")

@@ -185,7 +185,7 @@ def install_routes():
     async def profile(request):  # probe-bank coefficients of one post-refiner dial file (direct and ridge joint fit)
         dial = request.query.get("dial", "")
         try:
-            return web.json_response(await asyncio.to_thread(lambda: analysis.dial_profile(dial, dial_sha256(dial))))
+            return web.json_response(await asyncio.to_thread(analysis.dial_profile, dial))
         except (FileNotFoundError, ValueError) as e:
             return web.json_response({"error": str(e)}, status=400)
 
