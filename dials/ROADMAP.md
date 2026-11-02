@@ -144,11 +144,16 @@ Keep every node, but give most people a clean front door. ComfyUI loads subgraph
 `<custom_node>/subgraphs/<name>.json` (`app/subgraph_manager.py`); they appear in the node library.
 - [ ] **Three tiers of start-here workflows:** Simple (one subgraph, a handful of controls), Pro (today's full graphs), Lab
       (research nodes). The README's first screen points only at Simple.
-- [ ] **Shipped subgraphs** (MAIN `subgraphs/`): done: `Dials - Pika H3` and `Dials - Pika H3 + De-rope` (prompt,
-      optional first frame, width, height, length, seed, de-rope; the five model loaders and the rack stay outside on the model input because its
-      rows can't be promoted onto a subgraph node; one saved video, no outputs) and the Simple example
-      `examples/dials/dials_simple_pika_derope.json`. Open: `Dials - Make Dial from Pictures` (two picture groups, name,
-      labels, one dial out).
+- [x] **Shipped subgraphs** (MAIN `subgraphs/`): `Dials - H3 + De-rope` (Simple v2, 2026-11-02): prompt, width, height,
+      length, seed, first frame (FL2V), two pictures (Ref2V), de-rope off / oracle / flat, de-rope amount (continuous
+      inject, 0.48), max de-rope, pass 2 audio; sampler, sigmas, de-rope steps, FL2V/Ref2V and cfg come from the **Render
+      Preset** node outside, so nothing Pika-specific is wired inside. Examples `dials_simple_pika_derope{,_kj}.json`
+      (core-only and KJNodes). The v1 blueprints `Dials - Pika H3 (+ De-rope)` are archived in `examples/dials/_archive/`.
+      A separate Make Dial from Pictures blueprint was dropped: the Simple workflow carries muted make-a-dial groups
+      (prompts; pictures or folders) run with Run Branch.
+- [x] **Render presets** (Simple v2): one node switches model, LoRA, shifts, FL2V/Ref2V, sampler, stage-1 schedule and
+      steps, de-rope steps and cfg together; built-ins Pika H3 Flex, Pika + reference pictures, DMAD speed LoRA; user
+      presets in `models/loras/dials/presets/render/`.
 - [x] **De-rope as a switch, not a second workflow:** one boolean on the Simple workflow feeds core's lazy If/Else Switch
       (`ComfySwitchNode`) between pass 1's video and the de-roped video; with it off, stage 2 (oracle, smear, pass 2, rack
       copy) must not run. Proof run on the charge scene (1 seed): off 75 s and pixel-identical to plain pass 1; on 330 s and identical to the de-roped clip, so stage 2 is skipped when off (scripts in the session scratchpad `derope_switch.py`).
@@ -156,9 +161,9 @@ Keep every node, but give most people a clean front door. ComfyUI loads subgraph
       run 202 s (pass 1 cached).
 - [x] **One rack for both stages:** Dial Hold Map (rack model + `hold_map_used` -> stage-2 model); pixel-identical to the
       two-rack setup on the charge scene, `tests/test_dial_hold_map_node.py`.
-- [ ] **Calmer rack rows:** each row shows on/off, dial, slider and value; everything else (envelope, blocks, time, info,
-      editor, solo, hold) moves behind one per-row "more" menu, and the map / matrix / wheel behind a single "analyze"
-      toggle. Advanced users lose nothing; first-time users see a slider list.
+- [x] **Calmer rack rows:** each row shows on/off, dial, slider, value, the steps envelope and the clip-time mini curve
+      (both kinds of envelope stay on the front page, labelled in a header line); blocks, info, editor, solo and hold sit
+      behind ⋯ on a second line. Open: the map / matrix / wheel behind a single "analyze" toggle.
 - [ ] **Recipes:** a few ready-made rack presets with plain names ("cold night", "trip kicks in", "storm builds") on the
       Simple workflow's preset menu.
 - [ ] **House style for example graphs:** titled groups, one colour per stage, notes for the three things to change, no

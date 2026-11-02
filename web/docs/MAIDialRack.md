@@ -7,12 +7,17 @@ gets its own row.
 ## A row
 - **checkbox**: on / off. **slider and number**: strength. Negative moves toward the dial's A side, positive toward B.
   +0.5 to +1 is the everyday range; past about 1.5 side effects appear.
-- **constant / early / late / bell / manual**: strength over the denoising steps.
-- **blocks**: how much of the dial each model block reads (all ones = the plain dial).
-- **time**: the dial's strength over the clip (MiniMax H3; see below).
-- **⚙**: the dial's info (what − and + give, useful and overcook strengths, evidence), saved into the dial file.
-- **✎**: the dial editor (below).
-- **S** solo, **H** hold (removes this direction from the other rows instead of adding it), **✕** remove.
+- **steps**: strength over the denoising steps: constant, early, late, bell, manual.
+- **clip**: strength over the clip's time. The little curve shows it (a flat line = the whole clip at the row's
+  strength); click it to draw (see below).
+- **⋯**: the rest, on a second line: **blocks** (how much of the dial each model block reads; all ones = the plain dial),
+  **⚙** the dial's info (what − and + give, useful and overcook strengths, evidence), saved into the dial file, **✎** the
+  dial editor (below), **S** solo, **H** hold (removes this direction from the other rows instead of adding it). The ⋯
+  button lights up and names what is set (e.g. `⋯ S`).
+- **✕**: remove the row.
+
+A dial made by Make Dial (or exported from the editor) shows up in every rack's list as soon as it is saved; **↻**
+reloads the list after you copy files in by hand.
 
 **Save preset / Load preset** store the rows by file name and hash, never the dial weights. **Map** opens a 2D pad: two
 rows on X and Y, the dot is your prompt; switch it to the **wheel** to see every live row on the probe axes. Under it,
@@ -24,7 +29,8 @@ Makes a dial come in, go out, swell or reverse during the clip, e.g. dark only a
 the level over the clip on the canvas: 0 = dial off, 1 = the row's strength. Levels between 0 and 1 are exact. Levels
 above 1 or below 0 extrapolate the blend between the plain and the dialled prediction, which is weaker than a real
 strength: level −2 on a motion row at +1 did not freeze anything where a −2 row did. For a real negative strength in
-one stretch, add a second row of the same dial at the negative strength with a 0-to-1 curve. **bottom** and **top** set the level range you
+one stretch, add a second row of the same dial at the negative strength with a 0-to-1 curve. The editor says so: outside
+levels 0 to 1 the readout shows *extrapolated (weaker than …)* and the strength axis is dashed grey. **bottom** and **top** set the level range you
 can reach with the mouse; both widen by themselves when a typed or pasted curve goes past them. The solid line is 0.
 The amber steps are what the model actually gets: one value per latent frame, about 1/6 s.
 
