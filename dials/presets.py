@@ -24,14 +24,14 @@ def preset_dir():
 
 
 def preset_path(name):
-    if not re.fullmatch(r"[A-Za-z0-9_\-]{1,80}", name):
+    if not core.NAME.fullmatch(name):
         raise ValueError("preset name: letters, digits, '_' and '-' only (max 80)")
     return preset_dir() / f"{name}.json"
 
 
 def list_presets():
     root = preset_dir()
-    return sorted(p.stem for p in root.glob("*.json") if re.fullmatch(r"[A-Za-z0-9_\-]{1,80}", p.stem))
+    return sorted(p.stem for p in root.glob("*.json") if core.NAME.fullmatch(p.stem))
 
 
 def preset_rows(rows):

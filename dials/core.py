@@ -253,8 +253,11 @@ def plain_text(text):
     return WEIGHTED_SPAN.sub(r"\1", text)
 
 
+NAME = re.compile(r"[A-Za-z0-9_\-]{1,80}")  # dial, folder and preset names
+
+
 def check_dial_name(name):
-    if not re.fullmatch(r"[A-Za-z0-9_\-]{1,80}", name):
+    if not NAME.fullmatch(name):
         raise ValueError("dial name: letters, digits, '_' and '-' only (max 80)")
 
 

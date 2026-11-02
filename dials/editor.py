@@ -15,7 +15,6 @@ import hashlib
 import json
 import math
 import os
-import re
 
 import torch
 from aiohttp import web
@@ -184,7 +183,7 @@ def readouts(ctx, vec):
 def dial_path(name):
     """'name' or 'folder/name' inside models/loras/dials/, each part letters, digits, '_' and '-'."""
     parts = name.split("/")
-    if not 1 <= len(parts) <= 2 or not all(re.fullmatch(r"[A-Za-z0-9_\-]{1,80}", p) for p in parts):
+    if not 1 <= len(parts) <= 2 or not all(core.NAME.fullmatch(p) for p in parts):
         raise ValueError("dial name: letters, digits, '_' and '-' only (max 80), optionally in one folder: folder/name")
     return os.path.join(folder_paths.get_folder_paths("loras")[0], core.DIAL_SUBDIR, *parts) + ".safetensors"
 
