@@ -7,9 +7,11 @@ import re
 from pathlib import Path
 
 import torch
+from aiohttp import web
 from safetensors import safe_open
 
 import folder_paths
+from server import PromptServer
 
 from . import analysis, core, envelopes, timecurve
 
@@ -128,14 +130,9 @@ def load_preset(name):
 
 
 def install_routes():
-    from aiohttp import web
-    from server import PromptServer
+    routes = PromptServer.instance.routes
 
-    srv = getattr(PromptServer, "instance", None)
-    if srv is None or getattr(srv, "_mai_dial_preset_routes", False):
-        return
-
-    @srv.routes.get("/mainodes/dials/presets")
+    @routes.get("/mainodes/dials/presets")
     async def listing(request):
         return web.json_response(await asyncio.to_thread(list_presets))
 
@@ -149,11 +146,11 @@ def install_routes():
         except ValueError as e:
             return web.json_response({"error": str(e)}, status=400)
 
-    @srv.routes.get("/mainodes/dials/presets/{name}")
+    @routes.get("/mainodes/dials/presets/{name}")
     async def load(request):
         return await respond(load_preset, request.match_info["name"])
 
-    @srv.routes.post("/mainodes/dials/geometry")
+    @routes.post("/mainodes/dials/geometry")
     async def geometry(request):  # norms and cosines for the rack's pad readouts
         try:
             names = (await request.json())["dials"]
@@ -164,7 +161,7 @@ def install_routes():
         except (FileNotFoundError, ValueError) as e:
             return web.json_response({"error": str(e)}, status=400)
 
-    @srv.routes.post("/mainodes/dials/interactions")
+    @routes.post("/mainodes/dials/interactions")
     async def interactions(request):  # dots once per set of files; the rack redoes the bookkeeping as sliders move
         try:
             rows = (await request.json())["rows"]
@@ -174,14 +171,14 @@ def install_routes():
         except (FileNotFoundError, ValueError) as e:
             return web.json_response({"error": str(e)}, status=400)
 
-    @srv.routes.get("/mainodes/dials/info")
+    @routes.get("/mainodes/dials/info")
     async def info(request):  # description, side labels, useful and overcook strengths for one dial file
         try:
             return web.json_response(await asyncio.to_thread(core.dial_info, request.query.get("dial", "")))
         except (FileNotFoundError, ValueError) as e:
             return web.json_response({"error": str(e)}, status=400)
 
-    @srv.routes.get("/mainodes/dials/profile")
+    @routes.get("/mainodes/dials/profile")
     async def profile(request):  # probe-bank coefficients of one post-refiner dial file (direct and ridge joint fit)
         dial = request.query.get("dial", "")
         try:
@@ -189,7 +186,7 @@ def install_routes():
         except (FileNotFoundError, ValueError) as e:
             return web.json_response({"error": str(e)}, status=400)
 
-    @srv.routes.post("/mainodes/dials/info")
+    @routes.post("/mainodes/dials/info")
     async def save_info(request):
         try:
             body = await request.json()
@@ -199,12 +196,10 @@ def install_routes():
         except (FileNotFoundError, ValueError) as e:
             return web.json_response({"error": str(e)}, status=400)
 
-    @srv.routes.post("/mainodes/dials/presets/{name}")
+    @routes.post("/mainodes/dials/presets/{name}")
     async def save(request):
         try:
             rows = await request.json()
         except ValueError:
             return web.json_response({"error": "Expected rack rows as JSON."}, status=400)
         return await respond(save_preset, request.match_info["name"], rows)
-
-    srv._mai_dial_preset_routes = True

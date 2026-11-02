@@ -7,6 +7,9 @@ import os
 from pathlib import Path
 import sys
 import tempfile
+import types
+
+from aiohttp import web
 
 HERE = Path(__file__).resolve().parent
 COMFY = os.environ.get("COMFYUI_ROOT") or str(HERE.parents[2])
@@ -17,6 +20,8 @@ import folder_paths  # noqa: E402
 import torch  # noqa: E402
 from safetensors import safe_open  # noqa: E402
 from safetensors.torch import save_file  # noqa: E402
+import server  # noqa: E402
+server.PromptServer.instance = types.SimpleNamespace(routes=web.RouteTableDef())  # nodes.py registers its routes at import
 
 pkg_dir = HERE.parent / "dials"
 spec = importlib.util.spec_from_file_location("mai_dials", pkg_dir / "__init__.py", submodule_search_locations=[str(pkg_dir)])

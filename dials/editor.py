@@ -18,9 +18,11 @@ import os
 import re
 
 import torch
+from aiohttp import web
 from safetensors.torch import save
 
 import folder_paths
+from server import PromptServer
 
 from . import analysis, core
 
@@ -215,21 +217,16 @@ def export_edit(dial_name, edits, name, info=None):
 
 
 def install_routes():
-    from aiohttp import web
-    from server import PromptServer
+    routes = PromptServer.instance.routes
 
-    srv = getattr(PromptServer, "instance", None)
-    if srv is None or getattr(srv, "_mai_dial_editor_routes", False):
-        return
-
-    @srv.routes.get("/mainodes/dials/editor")
+    @routes.get("/mainodes/dials/editor")
     async def state(request):  # probe profile, library and Gram numbers for one post-refiner dial file
         try:
             return web.json_response(await asyncio.to_thread(editor_state, request.query.get("dial", "")))
         except (FileNotFoundError, ValueError) as e:
             return web.json_response({"error": str(e)}, status=400)
 
-    @srv.routes.post("/mainodes/dials/editor/export")
+    @routes.post("/mainodes/dials/editor/export")
     async def export(request):
         try:
             body = await request.json()
@@ -240,5 +237,3 @@ def install_routes():
             return web.json_response({"error": "A dial with that name already exists. Choose a new name."}, status=409)
         except (FileNotFoundError, ValueError) as e:
             return web.json_response({"error": str(e)}, status=400)
-
-    srv._mai_dial_editor_routes = True

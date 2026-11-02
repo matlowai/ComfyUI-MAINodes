@@ -10,11 +10,13 @@ from pathlib import Path
 import shutil
 import sys
 import tempfile
+import types
 import unittest
 from unittest.mock import patch
 import zlib
 
 import torch
+from aiohttp import web
 
 HERE = Path(__file__).resolve().parent
 COMFY = os.environ.get("COMFYUI_ROOT") or str(HERE.parents[2])
@@ -23,6 +25,8 @@ import comfy.cli_args
 comfy.cli_args.args.cpu = True
 import comfy.model_patcher
 import folder_paths
+import server
+server.PromptServer.instance = types.SimpleNamespace(routes=web.RouteTableDef())  # nodes.py registers its routes at import
 
 pkg_dir = HERE.parent / "dials"
 spec = importlib.util.spec_from_file_location("mai_dials", pkg_dir / "__init__.py", submodule_search_locations=[str(pkg_dir)])

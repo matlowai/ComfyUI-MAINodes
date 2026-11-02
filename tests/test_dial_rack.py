@@ -23,8 +23,10 @@ import json
 import os
 import sys
 import tempfile
+import types
 
 import torch
+from aiohttp import web
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 COMFY = os.environ.get("COMFYUI_ROOT") or os.path.abspath(os.path.join(HERE, "..", "..", ".."))  # COMFYUI_ROOT for checkouts outside custom_nodes
@@ -35,6 +37,8 @@ comfy.cli_args.args.cpu = True  # before model_management picks a device
 import comfy.model_patcher  # noqa: E402
 import folder_paths  # noqa: E402
 from comfy.patcher_extension import WrapperExecutor, WrappersMP, get_all_wrappers  # noqa: E402
+import server  # noqa: E402
+server.PromptServer.instance = types.SimpleNamespace(routes=web.RouteTableDef())  # nodes.py registers its routes at import
 
 
 def load_dials_package():

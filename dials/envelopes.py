@@ -12,6 +12,7 @@ import contextvars
 import math
 
 from comfy.patcher_extension import (WrappersMP, add_wrapper_with_key, copy_nested_dicts)
+from server import PromptServer
 
 from . import core
 
@@ -135,7 +136,6 @@ class EnvelopeSampler:
         options = extra_args["model_options"].setdefault("transformer_options", {})
         add_wrapper_with_key(WrappersMP.DIFFUSION_MODEL if self.cached else WrappersMP.APPLY_MODEL, WRAPPER_KEY, compiled, options)
         if self.node_id is not None:
-            from server import PromptServer  # only inside a running ComfyUI; keeps the module importable in tests
             PromptServer.instance.send_sync("mai-dial-envelope", {"node": self.node_id, "text": self.base_report + "\n" + compiled.report()},
                                             PromptServer.instance.client_id)
         return executor(model, sigmas, extra_args, *args, **kwargs)
