@@ -18,7 +18,6 @@ import os
 
 import torch
 from aiohttp import web
-from safetensors.torch import save
 
 import folder_paths
 from server import PromptServer
@@ -204,9 +203,7 @@ def export_edit(dial_name, edits, name, info=None):
                      "inject": "post_refiner", "format": "ComfyUI-Dials v1"}}
     dial["meta"]["composition"] = {"kind": "edit", "parent": core.dial_parent(parent), "edits": edits,
                                    "result_sha256": core.vector_sha256(dial)}
-    meta = {k: (v if isinstance(v, str) else json.dumps(v)) for k, v in dial["meta"].items()}
-    meta["dial_info"] = json.dumps(info)
-    payload = save({f"diffusion_model.{dial['target']}.{core.KEY_SUFFIX['post']}": dial["vec"].to(torch.bfloat16).contiguous()}, metadata=meta)
+    payload = core.dial_bytes(dial, info)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "xb") as f:  # "x": an existing dial is never replaced
         f.write(payload)

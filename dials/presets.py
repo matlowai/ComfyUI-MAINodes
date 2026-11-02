@@ -1,12 +1,10 @@
 """Versioned rack presets: file references and settings, never dial weights."""
 import asyncio
-import hashlib
 import json
 import math
 import re
 from pathlib import Path
 
-import torch
 from aiohttp import web
 from safetensors import safe_open
 
@@ -83,16 +81,12 @@ def preset_rows(rows):
 
 
 def dial_sha256(dial):
-    """Hash of the dial's tensor data only, so editing a dial's info metadata does not invalidate presets."""
+    """Hash of the dial file's tensors only, so editing a dial's info metadata does not invalidate presets."""
     path = folder_paths.get_full_path("loras", dial)
     if path is None:
         return None
-    h = hashlib.sha256()
     with safe_open(path, "pt") as f:
-        for key in sorted(f.keys()):
-            h.update(key.encode())
-            h.update(f.get_tensor(key).contiguous().view(-1).view(torch.uint8).numpy().tobytes())
-    return h.hexdigest()
+        return core.tensors_sha256({k: f.get_tensor(k) for k in f.keys()})
 
 
 def check_rows(rows):

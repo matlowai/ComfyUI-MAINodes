@@ -30,7 +30,7 @@ import re
 
 import torch
 from safetensors import safe_open
-from safetensors.torch import save_file
+from safetensors.torch import save, save_file
 
 import comfy.model_management
 import comfy.utils
@@ -261,23 +261,41 @@ def check_dial_name(name):
         raise ValueError("dial name: letters, digits, '_' and '-' only (max 80)")
 
 
+def dial_tensors(dial):
+    """What a dial file holds: one bf16 tensor keyed diffusion_model.<target>.<diff_b|dials_shift>."""
+    return {f"diffusion_model.{dial['target']}.{KEY_SUFFIX[dial['mode']]}": dial["vec"].to(torch.bfloat16).contiguous()}
+
+
+def dial_bytes(dial, info=None):
+    """The dial file: its tensor, its metadata (non-strings as JSON) and, given info, the checked dial_info."""
+    meta = {k: (v if isinstance(v, str) else json.dumps(v)) for k, v in dial["meta"].items()}
+    if info is not None:
+        meta["dial_info"] = json.dumps(check_dial_info(info))
+    return save(dial_tensors(dial), metadata=meta)
+
+
 def save_dial(dial, name, info=None):
     check_dial_name(name)
     root = os.path.join(folder_paths.get_folder_paths("loras")[0], DIAL_SUBDIR)
     os.makedirs(root, exist_ok=True)
     path = os.path.join(root, f"{name}.safetensors")
-    meta = {k: (v if isinstance(v, str) else json.dumps(v)) for k, v in dial["meta"].items()}
-    if info is not None:
-        meta["dial_info"] = json.dumps(check_dial_info(info))
-    save_file({f"diffusion_model.{dial['target']}.{KEY_SUFFIX[dial['mode']]}": dial["vec"].to(torch.bfloat16).contiguous()}, path, metadata=meta)
+    with open(path, "wb") as f:
+        f.write(dial_bytes(dial, info))
     return path
+
+
+def tensors_sha256(tensors):
+    """Hash of a dial file's tensors (keys and bytes in key order, never the metadata), so editing info keeps it."""
+    h = hashlib.sha256()
+    for key in sorted(tensors):
+        h.update(key.encode())
+        h.update(tensors[key].contiguous().view(-1).view(torch.uint8).numpy().tobytes())
+    return h.hexdigest()
 
 
 def vector_sha256(dial):
     """Hash of the tensor the dial saves as, equal to presets.dial_sha256 of its file, so recipes find parents by content."""
-    h = hashlib.sha256(f"diffusion_model.{dial['target']}.{KEY_SUFFIX[dial['mode']]}".encode())
-    h.update(dial["vec"].to(torch.bfloat16).contiguous().view(-1).view(torch.uint8).numpy().tobytes())
-    return h.hexdigest()
+    return tensors_sha256(dial_tensors(dial))
 
 
 def dial_parent(dial):
