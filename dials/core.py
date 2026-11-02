@@ -382,7 +382,7 @@ def nuisance_basis(diffs, dims):
     return torch.linalg.svd(diffs, full_matrices=False)[2][:dims].T
 
 
-def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=True, nuisance_dims=3):
+def make_dial(clip, model, pairs, subjects, name, mode, debias=True, nuisance_dims=3):
     """Returns (dial, report). mode: "post" (hook) or "pre" (LoRA file)."""
     path = text_path(model)
     if mode == "pre" and path.pre is None:
@@ -392,7 +392,7 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
     prompts, weights, holds = parse_pairs(pairs, subjects)
     nuisance = parse_pairs("\n".join(NUISANCE_PAIRS), subjects if subjects.strip() else NUISANCE_SUBJECTS)[0] if debias else []
     weights = torch.tensor(weights)
-    probe = [plain_text(t) for pair in prompts[:8] for s in pair for t, _ in ([(s, 1)] if isinstance(s, str) else s)] if calibrate and mode == "pre" else []
+    probe = [plain_text(t) for pair in prompts[:8] for s in pair for t, _ in ([(s, 1)] if isinstance(s, str) else s)] if mode == "pre" else []
     texts = [t for pp in (prompts, nuisance, *holds.values()) for pair in pp for s in pair for t, _ in side_terms(s)] + probe
     # every text through the encoder before the model loads, so a low-VRAM encoder load cannot evict the DiT mid-dial
     states = {t: clip.encode_from_tokens_scheduled(clip.tokenize(t))[0][0][0] for t in dict.fromkeys(texts)}
@@ -445,7 +445,7 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
         note = f"; hold pairs removed {held:.0%} of the dial"
         if len(holds) == 1:
             note += f" (cos with the held quality {float(debiased @ hold[:, 0]) / max(float(debiased.norm()), 1e-12):+.2f})"
-    if calibrate and mode == "pre":
+    if mode == "pre":
         # the refiner's final RMSNorm shrinks a pre-refiner shift: rescale so strength 1 = one average pair difference after it
         basis2 = basis_for(2)
         post_target = remove(remove(mean(diffs(prompts, 2)), basis2), hold_directions(2, basis2))
@@ -460,7 +460,7 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
             "meta": {"name": name, "model_family": path.family, "pairs": prompts, "n_pairs": str(len(prompts)),
                      **({"pair_weights": weights.tolist()} if bool((weights != 1).any()) else {}), "pair_agreement_cos": f"{agree:.3f}",
                      "inject": f"{mode}_refiner", "debias_removed": f"{removed:.3f}" if debias else "off",
-                     "calibrated": str(bool(calibrate and mode == "pre")), "format": "ComfyUI-Dials v1"}}
+                     "calibrated": str(mode == "pre"), "format": "ComfyUI-Dials v1"}}
     if holds:
         dial["meta"].update({"hold_groups": holds, "hold_removed": f"{held:.3f}", "hold_group_removed": shares})
     report = dial_label(dial) + (f"; debias removed {removed:.0%} of the raw dial (generic wording shift)" if debias else "") + note

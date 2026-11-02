@@ -120,33 +120,33 @@ def main():
 
     motion = "{subject} stands still. ||| {subject} walks.\n{subject} sits still. ||| {subject} dances."
     groups = loud.replace("! ", "![voice] ") + "\n" + "\n".join("![motion] " + line for line in motion.splitlines())
-    for mode in ("post", "pre"):
-        for debias in (False, True):
-            kwargs = dict(debias=debias, calibrate=False)
-            free, _ = core.make_dial(clip, model, face, subjects, "free", mode, **kwargs)
-            voice, _ = core.make_dial(clip, model, loud.replace("! ", ""), subjects, "voice", mode, **kwargs)
-            moving, _ = core.make_dial(clip, model, motion, subjects, "motion", mode, **kwargs)
-            named, report = core.make_dial(clip, model, face + "\n" + groups, subjects, "named", mode, **kwargs)
-            for direction in (voice["vec"], moving["vec"]):
-                cos = float(torch.nn.functional.cosine_similarity(named["vec"], direction, dim=0))
-                assert abs(cos) < 1e-5, (mode, debias, cos)
-            shares = named["meta"]["hold_group_removed"]
-            removed = float(1 - named["vec"].square().sum() / free["vec"].square().sum())
-            assert abs(sum(shares.values()) - removed) < 1e-6, (shares, removed)
-            assert all(0 <= share <= 1 for share in shares.values()), shares
-            assert "hold group [voice] removed" in report and "hold group [motion] removed" in report
-            reversed_groups = "\n".join(reversed(groups.splitlines()))
-            reordered, _ = core.make_dial(clip, model, face + "\n" + reversed_groups, subjects, "reordered", mode, **kwargs)
-            assert torch.allclose(named["vec"], reordered["vec"], atol=1e-6)
-            mixed, _ = core.make_dial(clip, model, face + "\n" + groups.replace("![voice]", "!"), subjects, "mixed", mode, **kwargs)
-            assert torch.equal(mixed["vec"], named["vec"])
-            assert list(mixed["meta"]["hold_groups"]) == ["", "motion"]
+    mode = "post"  # the hold algebra is the same at both seams; pre also rescales (calibration), checked below
+    for debias in (False, True):
+        kwargs = dict(debias=debias)
+        free, _ = core.make_dial(clip, model, face, subjects, "free", mode, **kwargs)
+        voice, _ = core.make_dial(clip, model, loud.replace("! ", ""), subjects, "voice", mode, **kwargs)
+        moving, _ = core.make_dial(clip, model, motion, subjects, "motion", mode, **kwargs)
+        named, report = core.make_dial(clip, model, face + "\n" + groups, subjects, "named", mode, **kwargs)
+        for direction in (voice["vec"], moving["vec"]):
+            cos = float(torch.nn.functional.cosine_similarity(named["vec"], direction, dim=0))
+            assert abs(cos) < 1e-5, (mode, debias, cos)
+        shares = named["meta"]["hold_group_removed"]
+        removed = float(1 - named["vec"].square().sum() / free["vec"].square().sum())
+        assert abs(sum(shares.values()) - removed) < 1e-6, (shares, removed)
+        assert all(0 <= share <= 1 for share in shares.values()), shares
+        assert "hold group [voice] removed" in report and "hold group [motion] removed" in report
+        reversed_groups = "\n".join(reversed(groups.splitlines()))
+        reordered, _ = core.make_dial(clip, model, face + "\n" + reversed_groups, subjects, "reordered", mode, **kwargs)
+        assert torch.allclose(named["vec"], reordered["vec"], atol=1e-6)
+        mixed, _ = core.make_dial(clip, model, face + "\n" + groups.replace("![voice]", "!"), subjects, "mixed", mode, **kwargs)
+        assert torch.equal(mixed["vec"], named["vec"])
+        assert list(mixed["meta"]["hold_groups"]) == ["", "motion"]
 
-            unit = (voice["vec"] / voice["vec"].norm()).unsqueeze(1)
-            legacy = free["vec"] - unit @ (unit.T @ free["vec"])
-            for prefix in ("!", "![voice]"):
-                single, _ = core.make_dial(clip, model, face + "\n" + loud.replace("!", prefix), subjects, "single", mode, **kwargs)
-                assert torch.equal(single["vec"], legacy), (mode, debias, prefix)
+        unit = (voice["vec"] / voice["vec"].norm()).unsqueeze(1)
+        legacy = free["vec"] - unit @ (unit.T @ free["vec"])
+        for prefix in ("!", "![voice]"):
+            single, _ = core.make_dial(clip, model, face + "\n" + loud.replace("!", prefix), subjects, "single", mode, **kwargs)
+            assert torch.equal(single["vec"], legacy), (mode, debias, prefix)
     named_pre, _ = core.make_dial(clip, model, face + "\n" + loud.replace("!", "![voice]"), subjects, "named_pre", "pre")
     assert torch.equal(named_pre["vec"], pre["vec"]), "naming one group must also preserve pre calibration"
 
