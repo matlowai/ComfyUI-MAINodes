@@ -26,7 +26,6 @@ from . import analysis, core
 
 FITS = ("direct", "joint")
 NEIGHBOURS = 5
-_pca = {}  # library sha256 -> (mean, [2, d] components): three vectors per library state
 
 
 def library(dial):
@@ -51,17 +50,14 @@ def library(dial):
 def library_pca(vecs, hashes):
     """-> (library sha256, mean, [2, d] unit components). Components a library cannot span (fewer than 3 distinct
     vectors) are zero. Signs are fixed so the largest entry is positive."""
-    key = hashlib.sha256("\n".join(sorted(hashes)).encode()).hexdigest()
-    if key not in _pca:
-        x = torch.stack(vecs)
-        mean = x.mean(0)
-        _, s, vh = torch.linalg.svd(x - mean, full_matrices=False)
-        comps = torch.zeros(2, x.shape[1], dtype=x.dtype)
-        for i in range(min(2, len(s))):
-            if s[i] > 1e-9 * s[0]:
-                comps[i] = vh[i] * torch.sign(vh[i][vh[i].abs().argmax()])
-        _pca[key] = (mean, comps)
-    return (key, *_pca[key])
+    x = torch.stack(vecs)
+    mean = x.mean(0)
+    _, s, vh = torch.linalg.svd(x - mean, full_matrices=False)
+    comps = torch.zeros(2, x.shape[1], dtype=x.dtype)
+    for i in range(min(2, len(s))):
+        if s[i] > 1e-9 * s[0]:
+            comps[i] = vh[i] * torch.sign(vh[i][vh[i].abs().argmax()])
+    return hashlib.sha256("\n".join(sorted(hashes)).encode()).hexdigest(), mean, comps
 
 
 def components_sha256(comps):

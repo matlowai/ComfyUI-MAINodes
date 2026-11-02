@@ -148,7 +148,7 @@ def pca_checks():
     assert close(mean, e(0, 2.0)) and close(comps @ comps.T, torch.eye(2)), comps
     assert close(comps[:, 2:], torch.zeros(2, D - 2)) and close(comps[0].abs(), e(1)) and close(comps[1].abs(), e(0))
     assert all(float(c[c.abs().argmax()]) > 0 for c in comps), "sign convention: largest entry positive"
-    assert editor.library_pca(list(reversed(vecs)), list(reversed(hashes)))[0] == key, "cached by the set of hashes"
+    assert editor.library_pca(list(reversed(vecs)), list(reversed(hashes)))[0] == key, "keyed by the set of hashes"
     _, _, two = editor.library_pca([e(0), e(1)], ["a" * 64, "b" * 64])
     assert close(two[0].norm(), 1.0) and close(two[1], torch.zeros(D)), "two dials span one component"
     _, _, one = editor.library_pca([e(3)], ["c" * 64])
