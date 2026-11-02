@@ -35,6 +35,10 @@ import comfy.model_sampling  # noqa: E402
 import comfy.samplers  # noqa: E402
 import folder_paths  # noqa: E402
 from comfy_extras.nodes_custom_sampler import ManualSigmas  # noqa: E402
+import server  # noqa: E402
+from aiohttp import web  # noqa: E402
+
+server.PromptServer.instance = types.SimpleNamespace(routes=web.RouteTableDef())
 
 pkg = types.ModuleType("mai_pack")
 pkg.__path__ = [ROOT]
