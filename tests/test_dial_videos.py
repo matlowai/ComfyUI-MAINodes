@@ -72,7 +72,7 @@ class VideoDialTests(unittest.TestCase):
         args.update(kwargs)
         return core.make_video_dial(**args)
 
-    def test_two_fps_and_source_timestamps(self):
+    def test_two_fps_and_sample_timestamps(self):
         frames = torch.arange(141).reshape(-1, 1, 1, 1).float()
         for fps, count, indices in [
             (24, 141, list(range(0, 141, 12))),
@@ -83,7 +83,7 @@ class VideoDialTests(unittest.TestCase):
             with self.subTest(fps=fps):
                 item = core.video_reference(frames[:count], fps)
                 self.assertEqual(item["data"].flatten().tolist(), indices)
-                self.assertEqual(item["timestamps"], [i / float(fps) for i in indices])
+                self.assertEqual(item["timestamps"], [i / min(float(fps), 2.0) for i in range(len(indices))])  # as H3's references: i / 2
 
     def test_text_pooling_after_refinement_and_equal_clip_weight(self):
         dial, report = self.make()

@@ -307,8 +307,8 @@ Two extras in Make Dial's pair text (not in ComfyUI-Dials):
 
 Connect matched clips from **Load Video** to **Make Dial from Videos** (`MAIDialMakeFromVideos`), with up to
 12 inputs per side. Inputs pair by numeric suffix within each side. The shared prompt defaults to
-`A video in the style and content of <Video 1>.`. Clips are sampled at 2 fps with source timestamps (lower-rate
-clips retain their native rate), shrunk to the canvas ComfyUI's H3 reference videos use, and every clip is cut to the
+`A video in the style and content of <Video 1>.`. Clips are sampled at 2 fps with the timestamps H3 gives its own
+reference videos (0, 0.5, 1 s, ...; lower-rate clips keep their native rate and frame times), shrunk to the canvas ComfyUI's H3 reference videos use, and every clip is cut to the
 same number of samples (the shortest clip's, at most 16 = 8 s), so the timestamp tokens are identical on both sides
 and clip length cannot leak into the dial. Audio is excluded. The full sequence passes through the text projection
 and refiner before pooling text-tag positions, including video labels and timestamps. Each clip has equal weight.

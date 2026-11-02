@@ -553,10 +553,11 @@ def resize(images, w, h):
 
 
 def video_reference(frames, fps, samples=MAX_VIDEO_SAMPLES):
-    """First `samples` frames at 2 fps (or the native rate if lower), on the H3 reference canvas, with timestamps."""
+    """First `samples` frames at 2 fps (or the native rate if lower), on the H3 reference canvas, with the sample times H3's
+    own reference videos get (i / 2 s), not the rounded source frame times."""
     indices = torch.arange(0, len(frames), max(float(fps) / 2, 1)).long()[:samples]
     cw, ch = adapt_canvas(frames.shape[2], frames.shape[1])
-    return {"type": "video", "data": resize(frames[indices], cw, ch), "timestamps": (indices.double() / float(fps)).tolist()}
+    return {"type": "video", "data": resize(frames[indices], cw, ch), "timestamps": [i / min(float(fps), 2.0) for i in range(len(indices))]}
 
 
 def make_video_dial(clip, model, videos_a, videos_b, prompt, name, debias=True, nuisance_dims=3):
