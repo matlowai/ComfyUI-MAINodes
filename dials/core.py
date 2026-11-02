@@ -396,8 +396,15 @@ def dial_label(dial):
             f"pair agreement cos {m.get('pair_agreement_cos', '?')}, |dial| {float(dial['vec'].norm()):.1f}")
 
 
-def nuisance_basis(diffs, dims):
-    return torch.linalg.svd(diffs, full_matrices=False)[2][:dims].T
+def nuisance_pairs(subjects):
+    """The built-in nuisance pairs over the dial's subjects (the default subjects when it has none)."""
+    return parse_pairs("\n".join(NUISANCE_PAIRS), subjects if subjects.strip() else NUISANCE_SUBJECTS)[0]
+
+
+def nuisance_basis(pairs, mean, dims):
+    """The generic 'more wording' directions: the top `dims` right singular vectors of the nuisance pair differences, with
+    mean(text) the text's token mean at the dial's seam."""
+    return torch.linalg.svd(torch.stack([mean(b) - mean(a) for a, b in pairs]), full_matrices=False)[2][:dims].T
 
 
 def make_dial(clip, model, pairs, subjects, name, mode, debias=True, nuisance_dims=3):
@@ -408,7 +415,7 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, nuisance_di
     dm = model.model.diffusion_model
     proj = dm.get_submodule(path.pre) if path.pre else None
     prompts, weights, holds = parse_pairs(pairs, subjects)
-    nuisance = parse_pairs("\n".join(NUISANCE_PAIRS), subjects if subjects.strip() else NUISANCE_SUBJECTS)[0] if debias else []
+    nuisance = nuisance_pairs(subjects) if debias else []
     weights = torch.tensor(weights)
     probe = [plain_text(t) for pair in prompts[:8] for s in pair for t, _ in ([(s, 1)] if isinstance(s, str) else s)] if mode == "pre" else []
     texts = [t for pp in (prompts, nuisance, *holds.values()) for pair in pp for s in pair for t, _ in side_terms(s)] + probe
@@ -436,9 +443,7 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, nuisance_di
         return torch.stack([side(b, which) - side(a, which) for a, b in pp])
 
     def basis_for(which):
-        if not nuisance:
-            return None
-        return nuisance_basis(diffs(nuisance, which), nuisance_dims)
+        return nuisance_basis(nuisance, lambda t: encode(t)[which], nuisance_dims) if nuisance else None
 
     def remove(v, basis):
         return v - basis @ (basis.T @ v) if basis is not None else v
@@ -597,16 +602,7 @@ def _make_reference_dial(clip, model, items_a, items_b, prompts, name, source, d
     paired = len(a) == len(b)
     diffs = b - a if paired else None
     raw = diffs.mean(0) if paired else b.mean(0) - a.mean(0)
-    basis = None
-    if debias:
-        nuisance = parse_pairs("\n".join(NUISANCE_PAIRS), NUISANCE_SUBJECTS)[0]
-        cache = {}
-        for pair in nuisance:
-            for text in pair:
-                if text not in cache:
-                    cache[text] = encode(text)
-        nuisance_diffs = torch.stack([cache[y] - cache[x] for x, y in nuisance])
-        basis = nuisance_basis(nuisance_diffs, nuisance_dims)
+    basis = nuisance_basis(nuisance_pairs(""), encode, nuisance_dims) if debias else None
     vec = raw - basis @ (basis.T @ raw) if basis is not None else raw
     removed = 1 - float(vec.norm().square() / raw.norm().square().clamp_min(1e-12))
     agree = None
