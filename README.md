@@ -28,7 +28,7 @@ Like it? A star helps. Want to feed the GPU? [Sponsor the experiments](#support-
 | you want to | start from | read |
 |---|---|---|
 | fix smeared fast motion | [`examples/motion_pipeline_ref2va_audioinit.json`](examples/motion_pipeline_ref2va_audioinit.json) | [Motion Lab](docs/MOTION_LAB.md), [`TUNING.md`](TUNING.md) |
-| steer look, mood or motion with sliders | [`examples/dials/dials_rack_pika_derope.json`](examples/dials/dials_rack_pika_derope.json) | [`dials/README.md`](dials/README.md) |
+| steer look, mood or motion with sliders | [`examples/dials/dials_simple_pika_derope.json`](examples/dials/dials_simple_pika_derope.json) | [`dials/README.md`](dials/README.md) |
 | five views of one subject | [`examples/contact_sheet.json`](examples/contact_sheet.json) | [below](#contact-sheet-diffusion) |
 | run on a 16 to 24 GB card | [`examples/motion_pipeline_lowvram.json`](examples/motion_pipeline_lowvram.json) | [`LOWVRAM.md`](LOWVRAM.md), [`HARDWARE.md`](HARDWARE.md) |
 | compare renders side by side | the **MAI Video Compare** node | [`VIDEO_TOOLS.md`](VIDEO_TOOLS.md) |
@@ -106,8 +106,10 @@ faster) and cannot follow individual drum hits. Picture dials come out weaker th
 side only. A dial can leak into other qualities (a "psychedelic" dial also brings rave outfits); the lessons file lists
 the known ones.
 
-**Quick start.** Load [`examples/dials/dials_rack_pika_derope.json`](examples/dials/dials_rack_pika_derope.json),
-drag a slider on the Dial Rack, and queue. To make your own, add **Make Dial**, write two prompts that differ in one
+**Quick start.** Load [`examples/dials/dials_simple_pika_derope.json`](examples/dials/dials_simple_pika_derope.json):
+pick your five model files, write a prompt, drag a slider on the Dial Rack, and queue; de-rope is one switch on the
+same node (75 s off, about 200 s more on, 1280x704). [`dials_rack_pika_derope.json`](examples/dials/dials_rack_pika_derope.json)
+is the same render with every node in view. To make your own, add **Make Dial**, write two prompts that differ in one
 quality, and wire its output into a rack row.
 
 ## Contact-Sheet diffusion
