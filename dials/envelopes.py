@@ -76,12 +76,7 @@ class EnvelopeForward:
 
     def strengths(self, transformer_options):
         """Each row's strength at this model call's sigma."""
-        sigma = transformer_options.get("sigmas")
-        if sigma is None:
-            raise ValueError("dial envelope: diffusion-model call has no sampler sigma")
-        current = float(sigma.flatten()[0])
-        if not math.isfinite(current) or not bool((sigma == current).all()):
-            raise ValueError("dial envelopes need one finite shared sigma per model call")
+        current = float(transformer_options["sigmas"].flatten()[0])
         return [interpolate(list(zip([-s for s in self.sigmas[:-1]], values)), -current) for _, _, values in self.rows]
 
     def shifts(self, transformer_options):

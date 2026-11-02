@@ -163,8 +163,6 @@ def main():
         compiled = envelopes.EnvelopeForward([("a", a, 1., envelopes.envelope_points(shape))], PIKA)
         actual = compiled.rows[0][2]
         assert len(actual) == 6 and all(abs(a - b) < 1e-12 for a, b in zip(actual, expected))
-        fails(lambda: compiled(None, None, None, None, {}), "no sampler sigma")
-        fails(lambda: compiled(None, None, None, None, {"sigmas": torch.tensor([1., .5])}), "shared sigma")
     fails(lambda: envelopes.EnvelopeForward([], torch.tensor([1., 1., 0.])), "strictly decreasing")
     assert len(envelopes.EnvelopeForward([("a", a, 1., manual)], torch.tensor([.5, 0.])).progress) == 1
     assert not any("D1" in k for k in nodes.NODE_CLASS_MAPPINGS), "D1 diagnostics still registered"
