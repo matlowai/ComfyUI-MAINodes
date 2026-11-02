@@ -72,8 +72,8 @@ def context(dial_name):
     if family not in analysis.BANKS:
         raise ValueError(f"there is no probe bank for {family} yet")
     bank = analysis.read_bank(analysis.BANKS[family])
-    prof = analysis.profile(dial, bank)  # refuses a bank in another space
-    probes = torch.stack([core.load_dial(a["file"])["vec"].double() for a in bank["axes"]])
+    probes = analysis.probe_vectors(dial, bank)  # refuses a bank in another space
+    prof = analysis.profile(dial, bank, probes)
     lib = library(dial)
     key, mean, comps = library_pca([v for _, _, v in lib], [h for _, h, _ in lib]) if lib else (None, None, None)
     return {"dial": dial, "bank": bank, "profile": prof, "probes": probes, "library": lib, "library_sha256": key,
