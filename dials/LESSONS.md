@@ -120,8 +120,9 @@ one seed; treat them as starting points.
   at -2 and 0.08 at -4, with a lurch (a motion spike) at each end of the freeze.
 - **In a de-rope run, the second stage is a longer clip.** Time Smear stretches the clip (124 to 277 frames on the charge
   scene), so a curve defined as a fraction of the clip landed 0.3-0.5 s early in real time. The rack's `hold_map` input fixes
-  this, but Time Smear runs after stage 1, so stage 2 needs its own copy of the rack (same rows) with `hold_map_used` wired
-  in; one rack can't feed both (dependency cycle). A single-rack "attach hold map to MODEL" node is on the roadmap.
+  this, but Time Smear runs after stage 1, so the rack can't take the map for both stages (dependency cycle). **Dial Hold
+  Map** gives the stage-1 rack's model the map for stage 2: pixel-identical to a copied rack with the map (charge scene,
+  psychedelic ramp, seed 42), same time (338 s), and the rows can't drift apart.
 - **Audio protect works but isn't perfect:** speech errors 0.29 to 0.00 in 3 of 4 cases, loudness +1.8 to +0.1 dB;
   voice energy on one seed stayed bad. The video keeps 67-80% of the dial's effect.
 - **A lazy If/Else Switch skips the de-rope stage:** off 75 s (identical to pass 1), on 330 s (identical to the de-roped
@@ -195,8 +196,16 @@ one seed; treat them as starting points.
 - **Presets must be copied, not shared,** or a drag edits the built-in constant.
 - **A time-curve row is a blend of two model calls,** so levels are limited to 0-1 for exactness; the editor now reaches
   negative levels and shows effective strength (level x row strength) because rows multiply.
-- **Dials in a subgraph:** ComfyUI loads subgraph blueprints shipped at `<custom_node>/subgraphs/*.json`; a lazy If/Else
-  Switch plus a boolean is the clean way to make de-rope optional.
+- **Dials in a subgraph (frontend 1.57.1):** blueprints shipped at `<custom_node>/subgraphs/*.json` show in the node
+  library under Subgraph Blueprints > (category); the file name is the display name (no colons, Windows can't have them)
+  and `definitions.subgraphs[0].category` the folder (the frontend's own serializer leaves it out). The server caches the
+  list until restart. A lazy If/Else Switch plus a boolean makes de-rope optional.
+- **Build blueprints in the frontend, not by hand:** load the API graph with outside primitives on the values to expose,
+  `graph.convertToSubgraph` the rest, delete the primitives: their links become the blueprint's widget inputs (in 1.57
+  promoting a widget is the same thing, a subgraph input). Check with `graphToPrompt`: a blueprint dropped from the
+  library gave the shipped example's prompt exactly. A promoted seed loses "control after generate" (stays fixed).
+- **The Dial Rack can't live inside a blueprint:** its rows are a DOM widget drawn by the inner node's script; promoting
+  the `rack` widget gives a hidden plain string on the subgraph node. Keep the rack outside, wired to the model input.
 - **Working with several Claude agents:** brief them like peers (goal, files, rules, how to verify); give each its own
   git worktree and have it fast-forward MAIN under `flock`; give a strong model (Opus) the items that need careful reading
   of several systems; the auto-mode safety check blocks an agent from a GPU its brief told it never to touch, so tell it

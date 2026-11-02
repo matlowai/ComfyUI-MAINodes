@@ -150,6 +150,27 @@ class DialRack(io.ComfyNode):
         return io.NodeOutput(m, ui={"text": [report + "\n" + text], "timecurve": [data]} if data else ui.PreviewText(report + "\n" + text))
 
 
+class DialHoldMap(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="MAIDialHoldMap",
+            display_name="Dial Hold Map (alpha)",
+            category="MAINodes/Dials",
+            description="De-rope with one rack: give the Dial Rack's model H3 Time Smear's hold map for stage 2, so the rack's time curves "
+                        "follow real clip time in the stretched pass. Rows without a time curve are unchanged.",
+            inputs=[
+                io.Model.Input("model", tooltip="The Dial Rack's model, the same one pass 1 samples with."),
+                io.String.Input("hold_map", force_input=True, tooltip="hold_map_used from H3 Time Smear."),
+            ],
+            outputs=[io.Model.Output()],
+        )
+
+    @classmethod
+    def execute(cls, model, hold_map) -> io.NodeOutput:
+        return io.NodeOutput(timecurve.attach_holds(model, hold_map))
+
+
 class MakeDial(io.ComfyNode):
     @classmethod
     def define_schema(cls):
@@ -340,7 +361,7 @@ class CombineDials(io.ComfyNode):
 
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
-for _cls in (DialRack, MakeDial, MakeDialFromPictures, MakeDialFromVideos, CombineDials):
+for _cls in (DialRack, DialHoldMap, MakeDial, MakeDialFromPictures, MakeDialFromVideos, CombineDials):
     _schema = _cls.GET_SCHEMA()
     NODE_CLASS_MAPPINGS[_schema.node_id] = _cls
     NODE_DISPLAY_NAME_MAPPINGS[_schema.node_id] = _schema.display_name

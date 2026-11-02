@@ -1,0 +1,578 @@
+{
+  "1": {
+    "inputs": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "2": {
+    "inputs": {
+      "lora_name": "pika_h3_flex_fl2va_v1_bf16.safetensors",
+      "strength_model": 1,
+      "model": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "Pika H3 Flex LoRA (FL2VA)"
+    }
+  },
+  "8": {
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "type": "minimax",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "9": {
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "17": {
+    "inputs": {
+      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Audio VAE"
+    }
+  },
+  "40": {
+    "inputs": {
+      "rack": "[{\"on\":true,\"dial\":\"dials/h3_motion.safetensors\",\"strength\":0.5,\"solo\":false},{\"on\":true,\"dial\":\"dials/h3_grade_warm_cold_hook.safetensors\",\"strength\":0.6,\"solo\":false},{\"on\":true,\"dial\":\"dials/h3_day_night_hook.safetensors\",\"strength\":0.8,\"solo\":false},{\"on\":false,\"dial\":\"dials/h3_perf_reserved_lively_hook.safetensors\",\"strength\":0.5,\"solo\":false},{\"on\":false,\"dial\":\"dials/h3_dream_surreal_hook.safetensors\",\"strength\":6,\"solo\":false,\"envelope\":\"early\"}]",
+      "model": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "MAIDialRack",
+    "_meta": {
+      "title": "Dial Rack (both passes)"
+    }
+  },
+  "107:10": {
+    "inputs": {
+      "prompt": "integrated_multimodal_description: [Shot 1] Cinematic, natural light. An adult woman in a red coat walks along an empty train platform at dusk as a train slowly pulls in beside her. The camera tracks with her.\n\noverall_soundscape: Her footsteps on concrete, the train's brakes hissing, a distant announcement echoing.\n\nnon_diegetic_music: N/A",
+      "width": 1280,
+      "height": 704,
+      "length": 141,
+      "clip": [
+        "8",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3ImageToVideo",
+    "_meta": {
+      "title": "Pass 1 (MiniMax H3)"
+    }
+  },
+  "107:11": {
+    "inputs": {
+      "noise_seed": 42
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "RandomNoise"
+    }
+  },
+  "107:12": {
+    "inputs": {
+      "model": [
+        "40",
+        0
+      ],
+      "conditioning": [
+        "107:10",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "Basic Guider"
+    }
+  },
+  "107:13": {
+    "inputs": {
+      "sampler_name": "lcm"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "Sampler: lcm (Pika)"
+    }
+  },
+  "107:14": {
+    "inputs": {
+      "sigmas": "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
+    },
+    "class_type": "ManualSigmas",
+    "_meta": {
+      "title": "Pika 6-step schedule (keep as is)"
+    }
+  },
+  "107:15": {
+    "inputs": {
+      "noise": [
+        "107:11",
+        0
+      ],
+      "guider": [
+        "107:12",
+        0
+      ],
+      "sampler": [
+        "107:13",
+        0
+      ],
+      "sigmas": [
+        "107:14",
+        0
+      ],
+      "latent_image": [
+        "107:10",
+        1
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "SamplerCustomAdvanced"
+    }
+  },
+  "107:16": {
+    "inputs": {
+      "samples": [
+        "107:15",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "107:18": {
+    "inputs": {
+      "samples": [
+        "107:15",
+        0
+      ],
+      "vae": [
+        "17",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "VAE Decode Audio"
+    }
+  },
+  "107:19": {
+    "inputs": {
+      "fps": 24,
+      "bit_depth": 8,
+      "color_space": "sRGB",
+      "codec": "none",
+      "images": [
+        "107:16",
+        0
+      ],
+      "audio": [
+        "107:18",
+        0
+      ]
+    },
+    "class_type": "CreateVideo",
+    "_meta": {
+      "title": "Create Video"
+    }
+  },
+  "107:22": {
+    "inputs": {
+      "length": 141,
+      "q": 0.75,
+      "d_max": 4,
+      "ramp": true,
+      "preset": "balanced (default)",
+      "bridge": 8,
+      "profile_mode": "value |d3| (default)",
+      "abstain_below": 0,
+      "fps": 24,
+      "s_per_step": 0,
+      "est_steps": 18,
+      "overhead_s": 6.7,
+      "model_profile": "minimax-h3",
+      "protect_tail": 0,
+      "samples": [
+        "107:15",
+        0
+      ]
+    },
+    "class_type": "H3JerkOracle",
+    "_meta": {
+      "title": "Find jerky motion (length = pass 1)"
+    }
+  },
+  "107:23": {
+    "inputs": {
+      "model_profile": "minimax-h3",
+      "custom_block": 8,
+      "custom_hold_scale": 4,
+      "custom_legal_step": 8,
+      "custom_legal_offset": 1,
+      "custom_fps": 25,
+      "custom_cap_seconds": 0,
+      "hold_map": [
+        "107:22",
+        0
+      ]
+    },
+    "class_type": "H3ClockRemap",
+    "_meta": {
+      "title": "H3 Clock Remap (any model, presets)"
+    }
+  },
+  "107:24": {
+    "inputs": {
+      "dilation": 4,
+      "hold_map": [
+        "107:23",
+        0
+      ],
+      "expand_to_end": true,
+      "fps": 24,
+      "s_per_step": 0,
+      "est_steps": 18,
+      "overhead_s": 6.7,
+      "images": [
+        "107:16",
+        0
+      ]
+    },
+    "class_type": "H3TimeSmear",
+    "_meta": {
+      "title": "Hold frames (slow the jerky stretches)"
+    }
+  },
+  "107:25": {
+    "inputs": {
+      "hold_map": [
+        "107:24",
+        1
+      ],
+      "fps": 24,
+      "audio": [
+        "107:18",
+        0
+      ]
+    },
+    "class_type": "H3AudioSmear",
+    "_meta": {
+      "title": "H3 Audio Smear (hold-map stretch, pitch kept) [alpha]"
+    }
+  },
+  "107:26": {
+    "inputs": {
+      "audio": [
+        "107:25",
+        0
+      ],
+      "vae": [
+        "17",
+        0
+      ]
+    },
+    "class_type": "VAEEncodeAudio",
+    "_meta": {
+      "title": "VAE Encode Audio"
+    }
+  },
+  "107:27": {
+    "inputs": {
+      "pixels": [
+        "107:24",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE Encode"
+    }
+  },
+  "107:28": {
+    "inputs": {
+      "length": 0,
+      "freeze_threshold": 0,
+      "freeze_grow": 2,
+      "mask_feather": 0,
+      "invert_mask": false,
+      "time_varying": false,
+      "audio_mode": "follow the original performance (0.5)",
+      "audio_strength": 0.5,
+      "audio_prefix_ticks": 0,
+      "audio_prefix_release_ticks": 0,
+      "samples": [
+        "107:27",
+        0
+      ],
+      "audio_latent": [
+        "107:26",
+        0
+      ]
+    },
+    "class_type": "H3V2VInit",
+    "_meta": {
+      "title": "H3 V2V Init (nested AV latent)"
+    }
+  },
+  "107:29": {
+    "inputs": {
+      "prompt": "integrated_multimodal_description: [Shot 1] Cinematic, natural light. An adult woman in a red coat walks along an empty train platform at dusk as a train slowly pulls in beside her. The camera tracks with her.\n\noverall_soundscape: Her footsteps on concrete, the train's brakes hissing, a distant announcement echoing.\n\nnon_diegetic_music: N/A",
+      "width": 1280,
+      "height": 704,
+      "length": [
+        "107:24",
+        2
+      ],
+      "clip": [
+        "8",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3ImageToVideo",
+    "_meta": {
+      "title": "Pass 2 (slowed clip)"
+    }
+  },
+  "107:30": {
+    "inputs": {
+      "noise_seed": 43
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "RandomNoise"
+    }
+  },
+  "107:31": {
+    "inputs": {
+      "model": [
+        "107:41",
+        0
+      ],
+      "conditioning": [
+        "107:29",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "Basic Guider"
+    }
+  },
+  "107:32": {
+    "inputs": {
+      "sigmas": "0.917197, 0.8, 0.571429, 0.333333, 0.0"
+    },
+    "class_type": "ManualSigmas",
+    "_meta": {
+      "title": "De-rope steps: inject 0.48, Pika knots"
+    }
+  },
+  "107:33": {
+    "inputs": {
+      "noise": [
+        "107:30",
+        0
+      ],
+      "guider": [
+        "107:31",
+        0
+      ],
+      "sampler": [
+        "107:13",
+        0
+      ],
+      "sigmas": [
+        "107:32",
+        0
+      ],
+      "latent_image": [
+        "107:28",
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "SamplerCustomAdvanced"
+    }
+  },
+  "107:34": {
+    "inputs": {
+      "samples": [
+        "107:33",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "107:35": {
+    "inputs": {
+      "samples": [
+        "107:33",
+        0
+      ],
+      "vae": [
+        "17",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "VAE Decode Audio"
+    }
+  },
+  "107:36": {
+    "inputs": {
+      "hold_map": [
+        "107:24",
+        1
+      ],
+      "images": [
+        "107:34",
+        0
+      ]
+    },
+    "class_type": "H3ExactRecover",
+    "_meta": {
+      "title": "Back to real time"
+    }
+  },
+  "107:37": {
+    "inputs": {
+      "hold_map": [
+        "107:24",
+        1
+      ],
+      "fps": 24,
+      "reference_mix": 1,
+      "audio_source": "keep the original performance (safe default)",
+      "audio": [
+        "107:35",
+        0
+      ],
+      "reference": [
+        "107:18",
+        0
+      ]
+    },
+    "class_type": "H3AudioRecover",
+    "_meta": {
+      "title": "Audio: keep pass 1's original"
+    }
+  },
+  "107:38": {
+    "inputs": {
+      "fps": 24,
+      "bit_depth": 8,
+      "color_space": "sRGB",
+      "codec": "none",
+      "images": [
+        "107:36",
+        0
+      ],
+      "audio": [
+        "107:37",
+        0
+      ]
+    },
+    "class_type": "CreateVideo",
+    "_meta": {
+      "title": "Create Video"
+    }
+  },
+  "107:39": {
+    "inputs": {
+      "filename_prefix": "video/dials_pika",
+      "format": "auto",
+      "format.codec": "auto",
+      "codec": "auto",
+      "video": [
+        "107:60",
+        0
+      ]
+    },
+    "class_type": "SaveVideo",
+    "_meta": {
+      "title": "Save Video"
+    }
+  },
+  "107:41": {
+    "inputs": {
+      "model": [
+        "40",
+        0
+      ],
+      "hold_map": [
+        "107:24",
+        1
+      ]
+    },
+    "class_type": "MAIDialHoldMap",
+    "_meta": {
+      "title": "Dial Hold Map (stage 2)"
+    }
+  },
+  "107:60": {
+    "inputs": {
+      "switch": false,
+      "on_false": [
+        "107:19",
+        0
+      ],
+      "on_true": [
+        "107:38",
+        0
+      ]
+    },
+    "class_type": "ComfySwitchNode",
+    "_meta": {
+      "title": "De-rope? (stage 2 runs only when on)"
+    }
+  }
+}

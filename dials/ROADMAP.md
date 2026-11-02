@@ -93,8 +93,8 @@ live inside the generation; a V2V pass is too slow to be the main route.
 - [x] **Hold map -> dial envelope link (Dylan):** the rack's optional `hold_map` input (Time Smear's `hold_map_used`)
       evaluates clip-time curves in real time in stage 2's stretched clip; held copies of a frame get its value. Drift
       without it on charge2: the ramp landed 0.32-0.47 s early (exact, from the map). The rack that takes the map can only
-      feed stage 2 (Time Smear runs after stage 1), so stage 2 gets a copy of the rack. Step envelopes and block profiles
-      have no clip-time axis and need no link.
+      feed stage 2 (Time Smear runs after stage 1); Dial Hold Map now hands the stage-1 rack's model the map, so one rack
+      serves both. Step envelopes and block profiles have no clip-time axis and need no link.
 - [ ] **True strength curves:** blend between predictions computed at the strengths a curve needs (e.g. -2, 0, 0.5, 1) so
       levels outside 0-1 work and one row can do a signed envelope (today: stack rows with 0-1 curves, see LESSONS). Costs one
       extra model call per distinct strength in the first k steps; warn in the editor for levels outside 0-1 until then.
@@ -144,15 +144,18 @@ Keep every node, but give most people a clean front door. ComfyUI loads subgraph
 `<custom_node>/subgraphs/<name>.json` (`app/subgraph_manager.py`); they appear in the node library.
 - [ ] **Three tiers of start-here workflows:** Simple (one subgraph, a handful of controls), Pro (today's full graphs), Lab
       (research nodes). The README's first screen points only at Simple.
-- [ ] **Shipped subgraphs** (MAIN `subgraphs/`): `Dials: Pika H3` (prompt, optional image, size, length, seed, the rack;
-      sampler, sigmas, decode and save hidden inside); `Dials: Pika H3 + De-rope` (both stages and the stage-2 rack copy
-      hidden; prompt, seed, rack in, pass-1 and de-roped video out); `Dials: Make Dial from Pictures` (two picture groups,
-      name, labels, one dial out). Exposed controls only; double-click opens the graph for tinkerers.
-- [ ] **De-rope as a switch, not a second workflow:** one boolean on the Simple workflow feeds core's lazy If/Else Switch
+- [ ] **Shipped subgraphs** (MAIN `subgraphs/`): done: `Dials - Pika H3` and `Dials - Pika H3 + De-rope` (prompt,
+      optional first frame, width, height, length, seed, de-rope; the five model loaders and the rack stay outside on the model input because its
+      rows can't be promoted onto a subgraph node; one saved video, no outputs) and the Simple example
+      `examples/dials/dials_simple_pika_derope.json`. Open: `Dials - Make Dial from Pictures` (two picture groups, name,
+      labels, one dial out).
+- [x] **De-rope as a switch, not a second workflow:** one boolean on the Simple workflow feeds core's lazy If/Else Switch
       (`ComfySwitchNode`) between pass 1's video and the de-roped video; with it off, stage 2 (oracle, smear, pass 2, rack
       copy) must not run. Proof run on the charge scene (1 seed): off 75 s and pixel-identical to plain pass 1; on 330 s and identical to the de-roped clip, so stage 2 is skipped when off (scripts in the session scratchpad `derope_switch.py`).
-- [ ] **One rack for both stages:** an "attach hold map to MODEL" node (or equivalent) so a subgraph needs a single rack
-      and rows never go out of sync. Prerequisite for the de-rope subgraph.
+      Shipped in `Dials - Pika H3 + De-rope` (train platform, 141 frames, seed 42): off 75 s, on 276 s, on after an off
+      run 202 s (pass 1 cached).
+- [x] **One rack for both stages:** Dial Hold Map (rack model + `hold_map_used` -> stage-2 model); pixel-identical to the
+      two-rack setup on the charge scene, `tests/test_dial_hold_map_node.py`.
 - [ ] **Calmer rack rows:** each row shows on/off, dial, slider and value; everything else (envelope, blocks, time, info,
       editor, solo, hold) moves behind one per-row "more" menu, and the map / matrix / wheel behind a single "analyze"
       toggle. Advanced users lose nothing; first-time users see a slider list.

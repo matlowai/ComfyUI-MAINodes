@@ -11,6 +11,7 @@ second. Ported from [ComfyUI-Dials](https://github.com/matlowai/ComfyUI-Dials); 
 |---|---|
 | **Dial Rack** | Any number of dials on one model. One row per dial: on/off, dial, strength (slider and number), solo, **H** to hold a direction. **+ Add dial** adds a row; dials wired into the `dial_N` inputs (straight from Make Dial) appear as rows too. After a run the node shows each dial's size, the combined shift, and dials that overlap (reinforce or cancel). A **Map** moves two rows together on a 2D square (the dot is your prompt), with saved pairings to switch between. |
 | **Make Dial** | Prompt pairs (`A ||| B` per line, `{subject}` expanded over a subjects list) to a dial. Saves to `models/loras/dials/<name>.safetensors` and outputs the dial for a rack input. Shows pair agreement (above 0.6 is a clean direction) and how much generic wording shift was removed. Also takes weighted pairs (`A ||| B :: 2`) and prompt sets (`+1 …` / `-1 …` lines). |
+| **Dial Hold Map** | De-rope with one rack: takes the Dial Rack's model and H3 Time Smear's `hold_map_used` and gives stage 2 the same rack with its time curves in real clip time. Rows without a time curve pass through unchanged. |
 | **Combine Dials** | `weight_a * a + weight_b * b` as one new dial, optionally removing b's direction from a first (orthogonalize). Plain mixing is easier in the rack. |
 | **Make Dial from Pictures** | Two picture groups (batches and/or any number of single pictures of any size) and a shared framing to a post-refiner dial. Negative strength moves toward A, positive toward B. Equal counts pair by index for agreement; unequal counts use group means and report agreement as n/a. Saves and connects to the rack like Make Dial. |
 | **Make Dial from Videos** | Matched clips (up to 12 per side) and one shared prompt to a post-refiner dial; clips are sampled at 2 fps and cut to equal length. Experimental. |
@@ -99,7 +100,29 @@ without info are all unknown; version 1 info (one useful/overcook pair) reads as
 
 ## Example workflows
 
-**Start with the Pika + de-rope graphs.** Each runs a 6-step Pika H3 Flex pass with one Dial Rack feeding both passes,
+### Simple start
+
+Open [dials_simple_pika_derope.json](../examples/dials/dials_simple_pika_derope.json) ([api](../examples/dials/dials_simple_pika_derope_api.json)),
+or drag **Dials - Pika H3 + De-rope** from the node library (Subgraph Blueprints > MAINodes > Dials) and wire
+Load Diffusion Model (H3) -> Pika H3 Flex LoRA -> Dial Rack -> its `model` input, plus Load CLIP to `clip` and the video
+and audio VAE loaders to `video_vae` and `audio_vae`. First pick your five model files in those loaders (the example
+stacks them on the left); then four controls matter:
+
+1. **prompt** on the blueprint (Pika H3 layout: scene, soundscape, music); `first_frame` is optional.
+2. **Dial Rack** rows: tick a dial, drag its strength (about 1 is everyday, 1.5 shows side effects).
+3. **seed** and **length** (141 frames = 5.9 s at 24 fps).
+4. **de-rope**: off renders one pass; on adds the second pass that slows the jerky stretches and maps them back to
+   real time. Pass 1's audio is kept.
+
+What de-rope costs on one RTX 5090 (1280x704, 141 frames, Pika 6-step, seed 42): off 75 s, on 276 s. Turning it on
+after an off run of the same take reuses pass 1 from ComfyUI's cache: 202 s. With it off, stage 2 does not run (a lazy
+If/Else Switch). The same rack drives both passes; **Dial Hold Map** inside keeps time-curve rows in real time.
+**Dials - Pika H3** is the same blueprint without de-rope. The rack sits outside the blueprint because its rows can't be
+shown on a subgraph node. Double-click a blueprint to see or change the graph inside.
+
+### Full graphs
+
+**The Pika + de-rope graphs** show every node. Each runs a 6-step Pika H3 Flex pass with one Dial Rack feeding both passes,
 then a de-rope pass on the jerky stretches (H3 Jerk Oracle → hold frames → V2V Init at inject 0.48 → Exact Recover).
 The de-rope audio stage keeps pass 1's audio: V2V Init's audio rows are seeded with "follow the original performance"
 and Audio Recover is set to "keep the original performance", so the dialogue and foley from pass 1 survive. Both the
@@ -199,9 +222,10 @@ The editor draws M per latent frame over the clip, with the waveform after a run
 (click adds, drag moves, double-click deletes; `web/docs/MAIDialRack.md`, `docs/CURVE_EDITOR_UX.md`).
 
 **De-rope:** stage 2 renders the held (longer) clip, so without help a curve lands early or late in real time (0.3-0.5 s
-on the charge example). Put a copy of the rack (same rows) on stage 2 and wire H3 Time Smear's `hold_map_used` into its
-`hold_map` input: the curves are then evaluated in real clip time and mapped through the holds (held copies of a frame
-get that frame's value). Time Smear runs after stage 1, so the stage-1 rack can't take the map. API rows:
+on the charge example). Put **Dial Hold Map** between the rack and stage 2's guider and wire H3 Time Smear's
+`hold_map_used` into it: the curves are then evaluated in real clip time and mapped through the holds (held copies of a
+frame get that frame's value), and one rack serves both passes. On the charge scene (psychedelic ramp, seed 42) this is
+pixel-identical to the older setup, a copy of the rack on stage 2 with `hold_map_used` on its `hold_map` input. API rows:
 
 ```json
 {"dial": "dials/h3_day_night_hook.safetensors", "strength": 1.5,

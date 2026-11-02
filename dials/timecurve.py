@@ -217,6 +217,23 @@ class TimeCurveSampler:
         return executor(model, sigmas, extra_args, *args, **kwargs)
 
 
+def read_holds(hold_map):
+    return [int(h) for h in json.loads(hold_map)["holds"]] if hold_map else None
+
+
+def attach_holds(model, hold_map):
+    """De-rope stage 2 on the model a rack made for stage 1: its time curves follow real clip time through the hold map.
+    Returns the model unchanged when it has no time-curve rows."""
+    samplers = model.get_wrappers(WrappersMP.SAMPLER_SAMPLE, WRAPPER_KEY)
+    if not samplers:
+        return model
+    m = model.clone()
+    m.remove_wrappers_with_key(WrappersMP.SAMPLER_SAMPLE, WRAPPER_KEY)
+    for s in samplers:
+        m.add_wrapper_with_key(WrappersMP.SAMPLER_SAMPLE, WRAPPER_KEY, TimeCurveSampler(s.rows, s.features, read_holds(hold_map), s.node_id, s.base_report))
+    return m
+
+
 def apply_rack(model, rows, specs, curve_audio=None, hold_map=None, node_id=None, report=""):
     """rows [(label, dial, strength)] with their time specs, on a clone; hold_map: H3 Time Smear's hold_map_used JSON.
     Returns (report lines, UI data for the curves)."""
@@ -232,8 +249,7 @@ def apply_rack(model, rows, specs, curve_audio=None, hold_map=None, node_id=None
             raise ValueError("an audio-driven time curve needs the music: connect it to the rack's curve_audio input")
         features = audio_features(curve_audio)
     model.add_wrapper_with_key(WrappersMP.SAMPLER_SAMPLE, WRAPPER_KEY,
-                               TimeCurveSampler([(*row, spec) for row, spec in zip(rows, specs)], features,
-                                                [int(h) for h in json.loads(hold_map)["holds"]] if hold_map else None, node_id, report))
+                               TimeCurveSampler([(*row, spec) for row, spec in zip(rows, specs)], features, read_holds(hold_map), node_id, report))
     text = "\n".join(f"  {label}: {spec['type']} curve, first {spec['steps']} steps, audio {spec['audio']}" for (label, *_), spec in zip(rows, specs))
     ui = {}
     if curve_audio is not None:
