@@ -97,9 +97,12 @@ const SNAPS = [["off", "snap: off"], ["frame", "snap: latent frames"], ["0.1", "
 const CURVE_HELP = "Click to add a point, drag to move it (Shift: fine, Alt: no snap), double-click or right-click to delete it. " +
   "Shift+click adds points to the selection, Ctrl+drag selects a box; dragging a selected point moves them all. Arrows nudge the " +
   "selection (Shift ×10), Delete removes it, Esc deselects, Ctrl+Z / Ctrl+Shift+Z undo / redo. Wheel zooms time, Shift+wheel " +
-  "or middle-drag pans. Level × the row strength = the dial strength (right axis). " +
+  "or middle-drag pans. Between levels 0 and 1, level × the row strength is the dial strength (right axis); outside that range the " +
+  "blend extrapolates and acts weaker than that strength (greyed axis, 'extrapolated' in the readout). " +
   "The model resolves one latent frame (about 1/6 s, the ticks under the axis): sharper changes are averaged per frame, " +
   "and renders ramp over about 1.5 s.";
+// level × row strength is the dial strength only between levels 0 and 1; outside, the blend extrapolates and acts weaker
+const levelStrength = (v, strength) => v >= 0 && v <= 1 ? `strength ${(v * strength).toFixed(2)}` : `extrapolated (weaker than ${(v * strength).toFixed(2)})`;
 let curveClipboard = null;  // Copy / Paste fallback when the browser clipboard is blocked
 
 const validPoints = (v) => Array.isArray(v) && v.length > 0 && v.every((p, i) => Array.isArray(p) && p.length === 2 &&
@@ -223,10 +226,15 @@ function drawTime(c, spec, seconds, audio, W, H, view = {}) {
   }
   for (const [v, py] of marks) {
     g.textAlign = "right"; g.fillStyle = "#888"; g.fillText(`${+v.toFixed(2)}`, L - 6, py);
-    g.textAlign = "left"; g.fillStyle = "#c39bff";
-    if (strength !== null) g.fillText(`${+(v * strength).toFixed(2)}`, L + pw + 5, py);
+    g.textAlign = "left"; g.fillStyle = v >= 0 && v <= 1 ? "#c39bff" : "#666";
+    if (strength !== null) g.fillText(v >= 0 && v <= 1 ? `${+(v * strength).toFixed(2)}` : `(${+(v * strength).toFixed(2)})`, L + pw + 5, py);
   }
-  if (strength !== null) {
+  if (strength !== null) {  // the strength axis is exact from level 0 to 1, dashed grey where the blend extrapolates
+    const ax = L + pw + 2.5, y0 = Math.min(T + ph, Math.max(T, y(0))), y1 = Math.min(T + ph, Math.max(T, y(1)));
+    g.lineWidth = 1; g.strokeStyle = "#555"; g.setLineDash([2, 3]);
+    g.beginPath(); g.moveTo(ax, T); g.lineTo(ax, T + ph); g.stroke(); g.setLineDash([]);
+    g.strokeStyle = "#c39bff"; g.beginPath(); g.moveTo(ax, y0); g.lineTo(ax, y1); g.stroke();
+    g.fillStyle = "#c39bff";
     g.save(); g.translate(W - 3, T + ph / 2); g.rotate(-Math.PI / 2); g.textAlign = "center";
     g.fillText(`strength (×${+strength.toFixed(2)})`, 0, 0); g.restore();
   }
@@ -1457,9 +1465,9 @@ class DialRackUI {
       e.onchange = () => { cb(parseFloat(e.value) || 0); refresh(); };
       return e;
     };
-    const bottomBox = range("bottom", "level at the bottom of the canvas; lower it to drag points below 0 (at row strength 1, level −2 runs the dial at −2)",
+    const bottomBox = range("bottom", "level at the bottom of the canvas; lower it to drag points below 0. Levels below 0 extrapolate and act weaker than a negative strength: for a real negative stretch add a second row at that strength with a 0-to-1 curve",
       (v) => { st.bottom = Math.min(0, v); });
-    const topBox = range("top", "level at the top of the canvas; raise it to drag points above 1 (overshoot kicks)", (v) => { st.top = Math.max(1, v); });
+    const topBox = range("top", "level at the top of the canvas; raise it to drag points above 1 (overshoot kicks; extrapolated, weaker than level × strength)", (v) => { st.top = Math.max(1, v); });
     const fit = this.button(shape, "fit", "show the whole clip (wheel zooms the time axis, Shift+wheel or middle-drag pans)", () => zoom(null),
       { padding: "1px 6px", marginLeft: "auto" });
     this.button(shape, this.curveTall ? "shorter" : "taller", "canvas height", () => { this.curveTall = !this.curveTall; this.render(); },
@@ -1487,7 +1495,7 @@ class DialRackUI {
       (i, v) => move([i], [[toS(spec.points[i][0]), spec.points[i][1]]], v - toS(spec.points[i][0]), 0, Infinity, [-Infinity, Infinity]));
     const levelBox = field("level", "the selected point's level: M multiplies the row strength", (i, v) => { spec.points[i][1] = v; });
     const effective = this.el("span", { color: "#c39bff", minWidth: "84px" }, tools);
-    effective.title = "level × the row's strength: the dial strength the model gets at this point";
+    effective.title = "level × the row's strength: the dial strength the model gets at this point, for levels 0 to 1; outside that range the blend extrapolates and acts weaker";
     const del = this.button(tools, "delete", "delete the selected points (Delete key); a curve keeps at least two", () => remove(picked()), { padding: "1px 6px" });
     const msg = this.el("span", { color: "#ff8a5c" }, tools);
     const undo = this.button(tools, "Undo", "undo (Ctrl+Z on the canvas)", () => step(st.past, st.future), { padding: "1px 6px", marginLeft: "auto" });
@@ -1549,7 +1557,7 @@ class DialRackUI {
       which.textContent = p ? `point ${i + 1} of ${spec.points.length}${n > 1 ? ` (${n} selected)` : ""}:` : "no point selected:";
       timeBox.disabled = levelBox.disabled = !p; del.disabled = !n;
       timeBox.value = p ? +toS(p[0]).toFixed(3) : ""; levelBox.value = p ? +p[1].toFixed(3) : "";
-      effective.textContent = p ? `strength ${(p[1] * strength()).toFixed(2)}` : "";
+      effective.textContent = p ? levelStrength(p[1], strength()) : "";
       on.textContent = n ? `${n} selected:` : `all ${spec.points.length} points:`;
       undo.disabled = !st.past.length; redo.disabled = !st.future.length; fit.disabled = !st.win;
       msg.textContent = "";
@@ -1621,7 +1629,7 @@ class DialRackUI {
     };
     const clampT = (px) => { const [t0, t1] = st.win || [0, axes.span]; return Math.min(t1, Math.max(t0, axes.t(px))); };
     const readout = (s, v, prefix) => [s, v, `${prefix}${s.toFixed(2)} s${norm() ? ` (${Math.round(s / seconds * 100)} %)` : ""} · ` +
-      `level ${v.toFixed(2)} · strength ${(v * strength()).toFixed(2)}`];
+      `level ${v.toFixed(2)} · ${levelStrength(v, strength())}`];
     const hovering = (pos, free) => {
       hover = hit(pos);
       ghost = hover === null ? [snapTime(clampT(pos[0]), free), snapLevel(axes.v(pos[1]), free)] : null;
