@@ -21,7 +21,7 @@ function pick(widget, value) {
 }
 
 function setup(node) {
-  const fields = ["model", "lora", "lora_strength", "conditioning", "sampler", "schedule", "sigmas", "steps", "derope_steps", "audio_shift"];
+  const fields = ["model", "lora", "lora_strength", "conditioning", "sampler", "schedule", "sigmas", "steps", "derope_steps", "shift_video", "shift_audio", "cfg"];
   const widget = (name) => node.widgets.find((w) => w.name === name);
   const bar = document.createElement("div");
   Object.assign(bar.style, { display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap", fontSize: "12px", color: "#ddd", padding: "2px 0" });

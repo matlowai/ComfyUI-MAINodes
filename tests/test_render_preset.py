@@ -78,7 +78,10 @@ def check_presets():
             patch.dict(folder_paths.folder_names_and_paths, {"loras": ([scratch], {".safetensors"})}):
         names = render.list_presets()
         assert names[:3] == ["Pika H3 Flex", "Pika + reference pictures", "DMAD speed LoRA"], names
-        assert render.load_preset("DMAD speed LoRA")["steps"] == 4
+        dmad = render.load_preset("DMAD speed LoRA")
+        assert (dmad["steps"], dmad["sampler"], dmad["shift_audio"], dmad["cfg"]) == (4, "lcm", 2.0, 1.0)
+        assert {k: render.load_preset("Pika H3 Flex")[k] for k in ("sampler", "schedule", "shift_video", "shift_audio")} == \
+            {"sampler": "lcm", "schedule": "manual", "shift_video": 12.0, "shift_audio": 3.0}
         mine = dict(render.load_preset("Pika H3 Flex"), steps=8)
         render.save_preset("my_pika8", mine)
         assert os.path.isfile(os.path.join(scratch, "dials", "presets", "render", "my_pika8.json"))
@@ -95,7 +98,7 @@ def check_presets():
             except ValueError:
                 pass
         for broken in (dict(mine, steps=0), dict(mine, conditioning="T2V"), {k: v for k, v in mine.items() if k != "sigmas"},
-                       dict(mine, lora_strength=True), dict(mine, extra=1)):
+                       dict(mine, lora_strength=True), dict(mine, extra=1), dict(mine, shift_audio=0.0)):
             try:
                 render.check_preset(broken)
                 raise AssertionError(f"accepted {broken}")

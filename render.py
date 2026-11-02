@@ -1,5 +1,5 @@
-"""Simple front door: Render Preset (model, LoRA, FL2V/Ref2V, sampler, stage-1 sigmas, saved as named presets) and
-H3 De-rope Sigmas (the de-rope pass's schedule from a continuous inject)."""
+"""Simple front door: Render Preset (model, LoRA, flow shifts, FL2V/Ref2V, sampler, stage-1 sigmas, cfg, saved as named
+presets) and H3 De-rope Sigmas (the de-rope pass's schedule from a continuous inject on the active preset's schedule)."""
 import asyncio
 import json
 import math
@@ -21,16 +21,18 @@ CONDITIONING = ["FL2V (first frame)", "Ref2V (reference pictures)"]  # the Branc
 SCHEDULES = ["manual", *comfy.samplers.SCHEDULER_NAMES]
 PIKA = "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
 FIELDS = {"model": str, "lora": str, "lora_strength": float, "conditioning": str, "sampler": str, "schedule": str,
-          "sigmas": str, "steps": int, "derope_steps": int, "audio_shift": float}
+          "sigmas": str, "steps": int, "derope_steps": int, "shift_video": float, "shift_audio": float, "cfg": float}
 PIKA_PRESET = dict(model="minimax_h3_fl2va_pruned_int8_convrot.safetensors", lora="pika_h3_flex_fl2va_v1_bf16.safetensors",
                    lora_strength=1.0, conditioning=CONDITIONING[0], sampler="lcm", schedule="manual", sigmas=PIKA, steps=6,
-                   derope_steps=0, audio_shift=0.0)
+                   derope_steps=0, shift_video=12.0, shift_audio=3.0, cfg=1.0)
 # names with spaces cannot collide with saved presets, whose names are letters, digits, '_' and '-'
 BUILTIN = {
     "Pika H3 Flex": PIKA_PRESET,
     "Pika + reference pictures": dict(PIKA_PRESET, conditioning=CONDITIONING[1]),
-    "DMAD speed LoRA": dict(PIKA_PRESET, lora="minimax_h3_DMAD_4step_full_lora_avg_rank_39_bf16.safetensors", sampler="euler",
-                            schedule="simple", sigmas="", steps=4),
+    # the DMAD authors' settings (github.com/Yzmblog/DMAD, comfyui/): lcm + simple (lcm re-noises as the students were trained),
+    # 4 steps for the 4-step student, video shift 12 / audio shift 2, cfg 1, LoRA 1.0
+    "DMAD speed LoRA": dict(PIKA_PRESET, lora="minimax_h3_DMAD_4step_full_lora_avg_rank_39_bf16.safetensors", sampler="lcm",
+                            schedule="simple", sigmas="", steps=4, shift_audio=2.0),
 }
 
 
@@ -76,8 +78,8 @@ def check_preset(p):
             raise ValueError(f"render preset {k} must be a {t.__name__}")
     if p["conditioning"] not in CONDITIONING or p["schedule"] not in SCHEDULES:
         raise ValueError(f"render preset conditioning must be one of {CONDITIONING}, schedule one of {SCHEDULES}")
-    if p["steps"] < 1 or p["derope_steps"] < 0:
-        raise ValueError("render preset steps must be at least 1 and derope_steps at least 0")
+    if p["steps"] < 1 or p["derope_steps"] < 0 or min(p["shift_video"], p["shift_audio"]) <= 0 or p["cfg"] < 0:
+        raise ValueError("render preset steps must be at least 1, derope_steps and cfg at least 0, shifts above 0")
     return p
 
 
@@ -158,8 +160,10 @@ class RenderPreset(io.ComfyNode):
             node_id="MAIRenderPreset",
             display_name="Render Preset (alpha)",
             category="MAINodes/Dials",
-            description="Model, LoRA, FL2V or Ref2V, sampler and the steps of both stages in one node, with named presets "
-                        "(Pika H3 Flex, Pika + reference pictures, DMAD speed LoRA, or your own) saved in models/loras/dials/presets/render/.",
+            description="Everything a render recipe needs in one node, switched together by named presets (Pika H3 Flex, Pika + "
+                        "reference pictures, DMAD speed LoRA, or your own, saved in models/loras/dials/presets/render/): model, LoRA, "
+                        "flow shifts, FL2V or Ref2V, sampler, the stage-1 schedule and steps, de-rope steps and cfg. Stage 2 (de-rope) "
+                        "uses the same sampler and a tail of the same schedule.",
             inputs=[
                 io.Combo.Input("model", options=folder_paths.get_filename_list("diffusion_models"), tooltip="MiniMax H3 diffusion model"),
                 io.Combo.Input("lora", options=["none", *folder_paths.get_filename_list("loras")], tooltip="speed or style LoRA (model only)"),
@@ -173,22 +177,24 @@ class RenderPreset(io.ComfyNode):
                 io.Int.Input("steps", default=6, min=1, max=200, tooltip="stage 1 (the normal render) steps"),
                 io.Int.Input("derope_steps", default=0, min=0, max=200,
                              tooltip="stage 2 (de-rope) steps. 0 = auto: the stage-1 steps below the de-rope amount (Pika at 0.48: 4)."),
-                io.Float.Input("audio_shift", default=0.0, min=0.0, max=100.0, step=0.1,
-                               tooltip="audio flow shift; 0 = the model's own (3). Uses core's ModelSamplingMiniMaxH3 with the model's video shift."),
+                io.Float.Input("shift_video", default=12.0, min=0.01, max=100.0, step=0.01, tooltip="video flow shift (H3: 12), as core's ModelSamplingMiniMaxH3"),
+                io.Float.Input("shift_audio", default=3.0, min=0.01, max=100.0, step=0.01, tooltip="audio flow shift (H3: 3; T8's DMAD recipe: 2)"),
+                io.Float.Input("cfg", default=1.0, min=0.0, max=30.0, step=0.1,
+                               tooltip="1 for distilled LoRAs (Pika, DMAD). Above 1 the blueprint guides against a zeroed copy of the prompt (untested)."),
             ],
             outputs=[io.Model.Output(), io.Sampler.Output(), io.Sigmas.Output(display_name="sigmas"),
-                     io.Int.Output(display_name="derope_steps"), io.String.Output(display_name="conditioning")],
+                     io.Int.Output(display_name="derope_steps"), io.String.Output(display_name="conditioning"), io.Float.Output(display_name="cfg")],
         )
 
     @classmethod
-    def execute(cls, model, lora, lora_strength, conditioning, sampler, schedule, sigmas, steps, derope_steps, audio_shift) -> io.NodeOutput:
+    def execute(cls, model, lora, lora_strength, conditioning, sampler, schedule, sigmas, steps, derope_steps, shift_video, shift_audio,
+                cfg) -> io.NodeOutput:
         m = nodes.UNETLoader().load_unet(model, "default")[0]
         if lora != "none":
             m = nodes.LoraLoaderModelOnly().load_lora_model_only(m, lora, lora_strength)[0]
-        if audio_shift:
-            m = MiniMaxH3SigmaShift.execute(m, m.get_model_object("model_sampling").shift, audio_shift).result[0]
+        m = MiniMaxH3SigmaShift.execute(model=m, shift_video=shift_video, shift_audio=shift_audio).result[0]
         stage1 = stage_sigmas(m.get_model_object("model_sampling"), schedule, sigmas, steps)
-        return io.NodeOutput(m, comfy.samplers.sampler_object(sampler), stage1, derope_steps, conditioning)
+        return io.NodeOutput(m, comfy.samplers.sampler_object(sampler), stage1, derope_steps, conditioning, cfg)
 
 
 class DeropeSigmas(io.ComfyNode):
