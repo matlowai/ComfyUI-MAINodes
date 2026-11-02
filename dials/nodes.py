@@ -90,6 +90,20 @@ class DialRack(io.ComfyNode):
         )
 
     @classmethod
+    def fingerprint_inputs(cls, rack="[]", **kwargs):
+        """Dial files by name: a file saved again under the same name (Make Dial, the editor, ⚙ info) must re-run the rack."""
+        try:
+            rows = json.loads(rack or "[]")
+        except ValueError:
+            return None  # execute reports the broken rack
+        files = []
+        for r in rows if isinstance(rows, list) else []:
+            path = folder_paths.get_full_path("loras", r["dial"]) if isinstance(r, dict) and isinstance(r.get("dial"), str) else None
+            st = os.stat(path) if path else None
+            files.append((r.get("dial") if isinstance(r, dict) else None, st.st_mtime_ns if st else None, st.st_size if st else None))
+        return tuple(files)
+
+    @classmethod
     def execute(cls, model, rack, dials=None, curve_audio=None, hold_map=None) -> io.NodeOutput:
         rows = json.loads(rack or "[]")
         if not isinstance(rows, list):
@@ -371,6 +385,7 @@ class CombineDials(io.ComfyNode):
                 *info_inputs(),  # last, so workflows saved before these fields load unchanged
             ],
             outputs=[Dial.Output(display_name="dial")],
+            is_output_node=True,
         )
 
     @classmethod
