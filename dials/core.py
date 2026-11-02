@@ -2,8 +2,9 @@
 ComfyUI-Dials). TEXT_PATHS says where each model family's seams are; a dial file records its family.
 
 A dial is one vector added to every prompt token, at one of two seams (H3 names; TEXT_PATHS has the others):
-  post  after H3's token_refiner, exactly where the DiT reads the prompt ("hook"). Applied as a ModelPatcher object
-        patch that wraps token_refiner.forward, so the module tree and weight paths stay unchanged and dials stack.
+  post  after H3's token_refiner, exactly where the DiT reads the prompt ("hook"). Applied by a diffusion-model wrapper
+        that finds the module per call, so the module tree and weight paths stay unchanged, dials stack, and clones on
+        other copies of the weights shift their own.
   pre   into the bias of `condition_proj` (text encoder output -> DiT hidden). Saved as a standard `<layer>.diff_b` LoRA
         key, so the stock LoRA loader applies it too. The token refiner sits between this seam and the DiT, so pre
         dials only approximate post dials; above ~1 (hook units) they wash out the prompt.
@@ -33,6 +34,7 @@ from safetensors.torch import save_file
 
 import comfy.model_management
 import comfy.utils
+from comfy.patcher_extension import WrappersMP
 from comfy_extras.nodes_minimax_h3 import CANVAS_MULTIPLE, REF_IMAGE_SHORT_EDGE, adapt_canvas
 import folder_paths
 
@@ -87,25 +89,54 @@ def check_family(dial, path):
         raise ValueError(f"dial {dial['meta'].get('name', '?')} was made for {dial_family(dial)}; this model is {path.family}")
 
 
-class ShiftedForward:
-    """Replacement for a text module's forward that adds a dial vector to its output (installed as an object patch)."""
+class ContextShift:
+    """Diffusion-model wrapper adding a post dial to the refined prompt, for families whose extra_conds refines it once (H3).
+    It reads the model it wraps per call, so a clone on another copy of the weights (multi-GPU, non-dynamic delegate)
+    shifts its own prompt."""
 
-    def __init__(self, forward, shift):
-        self.forward = forward
+    def __init__(self, shift):
         self.shift = shift
 
-    def __call__(self, x, *args, **kwargs):
-        out = self.forward(x, *args, **kwargs)
+    def __call__(self, executor, x, timestep, context, transformer_options, **kwargs):
+        context = executor.class_obj.preprocess_text_embeds(context)  # no-op when extra_conds already refined it
+        return executor(x, timestep, context + self.shift.to(device=context.device, dtype=context.dtype), transformer_options, **kwargs)
+
+    def to(self, device_or_dtype):  # sampling moves wrappers to the load device once (cast_to_load_options), not per call
+        if isinstance(device_or_dtype, torch.device):
+            self.shift = self.shift.to(device_or_dtype)
+        return self
+
+
+class PostShift(ContextShift):
+    """Diffusion-model wrapper for families that refine the prompt inside every call: for the duration of the call, adds
+    the shift to the output of the post module of the model being run."""
+
+    def __init__(self, post, shift):
+        super().__init__(shift)
+        self.post = post
+
+    def __call__(self, executor, *args, **kwargs):
+        handle = executor.class_obj.get_submodule(self.post).register_forward_hook(self.add)
+        try:
+            return executor(*args, **kwargs)
+        finally:
+            handle.remove()
+
+    def add(self, module, args, out):
         return out + self.shift.to(device=out.device, dtype=out.dtype)
 
 
+POST_KEY = "mai_dial_post"
+
+
 def apply_dial(m, dial, strength):
-    """Apply one dial to a cloned ModelPatcher in place, exactly as ComfyUI-Dials' Apply Dial does."""
+    """Apply one dial to a cloned ModelPatcher in place, with the math of ComfyUI-Dials' Apply Dial: pre is a bias diff,
+    post adds strength * vec to the post module's output."""
     if dial["mode"] == "pre":
         m.add_patches({f"diffusion_model.{dial['target']}.bias": ("diff", (dial["vec"],))}, strength)
     else:
-        name = f"diffusion_model.{dial['target']}.forward"
-        m.add_object_patch(name, ShiftedForward(m.get_model_object(name), dial["vec"] * strength))
+        shift = dial["vec"] * strength
+        m.add_wrapper_with_key(WrappersMP.DIFFUSION_MODEL, POST_KEY, ContextShift(shift) if text_path(m).cached else PostShift(dial["target"], shift))
 
 
 PAIR_WEIGHT = re.compile(r"\s+::\s*(-?\d+(?:\.\d+)?)\s*$")

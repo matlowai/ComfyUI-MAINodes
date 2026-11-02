@@ -125,7 +125,7 @@ def check(dtype):
         old = rack(base, rows, ins)
         new = rack(base, [dict(r, blocks=ONES) if not r.get("hold") and r["input"] != "dial_3" else r for r in rows], ins)
         assert "patches_replace" not in old.model_options["transformer_options"], "rows without blocks left the refiner hook"
-        assert not new.object_patches, "a profiled rack kept the refiner hook"
+        assert not new.get_wrappers(WrappersMP.DIFFUSION_MODEL, core.POST_KEY), "a profiled rack kept the refiner hook"
         assert same(sample(new, inputs), sample(old, inputs)), f"all-ones parity failed: {name}"
     two = [row(0, 1.3, envelope="early"), row(1, -.47)]
     out["two_enveloped_rows_all_ones_max_abs"] = max_diff(

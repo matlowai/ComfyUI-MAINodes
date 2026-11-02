@@ -2,7 +2,7 @@
 
 H3 refines the prompt once per sampling, so its envelopes shift the cached context at each diffusion-model call. Families
 that refine the prompt inside every call (MOSS-Image, Krea 2) get the shift at the post module instead: an apply-model
-wrapper sets it for the duration of the call and the post module's ScheduledForward adds it.
+wrapper sets it for the duration of the call and the rack's ScheduledShift adds it to the post module's output.
 
 Progress runs from 0 to 1 over the steps of each sampler call: with two sampler stages (split sigmas, or a second
 pass at denoise < 1) an envelope is applied to each stage on its own.
@@ -109,16 +109,18 @@ class EnvelopeShift(EnvelopeForward):
             SHIFT.reset(token)
 
 
-class ScheduledForward:
-    """Post module forward that adds the envelope shift of the running apply-model call (none outside sampling)."""
+class ScheduledShift(core.PostShift):
+    """PostShift adding the envelope shift of the running apply-model call (none outside sampling)."""
 
-    def __init__(self, forward):
-        self.forward = forward
+    def __init__(self, post):
+        super().__init__(post, None)
 
-    def __call__(self, *args, **kwargs):
-        out = self.forward(*args, **kwargs)
+    def add(self, module, args, out):
         shift = SHIFT.get()
         return out if shift is None else out + shift.to(device=out.device, dtype=out.dtype)
+
+    def to(self, device_or_dtype):
+        return self
 
 
 class EnvelopeSampler:
@@ -157,8 +159,7 @@ def apply_rack(model, rows, specs, node_id=None, report=""):
         else:
             core.apply_dial(model, dial, strength)
     if post:
-        if not path.cached and not outer:  # one ScheduledForward reads the shift every envelope rack adds to
-            name = f"diffusion_model.{path.post}.forward"
-            model.add_object_patch(name, ScheduledForward(model.get_model_object(name)))
+        if not path.cached and not outer:  # one ScheduledShift adds the shift every envelope rack adds to
+            model.add_wrapper_with_key(WrappersMP.DIFFUSION_MODEL, core.POST_KEY, ScheduledShift(path.post))
         model.add_wrapper_with_key(WrappersMP.SAMPLER_SAMPLE, WRAPPER_KEY, EnvelopeSampler(post, node_id, report, path.cached))
     return bool(post)

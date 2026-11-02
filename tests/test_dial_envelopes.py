@@ -58,7 +58,8 @@ def sample(patcher, x, sigmas, calls=None, raw=False):
 
         result = WrapperExecutor.new_executor(run, patcher.get_all_wrappers(WrappersMP.SAMPLER_SAMPLE)).execute(
             patcher, sigmas, extra_args, "sampler args preserved")
-        assert get_all_wrappers(WrappersMP.DIFFUSION_MODEL, options) == [], "runtime wrapper leaked into input options"
+        assert not any(isinstance(w, envelopes.EnvelopeForward) for w in get_all_wrappers(WrappersMP.DIFFUSION_MODEL, options)), \
+            "runtime wrapper leaked into input options"
         return result
     finally:
         patcher.unpatch_model()
@@ -89,7 +90,7 @@ def main():
         row = lambda i, s, **kw: {"input": f"dial_{i}", "strength": s, **kw}
         old = chain(base, [(a, 1.3), (pre, .2), (b, -.47)])
         constant = rack(base, [row(0, 1.3, envelope="constant"), row(2, .2), row(1, -.47)], ins)
-        assert constant.object_patches == {}, "scheduled row also installed an old refiner shift"
+        assert not constant.get_wrappers(WrappersMP.DIFFUSION_MODEL, core.POST_KEY), "scheduled row also installed a constant refiner shift"
         assert not base.wrappers
         for name, schedule in (("pika6", PIKA), ("synthetic20", BASE20)):
             expected, _ = sample(old, x, schedule)
@@ -141,6 +142,15 @@ def main():
         for spec in ("constant", "early"):
             fails(lambda: rack(base, [row(0, 1., envelope=spec), row(1, 0., hold=True)], ins),
                   "hold rows and step envelopes cannot share a rack")
+
+        # A clone on another copy of the weights (multi-GPU deepclone, non-dynamic delegate) shifts its own refined prompt.
+        moved_model = Fake(dtype)
+        for rows in ([row(0, 1.3), row(2, .2)], [row(0, 1., envelope="early"), row(1, -.5)]):
+            racked = rack(base, rows, ins)
+            moved = racked.clone(model_override=(moved_model, ({}, {}, {}, set())))
+            direct = rack(comfy.model_patcher.ModelPatcher(moved_model, load_device=torch.device("cpu"), offload_device=torch.device("cpu")), rows, ins)
+            equal(sample(moved, x, PIKA)[0], sample(direct, x, PIKA)[0])
+            assert not torch.equal(sample(moved, x, PIKA)[0][0], sample(racked, x, PIKA)[0][0])
 
     for spec in ("unknown", {"type": "manual", "points": [[0, 1], [0, 2]]},
                  {"type": "manual", "points": [[0, 1], [1, float("nan")]]}):

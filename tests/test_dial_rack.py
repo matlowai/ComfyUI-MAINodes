@@ -3,8 +3,9 @@
 
   python tests/test_dial_rack.py      (uses the ComfyUI checkout two levels up, or $COMFYUI_ROOT)
 
-CPU only, no model files: a stand-in model with H3's text-module names (condition_proj, token_refiner) wrapped in a
-real ComfyUI ModelPatcher, so the test exercises ComfyUI's own object-patch nesting and weight-patch stacking.
+CPU only, no model files: a stand-in model with H3's text-module names (condition_proj, token_refiner) and its
+diffusion-model wrapper chain, in a real ComfyUI ModelPatcher, so the test exercises ComfyUI's own wrapper nesting and
+weight-patch stacking.
 Checks:
   1. a rack equals the chain of single Apply Dial steps (clone + apply per dial), bit for bit, for one post (hook) row
      and pre (LoRA-file) rows; two or more post rows equal one Apply Dial of their float64 sum, in any row order;
@@ -33,6 +34,7 @@ import comfy.cli_args  # noqa: E402
 comfy.cli_args.args.cpu = True  # before model_management picks a device
 import comfy.model_patcher  # noqa: E402
 import folder_paths  # noqa: E402
+from comfy.patcher_extension import WrapperExecutor, WrappersMP, get_all_wrappers  # noqa: E402
 
 
 def load_dials_package():
@@ -55,6 +57,16 @@ class MiniMaxH3Model(torch.nn.Module):  # the class name is what the rack checks
         self.condition_proj = torch.nn.Linear(H, H)
         self.token_refiner = torch.nn.Sequential(torch.nn.Linear(H, H), torch.nn.Tanh(), torch.nn.Linear(H, H))
 
+    def preprocess_text_embeds(self, context):  # run() hands over the refined prompt, as H3's extra_conds does
+        return context
+
+    def forward(self, context, transformer_options):
+        return WrapperExecutor.new_class_executor(self._forward, self, get_all_wrappers(WrappersMP.DIFFUSION_MODEL, transformer_options)).execute(
+            None, None, context, transformer_options)
+
+    def _forward(self, x, timestep, context, transformer_options):
+        return context
+
 
 class Fake(torch.nn.Module):
     def __init__(self):
@@ -72,7 +84,7 @@ def run(patcher, x):
     patcher.patch_model()
     try:
         dm = patcher.model.diffusion_model
-        return dm.token_refiner(dm.condition_proj(x)).detach().clone()
+        return dm(dm.token_refiner(dm.condition_proj(x)), {"wrappers": patcher.wrappers}).detach().clone()
     finally:
         patcher.unpatch_model()
 
@@ -152,8 +164,9 @@ def check_holds(dtype):
     projected, _ = core.rack_hold_shift(post, [("near", near, 0), ("zero", zero, 1)])
     expected = run(chain(base, [(C, 0.7), (projected, 1)]), x)
     assert torch.equal(run(partial, x), expected), "held rack did not apply its combined shift"
-    wrapper = partial.get_model_object("diffusion_model.token_refiner.forward")
-    assert isinstance(wrapper, core.ShiftedForward) and not isinstance(wrapper.forward, core.ShiftedForward)
+    shift, = partial.get_wrappers(WrappersMP.DIFFUSION_MODEL, core.POST_KEY)
+    assert type(shift) is core.ContextShift, "held rack applied more than one shift"
+    assert shift.to(torch.float16) is shift and shift.shift.dtype == torch.float32, "the sampler's dtype cast reached the shift"
     zero_shift, _ = core.rack_hold_shift(post, [("zero", zero, 1)])
     assert torch.equal(zero_shift["vec"], total.float()), "zero hold removed an arbitrary direction"
     upstream = chain(base, [(B, 0.25)])
