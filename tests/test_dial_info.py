@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dial info v2: v1 records read as v2, unknown (null) strengths, round trip keeps the vector, bad input rejected (CPU)."""
+"""Dial info v2: unknown (null) strengths, round trip keeps the vector, bad input rejected (CPU)."""
 import importlib
 import importlib.util
 import json
@@ -27,7 +27,9 @@ presets = importlib.import_module("mai_dials.presets")
 nodes = importlib.import_module("mai_dials.nodes")
 
 V1 = {"description": "Lizard to squirrel. Measured on Pika H3 Flex, 1 seed.", "negative": "lizard", "positive": "squirrel",
-      "useful": 3.0, "overcook": 5.0}
+      "useful": 3.0, "overcook": 5.0}  # the short-lived unversioned record; no saved dial carries one
+INFO = {"version": 2, "description": V1["description"], "negative": "lizard", "positive": "squirrel", "pipeline": "", "notes": "",
+        "neg": {"useful": 3.0, "overcook": 5.0}, "pos": {"useful": 3.0, "overcook": 5.0}, "evidence": "one-seed"}
 
 
 def rejects(fn, *args):
@@ -44,15 +46,12 @@ def main():
         folder_paths.add_model_folder_path("loras", str(root), is_default=True)
         (root / "dials").mkdir()
 
-        # v1 file -> v2 read: both sides get the one pair; "1 seed" in the description means one-seed evidence
         old = root / "dials" / "old.safetensors"
-        save_file({"diffusion_model.token_refiner.dials_shift": torch.randn(8)}, str(old), metadata={"dial_info": json.dumps(V1)})
+        save_file({"diffusion_model.token_refiner.dials_shift": torch.randn(8)}, str(old), metadata={"dial_info": json.dumps(INFO)})
         info = core.dial_info("dials/old.safetensors")
-        assert info == {"version": 2, "description": V1["description"], "negative": "lizard", "positive": "squirrel",
-                        "pipeline": "", "notes": "", "neg": {"useful": 3.0, "overcook": 5.0},
-                        "pos": {"useful": 3.0, "overcook": 5.0}, "evidence": "one-seed"}, info
-        assert core.check_dial_info(dict(V1, description="creator-set"))["evidence"] == "creator"
-        assert core.check_dial_info({})["pos"] == {"useful": 1.0, "overcook": 1.5}, "a partial v1 record keeps v1's defaults"
+        assert info == INFO, info
+        rejects(core.check_dial_info, V1)
+        rejects(core.check_dial_info, {})
 
         # no info and v2 nulls: unknown stays unknown
         plain = root / "dials" / "plain.safetensors"
@@ -63,7 +62,7 @@ def main():
         half = core.check_dial_info({"version": 2, "neg": {"useful": 2}, "pos": {"useful": None, "overcook": 0.5}})
         assert half["neg"] == {"useful": 2.0, "overcook": None} and half["pos"] == {"useful": None, "overcook": 0.5}
 
-        # round trip: v2 written over v1 reads back exactly, the vector bytes and the preset hash are unchanged
+        # round trip: new info reads back exactly, the vector bytes and the preset hash are unchanged
         before = presets.dial_sha256("dials/old.safetensors")
         with safe_open(str(old), "pt") as f:
             vec = f.get_tensor("diffusion_model.token_refiner.dials_shift")
@@ -80,7 +79,7 @@ def main():
                     dict(v2, pos={"useful": True}), dict(v2, neg={"useful": float("nan")}), dict(v2, neg={"useful": "1"}),
                     dict(v2, pos={"useful": 3, "overcook": 2}), dict(v2, neg=[1, 2]), dict(v2, pos=None),
                     dict(v2, evidence="two-seed"), dict(v2, evidence=""), dict(v2, pipeline="x" * 61), dict(v2, notes="x" * 501),
-                    dict(v2, negative=5), dict(V1, useful=0), dict(V1, useful=3, overcook=2), dict(V1, description="x" * 2001)):
+                    dict(v2, negative=5), dict(INFO, description="x" * 2001)):
             rejects(core.check_dial_info, bad)
         rejects(core.save_dial_info, "dials/old.safetensors", dict(v2, evidence="two-seed"))
         assert core.dial_info("dials/old.safetensors") == edited, "a rejected write must leave the file alone"
@@ -105,14 +104,15 @@ def main():
         assert ids[len(ids) - len(info_ids) - len(later.get(node_id, [])):] == info_ids + later.get(node_id, []), (node_id, ids)
     same = nodes.info_from(useful=2, overcook=3)
     assert same["neg"] == same["pos"] == {"useful": 2.0, "overcook": 3.0} and same["evidence"] == "creator"
-    assert nodes.info_from() == core.check_dial_info({"useful": 1.0, "overcook": 1.5}), "a workflow saved before v2 saves what v1 did"
+    side = {"useful": 1.0, "overcook": 1.5}
+    assert nodes.info_from() == core.check_dial_info({"version": 2, "neg": side, "pos": side, "evidence": "creator"}), "a workflow saved before v2 saves what v1 did"
     split = nodes.info_from(useful=1, overcook=2, negative_useful=3, negative_overcook=5, evidence="unknown", pipeline="Pika H3 Flex 6-step")
     assert split["neg"] == {"useful": 3.0, "overcook": 5.0} and split["pos"] == {"useful": 1.0, "overcook": 2.0}
     assert split["evidence"] is None and split["pipeline"] == "Pika H3 Flex 6-step"
     rejects(nodes.info_from, "", "", "", 1.0, 1.5, 3.0)  # negative useful above the inherited overcook
     lizard = nodes.info_from(useful=0, overcook=0, negative_useful=4, negative_overcook=6)
     assert lizard["pos"] == {"useful": None, "overcook": None} and lizard["neg"] == {"useful": 4.0, "overcook": 6.0}, lizard
-    print("dial info: all checks passed (v1 -> v2, unknown sides, round trip keeps the vector, bad input rejected, node inputs)")
+    print("dial info: all checks passed (unversioned info refused, unknown sides, round trip keeps the vector, bad input rejected, node inputs)")
 
 
 if __name__ == "__main__":

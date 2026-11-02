@@ -308,14 +308,11 @@ INFO_EVIDENCE = ("creator", "one-seed", "multi-seed", "multi-scene")
 
 def check_dial_info(info):
     """-> info v2: labels, per-side ("neg", "pos") useful/overcook strengths where None means unknown, evidence, pipeline,
-    notes. A v1 record (no version, one useful/overcook pair) applies to both sides."""
+    notes."""
     if not isinstance(info, dict):
         raise ValueError("dial info must be an object")
-    if "version" not in info:
-        side = {"useful": info.get("useful", 1.0), "overcook": info.get("overcook", 1.5)}
-        info = dict(info, neg=side, pos=side, evidence="one-seed" if "1 seed" in str(info.get("description", "")) else "creator")
-    elif info["version"] != 2:
-        raise ValueError(f"unknown dial info version {info['version']!r}")
+    if info.get("version") != 2:
+        raise ValueError(f"unknown dial info version {info.get('version')!r}")
     out = {"version": 2}
     for key, limit in (("description", 2000), ("negative", 60), ("positive", 60), ("pipeline", 60), ("notes", 500)):
         v = info.get(key, "")

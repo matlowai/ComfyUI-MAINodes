@@ -96,7 +96,7 @@ records failures, and **Save to dial file** writes it back into that file: only 
 byte-identical, and presets keep matching (they hash the vector). The description is the dial picker's tooltip. The map
 draws each quarter from the matching sides (right/top from +, left/bottom from −); a quarter with an unknown side shows
 a grey dashed ring at 1 marked *uncalibrated*, and the dot there reads "uncalibrated", never "within useful". Dials
-without info are all unknown; version 1 info (one useful/overcook pair) reads as the same pair on both sides.
+without info are all unknown.
 
 ## Example workflows
 

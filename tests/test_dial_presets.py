@@ -41,13 +41,15 @@ def main():
     save_file({"diffusion_model.token_refiner.dials_shift": torch.ones(8)}, str(dial))
     expected = presets.dial_sha256("dials/test.safetensors")
     core = importlib.import_module("mai_dials.core")
-    core.save_dial_info("dials/test.safetensors", {"description": "an edited description", "useful": 2, "overcook": 3})
+    core.save_dial_info("dials/test.safetensors", {"version": 2, "description": "an edited description", "pos": {"useful": 2, "overcook": 3}})
     assert presets.dial_sha256("dials/test.safetensors") == expected, "editing dial info must not change the preset hash"
     assert core.dial_info("dials/test.safetensors")["pos"]["useful"] == 2.0
-    for bad in ({"useful": 0}, {"useful": 3, "overcook": 2}, {"useful": True}, {"description": "x" * 2001}, {"negative": 5}, [], {"overcook": 21}):
+    v2 = {"version": 2}
+    for bad in (dict(v2, pos={"useful": 0}), dict(v2, pos={"useful": 3, "overcook": 2}), dict(v2, pos={"useful": True}),
+                dict(v2, description="x" * 2001), dict(v2, negative=5), [], dict(v2, neg={"overcook": 21}), {"useful": 2}):
         rejects(core.check_dial_info, bad)
-    rejects(core.save_dial_info, "../../etc/passwd", {}, exception=ValueError)
-    rejects(core.save_dial_info, "dials/../../../etc/passwd", {}, exception=FileNotFoundError)
+    rejects(core.save_dial_info, "../../etc/passwd", v2, exception=ValueError)
+    rejects(core.save_dial_info, "dials/../../../etc/passwd", v2, exception=FileNotFoundError)
     plain = root / "dials" / "plain.safetensors"
     save_file({"diffusion_model.token_refiner.dials_shift": torch.ones(8)}, str(plain))
     assert core.dial_info("dials/plain.safetensors") == core.check_dial_info(core.INFO_DEFAULTS), "a dial without info reads as the defaults"
