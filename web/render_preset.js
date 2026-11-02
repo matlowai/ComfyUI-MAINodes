@@ -85,6 +85,8 @@ app.registerExtension({
     const configure = nodeType.prototype.onConfigure;
     nodeType.prototype.onConfigure = function () {
       const r = configure?.apply(this, arguments);
+      // shipped workflows name plain files; use this machine's copy when it sits in a sub-folder (e.g. h3/)
+      for (const name of ["model", "lora"]) { const w = this.widgets.find((x) => x.name === name); if (w) w.value = pick(w, w.value); }
       this.renderPreset?.fill(this.properties.renderPreset).catch(() => {});
       return r;
     };
