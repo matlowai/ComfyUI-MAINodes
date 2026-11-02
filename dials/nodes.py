@@ -1,4 +1,4 @@
-"""Dials nodes (V3): Dial Rack, Make Dial, Combine Dials. Node ids are MAIDial*, so this pack can be installed next to
+"""Dials nodes (V3): Dial Rack, Dial Hold Map, Make Dial (from prompt pairs, pictures or videos), Combine Dials. Node ids are MAIDial*, so this pack can be installed next to
 ComfyUI-Dials (whose ids are Dials*); both use the DIAL socket type and models/loras/dials/, so they interoperate."""
 import json
 import os
@@ -286,7 +286,7 @@ class MakeDialFromPictures(io.ComfyNode):
                 io.Boolean.Input("debias", default=True, advanced=True,
                                  tooltip="Project out the same generic wording directions used by Make Dial."),
                 io.Int.Input("nuisance_dims", default=3, min=1, max=12, advanced=True),
-                *info_inputs(),  # last, so workflows saved before these fields load unchanged
+                *info_inputs(),  # before framing, the groups and the folders, which came later: saved widget values load by position
                 io.Combo.Input("framing", options=["picture prompt", *core.PICTURE_FRAMINGS, "all averaged"], default="content",
                                optional=True, tooltip="How the pictures are read. content: what is in them (subjects, objects; the default). "
                                "look: colours and light. bare: no hint. all averaged: all of them. picture prompt: your own "
@@ -400,7 +400,7 @@ class CombineDials(io.ComfyNode):
             raise ValueError(f"dial a was made for {core.dial_family(a)}, dial b for {core.dial_family(b)}")
         if (a["target"], a["mode"]) != (b["target"], b["mode"]):
             raise ValueError(f"dials use different injection points: {a['mode']} {a['target']} vs {b['mode']} {b['target']}")
-        va, vb = a["vec"].float(), b["vec"].float()
+        va, vb = a["vec"], b["vec"]
         cos = float(torch.nn.functional.cosine_similarity(va, vb, dim=0))
         note = ""
         if orthogonalize and float(vb @ vb) > 0:
