@@ -183,6 +183,20 @@ def main():
     for mode in ("post", "pre"):  # identical sides: a zero dial with finite bookkeeping, not NaN
         same, report = core.make_dial(clip, model, "{subject} talks. ||| {subject} talks.\n! {subject} sits. ||| {subject} stands.", subjects, "same", mode)
         assert not same["vec"].any() and "nan" not in report and "nan" not in same["meta"]["debias_removed"], report
+    events = []
+
+    class Recording(FakeClip):
+        def encode_from_tokens_scheduled(self, text):
+            events.append("encode")
+            return super().encode_from_tokens_scheduled(text)
+    load = core.comfy.model_management.load_models_gpu
+    core.comfy.model_management.load_models_gpu = lambda models, *a, **kw: (events.append("load"), load(models, *a, **kw))[1]
+    try:
+        ordered, _ = core.make_dial(Recording(), model, face + "\n" + loud, subjects, "face_hold_pre", "pre")
+    finally:
+        core.comfy.model_management.load_models_gpu = load
+    assert events[-1] == "load" and events.count("load") == 1, "Make Dial encoded text after loading the model"
+    assert torch.equal(ordered["vec"], pre["vec"])
     degenerate, _ = core.make_dial(clip, model, face + "\n! {subject} speaks. ||| {subject} speaks.", subjects, "deg", "post")
     assert torch.isfinite(degenerate["vec"]).all(), "a hold group with no difference must remove nothing, not make NaN"
     print("dial pairs: all checks passed")

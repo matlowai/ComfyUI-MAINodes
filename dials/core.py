@@ -388,6 +388,10 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
     prompts, weights, holds = parse_pairs(pairs, subjects)
     nuisance = parse_pairs("\n".join(NUISANCE_PAIRS), subjects if subjects.strip() else NUISANCE_SUBJECTS)[0] if debias else []
     weights = torch.tensor(weights)
+    probe = [plain_text(t) for pair in prompts[:8] for s in pair for t, _ in ([(s, 1)] if isinstance(s, str) else s)] if calibrate and mode == "pre" else []
+    texts = [t for pp in (prompts, nuisance, *holds.values()) for pair in pp for s in pair for t, _ in side_terms(s)] + probe
+    # every text through the encoder before the model loads, so a low-VRAM encoder load cannot evict the DiT mid-dial
+    states = {t: clip.encode_from_tokens_scheduled(clip.tokenize(t))[0][0][0] for t in dict.fromkeys(texts)}
     comfy.model_management.load_models_gpu([model])
     device = comfy.model_management.get_torch_device()
     dtype = model.model.get_dtype_inference()
@@ -395,7 +399,7 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
 
     def encode(text):  # -> (pre-refiner tokens, pre token mean, post token mean), means in float32
         if text not in cache:
-            ctx = clip.encode_from_tokens_scheduled(clip.tokenize(text))[0][0][0].to(device, dtype)
+            ctx = states[text].to(device, dtype)
             pre = proj(ctx) if proj is not None else ctx
             cache[text] = (pre, pre.float().mean(0), path.refine(dm, pre).float().mean(0))
         return cache[text]
@@ -441,7 +445,6 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
         # the refiner's final RMSNorm shrinks a pre-refiner shift: rescale so strength 1 = one average pair difference after it
         basis2 = basis_for(2)
         post_target = remove(remove(mean(diffs(prompts, 2)), basis2), hold_directions(2, basis2))
-        probe = [plain_text(t) for pair in prompts[:8] for s in pair for t, _ in ([(s, 1)] if isinstance(s, str) else s)]
         shift = torch.stack([path.refine(dm, encode(t)[0] + vec.to(dtype)).float().mean(0) - encode(t)[2] for t in probe]).mean(0)
         along = float(shift @ (post_target / post_target.norm().clamp_min(1e-12)))
         scale = float(post_target.norm()) / along if along > 0 else 1.0
