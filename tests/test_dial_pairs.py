@@ -173,12 +173,16 @@ def main():
     assert as_pairs["meta"]["pair_weights"] == [2.0, 1.0] and "pair_weights" not in one_pair["meta"]
     _, w, _ = core.parse_pairs("+ {subject} smiles\n- {subject} frowns\nx ||| y :: 0.5", "A man\nA woman")
     assert w == [0.5, 0.5, 1.0, 1.0], w  # the pair once per subject (as every pair line), then one set per subject
-    for bad in ("+1 only plus", "a ||| b\n! c ||| d :: 2", "+0 zero weight\n-1 x"):
+    for bad in ("+1 only plus", "a ||| b\n! c ||| d :: 2", "+0 zero weight\n-1 x", "a ||| b :: 0", "a ||| b :: 0\nc ||| d :: 0"):
         try:
             core.parse_pairs(bad, "")
             raise AssertionError(f"accepted: {bad}")
         except ValueError:
             pass
+    assert core.parse_pairs("a ||| b :: 0\nc ||| d", "")[1] == [0.0, 1.0], "one zero-weight pair next to others is fine"
+    for mode in ("post", "pre"):  # identical sides: a zero dial with finite bookkeeping, not NaN
+        same, report = core.make_dial(clip, model, "{subject} talks. ||| {subject} talks.\n! {subject} sits. ||| {subject} stands.", subjects, "same", mode)
+        assert not same["vec"].any() and "nan" not in report and "nan" not in same["meta"]["debias_removed"], report
     degenerate, _ = core.make_dial(clip, model, face + "\n! {subject} speaks. ||| {subject} speaks.", subjects, "deg", "post")
     assert torch.isfinite(degenerate["vec"]).all(), "a hold group with no difference must remove nothing, not make NaN"
     print("dial pairs: all checks passed")

@@ -195,6 +195,8 @@ def parse_pairs(pairs, subjects):
             weights.append(1.0)
     if not out:
         raise ValueError("no prompt pairs given")
+    if not any(weights):
+        raise ValueError("every '::' pair weight is 0, so the dial would be empty; give at least one pair a nonzero weight")
     return out, weights, holds
 
 
@@ -426,15 +428,15 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
     raw = mean(d)
     debiased = remove(raw, basis)
     vec = remove(debiased, hold)
-    removed = 1 - float(debiased.norm() ** 2 / raw.norm() ** 2)
-    held = 1 - float(vec.norm() ** 2 / debiased.norm() ** 2)
+    removed = 1 - float(debiased.norm() ** 2 / (raw.norm() ** 2).clamp_min(1e-12))
+    held = 1 - float(vec.norm() ** 2 / (debiased.norm() ** 2).clamp_min(1e-12))
     agree = float(torch.nn.functional.cosine_similarity(torch.stack([remove(remove(x, basis), hold) for x in d]), vec.unsqueeze(0)).mean())
     note, shares = "", {}
     if holds:
         shares = {group: float((debiased @ hold[:, i]) ** 2 / debiased.square().sum().clamp_min(1e-24)) for i, group in enumerate(holds)}
         note = f"; hold pairs removed {held:.0%} of the dial"
         if len(holds) == 1:
-            note += f" (cos with the held quality {float(debiased @ hold[:, 0]) / float(debiased.norm()):+.2f})"
+            note += f" (cos with the held quality {float(debiased @ hold[:, 0]) / max(float(debiased.norm()), 1e-12):+.2f})"
     if calibrate and mode == "pre":
         # the refiner's final RMSNorm shrinks a pre-refiner shift: rescale so strength 1 = one average pair difference after it
         basis2 = basis_for(2)
