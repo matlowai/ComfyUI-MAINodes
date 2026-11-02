@@ -85,6 +85,16 @@ def main():
         rejects(core.save_dial_info, "dials/old.safetensors", dict(v2, evidence="two-seed"))
         assert core.dial_info("dials/old.safetensors") == edited, "a rejected write must leave the file alone"
 
+        # info is written into dial files only: not into a LoRA, nor a dial-shaped file outside dials/
+        lora = {"diffusion_model.a.lora_up.weight": torch.ones(2, 2), "diffusion_model.a.lora_down.weight": torch.ones(2, 2)}
+        save_file(lora, str(root / "style.safetensors"))
+        save_file(lora, str(root / "dials" / "two_keys.safetensors"))
+        save_file({"diffusion_model.token_refiner.dials_shift": torch.ones(8)}, str(root / "loose.safetensors"))
+        for name in ("style.safetensors", "dials/two_keys.safetensors", "loose.safetensors"):
+            before = (root / name).read_bytes()
+            rejects(core.save_dial_info, name, edited)
+            assert (root / name).read_bytes() == before, f"{name} was rewritten"
+
     # Make Dial nodes: the v1 info inputs keep their positions and the v2 ones follow them; inputs added later come after
     # (widget values load by position)
     info_ids = ["description", "negative_label", "positive_label", "useful", "overcook",

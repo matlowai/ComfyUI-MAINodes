@@ -348,8 +348,12 @@ def dial_info(dial_name):
 
 
 def save_dial_info(dial_name, info):
-    """Write the info into the dial file's metadata; the vector is copied unchanged and the file replaced atomically."""
+    """Write the info into a dial file's metadata; the vector is copied unchanged and the file replaced atomically. Only
+    dial files in loras/dials/ are rewritten, never another LoRA."""
     info = check_dial_info(info)
+    if not dial_name.replace("\\", "/").startswith(f"{DIAL_SUBDIR}/"):
+        raise ValueError(f"{dial_name} is not in loras/{DIAL_SUBDIR}/: dial info is saved into dial files only")
+    load_dial(dial_name)  # refuses a file that is not one dial vector
     path = folder_paths.get_full_path_or_raise("loras", dial_name)
     with safe_open(path, "pt") as f:
         tensors = {k: f.get_tensor(k) for k in f.keys()}
