@@ -14,7 +14,6 @@ import folder_paths
 from . import core
 
 BANKS = {"MiniMax H3": "dials/_probes/h3-probes-v1.json"}  # model family -> probe bank manifest
-_profiles = {}  # (vector hash, bank id, bank version, lambda) -> profile: a few dozen floats each
 
 
 def direct_coefficients(v, probes):
@@ -44,13 +43,17 @@ def read_bank(manifest):
         return json.load(f)
 
 
-def profile(dial, bank):
+def probe_vectors(dial, bank):
+    """[n, d] float64 probe vectors of the bank; refuses a bank in another space than the dial."""
     probes = [core.load_dial(a["file"]) for a in bank["axes"]]
     space = {(d["mode"], d["target"]) for d in probes}
     if space != {(dial["mode"], dial["target"])}:
         raise ValueError(f"different space: the probe bank is {', '.join(f'{m} {t}' for m, t in sorted(space))}, "
                          f"the dial is {dial['mode']} {dial['target']}")
-    p = torch.stack([d["vec"].double() for d in probes])
+    return torch.stack([d["vec"].double() for d in probes])
+
+
+def profile(dial, bank, p):
     v = dial["vec"].double()
     beta, unexplained = ridge_fit(v, p, bank["ridge_lambda"])
     return {"bank": bank["id"], "version": bank["version"], "lambda": bank["ridge_lambda"],
@@ -60,17 +63,11 @@ def profile(dial, bank):
             "correlated": bank.get("correlated", [])}
 
 
-def dial_profile(dial_name, vector_hash, manifest=None):
-    """Profile of one dial file on its family's bank (or `manifest`), cached by its vector hash and the bank's id, version
-    and lambda."""
+def dial_profile(dial_name):
+    """Profile of one dial file on its family's probe bank."""
     dial = core.load_dial(dial_name)
-    if manifest is None:
-        family = core.dial_family(dial)
-        if family not in BANKS:
-            raise ValueError(f"no probe bank for {family} yet")
-        manifest = BANKS[family]
-    bank = read_bank(manifest)
-    key = (vector_hash, bank["id"], bank["version"], bank["ridge_lambda"])
-    if key not in _profiles:
-        _profiles[key] = profile(dial, bank)
-    return _profiles[key]
+    family = core.dial_family(dial)
+    if family not in BANKS:
+        raise ValueError(f"no probe bank for {family} yet")
+    bank = read_bank(BANKS[family])
+    return profile(dial, bank, probe_vectors(dial, bank))

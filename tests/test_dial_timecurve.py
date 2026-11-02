@@ -18,7 +18,7 @@ import torch
 
 from test_dial_rack import H, comfy, dial, nodes, rack
 from test_dial_envelopes import Fake as EnvelopeFake
-from comfy.patcher_extension import WrappersMP, WrapperExecutor
+from comfy.patcher_extension import WrappersMP, WrapperExecutor, copy_nested_dicts
 
 timecurve = importlib.import_module("mai_dials.timecurve")
 PIKA = torch.tensor([1., .972973, .923077, .8, .571429, .333333, 0.])
@@ -58,7 +58,7 @@ def sample(patcher, text, latents, sigmas=PIKA, shapes=SHAPES):
             opts = extra_args["model_options"]["transformer_options"]
             return [[t.detach().clone() for t in dm(latents, torch.tensor([float(s) * 1000]), context, {**opts, "sigmas": torch.tensor([float(s)])})]
                     for s in schedule[:-1]]
-        extra_args = {"model_options": {"transformer_options": {"wrappers": patcher.wrappers}}}
+        extra_args = {"model_options": copy_nested_dicts({"transformer_options": {"wrappers": patcher.wrappers}})}
         out = WrapperExecutor.new_executor(run, patcher.get_all_wrappers(WrappersMP.SAMPLER_SAMPLE)).execute(Guider(shapes), sigmas, extra_args)
         return out, dm.calls
     finally:

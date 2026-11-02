@@ -70,7 +70,7 @@ class BlockEnvelopeSampler(envelopes.EnvelopeSampler):
         super().__init__(rows, node_id, report)
         self.profiles = profiles
 
-    def compile(self, sigmas):
+    def compile(self, sigmas, model):
         return BlockEnvelopeForward(self.rows, sigmas, self.profiles)
 
 

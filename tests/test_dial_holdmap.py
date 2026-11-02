@@ -15,7 +15,7 @@ import logging
 import torch
 
 from test_dial_rack import H, comfy, dial, nodes
-from test_dial_timecurve import Fake, PIKA, fails, keys, same, sample, timecurve
+from test_dial_timecurve import Fake, Guider, PIKA, fails, keys, same, sample, timecurve
 from comfy.patcher_extension import WrappersMP
 
 HOLDS = [1] * 5 + [4] * 5 + [1] * 11 + [3]
@@ -79,9 +79,9 @@ def check_sampler(dtype):
 
     m = rack(base, rows, ins, held)
     wrapper = m.get_wrappers(WrappersMP.SAMPLER_SAMPLE, timecurve.WRAPPER_KEY)[0]
-    assert "22 real frames stretched to 39" in wrapper.compile(PIKA, STRETCHED).report()
-    assert "real time (22 frames" in wrapper.compile(PIKA, REAL).report()
-    fails(lambda: wrapper.compile(PIKA, [(1, 4, 17, 2, 2), (1, 3, 2, 92)]), "hold_map_used from the H3 Time Smear")
+    assert "22 real frames stretched to 39" in wrapper.compile(PIKA, Guider(STRETCHED)).report()
+    assert "real time (22 frames" in wrapper.compile(PIKA, Guider(REAL)).report()
+    fails(lambda: wrapper.compile(PIKA, Guider([(1, 4, 17, 2, 2), (1, 3, 2, 92)])), "hold_map_used from the H3 Time Smear")
 
 
 def check_schema():

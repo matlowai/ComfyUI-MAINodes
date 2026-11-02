@@ -27,10 +27,10 @@ import numpy as np
 import torch
 
 from comfy.ldm.minimax.model import FRAME_PER_TOKEN
-from comfy.patcher_extension import WrappersMP, add_wrapper_with_key, copy_nested_dicts
+from comfy.patcher_extension import WrappersMP
 from comfy_extras.nodes_minimax_h3 import AUDIO_LATENT_FPS, FPS
 
-from . import blocks, core
+from . import blocks, core, envelopes
 
 WRAPPER_KEY = "mai_dial_timecurve"
 FEATURES = ("rms", "onset", "low", "mid", "high")
@@ -136,13 +136,13 @@ class TimeCurveForward:
 
     def __init__(self, groups, sigmas, clock=""):
         self.clock = clock
-        self.sigmas = sigmas.detach().double().cpu().tolist()
+        self.sigmas = sigmas.tolist()
         n = len(self.sigmas) - 1
         self.groups = []
-        for label, shift, spec, video, audio in groups:
-            weights = (torch.tensor(video).reshape(1, 1, -1, 1, 1), torch.tensor(audio).reshape(1, 1, 1, -1))
+        for label, shift, spec, video, audio in groups:  # tensors on the sampling device once, not copied per call
+            weights = (torch.tensor(video, device=sigmas.device).reshape(1, 1, -1, 1, 1), torch.tensor(audio, device=sigmas.device).reshape(1, 1, 1, -1))
             values = video + audio
-            self.groups.append({"label": label, "shift": shift, "steps": min(spec["steps"], n), "until": self.sigmas[min(spec["steps"], n)],
+            self.groups.append({"label": label, "shift": shift.to(sigmas.device), "steps": min(spec["steps"], n), "until": self.sigmas[min(spec["steps"], n)],
                                 "weights": weights, "zero": not any(values), "one": all(v == 1 for v in values), "video": video, "audio": audio})
 
     def report(self):
@@ -173,18 +173,18 @@ class TimeCurveForward:
         return out
 
 
-class TimeCurveSampler:
+class TimeCurveSampler(envelopes.EnvelopeSampler):
     """Sampler wrapper; rows [(label, dial, strength, spec)] with the same spec share one dialled branch (shifts summed in
     float64). The clip's latent shapes come from the model being sampled."""
+    key = WRAPPER_KEY
 
     def __init__(self, rows, features, holds=None, node_id=None, report=""):
-        self.rows = rows
+        super().__init__(rows, node_id, report)
         self.features = features
         self.holds = holds
-        self.node_id = node_id
-        self.base_report = report
 
-    def compile(self, sigmas, latent_shapes):
+    def compile(self, sigmas, model):
+        latent_shapes = model.inner_model.latent_shapes
         latent_t, audio_t = latent_shapes[0][2], latent_shapes[1][-1]
         frames = clip_clock(latent_t, 0)[0][-1].stop
         holds, clock = self.holds, ""
@@ -203,18 +203,6 @@ class TimeCurveSampler:
             shift = core.rack_post_shift(rows)["vec"] if len(rows) > 1 else rows[0][1]["vec"] * rows[0][2]
             compiled.append((" + ".join(label for label, _, _ in rows), shift, spec, *frame_weights(spec, latent_t, audio_t, self.features, holds)))
         return TimeCurveForward(compiled, sigmas, f"a {frames / FPS:.3f} s clip ({latent_t} video, {audio_t} audio latent frames){clock}")
-
-    def __call__(self, executor, model, sigmas, extra_args, *args, **kwargs):
-        compiled = self.compile(sigmas, model.inner_model.latent_shapes)
-        extra_args = extra_args.copy()
-        extra_args["model_options"] = copy_nested_dicts(extra_args["model_options"])
-        options = extra_args["model_options"].setdefault("transformer_options", {})
-        add_wrapper_with_key(WrappersMP.DIFFUSION_MODEL, WRAPPER_KEY, compiled, options)
-        if self.node_id is not None:
-            from server import PromptServer  # only inside a running ComfyUI; keeps the module importable in tests
-            PromptServer.instance.send_sync("mai-dial-envelope", {"node": self.node_id, "text": self.base_report + "\n" + compiled.report()},
-                                            PromptServer.instance.client_id)
-        return executor(model, sigmas, extra_args, *args, **kwargs)
 
 
 def read_holds(hold_map):

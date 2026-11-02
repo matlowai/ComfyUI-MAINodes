@@ -2,8 +2,9 @@
 ComfyUI-Dials). TEXT_PATHS says where each model family's seams are; a dial file records its family.
 
 A dial is one vector added to every prompt token, at one of two seams (H3 names; TEXT_PATHS has the others):
-  post  after H3's token_refiner, exactly where the DiT reads the prompt ("hook"). Applied as a ModelPatcher object
-        patch that wraps token_refiner.forward, so the module tree and weight paths stay unchanged and dials stack.
+  post  after H3's token_refiner, exactly where the DiT reads the prompt ("hook"). Applied by a diffusion-model wrapper
+        that finds the module per call, so the module tree and weight paths stay unchanged, dials stack, and clones on
+        other copies of the weights shift their own.
   pre   into the bias of `condition_proj` (text encoder output -> DiT hidden). Saved as a standard `<layer>.diff_b` LoRA
         key, so the stock LoRA loader applies it too. The token refiner sits between this seam and the DiT, so pre
         dials only approximate post dials; above ~1 (hook units) they wash out the prompt.
@@ -29,10 +30,11 @@ import re
 
 import torch
 from safetensors import safe_open
-from safetensors.torch import save_file
+from safetensors.torch import save, save_file
 
 import comfy.model_management
 import comfy.utils
+from comfy.patcher_extension import WrappersMP
 from comfy_extras.nodes_minimax_h3 import CANVAS_MULTIPLE, REF_IMAGE_SHORT_EDGE, adapt_canvas
 import folder_paths
 
@@ -87,25 +89,54 @@ def check_family(dial, path):
         raise ValueError(f"dial {dial['meta'].get('name', '?')} was made for {dial_family(dial)}; this model is {path.family}")
 
 
-class ShiftedForward:
-    """Replacement for a text module's forward that adds a dial vector to its output (installed as an object patch)."""
+class ContextShift:
+    """Diffusion-model wrapper adding a post dial to the refined prompt, for families whose extra_conds refines it once (H3).
+    It reads the model it wraps per call, so a clone on another copy of the weights (multi-GPU, non-dynamic delegate)
+    shifts its own prompt."""
 
-    def __init__(self, forward, shift):
-        self.forward = forward
+    def __init__(self, shift):
         self.shift = shift
 
-    def __call__(self, x, *args, **kwargs):
-        out = self.forward(x, *args, **kwargs)
+    def __call__(self, executor, x, timestep, context, transformer_options, **kwargs):
+        context = executor.class_obj.preprocess_text_embeds(context)  # no-op when extra_conds already refined it
+        return executor(x, timestep, context + self.shift.to(device=context.device, dtype=context.dtype), transformer_options, **kwargs)
+
+    def to(self, device_or_dtype):  # sampling moves wrappers to the load device once (cast_to_load_options), not per call
+        if isinstance(device_or_dtype, torch.device):
+            self.shift = self.shift.to(device_or_dtype)
+        return self
+
+
+class PostShift(ContextShift):
+    """Diffusion-model wrapper for families that refine the prompt inside every call: for the duration of the call, adds
+    the shift to the output of the post module of the model being run."""
+
+    def __init__(self, post, shift):
+        super().__init__(shift)
+        self.post = post
+
+    def __call__(self, executor, *args, **kwargs):
+        handle = executor.class_obj.get_submodule(self.post).register_forward_hook(self.add)
+        try:
+            return executor(*args, **kwargs)
+        finally:
+            handle.remove()
+
+    def add(self, module, args, out):
         return out + self.shift.to(device=out.device, dtype=out.dtype)
 
 
+POST_KEY = "mai_dial_post"
+
+
 def apply_dial(m, dial, strength):
-    """Apply one dial to a cloned ModelPatcher in place, exactly as ComfyUI-Dials' Apply Dial does."""
+    """Apply one dial to a cloned ModelPatcher in place, with the math of ComfyUI-Dials' Apply Dial: pre is a bias diff,
+    post adds strength * vec to the post module's output."""
     if dial["mode"] == "pre":
         m.add_patches({f"diffusion_model.{dial['target']}.bias": ("diff", (dial["vec"],))}, strength)
     else:
-        name = f"diffusion_model.{dial['target']}.forward"
-        m.add_object_patch(name, ShiftedForward(m.get_model_object(name), dial["vec"] * strength))
+        shift = dial["vec"] * strength
+        m.add_wrapper_with_key(WrappersMP.DIFFUSION_MODEL, POST_KEY, ContextShift(shift) if text_path(m).cached else PostShift(dial["target"], shift))
 
 
 PAIR_WEIGHT = re.compile(r"\s+::\s*(-?\d+(?:\.\d+)?)\s*$")
@@ -164,6 +195,8 @@ def parse_pairs(pairs, subjects):
             weights.append(1.0)
     if not out:
         raise ValueError("no prompt pairs given")
+    if not any(weights):
+        raise ValueError("every '::' pair weight is 0, so the dial would be empty; give at least one pair a nonzero weight")
     return out, weights, holds
 
 
@@ -175,7 +208,7 @@ def side_terms(side):
 
 
 def hold_basis(directions, nuisance):
-    """One column per group; redundant groups contribute zero. Keep the original one-group arithmetic."""
+    """One column per group; redundant groups contribute zero. One group is its unit direction off the nuisance basis."""
     if len(directions) == 1:
         h = directions[0]
         h = h - nuisance @ (nuisance.T @ h) if nuisance is not None else h
@@ -220,9 +253,25 @@ def plain_text(text):
     return WEIGHTED_SPAN.sub(r"\1", text)
 
 
+NAME = re.compile(r"[A-Za-z0-9_\-]{1,80}")  # dial, folder and preset names
+
+
 def check_dial_name(name):
-    if not re.fullmatch(r"[A-Za-z0-9_\-]{1,80}", name):
+    if not NAME.fullmatch(name):
         raise ValueError("dial name: letters, digits, '_' and '-' only (max 80)")
+
+
+def dial_tensors(dial):
+    """What a dial file holds: one bf16 tensor keyed diffusion_model.<target>.<diff_b|dials_shift>."""
+    return {f"diffusion_model.{dial['target']}.{KEY_SUFFIX[dial['mode']]}": dial["vec"].to(torch.bfloat16).contiguous()}
+
+
+def dial_bytes(dial, info=None):
+    """The dial file: its tensor, its metadata (non-strings as JSON) and, given info, the checked dial_info."""
+    meta = {k: (v if isinstance(v, str) else json.dumps(v)) for k, v in dial["meta"].items()}
+    if info is not None:
+        meta["dial_info"] = json.dumps(check_dial_info(info))
+    return save(dial_tensors(dial), metadata=meta)
 
 
 def save_dial(dial, name, info=None):
@@ -230,18 +279,23 @@ def save_dial(dial, name, info=None):
     root = os.path.join(folder_paths.get_folder_paths("loras")[0], DIAL_SUBDIR)
     os.makedirs(root, exist_ok=True)
     path = os.path.join(root, f"{name}.safetensors")
-    meta = {k: (v if isinstance(v, str) else json.dumps(v)) for k, v in dial["meta"].items()}
-    if info is not None:
-        meta["dial_info"] = json.dumps(check_dial_info(info))
-    save_file({f"diffusion_model.{dial['target']}.{KEY_SUFFIX[dial['mode']]}": dial["vec"].to(torch.bfloat16).contiguous()}, path, metadata=meta)
+    with open(path, "wb") as f:
+        f.write(dial_bytes(dial, info))
     return path
+
+
+def tensors_sha256(tensors):
+    """Hash of a dial file's tensors (keys and bytes in key order, never the metadata), so editing info keeps it."""
+    h = hashlib.sha256()
+    for key in sorted(tensors):
+        h.update(key.encode())
+        h.update(tensors[key].contiguous().view(-1).view(torch.uint8).numpy().tobytes())
+    return h.hexdigest()
 
 
 def vector_sha256(dial):
     """Hash of the tensor the dial saves as, equal to presets.dial_sha256 of its file, so recipes find parents by content."""
-    h = hashlib.sha256(f"diffusion_model.{dial['target']}.{KEY_SUFFIX[dial['mode']]}".encode())
-    h.update(dial["vec"].to(torch.bfloat16).contiguous().view(-1).view(torch.uint8).numpy().tobytes())
-    return h.hexdigest()
+    return tensors_sha256(dial_tensors(dial))
 
 
 def dial_parent(dial):
@@ -275,14 +329,11 @@ INFO_EVIDENCE = ("creator", "one-seed", "multi-seed", "multi-scene")
 
 def check_dial_info(info):
     """-> info v2: labels, per-side ("neg", "pos") useful/overcook strengths where None means unknown, evidence, pipeline,
-    notes. A v1 record (no version, one useful/overcook pair) applies to both sides."""
+    notes."""
     if not isinstance(info, dict):
         raise ValueError("dial info must be an object")
-    if "version" not in info:
-        side = {"useful": info.get("useful", 1.0), "overcook": info.get("overcook", 1.5)}
-        info = dict(info, neg=side, pos=side, evidence="one-seed" if "1 seed" in str(info.get("description", "")) else "creator")
-    elif info["version"] != 2:
-        raise ValueError(f"unknown dial info version {info['version']!r}")
+    if info.get("version") != 2:
+        raise ValueError(f"unknown dial info version {info.get('version')!r}")
     out = {"version": 2}
     for key, limit in (("description", 2000), ("negative", 60), ("positive", 60), ("pipeline", 60), ("notes", 500)):
         v = info.get(key, "")
@@ -315,8 +366,12 @@ def dial_info(dial_name):
 
 
 def save_dial_info(dial_name, info):
-    """Write the info into the dial file's metadata; the vector is copied unchanged and the file replaced atomically."""
+    """Write the info into a dial file's metadata; the vector is copied unchanged and the file replaced atomically. Only
+    dial files in loras/dials/ are rewritten, never another LoRA."""
     info = check_dial_info(info)
+    if not dial_name.replace("\\", "/").startswith(f"{DIAL_SUBDIR}/"):
+        raise ValueError(f"{dial_name} is not in loras/{DIAL_SUBDIR}/: dial info is saved into dial files only")
+    load_dial(dial_name)  # refuses a file that is not one dial vector
     path = folder_paths.get_full_path_or_raise("loras", dial_name)
     with safe_open(path, "pt") as f:
         tensors = {k: f.get_tensor(k) for k in f.keys()}
@@ -330,7 +385,7 @@ def save_dial_info(dial_name, info):
 def dial_geometry(names):
     """Rack UI readouts for dial files: vector norm, injection mode, and cosine between every two dials."""
     dials = [load_dial(n) for n in names]
-    vecs = [d["vec"].float() for d in dials]
+    vecs = [d["vec"] for d in dials]
     return {"norm": [float(v.norm()) for v in vecs], "mode": [d["mode"] for d in dials], "info": [dial_info(n) for n in names],
             "cos": [[float(torch.nn.functional.cosine_similarity(a, b, dim=0)) if a.shape == b.shape else None for b in vecs] for a in vecs]}
 
@@ -341,11 +396,18 @@ def dial_label(dial):
             f"pair agreement cos {m.get('pair_agreement_cos', '?')}, |dial| {float(dial['vec'].norm()):.1f}")
 
 
-def nuisance_basis(diffs, dims):
-    return torch.linalg.svd(diffs, full_matrices=False)[2][:dims].T
+def nuisance_pairs(subjects):
+    """The built-in nuisance pairs over the dial's subjects (the default subjects when it has none)."""
+    return parse_pairs("\n".join(NUISANCE_PAIRS), subjects if subjects.strip() else NUISANCE_SUBJECTS)[0]
 
 
-def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=True, nuisance_dims=3):
+def nuisance_basis(pairs, mean, dims):
+    """The generic 'more wording' directions: the top `dims` right singular vectors of the nuisance pair differences, with
+    mean(text) the text's token mean at the dial's seam."""
+    return torch.linalg.svd(torch.stack([mean(b) - mean(a) for a, b in pairs]), full_matrices=False)[2][:dims].T
+
+
+def make_dial(clip, model, pairs, subjects, name, mode, debias=True, nuisance_dims=3):
     """Returns (dial, report). mode: "post" (hook) or "pre" (LoRA file)."""
     path = text_path(model)
     if mode == "pre" and path.pre is None:
@@ -353,16 +415,20 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
     dm = model.model.diffusion_model
     proj = dm.get_submodule(path.pre) if path.pre else None
     prompts, weights, holds = parse_pairs(pairs, subjects)
-    nuisance = parse_pairs("\n".join(NUISANCE_PAIRS), subjects if subjects.strip() else NUISANCE_SUBJECTS)[0] if debias else []
-    weights = torch.tensor(weights)
+    nuisance = nuisance_pairs(subjects) if debias else []
+    probe = [plain_text(t) for pair in prompts[:8] for s in pair for t, _ in ([(s, 1)] if isinstance(s, str) else s)] if mode == "pre" else []
+    texts = [t for pp in (prompts, nuisance, *holds.values()) for pair in pp for s in pair for t, _ in side_terms(s)] + probe
+    # every text through the encoder before the model loads, so a low-VRAM encoder load cannot evict the DiT mid-dial
+    states = {t: clip.encode_from_tokens_scheduled(clip.tokenize(t))[0][0][0] for t in dict.fromkeys(texts)}
     comfy.model_management.load_models_gpu([model])
     device = comfy.model_management.get_torch_device()
     dtype = model.model.get_dtype_inference()
+    pair_weights = torch.tensor(weights, device=device)
     cache = {}
 
     def encode(text):  # -> (pre-refiner tokens, pre token mean, post token mean), means in float32
         if text not in cache:
-            ctx = clip.encode_from_tokens_scheduled(clip.tokenize(text))[0][0][0].to(device, dtype)
+            ctx = states[text].to(device, dtype)
             pre = proj(ctx) if proj is not None else ctx
             cache[text] = (pre, pre.float().mean(0), path.refine(dm, pre).float().mean(0))
         return cache[text]
@@ -371,15 +437,13 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
         return sum(c * encode(t)[which] for t, c in side_terms(s))
 
     def mean(d):  # pair-weighted mean of pair differences
-        return (weights.to(d.device)[:, None] * d).sum(0) / weights.abs().sum()
+        return (pair_weights[:, None] * d).sum(0) / pair_weights.abs().sum()
 
     def diffs(pp, which):
         return torch.stack([side(b, which) - side(a, which) for a, b in pp])
 
     def basis_for(which):
-        if not nuisance:
-            return None
-        return nuisance_basis(diffs(nuisance, which), nuisance_dims)
+        return nuisance_basis(nuisance, lambda t: encode(t)[which], nuisance_dims) if nuisance else None
 
     def remove(v, basis):
         return v - basis @ (basis.T @ v) if basis is not None else v
@@ -395,20 +459,19 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
     raw = mean(d)
     debiased = remove(raw, basis)
     vec = remove(debiased, hold)
-    removed = 1 - float(debiased.norm() ** 2 / raw.norm() ** 2)
-    held = 1 - float(vec.norm() ** 2 / debiased.norm() ** 2)
+    removed = 1 - float(debiased.norm() ** 2 / (raw.norm() ** 2).clamp_min(1e-12))
+    held = 1 - float(vec.norm() ** 2 / (debiased.norm() ** 2).clamp_min(1e-12))
     agree = float(torch.nn.functional.cosine_similarity(torch.stack([remove(remove(x, basis), hold) for x in d]), vec.unsqueeze(0)).mean())
     note, shares = "", {}
     if holds:
         shares = {group: float((debiased @ hold[:, i]) ** 2 / debiased.square().sum().clamp_min(1e-24)) for i, group in enumerate(holds)}
         note = f"; hold pairs removed {held:.0%} of the dial"
         if len(holds) == 1:
-            note += f" (cos with the held quality {float(debiased @ hold[:, 0]) / float(debiased.norm()):+.2f})"
-    if calibrate and mode == "pre":
+            note += f" (cos with the held quality {float(debiased @ hold[:, 0]) / max(float(debiased.norm()), 1e-12):+.2f})"
+    if mode == "pre":
         # the refiner's final RMSNorm shrinks a pre-refiner shift: rescale so strength 1 = one average pair difference after it
         basis2 = basis_for(2)
         post_target = remove(remove(mean(diffs(prompts, 2)), basis2), hold_directions(2, basis2))
-        probe = [plain_text(t) for pair in prompts[:8] for s in pair for t, _ in ([(s, 1)] if isinstance(s, str) else s)]
         shift = torch.stack([path.refine(dm, encode(t)[0] + vec.to(dtype)).float().mean(0) - encode(t)[2] for t in probe]).mean(0)
         along = float(shift @ (post_target / post_target.norm().clamp_min(1e-12)))
         scale = float(post_target.norm()) / along if along > 0 else 1.0
@@ -418,9 +481,9 @@ def make_dial(clip, model, pairs, subjects, name, mode, debias=True, calibrate=T
         note += "\n" + "; ".join(f"hold group [{group}] removed {share:.1%}" for group, share in shares.items())
     dial = {"vec": vec.cpu(), "target": path.pre if mode == "pre" else path.post, "mode": mode,
             "meta": {"name": name, "model_family": path.family, "pairs": prompts, "n_pairs": str(len(prompts)),
-                     **({"pair_weights": weights.tolist()} if bool((weights != 1).any()) else {}), "pair_agreement_cos": f"{agree:.3f}",
+                     **({"pair_weights": weights} if any(w != 1 for w in weights) else {}), "pair_agreement_cos": f"{agree:.3f}",
                      "inject": f"{mode}_refiner", "debias_removed": f"{removed:.3f}" if debias else "off",
-                     "calibrated": str(bool(calibrate and mode == "pre")), "format": "ComfyUI-Dials v1"}}
+                     "calibrated": str(mode == "pre"), "format": "ComfyUI-Dials v1"}}
     if holds:
         dial["meta"].update({"hold_groups": holds, "hold_removed": f"{held:.3f}", "hold_group_removed": shares})
     report = dial_label(dial) + (f"; debias removed {removed:.0%} of the raw dial (generic wording shift)" if debias else "") + note
@@ -443,11 +506,7 @@ def rack_hold_shift(rows, holds):
         raise ValueError("hold rows and active post-refiner rows must use the same target")
     directions = [d["vec"].double() for _, d, _ in holds]
     total = sum((s * d["vec"].double() for _, d, s in post), torch.zeros_like(directions[0]))
-    if len(directions) == 1:
-        h = directions[0]
-        basis = (h / h.norm().clamp_min(1e-12)).unsqueeze(1)
-    else:
-        basis = hold_basis(directions, None)
+    basis = hold_basis(directions, None)
     along = basis.T @ total
     shift = total - basis @ along
     shares = along.square() / total.square().sum().clamp_min(1e-24)
@@ -494,16 +553,17 @@ def resize(images, w, h):
 
 
 def video_reference(frames, fps, samples=MAX_VIDEO_SAMPLES):
-    """First `samples` frames at 2 fps (or the native rate if lower), on the H3 reference canvas, with timestamps."""
+    """First `samples` frames at 2 fps (or the native rate if lower), on the H3 reference canvas, with the sample times
+    H3's own reference videos get (i / 2 s; the frame times below 2 fps)."""
     indices = torch.arange(0, len(frames), max(float(fps) / 2, 1)).long()[:samples]
     cw, ch = adapt_canvas(frames.shape[2], frames.shape[1])
-    return {"type": "video", "data": resize(frames[indices], cw, ch), "timestamps": (indices.double() / float(fps)).tolist()}
+    return {"type": "video", "data": resize(frames[indices], cw, ch), "timestamps": [i / min(float(fps), 2.0) for i in range(len(indices))]}
 
 
 def make_video_dial(clip, model, videos_a, videos_b, prompt, name, debias=True, nuisance_dims=3):
     """Video sides are lists of (frames, fps); each clip contributes one text-token mean. Every clip is cut to the same
     number of 2 fps samples, so the per-block timestamp tokens match on both sides and cannot become part of the dial."""
-    samples = min([MAX_VIDEO_SAMPLES] + [len(torch.arange(0, len(f), max(float(fps) / 2, 1))) for f, fps in videos_a + videos_b])
+    samples = min([MAX_VIDEO_SAMPLES] + [math.ceil(len(f) / max(float(fps) / 2, 1)) for f, fps in videos_a + videos_b])
     a = [video_reference(frames, fps, samples) for frames, fps in videos_a]
     b = [video_reference(frames, fps, samples) for frames, fps in videos_b]
     dial, report = _make_reference_dial(clip, model, a, b, [prompt], name, "videos", debias, nuisance_dims)
@@ -543,16 +603,7 @@ def _make_reference_dial(clip, model, items_a, items_b, prompts, name, source, d
     paired = len(a) == len(b)
     diffs = b - a if paired else None
     raw = diffs.mean(0) if paired else b.mean(0) - a.mean(0)
-    basis = None
-    if debias:
-        nuisance = parse_pairs("\n".join(NUISANCE_PAIRS), NUISANCE_SUBJECTS)[0]
-        cache = {}
-        for pair in nuisance:
-            for text in pair:
-                if text not in cache:
-                    cache[text] = encode(text)
-        nuisance_diffs = torch.stack([cache[y] - cache[x] for x, y in nuisance])
-        basis = nuisance_basis(nuisance_diffs, nuisance_dims)
+    basis = nuisance_basis(nuisance_pairs(""), encode, nuisance_dims) if debias else None
     vec = raw - basis @ (basis.T @ raw) if basis is not None else raw
     removed = 1 - float(vec.norm().square() / raw.norm().square().clamp_min(1e-12))
     agree = None

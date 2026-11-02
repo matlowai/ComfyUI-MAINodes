@@ -120,33 +120,33 @@ def main():
 
     motion = "{subject} stands still. ||| {subject} walks.\n{subject} sits still. ||| {subject} dances."
     groups = loud.replace("! ", "![voice] ") + "\n" + "\n".join("![motion] " + line for line in motion.splitlines())
-    for mode in ("post", "pre"):
-        for debias in (False, True):
-            kwargs = dict(debias=debias, calibrate=False)
-            free, _ = core.make_dial(clip, model, face, subjects, "free", mode, **kwargs)
-            voice, _ = core.make_dial(clip, model, loud.replace("! ", ""), subjects, "voice", mode, **kwargs)
-            moving, _ = core.make_dial(clip, model, motion, subjects, "motion", mode, **kwargs)
-            named, report = core.make_dial(clip, model, face + "\n" + groups, subjects, "named", mode, **kwargs)
-            for direction in (voice["vec"], moving["vec"]):
-                cos = float(torch.nn.functional.cosine_similarity(named["vec"], direction, dim=0))
-                assert abs(cos) < 1e-5, (mode, debias, cos)
-            shares = named["meta"]["hold_group_removed"]
-            removed = float(1 - named["vec"].square().sum() / free["vec"].square().sum())
-            assert abs(sum(shares.values()) - removed) < 1e-6, (shares, removed)
-            assert all(0 <= share <= 1 for share in shares.values()), shares
-            assert "hold group [voice] removed" in report and "hold group [motion] removed" in report
-            reversed_groups = "\n".join(reversed(groups.splitlines()))
-            reordered, _ = core.make_dial(clip, model, face + "\n" + reversed_groups, subjects, "reordered", mode, **kwargs)
-            assert torch.allclose(named["vec"], reordered["vec"], atol=1e-6)
-            mixed, _ = core.make_dial(clip, model, face + "\n" + groups.replace("![voice]", "!"), subjects, "mixed", mode, **kwargs)
-            assert torch.equal(mixed["vec"], named["vec"])
-            assert list(mixed["meta"]["hold_groups"]) == ["", "motion"]
+    mode = "post"  # the hold algebra is the same at both seams; pre also rescales (calibration), checked below
+    for debias in (False, True):
+        kwargs = dict(debias=debias)
+        free, _ = core.make_dial(clip, model, face, subjects, "free", mode, **kwargs)
+        voice, _ = core.make_dial(clip, model, loud.replace("! ", ""), subjects, "voice", mode, **kwargs)
+        moving, _ = core.make_dial(clip, model, motion, subjects, "motion", mode, **kwargs)
+        named, report = core.make_dial(clip, model, face + "\n" + groups, subjects, "named", mode, **kwargs)
+        for direction in (voice["vec"], moving["vec"]):
+            cos = float(torch.nn.functional.cosine_similarity(named["vec"], direction, dim=0))
+            assert abs(cos) < 1e-5, (mode, debias, cos)
+        shares = named["meta"]["hold_group_removed"]
+        removed = float(1 - named["vec"].square().sum() / free["vec"].square().sum())
+        assert abs(sum(shares.values()) - removed) < 1e-6, (shares, removed)
+        assert all(0 <= share <= 1 for share in shares.values()), shares
+        assert "hold group [voice] removed" in report and "hold group [motion] removed" in report
+        reversed_groups = "\n".join(reversed(groups.splitlines()))
+        reordered, _ = core.make_dial(clip, model, face + "\n" + reversed_groups, subjects, "reordered", mode, **kwargs)
+        assert torch.allclose(named["vec"], reordered["vec"], atol=1e-6)
+        mixed, _ = core.make_dial(clip, model, face + "\n" + groups.replace("![voice]", "!"), subjects, "mixed", mode, **kwargs)
+        assert torch.equal(mixed["vec"], named["vec"])
+        assert list(mixed["meta"]["hold_groups"]) == ["", "motion"]
 
-            unit = (voice["vec"] / voice["vec"].norm()).unsqueeze(1)
-            legacy = free["vec"] - unit @ (unit.T @ free["vec"])
-            for prefix in ("!", "![voice]"):
-                single, _ = core.make_dial(clip, model, face + "\n" + loud.replace("!", prefix), subjects, "single", mode, **kwargs)
-                assert torch.equal(single["vec"], legacy), (mode, debias, prefix)
+        unit = (voice["vec"] / voice["vec"].norm()).unsqueeze(1)
+        legacy = free["vec"] - unit @ (unit.T @ free["vec"])
+        for prefix in ("!", "![voice]"):
+            single, _ = core.make_dial(clip, model, face + "\n" + loud.replace("!", prefix), subjects, "single", mode, **kwargs)
+            assert torch.equal(single["vec"], legacy), (mode, debias, prefix)
     named_pre, _ = core.make_dial(clip, model, face + "\n" + loud.replace("!", "![voice]"), subjects, "named_pre", "pre")
     assert torch.equal(named_pre["vec"], pre["vec"]), "naming one group must also preserve pre calibration"
 
@@ -173,12 +173,30 @@ def main():
     assert as_pairs["meta"]["pair_weights"] == [2.0, 1.0] and "pair_weights" not in one_pair["meta"]
     _, w, _ = core.parse_pairs("+ {subject} smiles\n- {subject} frowns\nx ||| y :: 0.5", "A man\nA woman")
     assert w == [0.5, 0.5, 1.0, 1.0], w  # the pair once per subject (as every pair line), then one set per subject
-    for bad in ("+1 only plus", "a ||| b\n! c ||| d :: 2", "+0 zero weight\n-1 x"):
+    for bad in ("+1 only plus", "a ||| b\n! c ||| d :: 2", "+0 zero weight\n-1 x", "a ||| b :: 0", "a ||| b :: 0\nc ||| d :: 0"):
         try:
             core.parse_pairs(bad, "")
             raise AssertionError(f"accepted: {bad}")
         except ValueError:
             pass
+    assert core.parse_pairs("a ||| b :: 0\nc ||| d", "")[1] == [0.0, 1.0], "one zero-weight pair next to others is fine"
+    for mode in ("post", "pre"):  # identical sides: a zero dial with finite bookkeeping, not NaN
+        same, report = core.make_dial(clip, model, "{subject} talks. ||| {subject} talks.\n! {subject} sits. ||| {subject} stands.", subjects, "same", mode)
+        assert not same["vec"].any() and "nan" not in report and "nan" not in same["meta"]["debias_removed"], report
+    events = []
+
+    class Recording(FakeClip):
+        def encode_from_tokens_scheduled(self, text):
+            events.append("encode")
+            return super().encode_from_tokens_scheduled(text)
+    load = core.comfy.model_management.load_models_gpu
+    core.comfy.model_management.load_models_gpu = lambda models, *a, **kw: (events.append("load"), load(models, *a, **kw))[1]
+    try:
+        ordered, _ = core.make_dial(Recording(), model, face + "\n" + loud, subjects, "face_hold_pre", "pre")
+    finally:
+        core.comfy.model_management.load_models_gpu = load
+    assert events[-1] == "load" and events.count("load") == 1, "Make Dial encoded text after loading the model"
+    assert torch.equal(ordered["vec"], pre["vec"])
     degenerate, _ = core.make_dial(clip, model, face + "\n! {subject} speaks. ||| {subject} speaks.", subjects, "deg", "post")
     assert torch.isfinite(degenerate["vec"]).all(), "a hold group with no difference must remove nothing, not make NaN"
     print("dial pairs: all checks passed")

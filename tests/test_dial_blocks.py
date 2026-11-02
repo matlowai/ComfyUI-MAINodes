@@ -14,7 +14,7 @@ import logging
 
 from test_dial_rack import core, nodes, comfy, torch, rack
 import comfy.ops
-from comfy.patcher_extension import WrappersMP, WrapperExecutor, get_all_wrappers
+from comfy.patcher_extension import WrappersMP, WrapperExecutor, copy_nested_dicts, get_all_wrappers
 from comfy.ldm.minimax.model import MiniMaxH3Model
 
 blocks = importlib.import_module("mai_dials.blocks")
@@ -76,7 +76,7 @@ def sample(patcher, inputs, sigmas=PIKA):
             opts = extra_args["model_options"]["transformer_options"]
             return [[t.clone() for t in dm(x, s.reshape(1) * 1000, context, {**opts, "sigmas": s.reshape(1)})] for s in schedule[:-1]]
         return WrapperExecutor.new_executor(steps, patcher.get_all_wrappers(WrappersMP.SAMPLER_SAMPLE)).execute(
-            patcher, sigmas, {"model_options": {"transformer_options": options}})
+            patcher, sigmas, {"model_options": copy_nested_dicts({"transformer_options": options})})
     finally:
         patcher.unpatch_model()
 
@@ -125,7 +125,7 @@ def check(dtype):
         old = rack(base, rows, ins)
         new = rack(base, [dict(r, blocks=ONES) if not r.get("hold") and r["input"] != "dial_3" else r for r in rows], ins)
         assert "patches_replace" not in old.model_options["transformer_options"], "rows without blocks left the refiner hook"
-        assert not new.object_patches, "a profiled rack kept the refiner hook"
+        assert not new.get_wrappers(WrappersMP.DIFFUSION_MODEL, core.POST_KEY), "a profiled rack kept the refiner hook"
         assert same(sample(new, inputs), sample(old, inputs)), f"all-ones parity failed: {name}"
     two = [row(0, 1.3, envelope="early"), row(1, -.47)]
     out["two_enveloped_rows_all_ones_max_abs"] = max_diff(

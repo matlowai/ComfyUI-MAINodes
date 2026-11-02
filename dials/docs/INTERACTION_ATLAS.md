@@ -70,7 +70,7 @@ Text / supported multimodal conditioning
   -> H3 diffusion transformer / audiovisual generation
 ```
 
-The **post-refiner** path is the default. `ShiftedForward` wraps `token_refiner.forward` using a ComfyUI ModelPatcher object patch and adds the vector to its output. With compatible post-refiner dials, the intervention itself is a sum of vectors in one shared space.
+The **post-refiner** path is the default. A diffusion-model wrapper (`ContextShift`) adds the vector to the refined prompt, `token_refiner`'s output. With compatible post-refiner dials, the intervention itself is a sum of vectors in one shared space.
 
 The **pre-refiner** path applies a vector as a `condition_proj` bias delta (`diff_b` LoRA file), then the nonlinear token refiner processes the result. Pre and post directions are **not interchangeable**. Even when two pre-refiner input vectors sum exactly, their post-refiner effect can vary with the prompt.
 

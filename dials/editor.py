@@ -15,18 +15,17 @@ import hashlib
 import json
 import math
 import os
-import re
 
 import torch
-from safetensors.torch import save
+from aiohttp import web
 
 import folder_paths
+from server import PromptServer
 
 from . import analysis, core
 
 FITS = ("direct", "joint")
 NEIGHBOURS = 5
-_pca = {}  # library sha256 -> (mean, [2, d] components): three vectors per library state
 
 
 def library(dial):
@@ -51,17 +50,14 @@ def library(dial):
 def library_pca(vecs, hashes):
     """-> (library sha256, mean, [2, d] unit components). Components a library cannot span (fewer than 3 distinct
     vectors) are zero. Signs are fixed so the largest entry is positive."""
-    key = hashlib.sha256("\n".join(sorted(hashes)).encode()).hexdigest()
-    if key not in _pca:
-        x = torch.stack(vecs)
-        mean = x.mean(0)
-        _, s, vh = torch.linalg.svd(x - mean, full_matrices=False)
-        comps = torch.zeros(2, x.shape[1], dtype=x.dtype)
-        for i in range(min(2, len(s))):
-            if s[i] > 1e-9 * s[0]:
-                comps[i] = vh[i] * torch.sign(vh[i][vh[i].abs().argmax()])
-        _pca[key] = (mean, comps)
-    return (key, *_pca[key])
+    x = torch.stack(vecs)
+    mean = x.mean(0)
+    _, s, vh = torch.linalg.svd(x - mean, full_matrices=False)
+    comps = torch.zeros(2, x.shape[1], dtype=x.dtype)
+    for i in range(min(2, len(s))):
+        if s[i] > 1e-9 * s[0]:
+            comps[i] = vh[i] * torch.sign(vh[i][vh[i].abs().argmax()])
+    return hashlib.sha256("\n".join(sorted(hashes)).encode()).hexdigest(), mean, comps
 
 
 def components_sha256(comps):
@@ -76,8 +72,8 @@ def context(dial_name):
     if family not in analysis.BANKS:
         raise ValueError(f"there is no probe bank for {family} yet")
     bank = analysis.read_bank(analysis.BANKS[family])
-    prof = analysis.profile(dial, bank)  # refuses a bank in another space
-    probes = torch.stack([core.load_dial(a["file"])["vec"].double() for a in bank["axes"]])
+    probes = analysis.probe_vectors(dial, bank)  # refuses a bank in another space
+    prof = analysis.profile(dial, bank, probes)
     lib = library(dial)
     key, mean, comps = library_pca([v for _, _, v in lib], [h for _, h, _ in lib]) if lib else (None, None, None)
     return {"dial": dial, "bank": bank, "profile": prof, "probes": probes, "library": lib, "library_sha256": key,
@@ -186,7 +182,7 @@ def readouts(ctx, vec):
 def dial_path(name):
     """'name' or 'folder/name' inside models/loras/dials/, each part letters, digits, '_' and '-'."""
     parts = name.split("/")
-    if not 1 <= len(parts) <= 2 or not all(re.fullmatch(r"[A-Za-z0-9_\-]{1,80}", p) for p in parts):
+    if not 1 <= len(parts) <= 2 or not all(core.NAME.fullmatch(p) for p in parts):
         raise ValueError("dial name: letters, digits, '_' and '-' only (max 80), optionally in one folder: folder/name")
     return os.path.join(folder_paths.get_folder_paths("loras")[0], core.DIAL_SUBDIR, *parts) + ".safetensors"
 
@@ -207,9 +203,7 @@ def export_edit(dial_name, edits, name, info=None):
                      "inject": "post_refiner", "format": "ComfyUI-Dials v1"}}
     dial["meta"]["composition"] = {"kind": "edit", "parent": core.dial_parent(parent), "edits": edits,
                                    "result_sha256": core.vector_sha256(dial)}
-    meta = {k: (v if isinstance(v, str) else json.dumps(v)) for k, v in dial["meta"].items()}
-    meta["dial_info"] = json.dumps(info)
-    payload = save({f"diffusion_model.{dial['target']}.{core.KEY_SUFFIX['post']}": dial["vec"].to(torch.bfloat16).contiguous()}, metadata=meta)
+    payload = core.dial_bytes(dial, info)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "xb") as f:  # "x": an existing dial is never replaced
         f.write(payload)
@@ -219,21 +213,16 @@ def export_edit(dial_name, edits, name, info=None):
 
 
 def install_routes():
-    from aiohttp import web
-    from server import PromptServer
+    routes = PromptServer.instance.routes
 
-    srv = getattr(PromptServer, "instance", None)
-    if srv is None or getattr(srv, "_mai_dial_editor_routes", False):
-        return
-
-    @srv.routes.get("/mainodes/dials/editor")
+    @routes.get("/mainodes/dials/editor")
     async def state(request):  # probe profile, library and Gram numbers for one post-refiner dial file
         try:
             return web.json_response(await asyncio.to_thread(editor_state, request.query.get("dial", "")))
         except (FileNotFoundError, ValueError) as e:
             return web.json_response({"error": str(e)}, status=400)
 
-    @srv.routes.post("/mainodes/dials/editor/export")
+    @routes.post("/mainodes/dials/editor/export")
     async def export(request):
         try:
             body = await request.json()
@@ -244,5 +233,3 @@ def install_routes():
             return web.json_response({"error": "A dial with that name already exists. Choose a new name."}, status=409)
         except (FileNotFoundError, ValueError) as e:
             return web.json_response({"error": str(e)}, status=400)
-
-    srv._mai_dial_editor_routes = True

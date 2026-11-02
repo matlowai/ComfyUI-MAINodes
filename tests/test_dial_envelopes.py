@@ -4,7 +4,7 @@ import json
 import logging
 
 from test_dial_rack import H, core, nodes, comfy, torch, chain, dial, rack
-from comfy.patcher_extension import WrappersMP, WrapperExecutor, get_all_wrappers
+from comfy.patcher_extension import WrappersMP, WrapperExecutor, copy_nested_dicts, get_all_wrappers
 from comfy.ldm.minimax.model import MiniMaxH3Model as H3
 
 envelopes = importlib.import_module("mai_dials.envelopes")
@@ -40,7 +40,7 @@ def sample(patcher, x, sigmas, calls=None, raw=False):
         context = x if raw else dm.preprocess_text_embeds(x)
         saved = context.clone()
         options = {"wrappers": patcher.wrappers, "sample_sigmas": sigmas}
-        extra_args = {"model_options": {"transformer_options": options}}
+        extra_args = {"model_options": copy_nested_dicts({"transformer_options": options})}  # as CFGGuider.inner_sample
 
         def run(model, schedule, extra_args, marker):
             assert marker == "sampler args preserved"
@@ -58,7 +58,6 @@ def sample(patcher, x, sigmas, calls=None, raw=False):
 
         result = WrapperExecutor.new_executor(run, patcher.get_all_wrappers(WrappersMP.SAMPLER_SAMPLE)).execute(
             patcher, sigmas, extra_args, "sampler args preserved")
-        assert get_all_wrappers(WrappersMP.DIFFUSION_MODEL, options) == [], "runtime wrapper leaked into input options"
         return result
     finally:
         patcher.unpatch_model()
@@ -89,7 +88,7 @@ def main():
         row = lambda i, s, **kw: {"input": f"dial_{i}", "strength": s, **kw}
         old = chain(base, [(a, 1.3), (pre, .2), (b, -.47)])
         constant = rack(base, [row(0, 1.3, envelope="constant"), row(2, .2), row(1, -.47)], ins)
-        assert constant.object_patches == {}, "scheduled row also installed an old refiner shift"
+        assert not constant.get_wrappers(WrappersMP.DIFFUSION_MODEL, core.POST_KEY), "scheduled row also installed a constant refiner shift"
         assert not base.wrappers
         for name, schedule in (("pika6", PIKA), ("synthetic20", BASE20)):
             expected, _ = sample(old, x, schedule)
@@ -142,6 +141,15 @@ def main():
             fails(lambda: rack(base, [row(0, 1., envelope=spec), row(1, 0., hold=True)], ins),
                   "hold rows and step envelopes cannot share a rack")
 
+        # A clone on another copy of the weights (multi-GPU deepclone, non-dynamic delegate) shifts its own refined prompt.
+        moved_model = Fake(dtype)
+        for rows in ([row(0, 1.3), row(2, .2)], [row(0, 1., envelope="early"), row(1, -.5)]):
+            racked = rack(base, rows, ins)
+            moved = racked.clone(model_override=(moved_model, ({}, {}, {}, set())))
+            direct = rack(comfy.model_patcher.ModelPatcher(moved_model, load_device=torch.device("cpu"), offload_device=torch.device("cpu")), rows, ins)
+            equal(sample(moved, x, PIKA)[0], sample(direct, x, PIKA)[0])
+            assert not torch.equal(sample(moved, x, PIKA)[0][0], sample(racked, x, PIKA)[0][0])
+
     for spec in ("unknown", {"type": "manual", "points": [[0, 1], [0, 2]]},
                  {"type": "manual", "points": [[0, 1], [1, float("nan")]]}):
         fails(lambda: envelopes.envelope_points(spec), "envelope")
@@ -153,8 +161,6 @@ def main():
         compiled = envelopes.EnvelopeForward([("a", a, 1., envelopes.envelope_points(shape))], PIKA)
         actual = compiled.rows[0][2]
         assert len(actual) == 6 and all(abs(a - b) < 1e-12 for a, b in zip(actual, expected))
-        fails(lambda: compiled(None, None, None, None, {}), "no sampler sigma")
-        fails(lambda: compiled(None, None, None, None, {"sigmas": torch.tensor([1., .5])}), "shared sigma")
     fails(lambda: envelopes.EnvelopeForward([], torch.tensor([1., 1., 0.])), "strictly decreasing")
     assert len(envelopes.EnvelopeForward([("a", a, 1., manual)], torch.tensor([.5, 0.])).progress) == 1
     assert not any("D1" in k for k in nodes.NODE_CLASS_MAPPINGS), "D1 diagnostics still registered"
