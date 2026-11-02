@@ -208,7 +208,7 @@ def side_terms(side):
 
 
 def hold_basis(directions, nuisance):
-    """One column per group; redundant groups contribute zero. Keep the original one-group arithmetic."""
+    """One column per group; redundant groups contribute zero. One group is its unit direction off the nuisance basis."""
     if len(directions) == 1:
         h = directions[0]
         h = h - nuisance @ (nuisance.T @ h) if nuisance is not None else h
@@ -553,8 +553,8 @@ def resize(images, w, h):
 
 
 def video_reference(frames, fps, samples=MAX_VIDEO_SAMPLES):
-    """First `samples` frames at 2 fps (or the native rate if lower), on the H3 reference canvas, with the sample times H3's
-    own reference videos get (i / 2 s), not the rounded source frame times."""
+    """First `samples` frames at 2 fps (or the native rate if lower), on the H3 reference canvas, with the sample times
+    H3's own reference videos get (i / 2 s; the frame times below 2 fps)."""
     indices = torch.arange(0, len(frames), max(float(fps) / 2, 1)).long()[:samples]
     cw, ch = adapt_canvas(frames.shape[2], frames.shape[1])
     return {"type": "video", "data": resize(frames[indices], cw, ch), "timestamps": [i / min(float(fps), 2.0) for i in range(len(indices))]}

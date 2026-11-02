@@ -50,7 +50,7 @@ def interpolate(points, x):
 
 
 class EnvelopeForward:
-    """Compiled once per sampler invocation; no call counter or mutable model/global state."""
+    """Diffusion-model wrapper compiled once per sampler call: each row's strength at every step's sigma."""
 
     def __init__(self, rows, sigmas):
         self.sigmas = sigmas.tolist()

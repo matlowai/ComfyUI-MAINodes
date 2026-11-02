@@ -17,7 +17,6 @@ Exit code 0 = pass.
 """
 import importlib
 import json
-import os
 import tempfile
 import zlib
 
