@@ -176,6 +176,15 @@ Keep every node, but give most people a clean front door. ComfyUI loads subgraph
 - Next: pool only the first reply tokens for format habits; 24+ varied cliché/specific pairs; blind preference reads;
   per-head analysis at the best layer; the picture-pair dial applied while the VLM captions an image.
 
+## Status at the end of 2026-11-01 (night)
+- Simple v2 shipped on `dials-rack`: Render Preset (Pika / Pika + reference pictures / DMAD, user-saved), H3 De-rope Sigmas
+  (continuous de-rope amount, default 0.48), one H3 + de-rope blueprint with off / oracle / flat, calmer rack rows, folder
+  inputs for picture dials, re-saved dials picked up; code-review fixes (MOSS/Krea post dials per-call module lookup, NaN
+  guard, encode-before-load, caches removed, routes in `dials/routes.py`).
+- Open: DMAD preset default (0.8 x 6 shipped vs authors' 1.0 x 4); cfg > 1 untested; rack `hold_map` input vs Dial Hold Map;
+  Autogrow caps; editor/profile 500 for non-H3 dials; a turbo/speed-up study (delta-surgery `studies/2026-11-02-dmad-genres`)
+  will inform preset defaults and attention options (Sol/SLA on int8 or w6a8).
+
 ## Status at the end of 2026-11-01
 - `main` and `dials-rack` are at the same commit (merged at Dylan's request; version 1.2.0). Done since the first push: atlas,
   picture groups and framing, MOSS-Image (Krea 2 partial), per-block strengths, time curves with a mouse-editable editor
