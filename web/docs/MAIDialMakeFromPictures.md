@@ -7,8 +7,11 @@ and toward squirrels at positive strength. No training, about a minute to build.
 ## Quick start
 1. Put the "before" pictures in **group A** and the "after" pictures in **group B**: a Load Image node into the `a0`
    socket and another into `b0`. Each time you connect one, the next socket (`a1`, `b1`, ...) appears.
+   Or put each side's pictures in a folder inside ComfyUI's `input/` folder and pick it on **folder_a** / **folder_b**
+   (pictures in file-name order, each at its own size; name matched pairs alike so they pair by index; press R to
+   refresh the folder list after making a folder).
 2. Leave **framing** on `content` and give the dial a **name**.
-3. Run. The dial is saved to `models/loras/dials/<name>` and also flows straight out of the `dial` output, so you can
+3. Run (right-click the node > **Run Branch** makes only the dial). The dial is saved to `models/loras/dials/<name>` and also flows straight out of the `dial` output, so you can
    wire it into a **Dial Rack** row and render in the same run.
 4. In the rack, start at **−4 or +4**: picture dials are weaker than dials made from text.
 

@@ -204,6 +204,35 @@ one seed; treat them as starting points.
   `graph.convertToSubgraph` the rest, delete the primitives: their links become the blueprint's widget inputs (in 1.57
   promoting a widget is the same thing, a subgraph input). Check with `graphToPrompt`: a blueprint dropped from the
   library gave the shipped example's prompt exactly. A promoted seed loses "control after generate" (stays fixed).
+- **Branch and autogrow nodes don't survive `convertToSubgraph` (frontend 1.57.1):** a core Branch node whose selector is
+  already linked, and a Reference to Video node with linked autogrow pictures, come out of the conversion with their links
+  and widget values shuffled (a prompt in `width`, a picture socket holding 141). Add them inside the subgraph after
+  converting; they then save and reload intact. Check every build with `graphToPrompt`, not by eye.
+- **One subgraph input can feed several widgets only if the widgets match:** prompt, width, height and length promote to
+  several inner nodes; `d_max` (min 2) and `dilation` (min 1) refuse. A Primitive Int inside the blueprint wired to both,
+  with its value promoted, works.
+- **A 3-way choice on a blueprint without new nodes:** core Custom Combo (off / oracle / flat) feeding the selectors of two
+  lazy Branch nodes; a Branch only runs the input whose label is chosen, so `off` skips all of de-rope. The Render Preset's
+  conditioning string drives the FL2V / Ref2V Branch the same way.
+- **Make a dial without rendering:** right-click the Make Dial node > Run Branch queues only that output node. Muted groups
+  (right-click > Set Group Nodes to Never) leave the prompt entirely, so an empty Load Image there can't fail the render.
+- **The rack must notice a dial file saved again under the same name:** it loads dials by name, so ComfyUI's cache served
+  the old model after Make Dial overwrote `my_dial`. Its fingerprint now carries each named file's mtime and size, and the
+  rack's dial list reloads when a Make Dial node reports a save: make, edit and re-queue with no clicks on the rack.
+- **De-rope amount is a sigma, not a step count:** H3 Inject Schedule slices whole steps, so 0.48 and 0.50 are the same
+  there; the Pika graphs started stage 2 at sigma(0.48) = 12·0.48 / (1 + 11·0.48) = 0.9171975 on H3's shift 12 (written
+  0.917197). A 4.5e-7 change of that start sigma moved the de-roped train-platform clip by a mean 3.9/255 (PSNR 29.5 dB):
+  the same take, details differ; don't expect pixel identity across schedule edits.
+- **Same math, same pixels:** core ModelSamplingMiniMaxH3 at the model's own 12 / 3 and CFGGuider at cfg 1 (the negative is
+  skipped) rendered pixel-identical to the graph without them (Simple v2 vs v1, de-rope off and oracle).
+- **DMAD on our de-rope pass (1 seed, train platform):** the authors' settings are lcm + simple, shifts 12 / 2, cfg 1, LoRA
+  1.0, 4 steps; at inject 0.48 the auto stage-2 tail is only 2 steps (0.917, 0.8, 0) and came out softer than pass 1 (window
+  passengers smeared); resampling the tail to 4 steps (0.917, 0.859, 0.8, 0.4, 0) kept detail at 294 s vs 219 s. The
+  community's 0.8 / 6 steps was crisper in both passes (fur hood, signage) and its auto tail (0.917, 0.857, 0.706, 0) was
+  already fine (a 4-step resample differed by a mean 3.3/255): the preset ships 0.8 / 6 with auto de-rope steps.
+- **KJNodes' MiniMax H3 VRAM savers** (chunked feed-forward, head-chunked attention) rendered pixel-identical to the plain
+  model and took the same time on a 32 GB card; nvidia-smi can't show their saving under dynamic VRAM loading (the card
+  always looks full). They are for smaller cards. KJ's sage-attention patch was left out: it changes pixels.
 - **The Dial Rack can't live inside a blueprint:** its rows are a DOM widget drawn by the inner node's script; promoting
   the `rack` widget gives a hidden plain string on the subgraph node. Keep the rack outside, wired to the model input.
 - **Working with several Claude agents:** brief them like peers (goal, files, rules, how to verify); give each its own

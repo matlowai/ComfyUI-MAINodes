@@ -98,7 +98,7 @@ simple Load/Apply Dial nodes, is [ComfyUI-Dials](https://github.com/matlowai/Com
 | **Keep audio clean** | an "audio: protect" option leaves the soundtrack undialled (measured: speech errors 0.29 to 0.00 in 3 of 4 cases) |
 | **Works with de-rope** | a hold-map link keeps time curves in real clip time through a de-rope run |
 | **Other models** | the same nodes detect MOSS-Image (works, about 2-4x H3's strengths) and Krea 2 (partial); dial files remember their model family |
-| **Examples and help** | Pika H3 Flex + de-rope workflows for the rack, picture dials (folders, two pictures, groups) and prompt sets in [`examples/dials/`](examples/dials/); a Node Info guide on the Dial Rack and on Make Dial from Pictures |
+| **Examples and help** | a Simple front door (Render Preset, Dial Rack, one blueprint; core-only and KJNodes variants) and Pika H3 Flex + de-rope workflows for the rack, picture dials (folders, two pictures, groups) and prompt sets in [`examples/dials/`](examples/dials/); Node Info guides on the Dial Rack, Make Dial from Pictures, Render Preset and H3 De-rope Sigmas |
 
 **Honest limits.** Dials are alpha. Strengths are starting points measured on Pika H3 Flex's 6-step schedule, mostly
 one seed. Time curves switch smoothly (a lighting dial ramps over about 1.5 s; colour and style dials switch much
@@ -106,9 +106,10 @@ faster) and cannot follow individual drum hits. Picture dials come out weaker th
 side only. A dial can leak into other qualities (a "psychedelic" dial also brings rave outfits); the lessons file lists
 the known ones.
 
-**Quick start.** Load [`examples/dials/dials_simple_pika_derope.json`](examples/dials/dials_simple_pika_derope.json):
-pick your five model files, write a prompt, drag a slider on the Dial Rack, and queue; de-rope is one switch on the
-same node (75 s off, about 200 s more on, 1280x704). [`dials_rack_pika_derope.json`](examples/dials/dials_rack_pika_derope.json)
+**Quick start.** Load [`examples/dials/dials_simple_pika_derope.json`](examples/dials/dials_simple_pika_derope.json)
+(core ComfyUI only; [`_kj`](examples/dials/dials_simple_pika_derope_kj.json) adds KJNodes' VRAM savers and folder loader):
+pick a Render Preset (Pika, Pika + reference pictures, DMAD, or your own), write a prompt, drag a slider on the Dial
+Rack, and queue; de-rope is one choice on the same node (off, oracle or flat; 79 s off at 1280x704). [`dials_rack_pika_derope.json`](examples/dials/dials_rack_pika_derope.json)
 is the same render with every node in view. To make your own, add **Make Dial**, write two prompts that differ in one
 quality, and wire its output into a rack row.
 

@@ -89,7 +89,7 @@ def main():
     # (widget values load by position)
     info_ids = ["description", "negative_label", "positive_label", "useful", "overcook",
                 "negative_useful", "negative_overcook", "evidence", "pipeline"]
-    later = {"MAIDialMakeFromPictures": ["framing", "group_a", "group_b"]}
+    later = {"MAIDialMakeFromPictures": ["framing", "group_a", "group_b", "folder_a", "folder_b"]}
     for node_id in ("MAIDialMake", "MAIDialMakeFromPictures", "MAIDialMakeFromVideos", "MAIDialCombine"):
         ids = [i.id for i in nodes.NODE_CLASS_MAPPINGS[node_id].GET_SCHEMA().inputs]
         assert ids[len(ids) - len(info_ids) - len(later.get(node_id, [])):] == info_ids + later.get(node_id, []), (node_id, ids)

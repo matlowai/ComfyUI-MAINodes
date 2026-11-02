@@ -1,8 +1,14 @@
 """Dials nodes (V3): Dial Rack, Make Dial, Combine Dials. Node ids are MAIDial*, so this pack can be installed next to
 ComfyUI-Dials (whose ids are Dials*); both use the DIAL socket type and models/loras/dials/, so they interoperate."""
 import json
+import os
 
+import numpy as np
 import torch
+from PIL import Image, ImageOps
+
+import folder_paths
+import node_helpers
 from comfy_api.latest import io, ui
 
 from . import blocks, core, editor, envelopes, presets, timecurve
@@ -82,6 +88,20 @@ class DialRack(io.ComfyNode):
             outputs=[io.Model.Output()],
             hidden=[io.Hidden.unique_id],
         )
+
+    @classmethod
+    def fingerprint_inputs(cls, rack="[]", **kwargs):
+        """Dial files by name: a file saved again under the same name (Make Dial, the editor, ⚙ info) must re-run the rack."""
+        try:
+            rows = json.loads(rack or "[]")
+        except ValueError:
+            return None  # execute reports the broken rack
+        files = []
+        for r in rows if isinstance(rows, list) else []:
+            path = folder_paths.get_full_path("loras", r["dial"]) if isinstance(r, dict) and isinstance(r.get("dial"), str) else None
+            st = os.stat(path) if path else None
+            files.append((r.get("dial") if isinstance(r, dict) else None, st.st_mtime_ns if st else None, st.st_size if st else None))
+        return tuple(files)
 
     @classmethod
     def execute(cls, model, rack, dials=None, curve_audio=None, hold_map=None) -> io.NodeOutput:
@@ -214,6 +234,30 @@ class MakeDial(io.ComfyNode):
         return io.NodeOutput(dial, ui=ui.PreviewText(report))
 
 
+PICTURE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
+
+
+def picture_folders():
+    root = folder_paths.get_input_directory()
+    return sorted(d for d in os.listdir(root) if os.path.isdir(os.path.join(root, d)) and not d.startswith(".")) if os.path.isdir(root) else []
+
+
+def load_picture_folder(name):
+    """Every picture in input/<name> (sorted by file name), each at its own size; the folder must stay inside input/."""
+    root = os.path.realpath(folder_paths.get_input_directory())
+    path = os.path.realpath(os.path.join(root, name))
+    if os.path.commonpath([root, path]) != root or path == root or not os.path.isdir(path):
+        raise ValueError(f"picture folder {name!r} is not a folder inside ComfyUI's input folder")
+    pictures = []
+    for f in sorted(os.listdir(path)):
+        if f.lower().endswith(PICTURE_EXTENSIONS) and os.path.isfile(os.path.join(path, f)):
+            img = ImageOps.exif_transpose(node_helpers.pillow(Image.open, os.path.join(path, f))).convert("RGB")
+            pictures.append(torch.from_numpy(np.asarray(img, dtype=np.float32) / 255.0)[None])
+    if not pictures:
+        raise ValueError(f"picture folder {name!r} has no pictures ({', '.join(PICTURE_EXTENSIONS)})")
+    return pictures
+
+
 class MakeDialFromPictures(io.ComfyNode):
     @classmethod
     def define_schema(cls):
@@ -246,6 +290,10 @@ class MakeDialFromPictures(io.ComfyNode):
                     io.Image.Input("a", tooltip="Another group A picture, any size; adds to pictures_a."), prefix="a", min=0, max=50)),
                 io.Autogrow.Input("group_b", optional=True, template=io.Autogrow.TemplatePrefix(
                     io.Image.Input("b", tooltip="Another group B picture, any size; adds to pictures_b."), prefix="b", min=0, max=50)),
+                io.Combo.Input("folder_a", options=["none", *picture_folders()], default="none", optional=True,
+                               tooltip="A folder inside ComfyUI's input folder: all its pictures join group A (sorted by file name, each at its own size)."),
+                io.Combo.Input("folder_b", options=["none", *picture_folders()], default="none", optional=True,
+                               tooltip="A folder inside ComfyUI's input folder: all its pictures join group B. Name matched pairs alike so they pair by index."),
             ],
             outputs=[Dial.Output(display_name="dial")],
             is_output_node=True,
@@ -253,14 +301,19 @@ class MakeDialFromPictures(io.ComfyNode):
 
     @classmethod
     def execute(cls, clip, model, pictures_a=None, pictures_b=None, prompt="", name="", debias=True, nuisance_dims=3,
-                framing="content", group_a=None, group_b=None, **info) -> io.NodeOutput:
+                framing="content", group_a=None, group_b=None, folder_a="none", folder_b="none", **info) -> io.NodeOutput:
         info = info_from(**info)
         if name:
             core.check_dial_name(name)
         a = [p for p in [pictures_a, *(group_a or {}).values()] if p is not None]
         b = [p for p in [pictures_b, *(group_b or {}).values()] if p is not None]
+        if folder_a != "none":
+            a += load_picture_folder(folder_a)
+        if folder_b != "none":
+            b += load_picture_folder(folder_b)
         if not a or not b:
-            raise ValueError("Make Dial from Pictures needs pictures on both sides: connect pictures_a / group_a and pictures_b / group_b")
+            raise ValueError("Make Dial from Pictures needs pictures on both sides: connect pictures_a / group_a or pick folder_a, "
+                             "and the same for B")
         framings = core.PICTURE_FRAMINGS
         prompts = [prompt] if framing == "picture prompt" else [prompt, *framings.values()] if framing == "all averaged" else [framings[framing]]
         dial, report = core.make_picture_dial(clip, model, a, b, prompts, name or "unsaved",
@@ -332,6 +385,7 @@ class CombineDials(io.ComfyNode):
                 *info_inputs(),  # last, so workflows saved before these fields load unchanged
             ],
             outputs=[Dial.Output(display_name="dial")],
+            is_output_node=True,
         )
 
     @classmethod

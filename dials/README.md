@@ -13,7 +13,9 @@ second. Ported from [ComfyUI-Dials](https://github.com/matlowai/ComfyUI-Dials); 
 | **Make Dial** | Prompt pairs (`A ||| B` per line, `{subject}` expanded over a subjects list) to a dial. Saves to `models/loras/dials/<name>.safetensors` and outputs the dial for a rack input. Shows pair agreement (above 0.6 is a clean direction) and how much generic wording shift was removed. Also takes weighted pairs (`A ||| B :: 2`) and prompt sets (`+1 …` / `-1 …` lines). |
 | **Dial Hold Map** | De-rope with one rack: takes the Dial Rack's model and H3 Time Smear's `hold_map_used` and gives stage 2 the same rack with its time curves in real clip time. Rows without a time curve pass through unchanged. |
 | **Combine Dials** | `weight_a * a + weight_b * b` as one new dial, optionally removing b's direction from a first (orthogonalize). Plain mixing is easier in the rack. |
-| **Make Dial from Pictures** | Two picture groups (batches and/or any number of single pictures of any size) and a shared framing to a post-refiner dial. Negative strength moves toward A, positive toward B. Equal counts pair by index for agreement; unequal counts use group means and report agreement as n/a. Saves and connects to the rack like Make Dial. |
+| **Make Dial from Pictures** | Two picture groups (batches, any number of single pictures of any size, and/or a folder inside `input/` on `folder_a` / `folder_b`) and a shared framing to a post-refiner dial. Negative strength moves toward A, positive toward B. Equal counts pair by index for agreement; unequal counts use group means and report agreement as n/a. Saves and connects to the rack like Make Dial. |
+| **Render Preset** | The Simple front door's render recipe in one node, switched together by named presets: model, LoRA and strength, flow shifts (video / audio), FL2V or Ref2V, sampler, the stage-1 schedule (a manual sigma list or a scheduler) and steps, de-rope steps, cfg. Built in: *Pika H3 Flex*, *Pika + reference pictures*, *DMAD speed LoRA*; **Save as** stores yours in `models/loras/dials/presets/render/`. |
+| **H3 De-rope Sigmas** | The de-rope pass's schedule from the active preset's: starts where a fraction `inject` of the denoise is left (continuous, on the model's shift), then the stage-1 sigmas below it; `steps` > 0 resamples that tail. |
 | **Make Dial from Videos** | Matched clips (up to 12 per side) and one shared prompt to a post-refiner dial; clips are sampled at 2 fps and cut to equal length. Experimental. |
 
 **Strength:** +0.5 to +1 is the everyday range. Past about 1.5 side effects appear (the scene restages, characters
@@ -102,23 +104,57 @@ without info are all unknown; version 1 info (one useful/overcook pair) reads as
 
 ### Simple start
 
-Open [dials_simple_pika_derope.json](../examples/dials/dials_simple_pika_derope.json) ([api](../examples/dials/dials_simple_pika_derope_api.json)),
-or drag **Dials - Pika H3 + De-rope** from the node library (Subgraph Blueprints > MAINodes > Dials) and wire
-Load Diffusion Model (H3) -> Pika H3 Flex LoRA -> Dial Rack -> its `model` input, plus Load CLIP to `clip` and the video
-and audio VAE loaders to `video_vae` and `audio_vae`. First pick your five model files in those loaders (the example
-stacks them on the left); then four controls matter:
+Open [dials_simple_pika_derope.json](../examples/dials/dials_simple_pika_derope.json) ([api](../examples/dials/dials_simple_pika_derope_api.json)):
+core ComfyUI and MAINodes only. With KJNodes installed, [dials_simple_pika_derope_kj.json](../examples/dials/dials_simple_pika_derope_kj.json)
+([api](../examples/dials/dials_simple_pika_derope_kj_api.json)) is the same front door plus KJ's two MiniMax H3 VRAM savers on the
+model (chunked feed-forward, head-chunked attention; same math) and KJ's Load Images From Folder in the picture-dial group.
 
-1. **prompt** on the blueprint (Pika H3 layout: scene, soundscape, music); `first_frame` is optional.
-2. **Dial Rack** rows: tick a dial, drag its strength (about 1 is everyday, 1.5 shows side effects).
-3. **seed** and **length** (141 frames = 5.9 s at 24 fps).
-4. **de-rope**: off renders one pass; on adds the second pass that slows the jerky stretches and maps them back to
-   real time. Pass 1's audio is kept.
+![Simple front door](docs/simple_front_door.jpg)
 
-What de-rope costs on one RTX 5090 (1280x704, 141 frames, Pika 6-step, seed 42): off 75 s, on 276 s. Turning it on
-after an off run of the same take reuses pass 1 from ComfyUI's cache: 202 s. With it off, stage 2 does not run (a lazy
-If/Else Switch). The same rack drives both passes; **Dial Hold Map** inside keeps time-curve rows in real time.
-**Dials - Pika H3** is the same blueprint without de-rope. The rack sits outside the blueprint because its rows can't be
-shown on a subgraph node. Double-click a blueprint to see or change the graph inside.
+1. **Render Preset** (left): pick a preset in its list. A preset is a whole render recipe and switching changes all of it
+   together: model, LoRA, flow shifts, FL2V or Ref2V, **sampler**, the **stage-1 schedule and steps**, de-rope steps and
+   cfg. *Pika H3 Flex* is `lcm` on Pika's six manual sigmas; *DMAD speed LoRA* is `lcm` on the `simple` schedule,
+   6 steps at LoRA 0.8 with audio shift 2 (the DMAD authors' sampler and shifts, the community's strength and steps); *Pika + reference pictures* is Pika with Ref2V. To keep your own, change the fields
+   and **Save as** a new name. Set the sampler and schedule together with the LoRA: a distilled LoRA only works on the
+   schedule it was distilled for.
+2. **Dial Rack**: tick a dial, drag its strength (about 1 is everyday, 1.5 shows side effects). Each row shows **steps**
+   (strength over the denoising steps: constant, early, late, bell, manual) and **clip** (strength over the clip's time;
+   click the little curve to draw it; the day–night row ships with a ramp). **⋯** holds block strengths, dial info, the
+   dial editor, solo and hold.
+3. **Dials - H3 + De-rope** (the blueprint): prompt, width, height, length, seed. FL2V takes an optional **first frame**,
+   Ref2V up to two **pictures** (call them `<Picture 1>`, `<Picture 2>` in the prompt): pick a picture in the greyed Load
+   Image under the node, then select it and press Ctrl+M to switch it on.
+   - **de-rope**: `off` renders one pass; `oracle` slows only the jerky stretches (the oracle's hold map); `flat` slows every
+     frame by **max de-rope**. Both re-render the slowed clip and map it back to real time.
+   - **de-rope amount** (`inject`, default 0.48): how much of the denoise stage 2 re-runs; 0.48 stays faithful to pass 1,
+     0.7 is looser. It is continuous: the start sigma is computed on the model's shift and followed by the active
+     preset's sigmas below it (Pika at 0.48: 0.9172, 0.8, 0.5714, 0.3333, 0).
+   - **max de-rope**: the oracle's largest hold (`d_max`) or the flat hold count; default 4.
+   - **pass 2 audio**: off keeps pass 1's sound (default); on uses the de-rope pass's own foley.
+4. **Make a dial** (the greyed groups below): right-click the group > *Set Group Nodes to Always*, write the pairs or
+   pick the pictures (or a folder inside `input/` on `folder_a` / `folder_b`), give it a name, then right-click the Make
+   Dial node > **Run Branch** to make only the dial. It appears in the rack's dial list at once; mute the group again.
+   Edit a dial with ✎ in its row (Export new dial), its info with ⚙, and save the rack's rows with **Save preset**.
+
+Timings on one RTX 5090 (1280x704, 141 frames, seed 42): see the table below. With de-rope off, stage 2 does not run (lazy
+Branch nodes); turning it on after an off run of the same take reuses pass 1 from ComfyUI's cache. The same rack drives
+both passes (**Dial Hold Map** inside keeps time curves in real time). The rack sits outside the blueprint because its rows
+can't be shown on a subgraph node. Double-click the blueprint to see the graph inside; nothing Pika-specific is wired
+inside it (sampler, sigmas, shifts, LoRA and cfg all come from the Render Preset).
+
+| run (1 seed, 42) | time | check |
+|---|---|---|
+| Pika H3 Flex, de-rope off | 77 s | pixel-identical to the first Simple workflow |
+| Pika, de-rope oracle (amount 0.48) | 278 s | pixel-identical to the first workflow with its stage-2 start set to the computed 0.9171975 (it had 0.917197: mean difference 3.9/255, same take) |
+| Pika, oracle, pass 2 audio on | 285 s | same video, the de-rope pass's own foley |
+| Pika, flat (max de-rope 4) | 528 s | pixel-identical to Time Smear with no hold map and dilation 4; every frame held 4x costs about twice the oracle |
+| Pika + reference pictures (Ref2V), oracle | 294 s | the reference (frame 0 of the off render) carries through both passes |
+| the KJNodes workflow, oracle | 279 s | pixel-identical to the core workflow; no time saved on a 32 GB card (the VRAM savers matter on smaller cards) |
+| DMAD speed LoRA (0.8, 6 steps), off / oracle | 84 s / 255 s | crisper than the authors' 1.0 / 4 steps (64 s / 219 s), whose 2-step de-rope tail came out soft |
+| the example as shipped (day–night clip curve), off | 91 s | the curve's two extra model calls cost about 18 % |
+
+The first Simple workflow (Pika only, a de-rope on/off switch) and its `Dials - Pika H3 (+ De-rope)` blueprints are in
+[`examples/dials/_archive/`](../examples/dials/_archive/).
 
 ### Full graphs
 
@@ -139,9 +175,9 @@ pass-1 and the de-roped clip are saved. Same layout as ComfyUI-Dials' `dials_pik
 Model filenames are the plain names ComfyUI-Dials uses; pick your local files in the loaders. The picture example's
 folder loader is KJNodes' Load Images From Folder; put your own matched A and B pictures in two folders.
 
-Older single-pass examples (no de-rope), kept for reference: [one_dial.json](../examples/dials/one_dial.json) and
-[four_dials.json](../examples/dials/four_dials.json) (base H3, 20-step) and [pika_rack.json](../examples/dials/pika_rack.json)
-(Pika), each with an `_api.json`.
+Older single-pass examples (no de-rope), kept for reference in [`_archive/`](../examples/dials/_archive/):
+[one_dial.json](../examples/dials/_archive/one_dial.json) and [four_dials.json](../examples/dials/_archive/four_dials.json)
+(base H3, 20-step) and [pika_rack.json](../examples/dials/_archive/pika_rack.json) (Pika), each with an `_api.json`.
 
 To queue an API graph, POST `{"prompt": <contents of the API JSON>}` to your ComfyUI server's `/prompt` endpoint.
 Keep row order when reproducing a result: reordering rows changed one render (under investigation).

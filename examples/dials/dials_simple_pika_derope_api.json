@@ -1,26 +1,22 @@
 {
-  "1": {
+  "3": {
     "inputs": {
-      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
-      "weight_dtype": "default"
+      "model": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "lora": "pika_h3_flex_fl2va_v1_bf16.safetensors",
+      "lora_strength": 1,
+      "conditioning": "FL2V (first frame)",
+      "sampler": "lcm",
+      "schedule": "manual",
+      "sigmas": "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0",
+      "steps": 6,
+      "derope_steps": 0,
+      "shift_video": 12,
+      "shift_audio": 3,
+      "cfg": 1
     },
-    "class_type": "UNETLoader",
+    "class_type": "MAIRenderPreset",
     "_meta": {
-      "title": "Load Diffusion Model"
-    }
-  },
-  "2": {
-    "inputs": {
-      "lora_name": "pika_h3_flex_fl2va_v1_bf16.safetensors",
-      "strength_model": 1,
-      "model": [
-        "1",
-        0
-      ]
-    },
-    "class_type": "LoraLoaderModelOnly",
-    "_meta": {
-      "title": "Pika H3 Flex LoRA (FL2VA)"
+      "title": "Render Preset"
     }
   },
   "8": {
@@ -40,7 +36,7 @@
     },
     "class_type": "VAELoader",
     "_meta": {
-      "title": "Load VAE"
+      "title": "Video VAE"
     }
   },
   "17": {
@@ -54,9 +50,9 @@
   },
   "40": {
     "inputs": {
-      "rack": "[{\"on\":true,\"dial\":\"dials/h3_motion.safetensors\",\"strength\":0.5,\"solo\":false},{\"on\":true,\"dial\":\"dials/h3_grade_warm_cold_hook.safetensors\",\"strength\":0.6,\"solo\":false},{\"on\":true,\"dial\":\"dials/h3_day_night_hook.safetensors\",\"strength\":0.8,\"solo\":false},{\"on\":false,\"dial\":\"dials/h3_perf_reserved_lively_hook.safetensors\",\"strength\":0.5,\"solo\":false},{\"on\":false,\"dial\":\"dials/h3_dream_surreal_hook.safetensors\",\"strength\":6,\"solo\":false,\"envelope\":\"early\"}]",
+      "rack": "[{\"on\": true, \"dial\": \"dials/h3_motion.safetensors\", \"strength\": 0.5, \"solo\": false}, {\"on\": true, \"dial\": \"dials/h3_grade_warm_cold_hook.safetensors\", \"strength\": 0.6, \"solo\": false}, {\"on\": true, \"dial\": \"dials/h3_day_night_hook.safetensors\", \"strength\": 0.8, \"solo\": false, \"time\": {\"type\": \"keys\", \"points\": [[0, 0], [0.4, 0], [0.6, 1], [1, 1]], \"unit\": \"normalized\", \"interp\": \"linear\", \"steps\": 2, \"audio\": \"follow\"}}, {\"on\": false, \"dial\": \"dials/h3_perf_reserved_lively_hook.safetensors\", \"strength\": 0.5, \"solo\": false}, {\"on\": false, \"dial\": \"dials/h3_dream_surreal_hook.safetensors\", \"strength\": 6, \"solo\": false, \"envelope\": \"early\"}]",
       "model": [
-        "2",
+        "3",
         0
       ]
     },
@@ -65,7 +61,7 @@
       "title": "Dial Rack (both passes)"
     }
   },
-  "107:10": {
+  "172:110": {
     "inputs": {
       "prompt": "integrated_multimodal_description: [Shot 1] Cinematic, natural light. An adult woman in a red coat walks along an empty train platform at dusk as a train slowly pulls in beside her. The camera tracks with her.\n\noverall_soundscape: Her footsteps on concrete, the train's brakes hissing, a distant announcement echoing.\n\nnon_diegetic_music: N/A",
       "width": 1280,
@@ -82,10 +78,10 @@
     },
     "class_type": "MiniMaxH3ImageToVideo",
     "_meta": {
-      "title": "Pass 1 (MiniMax H3)"
+      "title": "MiniMax H3 Image to Video"
     }
   },
-  "107:11": {
+  "172:111": {
     "inputs": {
       "noise_seed": 42
     },
@@ -94,61 +90,51 @@
       "title": "RandomNoise"
     }
   },
-  "107:12": {
+  "172:112": {
     "inputs": {
+      "cfg": [
+        "3",
+        5
+      ],
       "model": [
         "40",
         0
       ],
-      "conditioning": [
-        "107:10",
+      "positive": [
+        "172:178",
+        0
+      ],
+      "negative": [
+        "172:170",
         0
       ]
     },
-    "class_type": "BasicGuider",
+    "class_type": "CFGGuider",
     "_meta": {
-      "title": "Basic Guider"
+      "title": "CFG Guider"
     }
   },
-  "107:13": {
-    "inputs": {
-      "sampler_name": "lcm"
-    },
-    "class_type": "KSamplerSelect",
-    "_meta": {
-      "title": "Sampler: lcm (Pika)"
-    }
-  },
-  "107:14": {
-    "inputs": {
-      "sigmas": "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
-    },
-    "class_type": "ManualSigmas",
-    "_meta": {
-      "title": "Pika 6-step schedule (keep as is)"
-    }
-  },
-  "107:15": {
+  "172:115": {
     "inputs": {
       "noise": [
-        "107:11",
+        "172:111",
         0
       ],
       "guider": [
-        "107:12",
+        "172:112",
         0
       ],
       "sampler": [
-        "107:13",
-        0
+        "3",
+        1
       ],
       "sigmas": [
-        "107:14",
-        0
+        "3",
+        2
       ],
       "latent_image": [
-        "107:10",
-        1
+        "172:150",
+        0
       ]
     },
     "class_type": "SamplerCustomAdvanced",
@@ -156,10 +142,10 @@
       "title": "SamplerCustomAdvanced"
     }
   },
-  "107:16": {
+  "172:116": {
     "inputs": {
       "samples": [
-        "107:15",
+        "172:115",
         0
       ],
       "vae": [
@@ -172,10 +158,10 @@
       "title": "VAE Decode"
     }
   },
-  "107:18": {
+  "172:118": {
     "inputs": {
       "samples": [
-        "107:15",
+        "172:115",
         0
       ],
       "vae": [
@@ -188,18 +174,18 @@
       "title": "VAE Decode Audio"
     }
   },
-  "107:19": {
+  "172:119": {
     "inputs": {
       "fps": 24,
       "bit_depth": 8,
       "color_space": "sRGB",
       "codec": "none",
       "images": [
-        "107:16",
+        "172:116",
         0
       ],
       "audio": [
-        "107:18",
+        "172:118",
         0
       ]
     },
@@ -208,13 +194,16 @@
       "title": "Create Video"
     }
   },
-  "107:22": {
+  "172:122": {
     "inputs": {
       "length": 141,
       "q": 0.75,
-      "d_max": 4,
+      "d_max": [
+        "172:154",
+        0
+      ],
       "ramp": true,
-      "preset": "balanced (default)",
+      "preset": "custom",
       "bridge": 8,
       "profile_mode": "value |d3| (default)",
       "abstain_below": 0,
@@ -225,16 +214,16 @@
       "model_profile": "minimax-h3",
       "protect_tail": 0,
       "samples": [
-        "107:15",
+        "172:115",
         0
       ]
     },
     "class_type": "H3JerkOracle",
     "_meta": {
-      "title": "Find jerky motion (length = pass 1)"
+      "title": "H3 Jerk Oracle (profile / window / hold map)"
     }
   },
-  "107:23": {
+  "172:123": {
     "inputs": {
       "model_profile": "minimax-h3",
       "custom_block": 8,
@@ -244,7 +233,7 @@
       "custom_fps": 25,
       "custom_cap_seconds": 0,
       "hold_map": [
-        "107:22",
+        "172:122",
         0
       ]
     },
@@ -253,11 +242,14 @@
       "title": "H3 Clock Remap (any model, presets)"
     }
   },
-  "107:24": {
+  "172:124": {
     "inputs": {
-      "dilation": 4,
+      "dilation": [
+        "172:154",
+        0
+      ],
       "hold_map": [
-        "107:23",
+        "172:176",
         0
       ],
       "expand_to_end": true,
@@ -266,24 +258,24 @@
       "est_steps": 18,
       "overhead_s": 6.7,
       "images": [
-        "107:16",
+        "172:116",
         0
       ]
     },
     "class_type": "H3TimeSmear",
     "_meta": {
-      "title": "Hold frames (slow the jerky stretches)"
+      "title": "H3 Time Smear (integer holds)"
     }
   },
-  "107:25": {
+  "172:125": {
     "inputs": {
       "hold_map": [
-        "107:24",
+        "172:124",
         1
       ],
       "fps": 24,
       "audio": [
-        "107:18",
+        "172:118",
         0
       ]
     },
@@ -292,10 +284,10 @@
       "title": "H3 Audio Smear (hold-map stretch, pitch kept) [alpha]"
     }
   },
-  "107:26": {
+  "172:126": {
     "inputs": {
       "audio": [
-        "107:25",
+        "172:125",
         0
       ],
       "vae": [
@@ -308,10 +300,10 @@
       "title": "VAE Encode Audio"
     }
   },
-  "107:27": {
+  "172:127": {
     "inputs": {
       "pixels": [
-        "107:24",
+        "172:124",
         0
       ],
       "vae": [
@@ -324,7 +316,7 @@
       "title": "VAE Encode"
     }
   },
-  "107:28": {
+  "172:128": {
     "inputs": {
       "length": 0,
       "freeze_threshold": 0,
@@ -337,11 +329,11 @@
       "audio_prefix_ticks": 0,
       "audio_prefix_release_ticks": 0,
       "samples": [
-        "107:27",
+        "172:127",
         0
       ],
       "audio_latent": [
-        "107:26",
+        "172:126",
         0
       ]
     },
@@ -350,13 +342,13 @@
       "title": "H3 V2V Init (nested AV latent)"
     }
   },
-  "107:29": {
+  "172:129": {
     "inputs": {
       "prompt": "integrated_multimodal_description: [Shot 1] Cinematic, natural light. An adult woman in a red coat walks along an empty train platform at dusk as a train slowly pulls in beside her. The camera tracks with her.\n\noverall_soundscape: Her footsteps on concrete, the train's brakes hissing, a distant announcement echoing.\n\nnon_diegetic_music: N/A",
       "width": 1280,
       "height": 704,
       "length": [
-        "107:24",
+        "172:124",
         2
       ],
       "clip": [
@@ -370,10 +362,10 @@
     },
     "class_type": "MiniMaxH3ImageToVideo",
     "_meta": {
-      "title": "Pass 2 (slowed clip)"
+      "title": "MiniMax H3 Image to Video"
     }
   },
-  "107:30": {
+  "172:130": {
     "inputs": {
       "noise_seed": 43
     },
@@ -382,51 +374,71 @@
       "title": "RandomNoise"
     }
   },
-  "107:31": {
+  "172:131": {
     "inputs": {
+      "cfg": [
+        "3",
+        5
+      ],
       "model": [
-        "107:41",
+        "172:141",
         0
       ],
-      "conditioning": [
-        "107:29",
+      "positive": [
+        "172:179",
+        0
+      ],
+      "negative": [
+        "172:171",
         0
       ]
     },
-    "class_type": "BasicGuider",
+    "class_type": "CFGGuider",
     "_meta": {
-      "title": "Basic Guider"
+      "title": "CFG Guider"
     }
   },
-  "107:32": {
+  "172:132": {
     "inputs": {
-      "sigmas": "0.917197, 0.8, 0.571429, 0.333333, 0.0"
-    },
-    "class_type": "ManualSigmas",
-    "_meta": {
-      "title": "De-rope steps: inject 0.48, Pika knots"
-    }
-  },
-  "107:33": {
-    "inputs": {
-      "noise": [
-        "107:30",
-        0
+      "inject": 0.48,
+      "steps": [
+        "3",
+        3
       ],
-      "guider": [
-        "107:31",
-        0
-      ],
-      "sampler": [
-        "107:13",
+      "model": [
+        "40",
         0
       ],
       "sigmas": [
-        "107:32",
+        "3",
+        2
+      ]
+    },
+    "class_type": "H3DeropeSigmas",
+    "_meta": {
+      "title": "H3 De-rope Sigmas (alpha)"
+    }
+  },
+  "172:133": {
+    "inputs": {
+      "noise": [
+        "172:130",
+        0
+      ],
+      "guider": [
+        "172:131",
+        0
+      ],
+      "sampler": [
+        "3",
+        1
+      ],
+      "sigmas": [
+        "172:132",
         0
       ],
       "latent_image": [
-        "107:28",
+        "172:128",
         0
       ]
     },
@@ -435,10 +447,10 @@
       "title": "SamplerCustomAdvanced"
     }
   },
-  "107:34": {
+  "172:134": {
     "inputs": {
       "samples": [
-        "107:33",
+        "172:133",
         0
       ],
       "vae": [
@@ -451,10 +463,10 @@
       "title": "VAE Decode"
     }
   },
-  "107:35": {
+  "172:135": {
     "inputs": {
       "samples": [
-        "107:33",
+        "172:133",
         0
       ],
       "vae": [
@@ -467,57 +479,57 @@
       "title": "VAE Decode Audio"
     }
   },
-  "107:36": {
+  "172:136": {
     "inputs": {
       "hold_map": [
-        "107:24",
+        "172:124",
         1
       ],
       "images": [
-        "107:34",
+        "172:134",
         0
       ]
     },
     "class_type": "H3ExactRecover",
     "_meta": {
-      "title": "Back to real time"
+      "title": "H3 Exact Recover (24fps frame selection)"
     }
   },
-  "107:37": {
+  "172:137": {
     "inputs": {
       "hold_map": [
-        "107:24",
+        "172:124",
         1
       ],
       "fps": 24,
       "reference_mix": 1,
       "audio_source": "keep the original performance (safe default)",
       "audio": [
-        "107:35",
+        "172:135",
         0
       ],
       "reference": [
-        "107:18",
+        "172:118",
         0
       ]
     },
     "class_type": "H3AudioRecover",
     "_meta": {
-      "title": "Audio: keep pass 1's original"
+      "title": "H3 Audio Recover (hold-map atempo, pitch kept)"
     }
   },
-  "107:38": {
+  "172:138": {
     "inputs": {
       "fps": 24,
       "bit_depth": 8,
       "color_space": "sRGB",
       "codec": "none",
       "images": [
-        "107:36",
+        "172:136",
         0
       ],
       "audio": [
-        "107:37",
+        "172:156",
         0
       ]
     },
@@ -526,14 +538,14 @@
       "title": "Create Video"
     }
   },
-  "107:39": {
+  "172:139": {
     "inputs": {
-      "filename_prefix": "video/dials_pika",
+      "filename_prefix": "video/dials_simple",
       "format": "auto",
       "format.codec": "auto",
       "codec": "auto",
       "video": [
-        "107:60",
+        "172:177",
         0
       ]
     },
@@ -542,37 +554,289 @@
       "title": "Save Video"
     }
   },
-  "107:41": {
+  "172:141": {
     "inputs": {
       "model": [
         "40",
         0
       ],
       "hold_map": [
-        "107:24",
+        "172:124",
         1
       ]
     },
     "class_type": "MAIDialHoldMap",
     "_meta": {
-      "title": "Dial Hold Map (stage 2)"
+      "title": "Dial Hold Map (alpha)"
     }
   },
-  "107:60": {
+  "172:150": {
+    "inputs": {
+      "width": 1280,
+      "height": 704,
+      "length": 141
+    },
+    "class_type": "EmptyMiniMaxH3LatentAV",
+    "_meta": {
+      "title": "Empty MiniMax H3 AV Latent"
+    }
+  },
+  "172:153": {
+    "inputs": {
+      "value": ""
+    },
+    "class_type": "PrimitiveString",
+    "_meta": {
+      "title": "Text"
+    }
+  },
+  "172:154": {
+    "inputs": {
+      "value": 4
+    },
+    "class_type": "PrimitiveInt",
+    "_meta": {
+      "title": "Int"
+    }
+  },
+  "172:155": {
+    "inputs": {
+      "hold_map": [
+        "172:124",
+        1
+      ],
+      "fps": 24,
+      "reference_mix": 0,
+      "audio_source": "use pass 2's foley - ONLY IF the audio rows were seeded",
+      "audio": [
+        "172:135",
+        0
+      ],
+      "reference": [
+        "172:118",
+        0
+      ]
+    },
+    "class_type": "H3AudioRecover",
+    "_meta": {
+      "title": "H3 Audio Recover (hold-map atempo, pitch kept)"
+    }
+  },
+  "172:156": {
     "inputs": {
       "switch": false,
       "on_false": [
-        "107:19",
+        "172:137",
         0
       ],
       "on_true": [
-        "107:38",
+        "172:155",
         0
       ]
     },
     "class_type": "ComfySwitchNode",
     "_meta": {
-      "title": "De-rope? (stage 2 runs only when on)"
+      "title": "If/Else Switch"
+    }
+  },
+  "172:170": {
+    "inputs": {
+      "conditioning": [
+        "172:178",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "Conditioning Zero Out"
+    }
+  },
+  "172:171": {
+    "inputs": {
+      "conditioning": [
+        "172:179",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "Conditioning Zero Out"
+    }
+  },
+  "172:173": {
+    "inputs": {
+      "prompt": "integrated_multimodal_description: [Shot 1] Cinematic, natural light. An adult woman in a red coat walks along an empty train platform at dusk as a train slowly pulls in beside her. The camera tracks with her.\n\noverall_soundscape: Her footsteps on concrete, the train's brakes hissing, a distant announcement echoing.\n\nnon_diegetic_music: N/A",
+      "width": 1280,
+      "height": 704,
+      "length": 141,
+      "ref_image_size": "match",
+      "clip": [
+        "8",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ],
+      "audio_vae": [
+        "17",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3ReferenceToVideo",
+    "_meta": {
+      "title": "Pass 1 (Ref2V)"
+    }
+  },
+  "172:174": {
+    "inputs": {
+      "prompt": "integrated_multimodal_description: [Shot 1] Cinematic, natural light. An adult woman in a red coat walks along an empty train platform at dusk as a train slowly pulls in beside her. The camera tracks with her.\n\noverall_soundscape: Her footsteps on concrete, the train's brakes hissing, a distant announcement echoing.\n\nnon_diegetic_music: N/A",
+      "width": 1280,
+      "height": 704,
+      "length": [
+        "172:124",
+        2
+      ],
+      "ref_image_size": "match",
+      "clip": [
+        "8",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ],
+      "audio_vae": [
+        "17",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3ReferenceToVideo",
+    "_meta": {
+      "title": "Pass 2 (Ref2V, slowed clip)"
+    }
+  },
+  "172:175": {
+    "inputs": {
+      "choice": "off",
+      "index": 0,
+      "option1": "off",
+      "option2": "oracle",
+      "option3": "flat",
+      "option4": ""
+    },
+    "class_type": "CustomCombo",
+    "_meta": {
+      "title": "de-rope: off / oracle / flat"
+    }
+  },
+  "172:176": {
+    "inputs": {
+      "branch": [
+        "172:175",
+        0
+      ],
+      "branch_names": {
+        "__value__": [
+          "oracle",
+          "flat"
+        ]
+      },
+      "autogrow.branch0": [
+        "172:123",
+        0
+      ],
+      "autogrow.branch1": [
+        "172:153",
+        0
+      ]
+    },
+    "class_type": "BranchNode",
+    "_meta": {
+      "title": "hold map: oracle or flat (no map = every frame held max de-rope times)"
+    }
+  },
+  "172:177": {
+    "inputs": {
+      "branch": [
+        "172:175",
+        0
+      ],
+      "branch_names": {
+        "__value__": [
+          "off",
+          "oracle",
+          "flat"
+        ]
+      },
+      "autogrow.branch0": [
+        "172:119",
+        0
+      ],
+      "autogrow.branch1": [
+        "172:138",
+        0
+      ],
+      "autogrow.branch2": [
+        "172:138",
+        0
+      ]
+    },
+    "class_type": "BranchNode",
+    "_meta": {
+      "title": "video: pass 1, or the de-roped clip"
+    }
+  },
+  "172:178": {
+    "inputs": {
+      "branch": [
+        "3",
+        4
+      ],
+      "branch_names": {
+        "__value__": [
+          "FL2V (first frame)",
+          "Ref2V (reference pictures)"
+        ]
+      },
+      "autogrow.branch0": [
+        "172:110",
+        0
+      ],
+      "autogrow.branch1": [
+        "172:173",
+        0
+      ]
+    },
+    "class_type": "BranchNode",
+    "_meta": {
+      "title": "pass 1 conditioning"
+    }
+  },
+  "172:179": {
+    "inputs": {
+      "branch": [
+        "3",
+        4
+      ],
+      "branch_names": {
+        "__value__": [
+          "FL2V (first frame)",
+          "Ref2V (reference pictures)"
+        ]
+      },
+      "autogrow.branch0": [
+        "172:129",
+        0
+      ],
+      "autogrow.branch1": [
+        "172:174",
+        0
+      ]
+    },
+    "class_type": "BranchNode",
+    "_meta": {
+      "title": "pass 2 conditioning"
     }
   }
 }
