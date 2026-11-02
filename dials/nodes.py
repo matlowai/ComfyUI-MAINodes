@@ -112,6 +112,12 @@ class DialRack(io.ComfyNode):
             active = [r for r in active if r.get("solo")]
         if any(r.get("time") for r in active):
             return cls.timed(model, active, dials, curve_audio, hold_map)
+        m, report = cls.apply_rows(model, active, dials)
+        return io.NodeOutput(m, ui=ui.PreviewText(report))
+
+    @classmethod
+    def apply_rows(cls, model, active, dials):
+        """-> (model, report) for the active rows, none of which has a time curve."""
         applied, holds = [], []
         for r in active:
             label, dial = row_dial(r, dials)
@@ -127,7 +133,7 @@ class DialRack(io.ComfyNode):
             combined, hold_report = core.rack_hold_shift(applied, holds)
             report += "\n" + hold_report
         if not applied:
-            return io.NodeOutput(model, ui=ui.PreviewText(report))
+            return model, report
         m = model.clone()
         specs = [r.get("envelope") for r in active]
         if holds and any(spec is not None for spec in specs):
@@ -136,7 +142,7 @@ class DialRack(io.ComfyNode):
         if any(p is not None for p in profiles):
             report += "\n" + blocks.apply_rack(m, applied, [r.get("envelope") for r in active if not r.get("hold")], profiles,
                                                holds, cls.hidden.unique_id, report)
-            return io.NodeOutput(m, ui=ui.PreviewText(report))
+            return m, report
         if holds:
             applied = [row for row in applied if row[1]["mode"] == "pre"] + (
                 [("post shift after holds", combined, 1.0)] if any(d["mode"] == "post" for _, d, _ in applied) else [])
@@ -147,7 +153,7 @@ class DialRack(io.ComfyNode):
         scheduled = envelopes.apply_rack(m, applied, specs, cls.hidden.unique_id, report)
         if scheduled:
             report += "\nenvelopes: sampled strengths appear here when sampling starts"
-        return io.NodeOutput(m, ui=ui.PreviewText(report))
+        return m, report
 
     @classmethod
     def timed(cls, model, active, dials, curve_audio, hold_map):
@@ -158,13 +164,13 @@ class DialRack(io.ComfyNode):
         if any(r.get("envelope") is not None or r.get("blocks") is not None for r in timed):
             raise ValueError("a time-curve row cannot also take a step envelope or block strengths")
         rest = [r for r in active if not r.get("time")]
-        out = cls.execute(model, json.dumps(rest), dials)
+        m, report = cls.apply_rows(model, rest, dials)
         rows = [(*row_dial(r, dials), float(r["strength"])) for r in timed]
         path = core.text_path(model)
         for _, dial, _ in rows:
             core.check_family(dial, path)
-        m = out.result[0].clone()
-        report = (out.ui.as_dict()["text"][0] + "\n" if rest else "") + core.rack_report(rows)
+        m = m.clone()
+        report = (report + "\n" if rest else "") + core.rack_report(rows)
         text, data = timecurve.apply_rack(m, rows, [r["time"] for r in timed], curve_audio, hold_map, cls.hidden.unique_id, report)
         return io.NodeOutput(m, ui={"text": [report + "\n" + text], "timecurve": [data]} if data else ui.PreviewText(report + "\n" + text))
 
