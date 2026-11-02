@@ -33,10 +33,11 @@ NODE_DISPLAY_NAME_MAPPINGS = dict(TIMESMEAR_DISPLAY_MAPPINGS)
 # timeline (alpha, 2026-08-14) is loaded the same guarded way: it is the
 # plan-document surface, and a broken plan schema must not cost anyone the
 # de-roping nodes. vram_lab (alpha, 2026-08-18) is the exact low-VRAM block
-# executor; same rule. dials (2026-10-30) is the Dial Rack, ported from ComfyUI-Dials.
+# executor; same rule. dials (2026-10-30) is the Dial Rack, ported from ComfyUI-Dials;
+# render (2026-11-02) is the Simple front door's Render Preset and De-rope Sigmas.
 for _mod in ("window_loop", "window_expand", "timeline.nodes",
              "concept_lab.nodes", "vram_lab", "derope_any", "video_out", "video_compare",
-             "h3_capabilities", "h3_extend", "h3_repair", "h3_drift", "h3_color_carry", "dials.nodes"):
+             "h3_capabilities", "h3_extend", "h3_repair", "h3_drift", "h3_color_carry", "dials.nodes", "render"):
     try:
         _m = __import__(f"{__name__}.{_mod}", fromlist=["*"])
     except Exception as _e:                       # an alpha module must never
