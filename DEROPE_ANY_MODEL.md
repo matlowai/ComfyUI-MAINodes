@@ -1,10 +1,10 @@
-# De-rope for any model (branch `generic-derope`, not shipped)
+# De-rope for any model (alpha)
 
-This branch carries two things: the LTX-2.5 graphs and tools behind the public
-de-rope deck (https://matlowai.github.io/flipbook/derope.html), and the
-any-model layer that lets one hold map drive any regenerating model through
-per-model presets. It is a branch on purpose: what ships on `main` is the H3
-Motion Lab; this merges once the oracle-shaped LTX arm has been measured.
+Two things: the LTX-2.5 graphs and tools behind the public de-rope deck
+(https://matlowai.github.io/flipbook/derope.html, graphs in `examples/ltx25/`),
+and the any-model layer that lets one hold map drive any regenerating model
+through per-model presets. Both ship on `main` as alpha; the oracle-shaped LTX
+arm has not been measured yet.
 
 ## What it does today: a FLAT clock
 
@@ -118,7 +118,7 @@ On the saved oracle profiles the x4 rule gives panrun 712 / swordspin 816
 dilated frames over the hot span, under the 960-frame cap (913 was the largest legal length used), so it fits one
 pass at the same cost as the uniform d=16 window with the time budget spent
 where the oracle put it. That arm is the one measurement left before this
-merges. The x8 rule (hold 4 -> 32x) needs two windows per scene.
+leaves alpha. The x8 rule (hold 4 -> 32x) needs two windows per scene.
 
 ## Files
 
