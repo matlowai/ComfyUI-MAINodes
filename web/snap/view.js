@@ -12,6 +12,8 @@ import { openBoard } from "./board.js";
 import * as P from "./proposals.js";
 import * as crew from "./crew.js";
 import * as rules from "./rules.js";
+import { createDailies } from "./dailies.js";
+import * as T from "./takes.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -70,6 +72,16 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Make app", title: "open this recipe in ComfyUI's App mode: the brick faces become a run-only app (reloads the graph)", onclick: () => onMakeApp() }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: `Add brick  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}`, title: "Ctrl/Cmd+K", onclick: () => openPalette() }), seg, runBtn, progress),
     h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), inspector, handle), toast);
+  // takes under the chain: "continue from its last frame" puts that frame on the First frame brick
+  const dailies = createDailies({ host: root, say, onRestore: () => render(null), onContinue: (file) => {
+    const w = E.nodeFor("first_frame", "image")?.widgets?.find((x) => x.name === "image");
+    if (!w) throw new Error("Add the First frame brick to continue from a take");
+    if (!w.options.values.includes(file)) w.options.values.push(file);
+    E.setValue("first_frame", "image", "image", file);
+    render(null);
+    return "Its last frame is now the First frame";
+  } });
+  stack.after(dailies.el);
   let selected = null;
   const built = new Map(); // brick key -> { el, sig }: a brick is rebuilt only when what it shows changed
   let inspectorSig = "";
@@ -82,20 +94,46 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   const libQuery = h("input", { className: "snap-lib-q", placeholder: "Search the Library…", ariaLabel: "search the Library" });
   const libFor = h("button", { className: "snap-lib-for", hidden: true, title: "results fit the selected brick; click to search everything" });
   const libResults = h("div", { className: "snap-lib-results" });
-  let libScoped = true;
+  let libScoped = true, libSig = "";
   libQuery.addEventListener("input", renderLibrary);
   libFor.addEventListener("click", () => { libScoped = !libScoped; renderLibrary(); });
   rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libResults);
+  T.onChange(() => renderLibrary());
   L.ready().then(renderLibrary, () => libResults.replaceChildren(h("div", { className: "snap-quiet", textContent: "Library not available on this server" })));
 
   function renderLibrary() {
     const scope = libScoped && selected && Object.values(L.TARGET).includes(selected) ? selected : null;
     libFor.hidden = !selected || !Object.values(L.TARGET).includes(selected);
     libFor.textContent = scope ? `for: ${BRICKS[selected].title} ✕` : `for: everything · fit ${BRICKS[selected]?.title ?? ""}`;
-    const found = L.search(libQuery.value, scope).slice(0, 40);
+    // the last meaning ranking for this query and slot stays up through re-renders (a flip back to keyword order would
+    // replace the card under a click); a fresh one replaces it when it arrives
+    const q = libQuery.value, here = `${q}|${scope}`;
+    showCards(meant?.key === here ? meant.ids.map(L.get).filter(Boolean) : L.search(q, scope).slice(0, 40), meant?.key === here);
+    clearTimeout(meaningTimer);
+    meaningTimer = setTimeout(() => L.meaning(q, scope).then((ranked) => {
+      if (libQuery.value !== q) return;
+      if (ranked === "warming") { meaningTimer = setTimeout(renderLibrary, 1500); return; }
+      if (ranked) { meant = { key: here, ids: ranked.slice(0, 20).map((c) => c.id) }; showCards(ranked.slice(0, 20), true); }
+    }, () => {}), 150);
+  }
+
+  // while a card is held (a press, a drag), the list waits: replacing it would drop the card from under the hand
+  let meaningTimer = 0, held = false, waiting = null, meant = null;
+  libResults.addEventListener("pointerdown", () => { held = true; });
+  // released after the click has been delivered (ComfyUI's mouseup change check re-renders before it)
+  addEventListener("pointerup", () => { if (held) setTimeout(() => { held = false; if (waiting) { const w = waiting; waiting = null; showCards(...w); } }, 0); });
+  addEventListener("pointercancel", () => { held = false; });
+  function showCards(found, byMeaning = false) {
+    if (held) { waiting = [found, byMeaning]; return; }
+    libResults.classList.toggle("by-meaning", byMeaning);
+    // rebuilt only when the results change: a graph change can re-render mid-click, and a replaced card loses the click
+    const sig = JSON.stringify(found.map((c) => [c.id, c.title, c.media?.[0]?.filename]));
+    if (sig === libSig && libResults.childElementCount) return;
+    libSig = sig;
     libResults.replaceChildren(...(found.length ? found.map((c) => {
       const goes = L.TARGET[c.kind];
       const tile = h("div", { className: "snap-card", title: `${c.text}\n\n${goes ? `click or drag onto ${BRICKS[goes].title}` : "click to rebuild this recipe"}`, onclick: () => applyCard(c.id) },
+        c.media?.[0] ? h("div", { className: "snap-card-thumb" }, c.media[0].kind === "video" ? h("video", { src: T.url(c.media[0]), muted: true, preload: "metadata" }) : h("img", { src: T.url(c.media[0]), alt: "", loading: "lazy" })) : null,
         h("span", { className: "snap-kind", textContent: (L.KIND_LABEL[c.kind] ?? c.kind).replace(/s$/, "") }), h("span", { className: "snap-card-title", textContent: c.title }),
         c.kind === "set_snapshot" ? h("span", { className: "snap-card-tools" },
           h("button", { className: "snap-edit", textContent: "▦", title: "plan-board: every saved state of this set side by side", onclick: (e) => { e.stopPropagation(); openBoard(root, L.lineage(c), { onOpen: editSet }); } }),
@@ -177,6 +215,53 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   });
   query.addEventListener("blur", () => setTimeout(() => { if (!palette.contains(document.activeElement)) palette.hidden = true; }, 0));
 
+  // files dropped on Snap are Snap's (ComfyUI would otherwise add a loader node behind it): a brick takes a file when one of
+  // its nodes has an upload widget for that kind of file (read from the node definition), or it is References
+  const KINDS = { image: "image_upload", video: "video_upload", audio: "audio_upload" };
+  function taker(brickKey, type) {
+    const flag = KINDS[type.split("/")[0]];
+    const b = E.state().bricks.find((x) => x.key === brickKey);
+    if (!b || !flag) return null;
+    for (const [nodeKey, id] of Object.entries(b.nodes)) {
+      const n = app.graph.getNodeById(id), def = n?.constructor.nodeData?.input ?? {};
+      const w = n?.widgets?.find((x) => (def.required?.[x.name] ?? def.optional?.[x.name])?.[1]?.[flag]);
+      if (w) return { nodeKey, w };
+    }
+    return brickKey === "refs" && flag === "image_upload" ? { refs: true } : null;
+  }
+  const fileType = (e) => e.dataTransfer?.items?.[0]?.type ?? "";
+  root.addEventListener("dragover", (e) => {
+    if (![...(e.dataTransfer?.types ?? [])].includes("Files")) return;
+    e.preventDefault(); e.stopPropagation();
+    const el = e.target.closest?.("[data-brick]"), ok = el && taker(el.dataset.brick, fileType(e));
+    e.dataTransfer.dropEffect = ok ? "copy" : "none";
+    for (const b of stack.querySelectorAll(".snap-target")) if (b !== el) b.classList.remove("snap-target");
+    el?.classList.toggle("snap-target", !!ok);
+  });
+  root.addEventListener("dragleave", (e) => { if (!root.contains(e.relatedTarget)) for (const b of stack.querySelectorAll(".snap-target")) b.classList.remove("snap-target"); });
+  root.addEventListener("drop", async (e) => {
+    if (![...(e.dataTransfer?.types ?? [])].includes("Files")) return;
+    e.preventDefault(); e.stopPropagation();
+    for (const b of stack.querySelectorAll(".snap-target")) b.classList.remove("snap-target");
+    const el = e.target.closest?.("[data-brick]"), file = e.dataTransfer.files[0];
+    const t = el && file && taker(el.dataset.brick, file.type);
+    if (!t) return say(el ? `${BRICKS[el.dataset.brick]?.title ?? "This brick"} doesn't take ${file?.type.split("/")[0] || "that"} files` : "Drop the file on a brick that takes it (First frame, References)", true);
+    const before = rects();
+    try {
+      const form = new FormData();
+      form.append("image", file, file.name); // ComfyUI's upload route takes images, videos and audio under this field
+      const r = await (await api.fetchApi("/upload/image", { method: "POST", body: form })).json();
+      const path = r.subfolder ? `${r.subfolder}/${r.name}` : r.name;
+      if (t.refs) E.addPicture(path, { role: "picture", reason: file.name });
+      else {
+        if (Array.isArray(t.w.options?.values) && !t.w.options.values.includes(path)) t.w.options.values.push(path);
+        E.setValue(el.dataset.brick, t.nodeKey, t.w.name, path);
+      }
+      say(`${file.name} → ${BRICKS[el.dataset.brick].title}`);
+    } catch (err) { say(err.message, true); }
+    render(before);
+  });
+
   stack.addEventListener("pointerdown", (e) => { if (e.target === stack || e.target === lanes) { noting = false; setOpen(null); select(null); } });
   root.addEventListener("keydown", (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); e.stopPropagation(); openPalette(); return; }
@@ -184,10 +269,13 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     if (e.key === "Escape" && opened && palette.hidden && !root.querySelector(".snap-sheet")) { setOpen(null); return; }
     if (e.key === "Escape" && (selected || noting) && palette.hidden && !root.querySelector(".snap-sheet")) { noting = false; select(null); return; }
     const keys = E.state().bricks.map((b) => b.key), i = keys.indexOf(selected);
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    // arrows move along the chain: left/right in the full view, up/down when it runs top to bottom (narrow, docked)
+    const across = getComputedStyle(stack).display === "grid";
+    const step = { ArrowRight: across ? 1 : 0, ArrowLeft: across ? -1 : 0, ArrowDown: across ? 0 : 1, ArrowUp: across ? 0 : -1 }[e.key];
+    if (step) {
       e.preventDefault();
-      const j = Math.max(0, Math.min(keys.length - 1, i + (e.key === "ArrowDown" ? 1 : -1)));
-      if (e.altKey && i >= 0) { const before = rects(); E.nudge(selected, e.key === "ArrowDown" ? 1 : -1); render(before); } else select(keys[j]);
+      const j = Math.max(0, Math.min(keys.length - 1, i + step));
+      if (e.altKey && i >= 0) { const before = rects(); E.nudge(selected, step); render(before); } else { select(keys[j]); brickNode(keys[j])?.focus({ preventScroll: true }); brickNode(keys[j])?.scrollIntoView({ inline: "nearest", block: "nearest" }); }
     }
   });
 
@@ -275,10 +363,19 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     } catch (err) { say(`Couldn't queue: ${err.message}`, true); }
     runBtn.disabled = false;
   }
-  api.addEventListener("promptQueued", ({ detail }) => { runLabel.textContent = "Queued"; say(`Queued${detail?.number != null ? ` #${detail.number}` : ""}`); });
+  const brickOfNode = (id) => { const outer = String(id ?? "").split(":")[0]; return E.state().bricks.find((b) => Object.values(b.nodes).some((n) => String(n) === outer))?.key; };
+  const mark = (cls, key) => { for (const el of stack.querySelectorAll(`.snap-brick.${cls}`)) if (el.dataset.brick !== key) el.classList.remove(cls); if (key) brickNode(key)?.classList.add(cls); };
+  api.addEventListener("executing", ({ detail }) => { const key = detail == null || typeof detail === "object" && detail.node == null ? null : brickOfNode(detail?.node ?? detail); mark("running", key); if (key) brickNode(key)?.style.setProperty("--run-p", 0); });
+  api.addEventListener("execution_start", () => { mark("failed", null); for (const el of stack.querySelectorAll(".snap-brick")) el.removeAttribute("data-error"); });
+  api.addEventListener("progress", ({ detail }) => { const key = brickOfNode(detail.node); if (key) { mark("running", key); brickNode(key)?.style.setProperty("--run-p", detail.value / detail.max); } });
+  api.addEventListener("execution_error", ({ detail }) => { mark("running", null); const key = brickOfNode(detail?.node_id); if (key) { mark("failed", key); brickNode(key).dataset.error = `${detail.node_type}: ${detail.exception_message}`.slice(0, 300); } });
+  for (const ev of ["execution_success", "execution_interrupted"]) api.addEventListener(ev, () => mark("running", null));
+  api.addEventListener("promptQueued", () => say("Queued"));
+  // the label follows ComfyUI's own queue count (a fast run can finish before the "queued" event arrives)
+  api.addEventListener("status", ({ detail }) => { const n = detail?.exec_info?.queue_remaining ?? 0; if (!n) idle(); else if (!/%/.test(runLabel.textContent)) runLabel.textContent = n > 1 ? `Queued · ${n}` : "Running"; });
   api.addEventListener("progress", ({ detail }) => { progress.style.setProperty("--p", detail.value / detail.max); progress.style.opacity = 1; runLabel.textContent = `Rendering ${Math.round((100 * detail.value) / detail.max)}%`; });
   const idle = () => { runLabel.textContent = "Run"; progress.style.opacity = 0; setTimeout(() => progress.style.setProperty("--p", 0), 300); };
-  api.addEventListener("execution_success", () => { idle(); say("Render finished"); });
+  api.addEventListener("execution_success", () => say("Render finished · it's in Takes"));
   api.addEventListener("execution_error", ({ detail }) => { idle(); say(`Render failed · ${detail?.node_type ?? ""}: ${detail?.exception_message ?? ""}`.trim(), true); });
   api.addEventListener("execution_interrupted", idle);
 

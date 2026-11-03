@@ -4,6 +4,7 @@
 import { api } from "../../../scripts/api.js";
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
+import * as T from "./takes.js";
 import { BRICKS } from "./bricks.js";
 import { setBlock, blocking, drawPlan, drawElevation, toBlob, coverage } from "./setsnap.js";
 
@@ -46,12 +47,19 @@ export async function save(card) {
   loading = null;
   await ready();
 }
-export const get = (id) => cards.find((c) => c.id === id);
+// kept takes are the Library's priors: a run card that restores the take's settings; its notes are what it's searched by
+const priors = () => T.all().filter((t) => t.prior).map((t) => ({
+  id: t.id, kind: "run", title: `Prior: ${t.workflow || "take"} #${t.number}${t.seed != null ? ` · seed ${t.seed}` : ""} · ${new Date(t.created).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`,
+  text: [t.text, ...t.notes.map((n) => `${n.sentiment === "right" ? "went right" : "went wrong"}: ${n.tags.join(", ")} ${n.text}`)].join(". "),
+  media: t.media.slice(0, 1), brick: { take: t.id, seed: t.seed },
+}));
+const everything = () => [...priors(), ...cards];
+export const get = (id) => everything().find((c) => c.id === id);
 
 export function search(query, brick) {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   const kinds = brick ? Object.keys(TARGET).filter((k) => TARGET[k] === brick) : null; // a selected brick never shows recipes
-  return cards
+  return everything()
     .filter((c) => !kinds || kinds.includes(c.kind))
     .map((c) => {
       const title = c.title.toLowerCase(), text = `${c.kind} ${c.text}`.toLowerCase();
@@ -60,6 +68,19 @@ export function search(query, brick) {
     .filter(([, score]) => !words.length || score > 0)
     .sort((a, b) => b[1] - a[1])
     .map(([c]) => c);
+}
+
+// search by meaning: EmbeddingGemma 2 in a local sidecar (snap_bridge /mainodes/snap/search), slot-filtered like the
+// keyword search. null = use the keyword order (the sidecar is warming up, or this machine doesn't have it)
+let meaningOff = null;
+export async function meaning(query, brick) {
+  if (meaningOff || !query.trim()) return null;
+  const kinds = brick ? Object.keys(TARGET).filter((k) => TARGET[k] === brick) : undefined;
+  const list = everything().filter((c) => !kinds || kinds.includes(c.kind)).map(({ id, kind, title, text }) => ({ id, kind, title, text }));
+  const r = await (await api.fetchApi("/mainodes/snap/search", { method: "POST", body: JSON.stringify({ query, kinds, cards: list }) })).json();
+  if (r.unavailable) meaningOff = r.unavailable;
+  if (r.engine !== "embeddinggemma-2") return r.warming ? "warming" : null;
+  return r.ids.map(get).filter(Boolean);
 }
 
 // the phrases a card adds to a prompt: its fragment, a principle's "Prompt cue: ...", or a scene's parts
@@ -171,6 +192,7 @@ export async function apply(card) {
     const keys = await E.restore(card.brick.bricks);
     return `${card.title}: ${keys.length} bricks with their settings`;
   }
+  if (card.kind === "run" && card.brick.take) return `${T.restore(T.get(card.brick.take))} settings from ${card.title}`; // a prior restores any workflow's own nodes
   const brick = TARGET[card.kind];
   if (!E.state().bricks.some((b) => b.key === brick)) throw new Error(`${card.title} goes on the ${brick} brick; add it first`);
   if (card.kind === "set_snapshot") return applySet(card);

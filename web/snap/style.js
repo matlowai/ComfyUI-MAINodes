@@ -66,6 +66,7 @@ export const STYLE = `
 .snap-lib-q:focus { border-color: var(--s-accent); }
 .snap-lib-for { all: unset; cursor: pointer; font-size: 11px; color: var(--s-accent); padding: 2px 2px; }
 .snap-lib-results { display: flex; flex-direction: column; gap: 5px; }
+.snap-lib-results.by-meaning::before { content: "ranked by meaning · EmbeddingGemma 2"; font-size: 10.5px; color: var(--s-dim); padding: 0 2px 2px; }
 .snap-card { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 11px; background: var(--s-card); border: 1px solid var(--s-line);
   box-shadow: inset 3px 0 0 hsl(var(--hue) 70% 60% / .8); cursor: grab; touch-action: none; user-select: none; transition: border-color .12s ease-out, transform .12s ease-out; }
 .snap-card:hover { border-color: hsl(var(--hue) 70% 60% / .55); transform: translateX(2px); }
@@ -239,6 +240,76 @@ export const STYLE = `
 .snap-part.beat { color: #f5d76e; } .snap-part.character { color: #f08fb8; } .snap-part.set, .snap-part.blocking { color: #7fd1c7; }
 .snap-part.camera { color: #a7b8ff; } .snap-part.direction { color: #f0b445; }
 .snap-quiet { color: var(--s-dim); font-size: 12px; }
+/* live run on the bricks */
+.snap-brick.running { border-color: hsl(var(--hue) 80% 66%); box-shadow: 0 0 0 4px hsl(var(--hue) 80% 60% / .22), 0 0 32px hsl(var(--hue) 80% 60% / .35); }
+.snap-brick.running::before { content: ""; position: absolute; left: 14px; right: 14px; bottom: 8px; height: 3px; border-radius: 2px; background: linear-gradient(90deg, hsl(var(--hue) 80% 66%) calc(var(--run-p, 0) * 100%), #ffffff14 0); }
+.snap-brick.failed { border-color: #f0b445; box-shadow: 0 0 0 4px #f0b44533; }
+.snap-brick.failed::before { content: attr(data-error); position: absolute; left: 10px; right: 10px; top: calc(100% + 8px); font-size: 11px; color: #f0b445; line-height: 1.3; }
+/* takes */
+.snap-takes { flex: none; height: 232px; display: flex; flex-direction: column; border-top: 1px solid var(--s-line); background: color-mix(in srgb, var(--s-bg) calc(var(--veil) * 70%), transparent); }
+.snap-takes.empty { height: 92px; }
+.snap-takes > header { display: flex; align-items: center; gap: 10px; padding: 10px 18px 6px; }
+.snap-takes > header strong { font-size: 13px; }
+.snap-takes-strip { flex: 1; min-height: 0; display: flex; gap: 12px; overflow: auto hidden; padding: 4px 18px 14px; align-items: stretch; }
+.snap-takes-strip > .snap-quiet { align-self: center; }
+.snap-take { flex: none; width: 216px; margin: 0; display: flex; flex-direction: column; gap: 6px; border-radius: 12px; cursor: pointer; outline: none; transition: transform .12s ease-out; }
+.snap-take:hover, .snap-take:focus-visible { transform: translateY(-2px); }
+.snap-take.dragging { opacity: .4; }
+.snap-take.drop-before { box-shadow: -4px 0 0 var(--s-accent); }
+.snap-take-media { position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #000; border: 1px solid #ffffff14; }
+.snap-take-media video, .snap-take-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.snap-take.keep .snap-take-media { border-color: #57c785; } .snap-take.reject .snap-take-media { opacity: .55; }
+.snap-take.error .snap-take-media, .snap-take.interrupted .snap-take-media { border-color: #f0b445; }
+.snap-take-none { display: grid; place-items: center; height: 100%; color: var(--s-dim); font-size: 11px; }
+.snap-take-rank { position: absolute; left: 6px; top: 6px; font: 700 12px/1 Inter, system-ui, sans-serif; padding: 4px 7px; border-radius: 7px; background: #000a; color: #fff; }
+.snap-take-rank:empty { display: none; }
+.snap-take-verdict { position: absolute; right: 6px; bottom: 6px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; background: #000a; font-size: 12px; }
+.snap-take.keep .snap-take-verdict { color: #57c785; } .snap-take.reject .snap-take-verdict { color: #f08f8f; }
+.snap-take-prior { position: absolute; left: 6px; bottom: 6px; font-size: 10px; padding: 2px 6px; border-radius: 6px; background: #f5d76e; color: #1b1c20; font-weight: 700; }
+.snap-take-pick { position: absolute; right: 6px; top: 6px; width: 16px; height: 16px; margin: 0; accent-color: var(--s-accent); opacity: .5; }
+.snap-take:hover .snap-take-pick, .snap-take-pick:checked { opacity: 1; }
+.snap-take figcaption { font-size: 12px; display: flex; flex-wrap: wrap; gap: 0 4px; align-items: baseline; }
+.snap-take figcaption .snap-quiet { flex-basis: 100%; font-size: 11px; }
+.snap-take figcaption em { color: #f0b445; font-style: normal; }
+.snap-take-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 16px; padding: 16px; }
+.snap-take-left { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+.snap-take-stage { position: relative; flex: 1; min-height: 0; background: #000; border-radius: 12px; overflow: hidden; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); }
+.snap-take-stage > video, .snap-take-stage > img { width: 100%; height: 100%; min-height: 0; object-fit: contain; grid-area: 1 / 1; }
+.snap-take-overlay { grid-area: 1 / 1; width: 100%; height: 100%; pointer-events: none; position: relative; z-index: 2; } /* above the video's own layer */
+.snap-take-overlay.marking { pointer-events: auto; cursor: crosshair; }
+.snap-take-markers { position: relative; height: 10px; margin: 0 12px; }
+.snap-take-markers i { position: absolute; top: 0; width: 3px; height: 10px; margin-left: -1px; border-radius: 2px; background: #f0b445; }
+.snap-take-markers i.right { background: #57c785; }
+.snap-take-sheet aside { display: flex; flex-direction: column; gap: 8px; overflow: auto; min-height: 0; }
+.snap-verdicts { display: flex; gap: 8px; }
+.snap-verdict { all: unset; cursor: pointer; flex: 1; text-align: center; padding: 9px; border-radius: 10px; font-weight: 600; background: var(--s-card); box-shadow: inset 0 0 0 1px var(--s-line); }
+.snap-verdict.keep.on { background: #57c78533; color: #8fe3b0; box-shadow: inset 0 0 0 1px #57c785; }
+.snap-verdict.reject.on { background: #f08f8f2b; color: #f6b0b0; box-shadow: inset 0 0 0 1px #f08f8f; }
+.snap-take-rankline { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--s-dim); }
+.snap-sentiment { align-self: flex-start; }
+.snap-sentiment button.on.wrong { color: #f0b445; } .snap-sentiment button.on.right { color: #57c785; }
+.snap-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.snap-tag { all: unset; cursor: pointer; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--s-card); color: var(--s-dim); box-shadow: inset 0 0 0 1px var(--s-line); }
+.snap-tag.on.wrong { background: #f0b44526; color: #f5c46a; box-shadow: inset 0 0 0 1px #f0b44599; }
+.snap-tag.on.right { background: #57c78526; color: #8fe3b0; box-shadow: inset 0 0 0 1px #57c78599; }
+.snap-take-noteline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.snap-take-noteline .snap-primary { margin: 0; padding: 7px 14px; }
+.snap-link.on { box-shadow: inset 0 0 0 1px var(--s-accent); color: var(--s-fg); }
+.snap-take-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.snap-take-notes li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 5px 8px; border-radius: 9px; background: var(--s-card); border-left: 3px solid #f0b445; }
+.snap-take-notes li.right { border-left-color: #57c785; }
+.snap-take-delta { margin: 0; padding-left: 16px; font-size: 12px; color: var(--s-dim); } .snap-take-delta b { color: var(--s-fg); font-weight: 600; }
+.snap-take-text { font-size: 12px; white-space: pre-wrap; color: var(--s-dim); }
+.snap-compare { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px 16px 0; }
+.snap-compare figure { margin: 0; display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+.snap-compare video, .snap-compare img { width: 100%; flex: 1; min-height: 0; object-fit: contain; background: #000; border-radius: 12px; }
+.snap-compare figcaption { text-align: center; font-weight: 700; font-size: 15px; }
+.snap-compare-pick { display: flex; gap: 10px; align-items: center; padding: 14px 16px 16px; }
+.snap-compare-pick .snap-lib-q { flex: 1; }
+.snap-compare-pick .snap-primary, .snap-compare-pick .snap-link { margin: 0; }
+.snap-card-thumb { margin: -2px -4px 4px; border-radius: 8px; overflow: hidden; aspect-ratio: 16 / 9; background: #000; }
+.snap-card-thumb video, .snap-card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+@container (max-width: 760px) { .snap-takes { height: 200px; } .snap-take-body { grid-template-columns: minmax(0, 1fr); } }
 .snap-empty { margin: auto; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center; max-width: 440px; }
 .snap-empty-art { display: flex; align-items: center; margin-bottom: 14px; }
 .snap-empty-art i { width: 64px; height: 46px; border-radius: 12px; background: linear-gradient(180deg, hsl(var(--hue) 40% 30%), hsl(var(--hue) 30% 20%)); border: 1px solid hsl(var(--hue) 50% 60% / .4); }
@@ -263,6 +334,7 @@ export const STYLE = `
 .snap-toast { position: absolute; z-index: 90; left: 50%; bottom: 24px; transform: translate(-50%, 12px); opacity: 0; pointer-events: none; padding: 10px 16px; max-width: min(640px, 80%);
   border-radius: 12px; background: var(--s-fg); color: var(--s-bg); font-size: 12.5px; box-shadow: 0 12px 32px #0008; transition: opacity .15s ease-out, transform .15s ease-out; }
 .snap-toast.show { opacity: 1; transform: translate(-50%, 0); }
+.snap-root:has(.snap-sheet) .snap-toast { bottom: auto; top: 64px; } /* a sheet's own controls sit at the bottom */
 .snap-toast.bad { background: #f0b445; color: #1b1c20; }
 /* narrow: a phone, or Snap docked in the sidebar next to the graph: the chain runs top to bottom */
 @container (max-width: 760px) {

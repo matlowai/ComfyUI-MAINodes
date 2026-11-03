@@ -9,6 +9,7 @@ import { diff } from "./continuity.js";
 import * as P from "./proposals.js";
 import * as crew from "./crew.js";
 import * as rules from "./rules.js";
+import * as T from "./takes.js";
 
 const has = (key) => E.state().bricks.some((b) => b.key === key);
 const brickEnum = { type: "string", description: `a recipe brick (${PACK_BRICKS.join(", ")}) or any installed node as node:<NodeType> (a new one) / node:<NodeType>#<n> (one in the recipe)` };
@@ -164,6 +165,44 @@ export const TOOLS = [
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
     run: () => crew.report(),
+  },
+  {
+    name: "list_takes",
+    description: "The takes (finished runs) of the open workflow, ranked ones first in the person's order: number, seed, status, verdict (keep/reject), whether it's a prior, how many notes, the media files and the prompt's start. For dailies: read takes, then get_take for one take's notes and settings.",
+    inputSchema: { type: "object", properties: {} },
+    annotations: { readOnlyHint: true },
+    run: async () => {
+      await T.load();
+      const order = await T.ranking();
+      return T.inGroup().sort((a, b) => (order.includes(a.id) ? order.indexOf(a.id) : 1e9 + a.created) - (order.includes(b.id) ? order.indexOf(b.id) : 1e9 + b.created))
+        .map((t) => ({ id: t.id, number: t.number, rank: order.includes(t.id) ? order.indexOf(t.id) + 1 : null, seed: t.seed, status: t.status, verdict: t.verdict, prior: t.prior, notes: t.notes.length, media: t.media.map((m) => `${m.type}/${m.subfolder ? `${m.subfolder}/` : ""}${m.filename}`), prompt: t.text.slice(0, 200) }));
+    },
+  },
+  {
+    name: "get_take",
+    description: "One take in full: its notes (moment in seconds, optional region [x, y, w, h] as fractions of the frame, went wrong/right, tags, words, who wrote it), what changed since the take before it, the prompt and the error if it failed.",
+    inputSchema: { type: "object", properties: { take: { type: "string" } }, required: ["take"] },
+    annotations: { readOnlyHint: true },
+    run: async ({ take }) => {
+      await T.load();
+      const t = T.get(take);
+      if (!t) throw new Error(`No take ${take}`);
+      const prev = T.inGroup(t.group).filter((x) => x.created < t.created).at(-1);
+      return { id: t.id, number: t.number, seed: t.seed, status: t.status, error: t.error, verdict: t.verdict, prior: t.prior, seconds: t.seconds, prompt: t.text, notes: t.notes, media: t.media, changed_since_previous: prev ? T.delta(prev, t) : [] };
+    },
+  },
+  {
+    name: "note_take",
+    description: "Pin a reviewer's note on a take: the moment (seconds), optionally a region [x, y, w, h] as fractions of the frame, whether it went wrong or right, tags (wrong: " + T.TAGS.wrong.join(", ") + "; right: " + T.TAGS.right.join(", ") + ") and a sentence. Notes from agents are kept apart from the person's (by: agent).",
+    inputSchema: { type: "object", properties: { take: { type: "string" }, t: { type: "number" }, region: { type: "array", items: { type: "number" }, minItems: 4, maxItems: 4 },
+      sentiment: { type: "string", enum: ["wrong", "right"] }, tags: { type: "array", items: { type: "string" } }, text: { type: "string" } }, required: ["take", "t", "sentiment", "text"] },
+    run: async ({ take, t, region, sentiment, tags = [], text }) => {
+      await T.load();
+      const x = T.get(take);
+      if (!x) throw new Error(`No take ${take}`);
+      await T.note(x, { t, region, sentiment, tags, text, by: "agent" });
+      return { take, notes: x.notes.length };
+    },
   },
   {
     name: "compile_shot",
