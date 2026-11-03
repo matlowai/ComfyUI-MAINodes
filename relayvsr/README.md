@@ -1,6 +1,7 @@
 # RelayVSR upscaling (alpha)
 
-Video super-resolution with [RelayVSR](https://github.com/kopperx/RelayVSR), run through
+Video super-resolution with [RelayVSR](https://github.com/kopperx/RelayVSR) by kopperx (code, paper, project page and demo
+on their GitHub), run through
 [ModelTC/LightX2V](https://github.com/ModelTC/LightX2V) in its own Python process, so nothing heavy loads into
 ComfyUI. Use the **X4** model even for 2x output: it computes at 4x and resizes, and on our H3 test clips it was clearly
 better than the native X2 model, which re-draws faces (PSNR +3.3 dB, less flicker).
@@ -27,7 +28,8 @@ keeps the soundtrack), **RelayVSR • Upscale Video File**, **RelayVSR • Upsca
    above is CUDA 13.0 (Blackwell tested).
 2. **Weights** (safetensors only), into `ComfyUI/models/relayvsr/RelayVSR/`:
    - `flash.safetensors` plus one Wan file. Full precision: `wan.safetensors` from
-     [kopper/RelayVSR](https://huggingface.co/kopper/RelayVSR). Smaller cards: one of the pre-quantized Wan files
+     [kopper/RelayVSR](https://huggingface.co/kopper/RelayVSR), the authors' official weights repo (it has no model card;
+     their GitHub links it as "Model Weights"). Smaller cards: one of the pre-quantized Wan files
      from [MATLOWAI/RelayVSR-X4-Quants](https://huggingface.co/MATLOWAI/RelayVSR-X4-Quants) (see VRAM below).
 3. On the Settings node set `lightx2v_root` to the LightX2V folder (or leave `auto` if it sits next to ComfyUI) and keep
    `model_dir` on `auto`. Example graphs: [`examples/relayvsr/`](../examples/relayvsr/).
