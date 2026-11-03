@@ -25,9 +25,9 @@ export const ready = () => (loading ??= loadAll().then((all) => (cards = all), (
 // a version of a set card holding an edited snapshot: `mine` is the one working copy Apply keeps, otherwise a new card
 export function version(card, snapshot, mine) {
   const lineage = card.lineage ?? card.id;
-  const stamp = new Date().toTimeString().slice(0, 5);
+  const stamp = new Date().toTimeString().slice(0, 8);
   return { id: mine ? `${lineage}-mine` : `${lineage}-${Date.now().toString(36)}`, kind: "set_snapshot", lineage,
-    title: mine ? `Set snapshot: ${snapshot.name}, ${snapshot.shot} (my edit)` : `Set snapshot: ${snapshot.name}, end of ${snapshot.shot} (saved ${stamp})`,
+    title: mine ? `Set snapshot: ${snapshot.name}, end of ${snapshot.shot} (my edit)` : `Set snapshot: ${snapshot.name}, end of ${snapshot.shot} (saved ${stamp})`,
     text: card.text, brick: { snapshot } };
 }
 
@@ -60,6 +60,15 @@ function cues(card) {
   return one ? [one] : [];
 }
 
+function removeFromPrompt(phrases) {
+  const prompt = E.getValue("render", "render", "prompt") ?? "";
+  let [first, ...rest] = prompt.split("\n");
+  const before = first;
+  for (const x of phrases) first = first.replace(x, "");
+  first = first.replace(/\s*,\s*(?=[,.])/g, "").replace(/\s{2,}/g, " ").replace(/\s+\./g, ".").trimEnd();
+  if (first !== before) E.setValue("render", "render", "prompt", [first, ...rest].join("\n"));
+}
+
 // add the phrases not already there to the first line of the H3 prompt (the integrated description)
 function addToPrompt(phrases) {
   const prompt = E.getValue("render", "render", "prompt") ?? "";
@@ -90,9 +99,16 @@ export async function applySet(card, s = card.brick.snapshot) {
   const plan = await upload(drawPlan(s), `${stem}_plan.png`);
   const elevation = await upload(drawElevation(s), `${stem}_elevation.png`);
   const source = card.lineage ?? card.id; // every version of one set shares its picture slots
-  E.addPicture(plan, { role: "set: plan", reason: `${s.name}, end of ${s.shot}, top down`, source });
-  E.addPicture(elevation, { role: "set: elevation", reason: `${s.name}, end of ${s.shot}, looking north`, source });
-  if (E.state().bricks.some((b) => b.key === "render")) addToPrompt([setBlock(s), blocking(s)]);
+  E.batch(() => { // pictures, prompt and the remembered set text are one undo step
+    E.addPicture(plan, { role: "set: plan", reason: `${s.name}, end of ${s.shot}, top down`, source, card: card.id });
+    E.addPicture(elevation, { role: "set: elevation", reason: `${s.name}, end of ${s.shot}, looking north`, source, card: card.id });
+    if (E.state().bricks.some((b) => b.key === "render")) { // this set's earlier block and blocking give way to the new ones
+      const refs = E.state().bricks.find((b) => b.key === "refs"), text = [setBlock(s), blocking(s)];
+      removeFromPrompt(refs.setText?.[source] ?? []);
+      addToPrompt(text);
+      E.remember("refs", "setText", { ...refs.setText, [source]: text });
+    }
+  });
   return `${card.title}: plan and elevation in References, set block in the prompt`;
 }
 

@@ -27,8 +27,9 @@ const COMPASS = ["north", "north-east", "east", "south-east", "south", "south-we
 export function blocking(s) {
   const things = [...s.props.map((p) => [p.name, p.at]), ...s.room.openings.map((o) => [`the ${o.kind}`, [(o.from[0] + o.to[0]) / 2, (o.from[1] + o.to[1]) / 2]])];
   return s.actors.map((a) => {
-    const [near] = things.reduce((best, t) => (Math.hypot(t[1][0] - a.at[0], t[1][1] - a.at[1]) < Math.hypot(best[1][0] - a.at[0], best[1][1] - a.at[1]) ? t : best));
-    return `${a.name} stands by ${near.replace(/^(?!the )/, "the ")}, facing ${COMPASS[Math.round(((a.facing % 360) + 360) % 360 / 45) % 8]}${a.hands ? `, ${a.hands}` : ""}.`;
+    const near = things.length && things.reduce((best, t) => (Math.hypot(t[1][0] - a.at[0], t[1][1] - a.at[1]) < Math.hypot(best[1][0] - a.at[0], best[1][1] - a.at[1]) ? t : best))[0];
+    const where = near ? ` by ${near.replace(/^(?!the )/, "the ")}` : "";
+    return `${a.name} stands${where}, facing ${COMPASS[Math.round(((a.facing % 360) + 360) % 360 / 45) % 8]}${a.hands ? `, ${a.hands}` : ""}.`;
   }).join(" ");
 }
 
@@ -65,9 +66,11 @@ export function side(s, at = s.camera.at) {
 // single on each actor; positions stay inside the room.
 export function coverage(s) {
   if (s.actors.length !== 2) return [];
-  const [A, B] = s.actors, [ax, ay] = A.at, [bx, by] = B.at;
+  // the actors in the previous shot's order (by name), so the side keeps its meaning if they swapped places
+  const prev = s.previous?.actors.length === 2 && s.previous.actors.map((a) => s.actors.find((b) => b.name === a.name));
+  const [A, B] = prev && prev.every(Boolean) ? prev : s.actors, [ax, ay] = A.at, [bx, by] = B.at;
   const len = Math.hypot(bx - ax, by - ay) || 1, u = [(bx - ax) / len, (by - ay) / len];
-  const k = side(s, s.previous?.camera.at ?? s.camera.at) || 1, n = [-u[1] * k, u[0] * k]; // unit normal toward that side
+  const k = (prev && prev.every(Boolean) ? side(s.previous) : side(s)) || 1, n = [-u[1] * k, u[0] * k]; // unit normal toward that side
   const [hw, hd] = s.room.size.map((v) => v / 2 - 0.25);
   const clamp = ([x, y]) => [Math.max(-hw, Math.min(hw, x)), Math.max(-hd, Math.min(hd, y))];
   const toward = (from, to) => Math.round(((Math.atan2(to[0] - from[0], to[1] - from[1]) * 180) / Math.PI + 360) % 360);

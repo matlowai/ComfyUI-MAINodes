@@ -137,7 +137,12 @@ export const TOOLS = [
     name: "answer_note",
     description: "Reply to a director's note in one or two lines (what you proposed and why). The note stays open until the person closes it.",
     inputSchema: { type: "object", properties: { note: { type: "string" }, reply: { type: "string" } }, required: ["note", "reply"] },
-    run: ({ note, reply }) => E.updateNote(note, { status: "answered", reply }),
+    direct: true,
+    run: ({ note, reply }) => {
+      const n = E.notes().find((x) => x.id === note);
+      if (n && !["open", "answered"].includes(n.status)) throw new Error(`The person already closed note ${note} (${n.status})`);
+      return E.updateNote(note, { status: "answered", reply });
+    },
   },
   {
     name: "crew_report",
@@ -157,13 +162,14 @@ export const TOOLS = [
 
 const byName = new Map(TOOLS.map((t) => [t.name, t]));
 export const readOnly = (name) => !!byName.get(name)?.annotations?.readOnlyHint;
+const proposable = (name) => !readOnly(name) && !byName.get(name)?.direct;
 
 // `propose: true` on any tool that changes the recipe parks the call as a proposal for the person to accept or reject
 export async function callTool(name, args = {}) {
   const tool = byName.get(name);
   if (!tool) throw new Error(`Unknown Snap tool ${name}`);
   const { propose, reason, for_note, ...rest } = args;
-  if (propose && !readOnly(name)) {
+  if (propose && proposable(name)) {
     const p = P.add(name, rest, reason, for_note);
     return { proposed: p.id, status: "waiting for the person to accept or reject; see list_proposals" };
   }
@@ -177,7 +183,7 @@ const PROPOSE = {
 };
 export const schema = () => TOOLS.map(({ name, description, inputSchema, annotations = {} }) => ({
   name, description, annotations,
-  inputSchema: annotations.readOnlyHint ? inputSchema : { ...inputSchema, properties: { ...inputSchema.properties, ...PROPOSE } },
+  inputSchema: proposable(name) ? { ...inputSchema, properties: { ...inputSchema.properties, ...PROPOSE } } : inputSchema,
 }));
 
 // WebMCP (Chrome origin trial, document.modelContext; navigator.modelContext is the older spelling). No-op elsewhere.

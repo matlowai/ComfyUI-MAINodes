@@ -53,6 +53,7 @@ export function openSetEditor(host, card, { onApply, onSave }) {
   const inside = (v, i) => Math.max(-s.room.size[i] / 2, Math.min(s.room.size[i] / 2, v));
 
   plan.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
     const target = hit(toWorld(e));
     if (target?.setup) { // take a coverage setup as the camera
       const { name, ...cam } = target.setup;
@@ -76,9 +77,10 @@ export function openSetEditor(host, card, { onApply, onSave }) {
   });
   for (const ev of ["pointerup", "pointercancel"]) plan.addEventListener(ev, () => { drag = null; });
   sheet.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { e.stopPropagation(); close(); return; }
+    e.stopPropagation(); // keys in the sheet belong to the sheet, not the bricks behind it
+    if (e.key === "Escape") { close(); return; }
     const step = { ArrowLeft: [-GRID, 0], ArrowRight: [GRID, 0], ArrowUp: [0, GRID], ArrowDown: [0, -GRID] }[e.key];
-    if (!step || !selected || e.target.closest("button")) return;
+    if (!step || !selected || e.target.closest("button,input,textarea")) return;
     e.preventDefault();
     selected.at = [snapTo(inside(selected.at[0] + step[0], 0)), snapTo(inside(selected.at[1] + step[1], 1))];
     dirty = true;

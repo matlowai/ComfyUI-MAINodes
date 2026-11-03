@@ -242,7 +242,7 @@ export function createView({ onSwitch, onMakeApp, run }) {
     if (!pics.length) return [meter, h("div", { className: "snap-quiet", textContent: "drop a set snapshot or character card here" })];
     return [meter, h("div", { className: "snap-pics" }, pics.map((p) => {
       const [sub, ...name] = p.file.split("/");
-      const from = p.source && (L.get(`${p.source}-mine`) ?? L.get(p.source));
+      const from = p.source && (L.get(p.card) ?? L.get(`${p.source}-mine`) ?? L.get(p.source)); // the exact version in References
       return h("figure", { title: `${p.reason}${from ? "\nclick to edit the set" : ""}`, className: from ? "editable" : "", onclick: from ? () => editSet(from) : null }, h("img", { src: api.apiURL(`/view?filename=${encodeURIComponent(name.join("/"))}&subfolder=${encodeURIComponent(sub)}&type=input`), alt: p.role, loading: "lazy" }), h("figcaption", { textContent: p.role }));
     }))];
   }
@@ -264,13 +264,15 @@ export function createView({ onSwitch, onMakeApp, run }) {
     const asks = P.all().filter((p) => p.note === n.id && p.status === "waiting").length;
     const close = (status) => { E.updateNote(n.id, { status }); render(null); };
     return h("div", { className: `snap-note ${n.status}` },
-      h("span", { className: "snap-note-tag", textContent: "note" }), h("span", { className: "snap-note-text", textContent: n.text }),
+      h("span", { className: "snap-note-tag", textContent: n.brick && !E.state().bricks.some((b) => b.key === n.brick) ? `note · ${BRICKS[n.brick]?.title ?? n.brick} (removed)` : "note" }), h("span", { className: "snap-note-text", textContent: n.text }),
       n.reply ? h("span", { className: "snap-note-reply" }, h("span", { className: "snap-agent", textContent: "agent" }), ` ${n.reply}`) : null,
       asks ? h("span", { className: "snap-quiet", textContent: `${asks} proposal${asks === 1 ? "" : "s"} waiting` }) : null,
       h("button", { className: "snap-accept", textContent: "Done", title: "the note is handled", onclick: () => close("resolved") }),
       h("button", { className: "snap-reject", textContent: "Dismiss", onclick: () => close("dismissed") }));
   }
-  const openNotes = (brick) => E.notes().filter((n) => n.brick === brick && (n.status === "open" || n.status === "answered"));
+  const isOpen = (n) => n.status === "open" || n.status === "answered";
+  // notes on a brick that has since been removed stay visible (with the recipe's own) until someone closes them
+  const openNotes = (brick) => E.notes().filter((n) => isOpen(n) && (n.brick === brick || (brick === null && n.brick && !E.state().bricks.some((b) => b.key === n.brick))));
 
   function brickEl(info) {
     const def = BRICKS[info.brick];
@@ -312,7 +314,7 @@ export function createView({ onSwitch, onMakeApp, run }) {
   // pin a note to the selected brick, or to the whole recipe when nothing is selected
   function noteComposer() {
     const text = h("textarea", { className: "snap-note-input", rows: 2, placeholder: selected ? `Note on ${BRICKS[selected].title}: what should change?` : "Note on the whole recipe…" });
-    const pin = () => { if (!text.value.trim()) return; E.addNote(text.value.trim(), selected); say("Note pinned; agents see it with get_notes"); render(null); };
+    const pin = () => { if (!text.value.trim()) return; E.addNote(text.value.trim(), selected); text.value = ""; say("Note pinned; agents see it with get_notes"); render(null); };
     // Ctrl+Enter is ComfyUI's Queue Prompt: in the note box it pins the note and must go no further
     text.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); e.stopPropagation(); pin(); } });
     return h("div", { className: "snap-note-compose" }, h("div", { className: "snap-rail-title", textContent: "Director's note" }), text,
@@ -325,6 +327,7 @@ export function createView({ onSwitch, onMakeApp, run }) {
     if (sig && (sig === inspectorSig || (inspector.contains(document.activeElement) && inspectorSig.startsWith(`${selected}|`)))) return;
     inspectorSig = sig;
     if (!info) {
+      if (inspector.contains(document.activeElement) && inspectorSig === "") return; // a whole-recipe note is being typed
       inspectorSig = "";
       const crewLine = h("div", { className: "snap-quiet" });
       crew.report().then(({ total: [a, n], kinds }) => {
@@ -368,6 +371,8 @@ export function createView({ onSwitch, onMakeApp, run }) {
     return el;
   }
 
+  const brickNode = (key) => [...stack.children].find((el) => el.dataset.brick === key); // keys can come from agents: no selector strings
+
   // agent proposals: ghost bricks for proposed snaps, dashed chips on the brick for everything else
   async function decide(id, accept) {
     const before = rects();
@@ -404,11 +409,11 @@ export function createView({ onSwitch, onMakeApp, run }) {
     for (const el of stack.querySelectorAll(".snap-ghost-brick, .snap-proposal")) el.remove();
     for (const p of waiting) {
       if (p.tool === "snap") {
-        const after = p.args.after && stack.querySelector(`[data-brick="${p.args.after}"]`);
+        const after = p.args.after && brickNode(p.args.after);
         stack.insertBefore(proposalEl(p, true), after ? after.nextSibling : null);
       } else {
         const target = p.args.brick ?? L.TARGET[L.get(p.args.card)?.kind];
-        (stack.querySelector(`[data-brick="${target}"]`) ?? stack).append(proposalEl(p, false));
+        (brickNode(target) ?? stack).append(proposalEl(p, false));
       }
     }
   }

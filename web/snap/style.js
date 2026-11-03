@@ -88,7 +88,7 @@ export const STYLE = `
 @keyframes snap-sheet-in { from { opacity: 0; transform: translateY(8px) scale(.99); } }
 .snap-sheet > header { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--s-line); }
 .snap-set-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; padding: 16px; }
-.snap-set-plan { width: 100%; height: auto; max-height: 100%; object-fit: contain; border-radius: 12px; touch-action: none; cursor: grab; background: #f4f1ea; align-self: start; outline: none; }
+.snap-set-plan { width: auto; height: auto; max-width: 100%; max-height: 100%; border-radius: 12px; touch-action: none; cursor: grab; background: #f4f1ea; align-self: start; outline: none; }
 .snap-set-body aside { display: flex; flex-direction: column; gap: 8px; overflow: auto; }
 .snap-set-block { margin: 0; font-size: 13px; line-height: 1.45; }
 .snap-set-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
@@ -139,7 +139,7 @@ export const STYLE = `
 .snap-results { max-height: 320px; overflow: auto; padding: 6px; }
 .snap-hit { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; min-height: 28px; }
 .snap-hit.on, .snap-hit:hover { background: var(--s-card); }
-.snap-toast { position: absolute; left: 50%; bottom: 20px; transform: translate(-50%, 12px); opacity: 0; pointer-events: none; padding: 8px 14px;
+.snap-toast { position: absolute; z-index: 90; left: 50%; bottom: 20px; transform: translate(-50%, 12px); opacity: 0; pointer-events: none; padding: 8px 14px;
   border-radius: 10px; background: var(--s-fg); color: var(--s-bg); font-size: 12px; transition: opacity .15s ease-out, transform .15s ease-out; }
 .snap-toast.show { opacity: 1; transform: translate(-50%, 0); }
 .snap-toast.bad { background: #f0b445; color: #1b1c20; }

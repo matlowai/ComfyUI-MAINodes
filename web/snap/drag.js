@@ -58,7 +58,12 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, car
     d.gap = parseFloat(getComputedStyle(stack).rowGap) || 12;
     // a host is lifted with the attachments under it; they ride the same transform
     d.group = [];
-    if (d.item) for (let i = items.indexOf(d.item); i < items.length && (i === items.indexOf(d.item) || items[i].dataset.host === d.item.dataset.brick); i++) d.group.push(items[i]);
+    if (d.item) {
+      const at = items.indexOf(d.item);
+      let end = at + 1;
+      while (items[end]?.dataset.host === d.item.dataset.brick) end++;
+      d.group = items.slice(at, end);
+    }
     d.others = items.filter((el) => !d.group.includes(el));
     d.springs = new Map(d.others.map((el) => [el, new Spring([0], SPRINGS.reflow)]));
     if (d.item) {

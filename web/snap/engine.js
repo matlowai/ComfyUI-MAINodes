@@ -14,7 +14,9 @@ const EMPTY = Object.freeze({ version: 1, bricks: Object.freeze([]), bindings: O
 export const state = () => app.graph.extra?.snap ?? EMPTY;
 const record = () => ((app.graph.extra ??= {}).snap ??= { version: 1, bricks: [], bindings: [] });
 
-// one undo step for a batch of edits (the same pair the node library's paste path emits)
+// one undo step for a batch of edits (the same pair the node library's paste path emits); pairs nest, so callers can
+// group several engine edits into one step with `batch`
+export const batch = (fn) => transaction(fn);
 function transaction(fn) {
   app.canvas.emitBeforeChange();
   try { return fn(); } finally { app.canvas.emitAfterChange(); }
@@ -167,21 +169,22 @@ async function snapOnce(key, { values, at } = {}) {
 // a picture reference: a LoadImage node owned by the References brick, wired into the next free ref_images slot
 // (H3 References takes 9), recorded with its role and reason so the brick can show what each picture is for
 export const PICTURE_SLOTS = 9;
-export function addPicture(file, { role, reason, source }) {
+export function addPicture(file, { role, reason, source, card }) {
   const b = brick("refs");
   if (!b) throw new Error("Add the References brick first");
-  const pictures = b.pictures ?? [];
+  let pictures = b.pictures ?? [];
   if (pictures.some((p) => p.file === file)) return pictures.find((p) => p.file === file);
   const same = source && pictures.find((p) => p.source === source && p.role === role);
-  if (same) { // the same card's picture for the same role: swap the file on its LoadImage, keep its slot
-    const w = widget(node(same.node), "image");
+  const w = same && widget(node(same.node), "image");
+  if (w) { // the same set's picture for the same role: swap the file on its LoadImage, keep its slot
     return transaction(() => {
       if (!w.options.values.includes(file)) w.options.values.push(file);
-      w.value = file;
-      b.pictures = pictures.map((p) => (p === same ? { ...p, file, reason } : p));
+      w.value = file; w.callback?.(file);
+      b.pictures = pictures.map((p) => (p === same ? { ...p, file, reason, card } : p));
       return b.pictures.find((p) => p.node === same.node);
     });
   }
+  if (same) pictures = b.pictures = pictures.filter((p) => p !== same); // its LoadImage was deleted in the graph: make a new one
   if (pictures.length >= PICTURE_SLOTS) throw new Error(`References holds ${PICTURE_SLOTS} pictures; remove one first`);
   const refs = node(b.nodes.refs);
   return transaction(() => {
@@ -193,7 +196,7 @@ export function addPicture(file, { role, reason, source }) {
     if (!w.options.values.includes(file)) w.options.values.push(file);
     w.value = file;
     n.connect(0, refs, refs.inputs.findIndex((i) => i.name.startsWith("ref_images.") && i.link == null));
-    const picture = { node: n.id, file, role, reason, ...(source ? { source } : {}) };
+    const picture = { node: n.id, file, role, reason, ...(source ? { source, card } : {}) };
     b.nodes[`picture_${n.id}`] = n.id;
     b.placed[n.id] = [...n.pos];
     b.pictures = [...pictures, picture];
@@ -286,6 +289,12 @@ export function addNote(text, brickKey = null) {
   transaction(() => { const s = record(); s.notes = [...(s.notes ?? []), note]; });
   return note;
 }
+// a field on one brick's record (e.g. the set text References last put into the prompt), one undo step
+export function remember(brickKey, field, value) {
+  const b = brick(brickKey);
+  if (b) transaction(() => { b[field] = value; });
+}
+
 export function updateNote(id, changes) {
   const s = state();
   if (!notes().some((n) => n.id === id)) throw new Error(`No note ${id}`);
