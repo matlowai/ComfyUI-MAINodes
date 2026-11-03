@@ -367,13 +367,13 @@ def _preflight_input(input_path: Path) -> None:
 def process_video(input_file: str | Path, settings: Settings, *, output_subfolder: str = "relayvsr",
                   filename_prefix: str = "relayvsr_x2", seed: int = 42,
                   check_interrupt: Optional[Callable[[], None]] = None,
-                  on_line: Optional[Callable[[str], None]] = None) -> tuple[Path, dict]:
+                  on_line: Optional[Callable[[str], None]] = None, base: Path | None = None) -> tuple[Path, dict]:
     settings.validate()
     root = find_root(settings.lightx2v_root)
     source = Path(input_file).expanduser().resolve()
     _preflight_input(source)
-    # Constrain output folders to ComfyUI's served output tree so video preview works.
-    base = output_dir()
+    # Constrain output folders to ComfyUI's served output tree (or `base`, e.g. its temp folder) so preview works.
+    base = (base or output_dir()).resolve()
     subfolder = Path((output_subfolder or "relayvsr").strip())
     if subfolder.is_absolute() or any(x == ".." for x in subfolder.parts):
         raise ValueError("output_subfolder must be relative and cannot contain '..'")

@@ -146,7 +146,7 @@ print("Faux RelayVSR output generated", flush=True)
 class RelayVSRNodesTests(unittest.TestCase):
     def test_bundled_workflows(self):
         root = ROOT.parent / "examples" / "relayvsr"
-        registered = set(nodes.NODE_CLASS_MAPPINGS) | {"LoadVideo"}
+        registered = set(nodes.NODE_CLASS_MAPPINGS) | {"LoadVideo", "SaveVideo"}
         for filename in ("workflow_comfyui_native_video.json", "workflow_comfyui_file_path.json"):
             graph = json.loads((root / filename).read_text())
             node_map = {n["id"]: n for n in graph["nodes"]}

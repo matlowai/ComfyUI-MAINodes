@@ -20,7 +20,12 @@
       "loop_experiment": [
         "3",
         0
-      ]
+      ],
+      "quality": "faithful: back-projection + residual 0.85",
+      "back_projection": 1.0,
+      "residual_gain": 0.85,
+      "downscale": "bicubic",
+      "vram": "auto (pick by GPU memory)"
     }
   },
   "2": {

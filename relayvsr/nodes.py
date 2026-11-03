@@ -100,12 +100,12 @@ def _prepare_gpu(unload: bool):
         pass
 
 
-def _run_video(path: Path, config: dict, output_subfolder: str, filename_prefix: str, seed: int):
+def _run_video(path: Path, config: dict, output_subfolder: str, filename_prefix: str, seed: int, base: Path | None = None):
     s = Settings(**config)
     _prepare_gpu(s.unload_comfy_models)
     dst, stats = process_video(path, s, output_subfolder=output_subfolder,
                                filename_prefix=filename_prefix, seed=seed,
-                               check_interrupt=_interrupt)
+                               check_interrupt=_interrupt, base=base)
     return dst, stats
 
 
@@ -323,29 +323,28 @@ class RelayVSRModelSettings:
 
 
 class RelayVSRUpscaleVideo:
-    """Native VIDEO socket variant; supports ComfyUI's file-backed/trimmed inputs."""
+    """Native VIDEO in, upscaled VIDEO out (with the source audio). Like core video nodes it does not save: the result
+    lives in ComfyUI's temp folder, so connect Save Video to keep it. It runs only when its output is used, which lets a
+    Branch or Switch skip the upscale entirely."""
+    DESCRIPTION = __doc__
     @classmethod
     def INPUT_TYPES(cls):
         return {"required": {
             "settings": ("RELAYVSR_SETTINGS",),
             "video": ("VIDEO",),
-            "output_subfolder": ("STRING", {"default": "relayvsr"}),
-            "filename_prefix": ("STRING", {"default": "relayvsr_x2"}),
             "seed": ("INT", {"default": 42, "min": 0, "max": 2**31-1}),
         }}
 
-    RETURN_TYPES = ("VIDEO", "STRING", "STRING")
-    RETURN_NAMES = ("video", "output_path", "stats_json")
+    RETURN_TYPES = ("VIDEO", "STRING")
+    RETURN_NAMES = ("video", "stats_json")
     FUNCTION = "upscale"
     CATEGORY = "RelayVSR"
-    OUTPUT_NODE = True
 
-    def upscale(self, settings, video, output_subfolder, filename_prefix, seed):
+    def upscale(self, settings, video, seed):
         source, transient = _video_input_to_path(video)
         try:
-            dst, stats = _run_video(source, settings, output_subfolder, filename_prefix, seed)
-            return {"ui": make_preview(dst, stats),
-                    "result": (_video_from_file(dst), str(dst), json.dumps(stats, indent=2))}
+            dst, stats = _run_video(source, settings, "relayvsr", "relayvsr", seed, base=temp_dir())
+            return (_video_from_file(dst), json.dumps(stats, indent=2))
         finally:
             if transient is not None:
                 transient.unlink(missing_ok=True)

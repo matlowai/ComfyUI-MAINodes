@@ -16,7 +16,12 @@
       "codec": "libx264",
       "crf": 17,
       "preserve_audio": true,
-      "unload_comfy_models": true
+      "unload_comfy_models": true,
+      "quality": "faithful: back-projection + residual 0.85",
+      "back_projection": 1.0,
+      "residual_gain": 0.85,
+      "downscale": "bicubic",
+      "vram": "auto (pick by GPU memory)"
     }
   },
   "2": {

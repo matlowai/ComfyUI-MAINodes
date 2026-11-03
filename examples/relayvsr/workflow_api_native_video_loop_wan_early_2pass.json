@@ -20,7 +20,12 @@
       "loop_experiment": [
         "3",
         0
-      ]
+      ],
+      "quality": "faithful: back-projection + residual 0.85",
+      "back_projection": 1.0,
+      "residual_gain": 0.85,
+      "downscale": "bicubic",
+      "vram": "auto (pick by GPU memory)"
     }
   },
   "2": {
@@ -49,6 +54,32 @@
       "advanced_json": "{}",
       "wan_loop_style": "group",
       "flash_loop_style": "group"
+    }
+  },
+  "4": {
+    "class_type": "RelayVSRUpscaleVideo",
+    "inputs": {
+      "settings": [
+        "1",
+        0
+      ],
+      "video": [
+        "2",
+        0
+      ],
+      "seed": 42
+    }
+  },
+  "5": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "video": [
+        "4",
+        0
+      ],
+      "filename_prefix": "video/relayvsr",
+      "format": "auto",
+      "codec": "auto"
     }
   }
 }

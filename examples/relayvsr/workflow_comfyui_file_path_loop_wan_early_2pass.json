@@ -53,7 +53,12 @@
         "libx264",
         17,
         true,
-        true
+        true,
+        "faithful: back-projection + residual 0.85",
+        1.0,
+        0.85,
+        "bicubic",
+        "auto (pick by GPU memory)"
       ]
     },
     {

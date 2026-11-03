@@ -1,8 +1,8 @@
 {
   "id": "relayvsr-blocklab-native_video-wan_early_2pass",
   "revision": 0,
-  "last_node_id": 4,
-  "last_link_id": 3,
+  "last_node_id": 5,
+  "last_link_id": 4,
   "nodes": [
     {
       "id": 1,
@@ -53,7 +53,12 @@
         "libx264",
         17,
         true,
-        true
+        true,
+        "faithful: back-projection + residual 0.85",
+        1.0,
+        0.85,
+        "bicubic",
+        "auto (pick by GPU memory)"
       ]
     },
     {
@@ -118,29 +123,24 @@
         {
           "name": "video",
           "type": "VIDEO",
-          "links": null,
+          "links": [
+            4
+          ],
           "slot_index": 0
-        },
-        {
-          "name": "output_path",
-          "type": "STRING",
-          "links": null,
-          "slot_index": 1
         },
         {
           "name": "stats_json",
           "type": "STRING",
           "links": null,
-          "slot_index": 2
+          "slot_index": 1
         }
       ],
       "properties": {
         "Node name for S&R": "RelayVSRUpscaleVideo"
       },
       "widgets_values": [
-        "relayvsr",
-        "relayvsr_x2",
-        42
+        42,
+        "fixed"
       ]
     },
     {
@@ -190,6 +190,87 @@
         false,
         "{}"
       ]
+    },
+    {
+      "id": 5,
+      "type": "SaveVideo",
+      "pos": [
+        1560,
+        150
+      ],
+      "size": [
+        440,
+        106
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "video",
+          "name": "video",
+          "type": "VIDEO",
+          "link": 4
+        },
+        {
+          "localized_name": "filename_prefix",
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "format",
+          "name": "format",
+          "type": "COMFY_DYNAMICCOMBO_V3",
+          "widget": {
+            "name": "format"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "codec",
+          "name": "format.codec",
+          "type": "COMFY_DYNAMICCOMBO_V3",
+          "widget": {
+            "name": "format.codec"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "codec",
+          "name": "codec",
+          "shape": 7,
+          "type": "COMFY_DYNAMICCOMBO_V3",
+          "widget": {
+            "name": "codec"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "video",
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "video/relayvsr",
+        "auto",
+        "auto",
+        "auto"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "video/dials_simple",
+        "format": "auto",
+        "format.codec": "auto",
+        "codec": "auto"
+      }
     }
   ],
   "links": [
@@ -216,6 +297,14 @@
       1,
       0,
       "RELAYVSR_LOOP_SETTINGS"
+    ],
+    [
+      4,
+      3,
+      0,
+      5,
+      0,
+      "VIDEO"
     ]
   ],
   "groups": [],

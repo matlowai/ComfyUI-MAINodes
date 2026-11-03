@@ -1,8 +1,8 @@
 {
   "id": "relayvsr-x2-native-video-example",
   "revision": 0,
-  "last_node_id": 3,
-  "last_link_id": 2,
+  "last_node_id": 4,
+  "last_link_id": 3,
   "nodes": [
     {
       "id": 1,
@@ -47,7 +47,12 @@
         "libx264",
         17,
         true,
-        true
+        true,
+        "faithful: back-projection + residual 0.85",
+        1.0,
+        0.85,
+        "bicubic",
+        "auto (pick by GPU memory)"
       ]
     },
     {
@@ -112,30 +117,106 @@
         {
           "name": "video",
           "type": "VIDEO",
-          "links": null,
+          "links": [
+            3
+          ],
           "slot_index": 0
-        },
-        {
-          "name": "output_path",
-          "type": "STRING",
-          "links": null,
-          "slot_index": 1
         },
         {
           "name": "stats_json",
           "type": "STRING",
           "links": null,
-          "slot_index": 2
+          "slot_index": 1
         }
       ],
       "properties": {
         "Node name for S&R": "RelayVSRUpscaleVideo"
       },
       "widgets_values": [
-        "relayvsr",
-        "relayvsr_x2",
-        42
+        42,
+        "fixed"
       ]
+    },
+    {
+      "id": 4,
+      "type": "SaveVideo",
+      "pos": [
+        1480,
+        150
+      ],
+      "size": [
+        440,
+        106
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "video",
+          "name": "video",
+          "type": "VIDEO",
+          "link": 3
+        },
+        {
+          "localized_name": "filename_prefix",
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "format",
+          "name": "format",
+          "type": "COMFY_DYNAMICCOMBO_V3",
+          "widget": {
+            "name": "format"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "codec",
+          "name": "format.codec",
+          "type": "COMFY_DYNAMICCOMBO_V3",
+          "widget": {
+            "name": "format.codec"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "codec",
+          "name": "codec",
+          "shape": 7,
+          "type": "COMFY_DYNAMICCOMBO_V3",
+          "widget": {
+            "name": "codec"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "video",
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "video/relayvsr",
+        "auto",
+        "auto",
+        "auto"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "video/dials_simple",
+        "format": "auto",
+        "format.codec": "auto",
+        "codec": "auto"
+      }
     }
   ],
   "links": [
@@ -153,6 +234,14 @@
       0,
       3,
       1,
+      "VIDEO"
+    ],
+    [
+      3,
+      3,
+      0,
+      4,
+      0,
       "VIDEO"
     ]
   ],

@@ -53,10 +53,10 @@ full-precision output (above ~45 dB is invisible); on our five scored clips ever
 
 | card | `vram` tier | Wan file | peak | time per 3 s clip | drift |
 |---|---|---|---|---|---|
-| 32 GB | full precision (Wan block offload) | `wan.safetensors` (9.4 GB) | 27.9 GB | 28.4 s | — |
-| 24 GB+ | int8 ConvRot weights + int8 KV (fastest) | `wan_int8_convrot.safetensors` (4.9 GB) | 21.8 GB | 21.9 s | 53 dB |
-| 16 GB | W6A8 weights + int4 KV | `wan_w6a8.safetensors` (4.0 GB) | fits 13.5 GiB | 23.0 s | 47 dB |
-| 16 GB, more headroom | W4A8 weights + int4 KV | `wan_w4a8.safetensors` (2.9 GB) | fits 13.0 GiB | 22.8 s | 44 dB |
+| 32 GB | full precision (Wan block offload) | `wan.safetensors` (10.1 GB) | 27.9 GB | 28.4 s | — |
+| 24 GB+ | int8 ConvRot weights + int8 KV (fastest) | `wan_int8_convrot.safetensors` (5.2 GB) | 21.8 GB | 22.0 s | 53 dB |
+| 16 GB | W6A8 weights + int4 KV | `wan_w6a8.safetensors` (4.2 GB) | fits 13.5 GiB | 23.0 s | 47 dB |
+| 16 GB, more headroom | W4A8 weights + int4 KV | `wan_w4a8.safetensors` (3.0 GB) | fits 13.0 GiB | 22.8 s | 44 dB |
 
 Memory is set by resolution, not clip length: most of it is Wan's key/value cache over four keyframes (19.6 GiB in
 bf16 at this size), which the tiers store as rotated int8 / int4. Smaller weight quants would not take a 12 GB card
