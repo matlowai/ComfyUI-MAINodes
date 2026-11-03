@@ -572,7 +572,7 @@
       "format.codec": "auto",
       "codec": "auto",
       "video": [
-        "172:177",
+        "172:190",
         0
       ]
     },
@@ -864,6 +864,90 @@
     "class_type": "BranchNode",
     "_meta": {
       "title": "pass 2 conditioning"
+    }
+  },
+  "172:187": {
+    "inputs": {
+      "choice": "off",
+      "index": 0,
+      "option1": "off",
+      "option2": "RelayVSR 2x",
+      "option3": ""
+    },
+    "class_type": "CustomCombo",
+    "_meta": {
+      "title": "upscale: off / RelayVSR 2x"
+    }
+  },
+  "172:188": {
+    "inputs": {
+      "variant": "X4 original (recommended, also for 2x)",
+      "lightx2v_root": "auto",
+      "model_dir": "auto",
+      "python_executable": "auto",
+      "execution_mode": "single GPU",
+      "gpu_ids": "0",
+      "output_scale": "2",
+      "compile_model": false,
+      "warmup": false,
+      "clip_len": 16,
+      "queue_size": 4,
+      "codec": "libx264",
+      "crf": 17,
+      "preserve_audio": true,
+      "unload_comfy_models": true,
+      "quality": "faithful: back-projection + residual 0.85",
+      "back_projection": 1.0,
+      "residual_gain": 0.85,
+      "downscale": "bicubic",
+      "vram": "auto (pick by GPU memory)"
+    },
+    "class_type": "RelayVSRModelSettings",
+    "_meta": {
+      "title": "RelayVSR Settings"
+    }
+  },
+  "172:189": {
+    "inputs": {
+      "seed": 42,
+      "settings": [
+        "172:188",
+        0
+      ],
+      "video": [
+        "172:177",
+        0
+      ]
+    },
+    "class_type": "RelayVSRUpscaleVideo",
+    "_meta": {
+      "title": "RelayVSR 2x (runs only when upscale is RelayVSR 2x)"
+    }
+  },
+  "172:190": {
+    "inputs": {
+      "branch": [
+        "172:187",
+        0
+      ],
+      "branch_names": {
+        "__value__": [
+          "off",
+          "RelayVSR 2x"
+        ]
+      },
+      "autogrow.branch0": [
+        "172:177",
+        0
+      ],
+      "autogrow.branch1": [
+        "172:189",
+        0
+      ]
+    },
+    "class_type": "BranchNode",
+    "_meta": {
+      "title": "video: as rendered, or RelayVSR 2x"
     }
   }
 }

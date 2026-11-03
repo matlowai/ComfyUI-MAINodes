@@ -132,6 +132,10 @@ model (chunked feed-forward, head-chunked attention; same math) and KJ's Load Im
      preset's sigmas below it (Pika at 0.48: 0.9172, 0.8, 0.5714, 0.3333, 0).
    - **max de-rope**: the oracle's largest hold (`d_max`) or the flat hold count; default 4.
    - **pass 2 audio**: off keeps pass 1's sound (default); on uses the de-rope pass's own foley.
+   - **upscale**: `off` (default) saves the clip as rendered; `RelayVSR 2x` runs the RelayVSR X4 model at 2x with the
+     faithful preset on the final clip (after de-rope) before it is saved. It needs the separate LightX2V setup and weights
+     ([RelayVSR](../relayvsr/README.md)); on a 16-24 GB card pick the matching `vram` tier on the **RelayVSR Settings**
+     node inside the blueprint.
 4. **Make a dial** (the greyed groups below): right-click the group > *Set Group Nodes to Always*, write the pairs or
    pick the pictures (or a folder inside `input/` on `folder_a` / `folder_b`), give it a name, then right-click the Make
    Dial node > **Run Branch** to make only the dial. It appears in the rack's dial list at once; mute the group again.
@@ -163,7 +167,8 @@ The first Simple workflow (Pika only, a de-rope on/off switch) and its `Dials - 
 then a de-rope pass on the jerky stretches (H3 Jerk Oracle → hold frames → V2V Init at inject 0.48 → Exact Recover).
 The de-rope audio stage keeps pass 1's audio: V2V Init's audio rows are seeded with "follow the original performance"
 and Audio Recover is set to "keep the original performance", so the dialogue and foley from pass 1 survive. Both the
-pass-1 and the de-roped clip are saved. Same layout as ComfyUI-Dials' `dials_pika_h3_flex_derope` graph.
+pass-1 and the de-roped clip are saved; in the Rack graph an **upscale** switch (off by default) can run RelayVSR 2x on
+the de-roped clip before it is saved. Same layout as ComfyUI-Dials' `dials_pika_h3_flex_derope` graph.
 
 | Example | UI workflow | API graph | What it shows |
 |---|---|---|---|

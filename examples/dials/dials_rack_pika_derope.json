@@ -1,8 +1,8 @@
 {
   "id": "79bb05db-ef87-446f-bf02-199565235728",
   "revision": 0,
-  "last_node_id": 40,
-  "last_link_id": 60,
+  "last_node_id": 44,
+  "last_link_id": 65,
   "nodes": [
     {
       "id": 1,
@@ -2717,7 +2717,8 @@
           "name": "VIDEO",
           "type": "VIDEO",
           "links": [
-            57
+            57,
+            61
           ]
         }
       ],
@@ -2763,7 +2764,7 @@
           "localized_name": "video",
           "name": "video",
           "type": "VIDEO",
-          "link": 57
+          "link": 65
         },
         {
           "localized_name": "filename_prefix",
@@ -2913,6 +2914,470 @@
         "rack": "[{\"on\":true,\"dial\":\"dials/h3_motion.safetensors\",\"strength\":0.5,\"solo\":false},{\"on\":true,\"dial\":\"dials/h3_grade_warm_cold_hook.safetensors\",\"strength\":0.6,\"solo\":false},{\"on\":true,\"dial\":\"dials/h3_day_night_hook.safetensors\",\"strength\":0.8,\"solo\":false},{\"on\":false,\"dial\":\"dials/h3_perf_reserved_lively_hook.safetensors\",\"strength\":0.5,\"solo\":false},{\"on\":false,\"dial\":\"dials/h3_dream_surreal_hook.safetensors\",\"strength\":6,\"solo\":false,\"envelope\":\"early\"}]",
         "dial_rack_ui": ""
       }
+    },
+    {
+      "id": 41,
+      "type": "CustomCombo",
+      "pos": [
+        2224,
+        0
+      ],
+      "size": [
+        420,
+        150
+      ],
+      "flags": {},
+      "order": 36,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "choice",
+          "name": "choice",
+          "type": "COMBO",
+          "widget": {
+            "name": "choice"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "STRING",
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            64
+          ]
+        },
+        {
+          "localized_name": "INDEX",
+          "name": "INDEX",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CustomCombo"
+      },
+      "widgets_values": [
+        "off",
+        -1,
+        "off",
+        "RelayVSR 2x",
+        ""
+      ],
+      "widgets_values_named": {
+        "choice": "off",
+        "index": -1,
+        "option1": "off",
+        "option2": "RelayVSR 2x",
+        "option3": ""
+      },
+      "title": "upscale: off / RelayVSR 2x"
+    },
+    {
+      "id": 42,
+      "type": "RelayVSRModelSettings",
+      "pos": [
+        2224,
+        220
+      ],
+      "size": [
+        420,
+        514
+      ],
+      "flags": {},
+      "order": 37,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "loop_experiment",
+          "name": "loop_experiment",
+          "shape": 7,
+          "type": "RELAYVSR_LOOP_SETTINGS",
+          "link": null
+        },
+        {
+          "localized_name": "variant",
+          "name": "variant",
+          "type": "COMBO",
+          "widget": {
+            "name": "variant"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lightx2v_root",
+          "name": "lightx2v_root",
+          "type": "STRING",
+          "widget": {
+            "name": "lightx2v_root"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "model_dir",
+          "name": "model_dir",
+          "type": "STRING",
+          "widget": {
+            "name": "model_dir"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "python_executable",
+          "name": "python_executable",
+          "type": "STRING",
+          "widget": {
+            "name": "python_executable"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "execution_mode",
+          "name": "execution_mode",
+          "type": "COMBO",
+          "widget": {
+            "name": "execution_mode"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "gpu_ids",
+          "name": "gpu_ids",
+          "type": "STRING",
+          "widget": {
+            "name": "gpu_ids"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "output_scale",
+          "name": "output_scale",
+          "type": "COMBO",
+          "widget": {
+            "name": "output_scale"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "compile_model",
+          "name": "compile_model",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "compile_model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "warmup",
+          "name": "warmup",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "warmup"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "clip_len",
+          "name": "clip_len",
+          "type": "INT",
+          "widget": {
+            "name": "clip_len"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "queue_size",
+          "name": "queue_size",
+          "type": "INT",
+          "widget": {
+            "name": "queue_size"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "codec",
+          "name": "codec",
+          "type": "COMBO",
+          "widget": {
+            "name": "codec"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "crf",
+          "name": "crf",
+          "type": "INT",
+          "widget": {
+            "name": "crf"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "preserve_audio",
+          "name": "preserve_audio",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "preserve_audio"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "unload_comfy_models",
+          "name": "unload_comfy_models",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "unload_comfy_models"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "quality",
+          "name": "quality",
+          "type": "COMBO",
+          "widget": {
+            "name": "quality"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "back_projection",
+          "name": "back_projection",
+          "type": "FLOAT",
+          "widget": {
+            "name": "back_projection"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "residual_gain",
+          "name": "residual_gain",
+          "type": "FLOAT",
+          "widget": {
+            "name": "residual_gain"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "downscale",
+          "name": "downscale",
+          "type": "COMBO",
+          "widget": {
+            "name": "downscale"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "vram",
+          "name": "vram",
+          "type": "COMBO",
+          "widget": {
+            "name": "vram"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "settings",
+          "name": "settings",
+          "type": "RELAYVSR_SETTINGS",
+          "links": [
+            62
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RelayVSRModelSettings"
+      },
+      "widgets_values": [
+        "X4 original (recommended, also for 2x)",
+        "auto",
+        "auto",
+        "auto",
+        "single GPU",
+        "0",
+        "2",
+        false,
+        false,
+        16,
+        4,
+        "libx264",
+        17,
+        true,
+        true,
+        "faithful: back-projection + residual 0.85",
+        1.0,
+        0.85,
+        "bicubic",
+        "auto (pick by GPU memory)"
+      ],
+      "widgets_values_named": {
+        "variant": "X4 original (recommended, also for 2x)",
+        "lightx2v_root": "auto",
+        "model_dir": "auto",
+        "python_executable": "auto",
+        "execution_mode": "single GPU",
+        "gpu_ids": "0",
+        "output_scale": "2",
+        "compile_model": false,
+        "warmup": false,
+        "clip_len": 16,
+        "queue_size": 4,
+        "codec": "libx264",
+        "crf": 17,
+        "preserve_audio": true,
+        "unload_comfy_models": true,
+        "quality": "faithful: back-projection + residual 0.85",
+        "back_projection": 1.0,
+        "residual_gain": 0.85,
+        "downscale": "bicubic",
+        "vram": "auto (pick by GPU memory)"
+      },
+      "title": "RelayVSR Settings"
+    },
+    {
+      "id": 43,
+      "type": "RelayVSRUpscaleVideo",
+      "pos": [
+        2224,
+        804
+      ],
+      "size": [
+        420,
+        102
+      ],
+      "flags": {},
+      "order": 38,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "settings",
+          "name": "settings",
+          "type": "RELAYVSR_SETTINGS",
+          "link": 62
+        },
+        {
+          "localized_name": "video",
+          "name": "video",
+          "type": "VIDEO",
+          "link": 61
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "video",
+          "name": "video",
+          "type": "VIDEO",
+          "links": [
+            63
+          ]
+        },
+        {
+          "localized_name": "stats_json",
+          "name": "stats_json",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RelayVSRUpscaleVideo"
+      },
+      "widgets_values": [
+        42,
+        "fixed"
+      ],
+      "widgets_values_named": {
+        "seed": 42
+      },
+      "title": "RelayVSR 2x (runs only when upscale is RelayVSR 2x)"
+    },
+    {
+      "id": 44,
+      "type": "BranchNode",
+      "pos": [
+        2224,
+        976
+      ],
+      "size": [
+        420,
+        98
+      ],
+      "flags": {},
+      "order": 39,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "off",
+          "localized_name": "branch0",
+          "name": "autogrow.branch0",
+          "shape": 7,
+          "type": "VIDEO",
+          "link": 57
+        },
+        {
+          "label": "RelayVSR 2x",
+          "localized_name": "branch1",
+          "name": "autogrow.branch1",
+          "shape": 7,
+          "type": "VIDEO",
+          "link": 63
+        },
+        {
+          "localized_name": "branch2",
+          "name": "autogrow.branch2",
+          "shape": 7,
+          "type": "VIDEO",
+          "link": null
+        },
+        {
+          "localized_name": "branch",
+          "name": "branch",
+          "type": "STRING",
+          "widget": {
+            "name": "branch"
+          },
+          "link": 64
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "output",
+          "name": "output",
+          "type": "VIDEO",
+          "links": [
+            65
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BranchNode"
+      },
+      "widgets_values": [
+        "",
+        [
+          "off",
+          "RelayVSR 2x"
+        ]
+      ],
+      "widgets_values_named": {
+        "branch": "",
+        "branch_names": [
+          "off",
+          "RelayVSR 2x"
+        ]
+      },
+      "title": "video: as rendered, or RelayVSR 2x"
     }
   ],
   "links": [
@@ -3344,6 +3809,46 @@
       57,
       38,
       0,
+      44,
+      0,
+      "VIDEO"
+    ],
+    [
+      61,
+      38,
+      0,
+      43,
+      1,
+      "VIDEO"
+    ],
+    [
+      62,
+      42,
+      0,
+      43,
+      0,
+      "RELAYVSR_SETTINGS"
+    ],
+    [
+      63,
+      43,
+      0,
+      44,
+      1,
+      "VIDEO"
+    ],
+    [
+      64,
+      41,
+      0,
+      44,
+      3,
+      "STRING"
+    ],
+    [
+      65,
+      44,
+      0,
       39,
       0,
       "VIDEO"
@@ -3406,6 +3911,18 @@
         -84,
         460,
         2286
+      ],
+      "color": "#59503f",
+      "flags": {}
+    },
+    {
+      "id": 6,
+      "title": "Upscale (RelayVSR, optional)",
+      "bounding": [
+        2204,
+        -84,
+        460,
+        1178
       ],
       "color": "#59503f",
       "flags": {}
