@@ -278,6 +278,21 @@ export function overrides() {
   return out;
 }
 
+// director's notes, pinned to a brick or (brick null) to the whole recipe; they are part of the work, so they live in
+// the recipe record and each change is one undo step. Agents answer (status "answered" + reply); the person closes.
+export const notes = () => state().notes ?? [];
+export function addNote(text, brickKey = null) {
+  const note = { id: `n${Date.now().toString(36)}`, brick: brickKey, text, status: "open", created: Date.now() };
+  transaction(() => { const s = record(); s.notes = [...(s.notes ?? []), note]; });
+  return note;
+}
+export function updateNote(id, changes) {
+  const s = state();
+  if (!notes().some((n) => n.id === id)) throw new Error(`No note ${id}`);
+  transaction(() => { s.notes = s.notes.map((n) => (n.id === id ? { ...n, ...changes } : n)); });
+  return s.notes.find((n) => n.id === id);
+}
+
 // settings that point at nothing installed (a model file, an image), per brick node; what the readiness badge shows
 export function missing() {
   const out = [];

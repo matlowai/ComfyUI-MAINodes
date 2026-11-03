@@ -8,10 +8,11 @@ const changed = () => { for (const fn of listeners) fn(); };
 
 export const onChange = (fn) => listeners.add(fn);
 export const pending = () => list.filter((p) => p.status === "waiting");
-export const all = () => list.map(({ id, tool, args, reason, status, result }) => ({ id, tool, args, reason, status, ...(result ? { result } : {}) }));
+export const all = () => list.map(({ id, tool, args, reason, note, status, result }) => ({ id, tool, args, reason, status, ...(note ? { note } : {}), ...(result ? { result } : {}) }));
 
-export function add(tool, args, reason) {
-  const p = { id: `p${next++}`, tool, args, reason: reason || "", status: "waiting" };
+// `note`: the director's note this proposal answers, if any
+export function add(tool, args, reason, note) {
+  const p = { id: `p${next++}`, tool, args, reason: reason || "", note, status: "waiting" };
   list.push(p);
   changed();
   return p;
