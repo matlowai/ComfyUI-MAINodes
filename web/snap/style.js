@@ -148,6 +148,9 @@ export const STYLE = `
 .snap-badge { font-size: 10px; letter-spacing: .04em; text-transform: uppercase; padding: 2px 6px; border-radius: 999px; background: var(--s-card); color: var(--s-dim); }
 .snap-badge.break { background: #f0b445; color: #1b1c20; }
 .snap-badge.check { color: #f0b445; }
+.snap-brick.snap-folded { display: none; }
+.snap-fold { all: unset; cursor: pointer; font-size: 11px; color: var(--s-dim); padding: 2px 8px; border-radius: 999px; background: var(--s-bg); margin-left: 6px; }
+.snap-fold:hover { color: var(--s-fg); }
 .snap-quiet { color: var(--s-dim); font-size: 12px; margin-top: 6px; }
 .snap-empty { margin: 12vh auto 0; text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; }
 .snap-empty-title { font-size: 18px; font-weight: 600; }

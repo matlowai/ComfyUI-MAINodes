@@ -3,7 +3,7 @@
 // start (FLIP First); neighbours and the drop settle on springs; a throw lands where its momentum projects.
 import { Spring, SPRINGS, animate, stop, project, reducedMotion } from "./spring.js";
 
-const ACQUIRE = 24, RELEASE = 36, BIAS = 8;
+const ACQUIRE = 24, RELEASE = 36, BIAS = 8, EDGE = 48, SCROLL = 18; // px; px per frame at the very edge
 const smooth = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 
 export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, cardTarget }) {
@@ -31,6 +31,8 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, car
     if (!d.started && Math.hypot(d.x - d.x0, d.y - d.y0) > d.slop) begin();
     if (d.started && !d.raf) d.raf = requestAnimationFrame(frame);
   });
+  // a held brick at the edge keeps scrolling without pointer moves
+  const hold = () => { if (d?.started && d.goes === undefined && d.acquired) { if (!d.raf) frame(); requestAnimationFrame(hold); } };
 
   const end = (e, cancelled) => {
     if (!d || e.pointerId !== d.id) return;
@@ -51,7 +53,9 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, car
   function begin() {
     d.started = true;
     if (d.tile?.dataset.card) return beginCard();
-    const items = [...stack.querySelectorAll(":scope > [data-brick]")];
+    const all = [...stack.querySelectorAll(":scope > [data-brick]")], items = all.filter((el) => !el.classList.contains("snap-folded"));
+    d.all = all; // folded bricks are hidden, but the engine's index counts them
+    d.scroll0 = stack.scrollTop; // rects are measured now; scrolling later shifts everything by (scrollTop - scroll0)
     d.rects = new Map(items.map((el) => [el, el.getBoundingClientRect()]));
     d.stackRect = stack.getBoundingClientRect();
     d.top0 = items.length ? Math.min(...items.map((el) => d.rects.get(el).top)) : d.stackRect.top + 12;
@@ -80,6 +84,7 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, car
     }
     for (const el of d.group.length ? d.group : [d.ghost]) el.classList.add("snap-lifted");
     for (const el of [d.ghost, ...d.group, ...d.others.slice(0, 6)]) el.style.willChange = "transform";
+    requestAnimationFrame(hold);
   }
 
   // top of slot `index` in the list without the dragged item (no gap opened)
@@ -133,10 +138,22 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, car
     });
   }
 
+  // near the stack's top or bottom edge the stack scrolls while the brick is held (faster closer to the edge)
+  function autoscroll() {
+    const s = d.stackRect, up = d.y - s.top, down = s.bottom - d.y;
+    const v = up < EDGE ? -SCROLL * (1 - up / EDGE) : down < EDGE ? SCROLL * (1 - down / EDGE) : 0;
+    if (!v) return 0;
+    stack.scrollTop += v;
+    return stack.scrollTop - d.scroll0;
+  }
+
   function frame() {
     d.raf = 0;
     if (d.goes !== undefined) return cardFrame();
-    const dx = d.x - d.x0, dy = d.y - d.y0;
+    const scrolled = d.acquired ? autoscroll() || stack.scrollTop - d.scroll0 : stack.scrollTop - d.scroll0;
+    if (scrolled !== d.scrolled) { d.scrolled = scrolled; d.acquiredWas = null; } // re-place neighbours after a scroll
+    const dx = d.x - d.x0, dy = d.y - d.y0 + (d.item ? scrolled : 0); // a brick in the stack scrolls with it
+    const y = d.y + scrolled; // the pointer in drag-start coordinates
     const s = d.stackRect;
     if (!d.item) {
       const dist = d.x < s.left ? s.left - d.x : d.x > s.right ? d.x - s.right : 0;
@@ -144,7 +161,7 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, car
       d.acquired = ok && (d.acquired ? dist < RELEASE : dist < ACQUIRE);
       d.reason = ok ? "" : d.tile.dataset.reason || "already in the recipe";
     }
-    const index = d.acquired ? indexAt(d, d.y, BIAS) : d.others.length;
+    const index = d.acquired ? indexAt(d, y, BIAS) : d.others.length;
     if (index !== d.index || d.acquiredWas !== d.acquired) {
       d.index = index; d.acquiredWas = d.acquired;
       d.others.forEach((el, i) => {
@@ -181,15 +198,17 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, car
     d = null;
     if (g.goes !== undefined) return dropCard(g, cancelled);
     const thrown = Math.hypot(vx, vy) > 300;
+    const scrolled = stack.scrollTop - g.scroll0;
     let index = g.index, accepted = g.acquired && !cancelled;
     if (accepted && thrown) {
-      const py = project(g.y, vy);
+      const py = project(g.y + scrolled, vy);
       index = indexAt(g, Math.max(slotTop(g, 0), Math.min(slotTop(g, g.others.length) + g.size, py)), 0);
     }
     if (cancelled && g.item) { accepted = true; index = [...g.rects.keys()].indexOf(g.item); } // back to its slot
     const cur = new DOMMatrixReadOnly(getComputedStyle(g.ghost).transform);
     const from = [cur.m41, cur.m42];
-    const to = accepted ? [g.item ? 0 : g.stackRect.left + 12 - g.home.left, slotTop(g, index) - g.home.top] : [0, 0];
+    // a brick in the stack lands in content coordinates; a palette ghost is fixed on screen, so it lands where the slot is now
+    const to = accepted ? [g.item ? 0 : g.stackRect.left + 12 - g.home.left, slotTop(g, index) - g.home.top - (g.item ? 0 : scrolled)] : [0, 0];
     const sp = new Spring(from, thrown ? SPRINGS.throw : SPRINGS.drop);
     sp.set(to, { velocity: thrown ? [vx, vy] : undefined });
     // reflow neighbours to the final slot layout
@@ -208,8 +227,11 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, car
       for (const el of moving) el.classList.remove("snap-lifted", "snap-acquired");
       if (!g.item) g.ghost.remove();
       if (!accepted) return;
-      if (g.item) onMove?.(g.item.dataset.brick, index);
-      else onInsert?.(g.tile.dataset.source, index);
+      // the slot index counts visible bricks; the engine's counts every brick (folded ones too) without the moved group
+      const rest = g.all.filter((el) => !g.group.includes(el));
+      const real = index < g.others.length ? rest.indexOf(g.others[index]) : rest.length;
+      if (g.item) onMove?.(g.item.dataset.brick, real);
+      else onInsert?.(g.tile.dataset.source, real);
     });
   }
 }

@@ -41,6 +41,7 @@ export function createView({ onSwitch, onMakeApp, run }) {
   let inspectorSig = "";
   let overridden = []; // E.overrides() serializes the whole graph: computed once per render
   let crewLine = null; // the crew summary element, rebuilt after each logged decision
+  const unfolded = new Set(); // node types whose folded run of bricks the person opened
 
   // the Library section is built once (typing survives re-renders); only its results follow the query and the selection
   const bricksRail = h("div", { className: "snap-rail-part" });
@@ -447,6 +448,24 @@ export function createView({ onSwitch, onMakeApp, run }) {
   }
   P.onChange(renderProposals);
 
+  // three or more same-type any-node bricks in a row (seven Load Images in an adopted graph) fold behind the first
+  function fold() {
+    const els = [...stack.querySelectorAll(":scope > [data-brick]")], type = (el) => el.dataset.brick.startsWith("node:") && el.dataset.brick.slice(5).split("#")[0];
+    for (let i = 0; i < els.length;) {
+      let j = i + 1;
+      while (j < els.length && type(els[j]) && type(els[j]) === type(els[i])) j++;
+      const run = els.slice(i, j), t = type(els[i]);
+      for (const el of run) { el.classList.remove("snap-folded"); el.querySelector(".snap-fold")?.remove(); }
+      if (t && run.length >= 3) {
+        const open = unfolded.has(t);
+        for (const el of run.slice(1)) el.classList.toggle("snap-folded", !open);
+        run[0].querySelector(".snap-head").append(h("button", { className: "snap-fold", textContent: open ? "fold" : `+${run.length - 1} more`, title: `${run.length} ${BRICKS[els[i].dataset.brick].title} bricks in a row`,
+          onclick: (e) => { e.stopPropagation(); open ? unfolded.delete(t) : unfolded.add(t); fold(); } }));
+      }
+      i = j;
+    }
+  }
+
   // FLIP: bricks that moved spring from their old place; new ones rise in
   function render(before, entered) {
     const infos = E.describe();
@@ -458,6 +477,7 @@ export function createView({ onSwitch, onMakeApp, run }) {
       h("button", { className: "snap-primary", textContent: "Start from Dials + Pika Simple", onclick: buildSimple }),
       app.graph.nodes.length ? h("button", { className: "snap-link", textContent: `Snap this workflow (${app.graph.nodes.length} nodes)`, title: "show the open graph as bricks; nothing in it changes", onclick: adoptGraph }) : null)]));
     title.textContent = app.extensionManager.workflow.activeWorkflow?.filename ?? "Snap";
+    fold();
     renderRail(); renderInspector(); renderStatus(); renderProposals();
     if (!before) return;
     for (const el of stack.querySelectorAll("[data-brick]")) {
