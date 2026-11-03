@@ -60,7 +60,27 @@ async function toggle() {
   sw.toggle();
   remember();
   if (sw.showing) announce();
+  else graphEntry();
 }
+
+// leaving Snap for the graph adds one history entry (same URL, the router's own state kept), so the mouse's back button,
+// Alt+Left or a swipe come back to Snap and forward returns to the graph. Never more than one entry: a second trip to the
+// graph from that entry reuses it
+const ENTRY = "mainodes-snap-graph";
+function graphEntry() {
+  if (history.state?.[ENTRY]) return;
+  history.pushState({ ...history.state, [ENTRY]: true }, "", location.href);
+}
+function toGraph(key) {
+  sw.toGraph(key);
+  remember();
+  graphEntry();
+}
+addEventListener("popstate", (e) => {
+  if (!sw || sw.docked) return;
+  if (e.state?.[ENTRY]) { if (sw.showing) toGraph(); } // forward, onto the graph entry
+  else if (!sw.showing && activeTab() && modes.has(activeTab())) toggle(); // back from the graph to Snap
+});
 
 app.registerExtension({
   name: "MAINodes.Snap",
@@ -69,7 +89,7 @@ app.registerExtension({
   actionBarButtons: [{ icon: "icon-[lucide--blocks]", label: "Snap", tooltip: "Snap view (Alt+S)", onClick: () => toggle() }],
   setup() {
     document.head.append(Object.assign(document.createElement("style"), { textContent: STYLE }));
-    view = createView({ onSwitch: (key) => { sw.toGraph(key); remember(); }, onMakeApp: makeApp, run: callTool });
+    view = createView({ onSwitch: (key) => toGraph(key), onMakeApp: makeApp, run: callTool });
     document.body.append(view.root);
     sw = createSwitch(view);
     rules.load().then((list) => engine.useRules(list), () => {}); // remembered picks; without them Snap just asks again
