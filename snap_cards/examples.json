@@ -1,0 +1,290 @@
+[
+ {
+  "id": "char-kon",
+  "kind": "character",
+  "title": "Kon, the fennec courier (ComfyUI mascot)",
+  "text": "Kon is a cheerful anime girl with massive fennec ears, a big fluffy cream tail, long blonde wavy hair and bright blue eyes. Wears an oversized teal hoodie with a node-graph patch, cargo shorts, chunky sneakers, a canvas messenger bag full of glowing cables. Sheet: front, three-quarter, side and back turnarounds; expressions: grin, determined squint, surprised ears-up. Lore: delivers wires between floating node islands in Graph City; ears twitch before she jumps; never walks when she can bound. Voice: bright, quick, a little breathless.",
+  "brick": {
+   "refs": [
+    "sheet_front.png",
+    "sheet_side.png"
+   ],
+   "prompt_fragment": "Kon, a fennec-eared anime courier girl with long blonde wavy hair, blue eyes, teal hoodie"
+  },
+  "example": true
+ },
+ {
+  "id": "char-old-ferro",
+  "kind": "character",
+  "title": "Old Ferro, the lighthouse keeper",
+  "text": "A tall, weathered man in his seventies with a salt-white beard, yellow oilskin coat and a brass spyglass. Moves slowly and deliberately, pauses to listen to the sea. Lore: has kept the north light for forty winters, talks to the gulls, distrusts machines but secretly fixes radios. Speaks in a low gravelly voice with long pauses.",
+  "brick": {
+   "refs": [
+    "ferro_sheet.png"
+   ],
+   "prompt_fragment": "an elderly lighthouse keeper with a white beard and yellow oilskin coat"
+  },
+  "example": true
+ },
+ {
+  "id": "set-graph-city",
+  "kind": "setting",
+  "title": "Graph City, floating node islands",
+  "text": "Pastel sky, dozens of floating rock islands joined by glowing cable bridges, little node-shaped houses with socket windows, soft volumetric morning light, gentle drifting clouds below. Palette teal, cream, coral. Mood cheerful and airy.",
+  "brick": {
+   "prompt_fragment": "floating pastel islands connected by glowing cable bridges, soft morning light"
+  },
+  "example": true
+ },
+ {
+  "id": "set-north-light",
+  "kind": "setting",
+  "title": "The north lighthouse at dusk",
+  "text": "A white-and-red lighthouse on black basalt rocks, storm clouds breaking, the lamp sweeping through sea spray, cold blue dusk with a warm amber window. Waves crash in slow rhythm.",
+  "brick": {
+   "prompt_fragment": "a red and white lighthouse on black rocks at stormy dusk, sweeping lamp beam"
+  },
+  "example": true
+ },
+ {
+  "id": "set-train-platform",
+  "kind": "setting",
+  "title": "Empty train platform, overcast",
+  "text": "A long empty commuter rail platform, wet concrete, overhead wires, flat overcast natural light, distant train headlights. Quiet, melancholic, cinematic.",
+  "brick": {
+   "prompt_fragment": "an empty train platform with wet concrete under overcast natural light"
+  },
+  "example": true
+ },
+ {
+  "id": "scene-kon-delivery",
+  "kind": "scene",
+  "title": "Scene: Kon leaps a broken cable bridge",
+  "text": "Kon sprints across a cable bridge that snaps behind her, crouches in anticipation, leaps the gap with her tail streaming, lands with a squash and bounces up grinning. Camera tracks alongside, then cranes up as she lands.",
+  "brick": {
+   "characters": [
+    "char-kon"
+   ],
+   "setting": "set-graph-city",
+   "principles": [
+    "p-anticipation",
+    "p-squash",
+    "p-follow-through",
+    "p-arcs"
+   ]
+  },
+  "example": true
+ },
+ {
+  "id": "scene-ferro-storm",
+  "kind": "scene",
+  "title": "Scene: Ferro climbs the stairs in a storm",
+  "text": "Ferro climbs the spiral stairs of the lighthouse with a lantern, wind howling, pauses at a window as lightning reveals a ship on the rocks, then hurries up. Slow push-in, handheld sway.",
+  "brick": {
+   "characters": [
+    "char-old-ferro"
+   ],
+   "setting": "set-north-light",
+   "principles": [
+    "p-timing",
+    "p-staging",
+    "p-secondary"
+   ]
+  },
+  "example": true
+ },
+ {
+  "id": "p-squash",
+  "kind": "principle",
+  "title": "Squash and stretch",
+  "text": "Give a body weight and flexibility: it compresses on impact and elongates in fast motion while keeping its volume. Prompt cue: squashes on landing, stretches mid-leap, rubbery elastic bounce.",
+  "example": true
+ },
+ {
+  "id": "p-anticipation",
+  "kind": "principle",
+  "title": "Anticipation",
+  "text": "A small opposite move before the main action tells the viewer what is coming: crouch before a jump, wind-up before a throw, ears flick before turning. Prompt cue: crouches and gathers before leaping, a brief wind-up.",
+  "example": true
+ },
+ {
+  "id": "p-staging",
+  "kind": "principle",
+  "title": "Staging",
+  "text": "Present one idea clearly: a readable silhouette, the camera and composition pointing at the important action, nothing competing. Prompt cue: clear silhouette against a simple background, centered action.",
+  "example": true
+ },
+ {
+  "id": "p-straight-ahead",
+  "kind": "principle",
+  "title": "Straight ahead action and pose to pose",
+  "text": "Either animate frame by frame for fluid chaotic motion like fire and water, or plan key poses and fill between for controlled acting. Maps to first and last frame conditioning (pose to pose) versus free text-to-video (straight ahead).",
+  "example": true
+ },
+ {
+  "id": "p-follow-through",
+  "kind": "principle",
+  "title": "Follow through and overlapping action",
+  "text": "Loose parts keep moving after the body stops and move at different rates: hair, tails, ears, coats and cables trail and settle. Prompt cue: tail and hair keep swinging and settle after she stops.",
+  "example": true
+ },
+ {
+  "id": "p-slow-in-out",
+  "kind": "principle",
+  "title": "Slow in and slow out",
+  "text": "Motion accelerates out of a pose and decelerates into the next, more frames near the extremes. Prompt cue: eases into the pose, smooth acceleration, gentle settle; maps to motion envelopes that ramp.",
+  "example": true
+ },
+ {
+  "id": "p-arcs",
+  "kind": "principle",
+  "title": "Arcs",
+  "text": "Natural motion travels along curved arcs, not straight lines: a leap, a head turn, a swinging arm. Prompt cue: moves in a smooth curved arc through the air.",
+  "example": true
+ },
+ {
+  "id": "p-secondary",
+  "kind": "principle",
+  "title": "Secondary action",
+  "text": "A smaller supporting action adds life to the main one: whistling while walking, adjusting a bag strap mid-run, gripping the lantern tighter. Prompt cue: absentmindedly adjusts the bag strap while running.",
+  "example": true
+ },
+ {
+  "id": "p-timing",
+  "kind": "principle",
+  "title": "Timing",
+  "text": "The number of frames for an action sets its weight and mood: few frames feel light and snappy, many feel heavy and slow. Maps to length, fps and the motion dial strength.",
+  "example": true
+ },
+ {
+  "id": "p-exaggeration",
+  "kind": "principle",
+  "title": "Exaggeration",
+  "text": "Push poses and expressions past realism for clarity and appeal without losing believability. Prompt cue: exaggerated cartoon expression, big reaction; maps to a higher motion dial.",
+  "example": true
+ },
+ {
+  "id": "p-solid-drawing",
+  "kind": "principle",
+  "title": "Solid drawing",
+  "text": "Forms read as three-dimensional with weight, balance and consistent volume from every angle. Maps to character sheet turnarounds as references.",
+  "example": true
+ },
+ {
+  "id": "p-appeal",
+  "kind": "principle",
+  "title": "Appeal",
+  "text": "Characters are pleasing and readable: clear shapes, charismatic design, simple strong silhouettes. Prompt cue: charming appealing character design, clean shapes.",
+  "example": true
+ },
+ {
+  "id": "motion-bound",
+  "kind": "motion_guide",
+  "title": "Motion guide: bounding run with a big leap",
+  "text": "Reference clip of a light character running in long bounds then leaping a gap, airborne for about half a second, landing with a crouch. Use as a motion reference video in H3 References.",
+  "brick": {
+   "refs_video": [
+    "bound_leap.mp4"
+   ]
+  },
+  "example": true
+ },
+ {
+  "id": "motion-slow-climb",
+  "kind": "motion_guide",
+  "title": "Motion guide: slow heavy stair climb",
+  "text": "Reference clip of a heavy, deliberate climb up spiral stairs, one hand on the rail, a pause and a look out of the window.",
+  "brick": {
+   "refs_video": [
+    "stair_climb.mp4"
+   ]
+  },
+  "example": true
+ },
+ {
+  "id": "pose-crouch",
+  "kind": "pose",
+  "title": "Pose: deep crouch before a jump",
+  "text": "Knees bent deep, weight on the balls of the feet, arms swept back, eyes on the target, tail low and coiled. Good as a first frame for an anticipation shot.",
+  "brick": {
+   "first_frame": "pose_crouch.png"
+  },
+  "example": true
+ },
+ {
+  "id": "pose-landing",
+  "kind": "pose",
+  "title": "Pose: three-point superhero landing",
+  "text": "One knee down, one hand on the ground, the other arm out for balance, hair and tail still in the air. Good as a last frame.",
+  "brick": {
+   "last_frame": "pose_landing.png"
+  },
+  "example": true
+ },
+ {
+  "id": "dial-motion",
+  "kind": "dial",
+  "title": "Dial: h3_motion",
+  "text": "Motion dial for MiniMax H3: turns overall movement up or down, from posing perfectly still to running energetically across the scene. Strength 0.5 is a lively default; 1.0 for action; negative for stillness.",
+  "brick": {
+   "dial": "dials/h3_motion.safetensors",
+   "strength": 0.5
+  },
+  "example": true
+ },
+ {
+  "id": "dial-grade",
+  "kind": "dial",
+  "title": "Dial: h3_grade_warm_cold_hook",
+  "text": "Color grade dial: positive pushes warm golden-hour tones, negative pushes cold blue tones. Good for dusk, storms and sunsets.",
+  "brick": {
+   "dial": "dials/h3_grade_warm_cold_hook.safetensors",
+   "strength": 0.3
+  },
+  "example": true
+ },
+ {
+  "id": "lora-pika",
+  "kind": "lora",
+  "title": "LoRA: Pika H3 Flex FL2VA",
+  "text": "Pika H3 Flex LoRA for first-and-last-frame video with audio on MiniMax H3. The recommended render LoRA in the Dials Simple workflow, paired with de-rope.",
+  "brick": {
+   "lora": "pika_h3_flex_fl2va_v1_bf16.safetensors",
+   "strength": 1.0
+  },
+  "example": true
+ },
+ {
+  "id": "run-0001",
+  "kind": "run",
+  "title": "Run example: red coat on the train platform",
+  "text": "Example run record (synthetic): Dials Simple, Pika H3 Flex, de-rope, motion dial 0.5, warm grade 0.2, seed 42, 1280x704, 121 frames. Prompt: an adult woman in a red coat walks along an empty train platform at dusk. Rated 4 of 5: good walk cycle, slight hand warping.",
+  "brick": {
+   "recipe": "dials-simple",
+   "seed": 42
+  },
+  "example": true
+ },
+ {
+  "id": "run-0002",
+  "kind": "run",
+  "title": "Run example: Kon leap test",
+  "text": "Example run record (synthetic): Kon leaps the broken bridge, motion dial 1.0, first frame = crouch pose, refs = Kon sheet. Rated 5 of 5: strong anticipation and tail follow-through, landing squash read well.",
+  "brick": {
+   "recipe": "dials-simple",
+   "seed": 7
+  },
+  "example": true
+ },
+ {
+  "id": "run-0003",
+  "kind": "run",
+  "title": "Run example: lighthouse storm, too static",
+  "text": "Example run record (synthetic): Ferro on the stairs, motion dial 0.1, cold grade -0.4. Rated 2 of 5: too static, the lightning flash came late, needed more anticipation before the look.",
+  "brick": {
+   "recipe": "dials-simple",
+   "seed": 1234
+  },
+  "example": true
+ }
+]

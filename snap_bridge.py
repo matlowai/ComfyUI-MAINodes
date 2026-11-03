@@ -1,7 +1,10 @@
-"""The /mainodes/snap routes: a local bridge so CLI agents (tools/snap_mcp.py) call the same Snap tools the open page runs.
+"""The /mainodes/snap routes: Library cards, and a local bridge so CLI agents (tools/snap_mcp.py) call the same Snap tools
+the open page runs.
 The page owns the graph, so the server only relays a call to it over the websocket and waits for the page's answer."""
 import asyncio
 import itertools
+import json
+from pathlib import Path
 
 from aiohttp import web
 from server import PromptServer
@@ -55,3 +58,15 @@ async def result(request):
     if future and not future.done():  # with several tabs open the first answer wins
         future.set_result({k: body[k] for k in ("result", "error") if k in body})
     return web.json_response({})
+
+
+CARDS = Path(__file__).parent / "snap_cards"
+
+
+@routes.get("/mainodes/snap/cards")
+async def cards(request):
+    """Library cards shipped with the pack (snap_cards/*.json); user cards will live under the user directory."""
+    found = []
+    for f in sorted(CARDS.glob("*.json")):
+        found += json.loads(f.read_text(encoding="utf-8"))
+    return web.json_response({"cards": found})

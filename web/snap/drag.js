@@ -6,12 +6,12 @@ import { Spring, SPRINGS, animate, stop, project, reducedMotion } from "./spring
 const ACQUIRE = 24, RELEASE = 36, BIAS = 8;
 const smooth = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 
-export function attachDrag(root, { stack, onMove, onInsert, accepts }) {
+export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, cardTarget }) {
   let d = null; // the live gesture
 
   root.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || d || e.target.closest("button,input,select,textarea")) return;
-    const grip = e.target.closest("[data-grip]"), tile = e.target.closest("[data-source]");
+    const grip = e.target.closest("[data-grip]"), tile = e.target.closest("[data-source], [data-card]");
     if (!grip && !tile) return;
     const item = grip?.closest("[data-brick]");
     d = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, item, tile, started: false,
@@ -32,7 +32,13 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts }) {
   const end = (e, cancelled) => {
     if (!d || e.pointerId !== d.id) return;
     (d.item ?? d.tile).classList.remove("snap-pressed");
-    if (d.started) drop(cancelled, e.timeStamp); else d = null;
+    if (d.started) {
+      // the release still produces a click on the captured element; a drag is not a click
+      const swallow = (c) => { c.stopPropagation(); c.preventDefault(); };
+      root.addEventListener("click", swallow, { capture: true, once: true });
+      setTimeout(() => root.removeEventListener("click", swallow, { capture: true }), 0);
+      drop(cancelled, e.timeStamp);
+    } else d = null;
   };
   root.addEventListener("pointerup", (e) => end(e, false));
   root.addEventListener("pointercancel", (e) => end(e, true));
@@ -41,6 +47,7 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts }) {
 
   function begin() {
     d.started = true;
+    if (d.tile?.dataset.card) return beginCard();
     const items = [...stack.querySelectorAll(":scope > [data-brick]")];
     d.rects = new Map(items.map((el) => [el, el.getBoundingClientRect()]));
     d.stackRect = stack.getBoundingClientRect();
@@ -79,8 +86,43 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts }) {
     return i;
   }
 
+  // a Library card: no gap opens; the brick it belongs to lights up, and the one under the pointer takes it
+  function beginCard() {
+    const r = d.tile.getBoundingClientRect();
+    d.ghost = d.tile.cloneNode(true);
+    d.ghost.classList.add("snap-ghost", "snap-lifted");
+    Object.assign(d.ghost.style, { position: "fixed", left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, margin: 0, willChange: "transform" });
+    root.append(d.ghost);
+    d.home = r;
+    d.goes = cardTarget(d.tile.dataset.card);
+    stack.querySelector(`[data-brick="${d.goes}"]`)?.classList.add("snap-accepts");
+  }
+
+  function cardFrame() {
+    const under = document.elementFromPoint(d.x, d.y)?.closest?.("[data-brick]");
+    const target = under?.dataset.brick === d.goes ? under : null;
+    if (target !== d.target) { d.target?.classList.remove("snap-target"); target?.classList.add("snap-target"); d.target = target; }
+    d.ghost.style.transform = `translate3d(${d.x - d.x0}px,${d.y - d.y0}px,0) scale(${target ? 0.92 : 1.02})`;
+  }
+
+  function dropCard(g, cancelled) {
+    stack.querySelector(".snap-accepts")?.classList.remove("snap-accepts");
+    g.target?.classList.remove("snap-target");
+    const into = !cancelled && g.target;
+    const cur = new DOMMatrixReadOnly(getComputedStyle(g.ghost).transform);
+    let to = [0, 0, 1];
+    if (into) { const t = g.target.getBoundingClientRect(); to = [t.left + t.width / 2 - g.home.left - g.home.width / 2, t.top + 24 - g.home.top, 0.4]; }
+    const sp = new Spring([cur.m41, cur.m42, cur.a], SPRINGS.drop, [0.5, 0.5, 0.002]);
+    sp.set(to);
+    animate(g.ghost, sp, ([x, y, k]) => { g.ghost.style.transform = `translate3d(${x}px,${y}px,0) scale(${k})`; g.ghost.style.opacity = into ? Math.min(1, k * 1.6) : 1; }, () => {
+      g.ghost.remove();
+      if (into) onCard?.(g.tile.dataset.card, g.target.dataset.brick);
+    });
+  }
+
   function frame() {
     d.raf = 0;
+    if (d.goes !== undefined) return cardFrame();
     const dx = d.x - d.x0, dy = d.y - d.y0;
     const s = d.stackRect;
     if (!d.item) {
@@ -123,6 +165,7 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts }) {
     cancelAnimationFrame(d.raf);
     const [vx, vy] = velocity(now), g = d;
     d = null;
+    if (g.goes !== undefined) return dropCard(g, cancelled);
     const thrown = Math.hypot(vx, vy) > 300;
     let index = g.index, accepted = g.acquired && !cancelled;
     if (accepted && thrown) {

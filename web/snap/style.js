@@ -27,6 +27,17 @@ export const STYLE = `
 .snap-tile { display: flex; align-items: center; gap: 8px; padding: 8px 10px; min-height: 28px; border-radius: 10px; background: var(--s-card);
   border: 1px solid var(--s-line); cursor: grab; touch-action: none; user-select: none; }
 .snap-tile.used { opacity: .45; cursor: default; }
+.snap-rail-part { display: flex; flex-direction: column; gap: 6px; }
+.snap-lib-q { font: inherit; color: var(--s-fg); background: var(--s-bg); border: 1px solid var(--s-line); border-radius: 8px; padding: 6px 8px; min-height: 30px; box-sizing: border-box; }
+.snap-lib-for { all: unset; cursor: pointer; font-size: 11px; color: var(--s-accent); padding: 2px 0; }
+.snap-lib-results { display: flex; flex-direction: column; gap: 4px; }
+.snap-card { display: flex; flex-direction: column; gap: 1px; padding: 6px 9px; border-radius: 9px; background: var(--s-card); border: 1px solid var(--s-line);
+  border-left: 3px solid hsl(var(--hue) 70% 60% / .7); cursor: grab; touch-action: none; user-select: none; }
+.snap-card:hover { border-color: hsl(var(--hue) 70% 60% / .6); }
+.snap-kind { font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: hsl(var(--hue) 70% 70%); }
+.snap-card-title { font-size: 12px; }
+.snap-brick.snap-accepts { border-color: hsl(var(--hue) 70% 60% / .5); border-style: dashed; }
+.snap-brick.snap-target { border-style: solid; border-color: hsl(var(--hue) 70% 60%); box-shadow: 0 0 0 4px hsl(var(--hue) 70% 60% / .22); }
 .snap-stack { overflow: auto; padding: 16px 24px 48px; display: flex; flex-direction: column; row-gap: 12px; align-items: stretch; max-width: 760px; width: 100%; justify-self: center; }
 .snap-brick { position: relative; background: color-mix(in srgb, var(--s-card) calc(var(--veil) * 100%), transparent);
   border: 1px solid color-mix(in srgb, var(--s-line) calc(var(--veil) * 100%), transparent); border-radius: 14px; padding: 10px 12px 12px;

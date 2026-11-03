@@ -5,6 +5,7 @@ import * as E from "./engine.js";
 import { BRICKS, SIMPLE_RECIPE } from "./bricks.js";
 import { attachDrag } from "./drag.js";
 import { Spring, SPRINGS, animate } from "./spring.js";
+import * as L from "./library.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -32,8 +33,41 @@ export function createView({ onSwitch, onMakeApp }) {
   let inspectorSig = "";
   let overridden = []; // E.overrides() serializes the whole graph: computed once per render
 
+  // the Library section is built once (typing survives re-renders); only its results follow the query and the selection
+  const bricksRail = h("div", { className: "snap-rail-part" });
+  const libQuery = h("input", { className: "snap-lib-q", placeholder: "Search the Library…", ariaLabel: "search the Library" });
+  const libFor = h("button", { className: "snap-lib-for", hidden: true, title: "results fit the selected brick; click to search everything" });
+  const libResults = h("div", { className: "snap-lib-results" });
+  let libScoped = true;
+  libQuery.addEventListener("input", renderLibrary);
+  libFor.addEventListener("click", () => { libScoped = !libScoped; renderLibrary(); });
+  rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libResults);
+  L.load().then(renderLibrary, () => libResults.replaceChildren(h("div", { className: "snap-quiet", textContent: "Library not available on this server" })));
+
+  function renderLibrary() {
+    const scope = libScoped && selected && Object.values(L.TARGET).includes(selected) ? selected : null;
+    libFor.hidden = !selected || !Object.values(L.TARGET).includes(selected);
+    libFor.textContent = scope ? `for: ${BRICKS[selected].title} ✕` : `for: everything · fit ${BRICKS[selected]?.title ?? ""}`;
+    const found = L.search(libQuery.value, scope).slice(0, 40);
+    libResults.replaceChildren(...(found.length ? found.map((c) => {
+      const tile = h("div", { className: "snap-card", title: `${c.text}\n\nclick or drag onto ${BRICKS[L.TARGET[c.kind]].title}`, onclick: () => applyCard(c.id) },
+        h("span", { className: "snap-kind", textContent: (L.KIND_LABEL[c.kind] ?? c.kind).replace(/s$/, "") }), h("span", { className: "snap-card-title", textContent: c.title }));
+      tile.dataset.card = c.id;
+      tile.style.setProperty("--hue", BRICKS[L.TARGET[c.kind]].hue);
+      return tile;
+    }) : [h("div", { className: "snap-quiet", textContent: "nothing matches" })]));
+  }
+
+  function applyCard(id) {
+    const card = L.get(id), before = rects();
+    try { say(L.apply(card)); select(L.TARGET[card.kind], false); } catch (err) { say(err.message, true); }
+    render(before);
+  }
+
   attachDrag(root, {
     stack,
+    cardTarget: (id) => L.TARGET[L.get(id)?.kind],
+    onCard: (id) => applyCard(id),
     accepts: (key) => !E.state().bricks.some((b) => b.key === key) && (!BRICKS[key].attach || E.state().bricks.some((b) => b.key === BRICKS[key].attach.brick)),
     onMove: (key, index) => { const before = rects(); E.move(key, index); render(before); },
     onInsert: (key, index) => add(key, index),
@@ -109,10 +143,12 @@ export function createView({ onSwitch, onMakeApp }) {
   }
 
   function select(key, rerender = true) {
+    if (key !== selected) libScoped = true;
     selected = key;
     if (rerender) {
       for (const el of stack.querySelectorAll("[data-brick]")) el.classList.toggle("selected", el.dataset.brick === key);
       renderInspector();
+      renderLibrary();
     }
   }
 
@@ -168,7 +204,7 @@ export function createView({ onSwitch, onMakeApp }) {
     let rows = [];
     try { rows = JSON.parse(E.getValue("rack", "rack", "rack") || "[]"); } catch { rows = []; }
     const on = rows.filter((r) => r.on !== false && r.dial);
-    if (!on.length) return h("div", { className: "snap-quiet", textContent: "no dials yet · add them on the rack in the graph (Library drop comes in phase 2)" });
+    if (!on.length) return h("div", { className: "snap-quiet", textContent: "no dials yet · drop a dial card from the Library" });
     return h("div", { className: "snap-chips" }, on.map((r) => h("span", { className: "snap-chip", textContent: `${String(r.dial).split("/").pop().replace(/\.safetensors$/, "").replace(/^h3_/, "")} ${r.strength}` })));
   }
 
@@ -189,7 +225,7 @@ export function createView({ onSwitch, onMakeApp }) {
     const faces = def.face.map((f) => control(info.brick, f)).filter(Boolean);
     const body = [];
     if (info.brick === "rack") body.push(rackSummary());
-    if (info.brick === "refs") body.push(h("div", { className: "snap-quiet", textContent: "pictures, clips and sound · drop cards here in phase 2" }));
+    if (info.brick === "refs") body.push(h("div", { className: "snap-quiet", textContent: "pictures, clips and sound · motion guide cards land here" }));
     if (info.brick === "render") body.push(h("div", { className: "snap-quiet", textContent: "saves to output/video/dials_simple" }));
     const el = h("section", { className: `snap-brick${def.attach ? " attached" : ""}${selected === info.brick ? " selected" : ""}`, tabIndex: 0 },
       h("header", { className: "snap-head" },
@@ -208,7 +244,7 @@ export function createView({ onSwitch, onMakeApp }) {
 
   function renderRail() {
     const have = new Set(E.state().bricks.map((b) => b.key));
-    rail.replaceChildren(
+    bricksRail.replaceChildren(
       h("div", { className: "snap-rail-title", textContent: "Bricks" }),
       ...Object.entries(BRICKS).map(([key, def]) => {
         const tile = h("div", { className: `snap-tile${have.has(key) ? " used" : ""}`, title: have.has(key) ? "already in the recipe" : "drag into the recipe" },
@@ -216,9 +252,8 @@ export function createView({ onSwitch, onMakeApp }) {
         tile.dataset.source = key;
         tile.style.setProperty("--hue", def.hue);
         return tile;
-      }),
-      h("div", { className: "snap-rail-title", textContent: "Library" }),
-      h("div", { className: "snap-quiet", textContent: "characters, sets, motion, poses, dials, runs · phase 2" }));
+      }));
+    renderLibrary();
   }
 
   function renderInspector() {
