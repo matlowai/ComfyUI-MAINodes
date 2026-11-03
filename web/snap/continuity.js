@@ -32,6 +32,13 @@ export function diff(before, after) {
     if (was && now && was !== now) add("break", `screen direction flips: the camera is on the other side of the line between ${pair[0].name} and ${pair[1].name}`);
   }
   if (after.camera.lens !== before.camera.lens) add("note", `lens ${before.camera.lens} mm -> ${after.camera.lens} mm`);
+  // reciprocal setups (OTS on A / OTS on B, single A / single B) cut together, so they must match in lens and height
+  const kind = (c) => /^(OTS on|single) (.+)$/.exec(c.setup ?? "");
+  const [ka, kb] = [kind(before.camera), kind(after.camera)];
+  if (ka && kb && ka[1] === kb[1] && ka[2] !== kb[2]) {
+    if (before.camera.lens !== after.camera.lens) add("check", `${ka[1]} pair doesn't match: ${before.camera.lens} mm vs ${after.camera.lens} mm`);
+    if (Math.abs((before.camera.height ?? 0) - (after.camera.height ?? 0)) > 0.1) add("check", `${ka[1]} pair doesn't match: camera height ${before.camera.height} m vs ${after.camera.height} m`);
+  }
 
   // things with the same name (two chairs) pair up closest pair first across all of them; leftovers are gone / new
   const byName = (list) => { const m = new Map(); for (const x of list) m.set(x.name, [...(m.get(x.name) ?? []), x]); return m; };

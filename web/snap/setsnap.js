@@ -54,11 +54,13 @@ export function planFrame(s) {
   return { k, X, Y, world: (px, py) => [(px - 80) / k - rw / 2, (H - 80 - py) / k - rd / 2] };
 }
 
-// which side of the line between the two actors a camera stands on (+1 / -1); 0 when there is no pair
+// which side of the line between the two actors a camera stands on (+1 / -1); 0 on the line (within 5 cm: a neutral
+// shot) or when there is no pair
 export function side(s, at = s.camera.at) {
   if (s.actors.length !== 2) return 0;
   const [a, b] = s.actors.map((x) => x.at);
-  return Math.sign((b[0] - a[0]) * (at[1] - a[1]) - (b[1] - a[1]) * (at[0] - a[0]));
+  const d = ((b[0] - a[0]) * (at[1] - a[1]) - (b[1] - a[1]) * (at[0] - a[0])) / (Math.hypot(b[0] - a[0], b[1] - a[1]) || 1);
+  return Math.abs(d) < 0.05 ? 0 : Math.sign(d);
 }
 
 // standard coverage for a two-hander, all on one side of the line so cuts between them keep screen direction: the side
@@ -97,7 +99,35 @@ export function coverage(s) {
     { name: `single ${A.name}`, at: at(B.at, -0.25, 0.7), look: A.at, lens: 85 },
     { name: `single ${B.name}`, at: at(A.at, 0.25, 0.7), look: B.at, lens: 85 },
   ];
-  return setups.map(({ name, at: pos, look, lens }) => ({ name, at: pos.map((v) => Math.round(v * 100) / 100), facing: toward(pos, look), lens, height: s.camera.height }));
+  return setups.map(({ name, at: pos, look, lens }) => ({ name, setup: name, at: pos.map((v) => Math.round(v * 100) / 100), facing: toward(pos, look), lens, height: s.camera.height }));
+}
+
+// the two classic bridges for an intended crossing of the line: a neutral shot on the axis itself (no side, so the next
+// cut can go either way) and a cutaway onto a prop (no actors in frame). Cameras only; positions stay inside the room.
+export function bridges(s) {
+  if (s.actors.length !== 2) return {};
+  const [A, B] = s.actors, len = Math.hypot(B.at[0] - A.at[0], B.at[1] - A.at[1]) || 1;
+  const u = [(B.at[0] - A.at[0]) / len, (B.at[1] - A.at[1]) / len];
+  const [hw, hd] = s.room.size.map((v) => v / 2 - 0.25);
+  const inside = ([x, y]) => Math.abs(x) <= hw && Math.abs(y) <= hd;
+  const toward = (from, to) => Math.round(((Math.atan2(to[0] - from[0], to[1] - from[1]) * 180) / Math.PI + 360) % 360);
+  // on the axis, behind whichever actor leaves room for it: as far back as fits, at most 1.5 m
+  let neutral = null;
+  for (const [near, far, dir] of [[A, B, -1], [B, A, 1]]) {
+    for (let d = 1.5; d >= 0.6 && !neutral; d -= 0.1) {
+      const at = [near.at[0] + u[0] * d * dir, near.at[1] + u[1] * d * dir].map((v) => Math.round(v * 100) / 100);
+      if (inside(at)) neutral = { at, facing: toward(at, far.at), lens: 35, height: s.camera.height, setup: "neutral (on the line)" };
+    }
+  }
+  const mid = [(A.at[0] + B.at[0]) / 2, (A.at[1] + B.at[1]) / 2];
+  const prop = [...s.props].sort((p, q) => Math.hypot(p.at[0] - mid[0], p.at[1] - mid[1]) - Math.hypot(q.at[0] - mid[0], q.at[1] - mid[1]))[0];
+  let cutaway = null;
+  if (prop) {
+    const d = Math.hypot(mid[0] - prop.at[0], mid[1] - prop.at[1]) || 1, back = Math.max(prop.size[0], prop.size[1]) / 2 + 0.6;
+    const at = [prop.at[0] + ((mid[0] - prop.at[0]) / d) * back, prop.at[1] + ((mid[1] - prop.at[1]) / d) * back].map((v) => Math.round(v * 100) / 100);
+    cutaway = { at, facing: toward(at, prop.at), lens: 85, height: s.camera.height, setup: `cutaway (${prop.name})` };
+  }
+  return { neutral, cutaway };
 }
 
 // top-down plan: walls, openings, props, actor marks with facing, the last camera's frustum, and the 180° line.

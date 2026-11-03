@@ -1,7 +1,7 @@
 // Set Snapshot editor (UX_SPEC 7): the 2D blocking plan is the authority. Drag props, actor marks and the camera;
 // drag an arrow tip to turn an actor or aim the camera. The set block and the 180-degree check update live; Apply
 // refreshes the set pictures in References, Save keeps the edited state as a new card in the user's Library.
-import { drawPlan, planFrame, setBlock, blocking, coverage } from "./setsnap.js";
+import { drawPlan, planFrame, setBlock, blocking, coverage, bridges } from "./setsnap.js";
 import { diff, eyelines } from "./continuity.js";
 
 const GRID = 0.05;
@@ -20,6 +20,16 @@ export function openSetEditor(host, card, { onApply, onSave }) {
   const plan = h("canvas", { className: "snap-set-plan", tabIndex: 0, ariaLabel: "set plan: drag to block the scene" });
   const blockText = h("p", { className: "snap-set-block" }), blockingText = h("p", { className: "snap-set-block" });
   const notes = h("ul", { className: "snap-set-notes", role: "status" });
+  // an intended crossing gets a bridge: the end of the last shot again, seen from the line itself or a cutaway
+  const bridge = (kind) => {
+    const { previous, ...last } = s.previous;
+    const cam = bridges(s.previous)[kind];
+    onSave({ ...structuredClone(last), camera: cam, shot: `${s.previous.shot}, ${kind} bridge`, previous: structuredClone(s.previous) });
+  };
+  const bridgeBar = h("div", { className: "snap-set-actions", hidden: true },
+    h("span", { className: "snap-quiet", textContent: "crossing on purpose? bridge it:" }),
+    h("button", { className: "snap-link", textContent: "Neutral shot", title: "the end of the last shot seen from the line itself: the next cut can go either way", onclick: () => bridge("neutral") }),
+    h("button", { className: "snap-link", textContent: "Cutaway", title: "a close shot of a prop with no actors in frame", onclick: () => bridge("cutaway") }));
   const dialogue = h("input", { type: "checkbox", checked: !!s.dialogue, onchange: () => { s.dialogue = dialogue.checked; dirty = true; } });
   let showCoverage = false;
   const shot = h("input", { value: s.shot, oninput: () => { s.shot = shot.value; dirty = true; } });
@@ -29,7 +39,7 @@ export function openSetEditor(host, card, { onApply, onSave }) {
     h("div", { className: "snap-set-body" }, plan,
       h("aside", {}, h("label", { className: "snap-field" }, h("span", { textContent: "this state is the end of" }), shot),
         h("div", { className: "snap-rail-title", textContent: "Set block" }), blockText, h("div", { className: "snap-rail-title", textContent: "Blocking" }), blockingText,
-        h("div", { className: "snap-rail-title", textContent: "Changes since the last shot" }), notes,
+        h("div", { className: "snap-rail-title", textContent: "Changes since the last shot" }), notes, bridgeBar,
         h("div", { className: "snap-set-actions" },
           h("label", { className: "snap-check" }, dialogue, " dialogue scene (check eyelines)"),
           h("button", { className: "snap-link", textContent: "Coverage", title: "show the standard setups for these two actors on this side of the line; click one to use it", onclick: () => { showCoverage = !showCoverage; dirty = true; } })),
@@ -71,6 +81,7 @@ export function openSetEditor(host, card, { onApply, onSave }) {
   plan.addEventListener("pointermove", (e) => {
     if (!drag || e.pointerId !== drag.id) return;
     const w = toWorld(e);
+    if (drag.o === s.camera) delete s.camera.setup; // moved by hand: no longer a coverage setup
     if (drag.turn) drag.o.facing = Math.round(bearing(drag.o.at, w));
     else drag.o.at = [snapTo(inside(w[0] + drag.offset[0], 0)), snapTo(inside(w[1] + drag.offset[1], 1))];
     dirty = true;
@@ -95,6 +106,7 @@ export function openSetEditor(host, card, { onApply, onSave }) {
       blockText.textContent = setBlock(s);
       blockingText.textContent = blocking(s);
       const found = [...diff(s.previous, s), ...eyelines(s)];
+      bridgeBar.hidden = !found.some((f) => f.what.startsWith("screen direction flips"));
       notes.replaceChildren(...(found.length ? found.map((f) => h("li", { className: f.severity }, h("b", { textContent: f.severity }), ` ${f.what}`)) : [h("li", { className: "none", textContent: "nothing changed" })]));
     }
     requestAnimationFrame(frame);
