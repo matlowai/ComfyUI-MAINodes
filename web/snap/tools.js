@@ -7,6 +7,7 @@ import { BRICKS } from "./bricks.js";
 import * as L from "./library.js";
 import { diff } from "./continuity.js";
 import * as P from "./proposals.js";
+import * as crew from "./crew.js";
 
 const has = (key) => E.state().bricks.some((b) => b.key === key);
 const brickEnum = { type: "string", enum: Object.keys(BRICKS) };
@@ -137,6 +138,13 @@ export const TOOLS = [
     description: "Reply to a director's note in one or two lines (what you proposed and why). The note stays open until the person closes it.",
     inputSchema: { type: "object", properties: { note: { type: "string" }, reply: { type: "string" } }, required: ["note", "reply"] },
     run: ({ note, reply }) => E.updateNote(note, { status: "answered", reply }),
+  },
+  {
+    name: "crew_report",
+    description: "How the person has answered agent proposals so far (every day on record): accepted / answered per kind of proposal, e.g. 'setting length', 'card dial', 'brick rack'. Use it to propose what tends to be accepted and to stop proposing what isn't.",
+    inputSchema: { type: "object", properties: {} },
+    annotations: { readOnlyHint: true },
+    run: () => crew.report(),
   },
   {
     name: "list_proposals",

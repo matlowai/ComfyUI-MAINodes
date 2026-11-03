@@ -9,6 +9,7 @@ import { Spring, SPRINGS, animate } from "./spring.js";
 import * as L from "./library.js";
 import { openSetEditor } from "./seteditor.js";
 import * as P from "./proposals.js";
+import * as crew from "./crew.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -323,7 +324,15 @@ export function createView({ onSwitch, onMakeApp, run }) {
     const sig = info ? `${selected}|${signature(info)}|${JSON.stringify(Object.values(info.nodes).map((id) => app.graph.getNodeById(id)?.widgets?.map((w) => w.value)))}` : "";
     if (sig && (sig === inspectorSig || (inspector.contains(document.activeElement) && inspectorSig.startsWith(`${selected}|`)))) return;
     inspectorSig = sig;
-    if (!info) { inspectorSig = ""; inspector.replaceChildren(h("div", { className: "snap-quiet", textContent: "select a brick" }), E.state().bricks.length ? noteComposer() : null); return; }
+    if (!info) {
+      inspectorSig = "";
+      const crewLine = h("div", { className: "snap-quiet" });
+      crew.report().then(({ total: [a, n], kinds }) => {
+        crewLine.textContent = n ? `Crew: ${a} of ${n} proposals accepted · ${Object.entries(kinds).map(([k, [x, y]]) => `${k} ${x}/${y}`).join(" · ")}` : "";
+      }, () => {});
+      inspector.replaceChildren(h("div", { className: "snap-quiet", textContent: "select a brick" }), E.state().bricks.length ? noteComposer() : null, crewLine);
+      return;
+    }
     const def = BRICKS[info.brick];
     const nodes = Object.entries(info.nodes).map(([k, id]) => [k, app.graph.getNodeById(id)]).filter(([, n]) => n);
     inspector.replaceChildren(
@@ -363,6 +372,7 @@ export function createView({ onSwitch, onMakeApp, run }) {
   async function decide(id, accept) {
     const before = rects();
     const p = await P.decide(id, accept, run);
+    if (p) crew.log(p, L.get(p.args.card)?.kind, E.notes().find((n) => n.id === p.note)?.text).then(renderInspector, () => {});
     if (p) say(p.status === "accepted" ? `Accepted: ${p.tool.replaceAll("_", " ")}` : p.status === "rejected" ? "Rejected the proposal" : `Couldn't apply it: ${p.result}`, p.status === "failed");
     render(before, p?.status === "accepted" ? p.args.brick : undefined);
   }
