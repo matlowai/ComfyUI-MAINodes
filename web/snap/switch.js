@@ -106,6 +106,7 @@ export function createSwitch(view) {
   function dock(el) {
     if (showing) { showing = false; app.canvas.pause_rendering = false; container()?.classList.remove("snap-open"); }
     stop(root); settle(); // a flight still running would hide the docked view when it lands
+    view.release();
     docked = el;
     el.style.cssText += ";position:relative;height:100%";
     el.append(root);
@@ -125,6 +126,7 @@ export function createSwitch(view) {
 
   function toGraph(focusKey) {
     if (docked) return frame(focusKey);
+    view.release(); // custom panels lent to the inspector go back to their nodes
     showing = false;
     container()?.classList.remove("snap-open");
     app.canvas.pause_rendering = false;

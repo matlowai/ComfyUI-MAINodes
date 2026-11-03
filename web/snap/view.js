@@ -238,11 +238,22 @@ export function createView({ onSwitch, onMakeApp, run }) {
     toastTimer = setTimeout(() => toast.classList.remove("show"), bad ? 6000 : 2500);
   }
 
+  // any node's widget as a control, read from the widget itself (no per-node code): its own type, options and limits;
+  // a button runs its own callback; a custom DOM panel is the node's own element, lent to the inspector; a widget fed by
+  // a wire says so instead of offering an edit the graph would ignore
   function control(brick, [nodeKey, name, label]) {
     const n = E.nodeFor(brick, nodeKey), w = n?.widgets?.find((x) => x.name === name);
-    if (!w) return null;
+    if (!w || w.hidden || w.name.startsWith("$$")) return null;
+    const title = label ?? (w.label ?? name).replaceAll("_", " ");
+    const wired = n.inputs?.find((i) => i.widget?.name === name && i.link != null);
+    if (wired) {
+      const from = app.graph.getNodeById(app.graph.links[wired.link]?.origin_id);
+      return h("div", { className: "snap-field" }, h("span", { textContent: title }), h("div", { className: "snap-wired", textContent: `wired from ${from?.title ?? "another node"}` }));
+    }
+    if (w.element) return lend(w, title);
+    if (w.type === "button") return h("button", { className: "snap-link snap-widget-btn", textContent: w.label ?? name, onclick: (e) => w.callback?.(w, app.canvas, n, [0, 0], e) });
     const set = (v) => { E.setValue(brick, nodeKey, name, v); renderStatus(); };
-    const values = w.options?.values;
+    const values = typeof w.options?.values === "function" ? w.options.values(w, n) : w.options?.values;
     let input;
     if (Array.isArray(values)) {
       input = h("select", { onchange: () => set(input.value) }, values.map((v) => h("option", { value: v, textContent: v, selected: v === w.value })));
@@ -250,19 +261,40 @@ export function createView({ onSwitch, onMakeApp, run }) {
     } else if (typeof w.value === "boolean") {
       input = h("input", { type: "checkbox", checked: w.value, onchange: () => set(input.checked) });
     } else if (typeof w.value === "number") {
-      input = h("input", { type: "number", value: w.value, step: w.options?.step2 ?? (Number.isInteger(w.value) ? 1 : 0.01), onchange: () => set(Number(input.value)) });
+      const o = w.options ?? {};
+      input = h("input", { type: "number", value: w.value, step: o.step2 ?? (o.round || (Number.isInteger(w.value) ? 1 : 0.01)), onchange: () => set(Number(input.value)) });
+      if (o.min != null) input.min = o.min;
+      if (o.max != null) input.max = o.max;
     } else {
-      input = h("textarea", { value: w.value ?? "", rows: name === "prompt" ? 3 : 1, onchange: () => set(input.value) });
+      input = h("textarea", { value: w.value ?? "", rows: String(w.value ?? "").length > 80 ? 4 : 1, onchange: () => set(input.value) });
     }
-    const field = h("label", { className: `snap-field snap-${input.tagName.toLowerCase()}` }, h("span", { textContent: label }), input);
+    const field = h("label", { className: `snap-field snap-${input.tagName.toLowerCase()}` }, h("span", { textContent: title }), input);
     if (input.type === "number") scrub(field.firstChild, input, set);
     return field;
   }
 
+  // a node's own DOM widget (a pack's custom panel) shown in the inspector: the element itself moves here, keeping its
+  // listeners and state, and goes back to the frontend's slot when the inspector closes. If that slot is gone (undo
+  // reloads the graph), the stale element is dropped and the frontend mounts the new node's own
+  const lent = new Map(); // element -> the frontend's parent for it
+  function lend(w, title) {
+    if (!lent.has(w.element)) lent.set(w.element, w.element.parentElement);
+    const box = h("div", { className: "snap-dom" });
+    box.append(w.element);
+    return h("div", { className: "snap-field snap-dom-field" }, h("span", { textContent: title }), box);
+  }
+  function giveBack() {
+    for (const [el, parent] of lent) { if (parent?.isConnected) parent.appendChild(el); else el.remove(); }
+    lent.clear();
+  }
+
+  // what the node shows as pictures (a loaded image's preview, a run's output), read from the node
+  const previews = (n) => (n.imgs ?? []).map((img) => img.src).filter(Boolean);
+
   // a brick shows its settings as values; they are edited in the inspector (select the brick)
   function fact(brick, [nodeKey, name, label]) {
     const w = E.nodeFor(brick, nodeKey)?.widgets?.find((x) => x.name === name);
-    if (!w) return null;
+    if (!w || w.type === "button" || w.hidden || (w.element && !(typeof w.value === "string" && w.value))) return null; // a panel without a value isn't a fact
     const v = w.value, values = w.options?.values;
     const missing = v == null || (Array.isArray(values) && !values.includes(v));
     const text = v == null ? "missing" : typeof v === "boolean" ? (v ? "on" : "off") : Array.isArray(values) ? String(v).split("/").pop().replace(/\.safetensors$/, "") : String(v);
@@ -295,7 +327,7 @@ export function createView({ onSwitch, onMakeApp, run }) {
     let rows = [];
     try { rows = JSON.parse(E.getValue("rack", "rack", "rack") || "[]"); } catch { rows = []; }
     const on = rows.filter((r) => r.on !== false && r.dial);
-    if (!on.length) return h("div", { className: "snap-quiet", textContent: "no dials yet · drop a dial card from the Library" });
+    if (!on.length) return h("div", { className: "snap-quiet", textContent: "No dials", title: "drop a dial card from the Library, or open the rack (select it)" });
     return h("div", { className: "snap-chips" }, on.map((r) => h("span", { className: "snap-chip", textContent: `${String(r.dial).split("/").pop().replace(/\.safetensors$/, "").replace(/^h3_/, "")} ${r.strength}` })));
   }
 
@@ -304,7 +336,7 @@ export function createView({ onSwitch, onMakeApp, run }) {
     const pics = E.state().bricks.find((b) => b.key === "refs")?.pictures ?? [];
     const meter = h("div", { className: "snap-meter", title: "H3 References takes 9 pictures; put identity references first" },
       ...Array.from({ length: E.PICTURE_SLOTS }, (_, i) => h("span", { className: i < pics.length ? "on" : "" })), h("em", { textContent: `${pics.length} of ${E.PICTURE_SLOTS} pictures` }));
-    if (!pics.length) return [meter, h("div", { className: "snap-quiet", textContent: "drop a set snapshot or character card here" })];
+    if (!pics.length) return [meter, h("div", { className: "snap-quiet", textContent: "Drop pictures here", title: "a set snapshot or character card from the Library" })];
     return [meter, h("div", { className: "snap-pics" }, pics.map((p) => {
       const [sub, ...name] = p.file.split("/");
       const from = p.source && (L.get(p.card) ?? L.get(`${p.source}-mine`) ?? L.get(p.source)); // the exact version in References
@@ -371,6 +403,8 @@ export function createView({ onSwitch, onMakeApp, run }) {
     const def = BRICKS[info.brick];
     const faces = def.face.map((f) => fact(info.brick, f)).filter(Boolean);
     const body = [];
+    const pics = Object.values(info.nodes).flatMap((id) => { const n = app.graph.getNodeById(id); return n ? previews(n) : []; });
+    if (pics.length && info.brick !== "refs") body.push(h("div", { className: "snap-thumbs" }, pics.slice(0, 2).map((src) => h("img", { src, alt: "", loading: "lazy" }))));
     if (info.brick === "rack") body.push(rackSummary());
     if (info.brick === "refs") body.push(...picturesFace());
     if (info.brick === "render") {
@@ -429,6 +463,7 @@ export function createView({ onSwitch, onMakeApp, run }) {
     if (!info) {
       if (inspector.contains(document.activeElement) && inspectorSig === "") return; // a whole-recipe note is being typed
       inspectorSig = "";
+      giveBack();
       if (!crewLine) { // read once, and again only after a decision is logged (it reads every day on record)
         crewLine = h("div", { className: "snap-quiet" });
         crew.report().then(({ total: [a, n], kinds }) => {
@@ -439,10 +474,11 @@ export function createView({ onSwitch, onMakeApp, run }) {
         h("div", { className: "snap-quiet", textContent: "Notes here are for the whole recipe; select a brick to note on it." }), noteComposer(), crewLine);
       return;
     }
+    giveBack();
     const def = BRICKS[info.brick];
     const nodes = Object.entries(info.nodes).map(([k, id]) => [k, app.graph.getNodeById(id)]).filter(([, n]) => n);
     const faced = new Set(def.face.map(([k, name]) => `${k}.${name}`));
-    inspector.replaceChildren(
+    inspector.replaceChildren(...h("div", {},
       h("div", { className: "snap-insp-title", style: `--hue:${def.hue}` }, h("span", { className: "snap-grip", textContent: def.icon }), def.title,
         h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: () => select(null) })),
       h("div", { className: "snap-quiet", textContent: info.brick === "render" ? `${def.blurb} · saves to output/video/dials_simple` : def.blurb }),
@@ -450,14 +486,15 @@ export function createView({ onSwitch, onMakeApp, run }) {
       def.face.length ? h("div", { className: "snap-insp-node snap-insp-main" }, def.face.map((f) => control(info.brick, f))) : null,
       ...nodes.map(([k, n]) => h("div", { className: "snap-insp-node" },
         h("div", { className: "snap-insp-type", textContent: `${n.title} · ${n.type.length > 30 ? "blueprint" : n.type} #${n.id}` }),
-        (n.widgets ?? []).filter((w) => w.name && !w.name.startsWith("$$") && w.type !== "button" && !faced.has(`${k}.${w.name}`)).slice(0, 16).map((w) => control(info.brick, [k, w.name, w.label ?? w.name])))),
+        previews(n).length ? h("div", { className: "snap-thumbs big" }, previews(n).map((src) => h("img", { src, alt: "" }))) : null,
+        (n.widgets ?? []).filter((w) => w.name && !faced.has(`${k}.${w.name}`)).map((w) => control(info.brick, [k, w.name])))),
       info.bindings.length ? h("div", { className: "snap-insp-type", textContent: "Wired from" }) : null,
       info.bindings.length ? h("div", { className: "snap-binds" }, info.bindings.filter((b) => b.rule !== "ask").map((b) => {
         const chip = h("button", { className: `snap-bind ${b.rule.split(":")[0]}`, textContent: b.value != null ? `${b.role} = ${b.value}` : `${b.role} ← ${BRICKS[b.from]?.title ?? b.from}`, title: `rule: ${b.rule}`, onclick: () => onSwitch(info.brick) });
         chip.style.setProperty("--from", BRICKS[b.from]?.hue ?? 215);
         return chip;
       })) : null,
-      h("button", { className: "snap-link", textContent: "Show in graph", onclick: () => onSwitch(info.brick) }), noteComposer());
+      h("button", { className: "snap-link", textContent: "Show in graph", onclick: () => onSwitch(info.brick) }), noteComposer()).childNodes); // h() drops the nulls
   }
 
   function renderStatus() {
@@ -627,5 +664,5 @@ export function createView({ onSwitch, onMakeApp, run }) {
     }
   }
 
-  return { root, stack, render, say, select, get selected() { return selected; } };
+  return { root, stack, render, say, select, release: giveBack, get selected() { return selected; } };
 }

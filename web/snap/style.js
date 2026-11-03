@@ -33,6 +33,12 @@ export const STYLE = `
 .snap-rail { border-right: 1px solid var(--s-line); }
 .snap-inspector { border-left: 1px solid var(--s-line); gap: 8px; min-width: 0; overflow: hidden auto; box-shadow: -12px 0 32px #0000002e; }
 .snap-insp-title .snap-x { margin-left: auto; opacity: 1; }
+.snap-wired { font-size: 12px; color: var(--s-dim); padding: 6px 9px; border-radius: 9px; border: 1px dashed var(--s-line); }
+.snap-dom { border-radius: 10px; padding: 8px; background: #0000002e; border: 1px solid #ffffff10; overflow: auto; }
+.snap-dom > * { height: auto !important; }
+.snap-widget-btn { align-self: stretch; text-align: center; margin-top: 0; }
+.snap-thumbs { display: flex; gap: 6px; } .snap-thumbs img { width: 100%; max-height: 90px; object-fit: cover; border-radius: 8px; border: 1px solid #ffffff14; min-width: 0; }
+.snap-thumbs.big img { max-height: 220px; object-fit: contain; background: #0003; }
 .snap-insp-main { padding-bottom: 10px; border-bottom: 1px solid var(--s-line); }
 .snap-insp-main .snap-field textarea { min-height: 120px; }
 .snap-rail-title, .snap-insp-title { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--s-dim); margin: 10px 2px 4px; }
