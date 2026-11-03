@@ -15,6 +15,7 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, car
     const grip = e.target.closest("[data-grip]"), tile = e.target.closest("[data-source], [data-card]");
     if (!grip && !tile) return;
     const item = grip?.closest("[data-brick]");
+    if (item?.dataset.host) return; // an attachment moves with its host
     d = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, item, tile, started: false,
       slop: e.pointerType === "mouse" && !tile ? 4 : 10, samples: [], el: grip ?? tile };
     d.el.setPointerCapture(e.pointerId);
@@ -55,11 +56,14 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, car
     d.stackRect = stack.getBoundingClientRect();
     d.top0 = items.length ? Math.min(...items.map((el) => d.rects.get(el).top)) : d.stackRect.top + 12;
     d.gap = parseFloat(getComputedStyle(stack).rowGap) || 12;
-    d.others = items.filter((el) => el !== d.item);
+    // a host is lifted with the attachments under it; they ride the same transform
+    d.group = [];
+    if (d.item) for (let i = items.indexOf(d.item); i < items.length && (i === items.indexOf(d.item) || items[i].dataset.host === d.item.dataset.brick); i++) d.group.push(items[i]);
+    d.others = items.filter((el) => !d.group.includes(el));
     d.springs = new Map(d.others.map((el) => [el, new Spring([0], SPRINGS.reflow)]));
     if (d.item) {
       const r = d.rects.get(d.item);
-      d.ghost = d.item; d.home = r; d.size = r.height;
+      d.ghost = d.item; d.home = r; d.size = d.rects.get(d.group.at(-1)).bottom - r.top;
       d.index = items.indexOf(d.item); d.acquired = true;
     } else {
       const r = d.tile.getBoundingClientRect();
@@ -69,8 +73,8 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, car
       root.append(d.ghost);
       d.home = r; d.size = 88; d.index = d.others.length; d.acquired = false;
     }
-    d.ghost.classList.add("snap-lifted");
-    for (const el of [d.ghost, ...d.others.slice(0, 6)]) el.style.willChange = "transform";
+    for (const el of d.group.length ? d.group : [d.ghost]) el.classList.add("snap-lifted");
+    for (const el of [d.ghost, ...d.group, ...d.others.slice(0, 6)]) el.style.willChange = "transform";
   }
 
   // top of slot `index` in the list without the dragged item (no gap opened)
@@ -153,7 +157,8 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, car
       const target = s.left + 12 - d.home.left;
       lean = (target - dx) * Math.min(0.6, smooth(1 - Math.abs(target - dx) / (ACQUIRE * 8)));
     }
-    d.ghost.style.transform = `translate3d(${dx + lean}px,${dy}px,0) scale(1.02)`;
+    const t = `translate3d(${dx + lean}px,${dy}px,0) scale(1.02)`;
+    for (const el of d.group.length ? d.group : [d.ghost]) el.style.transform = t;
   }
 
   // px/s over the 80 ms before release; a hand that stopped and held has no velocity
@@ -191,10 +196,11 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, car
     });
     stop(g.ghost);
     settledAt = performance.now() + 700;
-    animate(g.ghost, sp, ([x, y]) => { g.ghost.style.transform = `translate3d(${x}px,${y}px,0)`; }, () => {
+    const moving = g.group.length ? g.group : [g.ghost];
+    animate(g.ghost, sp, ([x, y]) => { for (const el of moving) el.style.transform = `translate3d(${x}px,${y}px,0)`; }, () => {
       settledAt = 0;
-      for (const el of [g.ghost, ...g.others]) { stop(el); el.style.transform = ""; el.style.willChange = ""; }
-      g.ghost.classList.remove("snap-lifted", "snap-acquired");
+      for (const el of [...moving, ...g.others]) { stop(el); el.style.transform = ""; el.style.willChange = ""; }
+      for (const el of moving) el.classList.remove("snap-lifted", "snap-acquired");
       if (!g.item) g.ghost.remove();
       if (!accepted) return;
       if (g.item) onMove?.(g.item.dataset.brick, index);

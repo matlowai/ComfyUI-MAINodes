@@ -252,6 +252,7 @@ export function createView({ onSwitch, onMakeApp }) {
         h("button", { className: "snap-x", textContent: "×", title: "remove from the recipe", onclick: (e) => { e.stopPropagation(); const before = rects(); E.unsnap(info.brick); if (selected === info.brick) selected = null; render(before); } })),
       faces.length ? h("div", { className: "snap-face" }, faces) : null, body, bindingsLine(info.brick, info));
     el.dataset.brick = info.brick;
+    if (def.attach) el.dataset.host = def.attach.brick;
     el.querySelector(".snap-head").dataset.grip = "";
     el.style.setProperty("--hue", def.hue);
     el.addEventListener("pointerdown", () => select(info.brick));

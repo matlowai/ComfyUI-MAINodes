@@ -215,7 +215,7 @@ export function tidy() {
 }
 
 // reading order only: pack rules bind by role, so reordering never rewires. A host carries its attachments; an
-// attachment can't leave its host; `index` counts the list without the moved brick (what a drag reports)
+// attachment can't leave its host; `index` counts the list without the moved group (what a drag reports)
 export function move(key, index) {
   const s = state(), i = s.bricks.findIndex((b) => b.key === key);
   if (i < 0 || BRICKS[key].attach) return;
@@ -223,7 +223,7 @@ export function move(key, index) {
   while (BRICKS[s.bricks[i + n]?.key]?.attach?.brick === key) n++;
   transaction(() => {
     const group = s.bricks.splice(i, n);
-    s.bricks.splice(boundary(s.bricks, index > i ? index - n + 1 : index), 0, ...group);
+    s.bricks.splice(boundary(s.bricks, index), 0, ...group);
   });
 }
 
