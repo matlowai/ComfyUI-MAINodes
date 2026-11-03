@@ -7,11 +7,9 @@ import * as E from "./engine.js";
 export const TARGET = { dial: "rack", lora: "preset", character: "render", setting: "render", scene: "render", principle: "render", pose: "first_frame", motion_guide: "refs", run: "render" };
 export const KIND_LABEL = { character: "Characters", setting: "Settings", scene: "Scenes", principle: "Principles", motion_guide: "Motion", pose: "Poses", dial: "Dials", lora: "LoRAs", run: "Runs" };
 
-let cards = [];
-export async function load() {
-  cards = (await (await api.fetchApi("/mainodes/snap/cards")).json()).cards;
-  return cards;
-}
+let cards = [], loading;
+// cards load once per page; the view and the agent tools both wait on the same request
+export const ready = () => (loading ??= api.fetchApi("/mainodes/snap/cards").then((r) => r.json()).then((d) => (cards = d.cards)));
 export const get = (id) => cards.find((c) => c.id === id);
 
 export function search(query, brick) {

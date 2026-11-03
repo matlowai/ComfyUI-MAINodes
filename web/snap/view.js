@@ -42,7 +42,7 @@ export function createView({ onSwitch, onMakeApp }) {
   libQuery.addEventListener("input", renderLibrary);
   libFor.addEventListener("click", () => { libScoped = !libScoped; renderLibrary(); });
   rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libResults);
-  L.load().then(renderLibrary, () => libResults.replaceChildren(h("div", { className: "snap-quiet", textContent: "Library not available on this server" })));
+  L.ready().then(renderLibrary, () => libResults.replaceChildren(h("div", { className: "snap-quiet", textContent: "Library not available on this server" })));
 
   function renderLibrary() {
     const scope = libScoped && selected && Object.values(L.TARGET).includes(selected) ? selected : null;
