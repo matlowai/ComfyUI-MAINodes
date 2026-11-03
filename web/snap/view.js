@@ -175,6 +175,11 @@ export function createView({ onSwitch, onMakeApp, run }) {
 
   async function buildSimple(e) {
     e.currentTarget.disabled = true; // snap() already dedupes per brick; this keeps the button honest too
+    if (app.graph.nodes.length) { // the recipe starts in its own tab; the open workflow is left alone
+      const was = app.extensionManager.workflow.activeWorkflow;
+      await app.extensionManager.command.execute("Comfy.NewBlankWorkflow");
+      while (app.extensionManager.workflow.activeWorkflow === was || app.graph.nodes.length) await new Promise((r) => setTimeout(r, 30));
+    }
     for (const key of SIMPLE_RECIPE) await E.snap(key);
     select("render", false);
     render(null);
