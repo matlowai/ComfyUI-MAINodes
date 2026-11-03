@@ -1,6 +1,7 @@
 // The Snap view DOM (UX_SPEC sections 1, 2, 6). Rendered idempotently from graph.extra.snap + the live graph, so undo,
 // graph edits and agent edits all show up by re-rendering; nothing here keeps its own copy of brick state.
 import { app } from "../../../scripts/app.js";
+import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
 import { BRICKS, SIMPLE_RECIPE } from "./bricks.js";
 import { attachDrag } from "./drag.js";
@@ -58,9 +59,9 @@ export function createView({ onSwitch, onMakeApp }) {
     }) : [h("div", { className: "snap-quiet", textContent: "nothing matches" })]));
   }
 
-  function applyCard(id) {
+  async function applyCard(id) {
     const card = L.get(id), before = rects();
-    try { say(L.apply(card)); select(L.TARGET[card.kind], false); } catch (err) { say(err.message, true); }
+    try { say(await L.apply(card)); select(L.TARGET[card.kind], false); } catch (err) { say(err.message, true); }
     render(before);
   }
 
@@ -208,6 +209,18 @@ export function createView({ onSwitch, onMakeApp }) {
     return h("div", { className: "snap-chips" }, on.map((r) => h("span", { className: "snap-chip", textContent: `${String(r.dial).split("/").pop().replace(/\.safetensors$/, "").replace(/^h3_/, "")} ${r.strength}` })));
   }
 
+  // what References holds: each picture with its role, and the budget (H3 takes 9 pictures; identity refs come first)
+  function picturesFace() {
+    const pics = E.state().bricks.find((b) => b.key === "refs")?.pictures ?? [];
+    const meter = h("div", { className: "snap-meter", title: "H3 References takes 9 pictures; put identity references first" },
+      ...Array.from({ length: E.PICTURE_SLOTS }, (_, i) => h("span", { className: i < pics.length ? "on" : "" })), h("em", { textContent: `${pics.length} of ${E.PICTURE_SLOTS} pictures` }));
+    if (!pics.length) return [meter, h("div", { className: "snap-quiet", textContent: "drop a set snapshot or character card here" })];
+    return [meter, h("div", { className: "snap-pics" }, pics.map((p) => {
+      const [sub, ...name] = p.file.split("/");
+      return h("figure", { title: p.reason }, h("img", { src: api.apiURL(`/view?filename=${encodeURIComponent(name.join("/"))}&subfolder=${encodeURIComponent(sub)}&type=input`), alt: p.role, loading: "lazy" }), h("figcaption", { textContent: p.role }));
+    }))];
+  }
+
   function bindingsLine(key, info) {
     const chips = info.bindings.map((b) => {
       const kind = b.rule.split(":")[0];
@@ -225,7 +238,7 @@ export function createView({ onSwitch, onMakeApp }) {
     const faces = def.face.map((f) => control(info.brick, f)).filter(Boolean);
     const body = [];
     if (info.brick === "rack") body.push(rackSummary());
-    if (info.brick === "refs") body.push(h("div", { className: "snap-quiet", textContent: "pictures, clips and sound · motion guide cards land here" }));
+    if (info.brick === "refs") body.push(...picturesFace());
     if (info.brick === "render") body.push(h("div", { className: "snap-quiet", textContent: "saves to output/video/dials_simple" }));
     const el = h("section", { className: `snap-brick${def.attach ? " attached" : ""}${selected === info.brick ? " selected" : ""}`, tabIndex: 0 },
       h("header", { className: "snap-head" },
@@ -283,6 +296,7 @@ export function createView({ onSwitch, onMakeApp }) {
   function signature(info) {
     const values = BRICKS[info.brick].face.map(([k, name]) => E.getValue(info.brick, k, name));
     if (info.brick === "rack") values.push(E.getValue("rack", "rack", "rack"));
+    if (info.brick === "refs") values.push(E.state().bricks.find((b) => b.key === "refs")?.pictures);
     return JSON.stringify([info.nodes, info.bindings, overridden.filter((o) => o.to === info.brick).map((o) => o.change), values]);
   }
 

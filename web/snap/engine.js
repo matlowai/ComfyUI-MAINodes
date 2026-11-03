@@ -155,6 +155,35 @@ export async function snap(key, { values, at } = {}) {
   return { brick: key, bindings };
 }
 
+// a picture reference: a LoadImage node owned by the References brick, wired into the next free ref_images slot
+// (H3 References takes 9), recorded with its role and reason so the brick can show what each picture is for
+export const PICTURE_SLOTS = 9;
+export function addPicture(file, { role, reason }) {
+  const s = state(), b = s.bricks.find((x) => x.key === "refs");
+  if (!b) throw new Error("Add the References brick first");
+  b.pictures ??= [];
+  if (b.pictures.some((p) => p.file === file)) return b.pictures.find((p) => p.file === file);
+  if (b.pictures.length >= PICTURE_SLOTS) throw new Error(`References holds ${PICTURE_SLOTS} pictures; remove one first`);
+  const refs = node(b.nodes.refs);
+  return transaction(() => {
+    const n = LiteGraph.createNode("LoadImage");
+    n.title = role;
+    n.pos = [refs.pos[0], refs.pos[1] + refs.size[1] + 80 + b.pictures.length * 340];
+    n.properties.snap = { brick: "refs", version: 1 };
+    app.graph.add(n);
+    const w = widget(n, "image");
+    if (!w.options.values.includes(file)) w.options.values.push(file);
+    w.value = file;
+    const slot = refs.inputs.findIndex((i) => i.name.startsWith("ref_images.") && i.link == null);
+    n.connect(0, refs, slot);
+    const picture = { node: n.id, file, role, reason };
+    b.nodes[`picture_${n.id}`] = n.id;
+    b.placed[n.id] = [...n.pos];
+    b.pictures.push(picture);
+    return picture;
+  });
+}
+
 // lay Snap-placed nodes out again with their current sizes (DOM widgets grow after mounting); nodes the user moved
 // in the graph keep their place. One undo step, and only when something moves.
 export function tidy() {

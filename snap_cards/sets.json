@@ -1,0 +1,141 @@
+[
+ {
+  "id": "set-lamp-room-end-s3",
+  "kind": "set_snapshot",
+  "example": true,
+  "title": "Set snapshot: lamp room, end of shot 3",
+  "text": "The north lighthouse lamp room as shot 3 ended: Ferro at the east window with the spyglass raised, chair pushed back from the desk, the radio on, the lantern lit by the door, the lamp turning. Cold blue dusk through the window, warm amber lamp sweep. Use it to start the next shot where this one left off.",
+  "brick": {
+   "snapshot": {
+    "name": "lamp room of the north lighthouse",
+    "shot": "shot 3",
+    "room": {
+     "size": [
+      5,
+      5
+     ],
+     "height": 3,
+     "openings": [
+      {
+       "kind": "door",
+       "from": [
+        -0.5,
+        -2.5
+       ],
+       "to": [
+        0.5,
+        -2.5
+       ]
+      },
+      {
+       "kind": "window",
+       "from": [
+        2.5,
+        -1.0
+       ],
+       "to": [
+        2.5,
+        1.2
+       ],
+       "sill": 0.9,
+       "top": 2.2
+      }
+     ]
+    },
+    "props": [
+     {
+      "name": "writing desk",
+      "at": [
+       -1.6,
+       1.6
+      ],
+      "size": [
+       1.4,
+       0.7
+      ],
+      "height": 0.75
+     },
+     {
+      "name": "radio",
+      "at": [
+       -1.2,
+       1.7
+      ],
+      "size": [
+       0.4,
+       0.3
+      ],
+      "height": 1.05,
+      "state": "on, dial lit"
+     },
+     {
+      "name": "chair",
+      "at": [
+       -1.6,
+       0.8
+      ],
+      "size": [
+       0.5,
+       0.5
+      ],
+      "height": 0.9,
+      "state": "pushed back"
+     },
+     {
+      "name": "lamp housing",
+      "at": [
+       0,
+       0
+      ],
+      "size": [
+       1.0,
+       1.0
+      ],
+      "height": 2.4,
+      "state": "lamp turning"
+     },
+     {
+      "name": "lantern",
+      "at": [
+       0.4,
+       -2.0
+      ],
+      "size": [
+       0.3,
+       0.3
+      ],
+      "height": 0.4,
+      "state": "lit"
+     }
+    ],
+    "actors": [
+     {
+      "name": "Ferro",
+      "card": "char-old-ferro",
+      "at": [
+       1.8,
+       0.2
+      ],
+      "facing": 90,
+      "height": 1.85,
+      "hands": "spyglass raised",
+      "wardrobe": 1
+     }
+    ],
+    "light": {
+     "from": 90,
+     "description": "cold blue dusk through the east window, warm amber lamp sweep"
+    },
+    "camera": {
+     "at": [
+      -2.0,
+      -2.0
+     ],
+     "facing": 35,
+     "lens": 24,
+     "height": 1.5
+    }
+   }
+  }
+ }
+]

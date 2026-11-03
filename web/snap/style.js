@@ -70,6 +70,14 @@ export const STYLE = `
 .snap-bind:hover { color: var(--s-fg); }
 .snap-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .snap-chip { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: hsl(35 80% 60% / .15); color: hsl(35 80% 72%); }
+.snap-meter { display: flex; align-items: center; gap: 3px; margin-top: 8px; }
+.snap-meter span { width: 14px; height: 6px; border-radius: 3px; background: var(--s-line); }
+.snap-meter span.on { background: hsl(var(--hue) 70% 60%); }
+.snap-meter em { font-style: normal; font-size: 11px; color: var(--s-dim); margin-left: 6px; }
+.snap-pics { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.snap-pics figure { margin: 0; width: 132px; }
+.snap-pics img { width: 132px; height: 99px; object-fit: cover; border-radius: 8px; border: 1px solid var(--s-line); display: block; background: #f4f1ea; }
+.snap-pics figcaption { font-size: 11px; color: var(--s-dim); margin-top: 3px; }
 .snap-quiet { color: var(--s-dim); font-size: 12px; margin-top: 6px; }
 .snap-empty { margin: 12vh auto 0; text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; }
 .snap-empty-title { font-size: 18px; font-weight: 600; }

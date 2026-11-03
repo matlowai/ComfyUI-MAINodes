@@ -98,10 +98,11 @@ export const TOOLS = [
     name: "apply_card",
     description: "Snap a Library card onto the brick it belongs to (a dial onto the rack, a character or principle into the Render prompt, a LoRA onto the Render Preset, a run's seed). Returns what changed, or why it can't.",
     inputSchema: { type: "object", properties: { card: { type: "string" } }, required: ["card"] },
-    run: ({ card }) => {
+    run: async ({ card }) => {
+      await L.ready();
       const c = L.get(card);
       if (!c) throw new Error(`No Library card ${card}`);
-      return { card, done: L.apply(c) };
+      return { card, done: await L.apply(c) };
     },
   },
 ];

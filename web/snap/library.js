@@ -3,9 +3,10 @@
 // multimodal embedder plugs in behind `search` once its runtime is chosen.
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
+import { setBlock, blocking, drawPlan, drawElevation, toBlob } from "./setsnap.js";
 
-export const TARGET = { dial: "rack", lora: "preset", character: "render", setting: "render", scene: "render", principle: "render", pose: "first_frame", motion_guide: "refs", run: "render" };
-export const KIND_LABEL = { character: "Characters", setting: "Settings", scene: "Scenes", principle: "Principles", motion_guide: "Motion", pose: "Poses", dial: "Dials", lora: "LoRAs", run: "Runs" };
+export const TARGET = { set_snapshot: "refs", dial: "rack", lora: "preset", character: "render", setting: "render", scene: "render", principle: "render", pose: "first_frame", motion_guide: "refs", run: "render" };
+export const KIND_LABEL = { set_snapshot: "Set snapshots", character: "Characters", setting: "Settings", scene: "Scenes", principle: "Principles", motion_guide: "Motion", pose: "Poses", dial: "Dials", lora: "LoRAs", run: "Runs" };
 
 let cards = [], loading;
 // cards load once per page; the view and the agent tools both wait on the same request
@@ -43,10 +44,33 @@ function addToPrompt(phrases) {
   return true;
 }
 
+// local upload into ComfyUI's input/snap folder; returns the LoadImage value ("snap/<name>")
+async function upload(canvas, name) {
+  const form = new FormData();
+  form.append("image", await toBlob(canvas), name);
+  form.append("subfolder", "snap");
+  form.append("overwrite", "true");
+  const r = await (await api.fetchApi("/upload/image", { method: "POST", body: form })).json();
+  return `${r.subfolder}/${r.name}`;
+}
+
+// a set snapshot: plan + elevation compiled from the set data go into References, the set block and blocking into
+// the prompt, so the next shot starts from where this one ended
+async function applySet(card) {
+  const s = card.brick.snapshot, stem = card.id.replace(/[^a-z0-9-]/gi, "_");
+  const plan = await upload(drawPlan(s), `${stem}_plan.png`);
+  const elevation = await upload(drawElevation(s), `${stem}_elevation.png`);
+  E.addPicture(plan, { role: "set: plan", reason: `${s.name}, end of ${s.shot}, top down` });
+  E.addPicture(elevation, { role: "set: elevation", reason: `${s.name}, end of ${s.shot}, looking north` });
+  if (E.state().bricks.some((b) => b.key === "render")) addToPrompt([setBlock(s), blocking(s)]);
+  return `${card.title}: plan and elevation in References, set block in the prompt`;
+}
+
 // apply a card to its brick; returns what happened, or throws with the reason it can't
-export function apply(card) {
+export async function apply(card) {
   const brick = TARGET[card.kind];
   if (!E.state().bricks.some((b) => b.key === brick)) throw new Error(`${card.title} goes on the ${brick} brick; add it first`);
+  if (card.kind === "set_snapshot") return applySet(card);
   if (card.kind === "dial") {
     const rows = JSON.parse(E.getValue("rack", "rack", "rack") || "[]");
     if (rows.some((r) => r.dial === card.brick.dial)) return `${card.title} is already on the rack`;
