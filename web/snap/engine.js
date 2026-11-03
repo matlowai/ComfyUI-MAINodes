@@ -424,9 +424,9 @@ export async function restore(saved) {
 
 async function rebuild(saved) {
   const keys = [];
-  for (const { key } of saved) {
-    const have = key.startsWith("node:") ? null : brick(key);
-    keys.push(have ? key : (await snap(key)).brick);
+  for (const { key } of saved) { // bricks already in the stack are reused (any-node bricks of a type in order), the rest snapped
+    const have = key.startsWith("node:") ? state().bricks.map((x) => x.key).find((k) => k.split("#")[0] === key && !keys.includes(k)) : brick(key) && key;
+    keys.push(have || (await snap(key)).brick);
   }
   transaction(() => saved.forEach(({ values }, i) => {
     for (const [nodeKey, ws] of Object.entries(values)) {

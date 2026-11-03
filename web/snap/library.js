@@ -124,8 +124,11 @@ export async function applySet(card, s = card.brick.snapshot, { prompt = true } 
 
 // the shot compiler (BRAINSTORM S1): a shot card's beat, characters, set, camera setup and principles become the first
 // line of the Render prompt, each part remembering the card it came from; the set's pictures go into References
+// the set a shot uses: the person's edit of it (the set editor's working copy) when there is one
+const shotSet = (id) => get(`${id}-mine`) ?? get(id);
+
 export function compile(card) {
-  const b = card.brick, set = get(b.set), s = set?.brick.snapshot;
+  const b = card.brick, set = shotSet(b.set), s = set?.brick.snapshot;
   if (!s) throw new Error(`${card.title}: its set ${b.set} isn't in the Library`);
   const part = (field, text, from) => (text ? [{ field, text: text[0].toUpperCase() + text.slice(1), from }] : []); // each part reads as a sentence
   const cam = b.setup && coverage(s).find((c) => c.name === b.setup);
@@ -142,7 +145,7 @@ export function compile(card) {
 }
 
 async function applyShot(card) {
-  const { line, parts } = compile(card), set = get(card.brick.set);
+  const { line, parts } = compile(card), set = shotSet(card.brick.set);
   app.canvas.emitBeforeChange(); // the set pictures, the prompt line, the length and the record are one undo step
   try {
     await applySet(set, set.brick.snapshot, { prompt: false });
