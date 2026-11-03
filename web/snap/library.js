@@ -10,9 +10,33 @@ export const KIND_LABEL = { set_snapshot: "Set snapshots", character: "Character
 
 let cards = [], loading;
 // cards load once per page; the view and the agent tools both wait on the same request
-// kinds no brick takes are dropped; a failed load is retried on the next call
-export const ready = () => (loading ??= api.fetchApi("/mainodes/snap/cards").then((r) => r.json())
-  .then((d) => (cards = d.cards.filter((c) => TARGET[c.kind])), (e) => { loading = null; throw e; }));
+const USER_DIR = "snap/cards"; // the user's own cards, in ComfyUI's per-user data folder
+
+async function loadAll() {
+  const pack = (await (await api.fetchApi("/mainodes/snap/cards")).json()).cards;
+  const mine = await Promise.all((await api.listUserDataFullInfo(USER_DIR)).filter((f) => f.path.endsWith(".json"))
+    .map(async (f) => (await api.getUserData(`${USER_DIR}/${f.path}`)).json()));
+  return [...mine.flat(), ...pack].filter((c) => TARGET[c.kind]); // kinds no brick takes are dropped
+}
+
+// pack cards and the user's cards, loaded once per page; a failed load is retried on the next call
+export const ready = () => (loading ??= loadAll().then((all) => (cards = all), (e) => { loading = null; throw e; }));
+
+// a version of a set card holding an edited snapshot: `mine` is the one working copy Apply keeps, otherwise a new card
+export function version(card, snapshot, mine) {
+  const lineage = card.lineage ?? card.id;
+  const stamp = new Date().toTimeString().slice(0, 5);
+  return { id: mine ? `${lineage}-mine` : `${lineage}-${Date.now().toString(36)}`, kind: "set_snapshot", lineage,
+    title: mine ? `Set snapshot: ${snapshot.name}, ${snapshot.shot} (my edit)` : `Set snapshot: ${snapshot.name}, end of ${snapshot.shot} (saved ${stamp})`,
+    text: card.text, brick: { snapshot } };
+}
+
+// keep an edited card as the user's own (never overwrites a pack card)
+export async function save(card) {
+  await api.storeUserData(`${USER_DIR}/${card.id}.json`, [card]);
+  loading = null;
+  await ready();
+}
 export const get = (id) => cards.find((c) => c.id === id);
 
 export function search(query, brick) {
@@ -56,14 +80,18 @@ async function upload(canvas, name) {
   return `${r.subfolder}/${r.name}`;
 }
 
-// a set snapshot: plan + elevation compiled from the set data go into References, the set block and blocking into
-// the prompt, so the next shot starts from where this one ended
-async function applySet(card) {
-  const s = card.brick.snapshot, stem = card.id.replace(/[^a-z0-9-]/gi, "_");
+// file names follow the set's state, so an edited set gets new pictures and an unchanged one reuses its own
+const digest = (text) => [...text].reduce((h, c) => (h * 33 + c.charCodeAt(0)) >>> 0, 5381).toString(36);
+
+// a set snapshot: plan + elevation compiled from the set data go into References (replacing this card's earlier
+// pictures), the set block and blocking into the prompt, so the next shot starts from where this one ended
+export async function applySet(card, s = card.brick.snapshot) {
+  const stem = `${card.id.replace(/[^a-z0-9-]/gi, "_")}_${digest(JSON.stringify(s))}`;
   const plan = await upload(drawPlan(s), `${stem}_plan.png`);
   const elevation = await upload(drawElevation(s), `${stem}_elevation.png`);
-  E.addPicture(plan, { role: "set: plan", reason: `${s.name}, end of ${s.shot}, top down` });
-  E.addPicture(elevation, { role: "set: elevation", reason: `${s.name}, end of ${s.shot}, looking north` });
+  const source = card.lineage ?? card.id; // every version of one set shares its picture slots
+  E.addPicture(plan, { role: "set: plan", reason: `${s.name}, end of ${s.shot}, top down`, source });
+  E.addPicture(elevation, { role: "set: elevation", reason: `${s.name}, end of ${s.shot}, looking north`, source });
   if (E.state().bricks.some((b) => b.key === "render")) addToPrompt([setBlock(s), blocking(s)]);
   return `${card.title}: plan and elevation in References, set block in the prompt`;
 }

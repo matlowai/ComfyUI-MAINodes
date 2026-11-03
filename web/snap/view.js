@@ -7,6 +7,7 @@ import { BRICKS, SIMPLE_RECIPE } from "./bricks.js";
 import { attachDrag } from "./drag.js";
 import { Spring, SPRINGS, animate } from "./spring.js";
 import * as L from "./library.js";
+import { openSetEditor } from "./seteditor.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -52,11 +53,28 @@ export function createView({ onSwitch, onMakeApp }) {
     const found = L.search(libQuery.value, scope).slice(0, 40);
     libResults.replaceChildren(...(found.length ? found.map((c) => {
       const tile = h("div", { className: "snap-card", title: `${c.text}\n\nclick or drag onto ${BRICKS[L.TARGET[c.kind]].title}`, onclick: () => applyCard(c.id) },
-        h("span", { className: "snap-kind", textContent: (L.KIND_LABEL[c.kind] ?? c.kind).replace(/s$/, "") }), h("span", { className: "snap-card-title", textContent: c.title }));
+        h("span", { className: "snap-kind", textContent: (L.KIND_LABEL[c.kind] ?? c.kind).replace(/s$/, "") }), h("span", { className: "snap-card-title", textContent: c.title }),
+        c.kind === "set_snapshot" ? h("button", { className: "snap-edit", textContent: "✎", title: "open the set plan to block it", onclick: (e) => { e.stopPropagation(); editSet(c); } }) : null);
       tile.dataset.card = c.id;
       tile.style.setProperty("--hue", BRICKS[L.TARGET[c.kind]].hue);
       return tile;
     }) : [h("div", { className: "snap-quiet", textContent: "nothing matches" })]));
+  }
+
+  // the set editor: Apply keeps the edit as the user's working copy of this set and refreshes its References pictures
+  function editSet(card) {
+    openSetEditor(root, card, {
+      onApply: async (s) => {
+        const before = rects(), mine = L.version(card, s, true);
+        try { await L.save(mine); say(await L.applySet(mine, s)); } catch (err) { say(err.message, true); }
+        render(before);
+      },
+      onSave: async (s) => {
+        const saved = L.version(card, s, false);
+        try { await L.save(saved); say(`Saved "${saved.title}" to your Library`); } catch (err) { say(err.message, true); }
+        renderLibrary();
+      },
+    });
   }
 
   async function applyCard(id) {
@@ -221,7 +239,8 @@ export function createView({ onSwitch, onMakeApp }) {
     if (!pics.length) return [meter, h("div", { className: "snap-quiet", textContent: "drop a set snapshot or character card here" })];
     return [meter, h("div", { className: "snap-pics" }, pics.map((p) => {
       const [sub, ...name] = p.file.split("/");
-      return h("figure", { title: p.reason }, h("img", { src: api.apiURL(`/view?filename=${encodeURIComponent(name.join("/"))}&subfolder=${encodeURIComponent(sub)}&type=input`), alt: p.role, loading: "lazy" }), h("figcaption", { textContent: p.role }));
+      const from = p.source && (L.get(`${p.source}-mine`) ?? L.get(p.source));
+      return h("figure", { title: `${p.reason}${from ? "\nclick to edit the set" : ""}`, className: from ? "editable" : "", onclick: from ? () => editSet(from) : null }, h("img", { src: api.apiURL(`/view?filename=${encodeURIComponent(name.join("/"))}&subfolder=${encodeURIComponent(sub)}&type=input`), alt: p.role, loading: "lazy" }), h("figcaption", { textContent: p.role }));
     }))];
   }
 

@@ -4,7 +4,7 @@
   "kind": "set_snapshot",
   "example": true,
   "title": "Set snapshot: lamp room, end of shot 3",
-  "text": "The north lighthouse lamp room as shot 3 ended: Ferro at the east window with the spyglass raised, chair pushed back from the desk, the radio on, the lantern lit by the door, the lamp turning. Cold blue dusk through the window, warm amber lamp sweep. Use it to start the next shot where this one left off.",
+  "text": "The north lighthouse lamp room as shot 3 ended: Ferro at the east window with the spyglass raised, Kon just inside the door holding out a sealed letter, chair pushed back from the desk, the radio on, the lantern lit by the door, the lamp turning. Cold blue dusk through the window, warm amber lamp sweep. Use it to start the next shot where this one left off.",
   "brick": {
    "snapshot": {
     "name": "lamp room of the north lighthouse",
@@ -119,6 +119,18 @@
       "facing": 90,
       "height": 1.85,
       "hands": "spyglass raised",
+      "wardrobe": 1
+     },
+     {
+      "name": "Kon",
+      "card": "char-kon",
+      "at": [
+       0.6,
+       -1.6
+      ],
+      "facing": 20,
+      "height": 1.55,
+      "hands": "holding out a sealed letter",
       "wardrobe": 1
      }
     ],

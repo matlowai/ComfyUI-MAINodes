@@ -22,8 +22,8 @@ export function createSwitch(view) {
     const bar = document.querySelector(".actionbar-container")?.getBoundingClientRect();
     const tabs = document.querySelector(".workflow-tabs-container")?.getBoundingClientRect();
     const nav = document.querySelector(".side-tool-bar-container")?.getBoundingClientRect();
-    root.style.paddingTop = `${Math.max(bar?.bottom ?? 0, tabs?.bottom ?? 0) - box.top + 8}px`;
-    root.style.paddingLeft = `${Math.max(0, (nav?.right ?? 0) - box.left)}px`;
+    root.style.setProperty("--chrome-top", `${Math.max(bar?.bottom ?? 0, tabs?.bottom ?? 0) - box.top + 8}px`);
+    root.style.setProperty("--chrome-left", `${Math.max(0, (nav?.right ?? 0) - box.left)}px`);
   }
   addEventListener("resize", place);
 

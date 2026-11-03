@@ -15,8 +15,9 @@ export function setBlock(s) {
     return { ...p, angle: Math.atan2(side, ahead), inView: ahead > 0 && Math.abs(Math.atan2(side, ahead)) <= half };
   }).filter((p) => p.inView).sort((a, b) => a.angle - b.angle); // image left to right is by viewing angle
   const names = seen.map((p) => (p.state ? `${p.name} (${p.state})` : p.name));
-  const these = names.length === 1 ? "this one object" : `these ${names.length} objects`;
   const light = s.light.description[0].toUpperCase() + s.light.description.slice(1);
+  if (!names.length) return `Set: ${s.name}. ${light}. Bare walls only: no furniture or props in view.`;
+  const these = names.length === 1 ? "this one object" : `these ${names.length} objects`;
   return `Set: ${s.name}. ${light}. Exactly ${these} and nothing else, left to right: ${names.join(", ")}.`;
 }
 
@@ -31,8 +32,7 @@ export function blocking(s) {
   }).join(" ");
 }
 
-function canvas() {
-  const c = document.createElement("canvas");
+function canvas(c = document.createElement("canvas")) {
   c.width = W; c.height = H;
   const g = c.getContext("2d");
   g.fillStyle = "#f4f1ea"; g.fillRect(0, 0, W, H);
@@ -46,11 +46,26 @@ function label(g, text, x, y, colour = "#222") {
   g.fillText(text, x, y);
 }
 
-// top-down plan: walls, openings, props, actor marks with facing, the last camera's frustum, and the 180° line
-export function drawPlan(s) {
-  const [c, g] = canvas();
+// metres <-> plan pixels; the editor uses the inverse to hit-test what is under the pointer
+export function planFrame(s) {
   const [rw, rd] = s.room.size, k = Math.min((W - 160) / rw, (H - 160) / rd);
   const X = (x) => 80 + (x + rw / 2) * k, Y = (y) => H - 80 - (y + rd / 2) * k;
+  return { k, X, Y, world: (px, py) => [(px - 80) / k - rw / 2, (H - 80 - py) / k - rd / 2] };
+}
+
+// which side of the line between the two actors a camera stands on (+1 / -1); 0 when there is no pair
+export function side(s, at = s.camera.at) {
+  if (s.actors.length !== 2) return 0;
+  const [a, b] = s.actors.map((x) => x.at);
+  return Math.sign((b[0] - a[0]) * (at[1] - a[1]) - (b[1] - a[1]) * (at[0] - a[0]));
+}
+
+// top-down plan: walls, openings, props, actor marks with facing, the last camera's frustum, and the 180° line.
+// `into` redraws an existing canvas (the editor); `selected` is outlined
+export function drawPlan(s, { into, selected, handles } = {}) {
+  const [c, g] = canvas(into);
+  const [rw, rd] = s.room.size;
+  const { k, X, Y } = planFrame(s);
   g.strokeStyle = "#222"; g.lineWidth = 6;
   g.strokeRect(X(-rw / 2), Y(rd / 2), rw * k, rd * k);
   for (const o of s.room.openings) {
@@ -63,23 +78,34 @@ export function drawPlan(s) {
   for (const p of s.props) {
     const [w, d] = p.size;
     g.fillStyle = "#d9cdb4"; g.strokeStyle = "#7a6a4a";
+    g.lineWidth = p === selected ? 4 : 2;
     g.fillRect(X(p.at[0] - w / 2), Y(p.at[1] + d / 2), w * k, d * k); g.strokeRect(X(p.at[0] - w / 2), Y(p.at[1] + d / 2), w * k, d * k);
     label(g, p.name, X(p.at[0]), Y(p.at[1]) + d * k / 2 + 16, "#5a4a2a");
   }
   if (s.actors.length === 2) { // the axis between two actors: the camera must stay on one side of it from shot to shot
     const [a, b] = s.actors.map((x) => x.at);
+    g.save(); g.beginPath(); g.rect(X(-rw / 2), Y(rd / 2), rw * k, rd * k); g.clip();
     g.setLineDash([10, 8]); g.strokeStyle = "#c0392b"; g.lineWidth = 2;
-    g.beginPath(); g.moveTo(X(a[0] - (b[0] - a[0]) * 3), Y(a[1] - (b[1] - a[1]) * 3)); g.lineTo(X(b[0] + (b[0] - a[0]) * 3), Y(b[1] + (b[1] - a[1]) * 3)); g.stroke();
-    g.setLineDash([]);
+    g.beginPath(); g.moveTo(X(a[0] - (b[0] - a[0]) * 9), Y(a[1] - (b[1] - a[1]) * 9)); g.lineTo(X(b[0] + (b[0] - a[0]) * 9), Y(b[1] + (b[1] - a[1]) * 9)); g.stroke();
+    g.restore();
   }
   for (const a of s.actors) {
     const [x, y] = [X(a.at[0]), Y(a.at[1])], [fx, fy] = dir(a.facing);
     g.fillStyle = "#2c6e9e"; g.beginPath(); g.arc(x, y, 0.25 * k, 0, 7); g.fill();
+    if (a === selected) { g.strokeStyle = "#0b2a40"; g.lineWidth = 3; g.stroke(); }
     g.strokeStyle = "#2c6e9e"; g.lineWidth = 4; g.beginPath(); g.moveTo(x, y); g.lineTo(x + fx * 0.6 * k, y - fy * 0.6 * k); g.stroke();
     label(g, a.name, x, y - 0.25 * k - 14, "#1d4c6e");
   }
   const cam = s.camera, half = Math.atan(36 / (2 * cam.lens)), reach = Math.max(rw, rd);
   const [cx, cy] = [X(cam.at[0]), Y(cam.at[1])];
+  const prev = s.previous_camera;
+  if (prev && (prev.at[0] !== cam.at[0] || prev.at[1] !== cam.at[1] || prev.facing !== cam.facing)) { // the shot this one continues from
+    const [px, py] = [X(prev.at[0]), Y(prev.at[1])], [dx, dy] = dir(prev.facing);
+    g.setLineDash([6, 6]); g.strokeStyle = "#777"; g.lineWidth = 2;
+    g.beginPath(); g.arc(px, py, 7, 0, 7); g.moveTo(px, py); g.lineTo(px + dx * 0.9 * k, py - dy * 0.9 * k); g.stroke();
+    g.setLineDash([]);
+    label(g, "last shot", px, py + 20, "#777");
+  }
   g.save();
   g.beginPath(); g.rect(X(-rw / 2), Y(rd / 2), rw * k, rd * k); g.clip(); // what the camera sees stops at the walls
   g.fillStyle = "#2222"; g.strokeStyle = "#222"; g.lineWidth = 2;
@@ -87,8 +113,15 @@ export function drawPlan(s) {
   for (const t of [-half, half]) { const [dx, dy] = dir(cam.facing + (t * 180) / Math.PI); g.lineTo(cx + dx * reach * k, cy - dy * reach * k); }
   g.closePath(); g.fill(); g.stroke();
   g.restore();
-  g.fillStyle = "#222"; g.beginPath(); g.arc(cx, cy, 7, 0, 7); g.fill();
+  g.fillStyle = "#222"; g.beginPath(); g.arc(cx, cy, selected === cam ? 11 : 7, 0, 7); g.fill();
   label(g, `camera ${cam.lens} mm`, Math.max(cx, 140), cy - 18);
+  if (handles) { // editor only: grab dots on the camera's aim and each actor's arrow tip
+    g.fillStyle = "#e0a020";
+    for (const [o, len] of [[cam, 0.84], ...s.actors.map((a) => [a, 0.6])]) {
+      const [dx, dy] = dir(o.facing);
+      g.beginPath(); g.arc(X(o.at[0] + dx * len), Y(o.at[1] + dy * len), 8, 0, 7); g.fill();
+    }
+  }
   label(g, `${s.name} · plan · end of ${s.shot}`, W / 2, 30, "#444");
   label(g, "N ↑", W - 40, 30, "#444");
   return c;
