@@ -33,6 +33,9 @@ export function createView({ onSwitch, onMakeApp, run }) {
     h("button", { textContent: "Graph", role: "tab", onclick: () => onSwitch() }));
   root.append(
     h("header", { className: "snap-top" }, title, status, proposalsPill, h("span", { className: "snap-spacer" }),
+      h("button", { className: "snap-link snap-quiet-btn", textContent: "Save recipe", title: "keep these bricks and their settings as a Library card you can rebuild anywhere", onclick: async () => {
+        try { const c = await L.saveRecipe(app.extensionManager.workflow.activeWorkflow?.filename ?? "recipe"); say(`Saved "${c.title}" to your Library`); renderLibrary(); } catch (err) { say(err.message, true); }
+      } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Make app", title: "open this recipe in ComfyUI's App mode: the brick faces become a run-only app (reloads the graph)", onclick: () => onMakeApp() }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: `Add brick  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}`, title: "Ctrl/Cmd+K", onclick: () => openPalette() }), seg),
     h("div", { className: "snap-body" }, rail, stack, inspector), toast);
@@ -60,13 +63,14 @@ export function createView({ onSwitch, onMakeApp, run }) {
     libFor.textContent = scope ? `for: ${BRICKS[selected].title} ✕` : `for: everything · fit ${BRICKS[selected]?.title ?? ""}`;
     const found = L.search(libQuery.value, scope).slice(0, 40);
     libResults.replaceChildren(...(found.length ? found.map((c) => {
-      const tile = h("div", { className: "snap-card", title: `${c.text}\n\nclick or drag onto ${BRICKS[L.TARGET[c.kind]].title}`, onclick: () => applyCard(c.id) },
+      const goes = L.TARGET[c.kind];
+      const tile = h("div", { className: "snap-card", title: `${c.text}\n\n${goes ? `click or drag onto ${BRICKS[goes].title}` : "click to rebuild this recipe"}`, onclick: () => applyCard(c.id) },
         h("span", { className: "snap-kind", textContent: (L.KIND_LABEL[c.kind] ?? c.kind).replace(/s$/, "") }), h("span", { className: "snap-card-title", textContent: c.title }),
         c.kind === "set_snapshot" ? h("span", { className: "snap-card-tools" },
           h("button", { className: "snap-edit", textContent: "▦", title: "plan-board: every saved state of this set side by side", onclick: (e) => { e.stopPropagation(); openBoard(root, L.lineage(c), { onOpen: editSet }); } }),
           h("button", { className: "snap-edit", textContent: "✎", title: "open the set plan to block it", onclick: (e) => { e.stopPropagation(); editSet(c); } })) : null);
       tile.dataset.card = c.id;
-      tile.style.setProperty("--hue", BRICKS[L.TARGET[c.kind]].hue);
+      tile.style.setProperty("--hue", goes ? BRICKS[goes].hue : 45);
       return tile;
     }) : [h("div", { className: "snap-quiet", textContent: "nothing matches" })]));
   }
@@ -89,7 +93,7 @@ export function createView({ onSwitch, onMakeApp, run }) {
 
   async function applyCard(id) {
     const card = L.get(id), before = rects();
-    try { say(await L.apply(card)); select(L.TARGET[card.kind], false); } catch (err) { say(err.message, true); }
+    try { say(await L.apply(card)); if (L.TARGET[card.kind]) select(L.TARGET[card.kind], false); } catch (err) { say(err.message, true); }
     render(before);
   }
 

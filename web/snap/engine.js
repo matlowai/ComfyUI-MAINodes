@@ -405,6 +405,39 @@ export function missing() {
   return out;
 }
 
+// the recipe as data (BRAINSTORM R5): bricks in order with every widget value on their nodes, so a recipe card can
+// rebuild it; values that point at files keep their names (a machine without them shows them as missing)
+export function recipe() {
+  return state().bricks.map((b) => ({
+    key: b.key.startsWith("node:") ? b.key.split("#")[0] : b.key,
+    values: Object.fromEntries(Object.entries(b.nodes).filter(([k]) => !k.startsWith("picture_")).map(([k, id]) => [k,
+      Object.fromEntries((node(id)?.widgets ?? []).filter((w) => w.name && !w.name.startsWith("$$") && w.type !== "button" && typeof w.value !== "object").map((w) => [w.name, w.value]))])),
+  }));
+}
+
+// rebuild a saved recipe: bricks it doesn't have yet are snapped in order, then every saved value is set. The change
+// pairs nest, so the whole rebuild (blueprint fetch included) is one undo step
+export async function restore(saved) {
+  app.canvas.emitBeforeChange();
+  try { return await rebuild(saved); } finally { app.canvas.emitAfterChange(); }
+}
+
+async function rebuild(saved) {
+  const keys = [];
+  for (const { key } of saved) {
+    const have = key.startsWith("node:") ? null : brick(key);
+    keys.push(have ? key : (await snap(key)).brick);
+  }
+  transaction(() => saved.forEach(({ values }, i) => {
+    for (const [nodeKey, ws] of Object.entries(values)) {
+      const n = nodeFor(keys[i], nodeKey);
+      for (const [name, v] of Object.entries(ws)) { const w = widget(n, name); if (w && (!Array.isArray(w.options?.values) || w.options.values.includes(v))) { w.value = v; w.callback?.(v); } }
+    }
+  }));
+  app.canvas.setDirty(true, true);
+  return keys;
+}
+
 // App mode's run-only view built from the bricks' faces (frontend 1.57 `extra.linearData`; WidgetId =
 // "<rootGraphId>:<nodeId>:<widget>"), so a finished recipe opens as a clean app anywhere without this extension
 export function appData() {

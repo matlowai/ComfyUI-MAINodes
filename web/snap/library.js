@@ -3,10 +3,12 @@
 // multimodal embedder plugs in behind `search` once its runtime is chosen.
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
+import { BRICKS } from "./bricks.js";
 import { setBlock, blocking, drawPlan, drawElevation, toBlob } from "./setsnap.js";
 
-export const TARGET = { set_snapshot: "refs", dial: "rack", lora: "preset", character: "render", setting: "render", scene: "render", principle: "render", pose: "first_frame", motion_guide: "refs", run: "render" };
-export const KIND_LABEL = { set_snapshot: "Set snapshots", character: "Characters", setting: "Settings", scene: "Scenes", principle: "Principles", motion_guide: "Motion", pose: "Poses", dial: "Dials", lora: "LoRAs", run: "Runs" };
+// the brick each kind of card goes on; a recipe goes on the whole stack (null)
+export const TARGET = { recipe: null, set_snapshot: "refs", dial: "rack", lora: "preset", character: "render", setting: "render", scene: "render", principle: "render", pose: "first_frame", motion_guide: "refs", run: "render" };
+export const KIND_LABEL = { recipe: "Recipes", set_snapshot: "Set snapshots", character: "Characters", setting: "Settings", scene: "Scenes", principle: "Principles", motion_guide: "Motion", pose: "Poses", dial: "Dials", lora: "LoRAs", run: "Runs" };
 
 let cards = [], loading;
 // cards load once per page; the view and the agent tools both wait on the same request
@@ -16,7 +18,7 @@ async function loadAll() {
   const pack = (await (await api.fetchApi("/mainodes/snap/cards")).json()).cards;
   const mine = await Promise.all((await api.listUserDataFullInfo(USER_DIR)).filter((f) => f.path.endsWith(".json"))
     .map(async (f) => (await api.getUserData(`${USER_DIR}/${f.path}`)).json()));
-  return [...mine.flat(), ...pack].filter((c) => TARGET[c.kind]); // kinds no brick takes are dropped
+  return [...mine.flat(), ...pack].filter((c) => c.kind in TARGET); // kinds Snap doesn't know are dropped
 }
 
 // pack cards and the user's cards, loaded once per page; a failed load is retried on the next call
@@ -47,7 +49,7 @@ export const get = (id) => cards.find((c) => c.id === id);
 
 export function search(query, brick) {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const kinds = brick ? Object.keys(TARGET).filter((k) => TARGET[k] === brick) : null;
+  const kinds = brick ? Object.keys(TARGET).filter((k) => TARGET[k] === brick) : null; // a selected brick never shows recipes
   return cards
     .filter((c) => !kinds || kinds.includes(c.kind))
     .map((c) => {
@@ -119,8 +121,21 @@ export async function applySet(card, s = card.brick.snapshot) {
   return `${card.title}: plan and elevation in References, set block in the prompt`;
 }
 
+// save the current stack as a recipe card in the user's Library
+export async function saveRecipe(name) {
+  const bricks = E.recipe(), stamp = new Date().toTimeString().slice(0, 8);
+  const card = { id: `recipe-${Date.now().toString(36)}`, kind: "recipe", title: `Recipe: ${name} (saved ${stamp})`, saved: Date.now(),
+    text: `${bricks.length} bricks: ${bricks.map((b) => BRICKS[b.key]?.title ?? b.key).join(", ")}`, brick: { bricks } };
+  await save(card);
+  return card;
+}
+
 // apply a card to its brick; returns what happened, or throws with the reason it can't
 export async function apply(card) {
+  if (card.kind === "recipe") {
+    const keys = await E.restore(card.brick.bricks);
+    return `${card.title}: ${keys.length} bricks with their settings`;
+  }
   const brick = TARGET[card.kind];
   if (!E.state().bricks.some((b) => b.key === brick)) throw new Error(`${card.title} goes on the ${brick} brick; add it first`);
   if (card.kind === "set_snapshot") return applySet(card);
