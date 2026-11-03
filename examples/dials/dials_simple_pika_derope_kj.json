@@ -1,8 +1,8 @@
 {
   "id": "7130fae0-d77c-4aa0-b1c2-e04823fafffc",
   "revision": 0,
-  "last_node_id": 190,
-  "last_link_id": 154,
+  "last_node_id": 191,
+  "last_link_id": 155,
   "nodes": [
     {
       "id": 3,
@@ -766,6 +766,78 @@
       }
     },
     {
+      "id": 191,
+      "type": "H3References",
+      "pos": [
+        1525,
+        730
+      ],
+      "size": [
+        255,
+        166
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "ref_image_0",
+          "name": "ref_images.ref_image_0",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 141
+        },
+        {
+          "localized_name": "ref_image_1",
+          "name": "ref_images.ref_image_1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 142
+        },
+        {
+          "localized_name": "ref_image_2",
+          "name": "ref_images.ref_image_2",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "ref_video_0",
+          "name": "ref_videos.ref_video_0",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "ref_video_audio_0",
+          "name": "ref_video_audios.ref_video_audio_0",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "localized_name": "ref_audio_0",
+          "name": "ref_audios.ref_audio_0",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "refs",
+          "name": "refs",
+          "type": "H3_REFS",
+          "links": [
+            155
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "H3References"
+      }
+    },
+    {
       "id": 172,
       "type": "175253bc-34e1-427e-ab7a-c01dfb0acea3",
       "pos": [
@@ -893,18 +965,11 @@
           "link": 98
         },
         {
-          "label": "picture 1 (Ref2V, optional)",
-          "name": "ref_images.ref_image_0",
+          "label": "refs (Ref2V, optional)",
+          "name": "refs",
           "shape": 7,
-          "type": "IMAGE",
-          "link": 141
-        },
-        {
-          "label": "picture 2 (Ref2V, optional)",
-          "name": "ref_images.ref_image_1",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": 142
+          "type": "H3_REFS",
+          "link": 155
         },
         {
           "label": "conditioning",
@@ -1870,23 +1935,23 @@
       3,
       4,
       172,
-      16,
+      15,
       "STRING"
     ],
     [
       141,
       108,
       0,
-      172,
-      14,
+      191,
+      0,
       "IMAGE"
     ],
     [
       142,
       109,
       0,
-      172,
-      15,
+      191,
+      1,
       "IMAGE"
     ],
     [
@@ -1936,6 +2001,14 @@
       182,
       3,
       "IMAGE"
+    ],
+    [
+      155,
+      191,
+      0,
+      172,
+      14,
+      "H3_REFS"
     ]
   ],
   "groups": [
@@ -1970,7 +2043,7 @@
         1240,
         -60,
         825,
-        764
+        980
       ],
       "color": "#3f789e",
       "flags": {}
@@ -2007,8 +2080,8 @@
         "version": 1,
         "state": {
           "lastGroupId": 6,
-          "lastNodeId": 190,
-          "lastLinkId": 154,
+          "lastNodeId": 191,
+          "lastLinkId": 155,
           "lastRerouteId": 0
         },
         "revision": 0,
@@ -2257,28 +2330,14 @@
             ]
           },
           {
-            "id": "6dc8167b-81f2-46b2-a5c8-5436f337614c",
-            "name": "ref_images.ref_image_0",
-            "type": "IMAGE",
+            "id": "b20dfb3a-b557-49f3-ad6b-781d24f3ec3c",
+            "name": "refs",
+            "type": "H3_REFS",
             "linkIds": [
               113,
               114
             ],
-            "label": "picture 1 (Ref2V, optional)",
-            "pos": [
-              0,
-              0
-            ]
-          },
-          {
-            "id": "a6075131-68ea-444c-b7c7-6f5aa29281c0",
-            "name": "ref_images.ref_image_1",
-            "type": "IMAGE",
-            "linkIds": [
-              115,
-              116
-            ],
-            "label": "picture 2 (Ref2V, optional)",
+            "label": "refs (Ref2V, optional)",
             "pos": [
               0,
               0
@@ -4876,7 +4935,7 @@
           },
           {
             "id": 173,
-            "type": "MiniMaxH3ReferenceToVideo",
+            "type": "H3ReferenceToVideoRefs",
             "pos": [
               -420,
               446
@@ -4910,46 +4969,11 @@
                 "link": 101
               },
               {
-                "localized_name": "ref_image_0",
-                "name": "ref_images.ref_image_0",
+                "localized_name": "refs",
+                "name": "refs",
                 "shape": 7,
-                "type": "IMAGE",
+                "type": "H3_REFS",
                 "link": 113
-              },
-              {
-                "localized_name": "ref_image_1",
-                "name": "ref_images.ref_image_1",
-                "shape": 7,
-                "type": "IMAGE",
-                "link": 115
-              },
-              {
-                "localized_name": "ref_image_2",
-                "name": "ref_images.ref_image_2",
-                "shape": 7,
-                "type": "IMAGE",
-                "link": null
-              },
-              {
-                "localized_name": "ref_video_0",
-                "name": "ref_videos.ref_video_0",
-                "shape": 7,
-                "type": "IMAGE",
-                "link": null
-              },
-              {
-                "localized_name": "ref_video_audio_0",
-                "name": "ref_video_audios.ref_video_audio_0",
-                "shape": 7,
-                "type": "AUDIO",
-                "link": null
-              },
-              {
-                "localized_name": "ref_audio_0",
-                "name": "ref_audios.ref_audio_0",
-                "shape": 7,
-                "type": "AUDIO",
-                "link": null
               },
               {
                 "localized_name": "prompt",
@@ -5015,7 +5039,7 @@
             ],
             "title": "Pass 1 (Ref2V)",
             "properties": {
-              "Node name for S&R": "MiniMaxH3ReferenceToVideo"
+              "Node name for S&R": "H3ReferenceToVideoRefs"
             },
             "widgets_values": [
               "",
@@ -5034,7 +5058,7 @@
           },
           {
             "id": 174,
-            "type": "MiniMaxH3ReferenceToVideo",
+            "type": "H3ReferenceToVideoRefs",
             "pos": [
               660,
               386
@@ -5068,46 +5092,11 @@
                 "link": 108
               },
               {
-                "localized_name": "ref_image_0",
-                "name": "ref_images.ref_image_0",
+                "localized_name": "refs",
+                "name": "refs",
                 "shape": 7,
-                "type": "IMAGE",
+                "type": "H3_REFS",
                 "link": 114
-              },
-              {
-                "localized_name": "ref_image_1",
-                "name": "ref_images.ref_image_1",
-                "shape": 7,
-                "type": "IMAGE",
-                "link": 116
-              },
-              {
-                "localized_name": "ref_image_2",
-                "name": "ref_images.ref_image_2",
-                "shape": 7,
-                "type": "IMAGE",
-                "link": null
-              },
-              {
-                "localized_name": "ref_video_0",
-                "name": "ref_videos.ref_video_0",
-                "shape": 7,
-                "type": "IMAGE",
-                "link": null
-              },
-              {
-                "localized_name": "ref_video_audio_0",
-                "name": "ref_video_audios.ref_video_audio_0",
-                "shape": 7,
-                "type": "AUDIO",
-                "link": null
-              },
-              {
-                "localized_name": "ref_audio_0",
-                "name": "ref_audios.ref_audio_0",
-                "shape": 7,
-                "type": "AUDIO",
-                "link": null
               },
               {
                 "localized_name": "prompt",
@@ -5173,7 +5162,7 @@
             ],
             "title": "Pass 2 (Ref2V, slowed clip)",
             "properties": {
-              "Node name for S&R": "MiniMaxH3ReferenceToVideo"
+              "Node name for S&R": "H3ReferenceToVideoRefs"
             },
             "widgets_values": [
               "",
@@ -6744,22 +6733,14 @@
             "origin_slot": 14,
             "target_id": 173,
             "target_slot": 3,
-            "type": "IMAGE"
-          },
-          {
-            "id": 115,
-            "origin_id": -10,
-            "origin_slot": 15,
-            "target_id": 173,
-            "target_slot": 4,
-            "type": "IMAGE"
+            "type": "H3_REFS"
           },
           {
             "id": 102,
             "origin_id": -10,
             "origin_slot": 3,
             "target_id": 173,
-            "target_slot": 9,
+            "target_slot": 4,
             "type": "STRING"
           },
           {
@@ -6767,7 +6748,7 @@
             "origin_id": -10,
             "origin_slot": 4,
             "target_id": 173,
-            "target_slot": 10,
+            "target_slot": 5,
             "type": "INT"
           },
           {
@@ -6775,7 +6756,7 @@
             "origin_id": -10,
             "origin_slot": 5,
             "target_id": 173,
-            "target_slot": 11,
+            "target_slot": 6,
             "type": "INT"
           },
           {
@@ -6783,7 +6764,7 @@
             "origin_id": -10,
             "origin_slot": 6,
             "target_id": 173,
-            "target_slot": 12,
+            "target_slot": 7,
             "type": "INT"
           },
           {
@@ -6816,22 +6797,14 @@
             "origin_slot": 14,
             "target_id": 174,
             "target_slot": 3,
-            "type": "IMAGE"
-          },
-          {
-            "id": 116,
-            "origin_id": -10,
-            "origin_slot": 15,
-            "target_id": 174,
-            "target_slot": 4,
-            "type": "IMAGE"
+            "type": "H3_REFS"
           },
           {
             "id": 109,
             "origin_id": -10,
             "origin_slot": 3,
             "target_id": 174,
-            "target_slot": 9,
+            "target_slot": 4,
             "type": "STRING"
           },
           {
@@ -6839,7 +6812,7 @@
             "origin_id": -10,
             "origin_slot": 4,
             "target_id": 174,
-            "target_slot": 10,
+            "target_slot": 5,
             "type": "INT"
           },
           {
@@ -6847,7 +6820,7 @@
             "origin_id": -10,
             "origin_slot": 5,
             "target_id": 174,
-            "target_slot": 11,
+            "target_slot": 6,
             "type": "INT"
           },
           {
@@ -6855,7 +6828,7 @@
             "origin_id": 124,
             "origin_slot": 2,
             "target_id": 174,
-            "target_slot": 12,
+            "target_slot": 7,
             "type": "INT"
           },
           {
@@ -6997,7 +6970,7 @@
           {
             "id": 134,
             "origin_id": -10,
-            "origin_slot": 16,
+            "origin_slot": 15,
             "target_id": 178,
             "target_slot": 3,
             "type": "STRING"
@@ -7005,7 +6978,7 @@
           {
             "id": 135,
             "origin_id": -10,
-            "origin_slot": 16,
+            "origin_slot": 15,
             "target_id": 179,
             "target_slot": 3,
             "type": "STRING"
@@ -7013,7 +6986,7 @@
           {
             "id": 136,
             "origin_id": -10,
-            "origin_slot": 17,
+            "origin_slot": 16,
             "target_id": 175,
             "target_slot": 0,
             "type": "COMBO"
@@ -7021,7 +6994,7 @@
           {
             "id": 137,
             "origin_id": -10,
-            "origin_slot": 18,
+            "origin_slot": 17,
             "target_id": 132,
             "target_slot": 2,
             "type": "FLOAT"
@@ -7029,7 +7002,7 @@
           {
             "id": 138,
             "origin_id": -10,
-            "origin_slot": 19,
+            "origin_slot": 18,
             "target_id": 154,
             "target_slot": 0,
             "type": "INT"
@@ -7037,7 +7010,7 @@
           {
             "id": 139,
             "origin_id": -10,
-            "origin_slot": 20,
+            "origin_slot": 19,
             "target_id": 156,
             "target_slot": 2,
             "type": "BOOLEAN"
@@ -7085,7 +7058,7 @@
           {
             "id": 154,
             "origin_id": -10,
-            "origin_slot": 21,
+            "origin_slot": 20,
             "target_id": 187,
             "target_slot": 0,
             "type": "COMBO"

@@ -61,6 +61,13 @@
       "title": "Dial Rack (both passes)"
     }
   },
+  "191": {
+    "inputs": {},
+    "class_type": "H3References",
+    "_meta": {
+      "title": "H3 References (alpha)"
+    }
+  },
   "172:110": {
     "inputs": {
       "prompt": "integrated_multimodal_description: [Shot 1] Cinematic, natural light. An adult woman in a red coat walks along an empty train platform at dusk as a train slowly pulls in beside her. The camera tracks with her.\n\noverall_soundscape: Her footsteps on concrete, the train's brakes hissing, a distant announcement echoing.\n\nnon_diegetic_music: N/A",
@@ -681,9 +688,13 @@
       "audio_vae": [
         "17",
         0
+      ],
+      "refs": [
+        "191",
+        0
       ]
     },
-    "class_type": "MiniMaxH3ReferenceToVideo",
+    "class_type": "H3ReferenceToVideoRefs",
     "_meta": {
       "title": "Pass 1 (Ref2V)"
     }
@@ -709,9 +720,13 @@
       "audio_vae": [
         "17",
         0
+      ],
+      "refs": [
+        "191",
+        0
       ]
     },
-    "class_type": "MiniMaxH3ReferenceToVideo",
+    "class_type": "H3ReferenceToVideoRefs",
     "_meta": {
       "title": "Pass 2 (Ref2V, slowed clip)"
     }

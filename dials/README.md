@@ -123,8 +123,10 @@ model (chunked feed-forward, head-chunked attention; same math) and KJ's Load Im
    click the little curve to draw it; the day–night row ships with a ramp). **⋯** holds block strengths, dial info, the
    dial editor, solo and hold.
 3. **Dials - H3 + De-rope** (the blueprint): prompt, width, height, length, seed. FL2V takes an optional **first frame**,
-   Ref2V up to two **pictures** (call them `<Picture 1>`, `<Picture 2>` in the prompt): pick a picture in the greyed Load
-   Image under the node, then select it and press Ctrl+M to switch it on.
+   Ref2V any number of references through the **H3 References** node on the canvas (up to 9 pictures, 3 videos with their
+   soundtracks, 3 audio clips; call them `<Picture 1>`, `<Video 1>`, `<Audio 1>` in the prompt, in the order connected):
+   pick a picture in a greyed Load Image under the node, then select it and press Ctrl+M to switch it on. Each socket you
+   connect on H3 References adds the next one.
    - **de-rope**: `off` renders one pass; `oracle` slows only the jerky stretches (the oracle's hold map); `flat` slows every
      frame by **max de-rope**. Both re-render the slowed clip and map it back to real time.
    - **de-rope amount** (`inject`, default 0.48): how much of the denoise stage 2 re-runs; 0.48 stays faithful to pass 1,

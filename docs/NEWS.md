@@ -2,6 +2,9 @@
 
 Newest first. The README carries only the latest headline.
 
+**H3 References** (2026-11-03, alpha). The Simple blueprint's two Ref2V pictures are now one `refs` input fed by the new
+H3 References node: any number of references (up to 9 pictures, 3 videos with their soundtracks, 3 audio clips).
+
 **RelayVSR upscaling** (2026-11-03, alpha). Video super-resolution with RelayVSR through LightX2V in its own Python:
 the X4 model (recommended even for 2x), quality presets (faithful = back-projection + residual 0.85; faithful + Flash
 loop; smooth; stock; custom knobs), and a `vram` tier that quantizes Wan's KV cache and weights with comfy-kitchen so

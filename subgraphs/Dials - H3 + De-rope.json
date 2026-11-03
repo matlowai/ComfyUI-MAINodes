@@ -131,18 +131,11 @@
           "link": 96
         },
         {
-          "label": "picture 1 (Ref2V, optional)",
-          "name": "ref_images.ref_image_0",
+          "label": "refs (Ref2V, optional)",
+          "name": "refs",
           "shape": 7,
-          "type": "IMAGE",
-          "link": 139
-        },
-        {
-          "label": "picture 2 (Ref2V, optional)",
-          "name": "ref_images.ref_image_1",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": 140
+          "type": "H3_REFS",
+          "link": null
         },
         {
           "label": "conditioning",
@@ -494,28 +487,14 @@
             ]
           },
           {
-            "id": "00604423-1423-485a-b956-e42461142756",
-            "name": "ref_images.ref_image_0",
-            "type": "IMAGE",
+            "id": "d7d4c27e-6668-4764-b53b-11bb25f380ef",
+            "name": "refs",
+            "type": "H3_REFS",
             "linkIds": [
               111,
               112
             ],
-            "label": "picture 1 (Ref2V, optional)",
-            "pos": [
-              0,
-              0
-            ]
-          },
-          {
-            "id": "b2eac9d3-bd9c-48f5-86df-b7e697f4e54c",
-            "name": "ref_images.ref_image_1",
-            "type": "IMAGE",
-            "linkIds": [
-              113,
-              114
-            ],
-            "label": "picture 2 (Ref2V, optional)",
+            "label": "refs (Ref2V, optional)",
             "pos": [
               0,
               0
@@ -3113,7 +3092,7 @@
           },
           {
             "id": 173,
-            "type": "MiniMaxH3ReferenceToVideo",
+            "type": "H3ReferenceToVideoRefs",
             "pos": [
               -420,
               446
@@ -3147,46 +3126,11 @@
                 "link": 99
               },
               {
-                "localized_name": "ref_image_0",
-                "name": "ref_images.ref_image_0",
+                "localized_name": "refs",
+                "name": "refs",
                 "shape": 7,
-                "type": "IMAGE",
+                "type": "H3_REFS",
                 "link": 111
-              },
-              {
-                "localized_name": "ref_image_1",
-                "name": "ref_images.ref_image_1",
-                "shape": 7,
-                "type": "IMAGE",
-                "link": 113
-              },
-              {
-                "localized_name": "ref_image_2",
-                "name": "ref_images.ref_image_2",
-                "shape": 7,
-                "type": "IMAGE",
-                "link": null
-              },
-              {
-                "localized_name": "ref_video_0",
-                "name": "ref_videos.ref_video_0",
-                "shape": 7,
-                "type": "IMAGE",
-                "link": null
-              },
-              {
-                "localized_name": "ref_video_audio_0",
-                "name": "ref_video_audios.ref_video_audio_0",
-                "shape": 7,
-                "type": "AUDIO",
-                "link": null
-              },
-              {
-                "localized_name": "ref_audio_0",
-                "name": "ref_audios.ref_audio_0",
-                "shape": 7,
-                "type": "AUDIO",
-                "link": null
               },
               {
                 "localized_name": "prompt",
@@ -3252,7 +3196,7 @@
             ],
             "title": "Pass 1 (Ref2V)",
             "properties": {
-              "Node name for S&R": "MiniMaxH3ReferenceToVideo"
+              "Node name for S&R": "H3ReferenceToVideoRefs"
             },
             "widgets_values": [
               "",
@@ -3271,7 +3215,7 @@
           },
           {
             "id": 174,
-            "type": "MiniMaxH3ReferenceToVideo",
+            "type": "H3ReferenceToVideoRefs",
             "pos": [
               660,
               386
@@ -3305,46 +3249,11 @@
                 "link": 106
               },
               {
-                "localized_name": "ref_image_0",
-                "name": "ref_images.ref_image_0",
+                "localized_name": "refs",
+                "name": "refs",
                 "shape": 7,
-                "type": "IMAGE",
+                "type": "H3_REFS",
                 "link": 112
-              },
-              {
-                "localized_name": "ref_image_1",
-                "name": "ref_images.ref_image_1",
-                "shape": 7,
-                "type": "IMAGE",
-                "link": 114
-              },
-              {
-                "localized_name": "ref_image_2",
-                "name": "ref_images.ref_image_2",
-                "shape": 7,
-                "type": "IMAGE",
-                "link": null
-              },
-              {
-                "localized_name": "ref_video_0",
-                "name": "ref_videos.ref_video_0",
-                "shape": 7,
-                "type": "IMAGE",
-                "link": null
-              },
-              {
-                "localized_name": "ref_video_audio_0",
-                "name": "ref_video_audios.ref_video_audio_0",
-                "shape": 7,
-                "type": "AUDIO",
-                "link": null
-              },
-              {
-                "localized_name": "ref_audio_0",
-                "name": "ref_audios.ref_audio_0",
-                "shape": 7,
-                "type": "AUDIO",
-                "link": null
               },
               {
                 "localized_name": "prompt",
@@ -3410,7 +3319,7 @@
             ],
             "title": "Pass 2 (Ref2V, slowed clip)",
             "properties": {
-              "Node name for S&R": "MiniMaxH3ReferenceToVideo"
+              "Node name for S&R": "H3ReferenceToVideoRefs"
             },
             "widgets_values": [
               "",
@@ -4981,22 +4890,14 @@
             "origin_slot": 14,
             "target_id": 173,
             "target_slot": 3,
-            "type": "IMAGE"
-          },
-          {
-            "id": 113,
-            "origin_id": -10,
-            "origin_slot": 15,
-            "target_id": 173,
-            "target_slot": 4,
-            "type": "IMAGE"
+            "type": "H3_REFS"
           },
           {
             "id": 100,
             "origin_id": -10,
             "origin_slot": 3,
             "target_id": 173,
-            "target_slot": 9,
+            "target_slot": 4,
             "type": "STRING"
           },
           {
@@ -5004,7 +4905,7 @@
             "origin_id": -10,
             "origin_slot": 4,
             "target_id": 173,
-            "target_slot": 10,
+            "target_slot": 5,
             "type": "INT"
           },
           {
@@ -5012,7 +4913,7 @@
             "origin_id": -10,
             "origin_slot": 5,
             "target_id": 173,
-            "target_slot": 11,
+            "target_slot": 6,
             "type": "INT"
           },
           {
@@ -5020,7 +4921,7 @@
             "origin_id": -10,
             "origin_slot": 6,
             "target_id": 173,
-            "target_slot": 12,
+            "target_slot": 7,
             "type": "INT"
           },
           {
@@ -5053,22 +4954,14 @@
             "origin_slot": 14,
             "target_id": 174,
             "target_slot": 3,
-            "type": "IMAGE"
-          },
-          {
-            "id": 114,
-            "origin_id": -10,
-            "origin_slot": 15,
-            "target_id": 174,
-            "target_slot": 4,
-            "type": "IMAGE"
+            "type": "H3_REFS"
           },
           {
             "id": 107,
             "origin_id": -10,
             "origin_slot": 3,
             "target_id": 174,
-            "target_slot": 9,
+            "target_slot": 4,
             "type": "STRING"
           },
           {
@@ -5076,7 +4969,7 @@
             "origin_id": -10,
             "origin_slot": 4,
             "target_id": 174,
-            "target_slot": 10,
+            "target_slot": 5,
             "type": "INT"
           },
           {
@@ -5084,7 +4977,7 @@
             "origin_id": -10,
             "origin_slot": 5,
             "target_id": 174,
-            "target_slot": 11,
+            "target_slot": 6,
             "type": "INT"
           },
           {
@@ -5092,7 +4985,7 @@
             "origin_id": 124,
             "origin_slot": 2,
             "target_id": 174,
-            "target_slot": 12,
+            "target_slot": 7,
             "type": "INT"
           },
           {
@@ -5234,7 +5127,7 @@
           {
             "id": 132,
             "origin_id": -10,
-            "origin_slot": 16,
+            "origin_slot": 15,
             "target_id": 178,
             "target_slot": 3,
             "type": "STRING"
@@ -5242,7 +5135,7 @@
           {
             "id": 133,
             "origin_id": -10,
-            "origin_slot": 16,
+            "origin_slot": 15,
             "target_id": 179,
             "target_slot": 3,
             "type": "STRING"
@@ -5250,7 +5143,7 @@
           {
             "id": 134,
             "origin_id": -10,
-            "origin_slot": 17,
+            "origin_slot": 16,
             "target_id": 175,
             "target_slot": 0,
             "type": "COMBO"
@@ -5258,7 +5151,7 @@
           {
             "id": 135,
             "origin_id": -10,
-            "origin_slot": 18,
+            "origin_slot": 17,
             "target_id": 132,
             "target_slot": 2,
             "type": "FLOAT"
@@ -5266,7 +5159,7 @@
           {
             "id": 136,
             "origin_id": -10,
-            "origin_slot": 19,
+            "origin_slot": 18,
             "target_id": 154,
             "target_slot": 0,
             "type": "INT"
@@ -5274,7 +5167,7 @@
           {
             "id": 137,
             "origin_id": -10,
-            "origin_slot": 20,
+            "origin_slot": 19,
             "target_id": 156,
             "target_slot": 2,
             "type": "BOOLEAN"
@@ -5322,7 +5215,7 @@
           {
             "id": 154,
             "origin_id": -10,
-            "origin_slot": 21,
+            "origin_slot": 20,
             "target_id": 187,
             "target_slot": 0,
             "type": "COMBO"
