@@ -48,11 +48,16 @@ async function agentCall(name, args) {
   return result;
 }
 
+const modes = new Map(); // workflow tab -> Snap showing
+const activeTab = () => app.extensionManager.workflow.activeWorkflow?.key;
+const remember = () => modes.set(activeTab(), sw.showing && !sw.docked);
+
 // the full view and the docked tab are one view in two places; opening the full view closes the tab first
 const TAB = "mainodes-snap";
 async function toggle() {
   if (sw.docked) { await app.extensionManager.command.execute(`Workspace.ToggleSidebarTab.${TAB}`); sw.undock(); }
   sw.toggle();
+  remember();
   if (sw.showing) announce();
 }
 
@@ -63,7 +68,7 @@ app.registerExtension({
   actionBarButtons: [{ icon: "icon-[lucide--blocks]", label: "Snap", tooltip: "Snap view (Alt+S)", onClick: () => toggle() }],
   setup() {
     document.head.append(Object.assign(document.createElement("style"), { textContent: STYLE }));
-    view = createView({ onSwitch: (key) => sw.toGraph(key), onMakeApp: makeApp, run: callTool });
+    view = createView({ onSwitch: (key) => { sw.toGraph(key); remember(); }, onMakeApp: makeApp, run: callTool });
     document.body.append(view.root);
     sw = createSwitch(view);
     app.extensionManager.registerSidebarTab({ id: TAB, icon: "icon-[lucide--blocks]", title: "Snap", tooltip: "Snap beside the graph", type: "custom",
@@ -80,6 +85,19 @@ app.registerExtension({
       try { reply = { id: detail.id, result: await agentCall(detail.tool, detail.args) }; } catch (e) { reply = { id: detail.id, error: e.message }; }
       api.fetchApi("/mainodes/snap/result", { method: "POST", body: JSON.stringify({ client: api.clientId, ...reply }) });
     });
+    // each workflow tab remembers Snap or Graph (as App mode does): recorded when the person switches, restored when
+    // another tab loads; undo reloads the same tab and changes nothing
+    let tab = activeTab();
+    // the graph is configured before the frontend marks the new tab active, so look once the switch has settled
+    app.graph.events.addEventListener("configured", () => setTimeout(() => {
+      if (activeTab() === tab) return;
+      tab = activeTab();
+      if (sw.docked) return view.render(null);
+      const want = modes.get(tab) ?? false;
+      if (want && !sw.showing) sw.toSnap();
+      else if (!want && sw.showing) sw.toGraph();
+      else if (want) view.render(null);
+    }));
     // graph edits, undo and workflow loads all land here; overrides made in the graph are announced once, in Snap
     api.addEventListener("graphChanged", () => {
       for (const o of engine.overrides()) {

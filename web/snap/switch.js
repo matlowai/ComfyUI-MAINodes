@@ -44,12 +44,19 @@ export function createSwitch(view) {
     return { left: l, top: t, width: Math.max(...rects.map((r) => r.left + r.width)) - l, height: Math.max(...rects.map((r) => r.top + r.height)) - t };
   }
 
+  // a card's place in the layout, ignoring its own flight transform (offsets don't see transforms)
+  function layoutRect(el) {
+    const o = el.offsetParent.getBoundingClientRect();
+    return { left: o.left + el.offsetLeft - view.stack.scrollLeft, top: o.top + el.offsetTop - view.stack.scrollTop, width: el.offsetWidth, height: el.offsetHeight };
+  }
+
   // the transform that puts card `el` onto its nodes' screen rect (attachments fly to their host)
   function toNodes(el) {
+    if (!el.offsetParent) return [0, 0, 1, 1]; // detached or hidden mid-flight (a re-render replaced it)
     let nodes = brickNodes(el.dataset.brick);
     if (!nodes.length) nodes = brickNodes("render");
     if (!nodes.length) return [0, 0, 1, 1];
-    const target = union(nodes.map(nodeRect)), card = el.getBoundingClientRect();
+    const target = union(nodes.map(nodeRect)), card = layoutRect(el);
     return [target.left - card.left, target.top - card.top, target.width / card.width, target.height / card.height];
   }
 
@@ -64,7 +71,10 @@ export function createSwitch(view) {
       sp.set(to === "graph" ? toNodes(el) : [0, 0, 1, 1]);
       el.style.transformOrigin = "0 0";
       el.style.willChange = "transform";
-      animate(el, sp, ([x, y, sx, sy]) => { el.style.transform = `translate3d(${x}px,${y}px,0) scale(${sx},${sy})`; });
+      animate(el, sp, ([x, y, sx, sy]) => {
+        el.style.transform = `translate3d(${x}px,${y}px,0) scale(${sx},${sy})`;
+        if (to === "graph" && el.offsetParent) sp.set(toNodes(el)); // the camera is moving: follow the node, not where it was
+      });
     }
     veil.set([to === "graph" ? 0 : 1], { params: reducedMotion() ? SPRINGS.fade : SPRINGS.view });
     animate(root, veil, ([v]) => root.style.setProperty("--veil", Math.max(0, Math.min(1, v))), () => {
@@ -89,11 +99,14 @@ export function createSwitch(view) {
   }
 
   // docked: the graph is already visible, so "show in graph" just frames and selects the brick's nodes
+  // frame the brick's nodes (or the whole recipe): the camera glides there in step with the cards (UX_SPEC 5)
   function frame(focusKey) {
     const focus = focusKey ? brickNodes(focusKey) : E.state().bricks.flatMap((b) => brickNodes(b.key));
     if (!focus.length) return;
     const r = union(focus.map((n) => ({ left: n.pos[0], top: n.pos[1] - LiteGraph.NODE_TITLE_HEIGHT, width: n.size[0], height: n.size[1] + LiteGraph.NODE_TITLE_HEIGHT })));
-    app.canvas.ds.fitToBounds([r.left, r.top, r.width, r.height], { zoom: focusKey ? 0.6 : 0.85 });
+    const bounds = [r.left, r.top, r.width, r.height], zoom = focusKey ? 0.6 : 0.85;
+    if (reducedMotion()) app.canvas.ds.fitToBounds(bounds, { zoom });
+    else app.canvas.animateToBounds(bounds, { duration: 320, zoom });
     if (focusKey) app.canvas.selectNodes(focus);
     app.canvas.setDirty(true, true);
   }
