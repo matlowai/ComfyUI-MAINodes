@@ -8,6 +8,7 @@ import { attachDrag } from "./drag.js";
 import { Spring, SPRINGS, animate } from "./spring.js";
 import * as L from "./library.js";
 import { openSetEditor } from "./seteditor.js";
+import { openBoard } from "./board.js";
 import * as P from "./proposals.js";
 import * as crew from "./crew.js";
 
@@ -57,7 +58,9 @@ export function createView({ onSwitch, onMakeApp, run }) {
     libResults.replaceChildren(...(found.length ? found.map((c) => {
       const tile = h("div", { className: "snap-card", title: `${c.text}\n\nclick or drag onto ${BRICKS[L.TARGET[c.kind]].title}`, onclick: () => applyCard(c.id) },
         h("span", { className: "snap-kind", textContent: (L.KIND_LABEL[c.kind] ?? c.kind).replace(/s$/, "") }), h("span", { className: "snap-card-title", textContent: c.title }),
-        c.kind === "set_snapshot" ? h("button", { className: "snap-edit", textContent: "✎", title: "open the set plan to block it", onclick: (e) => { e.stopPropagation(); editSet(c); } }) : null);
+        c.kind === "set_snapshot" ? h("span", { className: "snap-card-tools" },
+          h("button", { className: "snap-edit", textContent: "▦", title: "plan-board: every saved state of this set side by side", onclick: (e) => { e.stopPropagation(); openBoard(root, L.lineage(c), { onOpen: editSet }); } }),
+          h("button", { className: "snap-edit", textContent: "✎", title: "open the set plan to block it", onclick: (e) => { e.stopPropagation(); editSet(c); } })) : null);
       tile.dataset.card = c.id;
       tile.style.setProperty("--hue", BRICKS[L.TARGET[c.kind]].hue);
       return tile;

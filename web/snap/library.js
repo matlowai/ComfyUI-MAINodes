@@ -26,9 +26,15 @@ export const ready = () => (loading ??= loadAll().then((all) => (cards = all), (
 export function version(card, snapshot, mine) {
   const lineage = card.lineage ?? card.id;
   const stamp = new Date().toTimeString().slice(0, 8);
-  return { id: mine ? `${lineage}-mine` : `${lineage}-${Date.now().toString(36)}`, kind: "set_snapshot", lineage,
+  return { id: mine ? `${lineage}-mine` : `${lineage}-${Date.now().toString(36)}`, kind: "set_snapshot", lineage, saved: Date.now(),
     title: mine ? `Set snapshot: ${snapshot.name}, end of ${snapshot.shot} (my edit)` : `Set snapshot: ${snapshot.name}, end of ${snapshot.shot} (saved ${stamp})`,
     text: card.text, brick: { snapshot } };
+}
+
+// every saved state of one set, in shot order: the original first, then versions by when they were saved
+export function lineage(card) {
+  const root = card.lineage ?? card.id;
+  return cards.filter((c) => c.kind === "set_snapshot" && (c.id === root || c.lineage === root)).sort((a, b) => (a.id === root ? -1 : b.id === root ? 1 : (a.saved ?? 0) - (b.saved ?? 0)));
 }
 
 // keep an edited card as the user's own (never overwrites a pack card)
