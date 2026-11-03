@@ -87,6 +87,11 @@ app.registerExtension({
       try { reply = { id: detail.id, result: await agentCall(detail.tool, detail.args) }; } catch (e) { reply = { id: detail.id, error: e.message }; }
       api.fetchApi("/mainodes/snap/result", { method: "POST", body: JSON.stringify({ client: api.clientId, ...reply }) });
     });
+    // http://host/?snap opens straight into Snap once the first workflow has loaded
+    if (new URLSearchParams(location.search).has("snap")) {
+      const open = () => (activeTab() ? setTimeout(() => sw.showing || toggle(), 400) : setTimeout(open, 100));
+      open();
+    }
     // each workflow tab remembers Snap or Graph (as App mode does): recorded when the person switches, restored when
     // another tab loads; undo reloads the same tab and changes nothing
     let tab = activeTab();

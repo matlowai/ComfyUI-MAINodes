@@ -1,7 +1,7 @@
-// Snap ⇄ Graph (UX_SPEC section 5). The Snap view sits inside the graph canvas container, above the canvas and below
-// ComfyUI's floating chrome (workflow tabs, side toolbar, action bar); while it shows, the canvas stops drawing
-// (pause_rendering), so the graph keeps its state but costs nothing. Switching flies each
-// brick card to the screen rect of its nodes (and back) on springs, so a second press mid-flight just reverses.
+// Snap ⇄ Graph (UX_SPEC section 5). The Snap view covers the whole page, ComfyUI's chrome included, as its own app; the
+// graph keeps running underneath, and while Snap shows the canvas stops drawing (pause_rendering), so it costs nothing.
+// Switching flies each brick card to the screen rect of its nodes (and back) on springs while Snap fades to the graph,
+// so a second press mid-flight just reverses.
 import { app } from "../../../scripts/app.js";
 import { Spring, SPRINGS, animate, stop, reducedMotion } from "./spring.js";
 import * as E from "./engine.js";
@@ -14,19 +14,9 @@ export function createSwitch(view) {
   let showing = false;
   let docked = null; // the sidebar tab element while Snap sits beside the live graph
 
-  // mount under the chrome and keep clear of it: the action bar row above, the side toolbar on the left
   function place() {
-    const c = container();
-    if (!c || docked) return; // docked, the view lives in the sidebar tab
-    if (root.parentElement !== c) c.append(root); // z-index 2: above the canvas, below the chrome layer (z 999)
-    const box = c.getBoundingClientRect();
-    const bar = document.querySelector(".actionbar-container")?.getBoundingClientRect();
-    const tabs = document.querySelector(".workflow-tabs-container")?.getBoundingClientRect();
-    const nav = document.querySelector(".side-tool-bar-container")?.getBoundingClientRect();
-    root.style.setProperty("--chrome-top", `${Math.max(bar?.bottom ?? 0, tabs?.bottom ?? 0) - box.top + 8}px`);
-    root.style.setProperty("--chrome-left", `${Math.max(0, (nav?.right ?? 0) - box.left)}px`);
+    if (!docked && root.parentElement !== document.body) document.body.append(root);
   }
-  addEventListener("resize", place);
 
   function nodeRect(n) {
     const c = app.canvas, box = c.canvas.getBoundingClientRect(), th = LiteGraph.NODE_TITLE_HEIGHT;
@@ -116,7 +106,6 @@ export function createSwitch(view) {
   function dock(el) {
     if (showing) { showing = false; app.canvas.pause_rendering = false; container()?.classList.remove("snap-open"); }
     stop(root); settle(); // a flight still running would hide the docked view when it lands
-    root.style.removeProperty("--chrome-top"); root.style.removeProperty("--chrome-left"); // the full view's insets
     docked = el;
     el.style.cssText += ";position:relative;height:100%";
     el.append(root);

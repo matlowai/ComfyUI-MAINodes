@@ -21,24 +21,30 @@ const h = (tag, props = {}, ...kids) => {
 
 export function createView({ onSwitch, onMakeApp, run }) {
   const root = h("div", { className: "snap-root", tabIndex: -1 });
-  const stack = h("main", { className: "snap-stack", ariaLabel: "recipe" });
+  const stack = h("div", { className: "snap-stack", ariaLabel: "recipe" });
+  const notesStrip = h("div", { className: "snap-notes" }); // notes on the whole recipe, above the chain
+  const lanes = document.createElementNS("http://www.w3.org/2000/svg", "svg"); // the bus: who feeds whom beyond the next brick
+  lanes.classList.add("snap-lanes");
   const rail = h("aside", { className: "snap-rail" });
   const inspector = h("aside", { className: "snap-inspector" });
   const status = h("span", { className: "snap-status" });
   const proposalsPill = h("span", { className: "snap-proposals", hidden: true });
   const title = h("strong", { className: "snap-title" });
+  const runLabel = h("span", { textContent: "Run" }), progress = h("div", { className: "snap-progress" });
+  const runBtn = h("button", { className: "snap-run", title: "queue this recipe (Ctrl+Enter in the graph)", onclick: () => queue() }, h("span", { textContent: "▶" }), runLabel);
   const toast = h("div", { className: "snap-toast", role: "status" });
   const seg = h("div", { className: "snap-seg", role: "tablist" },
     h("button", { className: "on", textContent: "Snap", role: "tab" }),
     h("button", { textContent: "Graph", role: "tab", onclick: () => onSwitch() }));
   root.append(
-    h("header", { className: "snap-top" }, title, status, proposalsPill, h("span", { className: "snap-spacer" }),
+    h("header", { className: "snap-top" }, h("span", { className: "snap-brand" }, h("i"), "Snap"), title, status, proposalsPill, h("span", { className: "snap-spacer" }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Save recipe", title: "keep these bricks and their settings as a Library card you can rebuild anywhere", onclick: async () => {
         try { const c = await L.saveRecipe(app.extensionManager.workflow.activeWorkflow?.filename ?? "recipe"); say(`Saved "${c.title}" to your Library`); renderLibrary(); } catch (err) { say(err.message, true); }
       } }),
+      h("button", { className: "snap-link snap-quiet-btn", textContent: "Note", title: "a director's note on the whole recipe; agents answer it", onclick: () => { noting = true; select(null); inspector.querySelector("textarea")?.focus(); } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Make app", title: "open this recipe in ComfyUI's App mode: the brick faces become a run-only app (reloads the graph)", onclick: () => onMakeApp() }),
-      h("button", { className: "snap-link snap-quiet-btn", textContent: `Add brick  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}`, title: "Ctrl/Cmd+K", onclick: () => openPalette() }), seg),
-    h("div", { className: "snap-body" }, rail, stack, inspector), toast);
+      h("button", { className: "snap-link snap-quiet-btn", textContent: `Add brick  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}`, title: "Ctrl/Cmd+K", onclick: () => openPalette() }), seg, runBtn, progress),
+    h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), inspector), toast);
   let selected = null;
   const built = new Map(); // brick key -> { el, sig }: a brick is rebuilt only when what it shows changed
   let inspectorSig = "";
@@ -146,9 +152,11 @@ export function createView({ onSwitch, onMakeApp, run }) {
   });
   query.addEventListener("blur", () => setTimeout(() => { if (!palette.contains(document.activeElement)) palette.hidden = true; }, 0));
 
+  stack.addEventListener("pointerdown", (e) => { if (e.target === stack || e.target === lanes) { noting = false; select(null); } });
   root.addEventListener("keydown", (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); e.stopPropagation(); openPalette(); return; }
     if (e.target.closest("input,textarea,select")) return;
+    if (e.key === "Escape" && (selected || noting) && palette.hidden && !root.querySelector(".snap-sheet")) { noting = false; select(null); return; }
     const keys = E.state().bricks.map((b) => b.key), i = keys.indexOf(selected);
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
@@ -189,9 +197,13 @@ export function createView({ onSwitch, onMakeApp, run }) {
     return new Map([...stack.querySelectorAll("[data-brick]")].map((el) => [el.dataset.brick, el.getBoundingClientRect()]));
   }
 
+  // the inspector slides in for a selected brick (or a recipe note) and out again, giving the chain the room
+  let noting = false;
   function select(key, rerender = true) {
     if (key !== selected) libScoped = true;
     selected = key;
+    if (key) noting = false;
+    root.classList.toggle("inspecting", !!key || noting);
     if (rerender) {
       for (const el of stack.querySelectorAll("[data-brick]")) el.classList.toggle("selected", el.dataset.brick === key);
       renderInspector();
@@ -199,13 +211,31 @@ export function createView({ onSwitch, onMakeApp, run }) {
     }
   }
 
+  // Run uses ComfyUI's own queue (seed control after generate, run errors); Snap covers ComfyUI's dialogs, so what they
+  // would say is said here
+  async function queue() {
+    runBtn.disabled = true;
+    try {
+      await app.queuePrompt(0, 1);
+      const errors = Object.entries(app.lastNodeErrors ?? {}).map(([id, e]) => `${app.graph.getNodeById(id)?.title ?? e.class_type}: ${e.errors?.[0]?.message ?? "error"}${e.errors?.[0]?.details ? ` (${e.errors[0].details})` : ""}`);
+      if (errors.length) say(`Can't run yet · ${errors[0]}${errors.length > 1 ? ` · +${errors.length - 1} more` : ""}`, true);
+    } catch (err) { say(`Couldn't queue: ${err.message}`, true); }
+    runBtn.disabled = false;
+  }
+  api.addEventListener("promptQueued", ({ detail }) => { runLabel.textContent = "Queued"; say(`Queued${detail?.number != null ? ` #${detail.number}` : ""}`); });
+  api.addEventListener("progress", ({ detail }) => { progress.style.setProperty("--p", detail.value / detail.max); progress.style.opacity = 1; runLabel.textContent = `Rendering ${Math.round((100 * detail.value) / detail.max)}%`; });
+  const idle = () => { runLabel.textContent = "Run"; progress.style.opacity = 0; setTimeout(() => progress.style.setProperty("--p", 0), 300); };
+  api.addEventListener("execution_success", () => { idle(); say("Render finished"); });
+  api.addEventListener("execution_error", ({ detail }) => { idle(); say(`Render failed · ${detail?.node_type ?? ""}: ${detail?.exception_message ?? ""}`.trim(), true); });
+  api.addEventListener("execution_interrupted", idle);
+
   let toastTimer = 0;
   function say(text, bad = false) {
     toast.textContent = text;
     toast.classList.toggle("bad", bad);
     toast.classList.add("show");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.classList.remove("show"), 2500);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), bad ? 6000 : 2500);
   }
 
   function control(brick, [nodeKey, name, label]) {
@@ -227,6 +257,17 @@ export function createView({ onSwitch, onMakeApp, run }) {
     const field = h("label", { className: `snap-field snap-${input.tagName.toLowerCase()}` }, h("span", { textContent: label }), input);
     if (input.type === "number") scrub(field.firstChild, input, set);
     return field;
+  }
+
+  // a brick shows its settings as values; they are edited in the inspector (select the brick)
+  function fact(brick, [nodeKey, name, label]) {
+    const w = E.nodeFor(brick, nodeKey)?.widgets?.find((x) => x.name === name);
+    if (!w) return null;
+    const v = w.value, values = w.options?.values;
+    const missing = v == null || (Array.isArray(values) && !values.includes(v));
+    const text = v == null ? "missing" : typeof v === "boolean" ? (v ? "on" : "off") : Array.isArray(values) ? String(v).split("/").pop().replace(/\.safetensors$/, "") : String(v);
+    if (name === "prompt") return h("div", { className: "snap-fact snap-prompt", title: v ?? "" }, h("span", { textContent: label }), h("p", { textContent: text.replace(/^integrated_multimodal_description:\s*/, "") }));
+    return h("div", { className: `snap-fact${missing ? " missing" : ""}`, title: missing ? `${text} (missing)` : text }, h("span", { textContent: label }), h("b", { textContent: text }));
   }
 
   // drag a number's label sideways to change it: 1 step per 4 px, Shift fine, Alt coarse
@@ -277,18 +318,34 @@ export function createView({ onSwitch, onMakeApp, run }) {
     rules.remember(rule).then(() => { E.useRules(rules.all()); say("Picked; Snap will bind this pair the same way next time"); }, (err) => say(err.message, true));
   }
 
-  function bindingsLine(key, info) {
-    const chips = info.bindings.map((b) => {
+  function bindingsLine(key, info, brief) {
+    // three or more wires from one brick read as one chip ("Render Preset ×5"); the inspector lists each
+    const count = new Map();
+    for (const b of info.bindings) if (b.rule !== "ask" && b.value == null) count.set(b.from, (count.get(b.from) ?? 0) + 1);
+    const grouped = new Set();
+    // on a brick in the full view only the chips that want attention show (the lanes carry the rest); narrow, all of them
+    const more = (b) => brief && !["ask", "remembered", "chosen"].includes(b.rule) && b.value == null;
+    const chips = info.bindings.flatMap((b) => {
+      if (b.rule !== "ask" && b.value == null && count.get(b.from) >= 3) {
+        if (grouped.has(b.from)) return [];
+        grouped.add(b.from);
+        const roles = info.bindings.filter((x) => x.from === b.from && x.rule !== "ask").map((x) => x.role);
+        const chip = h("button", { className: `snap-bind group${more(b) ? " more" : ""}`, textContent: `${BRICKS[b.from]?.title ?? b.from} ×${roles.length}`, title: `${roles.join(", ")}\nclick to show in the graph`,
+          onclick: (e) => { e.stopPropagation(); select(key); onSwitch(key); } });
+        chip.style.setProperty("--from", BRICKS[b.from]?.hue ?? 215);
+        return [chip];
+      }
       if (b.rule === "ask") { // several candidates fit: the person picks, the pick is remembered
         return h("span", { className: "snap-bind ask", title: "more than one output fits; pick the one you mean" }, `${b.role} ← which one? `,
           b.candidates.map((c) => h("button", { className: "snap-choice", textContent: `${BRICKS[c.from]?.title ?? c.from} · ${c.via.replaceAll("_", " ")}`, onclick: (e) => { e.stopPropagation(); const before = rects(); pickBinding(key, b.role, c.from, c.via); render(before); } })));
       }
       const kind = b.rule.split(":")[0];
       const label = b.value != null ? `${b.role} = ${b.value}` : `${b.role} ← ${BRICKS[b.from]?.title ?? b.from}${b.rule === "chosen" || b.rule === "remembered" ? ` · ${b.via.replaceAll("_", " ")}` : ""}`;
-      const chip = h("button", { className: `snap-bind ${kind}`, textContent: label, title: `rule: ${b.rule}\nclick to show in the graph`,
+      const chip = h("button", { className: `snap-bind ${kind}${more(b) ? " more" : ""}`, textContent: label, title: `rule: ${b.rule}\nclick to show in the graph`,
         onclick: (e) => { e.stopPropagation(); select(key); onSwitch(key); } });
       if (b.rule === "remembered") chip.title = `rule: your earlier pick for this pair\nclick to show in the graph`;
-      return chip;
+      chip.style.setProperty("--from", BRICKS[b.from]?.hue ?? 215);
+      return [chip];
     });
     const over = overridden.filter((o) => o.to === key);
     for (const o of over) chips.push(h("span", { className: "snap-bind override", textContent: `${o.role}: ${o.change} in graph`, title: "you changed this in the graph; Snap keeps your wiring" }));
@@ -312,23 +369,20 @@ export function createView({ onSwitch, onMakeApp, run }) {
 
   function brickEl(info) {
     const def = BRICKS[info.brick];
-    const faces = def.face.map((f) => control(info.brick, f)).filter(Boolean);
+    const faces = def.face.map((f) => fact(info.brick, f)).filter(Boolean);
     const body = [];
     if (info.brick === "rack") body.push(rackSummary());
     if (info.brick === "refs") body.push(...picturesFace());
     if (info.brick === "render") {
       const shot = E.state().bricks.find((x) => x.key === "render")?.shot;
-      if (shot) body.push(h("div", { className: "snap-shot-parts" }, h("span", { className: "snap-quiet", textContent: `prompt compiled from ${L.get(shot.card)?.title ?? shot.card}:` }),
-        shot.parts.map((x) => h("span", { className: `snap-part ${x.field}`, textContent: x.field, title: `${x.text}\n\nfrom: ${L.get(x.from)?.title ?? x.from}` }))));
-      body.push(h("div", { className: "snap-quiet", textContent: "saves to output/video/dials_simple" }));
+      if (shot) body.push(h("div", { className: "snap-shot-line", title: `prompt compiled from ${L.get(shot.card)?.title ?? shot.card}` }, shot.parts.map((x) => h("i", { className: `snap-dot ${x.field}` })), h("span", { textContent: (L.get(shot.card)?.title ?? shot.card).replace(/:.*/, "") })));
     }
-    const el = h("section", { className: `snap-brick${def.attach ? " attached" : ""}${selected === info.brick ? " selected" : ""}`, tabIndex: 0 },
+    const el = h("section", { className: `snap-brick${def.attach ? " attached" : ""}${info.brick === "render" ? " wide" : ""}${selected === info.brick ? " selected" : ""}`, tabIndex: 0 },
       h("header", { className: "snap-head" },
         h("span", { className: "snap-grip", textContent: def.icon, title: "drag to reorder" }),
-        h("span", { className: "snap-name", textContent: def.title }),
-        h("span", { className: "snap-blurb", textContent: def.blurb }),
+        h("span", { className: "snap-name", textContent: def.title, title: def.blurb }),
         h("button", { className: "snap-x", textContent: "×", title: "remove from the recipe", onclick: (e) => { e.stopPropagation(); const before = rects(); E.unsnap(info.brick); if (selected === info.brick) selected = null; render(before); } })),
-      faces.length ? h("div", { className: "snap-face" }, faces) : null, body, bindingsLine(info.brick, info), openNotes(info.brick).map(noteEl));
+      faces.length ? h("div", { className: "snap-face" }, faces) : null, body, bindingsLine(info.brick, info, true), openNotes(info.brick).map(noteEl));
     el.dataset.brick = info.brick;
     if (def.attach) el.dataset.host = def.attach.brick;
     el.querySelector(".snap-head").dataset.grip = "";
@@ -362,6 +416,11 @@ export function createView({ onSwitch, onMakeApp, run }) {
       h("button", { className: "snap-link", textContent: "Pin note  Ctrl ↵", onclick: pin }));
   }
 
+  function shotParts(shot) {
+    return h("div", { className: "snap-shot-parts" }, h("span", { className: "snap-quiet", textContent: `prompt compiled from ${L.get(shot.card)?.title ?? shot.card}:` }),
+      shot.parts.map((x) => h("span", { className: `snap-part ${x.field}`, textContent: x.field, title: `${x.text}\n\nfrom: ${L.get(x.from)?.title ?? x.from}` })));
+  }
+
   function renderInspector() {
     const info = E.describe().find((b) => b.brick === selected);
     const sig = info ? `${selected}|${signature(info)}|${JSON.stringify(Object.values(info.nodes).map((id) => app.graph.getNodeById(id)?.widgets?.map((w) => w.value)))}` : "";
@@ -376,16 +435,28 @@ export function createView({ onSwitch, onMakeApp, run }) {
           crewLine.textContent = n ? `Crew: ${a} of ${n} proposals accepted · ${Object.entries(kinds).map(([k, [x, y]]) => `${k} ${x}/${y}`).join(" · ")}` : "";
         }, () => {});
       }
-      inspector.replaceChildren(h("div", { className: "snap-quiet", textContent: "select a brick" }), E.state().bricks.length ? noteComposer() : null, crewLine);
+      inspector.replaceChildren(h("div", { className: "snap-insp-title" }, "Recipe", h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: () => { noting = false; select(null); } })),
+        h("div", { className: "snap-quiet", textContent: "Notes here are for the whole recipe; select a brick to note on it." }), noteComposer(), crewLine);
       return;
     }
     const def = BRICKS[info.brick];
     const nodes = Object.entries(info.nodes).map(([k, id]) => [k, app.graph.getNodeById(id)]).filter(([, n]) => n);
+    const faced = new Set(def.face.map(([k, name]) => `${k}.${name}`));
     inspector.replaceChildren(
-      h("div", { className: "snap-insp-title", textContent: def.title }),
+      h("div", { className: "snap-insp-title", style: `--hue:${def.hue}` }, h("span", { className: "snap-grip", textContent: def.icon }), def.title,
+        h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: () => select(null) })),
+      h("div", { className: "snap-quiet", textContent: info.brick === "render" ? `${def.blurb} · saves to output/video/dials_simple` : def.blurb }),
+      info.brick === "render" && E.state().bricks.find((x) => x.key === "render")?.shot ? shotParts(E.state().bricks.find((x) => x.key === "render").shot) : null,
+      def.face.length ? h("div", { className: "snap-insp-node snap-insp-main" }, def.face.map((f) => control(info.brick, f))) : null,
       ...nodes.map(([k, n]) => h("div", { className: "snap-insp-node" },
         h("div", { className: "snap-insp-type", textContent: `${n.title} · ${n.type.length > 30 ? "blueprint" : n.type} #${n.id}` }),
-        (n.widgets ?? []).filter((w) => w.name && !w.name.startsWith("$$") && w.type !== "button").slice(0, 16).map((w) => control(info.brick, [k, w.name, w.label ?? w.name])))),
+        (n.widgets ?? []).filter((w) => w.name && !w.name.startsWith("$$") && w.type !== "button" && !faced.has(`${k}.${w.name}`)).slice(0, 16).map((w) => control(info.brick, [k, w.name, w.label ?? w.name])))),
+      info.bindings.length ? h("div", { className: "snap-insp-type", textContent: "Wired from" }) : null,
+      info.bindings.length ? h("div", { className: "snap-binds" }, info.bindings.filter((b) => b.rule !== "ask").map((b) => {
+        const chip = h("button", { className: `snap-bind ${b.rule.split(":")[0]}`, textContent: b.value != null ? `${b.role} = ${b.value}` : `${b.role} ← ${BRICKS[b.from]?.title ?? b.from}`, title: `rule: ${b.rule}`, onclick: () => onSwitch(info.brick) });
+        chip.style.setProperty("--from", BRICKS[b.from]?.hue ?? 215);
+        return chip;
+      })) : null,
       h("button", { className: "snap-link", textContent: "Show in graph", onclick: () => onSwitch(info.brick) }), noteComposer());
   }
 
@@ -481,19 +552,69 @@ export function createView({ onSwitch, onMakeApp, run }) {
     }
   }
 
+  // a brick that takes the previous brick's output (or rides on it) is coupled to it: the two read as one piece
+  function couple() {
+    const els = [...stack.querySelectorAll(":scope > [data-brick]:not(.snap-folded)")], infos = new Map(E.describe().map((i) => [i.brick, i]));
+    els.forEach((el, i) => {
+      const next = els[i + 1], key = el.dataset.brick, info = next && infos.get(next.dataset.brick);
+      const feeds = !!info && (BRICKS[info.brick].attach?.brick === key || info.bindings.some((b) => b.from === key && b.rule !== "ask"));
+      el.classList.toggle("feeds", feeds);
+      if (feeds) el.style.setProperty("--next", BRICKS[info.brick].hue);
+    });
+  }
+
+  // the bus under the chain: one lane per brick whose outputs go further than its neighbour, dropping into each brick it feeds
+  const SVG = "http://www.w3.org/2000/svg", LANE = 16;
+  const svg = (tag, attrs) => { const el = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v); return el; };
+  function drawLanes() {
+    const els = [...stack.querySelectorAll(":scope > [data-brick]:not(.snap-folded)")];
+    const across = getComputedStyle(stack).display === "grid";
+    lanes.replaceChildren();
+    if (!across || els.length < 2) { lanes.remove(); stack.style.removeProperty("--lanes-h"); return; }
+    const at = new Map(els.map((el, i) => [el.dataset.brick, { i, x: el.offsetLeft + el.offsetWidth / 2, bottom: el.offsetTop + el.offsetHeight }]));
+    const feeds = new Map();
+    for (const info of E.describe()) for (const b of info.bindings) {
+      const p = at.get(b.from), c = at.get(info.brick);
+      if (b.value != null || b.rule === "ask" || !p || !c || c.i === p.i + 1) continue; // neighbours are coupled, not bussed
+      if (!feeds.has(b.from)) feeds.set(b.from, new Set());
+      feeds.get(b.from).add(info.brick);
+    }
+    const rows = [...feeds.keys()].sort((a, b) => at.get(a).i - at.get(b).i);
+    const y0 = Math.max(...[...at.values()].map((v) => v.bottom)) + 26;
+    rows.forEach((from, k) => {
+      const p = at.get(from), y = y0 + k * LANE, color = `hsl(${BRICKS[from]?.hue ?? 215} 65% 62%)`;
+      const xs = [...feeds.get(from)].map((to) => at.get(to));
+      const lo = Math.min(p.x, ...xs.map((c) => c.x)), hi = Math.max(p.x, ...xs.map((c) => c.x)), off = (k - rows.length / 2) * 6; // drops side by side
+      lanes.append(svg("path", { d: `M${p.x + off} ${p.bottom} V${y} M${lo + off} ${y} H${hi + off}`, stroke: color, "stroke-width": 2, fill: "none", "stroke-linecap": "round", opacity: 0.85 }),
+        svg("circle", { cx: p.x + off, cy: p.bottom + 1, r: 4, fill: color }));
+      for (const c of xs) lanes.append(svg("path", { d: `M${c.x + off} ${y} V${c.bottom + 6}`, stroke: color, "stroke-width": 2, fill: "none", "stroke-linecap": "round", opacity: 0.85 }),
+        svg("path", { d: `M${c.x + off - 4} ${c.bottom + 9} l4 -5 l4 5`, stroke: color, "stroke-width": 2, fill: "none", "stroke-linecap": "round", "stroke-linejoin": "round" }));
+      const label = svg("text", { x: p.x + off + 8, y: y - 4, fill: color }); label.textContent = BRICKS[from]?.title ?? from;
+      lanes.append(label);
+    });
+    stack.style.setProperty("--lanes-h", `${rows.length * LANE + 26}px`);
+    Object.assign(lanes.style, { width: `${stack.scrollWidth}px`, height: `${y0 + rows.length * LANE + 12}px` });
+    stack.append(lanes);
+  }
+  new ResizeObserver(() => drawLanes()).observe(stack);
+
   // FLIP: bricks that moved spring from their old place; new ones rise in
   function render(before, entered) {
     const infos = E.describe();
     overridden = infos.length ? E.overrides() : [];
     for (const key of built.keys()) if (!infos.some((i) => i.brick === key)) built.delete(key);
-    stack.replaceChildren(...openNotes(null).map(noteEl), ...(infos.length ? infos.map(reuse) : [h("div", { className: "snap-empty" },
+    notesStrip.replaceChildren(...openNotes(null).map(noteEl));
+    stack.replaceChildren(...(infos.length ? infos.map(reuse) : [h("div", { className: "snap-empty" },
+      h("div", { className: "snap-empty-art" }, [210, 265, 35, 330].flatMap((hue, i) => [i ? h("b", { style: `--hue:${hue}` }) : null, h("i", { style: `--hue:${hue}` })])),
       h("div", { className: "snap-empty-title", textContent: "Build a recipe" }),
-      h("div", { className: "snap-quiet", textContent: "drag bricks in from the left, or start from the recommended one" }),
+      h("div", { className: "snap-quiet", textContent: "Drag bricks in from the left and they snap into a working graph. Or start from the recommended recipe." }),
       h("button", { className: "snap-primary", textContent: "Start from Dials + Pika Simple", onclick: buildSimple }),
       app.graph.nodes.length ? h("button", { className: "snap-link", textContent: `Snap this workflow (${app.graph.nodes.length} nodes)`, title: "show the open graph as bricks; nothing in it changes", onclick: adoptGraph }) : null)]));
     title.textContent = app.extensionManager.workflow.activeWorkflow?.filename ?? "Snap";
     fold();
+    couple();
     renderRail(); renderInspector(); renderStatus(); renderProposals();
+    drawLanes();
     if (!before) return;
     for (const el of stack.querySelectorAll("[data-brick]")) {
       const key = el.dataset.brick, was = before.get(key), now = el.getBoundingClientRect();
