@@ -108,17 +108,20 @@ function bindAll() {
   return made;
 }
 
-export async function snap(key, { values } = {}) {
+export async function snap(key, { values, at } = {}) {
   const def = BRICKS[key], s = state();
   if (s.bricks.some((b) => b.key === key)) return { brick: key, bindings: [] };
   if (def.attach) {
     const host = s.bricks.find((b) => b.key === def.attach.brick);
     if (!host) throw new Error(`${def.title} snaps onto ${BRICKS[def.attach.brick].title}; add that first`);
-    s.bricks.push({ key, nodes: {} });
+    s.bricks.splice(at ?? s.bricks.length, 0, { key, nodes: {} });
     setValue(def.attach.brick, def.attach.brick, def.attach.widget, def.attach.on);
     return { brick: key, bindings: [{ to: def.attach.brick, role: def.attach.widget, rule: `pack:${key}.attach`, value: def.attach.on }] };
   }
-  const x = column(key) * COLUMN, y = s.bricks.filter((b) => column(b.key) === column(key)).length * 260;
+  // graph layout: columns by role, stacked below whatever is already in the column
+  const x = column(key) * COLUMN;
+  const below = s.bricks.filter((b) => column(b.key) === column(key)).flatMap((b) => Object.values(b.nodes)).map(node).filter(Boolean);
+  const y = below.length ? Math.max(...below.map((n) => n.pos[1] + n.size[1])) + 80 : 0;
   const bp = def.blueprint ? await fetchBlueprint(def.blueprint) : null;
   const bindings = transaction(() => {
     const ids = {};
@@ -142,12 +145,18 @@ export async function snap(key, { values } = {}) {
       ids[spec.key] = n.id;
       dy += (n.size?.[1] ?? 120) + 40;
     }
-    s.bricks.push({ key, nodes: ids });
-    s.bricks.sort((a, b) => column(a.key) - column(b.key));
+    s.bricks.splice(at ?? s.bricks.length, 0, { key, nodes: ids });
     return bindAll();
   });
   app.canvas.setDirty(true, true);
   return { brick: key, bindings };
+}
+
+// reading order only: pack rules bind by role, so reordering never rewires
+export function move(key, index) {
+  const s = state(), i = s.bricks.findIndex((b) => b.key === key);
+  if (i < 0) return;
+  transaction(() => { const [b] = s.bricks.splice(i, 1); s.bricks.splice(index, 0, b); });
 }
 
 export function unsnap(key) {
