@@ -63,6 +63,28 @@ export function side(s, at = s.camera.at) {
   return Math.abs(d) < 0.05 ? 0 : Math.sign(d);
 }
 
+// the shot between its In state (end of the last shot) and its Out state, at t in [0, 1]: actors (paired by name) and
+// the camera move in straight lines and turn the short way round
+export function between(a, b, t) {
+  const mix = (p, q) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+  const turnTo = (f, g) => (f + ((((g - f) % 360) + 540) % 360 - 180) * t + 360) % 360;
+  const actors = b.actors.map((x) => { const y = a.actors.find((z) => z.name === x.name); return y ? { ...x, at: mix(y.at, x.at), facing: turnTo(y.facing, x.facing) } : x; });
+  return { ...b, actors, camera: { ...b.camera, at: mix(a.camera.at, b.camera.at), facing: turnTo(a.camera.facing, b.camera.facing) } };
+}
+
+// the camera's side of the line through the shot, in `steps` samples, and where it changes (shown on screen, so legal)
+export function sideTrack(a, b, steps = 48) {
+  const track = Array.from({ length: steps + 1 }, (_, i) => side(between(a, b, i / steps)));
+  const flips = [];
+  let last = -1; // the previous sample off the line; samples on it (0) don't hide a change of side
+  track.forEach((v, i) => {
+    if (!v) return;
+    if (last >= 0 && v !== track[last]) flips.push((last + i) / 2 / steps);
+    last = i;
+  });
+  return { track, flips };
+}
+
 // standard coverage for a two-hander, all on one side of the line so cuts between them keep screen direction: the side
 // of the shot this one continues from (else the current camera's). A master wide, an over-the-shoulder and a clean
 // single on each actor; positions stay inside the room.

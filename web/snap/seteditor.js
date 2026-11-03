@@ -1,7 +1,7 @@
 // Set Snapshot editor (UX_SPEC 7): the 2D blocking plan is the authority. Drag props, actor marks and the camera;
 // drag an arrow tip to turn an actor or aim the camera. The set block and the 180-degree check update live; Apply
 // refreshes the set pictures in References, Save keeps the edited state as a new card in the user's Library.
-import { drawPlan, planFrame, setBlock, blocking, coverage, bridges } from "./setsnap.js";
+import { drawPlan, planFrame, setBlock, blocking, coverage, bridges, between, sideTrack } from "./setsnap.js";
 import { diff, eyelines } from "./continuity.js";
 
 const GRID = 0.05;
@@ -20,6 +20,11 @@ export function openSetEditor(host, card, { onApply, onSave }) {
   const plan = h("canvas", { className: "snap-set-plan", tabIndex: 0, ariaLabel: "set plan: drag to block the scene" });
   const blockText = h("p", { className: "snap-set-block" }), blockingText = h("p", { className: "snap-set-block" });
   const notes = h("ul", { className: "snap-set-notes", role: "status" });
+  // scrub through the shot (In = end of the last shot, Out = this state); edits always apply to Out
+  let t = 1;
+  const scrub = h("input", { type: "range", min: 0, max: 1000, value: 1000, className: "snap-scrub-range", ariaLabel: "scrub through the shot", oninput: () => { t = scrub.value / 1000; dirty = true; } });
+  const track = h("div", { className: "snap-side-track", title: "the camera's side of the line through the shot; a change mid-shot happens on screen, which is fine" });
+  const trackNote = h("span", { className: "snap-quiet snap-track-note" });
   // an intended crossing gets a bridge: the end of the last shot again, seen from the line itself or a cutaway
   const bridge = (kind) => {
     const { previous, ...last } = s.previous;
@@ -36,7 +41,8 @@ export function openSetEditor(host, card, { onApply, onSave }) {
   const close = () => { sheet.remove(); host.focus({ preventScroll: true }); };
   const sheet = h("div", { className: "snap-sheet", role: "dialog", ariaLabel: `edit ${card.title}` },
     h("header", {}, h("strong", { textContent: card.title }), h("span", { className: "snap-spacer" }), h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: close })),
-    h("div", { className: "snap-set-body" }, plan,
+    h("div", { className: "snap-set-body" }, h("div", { className: "snap-set-plancol" }, plan,
+      h("div", { className: "snap-scrub-row" }, h("span", { className: "snap-quiet", textContent: "In" }), h("div", { className: "snap-scrub-stack" }, track, scrub), h("span", { className: "snap-quiet", textContent: "Out" })), trackNote),
       h("aside", {}, h("label", { className: "snap-field" }, h("span", { textContent: "this state is the end of" }), shot),
         h("div", { className: "snap-rail-title", textContent: "Set block" }), blockText, h("div", { className: "snap-rail-title", textContent: "Blocking" }), blockingText,
         h("div", { className: "snap-rail-title", textContent: "Changes since the last shot" }), notes, bridgeBar,
@@ -64,6 +70,7 @@ export function openSetEditor(host, card, { onApply, onSave }) {
 
   plan.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
+    if (t < 1) { t = 1; scrub.value = 1000; dirty = true; } // blocking is edited at the end of the shot
     const target = hit(toWorld(e));
     if (target?.setup) { // take a coverage setup as the camera
       const { name, ...cam } = target.setup;
@@ -102,7 +109,11 @@ export function openSetEditor(host, card, { onApply, onSave }) {
     if (!sheet.isConnected) return;
     if (dirty) {
       dirty = false;
-      drawPlan(s, { into: plan, selected, handles: true, ghosts: showCoverage ? coverage(s) : [] });
+      const shown = t < 1 ? between(s.previous, s, t) : s;
+      drawPlan(shown, { into: plan, selected: t < 1 ? null : selected, handles: t === 1, ghosts: showCoverage && t === 1 ? coverage(s) : [] });
+      const { track: sides, flips } = sideTrack(s.previous, s);
+      track.replaceChildren(...sides.map((v) => h("i", { className: v > 0 ? "a" : v < 0 ? "b" : "on" })));
+      trackNote.textContent = flips.length ? `screen direction changes on screen at ${flips.map((f) => `${Math.round(f * 100)}%`).join(", ")} of the shot (fine: the audience sees it)` : "the camera stays on one side of the line through the shot";
       blockText.textContent = setBlock(s);
       blockingText.textContent = blocking(s);
       const found = [...diff(s.previous, s), ...eyelines(s)];
