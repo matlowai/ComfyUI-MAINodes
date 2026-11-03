@@ -145,7 +145,7 @@ Keep every node, but give most people a clean front door. ComfyUI loads subgraph
 - [ ] **Three tiers of start-here workflows:** Simple (one subgraph, a handful of controls), Pro (today's full graphs), Lab
       (research nodes). The README's first screen points only at Simple.
 - [x] **Shipped subgraphs** (MAIN `subgraphs/`): `Dials - H3 + De-rope` (Simple v2, 2026-11-02): prompt, width, height,
-      length, seed, first frame (FL2V), two pictures (Ref2V), de-rope off / oracle / flat, de-rope amount (continuous
+      length, seed, first frame (FL2V), references (Ref2V, through H3 References), de-rope off / oracle / flat, de-rope amount (continuous
       inject, 0.48), max de-rope, pass 2 audio; sampler, sigmas, de-rope steps, FL2V/Ref2V and cfg come from the **Render
       Preset** node outside, so nothing Pika-specific is wired inside. Examples `dials_simple_pika_derope{,_kj}.json`
       (core-only and KJNodes). The v1 blueprints `Dials - Pika H3 (+ De-rope)` are archived in `examples/dials/_archive/`.

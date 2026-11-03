@@ -7,7 +7,7 @@ field together:
 |---|---|
 | model, lora, lora_strength | the MiniMax H3 diffusion model and an optional LoRA (model only) |
 | shift_video, shift_audio | the flow shifts (core's ModelSamplingMiniMaxH3): H3 is 12 / 3 |
-| conditioning | **FL2V** (prompt + optional first frame) or **Ref2V** (prompt naming `<Picture 1>`, `<Picture 2>` + reference pictures) |
+| conditioning | **FL2V** (prompt + optional first frame) or **Ref2V** (prompt naming `<Picture 1>`, `<Video 1>`, `<Audio 1>`... + the references from an **H3 References** node: up to 9 pictures, 3 videos, 3 audio) |
 | sampler | the sampler for both stages |
 | schedule, sigmas, steps | stage 1: `manual` uses the sigma list (another step count resamples it, untested), any other choice is that ComfyUI scheduler with `steps` on the model's shift |
 | derope_steps | stage 2: 0 = auto (the stage-1 sigmas below the de-rope amount); a number resamples that tail |

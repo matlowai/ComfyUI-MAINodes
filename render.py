@@ -165,7 +165,7 @@ class RenderPreset(io.ComfyNode):
                 io.Combo.Input("lora", options=["none", *folder_paths.get_filename_list("loras")], tooltip="speed or style LoRA (model only)"),
                 io.Float.Input("lora_strength", default=1.0, min=-10.0, max=10.0, step=0.05),
                 io.Combo.Input("conditioning", options=CONDITIONING,
-                               tooltip="FL2V: prompt + optional first frame. Ref2V: prompt naming <Picture 1> / <Picture 2> + reference pictures."),
+                               tooltip="FL2V: prompt + optional first frame. Ref2V: prompt naming <Picture 1>, <Video 1>, <Audio 1>... + the references from an H3 References node."),
                 io.Combo.Input("sampler", options=comfy.samplers.SAMPLER_NAMES, default="lcm"),
                 io.Combo.Input("schedule", options=SCHEDULES,
                                tooltip="manual: the sigmas below (Pika's 6 knots); or a scheduler on the model's own shift."),
