@@ -4,7 +4,7 @@
 
 export const RENDER_BLUEPRINT = "Dials - H3 + De-rope";
 
-export const BRICKS = {
+const PACK = {
   models: {
     title: "Models", icon: "◇", hue: 210,
     blurb: "text encoder and the two H3 VAEs",
@@ -67,6 +67,34 @@ export const BRICKS = {
     face: [],
   },
 };
+
+// any installed node as a brick ("node:<Type>#<n>"), built on demand from its node definition, so workflows that use
+// such bricks reopen without extra state: link inputs are its needs (role = input name), outputs what it provides
+// (role = output name, lowercased), the first few widgets its face
+const WIDGET = new Set(["INT", "FLOAT", "STRING", "BOOLEAN", "COMBO"]);
+function nodeBrick(key) {
+  const type = key.slice(5).split("#")[0], nd = LiteGraph.registered_node_types[type]?.nodeData;
+  if (!nd) return undefined;
+  const inputs = Object.entries({ ...nd.input?.required, ...nd.input?.optional });
+  const isWidget = ([, spec]) => Array.isArray(spec[0]) || WIDGET.has(spec[0]);
+  const hue = [...type].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+  return {
+    title: nd.display_name || type, icon: "◻", hue, blurb: nd.category || "node", node: type,
+    nodes: [{ key: "node", type }],
+    needs: Object.fromEntries(inputs.filter((i) => !isWidget(i)).map(([name]) => [name, ["node", name]])),
+    provides: Object.fromEntries((nd.output ?? []).map((t, i) => { const name = nd.output_name?.[i] || t; return [name.toLowerCase(), ["node", name]]; })),
+    face: inputs.filter(isWidget).filter(([name]) => name !== "control_after_generate").slice(0, 3).map(([name]) => ["node", name, name.replaceAll("_", " ")]),
+  };
+}
+
+export const BRICKS = new Proxy(PACK, { get: (t, k) => t[k] ?? (typeof k === "string" && k.startsWith("node:") ? (t[k] = nodeBrick(k)) : undefined) });
+export const PACK_BRICKS = Object.keys(PACK);
+
+// every installed node type a person can add as a brick, for the palette
+export function nodeTypes() {
+  return Object.entries(LiteGraph.registered_node_types).filter(([, c]) => c.nodeData && !c.nodeData.deprecated && !c.nodeData.experimental)
+    .map(([type, c]) => ({ type, title: c.nodeData.display_name || type, category: c.nodeData.category || "" }));
+}
 
 // the Simple recipe in reading order; Save lives inside the Render blueprint (video/dials_simple)
 export const SIMPLE_RECIPE = ["models", "preset", "rack", "first_frame", "refs", "render", "upscale"];

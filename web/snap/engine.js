@@ -7,7 +7,7 @@ import { BRICKS } from "./bricks.js";
 
 const GAP = 80;
 const COLUMN = { models: 0, preset: 0, rack: 1, first_frame: 1, refs: 1, render: 2 };
-const column = (key) => COLUMN[key] ?? COLUMN[BRICKS[key].attach?.brick] ?? 0;
+const column = (key) => COLUMN[key] ?? COLUMN[BRICKS[key]?.attach?.brick] ?? (key.startsWith("node:") ? 3 : 0); // any-node bricks go right of the render
 const EMPTY = Object.freeze({ version: 1, bricks: Object.freeze([]), bindings: Object.freeze([]) });
 
 // the recipe record; reading never writes it, so a workflow that never used Snap stays untouched
@@ -65,38 +65,63 @@ function provider(key, [nodeKey, out]) {
   return src && o >= 0 ? { src, o } : null;
 }
 
-// pack rule first (role names match), then a unique type match from the nearest brick upstream
-function resolve(toBrick, role, type) {
+// is `target` already upstream of `from` (following links)? then linking from -> target would close a loop
+function feeds(target, from) {
+  const seen = new Set(), todo = [from];
+  while (todo.length) {
+    const n = todo.pop();
+    if (String(n.id) === String(target.id)) return true;
+    if (seen.has(n.id)) continue;
+    seen.add(n.id);
+    for (const i of n.inputs ?? []) { const l = app.graph.getLink(i.link); const up = l && node(l.origin_id); if (up) todo.push(up); }
+  }
+  return false;
+}
+
+// pack rule first (role names match), then, for any-node bricks only (our own bricks bind by their curated rules), a
+// type match from the nearest brick that has one: a single match binds, several make an `ask` (the person picks)
+function resolve(toBrick, role, type, downstream) {
   const order = state().bricks.map((b) => b.key), at = order.indexOf(toBrick);
-  const upstream = order.slice(0, at).reverse().concat(order.slice(at + 1));
+  const upstream = order.slice(0, at).reverse().concat(downstream ? order.slice(at + 1) : []);
   for (const key of upstream) {
     const out = BRICKS[key].provides?.[role];
     if (out && provider(key, out)) return { from: key, out, rule: `pack:${key}.${role}` };
   }
+  if (!toBrick.startsWith("node:")) return null;
   for (const key of upstream) {
-    const hits = Object.values(BRICKS[key].provides ?? {}).filter((out) => {
+    const hits = Object.entries(BRICKS[key].provides ?? {}).filter(([, out]) => {
       const p = provider(key, out);
       return p && p.src.outputs[p.o].type === type;
     });
-    if (hits.length === 1) return { from: key, out: hits[0], rule: `inferred:${type}` };
+    if (hits.length === 1) return { from: key, out: hits[0][1], rule: `inferred:${type}` };
+    // candidates are named by the role their brick gives them (two outputs can both be called "VAE")
+    if (hits.length > 1) return { ask: hits.map(([via, out]) => ({ from: key, via, output: out[1], nodeKey: out[0] })) };
   }
   return null;
 }
 
-// (re)bind every brick input that has a provider; inputs the user rewired or cleared in the graph are left alone
+// (re)bind every brick input that has a provider; inputs the user rewired or cleared in the graph are left alone.
+// Two passes: providers earlier in the recipe first (it reads top to bottom, like the flow), then later ones.
 function bindAll() {
   const s = record(), made = [];
-  for (const b of s.bricks) {
+  for (const downstream of [false, true]) for (const b of s.bricks) {
     for (const [role, [nodeKey, inputName]] of Object.entries(BRICKS[b.key].needs ?? {})) {
       const dst = node(b.nodes[nodeKey]), i = dst?.findInputSlot(inputName);
       if (!dst || i < 0) continue;
       const existing = s.bindings.find((x) => x.to === b.key && x.role === role);
       const link = app.graph.getLink(dst.inputs[i].link);
-      if (existing ? String(link?.origin_id) !== String(existing.origin) : link) continue; // the user's wiring wins
-      const r = resolve(b.key, role, dst.inputs[i].type);
+      if (existing?.rule === "ask" && link) { s.bindings = s.bindings.filter((x) => x !== existing); continue; } // answered by hand in the graph
+      if (existing ? existing.rule !== "ask" && String(link?.origin_id) !== String(existing.origin) : link) continue; // the user's wiring wins
+      if (existing?.rule === "chosen") continue; // the person picked this one: it stays while its wire does
+      const r = resolve(b.key, role, dst.inputs[i].type, downstream);
       if (!r) continue;
+      if (r.ask) {
+        if (existing?.rule !== "ask") { s.bindings = s.bindings.filter((x) => x !== existing); s.bindings.push({ to: b.key, role, input: inputName, rule: "ask", candidates: r.ask, target: dst.id }); }
+        continue;
+      }
       const { src, o } = provider(r.from, r.out);
       if (link && link.origin_id === src.id && link.origin_slot === o) continue;
+      if (feeds(dst, src)) continue; // dst already feeds src: binding src -> dst would make a loop
       if (!src.connect(o, dst, i)) continue;
       const binding = { to: b.key, role, input: inputName, from: r.from, output: r.out[1], rule: r.rule, origin: src.id, target: dst.id };
       s.bindings = s.bindings.filter((x) => x !== existing);
@@ -116,6 +141,12 @@ function boundary(bricks, index) {
 // snaps of the same brick share one call: a double click or an agent racing the user inserts it once
 const inflight = new Map();
 export function snap(key, options) {
+  if (key.startsWith("node:") && !key.includes("#")) { // a new instance of any node: node:<Type>#<n>
+    let n = 1;
+    while (brick(`${key}#${n}`) || inflight.has(`${key}#${n}`)) n++;
+    key = `${key}#${n}`;
+  }
+  if (!BRICKS[key]) return Promise.reject(new Error(`No brick or installed node "${key.replace(/^node:/, "").split("#")[0]}"`));
   if (!inflight.has(key)) inflight.set(key, snapOnce(key, options).finally(() => inflight.delete(key)));
   return inflight.get(key);
 }
@@ -164,6 +195,21 @@ async function snapOnce(key, { values, at } = {}) {
   });
   app.canvas.setDirty(true, true);
   return { brick: key, bindings };
+}
+
+// answer an `ask`: bind `role` on brick `to` from one of its candidates; the answer is remembered as the binding's rule
+export function choose(to, role, from, via) {
+  const s = state(), ask = s.bindings.find((x) => x.to === to && x.role === role && x.rule === "ask");
+  const pick = ask?.candidates.find((c) => c.from === from && c.via === via);
+  if (!pick) throw new Error(`${to}.${role} has no open choice ${from}.${via}`);
+  const { src, o } = provider(from, [pick.nodeKey, pick.output]);
+  const output = pick.output;
+  const dst = node(ask.target), i = dst.findInputSlot(ask.input);
+  transaction(() => {
+    if (!src.connect(o, dst, i)) throw new Error(`Couldn't connect ${from}.${via} to ${to}.${role}`);
+    s.bindings = s.bindings.map((x) => (x === ask ? { to, role, input: ask.input, from, output, via, rule: "chosen", origin: src.id, target: dst.id } : x));
+  });
+  app.canvas.setDirty(true, true);
 }
 
 // a picture reference: a LoadImage node owned by the References brick, wired into the next free ref_images slot
@@ -271,7 +317,7 @@ export function overrides() {
   if (!s.bindings.length) return [];
   const out = [];
   for (const b of s.bindings) {
-    if (b.target == null) continue;
+    if (b.target == null || b.rule === "ask") continue;
     const dst = node(b.target), slot = dst?.findInputSlot(b.input);
     if (slot == null || slot < 0) continue;
     const link = app.graph.getLink(dst.inputs[slot].link);
@@ -331,6 +377,6 @@ export function describe() {
   const s = state();
   return s.bricks.map((b) => ({
     brick: b.key, title: BRICKS[b.key].title, nodes: b.nodes,
-    bindings: s.bindings.filter((x) => x.to === b.key).map(({ role, from, output, rule, value }) => ({ role, from, output, rule, value })),
+    bindings: s.bindings.filter((x) => x.to === b.key).map(({ role, from, output, via, rule, value, candidates }) => ({ role, from, output, rule, value, ...(via ? { via } : {}), ...(candidates ? { candidates: candidates.map(({ from, via }) => ({ from, via })) } : {}) })),
   }));
 }

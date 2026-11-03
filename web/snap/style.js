@@ -67,6 +67,10 @@ export const STYLE = `
 .snap-binds { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
 .snap-bind { all: unset; cursor: pointer; font-size: 11px; color: var(--s-dim); padding: 2px 7px; border-radius: 999px; background: var(--s-bg); border-bottom: 2px solid #6aa8ff99; }
 .snap-bind.inferred { border-bottom-style: dashed; }
+.snap-bind.ask { border-bottom-color: #a78bfa; color: #c4b5fd; cursor: default; display: inline-flex; gap: 4px; align-items: center; }
+.snap-bind.chosen { border-bottom-color: #a78bfa; }
+.snap-choice { all: unset; cursor: pointer; padding: 0 6px; border-radius: 999px; background: #a78bfa22; }
+.snap-choice:hover { background: #a78bfa44; color: var(--s-fg); }
 .snap-bind.override { border-bottom-color: #f0b445; color: #f0b445; cursor: default; }
 .snap-bind:hover { color: var(--s-fg); }
 .snap-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }

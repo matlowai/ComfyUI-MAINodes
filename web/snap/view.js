@@ -3,7 +3,7 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
-import { BRICKS, SIMPLE_RECIPE } from "./bricks.js";
+import { BRICKS, SIMPLE_RECIPE, PACK_BRICKS, nodeTypes } from "./bricks.js";
 import { attachDrag } from "./drag.js";
 import { Spring, SPRINGS, animate } from "./spring.js";
 import * as L from "./library.js";
@@ -109,10 +109,12 @@ export function createView({ onSwitch, onMakeApp, run }) {
   function closePalette() { palette.hidden = true; root.focus({ preventScroll: true }); }
   function search() {
     const q = query.value.trim().toLowerCase(), have = new Set(E.state().bricks.map((b) => b.key));
-    hits = Object.entries(BRICKS).filter(([k, d]) => !have.has(k) && `${d.title} ${d.blurb}`.toLowerCase().includes(q)).map(([k]) => k);
+    hits = PACK_BRICKS.filter((k) => !have.has(k) && `${BRICKS[k].title} ${BRICKS[k].blurb}`.toLowerCase().includes(q));
+    // any installed node, once there's something to search for (they are hundreds)
+    if (q.length >= 2) hits.push(...nodeTypes().filter((n) => `${n.title} ${n.type} ${n.category}`.toLowerCase().includes(q)).slice(0, 12).map((n) => `node:${n.type}`));
     hit = 0;
     results.replaceChildren(...(hits.length ? hits.map((k, i) => h("div", { className: `snap-hit${i === hit ? " on" : ""}`, role: "option", onpointerdown: (e) => { e.preventDefault(); pick(k); } },
-      h("span", { className: "snap-grip", textContent: BRICKS[k].icon }), h("span", { textContent: BRICKS[k].title }), h("span", { className: "snap-blurb", textContent: BRICKS[k].blurb })))
+      h("span", { className: "snap-grip", textContent: BRICKS[k].icon }), h("span", { textContent: BRICKS[k].title }), h("span", { className: "snap-blurb", textContent: k.startsWith("node:") ? `node · ${BRICKS[k].blurb}` : BRICKS[k].blurb })))
       : [h("div", { className: "snap-quiet", textContent: q ? "no brick matches · the Library arrives in phase 2" : "every brick is already in the recipe" })]));
     for (const [i, el] of [...results.children].entries()) el.style.setProperty("--hue", BRICKS[hits[i]]?.hue ?? 210);
   }
@@ -252,8 +254,12 @@ export function createView({ onSwitch, onMakeApp, run }) {
 
   function bindingsLine(key, info) {
     const chips = info.bindings.map((b) => {
+      if (b.rule === "ask") { // several candidates fit: the person picks, the pick is remembered
+        return h("span", { className: "snap-bind ask", title: "more than one output fits; pick the one you mean" }, `${b.role} ← which one? `,
+          b.candidates.map((c) => h("button", { className: "snap-choice", textContent: `${BRICKS[c.from]?.title ?? c.from} · ${c.via.replaceAll("_", " ")}`, onclick: (e) => { e.stopPropagation(); const before = rects(); E.choose(key, b.role, c.from, c.via); render(before); } })));
+      }
       const kind = b.rule.split(":")[0];
-      const label = b.value != null ? `${b.role} = ${b.value}` : `${b.role} ← ${BRICKS[b.from]?.title ?? b.from}`;
+      const label = b.value != null ? `${b.role} = ${b.value}` : `${b.role} ← ${BRICKS[b.from]?.title ?? b.from}${b.rule === "chosen" ? ` · ${b.via.replaceAll("_", " ")}` : ""}`;
       return h("button", { className: `snap-bind ${kind}`, textContent: label, title: `rule: ${b.rule}\nclick to show in the graph`,
         onclick: (e) => { e.stopPropagation(); select(key); onSwitch(key); } });
     });
@@ -304,7 +310,7 @@ export function createView({ onSwitch, onMakeApp, run }) {
     const have = new Set(E.state().bricks.map((b) => b.key));
     bricksRail.replaceChildren(
       h("div", { className: "snap-rail-title", textContent: "Bricks" }),
-      ...Object.entries(BRICKS).map(([key, def]) => {
+      ...PACK_BRICKS.map((key) => [key, BRICKS[key]]).map(([key, def]) => {
         const tile = h("div", { className: `snap-tile${have.has(key) ? " used" : ""}`, title: have.has(key) ? "already in the recipe" : "drag into the recipe" },
           h("span", { className: "snap-grip", textContent: def.icon }), h("span", { textContent: def.title }));
         tile.dataset.source = key;

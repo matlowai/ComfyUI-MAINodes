@@ -3,14 +3,14 @@
 // server (tools/snap_mcp.py) calls. Every call goes through the engine, so an agent can't build a graph a person couldn't.
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
-import { BRICKS } from "./bricks.js";
+import { BRICKS, PACK_BRICKS } from "./bricks.js";
 import * as L from "./library.js";
 import { diff } from "./continuity.js";
 import * as P from "./proposals.js";
 import * as crew from "./crew.js";
 
 const has = (key) => E.state().bricks.some((b) => b.key === key);
-const brickEnum = { type: "string", enum: Object.keys(BRICKS) };
+const brickEnum = { type: "string", description: `a recipe brick (${PACK_BRICKS.join(", ")}) or any installed node as node:<NodeType> (a new one) / node:<NodeType>#<n> (one in the recipe)` };
 
 function settingsOf(key) {
   const b = E.state().bricks.find((x) => x.key === key);
@@ -26,10 +26,10 @@ const shown = (settings) => settings.map((x) => (x.choices?.length > 50 ? { ...x
 export const TOOLS = [
   {
     name: "list_bricks",
-    description: "Bricks that can be snapped into the recipe: what each does, the roles it takes and gives, its main settings, and whether it is already in the recipe.",
+    description: "Bricks that can be snapped into the recipe: what each does, the roles it takes and gives, its main settings, and whether it is already in the recipe. Any installed ComfyUI node can also be snapped as node:<NodeType>; its inputs bind by name or type, and when several outputs fit, describe_recipe shows an `ask` to settle with choose_binding.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
-    run: () => Object.entries(BRICKS).map(([key, d]) => ({
+    run: () => PACK_BRICKS.map((key) => [key, BRICKS[key]]).map(([key, d]) => ({
       brick: key, title: d.title, does: d.blurb, in_recipe: has(key), takes: Object.keys(d.needs ?? {}), gives: Object.keys(d.provides ?? {}),
       settings: d.face.map(([, name, label]) => ({ name, label })), ...(d.attach ? { attaches_to: d.attach.brick } : {}), ...(d.optional ? { optional: true } : {}),
     })),
@@ -53,7 +53,7 @@ export const TOOLS = [
       const keys = E.state().bricks.map((b) => b.key);
       const at = after && keys.includes(after) ? keys.indexOf(after) + 1 : undefined;
       const res = await E.snap(brick, { at });
-      return { brick, bindings: res.bindings.map(({ role, from, output, rule, value }) => ({ role, from, output, rule, value })) };
+      return { brick: res.brick, bindings: res.bindings.map(({ role, from, output, rule, value }) => ({ role, from, output, rule, value })) };
     },
   },
   {
@@ -77,6 +77,12 @@ export const TOOLS = [
       E.setValue(brick, s.node, name, value);
       return { brick, name, value: E.getValue(brick, s.node, name) };
     },
+  },
+  {
+    name: "choose_binding",
+    description: "Settle an `ask` binding (several outputs fit one input): connect brick.role from one of its candidates in describe_recipe, given as `from` (the brick) and `via` (the role that brick gives it, e.g. video_vae).",
+    inputSchema: { type: "object", properties: { brick: brickEnum, role: { type: "string" }, from: { type: "string" }, via: { type: "string" } }, required: ["brick", "role", "from", "via"] },
+    run: ({ brick, role, from, via }) => { E.choose(brick, role, from, via); return { brick, role, from, via }; },
   },
   {
     name: "explain_binding",
