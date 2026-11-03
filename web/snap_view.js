@@ -82,14 +82,21 @@ addEventListener("popstate", (e) => {
   else if (!sw.showing && activeTab() && modes.has(activeTab())) toggle(); // back from the graph to Snap
 });
 
+// where a clicked brick shows its settings: ComfyUI's own setting, so it is kept with the user's settings everywhere
+const OPEN_IN = "MAINodes.Snap.OpenIn", PLACES = { "Side panel": "panel", "The brick itself": "brick" };
+const openIn = () => PLACES[app.extensionManager.setting.get(OPEN_IN)] ?? "panel";
+const setOpenIn = (place) => app.extensionManager.setting.set(OPEN_IN, Object.keys(PLACES).find((k) => PLACES[k] === place));
+
 app.registerExtension({
   name: "MAINodes.Snap",
+  settings: [{ id: OPEN_IN, category: ["MAINodes", "Snap", "Open in"], name: "Clicking a Snap brick opens its settings in", type: "combo",
+    options: Object.keys(PLACES), defaultValue: "Side panel", onChange: () => view?.openInChanged() }],
   commands: [{ id: "MAINodes.Snap.Toggle", label: "Toggle Snap view", icon: "icon-[lucide--blocks]", function: () => toggle() }],
   keybindings: [{ combo: { key: "s", alt: true }, commandId: "MAINodes.Snap.Toggle" }],
   actionBarButtons: [{ icon: "icon-[lucide--blocks]", label: "Snap", tooltip: "Snap view (Alt+S)", onClick: () => toggle() }],
   setup() {
     document.head.append(Object.assign(document.createElement("style"), { textContent: STYLE }));
-    view = createView({ onSwitch: (key) => toGraph(key), onMakeApp: makeApp, run: callTool });
+    view = createView({ onSwitch: (key) => toGraph(key), onMakeApp: makeApp, run: callTool, openIn, setOpenIn });
     document.body.append(view.root);
     sw = createSwitch(view);
     rules.load().then((list) => engine.useRules(list), () => {}); // remembered picks; without them Snap just asks again

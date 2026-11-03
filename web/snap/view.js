@@ -5,7 +5,7 @@ import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
 import { BRICKS, SIMPLE_RECIPE, PACK_BRICKS, nodeTypes } from "./bricks.js";
 import { attachDrag } from "./drag.js";
-import { Spring, SPRINGS, animate } from "./spring.js";
+import { Spring, SPRINGS, animate, reducedMotion } from "./spring.js";
 import * as L from "./library.js";
 import { openSetEditor } from "./seteditor.js";
 import { openBoard } from "./board.js";
@@ -19,7 +19,7 @@ const h = (tag, props = {}, ...kids) => {
   return el;
 };
 
-export function createView({ onSwitch, onMakeApp, run }) {
+export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   const root = h("div", { className: "snap-root", tabIndex: -1 });
   const stack = h("div", { className: "snap-stack", ariaLabel: "recipe" });
   const notesStrip = h("div", { className: "snap-notes" }); // notes on the whole recipe, above the chain
@@ -177,10 +177,11 @@ export function createView({ onSwitch, onMakeApp, run }) {
   });
   query.addEventListener("blur", () => setTimeout(() => { if (!palette.contains(document.activeElement)) palette.hidden = true; }, 0));
 
-  stack.addEventListener("pointerdown", (e) => { if (e.target === stack || e.target === lanes) { noting = false; select(null); } });
+  stack.addEventListener("pointerdown", (e) => { if (e.target === stack || e.target === lanes) { noting = false; setOpen(null); select(null); } });
   root.addEventListener("keydown", (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); e.stopPropagation(); openPalette(); return; }
     if (e.target.closest("input,textarea,select")) return;
+    if (e.key === "Escape" && opened && palette.hidden && !root.querySelector(".snap-sheet")) { setOpen(null); return; }
     if (e.key === "Escape" && (selected || noting) && palette.hidden && !root.querySelector(".snap-sheet")) { noting = false; select(null); return; }
     const keys = E.state().bricks.map((b) => b.key), i = keys.indexOf(selected);
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -222,15 +223,40 @@ export function createView({ onSwitch, onMakeApp, run }) {
     return new Map([...stack.querySelectorAll("[data-brick]")].map((el) => [el.dataset.brick, el.getBoundingClientRect()]));
   }
 
+  // "open in the brick": a click (not a drag) opens the brick in place with its details; the card grows from its compact
+  // size while its neighbours slide aside. One open at a time; its header, Esc or the empty chain close it
+  let opened = null;
+  function setOpen(key) {
+    if (key === opened) return;
+    const before = rects(), from = key && before.get(key);
+    giveBack();
+    const was = opened;
+    opened = key;
+    if (key) select(key, false);
+    render(before);
+    brickNode(key ?? was)?.focus({ preventScroll: true }); // the rebuilt brick keeps the keyboard (Esc, arrows), not the canvas behind
+    const el = key && brickNode(key);
+    if (!el) return;
+    const to = el.getBoundingClientRect();
+    if (from && !reducedMotion()) el.animate([{ clipPath: `inset(0 ${Math.max(0, to.width - from.width)}px ${Math.max(0, to.height - from.height)}px 0 round 18px)` }, { clipPath: "inset(0 0 0 0 round 18px)" }],
+      { duration: 300, easing: "cubic-bezier(.2, .8, .2, 1)" });
+    setTimeout(() => el.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" }), 60);
+  }
+  // the setting changed (here or in ComfyUI's Settings): carry the current selection over to the other place
+  function openInChanged() {
+    if (openIn() === "brick") { root.classList.remove("inspecting"); renderInspector(); setOpen(selected); }
+    else { setOpen(null); select(selected); }
+  }
+
   // the inspector slides in for a selected brick (or a recipe note) and out again, giving the chain the room
   let noting = false;
   function select(key, rerender = true) {
     if (key !== selected) libScoped = true;
     selected = key;
     if (key) noting = false;
-    root.classList.toggle("inspecting", !!key || noting);
+    root.classList.toggle("inspecting", (!!key && openIn() === "panel") || noting);
     // keep the selected brick in view beside the inspector once it has slid open
-    if (key) setTimeout(() => brickNode(key)?.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" }), 320);
+    if (key && openIn() === "panel") setTimeout(() => brickNode(key)?.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" }), 320);
     if (rerender) {
       for (const el of stack.querySelectorAll("[data-brick]")) el.classList.toggle("selected", el.dataset.brick === key);
       renderInspector();
@@ -438,12 +464,25 @@ export function createView({ onSwitch, onMakeApp, run }) {
       const shot = E.state().bricks.find((x) => x.key === "render")?.shot;
       if (shot) body.push(h("div", { className: "snap-shot-line", title: `prompt compiled from ${L.get(shot.card)?.title ?? shot.card}` }, shot.parts.map((x) => h("i", { className: `snap-dot ${x.field}` })), h("span", { textContent: (L.get(shot.card)?.title ?? shot.card).replace(/:.*/, "") })));
     }
-    const el = h("section", { className: `snap-brick${def.attach ? " attached" : ""}${info.brick === "render" ? " wide" : ""}${selected === info.brick ? " selected" : ""}`, tabIndex: 0 },
+    const open = opened === info.brick;
+    const el = h("section", { className: `snap-brick${def.attach ? " attached" : ""}${info.brick === "render" ? " wide" : ""}${selected === info.brick ? " selected" : ""}${open ? " open" : ""}`, tabIndex: 0 },
       h("header", { className: "snap-head" },
         h("span", { className: "snap-grip", textContent: def.icon, title: "drag to reorder" }),
         h("span", { className: "snap-name", textContent: def.title, title: def.blurb }),
-        h("button", { className: "snap-x", textContent: "×", title: "remove from the recipe", onclick: (e) => { e.stopPropagation(); const before = rects(); E.unsnap(info.brick); if (selected === info.brick) selected = null; render(before); } })),
-      faces.length ? h("div", { className: "snap-face" }, faces) : null, body, bindingsLine(info.brick, info, true), openNotes(info.brick).map(noteEl));
+        open ? h("button", { className: "snap-mode", textContent: "⇥", title: "open bricks in the side panel instead (remembered; also in Settings › MAINodes)", onclick: (e) => { e.stopPropagation(); setOpenIn("panel"); } }) : null,
+        h("button", { className: "snap-x", textContent: "×", title: "remove from the recipe", onclick: (e) => { e.stopPropagation(); const before = rects(); E.unsnap(info.brick); if (selected === info.brick) selected = null; if (opened === info.brick) opened = null; render(before); } })),
+      ...(open ? [details(info)] : [faces.length ? h("div", { className: "snap-face" }, faces) : null, ...body]),
+      bindingsLine(info.brick, open ? { ...info, bindings: info.bindings.filter((b) => b.rule === "ask") } : info, true), openNotes(info.brick).map(noteEl)); // open, the details list the wiring; only questions stay as chips
+    // in brick mode a press released in place opens it (a drag moves further); on an open brick, its header closes it. Done on
+    // pointerup, before ComfyUI's mouseup change check can re-render the chain and drop the click
+    let press = null;
+    el.addEventListener("pointerdown", (e) => { press = e.button === 0 && !e.target.closest("button,input,select,textarea,label,.snap-dom,.snap-note,.snap-proposal") ? [e.clientX, e.clientY] : null; });
+    el.addEventListener("pointerup", (e) => {
+      const p = press; press = null;
+      if (!p || openIn() !== "brick" || Math.hypot(e.clientX - p[0], e.clientY - p[1]) > 4) return;
+      if (!open) setOpen(info.brick);
+      else if (e.target.closest(".snap-head")) setOpen(null);
+    });
     el.dataset.brick = info.brick;
     if (def.attach) el.dataset.host = def.attach.brick;
     el.querySelector(".snap-head").dataset.grip = "";
@@ -483,6 +522,7 @@ export function createView({ onSwitch, onMakeApp, run }) {
   }
 
   function renderInspector() {
+    if (openIn() === "brick" && !noting) { if (inspectorSig) { giveBack(); inspector.replaceChildren(); inspectorSig = ""; } return; }
     const info = E.describe().find((b) => b.brick === selected);
     const sig = info ? `${selected}|${signature(info)}|${JSON.stringify(Object.values(info.nodes).map((id) => app.graph.getNodeById(id)?.widgets?.map((w) => w.value)))}` : "";
     if (sig && (sig === inspectorSig || (inspector.contains(document.activeElement) && inspectorSig.startsWith(`${selected}|`)))) return;
@@ -503,13 +543,22 @@ export function createView({ onSwitch, onMakeApp, run }) {
     }
     giveBack();
     const def = BRICKS[info.brick];
-    const nodes = Object.entries(info.nodes).map(([k, id]) => [k, app.graph.getNodeById(id)]).filter(([, n]) => n);
-    const faced = new Set(def.face.map(([k, name]) => `${k}.${name}`));
     inspector.replaceChildren(...h("div", {},
       h("div", { className: "snap-insp-title", style: `--hue:${def.hue}` }, h("span", { className: "snap-grip", textContent: def.icon }), def.title,
+        h("button", { className: "snap-mode", textContent: "⤢", title: "open bricks in place instead (remembered; also in Settings › MAINodes)", onclick: () => setOpenIn("brick") }),
         h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: () => select(null) })),
+      details(info), noteComposer()).childNodes); // h() drops the nulls
+  }
+
+  // everything a brick's nodes offer, read generically (see control): the same in the side panel and in an open brick
+  function details(info) {
+    const def = BRICKS[info.brick];
+    const nodes = Object.entries(info.nodes).map(([k, id]) => [k, app.graph.getNodeById(id)]).filter(([, n]) => n);
+    const faced = new Set(def.face.map(([k, name]) => `${k}.${name}`));
+    const shot = info.brick === "render" && E.state().bricks.find((x) => x.key === "render")?.shot;
+    return h("div", { className: "snap-details" },
       h("div", { className: "snap-quiet", textContent: info.brick === "render" ? `${def.blurb} · saves to output/video/dials_simple` : def.blurb }),
-      info.brick === "render" && E.state().bricks.find((x) => x.key === "render")?.shot ? shotParts(E.state().bricks.find((x) => x.key === "render").shot) : null,
+      shot ? shotParts(shot) : null,
       def.face.length ? h("div", { className: "snap-insp-node snap-insp-main" }, def.face.map((f) => control(info.brick, f))) : null,
       ...nodes.map(([k, n]) => h("div", { className: "snap-insp-node" },
         h("div", { className: "snap-insp-type", textContent: `${n.title} · ${n.type.length > 30 ? "blueprint" : n.type} #${n.id}` }),
@@ -521,7 +570,7 @@ export function createView({ onSwitch, onMakeApp, run }) {
         chip.style.setProperty("--from", BRICKS[b.from]?.hue ?? 215);
         return chip;
       })) : null,
-      h("button", { className: "snap-link", textContent: "Show in graph", onclick: () => onSwitch(info.brick) }), noteComposer()).childNodes); // h() drops the nulls
+      h("button", { className: "snap-link", textContent: "Show in graph", onclick: () => onSwitch(info.brick) }));
   }
 
   function renderStatus() {
@@ -538,13 +587,15 @@ export function createView({ onSwitch, onMakeApp, run }) {
     if (info.brick === "refs") values.push(E.state().bricks.find((b) => b.key === "refs")?.pictures);
     if (info.brick === "render") values.push(E.state().bricks.find((b) => b.key === "render")?.shot);
     const notes = openNotes(info.brick).map((n) => [n.id, n.status, n.reply, P.all().filter((p) => p.note === n.id && p.status === "waiting").length]);
-    return JSON.stringify([info.nodes, info.bindings, overridden.filter((o) => o.to === info.brick).map((o) => o.change), values, notes]);
+    const open = opened === info.brick && Object.values(info.nodes).map((id) => app.graph.getNodeById(id)?.widgets?.map((w) => (typeof w.value === "object" ? null : w.value)));
+    return JSON.stringify([info.nodes, info.bindings, overridden.filter((o) => o.to === info.brick).map((o) => o.change), values, notes, open]);
   }
 
   function reuse(info) {
     const sig = signature(info), was = built.get(info.brick);
     // a brick being typed in keeps its element: its controls already show the new value, and rebuilding drops focus
-    if (was?.sig === sig || was?.el.contains(document.activeElement)) { was.el.classList.toggle("selected", selected === info.brick); return was.el; }
+    const typing = was?.el.contains(document.activeElement) && document.activeElement.matches("input,textarea,select,[contenteditable]");
+    if (was?.sig === sig || typing) { was.el.classList.toggle("selected", selected === info.brick); return was.el; }
     const el = brickEl(info);
     built.set(info.brick, { el, sig });
     return el;
@@ -691,5 +742,5 @@ export function createView({ onSwitch, onMakeApp, run }) {
     }
   }
 
-  return { root, stack, render, say, select, release: giveBack, get selected() { return selected; } };
+  return { root, stack, render, say, select, openInChanged, release: () => { giveBack(); if (opened) { opened = null; render(null); } }, get opened() { return opened; }, get selected() { return selected; } };
 }

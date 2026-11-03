@@ -86,6 +86,16 @@ export const STYLE = `
   border: 1px solid hsl(var(--hue) 45% 58% / calc(var(--veil) * .28)); border-radius: 18px; padding: 14px;
   box-shadow: 0 1px 0 hsl(var(--hue) 70% 85% / .09) inset, 0 12px 32px #0000004d, 0 2px 4px #0003; transition: box-shadow .18s ease-out, border-color .18s ease-out; outline: none; }
 .snap-brick.wide { width: 226px; }
+/* a brick opened in place: wide enough for its details, the rest of the row keeps its own height */
+.snap-brick.open { width: clamp(400px, 34vw, 640px); cursor: default; }
+.snap-stack:has(.snap-brick.open) { align-items: start; }
+.snap-brick.open .snap-head { cursor: pointer; }
+.snap-details { display: flex; flex-direction: column; gap: 8px; animation: snap-details-in .26s cubic-bezier(.2, .8, .2, 1); }
+@keyframes snap-details-in { from { opacity: 0; transform: translateY(6px); } }
+.snap-mode { all: unset; cursor: pointer; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px; color: var(--s-dim); font-size: 14px; }
+.snap-mode:hover { background: #ffffff14; color: var(--s-fg); }
+.snap-insp-title .snap-mode { margin-left: auto; } .snap-insp-title .snap-mode + .snap-x { margin-left: 0; }
+.snap-head .snap-mode { grid-column: 3; grid-row: 1; }
 .snap-brick.attached { width: 132px; }
 /* during a view switch only the card shell morphs; its content is gone in the first half of the flight */
 .snap-brick > * { opacity: clamp(0, calc((var(--veil) - .55) * 2.2), 1); }
@@ -99,7 +109,7 @@ export const STYLE = `
   opacity: var(--veil); transition: opacity .15s ease-out; }
 .snap-stack:has(.snap-lifted) .snap-brick::after { opacity: 0; }
 .snap-brick.attached { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
-.snap-head { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; column-gap: 9px; align-items: center; cursor: grab; touch-action: none; user-select: none; }
+.snap-head { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto auto; column-gap: 6px; align-items: center; cursor: grab; touch-action: none; user-select: none; }
 .snap-head .snap-grip { grid-row: 1; width: 30px; height: 30px; font-size: 14px; border-radius: 9px; }
 .snap-head .snap-name { grid-column: 2; font-size: 14px; line-height: 1.2; letter-spacing: -.005em; }
 .snap-shot-line { display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--s-dim); }
@@ -107,7 +117,7 @@ export const STYLE = `
 .snap-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
 .snap-dot.beat { color: #f5d76e; } .snap-dot.character { color: #f08fb8; } .snap-dot.set, .snap-dot.blocking { color: #7fd1c7; } .snap-dot.camera { color: #a7b8ff; } .snap-dot.direction { color: #f0b445; }
 .snap-head .snap-blurb { grid-column: 2; grid-row: 2; white-space: nowrap; }
-.snap-head .snap-x { grid-column: 3; grid-row: 1; }
+.snap-head .snap-x { grid-column: 4; grid-row: 1; }
 .snap-head .snap-fold { grid-column: 2 / -1; grid-row: 3; justify-self: start; margin: 6px 0 0; }
 .snap-grip { width: 24px; height: 24px; display: inline-grid; place-items: center; border-radius: 7px; background: hsl(var(--hue) 70% 60% / .18); color: hsl(var(--hue) 80% 74%); flex: none; box-shadow: inset 0 0 0 1px hsl(var(--hue) 70% 70% / .18); }
 .snap-name { font-weight: 650; }
@@ -265,5 +275,6 @@ export const STYLE = `
 }
 .snap-root.docked { position: absolute; z-index: 2; }
 .snap-root.docked .snap-seg, .snap-root.docked .snap-run { display: none; }
+@media (prefers-reduced-motion: reduce) { .snap-details { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .snap-toast, .snap-seg button, .snap-brick, .snap-tile, .snap-card { transition: none; } }
 `;
