@@ -11,7 +11,8 @@ produces none.
 """
 import os, sys, types
 sys.path.insert(0, os.getcwd())
-import comfy.options; comfy.options.enable_args_parsing()
+import comfy.options
+comfy.options.enable_args_parsing()
 sys.path.insert(0, os.path.join(os.getcwd(), "custom_nodes"))
 from importlib import import_module
 caps_mod = import_module("ComfyUI-MAINodes.h3_capabilities")
@@ -30,11 +31,10 @@ class Fake:
         self.model_options = {"transformer_options": {"patches_replace": {"dit": {}}}}
         self.object_patches = {}
         if foreign:
-            src = "def f(*a, **k):\n    return a[0]\n"
-            ns = {}
-            code = compile(src, "/x/custom_nodes/SomeOtherPack/nodes.py", "exec")
-            exec(code, ns)
-            self.model_options["transformer_options"]["patches_replace"]["dit"][("double_block", 3)] = ns["f"]
+            def f(*a, **k):
+                return a[0]
+            f.__code__ = f.__code__.replace(co_filename="/x/custom_nodes/SomeOtherPack/nodes.py")
+            self.model_options["transformer_options"]["patches_replace"]["dit"][("double_block", 3)] = f
 
 rep = caps_mod.block_patch_report(Fake(True))
 warns = caps_mod.collision_warnings(rep)

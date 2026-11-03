@@ -4,7 +4,8 @@
 """
 import os, sys, json
 sys.path.insert(0, os.getcwd())
-import comfy.options; comfy.options.enable_args_parsing()
+import comfy.options
+comfy.options.enable_args_parsing()
 sys.path.insert(0, os.path.join(os.getcwd(), "custom_nodes"))
 from importlib import import_module
 import torch
@@ -59,7 +60,11 @@ hm = json.dumps({"holds": [4] * 141, "world_len": 141})
 hm2, prep = ex.H3ProtectPrefix().protect(hm, plan)
 holds = json.loads(hm2)["holds"]
 assert holds[:39] == [1] * 39 and holds[39:124] == [4] * 85 and holds[124:] == [1] * 17  # non-final: suffix protected too
-print(report); print(trep); print(rrep); print(prep); print("PASS")
+print(report)
+print(trep)
+print(rrep)
+print(prep)
+print("PASS")
 # seam normalize: a prefix rendered 10% darker and 5% bluer gets mapped back, and the new material gets the same gains
 src = torch.rand(39, 8, 8, 3) * 0.6 + 0.2
 gen = (src.clamp(0, 1) ** 2.2 * torch.tensor([0.9, 0.9, 0.95])) ** (1 / 2.2)

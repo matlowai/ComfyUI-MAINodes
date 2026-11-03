@@ -312,8 +312,10 @@ def check_export_import(root):
     print("\n[7] export and import keep provenance straight")
     a_idx, a_ten = os.path.join(root, "A"), os.path.join(root, "At")
     b_idx, b_ten = os.path.join(root, "B"), os.path.join(root, "Bt")
-    A = Space(a_idx, a_ten); A.init(label="mine")
-    B = Space(b_idx, b_ten); B.init(label="theirs")
+    A = Space(a_idx, a_ten)
+    A.init(label="mine")
+    B = Space(b_idx, b_ten)
+    B.init(label="theirs")
     ck(A.space_id != B.space_id, "two spaces get different ids")
 
     api.corpus_new("wave", index_root=a_idx, tensor_root=a_ten)

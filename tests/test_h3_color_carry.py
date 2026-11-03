@@ -39,7 +39,8 @@ b, s = m.scene_color_transform(st, st)
 check("identity transform", b == 0.0 and s == 1.0)
 
 # transform clamps
-bright = dict(st); bright["luma_percentiles"] = [v + 40 for v in st["luma_percentiles"]]
+bright = dict(st)
+bright["luma_percentiles"] = [v + 40 for v in st["luma_percentiles"]]
 b, s = m.scene_color_transform(bright, st)
 check("luma clamp", near(b, 6.0 / 255.0))
 
@@ -60,14 +61,16 @@ lp = m.spatial_lowpass(d, 3)
 check("lowpass shape", tuple(lp.shape) == (1, 24, 12, 6, 6))
 check("lowpass constant", bool(torch.allclose(lp, d)))
 try:
-    m.spatial_lowpass(d, 4); check("even kernel refused", False)
+    m.spatial_lowpass(d, 4)
+    check("even kernel refused", False)
 except ValueError:
     check("even kernel refused", True)
 
 # frames -> steps
 check("39f -> 12", m.frames_to_steps(39) == 12)
 try:
-    m.frames_to_steps(40); check("off-grid refused", False)
+    m.frames_to_steps(40)
+    check("off-grid refused", False)
 except ValueError:
     check("off-grid refused", True)
 

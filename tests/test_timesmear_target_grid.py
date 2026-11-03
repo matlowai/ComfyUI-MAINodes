@@ -76,7 +76,9 @@ def test_h3_oracle_path_is_unchanged_by_default():
 
 def test_manual_hold_map_passes_the_oracle_through_when_nothing_is_typed():
     torch.manual_seed(3)
-    z = torch.zeros(1, 24, 32, 4, 4); z[:, :, 10:16] = torch.randn(1, 24, 6, 4, 4) * 5; z += torch.randn_like(z) * 0.01
+    z = torch.zeros(1, 24, 32, 4, 4)
+    z[:, :, 10:16] = torch.randn(1, 24, 6, 4, 4) * 5
+    z += torch.randn_like(z) * 0.01
     oracle_map = M.H3JerkOracle().read({"samples": z}, 107, 0.75, 4, True)[0]
     node = M.H3ManualHoldMap()
     through, segs, rep = node.build(107, 24, "", 4, True, 8, oracle_hold_map=oracle_map)

@@ -1,6 +1,7 @@
 """MAIVideoOut: the file, the sidecars, the meta, the every-nth. No GPU; encode via av."""
 import json, os, sys, types
-HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.dirname(HERE))
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, os.environ.get("COMFYUI_DIR", "/mnt/work/ai/apps/ComfyUI"))
 import torch
 
@@ -12,7 +13,8 @@ def _stub_folder_paths(tmp):
     fp.get_filename_list = lambda kind: []
     def gsip(prefix, out, w, h):
         sub, name = os.path.split(prefix)
-        full = os.path.join(out, sub); os.makedirs(full, exist_ok=True)
+        full = os.path.join(out, sub)
+        os.makedirs(full, exist_ok=True)
         return full, name, 1, sub, prefix
     fp.get_save_image_path = gsip
     sys.modules["folder_paths"] = fp
@@ -45,7 +47,8 @@ def test_video_out_writes_file_and_sidecars(tmp_path):
         sel = video_out.MAISelectEveryNth().select(frames, 2, 1)[0]
         assert sel.shape[0] == 3 and torch.equal(sel[0], frames[1])
     finally:
-        sys.modules.pop("folder_paths", None); sys.modules.pop("video_out", None)
+        sys.modules.pop("folder_paths", None)
+        sys.modules.pop("video_out", None)
 
 
 if __name__ == "__main__":

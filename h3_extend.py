@@ -149,14 +149,16 @@ class H3ExtensionPlan:
         v = visual_anchor
         if v == "auto":
             if handle == 0:
-                v = "none"; reasons["visual_anchor"] = "none: scene cut carries no handle"
+                v = "none"
+                reasons["visual_anchor"] = "none: scene cut carries no handle"
             elif caps.get("per_token_masks"):
                 v = "per_token_mask"
                 reasons["visual_anchor"] = ("per_token_mask: the tail written into the target latent under the per-token "
                                             "freeze (#15375); measured 2026-08-23 it made the join an ordinary frame transition "
                                             "where the image guide flipped the camera")
             else:
-                v = "guide"; reasons["visual_anchor"] = "guide: per-token masks not found on this core, falling back to MiniMaxH3AddGuide"
+                v = "guide"
+                reasons["visual_anchor"] = "guide: per-token masks not found on this core, falling back to MiniMaxH3AddGuide"
         elif v == "per_token_mask" and not caps.get("per_token_masks"):
             v = "guide"
             reasons["visual_anchor"] = "per_token_mask requested but the running core lacks #15375; fell back to guide"
@@ -231,7 +233,8 @@ def _audio_slice(audio, start_frames, n_frames, tb: Timebase):
     warn = []
     if s0.denominator != 1 or n.denominator != 1:
         warn.append(f"audio slice not sample-exact at {sr} Hz / {tb.fps} fps (start {s0}, length {n}); rounded")
-    a = int(round(s0)); b = a + int(round(n))
+    a = int(round(s0))
+    b = a + int(round(n))
     out = wf[..., a:b]
     if out.shape[-1] < int(round(n)):
         warn.append(f"audio shorter than the frames it should cover: {out.shape[-1]} of {int(round(n))} samples")
@@ -465,7 +468,8 @@ class H3SeamNormalize:
             rg = generated_prefix_audio["waveform"].float().pow(2).mean().sqrt().item()
             ag = max(0.25, min(4.0, (rs + 1e-6) / (rg + 1e-6)))
             wf = audio["waveform"].float() * ag
-            sr = int(audio["sample_rate"]); nf = int(sr * audio_fade_ms / 1000)
+            sr = int(audio["sample_rate"])
+            nf = int(sr * audio_fade_ms / 1000)
             if nf > 0 and wf.shape[-1] > nf:
                 ramp = torch.linspace(0, 1, nf)
                 wf[..., :nf] = wf[..., :nf] * ramp

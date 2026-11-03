@@ -37,7 +37,8 @@ check("weights taper", all(abs(a - b) < 1e-9 for a, b in zip(w[8:], (0.75, 0.5, 
 check("39f -> 12 steps", m.frames_to_steps(39) == 12)
 check("90f -> 27 steps", m.frames_to_steps(90) == 27)
 try:
-    m.frames_to_steps(40); check("off-grid refused", False)
+    m.frames_to_steps(40)
+    check("off-grid refused", False)
 except ValueError:
     check("off-grid refused", True)
 
@@ -57,7 +58,8 @@ check("original mask unmodified", bool(torch.all(packed == 1.0)))
 
 # state: matched+taper must equal prefix
 try:
-    m._DriftState((B, C, T, H, W), 12, 9, 4); check("sum mismatch refused", False)
+    m._DriftState((B, C, T, H, W), 12, 9, 4)
+    check("sum mismatch refused", False)
 except ValueError:
     check("sum mismatch refused", True)
 

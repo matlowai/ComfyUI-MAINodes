@@ -18,8 +18,11 @@ Rows may omit src/poster if `media` is set (then MEDIA/<arm>.mp4/.jpg).
 import json, os, sys, html
 
 def build(m):
-    cols = m["cols"]; rows = m["rows"]; groups = m.get("groups") or sorted({r["group"] for r in rows})
-    aspect = m.get("aspect", "16/9"); media = m.get("media", "")
+    cols = m["cols"]
+    rows = m["rows"]
+    groups = m.get("groups") or sorted({r["group"] for r in rows})
+    aspect = m.get("aspect", "16/9")
+    media = m.get("media", "")
     grp_opts = '<option value="">all</option>' + "".join(f"<option>{g}</option>" for g in groups)
     return TEMPLATE.replace("__TITLE__", html.escape(m["title"])) \
         .replace("__H1__", m.get("h1", html.escape(m["title"]))) \

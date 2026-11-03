@@ -146,7 +146,8 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         make_bank(tmp, video, audio, shapes_in_file=False)
         try:
-            node.load(tmp, K); check(False, "raised")
+            node.load(tmp, K)
+            check(False, "raised")
         except ValueError as e:
             check("reference" in str(e), "ValueError names the reference input")
 
@@ -155,19 +156,22 @@ def main():
         make_bank(tmp, video, audio, shapes_in_file=False)
         short = {"samples": NestedTensor((torch.zeros(1, 32, 2, 4, 4), torch.zeros(1, 16, 5, 1)))}
         try:
-            node.load(tmp, K, reference=short); check(False, "raised on a shorter reference")
+            node.load(tmp, K, reference=short)
+            check(False, "raised on a shorter reference")
         except ValueError as e:
             check("misalign" in str(e), "shorter reference rejected with the sizes named")
         longer = {"samples": NestedTensor((torch.zeros(1, 32, 4, 4, 4), torch.zeros(1, 16, 9, 1)))}
         try:
-            node.load(tmp, K, reference=longer); check(False, "raised on a longer reference")
+            node.load(tmp, K, reference=longer)
+            check(False, "raised on a longer reference")
         except ValueError as e:
             check("misalign" in str(e), "longer reference rejected with the sizes named")
 
     print("11. audio_scale recorded in the bank file wins over the widget")
     with tempfile.TemporaryDirectory() as tmp:
         make_bank(tmp, video, audio)
-        d = torch.load(os.path.join(tmp, f"x_step{K:03d}.pt"), weights_only=True); d["audio_scale"] = 2.0
+        d = torch.load(os.path.join(tmp, f"x_step{K:03d}.pt"), weights_only=True)
+        d["audio_scale"] = 2.0
         torch.save(d, os.path.join(tmp, f"x_step{K:03d}.pt"))
         out, _, _ = node.load(tmp, K, audio_scale=4.0)
         check(torch.equal(out["samples"].tensors[1], audio / 2.0), "file value 2.0 used, widget 4.0 ignored")

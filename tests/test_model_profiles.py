@@ -43,7 +43,8 @@ def test_user_registry_overrides_and_adds(tmp_path):
 
 
 def test_broken_registry_does_not_raise(tmp_path):
-    reg = tmp_path / "mainodes_models.json"; reg.write_text("{not json")
+    reg = tmp_path / "mainodes_models.json"
+    reg.write_text("{not json")
     assert "ltx-2.5" in mp.load_profiles(str(reg))
 
 
@@ -78,7 +79,8 @@ def test_unknown_profile_is_loud():
 def test_sidecar_round_trip(tmp_path):
     # folder_paths is ComfyUI's; stub just the output directory for the two nodes
     import types
-    fp = types.ModuleType("folder_paths"); fp.get_output_directory = lambda: str(tmp_path)
+    fp = types.ModuleType("folder_paths")
+    fp.get_output_directory = lambda: str(tmp_path)
     sys.modules["folder_paths"] = fp
     try:
         src = json.dumps({"holds": [1, 1, 4, 4, 2, 1], "world_len": 6})

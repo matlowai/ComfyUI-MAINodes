@@ -74,11 +74,15 @@ def main():
     # ALIGNMENT CHECK before blending
     ok = True
     for i in range(len(loaded) - 1):
-        s0, f0 = loaded[i]; s1, f1 = loaded[i + 1]
+        s0, f0 = loaded[i]
+        s1, f1 = loaded[i + 1]
         lo, hi = s1, min(s0 + len(f0), s1 + len(f1))
         if hi <= lo:
-            print(f"  GAP between window {s0} and {s1} - not full coverage"); ok = False; continue
-        A = f0[lo - s0:hi - s0]; B = f1[lo - s1:hi - s1]
+            print(f"  GAP between window {s0} and {s1} - not full coverage")
+            ok = False
+            continue
+        A = f0[lo - s0:hi - s0]
+        B = f1[lo - s1:hi - s1]
         d = psnr(A, B)
         print(f"  overlap {lo}..{hi-1} ({hi-lo} frames) between w{s0} and w{s1}: {d:.2f} dB")
         if d < 12:
@@ -102,7 +106,8 @@ def main():
         weight[start:start + n] += w[:, None, None, None]
 
     if (weight == 0).any():
-        print(f"  UNCOVERED frames: {int((weight == 0).sum())} - refusing"); sys.exit(1)
+        print(f"  UNCOVERED frames: {int((weight == 0).sum())} - refusing")
+        sys.exit(1)
     out = np.clip(canvas / weight, 0, 255).astype(np.uint8)
 
     dst = f"{OUT}/{a.out}_00001_.mp4"
@@ -113,7 +118,9 @@ def main():
                                 "-c:a", "aac", "-ar", "48000", "-b:a", "192k",
                                 "-movflags", "+faststart", "-shortest", "-y", dst],
                           stdin=subprocess.PIPE)
-    pr.stdin.write(out.tobytes()); pr.stdin.close(); pr.wait()
+    pr.stdin.write(out.tobytes())
+    pr.stdin.close()
+    pr.wait()
     print(f"  wrote {dst}  ({len(out)} frames, source audio at 48 kHz)")
     print("  alignment: OK" if ok else "  alignment: SUSPECT - see above")
 

@@ -83,7 +83,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     # ---- space
     sp = sub.add_parser("space").add_subparsers(dest="cmd", required=True)
-    p = sp.add_parser("init"); p.add_argument("--label", default="")
+    p = sp.add_parser("init")
+    p.add_argument("--label", default="")
     sp.add_parser("status")
     sp.add_parser("doctor")
     p = sp.add_parser("export")
@@ -92,7 +93,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="include packs marked private. They can encode a "
                         "likeness; say so out loud rather than by default")
     p.add_argument("--note", default="")
-    p = sp.add_parser("import"); p.add_argument("bundle")
+    p = sp.add_parser("import")
+    p.add_argument("bundle")
     p = sp.add_parser("list")
     p.add_argument("kind", choices=["corpora", "captures", "deltas", "packs",
                                     "plans"])
@@ -100,7 +102,8 @@ def build_parser() -> argparse.ArgumentParser:
     # ---- corpus
     cp = sub.add_parser("corpus").add_subparsers(dest="cmd", required=True)
     p = cp.add_parser("new")
-    p.add_argument("name"); p.add_argument("--notes", default="")
+    p.add_argument("name")
+    p.add_argument("--notes", default="")
     p = cp.add_parser("add")
     p.add_argument("name")
     p.add_argument("--kind", required=True,
@@ -116,9 +119,11 @@ def build_parser() -> argparse.ArgumentParser:
                    help="shoot/take lineage id: two clips from one take are "
                         "one observation, whatever their bytes say")
     p.add_argument("--notes", default="")
-    p = cp.add_parser("status"); p.add_argument("name")
+    p = cp.add_parser("status")
+    p.add_argument("name")
     p = cp.add_parser("confounds")
-    p.add_argument("name"); p.add_argument("--target", required=True)
+    p.add_argument("name")
+    p.add_argument("--target", required=True)
 
     # ---- capture
     kp = sub.add_parser("capture").add_subparsers(dest="cmd", required=True)
@@ -145,7 +150,8 @@ def build_parser() -> argparse.ArgumentParser:
     # ---- pack
     pp = sub.add_parser("pack").add_subparsers(dest="cmd", required=True)
     pp.add_parser("list")
-    p = pp.add_parser("show"); p.add_argument("pack_id")
+    p = pp.add_parser("show")
+    p.add_argument("pack_id")
 
     return ap
 

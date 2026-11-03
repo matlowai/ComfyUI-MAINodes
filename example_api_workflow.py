@@ -69,4 +69,5 @@ while True:
                     print("output:", im["filename"])
         break
     if time.time() - t0 > 900:
-        print("TIMEOUT"); break
+        print("TIMEOUT")
+        break
