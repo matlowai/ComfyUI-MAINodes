@@ -27,6 +27,31 @@ export function createView({ onSwitch, onMakeApp, run }) {
   lanes.classList.add("snap-lanes");
   const rail = h("aside", { className: "snap-rail" });
   const inspector = h("aside", { className: "snap-inspector" });
+  // the inspector's width: drag its left edge (double-click resets); kept per browser, the page works without it
+  const WIDTH_KEY = "mainodes.snap.inspectorWidth";
+  const handle = h("div", { className: "snap-insp-handle", title: "drag to resize · double-click resets" });
+  const setWidth = (px) => {
+    if (px == null) root.style.removeProperty("--insp-w");
+    else root.style.setProperty("--insp-w", `${Math.round(Math.max(320, Math.min(px, innerWidth * 0.7)))}px`);
+  };
+  try { setWidth(Number(localStorage.getItem(WIDTH_KEY)) || null); } catch { /* storage blocked: default width */ }
+  handle.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    handle.setPointerCapture(e.pointerId);
+    root.classList.add("resizing");
+    const move = (m) => setWidth(innerWidth - m.clientX);
+    const up = () => {
+      handle.removeEventListener("pointermove", move);
+      root.classList.remove("resizing");
+      drawLanes();
+      try { localStorage.setItem(WIDTH_KEY, String(inspector.getBoundingClientRect().width)); } catch { /* not kept */ }
+    };
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", up, { once: true });
+    handle.addEventListener("pointercancel", up, { once: true });
+  });
+  handle.addEventListener("dblclick", () => { setWidth(null); try { localStorage.removeItem(WIDTH_KEY); } catch { /* nothing kept */ } });
   const status = h("span", { className: "snap-status" });
   const proposalsPill = h("span", { className: "snap-proposals", hidden: true });
   const title = h("strong", { className: "snap-title" });
@@ -44,7 +69,7 @@ export function createView({ onSwitch, onMakeApp, run }) {
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Note", title: "a director's note on the whole recipe; agents answer it", onclick: () => { noting = true; select(null); inspector.querySelector("textarea")?.focus(); } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Make app", title: "open this recipe in ComfyUI's App mode: the brick faces become a run-only app (reloads the graph)", onclick: () => onMakeApp() }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: `Add brick  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}`, title: "Ctrl/Cmd+K", onclick: () => openPalette() }), seg, runBtn, progress),
-    h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), inspector), toast);
+    h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), inspector, handle), toast);
   let selected = null;
   const built = new Map(); // brick key -> { el, sig }: a brick is rebuilt only when what it shows changed
   let inspectorSig = "";
@@ -204,6 +229,8 @@ export function createView({ onSwitch, onMakeApp, run }) {
     selected = key;
     if (key) noting = false;
     root.classList.toggle("inspecting", !!key || noting);
+    // keep the selected brick in view beside the inspector once it has slid open
+    if (key) setTimeout(() => brickNode(key)?.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" }), 320);
     if (rerender) {
       for (const el of stack.querySelectorAll("[data-brick]")) el.classList.toggle("selected", el.dataset.brick === key);
       renderInspector();
