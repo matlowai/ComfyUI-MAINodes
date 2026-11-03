@@ -3,7 +3,7 @@
 // Only node ids are kept: undo/redo reloads the graph and replaces every node object (frontend 1.57.1).
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
-import { BRICKS } from "./bricks.js";
+import { BRICKS, RENDER_BLUEPRINT } from "./bricks.js";
 
 const GAP = 80;
 const COLUMN = { models: 0, preset: 0, rack: 1, first_frame: 1, refs: 1, render: 2 };
@@ -210,6 +210,36 @@ export function choose(to, role, from, via) {
     s.bindings = s.bindings.map((x) => (x === ask ? { to, role, input: ask.input, from, output, via, rule: "chosen", origin: src.id, target: dst.id } : x));
   });
   app.canvas.setDirty(true, true);
+}
+
+// adopt the open workflow (BRAINSTORM O3): known nodes become their pack bricks, the rest any-node bricks, existing
+// links become `imported` bindings. Only the recipe record changes; nodes stay where the person put them.
+const KNOWN = { MAIRenderPreset: "preset", MAIDialRack: "rack", H3References: "refs" };
+const NOTES = new Set(["Note", "MarkdownNote"]);
+export function adopt() {
+  const s = record(), owned = new Set(s.bricks.flatMap((b) => Object.values(b.nodes).map(String)));
+  const order = app.graph.computeExecutionOrder(false, true).filter((n) => !owned.has(String(n.id)) && !NOTES.has(n.type));
+  const taken = new Set(s.bricks.map((b) => b.key)), added = [];
+  const freeKey = (type) => { let n = 1; while (taken.has(`node:${type}#${n}`)) n++; return `node:${type}#${n}`; };
+  for (const n of order) {
+    let key = n.isSubgraphNode?.() && n.subgraph?.name === RENDER_BLUEPRINT ? "render" : KNOWN[n.type];
+    if (!key || taken.has(key)) key = freeKey(n.type);
+    if (!BRICKS[key]) continue; // a node type with no definition (a missing pack): leave it to the graph
+    taken.add(key);
+    added.push({ key, nodes: { [key.startsWith("node:") ? "node" : key]: n.id }, placed: {} });
+  }
+  const brickOf = new Map([...s.bricks, ...added].flatMap((b) => Object.values(b.nodes).map((id) => [String(id), b.key])));
+  const bindings = [];
+  for (const b of added) {
+    const dst = node(Object.values(b.nodes)[0]), needs = Object.entries(BRICKS[b.key].needs ?? {});
+    for (const [role, [, inputName]] of needs) {
+      const link = app.graph.getLink(dst.inputs[dst.findInputSlot(inputName)]?.link), src = link && node(link.origin_id);
+      if (!src || !brickOf.has(String(src.id))) continue;
+      bindings.push({ to: b.key, role, input: inputName, from: brickOf.get(String(src.id)), output: src.outputs[link.origin_slot].name, rule: "imported", origin: src.id, target: dst.id });
+    }
+  }
+  transaction(() => { s.bricks = [...s.bricks, ...added]; s.bindings = [...s.bindings, ...bindings]; });
+  return { bricks: added.map((b) => b.key), bindings: bindings.length };
 }
 
 // a picture reference: a LoadImage node owned by the References brick, wired into the next free ref_images slot

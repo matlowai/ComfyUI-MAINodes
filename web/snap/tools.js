@@ -79,6 +79,13 @@ export const TOOLS = [
     },
   },
   {
+    name: "adopt_workflow",
+    description: "Show the open workflow as bricks without changing it: known nodes become their recipe bricks, every other node an any-node brick, existing links `imported` bindings. Run it before describing or editing a workflow Snap didn't build.",
+    inputSchema: { type: "object", properties: {} },
+    direct: true,
+    run: () => E.adopt(),
+  },
+  {
     name: "choose_binding",
     description: "Settle an `ask` binding (several outputs fit one input): connect brick.role from one of its candidates in describe_recipe, given as `from` (the brick) and `via` (the role that brick gives it, e.g. video_vae).",
     inputSchema: { type: "object", properties: { brick: brickEnum, role: { type: "string" }, from: { type: "string" }, via: { type: "string" } }, required: ["brick", "role", "from", "via"] },

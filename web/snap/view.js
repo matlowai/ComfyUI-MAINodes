@@ -25,12 +25,13 @@ export function createView({ onSwitch, onMakeApp, run }) {
   const inspector = h("aside", { className: "snap-inspector" });
   const status = h("span", { className: "snap-status" });
   const proposalsPill = h("span", { className: "snap-proposals", hidden: true });
+  const title = h("strong", { className: "snap-title" });
   const toast = h("div", { className: "snap-toast", role: "status" });
   const seg = h("div", { className: "snap-seg", role: "tablist" },
     h("button", { className: "on", textContent: "Snap", role: "tab" }),
     h("button", { textContent: "Graph", role: "tab", onclick: () => onSwitch() }));
   root.append(
-    h("header", { className: "snap-top" }, h("strong", { className: "snap-title", textContent: "Dials Simple" }), status, proposalsPill, h("span", { className: "snap-spacer" }),
+    h("header", { className: "snap-top" }, title, status, proposalsPill, h("span", { className: "snap-spacer" }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Make app", title: "open this recipe in ComfyUI's App mode: the brick faces become a run-only app (reloads the graph)", onclick: () => onMakeApp() }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: `Add brick  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}`, title: "Ctrl/Cmd+K", onclick: () => openPalette() }), seg),
     h("div", { className: "snap-body" }, rail, stack, inspector), toast);
@@ -157,6 +158,12 @@ export function createView({ onSwitch, onMakeApp, run }) {
       render(before, key);
       if (res.bindings.length) say(`${BRICKS[key].title}: ${res.bindings.map((b) => (b.value != null ? `${b.role} = ${b.value}` : b.role)).join(", ")}`);
     } catch (err) { say(err.message, true); }
+  }
+
+  function adoptGraph() {
+    const res = E.adopt();
+    say(`${res.bricks.length} bricks and ${res.bindings} bindings from the open workflow`);
+    render(null);
   }
 
   async function buildSimple(e) {
@@ -436,7 +443,9 @@ export function createView({ onSwitch, onMakeApp, run }) {
     stack.replaceChildren(...openNotes(null).map(noteEl), ...(infos.length ? infos.map(reuse) : [h("div", { className: "snap-empty" },
       h("div", { className: "snap-empty-title", textContent: "Build a recipe" }),
       h("div", { className: "snap-quiet", textContent: "drag bricks in from the left, or start from the recommended one" }),
-      h("button", { className: "snap-primary", textContent: "Start from Dials + Pika Simple", onclick: buildSimple }))]));
+      h("button", { className: "snap-primary", textContent: "Start from Dials + Pika Simple", onclick: buildSimple }),
+      app.graph.nodes.length ? h("button", { className: "snap-link", textContent: `Snap this workflow (${app.graph.nodes.length} nodes)`, title: "show the open graph as bricks; nothing in it changes", onclick: adoptGraph }) : null)]));
+    title.textContent = app.extensionManager.workflow.activeWorkflow?.filename ?? "Snap";
     renderRail(); renderInspector(); renderStatus(); renderProposals();
     if (!before) return;
     for (const el of stack.querySelectorAll("[data-brick]")) {
