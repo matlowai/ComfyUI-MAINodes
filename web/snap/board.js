@@ -10,8 +10,8 @@ export function openBoard(host, states, { onOpen }) {
   const strip = h("div", { className: "snap-board" });
   states.forEach((card, i) => {
     const s = card.brick.snapshot;
-    if (i) {
-      const found = diff(states[i - 1].brick.snapshot, s);
+    if (i) { // what changed since the shot this state continues from (its own record of it), else its neighbour
+      const found = diff(s.previous ?? states[i - 1].brick.snapshot, s);
       const count = (sev) => found.filter((f) => f.severity === sev).length;
       strip.append(h("div", { className: "snap-board-gap", title: found.map((f) => `${f.severity}: ${f.what}`).join("\n") || "nothing changed" },
         ...["break", "check", "note"].filter(count).map((sev) => h("span", { className: `snap-badge ${sev}`, textContent: `${count(sev)} ${sev}` })),
@@ -19,7 +19,8 @@ export function openBoard(host, states, { onOpen }) {
     }
     const plan = drawPlan(s);
     plan.className = "snap-board-plan";
-    strip.append(h("figure", { className: "snap-board-frame", tabIndex: 0, title: "open in the set editor", onclick: () => { close(); onOpen(card); } },
+    const open = () => { close(); onOpen(card); };
+    strip.append(h("figure", { className: "snap-board-frame", tabIndex: 0, title: "open in the set editor (Enter)", onclick: open, onkeydown: (e) => { if (e.key === "Enter") open(); } },
       plan, h("figcaption", {}, h("strong", { textContent: `end of ${s.shot}` }), h("span", { textContent: setBlock(s) }))));
   });
   const sheet = h("div", { className: "snap-sheet", role: "dialog", ariaLabel: "plan-board" },

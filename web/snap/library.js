@@ -71,8 +71,9 @@ function removeFromPrompt(phrases) {
   let [first, ...rest] = prompt.split("\n");
   const before = first;
   for (const x of phrases) first = first.replace(x, "");
+  if (first === before) return; // nothing of ours was there: leave the person's text exactly as it is
   first = first.replace(/\s*,\s*(?=[,.])/g, "").replace(/\s{2,}/g, " ").replace(/\s+\./g, ".").trimEnd();
-  if (first !== before) E.setValue("render", "render", "prompt", [first, ...rest].join("\n"));
+  E.setValue("render", "render", "prompt", [first, ...rest].join("\n"));
 }
 
 // add the phrases not already there to the first line of the H3 prompt (the integrated description)

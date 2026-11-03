@@ -41,21 +41,21 @@ async function agentCall(name, args) {
   const before = sw.showing ? new Map([...view.stack.querySelectorAll("[data-brick]")].map((el) => [el.dataset.brick, el.getBoundingClientRect()])) : null;
   const result = await callTool(name, args);
   if (sw.showing && !readOnly(name)) {
-    view.render(before, args?.propose ? undefined : args?.brick);
+    view.render(before, args?.propose ? undefined : result?.brick ?? args?.brick); // a new any-node brick gets its #n key
     const what = `${name.replaceAll("_", " ")} ${args?.brick ?? args?.card ?? ""} ${args?.name ? `${args.name} = ${JSON.stringify(args.value)}` : ""}`.trim();
     view.say(args?.propose ? `Agent proposes: ${what}` : `Agent: ${what}`);
   }
   return result;
 }
 
-const modes = new Map(); // workflow tab -> Snap showing
-const activeTab = () => app.extensionManager.workflow.activeWorkflow?.key;
-const remember = () => modes.set(activeTab(), sw.showing && !sw.docked);
+const modes = new WeakMap(); // workflow (the tab's object, which survives a rename or save) -> Snap showing
+const activeTab = () => app.extensionManager.workflow.activeWorkflow;
+const remember = () => activeTab() && modes.set(activeTab(), sw.showing && !sw.docked);
 
 // the full view and the docked tab are one view in two places; opening the full view closes the tab first
 const TAB = "mainodes-snap";
 async function toggle() {
-  if (sw.docked) { await app.extensionManager.command.execute(`Workspace.ToggleSidebarTab.${TAB}`); sw.undock(); }
+  if (sw.docked) { await app.extensionManager.command.execute(`Workspace.ToggleSidebarTab.${TAB}`); sw.undock(true); }
   sw.toggle();
   remember();
   if (sw.showing) announce();
@@ -72,7 +72,7 @@ app.registerExtension({
     document.body.append(view.root);
     sw = createSwitch(view);
     app.extensionManager.registerSidebarTab({ id: TAB, icon: "icon-[lucide--blocks]", title: "Snap", tooltip: "Snap beside the graph", type: "custom",
-      render: (el) => { sw.dock(el); announce(); }, destroy: () => sw.undock() });
+      render: (el) => { sw.dock(el); announce(); }, destroy: () => setTimeout(() => sw.undock(), 0) });
     registerWebMCP(agentCall);
     // the bridge sends agent calls to one tab: the one registered last (this tab registers when it loads, regains
     // focus, or reconnects after a server restart)
@@ -93,7 +93,8 @@ app.registerExtension({
       if (activeTab() === tab) return;
       tab = activeTab();
       if (sw.docked) return view.render(null);
-      const want = modes.get(tab) ?? false;
+      // a tab seen before gets its mode back; an unseen one with a recipe keeps the current mode, a plain graph opens as one
+      const want = modes.has(tab) ? modes.get(tab) : engine.state().bricks.length ? sw.showing : false;
       if (want && !sw.showing) sw.toSnap();
       else if (!want && sw.showing) sw.toGraph();
       else if (want) view.render(null);

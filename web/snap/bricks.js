@@ -74,20 +74,22 @@ const PACK = {
 const WIDGET = new Set(["INT", "FLOAT", "STRING", "BOOLEAN", "COMBO"]);
 function nodeBrick(key) {
   const type = key.slice(5).split("#")[0], nd = LiteGraph.registered_node_types[type]?.nodeData;
-  if (!nd) return undefined;
+  // a saved brick whose node pack is gone: a plain stub, so the recipe still shows and the brick can be removed
+  if (!nd) return { title: `${type} (not installed)`, icon: "◻", hue: 0, blurb: "missing node", node: type, missing: true, nodes: [{ key: "node", type }], needs: {}, provides: {}, face: [] };
   const inputs = Object.entries({ ...nd.input?.required, ...nd.input?.optional });
-  const isWidget = ([, spec]) => Array.isArray(spec[0]) || WIDGET.has(spec[0]);
+  const isWidget = ([, spec]) => (Array.isArray(spec[0]) || WIDGET.has(spec[0])) && !spec[1]?.forceInput; // forceInput: a socket
   const hue = [...type].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
   return {
     title: nd.display_name || type, icon: "◻", hue, blurb: nd.category || "node", node: type,
     nodes: [{ key: "node", type }],
     needs: Object.fromEntries(inputs.filter((i) => !isWidget(i)).map(([name]) => [name, ["node", name]])),
     provides: Object.fromEntries((nd.output ?? []).map((t, i) => { const name = nd.output_name?.[i] || t; return [name.toLowerCase(), ["node", name]]; })),
-    face: inputs.filter(isWidget).filter(([name]) => name !== "control_after_generate").slice(0, 3).map(([name]) => ["node", name, name.replaceAll("_", " ")]),
+    face: inputs.filter(isWidget).slice(0, 3).map(([name]) => ["node", name, name.replaceAll("_", " ")]),
   };
 }
 
-export const BRICKS = new Proxy(PACK, { get: (t, k) => t[k] ?? (typeof k === "string" && k.startsWith("node:") ? (t[k] = nodeBrick(k)) : undefined) });
+// own keys only: agent text must not reach inherited names like "constructor"
+export const BRICKS = new Proxy(PACK, { get: (t, k) => (Object.hasOwn(t, k) ? t[k] : typeof k === "string" && k.startsWith("node:") ? (t[k] = nodeBrick(k)) : undefined) });
 export const PACK_BRICKS = Object.keys(PACK);
 
 // every installed node type a person can add as a brick, for the palette

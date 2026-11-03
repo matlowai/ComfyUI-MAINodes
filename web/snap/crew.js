@@ -3,11 +3,14 @@
 import { api } from "../../../scripts/api.js";
 
 const DIR = "snap/crew";
-const today = () => `${DIR}/${new Date().toISOString().slice(0, 10)}.json`;
+const today = () => { const d = new Date(); return `${DIR}/${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}.json`; }; // local day
 
+// a missing file is an empty day; any other failure must not let a write replace the day's answers
 async function read(file) {
   const r = await api.getUserData(file);
-  return r.status === 200 ? r.json() : [];
+  if (r.status === 404) return [];
+  if (r.status !== 200) throw new Error(`crew record unreadable (${r.status})`);
+  return r.json();
 }
 
 export const kind = (p, cardKind) => (p.tool === "set_setting" ? `setting ${p.args.name}` : p.tool === "apply_card" ? `card ${cardKind ?? "?"}` : p.tool === "snap" ? `brick ${p.args.brick}` : p.tool);
@@ -15,7 +18,9 @@ export const kind = (p, cardKind) => (p.tool === "set_setting" ? `setting ${p.ar
 // one write at a time: "Accept all" answers several proposals at once, and each write rewrites the day's file
 let writing = Promise.resolve();
 export function log(p, cardKind, noteText) {
-  const row = { at: new Date().toISOString(), kind: kind(p, cardKind), tool: p.tool, args: p.args, reason: p.reason, ...(noteText ? { note: noteText } : {}), answer: p.status };
+  // the person's answer is what counts; whether the accepted call then applied is kept beside it
+  const row = { at: new Date().toISOString(), kind: kind(p, cardKind), tool: p.tool, args: p.args, reason: p.reason, ...(noteText ? { note: noteText } : {}),
+    answer: p.status === "rejected" ? "rejected" : "accepted", applied: p.status === "accepted" };
   writing = writing.catch(() => {}).then(async () => { const file = today(); await api.storeUserData(file, [...(await read(file)), row]); }); // a failed write must not stall later ones
   return writing;
 }

@@ -17,7 +17,7 @@ export function createSwitch(view) {
   // mount under the chrome and keep clear of it: the action bar row above, the side toolbar on the left
   function place() {
     const c = container();
-    if (!c) return;
+    if (!c || docked) return; // docked, the view lives in the sidebar tab
     if (root.parentElement !== c) c.append(root); // z-index 2: above the canvas, below the chrome layer (z 999)
     const box = c.getBoundingClientRect();
     const bar = document.querySelector(".actionbar-container")?.getBoundingClientRect();
@@ -60,8 +60,14 @@ export function createSwitch(view) {
     return [target.left - card.left, target.top - card.top, target.width / card.width, target.height / card.height];
   }
 
-  // cards fly on their own springs, but the switch ends when the veil does: then every card is reset and the flight
-  // record cleared, even if a drag or a re-render took a card's animation over mid-flight
+  // the end of any flight: every card back in place and the flight record cleared
+  function settle() {
+    for (const el of view.stack.querySelectorAll("[data-brick]")) { stop(el); el.style.transform = ""; el.style.willChange = ""; }
+    flights.clear();
+  }
+
+  // cards fly on their own springs, but the switch ends when the veil does (even if a drag or a re-render took a card's
+  // animation over mid-flight)
   function fly(to, done) {
     const cards = reducedMotion() ? [] : [...view.stack.querySelectorAll("[data-brick]")];
     for (const el of cards) {
@@ -77,11 +83,7 @@ export function createSwitch(view) {
       });
     }
     veil.set([to === "graph" ? 0 : 1], { params: reducedMotion() ? SPRINGS.fade : SPRINGS.view });
-    animate(root, veil, ([v]) => root.style.setProperty("--veil", Math.max(0, Math.min(1, v))), () => {
-      for (const el of view.stack.querySelectorAll("[data-brick]")) { stop(el); el.style.transform = ""; el.style.willChange = ""; }
-      flights.clear();
-      done();
-    });
+    animate(root, veil, ([v]) => root.style.setProperty("--veil", Math.max(0, Math.min(1, v))), () => { settle(); done(); });
   }
 
   function toSnap() {
@@ -98,8 +100,8 @@ export function createSwitch(view) {
     });
   }
 
-  // docked: the graph is already visible, so "show in graph" just frames and selects the brick's nodes
-  // frame the brick's nodes (or the whole recipe): the camera glides there in step with the cards (UX_SPEC 5)
+  // frame the brick's nodes (or the whole recipe); the camera glides there in step with the cards (UX_SPEC 5). Docked,
+  // the graph is already visible, so "show in graph" is only this
   function frame(focusKey) {
     const focus = focusKey ? brickNodes(focusKey) : E.state().bricks.flatMap((b) => brickNodes(b.key));
     if (!focus.length) return;
@@ -113,6 +115,8 @@ export function createSwitch(view) {
 
   function dock(el) {
     if (showing) { showing = false; app.canvas.pause_rendering = false; container()?.classList.remove("snap-open"); }
+    stop(root); settle(); // a flight still running would hide the docked view when it lands
+    root.style.removeProperty("--chrome-top"); root.style.removeProperty("--chrome-left"); // the full view's insets
     docked = el;
     el.style.cssText += ";position:relative;height:100%";
     el.append(root);
@@ -122,8 +126,9 @@ export function createSwitch(view) {
     view.render(null);
   }
 
-  function undock() {
-    if (!docked) return;
+  // a tab element still on the page is a live copy (the frontend can mount the tab twice); only a gone one undocks
+  function undock(closed) {
+    if (!docked || (docked.isConnected && !closed)) return;
     docked = null;
     root.classList.remove("docked", "open");
     root.style.display = "none";
@@ -137,7 +142,7 @@ export function createSwitch(view) {
     E.tidy();
     frame(focusKey);
     root.classList.remove("open");
-    fly("graph", () => { if (!showing) root.style.display = "none"; });
+    fly("graph", () => { if (!showing && !docked) root.style.display = "none"; });
   }
 
   root.style.display = "none";

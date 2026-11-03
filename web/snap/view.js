@@ -39,6 +39,7 @@ export function createView({ onSwitch, onMakeApp, run }) {
   const built = new Map(); // brick key -> { el, sig }: a brick is rebuilt only when what it shows changed
   let inspectorSig = "";
   let overridden = []; // E.overrides() serializes the whole graph: computed once per render
+  let crewLine = null; // the crew summary element, rebuilt after each logged decision
 
   // the Library section is built once (typing survives re-renders); only its results follow the query and the selection
   const bricksRail = h("div", { className: "snap-rail-part" });
@@ -154,9 +155,9 @@ export function createView({ onSwitch, onMakeApp, run }) {
     const before = rects();
     try {
       const res = await E.snap(key, { at: index });
-      select(key, false);
-      render(before, key);
-      if (res.bindings.length) say(`${BRICKS[key].title}: ${res.bindings.map((b) => (b.value != null ? `${b.role} = ${b.value}` : b.role)).join(", ")}`);
+      select(res.brick, false); // node:<Type> becomes node:<Type>#<n>
+      render(before, res.brick);
+      if (res.bindings.length) say(`${BRICKS[res.brick].title}: ${res.bindings.map((b) => (b.value != null ? `${b.role} = ${b.value}` : b.role)).join(", ")}`);
     } catch (err) { say(err.message, true); }
   }
 
@@ -345,10 +346,12 @@ export function createView({ onSwitch, onMakeApp, run }) {
     if (!info) {
       if (inspector.contains(document.activeElement) && inspectorSig === "") return; // a whole-recipe note is being typed
       inspectorSig = "";
-      const crewLine = h("div", { className: "snap-quiet" });
-      crew.report().then(({ total: [a, n], kinds }) => {
-        crewLine.textContent = n ? `Crew: ${a} of ${n} proposals accepted · ${Object.entries(kinds).map(([k, [x, y]]) => `${k} ${x}/${y}`).join(" · ")}` : "";
-      }, () => {});
+      if (!crewLine) { // read once, and again only after a decision is logged (it reads every day on record)
+        crewLine = h("div", { className: "snap-quiet" });
+        crew.report().then(({ total: [a, n], kinds }) => {
+          crewLine.textContent = n ? `Crew: ${a} of ${n} proposals accepted · ${Object.entries(kinds).map(([k, [x, y]]) => `${k} ${x}/${y}`).join(" · ")}` : "";
+        }, () => {});
+      }
       inspector.replaceChildren(h("div", { className: "snap-quiet", textContent: "select a brick" }), E.state().bricks.length ? noteComposer() : null, crewLine);
       return;
     }
@@ -393,7 +396,7 @@ export function createView({ onSwitch, onMakeApp, run }) {
   async function decide(id, accept) {
     const before = rects();
     const p = await P.decide(id, accept, run);
-    if (p) crew.log(p, L.get(p.args.card)?.kind, E.notes().find((n) => n.id === p.note)?.text).then(renderInspector, () => {});
+    if (p) crew.log(p, L.get(p.args.card)?.kind, E.notes().find((n) => n.id === p.note)?.text).then(() => { crewLine = null; renderInspector(); }, () => {});
     if (p) say(p.status === "accepted" ? `Accepted: ${p.tool.replaceAll("_", " ")}` : p.status === "rejected" ? "Rejected the proposal" : `Couldn't apply it: ${p.result}`, p.status === "failed");
     render(before, p?.status === "accepted" ? p.args.brick : undefined);
   }

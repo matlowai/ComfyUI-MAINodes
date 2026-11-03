@@ -31,10 +31,9 @@ export function openSetEditor(host, card, { onApply, onSave }) {
     const cam = bridges(s.previous)[kind];
     onSave({ ...structuredClone(last), camera: cam, shot: `${s.previous.shot}, ${kind} bridge`, previous: structuredClone(s.previous) });
   };
-  const bridgeBar = h("div", { className: "snap-set-actions", hidden: true },
-    h("span", { className: "snap-quiet", textContent: "crossing on purpose? bridge it:" }),
-    h("button", { className: "snap-link", textContent: "Neutral shot", title: "the end of the last shot seen from the line itself: the next cut can go either way", onclick: () => bridge("neutral") }),
-    h("button", { className: "snap-link", textContent: "Cutaway", title: "a close shot of a prop with no actors in frame", onclick: () => bridge("cutaway") }));
+  const neutralBtn = h("button", { className: "snap-link", textContent: "Neutral shot", title: "the end of the last shot seen from the line itself: the next cut can go either way", onclick: () => bridge("neutral") });
+  const cutawayBtn = h("button", { className: "snap-link", textContent: "Cutaway", title: "a close shot of a prop with no actors in frame", onclick: () => bridge("cutaway") });
+  const bridgeBar = h("div", { className: "snap-set-actions", hidden: true }, h("span", { className: "snap-quiet", textContent: "crossing on purpose? bridge it:" }), neutralBtn, cutawayBtn);
   const dialogue = h("input", { type: "checkbox", checked: !!s.dialogue, onchange: () => { s.dialogue = dialogue.checked; dirty = true; } });
   let showCoverage = false;
   const shot = h("input", { value: s.shot, oninput: () => { s.shot = shot.value; dirty = true; } });
@@ -100,6 +99,7 @@ export function openSetEditor(host, card, { onApply, onSave }) {
     const step = { ArrowLeft: [-GRID, 0], ArrowRight: [GRID, 0], ArrowUp: [0, GRID], ArrowDown: [0, -GRID] }[e.key];
     if (!step || !selected || e.target.closest("button,input,textarea")) return;
     e.preventDefault();
+    if (t < 1) { t = 1; scrub.value = 1000; } // blocking is edited at the end of the shot
     selected.at = [snapTo(inside(selected.at[0] + step[0], 0)), snapTo(inside(selected.at[1] + step[1], 1))];
     dirty = true;
   });
@@ -118,6 +118,7 @@ export function openSetEditor(host, card, { onApply, onSave }) {
       blockingText.textContent = blocking(s);
       const found = [...diff(s.previous, s), ...eyelines(s)];
       bridgeBar.hidden = !found.some((f) => f.what.startsWith("screen direction flips"));
+      if (!bridgeBar.hidden) { const b = bridges(s.previous); neutralBtn.disabled = !b.neutral; cutawayBtn.disabled = !b.cutaway; } // a small room or a set with no props has no room for one
       notes.replaceChildren(...(found.length ? found.map((f) => h("li", { className: f.severity }, h("b", { textContent: f.severity }), ` ${f.what}`)) : [h("li", { className: "none", textContent: "nothing changed" })]));
     }
     requestAnimationFrame(frame);

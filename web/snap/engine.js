@@ -7,7 +7,7 @@ import { BRICKS, RENDER_BLUEPRINT } from "./bricks.js";
 
 const GAP = 80;
 const COLUMN = { models: 0, preset: 0, rack: 1, first_frame: 1, refs: 1, render: 2 };
-const column = (key) => COLUMN[key] ?? COLUMN[BRICKS[key]?.attach?.brick] ?? (key.startsWith("node:") ? 3 : 0); // any-node bricks go right of the render
+const column = (key) => (Object.hasOwn(COLUMN, key) ? COLUMN[key] : Object.hasOwn(COLUMN, BRICKS[key]?.attach?.brick ?? "") ? COLUMN[BRICKS[key].attach.brick] : key.startsWith("node:") ? 3 : 0); // any-node bricks go right of the render
 const EMPTY = Object.freeze({ version: 1, bricks: Object.freeze([]), bindings: Object.freeze([]) });
 
 // the recipe record; reading never writes it, so a workflow that never used Snap stays untouched
@@ -83,9 +83,10 @@ function feeds(target, from) {
 function resolve(toBrick, role, type, downstream) {
   const order = state().bricks.map((b) => b.key), at = order.indexOf(toBrick);
   const upstream = order.slice(0, at).reverse().concat(downstream ? order.slice(at + 1) : []);
+  const fits = (p) => !toBrick.startsWith("node:") || [p.src.outputs[p.o].type, "*"].includes(type) || type === "*"; // our bricks' rules are curated
   for (const key of upstream) {
-    const out = BRICKS[key].provides?.[role];
-    if (out && provider(key, out)) return { from: key, out, rule: `pack:${key}.${role}` };
+    const out = BRICKS[key].provides?.[role], p = out && provider(key, out);
+    if (p && fits(p)) return { from: key, out, rule: `pack:${key}.${role}` };
   }
   if (!toBrick.startsWith("node:")) return null;
   for (const key of upstream) {
@@ -113,12 +114,13 @@ function bindAll() {
       if (existing?.rule === "ask" && link) { s.bindings = s.bindings.filter((x) => x !== existing); continue; } // answered by hand in the graph
       if (existing ? existing.rule !== "ask" && String(link?.origin_id) !== String(existing.origin) : link) continue; // the user's wiring wins
       if (existing?.rule === "chosen") continue; // the person picked this one: it stays while its wire does
+      if (downstream && link) continue; // pass 2 only fills what pass 1 left empty
       const r = resolve(b.key, role, dst.inputs[i].type, downstream);
-      if (!r) continue;
-      if (r.ask) {
-        if (existing?.rule !== "ask") { s.bindings = s.bindings.filter((x) => x !== existing); s.bindings.push({ to: b.key, role, input: inputName, rule: "ask", candidates: r.ask, target: dst.id }); }
-        continue;
-      }
+      const ask = r?.ask?.filter((c) => !feeds(dst, provider(c.from, [c.nodeKey, c.output]).src)); // no candidate may close a loop
+      if (existing?.rule === "ask") s.bindings = s.bindings.filter((x) => x !== existing); // an ask is rebuilt every time
+      if (ask?.length > 1) { s.bindings.push({ to: b.key, role, input: inputName, rule: "ask", candidates: ask, target: dst.id }); continue; }
+      if (!r || (r.ask && !ask.length)) continue;
+      if (r.ask) Object.assign(r, { from: ask[0].from, out: [ask[0].nodeKey, ask[0].output], rule: `inferred:${dst.inputs[i].type}` }); // only one candidate is loop-free
       const { src, o } = provider(r.from, r.out);
       if (link && link.origin_id === src.id && link.origin_slot === o) continue;
       if (feeds(dst, src)) continue; // dst already feeds src: binding src -> dst would make a loop
@@ -202,9 +204,9 @@ export function choose(to, role, from, via) {
   const s = state(), ask = s.bindings.find((x) => x.to === to && x.role === role && x.rule === "ask");
   const pick = ask?.candidates.find((c) => c.from === from && c.via === via);
   if (!pick) throw new Error(`${to}.${role} has no open choice ${from}.${via}`);
-  const { src, o } = provider(from, [pick.nodeKey, pick.output]);
-  const output = pick.output;
-  const dst = node(ask.target), i = dst.findInputSlot(ask.input);
+  const p = provider(from, [pick.nodeKey, pick.output]), dst = node(ask.target);
+  if (!p || !dst) throw new Error(`${from} or ${to} is no longer in the graph`);
+  const { src, o } = p, output = pick.output, i = dst.findInputSlot(ask.input);
   transaction(() => {
     if (!src.connect(o, dst, i)) throw new Error(`Couldn't connect ${from}.${via} to ${to}.${role}`);
     s.bindings = s.bindings.map((x) => (x === ask ? { to, role, input: ask.input, from, output, via, rule: "chosen", origin: src.id, target: dst.id } : x));
@@ -336,7 +338,9 @@ export function unsnap(key) {
     if (def.attach) { const w = widget(nodeFor(def.attach.brick, def.attach.brick), def.attach.widget); if (w) { w.value = def.attach.off; w.callback?.(w.value); } }
     for (const id of Object.values(b.nodes)) { const n = node(id); if (n) app.graph.remove(n); }
     s.bricks = s.bricks.filter((x) => !gone.has(x.key));
-    s.bindings = s.bindings.filter((x) => !gone.has(x.to) && !gone.has(x.from));
+    s.bindings = s.bindings.filter((x) => !gone.has(x.to) && !gone.has(x.from))
+      .map((x) => (x.rule === "ask" ? { ...x, candidates: x.candidates.filter((c) => !gone.has(c.from)) } : x))
+      .filter((x) => x.rule !== "ask" || x.candidates.length > 1);
   });
   app.canvas.setDirty(true, true);
 }
@@ -405,8 +409,9 @@ export function appData() {
 
 export function describe() {
   const s = state();
+  const open = (x) => x.rule !== "ask" || !node(x.target)?.inputs[node(x.target).findInputSlot(x.input)]?.link; // wired by hand: settled
   return s.bricks.map((b) => ({
     brick: b.key, title: BRICKS[b.key].title, nodes: b.nodes,
-    bindings: s.bindings.filter((x) => x.to === b.key).map(({ role, from, output, via, rule, value, candidates }) => ({ role, from, output, rule, value, ...(via ? { via } : {}), ...(candidates ? { candidates: candidates.map(({ from, via }) => ({ from, via })) } : {}) })),
+    bindings: s.bindings.filter((x) => x.to === b.key && open(x)).map(({ role, from, output, via, rule, value, candidates }) => ({ role, from, output, rule, value, ...(via ? { via } : {}), ...(candidates ? { candidates: candidates.map(({ from, via }) => ({ from, via })) } : {}) })),
   }));
 }
