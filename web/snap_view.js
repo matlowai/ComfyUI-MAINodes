@@ -7,6 +7,7 @@ import * as engine from "./snap/engine.js";
 import { createView } from "./snap/view.js";
 import { createSwitch } from "./snap/switch.js";
 import { STYLE } from "./snap/style.js";
+import { callTool, schema, registerWebMCP } from "./snap/tools.js";
 
 let view, sw;
 const seen = new Set(), pending = [];
@@ -34,6 +35,17 @@ async function makeApp() {
   await app.extensionManager.command.execute("Comfy.ToggleLinear");
 }
 
+// agent calls (WebMCP in-page, or the /mainodes/snap bridge from tools/snap_mcp.py) run like user edits and show up live
+async function agentCall(name, args) {
+  const before = sw.showing ? new Map([...view.stack.querySelectorAll("[data-brick]")].map((el) => [el.dataset.brick, el.getBoundingClientRect()])) : null;
+  const result = await callTool(name, args);
+  if (sw.showing && !name.startsWith("list_") && !name.startsWith("describe_") && !name.startsWith("explain_")) {
+    view.render(before, args?.brick);
+    view.say(`Agent: ${name.replace("_", " ")} ${args?.brick ?? ""} ${args?.name ? `${args.name} = ${JSON.stringify(args.value)}` : ""}`.trim());
+  }
+  return result;
+}
+
 function toggle() {
   sw.toggle();
   if (sw.showing) announce();
@@ -49,6 +61,13 @@ app.registerExtension({
     view = createView({ onSwitch: (key) => sw.toGraph(key), onMakeApp: makeApp });
     document.body.append(view.root);
     sw = createSwitch(view);
+    registerWebMCP(agentCall);
+    api.fetchApi("/mainodes/snap/register", { method: "POST", body: JSON.stringify({ tools: schema() }) });
+    api.addEventListener("mainodes-snap-call", async ({ detail }) => {
+      let reply;
+      try { reply = { id: detail.id, result: await agentCall(detail.tool, detail.args) }; } catch (e) { reply = { id: detail.id, error: e.message }; }
+      api.fetchApi("/mainodes/snap/result", { method: "POST", body: JSON.stringify(reply) });
+    });
     // graph edits, undo and workflow loads all land here; overrides made in the graph are announced once, in Snap
     api.addEventListener("graphChanged", () => {
       for (const o of engine.overrides()) {

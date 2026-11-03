@@ -112,9 +112,9 @@ export async function snap(key, { values, at } = {}) {
   const def = BRICKS[key], s = state();
   if (s.bricks.some((b) => b.key === key)) return { brick: key, bindings: [] };
   if (def.attach) {
-    const host = s.bricks.find((b) => b.key === def.attach.brick);
-    if (!host) throw new Error(`${def.title} snaps onto ${BRICKS[def.attach.brick].title}; add that first`);
-    s.bricks.splice(at ?? s.bricks.length, 0, { key, nodes: {} });
+    const host = s.bricks.findIndex((b) => b.key === def.attach.brick);
+    if (host < 0) throw new Error(`${def.title} snaps onto ${BRICKS[def.attach.brick].title}; add that first`);
+    s.bricks.splice(host + 1, 0, { key, nodes: {} }); // attachments always sit right under their host
     setValue(def.attach.brick, def.attach.brick, def.attach.widget, def.attach.on);
     return { brick: key, bindings: [{ to: def.attach.brick, role: def.attach.widget, rule: `pack:${key}.attach`, value: def.attach.on }] };
   }
@@ -179,10 +179,26 @@ export function tidy() {
 }
 
 // reading order only: pack rules bind by role, so reordering never rewires
+// a host carries its attachments; an attachment can't leave its host
 export function move(key, index) {
   const s = state(), i = s.bricks.findIndex((b) => b.key === key);
-  if (i < 0) return;
-  transaction(() => { const [b] = s.bricks.splice(i, 1); s.bricks.splice(index, 0, b); });
+  if (i < 0 || BRICKS[key].attach) return;
+  let n = 1;
+  while (BRICKS[s.bricks[i + n]?.key]?.attach?.brick === key) n++;
+  transaction(() => {
+    const group = s.bricks.splice(i, n);
+    s.bricks.splice(index > i ? index - n + 1 : index, 0, ...group);
+  });
+}
+
+// keyboard reorder: move a brick (with its attachments) past the neighbouring brick group above or below
+export function nudge(key, dir) {
+  const s = state(), groups = [];
+  for (const b of s.bricks) (BRICKS[b.key].attach && groups.length ? groups.at(-1) : (groups[groups.length] = [])).push(b);
+  const g = groups.findIndex((x) => x[0].key === key), to = g + dir;
+  if (g < 0 || to < 0 || to >= groups.length) return;
+  [groups[g], groups[to]] = [groups[to], groups[g]];
+  transaction(() => { s.bricks = groups.flat(); });
 }
 
 export function unsnap(key) {
@@ -211,6 +227,16 @@ export function overrides(workflow = app.graph.serialize()) {
     const now = feeds.get(`${b.target}:${slot}`);
     if (!now) out.push({ ...b, change: "removed" });
     else if (now.from !== String(b.origin)) out.push({ ...b, change: "rewired", now: { node: now.from, slot: now.fromSlot } });
+  }
+  return out;
+}
+
+// settings that point at nothing installed (a model file, an image), per brick node; what the readiness badge shows
+export function missing() {
+  const out = [];
+  for (const b of state().bricks) for (const id of Object.values(b.nodes)) {
+    const n = node(id);
+    for (const w of n?.widgets ?? []) if (Array.isArray(w.options?.values) && !w.options.values.includes(w.value)) out.push({ brick: b.key, node: n.title, setting: w.name, value: w.value ?? null });
   }
   return out;
 }

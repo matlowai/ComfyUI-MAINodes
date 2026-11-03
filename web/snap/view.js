@@ -25,7 +25,7 @@ export function createView({ onSwitch, onMakeApp }) {
   root.append(
     h("header", { className: "snap-top" }, h("strong", { className: "snap-title", textContent: "Dials Simple" }), status, h("span", { className: "snap-spacer" }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Make app", title: "open this recipe in ComfyUI's App mode: the brick faces become a run-only app (reloads the graph)", onclick: () => onMakeApp() }),
-      h("button", { className: "snap-link snap-quiet-btn", textContent: "Add brick  ⌘K", title: "Ctrl/Cmd+K", onclick: () => openPalette() }), seg),
+      h("button", { className: "snap-link snap-quiet-btn", textContent: `Add brick  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}`, title: "Ctrl/Cmd+K", onclick: () => openPalette() }), seg),
     h("div", { className: "snap-body" }, rail, stack, inspector), toast);
   let selected = null;
   const built = new Map(); // brick key -> { el, sig }: a brick is rebuilt only when what it shows changed
@@ -84,7 +84,7 @@ export function createView({ onSwitch, onMakeApp }) {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
       const j = Math.max(0, Math.min(keys.length - 1, i + (e.key === "ArrowDown" ? 1 : -1)));
-      if (e.altKey && i >= 0) { const before = rects(); E.move(selected, j); render(before); } else select(keys[j]);
+      if (e.altKey && i >= 0) { const before = rects(); E.nudge(selected, e.key === "ArrowDown" ? 1 : -1); render(before); } else select(keys[j]);
     }
   });
 
@@ -238,11 +238,7 @@ export function createView({ onSwitch, onMakeApp }) {
   }
 
   function renderStatus() {
-    const missing = [];
-    for (const b of E.describe()) for (const id of Object.values(b.nodes)) {
-      const n = app.graph.getNodeById(id);
-      for (const w of n?.widgets ?? []) if (Array.isArray(w.options?.values) && !w.options.values.includes(w.value)) missing.push(`${n.title} · ${w.name}: ${w.value ?? "nothing installed"}`);
-    }
+    const missing = E.missing().map((m) => `${m.node} · ${m.setting}: ${m.value ?? "nothing installed"}`);
     status.className = `snap-status ${missing.length ? "warn" : "ok"}`;
     status.textContent = missing.length ? `${missing.length} missing` : "ready";
     status.title = missing.join("\n") || "every setting points at something installed";
