@@ -8,6 +8,19 @@ const MOVE = 0.3, TURN = 45, LIGHT = 30; // metres, degrees, degrees
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 const turn = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
 
+// in a dialogue two-hander each actor should look toward their partner; a set marks itself with `dialogue: true`
+const EYELINE = 30;
+export function eyelines(s) {
+  if (!s.dialogue || s.actors.length !== 2) return [];
+  const [a, b] = s.actors, out = [];
+  for (const [x, y] of [[a, b], [b, a]]) {
+    const want = ((Math.atan2(y.at[0] - x.at[0], y.at[1] - x.at[1]) * 180) / Math.PI + 360) % 360;
+    const off = turn(x.facing, want);
+    if (off > EYELINE) out.push({ severity: "check", what: `${x.name} looks ${Math.round(off)} degrees away from ${y.name} (eyeline)` });
+  }
+  return out;
+}
+
 export function diff(before, after) {
   const out = [];
   const add = (severity, what) => out.push({ severity, what });

@@ -60,9 +60,46 @@ export function side(s, at = s.camera.at) {
   return Math.sign((b[0] - a[0]) * (at[1] - a[1]) - (b[1] - a[1]) * (at[0] - a[0]));
 }
 
+// standard coverage for a two-hander, all on one side of the line so cuts between them keep screen direction: the side
+// of the shot this one continues from (else the current camera's). A master wide, an over-the-shoulder and a clean
+// single on each actor; positions stay inside the room.
+export function coverage(s) {
+  if (s.actors.length !== 2) return [];
+  const [A, B] = s.actors, [ax, ay] = A.at, [bx, by] = B.at;
+  const len = Math.hypot(bx - ax, by - ay) || 1, u = [(bx - ax) / len, (by - ay) / len];
+  const k = side(s, s.previous?.camera.at ?? s.camera.at) || 1, n = [-u[1] * k, u[0] * k]; // unit normal toward that side
+  const [hw, hd] = s.room.size.map((v) => v / 2 - 0.25);
+  const clamp = ([x, y]) => [Math.max(-hw, Math.min(hw, x)), Math.max(-hd, Math.min(hd, y))];
+  const toward = (from, to) => Math.round(((Math.atan2(to[0] - from[0], to[1] - from[1]) * 180) / Math.PI + 360) % 360);
+  // the nearest clear spot to the ideal one: inside the room, out of furniture (15 cm margin), and at least 20 cm on
+  // the camera's side of the line, so a blocked setup moves around an obstacle instead of onto the axis
+  const inProp = ([x, y]) => s.props.some((p) => Math.abs(x - p.at[0]) < p.size[0] / 2 + 0.15 && Math.abs(y - p.at[1]) < p.size[1] / 2 + 0.15);
+  const ahead = ([x, y]) => (x - ax) * n[0] + (y - ay) * n[1]; // signed distance from the line, + on the camera's side
+  const at = (base, along, out) => {
+    const ideal = [base[0] + u[0] * along + n[0] * out, base[1] + u[1] * along + n[1] * out];
+    let best = null;
+    for (let da = -0.6; da <= 0.6001; da += 0.1) for (let dout = -0.8; dout <= 1.0001; dout += 0.1) {
+      const pos = clamp([ideal[0] + u[0] * da + n[0] * dout, ideal[1] + u[1] * da + n[1] * dout]);
+      if (inProp(pos) || ahead(pos) < 0.2) continue;
+      const d = Math.hypot(pos[0] - ideal[0], pos[1] - ideal[1]);
+      if (!best || d < best.d) best = { pos, d };
+    }
+    return best?.pos ?? clamp(ideal);
+  };
+  const mid = [(ax + bx) / 2, (ay + by) / 2];
+  const setups = [
+    { name: "master", at: at(mid, 0, 3.2), look: mid, lens: 24 },
+    { name: `OTS on ${B.name}`, at: at(A.at, -0.7, 0.45), look: B.at, lens: 50 },
+    { name: `OTS on ${A.name}`, at: at(B.at, 0.7, 0.45), look: A.at, lens: 50 },
+    { name: `single ${A.name}`, at: at(B.at, -0.25, 0.7), look: A.at, lens: 85 },
+    { name: `single ${B.name}`, at: at(A.at, 0.25, 0.7), look: B.at, lens: 85 },
+  ];
+  return setups.map(({ name, at: pos, look, lens }) => ({ name, at: pos.map((v) => Math.round(v * 100) / 100), facing: toward(pos, look), lens, height: s.camera.height }));
+}
+
 // top-down plan: walls, openings, props, actor marks with facing, the last camera's frustum, and the 180° line.
 // `into` redraws an existing canvas (the editor); `selected` is outlined
-export function drawPlan(s, { into, selected, handles } = {}) {
+export function drawPlan(s, { into, selected, handles, ghosts = [] } = {}) {
   const [c, g] = canvas(into);
   const [rw, rd] = s.room.size;
   const { k, X, Y } = planFrame(s);
@@ -115,6 +152,13 @@ export function drawPlan(s, { into, selected, handles } = {}) {
   g.restore();
   g.fillStyle = "#222"; g.beginPath(); g.arc(cx, cy, selected === cam ? 11 : 7, 0, 7); g.fill();
   label(g, `camera ${cam.lens} mm`, Math.max(cx, 140), cy - 18);
+  for (const c of ghosts) { // proposed camera setups: dashed, labelled, clickable in the editor
+    const [gx, gy] = [X(c.at[0]), Y(c.at[1])], [dx, dy] = dir(c.facing);
+    g.setLineDash([5, 5]); g.strokeStyle = "#7c5cd6"; g.lineWidth = 2;
+    g.beginPath(); g.arc(gx, gy, 9, 0, 7); g.moveTo(gx, gy); g.lineTo(gx + dx * 0.7 * k, gy - dy * 0.7 * k); g.stroke();
+    g.setLineDash([]);
+    label(g, `${c.name} · ${c.lens}`, gx, gy + 22, "#5b3fb5");
+  }
   if (handles) { // editor only: grab dots on the camera's aim and each actor's arrow tip
     g.fillStyle = "#e0a020";
     for (const [o, len] of [[cam, 0.84], ...s.actors.map((a) => [a, 0.6])]) {

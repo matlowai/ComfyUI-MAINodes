@@ -1,8 +1,8 @@
 // Set Snapshot editor (UX_SPEC 7): the 2D blocking plan is the authority. Drag props, actor marks and the camera;
 // drag an arrow tip to turn an actor or aim the camera. The set block and the 180-degree check update live; Apply
 // refreshes the set pictures in References, Save keeps the edited state as a new card in the user's Library.
-import { drawPlan, planFrame, setBlock, blocking } from "./setsnap.js";
-import { diff } from "./continuity.js";
+import { drawPlan, planFrame, setBlock, blocking, coverage } from "./setsnap.js";
+import { diff, eyelines } from "./continuity.js";
 
 const GRID = 0.05;
 const REACH = 0.6; // actor arrow length in metres; the camera's aim handle sits 1.4x further out
@@ -20,6 +20,8 @@ export function openSetEditor(host, card, { onApply, onSave }) {
   const plan = h("canvas", { className: "snap-set-plan", tabIndex: 0, ariaLabel: "set plan: drag to block the scene" });
   const blockText = h("p", { className: "snap-set-block" }), blockingText = h("p", { className: "snap-set-block" });
   const notes = h("ul", { className: "snap-set-notes", role: "status" });
+  const dialogue = h("input", { type: "checkbox", checked: !!s.dialogue, onchange: () => { s.dialogue = dialogue.checked; dirty = true; } });
+  let showCoverage = false;
   const shot = h("input", { value: s.shot, oninput: () => { s.shot = shot.value; dirty = true; } });
   const close = () => { sheet.remove(); host.focus({ preventScroll: true }); };
   const sheet = h("div", { className: "snap-sheet", role: "dialog", ariaLabel: `edit ${card.title}` },
@@ -29,6 +31,9 @@ export function openSetEditor(host, card, { onApply, onSave }) {
         h("div", { className: "snap-rail-title", textContent: "Set block" }), blockText, h("div", { className: "snap-rail-title", textContent: "Blocking" }), blockingText,
         h("div", { className: "snap-rail-title", textContent: "Changes since the last shot" }), notes,
         h("div", { className: "snap-set-actions" },
+          h("label", { className: "snap-check" }, dialogue, " dialogue scene (check eyelines)"),
+          h("button", { className: "snap-link", textContent: "Coverage", title: "show the standard setups for these two actors on this side of the line; click one to use it", onclick: () => { showCoverage = !showCoverage; dirty = true; } })),
+        h("div", { className: "snap-set-actions" },
           h("button", { className: "snap-primary", textContent: "Use in References", onclick: () => { onApply(s); close(); } }),
           h("button", { className: "snap-link", textContent: "Save as new card", onclick: () => onSave(s) })),
         h("div", { className: "snap-quiet", textContent: "drag things on the plan · drag an arrow tip to turn · arrows nudge 5 cm · Esc closes" }))));
@@ -36,6 +41,7 @@ export function openSetEditor(host, card, { onApply, onSave }) {
 
   let selected = null, drag = null;
   function hit(world) {
+    if (showCoverage) for (const c of coverage(s)) if (near(world, c.at, 0.3)) return { setup: c };
     if (near(world, tip(s.camera, REACH * 1.4), 0.2)) return { o: s.camera, turn: true };
     for (const a of s.actors) if (near(world, tip(a, REACH), 0.2)) return { o: a, turn: true };
     if (near(world, s.camera.at, 0.3)) return { o: s.camera };
@@ -48,6 +54,12 @@ export function openSetEditor(host, card, { onApply, onSave }) {
 
   plan.addEventListener("pointerdown", (e) => {
     const target = hit(toWorld(e));
+    if (target?.setup) { // take a coverage setup as the camera
+      const { name, ...cam } = target.setup;
+      Object.assign(s.camera, cam);
+      selected = s.camera; showCoverage = false; dirty = true;
+      return;
+    }
     selected = target?.o ?? null;
     dirty = true;
     if (!target) return;
@@ -77,10 +89,10 @@ export function openSetEditor(host, card, { onApply, onSave }) {
     if (!sheet.isConnected) return;
     if (dirty) {
       dirty = false;
-      drawPlan(s, { into: plan, selected, handles: true });
+      drawPlan(s, { into: plan, selected, handles: true, ghosts: showCoverage ? coverage(s) : [] });
       blockText.textContent = setBlock(s);
       blockingText.textContent = blocking(s);
-      const found = diff(s.previous, s);
+      const found = [...diff(s.previous, s), ...eyelines(s)];
       notes.replaceChildren(...(found.length ? found.map((f) => h("li", { className: f.severity }, h("b", { textContent: f.severity }), ` ${f.what}`)) : [h("li", { className: "none", textContent: "nothing changed" })]));
     }
     requestAnimationFrame(frame);

@@ -121,6 +121,7 @@ export const STYLE = `
 .snap-note.answered { border-color: #a78bfa66; }
 .snap-note-compose { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--s-line); }
 .snap-note-input { font: inherit; font-size: 13px; color: var(--s-fg); background: var(--s-bg); border: 1px solid var(--s-line); border-radius: 8px; padding: 6px 8px; resize: vertical; }
+.snap-check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--s-dim); }
 .snap-quiet { color: var(--s-dim); font-size: 12px; margin-top: 6px; }
 .snap-empty { margin: 12vh auto 0; text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; }
 .snap-empty-title { font-size: 18px; font-weight: 600; }
