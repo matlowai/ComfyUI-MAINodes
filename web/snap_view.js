@@ -41,8 +41,9 @@ async function agentCall(name, args) {
   const before = sw.showing ? new Map([...view.stack.querySelectorAll("[data-brick]")].map((el) => [el.dataset.brick, el.getBoundingClientRect()])) : null;
   const result = await callTool(name, args);
   if (sw.showing && !readOnly(name)) {
-    view.render(before, args?.brick);
-    view.say(`Agent: ${name.replaceAll("_", " ")} ${args?.brick ?? args?.card ?? ""} ${args?.name ? `${args.name} = ${JSON.stringify(args.value)}` : ""}`.trim());
+    view.render(before, args?.propose ? undefined : args?.brick);
+    const what = `${name.replaceAll("_", " ")} ${args?.brick ?? args?.card ?? ""} ${args?.name ? `${args.name} = ${JSON.stringify(args.value)}` : ""}`.trim();
+    view.say(args?.propose ? `Agent proposes: ${what}` : `Agent: ${what}`);
   }
   return result;
 }
@@ -59,7 +60,7 @@ app.registerExtension({
   actionBarButtons: [{ icon: "icon-[lucide--blocks]", label: "Snap", tooltip: "Snap view (Alt+S)", onClick: () => toggle() }],
   setup() {
     document.head.append(Object.assign(document.createElement("style"), { textContent: STYLE }));
-    view = createView({ onSwitch: (key) => sw.toGraph(key), onMakeApp: makeApp });
+    view = createView({ onSwitch: (key) => sw.toGraph(key), onMakeApp: makeApp, run: callTool });
     document.body.append(view.root);
     sw = createSwitch(view);
     registerWebMCP(agentCall);

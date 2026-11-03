@@ -6,6 +6,7 @@ import * as E from "./engine.js";
 import { BRICKS } from "./bricks.js";
 import * as L from "./library.js";
 import { diff } from "./continuity.js";
+import * as P from "./proposals.js";
 
 const has = (key) => E.state().bricks.some((b) => b.key === key);
 const brickEnum = { type: "string", enum: Object.keys(BRICKS) };
@@ -121,18 +122,35 @@ export const TOOLS = [
       return diff(snap(from), snap(to));
     },
   },
+  {
+    name: "list_proposals",
+    description: "Proposals made with propose: true, with the person's answer: waiting, accepted (with the result), rejected or failed.",
+    inputSchema: { type: "object", properties: {} },
+    annotations: { readOnlyHint: true },
+    run: () => P.all(),
+  },
 ];
 
 const byName = new Map(TOOLS.map((t) => [t.name, t]));
 export const readOnly = (name) => !!byName.get(name)?.annotations?.readOnlyHint;
 
+// `propose: true` on any tool that changes the recipe parks the call as a proposal for the person to accept or reject
 export async function callTool(name, args = {}) {
   const tool = byName.get(name);
   if (!tool) throw new Error(`Unknown Snap tool ${name}`);
-  return tool.run(args);
+  const { propose, reason, ...rest } = args;
+  if (propose && !readOnly(name)) {
+    const p = P.add(name, rest, reason);
+    return { proposed: p.id, status: "waiting for the person to accept or reject; see list_proposals" };
+  }
+  return tool.run(rest);
 }
 
-export const schema = () => TOOLS.map(({ name, description, inputSchema, annotations }) => ({ name, description, inputSchema, annotations: annotations ?? {} }));
+const PROPOSE = { propose: { type: "boolean", description: "don't change anything yet: show this as a proposal the person accepts or rejects" }, reason: { type: "string", description: "one line the person sees with the proposal" } };
+export const schema = () => TOOLS.map(({ name, description, inputSchema, annotations = {} }) => ({
+  name, description, annotations,
+  inputSchema: annotations.readOnlyHint ? inputSchema : { ...inputSchema, properties: { ...inputSchema.properties, ...PROPOSE } },
+}));
 
 // WebMCP (Chrome origin trial, document.modelContext; navigator.modelContext is the older spelling). No-op elsewhere.
 export function registerWebMCP(run) {

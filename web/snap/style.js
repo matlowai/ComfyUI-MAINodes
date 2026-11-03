@@ -7,6 +7,7 @@ export const STYLE = `
   background: color-mix(in srgb, var(--s-bg) calc(var(--veil) * 100%), transparent);
   font: 13px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif; outline: none; overflow: hidden; contain: layout paint;
 }
+.snap-root [hidden] { display: none !important; } /* the controls below use all: unset, which would undo [hidden] */
 .snap-root:not(.open) .snap-top, .snap-root:not(.open) .snap-rail, .snap-root:not(.open) .snap-inspector { opacity: var(--veil); }
 .snap-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 6px 16px 10px; border-bottom: 1px solid var(--s-line); }
 .snap-title { font-size: 14px; font-weight: 600; }
@@ -99,6 +100,19 @@ export const STYLE = `
 .snap-set-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 @media (max-width: 760px) { .snap-set-body { grid-template-columns: minmax(0, 1fr); } }
 @media (prefers-reduced-motion: reduce) { .snap-sheet { animation: none; } }
+.snap-proposals { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 4px 2px 10px; border-radius: 999px; background: #a78bfa22; color: #c4b5fd; }
+.snap-proposals button { all: unset; cursor: pointer; padding: 2px 8px; border-radius: 999px; }
+.snap-proposals button:hover { background: #ffffff14; }
+.snap-ghost-brick { display: flex; align-items: center; gap: 8px; border-style: dashed; border-color: hsl(var(--hue) 70% 60% / .6); background: color-mix(in srgb, var(--s-card) 45%, transparent); opacity: .85; }
+.snap-ghost-brick::before { opacity: .4; }
+.snap-proposal { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 6px 8px; border: 1px dashed #a78bfa88; border-radius: 10px; font-size: 12px; }
+.snap-agent { font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: #c4b5fd; background: #a78bfa22; padding: 1px 6px; border-radius: 999px; }
+.snap-proposal-what { font-weight: 600; }
+.snap-accept, .snap-reject { all: unset; cursor: pointer; padding: 3px 10px; border-radius: 8px; font-size: 12px; min-height: 22px; }
+.snap-accept { background: #57c78533; color: #8fe3b0; margin-left: auto; }
+.snap-reject { color: var(--s-dim); }
+.snap-accept:hover { background: #57c78555; } .snap-reject:hover { background: #ffffff14; color: var(--s-fg); }
+.snap-ghost-brick:focus-visible, .snap-proposal:focus-visible { outline: 2px solid #a78bfa; outline-offset: 2px; }
 .snap-quiet { color: var(--s-dim); font-size: 12px; margin-top: 6px; }
 .snap-empty { margin: 12vh auto 0; text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; }
 .snap-empty-title { font-size: 18px; font-weight: 600; }

@@ -8,6 +8,7 @@ import { attachDrag } from "./drag.js";
 import { Spring, SPRINGS, animate } from "./spring.js";
 import * as L from "./library.js";
 import { openSetEditor } from "./seteditor.js";
+import * as P from "./proposals.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -15,18 +16,19 @@ const h = (tag, props = {}, ...kids) => {
   return el;
 };
 
-export function createView({ onSwitch, onMakeApp }) {
+export function createView({ onSwitch, onMakeApp, run }) {
   const root = h("div", { className: "snap-root", tabIndex: -1 });
   const stack = h("main", { className: "snap-stack", ariaLabel: "recipe" });
   const rail = h("aside", { className: "snap-rail" });
   const inspector = h("aside", { className: "snap-inspector" });
   const status = h("span", { className: "snap-status" });
+  const proposalsPill = h("span", { className: "snap-proposals", hidden: true });
   const toast = h("div", { className: "snap-toast", role: "status" });
   const seg = h("div", { className: "snap-seg", role: "tablist" },
     h("button", { className: "on", textContent: "Snap", role: "tab" }),
     h("button", { textContent: "Graph", role: "tab", onclick: () => onSwitch() }));
   root.append(
-    h("header", { className: "snap-top" }, h("strong", { className: "snap-title", textContent: "Dials Simple" }), status, h("span", { className: "snap-spacer" }),
+    h("header", { className: "snap-top" }, h("strong", { className: "snap-title", textContent: "Dials Simple" }), status, proposalsPill, h("span", { className: "snap-spacer" }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Make app", title: "open this recipe in ComfyUI's App mode: the brick faces become a run-only app (reloads the graph)", onclick: () => onMakeApp() }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: `Add brick  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}`, title: "Ctrl/Cmd+K", onclick: () => openPalette() }), seg),
     h("div", { className: "snap-body" }, rail, stack, inspector), toast);
@@ -333,6 +335,50 @@ export function createView({ onSwitch, onMakeApp }) {
     return el;
   }
 
+  // agent proposals: ghost bricks for proposed snaps, dashed chips on the brick for everything else
+  async function decide(id, accept) {
+    const before = rects();
+    const p = await P.decide(id, accept, run);
+    if (p) say(p.status === "accepted" ? `Accepted: ${p.tool.replaceAll("_", " ")}` : p.status === "rejected" ? "Rejected the proposal" : `Couldn't apply it: ${p.result}`, p.status === "failed");
+    render(before, p?.status === "accepted" ? p.args.brick : undefined);
+  }
+
+  function proposalEl(p, ghost) {
+    const label = p.tool === "snap" ? `Add ${BRICKS[p.args.brick]?.title ?? p.args.brick}` : p.tool === "set_setting" ? `${p.args.name} → ${JSON.stringify(p.args.value)}`
+      : p.tool === "apply_card" ? `Apply ${L.get(p.args.card)?.title ?? p.args.card}` : `${p.tool.replaceAll("_", " ")} ${p.args.brick ?? ""}`;
+    const el = h(ghost ? "section" : "div", { className: ghost ? "snap-brick snap-ghost-brick" : "snap-proposal", tabIndex: 0, title: "Enter accepts · Backspace rejects" },
+      h("span", { className: "snap-agent", textContent: "agent" }), h("span", { className: "snap-proposal-what", textContent: label }),
+      p.reason ? h("span", { className: "snap-blurb", textContent: p.reason }) : null,
+      h("button", { className: "snap-accept", textContent: "Accept", onclick: () => decide(p.id, true) }),
+      h("button", { className: "snap-reject", textContent: "Reject", onclick: () => decide(p.id, false) }));
+    el.addEventListener("keydown", (e) => {
+      if (e.target !== el) return;
+      if (e.key === "Enter") { e.preventDefault(); decide(p.id, true); }
+      else if (e.key === "Backspace" || e.key === "Delete") { e.preventDefault(); decide(p.id, false); }
+    });
+    if (ghost) el.style.setProperty("--hue", BRICKS[p.args.brick]?.hue ?? 210);
+    return el;
+  }
+
+  function renderProposals() {
+    const waiting = P.pending();
+    proposalsPill.hidden = !waiting.length;
+    proposalsPill.replaceChildren(h("span", { textContent: `${waiting.length} proposal${waiting.length === 1 ? "" : "s"}` }),
+      h("button", { textContent: "Accept all", onclick: async () => { for (const p of P.pending()) await decide(p.id, true); } }),
+      h("button", { textContent: "Reject all", onclick: async () => { for (const p of P.pending()) await decide(p.id, false); } }));
+    for (const el of stack.querySelectorAll(".snap-ghost-brick, .snap-proposal")) el.remove();
+    for (const p of waiting) {
+      if (p.tool === "snap") {
+        const after = p.args.after && stack.querySelector(`[data-brick="${p.args.after}"]`);
+        stack.insertBefore(proposalEl(p, true), after ? after.nextSibling : null);
+      } else {
+        const target = p.args.brick ?? L.TARGET[L.get(p.args.card)?.kind];
+        (stack.querySelector(`[data-brick="${target}"]`) ?? stack).append(proposalEl(p, false));
+      }
+    }
+  }
+  P.onChange(renderProposals);
+
   // FLIP: bricks that moved spring from their old place; new ones rise in
   function render(before, entered) {
     const infos = E.describe();
@@ -342,7 +388,7 @@ export function createView({ onSwitch, onMakeApp }) {
       h("div", { className: "snap-empty-title", textContent: "Build a recipe" }),
       h("div", { className: "snap-quiet", textContent: "drag bricks in from the left, or start from the recommended one" }),
       h("button", { className: "snap-primary", textContent: "Start from Dials + Pika Simple", onclick: buildSimple }))]));
-    renderRail(); renderInspector(); renderStatus();
+    renderRail(); renderInspector(); renderStatus(); renderProposals();
     if (!before) return;
     for (const el of stack.querySelectorAll("[data-brick]")) {
       const key = el.dataset.brick, was = before.get(key), now = el.getBoundingClientRect();
