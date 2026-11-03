@@ -1,7 +1,8 @@
 // Set Snapshot editor (UX_SPEC 7): the 2D blocking plan is the authority. Drag props, actor marks and the camera;
 // drag an arrow tip to turn an actor or aim the camera. The set block and the 180-degree check update live; Apply
 // refreshes the set pictures in References, Save keeps the edited state as a new card in the user's Library.
-import { drawPlan, planFrame, setBlock, blocking, side } from "./setsnap.js";
+import { drawPlan, planFrame, setBlock, blocking } from "./setsnap.js";
+import { diff } from "./continuity.js";
 
 const GRID = 0.05;
 const REACH = 0.6; // actor arrow length in metres; the camera's aim handle sits 1.4x further out
@@ -13,19 +14,20 @@ const near = (a, b, r) => Math.hypot(a[0] - b[0], a[1] - b[1]) <= r;
 
 export function openSetEditor(host, card, { onApply, onSave }) {
   const s = structuredClone(card.brick.snapshot);
-  s.previous_camera ??= structuredClone(s.camera); // the 180-degree check compares against the shot this one continues from
-  const startSide = side(s, s.previous_camera.at);
+  // the end of the shot this one continues from: continuity (and the 180-degree line) is judged against it
+  if (!s.previous) { const { previous, ...end } = structuredClone(s); s.previous = end; }
   let dirty = true;
   const plan = h("canvas", { className: "snap-set-plan", tabIndex: 0, ariaLabel: "set plan: drag to block the scene" });
   const blockText = h("p", { className: "snap-set-block" }), blockingText = h("p", { className: "snap-set-block" });
-  const warn = h("div", { className: "snap-set-warn", role: "status" });
+  const notes = h("ul", { className: "snap-set-notes", role: "status" });
   const shot = h("input", { value: s.shot, oninput: () => { s.shot = shot.value; dirty = true; } });
   const close = () => { sheet.remove(); host.focus({ preventScroll: true }); };
   const sheet = h("div", { className: "snap-sheet", role: "dialog", ariaLabel: `edit ${card.title}` },
     h("header", {}, h("strong", { textContent: card.title }), h("span", { className: "snap-spacer" }), h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: close })),
     h("div", { className: "snap-set-body" }, plan,
       h("aside", {}, h("label", { className: "snap-field" }, h("span", { textContent: "this state is the end of" }), shot),
-        h("div", { className: "snap-rail-title", textContent: "Set block" }), blockText, h("div", { className: "snap-rail-title", textContent: "Blocking" }), blockingText, warn,
+        h("div", { className: "snap-rail-title", textContent: "Set block" }), blockText, h("div", { className: "snap-rail-title", textContent: "Blocking" }), blockingText,
+        h("div", { className: "snap-rail-title", textContent: "Changes since the last shot" }), notes,
         h("div", { className: "snap-set-actions" },
           h("button", { className: "snap-primary", textContent: "Use in References", onclick: () => { onApply(s); close(); } }),
           h("button", { className: "snap-link", textContent: "Save as new card", onclick: () => onSave(s) })),
@@ -78,9 +80,8 @@ export function openSetEditor(host, card, { onApply, onSave }) {
       drawPlan(s, { into: plan, selected, handles: true });
       blockText.textContent = setBlock(s);
       blockingText.textContent = blocking(s);
-      const crossed = startSide && side(s) && side(s) !== startSide;
-      warn.textContent = crossed ? `The camera crossed the line between ${s.actors[0].name} and ${s.actors[1].name}: screen direction flips from the last shot (180-degree rule).` : "";
-      warn.hidden = !crossed;
+      const found = diff(s.previous, s);
+      notes.replaceChildren(...(found.length ? found.map((f) => h("li", { className: f.severity }, h("b", { textContent: f.severity }), ` ${f.what}`)) : [h("li", { className: "none", textContent: "nothing changed" })]));
     }
     requestAnimationFrame(frame);
   })();

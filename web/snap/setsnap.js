@@ -98,7 +98,7 @@ export function drawPlan(s, { into, selected, handles } = {}) {
   }
   const cam = s.camera, half = Math.atan(36 / (2 * cam.lens)), reach = Math.max(rw, rd);
   const [cx, cy] = [X(cam.at[0]), Y(cam.at[1])];
-  const prev = s.previous_camera;
+  const prev = s.previous?.camera;
   if (prev && (prev.at[0] !== cam.at[0] || prev.at[1] !== cam.at[1] || prev.facing !== cam.facing)) { // the shot this one continues from
     const [px, py] = [X(prev.at[0]), Y(prev.at[1])], [dx, dy] = dir(prev.facing);
     g.setLineDash([6, 6]); g.strokeStyle = "#777"; g.lineWidth = 2;

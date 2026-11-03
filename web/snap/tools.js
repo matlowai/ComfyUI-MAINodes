@@ -5,6 +5,7 @@ import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import { BRICKS } from "./bricks.js";
 import * as L from "./library.js";
+import { diff } from "./continuity.js";
 
 const has = (key) => E.state().bricks.some((b) => b.key === key);
 const brickEnum = { type: "string", enum: Object.keys(BRICKS) };
@@ -106,6 +107,18 @@ export const TOOLS = [
       const c = L.get(card);
       if (!c) throw new Error(`No Library card ${card}`);
       return { card, done: await L.apply(c) };
+    },
+  },
+  {
+    name: "check_continuity",
+    description: "Continuity between two states of a set, graded break / check / note like a script supervisor: give `from` and `to` set snapshot cards, or one `card` to compare it with the shot it continues from.",
+    inputSchema: { type: "object", properties: { card: { type: "string" }, from: { type: "string" }, to: { type: "string" } } },
+    annotations: { readOnlyHint: true },
+    run: async ({ card, from, to }) => {
+      await L.ready();
+      const snap = (id) => { const c = L.get(id); if (c?.kind !== "set_snapshot") throw new Error(`No set snapshot card ${id}`); return c.brick.snapshot; };
+      if (card) { const s = snap(card); if (!s.previous) throw new Error(`${card} doesn't record the shot it continues from; give from and to`); return diff(s.previous, s); }
+      return diff(snap(from), snap(to));
     },
   },
 ];
