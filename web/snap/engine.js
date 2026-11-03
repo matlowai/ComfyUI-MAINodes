@@ -65,6 +65,15 @@ function provider(key, [nodeKey, out]) {
   return src && o >= 0 ? { src, o } : null;
 }
 
+// remembered picks (rules.js loads them; the engine only reads them): an ask whose answer is on record binds itself
+let remembered = [];
+export const useRules = (list) => { remembered = list; };
+// a candidate as a rule sees it: the node type behind it, the role its brick gives it, and that node's title
+function fingerprint(c) {
+  const n = provider(c.from, [c.nodeKey, c.output])?.src;
+  return n ? `${n.type}|${c.via}|${n.title}` : null;
+}
+
 // is `target` already upstream of `from` (following links)? then linking from -> target would close a loop
 function feeds(target, from) {
   const seen = new Set(), todo = [from];
@@ -118,14 +127,17 @@ function bindAll() {
       const r = resolve(b.key, role, dst.inputs[i].type, downstream);
       const ask = r?.ask?.filter((c) => !feeds(dst, provider(c.from, [c.nodeKey, c.output]).src)); // no candidate may close a loop
       if (existing?.rule === "ask") s.bindings = s.bindings.filter((x) => x !== existing); // an ask is rebuilt every time
-      if (ask?.length > 1) { s.bindings.push({ to: b.key, role, input: inputName, rule: "ask", candidates: ask, target: dst.id }); continue; }
-      if (!r || (r.ask && !ask.length)) continue;
+      const rule = ask?.length > 1 && remembered.find((x) => x.to === dst.type && x.input === inputName);
+      const known = rule && ask.filter((c) => fingerprint(c) === rule.pick);
+      if (known?.length === 1) Object.assign(r, { ask: null, from: known[0].from, out: [known[0].nodeKey, known[0].output], via: known[0].via, rule: "remembered" });
+      else if (ask?.length > 1) { s.bindings.push({ to: b.key, role, input: inputName, rule: "ask", candidates: ask, target: dst.id }); continue; }
+      if (!r || (r.ask && !ask?.length)) continue;
       if (r.ask) Object.assign(r, { from: ask[0].from, out: [ask[0].nodeKey, ask[0].output], rule: `inferred:${dst.inputs[i].type}` }); // only one candidate is loop-free
       const { src, o } = provider(r.from, r.out);
       if (link && link.origin_id === src.id && link.origin_slot === o) continue;
       if (feeds(dst, src)) continue; // dst already feeds src: binding src -> dst would make a loop
       if (!src.connect(o, dst, i)) continue;
-      const binding = { to: b.key, role, input: inputName, from: r.from, output: r.out[1], rule: r.rule, origin: src.id, target: dst.id };
+      const binding = { to: b.key, role, input: inputName, from: r.from, output: r.out[1], rule: r.rule, ...(r.via ? { via: r.via } : {}), origin: src.id, target: dst.id };
       s.bindings = s.bindings.filter((x) => x !== existing);
       s.bindings.push(binding);
       made.push(binding);
@@ -199,7 +211,7 @@ async function snapOnce(key, { values, at } = {}) {
   return { brick: key, bindings };
 }
 
-// answer an `ask`: bind `role` on brick `to` from one of its candidates; the answer is remembered as the binding's rule
+// answer an `ask`: bind `role` on brick `to` from one of its candidates; returns the rule to remember for next time
 export function choose(to, role, from, via) {
   const s = state(), ask = s.bindings.find((x) => x.to === to && x.role === role && x.rule === "ask");
   const pick = ask?.candidates.find((c) => c.from === from && c.via === via);
@@ -212,6 +224,7 @@ export function choose(to, role, from, via) {
     s.bindings = s.bindings.map((x) => (x === ask ? { to, role, input: ask.input, from, output, via, rule: "chosen", origin: src.id, target: dst.id } : x));
   });
   app.canvas.setDirty(true, true);
+  return { to: dst.type, input: ask.input, pick: fingerprint(pick) };
 }
 
 // adopt the open workflow (BRAINSTORM O3): known nodes become their pack bricks, the rest any-node bricks, existing

@@ -11,6 +11,7 @@ import { openSetEditor } from "./seteditor.js";
 import { openBoard } from "./board.js";
 import * as P from "./proposals.js";
 import * as crew from "./crew.js";
+import * as rules from "./rules.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -260,16 +261,24 @@ export function createView({ onSwitch, onMakeApp, run }) {
     }))];
   }
 
+  // a pick is remembered for the same pair in any workflow
+  function pickBinding(key, role, from, via) {
+    const rule = E.choose(key, role, from, via);
+    rules.remember(rule).then(() => { E.useRules(rules.all()); say("Picked; Snap will bind this pair the same way next time"); }, (err) => say(err.message, true));
+  }
+
   function bindingsLine(key, info) {
     const chips = info.bindings.map((b) => {
       if (b.rule === "ask") { // several candidates fit: the person picks, the pick is remembered
         return h("span", { className: "snap-bind ask", title: "more than one output fits; pick the one you mean" }, `${b.role} ← which one? `,
-          b.candidates.map((c) => h("button", { className: "snap-choice", textContent: `${BRICKS[c.from]?.title ?? c.from} · ${c.via.replaceAll("_", " ")}`, onclick: (e) => { e.stopPropagation(); const before = rects(); E.choose(key, b.role, c.from, c.via); render(before); } })));
+          b.candidates.map((c) => h("button", { className: "snap-choice", textContent: `${BRICKS[c.from]?.title ?? c.from} · ${c.via.replaceAll("_", " ")}`, onclick: (e) => { e.stopPropagation(); const before = rects(); pickBinding(key, b.role, c.from, c.via); render(before); } })));
       }
       const kind = b.rule.split(":")[0];
-      const label = b.value != null ? `${b.role} = ${b.value}` : `${b.role} ← ${BRICKS[b.from]?.title ?? b.from}${b.rule === "chosen" ? ` · ${b.via.replaceAll("_", " ")}` : ""}`;
-      return h("button", { className: `snap-bind ${kind}`, textContent: label, title: `rule: ${b.rule}\nclick to show in the graph`,
+      const label = b.value != null ? `${b.role} = ${b.value}` : `${b.role} ← ${BRICKS[b.from]?.title ?? b.from}${b.rule === "chosen" || b.rule === "remembered" ? ` · ${b.via.replaceAll("_", " ")}` : ""}`;
+      const chip = h("button", { className: `snap-bind ${kind}`, textContent: label, title: `rule: ${b.rule}\nclick to show in the graph`,
         onclick: (e) => { e.stopPropagation(); select(key); onSwitch(key); } });
+      if (b.rule === "remembered") chip.title = `rule: your earlier pick for this pair\nclick to show in the graph`;
+      return chip;
     });
     const over = overridden.filter((o) => o.to === key);
     for (const o of over) chips.push(h("span", { className: "snap-bind override", textContent: `${o.role}: ${o.change} in graph`, title: "you changed this in the graph; Snap keeps your wiring" }));

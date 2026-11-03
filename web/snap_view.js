@@ -8,6 +8,7 @@ import { createView } from "./snap/view.js";
 import { createSwitch } from "./snap/switch.js";
 import { STYLE } from "./snap/style.js";
 import { callTool, schema, readOnly, registerWebMCP } from "./snap/tools.js";
+import * as rules from "./snap/rules.js";
 
 let view, sw;
 const seen = new Set(), pending = [];
@@ -71,6 +72,7 @@ app.registerExtension({
     view = createView({ onSwitch: (key) => { sw.toGraph(key); remember(); }, onMakeApp: makeApp, run: callTool });
     document.body.append(view.root);
     sw = createSwitch(view);
+    rules.load().then((list) => engine.useRules(list), () => {}); // remembered picks; without them Snap just asks again
     app.extensionManager.registerSidebarTab({ id: TAB, icon: "icon-[lucide--blocks]", title: "Snap", tooltip: "Snap beside the graph", type: "custom",
       render: (el) => { sw.dock(el); announce(); }, destroy: () => setTimeout(() => sw.undock(), 0) });
     registerWebMCP(agentCall);

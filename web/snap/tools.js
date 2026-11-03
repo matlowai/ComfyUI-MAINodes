@@ -8,6 +8,7 @@ import * as L from "./library.js";
 import { diff } from "./continuity.js";
 import * as P from "./proposals.js";
 import * as crew from "./crew.js";
+import * as rules from "./rules.js";
 
 const has = (key) => E.state().bricks.some((b) => b.key === key);
 const brickEnum = { type: "string", description: `a recipe brick (${PACK_BRICKS.join(", ")}) or any installed node as node:<NodeType> (a new one) / node:<NodeType>#<n> (one in the recipe)` };
@@ -89,7 +90,7 @@ export const TOOLS = [
     name: "choose_binding",
     description: "Settle an `ask` binding (several outputs fit one input): connect brick.role from one of its candidates in describe_recipe, given as `from` (the brick) and `via` (the role that brick gives it, e.g. video_vae).",
     inputSchema: { type: "object", properties: { brick: brickEnum, role: { type: "string" }, from: { type: "string" }, via: { type: "string" } }, required: ["brick", "role", "from", "via"] },
-    run: ({ brick, role, from, via }) => { E.choose(brick, role, from, via); return { brick, role, from, via }; },
+    run: async ({ brick, role, from, via }) => { const rule = E.choose(brick, role, from, via); await rules.remember(rule); E.useRules(rules.all()); return { brick, role, from, via, remembered: true }; },
   },
   {
     name: "explain_binding",
