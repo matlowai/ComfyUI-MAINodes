@@ -311,7 +311,12 @@ export function createView({ onSwitch, onMakeApp, run }) {
     const body = [];
     if (info.brick === "rack") body.push(rackSummary());
     if (info.brick === "refs") body.push(...picturesFace());
-    if (info.brick === "render") body.push(h("div", { className: "snap-quiet", textContent: "saves to output/video/dials_simple" }));
+    if (info.brick === "render") {
+      const shot = E.state().bricks.find((x) => x.key === "render")?.shot;
+      if (shot) body.push(h("div", { className: "snap-shot-parts" }, h("span", { className: "snap-quiet", textContent: `prompt compiled from ${L.get(shot.card)?.title ?? shot.card}:` }),
+        shot.parts.map((x) => h("span", { className: `snap-part ${x.field}`, textContent: x.field, title: `${x.text}\n\nfrom: ${L.get(x.from)?.title ?? x.from}` }))));
+      body.push(h("div", { className: "snap-quiet", textContent: "saves to output/video/dials_simple" }));
+    }
     const el = h("section", { className: `snap-brick${def.attach ? " attached" : ""}${selected === info.brick ? " selected" : ""}`, tabIndex: 0 },
       h("header", { className: "snap-head" },
         h("span", { className: "snap-grip", textContent: def.icon, title: "drag to reorder" }),
@@ -391,6 +396,7 @@ export function createView({ onSwitch, onMakeApp, run }) {
     const values = BRICKS[info.brick].face.map(([k, name]) => E.getValue(info.brick, k, name));
     if (info.brick === "rack") values.push(E.getValue("rack", "rack", "rack"));
     if (info.brick === "refs") values.push(E.state().bricks.find((b) => b.key === "refs")?.pictures);
+    if (info.brick === "render") values.push(E.state().bricks.find((b) => b.key === "render")?.shot);
     const notes = openNotes(info.brick).map((n) => [n.id, n.status, n.reply, P.all().filter((p) => p.note === n.id && p.status === "waiting").length]);
     return JSON.stringify([info.nodes, info.bindings, overridden.filter((o) => o.to === info.brick).map((o) => o.change), values, notes]);
   }

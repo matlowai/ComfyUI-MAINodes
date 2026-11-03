@@ -2,13 +2,14 @@
 // search is slot-aware (a selected brick narrows it to the kinds that brick takes). Keyword search for now; the
 // multimodal embedder plugs in behind `search` once its runtime is chosen.
 import { api } from "../../../scripts/api.js";
+import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import { BRICKS } from "./bricks.js";
-import { setBlock, blocking, drawPlan, drawElevation, toBlob } from "./setsnap.js";
+import { setBlock, blocking, drawPlan, drawElevation, toBlob, coverage } from "./setsnap.js";
 
 // the brick each kind of card goes on; a recipe goes on the whole stack (null)
-export const TARGET = { recipe: null, set_snapshot: "refs", dial: "rack", lora: "preset", character: "render", setting: "render", scene: "render", principle: "render", pose: "first_frame", motion_guide: "refs", run: "render" };
-export const KIND_LABEL = { recipe: "Recipes", set_snapshot: "Set snapshots", character: "Characters", setting: "Settings", scene: "Scenes", principle: "Principles", motion_guide: "Motion", pose: "Poses", dial: "Dials", lora: "LoRAs", run: "Runs" };
+export const TARGET = { recipe: null, shot: "render", set_snapshot: "refs", dial: "rack", lora: "preset", character: "render", setting: "render", scene: "render", principle: "render", pose: "first_frame", motion_guide: "refs", run: "render" };
+export const KIND_LABEL = { recipe: "Recipes", shot: "Shots", set_snapshot: "Set snapshots", character: "Characters", setting: "Settings", scene: "Scenes", principle: "Principles", motion_guide: "Motion", pose: "Poses", dial: "Dials", lora: "LoRAs", run: "Runs" };
 
 let cards = [], loading;
 // cards load once per page; the view and the agent tools both wait on the same request
@@ -103,7 +104,7 @@ const digest = (text) => [...text].reduce((h, c) => (h * 33 + c.charCodeAt(0)) >
 
 // a set snapshot: plan + elevation compiled from the set data go into References (replacing this card's earlier
 // pictures), the set block and blocking into the prompt, so the next shot starts from where this one ended
-export async function applySet(card, s = card.brick.snapshot) {
+export async function applySet(card, s = card.brick.snapshot, { prompt = true } = {}) {
   const stem = `${card.id.replace(/[^a-z0-9-]/gi, "_")}_${digest(JSON.stringify(s))}`;
   const plan = await upload(drawPlan(s), `${stem}_plan.png`);
   const elevation = await upload(drawElevation(s), `${stem}_elevation.png`);
@@ -111,7 +112,7 @@ export async function applySet(card, s = card.brick.snapshot) {
   E.batch(() => { // pictures, prompt and the remembered set text are one undo step
     E.addPicture(plan, { role: "set: plan", reason: `${s.name}, end of ${s.shot}, top down`, source, card: card.id });
     E.addPicture(elevation, { role: "set: elevation", reason: `${s.name}, end of ${s.shot}, looking north`, source, card: card.id });
-    if (E.state().bricks.some((b) => b.key === "render")) { // this set's earlier block and blocking give way to the new ones
+    if (prompt && E.state().bricks.some((b) => b.key === "render")) { // this set's earlier block and blocking give way to the new ones
       const refs = E.state().bricks.find((b) => b.key === "refs"), text = [setBlock(s), blocking(s)];
       removeFromPrompt(refs.setText?.[source] ?? []);
       addToPrompt(text);
@@ -119,6 +120,37 @@ export async function applySet(card, s = card.brick.snapshot) {
     }
   });
   return `${card.title}: plan and elevation in References, set block in the prompt`;
+}
+
+// the shot compiler (BRAINSTORM S1): a shot card's beat, characters, set, camera setup and principles become the first
+// line of the Render prompt, each part remembering the card it came from; the set's pictures go into References
+export function compile(card) {
+  const b = card.brick, set = get(b.set), s = set?.brick.snapshot;
+  if (!s) throw new Error(`${card.title}: its set ${b.set} isn't in the Library`);
+  const part = (field, text, from) => (text ? [{ field, text: text[0].toUpperCase() + text.slice(1), from }] : []); // each part reads as a sentence
+  const cam = b.setup && coverage(s).find((c) => c.name === b.setup);
+  if (b.setup && !cam) throw new Error(`${card.title}: "${b.setup}" isn't a setup for this set's two actors`);
+  const parts = [
+    ...part("beat", `${b.beat}.`, card.id),
+    ...(b.characters ?? []).map(get).filter(Boolean).flatMap((c) => part("character", `${cues(c).join(", ")}.`, c.id)),
+    ...part("set", setBlock(s), set.id),
+    ...part("blocking", blocking(s), set.id),
+    ...part("camera", cam && `Camera: ${cam.name.replace(/^OTS on/, "over the shoulder, on").replace(/^single/, "a single on")}, ${cam.lens} mm lens.`, set.id),
+    ...(b.principles ?? []).map(get).filter(Boolean).flatMap((p) => part("direction", cues(p).length ? `${cues(p).join(", ")}.` : "", p.id)),
+  ];
+  return { line: `integrated_multimodal_description: [${b.shot}] ${parts.map((x) => x.text).join(" ")}`, parts };
+}
+
+async function applyShot(card) {
+  const { line, parts } = compile(card), set = get(card.brick.set);
+  app.canvas.emitBeforeChange(); // the set pictures, the prompt line, the length and the record are one undo step
+  try {
+    await applySet(set, set.brick.snapshot, { prompt: false });
+    const [, ...rest] = (E.getValue("render", "render", "prompt") ?? "").split("\n");
+    E.setValues("render", "render", { prompt: [line, ...rest].join("\n"), ...(card.brick.length ? { length: card.brick.length } : {}) });
+    E.remember("render", "shot", { card: card.id, parts: parts.map(({ field, from, text }) => ({ field, from, text })) });
+  } finally { app.canvas.emitAfterChange(); }
+  return `${card.title}: compiled into the prompt (${parts.length} parts), set in References`;
 }
 
 // save the current stack as a recipe card in the user's Library
@@ -139,6 +171,10 @@ export async function apply(card) {
   const brick = TARGET[card.kind];
   if (!E.state().bricks.some((b) => b.key === brick)) throw new Error(`${card.title} goes on the ${brick} brick; add it first`);
   if (card.kind === "set_snapshot") return applySet(card);
+  if (card.kind === "shot") {
+    if (!E.state().bricks.some((x) => x.key === "refs")) throw new Error(`${card.title} needs the References brick for its set pictures; add it first`);
+    return applyShot(card);
+  }
   if (card.kind === "dial") {
     const rows = JSON.parse(E.getValue("rack", "rack", "rack") || "[]");
     if (rows.some((r) => r.dial === card.brick.dial)) return `${card.title} is already on the rack`;

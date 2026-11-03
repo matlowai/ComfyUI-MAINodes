@@ -1,0 +1,24 @@
+[
+ {
+  "id": "shot-letter",
+  "kind": "shot",
+  "example": true,
+  "title": "Shot 4: Kon hands Ferro the letter",
+  "text": "Kon steps forward and holds out the sealed letter; Ferro lowers the spyglass and turns to take it. Over Ferro's shoulder, in the lamp room at dusk.",
+  "brick": {
+   "shot": "shot 4",
+   "beat": "Kon steps forward and holds out the sealed letter; Ferro lowers the spyglass and turns to take it",
+   "set": "set-lamp-room-end-s3",
+   "characters": [
+    "char-kon",
+    "char-old-ferro"
+   ],
+   "setup": "OTS on Ferro",
+   "principles": [
+    "p-anticipation",
+    "p-follow-through"
+   ],
+   "length": 97
+  }
+ }
+]

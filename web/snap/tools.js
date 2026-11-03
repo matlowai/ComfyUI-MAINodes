@@ -166,6 +166,13 @@ export const TOOLS = [
     run: () => crew.report(),
   },
   {
+    name: "compile_shot",
+    description: "Preview what a shot card compiles to (the Render prompt's first line, and which card each part came from) without changing anything. apply_card on the shot card applies it.",
+    inputSchema: { type: "object", properties: { card: { type: "string" } }, required: ["card"] },
+    annotations: { readOnlyHint: true },
+    run: async ({ card }) => { await L.ready(); const c = L.get(card); if (c?.kind !== "shot") throw new Error(`No shot card ${card}`); return L.compile(c); },
+  },
+  {
     name: "list_proposals",
     description: "Proposals made with propose: true, with the person's answer: waiting, accepted (with the result), rejected or failed.",
     inputSchema: { type: "object", properties: {} },

@@ -151,6 +151,10 @@ export const STYLE = `
 .snap-brick.snap-folded { display: none; }
 .snap-fold { all: unset; cursor: pointer; font-size: 11px; color: var(--s-dim); padding: 2px 8px; border-radius: 999px; background: var(--s-bg); margin-left: 6px; }
 .snap-fold:hover { color: var(--s-fg); }
+.snap-shot-parts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 8px; }
+.snap-part { font-size: 10px; letter-spacing: .04em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; background: var(--s-bg); color: var(--s-dim); cursor: help; }
+.snap-part.beat { color: #f5d76e; } .snap-part.character { color: #f08fb8; } .snap-part.set, .snap-part.blocking { color: #7fd1c7; }
+.snap-part.camera { color: #a7b8ff; } .snap-part.direction { color: #f0b445; }
 .snap-quiet { color: var(--s-dim); font-size: 12px; margin-top: 6px; }
 .snap-empty { margin: 12vh auto 0; text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; }
 .snap-empty-title { font-size: 18px; font-weight: 600; }
