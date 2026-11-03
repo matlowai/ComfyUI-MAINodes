@@ -3,7 +3,7 @@
 // (pause_rendering), so the graph keeps its state but costs nothing. Switching flies each
 // brick card to the screen rect of its nodes (and back) on springs, so a second press mid-flight just reverses.
 import { app } from "../../../scripts/app.js";
-import { Spring, SPRINGS, animate, reducedMotion } from "./spring.js";
+import { Spring, SPRINGS, animate, stop, reducedMotion } from "./spring.js";
 import * as E from "./engine.js";
 
 export function createSwitch(view) {
@@ -52,26 +52,25 @@ export function createSwitch(view) {
     return [target.left - card.left, target.top - card.top, target.width / card.width, target.height / card.height];
   }
 
+  // cards fly on their own springs, but the switch ends when the veil does: then every card is reset and the flight
+  // record cleared, even if a drag or a re-render took a card's animation over mid-flight
   function fly(to, done) {
     const cards = reducedMotion() ? [] : [...view.stack.querySelectorAll("[data-brick]")];
-    let left = cards.length + 1;
-    const finish = () => { if (--left === 0) done(); };
     for (const el of cards) {
       const key = el.dataset.brick;
       let sp = flights.get(key);
-      const target = to === "graph" ? toNodes(el) : [0, 0, 1, 1];
       if (!sp) { sp = new Spring(to === "graph" ? [0, 0, 1, 1] : toNodes(el), SPRINGS.view, [0.5, 0.5, 0.002, 0.002]); flights.set(key, sp); }
-      sp.set(target);
+      sp.set(to === "graph" ? toNodes(el) : [0, 0, 1, 1]);
       el.style.transformOrigin = "0 0";
       el.style.willChange = "transform";
-      animate(el, sp, ([x, y, sx, sy]) => { el.style.transform = `translate3d(${x}px,${y}px,0) scale(${sx},${sy})`; }, () => {
-        flights.delete(key);
-        el.style.transform = ""; el.style.willChange = "";
-        finish();
-      });
+      animate(el, sp, ([x, y, sx, sy]) => { el.style.transform = `translate3d(${x}px,${y}px,0) scale(${sx},${sy})`; });
     }
     veil.set([to === "graph" ? 0 : 1], { params: reducedMotion() ? SPRINGS.fade : SPRINGS.view });
-    animate(root, veil, ([v]) => root.style.setProperty("--veil", Math.max(0, Math.min(1, v))), finish);
+    animate(root, veil, ([v]) => root.style.setProperty("--veil", Math.max(0, Math.min(1, v))), () => {
+      for (const el of view.stack.querySelectorAll("[data-brick]")) { stop(el); el.style.transform = ""; el.style.willChange = ""; }
+      flights.clear();
+      done();
+    });
   }
 
   function toSnap() {

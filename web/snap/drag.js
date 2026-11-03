@@ -8,9 +8,10 @@ const smooth = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 
 export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, cardTarget }) {
   let d = null; // the live gesture
+  let settledAt = 0; // a drop springs into place and commits when it rests (~0.5 s); no new gesture before then
 
   root.addEventListener("pointerdown", (e) => {
-    if (e.button !== 0 || d || e.target.closest("button,input,select,textarea")) return;
+    if (e.button !== 0 || d || e.timeStamp < settledAt || e.target.closest("button,input,select,textarea")) return;
     const grip = e.target.closest("[data-grip]"), tile = e.target.closest("[data-source], [data-card]");
     if (!grip && !tile) return;
     const item = grip?.closest("[data-brick]");
@@ -20,7 +21,8 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, car
     (item ?? tile).classList.add("snap-pressed");
   });
 
-  root.addEventListener("pointermove", (e) => {
+  // move/up/cancel are heard on window: a re-render can detach the captured element mid-gesture
+  addEventListener("pointermove", (e) => {
     if (!d || e.pointerId !== d.id) return;
     for (const c of e.getCoalescedEvents?.() ?? [e]) d.samples.push([c.timeStamp, c.clientX, c.clientY]);
     if (d.samples.length > 24) d.samples.splice(0, d.samples.length - 24);
@@ -40,8 +42,8 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, car
       drop(cancelled, e.timeStamp);
     } else d = null;
   };
-  root.addEventListener("pointerup", (e) => end(e, false));
-  root.addEventListener("pointercancel", (e) => end(e, true));
+  addEventListener("pointerup", (e) => end(e, false));
+  addEventListener("pointercancel", (e) => end(e, true));
   root.addEventListener("lostpointercapture", (e) => end(e, true));
   root.addEventListener("keydown", (e) => { if (e.key === "Escape" && d?.started) { e.stopPropagation(); drop(true, e.timeStamp); } });
 
@@ -114,7 +116,9 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, car
     if (into) { const t = g.target.getBoundingClientRect(); to = [t.left + t.width / 2 - g.home.left - g.home.width / 2, t.top + 24 - g.home.top, 0.4]; }
     const sp = new Spring([cur.m41, cur.m42, cur.a], SPRINGS.drop, [0.5, 0.5, 0.002]);
     sp.set(to);
+    settledAt = performance.now() + 700;
     animate(g.ghost, sp, ([x, y, k]) => { g.ghost.style.transform = `translate3d(${x}px,${y}px,0) scale(${k})`; g.ghost.style.opacity = into ? Math.min(1, k * 1.6) : 1; }, () => {
+      settledAt = 0;
       g.ghost.remove();
       if (into) onCard?.(g.tile.dataset.card, g.target.dataset.brick);
     });
@@ -186,7 +190,9 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, car
       animate(el, spn, ([y]) => { el.style.transform = y ? `translate3d(0,${y}px,0)` : ""; });
     });
     stop(g.ghost);
+    settledAt = performance.now() + 700;
     animate(g.ghost, sp, ([x, y]) => { g.ghost.style.transform = `translate3d(${x}px,${y}px,0)`; }, () => {
+      settledAt = 0;
       for (const el of [g.ghost, ...g.others]) { stop(el); el.style.transform = ""; el.style.willChange = ""; }
       g.ghost.classList.remove("snap-lifted", "snap-acquired");
       if (!g.item) g.ghost.remove();

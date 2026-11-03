@@ -2,17 +2,17 @@
 the open page runs.
 The page owns the graph, so the server only relays a call to it over the websocket and waits for the page's answer."""
 import asyncio
-import itertools
 import json
+import secrets
 from pathlib import Path
 
 from aiohttp import web
 from server import PromptServer
 
 TIMEOUT = 30
-tools = []    # the tool table the open Snap page registered
-pending = {}  # call id -> future answered by /mainodes/snap/result
-ids = itertools.count(1)
+tools = []         # the tool table the open Snap page registered
+page = {"client": None}  # the websocket client id of the tab that registered last; calls go only to it
+pending = {}       # call id -> future answered by /mainodes/snap/result
 
 
 def error(message, status=400):
@@ -24,7 +24,9 @@ routes = PromptServer.instance.routes
 
 @routes.post("/mainodes/snap/register")
 async def register(request):
-    tools[:] = (await request.json())["tools"]
+    body = await request.json()
+    tools[:] = body["tools"]
+    page["client"] = body["client"]
     return web.json_response({"tools": len(tools)})
 
 
@@ -36,13 +38,13 @@ async def listing(request):
 @routes.post("/mainodes/snap/call")
 async def call(request):
     body = await request.json()
-    if not tools:
+    if not tools or page["client"] not in PromptServer.instance.sockets:
         return error("No Snap page is open: open ComfyUI in a browser first.", 503)
     if body.get("tool") not in {t["name"] for t in tools}:
         return error(f"Unknown Snap tool {body.get('tool')!r}.", 404)
-    call_id = str(next(ids))
+    call_id = secrets.token_hex(8)
     pending[call_id] = asyncio.get_running_loop().create_future()
-    await PromptServer.instance.send("mainodes-snap-call", {"id": call_id, "tool": body["tool"], "args": body.get("args") or {}})
+    await PromptServer.instance.send("mainodes-snap-call", {"id": call_id, "tool": body["tool"], "args": body.get("args") or {}}, page["client"])
     try:
         return web.json_response(await asyncio.wait_for(pending[call_id], TIMEOUT))
     except TimeoutError:
@@ -55,7 +57,7 @@ async def call(request):
 async def result(request):
     body = await request.json()
     future = pending.get(str(body.get("id")))
-    if future and not future.done():  # with several tabs open the first answer wins
+    if future and not future.done() and body.get("client") == page["client"]:
         future.set_result({k: body[k] for k in ("result", "error") if k in body})
     return web.json_response({})
 

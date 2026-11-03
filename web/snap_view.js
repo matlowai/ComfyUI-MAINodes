@@ -7,7 +7,7 @@ import * as engine from "./snap/engine.js";
 import { createView } from "./snap/view.js";
 import { createSwitch } from "./snap/switch.js";
 import { STYLE } from "./snap/style.js";
-import { callTool, schema, registerWebMCP } from "./snap/tools.js";
+import { callTool, schema, readOnly, registerWebMCP } from "./snap/tools.js";
 
 let view, sw;
 const seen = new Set(), pending = [];
@@ -27,6 +27,7 @@ function announce() {
 
 // App mode only reads linearData when a workflow loads, so the recipe is reloaded in place with its brick faces as the app
 async function makeApp() {
+  engine.tidy();
   const wf = app.graph.serialize();
   wf.extra.linearData = engine.appData();
   wf.extra.linearMode = true;
@@ -39,9 +40,9 @@ async function makeApp() {
 async function agentCall(name, args) {
   const before = sw.showing ? new Map([...view.stack.querySelectorAll("[data-brick]")].map((el) => [el.dataset.brick, el.getBoundingClientRect()])) : null;
   const result = await callTool(name, args);
-  if (sw.showing && !name.startsWith("list_") && !name.startsWith("describe_") && !name.startsWith("explain_")) {
+  if (sw.showing && !readOnly(name)) {
     view.render(before, args?.brick);
-    view.say(`Agent: ${name.replace("_", " ")} ${args?.brick ?? ""} ${args?.name ? `${args.name} = ${JSON.stringify(args.value)}` : ""}`.trim());
+    view.say(`Agent: ${name.replaceAll("_", " ")} ${args?.brick ?? args?.card ?? ""} ${args?.name ? `${args.name} = ${JSON.stringify(args.value)}` : ""}`.trim());
   }
   return result;
 }
@@ -62,11 +63,16 @@ app.registerExtension({
     document.body.append(view.root);
     sw = createSwitch(view);
     registerWebMCP(agentCall);
-    api.fetchApi("/mainodes/snap/register", { method: "POST", body: JSON.stringify({ tools: schema() }) });
+    // the bridge sends agent calls to one tab: the one registered last (this tab registers when it loads, regains
+    // focus, or reconnects after a server restart)
+    const register = () => api.fetchApi("/mainodes/snap/register", { method: "POST", body: JSON.stringify({ client: api.clientId, tools: schema() }) });
+    if (api.clientId) register(); else api.addEventListener("status", register, { once: true }); // the id arrives with the first status
+    addEventListener("focus", register);
+    api.addEventListener("reconnected", register);
     api.addEventListener("mainodes-snap-call", async ({ detail }) => {
       let reply;
       try { reply = { id: detail.id, result: await agentCall(detail.tool, detail.args) }; } catch (e) { reply = { id: detail.id, error: e.message }; }
-      api.fetchApi("/mainodes/snap/result", { method: "POST", body: JSON.stringify(reply) });
+      api.fetchApi("/mainodes/snap/result", { method: "POST", body: JSON.stringify({ client: api.clientId, ...reply }) });
     });
     // graph edits, undo and workflow loads all land here; overrides made in the graph are announced once, in Snap
     api.addEventListener("graphChanged", () => {

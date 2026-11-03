@@ -6,11 +6,13 @@ import { api } from "../../../scripts/api.js";
 import { BRICKS } from "./bricks.js";
 
 const GAP = 80;
+const COLUMN = { models: 0, preset: 0, rack: 1, first_frame: 1, refs: 1, render: 2 };
+const column = (key) => COLUMN[key] ?? COLUMN[BRICKS[key].attach?.brick] ?? 0;
+const EMPTY = Object.freeze({ version: 1, bricks: Object.freeze([]), bindings: Object.freeze([]) });
 
-export function state() {
-  const extra = (app.graph.extra ??= {});
-  return (extra.snap ??= { version: 1, bricks: [], bindings: [] });
-}
+// the recipe record; reading never writes it, so a workflow that never used Snap stays untouched
+export const state = () => app.graph.extra?.snap ?? EMPTY;
+const record = () => ((app.graph.extra ??= {}).snap ??= { version: 1, bricks: [], bindings: [] });
 
 // one undo step for a batch of edits (the same pair the node library's paste path emits)
 function transaction(fn) {
@@ -34,73 +36,68 @@ function insertBlueprint(bp, position) {
 
 const node = (id) => app.graph.getNodeById(id);
 const widget = (n, name) => n?.widgets?.find((w) => w.name === name);
+const brick = (key) => state().bricks.find((b) => b.key === key);
 
 export function nodeFor(brickKey, nodeKey) {
-  const b = state().bricks.find((x) => x.key === brickKey);
+  const b = brick(brickKey);
   return b && node(b.nodes[nodeKey]);
 }
 
-export function setValue(brickKey, nodeKey, name, value) {
-  const n = nodeFor(brickKey, nodeKey), w = widget(n, name);
-  if (!w) throw new Error(`${brickKey}: no setting "${name}"`);
-  transaction(() => { w.value = value; w.callback?.(value); });
+// several settings on one brick node as one undo step
+export function setValues(brickKey, nodeKey, values) {
+  const n = nodeFor(brickKey, nodeKey);
+  const ws = Object.keys(values).map((name) => widget(n, name) ?? (() => { throw new Error(`${brickKey}: no setting "${name}"`); })());
+  transaction(() => { for (const w of ws) { w.value = values[w.name]; w.callback?.(w.value); } });
   app.canvas.setDirty(true, true);
 }
+
+export const setValue = (brickKey, nodeKey, name, value) => setValues(brickKey, nodeKey, { [name]: value });
 
 export function getValue(brickKey, nodeKey, name) {
   return widget(nodeFor(brickKey, nodeKey), name)?.value;
 }
 
-function column(key) {
-  const order = ["models", "preset", "rack", "first_frame", "refs", "render", "upscale"];
-  const i = order.indexOf(key);
-  return { models: 0, preset: 0, rack: 1, first_frame: 1, refs: 1, render: 2 }[key] ?? Math.max(i, 0);
+// the node of brick `key` that provides output `[nodeKey, slotName]`, if the user hasn't deleted it
+function provider(key, [nodeKey, out]) {
+  const src = nodeFor(key, nodeKey), o = src?.findOutputSlot(out);
+  return src && o >= 0 ? { src, o } : null;
 }
 
 // pack rule first (role names match), then a unique type match from the nearest brick upstream
-function resolve(toBrick, role, [toKey, inputName]) {
-  const s = state();
-  const dst = node(s.bricks.find((b) => b.key === toBrick).nodes[toKey]);
-  const slot = dst?.findInputSlot(inputName);
-  if (!dst || slot < 0) return null;
-  const order = s.bricks.map((b) => b.key);
-  const upstream = order.slice(0, order.indexOf(toBrick)).reverse().concat(order.slice(order.indexOf(toBrick) + 1));
+function resolve(toBrick, role, type) {
+  const order = state().bricks.map((b) => b.key), at = order.indexOf(toBrick);
+  const upstream = order.slice(0, at).reverse().concat(order.slice(at + 1));
   for (const key of upstream) {
     const out = BRICKS[key].provides?.[role];
-    if (out) return { from: key, out, rule: `pack:${key}.${role}` };
+    if (out && provider(key, out)) return { from: key, out, rule: `pack:${key}.${role}` };
   }
-  const type = dst.inputs[slot].type;
   for (const key of upstream) {
-    const hits = Object.entries(BRICKS[key].provides ?? {}).filter(([, [nk, o]]) => {
-      const src = node(s.bricks.find((b) => b.key === key).nodes[nk]);
-      return src?.outputs[src.findOutputSlot(o)]?.type === type;
+    const hits = Object.values(BRICKS[key].provides ?? {}).filter((out) => {
+      const p = provider(key, out);
+      return p && p.src.outputs[p.o].type === type;
     });
-    if (hits.length === 1) return { from: key, out: hits[0][1], rule: `inferred:${type}` };
+    if (hits.length === 1) return { from: key, out: hits[0], rule: `inferred:${type}` };
   }
   return null;
 }
 
-// (re)bind every brick input that has a provider; returns the bindings made
+// (re)bind every brick input that has a provider; inputs the user rewired or cleared in the graph are left alone
 function bindAll() {
-  const s = state(), made = [];
+  const s = record(), made = [];
   for (const b of s.bricks) {
-    for (const [role, target] of Object.entries(BRICKS[b.key].needs ?? {})) {
+    for (const [role, [nodeKey, inputName]] of Object.entries(BRICKS[b.key].needs ?? {})) {
+      const dst = node(b.nodes[nodeKey]), i = dst?.findInputSlot(inputName);
+      if (!dst || i < 0) continue;
       const existing = s.bindings.find((x) => x.to === b.key && x.role === role);
-      if (existing?.override) continue;
-      const r = resolve(b.key, role, target);
+      const link = app.graph.getLink(dst.inputs[i].link);
+      if (existing ? String(link?.origin_id) !== String(existing.origin) : link) continue; // the user's wiring wins
+      const r = resolve(b.key, role, dst.inputs[i].type);
       if (!r) continue;
-      const src = node(s.bricks.find((x) => x.key === r.from).nodes[r.out[0]]);
-      const dst = node(b.nodes[target[0]]);
-      const o = src.findOutputSlot(r.out[1]), i = dst.findInputSlot(target[1]);
-      if (dst.inputs[i].link != null) {
-        if (!existing) continue; // wired by hand: leave it
-        const l = app.graph.getLink(dst.inputs[i].link);
-        if (l && l.origin_id === src.id && l.origin_slot === o) continue;
-      }
-      const link = src.connect(o, dst, i);
-      if (!link) continue;
-      const binding = { to: b.key, role, input: target[1], from: r.from, output: r.out[1], rule: r.rule, link: link.id, origin: src.id, target: dst.id };
-      s.bindings = s.bindings.filter((x) => !(x.to === b.key && x.role === role));
+      const { src, o } = provider(r.from, r.out);
+      if (link && link.origin_id === src.id && link.origin_slot === o) continue;
+      if (!src.connect(o, dst, i)) continue;
+      const binding = { to: b.key, role, input: inputName, from: r.from, output: r.out[1], rule: r.rule, origin: src.id, target: dst.id };
+      s.bindings = s.bindings.filter((x) => x !== existing);
       s.bindings.push(binding);
       made.push(binding);
     }
@@ -108,37 +105,49 @@ function bindAll() {
   return made;
 }
 
-export async function snap(key, { values, at } = {}) {
-  const def = BRICKS[key], s = state();
-  if (s.bricks.some((b) => b.key === key)) return { brick: key, bindings: [] };
+// an insert index that never splits a host from its attachments
+function boundary(bricks, index) {
+  while (BRICKS[bricks[index]?.key]?.attach) index++;
+  return index;
+}
+
+// snaps of the same brick share one call: a double click or an agent racing the user inserts it once
+const inflight = new Map();
+export function snap(key, options) {
+  if (!inflight.has(key)) inflight.set(key, snapOnce(key, options).finally(() => inflight.delete(key)));
+  return inflight.get(key);
+}
+
+async function snapOnce(key, { values, at } = {}) {
+  const def = BRICKS[key];
+  const bp = def.blueprint && !brick(key) ? await fetchBlueprint(def.blueprint) : null;
+  if (brick(key)) return { brick: key, bindings: [] }; // read after the fetch: the graph may have changed meanwhile
   if (def.attach) {
-    const host = s.bricks.findIndex((b) => b.key === def.attach.brick);
+    const host = state().bricks.findIndex((b) => b.key === def.attach.brick);
     if (host < 0) throw new Error(`${def.title} snaps onto ${BRICKS[def.attach.brick].title}; add that first`);
-    s.bricks.splice(host + 1, 0, { key, nodes: {} }); // attachments always sit right under their host
-    setValue(def.attach.brick, def.attach.brick, def.attach.widget, def.attach.on);
+    const w = widget(nodeFor(def.attach.brick, def.attach.brick), def.attach.widget);
+    if (!w) throw new Error(`${BRICKS[def.attach.brick].title} has no ${def.attach.widget} setting`);
+    transaction(() => {
+      w.value = def.attach.on; w.callback?.(w.value);
+      record().bricks.splice(host + 1, 0, { key, nodes: {} }); // attachments always sit right under their host
+    });
     return { brick: key, bindings: [{ to: def.attach.brick, role: def.attach.widget, rule: `pack:${key}.attach`, value: def.attach.on }] };
   }
+  const s = record();
   // graph layout: columns by role, each starting right of the widest node to its left, stacked below its column
   const nodesIn = (test) => s.bricks.filter((b) => test(column(b.key))).flatMap((b) => Object.values(b.nodes)).map(node).filter(Boolean);
-  const left = nodesIn((c) => c < column(key));
+  const left = nodesIn((c) => c < column(key)), below = nodesIn((c) => c === column(key));
   const x = left.length ? Math.max(...left.map((n) => n.pos[0] + n.size[0])) + GAP : 0;
-  const below = nodesIn((c) => c === column(key));
   const y = below.length ? Math.max(...below.map((n) => n.pos[1] + n.size[1])) + 80 : 0;
-  const bp = def.blueprint ? await fetchBlueprint(def.blueprint) : null;
   const bindings = transaction(() => {
     const ids = {};
-    const blueprintNode = bp && insertBlueprint(bp, [x, y]);
-    if (blueprintNode) {
-      ids[key] = blueprintNode.id;
-      blueprintNode.properties.snap = { brick: key, version: 1 };
-    }
+    if (bp) ids[key] = insertBlueprint(bp, [x, y]).id;
     let dy = 0;
     for (const spec of def.nodes ?? []) {
       const n = LiteGraph.createNode(spec.type);
       if (!n) throw new Error(`Node type ${spec.type} is not installed`);
       n.pos = [x, y + dy];
       if (spec.title) n.title = spec.title;
-      n.properties.snap = { brick: key, version: 1 };
       app.graph.add(n);
       for (const [name, v] of Object.entries({ ...spec.values, ...values?.[spec.key] })) {
         const w = widget(n, name);
@@ -148,7 +157,7 @@ export async function snap(key, { values, at } = {}) {
       dy += (n.size?.[1] ?? 120) + 40;
     }
     const placed = Object.fromEntries(Object.values(ids).map((id) => [id, [...node(id).pos]]));
-    s.bricks.splice(at ?? s.bricks.length, 0, { key, nodes: ids, placed });
+    s.bricks.splice(boundary(s.bricks, at ?? s.bricks.length), 0, { key, nodes: ids, placed });
     return bindAll();
   });
   app.canvas.setDirty(true, true);
@@ -159,27 +168,25 @@ export async function snap(key, { values, at } = {}) {
 // (H3 References takes 9), recorded with its role and reason so the brick can show what each picture is for
 export const PICTURE_SLOTS = 9;
 export function addPicture(file, { role, reason }) {
-  const s = state(), b = s.bricks.find((x) => x.key === "refs");
+  const b = brick("refs");
   if (!b) throw new Error("Add the References brick first");
-  b.pictures ??= [];
-  if (b.pictures.some((p) => p.file === file)) return b.pictures.find((p) => p.file === file);
-  if (b.pictures.length >= PICTURE_SLOTS) throw new Error(`References holds ${PICTURE_SLOTS} pictures; remove one first`);
+  const pictures = b.pictures ?? [];
+  if (pictures.some((p) => p.file === file)) return pictures.find((p) => p.file === file);
+  if (pictures.length >= PICTURE_SLOTS) throw new Error(`References holds ${PICTURE_SLOTS} pictures; remove one first`);
   const refs = node(b.nodes.refs);
   return transaction(() => {
     const n = LiteGraph.createNode("LoadImage");
     n.title = role;
-    n.pos = [refs.pos[0], refs.pos[1] + refs.size[1] + 80 + b.pictures.length * 340];
-    n.properties.snap = { brick: "refs", version: 1 };
+    n.pos = [refs.pos[0], refs.pos[1] + refs.size[1] + 80 + pictures.length * 340];
     app.graph.add(n);
     const w = widget(n, "image");
     if (!w.options.values.includes(file)) w.options.values.push(file);
     w.value = file;
-    const slot = refs.inputs.findIndex((i) => i.name.startsWith("ref_images.") && i.link == null);
-    n.connect(0, refs, slot);
+    n.connect(0, refs, refs.inputs.findIndex((i) => i.name.startsWith("ref_images.") && i.link == null));
     const picture = { node: n.id, file, role, reason };
     b.nodes[`picture_${n.id}`] = n.id;
     b.placed[n.id] = [...n.pos];
-    b.pictures.push(picture);
+    b.pictures = [...pictures, picture];
     return picture;
   });
 }
@@ -207,8 +214,8 @@ export function tidy() {
   transaction(() => { for (const [b, n, pos] of moves) { n.pos = pos; b.placed[n.id] = [...pos]; } });
 }
 
-// reading order only: pack rules bind by role, so reordering never rewires
-// a host carries its attachments; an attachment can't leave its host
+// reading order only: pack rules bind by role, so reordering never rewires. A host carries its attachments; an
+// attachment can't leave its host; `index` counts the list without the moved brick (what a drag reports)
 export function move(key, index) {
   const s = state(), i = s.bricks.findIndex((b) => b.key === key);
   if (i < 0 || BRICKS[key].attach) return;
@@ -216,7 +223,7 @@ export function move(key, index) {
   while (BRICKS[s.bricks[i + n]?.key]?.attach?.brick === key) n++;
   transaction(() => {
     const group = s.bricks.splice(i, n);
-    s.bricks.splice(index > i ? index - n + 1 : index, 0, ...group);
+    s.bricks.splice(boundary(s.bricks, index > i ? index - n + 1 : index), 0, ...group);
   });
 }
 
@@ -230,32 +237,33 @@ export function nudge(key, dir) {
   transaction(() => { s.bricks = groups.flat(); });
 }
 
+// removing a host removes its attachments with it
 export function unsnap(key) {
-  const s = state(), b = s.bricks.find((x) => x.key === key);
+  const s = state(), b = brick(key);
   if (!b) return;
+  const gone = new Set([key, ...s.bricks.filter((x) => BRICKS[x.key].attach?.brick === key).map((x) => x.key)]);
   const def = BRICKS[key];
   transaction(() => {
-    if (def.attach) setValue(def.attach.brick, def.attach.brick, def.attach.widget, def.attach.off);
+    if (def.attach) { const w = widget(nodeFor(def.attach.brick, def.attach.brick), def.attach.widget); if (w) { w.value = def.attach.off; w.callback?.(w.value); } }
     for (const id of Object.values(b.nodes)) { const n = node(id); if (n) app.graph.remove(n); }
-    s.bricks = s.bricks.filter((x) => x.key !== key);
-    s.bindings = s.bindings.filter((x) => x.to !== key && x.from !== key);
+    s.bricks = s.bricks.filter((x) => !gone.has(x.key));
+    s.bindings = s.bindings.filter((x) => !gone.has(x.to) && !gone.has(x.from));
   });
   app.canvas.setDirty(true, true);
 }
 
 // a binding is overridden when its target input is now fed by something else (or nothing)
-export function overrides(workflow = app.graph.serialize()) {
-  // node ids are strings on nodes but numbers in serialized links
-  const feeds = new Map(workflow.links.map(([id, from, fromSlot, to, toSlot]) => [`${to}:${toSlot}`, { id, from: String(from), fromSlot }]));
+export function overrides() {
+  const s = state();
+  if (!s.bindings.length) return [];
   const out = [];
-  for (const b of state().bindings) {
+  for (const b of s.bindings) {
     if (b.target == null) continue;
-    const dst = node(b.target);
-    const slot = dst?.findInputSlot(b.input);
+    const dst = node(b.target), slot = dst?.findInputSlot(b.input);
     if (slot == null || slot < 0) continue;
-    const now = feeds.get(`${b.target}:${slot}`);
-    if (!now) out.push({ ...b, change: "removed" });
-    else if (now.from !== String(b.origin)) out.push({ ...b, change: "rewired", now: { node: now.from, slot: now.fromSlot } });
+    const link = app.graph.getLink(dst.inputs[slot].link);
+    if (!link) out.push({ ...b, change: "removed" });
+    else if (String(link.origin_id) !== String(b.origin)) out.push({ ...b, change: "rewired", now: { node: String(link.origin_id), slot: link.origin_slot } });
   }
   return out;
 }
@@ -278,7 +286,7 @@ export function appData() {
     const def = BRICKS[b.key];
     for (const [nodeKey, name, label] of def.face ?? []) {
       const id = b.nodes[nodeKey];
-      if (node(id)?.widgets?.some((w) => w.name === name)) inputs.push([`${app.graph.id}:${id}:${name}`, name, { description: `${def.title} · ${label}` }]);
+      if (widget(node(id), name)) inputs.push([`${app.graph.id}:${id}:${name}`, name, { description: `${def.title} · ${label}` }]);
     }
     if (def.blueprint) outputs.push(b.nodes[b.key]);
   }

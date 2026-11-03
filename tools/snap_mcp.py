@@ -21,10 +21,14 @@ def http(base, path, body=None):
     try:
         with urllib.request.urlopen(request, timeout=40) as response:
             return json.load(response)
-    except urllib.error.HTTPError as e:
-        return json.load(e)
-    except urllib.error.URLError as e:
-        return {"error": f"ComfyUI is not reachable at {base} ({e.reason})."}
+    except urllib.error.HTTPError as e:  # the bridge answers JSON; anything else (a plain 404, a 500 page) is passed on as text
+        text = e.read().decode(errors="replace")
+        try:
+            return json.loads(text)
+        except ValueError:
+            return {"error": f"ComfyUI answered {e.code}: {text[:200]}"}
+    except (urllib.error.URLError, TimeoutError) as e:
+        return {"error": f"ComfyUI is not reachable at {base} ({getattr(e, 'reason', e)})."}
 
 
 def handle(base, message):
@@ -44,6 +48,11 @@ def handle(base, message):
     raise LookupError(method)
 
 
+def reply(message):
+    sys.stdout.write(json.dumps(message) + "\n")
+    sys.stdout.flush()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--port", type=int, default=8188)
@@ -51,15 +60,19 @@ def main():
     for line in sys.stdin:
         if not line.strip():
             continue
-        message = json.loads(line)
+        try:
+            message = json.loads(line)
+        except ValueError:
+            reply({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Parse error"}})
+            continue
         if "id" not in message:  # notifications (initialized, cancelled) need no answer
             continue
         try:
-            reply = {"jsonrpc": "2.0", "id": message["id"], "result": handle(base, message)}
+            reply({"jsonrpc": "2.0", "id": message["id"], "result": handle(base, message)})
         except LookupError as e:
-            reply = {"jsonrpc": "2.0", "id": message["id"], "error": {"code": -32601, "message": f"Method not found: {e}"}}
-        sys.stdout.write(json.dumps(reply) + "\n")
-        sys.stdout.flush()
+            reply({"jsonrpc": "2.0", "id": message["id"], "error": {"code": -32601, "message": f"Method not found: {e}"}})
+        except Exception as e:  # one bad request must not end the session
+            reply({"jsonrpc": "2.0", "id": message["id"], "error": {"code": -32603, "message": f"{type(e).__name__}: {e}"}})
 
 
 if __name__ == "__main__":

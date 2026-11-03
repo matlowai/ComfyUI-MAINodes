@@ -14,8 +14,11 @@ function settingsOf(key) {
   if (!b) return [];
   return Object.entries(b.nodes).flatMap(([nodeKey, id]) => (app.graph.getNodeById(id)?.widgets ?? [])
     .filter((w) => w.name && !w.name.startsWith("$$") && w.type !== "button")
-    .map((w) => ({ node: nodeKey, name: w.name, value: w.value, ...(Array.isArray(w.options?.values) ? { choices: w.options.values.slice(0, 50) } : {}) })));
+    .map((w) => ({ node: nodeKey, name: w.name, value: w.value, ...(Array.isArray(w.options?.values) ? { choices: w.options.values } : {}) })));
 }
+
+// what an agent reads back: long choice lists (model folders) are cut to the first 50
+const shown = (settings) => settings.map((x) => (x.choices?.length > 50 ? { ...x, choices: [...x.choices.slice(0, 50), `… ${x.choices.length - 50} more`] } : x));
 
 export const TOOLS = [
   {
@@ -34,14 +37,14 @@ export const TOOLS = [
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
     run: () => ({
-      bricks: E.describe().map((b) => ({ brick: b.brick, title: b.title, bindings: b.bindings, settings: settingsOf(b.brick) })),
+      bricks: E.describe().map((b) => ({ brick: b.brick, title: b.title, bindings: b.bindings, settings: shown(settingsOf(b.brick)) })),
       overridden_in_graph: E.overrides().map((o) => ({ brick: o.to, role: o.role, change: o.change })),
       missing: E.missing(),
     }),
   },
   {
     name: "snap",
-    description: "Add a brick to the recipe (after `after`, or at the end). Returns the bindings it made. Fails with a reason if the brick is already there or needs a host brick first.",
+    description: "Add a brick to the recipe (after `after`, or at the end). Returns the bindings it made. A brick that is already there is left as it is (no bindings returned); an attachment fails with a reason if its host brick is missing.",
     inputSchema: { type: "object", properties: { brick: brickEnum, after: brickEnum }, required: ["brick"] },
     run: async ({ brick, after }) => {
       const keys = E.state().bricks.map((b) => b.key);
@@ -67,7 +70,7 @@ export const TOOLS = [
     run: ({ brick, name, value }) => {
       const s = settingsOf(brick).find((x) => x.name === name);
       if (!s) throw new Error(`${brick} has no setting "${name}"; it has ${settingsOf(brick).map((x) => x.name).join(", ")}`);
-      if (s.choices && !s.choices.includes(value)) throw new Error(`"${value}" is not a choice for ${brick}.${name}; choices: ${s.choices.join(", ")}`);
+      if (s.choices && !s.choices.includes(value)) throw new Error(`"${value}" is not a choice for ${brick}.${name}; choices: ${s.choices.slice(0, 50).join(", ")}${s.choices.length > 50 ? ", …" : ""}`);
       E.setValue(brick, s.node, name, value);
       return { brick, name, value: E.getValue(brick, s.node, name) };
     },
@@ -108,6 +111,7 @@ export const TOOLS = [
 ];
 
 const byName = new Map(TOOLS.map((t) => [t.name, t]));
+export const readOnly = (name) => !!byName.get(name)?.annotations?.readOnlyHint;
 
 export async function callTool(name, args = {}) {
   const tool = byName.get(name);

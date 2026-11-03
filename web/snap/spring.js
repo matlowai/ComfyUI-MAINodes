@@ -65,9 +65,14 @@ function tick(now) {
   const dt = last ? (now - last) / 1000 : 1 / 60;
   last = now;
   for (const [key, a] of running) {
-    const rest = a.spring.step(dt);
-    a.apply(a.spring.x);
-    if (rest) { running.delete(key); a.done?.(); }
+    try {
+      const rest = a.spring.step(dt);
+      a.apply(a.spring.x);
+      if (rest) { running.delete(key); a.done?.(); }
+    } catch (e) { // one broken callback must not stop every other animation
+      running.delete(key);
+      reportError(e);
+    }
   }
   frame = running.size ? requestAnimationFrame(tick) : (last = 0);
 }
@@ -78,10 +83,6 @@ export function animate(key, spring, apply, done) {
 }
 
 export function stop(key) { running.delete(key); }
-export const isRunning = (key) => running.has(key);
-
-// iOS-style rubber band past an edge: x = overshoot, d = dimension
-export const rubber = (x, d) => (1 - 1 / ((Math.abs(x) * 0.55) / d + 1)) * d * Math.sign(x);
 
 // where a throw would come to rest with UIScrollView's normal deceleration (0.998 per ms)
 export const project = (pos, velocity) => pos + (velocity / 1000) * 0.998 / (1 - 0.998);

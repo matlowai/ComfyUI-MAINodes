@@ -133,7 +133,8 @@ export function createView({ onSwitch, onMakeApp }) {
     } catch (err) { say(err.message, true); }
   }
 
-  async function buildSimple() {
+  async function buildSimple(e) {
+    e.currentTarget.disabled = true; // snap() already dedupes per brick; this keeps the button honest too
     for (const key of SIMPLE_RECIPE) await E.snap(key);
     select("render", false);
     render(null);
@@ -194,10 +195,13 @@ export function createView({ onSwitch, onMakeApp }) {
         const v = v0 + Math.round((m.clientX - x0) / 4) * step * k;
         input.value = Number.isInteger(step) ? Math.round(v) : v.toFixed(2);
       };
-      const up = () => { labelEl.removeEventListener("pointermove", move); set(Number(input.value)); };
+      const up = () => {
+        for (const [ev, fn] of [["pointermove", move], ["pointerup", up], ["pointercancel", up]]) labelEl.removeEventListener(ev, fn);
+        set(Number(input.value));
+      };
       labelEl.addEventListener("pointermove", move);
-      labelEl.addEventListener("pointerup", up, { once: true });
-      labelEl.addEventListener("pointercancel", up, { once: true });
+      labelEl.addEventListener("pointerup", up);
+      labelEl.addEventListener("pointercancel", up);
     });
   }
 
@@ -272,7 +276,7 @@ export function createView({ onSwitch, onMakeApp }) {
   function renderInspector() {
     const info = E.describe().find((b) => b.brick === selected);
     const sig = info ? `${selected}|${signature(info)}|${JSON.stringify(Object.values(info.nodes).map((id) => app.graph.getNodeById(id)?.widgets?.map((w) => w.value)))}` : "";
-    if (sig && sig === inspectorSig) return;
+    if (sig && (sig === inspectorSig || (inspector.contains(document.activeElement) && inspectorSig.startsWith(`${selected}|`)))) return;
     inspectorSig = sig;
     if (!info) { inspector.replaceChildren(h("div", { className: "snap-quiet", textContent: "select a brick" })); return; }
     const def = BRICKS[info.brick];
@@ -302,7 +306,8 @@ export function createView({ onSwitch, onMakeApp }) {
 
   function reuse(info) {
     const sig = signature(info), was = built.get(info.brick);
-    if (was?.sig === sig) { was.el.classList.toggle("selected", selected === info.brick); return was.el; }
+    // a brick being typed in keeps its element: its controls already show the new value, and rebuilding drops focus
+    if (was?.sig === sig || was?.el.contains(document.activeElement)) { was.el.classList.toggle("selected", selected === info.brick); return was.el; }
     const el = brickEl(info);
     built.set(info.brick, { el, sig });
     return el;

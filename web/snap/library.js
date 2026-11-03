@@ -10,7 +10,9 @@ export const KIND_LABEL = { set_snapshot: "Set snapshots", character: "Character
 
 let cards = [], loading;
 // cards load once per page; the view and the agent tools both wait on the same request
-export const ready = () => (loading ??= api.fetchApi("/mainodes/snap/cards").then((r) => r.json()).then((d) => (cards = d.cards)));
+// kinds no brick takes are dropped; a failed load is retried on the next call
+export const ready = () => (loading ??= api.fetchApi("/mainodes/snap/cards").then((r) => r.json())
+  .then((d) => (cards = d.cards.filter((c) => TARGET[c.kind])), (e) => { loading = null; throw e; }));
 export const get = (id) => cards.find((c) => c.id === id);
 
 export function search(query, brick) {
@@ -84,8 +86,7 @@ export async function apply(card) {
     const w = E.nodeFor("preset", "preset").widgets.find((x) => x.name === "lora");
     const file = w.options.values.find((v) => String(v).split(/[\\/]/).pop() === card.brick.lora);
     if (!file) throw new Error(`${card.brick.lora} is not installed here`);
-    E.setValue("preset", "preset", "lora", file);
-    E.setValue("preset", "preset", "lora_strength", card.brick.strength);
+    E.setValues("preset", "preset", { lora: file, lora_strength: card.brick.strength });
     return `${card.title} on the Render Preset`;
   }
   if (card.kind === "run") {
