@@ -2,6 +2,16 @@
 
 Newest first. The README carries only the latest headline.
 
+**Dials: the Simple front door, and review fixes** (2026-11-02, alpha). One Render Preset node now switches the whole
+render recipe (model, LoRA, shifts, FL2V or Ref2V, sampler, schedule, de-rope steps, cfg; *Pika H3 Flex*, *Pika +
+reference pictures*, *DMAD speed LoRA*, or Save as your own), H3 De-rope Sigmas builds the de-rope schedule from it, and
+one blueprint (`Dials - H3 + De-rope`) takes the prompt and de-rope choice (off, oracle, flat). Make Dial from Pictures
+takes folders inside `input/`; Combine Dials is an output node. Fixes: video dials sampled the wrong frames at frame
+rates other than 24 fps; post dials missed clones carrying their own model copy; the rack re-runs when a dial file it
+names is saved again; Make Dial encodes every prompt before loading the model, so a low-VRAM encoder load can no
+longer evict it. The first Simple workflow moved to `examples/dials/_archive/`.
+Guide: [`dials/README.md`](../dials/README.md#simple-start).
+
 **Dials 1.2.0** (2026-11-01, alpha). Training-free steering sliders, merged from the `dials-rack` branch: the Dial Rack
 (map, interaction matrix, influence wheel), the dial editor, picture dials, per-block strengths, clip-time curves with a
 mouse editor, the hold-map link for de-rope, and MOSS-Image / Krea 2 detection. Guide: [`dials/README.md`](../dials/README.md).

@@ -114,7 +114,8 @@ model (chunked feed-forward, head-chunked attention; same math) and KJ's Load Im
 1. **Render Preset** (left): pick a preset in its list. A preset is a whole render recipe and switching changes all of it
    together: model, LoRA, flow shifts, FL2V or Ref2V, **sampler**, the **stage-1 schedule and steps**, de-rope steps and
    cfg. *Pika H3 Flex* is `lcm` on Pika's six manual sigmas; *DMAD speed LoRA* is `lcm` on the `simple` schedule,
-   6 steps at LoRA 0.8 with audio shift 2 (the DMAD authors' sampler and shifts, the community's strength and steps); *Pika + reference pictures* is Pika with Ref2V. To keep your own, change the fields
+   6 steps at LoRA 0.8 with audio shift 2 (the DMAD authors' sampler and shifts, the community's strength and steps); *Pika + reference pictures* is Pika with Ref2V. In our [turbo comparison](https://matlowai.github.io/flipbook/turbo.html)
+   (12 prompts, 2 seeds) Pika H3 Flex had the cleaner audio and more detail; DMAD's audio floor ran 7-8 dB noisier. To keep your own, change the fields
    and **Save as** a new name. Set the sampler and schedule together with the LoRA: a distilled LoRA only works on the
    schedule it was distilled for.
 2. **Dial Rack**: tick a dial, drag its strength (about 1 is everyday, 1.5 shows side effects). Each row shows **steps**

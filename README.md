@@ -90,9 +90,9 @@ simple Load/Apply Dial nodes, is [ComfyUI-Dials](https://github.com/matlowai/Com
 |---|---|
 | **Make a dial from prompts** | `A ||| B` pairs, prompt sets with weights, hold pairs (`!`) that keep a quality fixed |
 | **Make a dial from pictures or clips** | two groups of pictures of any size (or matched video clips); pick how they are read: `content`, `look`, `bare`, `all averaged` or your own sentence |
-| **Dial Rack** | any number of dials on one model: on/off, strength, solo, and **H** to hold a direction out of the mix. Row order never changes the result |
+| **Dial Rack** | any number of dials on one model: on/off, strength, solo, and **H** to hold a direction out of the mix. Row order should not change the result (one render did; under investigation) |
 | **See what dials do** | a 2D map of two dials with their useful and overcooked ranges, an interaction matrix (who reinforces or cancels whom), a "who pushes" bar, and an influence wheel over 14 probe axes (motion, light, colour, mood, voice...) |
-| **Edit a dial** | open a dial, see its probe profile, drag bars to add or remove a component (say, take the colour out of a dial), and export a new dial with its parentage recorded |
+| **Edit a dial** | open a dial, see its probe profile, drag bars to add or remove a component (say, take the colour out of a dial), and export a new dial with its parentage recorded; Combine Dials mixes two dials into one file |
 | **Control it over time** | draw a strength curve over the clip with the mouse (click to add a point, drag, double-click to delete, snap to seconds or beats) or drive it from audio; the dial switches inside one generation, not in a second pass |
 | **Control it over depth** | a 50-cell strip sets how much of the dial each DiT block gets |
 | **Keep audio clean** | an "audio: protect" option leaves the soundtrack undialled (measured: speech errors 0.29 to 0.00 in 3 of 4 cases) |
@@ -150,7 +150,7 @@ existing installs.
   init and Dials are alpha: [`ALPHA.md`](ALPHA.md) says what each can do and
   where it was tested. Alpha nodes carry `(alpha)` in the menu and load
   behind a guarded loader, so a broken one cannot take the pack down.
-- **What's new:** Dials 1.2.0 (2026-11-01). Older notes in
+- **What's new:** Dials Simple front door (Render Preset + one blueprint) and review fixes (2026-11-02). Older notes in
   [`docs/NEWS.md`](docs/NEWS.md); open questions in [`ROADMAP.md`](ROADMAP.md).
 
 ## Install
