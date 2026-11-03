@@ -1,0 +1,44 @@
+{
+  "1": {
+    "class_type": "RelayVSRModelSettings",
+    "inputs": {
+      "variant": "X4 original (recommended, also for 2x)",
+      "lightx2v_root": "auto",
+      "model_dir": "auto",
+      "python_executable": "auto",
+      "execution_mode": "single GPU",
+      "gpu_ids": "0",
+      "output_scale": "2",
+      "compile_model": false,
+      "warmup": false,
+      "clip_len": 16,
+      "queue_size": 4,
+      "codec": "libx264",
+      "crf": 17,
+      "preserve_audio": true,
+      "unload_comfy_models": true
+    }
+  },
+  "2": {
+    "class_type": "LoadVideo",
+    "inputs": {
+      "file": "REPLACE_WITH_UPLOADED_VIDEO.mp4"
+    }
+  },
+  "3": {
+    "class_type": "RelayVSRUpscaleVideo",
+    "inputs": {
+      "settings": [
+        "1",
+        0
+      ],
+      "video": [
+        "2",
+        0
+      ],
+      "output_subfolder": "relayvsr",
+      "filename_prefix": "relayvsr_x2",
+      "seed": 42
+    }
+  }
+}

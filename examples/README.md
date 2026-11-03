@@ -17,11 +17,13 @@ The folder has three tiers:
 
 | you want | graph | needs |
 |---|---|---|
+| **the recommended starting point** | [`dials/dials_simple_pika_derope.json`](dials/dials_simple_pika_derope.json) | Pika H3 Flex + de-rope behind one Render Preset and one blueprint, with the Dial Rack; core ComfyUI only (a [`_kj`](dials/dials_simple_pika_derope_kj.json) variant adds KJNodes' VRAM savers). Guide: [`../dials/README.md`](../dials/README.md#simple-start) |
 | **a long clip, short renders** | [`motion_pipeline_extend_api.json`](motion_pipeline_extend_api.json) | alpha, API form; 141-frame segments chained by writing the last 39 frames into the next segment's latent under a per-token mask. Below |
-| **the normal starting point** | [`motion_pipeline_ref2va_audioinit.json`](motion_pipeline_ref2va_audioinit.json) | Ref2VA checkpoint, a reference image, the lightx2v turbo LoRA. 12 steps on the base model for pass 1, turbo at 6 steps for the de-rope, audio seeded. 192 frames at 1 MP in ~12 min on our card |
+| the Motion Lab starting point | [`motion_pipeline_ref2va_audioinit.json`](motion_pipeline_ref2va_audioinit.json) | Ref2VA checkpoint, a reference image, the lightx2v turbo LoRA. 12 steps on the base model for pass 1, turbo at 6 steps for the de-rope, audio seeded. 192 frames at 1 MP in ~12 min on our card |
 | best quality, time is no object | [`motion_pipeline.json`](motion_pipeline.json) | FL2VA checkpoint, first-frame image. 25 steps both passes, no turbo, the audio fixes included. The starting-point graph run this way measured 36 min against 12 |
 | a 16 to 24 GB card (12 reported working in the field, just slower) | [`motion_pipeline_lowvram.json`](motion_pipeline_lowvram.json) | W4A8 checkpoint, NVFP4 text encoder, ~32 GB of system RAM. Measured on fenced 16/24/32 GB budgets, see [`../LOWVRAM.md`](../LOWVRAM.md) |
 | to try prompts and seeds fast | [`motion_pipeline_fast_iterate.json`](motion_pipeline_fast_iterate.json) | 0.2 MP pass 1, 0.4 MP de-rope, ~95 s. A scouting loop, not a final |
+| to upscale a finished clip 2x (RelayVSR) | [`relayvsr/workflow_comfyui_native_video.json`](relayvsr/workflow_comfyui_native_video.json) | LightX2V in its own venv plus the X4 weights (a quantized Wan for 16-24 GB cards); setup and VRAM tiers in [`../relayvsr/README.md`](../relayvsr/README.md) |
 
 If you only read one more line: **pass 1 decides the choreography, pass 2
 repairs the bursts.** Spend steps on pass 1; pass 2 is where the turbo

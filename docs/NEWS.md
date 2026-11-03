@@ -2,6 +2,13 @@
 
 Newest first. The README carries only the latest headline.
 
+**RelayVSR upscaling** (2026-11-03, alpha). Video super-resolution with RelayVSR through LightX2V in its own Python:
+the X4 model (recommended even for 2x), quality presets (faithful = back-projection + residual 0.85; faithful + Flash
+loop; smooth; stock; custom knobs), and a `vram` tier that quantizes Wan's KV cache and weights with comfy-kitchen so
+1280x704 -> 2560x1408 fits a 24 GB card (int8, ~23 % faster than bf16 with offload) or a 16 GB card (W6A8 weights +
+int4 KV), with output drift far below visible. Pre-quantized X4 files: MATLOWAI/RelayVSR-X4-Quants. Guide:
+[`relayvsr/README.md`](../relayvsr/README.md).
+
 **Dials: the Simple front door, and review fixes** (2026-11-02, alpha). One Render Preset node now switches the whole
 render recipe (model, LoRA, shifts, FL2V or Ref2V, sampler, schedule, de-rope steps, cfg; *Pika H3 Flex*, *Pika +
 reference pictures*, *DMAD speed LoRA*, or Save as your own), H3 De-rope Sigmas builds the de-rope schedule from it, and

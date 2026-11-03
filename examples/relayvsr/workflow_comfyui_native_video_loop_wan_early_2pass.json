@@ -1,0 +1,233 @@
+{
+  "id": "relayvsr-blocklab-native_video-wan_early_2pass",
+  "revision": 0,
+  "last_node_id": 4,
+  "last_link_id": 3,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "RelayVSRModelSettings",
+      "pos": [
+        630,
+        90
+      ],
+      "size": [
+        365,
+        535
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "loop_experiment",
+          "type": "RELAYVSR_LOOP_SETTINGS",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "settings",
+          "type": "RELAYVSR_SETTINGS",
+          "links": [
+            1
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RelayVSRModelSettings"
+      },
+      "widgets_values": [
+        "X4 original (recommended, also for 2x)",
+        "auto",
+        "auto",
+        "auto",
+        "single GPU",
+        "0",
+        "2",
+        false,
+        false,
+        16,
+        4,
+        "libx264",
+        17,
+        true,
+        true
+      ]
+    },
+    {
+      "id": 2,
+      "type": "LoadVideo",
+      "pos": [
+        645,
+        -30
+      ],
+      "size": [
+        330,
+        180
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": [
+            2
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadVideo"
+      },
+      "widgets_values": [
+        "REPLACE_WITH_UPLOADED_VIDEO.mp4"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "RelayVSRUpscaleVideo",
+      "pos": [
+        1150,
+        150
+      ],
+      "size": [
+        350,
+        275
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "settings",
+          "type": "RELAYVSR_SETTINGS",
+          "link": 1
+        },
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null,
+          "slot_index": 0
+        },
+        {
+          "name": "output_path",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 1
+        },
+        {
+          "name": "stats_json",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RelayVSRUpscaleVideo"
+      },
+      "widgets_values": [
+        "relayvsr",
+        "relayvsr_x2",
+        42
+      ]
+    },
+    {
+      "id": 4,
+      "type": "RelayVSRBlockLoopLab",
+      "pos": [
+        75,
+        90
+      ],
+      "size": [
+        490,
+        810
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "loop_experiment",
+          "type": "RELAYVSR_LOOP_SETTINGS",
+          "links": [
+            3
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RelayVSRBlockLoopLab"
+      },
+      "widgets_values": [
+        "EXPERIMENTAL_wan_early_2pass",
+        "discover",
+        "first:4",
+        1,
+        1.0,
+        "final_blend",
+        "group",
+        "",
+        "middle:4",
+        1,
+        1.0,
+        "final_blend",
+        "group",
+        "",
+        false,
+        false,
+        "{}"
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      3,
+      0,
+      "RELAYVSR_SETTINGS"
+    ],
+    [
+      2,
+      2,
+      0,
+      3,
+      1,
+      "VIDEO"
+    ],
+    [
+      3,
+      4,
+      0,
+      1,
+      0,
+      "RELAYVSR_LOOP_SETTINGS"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8,
+      "offset": [
+        80,
+        100
+      ]
+    }
+  },
+  "version": 0.4
+}

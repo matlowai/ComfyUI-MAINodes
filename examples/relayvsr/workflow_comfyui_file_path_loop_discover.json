@@ -1,0 +1,189 @@
+{
+  "id": "relayvsr-blocklab-file_path-discover",
+  "revision": 0,
+  "last_node_id": 3,
+  "last_link_id": 2,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "RelayVSRModelSettings",
+      "pos": [
+        630,
+        90
+      ],
+      "size": [
+        365,
+        535
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "loop_experiment",
+          "type": "RELAYVSR_LOOP_SETTINGS",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "settings",
+          "type": "RELAYVSR_SETTINGS",
+          "links": [
+            1
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RelayVSRModelSettings"
+      },
+      "widgets_values": [
+        "X4 original (recommended, also for 2x)",
+        "auto",
+        "auto",
+        "auto",
+        "single GPU",
+        "0",
+        "2",
+        false,
+        false,
+        16,
+        4,
+        "libx264",
+        17,
+        true,
+        true
+      ]
+    },
+    {
+      "id": 2,
+      "type": "RelayVSRUpscalePath",
+      "pos": [
+        1150,
+        150
+      ],
+      "size": [
+        355,
+        245
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "settings",
+          "type": "RELAYVSR_SETTINGS",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null,
+          "slot_index": 0
+        },
+        {
+          "name": "output_path",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 1
+        },
+        {
+          "name": "stats_json",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RelayVSRUpscalePath"
+      },
+      "widgets_values": [
+        "/absolute/path/to/your/input.mp4",
+        "relayvsr",
+        "relayvsr_x2",
+        42
+      ]
+    },
+    {
+      "id": 3,
+      "type": "RelayVSRBlockLoopLab",
+      "pos": [
+        75,
+        90
+      ],
+      "size": [
+        490,
+        810
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "loop_experiment",
+          "type": "RELAYVSR_LOOP_SETTINGS",
+          "links": [
+            2
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RelayVSRBlockLoopLab"
+      },
+      "widgets_values": [
+        "discovery_scan",
+        "discover",
+        "first:4",
+        1,
+        1.0,
+        "final_blend",
+        "group",
+        "",
+        "middle:4",
+        1,
+        1.0,
+        "final_blend",
+        "group",
+        "",
+        false,
+        false,
+        "{}"
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "RELAYVSR_SETTINGS"
+    ],
+    [
+      2,
+      3,
+      0,
+      1,
+      0,
+      "RELAYVSR_LOOP_SETTINGS"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.85,
+      "offset": [
+        100,
+        100
+      ]
+    }
+  },
+  "version": 0.4
+}

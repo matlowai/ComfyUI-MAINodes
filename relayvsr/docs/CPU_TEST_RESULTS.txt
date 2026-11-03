@@ -1,0 +1,56 @@
+test_bridge_produces_real_loop_metadata_and_sidecar_with_fake_infer (test_loop_lab.BridgeLoopIntegrationTests.test_bridge_produces_real_loop_metadata_and_sidecar_with_fake_infer) ... ok
+test_unmatched_real_worker_fails_and_keeps_audit_report (test_loop_lab.BridgeLoopIntegrationTests.test_unmatched_real_worker_fails_and_keeps_audit_report) ... ok
+test_blending (test_loop_lab.RuntimeTests.test_blending) ... [RelayLoop] mode=experiment; scan for live nn.ModuleList transformer blocks
+[RelayLoop] discovery test_loop_lab.RuntimeTests.toy.<locals>.WanModel.blocks: 4 x test_loop_lab.RuntimeTests.toy.<locals>.WanBlock
+[RelayLoop] ATTACHED wan GROUP indices=[0] passes=2 strength=0.500
+ok
+test_cache_guard_fails_closed (test_loop_lab.RuntimeTests.test_cache_guard_fails_closed) ... [RelayLoop] mode=experiment; scan for live nn.ModuleList transformer blocks
+[RelayLoop] discovery test_loop_lab.RuntimeTests.toy.<locals>.WanModel.blocks: 4 x test_loop_lab.RuntimeTests.toy.<locals>.WanBlock
+[RelayLoop] ATTACHED wan GROUP indices=[0] passes=2 strength=1.000
+ok
+test_discovery_does_not_change_output (test_loop_lab.RuntimeTests.test_discovery_does_not_change_output) ... [RelayLoop] mode=discover; scan for live nn.ModuleList transformer blocks
+[RelayLoop] discovery test_loop_lab.RuntimeTests.toy.<locals>.WanModel.blocks: 4 x test_loop_lab.RuntimeTests.toy.<locals>.WanBlock
+ok
+test_group_recurrence_is_not_per_block_recurrence (test_loop_lab.RuntimeTests.test_group_recurrence_is_not_per_block_recurrence) ... [RelayLoop] mode=experiment; scan for live nn.ModuleList transformer blocks
+[RelayLoop] discovery test_loop_lab.RuntimeTests.test_group_recurrence_is_not_per_block_recurrence.<locals>.WanModel.blocks: 2 x test_loop_lab.RuntimeTests.test_group_recurrence_is_not_per_block_recurrence.<locals>.WanBlock
+[RelayLoop] ATTACHED wan GROUP indices=[0, 1] passes=2 strength=1.000
+[RelayLoop] mode=experiment; scan for live nn.ModuleList transformer blocks
+[RelayLoop] discovery test_loop_lab.RuntimeTests.test_group_recurrence_is_not_per_block_recurrence.<locals>.WanModel.blocks: 2 x test_loop_lab.RuntimeTests.test_group_recurrence_is_not_per_block_recurrence.<locals>.WanBlock
+[RelayLoop] ATTACHED wan indices=[0, 1] passes=2 strength=1.000
+ok
+test_group_requires_contiguous_indices (test_loop_lab.RuntimeTests.test_group_requires_contiguous_indices) ... [RelayLoop] mode=experiment; scan for live nn.ModuleList transformer blocks
+[RelayLoop] discovery test_loop_lab.RuntimeTests.toy.<locals>.WanModel.blocks: 4 x test_loop_lab.RuntimeTests.toy.<locals>.WanBlock
+ok
+test_no_match_is_error (test_loop_lab.RuntimeTests.test_no_match_is_error) ... [RelayLoop] mode=experiment; scan for live nn.ModuleList transformer blocks
+[RelayLoop] discovery test_loop_lab.RuntimeTests.toy.<locals>.WanModel.blocks: 4 x test_loop_lab.RuntimeTests.toy.<locals>.WanBlock
+ok
+test_runpy_bootstrap_with_fake_model (test_loop_lab.RuntimeTests.test_runpy_bootstrap_with_fake_model) ... ok
+test_selected_first_block_one_extra_pass (test_loop_lab.RuntimeTests.test_selected_first_block_one_extra_pass) ... [RelayLoop] mode=experiment; scan for live nn.ModuleList transformer blocks
+[RelayLoop] discovery test_loop_lab.RuntimeTests.toy.<locals>.WanModel.blocks: 4 x test_loop_lab.RuntimeTests.toy.<locals>.WanBlock
+[RelayLoop] ATTACHED wan GROUP indices=[0] passes=2 strength=1.000
+ok
+test_node_connection (test_loop_lab.SpecTests.test_node_connection) ... ok
+test_parse_indices (test_loop_lab.SpecTests.test_parse_indices) ... ok
+test_preset_supports_agent_json_overrides (test_loop_lab.SpecTests.test_preset_supports_agent_json_overrides) ... ok
+test_presets_are_honest_and_parse (test_loop_lab.SpecTests.test_presets_are_honest_and_parse) ... ok
+test_reject_compile_and_unreviewed_multigpu (test_loop_lab.SpecTests.test_reject_compile_and_unreviewed_multigpu) ... ok
+test_validation_and_roundtrip (test_loop_lab.SpecTests.test_validation_and_roundtrip) ... ok
+test_workflows_loop_lab_graphs (test_loop_lab.SpecTests.test_workflows_loop_lab_graphs) ... ok
+test_cancel_silent_subprocess (test_relayvsr.RelayVSRBridgeTests.test_cancel_silent_subprocess) ... ok
+test_end_to_end_fake_worker_creates_output_and_json (test_relayvsr.RelayVSRBridgeTests.test_end_to_end_fake_worker_creates_output_and_json) ... ok
+test_gpu_mode_and_parallel_flags (test_relayvsr.RelayVSRBridgeTests.test_gpu_mode_and_parallel_flags) ... ok
+test_incompatible_checkpoint_pair_rejected (test_relayvsr.RelayVSRBridgeTests.test_incompatible_checkpoint_pair_rejected) ... ok
+test_output_directory_cannot_escape_comfy (test_relayvsr.RelayVSRBridgeTests.test_output_directory_cannot_escape_comfy) ... ok
+test_preview_contract (test_relayvsr.RelayVSRBridgeTests.test_preview_contract) ... ok
+test_x2_refuses_4x_even_if_original_supports_2x (test_relayvsr.RelayVSRBridgeTests.test_x2_refuses_4x_even_if_original_supports_2x) ... ok
+test_x2_settings_and_config (test_relayvsr.RelayVSRBridgeTests.test_x2_settings_and_config) ... ok
+test_bundled_workflows (test_relayvsr.RelayVSRNodesTests.test_bundled_workflows) ... ok
+test_image_batch_roundtrip_through_ffmpeg (test_relayvsr.RelayVSRNodesTests.test_image_batch_roundtrip_through_ffmpeg) ... ok
+test_interrupt_uses_check_not_setter (test_relayvsr.RelayVSRNodesTests.test_interrupt_uses_check_not_setter) ... ok
+test_node_registration (test_relayvsr.RelayVSRNodesTests.test_node_registration) ... ok
+test_video_trim_is_materialized (test_relayvsr.RelayVSRNodesTests.test_video_trim_is_materialized) ... ok
+
+----------------------------------------------------------------------
+Ran 30 tests in 8.862s
+
+OK

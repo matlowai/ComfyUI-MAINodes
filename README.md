@@ -27,9 +27,10 @@ Like it? A star helps. Want to feed the GPU? [Sponsor the experiments](#support-
 
 | you want to | start from | read |
 |---|---|---|
-| fix smeared fast motion | [`examples/motion_pipeline_ref2va_audioinit.json`](examples/motion_pipeline_ref2va_audioinit.json) | [Motion Lab](docs/MOTION_LAB.md), [`TUNING.md`](TUNING.md) |
-| steer look, mood or motion with sliders | [`examples/dials/dials_simple_pika_derope.json`](examples/dials/dials_simple_pika_derope.json) | [`dials/README.md`](dials/README.md) |
+| **make an H3 video (recommended start):** Pika H3 Flex + de-rope; steer look, mood or motion with Dials sliders | [`examples/dials/dials_simple_pika_derope.json`](examples/dials/dials_simple_pika_derope.json) | [`dials/README.md`](dials/README.md#simple-start) |
+| fix smeared fast motion (Motion Lab graphs) | [`examples/motion_pipeline_ref2va_audioinit.json`](examples/motion_pipeline_ref2va_audioinit.json) | [Motion Lab](docs/MOTION_LAB.md), [`TUNING.md`](TUNING.md) |
 | five views of one subject | [`examples/contact_sheet.json`](examples/contact_sheet.json) | [below](#contact-sheet-diffusion) |
+| upscale a video 2x or 4x (RelayVSR) | [`examples/relayvsr/workflow_comfyui_native_video.json`](examples/relayvsr/workflow_comfyui_native_video.json) | [`relayvsr/README.md`](relayvsr/README.md) |
 | run on a 16 to 24 GB card | [`examples/motion_pipeline_lowvram.json`](examples/motion_pipeline_lowvram.json) | [`LOWVRAM.md`](LOWVRAM.md), [`HARDWARE.md`](HARDWARE.md) |
 | compare renders side by side | the **MAI Video Compare** node | [`VIDEO_TOOLS.md`](VIDEO_TOOLS.md) |
 | pick among all the graphs | | [`examples/README.md`](examples/README.md) |
@@ -150,7 +151,7 @@ existing installs.
   init and Dials are alpha: [`ALPHA.md`](ALPHA.md) says what each can do and
   where it was tested. Alpha nodes carry `(alpha)` in the menu and load
   behind a guarded loader, so a broken one cannot take the pack down.
-- **What's new:** Dials Simple front door (Render Preset + one blueprint) and review fixes (2026-11-02). Older notes in
+- **What's new:** RelayVSR upscaling with quality presets and 16 / 24 GB tiers ([`relayvsr/README.md`](relayvsr/README.md), 2026-11-03). Older notes in
   [`docs/NEWS.md`](docs/NEWS.md); open questions in [`ROADMAP.md`](ROADMAP.md).
 
 ## Install

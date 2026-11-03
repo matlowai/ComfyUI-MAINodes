@@ -1,0 +1,61 @@
+{
+  "1": {
+    "class_type": "RelayVSRModelSettings",
+    "inputs": {
+      "variant": "X4 original (recommended, also for 2x)",
+      "lightx2v_root": "auto",
+      "model_dir": "auto",
+      "python_executable": "auto",
+      "execution_mode": "single GPU",
+      "gpu_ids": "0",
+      "output_scale": "2",
+      "compile_model": false,
+      "warmup": false,
+      "clip_len": 16,
+      "queue_size": 4,
+      "codec": "libx264",
+      "crf": 17,
+      "preserve_audio": true,
+      "unload_comfy_models": true,
+      "loop_experiment": [
+        "3",
+        0
+      ]
+    }
+  },
+  "2": {
+    "class_type": "RelayVSRUpscalePath",
+    "inputs": {
+      "settings": [
+        "1",
+        0
+      ],
+      "input_path": "/absolute/path/to/your/input.mp4",
+      "output_subfolder": "relayvsr",
+      "filename_prefix": "relayvsr_x2",
+      "seed": 42
+    }
+  },
+  "3": {
+    "class_type": "RelayVSRBlockLoopLab",
+    "inputs": {
+      "preset": "discovery_scan",
+      "mode": "discover",
+      "wan_indices": "first:4",
+      "wan_passes": 1,
+      "wan_strength": 1.0,
+      "wan_mixing": "final_blend",
+      "wan_owner_regex": "",
+      "flash_indices": "middle:4",
+      "flash_passes": 1,
+      "flash_strength": 1.0,
+      "flash_mixing": "final_blend",
+      "flash_owner_regex": "",
+      "allow_stateful_repeats": false,
+      "allow_advanced_modes": false,
+      "advanced_json": "{}",
+      "wan_loop_style": "group",
+      "flash_loop_style": "group"
+    }
+  }
+}

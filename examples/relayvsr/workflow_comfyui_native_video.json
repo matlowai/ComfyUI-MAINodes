@@ -1,0 +1,171 @@
+{
+  "id": "relayvsr-x2-native-video-example",
+  "revision": 0,
+  "last_node_id": 3,
+  "last_link_id": 2,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "RelayVSRModelSettings",
+      "pos": [
+        160,
+        120
+      ],
+      "size": [
+        365,
+        535
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "settings",
+          "type": "RELAYVSR_SETTINGS",
+          "links": [
+            1
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RelayVSRModelSettings"
+      },
+      "widgets_values": [
+        "X4 original (recommended, also for 2x)",
+        "auto",
+        "auto",
+        "auto",
+        "single GPU",
+        "0",
+        "2",
+        false,
+        false,
+        16,
+        4,
+        "libx264",
+        17,
+        true,
+        true
+      ]
+    },
+    {
+      "id": 2,
+      "type": "LoadVideo",
+      "pos": [
+        645,
+        -30
+      ],
+      "size": [
+        330,
+        180
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": [
+            2
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadVideo"
+      },
+      "widgets_values": [
+        "REPLACE_WITH_UPLOADED_VIDEO.mp4"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "RelayVSRUpscaleVideo",
+      "pos": [
+        1070,
+        150
+      ],
+      "size": [
+        350,
+        275
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "settings",
+          "type": "RELAYVSR_SETTINGS",
+          "link": 1
+        },
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null,
+          "slot_index": 0
+        },
+        {
+          "name": "output_path",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 1
+        },
+        {
+          "name": "stats_json",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RelayVSRUpscaleVideo"
+      },
+      "widgets_values": [
+        "relayvsr",
+        "relayvsr_x2",
+        42
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      3,
+      0,
+      "RELAYVSR_SETTINGS"
+    ],
+    [
+      2,
+      2,
+      0,
+      3,
+      1,
+      "VIDEO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8,
+      "offset": [
+        80,
+        100
+      ]
+    }
+  },
+  "version": 0.4
+}

@@ -1,0 +1,20 @@
+{
+  "mode": "experiment",
+  "wan": {
+    "indices": "first:4",
+    "passes": 2,
+    "strength": 1.0,
+    "mixing": "final_blend",
+    "every_nth_call": 2
+  },
+  "flash": {
+    "indices": "middle:4",
+    "passes": 1,
+    "strength": 1.0,
+    "mixing": "final_blend"
+  },
+  "allow_stateful_repeats": true,
+  "allow_advanced_modes": false,
+  "allow_multiple_containers": false,
+  "check_finite": false
+}
