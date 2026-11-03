@@ -12,6 +12,7 @@ export function createSwitch(view) {
   const flights = new Map(); // brick key -> Spring over [dx, dy, sx, sy]
   const veil = new Spring([0], SPRINGS.view, 0.002);
   let showing = false;
+  let docked = null; // the sidebar tab element while Snap sits beside the live graph
 
   // mount under the chrome and keep clear of it: the action bar row above, the side toolbar on the left
   function place() {
@@ -87,18 +88,41 @@ export function createSwitch(view) {
     });
   }
 
+  // docked: the graph is already visible, so "show in graph" just frames and selects the brick's nodes
+  function frame(focusKey) {
+    const focus = focusKey ? brickNodes(focusKey) : E.state().bricks.flatMap((b) => brickNodes(b.key));
+    if (!focus.length) return;
+    const r = union(focus.map((n) => ({ left: n.pos[0], top: n.pos[1] - LiteGraph.NODE_TITLE_HEIGHT, width: n.size[0], height: n.size[1] + LiteGraph.NODE_TITLE_HEIGHT })));
+    app.canvas.ds.fitToBounds([r.left, r.top, r.width, r.height], { zoom: focusKey ? 0.6 : 0.85 });
+    if (focusKey) app.canvas.selectNodes(focus);
+    app.canvas.setDirty(true, true);
+  }
+
+  function dock(el) {
+    if (showing) { showing = false; app.canvas.pause_rendering = false; container()?.classList.remove("snap-open"); }
+    docked = el;
+    el.style.cssText += ";position:relative;height:100%";
+    el.append(root);
+    root.classList.add("docked", "open");
+    root.style.display = "";
+    root.style.setProperty("--veil", 1);
+    view.render(null);
+  }
+
+  function undock() {
+    if (!docked) return;
+    docked = null;
+    root.classList.remove("docked", "open");
+    root.style.display = "none";
+  }
+
   function toGraph(focusKey) {
+    if (docked) return frame(focusKey);
     showing = false;
     container()?.classList.remove("snap-open");
     app.canvas.pause_rendering = false;
     E.tidy();
-    const focus = focusKey ? brickNodes(focusKey) : E.state().bricks.flatMap((b) => brickNodes(b.key));
-    if (focus.length) {
-      const r = union(focus.map((n) => ({ left: n.pos[0], top: n.pos[1] - LiteGraph.NODE_TITLE_HEIGHT, width: n.size[0], height: n.size[1] + LiteGraph.NODE_TITLE_HEIGHT })));
-      app.canvas.ds.fitToBounds([r.left, r.top, r.width, r.height], { zoom: focusKey ? 0.6 : 0.85 });
-      if (focusKey) app.canvas.selectNodes(focus);
-    }
-    app.canvas.setDirty(true, true);
+    frame(focusKey);
     root.classList.remove("open");
     fly("graph", () => { if (!showing) root.style.display = "none"; });
   }
@@ -106,7 +130,8 @@ export function createSwitch(view) {
   root.style.display = "none";
   return {
     toggle: () => (showing ? toGraph() : toSnap()),
-    toSnap, toGraph,
-    get showing() { return showing; },
+    toSnap, toGraph, dock, undock,
+    get showing() { return showing || !!docked; },
+    get docked() { return !!docked; },
   };
 }

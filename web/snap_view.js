@@ -48,7 +48,10 @@ async function agentCall(name, args) {
   return result;
 }
 
-function toggle() {
+// the full view and the docked tab are one view in two places; opening the full view closes the tab first
+const TAB = "mainodes-snap";
+async function toggle() {
+  if (sw.docked) { await app.extensionManager.command.execute(`Workspace.ToggleSidebarTab.${TAB}`); sw.undock(); }
   sw.toggle();
   if (sw.showing) announce();
 }
@@ -63,6 +66,8 @@ app.registerExtension({
     view = createView({ onSwitch: (key) => sw.toGraph(key), onMakeApp: makeApp, run: callTool });
     document.body.append(view.root);
     sw = createSwitch(view);
+    app.extensionManager.registerSidebarTab({ id: TAB, icon: "icon-[lucide--blocks]", title: "Snap", tooltip: "Snap beside the graph", type: "custom",
+      render: (el) => { sw.dock(el); announce(); }, destroy: () => sw.undock() });
     registerWebMCP(agentCall);
     // the bridge sends agent calls to one tab: the one registered last (this tab registers when it loads, regains
     // focus, or reconnects after a server restart)

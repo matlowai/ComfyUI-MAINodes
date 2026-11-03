@@ -3,7 +3,7 @@ export const STYLE = `
 .snap-root {
   --s-bg: var(--comfy-menu-bg, #1b1c20); --s-card: var(--comfy-input-bg, #24262c); --s-fg: var(--fg-color, #e8e8ea);
   --s-dim: var(--descrip-text, #9a9ca5); --s-line: var(--border-color, #3a3c44); --s-accent: #6aa8ff; --veil: 1;
-  position: absolute; inset: 0; z-index: 2; box-sizing: border-box; display: flex; padding: var(--chrome-top, 0) 0 0 var(--chrome-left, 0); flex-direction: column; color: var(--s-fg);
+  position: absolute; inset: 0; z-index: 2; box-sizing: border-box; display: flex; padding: var(--chrome-top, 0) 0 0 var(--chrome-left, 0); container-type: inline-size; flex-direction: column; color: var(--s-fg);
   background: color-mix(in srgb, var(--s-bg) calc(var(--veil) * 100%), transparent);
   font: 13px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif; outline: none; overflow: hidden; contain: layout paint;
 }
@@ -98,7 +98,7 @@ export const STYLE = `
 .snap-set-notes li.check b { color: #f0b445; }
 .snap-set-notes li.note b, .snap-set-notes li.none { color: var(--s-dim); }
 .snap-set-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-@media (max-width: 760px) { .snap-set-body { grid-template-columns: minmax(0, 1fr); } }
+@container (max-width: 760px) { .snap-set-body { grid-template-columns: minmax(0, 1fr); } }
 @media (prefers-reduced-motion: reduce) { .snap-sheet { animation: none; } }
 .snap-proposals { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 4px 2px 10px; border-radius: 999px; background: #a78bfa22; color: #c4b5fd; }
 .snap-proposals button { all: unset; cursor: pointer; padding: 2px 8px; border-radius: 999px; }
@@ -143,6 +143,9 @@ export const STYLE = `
   border-radius: 10px; background: var(--s-fg); color: var(--s-bg); font-size: 12px; transition: opacity .15s ease-out, transform .15s ease-out; }
 .snap-toast.show { opacity: 1; transform: translate(-50%, 0); }
 .snap-toast.bad { background: #f0b445; color: #1b1c20; }
-@media (max-width: 760px) { .snap-body { grid-template-columns: minmax(0, 1fr); } .snap-rail, .snap-inspector { display: none; } .snap-stack { padding: 12px 12px 48px; } .snap-top { padding: 6px 12px 8px; } }
+/* narrow: a phone, or Snap docked in the sidebar next to the graph */
+@container (max-width: 760px) { .snap-body { grid-template-columns: minmax(0, 1fr); } .snap-rail, .snap-inspector { display: none; } .snap-stack { padding: 12px 12px 48px; } .snap-top { padding: 6px 12px 8px; } }
+.snap-root.docked { --chrome-top: 0px; --chrome-left: 0px; }
+.snap-root.docked .snap-seg { display: none; }
 @media (prefers-reduced-motion: reduce) { .snap-toast, .snap-seg button, .snap-brick { transition: none; } }
 `;
