@@ -92,6 +92,7 @@ export function createSwitch(view) {
     showing = false;
     container()?.classList.remove("snap-open");
     app.canvas.pause_rendering = false;
+    E.tidy();
     const focus = focusKey ? brickNodes(focusKey) : E.state().bricks.flatMap((b) => brickNodes(b.key));
     if (focus.length) {
       const r = union(focus.map((n) => ({ left: n.pos[0], top: n.pos[1] - LiteGraph.NODE_TITLE_HEIGHT, width: n.size[0], height: n.size[1] + LiteGraph.NODE_TITLE_HEIGHT })));

@@ -5,7 +5,7 @@ import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import { BRICKS } from "./bricks.js";
 
-const COLUMN = 420;
+const GAP = 80;
 
 export function state() {
   const extra = (app.graph.extra ??= {});
@@ -118,9 +118,11 @@ export async function snap(key, { values, at } = {}) {
     setValue(def.attach.brick, def.attach.brick, def.attach.widget, def.attach.on);
     return { brick: key, bindings: [{ to: def.attach.brick, role: def.attach.widget, rule: `pack:${key}.attach`, value: def.attach.on }] };
   }
-  // graph layout: columns by role, stacked below whatever is already in the column
-  const x = column(key) * COLUMN;
-  const below = s.bricks.filter((b) => column(b.key) === column(key)).flatMap((b) => Object.values(b.nodes)).map(node).filter(Boolean);
+  // graph layout: columns by role, each starting right of the widest node to its left, stacked below its column
+  const nodesIn = (test) => s.bricks.filter((b) => test(column(b.key))).flatMap((b) => Object.values(b.nodes)).map(node).filter(Boolean);
+  const left = nodesIn((c) => c < column(key));
+  const x = left.length ? Math.max(...left.map((n) => n.pos[0] + n.size[0])) + GAP : 0;
+  const below = nodesIn((c) => c === column(key));
   const y = below.length ? Math.max(...below.map((n) => n.pos[1] + n.size[1])) + 80 : 0;
   const bp = def.blueprint ? await fetchBlueprint(def.blueprint) : null;
   const bindings = transaction(() => {
@@ -145,11 +147,35 @@ export async function snap(key, { values, at } = {}) {
       ids[spec.key] = n.id;
       dy += (n.size?.[1] ?? 120) + 40;
     }
-    s.bricks.splice(at ?? s.bricks.length, 0, { key, nodes: ids });
+    const placed = Object.fromEntries(Object.values(ids).map((id) => [id, [...node(id).pos]]));
+    s.bricks.splice(at ?? s.bricks.length, 0, { key, nodes: ids, placed });
     return bindAll();
   });
   app.canvas.setDirty(true, true);
   return { brick: key, bindings };
+}
+
+// lay Snap-placed nodes out again with their current sizes (DOM widgets grow after mounting); nodes the user moved
+// in the graph keep their place. One undo step, and only when something moves.
+export function tidy() {
+  const s = state(), moves = [];
+  const ours = (b, n) => b.placed?.[n.id] && b.placed[n.id][0] === n.pos[0] && b.placed[n.id][1] === n.pos[1];
+  const cols = [...new Set(s.bricks.map((b) => column(b.key)))].sort((a, c) => a - c);
+  let x = 0;
+  for (const c of cols) {
+    let y = 0, right = x;
+    for (const b of s.bricks.filter((b) => column(b.key) === c)) {
+      for (const n of Object.values(b.nodes).map(node).filter(Boolean)) {
+        if (ours(b, n) && (n.pos[0] !== x || n.pos[1] !== y)) moves.push([b, n, [x, y]]);
+        const [nx, ny] = ours(b, n) ? [x, y] : n.pos;
+        y = Math.max(y, ny + n.size[1] + 80);
+        right = Math.max(right, nx + n.size[0]);
+      }
+    }
+    x = right + GAP;
+  }
+  if (!moves.length) return;
+  transaction(() => { for (const [b, n, pos] of moves) { n.pos = pos; b.placed[n.id] = [...pos]; } });
 }
 
 // reading order only: pack rules bind by role, so reordering never rewires
