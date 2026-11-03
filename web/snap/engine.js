@@ -215,6 +215,21 @@ export function overrides(workflow = app.graph.serialize()) {
   return out;
 }
 
+// App mode's run-only view built from the bricks' faces (frontend 1.57 `extra.linearData`; WidgetId =
+// "<rootGraphId>:<nodeId>:<widget>"), so a finished recipe opens as a clean app anywhere without this extension
+export function appData() {
+  const inputs = [], outputs = [];
+  for (const b of state().bricks) {
+    const def = BRICKS[b.key];
+    for (const [nodeKey, name, label] of def.face ?? []) {
+      const id = b.nodes[nodeKey];
+      if (node(id)?.widgets?.some((w) => w.name === name)) inputs.push([`${app.graph.id}:${id}:${name}`, name, { description: `${def.title} · ${label}` }]);
+    }
+    if (def.blueprint) outputs.push(b.nodes[b.key]);
+  }
+  return { inputs, outputs };
+}
+
 export function describe() {
   const s = state();
   return s.bricks.map((b) => ({

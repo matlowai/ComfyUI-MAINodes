@@ -3,14 +3,14 @@
 // (pause_rendering), so the graph keeps its state but costs nothing. Switching flies each
 // brick card to the screen rect of its nodes (and back) on springs, so a second press mid-flight just reverses.
 import { app } from "../../../scripts/app.js";
-import { Spring, SPRINGS, animate } from "./spring.js";
+import { Spring, SPRINGS, animate, reducedMotion } from "./spring.js";
 import * as E from "./engine.js";
 
 export function createSwitch(view) {
   const root = view.root;
   const container = () => document.querySelector("#graph-canvas-container");
   const flights = new Map(); // brick key -> Spring over [dx, dy, sx, sy]
-  const veil = new Spring([0], SPRINGS.view);
+  const veil = new Spring([0], SPRINGS.view, 0.002);
   let showing = false;
 
   // mount under the chrome and keep clear of it: the action bar row above, the side toolbar on the left
@@ -53,14 +53,14 @@ export function createSwitch(view) {
   }
 
   function fly(to, done) {
-    const cards = [...view.stack.querySelectorAll("[data-brick]")];
+    const cards = reducedMotion() ? [] : [...view.stack.querySelectorAll("[data-brick]")];
     let left = cards.length + 1;
     const finish = () => { if (--left === 0) done(); };
     for (const el of cards) {
       const key = el.dataset.brick;
       let sp = flights.get(key);
       const target = to === "graph" ? toNodes(el) : [0, 0, 1, 1];
-      if (!sp) { sp = new Spring(to === "graph" ? [0, 0, 1, 1] : toNodes(el), SPRINGS.view); flights.set(key, sp); }
+      if (!sp) { sp = new Spring(to === "graph" ? [0, 0, 1, 1] : toNodes(el), SPRINGS.view, [0.5, 0.5, 0.002, 0.002]); flights.set(key, sp); }
       sp.set(target);
       el.style.transformOrigin = "0 0";
       el.style.willChange = "transform";
@@ -70,7 +70,7 @@ export function createSwitch(view) {
         finish();
       });
     }
-    veil.set([to === "graph" ? 0 : 1]);
+    veil.set([to === "graph" ? 0 : 1], { params: reducedMotion() ? SPRINGS.fade : SPRINGS.view });
     animate(root, veil, ([v]) => root.style.setProperty("--veil", Math.max(0, Math.min(1, v))), finish);
   }
 

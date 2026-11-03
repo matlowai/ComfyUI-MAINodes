@@ -24,6 +24,16 @@ function announce() {
   pending.length = 0;
 }
 
+// App mode only reads linearData when a workflow loads, so the recipe is reloaded in place with its brick faces as the app
+async function makeApp() {
+  const wf = app.graph.serialize();
+  wf.extra.linearData = engine.appData();
+  wf.extra.linearMode = true;
+  sw.toGraph();
+  await app.loadGraphData(wf, true, true, app.extensionManager.workflow.activeWorkflow);
+  await app.extensionManager.command.execute("Comfy.ToggleLinear");
+}
+
 function toggle() {
   sw.toggle();
   if (sw.showing) announce();
@@ -36,7 +46,7 @@ app.registerExtension({
   actionBarButtons: [{ icon: "icon-[lucide--blocks]", label: "Snap", tooltip: "Snap view (Alt+S)", onClick: () => toggle() }],
   setup() {
     document.head.append(Object.assign(document.createElement("style"), { textContent: STYLE }));
-    view = createView({ onSwitch: (key) => sw.toGraph(key) });
+    view = createView({ onSwitch: (key) => sw.toGraph(key), onMakeApp: makeApp });
     document.body.append(view.root);
     sw = createSwitch(view);
     // graph edits, undo and workflow loads all land here; overrides made in the graph are announced once, in Snap

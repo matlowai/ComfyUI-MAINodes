@@ -7,7 +7,8 @@ export const SPRINGS = {
   throw: { response: 0.3, damping: 0.8 },
   reflow: { response: 0.3, damping: 1 },
   shadow: { response: 0.15, damping: 0.86 },
-  view: { response: 0.5, damping: 1 },
+  view: { response: 0.3, damping: 1 }, // reads as done by ~320 ms (UX_SPEC 5); the survey's 0.5 s settled at ~950 ms
+  fade: { response: 0.1, damping: 1 },  // reduced motion: the view switch is a ~150 ms cross-fade, nothing flies
 };
 
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
@@ -15,8 +16,10 @@ export const reducedMotion = () => reduced.matches;
 const STEP = 1 / 120;
 
 // a spring over a flat array of numbers (x, y, scale... animated together so they arrive together)
+// `eps` is the rest precision per axis in that axis' units: 0.5 for pixels, ~0.002 for opacity or scale
 export class Spring {
-  constructor(value, params = SPRINGS.drop) {
+  constructor(value, params = SPRINGS.drop, eps = 0.5) {
+    this.eps = value.map((_, i) => (Array.isArray(eps) ? eps[i] : eps));
     this.x = [...value];
     this.v = this.x.map(() => 0);
     this.to = [...value];
@@ -38,7 +41,7 @@ export class Spring {
 
   jump(to) { this.x = [...to]; this.to = [...to]; this.v = this.v.map(() => 0); }
 
-  // advance dt seconds; true when at rest (speed < 2 units/s and distance < 0.5 units on every axis)
+  // advance dt seconds; true when at rest on every axis (distance < eps and speed < 4·eps per second)
   step(dt) {
     for (let t = Math.min(dt, 0.064); t > 1e-6; t -= STEP) {
       const h = Math.min(STEP, t);
@@ -48,7 +51,7 @@ export class Spring {
         this.x[i] += this.v[i] * h;
       }
     }
-    const rest = this.x.every((x, i) => Math.abs(this.v[i]) < 2 && Math.abs(x - this.to[i]) < 0.5);
+    const rest = this.x.every((x, i) => Math.abs(this.v[i]) < 4 * this.eps[i] && Math.abs(x - this.to[i]) < this.eps[i]);
     if (rest) this.jump(this.to);
     return rest;
   }

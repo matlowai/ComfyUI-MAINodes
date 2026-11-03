@@ -12,7 +12,7 @@ const h = (tag, props = {}, ...kids) => {
   return el;
 };
 
-export function createView({ onSwitch }) {
+export function createView({ onSwitch, onMakeApp }) {
   const root = h("div", { className: "snap-root", tabIndex: -1 });
   const stack = h("main", { className: "snap-stack", ariaLabel: "recipe" });
   const rail = h("aside", { className: "snap-rail" });
@@ -23,7 +23,9 @@ export function createView({ onSwitch }) {
     h("button", { className: "on", textContent: "Snap", role: "tab" }),
     h("button", { textContent: "Graph", role: "tab", onclick: () => onSwitch() }));
   root.append(
-    h("header", { className: "snap-top" }, h("strong", { className: "snap-title", textContent: "Dials Simple" }), status, h("span", { className: "snap-spacer" }), seg),
+    h("header", { className: "snap-top" }, h("strong", { className: "snap-title", textContent: "Dials Simple" }), status, h("span", { className: "snap-spacer" }),
+      h("button", { className: "snap-link snap-quiet-btn", textContent: "Make app", title: "open this recipe in ComfyUI's App mode: the brick faces become a run-only app (reloads the graph)", onclick: () => onMakeApp() }),
+      h("button", { className: "snap-link snap-quiet-btn", textContent: "Add brick  ⌘K", title: "Ctrl/Cmd+K", onclick: () => openPalette() }), seg),
     h("div", { className: "snap-body" }, rail, stack, inspector), toast);
   let selected = null;
   const built = new Map(); // brick key -> { el, sig }: a brick is rebuilt only when what it shows changed
@@ -37,7 +39,46 @@ export function createView({ onSwitch }) {
     onInsert: (key, index) => add(key, index),
   });
 
+  // Ctrl/Cmd+K: type to find a brick, Enter adds it after the selected one (UX_SPEC 4: results in < 50 ms, no open animation)
+  const palette = h("div", { className: "snap-palette", hidden: true });
+  const query = h("input", { placeholder: "Add a brick…", ariaLabel: "add a brick" });
+  const results = h("div", { className: "snap-results", role: "listbox" });
+  palette.append(query, results);
+  root.append(palette);
+  let hits = [], hit = 0;
+  function openPalette() { palette.hidden = false; query.value = ""; search(); query.focus(); }
+  function closePalette() { palette.hidden = true; root.focus({ preventScroll: true }); }
+  function search() {
+    const q = query.value.trim().toLowerCase(), have = new Set(E.state().bricks.map((b) => b.key));
+    hits = Object.entries(BRICKS).filter(([k, d]) => !have.has(k) && `${d.title} ${d.blurb}`.toLowerCase().includes(q)).map(([k]) => k);
+    hit = 0;
+    results.replaceChildren(...(hits.length ? hits.map((k, i) => h("div", { className: `snap-hit${i === hit ? " on" : ""}`, role: "option", onpointerdown: (e) => { e.preventDefault(); pick(k); } },
+      h("span", { className: "snap-grip", textContent: BRICKS[k].icon }), h("span", { textContent: BRICKS[k].title }), h("span", { className: "snap-blurb", textContent: BRICKS[k].blurb })))
+      : [h("div", { className: "snap-quiet", textContent: q ? "no brick matches · the Library arrives in phase 2" : "every brick is already in the recipe" })]));
+    for (const [i, el] of [...results.children].entries()) el.style.setProperty("--hue", BRICKS[hits[i]]?.hue ?? 210);
+  }
+  function pick(key) {
+    closePalette();
+    const keys = E.state().bricks.map((b) => b.key);
+    let i = keys.indexOf(selected);
+    if (i < 0) i = keys.length - 1;
+    while (BRICKS[keys[i + 1]]?.attach?.brick === keys[i] || BRICKS[keys[i + 1]]?.attach?.brick === selected) i++; // keep attachments on their host
+    add(key, i + 1);
+  }
+  query.addEventListener("input", search);
+  query.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { e.stopPropagation(); closePalette(); }
+    else if (e.key === "Enter" && hits[hit]) { e.preventDefault(); pick(hits[hit]); }
+    else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      hit = (hit + (e.key === "ArrowDown" ? 1 : hits.length - 1)) % Math.max(1, hits.length);
+      [...results.children].forEach((el, i) => el.classList.toggle("on", i === hit));
+    }
+  });
+  query.addEventListener("blur", () => setTimeout(() => { if (!palette.contains(document.activeElement)) palette.hidden = true; }, 0));
+
   root.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); e.stopPropagation(); openPalette(); return; }
     if (e.target.closest("input,textarea,select")) return;
     const keys = E.state().bricks.map((b) => b.key), i = keys.indexOf(selected);
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -235,7 +276,8 @@ export function createView({ onSwitch }) {
     if (!before) return;
     for (const el of stack.querySelectorAll("[data-brick]")) {
       const key = el.dataset.brick, was = before.get(key), now = el.getBoundingClientRect();
-      const sp = was ? new Spring([was.left - now.left, was.top - now.top, 1], SPRINGS.reflow) : key === entered ? new Spring([0, 12, 0.97], SPRINGS.drop) : null;
+      const eps = [0.5, 0.5, 0.002];
+      const sp = was ? new Spring([was.left - now.left, was.top - now.top, 1], SPRINGS.reflow, eps) : key === entered ? new Spring([0, 12, 0.97], SPRINGS.drop, eps) : null;
       if (!sp || (was && Math.abs(was.top - now.top) < 0.5 && Math.abs(was.left - now.left) < 0.5)) continue;
       sp.set([0, 0, 1]);
       el.style.willChange = "transform";
