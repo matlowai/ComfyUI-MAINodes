@@ -79,13 +79,13 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     h("button", { className: "on", textContent: "Snap", role: "tab" }),
     h("button", { textContent: "Graph", role: "tab", onclick: () => onSwitch() }));
   root.append(
-    h("header", { className: "snap-top" }, h("span", { className: "snap-brand" }, h("i"), "Snap"), title, setupPill, status, outsideBtn, proposalsPill, h("span", { className: "snap-spacer" }),
+    h("header", { className: "snap-top" }, h("span", { className: "snap-brand" }, h("i"), "Snap"), title, setupPill, status, outsideBtn, h("span", { className: "snap-spacer" }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Save recipe", title: "keep these bricks and their settings as a Library card you can rebuild anywhere", onclick: async () => {
         try { const c = await L.saveRecipe(app.extensionManager.workflow.activeWorkflow?.filename ?? "recipe"); say(`Saved "${c.title}" to your Library`); renderLibrary(); } catch (err) { say(err.message, true); }
       } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Note", title: "a director's note on the whole recipe; agents answer it", onclick: () => { noting = true; select(null); inspector.querySelector("textarea")?.focus(); } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Make app", title: "open this recipe in ComfyUI's App mode: the brick faces become a run-only app (reloads the graph)", onclick: () => onMakeApp() }),
-      h("button", { className: "snap-link snap-quiet-btn", textContent: `Add brick  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}`, title: "Ctrl/Cmd+K", onclick: () => openPalette() }), seeBtn, seg, runBtn, progress),
+      h("button", { className: "snap-link snap-quiet-btn", title: "Ctrl/Cmd+K", onclick: () => openPalette() }, "Add brick", h("span", { className: "snap-kbd", textContent: ` ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}` })), seeBtn, seg, runBtn, progress),
     h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), inspector, handle), toast);
   // takes under the chain: "continue from its last frame" puts that frame on the First frame brick
   const dailies = createDailies({ host: root, say, onRestore: () => render(null), onContinue: (file) => {
@@ -901,7 +901,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     return el;
   }
 
-  const brickNode = (key) => [...stack.children].find((el) => el.dataset.brick === key); // keys can come from agents: no selector strings
+  const brickNode = (key) => (key == null ? undefined : [...stack.children].find((el) => el.dataset?.brick === key)); // keys can come from agents: no selector strings; the lanes SVG has no brick
 
   // agent proposals: ghost bricks for proposed snaps, dashed chips on the brick for everything else
   async function decide(id, accept) {
@@ -936,14 +936,15 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     proposalsPill.replaceChildren(h("span", { textContent: `${waiting.length} proposal${waiting.length === 1 ? "" : "s"}` }),
       h("button", { textContent: "Accept all", onclick: async () => { for (const p of P.pending()) await decide(p.id, true); } }),
       h("button", { textContent: "Reject all", onclick: async () => { for (const p of P.pending()) await decide(p.id, false); } }));
-    for (const el of stack.querySelectorAll(".snap-ghost-brick, .snap-proposal")) el.remove();
+    for (const el of [...stack.querySelectorAll(".snap-ghost-brick, .snap-proposal"), ...notesStrip.querySelectorAll(".snap-proposal")]) el.remove();
+    notesStrip.prepend(proposalsPill); // above the chain, with the proposals about the whole recipe: the top bar has no room for it
     for (const p of waiting) {
       if (p.tool === "snap") {
         const after = p.args.after && brickNode(p.args.after);
         stack.insertBefore(proposalEl(p, true), after ? after.nextSibling : null);
-      } else {
-        const target = p.args.brick ?? L.TARGET[L.get(p.args.card)?.kind];
-        (brickNode(target) ?? stack).append(proposalEl(p, false));
+      } else { // on its brick (a slot's is the brick that fills it); one about the whole recipe sits above the chain, with its notes
+        const target = p.args.brick ?? (p.args.slot && S.holder(p.args.slot)) ?? L.TARGET[L.get(p.args.card)?.kind];
+        (brickNode(target) ?? notesStrip).append(proposalEl(p, false));
       }
     }
   }
