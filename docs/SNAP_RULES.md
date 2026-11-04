@@ -215,18 +215,22 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   `--disable-metadata` is global; Dylan chose metadata on for everything with one clean switch (2026-11-04) over
   stripping private takes automatically. *More:* `snap_privacy.py`, `snap_bridge.py`, `web/snap/metadata.js`; PLAN U22, U58.
 - **SNAP-R27: A file stamped private in its own header is private, and locks follow the current rules.** Besides the
-  model graph and the person's private paths and patterns, a `.safetensors` file whose header metadata says
-  `"privacy": "full"` (at the top level or inside a JSON-string field such as `lorastery_recipe`, parsed once) is private,
-  and so is one whose `trigger` / `trigger_word` matches one of the person's private patterns: a trigger names who the
-  LoRA draws, a re-train keeps it whatever the file is called, and an over-match only costs an export row on the
-  person's own machine. Only the header is read (8-byte length, capped at 16 MB), cached per real path by mtime and size;
-  an unreadable or non-safetensors file is simply not stamped, never an error in the save gate. Patterns also match the
-  value's folder part (a symlinked folder named like a pattern). The lock follows today's rules, not only the mark saved
-  at queue time: `/mainodes/snap/take_marks` re-checks the saved takes (booleans, never file names) and
-  `/mainodes/snap/private_loras` names the LoRA files the rules match, so LoRA rows in the sheet, the stack faces, the
-  + LoRA picker and `list_loras` carry a lock. A version of a private take (an edit, a continued take) is private too,
-  in the lock and the export, so a private take can be edited like any other. Marking only: nothing is hidden, gated or
-  re-run, and the row still works (Dylan, 2026-11-04: "my machine isn't going to be the private one"; "dont artificially
-  limit anything please thats for the end user to do what they decide"). *Why:* derived LoRAs that a name rule missed
-  had neutral names in a neutral folder and were caught only by their stamp (U68). *More:* U68_PRIVACY_AUDIT_2026-11-04.md
-  "Matcher gaps", PLAN U71, `snap_privacy.py`, `snap_bridge.py`.
+  model graph and the person's private paths and patterns, a `.safetensors` / `.sft` file whose header metadata says
+  `"privacy": "full"` (any case, at any level, inside JSON-string fields too, parsed a few levels deep) is private, and
+  so is one whose `trigger` / `trigger_word` / `trigger_phrase` / `triggers` names one of the person's private
+  `triggers` in their own `snap/private.json`: a trigger names who a LoRA draws and survives a re-train under any file
+  name, and an over-match only costs an export row. The pack knows only the generic stamp; trigger words, like paths
+  and patterns, live only in the person's file. Only the header is read (8-byte length, capped at 16 MB), cached per
+  real path by mtime and size; a read that fails is not stamped and not cached. Patterns also match the value's folder
+  part (a symlinked folder named like a pattern), and every input counts: names inside dict values (rgthree's Power Lora
+  Loader rows) and `<lora:name:w>` tags in text. Rules that can't be read (a file that doesn't parse or has the wrong
+  shape, or any error in the check) mark every take private with "privacy rules unreadable" and log an error; they
+  never stop a render. The lock follows today's rules, not only the mark saved at queue time:
+  `/mainodes/snap/take_marks` re-checks the saved takes (booleans, never file names) and `/mainodes/snap/private_loras`
+  names the LoRA files the rules match, so LoRA rows in the sheet, the stack faces, the + LoRA picker and `list_loras`
+  carry a lock. A version of a private take (an edit, a continued take) is private too, in the lock and the export, so a
+  private take can be edited like any other. Marking only: nothing is hidden, gated or re-run, and the row still works
+  (Dylan, 2026-11-04: "my machine isn't going to be the private one"; "dont artificially limit anything please thats
+  for the end user to do what they decide"). *Why:* derived LoRAs with neutral names in a neutral folder were caught
+  only by their stamp (U68). *More:* U68_PRIVACY_AUDIT_2026-11-04.md "Matcher gaps", PLAN U71, `snap_privacy.py`,
+  `snap_bridge.py`.

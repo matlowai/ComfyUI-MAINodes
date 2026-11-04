@@ -9,6 +9,7 @@ proposes, never downloads · SNAP-R27 locks follow the current rules · see docs
 import asyncio
 import hashlib
 import json
+import logging
 import os
 import secrets
 import subprocess
@@ -285,7 +286,16 @@ def metadata_gate(json_data):
     extra = json_data.setdefault("extra_data", {})
     workflow = (extra.get("extra_pnginfo") or {}).get("workflow")
     off = isinstance(workflow, dict) and (workflow.get("extra") or {}).get("snap_metadata") is False
-    found = snap_privacy.marks(prompt, workflow, snap_privacy.model_graph(folder_paths.get_user_directory()), loaded)
+    # rules that can't be read mark the take private and say so; they never stop the render (SNAP-R27). Core queues the
+    # prompt unchanged when a handler raises, so nothing may escape from here
+    try:
+        graph = snap_privacy.model_graph(folder_paths.get_user_directory())
+        found = snap_privacy.marks(prompt, workflow, graph, loaded)
+        if graph["broken"]:
+            logging.error("Snap: privacy rules unreadable (%s); this prompt is marked private until they are fixed", ", ".join(graph["broken"]))
+    except Exception:
+        logging.exception("Snap: privacy rules unreadable; this prompt is marked private")
+        found = {"private": ["privacy rules unreadable"], "nsfw": []}
     if not (off or found["private"] or found["nsfw"]):
         return json_data
     swapped = {}
@@ -308,8 +318,8 @@ PromptServer.instance.add_on_prompt_handler(metadata_gate)
 @routes.get("/mainodes/snap/private_loras")
 async def private_loras(request):
     def find():
-        graph = snap_privacy.model_graph(folder_paths.get_user_directory())
-        return [n for n in folder_paths.get_filename_list("loras") if snap_privacy.why(n, loaded(n), graph)]
+        graph, names = snap_privacy.model_graph(folder_paths.get_user_directory()), folder_paths.get_filename_list("loras")
+        return names if graph["broken"] else [n for n in names if snap_privacy.why(n, loaded(n), graph)]  # unreadable rules lock every row, as they mark every take
     return web.json_response({"loras": await asyncio.to_thread(find)})
 
 
