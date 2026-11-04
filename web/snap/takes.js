@@ -3,12 +3,16 @@
 // takes, keep or reject them, and pin notes to the moment (and region) where something went wrong or right; kept takes
 // are the Library's priors. Everything is local JSON in the user's ComfyUI data folder; tools/snap_dataset.py turns it
 // into training rows (takes, notes, preference pairs) for a judge model, only when someone runs it.
+// Each take keeps a content hash of what ran (`hash`, seeds left out, and `seed_hash` for them), so stale() can say
+// when the chain no longer matches it and name the brick and field that changed (UX_GEMS #1); never re-renders.
 // A take the server's save gate marked private or NSFW (history extra_data.snap_marks) says so: private takes saved
 // their files without the recipe inside, and the export leaves both out unless asked.
 // SNAP-R17 person and agent kept apart (notes, judgments, rankings) · SNAP-R18 local only · SNAP-R20 private takes
 // see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
+import * as E from "./engine.js";
+import { BRICKS } from "./bricks.js";
 
 const DIR = "snap/takes", RANKS = "snap/rankings", JUDGED = "snap/judgments";
 
@@ -100,14 +104,68 @@ async function capture(id, status, error, failedNode) {
   const [, , prompt, extra] = h.prompt;
   const graph = extra?.extra_pnginfo?.workflow ?? null;
   const group = graph?.id ?? groupOf(), n = takes.filter((t) => t.group === group).length + 1;
-  const { text, seed } = summary(prompt);
+  const { text, seed } = summary(prompt), swapped = extra?.snap_marks?.swapped ?? {};
   await save({
     id: `take-${id}`, kind: "run", prompt_id: id, created: started, finished: Date.now(), seconds: Math.round((Date.now() - started) / 100) / 10,
     group, workflow: app.extensionManager.workflow.activeWorkflow?.filename ?? "", number: n,
     status, ...(error ? { error, failed_node: failedNode } : {}), text, seed, media: media(h.outputs),
     ...(extra?.snap_marks?.private ? { private: true } : {}), ...(extra?.snap_marks?.nsfw ? { nsfw: true } : {}),
+    ...(Object.keys(swapped).length ? { swapped } : {}), ...await hashes(canonical(prompt, swapped)),
     verdict: null, prior: false, notes: [], graph, prompt,
   });
+}
+
+// what a prompt does, in a form that compares: per node its type (a save gate twin counts as the saver it stands in
+// for) and its inputs, links included; seeds go apart, so a new seed is not a change; titles only name things
+const SEED = /seed/i;
+export function canonical(prompt, swapped = {}) {
+  const recipe = {}, seeds = {}, titles = {};
+  for (const id of Object.keys(prompt ?? {}).sort()) {
+    const n = prompt[id], inputs = {};
+    for (const k of Object.keys(n.inputs ?? {}).sort()) {
+      if (SEED.test(k) && typeof n.inputs[k] === "number") seeds[`${id}.${k}`] = n.inputs[k];
+      else inputs[k] = n.inputs[k];
+    }
+    recipe[id] = { type: swapped[id] ?? n.class_type, inputs };
+    titles[id] = n._meta?.title ?? n.class_type;
+  }
+  return { recipe, seeds, titles };
+}
+const sha = async (x) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(x))))].map((b) => b.toString(16).padStart(2, "0")).join("");
+export const hashes = async (c) => ({ hash: await sha(c.recipe), seed_hash: await sha(c.seeds) });
+// the live chain as Run would queue it
+export const live = async () => canonical((await app.graphToPrompt()).output);
+// the agent tools' revision: the live recipe and its seeds, so any edit (a seed too) moves it
+export const revisionOf = async (c) => { const h = await hashes(c); return `${h.hash.slice(0, 12)}.${h.seed_hash.slice(0, 4)}`; };
+
+// a node as the person knows it: its brick's title (the outer node of a blueprint's inner one), else its own title
+const label = (id, titles) => { const outer = String(id).split(":")[0], b = E.state().bricks.find((x) => Object.values(x.nodes).some((n) => String(n) === outer));
+  return b ? BRICKS[b.key]?.title ?? b.key : titles[id] ?? `node ${id}`; };
+// what differs between two canonical prompts, as "Render.steps", "Save.images rewired", "Upscale added": only nodes of the
+// recipe count when the workflow has nodes outside it (Run leaves those out), and a node is "added" only when a brick owns it
+export function changes(was, now) {
+  const scope = E.targets() && new Set(E.targets().map(String)), out = [];
+  const owned = (id) => E.state().bricks.some((b) => Object.values(b.nodes).some((n) => String(n) === String(id).split(":")[0]));
+  for (const id of new Set([...Object.keys(was.recipe), ...Object.keys(now.recipe)])) {
+    if (scope && !scope.has(id)) continue;
+    const a = was.recipe[id], b = now.recipe[id], name = label(id, { ...was.titles, ...now.titles });
+    if (!b) out.push(`${name} removed`);
+    else if (!a) { if (owned(id)) out.push(`${name} added`); }
+    else if (a.type !== b.type) out.push(`${name} swapped`);
+    else for (const k of new Set([...Object.keys(a.inputs), ...Object.keys(b.inputs)])) {
+      if (JSON.stringify(a.inputs[k]) !== JSON.stringify(b.inputs[k])) out.push(`${name}.${k}${Array.isArray(a.inputs[k]) || Array.isArray(b.inputs[k]) ? " rewired" : ""}`);
+    }
+  }
+  return [...new Set(out)];
+}
+// null when the live chain still makes this take (seeds aside), else what changed; takes from before hashes were kept
+// are hashed from their prompt
+export async function stale(take, now) {
+  if (!take.prompt) return null;
+  now ??= await live();
+  if ((take.hash ?? (await hashes(canonical(take.prompt, take.swapped))).hash) === (await hashes(now)).hash) return null;
+  const list = changes(canonical(take.prompt, take.swapped), now);
+  return list.length ? { changed: list } : null;
 }
 
 // ranking: one ordered list of take ids per group and author (SNAP-R17: the person's order drives the strip; an agent's

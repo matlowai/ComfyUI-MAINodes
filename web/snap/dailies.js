@@ -1,6 +1,7 @@
 // Dailies: the takes strip under the chain, the take viewer (play, scrub, keep / reject, rank, notes pinned to a moment
 // and optionally a region: "where it went wrong / right"), and blind A/B compare. What people do here is the data a
-// judge model learns from (takes.js keeps it; tools/snap_dataset.py exports it).
+// judge model learns from (takes.js keeps it; tools/snap_dataset.py exports it). A take the chain no longer makes shows
+// "stale: Render.steps changed" (U31); checked after graph edits, written into the cards in place.
 // SNAP-R7 pointer-down lists · SNAP-R17 blind pairs from agents are judged by the person · SNAP-R20 the lock on private
 // takes · see docs/SNAP_RULES.md
 import * as T from "./takes.js";
@@ -44,7 +45,24 @@ export function createDailies({ host, say, onRestore, onContinue }) {
     waiting.hidden = !ab.length;
     waiting.textContent = `${ab.length} blind pair${ab.length === 1 ? "" : "s"} waiting`;
     el.classList.toggle("empty", !group.length);
+    refresh();
     strip.replaceChildren(...(group.length ? [...ranked, ...rest].map((t) => card(t, ranked.indexOf(t))) : [h("div", { className: "snap-quiet", textContent: "Each run lands here as a take: rank it, keep or reject it, and note where it went wrong or right." })]));
+  }
+
+  // stale chips: one live prompt per check, compared with every take in the strip; a newer check wins
+  let checking = 0, timer = null;
+  const refresh = () => { clearTimeout(timer); timer = setTimeout(markStale, 250); };
+  async function markStale() {
+    const mine = ++checking, cards = [...strip.querySelectorAll(".snap-take")];
+    if (!cards.length) return;
+    const now = await T.live(), found = await Promise.all(cards.map((c) => T.stale(T.get(c.dataset.take), now)));
+    if (mine !== checking) return;
+    cards.forEach((c, i) => {
+      const chip = c.querySelector(".snap-take-stale"), list = found[i]?.changed ?? [];
+      chip.hidden = !list.length;
+      chip.textContent = list.length ? `stale: ${list[0]}${list[0].endsWith(" rewired") || / (added|removed|swapped)$/.test(list[0]) ? "" : " changed"}${list.length > 1 ? ` +${list.length - 1}` : ""}` : "";
+      chip.title = list.length ? `The chain no longer makes this take:\n${list.join("\n")}` : "";
+    });
   }
 
   function card(t, r) {
@@ -57,6 +75,7 @@ export function createDailies({ host, say, onRestore, onContinue }) {
         t.verdict ? h("span", { className: "snap-take-verdict", textContent: t.verdict === "keep" ? "✓" : "✗" }) : null,
         t.prior ? h("span", { className: "snap-take-prior", textContent: "prior", title: "in the Library as a prior" }) : null),
       h("figcaption", {}, h("b", { textContent: `Take ${t.number}` }), t.seed != null ? ` · seed ${t.seed}` : "", t.status !== "success" ? h("em", { textContent: ` · ${t.status}` }) : "",
+        h("span", { className: "snap-take-stale", hidden: true }),
         t.private ? h("span", { className: "snap-take-lock", textContent: "🔒 private", title: "Private take (identity or Cast LoRA): its files were saved without the recipe inside, and exports leave it out" }) : null,
         h("span", { className: "snap-quiet", textContent: `${t.notes.length ? `✎ ${t.notes.length} · ` : ""}${ago(t.created)}` })));
     c.dataset.take = t.id;
@@ -239,5 +258,5 @@ export function createDailies({ host, say, onRestore, onContinue }) {
     host.append(sheet);
   }
 
-  return { el, render, view, compare };
+  return { el, render, refresh, view, compare };
 }

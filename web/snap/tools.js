@@ -74,10 +74,11 @@ export const TOOLS = [
   },
   {
     name: "describe_recipe",
-    description: "The current workflow, starting with `about` (how the current setup card's models fit together: read it before changing anything), then as bricks in reading order, with each brick's bindings (what feeds it and which rule made the link), its settings, wiring the user changed in the graph, settings that point at nothing installed, nodes outside the recipe (Run leaves them out), and `models`: the family, the setup, the turbo, every model file the recipe loads (size, installed, and the model graph's kind / turbo / role), the LoRA rows, and warnings (a turbo LoRA on a turbo merge, stacked turbos, SFT without a deband fix, another family's file, a schedule the turbo wasn't distilled for, an encoder type that doesn't fit). Warnings never block; say them to the person.",
+    description: "The current workflow, starting with `revision` (a content hash of what Run would queue; pass it as if_revision to a change so it is refused when the person or another agent edited in between) and `about` (how the current setup card's models fit together: read it before changing anything), then as bricks in reading order, with each brick's bindings (what feeds it and which rule made the link), its settings, wiring the user changed in the graph, settings that point at nothing installed, nodes outside the recipe (Run leaves them out), and `models`: the family, the setup, the turbo, every model file the recipe loads (size, installed, and the model graph's kind / turbo / role), the LoRA rows, and warnings (a turbo LoRA on a turbo merge, stacked turbos, SFT without a deband fix, another family's file, a schedule the turbo wasn't distilled for, an encoder type that doesn't fit). Warnings never block; say them to the person.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
     run: async () => ({
+      revision: await revision(),
       about: M.setups().find((x) => x.current && x.about)?.about ?? null,
       models: await models(),
       bricks: E.describe().map((b) => ({ brick: b.brick, title: b.title, bindings: b.bindings, settings: shown(settingsOf(b.brick)) })),
@@ -310,14 +311,16 @@ export const TOOLS = [
   },
   {
     name: "list_takes",
-    description: "The takes (finished runs) of the open workflow, ranked ones first in the person's order: number, seed, status, verdict (keep/reject), whether it's a prior, how many notes, the media files and the prompt's start. For dailies: read takes, then get_take for one take's notes and settings.",
+    description: "The takes (finished runs) of the open workflow, ranked ones first in the person's order: number, seed, status, verdict (keep/reject), whether it's a prior, how many notes, the media files, the prompt's start, and `stale` ({changed: [\"Render.steps\", …]} when the chain no longer makes the take, seeds aside; null when it does). Private takes say so: don't name their LoRAs to anyone but the person. For dailies: read takes, then get_take for one take's notes and settings.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
     run: async () => {
       await T.load();
       const order = await T.ranking();
-      return T.inGroup().sort((a, b) => (order.includes(a.id) ? order.indexOf(a.id) : 1e9 + a.created) - (order.includes(b.id) ? order.indexOf(b.id) : 1e9 + b.created))
-        .map((t) => ({ id: t.id, number: t.number, rank: order.includes(t.id) ? order.indexOf(t.id) + 1 : null, seed: t.seed, status: t.status, verdict: t.verdict, prior: t.prior, notes: t.notes.length, media: t.media.map((m) => `${m.type}/${m.subfolder ? `${m.subfolder}/` : ""}${m.filename}`), prompt: t.text.slice(0, 200) }));
+      const now = await T.live();
+      return Promise.all(T.inGroup().sort((a, b) => (order.includes(a.id) ? order.indexOf(a.id) : 1e9 + a.created) - (order.includes(b.id) ? order.indexOf(b.id) : 1e9 + b.created))
+        .map(async (t) => ({ id: t.id, number: t.number, rank: order.includes(t.id) ? order.indexOf(t.id) + 1 : null, seed: t.seed, status: t.status, verdict: t.verdict, prior: t.prior, notes: t.notes.length, media: t.media.map((m) => `${m.type}/${m.subfolder ? `${m.subfolder}/` : ""}${m.filename}`), prompt: t.text.slice(0, 200),
+          stale: await T.stale(t, now), ...(t.private ? { private: true } : {}) })));
     },
   },
   {
@@ -545,6 +548,15 @@ export const TOOLS = [
   },
 ];
 
+// the revision an agent read (describe_recipe) and the recipe it stood for, so a refused change can say what moved
+const seen = new Map();
+async function revision() {
+  const now = await T.live(), r = await T.revisionOf(now);
+  seen.set(r, now);
+  if (seen.size > 16) seen.delete(seen.keys().next().value);
+  return r;
+}
+
 const byName = new Map(TOOLS.map((t) => [t.name, t]));
 export const readOnly = (name) => !!byName.get(name)?.annotations?.readOnlyHint;
 const proposable = (name) => !readOnly(name) && !byName.get(name)?.direct;
@@ -553,7 +565,11 @@ const proposable = (name) => !readOnly(name) && !byName.get(name)?.direct;
 export async function callTool(name, args = {}, { confirmed } = {}) {
   const tool = byName.get(name);
   if (!tool) throw new Error(`Unknown Snap tool ${name}`);
-  const { propose, reason, for_note, ...rest } = args;
+  const { propose, reason, for_note, if_revision, ...rest } = args;
+  if (if_revision != null && !readOnly(name)) {
+    const was = seen.get(if_revision), now = await revision();
+    if (now !== if_revision) throw new Error(`The recipe changed since revision ${if_revision} (now ${now})${was ? `: ${T.changes(was, seen.get(now)).join(", ") || "seeds"}` : ""}. Read describe_recipe again and decide with what is there now`);
+  }
   if (tool.consequential && !confirmed && !mayRun()) {
     const p = P.add(name, rest, reason ?? `${name.replaceAll("_", " ")} (uses the GPU)`, for_note);
     return { proposed: p.id, status: "uses the GPU: waiting for the person to accept (or to allow agents to run in ComfyUI's settings)" };
@@ -570,9 +586,10 @@ const PROPOSE = {
   reason: { type: "string", description: "one line the person sees with the proposal" },
   for_note: { type: "string", description: "id of the director's note this proposal answers (from get_notes)" },
 };
+const IF_REVISION = { if_revision: { type: "string", description: "the revision from describe_recipe this change is meant for: refused, naming what changed, when the recipe moved since" } };
 export const schema = () => TOOLS.map(({ name, description, inputSchema, annotations = {} }) => ({
   name, description, annotations,
-  inputSchema: proposable(name) ? { ...inputSchema, properties: { ...inputSchema.properties, ...PROPOSE } } : inputSchema,
+  inputSchema: readOnly(name) ? inputSchema : { ...inputSchema, properties: { ...inputSchema.properties, ...(proposable(name) ? PROPOSE : {}), ...IF_REVISION } },
 }));
 
 // the view tells the tools how to read and drive it (set by snap_view.js once the view exists)

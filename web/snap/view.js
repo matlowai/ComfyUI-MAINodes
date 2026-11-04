@@ -1015,6 +1015,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   // FLIP: bricks that moved spring from their old place; new ones rise in
   function render(before, entered) {
+    dailies.refresh();
     const infos = E.describe();
     overridden = infos.length ? E.overrides() : [];
     for (const key of built.keys()) if (!infos.some((i) => i.brick === key)) built.delete(key);
