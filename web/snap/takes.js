@@ -105,19 +105,40 @@ async function capture(id, status, error, failedNode) {
   });
 }
 
-// ranking: one ordered list of take ids per group (the people's order; everything not in it is unranked)
+// ranking: one ordered list of take ids per group and author (SNAP-R17: the person's order drives the strip; an agent's
+// is kept in its own file, so a judge model never learns an agent's ranking as the person's)
 const slug = (g) => g.replace(/[^a-z0-9._-]+/gi, "_").slice(0, 120);
 const ranks = new Map();
-export async function ranking(group = groupOf()) {
-  if (!ranks.has(group)) ranks.set(group, (await readJson(`${RANKS}/${slug(group)}.json`, { order: [] })).order);
-  return ranks.get(group);
+const rankFile = (group, by) => `${RANKS}/${slug(group)}${by === "agent" ? ".agent" : ""}.json`;
+export async function ranking(group = groupOf(), by = "person") {
+  const key = `${by}|${group}`;
+  if (!ranks.has(key)) ranks.set(key, (await readJson(rankFile(group, by), { order: [] })).order);
+  return ranks.get(key);
 }
-export async function rank(id, index, group = groupOf()) {
-  const order = (await ranking(group)).filter((x) => x !== id);
+export async function rank(id, index, group = groupOf(), by = "person") {
+  const order = (await ranking(group, by)).filter((x) => x !== id);
   if (index != null) order.splice(Math.max(0, Math.min(index, order.length)), 0, id);
-  ranks.set(group, order);
+  await setRanking(order, group, by);
+}
+export async function setRanking(order, group = groupOf(), by = "person") {
+  ranks.set(`${by}|${group}`, order);
   changed();
-  await store(`${RANKS}/${slug(group)}.json`, { group, order, updated: Date.now() });
+  await store(rankFile(group, by), { group, order, by, updated: Date.now() });
+}
+
+// a blind A/B an agent sets up for the person to judge (only a person judges it); judging it takes it off the list
+const PENDING = "snap/ab_pending.json";
+export const pending = () => readJson(PENDING, []);
+export async function setupAB(a, b, by = "agent") {
+  const list = (await pending()).filter((p) => !(p.a === a && p.b === b));
+  list.push({ a, b, by, at: new Date().toISOString() });
+  await store(PENDING, list);
+  changed();
+  return list.length;
+}
+export async function settleAB(a, b) {
+  await store(PENDING, (await pending()).filter((p) => !((p.a === a && p.b === b) || (p.a === b && p.b === a))));
+  changed();
 }
 
 // a preference between two takes (blind or not), with the reason: the pairwise rows a judge model learns from

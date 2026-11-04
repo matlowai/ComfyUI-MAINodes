@@ -4,8 +4,9 @@ Reads what the Snap page keeps in ComfyUI's user folder (user/<name>/snap/takes,
 JSONL files; nothing leaves the machine:
   takes.jsonl  one row per take: media paths, prompt, seed, status, verdict, rank in its workflow, prior, notes
   notes.jsonl  one row per note: the take's media, moment (s), region [x, y, w, h] as fractions, wrong/right, tags, words
-  pairs.jsonl  preferences: better/worse take ids with their media, from the person's ranking (source "rank"), keep over
-               reject in the same workflow ("verdict"), and A/B picks ("ab", with blind and the reason)
+  pairs.jsonl  preferences: better/worse take ids with their media and who said so (by person|agent), one row per pair
+               and author with every source that agrees: a ranking ("rank"), keep over reject in the same workflow
+               ("verdict"), and A/B picks ("ab", with blind and the reason)
 
   python tools/snap_dataset.py --comfy /path/to/ComfyUI --out /path/to/dataset_dir
 """
@@ -30,7 +31,8 @@ def main():
     snap = args.comfy / "user" / args.user / "snap"
     roots = {"output": args.comfy / "output", "input": args.comfy / "input", "temp": args.comfy / "temp"}
     takes = {t["id"]: t for t in (read(f, None) for f in sorted((snap / "takes").glob("*.json"))) if t}
-    ranks = {r["group"]: r["order"] for r in (read(f, None) for f in (snap / "rankings").glob("*.json")) if r}
+    # one ranking per group and author: <group>.json is the person's, <group>.agent.json an agent's (SNAP-R17)
+    ranks = {(r["group"], r.get("by", "person")): r["order"] for r in (read(f, None) for f in (snap / "rankings").glob("*.json")) if r}
     judged = [row for f in sorted((snap / "judgments").glob("*.json")) for row in read(f, [])]
 
     def files(t):
@@ -40,7 +42,7 @@ def main():
     counts = {"takes": 0, "notes": 0, "pairs": 0}
     with open(args.out / "takes.jsonl", "w", encoding="utf-8") as ft, open(args.out / "notes.jsonl", "w", encoding="utf-8") as fn:
         for t in takes.values():
-            order = [i for i in ranks.get(t["group"], []) if i in takes]
+            order = [i for i in ranks.get((t["group"], "person"), []) if i in takes]
             row = {"id": t["id"], "group": t["group"], "workflow": t.get("workflow"), "number": t["number"], "created": t["created"],
                    "status": t["status"], "error": t.get("error"), "seed": t.get("seed"), "prompt": t.get("text", ""), "media": files(t),
                    "verdict": t.get("verdict"), "prior": t.get("prior", False), "rank": order.index(t["id"]) + 1 if t["id"] in order else None,
@@ -58,21 +60,30 @@ def main():
                 "prompt": takes[better].get("text", ""), **extra}
 
     with open(args.out / "pairs.jsonl", "w", encoding="utf-8") as fp:
-        rows = []
-        for group, order in ranks.items():
+        rows = {}  # (better, worse, by) -> one row; a rank and a judgment that agree are one pair with both sources
+
+        def add(better, worse, source, by="person", **extra):
+            row = rows.setdefault((better, worse, by), pair(better, worse, by=by, sources=[]))
+            row["sources"].append(source)
+            row.update(extra)
+        for (group, by), order in ranks.items():
             order = [i for i in order if i in takes]
-            rows += [pair(a, b, source="rank", group=group, margin=order.index(b) - order.index(a)) for a, b in combinations(order, 2)]
+            for a, b in combinations(order, 2):
+                add(a, b, "rank", by, group=group, margin=order.index(b) - order.index(a))
         by_group = {}
         for t in takes.values():
             by_group.setdefault(t["group"], []).append(t)
         for group, ts in by_group.items():
-            rows += [pair(k["id"], r["id"], source="verdict", group=group) for k in ts if k.get("verdict") == "keep" for r in ts if r.get("verdict") == "reject"]
+            for k in ts:
+                for r in ts:
+                    if k.get("verdict") == "keep" and r.get("verdict") == "reject":
+                        add(k["id"], r["id"], "verdict", group=group)
         for j in judged:
             if j["winner"] == "tie" or j["a"] not in takes or j["b"] not in takes:
                 continue
             loser = j["b"] if j["winner"] == j["a"] else j["a"]
-            rows.append(pair(j["winner"], loser, source="ab", blind=j["blind"], why=j["why"], at=j["at"], by=j.get("by", "person")))
-        for r in rows:
+            add(j["winner"], loser, "ab", j.get("by", "person"), blind=j["blind"], why=j["why"], at=j["at"])
+        for r in rows.values():
             fp.write(json.dumps(r) + "\n")
         counts["pairs"] = len(rows)
 

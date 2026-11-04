@@ -20,8 +20,10 @@ export function createDailies({ host, say, onRestore, onContinue }) {
   const strip = h("div", { className: "snap-takes-strip" });
   const count = h("span", { className: "snap-quiet" });
   const compareBtn = h("button", { className: "snap-link snap-quiet-btn", textContent: "Compare", disabled: true, onclick: () => compare([...picked]) });
+  // blind pairs an agent set up for the person (setup_ab): one click opens the next, blind
+  const waiting = h("button", { className: "snap-link snap-ab-waiting", hidden: true, onclick: async () => { const p = (await T.pending()).find((x) => T.get(x.a) && T.get(x.b)); if (p) compare([p.a, p.b], { forced: true }); } });
   const el = h("section", { className: "snap-takes" },
-    h("header", {}, h("strong", { textContent: "Takes" }), count, h("span", { className: "snap-spacer" }),
+    h("header", {}, h("strong", { textContent: "Takes" }), count, waiting, h("span", { className: "snap-spacer" }),
       h("span", { className: "snap-quiet snap-takes-hint", textContent: "drag to rank · tick two to compare" }), compareBtn),
     strip);
   T.onChange(() => render());
@@ -34,6 +36,9 @@ export function createDailies({ host, say, onRestore, onContinue }) {
     count.textContent = group.length ? `${group.length} · ${ranked.length} ranked · ${group.filter((t) => t.verdict === "keep").length} kept` : "";
     for (const id of picked) if (!T.get(id)) picked.delete(id);
     compareBtn.disabled = picked.size !== 2;
+    const ab = (await T.pending()).filter((p) => T.get(p.a) && T.get(p.b));
+    waiting.hidden = !ab.length;
+    waiting.textContent = `${ab.length} blind pair${ab.length === 1 ? "" : "s"} waiting`;
     el.classList.toggle("empty", !group.length);
     strip.replaceChildren(...(group.length ? [...ranked, ...rest].map((t) => card(t, ranked.indexOf(t))) : [h("div", { className: "snap-quiet", textContent: "Each run lands here as a take: rank it, keep or reject it, and note where it went wrong or right." })]));
   }
@@ -193,13 +198,14 @@ export function createDailies({ host, say, onRestore, onContinue }) {
   }
 
   // ---- blind A/B ------------------------------------------------------------------------------------------------
-  function compare([x, y]) {
+  function compare([x, y], { forced } = {}) {
     const a0 = T.get(x), b0 = T.get(y);
     let blind = true, flipped = Math.random() < 0.5;
     const close = () => { sheet.remove(); host.focus({ preventScroll: true }); };
     const why = h("input", { className: "snap-lib-q", placeholder: "Why? one sentence (what made it better)" });
     const panes = h("div", { className: "snap-compare" });
-    const blindBox = h("label", { className: "snap-check" }, h("input", { type: "checkbox", checked: blind, onchange: (e) => { blind = e.target.checked; flipped = Math.random() < 0.5; draw(); } }), "Blind (sides shuffled, settings hidden)");
+    const blindBox = forced ? h("span", { className: "snap-quiet", textContent: "Blind pair set up by an agent: sides shuffled, settings hidden" })
+      : h("label", { className: "snap-check" }, h("input", { type: "checkbox", checked: blind, onchange: (e) => { blind = e.target.checked; flipped = Math.random() < 0.5; draw(); } }), "Blind (sides shuffled, settings hidden)");
     const pair = () => (flipped ? [b0, a0] : [a0, b0]);
     function draw() {
       const [l, r] = pair();
@@ -215,6 +221,7 @@ export function createDailies({ host, say, onRestore, onContinue }) {
     const pick = async (side) => {
       const [l, r] = pair();
       await T.judge(l.id, r.id, side === "tie" ? "tie" : side === "a" ? l.id : r.id, { blind, why: why.value.trim() });
+      await T.settleAB(l.id, r.id);
       say(side === "tie" ? "Recorded: a tie" : `Recorded: ${blind ? "the" : `take ${(side === "a" ? l : r).number}`} ${side.toUpperCase()} side${blind ? ` was take ${(side === "a" ? l : r).number}` : ""}`);
       close();
     };

@@ -412,6 +412,42 @@ export const TOOLS = [
     },
   },
   {
+    name: "rank_takes",
+    description: "An agent's ranking of this workflow's takes, best first (take ids from list_takes). It is kept apart from the person's ranking (by: agent, its own file): the Takes strip keeps showing the person's order.",
+    inputSchema: { type: "object", properties: { order: { type: "array", items: { type: "string" }, minItems: 1 } }, required: ["order"] },
+    run: async ({ order }) => {
+      await T.load();
+      const bad = order.filter((id) => T.get(id)?.group !== T.groupOf());
+      if (bad.length) throw new Error(`Not takes of this workflow: ${bad.join(", ")}`);
+      await T.setRanking(order, T.groupOf(), "agent");
+      return { ranked: order.length, by: "agent" };
+    },
+  },
+  {
+    name: "setup_ab",
+    description: "Set up a blind A/B of two takes for the person: it waits in Takes as 'N blind pairs waiting' and only the person judges it (sides shuffled, settings hidden). Use it when you want the person's preference, never to record your own (that is judge_takes).",
+    inputSchema: { type: "object", properties: { take_a: { type: "string" }, take_b: { type: "string" } }, required: ["take_a", "take_b"] },
+    run: async ({ take_a, take_b }) => {
+      await T.load();
+      for (const id of [take_a, take_b]) if (!T.get(id)) throw new Error(`No take ${id}`);
+      if (take_a === take_b) throw new Error("Pick two different takes");
+      return { waiting: await T.setupAB(take_a, take_b) };
+    },
+  },
+  {
+    name: "save_workflow",
+    description: "Save the open workflow (graph and recipe) under a name in the person's Workflows (user workflows/<name>.json). An existing name is refused unless overwrite is true.",
+    inputSchema: { type: "object", properties: { name: { type: "string" }, overwrite: { type: "boolean" } }, required: ["name"] },
+    run: async ({ name, overwrite }) => {
+      const clean = String(name).trim().replace(/\.json$/, "");
+      if (!/^[\w .-]{1,80}$/.test(clean) || clean.startsWith(".")) throw new Error("A workflow name takes letters, digits, spaces, '.', '_' and '-'");
+      const path = `workflows/${clean}.json`;
+      if (!overwrite && (await api.getUserData(path)).ok) throw new Error(`${clean} exists; pass overwrite: true to replace it`);
+      await api.storeUserData(path, app.graph.serialize());
+      return { saved: path };
+    },
+  },
+  {
     name: "judge_takes",
     description: "An agent's pairwise judgment between two takes (winner id or 'tie', and why). Kept apart from the person's judgments (by: agent), so a judge model can learn from people and be scored against them.",
     inputSchema: { type: "object", properties: { a: { type: "string" }, b: { type: "string" }, winner: { type: "string" }, why: { type: "string" } }, required: ["a", "b", "winner", "why"] },
@@ -427,10 +463,13 @@ export const TOOLS = [
   },
   {
     name: "set_widget",
-    description: "Set any widget on any node (list_nodes shows them): a combo takes one of its choices (e.g. a model file; its name without the sub-folder is enough when unique), a number stays within its limits. Widgets driven by a wire can't be set; change the source instead.",
+    description: "Set any widget on any node (list_nodes shows them): a combo takes one of its choices (e.g. a model file; its name without the sub-folder is enough when unique), a number stays within its limits. A node inside a blueprint is '<outer id>:<inner id>' as the prompt names it (e.g. a RandomNoise's control_after_generate: fixed keeps the same seed across runs). Widgets driven by a wire can't be set; change the source instead.",
     inputSchema: { type: "object", properties: { node: { type: ["integer", "string"] }, name: { type: "string" }, value: {} }, required: ["node", "name", "value"] },
     run: async ({ node, name, value }) => {
-      const n = app.graph.getNodeById(node), w = n?.widgets?.find((x) => x.name === name);
+      const [outer, ...path] = String(node).split(":");
+      let n = app.graph.getNodeById(outer);
+      for (const id of path) n = n?.subgraph?.nodes.find((x) => String(x.id) === id);
+      const w = n?.widgets?.find((x) => x.name === name);
       if (!w) throw new Error(`No widget ${name} on node ${node}`);
       const info = widgetInfo(n, w);
       if (info.wired_from) throw new Error(`${name} is wired from ${info.wired_from}; set it there`);
