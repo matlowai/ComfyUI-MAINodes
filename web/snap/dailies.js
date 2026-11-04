@@ -11,7 +11,7 @@
 // in a bracket after the take they came from, the shot's active take wears a star, and ☆ makes another take the
 // active one; the viewer's title is where the take sits in the scene (Platform › Shot 1 › Take 2 › Night version).
 // SNAP-R7 pointer-down lists · SNAP-R17 blind pairs from agents are judged by the person · SNAP-R20 the lock on private
-// takes · SNAP-R21 copies flagged · SNAP-R23 candidates · SNAP-R24 scenes own the work · see docs/SNAP_RULES.md
+// takes (SNAP-R27: by the current rules) · SNAP-R21 copies flagged · SNAP-R23 candidates · SNAP-R24 scenes own the work · see docs/SNAP_RULES.md
 import * as T from "./takes.js";
 import * as PL from "./plates.js";
 import * as C from "./candidates.js";
@@ -115,7 +115,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom }) {
         t.copy?.copied ? h("span", { className: "snap-take-copy", textContent: `copied its reference view ${Math.max(...t.copy.against.map((a) => a.last)).toFixed(2)}`,
           title: `This take ends on the view of its reference picture (last frame's copy score at or above ${t.copy.threshold}): right when that picture is this camera's own plate, wrong when it shows another camera's view.\n${t.copy.against.map((a) => `${a.image}: ${a.frames.join(" → ")}`).join("\n")}` }) : null,
         t.parent && !version ? h("span", { className: "snap-take-parent", textContent: `↳ ${t.parent.options?.time ?? t.parent.method.split("/").pop()} of take ${T.get(t.parent.take)?.number ?? "?"}`, title: `made from ${t.parent.take} by ${t.parent.method}` }) : null,
-        t.private ? h("span", { className: "snap-take-lock", textContent: "🔒 private", title: `Private take (identity or Cast LoRA): exports leave it out${t.metadata === false ? "; its files were saved without the recipe inside" : ""}` }) : null,
+        T.locked(t) ? h("span", { className: "snap-take-lock", textContent: "🔒 private", title: `Private take (it loads a private file or has a Cast LoRA row on): exports leave it out${t.metadata === false ? "; its files were saved without the recipe inside" : ""}` }) : null,
         h("span", { className: "snap-quiet", textContent: `${t.notes.length ? `✎ ${t.notes.length} · ` : ""}${ago(t.created)}` })));
     c.dataset.take = t.id;
     const v = c.querySelector("video");

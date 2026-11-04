@@ -5,18 +5,24 @@ same way. Plain Python, no ComfyUI imports: the export runs outside ComfyUI; eac
 files on disk.
 
 A prompt is private when any node loads a file that the model graph gives role `identity` or tags `private`, whose
-real path (symlinks followed) lies under one of the person's private paths, or whose name or real path matches one of
-their private patterns; or when Snap's Cast brick has a LoRA row on. It is NSFW when it loads a file tagged `nsfw`.
+real path (symlinks followed) lies under one of the person's private paths, whose name (folders included) or real path
+matches one of their private patterns, or whose safetensors header is stamped private (SNAP-R27); or when Snap's Cast
+brick has a LoRA row on. It is NSFW when it loads a file tagged `nsfw`.
 The private paths and patterns live only in the person's own user/<name>/snap/private.json
 ({"paths": [globs], "patterns": [globs]}), never in the pack, and the page never reads them. Reasons name nodes, never
 files.
+SNAP-R12 identity LoRAs are private · SNAP-R20 private takes marked · SNAP-R27 a file stamped private · see docs/SNAP_RULES.md
 """
 import json
+import os
+import struct
 from fnmatch import fnmatch
 from pathlib import Path
 
 PACK = Path(__file__).parent / "snap_cards" / "models.json"
 MODEL_FILE = (".safetensors", ".sft", ".gguf", ".ckpt", ".pt", ".pth", ".bin")
+HEADER_CAP = 16 << 20  # a LoRA's header is ~65 KB; a header past this is skipped, never read whole
+stamps = {}  # realpath -> ((mtime_ns, size), (stamped full, triggers)); one small entry per file a prompt loaded
 
 
 def base(name):
@@ -46,6 +52,44 @@ def model_graph(user_dir):
     return graph
 
 
+def stamp(real):
+    """(privacy == "full", trigger words) from a .safetensors header's metadata, header only. Trainers write them inside
+    JSON-string fields (`lorastery_recipe` holds {"privacy": "full", "dataset": {"trigger": "<name>"}}), so each field that
+    holds a JSON object is parsed once and searched. Unreadable means not stamped (SNAP-R27)."""
+    try:
+        st = os.stat(real)
+    except OSError:
+        return False, ()
+    key = (st.st_mtime_ns, st.st_size)
+    if real in stamps and stamps[real][0] == key:
+        return stamps[real][1]
+    full, triggers = False, []
+    try:
+        with open(real, "rb") as f:
+            n = struct.unpack("<Q", f.read(8))[0]
+            header = json.loads(f.read(n)) if n <= HEADER_CAP else {}
+    except (OSError, ValueError, struct.error):
+        header = {}
+    meta = header.get("__metadata__") if isinstance(header, dict) else None
+    todo = [meta] if isinstance(meta, dict) else []
+    while todo:
+        o = todo.pop()
+        for k, v in o.items() if isinstance(o, dict) else enumerate(o):
+            if o is meta and isinstance(v, str) and v.startswith("{"):  # a JSON-string field, parsed once
+                try:
+                    v = json.loads(v)
+                except ValueError:
+                    pass
+            if k == "privacy" and v == "full":
+                full = True
+            elif str(k).rsplit(".", 1)[-1] in ("trigger", "trigger_word"):
+                triggers += [t.lower() for t in (v if isinstance(v, list) else [v]) if isinstance(t, str)]
+            elif isinstance(v, (dict, list)):
+                todo.append(v)
+    stamps[real] = (key, (full, tuple(triggers)))
+    return stamps[real][1]
+
+
 def why(value, reals, graph):
     """Why loading this value makes a prompt private, or None."""
     e = graph["entries"].get(base(value))
@@ -55,8 +99,11 @@ def why(value, reals, graph):
         return "a file tagged private"
     if any(fnmatch(r, p) or fnmatch(r, p + "/*") for r in reals for p in graph["paths"]):
         return "a file under a private path"
-    if (reals or value.lower().endswith(MODEL_FILE)) and any(fnmatch(n.lower(), p) for n in [base(value), *reals, *map(base, reals)] for p in graph["patterns"]):
+    if (reals or value.lower().endswith(MODEL_FILE)) and any(fnmatch(n.lower(), p) for n in [value.replace("\\", "/"), base(value), *reals, *map(base, reals)] for p in graph["patterns"]):
         return "a file matching a private pattern"
+    for full, triggers in (stamp(r) for r in reals if r.endswith(".safetensors")):
+        if full or any(fnmatch(t, p) for t in triggers for p in graph["patterns"]):
+            return "a file stamped private"
     return None
 
 

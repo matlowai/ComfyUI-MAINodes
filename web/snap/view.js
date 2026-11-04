@@ -614,7 +614,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const role = BRICKS[key].stack.role, list = M.rows(key), fam = M.family(), changed = () => render(null);
     const rowEl = (r) => h("div", { className: `snap-lora${r.on ? "" : " off"}` },
       h("input", { type: "checkbox", checked: r.on, title: "on / off", onchange: (e) => { M.setRow(key, r.row, { on: e.target.checked }); changed(); } }),
-      h("span", { className: "snap-lora-name", textContent: String(r.file).split("/").pop().replace(/\.safetensors$/, "").replaceAll("_", "_\u200b"), title: `${r.file}${r.entry?.notes ? `\n${r.entry.notes}` : ""}` }),
+      h("span", { className: "snap-lora-name", textContent: `${M.isLocked(r.file) ? "🔒 " : ""}${String(r.file).split("/").pop().replace(/\.safetensors$/, "").replaceAll("_", "_\u200b")}`, title: `${r.file}${M.isLocked(r.file) ? "\nprivate: takes that load it are locked and left out of exports" : ""}${r.entry?.notes ? `\n${r.entry.notes}` : ""}` }),
       r.entry?.role === "unsorted" ? h("select", { className: "snap-lora-ask", title: "what is this LoRA? (remembered for next time)", onchange: async (e) => {
         // NSFW is a tag, not a role: the file stays unsorted, and SFW only hides it (SNAP-R25)
         if (e.target.value === "nsfw") { await M.teach(r.file, { tags: [...new Set([...(r.entry.tags ?? []), "nsfw"])] }); changed(); return; }
@@ -627,7 +627,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const fit = (e) => (role === "core" ? e.role === "core" : e.role === role || e.role === "unsorted") && (!fam || !e.family || e.family === fam);
     const choices = M.loraChoices().filter(([, e]) => e.role !== "dial").sort(([, a], [, b]) => fit(b) - fit(a));
     const pick = h("select", { className: "snap-lora-add", title: "add a LoRA row", onchange: (e) => { if (e.target.value) { M.addRow(key, e.target.value); changed(); } } },
-      h("option", { value: "", textContent: PF.sfwOnly() ? "+ LoRA (SFW only: nsfw-tagged hidden)" : "+ LoRA", selected: true }), choices.map(([name, e]) => h("option", { value: name, textContent: `${fit(e) ? "" : "· "}${name}` })));
+      h("option", { value: "", textContent: PF.sfwOnly() ? "+ LoRA (SFW only: nsfw-tagged hidden)" : "+ LoRA", selected: true }), choices.map(([name, e]) => h("option", { value: name, textContent: `${fit(e) ? "" : "· "}${M.isLocked(name) ? "🔒 " : ""}${name}` })));
     const all = h("button", { className: "snap-link snap-quiet-btn snap-lora-browse", textContent: "browse", title: "LoRAs by category: search, file them, add one here",
       onclick: () => browse(role === "core" ? null : role, (f) => { M.addRow(key, f); changed(); }) });
     const box = h("div", { className: "snap-loras" }, list.length ? list.map(rowEl) : h("div", { className: "snap-quiet", textContent: role === "core" ? "No core LoRAs" : "No LoRAs" }), h("div", { className: "snap-lora-addrow" }, pick, all));
@@ -1079,12 +1079,12 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     if (info.members) { // the Setup card shows every value its bricks hold, the setup, family and turbo
       const vals = info.members.map((k) => M.nodesOf(k).map(([, n]) => n.widgets?.map((w) => (typeof w.value === "object" ? null : w.value))));
       return JSON.stringify([info.nodes, info.bindings, vals, M.setups().find((x) => x.current), M.family(), M.turbo()?.file, M.turbos().length, Object.values(M.sampling()).map((x) => x.value),
-        info.members.map((k) => M.warnings().filter((w) => w.brick === k).map((w) => w.text)), M.known(), info.members.flatMap(openNotes).map((n) => [n.id, n.status, n.reply]), opened === info.brick, overridden.filter((o) => info.members.includes(o.to)).map((o) => o.change)]);
+        info.members.map((k) => M.warnings().filter((w) => w.brick === k).map((w) => w.text)), M.known(), M.lockCount(), info.members.flatMap(openNotes).map((n) => [n.id, n.status, n.reply]), opened === info.brick, overridden.filter((o) => info.members.includes(o.to)).map((o) => o.change)]);
     }
     const def = BRICKS[info.brick], values = [...def.face.map(([k, name]) => E.getValue(info.brick, k, name)), E.seedMode(info.brick)];
     if (def.slot) values.push(S.on(info.brick), S.headline(info.brick), S.quality(info.brick), S.list(def.slot).map((m) => m.install_state));
     if (def.off) values.push(S.on(info.brick));
-    if (def.stack) values.push(M.rows(info.brick).map((r) => [r.file, r.strength, r.on, r.entry?.role]));
+    if (def.stack) values.push(M.rows(info.brick).map((r) => [r.file, r.strength, r.on, r.entry?.role]), M.lockCount());
     if (def.turbo) values.push(M.turbo()?.file, M.turbos().length);
     values.push(M.warnings().filter((w) => w.brick === info.brick).map((w) => w.text));
     if (info.brick === "rack") values.push(E.getValue("rack", "rack", "rack"), D.all().length, D.family()); // the face redraws once the catalog arrives

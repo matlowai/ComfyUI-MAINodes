@@ -5,7 +5,7 @@ Also the metadata switch on saved files: a prompt queued with Snap's metadata of
 and private takes are marked for the lock badge and the export (SNAP-R20); and the copy score Snap's camera plates and
 take checks run in the queue (SNAP-R21); and onboarding's kits (SNAP-R25).
 SNAP-R12 identity LoRAs are private · SNAP-R18 local only · SNAP-R20 metadata switch, private takes marked · SNAP-R25 onboarding
-proposes, never downloads · see docs/SNAP_RULES.md"""
+proposes, never downloads · SNAP-R27 locks follow the current rules · see docs/SNAP_RULES.md"""
 import asyncio
 import hashlib
 import json
@@ -301,6 +301,31 @@ def metadata_gate(json_data):
 
 
 PromptServer.instance.add_on_prompt_handler(metadata_gate)
+
+
+# The same rules, read again now (SNAP-R27): the LoRA rows' lock, and the takes' lock for a rule added after they ran.
+# Marking only, never hiding: names the page already lists, booleans for takes; nothing is queued or saved.
+@routes.get("/mainodes/snap/private_loras")
+async def private_loras(request):
+    def find():
+        graph = snap_privacy.model_graph(folder_paths.get_user_directory())
+        return [n for n in folder_paths.get_filename_list("loras") if snap_privacy.why(n, loaded(n), graph)]
+    return web.json_response({"loras": await asyncio.to_thread(find)})
+
+
+@routes.get("/mainodes/snap/take_marks")
+async def take_marks(request):
+    folder = Path(PromptServer.instance.user_manager.get_request_user_filepath(request, "snap/takes", create_dir=False))
+
+    def find():
+        graph, found = snap_privacy.model_graph(folder_paths.get_user_directory()), {}
+        for f in sorted(folder.glob("*.json")):
+            t = json.loads(f.read_text(encoding="utf-8"))
+            m = snap_privacy.marks(t.get("prompt") or {}, t.get("graph"), graph, loaded)
+            if m["private"] or m["nsfw"]:
+                found[t["id"]] = {"private": bool(m["private"]), "nsfw": bool(m["nsfw"])}
+        return found
+    return web.json_response({"takes": await asyncio.to_thread(find)})
 
 
 class MAISnapCopyScore(io.ComfyNode):

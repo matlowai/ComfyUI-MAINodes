@@ -10,9 +10,10 @@
 // that way names that take as its parent too ("continue", U59: a version in the scene's takes tree). `frames` hands an
 // agent a take's frames as pictures (U23 agent eyes), `eta` what such a run took, for a GPU tool's plan (U35).
 // A take the server's save gate marked private or NSFW (history extra_data.snap_marks) says so, and the export leaves
-// both out unless asked; a take run with metadata off says its files hold no recipe.
+// both out unless asked; a take run with metadata off says its files hold no recipe. The lock also follows the current
+// rules: the server re-checks the saved takes on load (`locked`), as the export does, without saving anything.
 // SNAP-R17 person and agent kept apart (notes, judgments, rankings) · SNAP-R18 local only · SNAP-R20 private takes, metadata
-// see docs/SNAP_RULES.md
+// SNAP-R27 locks follow the current rules · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -26,7 +27,7 @@ export const TAGS = {
   right: ["identity", "motion", "physics", "camera", "lighting", "composition", "acting", "prompt", "audio", "continuity", "texture"],
 };
 
-let takes = [], loading = null;
+let takes = [], loading = null, marks = {};
 const listeners = new Set();
 export const onChange = (fn) => listeners.add(fn);
 const changed = () => { for (const fn of listeners) fn(); };
@@ -43,12 +44,16 @@ export function load() {
     const files = (await api.listUserDataFullInfo(DIR)).filter((f) => f.path.endsWith(".json"));
     takes = (await Promise.all(files.map((f) => readJson(`${DIR}/${f.path}`, null)))).filter(Boolean).sort((a, b) => a.created - b.created);
     changed();
+    // a server from before the route answers 404: the saved marks stand alone until its restart
+    api.fetchApi("/mainodes/snap/take_marks").then((r) => (r.ok ? r.json() : { takes: {} })).then((r) => { marks = r.takes; changed(); });
     return takes;
   })().catch((e) => { loading = null; throw e; });
   return loading;
 }
 
 export const all = () => takes;
+// private by its saved mark or by the rules now (SNAP-R27): what the lock shows and the export leaves out
+export const locked = (t) => !!(t.private || marks[t.id]?.private);
 export const get = (id) => takes.find((t) => t.id === id);
 // takes of one workflow rank together; the workflow's own id is saved in its JSON, so renames and tab switches don't split it
 export const groupOf = () => app.graph.id ?? "unsaved";

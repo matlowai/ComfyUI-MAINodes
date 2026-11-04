@@ -3,7 +3,7 @@
 // row, or a row dropped on a chip, to file it. A move goes to the person's snap/models.json through models.js (the same
 // function set_lora_category calls, SNAP-R19), so the Library, the pickers, the Setup's stacks and the agent tools all see
 // it at once; Undo puts back what was there. SFW only leaves the nsfw files out, and so their chip.
-// SNAP-R12 LoRA roles · SNAP-R19 one function · SNAP-R25 SFW only ·
+// SNAP-R12 LoRA roles · SNAP-R19 one function · SNAP-R25 SFW only · SNAP-R27 a lock on private ones, the row still works ·
 // see docs/SNAP_RULES.md
 import * as M from "./models.js";
 import * as PF from "./profile.js";
@@ -27,7 +27,7 @@ export function moveControl(file, onMoved) {
 
 export async function openLoras(host, { say, onChange, start = null, onAdd = null, undo = [] }) {
   host.querySelector(".snap-lora-sheet")?.remove();
-  await M.load();
+  await Promise.all([M.load(), M.locks()]);
   let shown = start, sig = "";
   const q = h("input", { className: "snap-lib-q", placeholder: "Search LoRAs (any part of the name)…", ariaLabel: "search LoRAs" });
   const chips = h("div", { className: "snap-lora-chips" }), list = h("div", { className: "snap-lora-list" });
@@ -69,7 +69,7 @@ export async function openLoras(host, { say, onChange, start = null, onAdd = nul
     chips.replaceChildren(chip(null, all.length), ...cats.map((c) => chip(c.id, c.count)));
     list.replaceChildren(...[...(found.length ? found.slice(0, SHOWN).map((r) => {
       const row = h("div", { className: "snap-lora-row", draggable: true },
-        h("strong", { textContent: short(r.file).replaceAll("_", "_​"), title: r.file }),
+        h("strong", { textContent: `${M.isLocked(r.file) ? "🔒 " : ""}${short(r.file).replaceAll("_", "_​")}`, title: M.isLocked(r.file) ? `${r.file}\nprivate: your private rules match it, so takes that load it are locked and left out of exports` : r.file }),
         h("span", { className: "snap-quiet", textContent: [r.entry.family, r.file.includes("/") && r.file.split("/").slice(0, -1).join("/")].filter(Boolean).join(" · ") }),
         h("span", { className: "snap-lora-cats" }, h("i", { className: `snap-lora-kind ${r.entry.role ?? "unsorted"}`, textContent: label(r.category) }), r.tags.map((t) => h("i", { className: "snap-lora-kind tag", textContent: t }))),
         moveControl(r.file, (u, id, err) => { if (err) { say(err.message, true); return; } undo.push(u); say(`${short(r.file)} → ${label(id)} (Undo move puts it back)`); changed(); }),

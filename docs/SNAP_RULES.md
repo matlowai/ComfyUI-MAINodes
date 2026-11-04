@@ -204,3 +204,17 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   private. *Why:* core writes the executed prompt and workflow, LoRA file names included, into every PNG and mp4, and
   `--disable-metadata` is global; Dylan chose metadata on for everything with one clean switch (2026-11-04) over
   stripping private takes automatically. *More:* `snap_privacy.py`, `snap_bridge.py`, `web/snap/metadata.js`; PLAN U22, U58.
+- **SNAP-R27: A file stamped private in its own header is private, and locks follow the current rules.** Besides the
+  model graph and the person's private paths and patterns, a `.safetensors` file whose header metadata says
+  `"privacy": "full"` (at the top level or inside a JSON-string field such as `lorastery_recipe`, parsed once) is private,
+  and so is one whose `trigger` / `trigger_word` matches one of the person's private patterns: a trigger names who the
+  LoRA draws, a re-train keeps it whatever the file is called, and an over-match only costs an export row on the
+  person's own machine. Only the header is read (8-byte length, capped at 16 MB), cached per real path by mtime and size;
+  an unreadable or non-safetensors file is simply not stamped, never an error in the save gate. Patterns also match the
+  value's folder part (a symlinked folder named like a pattern). The lock follows today's rules, not only the mark saved
+  at queue time: `/mainodes/snap/take_marks` re-checks the saved takes (booleans, never file names) and
+  `/mainodes/snap/private_loras` names the LoRA files the rules match, so LoRA rows in the sheet, the stack faces, the
+  + LoRA picker and `list_loras` carry a lock. Marking only: nothing is hidden, gated or re-run, and the row still works
+  (Dylan, 2026-11-04: "my machine isn't going to be the private one"). *Why:* derived LoRAs that a name rule missed
+  had neutral names in a neutral folder and were caught only by their stamp (U68). *More:* U68_PRIVACY_AUDIT_2026-11-04.md
+  "Matcher gaps", PLAN U71, `snap_privacy.py`, `snap_bridge.py`.

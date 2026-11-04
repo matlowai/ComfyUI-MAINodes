@@ -9,7 +9,8 @@ JSONL files; nothing leaves the machine:
                ("verdict"), and A/B picks ("ab"; each judgment kept in `judgments` with blind, the reason and when)
 
 Private takes (an identity LoRA, a Cast row, a file the model graph tags private, a file under the person's private
-paths or matching their patterns in snap/private.json) and NSFW-tagged takes are left out,
+paths or matching their patterns in snap/private.json, a safetensors file stamped private in its header, SNAP-R27) and
+NSFW-tagged takes are left out,
 with every note and pair they are in, unless --include-private / --include-nsfw ask for them (SNAP-R20). A take counts
 as private when the save gate marked it or when its prompt and the model graph say so now.
 

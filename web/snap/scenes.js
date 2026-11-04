@@ -322,7 +322,7 @@ async function sync() {
 function takeInfo(e, active) {
   const t = T.get(e.take);
   return { take: e.take, label: label(t), ...(t ? { number: t.number, status: t.status, verdict: t.verdict, media: t.media[0]?.filename ?? null } : { missing: true }),
-    ...(t?.private ? { private: true } : {}), ...(e.take === active ? { active: true } : {}), versions: e.children.map((c) => takeInfo(c, active)) };
+    ...(t && T.locked(t) ? { private: true } : {}), ...(e.take === active ? { active: true } : {}), versions: e.children.map((c) => takeInfo(c, active)) };
 }
 export function describeShot(scene, shot) {
   return { id: shot.id, number: scene.shots.indexOf(shot) + 1, title: shotTitle(scene, shot), card: shot.card, workflow: shot.workflow, groups: shot.groups,

@@ -4,7 +4,8 @@
 // ({ names(), values(name), current(), apply(name) }, e.g. the Render Preset's) plus the Library's family recipe cards.
 // SNAP-R1 generic pass-through · SNAP-R3 unresolved stays missing · SNAP-R9 setups own the model set · SNAP-R10 turbo
 // merge vs LoRA · SNAP-R11 warn, never block · SNAP-R12 LoRA roles · SNAP-R13 family rules from the model graph
-// SNAP-R25 SFW only hides what the graph tags nsfw · SNAP-R26 a name files a turbo LoRA only on strong signals · see docs/SNAP_RULES.md
+// SNAP-R25 SFW only hides what the graph tags nsfw · SNAP-R26 a name files a turbo LoRA only on strong signals ·
+// SNAP-R27 a lock on LoRAs the private rules match · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -18,6 +19,7 @@ let files = new Map(), exts = [], loading = null, notify = () => {};
 // with the model graph; read once per page, and again when a recipe names a file they don't have yet (readable)
 export function load() {
   loadGraph();
+  locks();
   loading ??= api.fetchApi("/experiment/models").then((r) => r.json())
     .then((folders) => Promise.all(folders.map(async ({ name, extensions }) => [name, extensions, await (await api.fetchApi(`/experiment/models/${encodeURIComponent(name)}`)).json()])))
     .then((lists) => {
@@ -28,6 +30,15 @@ export function load() {
     }).then(async (f) => { await loadGraph(); return f; });
   return loading;
 }
+// LoRA files the person's private rules match now (the server checks; the page never reads private.json): a lock beside
+// them, marking only, so the row still works (SNAP-R27). Asked once per page; a server before the route has none
+let locked = new Set(), locking = null;
+export function locks() {
+  locking ??= api.fetchApi("/mainodes/snap/private_loras").then((r) => (r.ok ? r.json() : { loras: [] })).then((r) => { locked = new Set(r.loras); notify(); });
+  return locking;
+}
+export const isLocked = (name) => locked.has(name);
+export const lockCount = () => locked.size; // in the faces' signatures: rows get their lock when the answer arrives
 // the lists as a tool should read them: loaded, and asked again for any recipe file they didn't have yet
 export async function current() {
   await load();

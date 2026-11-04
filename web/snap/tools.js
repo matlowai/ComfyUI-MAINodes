@@ -248,14 +248,14 @@ export const TOOLS = [
   },
   {
     name: "list_loras",
-    description: "Installed LoRA files with their role from the model graph (core with sub-kind turbo / fix / task / hires / edit / control, style, identity, unsorted; dial files are left out, see list_dials), category (e.g. core·fix) and tags (nsfw), family and turbo info, filtered by role, category (a role or a tag), family or words in the name, plus the LoRA rows in the recipe and the categories here with their counts. SFW only leaves nsfw files out. Identity LoRAs are private: name them only to the person.",
+    description: "Installed LoRA files with their role from the model graph (core with sub-kind turbo / fix / task / hires / edit / control, style, identity, unsorted; dial files are left out, see list_dials), category (e.g. core·fix) and tags (nsfw), family and turbo info, filtered by role, category (a role or a tag), family or words in the name, plus the LoRA rows in the recipe and the categories here with their counts. SFW only leaves nsfw files out. Identity LoRAs and files with private: true (the person's private rules match them) are private: name them only to the person.",
     inputSchema: { type: "object", properties: { role: { type: "string", enum: ["core", "style", "identity", "unsorted"] }, category: { type: "string" }, family: { type: "string" }, filter: { type: "string" } } },
     annotations: { readOnlyHint: true },
     run: async ({ role, category, family, filter = "" } = {}) => {
       await M.load();
       const words = filter.toLowerCase().split(/\s+/).filter(Boolean);
       const found = M.loraFiles().filter((r) => (category ? M.inCategory(r, category) : r.entry.role !== "dial") && (!role || r.entry.role === role) && (!family || r.entry.family === family) && words.every((w) => r.file.toLowerCase().includes(w)));
-      return { count: found.length, categories: M.categories(), loras: found.slice(0, 200).map((r) => ({ name: r.file, category: r.category, tags: r.tags, ...related(r.file) })), in_recipe: M.loras().map((r) => ({ brick: r.brick, row: r.row, file: r.file, strength: r.strength, on: r.on, role: r.entry?.role })) };
+      return { count: found.length, categories: M.categories(), loras: found.slice(0, 200).map((r) => ({ name: r.file, category: r.category, tags: r.tags, ...(M.isLocked(r.file) ? { private: true } : {}), ...related(r.file) })), in_recipe: M.loras().map((r) => ({ brick: r.brick, row: r.row, file: r.file, strength: r.strength, on: r.on, role: r.entry?.role })) };
     },
   },
   {
@@ -416,7 +416,7 @@ export const TOOLS = [
       const now = await T.live();
       return Promise.all(T.inGroup().sort((a, b) => (order.includes(a.id) ? order.indexOf(a.id) : 1e9 + a.created) - (order.includes(b.id) ? order.indexOf(b.id) : 1e9 + b.created))
         .map(async (t) => ({ id: t.id, number: t.number, rank: order.includes(t.id) ? order.indexOf(t.id) + 1 : null, seed: t.seed, status: t.status, verdict: t.verdict, prior: t.prior, notes: t.notes.length, media: t.media.map((m) => `${m.type}/${m.subfolder ? `${m.subfolder}/` : ""}${m.filename}`), prompt: t.text.slice(0, 200),
-          stale: await T.stale(t, now), copy: t.copy ?? null, ...(t.private ? { private: true } : {}) })));
+          stale: await T.stale(t, now), copy: t.copy ?? null, ...(T.locked(t) ? { private: true } : {}) })));
     },
   },
   {
