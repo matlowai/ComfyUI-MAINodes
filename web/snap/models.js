@@ -131,14 +131,26 @@ export function setups() {
   return [...presets, ...cards];
 }
 
+// a Models value fits a family when it is installed and the model graph puts it in that family (or in none); an encoder
+// type fits when it is the family's own (the type the dials know for it), as warnings() says
+function fits(w, fam) {
+  if (!choices(w)?.includes(w.value)) return false;
+  if (isModel(w)) return readable(w.value) && [fam, null, undefined].includes(entry(w.value).family);
+  const want = Object.keys(D.types()).find((t) => D.types()[t] === fam);
+  return !want || !choices(w).includes(want) || w.value === want;
+}
 // a preset setup in place, as one undo step; it brings its family's encoder and VAEs (the Models brick's own pack values)
-// along, so the setup never sits next to another family's encoder (SNAP-R9)
+// wherever the current one doesn't fit, so the setup never sits next to another family's encoder, and a lower-VRAM VAE
+// or encoder of the same family stays (SNAP-R9)
 export function apply(name) {
   const s = setups().find((x) => x.name === name && x.source === "preset");
   if (!s) throw new Error(`No setup "${name}" on this recipe's bricks; there are: ${setups().map((x) => x.name).join(", ")}`);
   E.batch(() => {
     E.nodeFor(s.brick, s.node).presets.apply(name);
-    if (E.state().bricks.some((b) => b.key === "models")) for (const spec of BRICKS.models.nodes) E.setValues("models", spec.key, spec.values);
+    if (E.state().bricks.some((b) => b.key === "models")) for (const spec of BRICKS.models.nodes) {
+      const n = E.nodeFor("models", spec.key);
+      E.setValues("models", spec.key, Object.fromEntries(Object.entries(spec.values).filter(([k]) => !fits(n.widgets.find((w) => w.name === k), s.family))));
+    }
     E.tag("family", s.family);
     if (host()) E.remember(host(), "turbo", null); // a new setup's quality settings are the ones "Turbo off" goes back to
   });
