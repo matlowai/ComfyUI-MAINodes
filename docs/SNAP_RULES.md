@@ -152,9 +152,9 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
 
 ## Onboarding
 
-- **SNAP-R25: Onboarding proposes; it never downloads.** "I'm new, help me set up" asks at most five things, each with a
+- **SNAP-R25: Onboarding proposes; it never downloads.** "I'm new, help me set up" asks at most six things, each with a
   default and Skip: what to make, look through the models, metadata in outputs (it sets the SNAP-R20 switch), SFW only,
-  and which tasks may use API models (none by default). Hardware is read from `/system_stats`, never asked. It opens by itself once, on the first Snap visit with no
+  which tasks may use API models (none by default), and whether agents read new code first (SNAP-R28). Hardware is read from `/system_stats`, never asked. It opens by itself once, on the first Snap visit with no
   profile; that visit writes the profile, so closing or skipping is final. Answers go
   in user `snap/profile.json`, saved per step, so it resumes; reopened it asks only what's new ("Add a capability").
   It ends on a kit per intent: the recommended setup for this machine (ready first, then one whose missing files all
@@ -169,6 +169,16 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   tags `nsfw` from pickers and agent tools; it's a preference filter on the person's own tags, and the UI says so.
   *Why:* AGENTS.md "No Internet Requests"; Dylan (2026-11-04): intent first, light touch, metadata asked here.
   *More:* MODEL_GRAPH_ONBOARDING §4 and §8, `web/snap/onboarding.js`, `onboardview.js`, `profile.js`.
+
+- **SNAP-R28: Whether an agent reads code before bringing it in is the person's setting.** `code_review` in user
+  `snap/profile.json` (one skippable onboarding question, and a row in ComfyUI's Settings, MAINodes › Snap › Code
+  review, that mirrors it): `always` reads every node pack or script that isn't part of their setup yet, `unknown` (the
+  default) only what Snap's kits carry no safety read for, `never` saves the tokens. `get_profile` returns it;
+  `propose_downloads` gives every pack (a kit's, or any repo an agent names with `pack`) a `review` of `required` or
+  `skipped (your setting)` beside its license and safety read, and the tool descriptions tell agents to follow it. It
+  only decides the reading: every install still waits for the person's yes, and Snap itself never installs or
+  downloads (SNAP-R25). *Why:* Dylan approved the Viggle Remake pack "so long as you look at everything", then made it
+  a preference (2026-11-04 16:14): reading costs tokens, and the choice is his. *More:* DECISIONS "Onboarding", PLAN U70.
 
 ## Agents
 

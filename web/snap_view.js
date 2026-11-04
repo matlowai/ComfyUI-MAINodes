@@ -11,6 +11,7 @@ import { callTool, schema, readOnly, registerWebMCP, ui, AGENTS_RUN } from "./sn
 import * as rules from "./snap/rules.js";
 import * as S from "./snap/slots.js";
 import * as MD from "./snap/metadata.js";
+import * as PF from "./snap/profile.js";
 
 let view, sw;
 const seen = new Set(), pending = [];
@@ -97,7 +98,12 @@ app.registerExtension({
       tooltip: "Off: an agent's run or make_dial waits as a proposal you accept. On: it starts right away (it uses GPU time)." },
     { id: MD.SETTING, category: ["MAINodes", "Snap", "Metadata"], name: "Save the prompt and workflow (metadata) in every saved picture and video", type: "boolean", defaultValue: true,
       tooltip: "On: files keep their recipe, LoRA names included, so you can reproduce them. Off: this browser's runs save without it. Also the switch next to Run in Snap.",
-      onChange: () => view?.metadataChanged() }],
+      onChange: () => view?.metadataChanged() },
+    // the profile's code_review (SNAP-R28) is the truth; this row and the profile follow each other (startup's call has no old value)
+    { id: PF.REVIEW_SETTING, category: ["MAINodes", "Snap", "Code review"], name: "When an agent wants to add code that isn't part of your setup yet, it reads the code first", type: "combo",
+      options: Object.entries(PF.REVIEWS).map(([value, text]) => ({ value, text })), defaultValue: "unknown",
+      tooltip: "It costs tokens. Packs in Snap's kits already carry a safety read. Every install still waits for your yes.",
+      onChange: (v, old) => { if (old !== undefined && v !== PF.get().code_review) PF.set({ code_review: v }); } }],
   commands: [{ id: "MAINodes.Snap.Toggle", label: "Toggle Snap view", icon: "icon-[lucide--blocks]", function: () => toggle() }],
   keybindings: [{ combo: { key: "s", alt: true }, commandId: "MAINodes.Snap.Toggle" }],
   actionBarButtons: [{ icon: "icon-[lucide--blocks]", label: "Snap", tooltip: "Snap view (Alt+S)", onClick: () => toggle() }],

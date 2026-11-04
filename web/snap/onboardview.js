@@ -2,20 +2,21 @@
 // resumes where it stopped; reopened later it asks only what's new ("add a capability"). It ends on the kit: one
 // recommended setup and a fast option per intent with their evidence, what's missing with exact downloads to run, and
 // "Open in new tabs". It calls onboarding.js, as the agent tools do (SNAP-R19).
-// SNAP-R5 new tabs · SNAP-R18 Snap never downloads · SNAP-R20 the metadata switch · SNAP-R25 onboarding · see docs/SNAP_RULES.md
+// SNAP-R5 new tabs · SNAP-R18 Snap never downloads · SNAP-R20 the metadata switch · SNAP-R25 onboarding ·
+// SNAP-R28 agents read new code per the person's setting · see docs/SNAP_RULES.md
 import * as OB from "./onboarding.js";
 import * as PF from "./profile.js";
 import * as MD from "./metadata.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
-const STEPS = ["intent", "scan", "metadata", "sfw", "local", "kit"];
+const STEPS = ["intent", "scan", "metadata", "sfw", "local", "code", "kit"];
 const STATE = { ready: "✓ ready", missing: "missing", cant_load: "can't load here", api: "API" };
 
 export async function openOnboarding(host, { say, onOpened, start }) {
   host.querySelector(".snap-onboard")?.remove();
   await OB.load();
   const hw = await OB.hardware(), p = PF.get();
-  const draft = { intents: p.intents.length ? [...p.intents] : ["video"], metadata: MD.on(), sfw_only: p.sfw_only, api_tasks: [...p.api_tasks] };
+  const draft = { intents: p.intents.length ? [...p.intents] : ["video"], metadata: MD.on(), sfw_only: p.sfw_only, api_tasks: [...p.api_tasks], code_review: p.code_review };
   let at = start ? STEPS.indexOf(start) : Math.max(0, STEPS.findIndex((s) => !p.answered.includes(s))), scanned = null, showAlso = new Set(), showDownloads = false;
   if (at < 0) at = STEPS.length - 1;
 
@@ -32,7 +33,7 @@ export async function openOnboarding(host, { say, onOpened, start }) {
   async function next(answer) {
     const id = STEPS[at];
     if (answer && id === "metadata") await MD.set(draft.metadata);
-    await PF.set({ ...(answer ? { intents: draft.intents, sfw_only: draft.sfw_only, api_tasks: draft.api_tasks } : {}), answered: [id] });
+    await PF.set({ ...(answer ? { intents: draft.intents, sfw_only: draft.sfw_only, api_tasks: draft.api_tasks, code_review: draft.code_review } : {}), answered: [id] });
     const rest = STEPS.findIndex((s, i) => i > 0 && !PF.get().answered.includes(s)); // after the intent, only what's new
     at = Math.min(id === "intent" ? (rest < 0 ? STEPS.length - 1 : rest) : at + 1, STEPS.length - 1);
     draw();
@@ -81,6 +82,13 @@ export async function openOnboarding(host, { say, onOpened, start }) {
             h("button", { className: cloud ? "on" : "", textContent: "API allowed", onclick: () => { draft.api_tasks = [...draft.api_tasks, t.id]; draw(); } }))); }))));
       footer(() => next(true));
     },
+    code: () => {
+      const line = { always: "every pack or script an agent brings in", unknown: "Snap's kits already carry a safety read for theirs", never: "you still say yes to every install" };
+      body.replaceChildren(...question("Should agents read new code first?", "When an agent wants to add code that isn't part of your setup yet, should it read the code first? It costs tokens.",
+        h("div", { className: "snap-ob-grid" }, Object.entries(PF.REVIEWS).map(([v, title]) => choice(draft.code_review === v, title, line[v], () => { draft.code_review = v; draw(); }))),
+        h("p", { className: "snap-quiet", textContent: "Settings › MAINodes › Snap changes it any time." })));
+      footer(() => next(true));
+    },
     kit: async () => {
       const intents = PF.get().intents.length ? PF.get().intents : draft.intents;
       const ks = await Promise.all(intents.map(OB.kit)), wanted = await OB.proposeDownloads({ intents });
@@ -127,7 +135,7 @@ export async function openOnboarding(host, { say, onOpened, start }) {
           h("span", { className: "snap-quiet", textContent: [f.size_gb != null && `${f.size_gb} GB`, !f.command && f.target && `goes in ${f.target}`, `license: ${f.license ?? "see the source"}`].filter(Boolean).join(" · ") }),
           f.command ? h("code", { textContent: f.command }) : h("span", { className: "snap-quiet", textContent: `${f.why}${f.source ? `: ${f.source}` : ""}` }))),
         w.packs.map((x) => h("div", { className: "snap-ob-dl-row" }, h("strong", { textContent: `${x.title} (${x.author}, ${x.license})` }),
-          h("span", { className: "snap-quiet", textContent: `${x.unlocks} · checked ${x.checked.date}: ${[x.safety.network_at_import ? "network at import" : "no network at import", x.safety.pickles ? "loads pickles" : "no pickles", x.safety.auto_downloads ? `auto-download: ${x.safety.auto_downloads}` : "no auto-downloads"].join(" · ")}` }),
+          h("span", { className: "snap-quiet", textContent: `${x.unlocks} · checked ${x.checked.date}: ${[x.safety.network_at_import ? "network at import" : "no network at import", x.safety.pickles ? "loads pickles" : "no pickles", x.safety.auto_downloads ? `auto-download: ${x.safety.auto_downloads}` : "no auto-downloads"].join(" · ")} · ${x.review === "required" ? "your agent reads its code first" : "code read skipped (your setting)"}` }),
           h("code", { textContent: `${x.command}   # then ${x.then}` })))) : null);
   }
   async function draw() {

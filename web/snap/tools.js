@@ -176,16 +176,16 @@ export const TOOLS = [
   },
   {
     name: "get_profile",
-    description: "The person's onboarding answers (userdata snap/profile.json): intents (what they want to make: video, stills, anime, edit, long, characters), sfw_only, api_tasks (tasks where API models are allowed; every other task stays local), the questions answered or skipped, done; plus metadata (the Save metadata switch) and this machine's hardware (GPU, VRAM, RAM, read from /system_stats).",
+    description: "The person's onboarding answers (userdata snap/profile.json): intents (what they want to make: video, stills, anime, edit, long, characters), sfw_only, api_tasks (tasks where API models are allowed; every other task stays local), code_review (always / unknown / never: whether you read the code of a node pack or script that isn't part of the person's setup yet before bringing it in; unknown, the default, means only code Snap's kits have no safety read for; follow it, it is theirs to choose because reading costs tokens), the questions answered or skipped, done; plus metadata (the Save metadata switch) and this machine's hardware (GPU, VRAM, RAM, read from /system_stats).",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
     run: async () => { await OB.load(); return { profile: PF.get(), metadata: MD.on() ? "on" : "off", hardware: await OB.hardware() }; },
   },
   {
     name: "set_profile",
-    description: "Save onboarding answers, as the person gives them: intents, sfw_only (hides files, dials and cards the model graph tags nsfw from pickers and from these tools: a preference filter, not a safety guarantee), api_tasks (from list_kits' tasks: prompt, caption, judge, render, edit; API models show only for these), metadata (true / false sets the Save metadata switch), answered (step ids: intent, scan, metadata, sfw, local, kit). Ask the person first; never decide these for them.",
+    description: "Save onboarding answers, as the person gives them: intents, sfw_only (hides files, dials and cards the model graph tags nsfw from pickers and from these tools: a preference filter, not a safety guarantee), api_tasks (from list_kits' tasks: prompt, caption, judge, render, edit; API models show only for these), metadata (true / false sets the Save metadata switch), code_review (always / unknown / never: read new code before bringing it in; also a row in ComfyUI's Settings), answered (step ids: intent, scan, metadata, sfw, local, code, kit). Ask the person first; never decide these for them.",
     inputSchema: { type: "object", properties: { intents: { type: "array", items: { type: "string", enum: ["video", "stills", "anime", "edit", "long", "characters"] } }, sfw_only: { type: "boolean" },
-      api_tasks: { type: "array", items: { type: "string", enum: ["prompt", "caption", "judge", "render", "edit"] } }, metadata: { type: "boolean" }, answered: { type: "array", items: { type: "string" } }, done: { type: "boolean" } } },
+      api_tasks: { type: "array", items: { type: "string", enum: ["prompt", "caption", "judge", "render", "edit"] } }, metadata: { type: "boolean" }, code_review: { type: "string", enum: ["always", "unknown", "never"] }, answered: { type: "array", items: { type: "string" } }, done: { type: "boolean" } } },
     run: async ({ metadata, ...patch }) => {
       if (metadata != null) { await MD.set(metadata); patch.answered = [...(patch.answered ?? []), "metadata"]; }
       await PF.set(patch);
@@ -208,10 +208,10 @@ export const TOOLS = [
   },
   {
     name: "propose_downloads",
-    description: "What to fetch for the person's intents (their profile's, or the ones given; or one setup id from list_kits): exact files with size, source, download link, target folder and a command, plus node packs with their repo, license and safety read. It never downloads (downloaded: false). Show the list to the person; each file or pack needs their explicit yes, then you (in your own tools) or they run it, safetensors only. Files with no recorded link say where to look.",
-    inputSchema: { type: "object", properties: { intents: { type: "array", items: { type: "string" } }, setup: { type: "string" } } },
+    description: "What to fetch for the person's intents (their profile's, or the ones given; or one setup id from list_kits): exact files with size, source, download link, target folder and a command, plus node packs with their repo, license, safety read and review. Or pack: a repo URL (or a kit pack's id) of any node pack you want to bring in that isn't part of the person's setup yet, kit or not: its row says known (Snap's kits carry our safety read for it) or not. review follows the person's code_review setting: 'required' means read the pack's code in your own tools before installing and tell the person what it does at import (network, pickles, downloads, subprocess, pip), 'skipped (your setting)' means they chose to save those tokens; follow it either way. It never downloads (downloaded: false). Show the list to the person; each file or pack needs their explicit yes, then you or they run it, safetensors only. Files with no recorded link say where to look.",
+    inputSchema: { type: "object", properties: { intents: { type: "array", items: { type: "string" } }, setup: { type: "string" }, pack: { type: "string" } } },
     annotations: { readOnlyHint: true },
-    run: ({ intents, setup } = {}) => OB.proposeDownloads({ ...(intents ? { intents } : {}), setup }),
+    run: ({ intents, setup, pack } = {}) => OB.proposeDownloads({ ...(intents ? { intents } : {}), setup, pack }),
   },
   {
     name: "list_methods",
