@@ -83,8 +83,16 @@ async def cards(request):
     """Library cards shipped with the pack (snap_cards/*.json); user cards will live under the user directory."""
     found = []
     for f in sorted(CARDS.glob("*.json")):
-        found += json.loads(f.read_text(encoding="utf-8"))
+        if f.name != "models.json":
+            found += json.loads(f.read_text(encoding="utf-8"))
     return web.json_response({"cards": found})
+
+
+@routes.get("/mainodes/snap/models")
+async def model_graph(request):
+    """The pack's model graph (snap_cards/models.json): how the files it knows fit together; the person's own entries
+    (userdata snap/models.json) are read and merged by the page."""
+    return web.json_response({"models": json.loads((CARDS / "models.json").read_text(encoding="utf-8"))})
 
 
 # Semantic search: EmbeddingGemma 2 runs in tools/snap_embedder.py, a sidecar in its own venv (ComfyUI's transformers is

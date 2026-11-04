@@ -42,11 +42,13 @@ function settingsOf(key) {
 
 // what the recipe loads, in one answer: family, current setup, each model file (size, installed), the total on disk
 const sized = (m) => ({ ...m, size_gb: m.size ? +(m.size / 1e9).toFixed(2) : null, size: undefined });
+// what the model graph says about a file, in an agent's answer (SNAP-R10, SNAP-R12)
+const related = (name) => { const e = M.entry(name); return e && { family: e.family, kind: e.kind, turbo: e.turbo ?? null, ...(e.role ? { role: e.role, core: e.core } : {}), ...(e.loads_in_core === false ? { loads_in_core: false } : {}), ...(e.inferred ? { inferred: true } : {}) }; };
 async function models() {
   await M.load();
   const list = M.settings(), now = M.setups().find((s) => s.current);
   const checks = await Promise.all(E.state().bricks.filter((b) => BRICKS[b.key].check).map(async (b) => ({ brick: b.key, ...await M.checkNow(b.key) })));
-  return { family: D.family(), setup: now ? { name: now.name, edited: now.edited } : null, files: list.map(sized), missing: list.filter((m) => !m.installed).map((m) => `${m.brick}.${m.setting}: ${m.file}${m.unreadable ? " (file not readable)" : ""}`),
+  return { family: D.family(), setup: now ? { name: now.name, edited: now.edited } : null, files: list.map((m) => ({ ...sized(m), ...related(m.file) })), missing: list.filter((m) => !m.installed).map((m) => `${m.brick}.${m.setting}: ${m.file}${m.unreadable ? " (file not readable)" : ""}`),
     total_gb: +(M.total(list) / 1e9).toFixed(1), checks };
 }
 
@@ -125,7 +127,7 @@ export const TOOLS = [
   },
   {
     name: "list_models",
-    description: "Model files installed in one of ComfyUI's model folders (diffusion_models, text_encoders, vae, loras, …) with sizes, filtered by words in the name. Without a folder: the folders and how many files each holds.",
+    description: "Model files installed in one of ComfyUI's model folders (diffusion_models, text_encoders, vae, loras, …) with sizes and what the model graph says about each: family, kind (base / sft / finetune / turbo_merge / lora / encoder / vae), turbo (merged into the checkpoint or a LoRA, with its steps / cfg / sampler), LoRA role (core turbo / fix / task / hires / edit / control, style, identity, dial, unsorted), loads_in_core false when core ComfyUI can't load it, inferred when only the name says so. Filtered by words in the name. Without a folder: the folders and how many files each holds.",
     inputSchema: { type: "object", properties: { folder: { type: "string" }, filter: { type: "string" } } },
     annotations: { readOnlyHint: true },
     run: async ({ folder, filter = "" } = {}) => {
@@ -133,7 +135,7 @@ export const TOOLS = [
       if (!folder) return Object.entries(Object.groupBy(all, ([, f]) => f.folder)).map(([name, list]) => ({ folder: name, files: list.length }));
       const words = filter.toLowerCase().split(/\s+/).filter(Boolean);
       const found = all.filter(([name, f]) => f.folder === folder && words.every((w) => name.toLowerCase().includes(w)));
-      return { folder, count: found.length, files: found.slice(0, 200).map(([name, f]) => ({ name, size_gb: +(f.size / 1e9).toFixed(2) })) };
+      return { folder, count: found.length, files: found.slice(0, 200).map(([name, f]) => ({ name, size_gb: +(f.size / 1e9).toFixed(2), ...related(name) })) };
     },
   },
   {

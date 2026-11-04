@@ -9,18 +9,58 @@ import * as D from "./dials.js";
 import { BRICKS } from "./bricks.js";
 
 let files = new Map(), loading = null;
-// name -> { folder, size, modified }, read once per page (every model folder; the first folder wins a name in two)
+// name -> { folder, size, modified }, read once per page (every model folder; the first folder wins a name in two), with
+// the model graph
 export function load() {
+  loadGraph();
   loading ??= api.fetchApi("/experiment/models").then((r) => r.json())
     .then((folders) => Promise.all(folders.map(async ({ name }) => [name, await (await api.fetchApi(`/experiment/models/${encodeURIComponent(name)}`)).json()])))
     .then((lists) => {
       files = new Map();
       for (const [folder, list] of lists) for (const f of list) if (!files.has(f.name)) files.set(f.name, { folder, size: f.size, modified: f.modified });
       return files;
-    });
+    }).then(async (f) => { await loadGraph(); return f; });
   return loading;
 }
 export const file = (name) => files.get(name);
+
+// The model graph (SNAP-R10, SNAP-R12, SNAP-R13): one entry per file saying how it fits with others (family, kind
+// base / sft / finetune / turbo_merge / lora, turbo merged or LoRA with its steps / cfg / sampler, deband, LoRA role,
+// trained_on, loads_in_core). The pack's entries (snap_cards/models.json) under the person's own (userdata
+// snap/models.json, merged field by field: the person wins); a file neither knows is inferred from its folder and name.
+const MINE = "snap/models.json";
+const base = (f) => String(f ?? "").replace(/\\/g, "/").split("/").pop();
+let relations = new Map(), relating = null;
+const mine = () => api.getUserData(MINE).then((r) => (r.ok ? r.json() : []), () => []);
+export function loadGraph() {
+  relating ??= Promise.all([api.fetchApi("/mainodes/snap/models").then((r) => r.json()).then((r) => r.models, () => []), mine()]).then(([pack, own]) => {
+    relations = new Map(pack.map((e) => [base(e.file), e]));
+    for (const e of own) relations.set(base(e.file), { ...relations.get(base(e.file)), ...e });
+    return relations;
+  });
+  return relating;
+}
+const FAMILIES = [[/kromoss|moss/, "MOSS-Image"], [/krea/, "Krea 2"], [/minimax|pika|(^|_)h3(_|$)/, "MiniMax H3"]];
+function infer(name) {
+  const n = base(name).toLowerCase(), folder = file(name)?.folder ?? null, steps = Number(n.match(/(\d+)[-_ ]?steps?/)?.[1]) || null;
+  const kind = { loras: "lora", text_encoders: "encoder", clip: "encoder", vae: "vae" }[folder] ?? (/turbo|dmd|dmad|lightning|hyper/.test(n) ? "turbo_merge" : "base");
+  const fast = ["lora", "turbo_merge"].includes(kind) && (/turbo|dmd|dmad|lightning|hyper/.test(n) || !!steps);
+  const e = { file: base(name), folder, family: FAMILIES.find(([re]) => re.test(n))?.[1] ?? null, kind, inferred: true,
+    turbo: fast ? { how: kind === "lora" ? "lora" : "merged", steps, cfg: null, sampler: null, scheduler: null } : null, deband: /deband|banding/.test(n) ? (kind === "lora" ? "lora" : "merged") : "none" };
+  if (kind === "lora") Object.assign(e, String(name).startsWith("dials/") ? { role: "dial" } : fast ? { role: "core", core: "turbo" } : e.deband !== "none" ? { role: "core", core: "fix" } : { role: "unsorted" });
+  return e;
+}
+export const entry = (name) => (name ? relations.get(base(name)) ?? infer(name) : null);
+// the person files a file ("what is this?"): kept in their snap/models.json, so the answer is remembered
+export async function teach(name, patch) {
+  const own = await mine(), at = own.findIndex((e) => base(e.file) === base(name));
+  const e = { ...(own[at] ?? { file: base(name) }), ...patch };
+  own.splice(at < 0 ? own.length : at, at < 0 ? 0 : 1, e);
+  await api.storeUserData(MINE, own);
+  const { inferred, ...was } = entry(name);
+  relations.set(base(name), { ...was, ...e });
+  return entry(name);
+}
 export const known = () => files.size;
 export const gb = (bytes) => `${(bytes / 1e9).toFixed(bytes < 1e9 ? 2 : 1)} GB`;
 
@@ -76,7 +116,7 @@ export function apply(name) {
 const checked = new Map();
 let notify = () => {};
 export const onCheck = (fn) => { notify = fn; };
-function entry(brickKey) {
+function checking(brickKey) {
   const def = BRICKS[brickKey]?.check, n = def && E.nodeFor(brickKey, def[0]);
   if (!n) return null;
   const values = Object.fromEntries(n.widgets.filter((w) => w.name && typeof w.value !== "object").map((w) => [w.name, w.value]));
@@ -89,8 +129,8 @@ function entry(brickKey) {
   }
   return checked.get(key);
 }
-export const check = (brickKey) => entry(brickKey)?.result ?? null;
+export const check = (brickKey) => checking(brickKey)?.result ?? null;
 export async function checkNow(brickKey) {
-  await entry(brickKey)?.done;
+  await checking(brickKey)?.done;
   return check(brickKey);
 }
