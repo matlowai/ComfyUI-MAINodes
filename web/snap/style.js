@@ -47,6 +47,12 @@ export const STYLE = `
 .snap-widget-btn { align-self: stretch; text-align: center; margin-top: 0; }
 .snap-thumbs { display: flex; gap: 6px; } .snap-thumbs img { width: 100%; max-height: 90px; object-fit: cover; border-radius: 8px; border: 1px solid #ffffff14; min-width: 0; }
 .snap-thumbs.big img { max-height: 220px; object-fit: contain; background: #0003; }
+.snap-out { position: relative; z-index: 1; margin: 0; border-radius: 9px; overflow: hidden; border: 1px solid #ffffff14; background: #0004; }
+.snap-out img, .snap-out video { display: block; width: 100%; max-height: 120px; object-fit: cover; }
+.snap-out img[hidden], .snap-out video[hidden] { display: none; }
+.snap-out figcaption { position: absolute; z-index: 2; left: 6px; bottom: 6px; font-size: 10.5px; padding: 1px 7px; border-radius: 999px; background: #0009; color: var(--s-fg); }
+.snap-out.previewing { border-color: var(--s-accent); }
+.snap-out.previewing figcaption { background: var(--s-accent); color: #0d1320; }
 .snap-insp-main { padding-bottom: 10px; border-bottom: 1px solid var(--s-line); }
 .snap-insp-main .snap-field textarea { min-height: 120px; }
 .snap-rail-title, .snap-insp-title { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--s-dim); margin: 10px 2px 4px; }

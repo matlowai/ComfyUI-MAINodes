@@ -1,6 +1,10 @@
 // Snap's agent tools: the same operations the Snap view uses, as a small typed vocabulary instead of a 200-node graph.
 // One table, two transports: in-page WebMCP when the browser has it, and the /mainodes/snap bridge that the local MCP
 // server (tools/snap_mcp.py) calls. Every call goes through the engine, so an agent can't build a graph a person couldn't.
+// A GPU tool's `plan` says what it would run and about how long (seconds from measured takes): a proposal carries it for
+// the person to approve, and a run that goes ahead returns it (plan-then-approve, U35). Pictures for an agent's eyes
+// (screenshot, take_frames, find_people) come back as `image` / `images` in the screenshot's shape: image blocks over
+// MCP, data URLs over WebMCP.
 // SNAP-R11 same warnings as the UI · SNAP-R15 one table, MCP + WebMCP · SNAP-R16 GPU tools wait as proposals ·
 // SNAP-R17 by: agent · SNAP-R19 the tool table is the API · SNAP-R21 camera plates · SNAP-R23 candidates: the person's
 // pick waits as a proposal for agents · see docs/SNAP_RULES.md
@@ -20,6 +24,7 @@ import * as S from "./slots.js";
 import * as PL from "./plates.js";
 import * as C from "./candidates.js";
 import * as ED from "./edits.js";
+import * as K from "./checks.js";
 import { api } from "../../../scripts/api.js";
 
 // a widget as an agent reads it: value, kind, choices (cut to 50), limits, and whether a wire drives it
@@ -37,6 +42,9 @@ export const AGENTS_RUN = "MAINodes.Snap.AgentsMayRun";
 const mayRun = () => app.extensionManager.setting.get(AGENTS_RUN) === true;
 
 const has = (key) => E.state().bricks.some((b) => b.key === key);
+// what a full run of the open recipe took before
+const recipeEta = async () => T.eta((await T.hashes(await T.live())).hash);
+const takeOf = async (id) => { await T.load(); const t = T.get(id); if (!t) throw new Error(`No take ${id}`); return t; };
 // the method registry's slots, read whenever the schema is (snap_view registers the tools once the registry is in)
 const slotEnum = { type: "string", get enum() { return S.slots(); } };
 const brickEnum = { type: "string", description: `a recipe brick (${PACK_BRICKS.join(", ")}) or any installed node as node:<NodeType> (a new one) / node:<NodeType>#<n> (one in the recipe)` };
@@ -179,6 +187,11 @@ export const TOOLS = [
     inputSchema: { type: "object", properties: { slot: slotEnum }, required: ["slot"] },
     annotations: { consequentialHint: true },
     consequential: true,
+    plan: async ({ slot }) => {
+      await S.load();
+      const full = await recipeEta();
+      return { runs: `what the ${slot} slot needs and feeds (${S.previewTargets(slot).length} output node), not the rest`, eta_s: full.eta_s, from: full.eta_s == null ? full.from : `${full.from} (a full run; the preview runs less)` };
+    },
     run: async ({ slot }) => {
       await S.load();
       const targets = S.previewTargets(slot);
@@ -411,6 +424,7 @@ export const TOOLS = [
       pairs: { type: "array", items: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 2 }, description: "[[A, B], ...]" }, subjects: { type: "string", description: "one per line" }, description: { type: "string" } }, required: ["negative", "positive", "pairs"] },
     annotations: { consequentialHint: true },
     consequential: true,
+    plan: async ({ pairs = [] }) => ({ runs: `the Make Dial node only: ${pairs.length} prompt pairs through the text encoder, no render`, eta_s: null, from: "not measured here yet" }),
     run: async (spec) => D.make({ ...spec, subjects: spec.subjects ?? "A young woman\nAn old man\nA golden dog\nA horse" }),
   },
   {
@@ -419,6 +433,7 @@ export const TOOLS = [
     inputSchema: { type: "object", properties: {} },
     annotations: { consequentialHint: true },
     consequential: true,
+    plan: async () => ({ runs: E.state().bricks.map((b) => BRICKS[b.key].title).join(" → ") || "the open workflow", ...await recipeEta() }),
     run: async () => {
       await app.queuePrompt(0, 1, { queueNodeIds: E.targets() });
       const errors = Object.entries(app.lastNodeErrors ?? {}).map(([id, e]) => ({ node: id, brick: brickOf(id), error: e.errors?.[0]?.message, details: e.errors?.[0]?.details }));
@@ -585,6 +600,14 @@ export const TOOLS = [
     inputSchema: { type: "object", properties: { set: { type: "string" }, cameras: { type: "array", items: { type: "string" } }, count: { type: "integer", minimum: 1, maximum: 3 } }, required: ["set"] },
     annotations: { consequentialHint: true },
     consequential: true,
+    plan: async ({ set, cameras, count = 2 }) => {
+      await L.ready(); await C.load();
+      const c = L.get(set);
+      if (c?.kind !== "set_snapshot") throw new Error(`No set snapshot card ${set}`);
+      const n = (cameras ?? PL.status(c).cameras.filter((x) => !x.fits).map((x) => x.camera)).length;
+      const each = T.measured(T.all().filter((t) => t.status === "success" && String(t.group).startsWith("snap-plates-")), "of orbit passes here") ?? { eta_s: 64, from: "U49: about 64 s per orbit render on a 5090" };
+      return { runs: `${n} camera${n === 1 ? "" : "s"} × ${count} H3 Ref2V orbit renders, each with a copy and a layout check`, renders: n * count, eta_s: Math.round(n * count * each.eta_s), from: `${each.from}, one after another` };
+    },
     run: async ({ set, cameras, count }) => { await L.ready(); const c = L.get(set); if (c?.kind !== "set_snapshot") throw new Error(`No set snapshot card ${set}`); return PL.make(c.lineage ?? c.id, { cameras, count, by: "agent" }); },
   },
   {
@@ -599,6 +622,7 @@ export const TOOLS = [
     inputSchema: { type: "object", properties: { take: { type: "string" } }, required: ["take"] },
     annotations: { consequentialHint: true },
     consequential: true,
+    plan: async () => ({ runs: "DINOv3 on 5 frames of the take against each of its reference pictures", eta_s: 4, from: "U52: 3.5-4.5 s a take on a 5090" }),
     run: async ({ take }) => { await T.load(); const t = T.get(take); if (!t) throw new Error(`No take ${take}`); return PL.checkTake(t, "agent"); },
   },
   {
@@ -614,6 +638,11 @@ export const TOOLS = [
     inputSchema: { type: "object", properties: { decision: { type: "string" }, candidate: { type: "string" } }, required: ["decision", "candidate"] },
     annotations: { consequentialHint: true },
     decides: true,
+    plan: async ({ decision }) => {
+      await C.load();
+      if (C.get(decision)?.kind !== "edit") return { runs: "no render: the candidate becomes the camera's plate", eta_s: 0, from: "nothing runs" };
+      return { runs: "H3 Ripple carries the picked anchors over the take, as a new take", ...(T.measured(T.all().filter((t) => t.parent && t.status === "success"), "of edits here") ?? { eta_s: 100, from: "U54: Ripple 89-103 s for 90 frames on a 5090" }) };
+    },
     run: async ({ decision, candidate }) => { await C.load(); return C.apply(decision, candidate, "agent"); },
   },
   {
@@ -636,6 +665,7 @@ export const TOOLS = [
     inputSchema: { type: "object", properties: { take: { type: "string" }, method: { type: "string" }, time: { type: "string", enum: ["night", "dusk", "dawn"] }, count: { type: "integer", minimum: 1, maximum: 3 } }, required: ["take"] },
     annotations: { consequentialHint: true },
     consequential: true,
+    plan: async ({ count = 2 }) => ({ runs: `${count} MOSS edit candidates of frame 0 and the middle frame, each with an identity check; the Ripple render waits for the pick`, eta_s: count * 2 * 16, from: "U54: 12-19 s per anchor edit on a 5090" }),
     run: async ({ take, method = "relight", time = "night", count = 2 }) => { await T.load(); const t = T.get(take); if (!t) throw new Error(`No take ${take}`); return ED.start(t, method, { time, count, by: "agent" }); },
   },
   {
@@ -643,6 +673,36 @@ export const TOOLS = [
     description: "Use a frame of a take as an input (U32): as first_frame it goes on the First frame brick (FL2V's start picture), as reference into References as a picture; at is the moment in seconds, or 'last' (the default) for its end. One undo step; the brick remembers the take and frame it came from.",
     inputSchema: { type: "object", properties: { take: { type: "string" }, as: { type: "string", enum: ["first_frame", "reference"] }, at: { type: ["number", "string"] } }, required: ["take", "as"] },
     run: async ({ take, as, at = "last" }) => { await T.load(); const t = T.get(take); if (!t) throw new Error(`No take ${take}`); return T.use(t, { as, t: at, by: "agent" }); },
+  },
+  {
+    name: "run_from_take",
+    description: "Run from here (U57): open a take's own workflow, with its settings and seed as it ran, in a new tab, shown in Snap and ready to run. Nothing is queued: the person (or run, with their say) starts it. The open workflow is left as it is.",
+    inputSchema: { type: "object", properties: { take: { type: "string" } }, required: ["take"] },
+    run: async ({ take }) => { await takeOf(take); return { ...await ui.act("run_from", take), queued: false }; },
+  },
+  {
+    name: "take_frames",
+    description: "Look at a take (agent eyes, U23): its frames as pictures, either the frame numbers asked for (24 per second, from 0) or `count` of them spread over the take, first and last included (default 4). Use it before judging, noting or editing a take; say which frame you mean by its number.",
+    inputSchema: { type: "object", properties: { take: { type: "string" }, frames: { type: "array", items: { type: "integer", minimum: 0 } }, count: { type: "integer", minimum: 1, maximum: 12 }, max_width: { type: "integer", minimum: 256, maximum: 1600 } }, required: ["take"] },
+    annotations: { readOnlyHint: true },
+    run: async ({ take, frames, count, max_width }) => {
+      const t = await takeOf(take), shot = await T.frames(t, { frames, count, maxWidth: max_width });
+      return { take: t.id, number: t.number, frames: shot.map(({ frame, t: at }) => ({ frame, t: at })), images: shot.map(({ frame, t: at, ...image }) => image) };
+    },
+  },
+  {
+    name: "find_people",
+    description: "The people in one frame of a take, numbered left to right (U35, UX_GEMS #5): the frame with a numbered box on each person SAM 3.1 finds, and their boxes [x, y, w, h] as fractions of the frame. Refer to people by these numbers in notes and proposals (\"person 2 turns away\"), so the person sees exactly whom you mean. A short detection on the server's queue (a few seconds), nothing is rendered.",
+    inputSchema: { type: "object", properties: { take: { type: "string" }, frame: { type: "integer", minimum: 0, description: "the frame number (24 per second); the middle frame when left out" } }, required: ["take"] },
+    annotations: { readOnlyHint: true }, // a short detection, nothing rendered or changed
+    run: async ({ take, frame }) => {
+      const t = await takeOf(take), m = t.media.find((x) => x.kind === "video") ?? t.media.find((x) => x.kind === "image");
+      if (!m) throw new Error("This take has no picture or video");
+      const shots = await T.frames(t, frame == null ? { count: 3 } : { frames: [frame] }), { frame: at, mimeType, data, width, height } = shots[frame == null ? 1 : 0] ?? shots[0];
+      const people = await K.peopleCheck(m.kind === "video" ? { video: K.annotated(m), frame: at } : { image: K.annotated(m) });
+      const image = { mimeType, data, width, height };
+      return { take: t.id, frame: at, people, image: await K.numbered(image, people) };
+    },
   },
   {
     name: "list_proposals",
@@ -675,16 +735,18 @@ export async function callTool(name, args = {}, { confirmed } = {}) {
     const was = seen.get(if_revision), now = await revision();
     if (now !== if_revision) throw new Error(`The recipe changed since revision ${if_revision} (now ${now})${was ? `: ${T.changes(was, seen.get(now)).join(", ") || "seeds"}` : ""}. Read describe_recipe again and decide with what is there now`);
   }
+  const plan = tool.plan ? await tool.plan(rest) : null;
   if ((tool.consequential || tool.decides) && !confirmed && !mayRun()) {
     const why = tool.decides ? "the person's pick" : "uses the GPU";
-    const p = P.add(name, rest, reason ?? `${name.replaceAll("_", " ")} (${why})`, for_note);
-    return { proposed: p.id, status: `${why}: waiting for the person to accept (or to allow agents to run in ComfyUI's settings)` };
+    const p = P.add(name, rest, reason ?? `${name.replaceAll("_", " ")} (${why})`, for_note, plan);
+    return { proposed: p.id, ...(plan ? { plan } : {}), status: `${why}: waiting for the person to accept (or to allow agents to run in ComfyUI's settings)` };
   }
   if (propose && proposable(name)) {
-    const p = P.add(name, rest, reason, for_note);
-    return { proposed: p.id, status: "waiting for the person to accept or reject; see list_proposals" };
+    const p = P.add(name, rest, reason, for_note, plan);
+    return { proposed: p.id, ...(plan ? { plan } : {}), status: "waiting for the person to accept or reject; see list_proposals" };
   }
-  return tool.run(rest);
+  const out = await tool.run(rest);
+  return plan && out && typeof out === "object" && !Array.isArray(out) ? { ...out, plan } : out;
 }
 
 const PROPOSE = {
@@ -702,6 +764,10 @@ export const schema = () => TOOLS.map(({ name, description, inputSchema, annotat
 const notReady = () => { throw new Error("The Snap view isn't ready"); };
 export const ui = { read: () => ({}), act: notReady };
 
+// a picture in the screenshot's shape as a data URL (WebMCP has no image blocks)
+const asUrl = ({ mimeType, data, ...rest }) => ({ ...rest, url: `data:${mimeType};base64,${data}` });
+const dataUrls = (r) => (r?.image || r?.images ? { ...r, ...(r.image ? { image: asUrl(r.image) } : {}), ...(r.images ? { images: r.images.map(asUrl) } : {}) } : r);
+
 // WebMCP (Chrome origin trial, document.modelContext; navigator.modelContext is the older spelling). No-op elsewhere.
 let webmcp = null;
 export function registerWebMCP(run) {
@@ -710,7 +776,7 @@ export function registerWebMCP(run) {
   webmcp?.abort(); // re-registering (a reload of the tool table) replaces the earlier set
   webmcp = new AbortController();
   for (const t of schema()) {
-    Promise.resolve(mc.registerTool({ name: `snap_${t.name}`, description: t.description, inputSchema: t.inputSchema, annotations: t.annotations, execute: (args) => run(t.name, args) }, { signal: webmcp.signal }))
+    Promise.resolve(mc.registerTool({ name: `snap_${t.name}`, description: t.description, inputSchema: t.inputSchema, annotations: t.annotations, execute: (args) => run(t.name, args).then(dataUrls) }, { signal: webmcp.signal }))
       .catch((e) => console.warn(`WebMCP: ${t.name} not registered: ${e.message}`));
   }
   return true;

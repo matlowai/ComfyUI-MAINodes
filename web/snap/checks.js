@@ -8,6 +8,8 @@
 // - identity: did an edit keep the person? DINOv3 patches by grid position (MAISnapCopyScore) on SAM 3.1 head crops of
 //   the original frame and the edited one; the model graph gives the threshold (a pure relight keeps 0.99, reframed or
 //   blonder edits 0.68-0.81; 0.86-0.90 holds both kept and grey-haired edits, so the tile shows the crops).
+// - people: each person SAM 3.1 finds in a frame, boxed and numbered left to right, so a person and an agent can name
+//   "person 2" (U35 agent eyes, UX_GEMS #5).
 // SNAP-R18 local only · SNAP-R21 plates · SNAP-R23 checks are notes, never rejections · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as M from "./models.js";
@@ -58,9 +60,9 @@ function source(g, key, src) {
   return [key, 0];
 }
 const detector = (name) => ({ d: { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: name } } });
-const find = (g, key, image, text, threshold = 0.4) => {
+const find = (g, key, image, text, threshold = 0.4, each = false) => {
   g[`${key}t`] = { class_type: "CLIPTextEncode", inputs: { clip: ["d", 1], text } };
-  g[key] = { class_type: "SAM3_Detect", inputs: { model: ["d", 0], image, conditioning: [`${key}t`, 0], threshold, refine_iterations: 0, individual_masks: false } };
+  g[key] = { class_type: "SAM3_Detect", inputs: { model: ["d", 0], image, conditioning: [`${key}t`, 0], threshold, refine_iterations: 0, individual_masks: each } };
   return key;
 };
 
@@ -123,4 +125,50 @@ export async function identityCheck(pairs) {
   }));
   const low = Math.min(...scores.map((s) => s.score ?? 0));
   return { scores, low: +low.toFixed(3), threshold: identity.threshold, region: identity.region, drifted: low < identity.threshold || scores.some((s) => s.no_head) };
+}
+
+// a mask picture's box as fractions of the frame [x, y, w, h]; null when it is empty
+async function box(m) {
+  const img = new Image();
+  img.src = url(m);
+  await img.decode();
+  const w = 256, hgt = Math.max(1, Math.round((256 * img.naturalHeight) / img.naturalWidth)), c = Object.assign(document.createElement("canvas"), { width: w, height: hgt }), g = c.getContext("2d");
+  g.drawImage(img, 0, 0, w, hgt);
+  const px = g.getImageData(0, 0, w, hgt).data;
+  let x0 = w, y0 = hgt, x1 = -1, y1 = -1;
+  for (let i = 0; i < px.length; i += 4) if (px[i] > 127) { const x = (i / 4) % w, y = Math.floor(i / 4 / w); x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  return x1 < 0 ? null : [x0 / w, y0 / hgt, (x1 - x0 + 1) / w, (y1 - y0 + 1) / hgt].map((v) => +v.toFixed(3));
+}
+
+// the people check: `src` as source() takes it; each person SAM 3.1 finds, numbered left to right by the middle of
+// their box ({n, box: [x, y, w, h] as fractions of the frame})
+export async function peopleCheck(src) {
+  const { detector: name } = await needs();
+  if (!name) throw new Error("Finding people needs SAM 3.1 (models/checkpoints/sam3.1_multiplex_fp16.safetensors)");
+  const g = { ...detector(name) }, img = source(g, "i", src);
+  find(g, "f", img, "person", 0.4, true);
+  g.m = { class_type: "MaskToImage", inputs: { mask: ["f", 0] } };
+  g.p = { class_type: "PreviewImage", inputs: { images: ["m", 0] } };
+  const boxes = (await Promise.all(((await screen(g)).outputs?.p?.images ?? []).map(box))).filter(Boolean);
+  return boxes.sort((a, b) => a[0] + a[2] / 2 - (b[0] + b[2] / 2)).map((b, i) => ({ n: i + 1, box: b }));
+}
+
+// a picture (the screenshot tool's image shape) with each person's box and number drawn on it
+export async function numbered(image, people) {
+  const img = new Image();
+  img.src = `data:${image.mimeType};base64,${image.data}`;
+  await img.decode();
+  const c = Object.assign(document.createElement("canvas"), { width: img.naturalWidth, height: img.naturalHeight }), g = c.getContext("2d"), r = Math.max(12, Math.round(c.width / 40));
+  g.drawImage(img, 0, 0);
+  g.lineWidth = Math.max(2, c.width / 320);
+  g.font = `bold ${Math.round(r * 1.2)}px sans-serif`;
+  g.textAlign = "center"; g.textBaseline = "middle";
+  for (const { n, box: [x, y, w, h] } of people) {
+    const [px, py] = [x * c.width, y * c.height];
+    g.strokeStyle = "#ffd23f"; g.strokeRect(px, py, w * c.width, h * c.height);
+    const [cx, cy] = [Math.max(r, px), Math.max(r, py)]; // on the box's corner, clear of the face below it
+    g.fillStyle = "#ffd23f"; g.beginPath(); g.arc(cx, cy, r, 0, 2 * Math.PI); g.fill();
+    g.fillStyle = "#101418"; g.fillText(String(n), cx, cy + 1);
+  }
+  return { mimeType: "image/jpeg", data: c.toDataURL("image/jpeg", 0.85).split(",")[1], width: c.width, height: c.height };
 }

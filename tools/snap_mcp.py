@@ -67,10 +67,11 @@ def handle(base, message):
         answer = http(base, "/mainodes/snap/call", {"tool": params.get("name"), "args": params.get("arguments") or {}})
         failed = "error" in answer
         result = answer.get("result")
-        if not failed and isinstance(result, dict) and isinstance(result.get("image"), dict):  # a screenshot: an image the agent can look at
-            image = result["image"]
-            return {"content": [{"type": "image", "data": image["data"], "mimeType": image["mimeType"]},
-                                {"type": "text", "text": f"{image['width']}x{image['height']} screenshot of the person's tab"}], "isError": False}
+        images = (result.get("images") or ([result["image"]] if isinstance(result.get("image"), dict) else [])) if not failed and isinstance(result, dict) else []
+        if images:  # a screenshot, a take's frames, a numbered frame: images the agent can look at, then the rest as text
+            rest = {k: v for k, v in result.items() if k not in ("image", "images")}
+            return {"content": [{"type": "image", "data": i["data"], "mimeType": i["mimeType"]} for i in images]
+                    + [{"type": "text", "text": json.dumps(rest, indent=1) if rest else f"{images[0]['width']}x{images[0]['height']} screenshot of the person's tab"}], "isError": False}
         text = answer["error"] if failed else json.dumps(result, indent=1)
         return {"content": [{"type": "text", "text": text}], "isError": failed}
     if method == "ping":

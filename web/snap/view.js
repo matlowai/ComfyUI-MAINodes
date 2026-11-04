@@ -90,7 +90,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("button", { className: "snap-link snap-quiet-btn", textContent: `Add brick  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}`, title: "Ctrl/Cmd+K", onclick: () => openPalette() }), seeBtn, seg, runBtn, progress),
     h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), inspector, handle), toast);
   // takes under the chain: "Use as input" puts a take's frame on the First frame or References brick (T.use)
-  const dailies = createDailies({ host: root, say, onRestore: () => render(null) });
+  const dailies = createDailies({ host: root, say, onRestore: () => render(null), onHover: (t) => previewTake(t), onRunFrom: (t) => runFrom(t).catch((err) => say(err.message, true)) });
   stack.after(dailies.el);
   let selected = null;
   const built = new Map(); // brick key -> { el, sig }: a brick is rebuilt only when what it shows changed
@@ -761,12 +761,49 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // notes on a brick that has since been removed stay visible (with the recipe's own) until someone closes them
   const openNotes = (brick) => E.notes().filter((n) => isOpen(n) && (n.brick === brick || (brick === null && n.brick && !E.state().bricks.some((b) => b.key === n.brick))));
 
+  // the chain's own preview slot (U57): the brick that ends the chain (Save, or an older Render that saves its video)
+  // shows this workflow's newest take; hovering a take in the strip shows that one there instead. Filled in place, never
+  // rebuilt, so the hover can't loop through a re-render (LESSONS "A preview that rebuilds the list it is hovered from")
+  const ends = (key) => M.nodesOf(key).some(([, n]) => [n, ...(n.subgraph?.nodes ?? [])].some((x) => x.constructor.nodeData?.output_node));
+  let hovered = null;
+  function fillOut(el) {
+    const t = hovered ?? T.inGroup().filter((x) => x.media.length).at(-1), m = t && (t.media.find((x) => x.kind === "video") ?? t.media[0]);
+    const [img, vid, tag] = el.children;
+    el.hidden = !m;
+    if (!m) return vid.pause();
+    el.classList.toggle("previewing", !!hovered);
+    tag.textContent = `take ${t.number}${hovered ? " · preview" : " · newest"}`;
+    const src = T.url(m), video = m.kind === "video";
+    img.hidden = video; vid.hidden = !video;
+    if (!video) { vid.pause(); if (img.dataset.src !== src) img.src = img.dataset.src = src; return; }
+    if (vid.dataset.src !== src) vid.src = vid.dataset.src = src;
+    vid.play().catch(() => {});
+  }
+  const outSlot = () => { const el = h("figure", { className: "snap-out" }, h("img", { alt: "" }), h("video", { muted: true, loop: true, playsInline: true }), h("figcaption")); fillOut(el); return el; };
+  function previewTake(t) {
+    hovered = t;
+    for (const el of stack.querySelectorAll(".snap-out")) fillOut(el);
+  }
+  T.onChange(() => previewTake(hovered)); // a new take lands in the slot
+
+  // Run from here (U57): the take's own workflow (settings and seed as it ran) in a new tab, shown in Snap and ready to
+  // run; nothing is queued. The run_from_take tool's function (SNAP-R19)
+  async function runFrom(t) {
+    if (!t?.graph) throw new Error("This take has no workflow saved with it");
+    await T.openAsTab(t);
+    const main = ["render", "image"].find((k) => E.state().bricks.some((b) => b.key === k));
+    if (main) select(main, false);
+    render(null);
+    say(`Take ${t.number}'s settings are in a new tab, ready to run · nothing is queued`);
+  }
+
   function brickEl(info) {
     const def = BRICKS[info.brick];
     const faces = [presetChip(info.brick), turboChip(info.brick), ...slotFace(info.brick), ...def.face.map((f) => fact(info.brick, f))].filter(Boolean);
     const body = [];
     const pics = Object.values(info.nodes).flatMap((id) => { const n = app.graph.getNodeById(id); return n ? previews(n) : []; });
-    if (pics.length && info.brick !== "refs") body.push(h("div", { className: "snap-thumbs" }, pics.slice(0, 2).map((src) => h("img", { src, alt: "", loading: "lazy" }))));
+    if (ends(info.brick)) body.push(outSlot());
+    else if (pics.length && info.brick !== "refs") body.push(h("div", { className: "snap-thumbs" }, pics.slice(0, 2).map((src) => h("img", { src, alt: "", loading: "lazy" }))));
     if (info.brick === "rack") body.push(D.face({ onChange: () => render(null), onPick: () => D.openPicker(root, { say, onChange: () => render(null), onMake: openMaker }), onMake: openMaker }));
     if (info.brick === "refs") body.push(...picturesFace());
     if (def.stack) body.push(stackFace(info.brick));
@@ -954,6 +991,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const el = h(ghost ? "section" : "div", { className: ghost ? "snap-brick snap-ghost-brick" : "snap-proposal", tabIndex: 0, title: "Enter accepts · Backspace rejects" },
       h("span", { className: "snap-agent", textContent: "agent" }), h("span", { className: "snap-proposal-what", textContent: label }),
       p.reason ? h("span", { className: "snap-blurb", textContent: p.reason }) : null,
+      p.plan ? h("span", { className: "snap-blurb snap-plan", textContent: `runs ${p.plan.runs}${p.plan.eta_s ? ` · about ${Math.round(p.plan.eta_s)} s` : ""}`, title: p.plan.from }) : null,
       p.note ? h("span", { className: "snap-note-tag", textContent: "re: note", title: E.notes().find((n) => n.id === p.note)?.text ?? "" }) : null,
       h("button", { className: "snap-accept", textContent: "Accept", onclick: () => decide(p.id, true) }),
       h("button", { className: "snap-reject", textContent: "Reject", onclick: () => decide(p.id, false) }));
@@ -1097,6 +1135,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     else if (action === "dials") await D.openPicker(root, { say, onChange: () => render(null), onMake: openMaker });
     else if (action === "make_dial") openMaker();
     else if (action === "open_take") { const t = T.get(target); if (!t) throw new Error(`No take ${target}`); dailies.view(t); }
+    else if (action === "run_from") { const t = T.get(target); if (!t) throw new Error(`No take ${target}`); return runFrom(t); }
     else if (action === "setups") openSetups();
     else if (action === "turbo" || action === "methods") openMethods(action === "turbo" ? "turbo" : target || "upscale");
     else throw new Error(`Unknown ui action ${action}`);

@@ -6,7 +6,8 @@
 // Each take keeps a content hash of what ran (`hash`, seeds left out, and `seed_hash` for them), so stale() can say
 // when the chain no longer matches it and name the brick and field that changed (UX_GEMS #1); never re-renders.
 // A take an edit made (edits.js: a night version) names its parent take and the method; "Use as input" puts any frame of
-// a take on the First frame or References brick, with where it came from (U32).
+// a take on the First frame or References brick, with where it came from (U32). `frames` hands an agent a take's frames
+// as pictures (U23 agent eyes), `eta` what such a run took, for a GPU tool's plan (U35).
 // A take the server's save gate marked private or NSFW (history extra_data.snap_marks) says so: private takes saved
 // their files without the recipe inside, and the export leaves both out unless asked.
 // SNAP-R17 person and agent kept apart (notes, judgments, rankings) · SNAP-R18 local only · SNAP-R20 private takes
@@ -16,7 +17,7 @@ import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
 import { BRICKS } from "./bricks.js";
 
-const DIR = "snap/takes", RANKS = "snap/rankings", JUDGED = "snap/judgments";
+const DIR = "snap/takes", RANKS = "snap/rankings", JUDGED = "snap/judgments", FPS = 24;
 
 // what people tag a moment with; free text always goes alongside
 export const TAGS = {
@@ -260,6 +261,39 @@ export function delta(a, b) {
   return out;
 }
 
+// what a run like this took, from measured takes (U35 plan-then-approve): the median seconds of successful takes that
+// ran this same recipe (seeds aside), else of this workflow's; null when nothing was measured yet
+export function eta(hash, group = groupOf()) {
+  const ok = takes.filter((t) => t.status === "success" && t.seconds > 0);
+  return measured(ok.filter((t) => t.hash === hash), "of this same recipe") ?? measured(ok.filter((t) => t.group === group), "of this workflow") ?? { eta_s: null, from: "no measured takes yet" };
+}
+// the median seconds of these takes, or null for none
+export function measured(list, what) {
+  if (!list.length) return null;
+  const s = list.map((t) => t.seconds).sort((a, b) => a - b);
+  return { eta_s: s[Math.floor(s.length / 2)], from: `median of ${list.length} take${list.length === 1 ? "" : "s"} ${what}` };
+}
+
+// a take's frames as JPEG pictures for an agent to look at (U23 agent eyes): the frames asked for, or `count` of them
+// spread over the take (its first and last included), at most `maxWidth` wide; the screenshot tool's image shape
+export async function frames(take, { frames: want, count = 4, maxWidth = 768 } = {}) {
+  const m = take.media.find((x) => x.kind === "video") ?? take.media.find((x) => x.kind === "image");
+  if (!m) throw new Error("This take has no picture or video");
+  const grab = (src, w, h) => { const k = Math.min(1, maxWidth / w), c = Object.assign(document.createElement("canvas"), { width: Math.round(w * k), height: Math.round(h * k) });
+    c.getContext("2d").drawImage(src, 0, 0, c.width, c.height); return { mimeType: "image/jpeg", data: c.toDataURL("image/jpeg", 0.85).split(",")[1], width: c.width, height: c.height }; };
+  if (m.kind === "image") { const img = new Image(); img.src = url(m); await img.decode(); return [{ frame: 0, t: 0, ...grab(img, img.naturalWidth, img.naturalHeight) }]; }
+  const v = Object.assign(document.createElement("video"), { src: url(m), muted: true, preload: "auto" });
+  await new Promise((done, fail) => { v.onloadedmetadata = done; v.onerror = () => fail(new Error("couldn't read the take's video")); });
+  const last = Math.max(0, Math.floor(v.duration * FPS) - 1);
+  const list = want?.length ? want.map((f) => Math.max(0, Math.min(last, Math.round(f)))) : Array.from({ length: Math.max(1, count) }, (_, i) => Math.round((last * i) / Math.max(1, count - 1)));
+  const out = [];
+  for (const frame of list) {
+    await new Promise((done) => { v.onseeked = done; v.currentTime = Math.min(v.duration - 0.01, (frame + 0.5) / FPS); });
+    out.push({ frame, t: +(frame / FPS).toFixed(3), ...grab(v, v.videoWidth, v.videoHeight) });
+  }
+  return out;
+}
+
 // a frame of a take as a picture in ComfyUI's input folder: `t` in seconds, "last" for its end ("continue from end of shot")
 export async function frameAt(take, t = "last") {
   const m = take.media.find((x) => x.kind === "video") ?? take.media.find((x) => x.kind === "image");
@@ -271,7 +305,7 @@ export async function frameAt(take, t = "last") {
     v.onseeked = () => { const c = Object.assign(document.createElement("canvas"), { width: v.videoWidth, height: v.videoHeight }); c.getContext("2d").drawImage(v, 0, 0); c.toBlob(resolve, "image/png"); };
     v.onerror = () => reject(new Error("couldn't read the video's frame"));
   });
-  const frame = Math.round(at * 24), form = new FormData();
+  const frame = Math.round(at * FPS), form = new FormData();
   form.append("image", blob, `${take.id}_f${frame}.png`);
   form.append("subfolder", "snap");
   form.append("overwrite", "true");

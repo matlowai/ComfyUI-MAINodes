@@ -108,8 +108,10 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
 
 - **SNAP-R15: Every UI action has an agent tool.** MCP and WebMCP are built from one table. Results carry the same
   warnings the UI shows. *More:* LESSONS "Agents, WebMCP, tools".
-- **SNAP-R16: GPU-spending tools wait as proposals** unless the person turns on "Let agents run". The bridge never
-  strands the person's tab; it calls the newest tab that is still connected.
+- **SNAP-R16: GPU-spending tools wait as proposals** unless the person turns on "Let agents run". Each one states its
+  plan first: what it would run and about how long, in seconds from measured takes (or the study it came from), shown
+  with the proposal and returned with the run (plan-then-approve, UX_GEMS #5). The bridge never strands the person's
+  tab; it calls the newest tab that is still connected.
 - **SNAP-R17: Keep person and agent labels apart** (`by: person|agent`) on notes, judgments and takes. The data trains
   a judge model.
 - **SNAP-R19: The tool table is the API.** Snap's own UI, agents (MCP/WebMCP) and a future form-based editor layer

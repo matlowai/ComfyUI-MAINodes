@@ -10,11 +10,12 @@ const changed = () => { for (const fn of listeners) fn(); };
 
 export const onChange = (fn) => listeners.add(fn);
 export const pending = () => list.filter((p) => p.status === "waiting" && p.graph === app.graph.id);
-export const all = () => list.map(({ id, tool, args, reason, note, status, result }) => ({ id, tool, args, reason, status, ...(note ? { note } : {}), ...(result ? { result } : {}) }));
+export const all = () => list.map(({ id, tool, args, reason, note, plan, status, result }) => ({ id, tool, args, reason, status, ...(note ? { note } : {}), ...(plan ? { plan } : {}), ...(result ? { result } : {}) }));
 
-// `note`: the director's note this proposal answers, if any
-export function add(tool, args, reason, note) {
-  const p = { id: `p${next++}`, tool, args, reason: reason || "", note, status: "waiting", graph: app.graph.id };
+// `note`: the director's note this proposal answers, if any; `plan`: what a GPU tool would run and about how long
+// (plan-then-approve, U35), shown with the proposal
+export function add(tool, args, reason, note, plan) {
+  const p = { id: `p${next++}`, tool, args, reason: reason || "", note, plan, status: "waiting", graph: app.graph.id };
   list.push(p);
   changed();
   return p;

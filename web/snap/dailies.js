@@ -30,7 +30,9 @@ function mediaEl(m, { big, muted = true } = {}) {
   return h("audio", { src: T.url(m), controls: true });
 }
 
-export function createDailies({ host, say, onRestore }) {
+// `onHover(take | null)`: a take card is hovered (the chain previews it in its own output slot); `onRunFrom(take)`: Run
+// from here (a new tab with the take's settings, ready to run)
+export function createDailies({ host, say, onRestore, onHover, onRunFrom }) {
   const picked = new Set(); // takes ticked for compare
   const strip = h("div", { className: "snap-takes-strip" });
   const count = h("span", { className: "snap-quiet" });
@@ -97,7 +99,8 @@ export function createDailies({ host, say, onRestore }) {
         h("span", { className: "snap-quiet", textContent: `${t.notes.length ? `✎ ${t.notes.length} · ` : ""}${ago(t.created)}` })));
     c.dataset.take = t.id;
     const v = c.querySelector("video");
-    if (v) { c.addEventListener("pointerenter", () => v.play().catch(() => {})); c.addEventListener("pointerleave", () => { v.pause(); v.currentTime = 0; }); }
+    c.addEventListener("pointerenter", () => { v?.play().catch(() => {}); onHover?.(t); });
+    c.addEventListener("pointerleave", () => { if (v) { v.pause(); v.currentTime = 0; } onHover?.(null); });
     c.addEventListener("keydown", (e) => { if (e.key === "Enter") view(t); });
     // rank by dragging: dropped on a ranked take it goes just before it, on an unranked one to the end of the ranking
     c.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/snap-take", t.id); e.dataTransfer.effectAllowed = "move"; c.classList.add("dragging"); });
@@ -299,7 +302,7 @@ export function createDailies({ host, say, onRestore }) {
           h("div", { className: "snap-set-actions" },
             priorBtn,
             h("button", { className: "snap-link", textContent: "Use these settings", title: "put this take's settings back on the open workflow (one undo step)", onclick: () => { try { say(`${T.restore(t)} settings restored from take ${t.number}`); onRestore?.(); } catch (err) { say(err.message, true); } } }),
-            h("button", { className: "snap-link", textContent: "Open as a new tab", onclick: () => T.openAsTab(t) }),
+            h("button", { className: "snap-link", textContent: "Run from here", title: "this take's workflow and settings, seed included, in a new tab, ready to run (nothing is queued)", onclick: () => { close(); onRunFrom?.(t); } }),
             h("button", { className: "snap-link", textContent: "Continue from its last frame", title: "the take's last frame becomes the First frame", onclick: async () => { try { say((await T.use(t, { as: "first_frame", t: "last" })).said); onRestore?.(); } catch (err) { say(err.message, true); } } })))));
     tags(); refresh(); rankRow(); regionLine();
     host.append(sheet);
