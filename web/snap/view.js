@@ -85,7 +85,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Note", title: "a director's note on the whole recipe; agents answer it", onclick: () => { noting = true; select(null); inspector.querySelector("textarea")?.focus(); } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Make app", title: "open this recipe in ComfyUI's App mode: the brick faces become a run-only app (reloads the graph)", onclick: () => onMakeApp() }),
-      h("button", { className: "snap-link snap-quiet-btn", title: "Ctrl/Cmd+K", onclick: () => openPalette() }, "Add brick", h("span", { className: "snap-kbd", textContent: ` ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}` })), seeBtn, seg, runBtn, progress),
+      h("button", { className: "snap-link snap-quiet-btn", textContent: `Add brick  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}`, title: "Ctrl/Cmd+K", onclick: () => openPalette() }), seeBtn, seg, runBtn, progress),
     h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), inspector, handle), toast);
   // takes under the chain: "continue from its last frame" puts that frame on the First frame brick
   const dailies = createDailies({ host: root, say, onRestore: () => render(null), onContinue: (file) => {
@@ -951,7 +951,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("button", { textContent: "Accept all", onclick: async () => { for (const p of P.pending()) await decide(p.id, true); } }),
       h("button", { textContent: "Reject all", onclick: async () => { for (const p of P.pending()) await decide(p.id, false); } }));
     for (const el of [...stack.querySelectorAll(".snap-ghost-brick, .snap-proposal"), ...notesStrip.querySelectorAll(".snap-proposal")]) el.remove();
-    notesStrip.prepend(proposalsPill); // above the chain, with the proposals about the whole recipe: the top bar has no room for it
+    notesStrip.append(proposalsPill); // above the chain after the person's notes, with the proposals about the whole recipe: the top bar has no room for it
     for (const p of waiting) {
       if (p.tool === "snap") {
         const after = p.args.after && brickNode(p.args.after);

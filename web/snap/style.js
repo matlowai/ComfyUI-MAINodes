@@ -13,9 +13,7 @@ export const STYLE = `
   background: color-mix(in srgb, var(--s-bg) calc(var(--veil) * 100%), transparent); }
 .snap-brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; letter-spacing: -.01em; padding-right: 12px; margin-right: 2px; border-right: 1px solid var(--s-line); height: 26px; }
 .snap-brand i { width: 20px; height: 20px; border-radius: 6px; background: conic-gradient(from 200deg, #6aa8ff, #c084fc, #f472b6, #f0b445, #57c785, #6aa8ff); box-shadow: 0 0 0 1px #ffffff1f inset; }
-.snap-title { font-size: 14px; font-weight: 600; min-width: 9ch; max-width: 32ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.snap-kbd { white-space: pre; }
-@media (max-width: 1440px) { .snap-kbd { display: none; } }
+.snap-title { font-size: 14px; font-weight: 600; max-width: 32ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .snap-spacer { flex: 1; }
 .snap-status { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--s-card); color: var(--s-dim); cursor: default; white-space: nowrap; }
 .snap-status::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; background: currentColor; vertical-align: 1px; }
@@ -174,7 +172,7 @@ export const STYLE = `
 .snap-inline button.on { background: hsl(var(--hue) 60% 55% / .32); color: var(--s-fg); }
 .snap-brick.off > :not(.snap-head):not(.snap-face) { opacity: .45; } .snap-brick.off .snap-headline { color: var(--s-dim); } .snap-brick.off .snap-grip { filter: grayscale(1); }
 .snap-setup, .snap-outside { all: unset; cursor: pointer; font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--s-card); white-space: nowrap; max-width: 46ch; min-width: 0; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; }
-.snap-setup { color: var(--s-fg); box-shadow: inset 0 0 0 1px hsl(265 60% 65% / .4); min-width: 12ch; }
+.snap-setup { color: var(--s-fg); box-shadow: inset 0 0 0 1px hsl(265 60% 65% / .4); }
 .snap-outside { color: #f0b445; }
 .snap-setup:hover, .snap-outside:hover, .snap-setup:focus-visible, .snap-outside:focus-visible { background: #ffffff1a; }
 .snap-sheet.snap-setup-sheet { inset: 64px max(24px, calc(50% - 500px)) auto; max-height: calc(100% - 100px); }
@@ -375,6 +373,7 @@ export const STYLE = `
 .snap-take figcaption { font-size: 12px; display: flex; flex-wrap: wrap; gap: 0 4px; align-items: baseline; }
 .snap-take figcaption .snap-quiet { flex-basis: 100%; font-size: 11px; }
 .snap-take figcaption em { color: #f0b445; font-style: normal; }
+.snap-seed { grid-column: 1 / -1; }
 .snap-seed-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .snap-seed .snap-inline button { padding: 3px 10px; }
 .snap-dice { all: unset; cursor: pointer; font-size: 16px; line-height: 1; padding: 1px 5px; border-radius: 6px; color: var(--s-dim); }
