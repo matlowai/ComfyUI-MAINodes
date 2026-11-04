@@ -8,9 +8,9 @@
   "turbo": null,
   "deband": "none",
   "recommended": {
-   "steps": 50,
+   "steps": 25,
    "cfg": 3,
-   "sampler": "euler",
+   "sampler": "er_sde",
    "scheduler": "simple",
    "shift": 5,
    "slg_layer": 22
@@ -21,7 +21,7 @@
   "size_gb": 10.16,
   "quant_format": "none (BF16/F32)",
   "loads_in_core": true,
-  "notes": "Official MOSS-Image-Base, bf16 fused-qkv single file. No banding (community: base is clean). Community: good for people/portraits, weaker elsewhere (Beaon 11-03, opinion). Source repo unverified for this exact local copy."
+  "notes": "Official MOSS-Image-Base, bf16 fused-qkv single file. No banding (community: base is clean). Community: good for people/portraits, weaker elsewhere (Beaon 11-03, opinion). Source repo unverified for this exact local copy. Measured 2026-11-04 (U24, int8, 1024²): ER-SDE 25 = 50 steps in quality at half the time (the Snap card runs Base without SLG; SLG on Base wasn't measured)."
  },
  {
   "file": "moss_image_base_int8_convrot.safetensors",
@@ -32,9 +32,9 @@
   "turbo": null,
   "deband": "none",
   "recommended": {
-   "steps": 50,
+   "steps": 25,
    "cfg": 3,
-   "sampler": "euler",
+   "sampler": "er_sde",
    "scheduler": "simple"
   },
   "stacks_with": null,
@@ -43,7 +43,7 @@
   "size_gb": 5.41,
   "quant_format": "int8_tensorwise+convrot x168",
   "loads_in_core": true,
-  "notes": "Comfy-Org int8 convrot of Base (size/format match; origin unverified). Base has no banding."
+  "notes": "Comfy-Org int8 convrot of Base (size/format match; origin unverified). Base has no banding. Measured 2026-11-04 (U24, int8, 1024²): ER-SDE 25 = 50 steps in quality at half the time (the Snap card runs Base without SLG; SLG on Base wasn't measured)."
  },
  {
   "file": "moss_image_sft_bf16.safetensors",
@@ -183,9 +183,9 @@
   "turbo": null,
   "deband": "none",
   "recommended": {
-   "steps": 50,
+   "steps": 25,
    "cfg": 3,
-   "sampler": "euler",
+   "sampler": "er_sde",
    "scheduler": "simple",
    "shift": 5,
    "slg_layer": 22
@@ -200,7 +200,7 @@
   "size_gb": 5.41,
   "quant_format": "int8_tensorwise+convrot x168 (convrot groupsize 256, 168 block linears)",
   "loads_in_core": true,
-  "notes": "NEW 2026-11-04. Full fine-tune of MOSS Base at 1024 px (update 11000 EMA), drop-in for SFT int8. Header verified: 168 comfy_quant int8_tensorwise convrot, same as local SFT int8; sha256 matches HF. PartiPrompts CLIP 27.90 (Base 27.19) per card. Community: struggles above ~2.5 MP (FL13, opinion). Banding on Kromoss untested."
+  "notes": "NEW 2026-11-04. Full fine-tune of MOSS Base at 1024 px (update 11000 EMA), drop-in for SFT int8. Header verified: 168 comfy_quant int8_tensorwise convrot, same as local SFT int8; sha256 matches HF. PartiPrompts CLIP 27.90 (Base 27.19) per card. Community: struggles above ~2.5 MP (FL13, opinion). No banding in 40 images (U24, bandviz 9.1-11.4; banded SFT scores 27.6). Measured 2026-11-04 (U24, 1024²): ER-SDE 25 + SLG 22 is the default (crisper than Base, same layouts); the model card's Euler 50 is the text-heavy option."
  },
  {
   "file": "kblueleaf_moss_image_heal_int8_convrot.safetensors",
