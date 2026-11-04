@@ -75,7 +75,7 @@
       "local_or_api": "local",
       "guidance": { "line": "the usual final cleanup for stills and faces; 4× often runs out of memory untiled", "evidence": "measured", "source": "scout/upscalers §1 (Elvaxorn, RuneX; single runs)", "n": 1, "hardware": "5090 / 3090" },
       "cost": { "community_s": [26, 160], "per": "2× clip", "local_s": null, "vram_gb": null },
-      "unwired": "not wired yet: a seven-node graph (resize, preprocess, encode, conditioning, sampler, decode, post-process)"
+      "unwired": "not wired yet: core's template is nine nodes (resize, preprocess, tiled encode, conditioning, 1-step KSampler, tiled decode, post-process) and Off by bypass can't pass the picture through its encode/decode; needs its own Off and one real run first"
     },
     {
       "id": "h3_latent",
