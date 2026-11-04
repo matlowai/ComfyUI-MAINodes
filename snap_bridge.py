@@ -5,7 +5,8 @@ Also the metadata switch on saved files: a prompt queued with Snap's metadata of
 and private takes are marked for the lock badge and the export (SNAP-R20); and the copy score Snap's camera plates and
 take checks run in the queue (SNAP-R21); and onboarding's kits (SNAP-R25).
 SNAP-R12 identity LoRAs are private · SNAP-R18 local only · SNAP-R20 metadata switch, private takes marked · SNAP-R25 onboarding
-proposes, never downloads · SNAP-R27 locks follow the current rules · see docs/SNAP_RULES.md"""
+proposes, never downloads · SNAP-R27 locks follow the current rules · SNAP-R30 the agent front door: pages per user, a
+health listing, errors that say what to do · see docs/SNAP_RULES.md"""
 import asyncio
 import hashlib
 import json
@@ -15,6 +16,8 @@ import secrets
 import subprocess
 from pathlib import Path
 
+import time
+
 import aiohttp
 import numpy as np
 import torch
@@ -22,6 +25,7 @@ from aiohttp import web
 
 import comfy.clip_model
 import comfy.model_management
+from comfy.cli_args import args
 import folder_paths
 import nodes
 from comfy_api.latest import io
@@ -32,13 +36,30 @@ from . import snap_privacy
 
 TIMEOUT = 30
 tools = []         # the tool table the open Snap page registered
-pages = []         # websocket client ids of the tabs that registered, oldest first; a call goes to the newest still connected
+# the tabs that registered, oldest first: websocket client id -> the ComfyUI user whose page it is (the comfy-user header,
+# set by snap-gate per account), when it registered and when it last answered. A call goes to the newest page of the
+# caller's own user that is still connected, so one account's agent never drives another's page
+pages = {}
+PAGE_SH = Path(__file__).parent / "tools" / "snap_agent_page.sh"
 
 
-def page():
-    """The tab calls go to: the one that registered last and is still connected (a closed tab hands back to the one before)."""
-    return next((c for c in reversed(pages) if c in PromptServer.instance.sockets), None)
-pending = {}       # call id -> future answered by /mainodes/snap/result
+def user_of(request):
+    try:
+        return PromptServer.instance.user_manager.get_request_user_id(request)
+    except KeyError as e:  # a --multi-user server needs the comfy-user header (snap-gate sets it per account)
+        raise web.HTTPForbidden(text=json.dumps({"error": f"{e.args[0]}: send your ComfyUI user as the comfy-user header"}), content_type="application/json")
+
+
+def open_pages(user):
+    """This user's tabs still connected, oldest first (a closed tab hands back to the one before)."""
+    return [c for c, p in pages.items() if p["user"] == user and c in PromptServer.instance.sockets]
+
+
+def health(user):
+    now, found = time.time(), open_pages(user)
+    return [{"registered_s_ago": round(now - pages[c]["registered"]), "last_answer_s_ago": None if pages[c]["answered"] is None else round(now - pages[c]["answered"]),
+             "calls_go_here": c == found[-1]} for c in found]
+pending = {}       # call id -> (future answered by /mainodes/snap/result, the page it was sent to)
 
 
 def error(message, status=400):
@@ -52,30 +73,37 @@ routes = PromptServer.instance.routes
 async def register(request):
     body = await request.json()
     tools[:] = body["tools"]
-    pages[:] = [c for c in pages if c != body["client"] and c in PromptServer.instance.sockets] + [body["client"]]
+    for c in [c for c in pages if c not in PromptServer.instance.sockets]:
+        del pages[c]
+    pages.pop(body["client"], None)  # re-registering (focus, reconnect) makes it the newest
+    pages[body["client"]] = {"user": user_of(request), "registered": time.time(), "answered": None}
     return web.json_response({"tools": len(tools)})
 
 
 @routes.get("/mainodes/snap/tools")
 async def listing(request):
-    return web.json_response({"tools": tools})
+    """The tool table, and the caller's open Snap pages: when each registered and last answered (a health check)."""
+    return web.json_response({"tools": tools, "pages": health(user_of(request))})
 
 
 @routes.post("/mainodes/snap/call")
 async def call(request):
     body = await request.json()
-    client = page()
-    if not tools or client is None:
-        return error("No Snap page is open: open ComfyUI in a browser first.", 503)
+    found = open_pages(user_of(request))
+    if not tools or not found:
+        base = f"{request.scheme}://{request.host}"
+        return error(f"No Snap page is open for you on this ComfyUI. Open {base}/?snap in a browser, or start a headless one for yourself: "
+                     f"bash {PAGE_SH} {base} (it returns once the page has registered).", 503)
     if body.get("tool") not in {t["name"] for t in tools}:
-        return error(f"Unknown Snap tool {body.get('tool')!r}.", 404)
-    call_id = secrets.token_hex(8)
-    pending[call_id] = asyncio.get_running_loop().create_future()
+        return error(f"Unknown Snap tool {body.get('tool')!r}: GET /mainodes/snap/tools lists them.", 404)
+    client, call_id = found[-1], secrets.token_hex(8)
+    pending[call_id] = (asyncio.get_running_loop().create_future(), client)
     await PromptServer.instance.send("mainodes-snap-call", {"id": call_id, "tool": body["tool"], "args": body.get("args") or {}}, client)
     try:
-        return web.json_response(await asyncio.wait_for(pending[call_id], TIMEOUT))
+        return web.json_response(await asyncio.wait_for(pending[call_id][0], TIMEOUT))
     except TimeoutError:
-        return error(f"The Snap page did not answer within {TIMEOUT} s.", 504)
+        return error(f"The Snap page did not answer within {TIMEOUT} s. Long work returns at once (run, then run_status with wait_s); "
+                     "GET /mainodes/snap/tools shows when your page last answered.", 504)
     finally:
         pending.pop(call_id, None)
 
@@ -83,8 +111,9 @@ async def call(request):
 @routes.post("/mainodes/snap/result")
 async def result(request):
     body = await request.json()
-    future = pending.get(str(body.get("id")))
-    if future and not future.done() and body.get("client") in pages:
+    future, client = pending.get(str(body.get("id")), (None, None))
+    if future and not future.done() and body.get("client") == client:  # only the page the call went to answers it
+        pages.get(client, {})["answered"] = time.time()
         future.set_result({k: body[k] for k in ("result", "error") if k in body})
     return web.json_response({})
 
@@ -125,13 +154,14 @@ async def kits(request):
     found = json.loads((CARDS / "kits.json").read_text(encoding="utf-8"))
     # the folder named like its key when there is one (diffusion_models lists the legacy models/unet first)
     targets = {name: next((p for p in paths if os.path.basename(p) == name), paths[0]) for name, (paths, _) in folder_paths.folder_names_and_paths.items() if paths}
-    return web.json_response({**found, "folders": targets})
+    return web.json_response({**found, "folders": {**targets, "output": folder_paths.get_output_directory()}})  # output: where run_status says files are
 
 
 # Semantic search: EmbeddingGemma 2 runs in tools/snap_embedder.py, a sidecar in its own venv (ComfyUI's transformers is
 # too old for it), started on the first search. Until it answers, the page keeps its keyword search.
 EMBEDDER_PYTHON = os.environ.get("MAINODES_SNAP_EMBEDDER_PYTHON", "")
-EMBEDDER_PORT = int(os.environ.get("MAINODES_SNAP_EMBEDDER_PORT", "8418"))
+# one sidecar per server: its port follows ComfyUI's (8188 -> 8418), so two installs never share one
+EMBEDDER_PORT = int(os.environ.get("MAINODES_SNAP_EMBEDDER_PORT", args.port + 230))
 EMBEDDER = f"http://127.0.0.1:{EMBEDDER_PORT}"
 QUERY = "task: search result | query: "
 embedder = {"proc": None, "ready": False}

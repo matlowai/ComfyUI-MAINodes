@@ -2,19 +2,24 @@
 
 The open Snap page owns the graph; this server lists the tools the page registered and relays calls to it, so an
 agent edits the same graph a person sees (each edit is one undo step, shown live). Standard library only; talks to
-127.0.0.1 only. Example Claude Code config entry (not installed by the pack):
+127.0.0.1 by default (--port), or to --base-url (a snap-gate in front of ComfyUI). SNAP_TOKEN in the environment goes out
+as an Authorization: Bearer header (a snap-gate account token). Example Claude Code config entry (not installed by the pack):
 
     {"mcpServers": {"comfy-snap": {"command": "python", "args": ["custom_nodes/ComfyUI-MAINodes/tools/snap_mcp.py", "--port", "8188"]}}}
+
+SNAP-R30 the agent front door · see docs/SNAP_RULES.md
 """
 import argparse
 import json
 import mimetypes
+import os
 import secrets
 import sys
 import urllib.error
 import urllib.request
 
 PROTOCOL = "2025-06-18"
+AUTH = {"Authorization": f"Bearer {os.environ['SNAP_TOKEN']}"} if os.environ.get("SNAP_TOKEN") else {}
 
 # answered here, not by the page: it reads a file on this machine, which the page can't
 UPLOAD = {"name": "upload_file", "description": "Upload a local picture, video or audio file into ComfyUI's input folder and return its name; then set_widget points a loader at it (e.g. the First frame's image).",
@@ -28,7 +33,7 @@ def upload(base, path, subfolder=""):
     name = path.rsplit("/", 1)[-1]
     parts = [f"--{boundary}\r\nContent-Disposition: form-data; name=\"image\"; filename=\"{name}\"\r\nContent-Type: {mimetypes.guess_type(name)[0] or 'application/octet-stream'}\r\n\r\n".encode(), data,
              f"\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"subfolder\"\r\n\r\n{subfolder}\r\n--{boundary}--\r\n".encode()]
-    request = urllib.request.Request(base + "/upload/image", data=b"".join(parts), headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
+    request = urllib.request.Request(base + "/upload/image", data=b"".join(parts), headers={"Content-Type": f"multipart/form-data; boundary={boundary}", **AUTH})
     with urllib.request.urlopen(request, timeout=120) as response:
         r = json.load(response)
     return {"name": f"{r['subfolder']}/{r['name']}" if r.get("subfolder") else r["name"]}
@@ -36,7 +41,7 @@ def upload(base, path, subfolder=""):
 
 def http(base, path, body=None):
     request = urllib.request.Request(base + path, data=None if body is None else json.dumps(body).encode(),
-                                     headers={"Content-Type": "application/json"})
+                                     headers={"Content-Type": "application/json", **AUTH})
     try:
         with urllib.request.urlopen(request, timeout=40) as response:
             return json.load(response)
@@ -87,7 +92,9 @@ def reply(message):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--port", type=int, default=8188)
-    base = f"http://127.0.0.1:{parser.parse_args().port}"
+    parser.add_argument("--base-url", help="ComfyUI's (or a snap-gate's) address, e.g. http://127.0.0.1:8197; overrides --port")
+    a = parser.parse_args()
+    base = (a.base_url or f"http://127.0.0.1:{a.port}").rstrip("/")
     for line in sys.stdin:
         if not line.strip():
             continue

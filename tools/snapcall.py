@@ -1,0 +1,46 @@
+"""Call one Snap tool from a shell, through the bridge to the newest Snap page of your user (a person's tab or an agent's
+headless page from snap_agent_page.sh). Pictures (screenshot, take_frames) are saved as files next to where you run it
+and their paths printed. SNAP_TOKEN in the environment goes out as a Bearer header (a snap-gate account token).
+usage: python3 snapcall.py <port or base URL> <tool> ['<json args>']
+  e.g. python3 snapcall.py 8188 get_profile
+       python3 snapcall.py 8188 run_status '{"wait_s": 25}'
+SNAP-R30 the agent front door · see docs/SNAP_RULES.md
+"""
+import base64
+import json
+import os
+import sys
+import time
+import urllib.error
+import urllib.request
+
+if len(sys.argv) < 3:
+    sys.exit(__doc__)
+where, tool = sys.argv[1], sys.argv[2]
+base = (f"http://127.0.0.1:{where}" if where.isdigit() else where).rstrip("/")
+args = json.loads(sys.argv[3]) if len(sys.argv) > 3 else {}
+auth = {"Authorization": f"Bearer {os.environ['SNAP_TOKEN']}"} if os.environ.get("SNAP_TOKEN") else {}
+request = urllib.request.Request(f"{base}/mainodes/snap/call", data=json.dumps({"tool": tool, "args": args}).encode(), headers={"Content-Type": "application/json", **auth})
+try:
+    with urllib.request.urlopen(request, timeout=60) as r:
+        out = json.load(r)
+except urllib.error.HTTPError as e:  # the bridge answers errors as JSON too: print them as they are
+    text = e.read().decode(errors="replace")
+    try:
+        out = json.loads(text)
+    except ValueError:
+        out = {"error": f"ComfyUI answered {e.code}: {text[:300]}"}
+except urllib.error.URLError as e:
+    sys.exit(json.dumps({"error": f"ComfyUI is not reachable at {base} ({e.reason})"}))
+result = out.get("result")
+pictures = (result.get("images") or ([result["image"]] if isinstance(result.get("image"), dict) else [])) if isinstance(result, dict) else []
+if pictures:
+    stamp, saved = time.strftime("%H%M%S"), []
+    for i, p in enumerate(pictures):
+        path = os.path.abspath(f"snap_{tool}_{stamp}_{i}.{p.get('mimeType', 'image/jpeg').split('/')[-1]}")
+        with open(path, "wb") as f:
+            f.write(base64.b64decode(p["data"]))
+        saved.append(path)
+    out = {"result": {**{k: v for k, v in result.items() if k not in ("image", "images")}, "saved": saved}}
+print(json.dumps(out, indent=1))
+sys.exit(1 if "error" in out else 0)
