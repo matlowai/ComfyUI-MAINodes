@@ -7,15 +7,23 @@ import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
-const H3 = "MiniMax H3";
 
-let catalog = null, loading = null;
+let catalog = null, kinds = {}, loading = null;
 export function load(force) {
   if (force) { catalog = null; loading = null; }
-  loading ??= api.fetchApi("/mainodes/dials/catalog").then((r) => (r.ok ? r.json() : [])).then((list) => (catalog = list), () => (catalog = []));
+  loading ??= api.fetchApi("/mainodes/dials/catalog").then((r) => (r.ok ? r.json() : { dials: [] })).then((c) => { kinds = c.families ?? {}; return (catalog = c.dials); }, () => (catalog = []));
   return loading;
 }
 export const all = () => catalog ?? [];
+// the dial family a recipe is for, read from what its graph declares: a `type` setting naming an encoder type the dials
+// know (CLIPLoader type minimax -> MiniMax H3); null when nothing says
+export function family() {
+  for (const b of E.state().bricks) for (const id of Object.values(b.nodes)) {
+    const w = app.graph.getNodeById(id)?.widgets?.find((x) => x.name === "type" && Object.hasOwn(kinds, x.value));
+    if (w) return kinds[w.value];
+  }
+  return null;
+}
 export const find = (dial) => all().find((d) => d.dial === dial);
 const short = (f) => f.replace(/^dials\//, "").replace(/\.safetensors$/, "").replace(/^h3_/, "").replace(/_hook$/, "").replace(/_/g, " ");
 // "frozen ↔ zoomies" when the dial says what its sides give, else its file name
@@ -54,7 +62,8 @@ function bands(d, max) { // shaded useful range and amber overcook beyond it, pe
 }
 
 export function face({ onChange, onPick, onMake }) {
-  const list = rows().filter((r) => r.dial);
+  const list = rows().filter((r) => r.dial), fam = family();
+  const others = fam ? list.map((r) => find(r.dial)?.family).filter((f) => f && f !== fam) : [];
   const body = list.map((r) => {
     const d = find(r.dial), max = reach(d);
     const value = h("b", { className: "snap-dial-v", textContent: `${r.strength >= 0 ? "+" : ""}${Number(r.strength).toFixed(2)}` });
@@ -73,6 +82,7 @@ export function face({ onChange, onPick, onMake }) {
       h("div", { className: "snap-dial-ends" }, h("span", { textContent: side(d?.info?.negative) || "−" }), calibrated(d) ? null : h("em", { textContent: "uncalibrated" }), h("span", { textContent: side(d?.info?.positive) || "+" })));
   });
   return h("div", { className: "snap-dials" }, ...(body.length ? body : [h("div", { className: "snap-quiet", textContent: "No dials yet" })]),
+    others.length ? h("div", { className: "snap-dial-warn", title: `this recipe renders with ${fam}; a dial made for another model fails at run time`, textContent: `${others.length} dial${others.length === 1 ? " is" : "s are"} for ${[...new Set(others)].join(", ")}` }) : null,
     h("div", { className: "snap-dial-actions" },
       h("button", { className: "snap-link snap-quiet-btn", textContent: "+ Dial", title: "pick one of the installed dials", onclick: (e) => { e.stopPropagation(); onPick(); } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "✦ Make a dial", title: "make a new dial from prompt pairs", onclick: (e) => { e.stopPropagation(); onMake(); } })));
@@ -81,16 +91,17 @@ export function face({ onChange, onPick, onMake }) {
 // ---- the picker --------------------------------------------------------------------------------------------------
 export async function openPicker(host, { say, onChange, onMake }) {
   await load();
-  let family = H3;
+  const own = family();
+  let shown = own ?? "all";
   const q = h("input", { className: "snap-lib-q", placeholder: "Search dials (what it does, either side, the file)…" });
   const grid = h("div", { className: "snap-dial-grid" });
   const close = () => { sheet.remove(); host.focus({ preventScroll: true }); };
   const fam = h("div", { className: "snap-seg" });
   function draw() {
     const on = new Set(rows().map((r) => r.dial));
-    fam.replaceChildren(...[H3, "all"].map((f) => h("button", { className: f === family ? "on" : "", textContent: f === H3 ? "H3 dials" : "All models", onclick: () => { family = f; draw(); } })));
+    fam.replaceChildren(...[own, "all"].filter(Boolean).map((f) => h("button", { className: f === shown ? "on" : "", textContent: f === "all" ? "All models" : `${f} dials`, onclick: () => { shown = f; draw(); } })));
     const words = q.value.toLowerCase().split(/\s+/).filter(Boolean);
-    const found = all().filter((d) => (family === "all" || d.family === family) && words.every((w) => `${label(d)} ${d.info.description} ${d.dial}`.toLowerCase().includes(w)))
+    const found = all().filter((d) => (shown === "all" || d.family === shown) && words.every((w) => `${label(d)} ${d.info.description} ${d.dial}`.toLowerCase().includes(w)))
       .sort((a, b) => (a.mode === "pre") - (b.mode === "pre") || calibrated(b) - calibrated(a) || label(a).localeCompare(label(b)));
     grid.replaceChildren(...(found.length ? found.map((d) => h("button", { className: `snap-dial-tile${on.has(d.dial) ? " on" : ""}`, title: d.dial,
       onclick: () => { try { say(add(d.dial)); onChange(); close(); } catch (err) { say(err.message, true); } } },
@@ -100,7 +111,7 @@ export async function openPicker(host, { say, onChange, onMake }) {
         calibrated(d) ? h("i", { textContent: `useful ±${d.info.pos.useful ?? d.info.neg.useful}` }) : h("i", { className: "warn", textContent: "uncalibrated" }),
         h("i", { className: "file", textContent: d.dial.replace(/^dials\//, "").replace(/\.safetensors$/, "") }),
         d.mode === "pre" ? h("i", { title: "pre-refiner LoRA file: an approximation of the hook, keep it at strength 1 or below", textContent: "LoRA file" }) : null,
-        d.family !== H3 ? h("i", { textContent: d.family }) : null, on.has(d.dial) ? h("i", { className: "ok", textContent: "on the rack" }) : null))) : [h("div", { className: "snap-quiet", textContent: "No dial matches. Make one?" })]));
+        d.family !== own ? h("i", { textContent: d.family }) : null, on.has(d.dial) ? h("i", { className: "ok", textContent: "on the rack" }) : null))) : [h("div", { className: "snap-quiet", textContent: "No dial matches. Make one?" })]));
   }
   q.addEventListener("input", draw);
   const sheet = h("div", { className: "snap-sheet snap-dial-sheet", role: "dialog", ariaLabel: "Dials" },

@@ -41,7 +41,8 @@ import folder_paths
 # One model family's prompt path. pre: Linear whose bias a pre dial shifts (None: post dials only). post: module whose
 # output a post dial shifts. refine(dm, tokens): [n, dim] from the pre seam's output (the encoder output when there is no
 # pre seam) to the post seam's output. cached: extra_conds refines the prompt once, so the DiT's context is the post seam.
-TextPath = collections.namedtuple("TextPath", "family pre post refine cached")
+# clip_type: the CLIPLoader type that loads this family's text encoder (how a UI reads the family off a graph).
+TextPath = collections.namedtuple("TextPath", "family pre post refine cached clip_type")
 
 
 def _moss_refine(dm, x):  # TextEmbedder.forward after its proj; text rope positions 0..n-1, as without references
@@ -54,10 +55,10 @@ def _moss_refine(dm, x):  # TextEmbedder.forward after its proj; text rope posit
 
 # diffusion model class -> its prompt path
 TEXT_PATHS = {
-    "MiniMaxH3Model": TextPath("MiniMax H3", "condition_proj", "token_refiner", lambda dm, x: dm.token_refiner(x), True),
-    "MOSSImage": TextPath("MOSS-Image", "text_embedder.proj", "text_embedder", _moss_refine, False),
+    "MiniMaxH3Model": TextPath("MiniMax H3", "condition_proj", "token_refiner", lambda dm, x: dm.token_refiner(x), True, "minimax"),
+    "MOSSImage": TextPath("MOSS-Image", "text_embedder.proj", "text_embedder", _moss_refine, False, "moss_image"),
     # txtfusion has no biased projection up front; txtmlp ends in a Linear, so a post dial equals a txtmlp.3 bias diff
-    "SingleStreamDiT": TextPath("Krea 2", None, "txtmlp", lambda dm, x: dm.txtmlp(dm.txtfusion(dm._unpack_context(x[None])))[0], False),
+    "SingleStreamDiT": TextPath("Krea 2", None, "txtmlp", lambda dm, x: dm.txtmlp(dm.txtfusion(dm._unpack_context(x[None])))[0], False, "krea2"),
 }
 DEFAULT_FAMILY = "MiniMax H3"  # dial files from before families were recorded
 NUISANCE_PAIRS = [
@@ -367,7 +368,7 @@ def dial_info(dial_name):
 
 def dial_catalog():
     """Every dial file the rack offers (loras/dials/, folders starting with '_' left out) with its family and info, read
-    from the safetensors headers only."""
+    from the safetensors headers only, and the family each CLIPLoader type stands for."""
     out = []
     for name in folder_paths.get_filename_list("loras"):
         name = name.replace("\\", "/")
@@ -380,7 +381,7 @@ def dial_catalog():
             continue
         stored = meta.get("dial_info")
         out.append({"dial": name, "family": meta.get("model_family", DEFAULT_FAMILY), "mode": mode, "info": check_dial_info(json.loads(stored) if stored else INFO_DEFAULTS)})
-    return sorted(out, key=lambda d: d["dial"])
+    return {"dials": sorted(out, key=lambda d: d["dial"]), "families": {p.clip_type: p.family for p in TEXT_PATHS.values()}}
 
 
 def save_dial_info(dial_name, info):
