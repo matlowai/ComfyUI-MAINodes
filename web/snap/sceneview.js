@@ -130,7 +130,7 @@ export function createSceneBar({ host, say, onOpened, openTake, run }) {
     name.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); rename(); } if (e.key === "Escape") { e.stopPropagation(); close(); } });
     const n = SC.takesOf(shot).length;
     const confirm = h("div", { className: "snap-scene-confirm", hidden: true },
-      h("span", { className: "snap-quiet", textContent: `Its ${n} take${n === 1 ? "" : "s"} and its workflow are kept; the scene's file lists it under removed.` }),
+      h("span", { className: "snap-quiet", textContent: `${n ? `Its ${n} take${n === 1 ? "" : "s"} and its workflow stay` : "Its workflow stays"}; the scene's file lists it under removed.` }),
       h("button", { className: "snap-danger", textContent: `Remove ${SC.shotTitle(scene, shot)}`, onclick: () => { close(); act(async () => (await SC.removeShot(scene.id, shot.id)).said); } }));
     const menu = h("div", { className: "snap-scene-menu", role: "menu" },
       h("div", { className: "snap-scene-rename" }, name, h("button", { className: "snap-primary", textContent: "Rename", onclick: rename })),

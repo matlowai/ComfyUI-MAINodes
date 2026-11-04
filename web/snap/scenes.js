@@ -273,7 +273,7 @@ export async function removeShot(sceneId, shotId, by = "person") {
     s.removed = [...(s.removed ?? []), { ...x, takes: takesOf(x), removed: { by, at: new Date().toISOString() } }];
   });
   await retitleOpen();
-  return { scene: sceneId, removed: shotId, said: `${title} left ${scene.name}: its ${n} take${n === 1 ? "" : "s"}${shot.workflow ? " and its workflow" : ""} are kept, listed under "removed" in the scene's file${open ? " · this tab is scratch work now" : ""}` };
+  return { scene: sceneId, removed: shotId, said: `${title} left ${scene.name}: ${[n ? `its ${n} take${n === 1 ? "" : "s"}` : null, shot.workflow ? "its workflow" : null].filter(Boolean).join(" and ") || "the shot"} ${n > 1 || (n && shot.workflow) ? "are" : "is"} kept, listed under "removed" in the scene's file${open ? " · this tab is scratch work now" : ""}` };
 }
 // deleting a scene parks its document (snap/scenes/_parked/<id>.json, marked who parked it and when): its shots'
 // workflows (snap/scenes/<id>/) and its takes stay where they are; moving the file back restores it. Tabs that show
