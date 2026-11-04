@@ -1,6 +1,8 @@
 // Snap's agent tools: the same operations the Snap view uses, as a small typed vocabulary instead of a 200-node graph.
 // One table, two transports: in-page WebMCP when the browser has it, and the /mainodes/snap bridge that the local MCP
 // server (tools/snap_mcp.py) calls. Every call goes through the engine, so an agent can't build a graph a person couldn't.
+// SNAP-R11 same warnings as the UI · SNAP-R15 one table, MCP + WebMCP · SNAP-R16 GPU tools wait as proposals ·
+// SNAP-R17 by: agent · SNAP-R19 the tool table is the API · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import { BRICKS, PACK_BRICKS } from "./bricks.js";

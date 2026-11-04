@@ -2,6 +2,8 @@
 // zoomies"), its useful range shaded and its overcook zone marked, all read from the dial file's own info. A picker lists
 // every installed dial (/mainodes/dials/catalog); "Make a dial" fills the pack's own Make Dial node and runs only that
 // node, then puts the new dial on the rack. Rows live in the rack's `rack` widget (the backend's source of truth).
+// SNAP-R2 the rack follows its widget · SNAP-R13 family from the setup, strength scale from the dials' own data ·
+// see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";

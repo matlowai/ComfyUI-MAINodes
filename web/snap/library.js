@@ -1,6 +1,8 @@
 // Snap Library (LIBRARY.md): cards that snap onto bricks. Each kind goes to one brick and does one visible thing there;
 // search is slot-aware (a selected brick narrows it to the kinds that brick takes). Keyword search for now; the
 // multimodal embedder plugs in behind `search` once its runtime is chosen.
+// SNAP-R5 another family opens a new tab · SNAP-R12 identity rows never leave in a card · SNAP-R18 local only ·
+// see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";

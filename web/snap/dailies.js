@@ -1,6 +1,7 @@
 // Dailies: the takes strip under the chain, the take viewer (play, scrub, keep / reject, rank, notes pinned to a moment
 // and optionally a region: "where it went wrong / right"), and blind A/B compare. What people do here is the data a
 // judge model learns from (takes.js keeps it; tools/snap_dataset.py exports it).
+// SNAP-R7 pointer-down lists · SNAP-R17 blind pairs from agents are judged by the person · see docs/SNAP_RULES.md
 import * as T from "./takes.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };

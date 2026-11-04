@@ -1,5 +1,7 @@
 // The Snap view DOM (UX_SPEC sections 1, 2, 6). Rendered idempotently from graph.extra.snap + the live graph, so undo,
 // graph edits and agent edits all show up by re-rendering; nothing here keeps its own copy of brick state.
+// SNAP-R1 generic pass-through · SNAP-R2 re-read widgets on outside changes · SNAP-R4 outcome faces · SNAP-R5 new
+// tabs for new work · SNAP-R7 pointer-down lists · SNAP-R19 actions call their tools' functions · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";

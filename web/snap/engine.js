@@ -1,6 +1,7 @@
 // Snap engine: turns bricks into real graph nodes and links, records every binding (and which rule made it) in
 // graph.extra.snap, and finds user overrides by diffing the live links against that record.
 // Only node ids are kept: undo/redo reloads the graph and replaces every node object (frontend 1.57.1).
+// SNAP-R2 graph round-trip · SNAP-R3 unresolved stays missing · SNAP-R19 no view DOM here · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import { BRICKS, RENDER_BLUEPRINT } from "./bricks.js";

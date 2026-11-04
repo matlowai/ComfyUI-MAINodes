@@ -3,6 +3,7 @@
 // takes, keep or reject them, and pin notes to the moment (and region) where something went wrong or right; kept takes
 // are the Library's priors. Everything is local JSON in the user's ComfyUI data folder; tools/snap_dataset.py turns it
 // into training rows (takes, notes, preference pairs) for a judge model, only when someone runs it.
+// SNAP-R17 person and agent kept apart (notes, judgments, rankings) · SNAP-R18 local only · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
