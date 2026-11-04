@@ -18,6 +18,7 @@ import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
 import * as L from "./library.js";
+import * as P from "./proposals.js";
 import * as T from "./takes.js";
 
 const DIR = "snap/scenes";
@@ -286,7 +287,8 @@ export async function removeScene(id, by = "person") {
   if (r.status !== 200) throw new Error(`${scene.name} couldn't be parked (${r.status} ${await r.text()})`);
   scenes = scenes.filter((x) => x.id !== id);
   changed();
-  return { scene: id, parked: parkedFile(id), said: `${scene.name} deleted: its document is parked in your user folder (${parkedFile(id)}); its ${scene.shots.length} shot workflow${scene.shots.length === 1 ? "" : "s"} and ${takes} take${takes === 1 ? "" : "s"} are kept` };
+  const withdrawn = P.withdraw((p) => p.args?.scene === id, "scene deleted");
+  return { scene: id, parked: parkedFile(id), withdrawn, said: `${scene.name} deleted: its document is parked in your user folder (${parkedFile(id)}); its ${scene.shots.length} shot workflow${scene.shots.length === 1 ? "" : "s"} and ${takes} take${takes === 1 ? "" : "s"} are kept${withdrawn ? ` · ${withdrawn} agent proposal${withdrawn === 1 ? "" : "s"} about it withdrawn` : ""}` };
 }
 
 export async function moveShot(sceneId, shotId, to) {

@@ -786,7 +786,7 @@ export const TOOLS = [
   },
   {
     name: "list_proposals",
-    description: "Proposals made with propose: true, with the person's answer: waiting, accepted (with the result), rejected or failed.",
+    description: "Proposals made with propose: true, with the person's answer: waiting, accepted (with the result), rejected or failed; withdrawn (with a note) when what they were about is gone, e.g. a deleted scene.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
     run: () => P.all(),

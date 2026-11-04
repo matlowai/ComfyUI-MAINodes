@@ -21,6 +21,14 @@ export function add(tool, args, reason, note, plan) {
   return p;
 }
 
+// proposals about something that is gone (a deleted scene) are withdrawn with a short note, on every graph; returns how many
+export function withdraw(about, note) {
+  const gone = list.filter((p) => p.status === "waiting" && about(p));
+  for (const p of gone) { p.status = "withdrawn"; p.result = note; }
+  if (gone.length) changed();
+  return gone.length;
+}
+
 // accept runs the call for real through `run`; reject just records the answer
 export async function decide(id, accept, run) {
   const p = list.find((x) => x.id === id && x.status === "waiting" && x.graph === app.graph.id);
