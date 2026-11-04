@@ -254,7 +254,14 @@ def build_command(root: Path, settings: Settings, input_path: Path, output_path:
 
 def _environment(root: Path, settings: Settings) -> dict[str, str]:
     env = os.environ.copy()
-    env["CUDA_VISIBLE_DEVICES"] = validate_devices(settings.gpu_ids, settings.mode)
+    ids = validate_devices(settings.gpu_ids, settings.mode).split(",")
+    # gpu_ids count the GPUs this ComfyUI sees, so a server started with CUDA_VISIBLE_DEVICES=1 keeps the worker on GPU 1
+    visible = [v.strip() for v in env.get("CUDA_VISIBLE_DEVICES", "").split(",") if v.strip()]
+    if visible:
+        if max(int(i) for i in ids) >= len(visible):
+            raise ValueError(f"gpu_ids {settings.gpu_ids} asks for more GPUs than this ComfyUI sees (CUDA_VISIBLE_DEVICES={env['CUDA_VISIBLE_DEVICES']}).")
+        ids = [visible[int(i)] for i in ids]
+    env["CUDA_VISIBLE_DEVICES"] = ",".join(ids)
     # Make the self-contained research runtime importable inside the *other* venv.
     # Baseline still invokes lightx2v.infer directly; no model code is monkeypatched.
     env["PYTHONPATH"] = os.pathsep.join(x for x in (str(root), str(Path(__file__).resolve().parent), env.get("PYTHONPATH")) if x)

@@ -95,8 +95,18 @@ class RelayVSRBridgeTests(unittest.TestCase):
             cmd = bridge.build_command(self.root, two_gpu, self.input, self.base / "out.mp4", config, 42)
             self.assertEqual(cmd[cmd.index("--nproc_per_node=2") + 1], "-m")
             self.assertIn("torch.distributed.run", cmd)
-            env = bridge._environment(self.root, two_gpu)
+            with mock.patch.dict(os.environ, {"CUDA_VISIBLE_DEVICES": ""}):
+                env = bridge._environment(self.root, two_gpu)
             self.assertEqual(env["CUDA_VISIBLE_DEVICES"], "2,3")
+
+    def test_gpu_ids_follow_comfyuis_own_visible_devices(self):
+        from dataclasses import replace
+        with mock.patch.dict(os.environ, {"CUDA_VISIBLE_DEVICES": "1"}):
+            self.assertEqual(bridge._environment(self.root, self.s)["CUDA_VISIBLE_DEVICES"], "1")
+            with self.assertRaises(ValueError):
+                bridge._environment(self.root, replace(self.s, mode="two GPUs (SP)", gpu_ids="0,1"))
+        with mock.patch.dict(os.environ, {"CUDA_VISIBLE_DEVICES": "3,1"}):
+            self.assertEqual(bridge._environment(self.root, replace(self.s, mode="two GPUs (SP)", gpu_ids="1,0"))["CUDA_VISIBLE_DEVICES"], "1,3")
 
     def test_end_to_end_fake_worker_creates_output_and_json(self):
         # Fake runner exercises the actual subprocess interface without CUDA or HF weights.
