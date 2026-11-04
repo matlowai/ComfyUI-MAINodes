@@ -68,6 +68,12 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   `snap/models.json` (person over pack), everything follows at once, and Undo puts the person's entry back
   (`set_lora_category` is the same function). Identity LoRAs are private by default: never exported or
   shown on shared pages. *More:* MODEL_GRAPH_ONBOARDING §6.
+- **SNAP-R26: A LoRA's name files it as a turbo only on a strong signal.** The model graph says first; with no entry,
+  a name counts only with a sampling step count (16 or fewer, no digits after: `8step`, `4_steps`) or a distillation
+  method as its own word (dmd, pdmd, dmd2, dmad, lightx2v, lcm, causvid). "turbo" inside a name and training step counts
+  (`step1500`, `5000steps`) are not signals; such a LoRA is unsorted until someone files it. *Why:* concept LoRAs
+  trained on a turbo model (`<concept>-krea-turbo`, an ai-toolkit run of 2500 steps) and training checkpoints
+  (`..._v01_step1500`) showed as core·turbo on the live server (PLAN U67).
 - **SNAP-R13: Family rules come from the model graph, not code branches.** These include: MOSS SFT always carries a
   deband fix; MOSS Base wants long, concrete prompts, and its prompt expander ("✨ Enhance prompt (LLM)" on the
   Render) stays off by default because it can drop details; Krea Raw int8 is `int8_rowwise` and can't load in core.

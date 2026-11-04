@@ -4,7 +4,7 @@
 // ({ names(), values(name), current(), apply(name) }, e.g. the Render Preset's) plus the Library's family recipe cards.
 // SNAP-R1 generic pass-through · SNAP-R3 unresolved stays missing · SNAP-R9 setups own the model set · SNAP-R10 turbo
 // merge vs LoRA · SNAP-R11 warn, never block · SNAP-R12 LoRA roles · SNAP-R13 family rules from the model graph
-// SNAP-R25 SFW only hides what the graph tags nsfw · see docs/SNAP_RULES.md
+// SNAP-R25 SFW only hides what the graph tags nsfw · SNAP-R26 a name files a turbo LoRA only on strong signals · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -71,11 +71,13 @@ function loadGraph() {
 }
 // why the person's model graph isn't used (SNAP-R11: say it once, keep working)
 export const graphProblem = () => problem;
+// a distillation method named as its own word in a LoRA's name (SNAP-R26: "turbo" alone is not one)
+const SPEED = /(^|[^a-z])(p?dmd\d?|dmad|lightx2v|lcm|causvid)([^a-z]|$)/;
 function infer(name) {
-  const n = base(name).toLowerCase(), folder = file(name)?.folder ?? null, found = Number(n.match(/(\d+)[-_ ]?steps?(?!\d)/)?.[1]) || null;
-  const steps = found && found <= 16 ? found : null; // "step1500" / "5000steps" are training steps, not a turbo's
+  const n = base(name).toLowerCase(), folder = file(name)?.folder ?? null, found = Number(n.match(/(\d+)[-_ ]?steps?(?![-_ ]?\d)/)?.[1]) || null;
+  const steps = found && found <= 16 ? found : null; // "step1500" / "v2_step_1500" / "5000steps" are training steps, not a turbo's
   const kind = { loras: "lora", text_encoders: "encoder", clip: "encoder", vae: "vae" }[folder] ?? (/turbo|dmd|dmad|lightning|hyper/.test(n) ? "turbo_merge" : "base");
-  const fast = ["lora", "turbo_merge"].includes(kind) && (/turbo|dmd|dmad|lightning|hyper/.test(n) || !!steps);
+  const fast = kind === "turbo_merge" || (kind === "lora" && (!!steps || SPEED.test(n)));
   const e = { file: base(name), folder, family: families.find(([re]) => re.test(n))?.[1] ?? null, kind, inferred: true,
     turbo: fast ? { how: kind === "lora" ? "lora" : "merged", steps, cfg: null, sampler: null, scheduler: null } : null, deband: /deband|banding/.test(n) ? (kind === "lora" ? "lora" : "merged") : "none" };
   if (kind === "lora") Object.assign(e, String(name).startsWith("dials/") ? { role: "dial" } : fast ? { role: "core", core: "turbo" } : e.deband !== "none" ? { role: "core", core: "fix" } : { role: "unsorted" });
@@ -123,7 +125,11 @@ export async function moveTo(file, id) {
   const before = own.find((e) => base(e.file) === base(file)) ?? null, e = entry(file);
   let patch;
   if (TAGS.includes(id)) patch = { tags: e.tags?.includes(id) ? e.tags.filter((t) => t !== id) : [...(e.tags ?? []), id] };
-  else if (ROLES.includes(id)) { const [role, core] = id.split("·"); patch = { role, core: core ?? null }; }
+  else if (ROLES.includes(id)) {
+    const [role, core] = id.split("·");
+    patch = { role, core: core ?? null };
+    if (core === "turbo" && !e.turbo) patch.turbo = { how: "lora", steps: null, cfg: null, sampler: null, scheduler: null }; // the Turbo slot lists it (SNAP-R26: the person beats the name)
+  }
   else throw new Error(`No category "${id}"; there are: ${[...ROLES, ...TAGS].join(", ")}`);
   await teach(file, patch);
   notify();

@@ -1062,6 +1062,33 @@
    "notes": "nvfp4 (Blackwell); untested in Snap."
   },
   {
+   "file": "krea2_turbo_lora_rank_64_bf16.safetensors",
+   "folder": "loras",
+   "family": "Krea 2",
+   "kind": "lora",
+   "trained_on": "base",
+   "turbo": {
+    "how": "lora",
+    "steps": null,
+    "cfg": null,
+    "sampler": null,
+    "scheduler": null
+   },
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": [
+    "krea2_turbo_* checkpoints (turbo already merged)"
+   ],
+   "source_url": null,
+   "size_gb": 0.47,
+   "quant_format": null,
+   "loads_in_core": true,
+   "notes": "Krea 2 Turbo as a rank-64 LoRA (no metadata in the file). Its own steps / cfg aren't measured; the Krea 2 Turbo merge runs 8 steps, cfg 1, ddim + beta. workflows/krea2/TgXbgwNK.txt had it at 0.25, switched off.",
+   "role": "core",
+   "core": "turbo"
+  },
+  {
    "file": "darkBeastKrea2_darkBeastKREA2.safetensors",
    "folder": "diffusion_models",
    "family": "Krea 2",
