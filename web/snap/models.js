@@ -306,6 +306,7 @@ export function family() {
   return D.typeFamily();
 }
 D.useFamily(() => (E.state().bricks.length ? family() : null));
+E.useCheck(checkNow);
 const diffusion = () => settings().find((st) => DIFFUSION.has(entry(st.file)?.kind) && (st.folder === "diffusion_models" || !entry(st.file).inferred));
 // Base or SFT lineage: what a model or LoRA is built on (Kromoss is a Base fine-tune; a DeBand file an SFT one)
 const lineage = (e) => (!e ? null : ["base", "sft"].includes(e.kind) ? e.kind : e.trained_on);

@@ -7,7 +7,8 @@ import * as engine from "./snap/engine.js";
 import { createView } from "./snap/view.js";
 import { createSwitch } from "./snap/switch.js";
 import { STYLE } from "./snap/style.js";
-import { callTool, schema, readOnly, registerWebMCP, ui, AGENTS_RUN } from "./snap/tools.js";
+import { callTool, schema, readOnly, registerWebMCP, ui, AGENTS_RUN, accepts, checkArgs } from "./snap/tools.js";
+import * as T from "./snap/takes.js";
 import * as rules from "./snap/rules.js";
 import * as S from "./snap/slots.js";
 import * as MD from "./snap/metadata.js";
@@ -40,10 +41,14 @@ async function makeApp() {
   await app.extensionManager.command.execute("Comfy.ToggleLinear");
 }
 
-// agent calls (WebMCP in-page, or the /mainodes/snap bridge from tools/snap_mcp.py) run like user edits and show up live
+// agent calls (WebMCP in-page, or the /mainodes/snap bridge from tools/snap_mcp.py) run like user edits and show up live;
+// an agent's error names what the tool takes (SNAP-R30)
 async function agentCall(name, args) {
   const before = sw.showing ? new Map([...view.stack.querySelectorAll("[data-brick]")].map((el) => [el.dataset.brick, el.getBoundingClientRect()])) : null;
-  const result = await callTool(name, args);
+  let result;
+  try { checkArgs(name, args ?? {}); result = await callTool(name, args); } catch (e) {
+    throw new Error(schema().some((t) => t.name === name) ? `${e.message} (${name} takes: ${accepts(name)})` : e.message);
+  }
   if (sw.showing && !readOnly(name)) {
     view.render(before, args?.propose ? undefined : result?.brick ?? args?.brick); // a new any-node brick gets its #n key
     const what = `${name.replaceAll("_", " ")} ${args?.brick ?? args?.card ?? ""} ${args?.name ? `${args.name} = ${JSON.stringify(args.value)}` : ""}`.trim();
@@ -111,7 +116,7 @@ app.registerExtension({
     document.head.append(Object.assign(document.createElement("style"), { textContent: STYLE }));
     // SNAP-R20: every prompt this page queues (Snap's Run, the graph's, an agent's) says whether its files keep metadata
     const queuePrompt = api.queuePrompt.bind(api);
-    api.queuePrompt = (number, data, options) => queuePrompt(number, { ...data, workflow: MD.mark(data.workflow) }, options);
+    api.queuePrompt = (number, data, options) => queuePrompt(number, { ...data, workflow: MD.mark(data.workflow) }, options).then((r) => { T.queuedRun(r?.prompt_id); return r; });
     view = createView({ onSwitch: (key) => toGraph(key), onMakeApp: makeApp, run: (name, args) => callTool(name, args, { confirmed: true }), openIn, setOpenIn });
     // agents read and drive the view through the read_ui / ui tools; switching views lives here with the switch
     ui.read = () => ({ ...view.uiRead(), view: sw.showing ? (sw.docked ? "snap (docked)" : "snap") : "graph" });

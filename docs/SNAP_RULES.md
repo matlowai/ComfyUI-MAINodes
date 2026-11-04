@@ -180,6 +180,14 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   downloads (SNAP-R25). *Why:* Dylan approved the Viggle Remake pack "so long as you look at everything", then made it
   a preference (2026-11-04 16:14): reading costs tokens, and the choice is his. *More:* DECISIONS "Onboarding", PLAN U70.
 
+- **SNAP-R29: Onboarding opens by itself only for a person.** The one-time auto-open on the first Snap visit with no
+  profile, and the empty profile it writes, wait for a real (trusted) pointer move, press, key or wheel on the visible
+  page. An agent's headless page gets no input, so its visit never uses the person's first look; an agent that set the
+  profile up with the person meanwhile (set_profile) leaves nothing to open. When it opens it closes core's first-run
+  dialog (the Templates browser on frontend 1.58), so two first-run screens never compete. *Why:* U72 F1: the gate
+  agent's headless page wrote the profile before the newcomer arrived; F3: core's Templates dialog sat on top of
+  onboarding on a fresh install. *More:* u72/FINDINGS.md, `web/snap/view.js` firstVisit, LESSONS "Newcomer batch".
+
 ## Agents
 
 - **SNAP-R15: Every UI action has an agent tool.** MCP and WebMCP are built from one table. Results carry the same
@@ -188,13 +196,32 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   `find_people` and `take_frames`, which render nothing: a few seconds of detection or frame reading.) Each one states its
   plan first: what it would run and about how long, in seconds from measured takes (or the study it came from), shown
   with the proposal and returned with the run (plan-then-approve, UX_GEMS #5). The bridge never strands the person's
-  tab; it calls the newest tab that is still connected.
+  tab; it calls the newest tab of the caller's user that is still connected (SNAP-R30).
 - **SNAP-R17: Keep person and agent labels apart** (`by: person|agent`) on notes, judgments and takes. The data trains
   a judge model.
 - **SNAP-R19: The tool table is the API.** Snap's own UI, agents (MCP/WebMCP) and a future form-based editor layer
   drive the same operations through one table. Engine and tool logic stay free of Snap-view DOM concerns; a UI action
   calls the same function its tool calls, never a private path. *More:* CONCEPT.md "Layers".
-
+- **SNAP-R30: The agent front door works for a moderate agent on its first try.** Everything an agent needs is in the
+  tool table, its errors or the pack's `docs/AGENT_START.md`, never only in code. Pages are keyed by the ComfyUI user
+  (the comfy-user header snap-gate sets per account): a call goes to the newest connected page of the caller's own user,
+  and only that page may answer it. `GET /mainodes/snap/tools` lists the caller's open pages, when each registered and
+  last answered; with none open, a call says how to open one (`tools/snap_agent_page.sh <port>`, which uses a new
+  Chrome profile per launch, returns once the page has registered, and starts nothing when a page is already open).
+  `snap_mcp.py` and `snapcall.py` take a base URL and send `SNAP_TOKEN` as a Bearer header. An agent's call with an
+  unknown or missing argument is refused, and every tool error names the arguments the tool takes (the U44 contract).
+  `get_profile` says whether agents may run and see, and `set_agent_permissions` sets what the person said, live. `run`
+  returns its run id; `run_status` gives each run's state (queued, running, done, failed), its take and output paths,
+  and waits up to 25 s (`wait_s`; a call ends after 30 s). A recipe opens runnable: an optional brick whose own check
+  fails (Upscale without RelayVSR) and a LoRA stack with no file start off, a brick that is off says so and why in
+  `describe_recipe`, and a kit lists add-ons the recipe runs without under `optional`, apart from its files. Video
+  lengths read as frames and seconds at the recipe's fps, and `set_setting` takes `"5s"`, rounds to the model's frame
+  grid and says what it became. `describe_recipe` carries the model's `prompt_help` (H3's sections; name the sounds the
+  action makes). A headless page's screenshot says to use take_frames. The embedder sidecar's port follows ComfyUI's
+  (port + 230; 8188 keeps 8418). *Why:* U72 run 1 (Sonnet at low effort): grepping JS for a setting id, a stale Chrome
+  lock, a "ready" kit whose recipe wasn't, polling a run that never said done, guessing fps, `undefined has no seed`;
+  Dylan: "once sonnet low is smooth I'll call it good". *More:* u72/FINDINGS.md F1-F10, PLAN U75, `snap_bridge.py`,
+  `web/snap/tools.js`, `tools/`.
 ## Data and privacy
 
 - **SNAP-R18: Local only.** No network or telemetry: registry, takes, profile and model graph are local files. Export

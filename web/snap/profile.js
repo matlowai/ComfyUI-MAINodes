@@ -16,7 +16,8 @@ export const REVIEWS = { always: "Always read it first", unknown: "Only code Sna
 export const REVIEW_SETTING = "MAINodes.Snap.CodeReview";
 let profile = null, loading = null, found = false, notify = () => {};
 
-export function load() {
+export function load(again = false) {
+  if (again) loading = null; // read the file once more (an agent may have written it from another page)
   loading ??= api.getUserData(FILE).then(async (r) => { found = r.ok; return (profile = r.ok ? { ...EMPTY, ...(await r.json()) } : { ...EMPTY }); }, () => (profile = { ...EMPTY }));
   return loading;
 }

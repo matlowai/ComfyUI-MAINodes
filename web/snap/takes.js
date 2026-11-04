@@ -108,6 +108,37 @@ api.addEventListener("execution_success", ({ detail }) => capture(detail.prompt_
 api.addEventListener("execution_error", ({ detail }) => capture(detail.prompt_id, "error", `${detail.node_type ?? ""}: ${detail.exception_message ?? ""}`.trim(), detail.node_id));
 api.addEventListener("execution_interrupted", ({ detail }) => capture(detail.prompt_id, "interrupted"));
 
+// the prompts this page queued (Run, an agent's run, a preview), newest last: run_status follows them by id (U72 F6)
+const queued = [];
+export const runs = () => queued;
+export function queuedRun(id) {
+  if (!id) return;
+  queued.push({ id, at: Date.now() });
+  if (queued.length > 50) queued.shift();
+}
+// where ComfyUI saves, as a path on the server's machine (an agent with a shell reads the files there)
+let outputDir = null;
+const outputs = () => (outputDir ??= api.fetchApi("/mainodes/snap/kits").then((r) => r.json()).then((k) => k.folders.output, () => null));
+// one run: queued | running | done | failed (unknown: not on this server), with its take and files once done. A run that
+// finished but whose take isn't saved yet still counts as running, so a wait ends with the take
+export async function runState(id) {
+  const q = await (await api.fetchApi("/queue")).json();
+  if (q.queue_running?.some((x) => x[1] === id)) return { run: id, state: "running" };
+  const ahead = (q.queue_pending ?? []).map((x) => x[1]).indexOf(id);
+  if (ahead >= 0) return { run: id, state: "queued", ahead: q.queue_running.length + ahead };
+  const h = (await (await api.fetchApi(`/history/${id}`)).json())[id];
+  if (!h) return { run: id, state: "unknown" };
+  if (h.status?.status_str !== "success") {
+    const err = h.status?.messages?.find((m) => m[0] === "execution_error")?.[1];
+    return { run: id, state: "failed", error: err ? `${err.node_type}: ${err.exception_message}`.trim() : h.status?.status_str ?? "interrupted" };
+  }
+  await load();
+  if (running.has(id) || saving.has(id)) return { run: id, state: "running", saving: "the take" };
+  const dir = await outputs(), files = media(h.outputs).filter((m) => m.type === "output");
+  return { run: id, state: "done", take: get(`take-${id}`)?.id ?? null,
+    outputs: files.map((m) => ({ kind: m.kind, ...(dir ? { path: [dir, m.subfolder, m.filename].filter(Boolean).join("/") } : {}), url: new URL(url(m), location.href).href })) };
+}
+
 // the take a run continued from: its First frame is still the frame Use as input put there (a bypassed First frame
 // isn't in the prompt)
 function continued(graph, prompt) {
@@ -115,10 +146,15 @@ function continued(graph, prompt) {
   return from && prompt?.[b.nodes.image]?.inputs?.image === from.file ? { take: from.take, method: "continue", frame: from.frame } : null;
 }
 
+const saving = new Set(); // runs whose take is being written
 async function capture(id, status, error, failedNode) {
   if (!id || !running.has(id)) return; // a run this page didn't start
   const started = running.get(id);
   running.delete(id);
+  saving.add(id);
+  try { await captureRun(id, started, status, error, failedNode); } finally { saving.delete(id); }
+}
+async function captureRun(id, started, status, error, failedNode) {
   await load();
   const h = (await (await api.fetchApi(`/history/${id}`)).json())[id];
   if (!h) return;

@@ -1,7 +1,8 @@
 // Snap engine: turns bricks into real graph nodes and links, records every binding (and which rule made it) in
 // graph.extra.snap, and finds user overrides by diffing the live links against that record.
 // Only node ids are kept: undo/redo reloads the graph and replaces every node object (frontend 1.57.1).
-// SNAP-R2 graph round-trip · SNAP-R3 unresolved stays missing · SNAP-R19 no view DOM here · see docs/SNAP_RULES.md
+// SNAP-R2 graph round-trip · SNAP-R3 unresolved stays missing · SNAP-R19 no view DOM here · SNAP-R30 a recipe opens runnable ·
+// see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import { BRICKS, RENDER_BLUEPRINT, SIMPLE_RECIPE } from "./bricks.js";
@@ -66,6 +67,10 @@ function put(w, v) {
 
 // a brick that starts off (`off`: First frame, until it has a picture) turns on when its face's first value is given
 const givesFace = (key, nodeKey, values) => { const [k, name] = BRICKS[key]?.off ? BRICKS[key].face[0] : []; return k === nodeKey && values?.[name] != null; };
+// a LoRA stack whose rows name no file (no LoRAs installed yet) fails core's validation even with every row off, so it
+// stays off until a row gets a file (SNAP-R30: a recipe opens runnable)
+const noFile = (n) => { const names = (n.widgets ?? []).filter((w) => w.name.endsWith(".lora_name")); return names.length > 0 && names.every((w) => w.value == null); };
+const givesFile = (key, values) => !!BRICKS[key]?.stack && Object.entries(values).some(([name, v]) => name.endsWith(".lora_name") && v != null);
 
 // several settings on one brick node as one undo step
 export function setValues(brickKey, nodeKey, values) {
@@ -73,12 +78,29 @@ export function setValues(brickKey, nodeKey, values) {
   const ws = Object.keys(values).map((name) => widget(n, name) ?? (() => { throw new Error(`${brickKey}: no setting "${name}"`); })());
   transaction(() => {
     for (const w of ws) put(w, values[w.name]);
-    if (givesFace(brickKey, nodeKey, values)) for (const id of Object.values(brick(brickKey).nodes)) if (node(id)) node(id).mode = 0;
+    if (givesFace(brickKey, nodeKey, values) || givesFile(brickKey, values)) for (const id of Object.values(brick(brickKey).nodes)) if (node(id)) node(id).mode = 0;
   });
   app.canvas.setDirty(true, true);
 }
 
 export const setValue = (brickKey, nodeKey, name, value) => setValues(brickKey, nodeKey, { [name]: value });
+
+// a video length as frames and seconds (U72 F7): the recipe's own fps (the first fps setting inside the brick, the H3
+// Render's Create Video) and the length setting's grid (min + n × step: H3 takes 17n + 5 frames). Null when the brick
+// has no length face or no fps
+export function timing(key) {
+  const f = BRICKS[key]?.face?.find((x) => x[3]?.frames), w = f && widget(nodeFor(key, f[0]), f[1]);
+  if (!w) return null;
+  const all = (n) => [n, ...(n.subgraph?.nodes ?? []).flatMap(all)];
+  const fps = Object.values(brick(key).nodes).map(node).filter(Boolean).flatMap(all).map((n) => widget(n, "fps")?.value).find((v) => typeof v === "number");
+  return fps ? { node: f[0], name: f[1], fps, min: w.options?.min ?? 1, step: w.options?.step2 ?? 1 } : null;
+}
+export const seconds = (t, frames) => Math.round((frames / t.fps) * 100) / 100;
+// "5s" / "5 s" / "5 seconds" -> the nearest frame count on the grid; null when the text isn't a length in seconds
+export function framesFor(t, text) {
+  const s = Number(String(text).match(/^\s*(\d+(?:\.\d+)?)\s*s(?:ec(?:ond)?s?)?\s*$/i)?.[1]);
+  return s > 0 ? t.min + Math.max(0, Math.round((s * t.fps - t.min) / t.step)) * t.step : null;
+}
 
 export function getValue(brickKey, nodeKey, name) {
   return widget(nodeFor(brickKey, nodeKey), name)?.value;
@@ -224,6 +246,7 @@ async function snapOnce(key, { values, at } = {}) {
       dy += (n.size?.[1] ?? 120) + 40;
     }
     if (def.off && !(def.nodes ?? []).some((spec) => givesFace(key, spec.key, { ...spec.values, ...values?.[spec.key] }))) for (const id of Object.values(ids)) node(id).mode = 4; // runs nothing until given
+    if (def.stack && noFile(node(ids[def.stack.node]))) node(ids[def.stack.node]).mode = 4;
     for (const [a, out, b, inp] of def.links ?? []) node(ids[a]).connect(node(ids[a]).findOutputSlot(out), node(ids[b]), node(ids[b]).findInputSlot(inp)); // a brick's own inner wiring
     const placed = Object.fromEntries(Object.values(ids).map((id) => [id, [...node(id).pos]]));
     s.bricks.splice(at ?? s.bricks.length, 0, { key, nodes: ids, placed });
@@ -233,9 +256,14 @@ async function snapOnce(key, { values, at } = {}) {
   return { brick: key, bindings };
 }
 
-// the recommended recipe on the open graph (Start, and a scene's first shot); an older served blueprint saves its own video
+// the recommended recipe on the open graph (Start, and a scene's first shot); an older served blueprint saves its own video.
+// An optional brick whose own check fails here (Upscale without RelayVSR's weights) starts off, so the recipe runs as
+// opened (SNAP-R30); the brick keeps its settings and says why on its face
+let checkBrick = async () => null;
+export const useCheck = (fn) => { checkBrick = fn; }; // models.js asks the server (injected: models.js imports this module)
 export async function simple() {
   for (const key of SIMPLE_RECIPE) if (!(BRICKS[key].needs?.video && legacy())) await snap(key);
+  for (const key of SIMPLE_RECIPE) if (BRICKS[key].optional && BRICKS[key].check && brick(key) && (await checkBrick(key))?.ready === false) batch(() => { for (const id of Object.values(brick(key).nodes)) node(id).mode = 4; });
 }
 
 // a Render made from the older H3 blueprint (before U20): Save and the RelayVSR switch live inside it and it gives no

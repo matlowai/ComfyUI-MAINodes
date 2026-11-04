@@ -6,6 +6,7 @@
 // (screenshot, take_frames, find_people) come back as `image` / `images` in the screenshot's shape: image blocks over
 // MCP, data URLs over WebMCP.
 // SNAP-R11 same warnings as the UI · SNAP-R15 one table, MCP + WebMCP · SNAP-R16 GPU tools wait as proposals ·
+// SNAP-R30 the agent front door: errors name the accepted arguments, runs report their state, lengths in seconds ·
 // SNAP-R17 by: agent · SNAP-R19 the tool table is the API · SNAP-R21 camera plates · SNAP-R23 candidates: the person's
 // pick waits as a proposal for agents · SNAP-R24 scenes own the work (the scene tools call scenes.js, as the navigator
 // does) · SNAP-R25 onboarding: the sheet's functions; propose_downloads never downloads; SFW only filters the lists ·
@@ -46,6 +47,8 @@ const brickOf = (id) => E.state().bricks.find((b) => Object.values(b.nodes).some
 // runs (GPU time) wait for the person unless they let agents run in ComfyUI's settings
 export const AGENTS_RUN = "MAINodes.Snap.AgentsMayRun";
 const mayRun = () => app.extensionManager.setting.get(AGENTS_RUN) === true;
+const agents = () => ({ run: mayRun(), see: sight.sharing(), ...(sight.HEADLESS ? { page: "headless (an agent's own): screenshot can't see it, take_frames can" } : {}) });
+const WAIT_S = 25; // run_status waits at most this long: a bridge call ends after 30 s
 
 const has = (key) => E.state().bricks.some((b) => b.key === key);
 // what a full run of the open recipe took before
@@ -56,11 +59,19 @@ const slotEnum = { type: "string", get enum() { return S.slots(); } };
 const brickEnum = { type: "string", description: `a recipe brick (${PACK_BRICKS.join(", ")}) or any installed node as node:<NodeType> (a new one) / node:<NodeType>#<n> (one in the recipe)` };
 
 function settingsOf(key) {
-  const b = E.state().bricks.find((x) => x.key === key);
+  const b = E.state().bricks.find((x) => x.key === key), t = b && E.timing(key);
   if (!b) return [];
   return Object.entries(b.nodes).flatMap(([nodeKey, id]) => (app.graph.getNodeById(id)?.widgets ?? [])
     .filter((w) => w.name && !w.name.startsWith("$$") && w.type !== "button")
-    .map((w) => ({ node: nodeKey, name: w.name, value: w.value, ...(Array.isArray(w.options?.values) ? { choices: w.options.values } : {}) })));
+    .map((w) => ({ node: nodeKey, name: w.name, value: w.value, ...(Array.isArray(w.options?.values) ? { choices: w.options.values } : {}),
+      ...(t && t.node === nodeKey && t.name === w.name ? { seconds: E.seconds(t, w.value), fps: t.fps, takes: `${t.min} + n × ${t.step} frames; set_setting also takes seconds, e.g. "5s"` } : {}) })));
+}
+// a brick that is off (bypassed) says so and why, so an agent doesn't take its leftover values for something the run needs
+function offNote(key) {
+  if (S.on(key)) return {};
+  const c = M.check(key);
+  return { on: false, off: BRICKS[key]?.off ?? (BRICKS[key]?.stack ? "no LoRA file in it yet: add_lora turns it on" : "it keeps its settings and runs nothing"),
+    ...(c?.ready === false ? { not_ready: c.problems, ...(key === "upscale" ? { get: "propose_downloads lists RelayVSR under optional" } : {}) } : {}) };
 }
 
 // what the recipe loads, in one answer: family, current setup, each model file (size, installed), the total on disk
@@ -92,14 +103,15 @@ export const TOOLS = [
   },
   {
     name: "describe_recipe",
-    description: "The current workflow, starting with `revision` (a content hash of what Run would queue; pass it as if_revision to a change so it is refused when the person or another agent edited in between) and `about` (how the current setup card's models fit together: read it before changing anything), then as bricks in reading order, with each brick's bindings (what feeds it and which rule made the link), its settings, wiring the user changed in the graph, settings that point at nothing installed, nodes outside the recipe (Run leaves them out), and `models`: the family, the setup, the turbo, every model file the recipe loads (size, installed, and the model graph's kind / turbo / role), the LoRA rows, and warnings (a turbo LoRA on a turbo merge, stacked turbos, SFT without a deband fix, another family's file, a schedule the turbo wasn't distilled for, an encoder type that doesn't fit). Warnings never block; say them to the person.",
+    description: "The current workflow, starting with `revision` (a content hash of what Run would queue; pass it as if_revision to a change so it is refused when the person or another agent edited in between) and `about` (how the current setup card's models fit together: read it before changing anything), then `prompt_help` (how this recipe's model reads a prompt: H3's sections, what makes its sound audible), then as bricks in reading order (a brick that is off says on: false and why: its values are not used), with each brick's bindings (what feeds it and which rule made the link), its settings, wiring the user changed in the graph, settings that point at nothing installed, nodes outside the recipe (Run leaves them out), and `models`: the family, the setup, the turbo, every model file the recipe loads (size, installed, and the model graph's kind / turbo / role), the LoRA rows, and warnings (a turbo LoRA on a turbo merge, stacked turbos, SFT without a deband fix, another family's file, a schedule the turbo wasn't distilled for, an encoder type that doesn't fit). Warnings never block; say them to the person.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
     run: async () => ({
       revision: await revision(),
       about: M.setups().find((x) => x.current && x.about)?.about ?? null,
+      prompt_help: E.state().bricks.map((b) => BRICKS[b.key]?.prompt_help).find(Boolean) ?? null,
       models: await models(),
-      bricks: E.describe().map((b) => ({ brick: b.brick, title: b.title, bindings: b.bindings, settings: shown(settingsOf(b.brick)) })),
+      bricks: E.describe().map((b) => ({ brick: b.brick, title: b.title, ...offNote(b.brick), bindings: b.bindings, settings: shown(settingsOf(b.brick)) })),
       overridden_in_graph: E.overrides().map((o) => ({ brick: o.to, role: o.role, change: o.change })),
       missing: [...E.missing(), ...M.unreadable()],
       outside_recipe: E.outside().map((n) => ({ id: n.id, type: n.type, title: n.title })),
@@ -135,21 +147,28 @@ export const TOOLS = [
   },
   {
     name: "set_setting",
-    description: "Change one setting on a brick (a widget on one of its nodes, e.g. render.prompt, render.length, preset.lora). Choice settings must use one of the listed choices; a model file's name without its sub-folder is enough when only one choice has that name.",
+    description: "Change one setting on a brick (a widget on one of its nodes, e.g. render.prompt, render.length, preset.lora). Choice settings must use one of the listed choices; a model file's name without its sub-folder is enough when only one choice has that name. A video length takes frames or seconds (\"5s\"): seconds round to the nearest frame count the model takes at the recipe's fps, and the answer says what it became.",
     inputSchema: { type: "object", properties: { brick: brickEnum, name: { type: "string" }, value: {} }, required: ["brick", "name", "value"] },
     run: ({ brick, name, value }) => {
       const s = settingsOf(brick).find((x) => x.name === name);
       if (!s) throw new Error(`${brick} has no setting "${name}"; it has ${settingsOf(brick).map((x) => x.name).join(", ")}`);
       if (s.choices && E.resolveChoice(s.choices, value) === undefined) throw new Error(`"${value}" is not a choice for ${brick}.${name}; choices: ${s.choices.slice(0, 50).join(", ")}${s.choices.length > 50 ? ", …" : ""}`);
+      const t = s.seconds != null && E.timing(brick), asked = value;
+      if (t && typeof value === "string") {
+        value = E.framesFor(t, value);
+        if (value == null) throw new Error(`${brick}.${name} takes frames (a number) or seconds like "5s", not ${JSON.stringify(asked)}`);
+      }
       E.setValue(brick, s.node, name, value);
-      return { brick, name, value: E.getValue(brick, s.node, name) };
+      const now = E.getValue(brick, s.node, name);
+      return { brick, name, value: now, ...(t ? { seconds: E.seconds(t, now), ...(typeof asked === "string" ? { note: `${asked} is ${now} frames at ${t.fps} fps (${E.seconds(t, now)} s): this model takes ${t.min} + n × ${t.step} frames` } : {}) } : {}) };
     },
   },
   {
     name: "new_seed",
-    description: "Draw a new seed for a brick now (the dice on its face), or with `mode` set its seed mode instead: fixed keeps the seed across runs (the default, so takes differ only by what changed), random draws a new one after each run. Returns the seed and the mode.",
-    inputSchema: { type: "object", properties: { brick: brickEnum, mode: { type: "string", enum: ["fixed", "random"] } }, required: ["brick"] },
-    run: ({ brick, mode }) => {
+    description: "Draw a new seed for a brick now (the dice on its face), or with `mode` set its seed mode instead: fixed keeps the seed across runs (the default, so takes differ only by what changed), random draws a new one after each run. brick defaults to the recipe's Render. Returns the seed and the mode.",
+    inputSchema: { type: "object", properties: { brick: { ...brickEnum, description: "default: the recipe's Render (the first brick with a seed)" }, mode: { type: "string", enum: ["fixed", "random"] } } },
+    run: ({ brick = E.state().bricks.map((b) => b.key).find((k) => E.seedMode(k)), mode }) => {
+      if (!brick) throw new Error("No brick in this recipe has a seed");
       if (mode) E.setSeedMode(brick, mode); else E.newSeed(brick);
       const [nodeKey, name] = BRICKS[brick].face.find(([, n]) => /seed/.test(n));
       return { brick, seed: E.getValue(brick, nodeKey, name), mode: E.seedMode(brick) };
@@ -176,10 +195,25 @@ export const TOOLS = [
   },
   {
     name: "get_profile",
-    description: "The person's onboarding answers (userdata snap/profile.json): intents (what they want to make: video, stills, anime, edit, long, characters), sfw_only, api_tasks (tasks where API models are allowed; every other task stays local), code_review (always / unknown / never: whether you read the code of a node pack or script that isn't part of the person's setup yet before bringing it in; unknown, the default, means only code Snap's kits have no safety read for; follow it, it is theirs to choose because reading costs tokens), the questions answered or skipped, done; plus metadata (the Save metadata switch) and this machine's hardware (GPU, VRAM, RAM, read from /system_stats).",
+    description: "The person's onboarding answers (userdata snap/profile.json): intents (what they want to make: video, stills, anime, edit, long, characters), sfw_only, api_tasks (tasks where API models are allowed; every other task stays local), code_review (always / unknown / never: whether you read the code of a node pack or script that isn't part of the person's setup yet before bringing it in; unknown, the default, means only code Snap's kits have no safety read for; follow it, it is theirs to choose because reading costs tokens), the questions answered or skipped, done; plus metadata (the Save metadata switch), agents (run: whether your runs start without waiting for the person; see: whether screenshot can see their tab; set both with set_agent_permissions when the person tells you) and this machine's hardware (GPU, VRAM, RAM, read from /system_stats).",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
-    run: async () => { await OB.load(); return { profile: PF.get(), metadata: MD.on() ? "on" : "off", hardware: await OB.hardware() }; },
+    run: async () => { await OB.load(); return { profile: PF.get(), metadata: MD.on() ? "on" : "off", agents: agents(), hardware: await OB.hardware() }; },
+  },
+  {
+    name: "set_agent_permissions",
+    description: "Set what the person told you about agents here, live (no reload): run true lets your run, preview and make_dial start right away instead of waiting as proposals (ComfyUI's setting Settings › MAINodes › Snap › Agents run); see true shares their tab with screenshot ('Let agents see' in Snap's top bar), false stops it. The browser shares a tab only after a person's press, so when see can't start it says what to ask them; a headless agent page has no tab to share (use take_frames). Set only what the person said; get_profile shows both.",
+    inputSchema: { type: "object", properties: { run: { type: "boolean" }, see: { type: "boolean" } } },
+    direct: true, // the person's own switches, set as they said: not an edit of the recipe
+    run: async ({ run, see }) => {
+      if (run == null && see == null) throw new Error("Give run, see or both, as the person said");
+      if (run != null) await app.extensionManager.setting.set(AGENTS_RUN, run);
+      let note;
+      if (see === false) sight.stop();
+      if (see === true && sight.HEADLESS) note = sight.HEADLESS_NOTE;
+      else if (see === true && !sight.sharing()) await sight.start().catch(() => { note = "The browser shares a tab only after a person's press: ask them to press 'Let agents see' in Snap's top bar"; });
+      return { ...agents(), ...(note ? { note } : {}) };
+    },
   },
   {
     name: "set_profile",
@@ -208,7 +242,7 @@ export const TOOLS = [
   },
   {
     name: "propose_downloads",
-    description: "What to fetch for the person's intents (their profile's, or the ones given; or one setup id from list_kits): exact files with size, source, download link, target folder and a command, plus node packs with their repo, license, safety read and review. Or pack: a repo URL (or a kit pack's id) of any node pack you want to bring in that isn't part of the person's setup yet, kit or not: its row says known (Snap's kits carry our safety read for it) or not. review follows the person's code_review setting: 'required' means read the pack's code in your own tools before installing and tell the person what it does at import (network, pickles, downloads, subprocess, pip), 'skipped (your setting)' means they chose to save those tokens; follow it either way. It never downloads (downloaded: false). Show the list to the person; each file or pack needs their explicit yes, then you or they run it, safetensors only. Files with no recorded link say where to look.",
+    description: "What to fetch for the person's intents (their profile's, or the ones given; or one setup id from list_kits): exact files with size, source, download link, target folder and a command, plus node packs with their repo, license, safety read and review. Or pack: a repo URL (or a kit pack's id) of any node pack you want to bring in that isn't part of the person's setup yet, kit or not: its row says known (Snap's kits carry our safety read for it) or not. review follows the person's code_review setting: 'required' means read the pack's code in your own tools before installing and tell the person what it does at import (network, pickles, downloads, subprocess, pip), 'skipped (your setting)' means they chose to save those tokens; follow it either way. It never downloads (downloaded: false). Show the list to the person; each file or pack needs their explicit yes, then you or they run it, safetensors only. Files with no recorded link say where to look. optional lists add-ons the recipe runs without (RelayVSR for the Upscale brick, with its size and how to install it): offer them as optional, apart from the kit's files.",
     inputSchema: { type: "object", properties: { intents: { type: "array", items: { type: "string" } }, setup: { type: "string" }, pack: { type: "string" } } },
     annotations: { readOnlyHint: true },
     run: ({ intents, setup, pack } = {}) => OB.proposeDownloads({ ...(intents ? { intents } : {}), setup, pack }),
@@ -488,28 +522,36 @@ export const TOOLS = [
   },
   {
     name: "run",
-    description: "Queue the recipe (as the Run button does; nodes outside the recipe are left out). Returns at once; follow it with run_status, and the finished run appears in list_takes. Uses GPU time: unless the person lets agents run (ComfyUI setting), this waits as a proposal they accept.",
+    description: "Queue the recipe (as the Run button does; nodes outside the recipe are left out). Returns at once with the run's id; follow it with run_status {run, wait_s: 25} until its state is done (it then names the take and the output files), and the finished run appears in list_takes. Uses GPU time: unless the person lets agents run (set_agent_permissions, as they say), this waits as a proposal they accept.",
     inputSchema: { type: "object", properties: {} },
     annotations: { consequentialHint: true },
     consequential: true,
     plan: async () => ({ runs: E.state().bricks.map((b) => BRICKS[b.key].title).join(" → ") || "the open workflow", ...await recipeEta() }),
     run: async () => {
+      const before = T.runs().length;
       await app.queuePrompt(0, 1, { queueNodeIds: E.targets() });
       const errors = Object.entries(app.lastNodeErrors ?? {}).map(([id, e]) => ({ node: id, brick: brickOf(id), error: e.errors?.[0]?.message, details: e.errors?.[0]?.details }));
       if (errors.length) throw new Error(`Not queued: ${JSON.stringify(errors)}`);
-      return { queued: true };
+      return { queued: true, run: T.runs()[before]?.id ?? null, next: "run_status {run, wait_s: 25} until state is done" };
     },
   },
   {
     name: "run_status",
-    description: "What is running: the queue count, the brick and node executing now, its progress, and the newest take of this workflow.",
-    inputSchema: { type: "object", properties: {} },
+    description: "Where runs stand: per run (the one given, else this page's last three, newest first) state queued | running | done | failed, and when done its take id and output files (path on this machine, url); when failed, the error. wait_s (up to 25 s; a call ends after 30 s) waits for that run, or the newest, to finish first, so call it again until done. Also the queue counts, the brick running now and its progress, and the newest take of this workflow.",
+    inputSchema: { type: "object", properties: { run: { type: "string", description: "a run id from run" }, wait_s: { type: "number", minimum: 0, description: "wait up to this many seconds (at most 25) for the run to finish" } } },
     annotations: { readOnlyHint: true },
-    run: async () => {
+    run: async ({ run, wait_s = 0 } = {}) => {
+      const ids = run ? [run] : T.runs().slice(-3).map((r) => r.id).reverse(), until = Date.now() + Math.min(wait_s, WAIT_S) * 1000;
+      let runs = await Promise.all(ids.map(T.runState));
+      while (runs.length && !["done", "failed", "unknown"].includes(runs[0].state) && Date.now() < until) {
+        await new Promise((r) => setTimeout(r, 1000));
+        runs = await Promise.all(ids.map(T.runState));
+      }
       const q = await (await api.fetchApi("/queue")).json();
       await T.load();
       const last = T.inGroup().at(-1);
-      return { running: q.queue_running?.length ?? 0, pending: q.queue_pending?.length ?? 0, brick: document.querySelector(".snap-brick.running")?.dataset.brick ?? null,
+      return { runs, ...(wait_s > WAIT_S ? { wait_s: `waited ${WAIT_S} s at most (a call ends after 30 s): call again` } : {}),
+        running: q.queue_running?.length ?? 0, pending: q.queue_pending?.length ?? 0, brick: document.querySelector(".snap-brick.running")?.dataset.brick ?? null,
         progress: Number(document.querySelector(".snap-brick.running")?.style.getPropertyValue("--run-p") || 0), newest_take: last ? { id: last.id, number: last.number, status: last.status } : null };
     },
   },
@@ -621,7 +663,7 @@ export const TOOLS = [
   },
   {
     name: "start_recipe",
-    description: "Start the recommended recipe (Dials + Pika Simple) as the Start button does: in a new workflow tab when the open one has nodes, so the person's work is left as it is.",
+    description: "Start the recommended recipe (Dials + Pika Simple, text to video: First frame off until given a picture, Upscale off when RelayVSR isn't installed) as the Start button does: in a new workflow tab when the open one has nodes, so the person's work is left as it is. Later calls act on that new tab.",
     inputSchema: { type: "object", properties: {} },
     run: () => ui.act("start"),
   },
@@ -874,6 +916,19 @@ async function revision() {
 const byName = new Map(TOOLS.map((t) => [t.name, t]));
 export const readOnly = (name) => !!byName.get(name)?.annotations?.readOnlyHint;
 const proposable = (name) => !readOnly(name) && !byName.get(name)?.direct;
+
+// what a tool takes, for agents' errors (the U44 contract: an unknown argument is refused naming the accepted ones)
+export function accepts(name) {
+  const t = schema().find((x) => x.name === name)?.inputSchema, props = Object.keys(t?.properties ?? {});
+  return props.length ? props.map((k) => (t.required?.includes(k) ? `${k} (required)` : k)).join(", ") : "no arguments";
+}
+export function checkArgs(name, args = {}) {
+  const t = schema().find((x) => x.name === name)?.inputSchema;
+  if (!t) throw new Error(`Unknown Snap tool ${name}`);
+  // propose / reason / for_note / if_revision are understood by every tool (a read-only one just ignores them)
+  const unknown = Object.keys(args).filter((k) => !(k in (t.properties ?? {})) && !(k in PROPOSE) && !(k in IF_REVISION)), absent = (t.required ?? []).filter((k) => args[k] === undefined);
+  if (unknown.length || absent.length) throw new Error(`${name} ${unknown.length ? `doesn't take ${unknown.join(", ")}` : `needs ${absent.join(", ")}`}`);
+}
 
 // `propose: true` on any tool that changes the recipe parks the call as a proposal for the person to accept or reject
 export async function callTool(name, args = {}, { confirmed } = {}) {

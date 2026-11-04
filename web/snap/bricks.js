@@ -73,7 +73,12 @@ const PACK = {
       conditioning: ["render", "branch"], cfg: ["render", "cfg"], first_frame: ["render", "first_frame"], refs: ["render", "refs"],
     },
     provides: { video: ["render", "VIDEO"] },
-    face: [["render", "prompt", "prompt"], ["render", "length", "frames"], ["render", "noise_seed", "seed"], ["render", "choice", "de-rope"]],
+    face: [["render", "prompt", "prompt"], ["render", "length", "length", { frames: true }], ["render", "noise_seed", "seed"], ["render", "choice", "de-rope"]],
+    // how H3 reads a prompt (describe_recipe's prompt_help). Sound: U78 measured ambience-only soundscapes about 15-18 dB
+    // quieter than ones naming the sounds the action makes, same seed and graph
+    prompt_help: "H3 reads three sections, each starting on its own line. integrated_multimodal_description: [Shot 1] then what we see: shot size, light, who does what, how the camera moves; <Picture 1>, <Picture 2>… name the References pictures in order. "
+      + "overall_soundscape: name the specific sounds the action makes (paws pattering on grass, a door slamming, a short bark), then a short ambience tail; don't lead with soft, gentle, faint or distant (an ambience-only soundscape renders near-silent). "
+      + "non_diegetic_music: music laid over the scene, or N/A. Example: the Render's default prompt.",
   },
   // image families (MOSS-Image, Krea 2): loaders, the LoRA stacks, then the Dial Rack and any model patches, into the image
   // Render blueprint (prompt expander, sampler; it gives IMAGE), then the upscale slot and Save
@@ -96,6 +101,7 @@ const PACK = {
     blurb: "text to image, saves the picture",
     blueprint: IMAGE_BLUEPRINT,
     turbo: true,
+    prompt_help: "Two or three concrete sentences: the subject, the setting, the light and the style (MOSS-Image follows long, specific prompts; short ones come out generic). The Enhance switch lets the text encoder rewrite a short idea first.",
     needs: { model: ["image", "model"], clip: ["image", "clip"], vae: ["image", "vae"] },
     provides: { image: ["image", "IMAGE"] },
     face: [["image", "prompt", "prompt"], ["image", "switch", "✨ Enhance prompt (LLM)", { inline: [{ label: "off", value: false }, { label: "on", value: true }],

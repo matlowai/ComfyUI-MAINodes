@@ -3,6 +3,7 @@
 // SNAP-R1 generic pass-through · SNAP-R2 re-read widgets on outside changes · SNAP-R4 outcome faces · SNAP-R5 new
 // tabs for new work · SNAP-R7 pointer-down lists · SNAP-R19 actions call their tools' functions · SNAP-R20 the metadata
 // switch · SNAP-R9 the Setup brick · SNAP-R24 the scene navigator above the chain · SNAP-R25 onboarding, SFW only ·
+// SNAP-R29 onboarding opens by itself only for a person · SNAP-R30 a recipe opens runnable (seconds on the Render face) ·
 // see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
@@ -571,6 +572,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     if (M.isModel(w)) return modelChip(w, label, missing, !missing && !M.readable(v));
     let text = v == null ? "missing" : typeof v === "boolean" ? (v ? "on" : "off") : Array.isArray(values) ? String(v).split("/").pop().replace(/\.safetensors$/, "") : String(v);
     if (opt?.short) text = text.split(/[:(]/)[0].trim(); // "faithful: back-projection + residual 0.85" reads "faithful"
+    const t = opt?.frames && typeof v === "number" && E.timing(brick);
+    if (t) text = `${v} frames · ${E.seconds(t, v)} s`; // at the recipe's own fps (U72 F7)
     if (name === "prompt") return h("div", { className: "snap-fact snap-prompt", title: v ?? "" }, h("span", { textContent: label }), h("p", { textContent: text.replace(/^integrated_multimodal_description:\s*/, "") }));
     if (E.seedMode(brick) && /seed/.test(name)) return seedFact(brick, label, text);
     return h("div", { className: `snap-fact${missing ? " missing" : ""}${text.length > 14 ? " long" : ""}`, title: missing ? `${text} (missing)` : text }, h("span", { textContent: label }), h("b", { textContent: text }));
@@ -741,13 +744,24 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   // "I'm new, help me set up" (SNAP-R25): the opened setups land in new tabs, which re-render the chain on their own
   const onboard = (start) => openOnboarding(root, { say, start, onOpened: () => render(null) }).catch((err) => say(err.message, true));
-  // the first Snap visit with no profile opens onboarding once; writing the profile first makes a close or Skip final
+  // the first Snap visit with no profile opens onboarding once; writing the profile first makes a close or Skip final.
+  // SNAP-R29: only for a person: it waits for a real pointer or key press on the visible page, which an agent's headless
+  // page never gets, so its visit leaves the person's first look (and the profile) alone. Core's first-run Templates
+  // dialog closes as it opens: one first-run screen at a time
   let visited = null;
   const firstVisit = () => (visited ??= PF.load().then(async () => {
     if (PF.saved()) return;
+    await person();
+    if ((await PF.load(true), PF.saved())) return; // an agent set the profile up with the person meanwhile
     await PF.set({});
+    for (const d of document.querySelectorAll("[role=dialog]")) if (!root.contains(d)) d.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true }));
     await onboard();
   }));
+  const person = () => new Promise((resolve) => {
+    const kinds = ["pointermove", "pointerdown", "keydown", "wheel", "touchstart"];
+    const seen = (e) => { if (!e.isTrusted || document.visibilityState !== "visible") return; for (const k of kinds) removeEventListener(k, seen, true); resolve(); };
+    for (const k of kinds) addEventListener(k, seen, true);
+  });
 
   // drag a number's label sideways to change it: 1 step per 4 px, Shift fine, Alt coarse
   function scrub(labelEl, input, set) {
@@ -891,7 +905,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   function brickEl(info) {
     const def = info.members ? SETUP : BRICKS[info.brick];
-    const faces = info.members ? setupFace(info) : [presetChip(info.brick), turboChip(info.brick), ...slotFace(info.brick), def.off ? startFace(info.brick) : null, ...def.face.map((f) => fact(info.brick, f))].filter(Boolean);
+    const faces = info.members ? setupFace(info) : [presetChip(info.brick), turboChip(info.brick), ...slotFace(info.brick), def.off ? startFace(info.brick) : null, ...(def.off && !S.on(info.brick) ? [] : def.face.map((f) => fact(info.brick, f)))].filter(Boolean);
     if (def.off && !isOn(info.brick)) for (const el of faces) if (el.classList.contains("missing")) { el.classList.remove("missing"); el.querySelector("b").textContent = "none yet"; } // off, nothing is loaded
     const body = [];
     const pics = Object.values(info.nodes).flatMap((id) => { const n = app.graph.getNodeById(id); return n ? previews(n) : []; });

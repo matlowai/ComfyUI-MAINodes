@@ -128,7 +128,10 @@ export async function proposeDownloads({ intents = PF.get().intents, setup, pack
     for (const p of r.packs.filter((x) => !x.installed)) packs.set(p.id, packRow(p.id));
   }
   const list = [...files.values()];
-  return { downloaded: false, files: list, packs: [...packs.values()], total_gb: +list.reduce((a, f) => a + (f.size_gb ?? 0), 0).toFixed(1), note: NOTE };
+  // add-ons the chosen recipes can use and run without (RelayVSR for the Upscale brick): apart, never in the total
+  const recipes = new Set(chosen.map((r) => kits().flatMap((k) => k.setups).find((x) => x.id === r.id)?.recipe));
+  const optional = (data.extras ?? []).filter((x) => recipes.has(x.recipe) && method(x.method)?.install_state !== "ready").map(({ recipe, method: m, ...x }) => ({ ...x, optional: true }));
+  return { downloaded: false, files: list, packs: [...packs.values()], total_gb: +list.reduce((a, f) => a + (f.size_gb ?? 0), 0).toFixed(1), ...(optional.length ? { optional } : {}), note: NOTE };
 }
 const NOTE = "Snap never downloads. Each file and pack needs the person's yes; run the commands yourself or have your agent do it. Safetensors only; check each license on its source. A pack's review says whether the agent reads its code first (the person's setting).";
 
