@@ -1,7 +1,8 @@
 // The Snap view DOM (UX_SPEC sections 1, 2, 6). Rendered idempotently from graph.extra.snap + the live graph, so undo,
 // graph edits and agent edits all show up by re-rendering; nothing here keeps its own copy of brick state.
 // SNAP-R1 generic pass-through · SNAP-R2 re-read widgets on outside changes · SNAP-R4 outcome faces · SNAP-R5 new
-// tabs for new work · SNAP-R7 pointer-down lists · SNAP-R19 actions call their tools' functions · see docs/SNAP_RULES.md
+// tabs for new work · SNAP-R7 pointer-down lists · SNAP-R19 actions call their tools' functions · SNAP-R20 the metadata
+// switch · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -22,6 +23,7 @@ import * as M from "./models.js";
 import * as S from "./slots.js";
 import * as PL from "./plates.js";
 import * as C from "./candidates.js";
+import * as MD from "./metadata.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -75,6 +77,16 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     onclick: async () => { try { sight.sharing() ? sight.stop() : await sight.start(); } catch (err) { say(err.name === "NotAllowedError" ? "Sharing was declined" : err.message, true); } } });
   const seeLabel = () => { seeBtn.textContent = sight.sharing() ? "● Agents can see" : "👁 Let agents see"; seeBtn.classList.toggle("on", sight.sharing()); };
   sight.onChange(seeLabel); seeLabel();
+  // SNAP-R20: metadata in saved files, beside Run where every run starts; the person's ComfyUI setting (on by default)
+  const metaBtn = h("button", { className: "snap-meta", role: "switch", onclick: () => MD.set(!MD.on()) }, h("i"), h("span", { textContent: "Save metadata" }));
+  function metadataChanged() {
+    const v = MD.on();
+    metaBtn.ariaChecked = String(v);
+    metaBtn.classList.toggle("on", v);
+    metaBtn.title = v ? "On: every picture and video you save keeps its prompt and workflow (LoRA names included), so you can reproduce it. Click to save without them"
+      : "Off: pictures and videos save without their prompt and workflow. Click to keep them in the files again";
+  }
+  metadataChanged();
   const runBtn = h("button", { className: "snap-run", title: "queue this recipe (Ctrl+Enter in the graph)", onclick: () => queue() }, h("span", { textContent: "▶" }), runLabel);
   const toast = h("div", { className: "snap-toast", role: "status" });
   const seg = h("div", { className: "snap-seg", role: "tablist" },
@@ -87,7 +99,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Note", title: "a director's note on the whole recipe; agents answer it", onclick: () => { noting = true; select(null); inspector.querySelector("textarea")?.focus(); } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Make app", title: "open this recipe in ComfyUI's App mode: the brick faces become a run-only app (reloads the graph)", onclick: () => onMakeApp() }),
-      h("button", { className: "snap-link snap-quiet-btn", textContent: `Add brick  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}`, title: "Ctrl/Cmd+K", onclick: () => openPalette() }), seeBtn, seg, runBtn, progress),
+      h("button", { className: "snap-link snap-quiet-btn", title: "Ctrl/Cmd+K", onclick: () => openPalette() }, "Add brick", h("span", { className: "snap-kbd", textContent: `  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}` })), seeBtn, seg, metaBtn, runBtn, progress),
     h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), inspector, handle), toast);
   // takes under the chain: "Use as input" puts a take's frame on the First frame or References brick (T.use)
   const dailies = createDailies({ host: root, say, onRestore: () => render(null), onHover: (t) => previewTake(t), onRunFrom: (t) => runFrom(t).catch((err) => say(err.message, true)) });
@@ -472,19 +484,29 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   const previews = (n) => (n.imgs ?? []).map((img) => img.src).filter(Boolean);
 
   // a slot brick is on while it runs (Upscale Off keeps the brick and its settings); other bricks always are
-  const isOn = (key) => !BRICKS[key]?.slot || S.on(key);
+  const isOn = (key) => !(BRICKS[key]?.slot || BRICKS[key]?.off) || S.on(key);
+  // a brick that starts off (First frame): what the Render starts from, one press to switch; a picture given turns it on
+  function startFace(key) {
+    const v = S.on(key), seg = h("div", { className: "snap-inline", role: "radiogroup", ariaLabel: "start from" },
+      [["the prompt", false], ["this picture", true]].map(([label, o]) => h("button", { className: o === v ? "on" : "", role: "radio", ariaChecked: String(o === v), textContent: label,
+        onclick: (e) => { e.stopPropagation(); S.setOn(key, o); render(null); } })));
+    const el = h("div", { className: "snap-fact snap-toggle long" }, h("span", { textContent: "start from" }), seg, v ? null : h("em", { textContent: `Off: ${BRICKS[key].off}. Drop a picture here to start from it` }));
+    el.addEventListener("pointerdown", (e) => e.stopPropagation()); // SNAP-R7: a press here must not select or open the brick
+    return el;
+  }
 
   // a small choice right on the face, for face entries a pack brick marks `inline` (its own options, or the widget's
-  // choices / on-off): one press sets it, and it never selects or opens the brick
-  function inline(brick, [nodeKey, name, label, { inline: opts }]) {
+  // choices or on / off), with its label and the brick's one-line explanation: one press sets it, and it never selects or opens the brick
+  function inline(brick, [nodeKey, name, label, { inline: opts, line }]) {
     const w = E.nodeFor(brick, nodeKey)?.widgets?.find((x) => x.name === name);
     if (!w) return null;
     const list = Array.isArray(opts) ? opts : (Array.isArray(w.options?.values) ? w.options.values : [true, false]).map((v) => ({ label: typeof v === "boolean" ? (v ? "on" : "off") : String(v), value: v }));
     const seg = h("div", { className: "snap-inline", role: "radiogroup", ariaLabel: label },
       list.map((o) => h("button", { className: o.value === w.value ? "on" : "", role: "radio", ariaChecked: String(o.value === w.value), textContent: o.label,
         onclick: (e) => { e.stopPropagation(); E.setValue(brick, nodeKey, name, o.value); render(null); } })));
-    seg.addEventListener("pointerdown", (e) => e.stopPropagation()); // SNAP-R7: a press here must not select or open the brick
-    return seg;
+    const el = h("div", { className: "snap-fact snap-toggle long" }, h("span", { textContent: label }), seg, line ? h("em", { textContent: line }) : null);
+    el.addEventListener("pointerdown", (e) => e.stopPropagation()); // SNAP-R7: a press here must not select or open the brick
+    return el;
   }
 
   // a brick shows its settings as values; they are edited in the inspector (select the brick)
@@ -799,7 +821,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   function brickEl(info) {
     const def = BRICKS[info.brick];
-    const faces = [presetChip(info.brick), turboChip(info.brick), ...slotFace(info.brick), ...def.face.map((f) => fact(info.brick, f))].filter(Boolean);
+    const faces = [presetChip(info.brick), turboChip(info.brick), ...slotFace(info.brick), def.off ? startFace(info.brick) : null, ...def.face.map((f) => fact(info.brick, f))].filter(Boolean);
     const body = [];
     const pics = Object.values(info.nodes).flatMap((id) => { const n = app.graph.getNodeById(id); return n ? previews(n) : []; });
     if (ends(info.brick)) body.push(outSlot());
@@ -912,6 +934,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("div", { className: "snap-quiet", textContent: def.blurb }),
       shot ? shotParts(shot) : null,
       def.check ? checkLine(info.brick) : null,
+      def.off ? startFace(info.brick) : null,
       def.face.length ? h("div", { className: "snap-insp-node snap-insp-main" }, def.face.map((f) => (f[3]?.inline ? inline(info.brick, f) : control(info.brick, f)))) : null,
       ...nodes.map(([k, n]) => h("div", { className: "snap-insp-node" },
         h("div", { className: "snap-insp-type", textContent: `${n.title} · ${n.type.length > 30 ? "blueprint" : n.type} #${n.id}` }),
@@ -947,6 +970,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   function signature(info) {
     const def = BRICKS[info.brick], values = [...def.face.map(([k, name]) => E.getValue(info.brick, k, name)), E.seedMode(info.brick)];
     if (def.slot) values.push(S.on(info.brick), S.headline(info.brick), S.quality(info.brick), S.list(def.slot).map((m) => m.install_state));
+    if (def.off) values.push(S.on(info.brick));
     if (def.stack) values.push(M.rows(info.brick).map((r) => [r.file, r.strength, r.on, r.entry?.role]));
     if (def.turbo) values.push(M.turbo()?.file, M.turbos().length);
     values.push(M.warnings().filter((w) => w.brick === info.brick).map((w) => w.text));
@@ -1121,7 +1145,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // what an agent reads and does through the `read_ui` / `ui` tools: the same moves a person makes
   function uiRead() {
     return { selected, open: opened, side_panel: root.classList.contains("inspecting"), sheet: root.querySelector(".snap-sheet")?.ariaLabel ?? null,
-      workflow: app.extensionManager.workflow.activeWorkflow?.filename ?? null, bricks: E.state().bricks.map((b) => b.key) };
+      workflow: app.extensionManager.workflow.activeWorkflow?.filename ?? null, bricks: E.state().bricks.map((b) => b.key), metadata: MD.on() ? "on" : "off" };
   }
   async function uiAct(action, target) {
     const tracker = app.extensionManager.workflow.activeWorkflow?.changeTracker;
@@ -1137,10 +1161,11 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     else if (action === "open_take") { const t = T.get(target); if (!t) throw new Error(`No take ${target}`); dailies.view(t); }
     else if (action === "run_from") { const t = T.get(target); if (!t) throw new Error(`No take ${target}`); return runFrom(t); }
     else if (action === "setups") openSetups();
+    else if (action === "metadata") { if (!["on", "off"].includes(target)) throw new Error('metadata takes target "on" or "off"'); await MD.set(target === "on"); }
     else if (action === "turbo" || action === "methods") openMethods(action === "turbo" ? "turbo" : target || "upscale");
     else throw new Error(`Unknown ui action ${action}`);
     return uiRead();
   }
 
-  return { root, stack, render, say, select, openInChanged, uiRead, uiAct, release: () => { giveBack(); if (opened) { opened = null; render(null); } }, get opened() { return opened; }, get selected() { return selected; } };
+  return { root, stack, render, say, select, openInChanged, metadataChanged, uiRead, uiAct, release: () => { giveBack(); if (opened) { opened = null; render(null); } }, get opened() { return opened; }, get selected() { return selected; } };
 }

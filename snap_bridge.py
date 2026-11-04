@@ -1,9 +1,10 @@
 """The /mainodes/snap routes: Library cards, semantic Library search, and a local bridge so CLI agents
 (tools/snap_mcp.py) call the same Snap tools the open page runs.
 The page owns the graph, so the server only relays a call to it over the websocket and waits for the page's answer.
-Also the privacy gate on saved files: a private prompt saves without its prompt and workflow (SNAP-R20), and the copy
-score Snap's camera plates and take checks run in the queue (SNAP-R21).
-SNAP-R12 identity LoRAs are private · SNAP-R18 local only · SNAP-R20 private takes save without metadata · see docs/SNAP_RULES.md"""
+Also the metadata switch on saved files: a prompt queued with Snap's metadata off saves without its prompt and workflow,
+and private takes are marked for the lock badge and the export (SNAP-R20); and the copy score Snap's camera plates and
+take checks run in the queue (SNAP-R21).
+SNAP-R12 identity LoRAs are private · SNAP-R18 local only · SNAP-R20 metadata switch, private takes marked · see docs/SNAP_RULES.md"""
 import asyncio
 import hashlib
 import json
@@ -191,12 +192,14 @@ async def search(request):
     return web.json_response({"ids": [found[i]["id"] for i in order], "scores": [round(scores[i], 4) for i in order], "engine": "embeddinggemma-2"})
 
 
-# The privacy gate (SNAP-R20). Core's savers write the executed prompt and the workflow, LoRA file names included, into
+# The metadata switch (SNAP-R20). Core's savers write the executed prompt and the workflow, LoRA file names included, into
 # every file, and only the global --disable-metadata turns that off; the prompt they write is the one queued, so a page
-# can't leave the names out. So every queued prompt is checked here: a private one has core's savers swapped for these
-# twins, which save the same file without the two, and any other node that reads them is refused before anything runs.
+# can't leave the names out. A Snap page with metadata off marks its queued workflow (extra.snap_metadata false): that
+# prompt has core's savers swapped for these twins, which save the same file without the two, and any other node that
+# reads them is refused before anything runs. Every prompt is also checked for private and NSFW files, for the take's
+# lock badge and the export filter; with metadata on, a private take saves as core saves it.
 class MAISaveImagePrivate(nodes.SaveImage):
-    DESCRIPTION = "Saves the images to your ComfyUI output directory without the prompt and workflow in the file (Snap saves private takes with it)."
+    DESCRIPTION = "Saves the images to your ComfyUI output directory without the prompt and workflow in the file (Snap saves with it while metadata is off)."
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -214,7 +217,7 @@ class MAISaveVideoPrivate(SaveVideo):
     def define_schema(cls):
         schema = super().define_schema()
         schema.node_id, schema.display_name = "MAISaveVideoPrivate", "Save Video (no metadata)"
-        schema.description = "Saves the video to your ComfyUI output directory without the prompt and workflow in the file (Snap saves private takes with it)."
+        schema.description = "Saves the video to your ComfyUI output directory without the prompt and workflow in the file (Snap saves with it while metadata is off)."
         return schema
 
     @classmethod
@@ -224,7 +227,7 @@ class MAISaveVideoPrivate(SaveVideo):
 
 
 class MAIPrivateSaveRefused:
-    """Stands in for a node that would write a private take's prompt into its file: it fails validation, so nothing runs."""
+    """Stands in for a node that would write the prompt into its file while metadata is off: it fails validation, so nothing runs."""
     DEV_ONLY = True
     CATEGORY = "MAINodes/snap"
     RETURN_TYPES = ()
@@ -237,8 +240,8 @@ class MAIPrivateSaveRefused:
 
     @classmethod
     def VALIDATE_INPUTS(cls, node):
-        return (f"this take is private (an identity or Cast LoRA), and {node} writes the prompt and workflow, LoRA names included, "
-                "into its file. Save it with Save Image or Save Video: Snap saves private takes with those, without them.")
+        return (f"metadata is off (Snap's top bar), and {node} writes the prompt and workflow, LoRA names included, into its file. "
+                "Save it with Save Image or Save Video, which Snap saves without them, or turn metadata on.")
 
     def refuse(self, node):
         raise RuntimeError(self.VALIDATE_INPUTS(node))
@@ -264,27 +267,29 @@ def loaded(value):
     return [os.path.realpath(p) for p in (folder_paths.get_full_path(f, value) for f in folder_paths.folder_names_and_paths) if p]
 
 
-def private_saves(json_data):
+def metadata_gate(json_data):
     prompt = json_data.get("prompt")
     if not isinstance(prompt, dict):
         return json_data
     extra = json_data.setdefault("extra_data", {})
-    found = snap_privacy.marks(prompt, (extra.get("extra_pnginfo") or {}).get("workflow"), snap_privacy.model_graph(folder_paths.get_user_directory()), loaded)
-    if not (found["private"] or found["nsfw"]):
+    workflow = (extra.get("extra_pnginfo") or {}).get("workflow")
+    off = isinstance(workflow, dict) and (workflow.get("extra") or {}).get("snap_metadata") is False
+    found = snap_privacy.marks(prompt, workflow, snap_privacy.model_graph(folder_paths.get_user_directory()), loaded)
+    if not (off or found["private"] or found["nsfw"]):
         return json_data
     swapped = {}
-    for nid, node in list(prompt.items()) if found["private"] else []:
+    for nid, node in list(prompt.items()) if off else []:
         if node.get("class_type") in PRIVATE_SAVES:
             swapped[nid] = node["class_type"]
             node["class_type"] = PRIVATE_SAVES[node["class_type"]]
         elif writes_metadata(node.get("class_type")):
             prompt[nid] = {"class_type": "MAIPrivateSaveRefused", "inputs": {"node": node.get("_meta", {}).get("title") or node["class_type"]}, "_meta": node.get("_meta", {})}
     # the page's take reads these from /history: the lock badge, the export filter, and the saver each node really is
-    extra["snap_marks"] = {"private": bool(found["private"]), "nsfw": bool(found["nsfw"]), "why": found["private"] + found["nsfw"], "swapped": swapped}
+    extra["snap_marks"] = {"private": bool(found["private"]), "nsfw": bool(found["nsfw"]), "why": found["private"] + found["nsfw"], "metadata": not off, "swapped": swapped}
     return json_data
 
 
-PromptServer.instance.add_on_prompt_handler(private_saves)
+PromptServer.instance.add_on_prompt_handler(metadata_gate)
 
 
 class MAISnapCopyScore(io.ComfyNode):
@@ -320,4 +325,4 @@ class MAISnapCopyScore(io.ComfyNode):
 NODE_CLASS_MAPPINGS = {"MAISaveImagePrivate": MAISaveImagePrivate, "MAIPreviewImagePrivate": MAIPreviewImagePrivate,
                        "MAISaveVideoPrivate": MAISaveVideoPrivate, "MAIPrivateSaveRefused": MAIPrivateSaveRefused, "MAISnapCopyScore": MAISnapCopyScore}
 NODE_DISPLAY_NAME_MAPPINGS = {"MAISaveImagePrivate": "Save Image (no metadata)", "MAIPreviewImagePrivate": "Preview Image (no metadata)",
-                              "MAIPrivateSaveRefused": "Private take: save refused", "MAISnapCopyScore": "Copy score (Snap)"}
+                              "MAIPrivateSaveRefused": "Metadata off: save refused", "MAISnapCopyScore": "Copy score (Snap)"}

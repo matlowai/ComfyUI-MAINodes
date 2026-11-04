@@ -10,6 +10,7 @@ import { STYLE } from "./snap/style.js";
 import { callTool, schema, readOnly, registerWebMCP, ui, AGENTS_RUN } from "./snap/tools.js";
 import * as rules from "./snap/rules.js";
 import * as S from "./snap/slots.js";
+import * as MD from "./snap/metadata.js";
 
 let view, sw;
 const seen = new Set(), pending = [];
@@ -93,12 +94,18 @@ app.registerExtension({
   settings: [{ id: OPEN_IN, category: ["MAINodes", "Snap", "Open in"], name: "Clicking a Snap brick opens its settings in", type: "combo",
     options: Object.keys(PLACES), defaultValue: "Side panel", onChange: () => view?.openInChanged() },
     { id: AGENTS_RUN, category: ["MAINodes", "Snap", "Agents run"], name: "Let agents run renders and make dials without asking", type: "boolean", defaultValue: false,
-      tooltip: "Off: an agent's run or make_dial waits as a proposal you accept. On: it starts right away (it uses GPU time)." }],
+      tooltip: "Off: an agent's run or make_dial waits as a proposal you accept. On: it starts right away (it uses GPU time)." },
+    { id: MD.SETTING, category: ["MAINodes", "Snap", "Metadata"], name: "Save the prompt and workflow (metadata) in every saved picture and video", type: "boolean", defaultValue: true,
+      tooltip: "On: files keep their recipe, LoRA names included, so you can reproduce them. Off: this browser's runs save without it. Also the switch next to Run in Snap.",
+      onChange: () => view?.metadataChanged() }],
   commands: [{ id: "MAINodes.Snap.Toggle", label: "Toggle Snap view", icon: "icon-[lucide--blocks]", function: () => toggle() }],
   keybindings: [{ combo: { key: "s", alt: true }, commandId: "MAINodes.Snap.Toggle" }],
   actionBarButtons: [{ icon: "icon-[lucide--blocks]", label: "Snap", tooltip: "Snap view (Alt+S)", onClick: () => toggle() }],
   setup() {
     document.head.append(Object.assign(document.createElement("style"), { textContent: STYLE }));
+    // SNAP-R20: every prompt this page queues (Snap's Run, the graph's, an agent's) says whether its files keep metadata
+    const queuePrompt = api.queuePrompt.bind(api);
+    api.queuePrompt = (number, data, options) => queuePrompt(number, { ...data, workflow: MD.mark(data.workflow) }, options);
     view = createView({ onSwitch: (key) => toGraph(key), onMakeApp: makeApp, run: (name, args) => callTool(name, args, { confirmed: true }), openIn, setOpenIn });
     // agents read and drive the view through the read_ui / ui tools; switching views lives here with the switch
     ui.read = () => ({ ...view.uiRead(), view: sw.showing ? (sw.docked ? "snap (docked)" : "snap") : "graph" });

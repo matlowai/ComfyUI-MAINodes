@@ -5,8 +5,8 @@
   "family": "MOSS-Image",
   "output": "image",
   "title": "MOSS-Image Base (int8)",
-  "about": "MOSS-Image Base, int8, with the prompt expander on (the 9B text encoder rewrites your idea into a full caption first): Base is not preference-tuned and wants long, concrete prompts. The expander can drop specific details (in a 20-image check it closed a pocket watch over its dial and turned coloured anime into line art), so for a precise prompt switch it to \"as written\". ER-SDE 25 steps, cfg 3 (8 s per 1024² image on a 5090); 50 steps took twice as long and looked no better in a 20-pair check. No turbo merged in: the Turbo chip adds a turbo LoRA (Kromoss DMD2 8-step suits Base) or switch to the SFT DeBand card for DeBand Fast. Base has no banding.",
-  "text": "MOSS-Image setup. MOSS-Image Base, int8, with the prompt expander on (the 9B text encoder rewrites your idea into a full caption first): Base is not preference-tuned and wants long, concrete prompts. The expander can drop specific details (in a 20-image check it closed a pocket watch over its dial and turned coloured anime into line art), so for a precise prompt switch it to \"as written\". ER-SDE 25 steps, cfg 3 (8 s per 1024² image on a 5090); 50 steps took twice as long and looked no better in a 20-pair check. No turbo merged in: the Turbo chip adds a turbo LoRA (Kromoss DMD2 8-step suits Base) or switch to the SFT DeBand card for DeBand Fast. Base has no banding.",
+  "about": "MOSS-Image Base, int8. Base is not preference-tuned and wants long, concrete prompts. ✨ Enhance prompt (LLM) on the Render is off: switched on, the 9B text encoder rewrites a short idea into a full caption first (moodier, more cinematic frames in a 20-image check), but it can drop specific details (it closed a pocket watch over its dial and turned coloured anime into line art). ER-SDE 25 steps, cfg 3 (8 s per 1024² image on a 5090); 50 steps took twice as long and looked no better in a 20-pair check. No turbo merged in: the Turbo chip adds a turbo LoRA (Kromoss DMD2 8-step suits Base) or switch to the SFT DeBand card for DeBand Fast. Base has no banding.",
+  "text": "MOSS-Image setup. MOSS-Image Base, int8. Base is not preference-tuned and wants long, concrete prompts. ✨ Enhance prompt (LLM) on the Render is off: switched on, the 9B text encoder rewrites a short idea into a full caption first (moodier, more cinematic frames in a 20-image check), but it can drop specific details (it closed a pocket watch over its dial and turned coloured anime into line art). ER-SDE 25 steps, cfg 3 (8 s per 1024² image on a 5090); 50 steps took twice as long and looked no better in a 20-pair check. No turbo merged in: the Turbo chip adds a turbo LoRA (Kromoss DMD2 8-step suits Base) or switch to the SFT DeBand card for DeBand Fast. Base has no banding.",
   "brick": {
    "bricks": [
     {
@@ -40,7 +40,7 @@
       "image": {
        "prompt": "A woman in a yellow raincoat stands on an old stone canal bridge in light rain, holding a red umbrella, warm shop lights reflected in the water, overcast evening, photograph",
        "negative": "worst quality, bad anatomy, watermark, jpeg artifact",
-       "switch": true,
+       "switch": false,
        "width": 1024,
        "height": 1024,
        "noise_seed": 42,

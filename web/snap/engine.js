@@ -64,11 +64,17 @@ function put(w, v) {
   w.callback?.(w.value);
 }
 
+// a brick that starts off (`off`: First frame, until it has a picture) turns on when its face's first value is given
+const givesFace = (key, nodeKey, values) => { const [k, name] = BRICKS[key]?.off ? BRICKS[key].face[0] : []; return k === nodeKey && values?.[name] != null; };
+
 // several settings on one brick node as one undo step
 export function setValues(brickKey, nodeKey, values) {
   const n = nodeFor(brickKey, nodeKey);
   const ws = Object.keys(values).map((name) => widget(n, name) ?? (() => { throw new Error(`${brickKey}: no setting "${name}"`); })());
-  transaction(() => { for (const w of ws) put(w, values[w.name]); });
+  transaction(() => {
+    for (const w of ws) put(w, values[w.name]);
+    if (givesFace(brickKey, nodeKey, values)) for (const id of Object.values(brick(brickKey).nodes)) if (node(id)) node(id).mode = 0;
+  });
   app.canvas.setDirty(true, true);
 }
 
@@ -217,6 +223,7 @@ async function snapOnce(key, { values, at } = {}) {
       ids[spec.key] = n.id;
       dy += (n.size?.[1] ?? 120) + 40;
     }
+    if (def.off && !(def.nodes ?? []).some((spec) => givesFace(key, spec.key, { ...spec.values, ...values?.[spec.key] }))) for (const id of Object.values(ids)) node(id).mode = 4; // runs nothing until given
     for (const [a, out, b, inp] of def.links ?? []) node(ids[a]).connect(node(ids[a]).findOutputSlot(out), node(ids[b]), node(ids[b]).findInputSlot(inp)); // a brick's own inner wiring
     const placed = Object.fromEntries(Object.values(ids).map((id) => [id, [...node(id).pos]]));
     s.bricks.splice(at ?? s.bricks.length, 0, { key, nodes: ids, placed });
@@ -486,11 +493,11 @@ export function targets() {
 }
 
 // settings that point at nothing installed (a model file, an image), on brick nodes and on nodes outside the recipe
-// (brick null); what the readiness badge shows
+// (brick null); what the readiness badge shows. A node that is off (bypassed or muted) loads nothing
 export function missing() {
   const out = [];
-  const check = (key, n, at = "") => { for (const w of n?.widgets ?? []) if (Array.isArray(w.options?.values) && !w.options.values.includes(w.value)) out.push({ brick: key, node: `${at}${n.title}`, setting: w.name, value: w.value ?? null }); };
-  for (const b of state().bricks) for (const id of Object.values(b.nodes)) { check(b.key, node(id)); for (const n of inner(node(id))) check(b.key, n, `${node(id).title} › `); }
+  const check = (key, n, at = "") => { if ([2, 4].includes(n?.mode)) return; for (const w of n?.widgets ?? []) if (Array.isArray(w.options?.values) && !w.options.values.includes(w.value)) out.push({ brick: key, node: `${at}${n.title}`, setting: w.name, value: w.value ?? null }); };
+  for (const b of state().bricks) for (const id of Object.values(b.nodes)) { check(b.key, node(id)); if (![2, 4].includes(node(id)?.mode)) for (const n of inner(node(id))) check(b.key, n, `${node(id).title} › `); }
   for (const n of outside()) check(null, n);
   return out;
 }

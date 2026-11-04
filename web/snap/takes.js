@@ -8,9 +8,9 @@
 // A take an edit made (edits.js: a night version) names its parent take and the method; "Use as input" puts any frame of
 // a take on the First frame or References brick, with where it came from (U32). `frames` hands an agent a take's frames
 // as pictures (U23 agent eyes), `eta` what such a run took, for a GPU tool's plan (U35).
-// A take the server's save gate marked private or NSFW (history extra_data.snap_marks) says so: private takes saved
-// their files without the recipe inside, and the export leaves both out unless asked.
-// SNAP-R17 person and agent kept apart (notes, judgments, rankings) · SNAP-R18 local only · SNAP-R20 private takes
+// A take the server's save gate marked private or NSFW (history extra_data.snap_marks) says so, and the export leaves
+// both out unless asked; a take run with metadata off says its files hold no recipe.
+// SNAP-R17 person and agent kept apart (notes, judgments, rankings) · SNAP-R18 local only · SNAP-R20 private takes, metadata
 // see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
@@ -117,7 +117,7 @@ async function capture(id, status, error, failedNode) {
     group, workflow: app.extensionManager.workflow.activeWorkflow?.filename ?? "", number: n,
     status, ...(error ? { error, failed_node: failedNode } : {}), text, seed, media: media(h.outputs),
     ...(extra?.snap_marks?.private ? { private: true } : {}), ...(extra?.snap_marks?.nsfw ? { nsfw: true } : {}),
-    ...(Object.keys(swapped).length ? { swapped } : {}), ...(extra?.snap_parent ? { parent: extra.snap_parent } : {}), ...await hashes(canonical(prompt, swapped)),
+    ...(extra?.snap_marks?.metadata === false ? { metadata: false } : {}), ...(Object.keys(swapped).length ? { swapped } : {}), ...(extra?.snap_parent ? { parent: extra.snap_parent } : {}), ...await hashes(canonical(prompt, swapped)),
     verdict: null, prior: false, notes: [], graph, prompt,
   });
 }

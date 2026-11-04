@@ -575,8 +575,8 @@ export const TOOLS = [
   },
   {
     name: "ui",
-    description: "Drive the view: select a brick, open it (side panel or in place, by the person's setting), close, show snap or graph (focusing a brick), undo, redo, open the dial picker or maker, open the setups sheet or a slot's methods sheet (target: the slot, e.g. upscale or turbo; action turbo is the same as methods turbo), open a take.",
-    inputSchema: { type: "object", properties: { action: { type: "string", enum: ["select", "close", "snap", "graph", "undo", "redo", "dials", "make_dial", "setups", "turbo", "methods", "open_take"] }, target: { type: "string", description: "a brick key or take id" } }, required: ["action"] },
+    description: "Drive the view: select a brick, open it (side panel or in place, by the person's setting), close, show snap or graph (focusing a brick), undo, redo, open the dial picker or maker, open the setups sheet or a slot's methods sheet (target: the slot, e.g. upscale or turbo; action turbo is the same as methods turbo), open a take, or switch metadata in saved files (target on / off: the person's setting beside Run; read_ui says which).",
+    inputSchema: { type: "object", properties: { action: { type: "string", enum: ["select", "close", "snap", "graph", "undo", "redo", "dials", "make_dial", "setups", "turbo", "methods", "open_take", "metadata"] }, target: { type: "string", description: "a brick key, take id, slot, or on / off for metadata" } }, required: ["action"] },
     direct: true, // view changes are the agent's own navigation, not edits to accept
     run: ({ action, target }) => ui.act(action, target),
   },

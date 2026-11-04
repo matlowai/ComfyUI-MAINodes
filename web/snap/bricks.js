@@ -49,6 +49,9 @@ const PACK = {
   first_frame: {
     kit: "video", title: "First frame", icon: "▣", hue: 150, optional: true,
     blurb: "FL2V start picture",
+    // off (bypassed) until it is given a picture: a fresh recipe renders from the prompt alone, as the H3 Render's
+    // first_frame is optional (text to video), and an empty input folder no longer fails LoadImage's validation
+    off: "the Render starts from the prompt alone (text to video)",
     nodes: [{ key: "image", type: "LoadImage", title: "first frame (FL2V)" }],
     provides: { first_frame: ["image", "IMAGE"] },
     face: [["image", "image", "picture"]],
@@ -95,7 +98,8 @@ const PACK = {
     turbo: true,
     needs: { model: ["image", "model"], clip: ["image", "clip"], vae: ["image", "vae"] },
     provides: { image: ["image", "IMAGE"] },
-    face: [["image", "prompt", "prompt"], ["image", "switch", "expand prompt", { inline: [{ label: "as written", value: false }, { label: "expand", value: true }] }],
+    face: [["image", "prompt", "prompt"], ["image", "switch", "✨ Enhance prompt (LLM)", { inline: [{ label: "off", value: false }, { label: "on", value: true }],
+        line: "the text encoder rewrites your prompt into a long caption first: richer from a short idea, but it can drop details" }],
       ["image", "steps", "steps"], ["image", "cfg", "cfg"], ["image", "noise_seed", "seed"]],
   },
   // the upscale slot between the image Render and Save (SNAP-R14): one brick per wired method, all IMAGE in and IMAGE out;

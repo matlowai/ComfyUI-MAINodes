@@ -13,6 +13,7 @@
 // SNAP-R18 local only · SNAP-R21 plates · SNAP-R23 checks are notes, never rejections · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as M from "./models.js";
+import * as MD from "./metadata.js";
 import { layout as planned } from "./setsnap.js";
 
 // the files the checks need, from the model graph: the encoder with copy_check / identity_check, the text detector
@@ -26,8 +27,9 @@ export async function needs() {
 // the take group `group` names (the workflow id it carries); any other client id keeps a run out of the takes. `extra`
 // goes into extra_data (takes.js reads snap_parent from there)
 export async function queue(prompt, { group, client = api.clientId, extra } = {}) {
+  const workflow = group || !MD.on() ? MD.mark({ ...(group ? { id: group } : {}), nodes: [], links: [], extra: {} }) : null; // SNAP-R20: metadata off reaches these saves too
   const r = await api.fetchApi("/prompt", { method: "POST", body: JSON.stringify({ client_id: client, prompt,
-    extra_data: { ...extra, ...(group ? { extra_pnginfo: { workflow: { id: group, nodes: [], links: [], extra: {} } } } : {}) } }) });
+    extra_data: { ...extra, ...(workflow ? { extra_pnginfo: { workflow } } : {}) } }) });
   const out = await r.json();
   if (r.status !== 200) throw new Error(`Not queued: ${out.error?.message ?? ""} ${JSON.stringify(out.node_errors ?? {})}`.trim());
   return out.prompt_id;
