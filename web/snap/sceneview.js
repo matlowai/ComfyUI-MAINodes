@@ -56,9 +56,9 @@ export function createSceneBar({ host, say, onOpened, openTake, run }) {
     sig = now;
     el.classList.toggle("scratch", !here);
     if (!here) {
-      el.replaceChildren(h("span", { className: "snap-quiet", textContent: "Scratch tab · not part of a scene" }),
+      el.replaceChildren(...[h("span", { className: "snap-quiet", textContent: "Scratch tab · not part of a scene" }),
         h("button", { className: "snap-link snap-quiet-btn", textContent: SC.all().length ? `Scenes (${SC.all().length})` : "Scenes", title: "open a scene, or start one", onclick: () => openScenes() }),
-        app.graph.nodes.length ? h("button", { className: "snap-link snap-quiet-btn", textContent: "Add this workflow to a scene", title: "this workflow and its takes become a shot of a scene; this tab is left as it is", onclick: () => openScenes({ adopt: true }) }) : null);
+        app.graph.nodes.length ? h("button", { className: "snap-link snap-quiet-btn", textContent: "Add this workflow to a scene", title: "this workflow and its takes become a shot of a scene; this tab is left as it is", onclick: () => openScenes({ adopt: true }) }) : null].filter(Boolean)); // replaceChildren(null) would print "null"
       return;
     }
     const { scene, shot } = here, set = scene.set && L.get(scene.set);
