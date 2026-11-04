@@ -242,8 +242,9 @@ IDs R40+ were reserved for the gate while R28-R39 were open for other work (renu
   A WebSocket client id belongs to the first account that used it, and a prompt aimed at another account's client id
   is re-aimed at nobody. Saves go to `output/<account>/` (every `filename_prefix` input is rewritten; `shared/...` stays
   shared; one that climbs out is refused). `/view` serves the account's folder, `shared/`, and files its own runs wrote;
-  hash names and others' files are 404. The Snap bridge passes a call only when the newest registered page is the
-  caller's (the pack still routes per page, not per account: PLAN U75). *Why:* core's history, outputs and `/view` are
+  hash names and others' files are 404. The Snap bridge sends a call to the newest page of the caller's own account (the
+  pack keys pages by the comfy-user header the gate sets, SNAP-R30), and a page registers only its account's own socket.
+  *Why:* core's history, outputs and `/view` are
   shared by everyone on one server, and core hands a reused client id the old socket's events.
 - **SNAP-R43: Ratings cap files everywhere they appear.** Accounts have a max rating, PG / Mature / Adult (role
   defaults: admin Adult, member Mature, kid PG; the booru four map onto them). A file's rating comes from the pack's

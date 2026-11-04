@@ -90,8 +90,6 @@ class Gate:
         self.owners = json.loads(owners.read_text(encoding="utf-8")) if owners.exists() else {}  # prompt_id -> account
         self.sessions = {}    # cookie token -> (account, expires)
         self.clients = {}     # websocket client id -> account (SNAP-R42: an id is never handed to another account)
-        self.connected = set()
-        self.pages = []       # Snap bridge registrations, oldest first: (client id, account)
         self.produced = {}    # account -> {(type, subfolder, filename)} its runs wrote
         self.lists = (0, {})  # (time, folder -> file names) from ComfyUI's /models
         self.http = None
@@ -332,14 +330,6 @@ class Gate:
             self.own_history(name, await self.get("/history"))
         return key in self.produced.get(name, set())
 
-    async def bridge_call(self, request, name):
-        """The Snap bridge answers through the newest registered page; the gate lets it through only when that page is
-        this account's (the pack routes per page, not per account yet: PLAN U75)."""
-        newest = next((a for c, a in reversed(self.pages) if c in self.connected), None)
-        if newest is not None and newest != name and not self.is_admin(name):
-            return web.json_response({"error": "Snap's agent bridge is on another account's page right now. Open your own Snap page and call again."}, status=409)
-        return await self.relay(request, name)
-
     async def ws(self, request, name):
         cid = request.query.get("clientId", "")
         if name is not None and cid and self.clients.get(cid, name) != name:
@@ -368,7 +358,6 @@ class Gate:
                     if msg.get("type") == "status" and data.get("sid"):
                         sid = data["sid"]
                         self.clients[sid] = name
-                        self.connected.add(sid)
                     pid = data.get("prompt_id")
                     if pid and not self.owns(name, pid):
                         continue
@@ -389,7 +378,6 @@ class Gate:
         await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         for t in tasks:
             t.cancel()
-        self.connected.discard(sid)
         await up.close()
         await down.close()
         return down
@@ -415,12 +403,11 @@ class Gate:
             return web.json_response({"error": "Only the admin can open this."}, status=403)
         if m == "POST" and p == "/prompt":
             return await self.prompt(request, name)
-        if m == "POST" and p == "/mainodes/snap/register":
+        if m == "POST" and p == "/mainodes/snap/register":  # the pack keys pages by comfy-user (SNAP-R30): a page is the account's own socket
             body = await request.json()
-            self.pages = [(c, a) for c, a in self.pages if c != body.get("client")] + [(body.get("client"), name)]
+            if self.clients.get(body.get("client")) != name:
+                return web.json_response({"error": "Register your own page: that client id isn't a socket of this account."}, status=403)
             return await self.relay(request, name, body=body)
-        if m == "POST" and p == "/mainodes/snap/call":
-            return await self.bridge_call(request, name)
         if admin:
             return await self.relay(request, name)
 
