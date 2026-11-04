@@ -980,11 +980,15 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const stacks = info.members.filter((k) => BRICKS[k].stack), rest = info.members.filter((k) => !BRICKS[k].stack); // LoRA rows show as the stack's own rows
     const ws = rest.flatMap((k) => M.nodesOf(k).flatMap(([nk, n]) => (n.widgets ?? []).filter((w) => w.name && !w.name.startsWith("$$") && w.type !== "button").map((w) => [k, nk, w])));
     const elsewhere = Object.values(M.sampling()).filter((x) => !info.members.includes(x.brick));
+    // a setting's label is the one its brick's face gives it (encoder, video VAE, audio VAE…); a name two of these nodes
+    // share and no face names reads with its node's title
+    const named = (k, nk, w) => BRICKS[k].face.find((f) => f[0] === nk && f[1] === w.name)?.[2]
+      ?? (ws.filter(([, , x]) => x.name === w.name).length > 1 ? `${E.nodeFor(k, nk)?.title ?? nk} · ${w.name.replaceAll("_", " ")}` : undefined);
     const section = (title, list) => (list.length ? [h("div", { className: "snap-insp-type", textContent: title }), h("div", { className: "snap-insp-node" }, list)] : []);
     return h("div", { className: "snap-details" },
       h("div", { className: "snap-quiet", textContent: SETUP.blurb }), ...h("div", {}, setupFace(info).filter((el) => !el.classList.contains("snap-model"))).childNodes, // the model file is a Models control below
-      ...section("Models", [...ws.filter(([, , w]) => loads(w)).map(([k, nk, w]) => control(k, [nk, w.name])), ...stacks.map(stackFace)]),
-      ...section("Sampling", [...ws.filter(([, , w]) => !loads(w)).map(([k, nk, w]) => control(k, [nk, w.name])),
+      ...section("Models", [...ws.filter(([, , w]) => loads(w)).map(([k, nk, w]) => control(k, [nk, w.name, named(k, nk, w)])), ...stacks.map(stackFace)]),
+      ...section("Sampling", [...ws.filter(([, , w]) => !loads(w)).map(([k, nk, w]) => control(k, [nk, w.name, named(k, nk, w)])),
         ...elsewhere.map((x) => control(x.brick, [x.node, x.name, `${x.name.replaceAll("_", " ")} (on ${look(x.brick).title})`]))]),
       info.bindings.length ? h("div", { className: "snap-insp-type", textContent: "Wired from" }) : null,
       info.bindings.length ? h("div", { className: "snap-binds" }, info.bindings.filter((b) => b.rule !== "ask").map((b) => h("span", { className: `snap-bind ${b.rule.split(":")[0]}`, textContent: `${b.role} ← ${look(b.from)?.title ?? b.from}` }))) : null,

@@ -88,9 +88,9 @@ export const STYLE = `
 .snap-notes > .snap-proposals { align-self: center; }
 .snap-notes .snap-note, .snap-notes .snap-proposal { margin: 0; max-width: 680px; }
 /* the recipe is a signal chain: bricks left to right, a coupler where one takes the previous one's output, bus lanes below */
-.snap-stack { position: relative; flex: 1; min-height: 0; overflow: auto; display: grid; grid-auto-flow: column; grid-auto-columns: max-content; align-items: stretch; align-content: safe center;
+.snap-stack { position: relative; flex: 1; min-height: 0; overflow: auto; display: grid; grid-auto-flow: column; grid-auto-columns: max-content; grid-auto-rows: max-content; align-items: stretch; align-content: safe center;
   justify-content: safe center; column-gap: var(--gap); row-gap: var(--gap); padding: 64px 32px calc(var(--lanes-h, 0px) + 56px); box-sizing: border-box; overscroll-behavior: contain; --gap: 26px; }
-.snap-stack > .snap-empty { align-self: center; }
+.snap-stack > .snap-empty { align-self: center; } /* rows are as tall as their tallest brick: in a short window the chain scrolls instead of a brick's face running past its card */
 .snap-brick { position: relative; flex: none; width: 164px; min-height: 150px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px;
   background: linear-gradient(180deg, color-mix(in srgb, hsl(var(--hue) 24% 20%) calc(var(--veil) * 100%), transparent), color-mix(in srgb, hsl(var(--hue) 18% 14%) calc(var(--veil) * 100%), transparent));
   border: 1px solid hsl(var(--hue) 45% 58% / calc(var(--veil) * .28)); border-radius: 18px; padding: 14px;
@@ -509,10 +509,12 @@ export const STYLE = `
 .snap-results { max-height: 340px; overflow: auto; padding: 6px; }
 .snap-hit { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 9px; cursor: pointer; min-height: 30px; }
 .snap-hit.on, .snap-hit:hover { background: var(--s-card); }
-.snap-toast { position: absolute; z-index: 90; left: 50%; bottom: 24px; transform: translate(-50%, 12px); opacity: 0; pointer-events: none; padding: 10px 16px; max-width: min(640px, 80%);
+/* the toast sits under Run, at the chain's top right: at the bottom it covered the takes strip a run's take lands in (U51) */
+.snap-toast { position: absolute; z-index: 90; top: 62px; right: 16px; transform: translateY(-8px); opacity: 0; pointer-events: none; padding: 10px 16px; max-width: min(560px, 70%);
   border-radius: 12px; background: var(--s-fg); color: var(--s-bg); font-size: 12.5px; box-shadow: 0 12px 32px #0008; transition: opacity .15s ease-out, transform .15s ease-out; }
-.snap-toast.show { opacity: 1; transform: translate(-50%, 0); }
-.snap-root:has(.snap-sheet) .snap-toast { bottom: auto; top: 6px; } /* a sheet's own controls sit at the bottom */
+.snap-toast.show { opacity: 1; transform: none; }
+.snap-root.inspecting .snap-toast { right: calc(var(--insp-w, clamp(380px, 33vw, 860px)) + 16px); }
+.snap-root:has(.snap-sheet) .snap-toast { top: 6px; right: 50%; transform: translate(50%, -8px); } .snap-root:has(.snap-sheet) .snap-toast.show { transform: translate(50%, 0); } /* over a sheet: its header row is clear in the middle */
 .snap-toast.bad { background: #f0b445; color: #1b1c20; }
 /* the scene navigator above the chain (U59): breadcrumb, shots strip; a scratch tab gets one quiet line */
 .snap-scene { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 12px 40px 0; min-width: 0; }
