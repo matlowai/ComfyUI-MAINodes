@@ -6,7 +6,7 @@ JSONL files; nothing leaves the machine:
   notes.jsonl  one row per note: the take's media, moment (s), region [x, y, w, h] as fractions, wrong/right, tags, words
   pairs.jsonl  preferences: better/worse take ids with their media and who said so (by person|agent), one row per pair
                and author with every source that agrees: a ranking ("rank"), keep over reject in the same workflow
-               ("verdict"), and A/B picks ("ab", with blind and the reason)
+               ("verdict"), and A/B picks ("ab"; each judgment kept in `judgments` with blind, the reason and when)
 
   python tools/snap_dataset.py --comfy /path/to/ComfyUI --out /path/to/dataset_dir
 """
@@ -62,10 +62,12 @@ def main():
     with open(args.out / "pairs.jsonl", "w", encoding="utf-8") as fp:
         rows = {}  # (better, worse, by) -> one row; a rank and a judgment that agree are one pair with both sources
 
-        def add(better, worse, source, by="person", **extra):
+        def add(better, worse, source, by="person", judgment=None, **extra):
             row = rows.setdefault((better, worse, by), pair(better, worse, by=by, sources=[]))
             row["sources"].append(source)
             row.update(extra)
+            if judgment:  # the same pair judged twice (blind, then not) keeps both
+                row.setdefault("judgments", []).append(judgment)
         for (group, by), order in ranks.items():
             order = [i for i in order if i in takes]
             for a, b in combinations(order, 2):
@@ -82,7 +84,7 @@ def main():
             if j["winner"] == "tie" or j["a"] not in takes or j["b"] not in takes:
                 continue
             loser = j["b"] if j["winner"] == j["a"] else j["a"]
-            add(j["winner"], loser, "ab", j.get("by", "person"), blind=j["blind"], why=j["why"], at=j["at"])
+            add(j["winner"], loser, "ab", j.get("by", "person"), judgment={"blind": j["blind"], "why": j["why"], "at": j["at"]})
         for r in rows.values():
             fp.write(json.dumps(r) + "\n")
         counts["pairs"] = len(rows)
