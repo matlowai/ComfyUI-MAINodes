@@ -95,6 +95,27 @@ const PACK = {
     face: [["image", "prompt", "prompt"], ["image", "switch", "expand prompt", { inline: [{ label: "as written", value: false }, { label: "expand", value: true }] }],
       ["image", "steps", "steps"], ["image", "cfg", "cfg"], ["image", "noise_seed", "seed"]],
   },
+  // the upscale slot between the image Render and Save (SNAP-R14): one brick per wired method, all IMAGE in and IMAGE out;
+  // the method chip swaps them in place, Off bypasses the brick and keeps its settings. `scale` says how the asked factor
+  // is reached: `fixed` reads the model's own factor from its file name and `widget` resizes the rest of the way
+  image_upscale: {
+    kit: "image", slot: "upscale", method: "esrgan", title: "Upscale", icon: "⤢", hue: 95,
+    blurb: "an ESRGAN-family model, resized to the asked factor",
+    nodes: [{ key: "loader", type: "UpscaleModelLoader", title: "Upscale model" }, { key: "model", type: "ImageUpscaleWithModel", title: "Upscale with model" },
+      { key: "resize", type: "ImageScaleBy", title: "Resize to the asked factor", values: { upscale_method: "lanczos" } }],
+    links: [["loader", "UPSCALE_MODEL", "model", "upscale_model"], ["model", "IMAGE", "resize", "image"]],
+    needs: { image: ["model", "image"] }, provides: { image: ["resize", "IMAGE"] },
+    scale: { fixed: ["loader", "model_name"], widget: ["resize", "scale_by"] },
+    face: [["loader", "model_name", "model"]],
+  },
+  image_resize: {
+    kit: "image", slot: "upscale", method: "resize", title: "Upscale", icon: "⤢", hue: 95,
+    blurb: "a plain resize (lanczos)",
+    nodes: [{ key: "resize", type: "ImageScaleBy", title: "Resize", values: { upscale_method: "lanczos", scale_by: 2 } }],
+    needs: { image: ["resize", "image"] }, provides: { image: ["resize", "IMAGE"] },
+    scale: { widget: ["resize", "scale_by"] },
+    face: [["resize", "upscale_method", "filter"]],
+  },
   save_image: {
     kit: "image", title: "Save", icon: "⬇", hue: 170,
     blurb: "saves the picture to output/",
@@ -104,19 +125,14 @@ const PACK = {
   },
   // attaches to Render's own setting: the blueprint has no VIDEO output yet, so Upscale is a switch, not a link. Its
   // settings are the RelayVSR Settings node inside the Render blueprint; `check` asks the server whether a run would find
-  // LightX2V and the weights for those settings. The face is the outcome: the size the clip ends up, one Off / 2× / 4×
-  // control (Off keeps the brick and its settings), and the quality preset's short name
+  // LightX2V and the weights for those settings. As a slot brick its face is the outcome (slots.js): the size the clip
+  // ends up, one Off / 2× / 4× control (Off keeps the brick and its settings), and the quality preset's short name
   upscale: {
-    kit: "video", title: "Upscale", icon: "⤢", hue: 95, optional: true,
+    kit: "video", slot: "upscale", method: "relayvsr", title: "Upscale", icon: "⤢", hue: 95, optional: true,
     blurb: "RelayVSR after the render",
     attach: { brick: "render", widget: "upscale", on: "RelayVSR 2x", off: "off", inner: { settings: "RelayVSRModelSettings" } },
     check: ["settings", "/mainodes/relayvsr/check"],
-    headline: (get, on) => {
-      const w = get("render", "render", "width"), ht = get("render", "render", "height"), k = Number(get("upscale", "settings", "output_scale"));
-      return on ? `${w}×${ht} → ${w * k}×${ht * k}` : `${w}×${ht} (not upscaled)`;
-    },
-    face: [["settings", "output_scale", "upscale", { inline: [{ label: "Off", attach: false }, { label: "2×", value: "2" }, { label: "4×", value: "4" }] }],
-      ["settings", "quality", "quality", { short: true }]],
+    face: [["settings", "quality", "quality", { short: true }]],
     explain: { variant: ["Model", "The X4 model is used for 2× too; it looked best in our tests."] },
   },
 };
@@ -144,9 +160,26 @@ function nodeBrick(key) {
 // own keys only: agent text must not reach inherited names like "constructor"
 export const BRICKS = new Proxy(PACK, { get: (t, k) => (Object.hasOwn(t, k) ? t[k] : typeof k === "string" && k.startsWith("node:") ? (t[k] = nodeBrick(k)) : undefined) });
 export const PACK_BRICKS = Object.keys(PACK);
+// every method a slot knows, wired or not: `brick` = the pack brick that runs it; `needs` = model folders (and a name
+// pattern) whose files must be there, read from the folders at run time; `unwired` = why it can't be picked yet
+export const METHODS = {
+  upscale: [
+    { id: "esrgan", title: "ESRGAN-family model", media: "image", kind: "pixel model", scale: "fixed by the model, resized to the factor", brick: "image_upscale", needs: [{ folder: "upscale_models" }] },
+    { id: "resize", title: "Plain resize", media: "image", kind: "resize", scale: "free", brick: "image_resize", needs: [] },
+    { id: "relayvsr", title: "RelayVSR", media: "video", kind: "video SR", scale: "2× or 4× (the X4 model)", brick: "upscale", needs: [{ folder: "relayvsr" }] },
+    { id: "seedvr2", title: "SeedVR2", media: "image + video", kind: "diffusion SR", scale: "free", needs: [{ folder: "diffusion_models", match: "seedvr2" }, { folder: "vae", match: "seedvr2" }],
+      unwired: "not wired yet: a six-node graph (resize, preprocess, encode, conditioning, sampler, decode)" },
+    { id: "h3_latent", title: "H3 latent upscale (refine pass)", media: "video", kind: "latent + second pass", scale: "free", needs: [{ folder: "latent_upscale_models", match: "minimax_h3" }],
+      unwired: "works before decode with a second sampling pass; the H3 Render has no such slot yet" },
+    { id: "ltx_spatial", title: "LTX spatial ×2 (refine pass)", media: "video", kind: "latent + second pass", scale: "fixed 2×", needs: [{ folder: "latent_upscale_models", match: "ltx" }],
+      unwired: "an LTX latent method; no LTX recipe in Snap yet" },
+  ],
+};
+// the slot brick to put the rail's tile on: the first wired method of the slot for the recipe's kit
+export const slotDefault = (slot, k) => METHODS[slot].find((m) => m.brick && PACK[m.brick].kit === k)?.brick;
 // which bricks fit a recipe: H3 video bricks and image bricks don't mix (`kit`); the Dial Rack and LoRA stacks fit both
 export const kit = (keys) => keys.map((k) => PACK[k]?.kit).find(Boolean) ?? null;
-export const fits = (key, keys) => !PACK[key]?.kit || !kit(keys) || PACK[key].kit === kit(keys);
+export const fits = (key, keys) => (!PACK[key]?.kit || !kit(keys) || PACK[key].kit === kit(keys)) && (!PACK[key]?.slot || slotDefault(PACK[key].slot, PACK[key].kit) === key);
 
 // every installed node type a person can add as a brick, for the palette
 export function nodeTypes() {

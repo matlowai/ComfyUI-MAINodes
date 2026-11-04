@@ -27,6 +27,8 @@ export function load() {
   return loading;
 }
 export const file = (name) => files.get(name);
+// folder -> the file names in it (core's lists), for readiness checks that look at what is installed now
+export const folders = () => { const m = new Map(); for (const [name, f] of files) m.set(f.folder, [...(m.get(f.folder) ?? []), name]); return m; };
 
 // The model graph (SNAP-R10, SNAP-R12, SNAP-R13): one entry per file saying how it fits with others (family, kind
 // base / sft / finetune / turbo_merge / lora, turbo merged or LoRA with its steps / cfg / sampler, deband, LoRA role,

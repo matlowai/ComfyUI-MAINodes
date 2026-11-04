@@ -17,6 +17,7 @@ import * as T from "./takes.js";
 import * as D from "./dials.js";
 import * as sight from "./sight.js";
 import * as M from "./models.js";
+import * as S from "./slots.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -470,8 +471,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // what the node shows as pictures (a loaded image's preview, a run's output), read from the node
   const previews = (n) => (n.imgs ?? []).map((img) => img.src).filter(Boolean);
 
-  // an attachment is on while its host's switch isn't at its `off` value (Upscale Off keeps the brick and its settings)
-  const attachedOn = (key) => { const a = BRICKS[key]?.attach; return !a || E.getValue(a.brick, a.brick, a.widget) !== a.off; };
+  // a slot brick is on while it runs (Upscale Off keeps the brick and its settings); other bricks always are
+  const attachedOn = (key) => !BRICKS[key]?.slot || S.on(key);
   // a widget an attachment drives (Upscale's switch on Render) belongs to that attachment, never to its host's face or panel
   const owned = (key, name) => PACK_BRICKS.some((k) => BRICKS[k].attach?.brick === key && BRICKS[k].attach.widget === name);
 
@@ -480,15 +481,10 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   function inline(brick, [nodeKey, name, label, { inline: opts }]) {
     const w = E.nodeFor(brick, nodeKey)?.widgets?.find((x) => x.name === name);
     if (!w) return null;
-    const a = BRICKS[brick].attach, on = attachedOn(brick);
     const list = Array.isArray(opts) ? opts : (Array.isArray(w.options?.values) ? w.options.values : [true, false]).map((v) => ({ label: typeof v === "boolean" ? (v ? "on" : "off") : String(v), value: v }));
-    const active = (o) => (o.attach === false ? !on : on && (o.value === undefined || o.value === w.value));
-    const pick = (o) => E.batch(() => {
-      if (a) E.setValue(a.brick, a.brick, a.widget, o.attach === false ? a.off : a.on);
-      if (o.value !== undefined) E.setValue(brick, nodeKey, name, o.value);
-    });
     const seg = h("div", { className: "snap-inline", role: "radiogroup", ariaLabel: label },
-      list.map((o) => h("button", { className: active(o) ? "on" : "", role: "radio", ariaChecked: String(active(o)), textContent: o.label, onclick: (e) => { e.stopPropagation(); pick(o); render(null); } })));
+      list.map((o) => h("button", { className: o.value === w.value ? "on" : "", role: "radio", ariaChecked: String(o.value === w.value), textContent: o.label,
+        onclick: (e) => { e.stopPropagation(); E.setValue(brick, nodeKey, name, o.value); render(null); } })));
     seg.addEventListener("pointerdown", (e) => e.stopPropagation()); // SNAP-R7: a press here must not select or open the brick
     return seg;
   }
@@ -505,7 +501,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     let text = v == null ? "missing" : typeof v === "boolean" ? (v ? "on" : "off") : Array.isArray(values) ? String(v).split("/").pop().replace(/\.safetensors$/, "") : String(v);
     if (opt?.short) text = text.split(/[:(]/)[0].trim(); // "faithful: back-projection + residual 0.85" reads "faithful"
     if (name === "prompt") return h("div", { className: "snap-fact snap-prompt", title: v ?? "" }, h("span", { textContent: label }), h("p", { textContent: text.replace(/^integrated_multimodal_description:\s*/, "") }));
-    return h("div", { className: `snap-fact${missing ? " missing" : ""}${text.length > 18 ? " long" : ""}`, title: missing ? `${text} (missing)` : text }, h("span", { textContent: label }), h("b", { textContent: text }));
+    return h("div", { className: `snap-fact${missing ? " missing" : ""}${text.length > 14 ? " long" : ""}`, title: missing ? `${text} (missing)` : text }, h("span", { textContent: label }), h("b", { textContent: text }));
   }
 
   // a model file on a face: its whole name (wrapping at underscores), installed or missing, size on disk; the tooltip has
@@ -578,6 +574,42 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   }
   // what the model graph finds odd about this brick's models, as warnings (SNAP-R11: never blocks)
   const warnLines = (key) => M.warnings().filter((w) => w.brick === key).map((w) => h("div", { className: "snap-dial-warn snap-warn", textContent: `⚠ ${w.text}` }));
+
+  // a method slot's face (SNAP-R4, SNAP-R14): the method chip, the size it comes out as, one Off / 2× / 4× control
+  // and what the method does to reach it; the same calls the list_methods / set_method tools make (SNAP-R19)
+  function slotFace(key) {
+    const slot = BRICKS[key]?.slot ?? (S.holder("upscale") === key ? "upscale" : null);
+    if (!slot) return [];
+    const m = S.list(slot).find((x) => x.current), f = BRICKS[key].slot ? S.factor(key) : null, isOn = S.on(key);
+    const chip = h("button", { className: "snap-preset snap-method", title: "swap the method: every one takes and gives the same picture or clip", onclick: (e) => { e.stopPropagation(); openMethods(slot); } }, `${m?.title ?? "Custom"} ▾`);
+    chip.addEventListener("pointerdown", (e) => e.stopPropagation());
+    if (!BRICKS[key].slot) return [chip]; // hand-wired: its own widgets say the rest
+    const pick = (o) => { try { if (o === "off") S.setOn(key, false); else S.setFactor(key, o); } catch (err) { say(err.message, true); } render(null); };
+    const seg = h("div", { className: "snap-inline", role: "radiogroup", ariaLabel: slot },
+      [["Off", "off"], ["2×", 2], ["4×", 4]].map(([label, o]) => { const act = o === "off" ? !isOn : isOn && Math.abs(f - o) < 1e-3;
+        return h("button", { className: act ? "on" : "", role: "radio", ariaChecked: String(act), textContent: label, onclick: (e) => { e.stopPropagation(); pick(o); } }); }));
+    seg.addEventListener("pointerdown", (e) => e.stopPropagation()); // SNAP-R7: a press here must not select or open the brick
+    const q = S.quality(key);
+    return [chip, h("div", { className: "snap-headline", textContent: S.headline(key) ?? "" }), seg, q ? h("div", { className: "snap-fact long" }, h("span", { textContent: "quality" }), h("b", { textContent: q })) : null];
+  }
+  function openMethods(slot) {
+    root.querySelector(".snap-method-sheet")?.remove();
+    const close = () => { sheet.remove(); root.focus({ preventScroll: true }); };
+    const pick = async (id) => { try { const r = await S.set(slot, id); say(`${slot}: ${r.method}${r.headline ? ` · ${r.headline}` : ""}`); close(); } catch (err) { say(err.message, true); } render(null); };
+    const item = (m) => h("button", { className: `snap-setup-card${m.current ? " on" : ""}${m.wired && m.fits ? "" : " unwired"}`, disabled: !(m.wired && m.fits) || m.current, onclick: () => pick(m.id) },
+      h("strong", {}, m.title, h("em", { className: m.install_state === "ready" ? "" : "tab", textContent: `${m.install_state === "ready" ? "●" : "○"} ${m.install_state}` })),
+      h("span", { className: "snap-quiet", textContent: [m.kind, m.media, m.scale].filter(Boolean).join(" · ") }),
+      !m.fits ? h("span", { className: "snap-quiet", textContent: `for ${m.media} recipes` }) : m.unwired ? h("span", { className: "snap-quiet", textContent: m.unwired }) : null);
+    const list = S.list(slot), holder = S.holder(slot);
+    const sheet = h("div", { className: "snap-sheet snap-setup-sheet snap-method-sheet", role: "dialog", ariaLabel: `${slot} methods` },
+      h("header", {}, h("strong", { textContent: `${slot[0].toUpperCase()}${slot.slice(1)} method` }), h("span", { className: "snap-quiet", textContent: "every method takes and gives the same picture or clip · ● weights here · Ctrl+Z undoes it" }), h("span", { className: "snap-spacer" }),
+        h("button", { className: "snap-x", textContent: "×", onclick: close })),
+      h("div", { className: "snap-setup-body" }, h("div", { className: "snap-setup-grid" },
+        holder && BRICKS[holder].slot ? h("button", { className: `snap-setup-card${S.on(holder) ? "" : " on"}`, onclick: () => pick("off") }, h("strong", {}, "Off", h("em", { textContent: "kept, bypassed" })), h("span", { className: "snap-quiet", textContent: "the brick stays with its settings; nothing is upscaled" })) : null,
+        list.filter((m) => m.fits).concat(list.filter((m) => !m.fits)).map(item))));
+    sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
+    root.append(sheet);
+  }
 
   // a brick's `check`: what the server says a run would fail on (a face says it only when something is wrong)
   function checkLine(key, quiet) {
@@ -724,8 +756,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   function brickEl(info) {
     const def = BRICKS[info.brick];
-    const head = def.headline && h("div", { className: "snap-headline", textContent: def.headline((b, k, name) => E.getValue(b, k, name), attachedOn(info.brick)) });
-    const faces = [presetChip(info.brick), turboChip(info.brick), head, ...def.face.map((f) => fact(info.brick, f))].filter(Boolean);
+    const faces = [presetChip(info.brick), turboChip(info.brick), ...slotFace(info.brick), ...def.face.map((f) => fact(info.brick, f))].filter(Boolean);
     const body = [];
     const pics = Object.values(info.nodes).flatMap((id) => { const n = app.graph.getNodeById(id); return n ? previews(n) : []; });
     if (pics.length && info.brick !== "refs") body.push(h("div", { className: "snap-thumbs" }, pics.slice(0, 2).map((src) => h("img", { src, alt: "", loading: "lazy" }))));
@@ -869,7 +900,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // what a brick shows: its bindings, overrides and face values (a graph edit or undo changes one of these)
   function signature(info) {
     const def = BRICKS[info.brick], values = def.face.map(([k, name]) => E.getValue(info.brick, k, name));
-    if (def.attach || def.headline) values.push(attachedOn(info.brick), def.headline?.((b, k, name) => E.getValue(b, k, name), attachedOn(info.brick)));
+    if (def.slot) values.push(S.on(info.brick), S.headline(info.brick), S.quality(info.brick), S.list(def.slot).map((m) => m.install_state));
     if (def.stack) values.push(M.rows(info.brick).map((r) => [r.file, r.strength, r.on, r.entry?.role]));
     if (def.turbo) values.push(M.turbo()?.file, M.turbos().length);
     values.push(M.warnings().filter((w) => w.brick === info.brick).map((w) => w.text));
@@ -1052,6 +1083,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     else if (action === "open_take") { const t = T.get(target); if (!t) throw new Error(`No take ${target}`); dailies.view(t); }
     else if (action === "setups") openSetups();
     else if (action === "turbo") openTurbo();
+    else if (action === "methods") openMethods(target || "upscale");
     else throw new Error(`Unknown ui action ${action}`);
     return uiRead();
   }

@@ -13,6 +13,7 @@ import * as T from "./takes.js";
 import * as D from "./dials.js";
 import * as sight from "./sight.js";
 import * as M from "./models.js";
+import * as S from "./slots.js";
 import { api } from "../../../scripts/api.js";
 
 // a widget as an agent reads it: value, kind, choices (cut to 50), limits, and whether a wire drives it
@@ -134,17 +135,28 @@ export const TOOLS = [
     },
   },
   {
-    name: "list_turbos",
-    description: "The Turbo chip's choices for this recipe's family, from the model graph: merges (they swap the diffusion model; only ones built on the same Base/SFT lineage) and turbo LoRAs (they add a core LoRA row), each with the steps / cfg / sampler / scheduler it was distilled for, and which one is on.",
-    inputSchema: { type: "object", properties: {} },
+    name: "list_methods",
+    description: "The methods a slot can hold (SNAP-R14). slot 'turbo': this family's turbos from the model graph, merges (swap the diffusion model, same Base/SFT lineage only) and turbo LoRAs (add a core row), each with the steps / cfg / sampler / scheduler it was distilled for. slot 'upscale': every upscale method with kind, media, scale, install_state (from the model folders now: ready, or which weights are missing), whether it is wired and fits this recipe, and which one is current.",
+    inputSchema: { type: "object", properties: { slot: { type: "string", enum: ["turbo", "upscale"] } }, required: ["slot"] },
     annotations: { readOnlyHint: true },
-    run: async () => { await M.load(); return { family: M.family(), on: M.turbo()?.file ?? null, turbos: M.turbos() }; },
+    run: async ({ slot }) => {
+      await M.load();
+      if (slot === "turbo") return { slot, family: M.family(), on: M.turbo()?.file ?? null, methods: M.turbos() };
+      const now = S.holder(slot);
+      return { slot, current: S.method(now), on: now ? S.on(now) : false, factor: now && BRICKS[now].slot ? S.factor(now) : null, headline: now && BRICKS[now].slot ? S.headline(now) : null, methods: S.list(slot) };
+    },
   },
   {
-    name: "set_turbo",
-    description: "Swap the turbo (one undo step): a turbo from list_turbos, or 'off' to go back to the quality settings that were there before. It replaces the current turbo instead of stacking a second one, and applies the turbo's steps / cfg / sampler / scheduler. Returns the sampling now and the warnings.",
-    inputSchema: { type: "object", properties: { turbo: { type: "string", description: "a file or name from list_turbos, or 'off'" } }, required: ["turbo"] },
-    run: async ({ turbo }) => { await M.load(); return M.setTurbo(turbo); },
+    name: "set_method",
+    description: "Fill a slot with a method from list_methods, as one undo step. turbo: a turbo file or name, or 'off' to go back to the quality settings from before (it swaps, never stacks a second turbo; it applies the turbo's steps / cfg / sampler / scheduler). upscale: a wired method id (it takes the place of the current one, keeping the factor) or 'off' (the brick stays, bypassed); factor 2 or 4 sets the output size. Returns what is on now and the warnings.",
+    inputSchema: { type: "object", properties: { slot: { type: "string", enum: ["turbo", "upscale"] }, method: { type: "string" }, factor: { type: "number" } }, required: ["slot", "method"] },
+    run: async ({ slot, method, factor }) => {
+      await M.load();
+      if (slot === "turbo") return M.setTurbo(method);
+      const now = S.holder(slot);
+      const res = now && method === S.method(now) && factor != null ? (S.setFactor(now, factor), { method, brick: now, factor: S.factor(now), on: S.on(now), headline: S.headline(now) }) : await S.set(slot, method, { factor });
+      return { ...res, warnings: M.warnings().map((w) => w.text) };
+    },
   },
   {
     name: "list_loras",
@@ -160,7 +172,7 @@ export const TOOLS = [
   },
   {
     name: "add_lora",
-    description: "Add a LoRA row to the stack its role belongs in: core (turbo / fix / task …) rows go to Core LoRAs and travel with the setup, style rows to Style LoRAs, identity rows to Cast LoRAs (the brick is added when missing). The role comes from the model graph unless given. A turbo LoRA while another turbo is on (a merge or a row) is refused unless person_asked is true: swap turbos with set_turbo instead. Returns the rows and the warnings.",
+    description: "Add a LoRA row to the stack its role belongs in: core (turbo / fix / task …) rows go to Core LoRAs and travel with the setup, style rows to Style LoRAs, identity rows to Cast LoRAs (the brick is added when missing). The role comes from the model graph unless given. A turbo LoRA while another turbo is on (a merge or a row) is refused unless person_asked is true: swap turbos with set_method {slot: 'turbo'} instead. Returns the rows and the warnings.",
     inputSchema: { type: "object", properties: { file: { type: "string" }, strength: { type: "number" }, role: { type: "string", enum: ["core", "style", "identity"] }, person_asked: { type: "boolean", description: "true only when the person asked for this stack" } }, required: ["file"] },
     run: async ({ file, strength, role, person_asked }) => {
       await M.load();
@@ -168,7 +180,7 @@ export const TOOLS = [
       if (!name) throw new Error(`No LoRA file "${file}"; list_loras shows them`);
       const e = M.entry(name), want = role ?? (["style", "identity"].includes(e.role) ? e.role : "core");
       const busy = M.turbo() || M.loras().some((r) => r.on && r.entry?.turbo) || M.entry(M.settings().find((x) => M.entry(x.file)?.kind === "turbo_merge")?.file)?.turbo;
-      if (e.turbo && busy && !person_asked) throw new Error(`A turbo is already on (${M.turbo()?.file ?? "a turbo merge or row"}); swap it with set_turbo, or pass person_asked: true when the person asked for a turbo stack`);
+      if (e.turbo && busy && !person_asked) throw new Error(`A turbo is already on (${M.turbo()?.file ?? "a turbo merge or row"}); swap it with set_method {slot: "turbo"}, or pass person_asked: true when the person asked for a turbo stack`);
       const key = { core: "loras", style: "style", identity: "cast" }[want];
       if (!has(key)) { const keys = E.state().bricks.map((b) => b.key); await E.snap(key, { at: keys.includes("rack") ? keys.indexOf("rack") : undefined }); }
       M.addRow(key, name, strength ?? e.recommended?.strength ?? 1);
@@ -471,8 +483,8 @@ export const TOOLS = [
   },
   {
     name: "ui",
-    description: "Drive the view: select a brick, open it (side panel or in place, by the person's setting), close, show snap or graph (focusing a brick), undo, redo, open the dial picker or maker, open the setups sheet or the turbo sheet, open a take.",
-    inputSchema: { type: "object", properties: { action: { type: "string", enum: ["select", "close", "snap", "graph", "undo", "redo", "dials", "make_dial", "setups", "turbo", "open_take"] }, target: { type: "string", description: "a brick key or take id" } }, required: ["action"] },
+    description: "Drive the view: select a brick, open it (side panel or in place, by the person's setting), close, show snap or graph (focusing a brick), undo, redo, open the dial picker or maker, open the setups sheet, the turbo sheet or a slot's methods sheet (target: the slot, e.g. upscale), open a take.",
+    inputSchema: { type: "object", properties: { action: { type: "string", enum: ["select", "close", "snap", "graph", "undo", "redo", "dials", "make_dial", "setups", "turbo", "methods", "open_take"] }, target: { type: "string", description: "a brick key or take id" } }, required: ["action"] },
     direct: true, // view changes are the agent's own navigation, not edits to accept
     run: ({ action, target }) => ui.act(action, target),
   },

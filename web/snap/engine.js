@@ -6,7 +6,7 @@ import { api } from "../../../scripts/api.js";
 import { BRICKS, RENDER_BLUEPRINT } from "./bricks.js";
 
 const GAP = 80;
-const COLUMN = { models: 0, preset: 0, image_models: 0, loras: 0, style: 0, cast: 0, rack: 1, first_frame: 1, refs: 1, render: 2, image: 2, save_image: 3 };
+const COLUMN = { models: 0, preset: 0, image_models: 0, loras: 0, style: 0, cast: 0, rack: 1, first_frame: 1, refs: 1, render: 2, image: 2, image_upscale: 3, image_resize: 3, save_image: 4 };
 const column = (key) => (Object.hasOwn(COLUMN, key) ? COLUMN[key] : Object.hasOwn(COLUMN, BRICKS[key]?.attach?.brick ?? "") ? COLUMN[BRICKS[key].attach.brick] : key.startsWith("node:") ? 3 : 0); // any-node bricks go right of the render
 const EMPTY = Object.freeze({ version: 1, bricks: Object.freeze([]), bindings: Object.freeze([]) });
 
@@ -227,6 +227,7 @@ async function snapOnce(key, { values, at } = {}) {
       ids[spec.key] = n.id;
       dy += (n.size?.[1] ?? 120) + 40;
     }
+    for (const [a, out, b, inp] of def.links ?? []) node(ids[a]).connect(node(ids[a]).findOutputSlot(out), node(ids[b]), node(ids[b]).findInputSlot(inp)); // a brick's own inner wiring
     const placed = Object.fromEntries(Object.values(ids).map((id) => [id, [...node(id).pos]]));
     s.bricks.splice(boundary(s.bricks, at ?? s.bricks.length), 0, { key, nodes: ids, placed });
     return bindAll();

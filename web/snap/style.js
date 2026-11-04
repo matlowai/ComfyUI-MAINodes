@@ -160,6 +160,7 @@ export const STYLE = `
 .snap-turbo.on { background: hsl(190 70% 50% / .22); box-shadow: inset 0 0 0 1px hsl(190 70% 60% / .5); color: hsl(190 80% 82%); }
 .snap-setup-about { font-size: 12px; line-height: 1.4; color: color-mix(in srgb, var(--s-fg) 80%, transparent); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .snap-setup-card strong em.tab { color: #a7b8ff; }
+.snap-setup-card.unwired { opacity: .55; cursor: default; } .snap-setup-card.unwired:hover { transform: none; box-shadow: inset 0 0 0 1px var(--s-line); }
 .snap-keep { display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; }
 .snap-headline { grid-column: 1 / -1; font-size: 13px; font-weight: 650; line-height: 1.3; }
 .snap-inline { grid-column: 1 / -1; display: flex; padding: 2px; gap: 2px; border-radius: 9px; background: #00000040; box-shadow: inset 0 0 0 1px #ffffff14; }
