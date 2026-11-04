@@ -5,7 +5,8 @@
 // SNAP-R1 generic pass-through · SNAP-R3 unresolved stays missing · SNAP-R9 setups own the model set · SNAP-R10 turbo
 // merge vs LoRA · SNAP-R11 warn, never block · SNAP-R12 LoRA roles · SNAP-R13 family rules from the model graph
 // SNAP-R25 SFW only hides what the graph tags nsfw · SNAP-R26 a name files a turbo LoRA only on strong signals ·
-// SNAP-R27 a lock on LoRAs the private rules match · see docs/SNAP_RULES.md
+// SNAP-R27 a lock on LoRAs the private rules match · SNAP-R35 a rating from move to…, the admin's on a gated install ·
+// see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -13,6 +14,7 @@ import * as D from "./dials.js";
 import * as L from "./library.js";
 import { BRICKS } from "./bricks.js";
 import * as PF from "./profile.js";
+import * as ACC from "./account.js";
 
 let files = new Map(), exts = [], loading = null, notify = () => {};
 // name -> { folder, size, modified } from core's folder lists (every model folder; the first folder wins a name in two),
@@ -118,6 +120,11 @@ D.useHidden(hidden);
 // style, identity, dial, unsorted), and each tag (nsfw) is one more; the chips and "move to…" are built from these
 export const ROLES = ["core·turbo", "core·fix", "core·task", "core·hires", "core·edit", "core·control", "style", "identity", "dial", "unsorted"];
 export const TAGS = ["nsfw"];
+// ratings as move to… sets them ("rating:" clears the person's own): anyone's on an ungated install; behind snap-gate only
+// the admin's count (SNAP-R32), so only the admin is offered them
+export const RATINGS = ["pg", "mature", "adult"];
+export const RATING_SHOWN = { pg: "PG", mature: "Mature", adult: "Adult" };
+export const mayRate = () => !ACC.account() || ACC.account().role === "admin";
 export const categoryOf = (e) => (e.role === "core" ? `core·${e.core ?? "task"}` : e.role ?? "unsorted");
 // every LoRA file here with its category and tags; SFW only leaves the nsfw ones out (and so their chip)
 export const loraFiles = () => [...files].filter(([name, f]) => f.folder === "loras" && !hidden(name)).map(([name]) => { const e = entry(name); return { file: name, entry: e, category: categoryOf(e), tags: e.tags ?? [] }; });
@@ -141,7 +148,11 @@ export async function moveTo(file, id) {
     patch = { role, core: core ?? null };
     if (core === "turbo" && !e.turbo) patch.turbo = { how: "lora", steps: null, cfg: null, sampler: null, scheduler: null }; // the Turbo slot lists it (SNAP-R26: the person beats the name)
   }
-  else throw new Error(`No category "${id}"; there are: ${[...ROLES, ...TAGS].join(", ")}`);
+  else if (id.startsWith("rating:") && (RATINGS.includes(id.slice(7)) || id === "rating:")) {
+    if (!mayRate()) throw new Error("On this install only the admin rates files (their ratings are the ones the gate reads)");
+    patch = { rating: id.slice(7) || null };
+  }
+  else throw new Error(`No category "${id}"; there are: ${[...ROLES, ...TAGS, ...RATINGS.map((r) => `rating:${r}`), "rating:"].join(", ")}`);
   await teach(file, patch);
   notify();
   return { file: base(file), before };

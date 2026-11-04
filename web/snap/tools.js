@@ -33,6 +33,7 @@ import * as SC from "./scenes.js";
 import * as OB from "./onboarding.js";
 import * as PF from "./profile.js";
 import * as MD from "./metadata.js";
+import * as ACC from "./account.js";
 import { api } from "../../../scripts/api.js";
 
 // a widget as an agent reads it: value, kind, choices (cut to 50), limits, and whether a wire drives it
@@ -211,10 +212,15 @@ export const TOOLS = [
   },
   {
     name: "get_profile",
-    description: "The person's onboarding answers (userdata snap/profile.json): intents (what they want to make: video, stills, anime, edit, long, characters), sfw_only, api_tasks (tasks where API models are allowed; every other task stays local), code_review (always / unknown / never: whether you read the code of a node pack or script that isn't part of the person's setup yet before bringing it in; unknown, the default, means only code Snap's kits have no safety read for; follow it, it is theirs to choose because reading costs tokens), the questions answered or skipped, done; plus metadata (the Save metadata switch), agents (run: whether your runs start without waiting for the person; see: whether screenshot can see their tab; set both with set_agent_permissions when the person tells you) and this machine's hardware (GPU, VRAM, RAM, read from /system_stats).",
+    description: "The person's onboarding answers (userdata snap/profile.json): intents (what they want to make: video, stills, anime, edit, long, characters), sfw_only, api_tasks (tasks where API models are allowed; every other task stays local), code_review (always / unknown / never: whether you read the code of a node pack or script that isn't part of the person's setup yet before bringing it in; unknown, the default, means only code Snap's kits have no safety read for; follow it, it is theirs to choose because reading costs tokens), the questions answered or skipped, done; plus metadata (the Save metadata switch), account (on a signed-in snap-gate install: the account and its rating cap; below Adult, don't ask about SFW only: the cap already hides more), agents (run: whether your runs start without waiting for the person; see: whether screenshot can see their tab; set both with set_agent_permissions when the person tells you) and this machine's hardware (GPU, VRAM, RAM, read from /system_stats).",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
-    run: async () => { await OB.load(); return { profile: PF.get(), metadata: MD.on() ? "on" : "off", agents: agents(), hardware: await OB.hardware() }; },
+    run: async () => {
+      await OB.load();
+      const me = await ACC.load();
+      return { profile: PF.get(), metadata: MD.on() ? "on" : "off", ...(me ? { account: { name: me.account, max_rating: ACC.capShown(), ...(ACC.belowAdult() ? { sfw_question: "skipped: the cap already hides files above it" } : {}) } } : {}),
+        agents: agents(), hardware: await OB.hardware() };
+    },
   },
   {
     name: "set_agent_permissions",
@@ -310,16 +316,17 @@ export const TOOLS = [
   },
   {
     name: "set_lora_category",
-    description: "File a LoRA under a category, as the person's 'move to…' does (the same function): role is one of core·turbo, core·fix, core·task, core·hires, core·edit, core·control, style, identity, dial, unsorted; tags is the full list it should carry (e.g. [\"nsfw\"] or []). Written to the person's snap/models.json, which wins over the pack, so the Library, the pickers, the Setup's stacks and these tools follow at once. Returns the entry now and `undo` (pass it back with undo to put the person's entry back as it was). Ask the person before filing their LoRAs.",
-    inputSchema: { type: "object", properties: { file: { type: "string" }, role: { type: "string" }, tags: { type: "array", items: { type: "string" } }, undo: { type: "array", description: "the undo list a previous call returned" } }, required: ["file"] },
-    run: async ({ file, role, tags, undo }) => {
+    description: "File a LoRA under a category, as the person's 'move to…' does (the same function): role is one of core·turbo, core·fix, core·task, core·hires, core·edit, core·control, style, identity, dial, unsorted; tags is the full list it should carry (e.g. [\"nsfw\"] or []); rating is pg, mature or adult (\"\" clears the person's own; on a snap-gate install only the admin may rate, and only the admin's ratings count). Written to the person's snap/models.json, which wins over the pack, so the Library, the pickers, the Setup's stacks and these tools follow at once. Returns the entry now and `undo` (pass it back with undo to put the person's entry back as it was). Ask the person before filing their LoRAs.",
+    inputSchema: { type: "object", properties: { file: { type: "string" }, role: { type: "string" }, tags: { type: "array", items: { type: "string" } }, rating: { type: "string", enum: ["pg", "mature", "adult", ""] }, undo: { type: "array", description: "the undo list a previous call returned" } }, required: ["file"] },
+    run: async ({ file, role, tags, rating, undo }) => {
       await M.load();
       if (undo) { for (const u of [...undo].reverse()) await M.restore(u); return { file, entry: M.entry(file), undone: true }; }
       const done = [];
       if (role && role !== M.categoryOf(M.entry(file))) done.push(await M.moveTo(file, role));
       for (const t of M.TAGS) if (tags && tags.includes(t) !== (M.entry(file).tags ?? []).includes(t)) done.push(await M.moveTo(file, t));
+      if (rating != null) done.push(await M.moveTo(file, `rating:${rating}`));
       const e = M.entry(file);
-      return { file, category: M.categoryOf(e), tags: e.tags ?? [], undo: done };
+      return { file, category: M.categoryOf(e), tags: e.tags ?? [], rating: e.rating ?? null, undo: done };
     },
   },
   {

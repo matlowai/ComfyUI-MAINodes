@@ -494,6 +494,15 @@ export const STYLE = `
 @keyframes snap-see-pulse { 0% { box-shadow: 0 1px 0 #ffffff44 inset, 0 0 0 0 #f8717199; } 70% { box-shadow: 0 1px 0 #ffffff44 inset, 0 0 0 10px #f8717100; } 100% { box-shadow: 0 1px 0 #ffffff44 inset, 0 0 0 0 #f8717100; } }
 @media (prefers-reduced-motion: reduce) { .snap-see.on { animation: none; } }
 /* metadata in saved files: a switch beside Run, the knob right while on (SNAP-R20) */
+.snap-account { display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: 10px; font-size: 12.5px; white-space: nowrap; color: var(--s-dim); border: 1px solid var(--s-line); }
+.snap-account strong { color: var(--s-fg); font-weight: 600; }
+.snap-account span { padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; background: var(--s-card); color: var(--s-fg); }
+.snap-account a { color: var(--s-accent); text-decoration: none; } .snap-account a:hover { text-decoration: underline; }
+.snap-locked { position: fixed; z-index: 3000; top: 18px; left: 50%; transform: translateX(-50%); width: min(420px, calc(100vw - 32px)); box-sizing: border-box;
+  padding: 16px 18px; border-radius: 14px; background: var(--comfy-menu-bg, #16171b); color: var(--fg-color, #ececef); border: 1px solid #f5b94a88;
+  box-shadow: 0 12px 40px #000a; font: 14px/1.45 system-ui, sans-serif; display: grid; gap: 6px; pointer-events: auto; } /* a core modal sets pointer-events: none on the body */
+.snap-locked strong { font-size: 15px; } .snap-locked p { margin: 0; color: var(--descrip-text, #9a9ca5); }
+.snap-locked .snap-primary { justify-self: start; }
 .snap-meta { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 8px; border-radius: 10px; font-weight: 600; font-size: 12.5px; white-space: nowrap;
   color: var(--s-dim); background: var(--s-card); transition: color .15s ease-out; }
 .snap-meta i { position: relative; width: 26px; height: 15px; border-radius: 999px; background: color-mix(in srgb, var(--s-dim) 45%, transparent); transition: background-color .15s ease-out; }
@@ -591,7 +600,7 @@ export const STYLE = `
 .snap-root.docked .snap-seg, .snap-root.docked .snap-run { display: none; }
 @media (prefers-reduced-motion: reduce) { .snap-details { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .snap-toast, .snap-seg button, .snap-brick, .snap-tile, .snap-card { transition: none; } }
-@container (max-width: 560px) { .snap-setup, .snap-outside, .snap-see { display: none; } .snap-meta span { display: none; } .snap-title { min-width: 0; } } /* phone width: the Setup chip opens the setups; the metadata switch keeps its knob and its name for screen readers */
+@container (max-width: 560px) { .snap-setup, .snap-outside, .snap-see, .snap-account { display: none; } .snap-meta span { display: none; } .snap-title { min-width: 0; } } /* phone width: the Setup chip opens the setups; the metadata switch keeps its knob and its name for screen readers */
 /* onboarding (SNAP-R25): one calm question per step, a centred column, defaults pre-picked */
 .snap-sheet.snap-onboard { inset: 0; border: 0; border-radius: 0; box-shadow: none; }
 .snap-onboard .snap-ob-body { flex: 1; overflow: auto; padding: 48px max(24px, calc(50% - 360px)) 24px; display: flex; flex-direction: column; gap: 14px; }

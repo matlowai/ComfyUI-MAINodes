@@ -13,7 +13,10 @@ in text.
 The private paths, patterns and triggers live only in the person's own user/<name>/snap/private.json
 ({"paths": [globs], "patterns": [globs], "triggers": [words]}), never in the pack, and the page never reads them.
 Reasons name nodes, never files.
-SNAP-R12 identity LoRAs are private · SNAP-R20 private takes marked · SNAP-R27 a file stamped private · see docs/SNAP_RULES.md
+On a snap-gate install, only the admins' snap/ files count (SNAP-R32), and a file's rating level backs up the gate's cap
+(SNAP-R33).
+SNAP-R12 identity LoRAs are private · SNAP-R20 private takes marked · SNAP-R27 a file stamped private · SNAP-R32 the
+admins' files decide on a gated install · SNAP-R33 the rating cap's second line · see docs/SNAP_RULES.md
 """
 import json
 import os
@@ -28,6 +31,11 @@ STAMPED = (".safetensors", ".sft")  # formats whose header is plain JSON
 HEADER_CAP = 16 << 20  # a LoRA's header is ~65 KB; a header past this is skipped, never read whole
 TRIGGER_KEYS = ("trigger", "trigger_word", "trigger_phrase", "triggers")
 LORA_TAG = re.compile(r"<lora:([^:>]+)")  # A1111 / LoRA Manager text: <lora:name:weight>
+LEVELS = {"pg": 0, "general": 0, "mature": 1, "sensitive": 1, "questionable": 1, "adult": 2, "explicit": 2}  # shown as PG / Mature / Adult
+# SNAP-R33 mirrors the gate's SNAP-R44: files here don't decide what a picture shows, so an unrated one counts as PG
+HELPER_FOLDERS = {"vae", "vae_approx", "text_encoders", "clip", "clip_vision", "upscale_models", "latent_upscale_models", "configs", "custom_nodes",
+                  "audio_encoders", "background_removal", "detection", "frame_interpolation", "geometry_estimation", "optical_flow", "classifiers",
+                  "face_recognition", "controlnet", "gligen"}
 stamps = {}  # realpath -> ((mtime_ns, size), (stamped full, triggers)); one small entry per file a prompt loaded
 
 
@@ -47,17 +55,33 @@ def read(f, broken, shape):
     return data
 
 
+def owners(user_dir, broken):
+    """Whose snap/ files count: every ComfyUI user's (None), or, when snap-gate wrote user/snap_admins.json
+    ({"admins": [ComfyUI user ids]}), only the admins' (SNAP-R32). That file sits outside every user's folder, so no page
+    can write it. One that doesn't parse counts as broken and names no one."""
+    f = Path(user_dir) / "snap_admins.json"
+    if not f.exists():
+        return None
+    ids = (read(f, broken, dict) or {}).get("admins", [])
+    if not (isinstance(ids, list) and all(isinstance(x, str) for x in ids)):
+        broken.append(str(f))
+        return set()
+    return set(ids)
+
+
 def model_graph(user_dir):
-    """What decides privacy: file name -> entry (the pack's entries under each ComfyUI user's own snap/models.json, the
-    person winning field by field, a null keeping the pack's value), every user's private paths, patterns and triggers,
-    and the person's files that don't parse or have the wrong shape (a rules file that can't be read whole counts as
+    """What decides privacy: file name -> entry (the pack's entries under each counted ComfyUI user's own
+    snap/models.json, the person winning field by field, a null keeping the pack's value), their private paths, patterns
+    and triggers, and the files that don't parse or have the wrong shape (a rules file that can't be read whole counts as
     broken, never as fewer rules; a model graph entry with no file name is skipped)."""
     graph = {"entries": {base(e["file"]): e for e in json.loads(PACK.read_text(encoding="utf-8"))["files"]}, "paths": [], "patterns": [], "triggers": [], "broken": []}
-    for f in sorted(Path(user_dir).glob("*/snap/models.json")):
+    who = owners(user_dir, graph["broken"])
+    counted = lambda name: sorted(f for f in Path(user_dir).glob(f"*/snap/{name}") if who is None or f.parent.parent.name in who)
+    for f in counted("models.json"):
         for e in read(f, graph["broken"], list) or []:
             if isinstance(e, dict) and isinstance(e.get("file"), str):
                 graph["entries"][base(e["file"])] = {**graph["entries"].get(base(e["file"]), {}), **{k: v for k, v in e.items() if v is not None}}
-    for f in sorted(Path(user_dir).glob("*/snap/private.json")):
+    for f in counted("private.json"):
         rules = read(f, graph["broken"], dict)
         if rules is None:
             continue
@@ -159,3 +183,26 @@ def marks(prompt, workflow, graph, resolve):
         if str(nid) in cast and any(k.endswith(".lora_name") and v not in (None, "", "None") and inputs.get(k[:-len("lora_name")] + "enabled") is True for k, v in inputs.items()):
             private.append(f"node {nid} has a Cast LoRA row on")
     return {"private": private, "nsfw": nsfw}
+
+
+def level(graph, value, folders):
+    """A file's rating level: its `rating` in the model graph, else Adult when tagged nsfw, else what the gate gives an
+    unrated file (SNAP-R44): PG in helper folders only, Adult anywhere else. `folders` are the model folders that hold it."""
+    e = graph["entries"].get(base(value), {})
+    if str(e.get("rating")).lower() in LEVELS:
+        return LEVELS[str(e["rating"]).lower()]
+    if "nsfw" in (e.get("tags") or []):
+        return LEVELS["adult"]
+    return LEVELS["pg"] if set(folders) <= HELPER_FOLDERS else LEVELS["adult"]
+
+
+def above(prompt, graph, cap, folders_of):
+    """The nodes of an API prompt that load a file rated above `cap` (a level), node id -> node title or type.
+    `folders_of(value)` gives the model folders that hold a name (none for text)."""
+    out = {}
+    for nid, node in prompt.items():
+        for v in dict.fromkeys(n for x in (node.get("inputs") or {}).values() for n in names(x)):
+            folders = folders_of(v)
+            if folders and level(graph, v, folders) > cap:
+                out[nid] = (node.get("_meta") or {}).get("title") or node.get("class_type")
+    return out

@@ -3,18 +3,22 @@
 // recommended setup and a fast option per intent with their evidence, what's missing with exact downloads to run, and
 // "Open in new tabs". It calls onboarding.js, as the agent tools do (SNAP-R19).
 // SNAP-R5 new tabs · SNAP-R18 Snap never downloads · SNAP-R20 the metadata switch · SNAP-R25 onboarding ·
-// SNAP-R28 agents read new code per the person's setting · see docs/SNAP_RULES.md
+// SNAP-R28 agents read new code per the person's setting · SNAP-R34 no SFW question under a cap below Adult ·
+// see docs/SNAP_RULES.md
 import * as OB from "./onboarding.js";
 import * as PF from "./profile.js";
 import * as MD from "./metadata.js";
+import * as ACC from "./account.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
-const STEPS = ["intent", "scan", "metadata", "sfw", "local", "code", "kit"];
+const ALL_STEPS = ["intent", "scan", "metadata", "sfw", "local", "code", "kit"];
 const STATE = { ready: "✓ ready", missing: "missing", cant_load: "can't load here", api: "API" };
 
 export async function openOnboarding(host, { say, onOpened, start }) {
   host.querySelector(".snap-onboard")?.remove();
   await OB.load();
+  // a signed-in account capped below Adult never sees what SFW only would hide: the gate already keeps it out
+  const STEPS = (await ACC.load()) && ACC.belowAdult() ? ALL_STEPS.filter((s) => s !== "sfw") : ALL_STEPS;
   const hw = await OB.hardware(), p = PF.get();
   const draft = { intents: p.intents.length ? [...p.intents] : ["video"], metadata: MD.on(), sfw_only: p.sfw_only, api_tasks: [...p.api_tasks], code_review: p.code_review };
   let at = start ? STEPS.indexOf(start) : Math.max(0, STEPS.findIndex((s) => !p.answered.includes(s))), scanned = null, showAlso = new Set(), showDownloads = false;

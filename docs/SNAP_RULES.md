@@ -227,6 +227,40 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   recipe is refused with the recipe's brick ids. `run` warns, and still runs, while a prompt holds its blueprint's
   default text. *Why:* U72 run 2 (Sonnet at low effort): AGENT_START's `render` failed on the stills recipe, the agent
   pressed run anyway and got the example picture. *More:* u72/FINDINGS.md F11, `web/snap/tools.js`.
+## Signed-in installs (the pack's side of snap-gate)
+
+These hold only where snap-gate runs in front of ComfyUI (a separate install whose admin sets them). On an ungated
+ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS "No artificial limits").
+
+- **SNAP-R32: On a gated install, only the admins' snap/ files decide ratings and marks.** snap-gate writes
+  `user/snap_admins.json` (`{"admins": [ComfyUI user ids]}`) when it starts and at every sign-in, outside every user's
+  folder, so no page can write it. When it exists, `snap_privacy.model_graph` reads `snap/models.json` (rating, nsfw,
+  private, role) and `snap/private.json` only from those users; a non-admin's files change marks for no one. With no
+  such file every user's files count, as before. One that doesn't parse counts as broken: every take is marked private
+  and nobody's ratings count. Known edge: an admin created while the gate runs who only ever uses a token (never a
+  sign-in) is published at the next gate start. *Why:* under --multi-user any account writes its own user data, and the
+  gate rates from the admins' graph only (SNAP-R43). *More:* PLAN U77 (2), `snap_privacy.py`, the gate's `publish_admins`.
+- **SNAP-R33: The rating cap has a second line in the pack.** snap-gate puts `snap_user` and `snap_max_rating` in every
+  prompt's extra_data and refuses files above the cap itself. The pack's on_prompt handler checks again with the same
+  levels: the file's `rating`, else Adult when tagged nsfw, else PG in helper folders (VAE, encoders, upscalers…) and
+  Adult anywhere else (SNAP-R44). A prompt that still names one becomes one MAIRatingRefused node per such node, which
+  fails validation with "Node N (title) loads a file rated above this account's PG cap. Ask the admin.", so nothing of
+  it runs. Core would otherwise run the prompt's other outputs. A saver named Save… with no filename_prefix (SaveLoRA)
+  is noted in the log and in extra_data.snap_notes, never refused. With no snap_max_rating nothing changes. *Why:* the
+  gate is the first line; the pack sees the executed prompt and the files on disk. *More:* PLAN U77 (3), `snap_bridge.py`.
+- **SNAP-R34: Snap shows the signed-in account and keeps the page through an idle lock.** `GET /gate/me` names the
+  account and its cap: the top bar shows "name · PG" and Sign out (`/gate/logout`), and get_profile carries `account`.
+  Any other answer means no gate, and Snap shows nothing. When a request answers 401 `{"locked": true}`, a small "Locked:
+  sign in again" card shows over the page, graph view included. Its Sign in opens the gate's sign-in in a small window,
+  and the card goes once `/gate/me` answers again. The page, its graph and its socket's client id stay as they were.
+  Under a cap below Adult, onboarding has no SFW-only question, because the gate already hides what that would.
+  *Why:* PLAN U77 (4); LESSONS "An untouched ComfyUI page makes no requests". *More:* `web/snap/account.js`.
+- **SNAP-R35: A rating is set from move to….** "rated PG / Mature / Adult" and "unrated" sit in a LoRA's move to…, and
+  `rating` in set_lora_category. They write the person's snap/models.json. Ungated, anyone may rate. Gated, only the
+  admin is offered them, because only the admin's ratings count (SNAP-R32). The pack rates only the obvious: the base
+  and SFT checkpoints are PG, everything else is left unrated. *Why:* PLAN U77 (6). *More:* `web/snap/models.js`
+  (`moveTo`), `snap_cards/models.json`.
+
 ## Data and privacy
 
 - **SNAP-R18: Local only.** No network or telemetry: registry, takes, profile and model graph are local files. Export

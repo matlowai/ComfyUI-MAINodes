@@ -4,7 +4,7 @@
 // tabs for new work · SNAP-R7 pointer-down lists · SNAP-R19 actions call their tools' functions · SNAP-R20 the metadata
 // switch · SNAP-R9 the Setup brick · SNAP-R24 the scene navigator above the chain · SNAP-R25 onboarding, SFW only ·
 // SNAP-R29 onboarding opens by itself only for a person · SNAP-R30 a recipe opens runnable (seconds on the Render face) ·
-// see docs/SNAP_RULES.md
+// SNAP-R34 the gate's account in the top bar, a lock that keeps the page · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -29,6 +29,7 @@ import * as PL from "./plates.js";
 import * as C from "./candidates.js";
 import * as MD from "./metadata.js";
 import * as PF from "./profile.js";
+import * as ACC from "./account.js";
 import { openOnboarding } from "./onboardview.js";
 import { openLoras, moveControl, label as catLabel } from "./loraview.js";
 
@@ -84,6 +85,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     onclick: async () => { try { sight.sharing() ? sight.stop() : await sight.start(); } catch (err) { say(err.name === "NotAllowedError" ? "Sharing was declined" : err.message, true); } } });
   const seeLabel = () => { seeBtn.textContent = sight.sharing() ? "● Agents can see" : "👁 Let agents see"; seeBtn.classList.toggle("on", sight.sharing()); };
   sight.onChange(seeLabel); seeLabel();
+  // SNAP-R34: on a snap-gate install, who is signed in and their cap; nothing without a gate
+  const accountChip = h("span", { className: "snap-account", hidden: true });
   // SNAP-R20: metadata in saved files, beside Run where every run starts; the person's ComfyUI setting (on by default)
   const metaBtn = h("button", { className: "snap-meta", role: "switch", ariaLabel: "Save metadata", onclick: () => MD.set(!MD.on()) }, h("i"), h("span", { textContent: "Save metadata" }));
   function metadataChanged() {
@@ -106,7 +109,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Note", title: "a director's note on the whole recipe; agents answer it", onclick: () => { noting = true; select(null); inspector.querySelector("textarea")?.focus(); } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Make app", title: "open this recipe in ComfyUI's App mode: the brick faces become a run-only app (reloads the graph)", onclick: () => onMakeApp() }),
-      h("button", { className: "snap-link snap-quiet-btn", title: "Ctrl/Cmd+K", onclick: () => openPalette() }, "Add brick", h("span", { className: "snap-kbd", textContent: `  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}` })), seeBtn, seg, metaBtn, runBtn, progress),
+      h("button", { className: "snap-link snap-quiet-btn", title: "Ctrl/Cmd+K", onclick: () => openPalette() }, "Add brick", h("span", { className: "snap-kbd", textContent: `  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}` })), accountChip, seeBtn, seg, metaBtn, runBtn, progress),
     h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), inspector, handle), toast);
   // takes under the chain: "Use as input" puts a take's frame on the First frame or References brick (T.use)
   const dailies = createDailies({ host: root, say, onRestore: () => render(null), onHover: (t) => previewTake(t), onRunFrom: (t) => runFrom(t).catch((err) => say(err.message, true)) });
@@ -169,6 +172,17 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   T.onChange(() => renderLibrary());
   PF.onChange(() => { render(null); renderLibrary(); }); // SFW only changes what the pickers and the Library list
   PF.load().then(() => { render(null); renderLibrary(); });
+  ACC.load().then((me) => {
+    if (!me) return;
+    accountChip.replaceChildren(h("strong", { textContent: me.account }), h("span", { textContent: ACC.capShown() }), h("a", { href: "/gate/logout", textContent: "Sign out" }));
+    accountChip.title = `Signed in to this machine's snap-gate as ${me.account}: files rated above ${ACC.capShown()} are hidden and refused`;
+    accountChip.hidden = false;
+    // on the body, over the graph view too, so the person sees it wherever they are
+    ACC.watchLock(({ signIn }) => document.body.appendChild(h("div", { className: "snap-locked", role: "alertdialog", ariaLabel: "Locked" },
+      h("strong", { textContent: "Locked: sign in again" }),
+      h("p", { textContent: "This page waited too long without use. Everything on it stays as it is; sign in and carry on." }),
+      h("button", { className: "snap-primary", textContent: "Sign in", onclick: signIn }))));
+  });
   D.load().then(() => { render(null); renderLibrary(); });
   M.load().then(() => { render(null); if (M.graphProblem()) say(M.graphProblem(), true); }, () => {}); // without the model lists, settings show as plain values
   M.onCheck(() => render(null));

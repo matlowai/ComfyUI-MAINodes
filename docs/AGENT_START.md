@@ -43,7 +43,8 @@ You can also run the tools as an MCP server (Claude Code):
 ## 3. Set up with the person
 
 1. `get_profile` returns the person's answers, the hardware and `agents`. `agents.run` says whether your runs start
-   right away; `agents.see` says whether `screenshot` can see their tab.
+   right away; `agents.see` says whether `screenshot` can see their tab. On a signed-in install, `account` names the
+   account and its rating cap; below Adult, don't ask about SFW only.
 2. Ask the person the onboarding questions: what they want to make, SFW only, metadata in files, which tasks may use
    API models, and whether you should read new code first. Save the answers with `set_profile`. Never decide these
    for them.

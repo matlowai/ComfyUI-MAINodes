@@ -4,23 +4,25 @@
 // function set_lora_category calls, SNAP-R19), so the Library, the pickers, the Setup's stacks and the agent tools all see
 // it at once; Undo puts back what was there. SFW only leaves the nsfw files out, and so their chip.
 // SNAP-R12 LoRA roles · SNAP-R19 one function · SNAP-R25 SFW only · SNAP-R27 a lock on private ones, the row still works ·
-// see docs/SNAP_RULES.md
+// SNAP-R35 a rating from move to… · see docs/SNAP_RULES.md
 import * as M from "./models.js";
 import * as PF from "./profile.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
-export const label = (id) => id.replace("·", " · ");
+export const label = (id) => (id.startsWith("rating:") ? (id === "rating:" ? "unrated" : `rated ${M.RATING_SHOWN[id.slice(7)]}`) : id.replace("·", " · "));
 const short = (f) => String(f).split("/").pop().replace(/\.safetensors$/, "");
 const SHOWN = 150; // rows drawn at once; search narrows the rest
 
 // a small "move to…" control for one LoRA file: its roles, and each tag switched on or off
 export function moveControl(file, onMoved) {
-  const r = M.loraFiles().find((x) => x.file === file) ?? { category: M.categoryOf(M.entry(file)), tags: M.entry(file).tags ?? [] };
+  const r = M.loraFiles().find((x) => x.file === file) ?? { category: M.categoryOf(M.entry(file)), tags: M.entry(file).tags ?? [] }, rating = M.entry(file).rating ?? null;
   const sel = h("select", { className: "snap-move", title: `move ${short(file)} to another category (kept in your snap/models.json)`, ariaLabel: "move to",
     onchange: async (e) => { const id = e.target.value; e.target.value = ""; try { onMoved(await M.moveTo(file, id), id); } catch (err) { onMoved(null, id, err); } } },
     h("option", { value: "", textContent: "move to…", selected: true, disabled: true }),
     M.ROLES.filter((id) => id !== r.category).map((id) => h("option", { value: id, textContent: label(id) })),
-    M.TAGS.filter((t) => !(PF.sfwOnly() && t === "nsfw")).map((t) => h("option", { value: t, textContent: r.tags.includes(t) ? `not ${t}` : t })));
+    M.TAGS.filter((t) => !(PF.sfwOnly() && t === "nsfw")).map((t) => h("option", { value: t, textContent: r.tags.includes(t) ? `not ${t}` : t })),
+    M.mayRate() ? [...M.RATINGS.filter((x) => x !== rating).map((x) => h("option", { value: `rating:${x}`, textContent: `rated ${M.RATING_SHOWN[x]}` })),
+      rating ? h("option", { value: "rating:", textContent: "unrated" }) : null] : []);
   for (const ev of ["pointerdown", "click"]) sel.addEventListener(ev, (e) => e.stopPropagation()); // a card under it must not apply
   return sel;
 }

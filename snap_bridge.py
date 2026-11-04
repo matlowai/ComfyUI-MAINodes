@@ -340,6 +340,66 @@ def metadata_gate(json_data):
     return json_data
 
 
+# The rating cap a second time (SNAP-R33). snap-gate puts the signed-in account and its cap in every prompt's extra_data
+# (snap_user, snap_max_rating) and refuses files above the cap first; here a prompt that still names one becomes one
+# MAIRatingRefused per such node, which fails validation, so nothing of it runs (core would run the other outputs). Ratings come from the pack's model graph under the admins'
+# own snap/models.json (SNAP-R32). With no gate there is no cap, and nothing changes. A saver with no filename_prefix
+# can't be kept in the account's output folder by the gate: it is noted (log + extra_data.snap_notes), never refused.
+class MAIRatingRefused:
+    """Stands in for a node that loads a file above the signed-in account's rating: it fails validation, so nothing runs."""
+    DEV_ONLY = True
+    CATEGORY = "MAINodes/snap"
+    RETURN_TYPES = ()
+    OUTPUT_NODE = True
+    FUNCTION = "refuse"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {"why": ("STRING", {})}}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, why):
+        return why
+
+    def refuse(self, why):
+        raise RuntimeError(why)
+
+
+def folders_of(value):
+    """The model folders that hold this name (none for text or an absolute path)."""
+    return [] if os.path.isabs(value) else [f for f in folder_paths.folder_names_and_paths if folder_paths.get_full_path(f, value)]
+
+
+def saves_without_prefix(class_type):
+    """A saver (an output node named Save…, e.g. SaveLoRA) with no filename_prefix input: where it writes is its own."""
+    cls = nodes.NODE_CLASS_MAPPINGS.get(class_type)
+    if cls is None or "save" not in class_type.lower():
+        return False
+    info = cls.GET_NODE_INFO_V1() if hasattr(cls, "GET_NODE_INFO_V1") else {"output_node": getattr(cls, "OUTPUT_NODE", False), "input": cls.INPUT_TYPES()}
+    return bool(info["output_node"]) and not any("filename_prefix" in (g or {}) for g in info["input"].values())
+
+
+def rating_cap(json_data):
+    prompt, extra = json_data.get("prompt"), json_data.get("extra_data") or {}
+    cap = snap_privacy.LEVELS.get(str(extra.get("snap_max_rating")).lower())
+    if cap is None or not isinstance(prompt, dict):
+        return json_data
+    notes = [f"node {nid} ({node.get('class_type')}) saves without a filename_prefix, so its file may land outside {extra.get('snap_user')}'s output folder"
+             for nid, node in prompt.items() if saves_without_prefix(node.get("class_type"))]
+    found = snap_privacy.above(prompt, snap_privacy.model_graph(folder_paths.get_user_directory()), cap, folders_of)
+    if found:
+        logging.warning("Snap: %s's prompt names files above their %s cap (nodes %s); refused", extra.get("snap_user"), extra["snap_max_rating"], ", ".join(found))
+        shown = "PG" if cap == 0 else str(extra["snap_max_rating"]).capitalize()
+        json_data["prompt"] = {nid: {"class_type": "MAIRatingRefused", "inputs": {"why": f"Node {nid} ({title}) loads a file rated above this account's {shown} cap. Ask the admin."},
+                                     "_meta": prompt[nid].get("_meta", {})} for nid, title in found.items()}
+    if notes:
+        logging.warning("Snap: %s", "; ".join(notes))
+        json_data.setdefault("extra_data", {})["snap_notes"] = notes
+    return json_data
+
+
+# before metadata_gate: it sees the prompt as queued, not the twins and refusals metadata_gate swaps in
+PromptServer.instance.add_on_prompt_handler(rating_cap)
 PromptServer.instance.add_on_prompt_handler(metadata_gate)
 
 
@@ -399,6 +459,6 @@ class MAISnapCopyScore(io.ComfyNode):
         scores = [s for chunk in images.split(16) for s in (patches(chunk) * ref).sum(-1).mean(-1).tolist()]
         return io.NodeOutput(ui={"copy_scores": [round(s, 4) for s in scores]})
 NODE_CLASS_MAPPINGS = {"MAISaveImagePrivate": MAISaveImagePrivate, "MAIPreviewImagePrivate": MAIPreviewImagePrivate,
-                       "MAISaveVideoPrivate": MAISaveVideoPrivate, "MAIPrivateSaveRefused": MAIPrivateSaveRefused, "MAISnapCopyScore": MAISnapCopyScore}
+                       "MAISaveVideoPrivate": MAISaveVideoPrivate, "MAIPrivateSaveRefused": MAIPrivateSaveRefused, "MAIRatingRefused": MAIRatingRefused, "MAISnapCopyScore": MAISnapCopyScore}
 NODE_DISPLAY_NAME_MAPPINGS = {"MAISaveImagePrivate": "Save Image (no metadata)", "MAIPreviewImagePrivate": "Preview Image (no metadata)",
-                              "MAIPrivateSaveRefused": "Metadata off: save refused", "MAISnapCopyScore": "Copy score (Snap)"}
+                              "MAIPrivateSaveRefused": "Metadata off: save refused", "MAIRatingRefused": "Above the rating cap: refused", "MAISnapCopyScore": "Copy score (Snap)"}
