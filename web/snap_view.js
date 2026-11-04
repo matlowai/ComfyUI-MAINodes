@@ -61,7 +61,7 @@ async function toggle() {
   if (sw.docked) { await app.extensionManager.command.execute(`Workspace.ToggleSidebarTab.${TAB}`); sw.undock(true); }
   sw.toggle();
   remember();
-  if (sw.showing) announce();
+  if (sw.showing) { announce(); view.firstVisit().catch((err) => view.say(err.message, true)); }
   else graphEntry();
 }
 

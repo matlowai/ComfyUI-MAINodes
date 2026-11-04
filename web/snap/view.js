@@ -723,6 +723,13 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   // "I'm new, help me set up" (SNAP-R25): the opened setups land in new tabs, which re-render the chain on their own
   const onboard = (start) => openOnboarding(root, { say, start, onOpened: () => render(null) }).catch((err) => say(err.message, true));
+  // the first Snap visit with no profile opens onboarding once; writing the profile first makes a close or Skip final
+  let visited = null;
+  const firstVisit = () => (visited ??= PF.load().then(async () => {
+    if (PF.saved()) return;
+    await PF.set({});
+    await onboard();
+  }));
 
   // drag a number's label sideways to change it: 1 step per 4 px, Shift fine, Alt coarse
   function scrub(labelEl, input, set) {
@@ -1262,5 +1269,5 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     return uiRead();
   }
 
-  return { root, stack, render, say, select, openInChanged, metadataChanged, uiRead, uiAct, release: () => { giveBack(); if (opened) { opened = null; render(null); } }, get opened() { return opened; }, get selected() { return selected; } };
+  return { root, stack, render, say, select, openInChanged, metadataChanged, uiRead, uiAct, firstVisit, release: () => { giveBack(); if (opened) { opened = null; render(null); } }, get opened() { return opened; }, get selected() { return selected; } };
 }

@@ -7,13 +7,15 @@ import { api } from "../../../scripts/api.js";
 const FILE = "snap/profile.json";
 // every task stays local until the person allows the cloud for it
 export const EMPTY = { intents: [], sfw_only: false, api_tasks: [], answered: [], done: false };
-let profile = null, loading = null, notify = () => {};
+let profile = null, loading = null, found = false, notify = () => {};
 
 export function load() {
-  loading ??= api.getUserData(FILE).then(async (r) => (profile = r.ok ? { ...EMPTY, ...(await r.json()) } : { ...EMPTY }), () => (profile = { ...EMPTY }));
+  loading ??= api.getUserData(FILE).then(async (r) => { found = r.ok; return (profile = r.ok ? { ...EMPTY, ...(await r.json()) } : { ...EMPTY }); }, () => (profile = { ...EMPTY }));
   return loading;
 }
 export const get = () => profile ?? EMPTY;
+// whether the person has a profile file yet (the first Snap visit opens onboarding once, then writes one)
+export const saved = () => found;
 export const sfwOnly = () => !!get().sfw_only;
 export const apiAllowed = (task) => get().api_tasks.includes(task);
 
@@ -23,6 +25,7 @@ export async function set(patch) {
   const known = Object.fromEntries(Object.entries(patch).filter(([k]) => k in EMPTY && k !== "answered"));
   profile = { ...profile, ...known, answered: [...new Set([...profile.answered, ...(patch.answered ?? [])])], updated: new Date().toISOString() };
   await api.storeUserData(FILE, profile);
+  found = true;
   notify();
   return profile;
 }
