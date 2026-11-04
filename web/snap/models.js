@@ -101,6 +101,7 @@ export const total = (list = settings()) => [...new Map(list.filter((s) => s.siz
 // setups the recipe's nodes offer (one entry per preset), each with the model files it would load
 const DIFFUSION = new Set(["base", "sft", "finetune", "turbo_merge"]);
 const short = (f) => base(f).replace(/\.(safetensors|gguf|sft|ckpt)$/, "");
+const isFile = (v) => typeof v === "string" && /\.(safetensors|gguf|sft|ckpt)$/.test(v);
 // a file as a setup card or preset names it: installed (by file name in any sub-folder), and whether core can load it
 function readiness(v) {
   const name = files.has(v) ? v : [...files.keys()].find((k) => base(k) === base(v));
@@ -121,8 +122,8 @@ export function setups() {
   }));
   // family recipe cards: every model file their bricks name, with readiness (✓ / missing / can't load)
   const cards = L.setupCards().map((c) => {
-    const values = c.brick.bricks.flatMap((b) => Object.values(b.values).flatMap((ws) => Object.entries(ws)));
-    const models = values.filter(([, v]) => typeof v === "string" && /\.(safetensors|gguf|sft|ckpt)$/.test(v)).map(([setting, v]) => ({ setting, ...readiness(v) }));
+    const values = flat(c);
+    const models = values.filter(([, v]) => isFile(v)).map(([setting, v]) => ({ setting, ...readiness(v) }));
     const first = (names) => values.find(([k]) => names.includes(k))?.[1]; // the first of each, as sampling() reads a live recipe
     return { name: c.title, family: c.family, source: "recipe", card: c.id, output: c.output, about: c.about, current: E.state().setup === c.id, models,
       values: { sampler: first(SAMPLING.sampler), schedule: first(SAMPLING.scheduler), steps: first(SAMPLING.steps), cfg: first(SAMPLING.cfg) } };
@@ -146,10 +147,12 @@ export function apply(name) {
 }
 
 // a family recipe card: on a fresh tab every value; in place (same family) prompt and seed stay, bricks the card doesn't
-// list go (Style and Cast stay with the shot and the cast), and the Turbo chip starts at off. One undo step
+// list go (Style and Cast stay with the shot and the cast). A core stack always takes the card's rows: they belong to the
+// setup, so the old setup's turbo or fix row never rides along (SNAP-R12). One undo step
 const KEEP = new Set(["prompt", "noise_seed"]);
+const coreRows = (b) => (BRICKS[b.key]?.stack?.role === "core" ? { ...b, values: { [BRICKS[b.key].stack.node]: { [BRICKS[b.key].stack.group]: 1, ...BRICKS[b.key].nodes[0].values, ...b.values[BRICKS[b.key].stack.node] } } } : b);
 export async function applyCard(card, { fresh }) {
-  const bricks = fresh ? card.brick.bricks : card.brick.bricks.map((b) => ({ ...b, values: Object.fromEntries(Object.entries(b.values).map(([k, ws]) => [k, Object.fromEntries(Object.entries(ws).filter(([name]) => !KEEP.has(name)))])) }));
+  const bricks = (fresh ? card.brick.bricks : card.brick.bricks.map((b) => ({ ...b, values: Object.fromEntries(Object.entries(b.values).map(([k, ws]) => [k, Object.fromEntries(Object.entries(ws).filter(([name]) => !KEEP.has(name)))])) }))).map(coreRows);
   let keys;
   app.canvas.emitBeforeChange();
   try {
@@ -241,26 +244,49 @@ export function turbos() {
 const host = () => E.state().bricks.find((b) => BRICKS[b.key].turbo)?.key ?? null;
 // every LoRA file installed, with what the model graph says about it (for "+ LoRA")
 export const loraChoices = () => [...files].filter(([, f]) => f.folder === "loras").map(([name]) => [name, entry(name)]);
-export const turbo = () => E.state().bricks.find((b) => b.key === host())?.turbo ?? null;
+// the turbo the graph holds (SNAP-R2): the diffusion model when it is a turbo merge, else the first core row that is a turbo
+export function turbo() {
+  const model = diffusion();
+  if (model && entry(model.file).turbo?.how === "merged") return { file: model.file, how: "merged" };
+  const r = coreStack() && rows(coreStack()).find((x) => x.on && x.entry?.turbo);
+  return r ? { file: r.file, how: "lora" } : null;
+}
+
+// what "off" puts back: the settings the turbo replaced when this page set it, else (a recipe rebuilt from a card) the
+// setup card's: the applied one, or the family's card on the turbo's Base/SFT lineage; a card holding a turbo is no guide
+const flat = (c) => c.brick.bricks.flatMap((b) => Object.values(b.values).flatMap((ws) => Object.entries(ws)));
+const named = (c) => flat(c).map(([, v]) => v).filter(isFile);
+function quality(was) {
+  const kept = E.state().bricks.find((b) => b.key === host())?.turbo;
+  if (kept?.file === was.file) return kept.quality;
+  const plain = (c) => c && !named(c).some((v) => entry(v).turbo);
+  const cards = L.setupCards().filter((c) => c.family === family()), model = (c) => named(c).find((v) => DIFFUSION.has(entry(v).kind));
+  const now = cards.find((c) => c.id === E.state().setup), card = plain(now) ? now : cards.find((c) => plain(c) && lineage(entry(model(c))) === lineage(entry(was.file)));
+  if (!card) throw new Error(`Off doesn't know the settings from before ${short(was.file)}; pick a setup instead`);
+  const out = [], at = sampling(), d = diffusion();
+  if (was.how === "merged") out.push([[d.brick, d.node, d.setting], model(card)]);
+  for (const [k, names] of Object.entries(SAMPLING)) { const v = flat(card).find(([n]) => names.includes(n))?.[1]; if (v != null && at[k]) out.push([[at[k].brick, at[k].node, at[k].name], v]); }
+  return out;
+}
 
 export function setTurbo(name) {
   const key = host(), stack = coreStack(), was = turbo();
   if (!key || !stack) throw new Error("This recipe has no Render brick with a core LoRA stack (the image recipes have one)");
   const t = name && name !== "off" ? turbos().find((x) => x.file === name || x.name === name || base(x.file) === base(name)) : null;
   if (name && name !== "off" && !t) throw new Error(`No turbo "${name}" for ${family() ?? "this recipe"}; there are: ${turbos().map((x) => x.name).join(", ") || "none installed"}`);
+  const back = was && quality(was);
   E.batch(() => {
     if (was) { // back to the quality settings first, so turbos swap instead of stacking
-      for (const [where, v] of was.quality) E.setValue(...where, v);
-      const r = was.how === "lora" && rows(stack).find((x) => x.file === was.file);
-      if (r) removeRow(stack, r.row);
+      for (const [where, v] of back) E.setValue(...where, v);
+      if (was.how === "lora") removeRow(stack, rows(stack).find((x) => x.file === was.file).row);
     }
     if (!t) return E.remember(key, "turbo", null);
-    const now = sampling(), model = diffusion(), quality = [];
-    const set = (where, v) => { quality.push([where, E.getValue(...where)]); E.setValue(...where, v); };
+    const now = sampling(), model = diffusion(), kept = [];
+    const set = (where, v) => { kept.push([where, E.getValue(...where)]); E.setValue(...where, v); };
     if (t.how === "merged") set([model.brick, model.node, model.setting], t.file);
     else addRow(stack, t.file, t.strength);
     for (const k of ["steps", "cfg", "sampler", "scheduler"]) if (t[k] != null && now[k] && (!now[k].choices || now[k].choices.includes(t[k]))) set([now[k].brick, now[k].node, now[k].name], t[k]);
-    E.remember(key, "turbo", { file: t.file, how: t.how, quality });
+    E.remember(key, "turbo", { file: t.file, how: t.how, quality: kept });
   });
   app.canvas.setDirty(true, true);
   return { turbo: t?.file ?? null, sampling: Object.fromEntries(Object.entries(sampling()).map(([k, v]) => [k, v.value])), warnings: warnings().map((w) => w.text) };
