@@ -84,9 +84,9 @@ async function finish(d, c, h) {
   if (c.pictures.some((p) => !p.media)) { c.state = "failed"; c.error = "the edit saved no frame"; return; }
   identity(d, c).then((r) => C.note(d, c, "identity", r));
 }
-function identity(d, c) {
+async function identity(d, c) {
   const v = d.clip.video, more = [Math.round(d.clip.frames / 4), Math.round((3 * d.clip.frames) / 4)].map((frame) => ({ video: v, frame }));
-  return K.identityCheck(c.pictures.map((p) => [{ video: v, frame: p.frame }, { image: K.annotated(p.media) }]), more).catch((e) => ({ error: e.message }));
+  try { return await K.identityCheck(c.pictures.map((p) => [{ video: v, frame: p.frame }, { image: K.annotated(p.media) }]), more, { does: (await method(d.method)).does }); } catch (e) { return { error: e.message }; }
 }
 // the identity notes again, for every candidate of an edit that has its frames (a note from an older check, or after the
 // model graph's thresholds changed); a few seconds of detection, nothing renders

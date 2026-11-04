@@ -25,9 +25,10 @@ export function noteChips(c) {
   else if (id) {
     const faces = `ArcFace on the face, the take's frame against the edit: ${id.scores.map((s) => s.face ?? "no face").join(", ")}`, hair = `lit hair (L* p90) against the take's frames (median ${id.hair_base ?? "?"}): ${id.scores.map((s) => (s.hair == null ? "not read" : sign(s.hair))).join(", ")}`;
     const missed = `${id.scores.some((s) => s.no_head) ? "; no head found in one of the crops" : ""}${id.unread ? `; not read: ${id.unread.faces} face(s), ${id.unread.hair} hair` : ""}`;
+    if (id.face_unreliable) out.push(h("span", { className: "snap-cand-note", textContent: "face check unreliable under relighting", title: `${faces}; under a ${id.face_unreliable} the same person scores as low as another (U56: 0.34-0.60 at night), so no face flag here: the head crops and the hair note decide${missed}` }));
     if (id.different) out.push(h("span", { className: "snap-cand-note warn", textContent: "probably a different person", title: `${faces}; below ${id.different_person} it is likely someone else, but dark frames and profiles score low too: compare the head crops${missed}` }));
     if (id.lighter) out.push(h("span", { className: "snap-cand-note warn", textContent: "hair lighter than original", title: `${hair}; above ${sign(id.hair_lighter)} the edit lightened her hair (it catches grey and silver, not blonder): compare the head crops${missed}` }));
-    if (!id.different && !id.lighter) out.push(h("span", { className: "snap-cand-note", textContent: `face ${id.face_low?.toFixed(2) ?? "–"} · hair ${id.hair_up == null ? "–" : sign(id.hair_up)}`,
+    if (!id.different && !id.lighter) out.push(h("span", { className: "snap-cand-note", textContent: `${id.face_unreliable ? "" : `face ${id.face_low?.toFixed(2) ?? "–"} · `}hair ${id.hair_up == null ? "–" : sign(id.hair_up)}`,
       title: `no identity flag. ${faces}; ${hair}. These miss blonder hair and drift on profiles: the head crops decide${missed}` }));
   }
   if (!out.length && c.state === "ready") out.push(h("span", { className: "snap-cand-note", textContent: "checking…" }));

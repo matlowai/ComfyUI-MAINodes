@@ -111,8 +111,9 @@ export async function layoutCheck(image, view) {
 // the identity notes: pairs of [original, edited] pictures (see source()), and `baseline`, more of the original's frames
 // for the hair's baseline (U56b compares against the take's frames, not one). Per picture SAM 3.1 finds the head (its
 // crop is for the person: one that isn't the crop size means no head was found), the face and the hair; per pair the
-// faces' cosine, per edit its hair's rise over the originals' median
-export async function identityCheck(pairs, baseline = []) {
+// faces' cosine, per edit its hair's rise over the originals' median. `does`: what the edit's method does (methods.json);
+// one the model graph lists in identity_check.unreliable_for (relighting) keeps the cosine but never the different-person flag
+export async function identityCheck(pairs, baseline = [], { does } = {}) {
   const { detector: name, face, identity, hair } = await needs();
   if (!name || !face || !hair) return { error: `the identity notes need ${!name ? "SAM 3.1 (models/checkpoints)" : !face ? "a face model with identity_check in the model graph (models/face_recognition/cvlface_arcface_ir101_webface4m.safetensors)" : "hair_check on SAM 3.1 in the model graph"}` };
   const g = { ...detector(name), fm: { class_type: "MAISnapFaceModelLoader", inputs: { model_name: face } } };
@@ -135,9 +136,9 @@ export async function identityCheck(pairs, baseline = []) {
       ...(heads.every(Boolean) ? {} : { no_head: heads.map((x) => !x) }) };
   }));
   const faces = scores.map((s) => s.face).filter((x) => x != null), rises = scores.map((s) => s.hair).filter((x) => x != null);
-  const low = faces.length ? Math.min(...faces) : null, up = rises.length ? Math.max(...rises) : null;
+  const low = faces.length ? Math.min(...faces) : null, up = rises.length ? Math.max(...rises) : null, unreliable = (identity.unreliable_for ?? []).includes(does);
   return { scores, face_low: low, hair_up: up, hair_base: base == null ? null : +base.toFixed(1), different_person: identity.different_person, hair_lighter: hair.lighter, region: identity.region,
-    different: low != null && low < identity.different_person, lighter: up != null && up > hair.lighter, ...(faces.length < pairs.length || rises.length < pairs.length ? { unread: { faces: pairs.length - faces.length, hair: pairs.length - rises.length } } : {}) };
+    ...(unreliable ? { face_unreliable: does } : {}), different: !unreliable && low != null && low < identity.different_person, lighter: up != null && up > hair.lighter, ...(faces.length < pairs.length || rises.length < pairs.length ? { unread: { faces: pairs.length - faces.length, hair: pairs.length - rises.length } } : {}) };
 }
 
 // a mask picture's box as fractions of the frame [x, y, w, h]; null when it is empty
