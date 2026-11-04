@@ -49,9 +49,16 @@ export function openings(s) {
 export const layout = (s) => [...s.props.map((p) => ({ name: p.name, kind: "prop", query: p.name, points: [p.at] })), ...s.room.openings.map((o) => ({ name: o.name || o.kind, kind: o.kind, query: o.kind, points: [o.from, middle(o), o.to] }))]
   .map(({ points, ...x }) => ({ ...x, k: null, where: null, ...framed(s.camera, points) }));
 
-// what this camera sees, left to right, each with where it sits in the frame (U21's camera sentences, from the plan)
+// the props this camera sees, left to right, each with where it sits in the frame (U21's camera sentences, from the plan)
 export function inFrame(s) {
-  return layout(s).filter((x) => x.where).sort((a, b) => a.k - b.k).map((x) => `the ${x.name} ${x.where}`).join(", ");
+  return layout(s).filter((x) => x.kind === "prop" && x.where).sort((a, b) => a.k - b.k).map((x) => `the ${x.name} ${x.where}`).join(", ");
+}
+// where each door and window must land in this camera's frame, the sides the layout check holds a picture to (U57: an
+// orbit candidate mirrored the room and put the window in view on the left), those out of view named as not in it
+export function frameSides(s) {
+  const rows = layout(s).filter((x) => x.kind !== "prop"), seen = rows.filter((x) => x.where).sort((a, b) => a.k - b.k), away = rows.filter((x) => !x.where);
+  return [seen.length ? `In this frame, left to right: ${seen.map((x) => `the ${x.name} ${x.where}`).join(", ")}.` : "No door or window is in this frame.",
+    away.length ? `${sentence(away.map((x) => `the ${x.name}`).join(" and "))} ${away.length > 1 ? "are" : "is"} not in this frame.` : null].filter(Boolean).join(" ");
 }
 
 // objects in the camera's view, left to right, and the set block that pins them ("exactly these N and nothing else"),

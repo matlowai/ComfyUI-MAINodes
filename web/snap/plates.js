@@ -18,7 +18,7 @@ import * as E from "./engine.js";
 import * as C from "./candidates.js";
 import * as K from "./checks.js";
 import { BRICKS } from "./bricks.js";
-import { setBlock, plateCameras, atCamera, cameraAt, inFrame, keeps, sameCamera } from "./setsnap.js";
+import { setBlock, plateCameras, atCamera, cameraAt, inFrame, frameSides, keeps, sameCamera } from "./setsnap.js";
 
 const REF2V = "Ref2V (reference pictures)"; // the Render Preset's conditioning the orbit needs (U49: the ref2va pair)
 const SIZE = { width: 1280, height: 704, length: 97 }; // U49's orbit renders (length 97 runs as 107 frames, about 64 s)
@@ -28,12 +28,13 @@ export const onChange = (fn) => listeners.add(fn);
 const changed = () => { for (const fn of listeners) fn(); };
 
 // the U49 orbit wording for one camera: a camera sentence that says what sits where in its frame (as U49's did; without
-// it the first Snap orbit copied the wide plate 3/3), the wide plate is <Picture 1>, this camera is somewhere else, and the
-// set block says what this camera sees, doors and windows included; nobody in the room
+// it the first Snap orbit copied the wide plate 3/3), which side of the frame each door and window is on (the sides the
+// layout check expects), the wide plate is <Picture 1>, this camera is somewhere else, and the set block says what this
+// camera sees; nobody in the room
 export function orbitText(s, cam) {
   const v = atCamera(s, cam);
   const seen = inFrame(v), size = cam.lens <= 28 ? "wide" : cam.lens <= 60 ? "medium" : "close";
-  return `integrated_multimodal_description: [Shot 1] Cinematic ${size} shot, ${cam.lens} mm, ${cameraAt(v)}${seen ? `: ${seen}` : ""}. This is the same ${s.name} shown in <Picture 1>, but the camera is not where <Picture 1> was taken: `
+  return `integrated_multimodal_description: [Shot 1] Cinematic ${size} shot, ${cam.lens} mm, ${cameraAt(v)}${seen ? `: ${seen}` : ""}. ${frameSides(v)} This is the same ${s.name} shown in <Picture 1>, but the camera is not where <Picture 1> was taken: `
     + `this is a new eye-height view from the position above, with a ${cam.lens} mm lens. Keep its ${keeps(s)} exactly as in <Picture 1>. ${s.look ? `${s.look} ` : ""}`
     + `${setBlock(v)} Nobody is in the room. The camera slowly pushes in.\n\n${SOUND}`;
 }
