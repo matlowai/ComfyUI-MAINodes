@@ -40,16 +40,33 @@ const node = (id) => app.graph.getNodeById(id);
 const widget = (n, name) => n?.widgets?.find((w) => w.name === name);
 const brick = (key) => state().bricks.find((b) => b.key === key);
 
+// an attachment's `inner` nodes live inside its host's blueprint (found by type), the rest are the brick's own
 export function nodeFor(brickKey, nodeKey) {
-  const b = brick(brickKey);
+  const b = brick(brickKey), inner = BRICKS[brickKey]?.attach?.inner?.[nodeKey];
+  if (b && inner) return nodeFor(BRICKS[brickKey].attach.brick, BRICKS[brickKey].attach.brick)?.subgraph?.nodes.find((n) => n.type === inner);
   return b && node(b.nodes[nodeKey]);
+}
+
+// a value as this machine has it: the exact choice, else the one choice with the same file name in another sub-folder
+// (recipes and presets name plain files; this machine may keep them in h3/); undefined when no choice fits
+export function resolveChoice(values, value) {
+  if (!Array.isArray(values) || values.includes(value) || typeof value !== "string") return value;
+  const base = (f) => String(f).replace(/\\/g, "/").split("/").pop();
+  const hits = values.filter((v) => base(v) === base(value));
+  return hits.length === 1 ? hits[0] : undefined;
+}
+// how Snap writes every setting: a choice that isn't installed is kept as the wanted value, so it shows as missing
+// (and fails validation) instead of a default quietly standing in for it
+function put(w, v) {
+  w.value = resolveChoice(w.options?.values, v) ?? v;
+  w.callback?.(w.value);
 }
 
 // several settings on one brick node as one undo step
 export function setValues(brickKey, nodeKey, values) {
   const n = nodeFor(brickKey, nodeKey);
   const ws = Object.keys(values).map((name) => widget(n, name) ?? (() => { throw new Error(`${brickKey}: no setting "${name}"`); })());
-  transaction(() => { for (const w of ws) { w.value = values[w.name]; w.callback?.(w.value); } });
+  transaction(() => { for (const w of ws) put(w, values[w.name]); });
   app.canvas.setDirty(true, true);
 }
 
@@ -196,10 +213,7 @@ async function snapOnce(key, { values, at } = {}) {
       n.pos = [x, y + dy];
       if (spec.title) n.title = spec.title;
       app.graph.add(n);
-      for (const [name, v] of Object.entries({ ...spec.values, ...values?.[spec.key] })) {
-        const w = widget(n, name);
-        if (w && (!w.options?.values || w.options.values.includes(v))) w.value = v;
-      }
+      for (const [name, v] of Object.entries({ ...spec.values, ...values?.[spec.key] })) { const w = widget(n, name); if (w) put(w, v); }
       ids[spec.key] = n.id;
       dy += (n.size?.[1] ?? 120) + 40;
     }
@@ -395,13 +409,28 @@ export function updateNote(id, changes) {
   return s.notes.find((n) => n.id === id);
 }
 
-// settings that point at nothing installed (a model file, an image), per brick node; what the readiness badge shows
+// nodes in the workflow that no brick owns (notes aside): Run would queue them too, so the view shows them
+export function outside() {
+  if (!state().bricks.length) return [];
+  const owned = new Set(state().bricks.flatMap((b) => Object.values(b.nodes).map(String)));
+  return app.graph.nodes.filter((n) => !owned.has(String(n.id)) && !NOTES.has(n.type));
+}
+
+// what Run queues: only the recipe's nodes (a blueprint's inner ones as "<outer>:<inner>", as the prompt names them) when
+// other nodes share the workflow, else everything (undefined)
+export function targets() {
+  if (!outside().length) return undefined;
+  const ids = (n, at = "") => [`${at}${n.id}`, ...(n.subgraph?.nodes ?? []).flatMap((x) => ids(x, `${at}${n.id}:`))];
+  return state().bricks.flatMap((b) => Object.values(b.nodes)).map(node).filter(Boolean).flatMap((n) => ids(n));
+}
+
+// settings that point at nothing installed (a model file, an image), on brick nodes and on nodes outside the recipe
+// (brick null); what the readiness badge shows
 export function missing() {
   const out = [];
-  for (const b of state().bricks) for (const id of Object.values(b.nodes)) {
-    const n = node(id);
-    for (const w of n?.widgets ?? []) if (Array.isArray(w.options?.values) && !w.options.values.includes(w.value)) out.push({ brick: b.key, node: n.title, setting: w.name, value: w.value ?? null });
-  }
+  const check = (key, n) => { for (const w of n?.widgets ?? []) if (Array.isArray(w.options?.values) && !w.options.values.includes(w.value)) out.push({ brick: key, node: n.title, setting: w.name, value: w.value ?? null }); };
+  for (const b of state().bricks) for (const id of Object.values(b.nodes)) check(b.key, node(id));
+  for (const n of outside()) check(null, n);
   return out;
 }
 
@@ -431,7 +460,7 @@ async function rebuild(saved) {
   transaction(() => saved.forEach(({ values }, i) => {
     for (const [nodeKey, ws] of Object.entries(values)) {
       const n = nodeFor(keys[i], nodeKey);
-      for (const [name, v] of Object.entries(ws)) { const w = widget(n, name); if (w && (!Array.isArray(w.options?.values) || w.options.values.includes(v))) { w.value = v; w.callback?.(v); } }
+      for (const [name, v] of Object.entries(ws)) { const w = widget(n, name); if (w) put(w, v); }
     }
   }));
   app.canvas.setDirty(true, true);

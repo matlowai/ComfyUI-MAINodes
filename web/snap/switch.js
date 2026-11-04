@@ -90,10 +90,10 @@ export function createSwitch(view) {
     });
   }
 
-  // frame the brick's nodes (or the whole recipe); the camera glides there in step with the cards (UX_SPEC 5). Docked,
-  // the graph is already visible, so "show in graph" is only this
+  // frame the brick's nodes (or the given nodes, or the whole recipe); the camera glides there in step with the cards
+  // (UX_SPEC 5). Docked, the graph is already visible, so "show in graph" is only this
   function frame(focusKey) {
-    const focus = focusKey ? brickNodes(focusKey) : E.state().bricks.flatMap((b) => brickNodes(b.key));
+    const focus = Array.isArray(focusKey) ? focusKey : focusKey ? brickNodes(focusKey) : E.state().bricks.flatMap((b) => brickNodes(b.key));
     if (!focus.length) return;
     const r = union(focus.map((n) => ({ left: n.pos[0], top: n.pos[1] - LiteGraph.NODE_TITLE_HEIGHT, width: n.size[0], height: n.size[1] + LiteGraph.NODE_TITLE_HEIGHT })));
     const bounds = [r.left, r.top, r.width, r.height], zoom = focusKey ? 0.6 : 0.85;
