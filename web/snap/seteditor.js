@@ -121,12 +121,12 @@ export function openSetEditor(host, card, { onApply, onSave }) {
         ...st.cameras.flatMap((c) => {
           const k = c.candidates, d = open.get(c.camera);
           const line = k?.rendering ? `rendering ${k.rendering} candidate${k.rendering === 1 ? "" : "s"}…` : k?.ready && !k.applied ? `${k.ready} candidate${k.ready === 1 ? "" : "s"} to pick below` : c.plate && !c.fits ? "the camera moved since: make again"
-            : c.plate ? (c.plate.copy_score != null ? `copy ${c.plate.copy_score.toFixed(2)} · picked ${c.plate.candidate ? c.plate.candidate.split("/").pop() : ""} · ${c.plate.picked_by ?? c.plate.by}` : `by hand (${c.plate.by})`)
+            : c.plate ? (c.plate.copy_score != null ? `copy ${c.plate.copy_score.toFixed(2)} · ${c.plate.candidate ? `picked ${c.plate.candidate.split("/").pop()}` : "last frame"} · ${c.plate.picked_by ?? c.plate.by}` : `by hand (${c.plate.by})`)
             : k?.failed ? `${k.failed} candidate${k.failed === 1 ? "" : "s"} failed` : "no plate yet";
           const t = tile(c.camera, c.fits ? c.plate : null, line, k?.rendering && !c.fits ? "rendering" : c.fits ? "" : "missing", c.camera);
           t.dataset.camera = c.camera;
           return [t, d ? h("div", { className: "snap-set-candrow" }, h("div", { className: "snap-rail-title", textContent: `${d.camera}: pick its plate` }), candidatesEl(d, { say: (x) => { plateNote.textContent = x; } })) : null];
-        }));
+        }).filter(Boolean)); // replaceChildren(null) would insert the text "null"
     }
     preview();
   }

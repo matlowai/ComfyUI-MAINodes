@@ -124,6 +124,7 @@ export async function settle() {
 // this page's own renders send events; renders queued under another client id don't, so poll while any is rendering
 for (const ev of ["execution_success", "execution_error", "execution_interrupted"]) api.addEventListener(ev, () => { settle().catch(() => {}); });
 setInterval(() => { if (decisions.some(rendering)) settle().catch(() => {}); }, 3000);
+load().catch(() => {}); // a reload picks up decisions still rendering
 
 // what an agent reads: the decision, each candidate's state, provenance and notes, what is applied, and how to undo
 export const describe = (d) => ({ id: d.id, kind: d.kind, target: d.target, title: d.title, by: d.by, status: d.status, applied: d.applied && { candidate: d.applied.candidate, by: d.applied.by, at: d.applied.at },

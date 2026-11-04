@@ -67,13 +67,14 @@ export async function save(take) {
   await store(`${DIR}/${take.id}.json`, take);
 }
 
-// what a node wrote: every listed file in its outputs, by kind from the extension
+// what a node wrote: every listed file in its outputs, by kind from the extension; a loader's preview of an input file
+// (LoadVideo shows the guide clip an edit read) is not something the run made
 const KIND = (f) => (/\.(mp4|webm|mov|mkv)$/i.test(f) ? "video" : /\.(png|jpe?g|webp|gif|avif)$/i.test(f) ? "image" : /\.(wav|flac|mp3|ogg|m4a)$/i.test(f) ? "audio" : null);
 function media(outputs) {
   const found = [];
   for (const [node, out] of Object.entries(outputs ?? {})) for (const list of Object.values(out)) {
     if (!Array.isArray(list)) continue;
-    for (const f of list) if (f?.filename && KIND(f.filename) && f.type !== "temp") found.push({ kind: KIND(f.filename), filename: f.filename, subfolder: f.subfolder ?? "", type: f.type ?? "output", node });
+    for (const f of list) if (f?.filename && KIND(f.filename) && f.type !== "temp" && f.type !== "input") found.push({ kind: KIND(f.filename), filename: f.filename, subfolder: f.subfolder ?? "", type: f.type ?? "output", node });
   }
   return found.sort((a, b) => ["video", "image", "audio"].indexOf(a.kind) - ["video", "image", "audio"].indexOf(b.kind));
 }

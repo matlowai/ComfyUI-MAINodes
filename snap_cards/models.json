@@ -1235,10 +1235,10 @@
     "source": "positional patch match to a known picture (U48 §3, U49, U52): copies 0.93-0.94 as a 5-frame mean and 0.77-0.90 on the last frame (U49 orbit_S1_22 0.77 and U52 master 0.799 were copies by eye), new views of the same room 0.50-0.66; 0.80 let both through"
    },
    "identity_check": {
-    "threshold": 0.93,
+    "threshold": 0.85,
     "region": "head",
     "evidence": "measured",
-    "source": "U54 calibration: the same patch match on SAM 3.1 head crops of a take's frame and its edit. A pure relight (same pixels darker and bluer) keeps 0.99; the four U53b MOSS night edits, whose hair went grey-silver or blonder by eye, scored 0.71-0.90; another frame of the same woman 0.62, another woman 0.40. n = 4 edits, 1 scene"
+    "source": "U54: the same patch match on SAM 3.1 head crops of a take's frame and its edit. A pure relight keeps 0.99; edits that reframed her or made her hair blonder 0.68-0.81 (U54 chinoll 0.675 / 0.777, U53b seed B 0.807 / 0.71); 0.86-0.90 holds both U53b seed A (hair grey-silver by eye) and U54 akhaliq (hair kept by eye, 0.870 / 0.871), so above 0.85 the crops on the candidate decide; another frame of the same woman 0.62, another woman 0.40. n = 6 edits, 1 scene"
    },
    "notes": "Snap's copy check (MAISnapCopyScore): did a take or a camera plate re-render its reference picture's view; and its identity check on head crops (edit a take)"
   },

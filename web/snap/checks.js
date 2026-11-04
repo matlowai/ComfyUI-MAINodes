@@ -6,8 +6,8 @@
 //   too (a door the plan puts behind the camera must not be found); props out of view don't (SAM 3.1 reads the lamp
 //   room's "lamp housing" as the floor lantern).
 // - identity: did an edit keep the person? DINOv3 patches by grid position (MAISnapCopyScore) on SAM 3.1 head crops of
-//   the original frame and the edited one; the model graph gives the threshold (a pure relight keeps 0.99, U53b's
-//   hair-drift edits 0.71-0.90).
+//   the original frame and the edited one; the model graph gives the threshold (a pure relight keeps 0.99, reframed or
+//   blonder edits 0.68-0.81; 0.86-0.90 holds both kept and grey-haired edits, so the tile shows the crops).
 // SNAP-R18 local only · SNAP-R21 plates · SNAP-R23 checks are notes, never rejections · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as M from "./models.js";

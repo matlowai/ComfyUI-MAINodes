@@ -20,7 +20,7 @@ export function noteChips(c) {
       title: `where ${n.layout.detector} finds each thing against the plan:\n${n.layout.rows.map((r) => `${r.ok === false ? "✗" : r.ok ? "✓" : "·"} ${r.name}: plan ${r.plan}, found ${r.found}`).join("\n")}` }));
   if (n.identity) out.push(n.identity.error ? h("span", { className: "snap-cand-note", textContent: "identity: not checked", title: n.identity.error })
     : h("span", { className: `snap-cand-note${n.identity.drifted ? " warn" : ""}`, textContent: `${n.identity.drifted ? "⚠ identity" : "identity"} ${n.identity.low.toFixed(2)}`,
-      title: `${n.identity.region} crops of the take's frames against the edited ones (DINOv3 patches by position): ${n.identity.scores.map((s) => s.score).join(", ")}; a pure relight keeps about 0.99, below ${n.identity.threshold} the person changed (hair, face)${n.identity.scores.some((s) => s.no_head) ? "; no head found in one of them" : ""}` }));
+      title: `${n.identity.region} crops of the take's frames against the edited ones (DINOv3 patches by position): ${n.identity.scores.map((s) => s.score).join(", ")}; a pure relight keeps about 0.99, below ${n.identity.threshold} the person changed (face, hair, framing); just above it, compare the crops${n.identity.scores.some((s) => s.no_head) ? "; no head found in one of them" : ""}` }));
   if (!out.length && c.state === "ready") out.push(h("span", { className: "snap-cand-note", textContent: "checking…" }));
   return out;
 }

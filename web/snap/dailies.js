@@ -46,7 +46,9 @@ export function createDailies({ host, say, onRestore }) {
   // the blind pairs waiting in this workflow (a pair set up in another workflow waits there)
   const waitingHere = async () => (await T.pending()).filter((p) => T.get(p.a)?.group === T.groupOf() && T.get(p.b)?.group === T.groupOf());
 
+  let shownGroup = null; // the strip follows the open workflow: a tab switch re-renders it (refresh runs on every view render)
   async function render() {
+    shownGroup = T.groupOf();
     const group = T.inGroup(), order = await T.ranking();
     const ranked = order.map(T.get).filter((t) => t && t.group === T.groupOf());
     const rest = group.filter((t) => !order.includes(t.id)).sort((a, b) => b.created - a.created);
@@ -63,7 +65,7 @@ export function createDailies({ host, say, onRestore }) {
 
   // stale chips: one live prompt per check, compared with every take in the strip; a newer check wins
   let checking = 0, timer = null;
-  const refresh = () => { clearTimeout(timer); timer = setTimeout(markStale, 250); };
+  const refresh = () => { if (shownGroup !== null && shownGroup !== T.groupOf()) return render(); clearTimeout(timer); timer = setTimeout(markStale, 250); };
   async function markStale() {
     const mine = ++checking, cards = [...strip.querySelectorAll(".snap-take")];
     if (!cards.length) return;
