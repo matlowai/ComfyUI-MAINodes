@@ -30,7 +30,9 @@ PIKA_PRESET = dict(model="minimax_h3_fl2va_pruned_int8_convrot.safetensors", lor
 # names with spaces cannot collide with saved presets, whose names are letters, digits, '_' and '-'
 BUILTIN = {
     "Pika H3 Flex": PIKA_PRESET,
-    "Pika + reference pictures": dict(PIKA_PRESET, conditioning=CONDITIONING[1]),
+    # Ref2V has its own checkpoint and adapter; Pika's ref2va manifest keeps the FL2V sampling (same knots, shifts 12 / 3)
+    "Pika + reference pictures": dict(PIKA_PRESET, model="minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+                                      lora="pika_h3_flex_ref2va_comfy_bf16.safetensors", conditioning=CONDITIONING[1]),
     # lcm + simple (the DMAD authors: lcm re-noises the way the students were trained), shifts 12 / 2, cfg 1; LoRA 0.8 and 6 steps
     # as the Banodoco community runs it (the authors say 1.0 and 4): on our train-platform test it was the crisper of the two,
     # in pass 1 and in the de-rope pass

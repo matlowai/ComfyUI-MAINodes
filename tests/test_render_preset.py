@@ -84,6 +84,9 @@ def check_presets():
             patch.dict(folder_paths.folder_names_and_paths, {"loras": ([scratch], {".safetensors"})}):
         names = render.list_presets()
         assert names[:3] == ["Pika H3 Flex", "Pika + reference pictures", "DMAD speed LoRA"], names
+        ref = render.load_preset("Pika + reference pictures")
+        assert (ref["model"], ref["lora"], ref["conditioning"]) == ("minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+                                                                   "pika_h3_flex_ref2va_comfy_bf16.safetensors", render.CONDITIONING[1])
         dmad = render.load_preset("DMAD speed LoRA")
         assert (dmad["steps"], dmad["lora_strength"], dmad["sampler"], dmad["shift_audio"], dmad["cfg"]) == (6, 0.8, "lcm", 2.0, 1.0)
         assert {k: render.load_preset("Pika H3 Flex")[k] for k in ("sampler", "schedule", "shift_video", "shift_audio")} == \
