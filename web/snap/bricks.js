@@ -61,13 +61,20 @@ const PACK = {
   },
   // attaches to Render's own setting: the blueprint has no VIDEO output yet, so Upscale is a switch, not a link. Its
   // settings are the RelayVSR Settings node inside the Render blueprint; `check` asks the server whether a run would find
-  // LightX2V and the weights for those settings
+  // LightX2V and the weights for those settings. The face is the outcome: the size the clip ends up, one Off / 2× / 4×
+  // control (Off keeps the brick and its settings), and the quality preset's short name
   upscale: {
     title: "Upscale", icon: "⤢", hue: 95, optional: true,
-    blurb: "RelayVSR 2x after the render",
+    blurb: "RelayVSR after the render",
     attach: { brick: "render", widget: "upscale", on: "RelayVSR 2x", off: "off", inner: { settings: "RelayVSRModelSettings" } },
     check: ["settings", "/mainodes/relayvsr/check"],
-    face: [["settings", "variant", "RelayVSR"], ["settings", "output_scale", "scale"]],
+    headline: (get, on) => {
+      const w = get("render", "render", "width"), ht = get("render", "render", "height"), k = Number(get("upscale", "settings", "output_scale"));
+      return on ? `${w}×${ht} → ${w * k}×${ht * k}` : `${w}×${ht} (not upscaled)`;
+    },
+    face: [["settings", "output_scale", "upscale", { inline: [{ label: "Off", attach: false }, { label: "2×", value: "2" }, { label: "4×", value: "4" }] }],
+      ["settings", "quality", "quality", { short: true }]],
+    explain: { variant: ["Model", "The X4 model is used for 2× too; it looked best in our tests."] },
   },
 };
 

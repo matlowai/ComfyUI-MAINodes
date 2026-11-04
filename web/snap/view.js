@@ -467,14 +467,40 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // what the node shows as pictures (a loaded image's preview, a run's output), read from the node
   const previews = (n) => (n.imgs ?? []).map((img) => img.src).filter(Boolean);
 
+  // an attachment is on while its host's switch isn't at its `off` value (Upscale Off keeps the brick and its settings)
+  const attachedOn = (key) => { const a = BRICKS[key]?.attach; return !a || E.getValue(a.brick, a.brick, a.widget) !== a.off; };
+  // a widget an attachment drives (Upscale's switch on Render) belongs to that attachment, never to its host's face or panel
+  const owned = (key, name) => PACK_BRICKS.some((k) => BRICKS[k].attach?.brick === key && BRICKS[k].attach.widget === name);
+
+  // a small choice right on the face, for face entries a pack brick marks `inline` (its own options, or the widget's
+  // choices / on-off): one press sets it, and it never selects or opens the brick
+  function inline(brick, [nodeKey, name, label, { inline: opts }]) {
+    const w = E.nodeFor(brick, nodeKey)?.widgets?.find((x) => x.name === name);
+    if (!w) return null;
+    const a = BRICKS[brick].attach, on = attachedOn(brick);
+    const list = Array.isArray(opts) ? opts : (Array.isArray(w.options?.values) ? w.options.values : [true, false]).map((v) => ({ label: typeof v === "boolean" ? (v ? "on" : "off") : String(v), value: v }));
+    const active = (o) => (o.attach === false ? !on : on && (o.value === undefined || o.value === w.value));
+    const pick = (o) => E.batch(() => {
+      if (a) E.setValue(a.brick, a.brick, a.widget, o.attach === false ? a.off : a.on);
+      if (o.value !== undefined) E.setValue(brick, nodeKey, name, o.value);
+    });
+    const seg = h("div", { className: "snap-inline", role: "radiogroup", ariaLabel: label },
+      list.map((o) => h("button", { className: active(o) ? "on" : "", role: "radio", ariaChecked: String(active(o)), textContent: o.label, onclick: (e) => { e.stopPropagation(); pick(o); render(null); } })));
+    seg.addEventListener("pointerdown", (e) => e.stopPropagation()); // SNAP-R7: a press here must not select or open the brick
+    return seg;
+  }
+
   // a brick shows its settings as values; they are edited in the inspector (select the brick)
-  function fact(brick, [nodeKey, name, label]) {
+  function fact(brick, f) {
+    const [nodeKey, name, label, opt] = f;
+    if (opt?.inline) return inline(brick, f);
     const w = E.nodeFor(brick, nodeKey)?.widgets?.find((x) => x.name === name);
     if (!w || w.type === "button" || w.hidden || (w.element && !(typeof w.value === "string" && w.value))) return null; // a panel without a value isn't a fact
     const v = w.value, values = w.options?.values;
     const missing = v == null || (Array.isArray(values) && !values.includes(v));
     if (M.isModel(w)) return modelChip(w, label, missing);
-    const text = v == null ? "missing" : typeof v === "boolean" ? (v ? "on" : "off") : Array.isArray(values) ? String(v).split("/").pop().replace(/\.safetensors$/, "") : String(v);
+    let text = v == null ? "missing" : typeof v === "boolean" ? (v ? "on" : "off") : Array.isArray(values) ? String(v).split("/").pop().replace(/\.safetensors$/, "") : String(v);
+    if (opt?.short) text = text.split(/[:(]/)[0].trim(); // "faithful: back-projection + residual 0.85" reads "faithful"
     if (name === "prompt") return h("div", { className: "snap-fact snap-prompt", title: v ?? "" }, h("span", { textContent: label }), h("p", { textContent: text.replace(/^integrated_multimodal_description:\s*/, "") }));
     return h("div", { className: `snap-fact${missing ? " missing" : ""}${text.length > 18 ? " long" : ""}`, title: missing ? `${text} (missing)` : text }, h("span", { textContent: label }), h("b", { textContent: text }));
   }
@@ -496,10 +522,10 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     return h("button", { className: `snap-preset${edited ? " edited" : ""}`, title: edited ? `${name}, with settings changed since; click to pick a setup` : "click to pick a setup",
       onclick: (e) => { e.stopPropagation(); openSetups(); } }, name ?? "custom settings", edited ? " · edited" : "", " ▾");
   }
-  // a brick's `check`: what the server says a run would fail on
-  function checkLine(key) {
+  // a brick's `check`: what the server says a run would fail on (a face says it only when something is wrong)
+  function checkLine(key, quiet) {
     const res = M.check(key);
-    if (!res) return null;
+    if (!res || (quiet && res.ready)) return null;
     return h("div", { className: `snap-check${res.ready ? " ok" : ""}`, title: [res.lightx2v && `LightX2V: ${res.lightx2v}`, !res.ready && res.help].filter(Boolean).join("\n") }, res.ready ? "✓ ready to run" : `✕ ${res.problems.join(" · ")}`);
   }
 
@@ -622,19 +648,20 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   function brickEl(info) {
     const def = BRICKS[info.brick];
-    const faces = [presetChip(info.brick), ...def.face.map((f) => fact(info.brick, f))].filter(Boolean);
+    const head = def.headline && h("div", { className: "snap-headline", textContent: def.headline((b, k, name) => E.getValue(b, k, name), attachedOn(info.brick)) });
+    const faces = [presetChip(info.brick), head, ...def.face.map((f) => fact(info.brick, f))].filter(Boolean);
     const body = [];
     const pics = Object.values(info.nodes).flatMap((id) => { const n = app.graph.getNodeById(id); return n ? previews(n) : []; });
     if (pics.length && info.brick !== "refs") body.push(h("div", { className: "snap-thumbs" }, pics.slice(0, 2).map((src) => h("img", { src, alt: "", loading: "lazy" }))));
     if (info.brick === "rack") body.push(D.face({ onChange: () => render(null), onPick: () => D.openPicker(root, { say, onChange: () => render(null), onMake: openMaker }), onMake: openMaker }));
     if (info.brick === "refs") body.push(...picturesFace());
-    if (def.check) body.push(checkLine(info.brick));
+    if (def.check && attachedOn(info.brick)) body.push(checkLine(info.brick, true)); // Off runs nothing, so nothing can be wrong
     if (info.brick === "render") {
       const shot = E.state().bricks.find((x) => x.key === "render")?.shot;
       if (shot) body.push(h("div", { className: "snap-shot-line", title: `prompt compiled from ${L.get(shot.card)?.title ?? shot.card}` }, shot.parts.map((x) => h("i", { className: `snap-dot ${x.field}` })), h("span", { textContent: (L.get(shot.card)?.title ?? shot.card).replace(/:.*/, "") })));
     }
     const open = opened === info.brick;
-    const el = h("section", { className: `snap-brick${def.attach ? " attached" : ""}${info.brick === "render" || (info.brick === "rack" && D.rows().length) ? " wide" : ""}${selected === info.brick ? " selected" : ""}${open ? " open" : ""}`, tabIndex: 0 },
+    const el = h("section", { className: `snap-brick${def.attach ? " attached" : ""}${attachedOn(info.brick) ? "" : " off"}${info.brick === "render" || (info.brick === "rack" && D.rows().length) ? " wide" : ""}${selected === info.brick ? " selected" : ""}${open ? " open" : ""}`, tabIndex: 0 },
       h("header", { className: "snap-head" },
         h("span", { className: "snap-grip", textContent: def.icon, title: "drag to reorder" }),
         h("span", { className: "snap-name", textContent: def.title, title: def.blurb }),
@@ -728,11 +755,13 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("div", { className: "snap-quiet", textContent: info.brick === "render" ? `${def.blurb} · saves to output/video/dials_simple` : def.blurb }),
       shot ? shotParts(shot) : null,
       def.check ? checkLine(info.brick) : null,
-      def.face.length ? h("div", { className: "snap-insp-node snap-insp-main" }, def.face.map((f) => control(info.brick, f))) : null,
+      def.face.length ? h("div", { className: "snap-insp-node snap-insp-main" }, def.face.map((f) => (f[3]?.inline ? inline(info.brick, f) : control(info.brick, f)))) : null,
       ...nodes.map(([k, n]) => h("div", { className: "snap-insp-node" },
         h("div", { className: "snap-insp-type", textContent: `${n.title} · ${n.type.length > 30 ? "blueprint" : n.type} #${n.id}${n.graph !== app.graph ? ` · inside ${BRICKS[def.attach.brick].title}` : ""}` }),
         previews(n).length ? h("div", { className: "snap-thumbs big" }, previews(n).map((src) => h("img", { src, alt: "" }))) : null,
-        (n.widgets ?? []).filter((w) => w.name && !faced.has(`${k}.${w.name}`)).map((w) => control(info.brick, [k, w.name])))),
+        (n.widgets ?? []).filter((w) => w.name && !faced.has(`${k}.${w.name}`) && !owned(info.brick, w.name)).flatMap((w) => [
+          ...(def.explain?.[w.name] ? [h("div", { className: "snap-insp-type", textContent: def.explain[w.name][0] }), h("div", { className: "snap-quiet", textContent: def.explain[w.name][1] })] : []),
+          control(info.brick, [k, w.name])]))),
       info.bindings.length ? h("div", { className: "snap-insp-type", textContent: "Wired from" }) : null,
       info.bindings.length ? h("div", { className: "snap-binds" }, info.bindings.filter((b) => b.rule !== "ask").map((b) => {
         const chip = h("button", { className: `snap-bind ${b.rule.split(":")[0]}`, textContent: b.value != null ? `${b.role} = ${b.value}` : `${b.role} ← ${BRICKS[b.from]?.title ?? b.from}`, title: `rule: ${b.rule}`, onclick: () => onSwitch(info.brick) });
@@ -759,7 +788,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   // what a brick shows: its bindings, overrides and face values (a graph edit or undo changes one of these)
   function signature(info) {
-    const values = BRICKS[info.brick].face.map(([k, name]) => E.getValue(info.brick, k, name));
+    const def = BRICKS[info.brick], values = def.face.map(([k, name]) => E.getValue(info.brick, k, name));
+    if (def.attach || def.headline) values.push(attachedOn(info.brick), def.headline?.((b, k, name) => E.getValue(b, k, name), attachedOn(info.brick)));
     if (info.brick === "rack") values.push(E.getValue("rack", "rack", "rack"), D.all().length, D.family()); // the face redraws once the catalog arrives
     values.push(presetNode(info.brick)?.presets.current(), BRICKS[info.brick].check && M.check(info.brick), M.known()); // chips get their sizes once the model lists arrive
     if (info.brick === "refs") values.push(E.state().bricks.find((b) => b.key === "refs")?.pictures);

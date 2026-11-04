@@ -144,6 +144,12 @@ export const STYLE = `
 .snap-preset:hover, .snap-preset:focus-visible { background: hsl(var(--hue) 60% 60% / .26); }
 .snap-preset.edited { box-shadow: inset 0 0 0 1px #f0b44599; }
 .snap-check { font-size: 11.5px; line-height: 1.35; color: #f0b445; } .snap-check.ok { color: #8fe3b0; }
+.snap-headline { grid-column: 1 / -1; font-size: 13px; font-weight: 650; line-height: 1.3; }
+.snap-inline { grid-column: 1 / -1; display: flex; padding: 2px; gap: 2px; border-radius: 9px; background: #00000040; box-shadow: inset 0 0 0 1px #ffffff14; }
+.snap-inline button { all: unset; flex: 1; text-align: center; cursor: pointer; padding: 3px 0; border-radius: 7px; font-size: 12px; font-weight: 600; color: var(--s-dim); }
+.snap-inline button:hover { color: var(--s-fg); } .snap-inline button:focus-visible { box-shadow: 0 0 0 2px hsl(var(--hue) 75% 64%); }
+.snap-inline button.on { background: hsl(var(--hue) 60% 55% / .32); color: var(--s-fg); }
+.snap-brick.off > :not(.snap-head):not(.snap-face) { opacity: .45; } .snap-brick.off .snap-headline { color: var(--s-dim); } .snap-brick.off .snap-grip { filter: grayscale(1); }
 .snap-setup, .snap-outside { all: unset; cursor: pointer; font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--s-card); white-space: nowrap; max-width: 46ch; min-width: 0; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; }
 .snap-setup { color: var(--s-fg); box-shadow: inset 0 0 0 1px hsl(265 60% 65% / .4); }
 .snap-outside { color: #f0b445; }
