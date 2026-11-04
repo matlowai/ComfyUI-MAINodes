@@ -43,13 +43,17 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
 ## Models, setups, LoRAs
 
 - **SNAP-R9: Setups own the whole model set.** A setup covers diffusion model, encoder + type, VAEs and core LoRAs.
-  Applying one is a single undo step. A family mismatch (e.g. an encoder type that doesn't fit the model) is shown,
+  Applying one is a single undo step. In Snap the setup's bricks (Models + Render Preset; the image kit's Models + Core
+  LoRAs) show as one Setup brick: family · model · turbo on its face, Models and Sampling sections when opened. The
+  graph and the engine keep them separate (SNAP-R2); moving, removing or selecting the card acts on all of them. A family mismatch (e.g. an encoder type that doesn't fit the model) is shown,
   not left as an empty family. *More:* MODEL_SWITCHING §4.
 - **SNAP-R10: Turbos are either merged into a checkpoint or are LoRAs.** Don't add a turbo LoRA on a turbo merge unless
   the person asks. Stacking N LoRAs, including 2-3 turbo LoRAs at lower strengths, is normal. Swapping turbos is one
   chip. *More:* MODEL_GRAPH_ONBOARDING §2.
 - **SNAP-R11: Warn and explain, never block.** Mismatches, odd stacks and degraded settings get a warning; the
-  workflow still runs (ComfyUI AGENTS.md "User Input Tolerance").
+  workflow still runs (ComfyUI AGENTS.md "User Input Tolerance"). An optional input with nothing to give is off, not
+  a failure: First frame starts bypassed until it has a picture (the H3 Render's first frame is optional, so the run is
+  text to video); a fresh recipe on a server with an empty input folder used to fail LoadImage's validation.
 - **SNAP-R12: LoRAs have roles.** The roles are core (turbo / fix / task / hires / edit / control), style, identity
   and dial. Each role has its own home:
   - core rows go with the setup;
@@ -60,7 +64,8 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   Unknown LoRAs ask once, and the answer is remembered. Identity LoRAs are private by default: never exported or
   shown on shared pages. *More:* MODEL_GRAPH_ONBOARDING §6.
 - **SNAP-R13: Family rules come from the model graph, not code branches.** These include: MOSS SFT always carries a
-  deband fix; MOSS Base wants long prompts (expander on); Krea Raw int8 is `int8_rowwise` and can't load in core.
+  deband fix; MOSS Base wants long, concrete prompts, and its prompt expander ("✨ Enhance prompt (LLM)" on the
+  Render) stays off by default because it can drop details; Krea Raw int8 is `int8_rowwise` and can't load in core.
   Pack entries are in `snap_cards/models.json`, and the person's own entries win. *More:* MODEL_GRAPH_ONBOARDING §1.
 - **SNAP-R14: A method slot (upscale, turbo, and later others) is a chip over interchangeable implementations.** All
   share one face shape. A method wired in by hand in the graph still shows up, recognised by its wiring (one media
@@ -108,7 +113,8 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
 
 - **SNAP-R15: Every UI action has an agent tool.** MCP and WebMCP are built from one table. Results carry the same
   warnings the UI shows. *More:* LESSONS "Agents, WebMCP, tools".
-- **SNAP-R16: GPU-spending tools wait as proposals** unless the person turns on "Let agents run". Each one states its
+- **SNAP-R16: GPU-spending tools wait as proposals** unless the person turns on "Let agents run". (Not gated:
+  `find_people` and `take_frames`, which render nothing: a few seconds of detection or frame reading.) Each one states its
   plan first: what it would run and about how long, in seconds from measured takes (or the study it came from), shown
   with the proposal and returned with the run (plan-then-approve, UX_GEMS #5). The bridge never strands the person's
   tab; it calls the newest tab that is still connected.
@@ -123,13 +129,17 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
 - **SNAP-R18: Local only.** No network or telemetry: registry, takes, profile and model graph are local files. Export
   happens only when the person asks. Model downloads run only when the person asks, in the agent's own tools, never
   from ComfyUI core.
-- **SNAP-R20: Private takes stay private, in the file too.** A take is private when any node of its prompt loads a file
-  the model graph gives role `identity` or tags `private`, whose real path (symlinks followed) is under one of the
-  person's private paths or matches one of their private patterns (user `snap/private.json`, local, never in the pack
-  and never read by the page), or when Snap's Cast brick has a LoRA row on; it is NSFW when it loads a file tagged
-  `nsfw`. Reasons name nodes, never files. A private prompt saves without metadata: the server swaps core's Save Image / Preview Image / Save
+- **SNAP-R20: Metadata in saved files is the person's switch; private takes are marked.** Saved pictures and videos
+  keep their prompt and workflow by default, as core saves them. "Save metadata", the switch right before Run (a ComfyUI
+  user setting, `MAINodes.Snap.SaveMetadata`, remembered per user), turns that off: every prompt the page queues then
+  carries `extra.snap_metadata: false` in its workflow, and the server swaps core's Save Image / Preview Image / Save
   Video for twins that write no prompt or workflow, and refuses, before anything runs, any other node that would write
-  them. The export leaves private and NSFW takes out unless asked (`--include-private`, `--include-nsfw`); the take
-  card shows a lock. A person's model graph or private.json that doesn't parse makes every prompt private. *Why:* core writes the
-  executed prompt and workflow, LoRA file names included, into every PNG and mp4 (verified with ffprobe on a U19 take),
-  and `--disable-metadata` is global. *More:* `snap_privacy.py`, `snap_bridge.py`; UX_GEMS #6, PLAN U22.
+  them. No warning chip. A take is private when any node of its prompt loads a file the model graph gives role
+  `identity` or tags `private`, whose real path (symlinks followed) is under one of the person's private paths or
+  matches one of their private patterns (user `snap/private.json`, local, never in the pack and never read by the
+  page), or when Snap's Cast brick has a LoRA row on; it is NSFW when it loads a file tagged `nsfw`. Reasons name nodes,
+  never files. The take card shows a lock, and the export leaves private and NSFW takes out unless asked
+  (`--include-private`, `--include-nsfw`). A person's model graph or private.json that doesn't parse makes every prompt
+  private. *Why:* core writes the executed prompt and workflow, LoRA file names included, into every PNG and mp4, and
+  `--disable-metadata` is global; Dylan chose metadata on for everything with one clean switch (2026-11-04) over
+  stripping private takes automatically. *More:* `snap_privacy.py`, `snap_bridge.py`, `web/snap/metadata.js`; PLAN U22, U58.
