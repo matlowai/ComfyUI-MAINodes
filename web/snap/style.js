@@ -38,7 +38,9 @@ export const STYLE = `
 .snap-rail, .snap-inspector { overflow: auto; padding: 16px 14px; display: flex; flex-direction: column; gap: 6px; background: color-mix(in srgb, var(--s-bg) calc(var(--veil) * 100%), transparent); }
 .snap-rail { border-right: 1px solid var(--s-line); }
 .snap-inspector { border-left: 1px solid var(--s-line); gap: 8px; min-width: 0; overflow: hidden auto; box-shadow: -12px 0 32px #0000002e; }
-.snap-insp-title .snap-x { margin-left: auto; opacity: 1; }
+.snap-collapse { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 2px; padding: 2px 6px 2px 2px; margin-left: -2px; border-radius: 9px; color: var(--s-dim); transition: background-color .12s ease-out; }
+.snap-collapse i { font-style: normal; font-size: 18px; line-height: 1; }
+.snap-collapse:hover, .snap-collapse:focus-visible { background: #ffffff14; color: var(--s-fg); }
 .snap-wired { font-size: 12px; color: var(--s-dim); padding: 6px 9px; border-radius: 9px; border: 1px dashed var(--s-line); }
 .snap-dom { border-radius: 10px; padding: 8px; background: #0000002e; border: 1px solid #ffffff10; overflow: auto; }
 .snap-dom > * { height: auto !important; }
@@ -95,7 +97,7 @@ export const STYLE = `
 @keyframes snap-details-in { from { opacity: 0; transform: translateY(6px); } }
 .snap-mode { all: unset; cursor: pointer; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px; color: var(--s-dim); font-size: 14px; }
 .snap-mode:hover { background: #ffffff14; color: var(--s-fg); }
-.snap-insp-title .snap-mode { margin-left: auto; } .snap-insp-title .snap-mode + .snap-x { margin-left: 0; }
+.snap-insp-title .snap-mode { margin-left: auto; }
 .snap-head .snap-mode { grid-column: 3; grid-row: 1; }
 .snap-brick.attached { width: 132px; }
 /* during a view switch only the card shell morphs; its content is gone in the first half of the flight */

@@ -277,7 +277,14 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     render(before);
   });
 
-  stack.addEventListener("pointerdown", (e) => { if (e.target === stack || e.target === lanes) { noting = false; setOpen(null); select(null); } });
+  // the side panel stays open until its collapse button (or Esc); a press on the empty chain only closes a brick opened in
+  // place. A press on the stack's own scrollbar has the stack as its target too, so presses outside its content box are skipped
+  stack.addEventListener("pointerdown", (e) => {
+    const onScrollbar = e.offsetX >= stack.clientWidth || e.offsetY >= stack.clientHeight;
+    if ((e.target === stack && !onScrollbar) || e.target === lanes) setOpen(null);
+  });
+  // the panel header's collapse button: the selected brick's own icon with a chevron
+  const collapse = (icon, onclick) => h("button", { className: "snap-collapse", title: "collapse the panel (Esc)", onclick }, h("span", { className: "snap-grip", textContent: icon }), h("i", { textContent: "›" }));
   root.addEventListener("keydown", (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); e.stopPropagation(); openPalette(); return; }
     if (e.target.closest("input,textarea,select")) return;
@@ -699,16 +706,15 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
           crewLine.textContent = n ? `Crew: ${a} of ${n} proposals accepted · ${Object.entries(kinds).map(([k, [x, y]]) => `${k} ${x}/${y}`).join(" · ")}` : "";
         }, () => {});
       }
-      inspector.replaceChildren(h("div", { className: "snap-insp-title" }, "Recipe", h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: () => { noting = false; select(null); } })),
+      inspector.replaceChildren(h("div", { className: "snap-insp-title" }, collapse("✎", () => { noting = false; select(null); }), "Recipe"),
         h("div", { className: "snap-quiet", textContent: "Notes here are for the whole recipe; select a brick to note on it." }), noteComposer(), crewLine);
       return;
     }
     giveBack();
     const def = BRICKS[info.brick];
     inspector.replaceChildren(...h("div", {},
-      h("div", { className: "snap-insp-title", style: `--hue:${def.hue}` }, h("span", { className: "snap-grip", textContent: def.icon }), def.title,
-        h("button", { className: "snap-mode", textContent: "⤢", title: "open bricks in place instead (remembered; also in Settings › MAINodes)", onclick: () => setOpenIn("brick") }),
-        h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: () => select(null) })),
+      h("div", { className: "snap-insp-title", style: `--hue:${def.hue}` }, collapse(def.icon, () => select(null)), def.title,
+        h("button", { className: "snap-mode", textContent: "⤢", title: "open bricks in place instead (remembered; also in Settings › MAINodes)", onclick: () => setOpenIn("brick") })),
       details(info), noteComposer()).childNodes); // h() drops the nulls
   }
 
