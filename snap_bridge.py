@@ -1,6 +1,8 @@
 """The /mainodes/snap routes: Library cards, semantic Library search, and a local bridge so CLI agents
 (tools/snap_mcp.py) call the same Snap tools the open page runs.
-The page owns the graph, so the server only relays a call to it over the websocket and waits for the page's answer."""
+The page owns the graph, so the server only relays a call to it over the websocket and waits for the page's answer.
+Also the privacy gate on saved files: a private prompt saves without its prompt and workflow (SNAP-R20).
+SNAP-R12 identity LoRAs are private · SNAP-R18 local only · SNAP-R20 private takes save without metadata · see docs/SNAP_RULES.md"""
 import asyncio
 import hashlib
 import json
@@ -14,7 +16,12 @@ import numpy as np
 from aiohttp import web
 
 import folder_paths
+import nodes
+from comfy_api.latest import io
+from comfy_extras.nodes_video import SaveVideo
 from server import PromptServer
+
+from . import snap_privacy
 
 TIMEOUT = 30
 tools = []         # the tool table the open Snap page registered
@@ -177,3 +184,96 @@ async def search(request):
             scores[i] = max(scores[i], float(vectors[images[c["id"]]] @ query))
     order = sorted(range(len(found)), key=lambda i: -scores[i])
     return web.json_response({"ids": [found[i]["id"] for i in order], "scores": [round(scores[i], 4) for i in order], "engine": "embeddinggemma-2"})
+
+
+# The privacy gate (SNAP-R20). Core's savers write the executed prompt and the workflow, LoRA file names included, into
+# every file, and only the global --disable-metadata turns that off; the prompt they write is the one queued, so a page
+# can't leave the names out. So every queued prompt is checked here: a private one has core's savers swapped for these
+# twins, which save the same file without the two, and any other node that reads them is refused before anything runs.
+class MAISaveImagePrivate(nodes.SaveImage):
+    DESCRIPTION = "Saves the images to your ComfyUI output directory without the prompt and workflow in the file (Snap saves private takes with it)."
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": nodes.SaveImage.INPUT_TYPES()["required"]}
+
+
+class MAIPreviewImagePrivate(nodes.PreviewImage):
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": nodes.PreviewImage.INPUT_TYPES()["required"]}
+
+
+class MAISaveVideoPrivate(SaveVideo):
+    @classmethod
+    def define_schema(cls):
+        schema = super().define_schema()
+        schema.node_id, schema.display_name = "MAISaveVideoPrivate", "Save Video (no metadata)"
+        schema.description = "Saves the video to your ComfyUI output directory without the prompt and workflow in the file (Snap saves private takes with it)."
+        return schema
+
+    @classmethod
+    def execute(cls, **kwargs):
+        cls.hidden.prompt = cls.hidden.extra_pnginfo = None  # cls is this run's own clone
+        return super().execute(**kwargs)
+
+
+class MAIPrivateSaveRefused:
+    """Stands in for a node that would write a private take's prompt into its file: it fails validation, so nothing runs."""
+    DEV_ONLY = True
+    CATEGORY = "MAINodes/snap"
+    RETURN_TYPES = ()
+    OUTPUT_NODE = True
+    FUNCTION = "refuse"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {"node": ("STRING", {})}}
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, node):
+        return (f"this take is private (an identity or Cast LoRA), and {node} writes the prompt and workflow, LoRA names included, "
+                "into its file. Save it with Save Image or Save Video: Snap saves private takes with those, without them.")
+
+    def refuse(self, node):
+        raise RuntimeError(self.VALIDATE_INPUTS(node))
+
+
+PRIVATE_SAVES = {"SaveImage": "MAISaveImagePrivate", "PreviewImage": "MAIPreviewImagePrivate", "SaveVideo": "MAISaveVideoPrivate"}
+
+
+def writes_metadata(class_type):
+    """Whether a node asks for the prompt or the workflow (savers write them into their files)."""
+    cls = nodes.NODE_CLASS_MAPPINGS.get(class_type)
+    if cls is None:
+        return False
+    if hasattr(cls, "define_schema"):  # V3: what the node declares (core adds both to every output node)
+        return bool({io.Hidden.prompt, io.Hidden.extra_pnginfo} & set(cls.define_schema().hidden or []))
+    return bool({"PROMPT", "EXTRA_PNGINFO"} & set(cls.INPUT_TYPES().get("hidden", {}).values()))
+
+
+def private_saves(json_data):
+    prompt = json_data.get("prompt")
+    if not isinstance(prompt, dict):
+        return json_data
+    extra = json_data.setdefault("extra_data", {})
+    found = snap_privacy.marks(prompt, (extra.get("extra_pnginfo") or {}).get("workflow"), snap_privacy.model_graph(folder_paths.get_user_directory()))
+    if not (found["private"] or found["nsfw"]):
+        return json_data
+    swapped = {}
+    for nid, node in list(prompt.items()) if found["private"] else []:
+        if node.get("class_type") in PRIVATE_SAVES:
+            swapped[nid] = node["class_type"]
+            node["class_type"] = PRIVATE_SAVES[node["class_type"]]
+        elif writes_metadata(node.get("class_type")):
+            prompt[nid] = {"class_type": "MAIPrivateSaveRefused", "inputs": {"node": node.get("_meta", {}).get("title") or node["class_type"]}, "_meta": node.get("_meta", {})}
+    # the page's take reads these from /history: the lock badge, the export filter, and the saver each node really is
+    extra["snap_marks"] = {"private": bool(found["private"]), "nsfw": bool(found["nsfw"]), "why": found["private"] + found["nsfw"], "swapped": swapped}
+    return json_data
+
+
+PromptServer.instance.add_on_prompt_handler(private_saves)
+NODE_CLASS_MAPPINGS = {"MAISaveImagePrivate": MAISaveImagePrivate, "MAIPreviewImagePrivate": MAIPreviewImagePrivate,
+                       "MAISaveVideoPrivate": MAISaveVideoPrivate, "MAIPrivateSaveRefused": MAIPrivateSaveRefused}
+NODE_DISPLAY_NAME_MAPPINGS = {"MAISaveImagePrivate": "Save Image (no metadata)", "MAIPreviewImagePrivate": "Preview Image (no metadata)",
+                              "MAIPrivateSaveRefused": "Private take: save refused"}
