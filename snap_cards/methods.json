@@ -19,6 +19,20 @@
       "title": "Edit a take",
       "off": "the take stays as it is",
       "about": "a method that makes a new take from an existing one (relight now; recast or cleanup later): its anchor frames are edited as candidates the person picks, then the edit is propagated over the take"
+    },
+    {
+      "id": "extend",
+      "kind": "take",
+      "title": "Extend / long clip",
+      "off": "the take ends where it ends",
+      "about": "a method that continues a take past H3's clip length, clip by clip, keeping it from drifting (colour, grit) as it goes (PLAN U46, scout/longclip_methods §6)"
+    },
+    {
+      "id": "region",
+      "kind": "take",
+      "title": "Edit a region",
+      "off": "the whole frame stays as rendered",
+      "about": "a method that re-renders only a masked region of a take (a face at distance, one person among several) and pastes it back; the rest of the frame is untouched (scout/h3_edit_tools §1)"
     }
   ],
   "methods": [
@@ -152,6 +166,48 @@
       "constraints": ["the MOSS edit is not a pure relight: it can reframe, swap objects and change hair colour (U53b), so check the anchors before the render"],
       "guidance": { "line": "MOSS edit of frames 0 and mid, then H3 Ripple with the take as its guide: night in the same shot, the best layout and motion tracking of three routes (patch to the day take 0.87 / 0.81 vs 0.73 / 0.69 for FL2V first frame)", "evidence": "measured", "source": "U53b (U40_DIAL_ENVELOPES, U53b section)", "n": 2, "hardware": "5090" },
       "cost": { "community_s": null, "local_s": [100, 140], "per": "two anchor edits (12-19 s each) plus the Ripple render (89-103 s for 90 frames)", "vram_gb": null }
+    },
+    {
+      "id": "chain",
+      "slot": "extend",
+      "kind": "take",
+      "title": "Chain",
+      "does": "masked carry, clip by clip",
+      "packs": ["H3ExtensionPlan", "H3TailContext", "H3ProtectPrefix", "H3SeamNormalize"],
+      "needs": [{ "folder": "diffusion_models", "match": "minimax_h3" }],
+      "local_or_api": "local",
+      "constraints": ["17k+5 frames per clip; overlap 39 + 51k frames"],
+      "guidance": { "line": "unlimited length, drift builds clip by clip; Anti-Burn 0.5 on clips 2+ is the cheap Standard protection (untested here)", "evidence": "opinion", "source": "scout/longclip_methods §6 (MAINodes h3_extend.py)" },
+      "cost": { "community_s": null, "local_s": null, "vram_gb": null },
+      "unwired": "not wired yet: needs the extend graph (U46) and one real run; untested in Snap"
+    },
+    {
+      "id": "geiru",
+      "slot": "extend",
+      "kind": "take",
+      "title": "Protected chain (Geiru)",
+      "does": "chain + keystone, late lock, context noise",
+      "packs": ["H3ClownContextExperimental", "H3ClownKeyframe", "H3ClownLateLock", "H3ClownContextNoise", "H3ClownProtectionLora", "H3ClownChain"],
+      "needs": [{ "folder": "diffusion_models", "match": "minimax_h3" }, { "folder": "loras", "match": "antiburn" }],
+      "local_or_api": "local",
+      "constraints": ["8 s clips (192 frames), context 39, drop_last 17", "turn protection off at cuts; the keystone must match the scene", "point Geiru Protection LoRA at the local Anti-Burn file: its default downloads it"],
+      "guidance": { "line": "best measured protection: 50 clips (about 5:20) over 4 scenes held where the plain chain broke; keystone + Late Lock step 4 + context noise 1 linear + Anti-Burn 0.6 on clips 2+; static shots still darken (untested here)", "evidence": "measured", "source": "scout/longclip_methods §3.2 (roycho87 NerdNotes, one seed per run)", "n": 1 },
+      "cost": { "community_s": null, "local_s": null, "vram_gb": null },
+      "unwired": "not wired yet: the Geiru nodes run through the graph, chained per clip; no Snap graph for it yet and no GPU run here (untested)"
+    },
+    {
+      "id": "crop_inpaint",
+      "slot": "region",
+      "kind": "take",
+      "title": "Cropped inpaint (MaskVidExperiments)",
+      "does": "crop to the subject, H3 inside the mask, paste back",
+      "packs": ["MVEx_MaskCleanup", "MVEx_SubjectCrop", "MVEx_MaskToLatentSpace", "MVEx_SubjectUncrop"],
+      "needs": [{ "folder": "diffusion_models", "match": "minimax_h3_ref2va" }, { "folder": "checkpoints", "match": "sam3" }],
+      "local_or_api": "local",
+      "constraints": ["mask from SAM 3.1 or any mask source", "crop modes: tracked (default), combined (no jitter, looser), zoomed", "17k+5 frames, sizes divisible by 32"],
+      "guidance": { "line": "faces at distance and one subject among several; a replaced head can jitter slightly (raise crop scale or use combined); 13 min for an 8 s 1664x864 clip on a 3060 12 GB (untested here)", "evidence": "measured", "source": "scout/h3_edit_tools §1 (drozbay / Ablejones; mdkb single run)", "n": 1, "hardware": "3060 12 GB" },
+      "cost": { "community_s": 780, "per": "8 s clip on a 3060", "local_s": null, "vram_gb": null },
+      "unwired": "not wired yet: needs the crop → Ref2V → mask-to-latent → uncrop graph and one real run; untested in Snap"
     }
   ]
 }
