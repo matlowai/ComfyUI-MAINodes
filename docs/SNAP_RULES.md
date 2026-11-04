@@ -65,7 +65,9 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
 - **SNAP-R14: A method slot (upscale, turbo, and later others) is a chip over interchangeable implementations.** All
   share one face shape. A method wired in by hand in the graph still shows up, recognised by its wiring (one media
   input and the same type out), never by its name. Slots and methods are data: `snap_cards/methods.json` under the
-  person's `snap/methods.json`. *More:* MODEL_GRAPH_ONBOARDING §7, scout/upscalers, UX_GEMS §5.
+  person's `snap/methods.json`. Render blueprints give their media (IMAGE, or H3's VIDEO with its sound), so a media
+  slot is the bricks between the Render and Save; a workflow saved with the older H3 Render (Save and the RelayVSR switch
+  inside it) runs as saved and offers a one-press upgrade. *More:* MODEL_GRAPH_ONBOARDING §7, scout/upscalers, UX_GEMS §5.
 
 ## Sets and continuity
 

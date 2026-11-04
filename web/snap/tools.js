@@ -73,7 +73,7 @@ export const TOOLS = [
     annotations: { readOnlyHint: true },
     run: () => PACK_BRICKS.map((key) => [key, BRICKS[key]]).map(([key, d]) => ({
       brick: key, title: d.title, does: d.blurb, in_recipe: has(key), takes: Object.keys(d.needs ?? {}), gives: Object.keys(d.provides ?? {}),
-      settings: d.face.map(([, name, label]) => ({ name, label })), ...(d.attach ? { attaches_to: d.attach.brick } : {}), ...(d.optional ? { optional: true } : {}),
+      settings: d.face.map(([, name, label]) => ({ name, label })), ...(d.optional ? { optional: true } : {}),
     })),
   },
   {
@@ -89,11 +89,18 @@ export const TOOLS = [
       overridden_in_graph: E.overrides().map((o) => ({ brick: o.to, role: o.role, change: o.change })),
       missing: [...E.missing(), ...M.unreadable()],
       outside_recipe: E.outside().map((n) => ({ id: n.id, type: n.type, title: n.title })),
+      ...(E.legacy() ? { older_render: { upscale: E.legacy().upscale, about: "the older H3 Render blueprint: it saves the video itself and holds the RelayVSR switch (its `upscale` setting); it runs as saved. upgrade_render gives Upscale and Save as bricks" } } : {}),
     }),
   },
   {
+    name: "upgrade_render",
+    description: "Upgrade a Render made from the older H3 blueprint (describe_recipe shows older_render: Save and the RelayVSR switch inside it) to the current one, as one undo step: the new Render takes its place, wires and settings, then Upscale (RelayVSR with the old settings, on when the old switch was) and Save (with the old Save's settings) follow it as bricks. The person's saved workflow runs as before either way.",
+    inputSchema: { type: "object", properties: {} },
+    run: () => E.upgrade(),
+  },
+  {
     name: "snap",
-    description: "Add a brick to the recipe (after `after`, or at the end). Returns the bindings it made. A brick that is already there is left as it is (no bindings returned); an attachment fails with a reason if its host brick is missing.",
+    description: "Add a brick to the recipe (after `after`, or at the end). Returns the bindings it made. A brick that is already there is left as it is (no bindings returned). Bricks that take the Render's video (Upscale, Save) fail with a reason on the older H3 Render: upgrade_render first.",
     inputSchema: { type: "object", properties: { brick: brickEnum, after: brickEnum }, required: ["brick"] },
     run: async ({ brick, after }) => {
       const keys = E.state().bricks.map((b) => b.key);

@@ -110,11 +110,10 @@ export function readable(name) {
   return false;
 }
 
-// a brick's nodes, its attachment's inner ones included, as [nodeKey, node]
+// a brick's nodes as [nodeKey, node]
 export function nodesOf(brickKey) {
   const b = E.state().bricks.find((x) => x.key === brickKey);
-  const keys = [...Object.keys(b?.nodes ?? {}), ...Object.keys(BRICKS[brickKey]?.attach?.inner ?? {})];
-  return keys.map((k) => [k, E.nodeFor(brickKey, k)]).filter(([, n]) => n);
+  return Object.keys(b?.nodes ?? {}).map((k) => [k, E.nodeFor(brickKey, k)]).filter(([, n]) => n);
 }
 
 // a dynamic group's placeholder: a LoRA stack keeps one row (the node's minimum), so an empty stack is its only row, off
@@ -209,8 +208,7 @@ export async function applyCard(card, { fresh }) {
     keys = await E.restore(bricks);
     for (const k of keys) E.remember(k, "card", card.id);
     const gone = E.state().bricks.filter((b) => b.card && b.card !== card.id && !BRICKS[b.key].slot && !["style", "identity"].includes(BRICKS[b.key].stack?.role)).map((b) => b.key);
-    for (const b of gone) E.unsnap(b);
-    if (gone.length) E.rebind(); // what they fed (the Render's model) binds to the brick before them again
+    for (const b of gone) E.unsnap(b); // what they fed (the Render's model) binds to the brick before them again
     E.tag("setup", card.id);
     E.tag("family", card.family);
     if (turboHost()) E.remember(turboHost(), "turbo", null);

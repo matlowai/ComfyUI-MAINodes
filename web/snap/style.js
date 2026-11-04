@@ -100,7 +100,6 @@ export const STYLE = `
 .snap-mode:hover { background: #ffffff14; color: var(--s-fg); }
 .snap-insp-title .snap-mode { margin-left: auto; }
 .snap-head .snap-mode { grid-column: 3; grid-row: 1; }
-.snap-brick.attached { width: 132px; }
 /* during a view switch only the card shell morphs; its content is gone in the first half of the flight */
 .snap-brick > * { opacity: clamp(0, calc((var(--veil) - .55) * 2.2), 1); }
 .graph-canvas-container.snap-open .litegraph-minimap { display: none; }
@@ -112,7 +111,6 @@ export const STYLE = `
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--s-app) 80%, transparent), 0 4px 12px #0006, inset 0 1px 0 #ffffff55;
   opacity: var(--veil); transition: opacity .15s ease-out; }
 .snap-stack:has(.snap-lifted) .snap-brick::after { opacity: 0; }
-.snap-brick.attached { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
 .snap-head { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto auto; column-gap: 6px; align-items: center; cursor: grab; touch-action: none; user-select: none; }
 .snap-head .snap-grip { grid-row: 1; width: 30px; height: 30px; font-size: 14px; border-radius: 9px; }
 .snap-head .snap-name { grid-column: 2; font-size: 14px; line-height: 1.2; letter-spacing: -.005em; }
@@ -502,7 +500,7 @@ export const STYLE = `
 @container (max-width: 760px) {
   .snap-body { grid-template-columns: minmax(0, 1fr); } .snap-rail, .snap-inspector { display: none; }
   .snap-stack { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; padding: 16px 12px 48px; --gap: 28px; }
-  .snap-brick, .snap-brick.wide, .snap-brick.attached { width: auto; min-height: 0; }
+  .snap-brick, .snap-brick.wide { width: auto; min-height: 0; }
   .snap-brick.feeds::after { left: 50%; top: calc(100% - 10px); width: 18px; height: calc(var(--gap) + 20px); margin-left: -9px; background: linear-gradient(180deg, hsl(var(--hue) 65% 58%), hsl(var(--next, var(--hue)) 65% 58%)); }
   .snap-lanes { display: none; } .snap-brick .snap-bind.more { display: inline-block; } .snap-insp-handle { display: none !important; }
   .snap-top { padding: 0 10px; gap: 6px; } .snap-brand, .snap-top .snap-quiet-btn { display: none; } .snap-notes { padding: 10px 12px 0; }

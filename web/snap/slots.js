@@ -1,8 +1,7 @@
 // Method slots (SNAP-R14, UX_GEMS §5): a slot is a named position holding one interchangeable method. A media slot sits
-// between two media sockets (upscale: the image Render's IMAGE and Save; RelayVSR is H3's switch inside its Render until
-// that blueprint gives VIDEO); a delta slot edits values on nodes that exist (turbo: its methods are the model graph's
-// turbos, in models.js); a take slot holds methods that make a new take from an existing one (edit: relight, in
-// edits.js), so nothing in the chain fills it. The registry is snap_cards/methods.json under the person's userdata snap/methods.json (field by
+// between two media sockets (upscale: the Render's IMAGE or VIDEO and Save); a delta slot edits values on nodes that
+// exist (turbo: its methods are the model graph's turbos, in models.js); a take slot holds methods that make a new take
+// from an existing one (edit: relight, in edits.js), so nothing in the chain fills it. The registry is snap_cards/methods.json under the person's userdata snap/methods.json (field by
 // field, the person wins, as the model graph). Readiness comes from the model folders and installed nodes at run time.
 // SNAP-R1 generic pass-through · SNAP-R4 outcome faces · SNAP-R11 warn, never block · SNAP-R13 data, not code branches ·
 // SNAP-R14 method slots · SNAP-R19 the tool table is the API · see docs/SNAP_RULES.md
@@ -44,7 +43,7 @@ export function holder(id) {
   const s = slot(id), keys = E.state().bricks.map((b) => b.key);
   if (s.kind === "delta") return M.turboHost();
   if (s.kind === "take") return null;
-  return keys.find((k) => methodOf(k)?.slot === id) ?? keys.find((k) => passes(k, s.media)) ?? null;
+  return keys.find((k) => methodOf(k)?.slot === id && M.nodesOf(k).length) ?? keys.find((k) => passes(k, s.media)) ?? null;
 }
 // the media slot a brick fills, if any (the view's face)
 export const slotOf = (key) => methodOf(key)?.slot ?? registry.slots.find((s) => s.kind === "media" && holder(s.id) === key)?.id ?? null;
@@ -69,15 +68,9 @@ export function list(id) {
     .concat(now?.startsWith("node:") ? [{ id: "custom", title: `Custom: ${BRICKS[now].title}`, does: "hand-wired", scale: null, install_state: "ready", wired: true, fits: true, current: true }] : []);
 }
 
-// on / off: an attachment flips its host's switch (H3 RelayVSR); a slot brick is bypassed, its settings kept
-export function on(key) {
-  const a = BRICKS[key]?.attach;
-  if (a) return E.getValue(a.brick, a.brick, a.widget) !== a.off;
-  return M.nodesOf(key).some(([, n]) => n.mode !== 4);
-}
+// on / off: a slot brick is bypassed, its settings kept
+export const on = (key) => M.nodesOf(key).some(([, n]) => n.mode !== 4);
 export function setOn(key, value) {
-  const a = BRICKS[key].attach;
-  if (a) return E.setValue(a.brick, a.brick, a.widget, value ? a.on : a.off);
   E.batch(() => { for (const [, n] of M.nodesOf(key)) n.mode = value ? 0 : 4; });
   app.canvas.setDirty(true, true);
 }
@@ -154,6 +147,7 @@ export async function set(id, choice, { factor: f } = {}) {
   if (!m.brick || m.unwired) throw new Error(`${m.title}: ${m.unwired ?? "not wired yet"}`);
   const k = kit(E.state().bricks.map((b) => b.key));
   if (k && m.kit !== k) throw new Error(`${m.title} is for ${m.kit} recipes; this one makes ${k === "image" ? "pictures" : "video"}`);
+  if (E.legacy()) throw new Error("This workflow has the older H3 Render, with RelayVSR inside it: upgrade it first (upgrade_render), then pick the method");
   const keep = f ?? (now && methodOf(now) ? factor(now) : null); // a Custom holder's factor isn't known
   let key = now;
   app.canvas.emitBeforeChange();
@@ -161,7 +155,7 @@ export async function set(id, choice, { factor: f } = {}) {
     if (method(now) !== choice) {
       const keys = E.state().bricks.map((b) => b.key), places = [now ? keys.indexOf(now) : -1, ...(now ? consumers(now) : []).map((c) => keys.indexOf(c)), sink(s.media)].filter((i) => i >= 0);
       key = (await E.snap(m.brick, { at: places.length ? Math.min(...places) : undefined })).brick;
-      if (now) { E.unsnap(now); E.rebind(); }
+      if (now) E.unsnap(now);
     }
     setFactor(key, keep ?? start(m, key));
   } finally { app.canvas.emitAfterChange(); }
@@ -174,8 +168,8 @@ export async function set(id, choice, { factor: f } = {}) {
 export function previewTargets(id) {
   const key = holder(id);
   if (!key) throw new Error(`Nothing fills the ${id} slot`);
-  const from = BRICKS[key].attach?.brick ?? key, out = [], seen = new Set();
-  const todo = Object.values(E.state().bricks.find((b) => b.key === from).nodes).map((n) => app.graph.getNodeById(n)).filter(Boolean);
+  const out = [], seen = new Set();
+  const todo = Object.values(E.state().bricks.find((b) => b.key === key).nodes).map((n) => app.graph.getNodeById(n)).filter(Boolean);
   while (todo.length) {
     const n = todo.pop();
     if (seen.has(n.id)) continue;

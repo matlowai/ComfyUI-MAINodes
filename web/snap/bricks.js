@@ -62,13 +62,14 @@ const PACK = {
   },
   render: {
     kit: "video", title: "Render", icon: "▶", hue: 330,
-    blurb: "H3 + Pika + de-rope, saves the video",
+    blurb: "H3 + Pika + de-rope, gives the video with its sound",
     blueprint: RENDER_BLUEPRINT,
     needs: {
       clip: ["render", "clip"], video_vae: ["render", "vae"], audio_vae: ["render", "vae_1"], model: ["render", "model"],
       sampler: ["render", "sampler"], sigmas: ["render", "sigmas"], derope_steps: ["render", "steps"],
       conditioning: ["render", "branch"], cfg: ["render", "cfg"], first_frame: ["render", "first_frame"], refs: ["render", "refs"],
     },
+    provides: { video: ["render", "VIDEO"] },
     face: [["render", "prompt", "prompt"], ["render", "length", "frames"], ["render", "noise_seed", "seed"], ["render", "choice", "de-rope"]],
   },
   // image families (MOSS-Image, Krea 2): loaders, the LoRA stacks, then the Dial Rack and any model patches, into the image
@@ -123,17 +124,26 @@ const PACK = {
     needs: { image: ["save", "images"] },
     face: [["save", "filename_prefix", "saves as"]],
   },
-  // attaches to Render's own setting: the blueprint has no VIDEO output yet, so Upscale is a switch, not a link. Its
-  // settings are the RelayVSR Settings node inside the Render blueprint; `check` asks the server whether a run would find
-  // LightX2V and the weights for those settings. As a slot brick its face is the outcome (slots.js): the size the clip
-  // ends up, one Off / 2× / 4× control (Off keeps the brick and its settings), and the quality preset's short name
+  // the upscale slot between the H3 Render and Save (SNAP-R14): RelayVSR takes the clip and gives it back larger, sound
+  // included. As a slot brick its face is the outcome (slots.js): the size the clip ends up, one Off / 2× / 4× control
+  // (Off bypasses both nodes and keeps their settings), and the quality preset's short name; `check` asks the server
+  // whether a run would find LightX2V and the weights for these settings
   upscale: {
     kit: "video", slot: "upscale", title: "Upscale", icon: "⤢", hue: 95, optional: true,
     blurb: "RelayVSR after the render",
-    attach: { brick: "render", widget: "upscale", on: "RelayVSR 2x", off: "off", inner: { settings: "RelayVSRModelSettings" } },
+    nodes: [{ key: "settings", type: "RelayVSRModelSettings", title: "RelayVSR Settings" }, { key: "upscale", type: "RelayVSRUpscaleVideo", title: "RelayVSR", values: { seed: 42, control_after_generate: "fixed" } }],
+    links: [["settings", "settings", "upscale", "settings"]],
+    needs: { video: ["upscale", "video"] }, provides: { video: ["upscale", "video"] },
     check: ["settings", "/mainodes/relayvsr/check"],
     face: [["settings", "quality", "quality", { short: true }]],
     explain: { variant: ["Model", "The X4 model is used for 2× too; it looked best in our tests."] },
+  },
+  save_video: {
+    kit: "video", title: "Save", icon: "⬇", hue: 170,
+    blurb: "saves the video to output/",
+    nodes: [{ key: "save", type: "SaveVideo", title: "Save video", values: { filename_prefix: "video/dials_simple" } }],
+    needs: { video: ["save", "video"] },
+    face: [["save", "filename_prefix", "saves as"]],
   },
 };
 
@@ -172,5 +182,5 @@ export function nodeTypes() {
     .map(([type, c]) => ({ type, title: c.nodeData.display_name || type, category: c.nodeData.category || "" }));
 }
 
-// the Simple recipe in reading order; Save lives inside the Render blueprint (video/dials_simple)
-export const SIMPLE_RECIPE = ["models", "preset", "rack", "first_frame", "refs", "render", "upscale"];
+// the Simple recipe in reading order
+export const SIMPLE_RECIPE = ["models", "preset", "rack", "first_frame", "refs", "render", "upscale", "save_video"];

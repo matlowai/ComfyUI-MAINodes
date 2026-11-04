@@ -194,7 +194,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     stack,
     cardTarget: (id) => L.TARGET[L.get(id)?.kind],
     onCard: (id) => applyCard(id),
-    accepts: (key) => !E.state().bricks.some((b) => b.key === key) && (!BRICKS[key].attach || E.state().bricks.some((b) => b.key === BRICKS[key].attach.brick)),
+    accepts: (key) => !E.state().bricks.some((b) => b.key === key),
     onMove: (key, index) => { const before = rects(); E.move(key, index); render(before); },
     onInsert: (key, index) => add(key, index),
   });
@@ -224,7 +224,6 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const keys = E.state().bricks.map((b) => b.key);
     let i = keys.indexOf(selected);
     if (i < 0) i = keys.length - 1;
-    while (BRICKS[keys[i + 1]]?.attach?.brick === keys[i] || BRICKS[keys[i + 1]]?.attach?.brick === selected) i++; // keep attachments on their host
     add(key, i + 1);
   }
   query.addEventListener("input", search);
@@ -333,7 +332,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   async function startSimple() {
     await M.freshTab();
-    for (const key of SIMPLE_RECIPE) await E.snap(key);
+    for (const key of SIMPLE_RECIPE) if (!(BRICKS[key].needs?.video && E.legacy())) await E.snap(key); // an older served blueprint saves its own video
     select("render", false);
     render(null);
   }
@@ -473,9 +472,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   const previews = (n) => (n.imgs ?? []).map((img) => img.src).filter(Boolean);
 
   // a slot brick is on while it runs (Upscale Off keeps the brick and its settings); other bricks always are
-  const attachedOn = (key) => !BRICKS[key]?.slot || S.on(key);
-  // a widget an attachment drives (Upscale's switch on Render) belongs to that attachment, never to its host's face or panel
-  const owned = (key, name) => PACK_BRICKS.some((k) => BRICKS[k].attach?.brick === key && BRICKS[k].attach.widget === name);
+  const isOn = (key) => !BRICKS[key]?.slot || S.on(key);
 
   // a small choice right on the face, for face entries a pack brick marks `inline` (its own options, or the widget's
   // choices / on-off): one press sets it, and it never selects or opens the brick
@@ -748,6 +745,19 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("button", { className: "snap-reject", textContent: "Dismiss", onclick: () => close("dismissed") }));
   }
   const isOpen = (n) => n.status === "open" || n.status === "answered";
+  // a workflow saved with the older H3 Render (Save and the RelayVSR switch inside it) runs as saved; one press upgrades
+  // it (the upgrade_render tool's function)
+  function legacyNote(old) {
+    if (!old) return null;
+    const upgrade = async () => {
+      const before = rects();
+      try { const r = await E.upgrade(); say(`Render upgraded: Upscale ${r.upscale ?? "not added"}, Save after it · Ctrl+Z takes it back`); } catch (err) { say(err.message, true); }
+      render(before);
+    };
+    return h("div", { className: "snap-note snap-legacy" }, h("span", { className: "snap-note-tag", textContent: "older Render" }),
+      h("span", { className: "snap-note-text", textContent: `This Render is the older H3 blueprint: it saves the video itself${old.upscale ? `, upscale: ${old.upscale}` : ""}. It runs as saved. Upgrade to get Upscale and Save as bricks after it.` }),
+      h("button", { className: "snap-accept", textContent: "Upgrade", onclick: upgrade }));
+  }
   // notes on a brick that has since been removed stay visible (with the recipe's own) until someone closes them
   const openNotes = (brick) => E.notes().filter((n) => isOpen(n) && (n.brick === brick || (brick === null && n.brick && !E.state().bricks.some((b) => b.key === n.brick))));
 
@@ -761,7 +771,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     if (info.brick === "refs") body.push(...picturesFace());
     if (def.stack) body.push(stackFace(info.brick));
     body.push(...warnLines(info.brick));
-    if (def.check && attachedOn(info.brick)) body.push(checkLine(info.brick, true)); // Off runs nothing, so nothing can be wrong
+    if (def.check && isOn(info.brick)) body.push(checkLine(info.brick, true)); // Off runs nothing, so nothing can be wrong
     const from = info.brick === "first_frame" && takenFrom();
     if (from) body.push(h("button", { className: "snap-link snap-quiet-btn snap-from", textContent: `↳ take ${from.number}, frame ${from.frame}`, title: "this picture is a frame of that take (Use as input): click to open the take",
       onclick: (e) => { e.stopPropagation(); const t = T.get(from.take); if (t) dailies.view(t); else say(`Take ${from.number} isn't in this page's takes`, true); } }));
@@ -770,7 +780,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       if (shot) body.push(h("div", { className: "snap-shot-line", title: `prompt compiled from ${L.get(shot.card)?.title ?? shot.card}` }, shot.parts.map((x) => h("i", { className: `snap-dot ${x.field}` })), h("span", { textContent: (L.get(shot.card)?.title ?? shot.card).replace(/:.*/, "") })));
     }
     const open = opened === info.brick;
-    const el = h("section", { className: `snap-brick${def.attach ? " attached" : ""}${attachedOn(info.brick) ? "" : " off"}${["render", "image"].includes(info.brick) || (info.brick === "rack" && D.rows().length) || (def.stack && M.rows(info.brick).length) ? " wide" : ""}${selected === info.brick ? " selected" : ""}${open ? " open" : ""}`, tabIndex: 0 },
+    const el = h("section", { className: `snap-brick${isOn(info.brick) ? "" : " off"}${["render", "image"].includes(info.brick) || (info.brick === "rack" && D.rows().length) || (def.stack && M.rows(info.brick).length) ? " wide" : ""}${selected === info.brick ? " selected" : ""}${open ? " open" : ""}`, tabIndex: 0 },
       h("header", { className: "snap-head" },
         h("span", { className: "snap-grip", textContent: def.icon, title: "drag to reorder" }),
         h("span", { className: "snap-name", textContent: def.title, title: def.blurb }),
@@ -789,7 +799,6 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       else if (e.target.closest(".snap-head")) setOpen(null);
     });
     el.dataset.brick = info.brick;
-    if (def.attach) el.dataset.host = def.attach.brick;
     el.querySelector(".snap-head").dataset.grip = "";
     el.style.setProperty("--hue", def.hue);
     el.addEventListener("pointerdown", () => select(info.brick));
@@ -863,14 +872,14 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const faced = new Set(def.face.map(([k, name]) => `${k}.${name}`));
     const shot = info.brick === "render" && E.state().bricks.find((x) => x.key === "render")?.shot;
     return h("div", { className: "snap-details" },
-      h("div", { className: "snap-quiet", textContent: info.brick === "render" ? `${def.blurb} · saves to output/video/dials_simple` : def.blurb }),
+      h("div", { className: "snap-quiet", textContent: def.blurb }),
       shot ? shotParts(shot) : null,
       def.check ? checkLine(info.brick) : null,
       def.face.length ? h("div", { className: "snap-insp-node snap-insp-main" }, def.face.map((f) => (f[3]?.inline ? inline(info.brick, f) : control(info.brick, f)))) : null,
       ...nodes.map(([k, n]) => h("div", { className: "snap-insp-node" },
-        h("div", { className: "snap-insp-type", textContent: `${n.title} · ${n.type.length > 30 ? "blueprint" : n.type} #${n.id}${n.graph !== app.graph ? ` · inside ${BRICKS[def.attach.brick].title}` : ""}` }),
+        h("div", { className: "snap-insp-type", textContent: `${n.title} · ${n.type.length > 30 ? "blueprint" : n.type} #${n.id}` }),
         previews(n).length ? h("div", { className: "snap-thumbs big" }, previews(n).map((src) => h("img", { src, alt: "" }))) : null,
-        (n.widgets ?? []).filter((w) => w.name && !faced.has(`${k}.${w.name}`) && !owned(info.brick, w.name)).flatMap((w) => [
+        (n.widgets ?? []).filter((w) => w.name && !faced.has(`${k}.${w.name}`)).flatMap((w) => [
           ...(def.explain?.[w.name] ? [h("div", { className: "snap-insp-type", textContent: def.explain[w.name][0] }), h("div", { className: "snap-quiet", textContent: def.explain[w.name][1] })] : []),
           control(info.brick, [k, w.name])]))),
       info.bindings.length ? h("div", { className: "snap-insp-type", textContent: "Wired from" }) : null,
@@ -995,12 +1004,12 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     }
   }
 
-  // a brick that takes the previous brick's output (or rides on it) is coupled to it: the two read as one piece
+  // a brick that takes the previous brick's output is coupled to it: the two read as one piece
   function couple() {
     const els = [...stack.querySelectorAll(":scope > [data-brick]:not(.snap-folded)")], infos = new Map(E.describe().map((i) => [i.brick, i]));
     els.forEach((el, i) => {
       const next = els[i + 1], key = el.dataset.brick, info = next && infos.get(next.dataset.brick);
-      const feeds = !!info && (BRICKS[info.brick].attach?.brick === key || info.bindings.some((b) => b.from === key && b.rule !== "ask"));
+      const feeds = !!info && info.bindings.some((b) => b.from === key && b.rule !== "ask");
       el.classList.toggle("feeds", feeds);
       if (feeds) el.style.setProperty("--next", BRICKS[info.brick].hue);
     });
@@ -1044,10 +1053,10 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // FLIP: bricks that moved spring from their old place; new ones rise in
   function render(before, entered) {
     dailies.refresh();
-    const infos = E.describe();
+    const old = E.legacy(), infos = E.describe().filter((i) => !old || Object.keys(i.nodes).length); // the older Render's Upscale switch had no nodes
     overridden = infos.length ? E.overrides() : [];
     for (const key of built.keys()) if (!infos.some((i) => i.brick === key)) built.delete(key);
-    notesStrip.replaceChildren(...openNotes(null).map(noteEl));
+    notesStrip.replaceChildren(...[legacyNote(old), ...openNotes(null).map(noteEl)].filter(Boolean));
     stack.replaceChildren(...(infos.length ? infos.map(reuse) : [h("div", { className: "snap-empty" },
       h("div", { className: "snap-empty-art" }, [210, 265, 35, 330].flatMap((hue, i) => [i ? h("b", { style: `--hue:${hue}` }) : null, h("i", { style: `--hue:${hue}` })])),
       h("div", { className: "snap-empty-title", textContent: "Build a recipe" }),

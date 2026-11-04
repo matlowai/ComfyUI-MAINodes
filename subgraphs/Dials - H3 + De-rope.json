@@ -5,7 +5,7 @@
   "nodes": [
     {
       "id": 172,
-      "type": "83d0b38d-1673-4088-a52e-666203d5037e",
+      "type": "fd72eb46-d18d-4724-acb4-0d0a07108c70",
       "pos": [
         1260,
         0
@@ -181,17 +181,16 @@
             "name": "switch"
           },
           "link": null
-        },
-        {
-          "name": "upscale",
-          "type": "COMBO",
-          "widget": {
-            "name": "upscale"
-          },
-          "link": null
         }
       ],
-      "outputs": [],
+      "outputs": [
+        {
+          "localized_name": "VIDEO",
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
       "title": "Dials - H3 + De-rope",
       "properties": {
         "previewExposures": []
@@ -208,8 +207,7 @@
         "off",
         0.48,
         4,
-        false,
-        "off"
+        false
       ],
       "widgets_values_named": {
         "prompt": "integrated_multimodal_description: [Shot 1] Cinematic, natural light. An adult woman in a red coat walks along an empty train platform at dusk as a train slowly pulls in beside her. The camera tracks with her.\n\noverall_soundscape: Her footsteps on concrete, the train's brakes hissing, a distant announcement echoing.\n\nnon_diegetic_music: N/A",
@@ -223,8 +221,7 @@
         "choice": "off",
         "inject": 0.48,
         "value": 4,
-        "switch": false,
-        "upscale": "off"
+        "switch": false
       }
     }
   ],
@@ -233,18 +230,18 @@
   "definitions": {
     "subgraphs": [
       {
-        "id": "83d0b38d-1673-4088-a52e-666203d5037e",
+        "id": "fd72eb46-d18d-4724-acb4-0d0a07108c70",
         "version": 1,
         "state": {
           "lastGroupId": 6,
           "lastNodeId": 190,
-          "lastLinkId": 154,
+          "lastLinkId": 155,
           "lastRerouteId": 0
         },
         "revision": 0,
         "config": {},
         "name": "Dials - H3 + De-rope",
-        "description": "MiniMax H3 text/image to video with the Dial Rack on the model input. Wire the Render Preset into sampler, sigmas, de-rope steps and conditioning. de-rope: off renders one pass; oracle slows only the jerky stretches, flat slows every frame by max de-rope; both map the clip back to real time. de-rope amount is how much of stage 2 is re-rendered (0.48 faithful). pass 2 audio off keeps pass 1's audio. upscale RelayVSR 2x upscales the final clip (needs the RelayVSR setup). Double-click to open the graph.",
+        "description": "MiniMax H3 text/image to video with the Dial Rack on the model input. Wire the Render Preset into sampler, sigmas, de-rope steps and conditioning. de-rope: off renders one pass; oracle slows only the jerky stretches, flat slows every frame by max de-rope; both map the clip back to real time. de-rope amount is how much of stage 2 is re-rendered (0.48 faithful). pass 2 audio off keeps pass 1's audio. Gives the final clip with its audio as VIDEO: wire it to Save Video (or an upscaler first). Double-click to open the graph.",
         "inputNode": {
           "id": -10,
           "bounding": [
@@ -565,21 +562,23 @@
               0,
               0
             ]
-          },
+          }
+        ],
+        "outputs": [
           {
-            "id": "6c1f3a52-8d4e-4b7a-9e21-5f0c7d3b2a94",
-            "name": "upscale",
-            "type": "COMBO",
+            "id": "17431206-0773-4534-bf58-8d2d42ea558c",
+            "name": "VIDEO",
+            "type": "VIDEO",
             "linkIds": [
-              154
+              155
             ],
+            "localized_name": "VIDEO",
             "pos": [
-              0,
-              0
+              2260,
+              20
             ]
           }
         ],
-        "outputs": [],
         "widgets": [],
         "nodes": [
           {
@@ -2608,87 +2607,6 @@
             }
           },
           {
-            "id": 139,
-            "type": "SaveVideo",
-            "pos": [
-              1200,
-              886
-            ],
-            "size": [
-              440,
-              106
-            ],
-            "flags": {},
-            "order": 28,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "video",
-                "name": "video",
-                "type": "VIDEO",
-                "link": 153
-              },
-              {
-                "localized_name": "filename_prefix",
-                "name": "filename_prefix",
-                "type": "STRING",
-                "widget": {
-                  "name": "filename_prefix"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "format",
-                "name": "format",
-                "type": "COMFY_DYNAMICCOMBO_V3",
-                "widget": {
-                  "name": "format"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "codec",
-                "name": "format.codec",
-                "type": "COMFY_DYNAMICCOMBO_V3",
-                "widget": {
-                  "name": "format.codec"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "codec",
-                "name": "codec",
-                "shape": 7,
-                "type": "COMFY_DYNAMICCOMBO_V3",
-                "widget": {
-                  "name": "codec"
-                },
-                "link": null
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "video",
-                "name": "video",
-                "type": "VIDEO",
-                "links": null
-              }
-            ],
-            "properties": {},
-            "widgets_values": [
-              "video/dials_simple",
-              "auto",
-              "auto",
-              "auto"
-            ],
-            "widgets_values_named": {
-              "filename_prefix": "video/dials_simple",
-              "format": "auto",
-              "format.codec": "auto",
-              "codec": "auto"
-            }
-          },
-          {
             "id": 141,
             "type": "MAIDialHoldMap",
             "pos": [
@@ -3562,8 +3480,7 @@
                 "name": "output",
                 "type": "VIDEO",
                 "links": [
-                  121,
-                  149
+                  155
                 ]
               }
             ],
@@ -3743,470 +3660,6 @@
                 "Ref2V (reference pictures)"
               ]
             }
-          },
-          {
-            "id": 187,
-            "type": "CustomCombo",
-            "pos": [
-              1200,
-              1132
-            ],
-            "size": [
-              440,
-              150
-            ],
-            "flags": {},
-            "order": 40,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "choice",
-                "name": "choice",
-                "type": "COMBO",
-                "widget": {
-                  "name": "choice"
-                },
-                "link": 154
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "STRING",
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  152
-                ]
-              },
-              {
-                "localized_name": "INDEX",
-                "name": "INDEX",
-                "type": "INT",
-                "links": null
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "CustomCombo"
-            },
-            "widgets_values": [
-              "off",
-              -1,
-              "off",
-              "RelayVSR 2x",
-              ""
-            ],
-            "widgets_values_named": {
-              "choice": "off",
-              "index": -1,
-              "option1": "off",
-              "option2": "RelayVSR 2x",
-              "option3": ""
-            },
-            "title": "upscale: off / RelayVSR 2x"
-          },
-          {
-            "id": 188,
-            "type": "RelayVSRModelSettings",
-            "pos": [
-              1200,
-              1342
-            ],
-            "size": [
-              440,
-              514
-            ],
-            "flags": {},
-            "order": 41,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "loop_experiment",
-                "name": "loop_experiment",
-                "shape": 7,
-                "type": "RELAYVSR_LOOP_SETTINGS",
-                "link": null
-              },
-              {
-                "localized_name": "variant",
-                "name": "variant",
-                "type": "COMBO",
-                "widget": {
-                  "name": "variant"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "lightx2v_root",
-                "name": "lightx2v_root",
-                "type": "STRING",
-                "widget": {
-                  "name": "lightx2v_root"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "model_dir",
-                "name": "model_dir",
-                "type": "STRING",
-                "widget": {
-                  "name": "model_dir"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "python_executable",
-                "name": "python_executable",
-                "type": "STRING",
-                "widget": {
-                  "name": "python_executable"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "execution_mode",
-                "name": "execution_mode",
-                "type": "COMBO",
-                "widget": {
-                  "name": "execution_mode"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "gpu_ids",
-                "name": "gpu_ids",
-                "type": "STRING",
-                "widget": {
-                  "name": "gpu_ids"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "output_scale",
-                "name": "output_scale",
-                "type": "COMBO",
-                "widget": {
-                  "name": "output_scale"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "compile_model",
-                "name": "compile_model",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "compile_model"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "warmup",
-                "name": "warmup",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "warmup"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "clip_len",
-                "name": "clip_len",
-                "type": "INT",
-                "widget": {
-                  "name": "clip_len"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "queue_size",
-                "name": "queue_size",
-                "type": "INT",
-                "widget": {
-                  "name": "queue_size"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "codec",
-                "name": "codec",
-                "type": "COMBO",
-                "widget": {
-                  "name": "codec"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "crf",
-                "name": "crf",
-                "type": "INT",
-                "widget": {
-                  "name": "crf"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "preserve_audio",
-                "name": "preserve_audio",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "preserve_audio"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "unload_comfy_models",
-                "name": "unload_comfy_models",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "unload_comfy_models"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "quality",
-                "name": "quality",
-                "type": "COMBO",
-                "widget": {
-                  "name": "quality"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "back_projection",
-                "name": "back_projection",
-                "type": "FLOAT",
-                "widget": {
-                  "name": "back_projection"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "residual_gain",
-                "name": "residual_gain",
-                "type": "FLOAT",
-                "widget": {
-                  "name": "residual_gain"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "downscale",
-                "name": "downscale",
-                "type": "COMBO",
-                "widget": {
-                  "name": "downscale"
-                },
-                "link": null
-              },
-              {
-                "localized_name": "vram",
-                "name": "vram",
-                "type": "COMBO",
-                "widget": {
-                  "name": "vram"
-                },
-                "link": null
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "settings",
-                "name": "settings",
-                "type": "RELAYVSR_SETTINGS",
-                "links": [
-                  150
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "RelayVSRModelSettings"
-            },
-            "widgets_values": [
-              "X4 original (recommended, also for 2x)",
-              "auto",
-              "auto",
-              "auto",
-              "single GPU",
-              "0",
-              "2",
-              false,
-              false,
-              16,
-              4,
-              "libx264",
-              17,
-              true,
-              true,
-              "faithful: back-projection + residual 0.85",
-              1.0,
-              0.85,
-              "bicubic",
-              "auto (pick by GPU memory)"
-            ],
-            "widgets_values_named": {
-              "variant": "X4 original (recommended, also for 2x)",
-              "lightx2v_root": "auto",
-              "model_dir": "auto",
-              "python_executable": "auto",
-              "execution_mode": "single GPU",
-              "gpu_ids": "0",
-              "output_scale": "2",
-              "compile_model": false,
-              "warmup": false,
-              "clip_len": 16,
-              "queue_size": 4,
-              "codec": "libx264",
-              "crf": 17,
-              "preserve_audio": true,
-              "unload_comfy_models": true,
-              "quality": "faithful: back-projection + residual 0.85",
-              "back_projection": 1.0,
-              "residual_gain": 0.85,
-              "downscale": "bicubic",
-              "vram": "auto (pick by GPU memory)"
-            },
-            "title": "RelayVSR Settings"
-          },
-          {
-            "id": 189,
-            "type": "RelayVSRUpscaleVideo",
-            "pos": [
-              1200,
-              1916
-            ],
-            "size": [
-              440,
-              102
-            ],
-            "flags": {},
-            "order": 42,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "settings",
-                "name": "settings",
-                "type": "RELAYVSR_SETTINGS",
-                "link": 150
-              },
-              {
-                "localized_name": "video",
-                "name": "video",
-                "type": "VIDEO",
-                "link": 149
-              },
-              {
-                "localized_name": "seed",
-                "name": "seed",
-                "type": "INT",
-                "widget": {
-                  "name": "seed"
-                },
-                "link": null
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "video",
-                "name": "video",
-                "type": "VIDEO",
-                "links": [
-                  151
-                ]
-              },
-              {
-                "localized_name": "stats_json",
-                "name": "stats_json",
-                "type": "STRING",
-                "links": null
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "RelayVSRUpscaleVideo"
-            },
-            "widgets_values": [
-              42,
-              "fixed"
-            ],
-            "widgets_values_named": {
-              "seed": 42
-            },
-            "title": "RelayVSR 2x (runs only when upscale is RelayVSR 2x)"
-          },
-          {
-            "id": 190,
-            "type": "BranchNode",
-            "pos": [
-              1200,
-              2078
-            ],
-            "size": [
-              440,
-              98
-            ],
-            "flags": {},
-            "order": 43,
-            "mode": 0,
-            "inputs": [
-              {
-                "label": "off",
-                "localized_name": "branch0",
-                "name": "autogrow.branch0",
-                "shape": 7,
-                "type": "VIDEO",
-                "link": 121
-              },
-              {
-                "label": "RelayVSR 2x",
-                "localized_name": "branch1",
-                "name": "autogrow.branch1",
-                "shape": 7,
-                "type": "VIDEO",
-                "link": 151
-              },
-              {
-                "localized_name": "branch2",
-                "name": "autogrow.branch2",
-                "shape": 7,
-                "type": "VIDEO",
-                "link": null
-              },
-              {
-                "localized_name": "branch",
-                "name": "branch",
-                "type": "STRING",
-                "widget": {
-                  "name": "branch"
-                },
-                "link": 152
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "output",
-                "name": "output",
-                "type": "VIDEO",
-                "links": [
-                  153
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "BranchNode"
-            },
-            "widgets_values": [
-              "",
-              [
-                "off",
-                "RelayVSR 2x"
-              ]
-            ],
-            "widgets_values_named": {
-              "branch": "",
-              "branch_names": [
-                "off",
-                "RelayVSR 2x"
-              ]
-            },
-            "title": "video: as rendered, or RelayVSR 2x"
           }
         ],
         "groups": [
@@ -4266,18 +3719,6 @@
               -60,
               460,
               906
-            ],
-            "color": "#3f789e",
-            "flags": {}
-          },
-          {
-            "id": 6,
-            "title": "Upscale (RelayVSR, optional)",
-            "bounding": [
-              1180,
-              1072,
-              480,
-              1184
             ],
             "color": "#3f789e",
             "flags": {}
@@ -5061,14 +4502,6 @@
             "type": "VIDEO"
           },
           {
-            "id": 121,
-            "origin_id": 177,
-            "origin_slot": 0,
-            "target_id": 190,
-            "target_slot": 0,
-            "type": "VIDEO"
-          },
-          {
             "id": 122,
             "origin_id": 175,
             "origin_slot": 0,
@@ -5197,52 +4630,12 @@
             "type": "BOOLEAN"
           },
           {
-            "id": 149,
+            "id": 155,
             "origin_id": 177,
             "origin_slot": 0,
-            "target_id": 189,
-            "target_slot": 1,
-            "type": "VIDEO"
-          },
-          {
-            "id": 150,
-            "origin_id": 188,
-            "origin_slot": 0,
-            "target_id": 189,
-            "target_slot": 0,
-            "type": "RELAYVSR_SETTINGS"
-          },
-          {
-            "id": 151,
-            "origin_id": 189,
-            "origin_slot": 0,
-            "target_id": 190,
-            "target_slot": 1,
-            "type": "VIDEO"
-          },
-          {
-            "id": 152,
-            "origin_id": 187,
-            "origin_slot": 0,
-            "target_id": 190,
-            "target_slot": 3,
-            "type": "STRING"
-          },
-          {
-            "id": 153,
-            "origin_id": 190,
-            "origin_slot": 0,
-            "target_id": 139,
+            "target_id": -20,
             "target_slot": 0,
             "type": "VIDEO"
-          },
-          {
-            "id": 154,
-            "origin_id": -10,
-            "origin_slot": 20,
-            "target_id": 187,
-            "target_slot": 0,
-            "type": "COMBO"
           }
         ],
         "extra": {},

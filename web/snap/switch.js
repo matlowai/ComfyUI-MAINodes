@@ -40,11 +40,10 @@ export function createSwitch(view) {
     return { left: o.left + el.offsetLeft - view.stack.scrollLeft, top: o.top + el.offsetTop - view.stack.scrollTop, width: el.offsetWidth, height: el.offsetHeight };
   }
 
-  // the transform that puts card `el` onto its nodes' screen rect (attachments fly to their host)
+  // the transform that puts card `el` onto its nodes' screen rect
   function toNodes(el) {
     if (!el.offsetParent) return [0, 0, 1, 1]; // detached or hidden mid-flight (a re-render replaced it)
-    let nodes = brickNodes(el.dataset.brick);
-    if (!nodes.length) nodes = brickNodes("render");
+    const nodes = brickNodes(el.dataset.brick);
     if (!nodes.length) return [0, 0, 1, 1];
     const target = union(nodes.map(nodeRect)), card = layoutRect(el);
     return [target.left - card.left, target.top - card.top, target.width / card.width, target.height / card.height];

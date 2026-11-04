@@ -19,7 +19,6 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, car
     const grip = e.target.closest("[data-grip]"), tile = e.target.closest("[data-source], [data-card]");
     if (!grip && !tile) return;
     const item = grip?.closest("[data-brick]");
-    if (item?.dataset.host) return; // an attachment moves with its host
     d = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, item, tile, started: false,
       slop: e.pointerType === "mouse" && !tile ? 4 : 10, samples: [], el: grip ?? tile };
     d.el.setPointerCapture(e.pointerId);
@@ -67,20 +66,12 @@ export function attachDrag(root, { stack, onMove, onInsert, accepts, onCard, car
     d.top0 = items.length ? Math.min(...items.map((el) => along(d, d.rects.get(el)))) : along(d, d.stackRect) + parseFloat(d.across ? css.paddingLeft : css.paddingTop);
     d.cross0 = items.length ? Math.min(...items.map((el) => cross(d, d.rects.get(el)))) : cross(d, d.stackRect) + parseFloat(d.across ? css.paddingTop : css.paddingLeft);
     d.gap = parseFloat(d.across ? css.columnGap : css.rowGap) || 12;
-    // a host is lifted with the attachments under it; they ride the same transform
-    d.group = [];
-    if (d.item) {
-      const at = items.indexOf(d.item);
-      let end = at + 1;
-      while (items[end]?.dataset.host === d.item.dataset.brick) end++;
-      d.group = items.slice(at, end);
-    }
+    d.group = d.item ? [d.item] : [];
     d.others = items.filter((el) => !d.group.includes(el));
     d.springs = new Map(d.others.map((el) => [el, new Spring([0], SPRINGS.reflow)]));
     if (d.item) {
       const r = d.rects.get(d.item);
-      const last = d.rects.get(d.group.at(-1));
-      d.ghost = d.item; d.home = r; d.size = along(d, last) + len(d, last) - along(d, r);
+      d.ghost = d.item; d.home = r; d.size = len(d, r);
       d.index = items.indexOf(d.item); d.acquired = true;
     } else {
       const r = d.tile.getBoundingClientRect();

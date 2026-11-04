@@ -7,8 +7,8 @@ import { api } from "../../../scripts/api.js";
 import { BRICKS, RENDER_BLUEPRINT } from "./bricks.js";
 
 const GAP = 80;
-const COLUMN = { models: 0, preset: 0, image_models: 0, loras: 0, style: 0, cast: 0, rack: 1, first_frame: 1, refs: 1, render: 2, image: 2, image_upscale: 3, image_resize: 3, save_image: 4 };
-const column = (key) => (Object.hasOwn(COLUMN, key) ? COLUMN[key] : Object.hasOwn(COLUMN, BRICKS[key]?.attach?.brick ?? "") ? COLUMN[BRICKS[key].attach.brick] : key.startsWith("node:") ? 3 : 0); // any-node bricks go right of the render
+const COLUMN = { models: 0, preset: 0, image_models: 0, loras: 0, style: 0, cast: 0, rack: 1, first_frame: 1, refs: 1, render: 2, image: 2, upscale: 3, image_upscale: 3, image_resize: 3, save_video: 4, save_image: 4 };
+const column = (key) => (Object.hasOwn(COLUMN, key) ? COLUMN[key] : key.startsWith("node:") ? 3 : 0); // any-node bricks go right of the render
 const EMPTY = Object.freeze({ version: 1, bricks: Object.freeze([]), bindings: Object.freeze([]) });
 
 // the recipe record; reading never writes it, so a workflow that never used Snap stays untouched
@@ -44,10 +44,8 @@ const brick = (key) => state().bricks.find((b) => b.key === key);
 // every node inside a blueprint node (nested ones too)
 const inner = (n) => (n?.subgraph?.nodes ?? []).flatMap((x) => [x, ...inner(x)]);
 
-// an attachment's `inner` nodes live inside its host's blueprint (found by type), the rest are the brick's own
 export function nodeFor(brickKey, nodeKey) {
-  const b = brick(brickKey), type = BRICKS[brickKey]?.attach?.inner?.[nodeKey];
-  if (b && type) return nodeFor(BRICKS[brickKey].attach.brick, BRICKS[brickKey].attach.brick)?.subgraph?.nodes.find((n) => n.type === type);
+  const b = brick(brickKey);
   return b && node(b.nodes[nodeKey]);
 }
 
@@ -177,12 +175,6 @@ function bindAll() {
   return made;
 }
 
-// an insert index that never splits a host from its attachments
-function boundary(bricks, index) {
-  while (BRICKS[bricks[index]?.key]?.attach) index++;
-  return index;
-}
-
 // snaps of the same brick share one call: a double click or an agent racing the user inserts it once
 const inflight = new Map();
 export function snap(key, options) {
@@ -200,17 +192,7 @@ async function snapOnce(key, { values, at } = {}) {
   const def = BRICKS[key];
   const bp = def.blueprint && !brick(key) ? await fetchBlueprint(def.blueprint) : null;
   if (brick(key)) return { brick: key, bindings: [] }; // read after the fetch: the graph may have changed meanwhile
-  if (def.attach) {
-    const host = state().bricks.findIndex((b) => b.key === def.attach.brick);
-    if (host < 0) throw new Error(`${def.title} snaps onto ${BRICKS[def.attach.brick].title}; add that first`);
-    const w = widget(nodeFor(def.attach.brick, def.attach.brick), def.attach.widget);
-    if (!w) throw new Error(`${BRICKS[def.attach.brick].title} has no ${def.attach.widget} setting`);
-    transaction(() => {
-      w.value = def.attach.on; w.callback?.(w.value);
-      record().bricks.splice(host + 1, 0, { key, nodes: {} }); // attachments always sit right under their host
-    });
-    return { brick: key, bindings: [{ to: def.attach.brick, role: def.attach.widget, rule: `pack:${key}.attach`, value: def.attach.on }] };
-  }
+  if (def.needs?.video && legacy()) throw new Error(`${def.title} needs the Render to give its video: this workflow has the older H3 Render, with Save and RelayVSR inside it. Upgrade it first (upgrade_render)`);
   const s = record();
   // graph layout: columns by role, each starting right of the widest node to its left, stacked below its column
   const nodesIn = (test) => s.bricks.filter((b) => test(column(b.key))).flatMap((b) => Object.values(b.nodes)).map(node).filter(Boolean);
@@ -237,11 +219,55 @@ async function snapOnce(key, { values, at } = {}) {
     }
     for (const [a, out, b, inp] of def.links ?? []) node(ids[a]).connect(node(ids[a]).findOutputSlot(out), node(ids[b]), node(ids[b]).findInputSlot(inp)); // a brick's own inner wiring
     const placed = Object.fromEntries(Object.values(ids).map((id) => [id, [...node(id).pos]]));
-    s.bricks.splice(boundary(s.bricks, at ?? s.bricks.length), 0, { key, nodes: ids, placed });
+    s.bricks.splice(at ?? s.bricks.length, 0, { key, nodes: ids, placed });
     return bindAll();
   });
   app.canvas.setDirty(true, true);
   return { brick: key, bindings };
+}
+
+// a Render made from the older H3 blueprint (before U20): Save and the RelayVSR switch live inside it and it gives no
+// VIDEO. It runs as saved; upgrade() puts the current blueprint in its place with Upscale and Save as bricks after it
+export function legacy() {
+  const n = nodeFor("render", "render");
+  if (!n?.isSubgraphNode?.() || n.outputs?.some((o) => o.type === "VIDEO")) return null;
+  return { node: n.id, upscale: widget(n, "upscale")?.value ?? null };
+}
+const valuesOf = (n) => Object.fromEntries((n?.widgets ?? []).filter((w) => w.name && typeof w.value !== "object").map((w) => [w.name, w.value]));
+// one undo step: the current blueprint takes the old Render's place, wires and settings (its inner nodes' too: the
+// blueprint keeps their ids), then Upscale with the old RelayVSR settings (on when the old switch was) and Save with
+// the old Save's settings
+export async function upgrade() {
+  const was = legacy();
+  if (!was) throw new Error("This Render is already the current blueprint");
+  const old = node(was.node), bp = await fetchBlueprint(RENDER_BLUEPRINT), olds = inner(old);
+  if (!bp.nodes[0].outputs?.some((o) => o.type === "VIDEO")) throw new Error("This ComfyUI still serves the older H3 blueprint (it keeps blueprints from its start): restart it, then upgrade");
+  const kept = (type) => valuesOf(olds.find((x) => x.type === type));
+  const relay = { settings: kept("RelayVSRModelSettings"), upscale: kept("RelayVSRUpscaleVideo") }, save = { save: kept("SaveVideo") };
+  const on = was.upscale === "RelayVSR 2x", upscale = on || !!brick("upscale");
+  app.canvas.emitBeforeChange();
+  try {
+    transaction(() => {
+      const fresh = insertBlueprint(bp, [...old.pos]), byId = new Map(olds.map((x) => [x.id, x]));
+      for (const w of fresh.widgets ?? []) { const v = widget(old, w.name); if (v) put(w, v.value); }
+      for (const x of inner(fresh)) { const o = byId.get(x.id); if (o?.type === x.type) for (const w of x.widgets ?? []) { const v = widget(o, w.name); if (v) put(w, v.value); } }
+      for (const input of old.inputs ?? []) { const l = app.graph.getLink(input.link), i = fresh.findInputSlot(input.name); if (l && i >= 0) node(l.origin_id).connect(l.origin_slot, fresh, i); }
+      const s = record(), b = brick("render");
+      s.bindings = s.bindings.map((x) => (String(x.target) === String(old.id) ? { ...x, target: fresh.id } : x));
+      b.nodes = { render: fresh.id };
+      b.placed = { [fresh.id]: [...fresh.pos] };
+      app.graph.remove(old);
+      s.bricks = s.bricks.filter((x) => x.key !== "upscale"); // the old switch brick: no nodes of its own
+    });
+    const at = () => state().bricks.findIndex((b) => b.key === "render") + 1;
+    if (upscale) {
+      await snap("upscale", { values: relay, at: at() });
+      if (!on) transaction(() => { for (const id of Object.values(brick("upscale").nodes)) node(id).mode = 4; });
+    }
+    await snap("save_video", { values: save, at: at() + (upscale ? 1 : 0) });
+  } finally { app.canvas.emitAfterChange(); }
+  app.canvas.setDirty(true, true);
+  return { render: brick("render").nodes.render, upscale: upscale ? (on ? "on" : "off") : null, save: brick("save_video").nodes.save };
 }
 
 // answer an `ask`: bind `role` on brick `to` from one of its candidates; returns the rule to remember for next time
@@ -351,51 +377,39 @@ export function tidy() {
   transaction(() => { for (const [b, n, pos] of moves) { n.pos = pos; b.placed[n.id] = [...pos]; } });
 }
 
-// reading order only: pack rules bind by role, so reordering never rewires. A host carries its attachments; an
-// attachment can't leave its host; `index` counts the list without the moved group (what a drag reports)
+// reading order only: pack rules bind by role, so reordering never rewires; `index` counts the list without the moved
+// brick (what a drag reports)
 export function move(key, index) {
   const s = state(), i = s.bricks.findIndex((b) => b.key === key);
-  if (i < 0 || BRICKS[key].attach) return;
-  let n = 1;
-  while (BRICKS[s.bricks[i + n]?.key]?.attach?.brick === key) n++;
-  transaction(() => {
-    const group = s.bricks.splice(i, n);
-    s.bricks.splice(boundary(s.bricks, index), 0, ...group);
-  });
+  if (i < 0) return;
+  transaction(() => { s.bricks.splice(index, 0, ...s.bricks.splice(i, 1)); });
 }
 
-// keyboard reorder: move a brick (with its attachments) past the neighbouring brick group above or below
+// keyboard reorder: move a brick past its neighbour above or below
 export function nudge(key, dir) {
-  const s = state(), groups = [];
-  for (const b of s.bricks) (BRICKS[b.key].attach && groups.length ? groups.at(-1) : (groups[groups.length] = [])).push(b);
-  const g = groups.findIndex((x) => x[0].key === key), to = g + dir;
-  if (g < 0 || to < 0 || to >= groups.length) return;
-  [groups[g], groups[to]] = [groups[to], groups[g]];
-  transaction(() => { s.bricks = groups.flat(); });
+  const s = state(), i = s.bricks.findIndex((b) => b.key === key), to = i + dir;
+  if (i < 0 || to < 0 || to >= s.bricks.length) return;
+  transaction(() => { const list = [...s.bricks]; [list[i], list[to]] = [list[to], list[i]]; s.bricks = list; });
 }
 
-// removing a host removes its attachments with it. An input the person wired by hand from the removed brick binds by
-// Snap's rules again (rebind): the wire went with the brick, the person didn't clear it
+// what the removed brick fed binds by Snap's rules again (Save after a removed Upscale takes the Render's video), an
+// input the person wired by hand from it too: the wire went with the brick, the person didn't clear it
 export function unsnap(key) {
   const s = state(), b = brick(key);
   if (!b) return;
-  const gone = new Set([key, ...s.bricks.filter((x) => BRICKS[x.key].attach?.brick === key).map((x) => x.key)]);
-  const def = BRICKS[key], ids = new Set(Object.values(b.nodes).map(String));
+  const ids = new Set(Object.values(b.nodes).map(String));
   const fedByHand = (x) => { const dst = node(x.target), l = dst && app.graph.getLink(dst.inputs[dst.findInputSlot(x.input)]?.link); return !!l && ids.has(String(l.origin_id)); };
   transaction(() => {
-    if (def.attach) { const w = widget(nodeFor(def.attach.brick, def.attach.brick), def.attach.widget); if (w) { w.value = def.attach.off; w.callback?.(w.value); } }
     s.bindings = s.bindings.filter((x) => !fedByHand(x));
     for (const id of Object.values(b.nodes)) { const n = node(id); if (n) app.graph.remove(n); }
-    s.bricks = s.bricks.filter((x) => !gone.has(x.key));
-    s.bindings = s.bindings.filter((x) => !gone.has(x.to) && !gone.has(x.from))
-      .map((x) => (x.rule === "ask" ? { ...x, candidates: x.candidates.filter((c) => !gone.has(c.from)) } : x))
+    s.bricks = s.bricks.filter((x) => x.key !== key);
+    s.bindings = s.bindings.filter((x) => x.to !== key && x.from !== key)
+      .map((x) => (x.rule === "ask" ? { ...x, candidates: x.candidates.filter((c) => c.from !== key) } : x))
       .filter((x) => x.rule !== "ask" || x.candidates.length > 1);
+    bindAll();
   });
   app.canvas.setDirty(true, true);
 }
-
-// bind what is left unbound (after bricks were removed), as one undo step
-export const rebind = () => transaction(bindAll);
 
 // a binding is overridden when its target input is now fed by something else (or nothing)
 export function overrides() {
@@ -494,6 +508,8 @@ export function recipe() {
 // rebuild a saved recipe: bricks it doesn't have yet are snapped in order, then every saved value is set. The change
 // pairs nest, so the whole rebuild (blueprint fetch included) is one undo step
 export async function restore(saved) {
+  // a card saved before the H3 Render gave its video (U20) ends at the Render or its Upscale: Save comes after them
+  if (saved.some((b) => b.key === "render") && !saved.some((b) => b.key === "save_video")) saved = [...saved, { key: "save_video", values: {} }];
   app.canvas.emitBeforeChange();
   try { return await rebuild(saved); } finally { app.canvas.emitAfterChange(); }
 }
@@ -502,22 +518,24 @@ async function rebuild(saved) {
   const keys = [];
   const had = (key) => (key.startsWith("node:") ? state().bricks.map((x) => x.key).find((k) => k.split("#")[0] === key && !keys.includes(k)) : brick(key) && key);
   for (const [i, { key }] of saved.entries()) { // bricks already in the stack are reused (any-node bricks of a type in order), the rest snapped
+    if (BRICKS[key]?.needs?.video && legacy()) { keys.push(null); continue; } // an older Render saves its own video: its note offers the upgrade
     // a new brick goes where the saved recipe has it (before the next brick it lists that is already here), so it binds
     // between its neighbours instead of dangling after the render
     const next = saved.slice(i + 1).map((x) => had(x.key)).find(Boolean), at = next ? state().bricks.findIndex((b) => b.key === next) : undefined;
     keys.push(had(key) || (await snap(key, { at })).brick);
   }
   transaction(() => saved.forEach(({ values }, i) => {
+    if (!keys[i]) return;
     for (const [nodeKey, ws] of Object.entries(values)) {
       const n = nodeFor(keys[i], nodeKey);
       for (const [name, v] of Object.entries(ws)) { const w = widget(n, name); if (w) put(w, v); }
     }
   }));
   app.canvas.setDirty(true, true);
-  return keys;
+  return keys.filter(Boolean);
 }
 
-// App mode's run-only view built from the bricks' faces (frontend 1.57 `extra.linearData`; WidgetId =
+// App mode's run-only view built from the bricks' faces and output nodes (frontend 1.57 `extra.linearData`; WidgetId =
 // "<rootGraphId>:<nodeId>:<widget>"), so a finished recipe opens as a clean app anywhere without this extension
 export function appData() {
   const inputs = [], outputs = [];
@@ -527,7 +545,7 @@ export function appData() {
       const id = b.nodes[nodeKey];
       if (widget(node(id), name)) inputs.push([`${app.graph.id}:${id}:${name}`, name, { description: `${def.title} · ${label}` }]);
     }
-    if (def.blueprint) outputs.push(b.nodes[b.key]);
+    for (const id of Object.values(b.nodes)) if ([node(id), ...inner(node(id))].some((n) => n?.constructor.nodeData?.output_node)) outputs.push(id); // Save, or an older Render with Save inside
   }
   return { inputs, outputs };
 }
