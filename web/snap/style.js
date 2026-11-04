@@ -617,4 +617,20 @@ export const STYLE = `
 .snap-ob-dl { display: flex; flex-direction: column; gap: 8px; } .snap-ob-dl-row { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border-radius: 10px; background: var(--s-card); }
 .snap-ob-dl-row code { font: 11.5px/1.4 ui-monospace, Menlo, monospace; overflow-wrap: anywhere; user-select: all; color: var(--s-fg); opacity: .85; }
 .snap-ob-foot { display: flex; align-items: center; gap: 10px; padding: 12px max(24px, calc(50% - 360px)); border-top: 1px solid var(--s-line); } .snap-ob-foot button { margin: 0; }
+/* LoRAs by category (SNAP-R12): chips over a searchable list; "move to…" on each row */
+.snap-lora-chips { display: flex; flex-wrap: wrap; gap: 6px; } .snap-lora-chips.rail { gap: 4px; margin: 2px 0 8px; }
+.snap-lora-chip { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 12px; background: var(--s-card); box-shadow: inset 0 0 0 1px var(--s-line); color: var(--s-fg); white-space: nowrap; }
+.snap-lora-chip i { font-style: normal; color: var(--s-dim); font-size: 11px; } .snap-lora-chips.rail .snap-lora-chip { padding: 2px 8px; font-size: 11px; }
+.snap-lora-chip.on { box-shadow: inset 0 0 0 2px var(--s-accent); background: color-mix(in srgb, var(--s-accent) 12%, var(--s-card)); }
+.snap-lora-chip.drop { box-shadow: inset 0 0 0 2px #57c785; } .snap-lora-chip.undo { color: var(--s-accent); }
+.snap-rail-sub { font-size: 11px; color: var(--s-dim); margin-top: 8px; }
+.snap-sheet.snap-lora-sheet { inset: 64px max(24px, calc(50% - 460px)) auto; max-height: calc(100% - 100px); }
+.snap-lora-pick { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; min-height: 0; overflow: hidden; }
+.snap-lora-list { display: flex; flex-direction: column; gap: 4px; overflow: auto; min-height: 0; }
+.snap-lora-row { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) auto auto auto; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 9px; background: var(--s-card); cursor: grab; }
+.snap-lora-row strong { font-weight: 550; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .snap-lora-row .snap-quiet { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.snap-lora-cats { display: flex; gap: 4px; } .snap-lora-cats .tag { color: #f0b445; }
+.snap-move { font-size: 11.5px; max-width: 110px; background: var(--s-bg); color: var(--s-dim); border: 1px solid var(--s-line); border-radius: 6px; padding: 2px 4px; }
+.snap-card .snap-move { margin-top: 4px; align-self: flex-start; } .snap-dial-tile .snap-move { align-self: flex-start; }
+.snap-lora-addrow { display: flex; gap: 6px; align-items: center; } .snap-lora-addrow .snap-lora-add { flex: 1; min-width: 0; } .snap-lora-browse { margin: 0; }
 `;

@@ -54,7 +54,7 @@ export const folders = () => { const m = new Map(); for (const [name, f] of file
 const MINE = "snap/models.json";
 const base = (f) => String(f ?? "").replace(/\\/g, "/").split("/").pop();
 // the pack's `families` say which family a file's name puts it in when no entry does (SNAP-R13: data, not code)
-let relations = new Map(), families = [], relating = null, problem = null;
+let relations = new Map(), packed = new Map(), families = [], relating = null, problem = null;
 // the person's file; one that doesn't parse throws, so nothing writes over it
 const mine = async () => { const r = await api.getUserData(MINE); return r.ok ? r.json() : []; };
 export const overlay = (pack, own) => ({ ...pack, ...Object.fromEntries(Object.entries(own).filter(([, v]) => v != null)) });
@@ -63,6 +63,7 @@ function loadGraph() {
     mine().catch((e) => { problem = `Your snap/models.json was skipped (${e.message}); Snap uses the pack's model graph until it parses`; return []; })]).then(([pack, own]) => {
     families = pack.families.map((f) => [new RegExp(f.names), f.name]);
     relations = new Map(pack.models.map((e) => [base(e.file), e]));
+    packed = new Map(relations);
     for (const e of own) relations.set(base(e.file), overlay(relations.get(base(e.file)), e));
     return relations;
   });
@@ -71,7 +72,8 @@ function loadGraph() {
 // why the person's model graph isn't used (SNAP-R11: say it once, keep working)
 export const graphProblem = () => problem;
 function infer(name) {
-  const n = base(name).toLowerCase(), folder = file(name)?.folder ?? null, steps = Number(n.match(/(\d+)[-_ ]?steps?/)?.[1]) || null;
+  const n = base(name).toLowerCase(), folder = file(name)?.folder ?? null, found = Number(n.match(/(\d+)[-_ ]?steps?(?!\d)/)?.[1]) || null;
+  const steps = found && found <= 16 ? found : null; // "step1500" / "5000steps" are training steps, not a turbo's
   const kind = { loras: "lora", text_encoders: "encoder", clip: "encoder", vae: "vae" }[folder] ?? (/turbo|dmd|dmad|lightning|hyper/.test(n) ? "turbo_merge" : "base");
   const fast = ["lora", "turbo_merge"].includes(kind) && (/turbo|dmd|dmad|lightning|hyper/.test(n) || !!steps);
   const e = { file: base(name), folder, family: families.find(([re]) => re.test(n))?.[1] ?? null, kind, inferred: true,
@@ -99,6 +101,43 @@ export async function teach(name, patch) {
 // filter on the person's own tags, not a safety guarantee (SNAP-R25)
 export const hidden = (name) => PF.sfwOnly() && (entry(name)?.tags ?? []).includes("nsfw");
 D.useHidden(hidden);
+// ---- LoRAs by category (SNAP-R12, SNAP-R25): a LoRA's category is its role from the model graph (core with its sub-kind,
+// style, identity, dial, unsorted), and each tag (nsfw) is one more; the chips and "move to…" are built from these
+export const ROLES = ["core·turbo", "core·fix", "core·task", "core·hires", "core·edit", "core·control", "style", "identity", "dial", "unsorted"];
+export const TAGS = ["nsfw"];
+export const categoryOf = (e) => (e.role === "core" ? `core·${e.core ?? "task"}` : e.role ?? "unsorted");
+// every LoRA file here with its category and tags; SFW only leaves the nsfw ones out (and so their chip)
+export const loraFiles = () => [...files].filter(([name, f]) => f.folder === "loras" && !hidden(name)).map(([name]) => { const e = entry(name); return { file: name, entry: e, category: categoryOf(e), tags: e.tags ?? [] }; });
+export const inCategory = (r, id) => r.category === id || r.tags.includes(id);
+// the categories present, with how many files each holds, roles in ROLES order then tags
+export function categories() {
+  const n = new Map();
+  for (const r of loraFiles()) for (const id of [r.category, ...r.tags]) n.set(id, (n.get(id) ?? 0) + 1);
+  const at = (id) => (ROLES.includes(id) ? ROLES.indexOf(id) : ROLES.length + (TAGS.includes(id) ? TAGS.indexOf(id) : TAGS.length));
+  return [...n].map(([id, count]) => ({ id, count })).sort((a, b) => at(a.id) - at(b.id) || a.id.localeCompare(b.id));
+}
+// file a LoRA under a role ("style", "core·fix") or switch a tag on or off ("nsfw"), in the person's snap/models.json, so it
+// wins over the pack everywhere at once. Returns the undo: the person's own entry as it was (null when there was none)
+export async function moveTo(file, id) {
+  const own = await mine().catch((e) => { throw new Error(`snap/models.json doesn't parse (${e.message}); fix it before Snap adds to it`); });
+  const before = own.find((e) => base(e.file) === base(file)) ?? null, e = entry(file);
+  let patch;
+  if (TAGS.includes(id)) patch = { tags: e.tags?.includes(id) ? e.tags.filter((t) => t !== id) : [...(e.tags ?? []), id] };
+  else if (ROLES.includes(id)) { const [role, core] = id.split("·"); patch = { role, core: core ?? null }; }
+  else throw new Error(`No category "${id}"; there are: ${[...ROLES, ...TAGS].join(", ")}`);
+  await teach(file, patch);
+  notify();
+  return { file: base(file), before };
+}
+// put back the person's own entry from a move's undo (or take it out, so the pack's entry stands again)
+export async function restore({ file, before }) {
+  const own = (await mine()).filter((e) => base(e.file) !== file);
+  await api.storeUserData(MINE, before ? [...own, before] : own);
+  relations.set(file, before ? overlay(packed.get(file), before) : packed.get(file));
+  if (!relations.get(file)) relations.delete(file);
+  notify();
+  return entry(file);
+}
 export const known = () => files.size;
 export const gb = (bytes) => `${(bytes / 1e9).toFixed(bytes < 1e9 ? 2 : 1)} GB`;
 

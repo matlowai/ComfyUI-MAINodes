@@ -62,7 +62,11 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   - identity rows go with character cards;
   - dials go in the Dial Rack.
 
-  Unknown LoRAs ask once, and the answer is remembered. Identity LoRAs are private by default: never exported or
+  Unknown LoRAs ask once, and the answer is remembered. The Library's "LoRAs by kind" chips and the LoRA sheet show one
+  chip per category the model graph gives the files here (core · sub-kind, style, identity, dial, unsorted, and tags such
+  as nsfw); "move to…" on any LoRA row, card or dial tile, or a row dropped on a chip, files it in the person's
+  `snap/models.json` (person over pack), everything follows at once, and Undo puts the person's entry back
+  (`set_lora_category` is the same function). Identity LoRAs are private by default: never exported or
   shown on shared pages. *More:* MODEL_GRAPH_ONBOARDING §6.
 - **SNAP-R13: Family rules come from the model graph, not code branches.** These include: MOSS SFT always carries a
   deband fix; MOSS Base wants long, concrete prompts, and its prompt expander ("✨ Enhance prompt (LLM)" on the

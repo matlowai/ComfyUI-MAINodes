@@ -29,6 +29,7 @@ import * as C from "./candidates.js";
 import * as MD from "./metadata.js";
 import * as PF from "./profile.js";
 import { openOnboarding } from "./onboardview.js";
+import { openLoras, moveControl, label as catLabel } from "./loraview.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -151,7 +152,19 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   let libScoped = true, libSig = "";
   libQuery.addEventListener("input", renderLibrary);
   libFor.addEventListener("click", () => { libScoped = !libScoped; renderLibrary(); });
-  rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libSfw, libResults);
+  // LoRAs by category (SNAP-R12): one chip per category the model graph gives the files here; a chip opens the LoRA sheet there
+  const libLoras = h("div", { className: "snap-lora-chips rail" });
+  const moves = []; // undo for "move to…" anywhere in the view (the LoRA sheet, Library cards, the dial picker)
+  const moved = (u, id, err) => { if (err) { say(err.message, true); return; } moves.push(u); say(`${u.file.replace(/\.safetensors$/, "")} → ${catLabel(id)}`); render(null); renderLibrary(); };
+  const browse = (start, onAdd) => openLoras(root, { say, start, onAdd, undo: moves, onChange: () => { render(null); renderLibrary(); } }).catch((err) => say(err.message, true));
+  function drawLoraChips() {
+    const cats = M.categories(), sig = JSON.stringify([cats, moves.length]);
+    if (libLoras.dataset.sig === sig) return;
+    libLoras.dataset.sig = sig;
+    libLoras.replaceChildren(...[...cats.map((c) => h("button", { className: "snap-lora-chip", textContent: catLabel(c.id), title: `${c.count} LoRA file${c.count === 1 ? "" : "s"}: browse, search and file them`, onclick: () => browse(c.id) }, h("i", { textContent: String(c.count) }))),
+      moves.length ? h("button", { className: "snap-lora-chip undo", textContent: "↶ undo move", onclick: async () => { const u = moves.pop(); await M.restore(u); say(`${u.file.replace(/\.safetensors$/, "")} is back where it was`); render(null); renderLibrary(); } }) : null].filter(Boolean));
+  }
+  rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libSfw, h("div", { className: "snap-rail-sub", textContent: "LoRAs by kind" }), libLoras, libResults);
   T.onChange(() => renderLibrary());
   PF.onChange(() => { render(null); renderLibrary(); }); // SFW only changes what the pickers and the Library list
   PF.load().then(() => { render(null); renderLibrary(); });
@@ -199,6 +212,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
         c.kind === "set_snapshot" ? h("span", { className: "snap-card-tools" },
           h("button", { className: "snap-edit", textContent: "▦", title: "plan-board: every saved state of this set side by side", onclick: (e) => { e.stopPropagation(); openBoard(root, L.lineage(c), { onOpen: editSet }); } }),
           h("button", { className: "snap-edit", textContent: "✎", title: "open the set plan to block it", onclick: (e) => { e.stopPropagation(); editSet(c); } })) : null);
+      if (c.kind === "dial" && c.brick?.dial) tile.append(moveControl(c.brick.dial, moved));
       tile.dataset.card = c.id;
       tile.style.setProperty("--hue", goes ? BRICKS[goes].hue : 45);
       return tile;
@@ -614,7 +628,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const choices = M.loraChoices().filter(([, e]) => e.role !== "dial").sort(([, a], [, b]) => fit(b) - fit(a));
     const pick = h("select", { className: "snap-lora-add", title: "add a LoRA row", onchange: (e) => { if (e.target.value) { M.addRow(key, e.target.value); changed(); } } },
       h("option", { value: "", textContent: PF.sfwOnly() ? "+ LoRA (SFW only: nsfw-tagged hidden)" : "+ LoRA", selected: true }), choices.map(([name, e]) => h("option", { value: name, textContent: `${fit(e) ? "" : "· "}${name}` })));
-    const box = h("div", { className: "snap-loras" }, list.length ? list.map(rowEl) : h("div", { className: "snap-quiet", textContent: role === "core" ? "No core LoRAs" : "No LoRAs" }), pick);
+    const all = h("button", { className: "snap-link snap-quiet-btn snap-lora-browse", textContent: "browse", title: "LoRAs by category: search, file them, add one here",
+      onclick: () => browse(role === "core" ? null : role, (f) => { M.addRow(key, f); changed(); }) });
+    const box = h("div", { className: "snap-loras" }, list.length ? list.map(rowEl) : h("div", { className: "snap-quiet", textContent: role === "core" ? "No core LoRAs" : "No LoRAs" }), h("div", { className: "snap-lora-addrow" }, pick, all));
     box.addEventListener("pointerdown", (e) => e.stopPropagation()); // SNAP-R7: rows are controls; a press never selects or opens the brick
     return box;
   }
@@ -881,7 +897,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const pics = Object.values(info.nodes).flatMap((id) => { const n = app.graph.getNodeById(id); return n ? previews(n) : []; });
     if (ends(info.brick)) body.push(outSlot());
     else if (pics.length && info.brick !== "refs") body.push(h("div", { className: "snap-thumbs" }, pics.slice(0, 2).map((src) => h("img", { src, alt: "", loading: "lazy" }))));
-    if (info.brick === "rack") body.push(D.face({ onChange: () => render(null), onPick: () => D.openPicker(root, { say, onChange: () => render(null), onMake: openMaker }), onMake: openMaker }));
+    if (info.brick === "rack") body.push(D.face({ onChange: () => render(null), onPick: () => D.openPicker(root, { say, onChange: () => render(null), onMake: openMaker, move: (f) => moveControl(f, moved) }), onMake: openMaker }));
     if (info.brick === "refs") body.push(...picturesFace());
     if (def.stack) body.push(stackFace(info.brick));
     body.push(...group(info.brick).flatMap(warnLines));
@@ -1228,7 +1244,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     title.textContent = app.extensionManager.workflow.activeWorkflow?.filename ?? "Snap";
     fold();
     couple();
-    renderRail(); renderInspector(); renderStatus(); renderProposals();
+    renderRail(); renderInspector(); renderStatus(); renderProposals(); drawLoraChips();
     drawLanes();
     if (!before) return;
     for (const el of stack.querySelectorAll("[data-brick]")) {
@@ -1258,7 +1274,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     else if (action === "start") await startSimple();
     else if (action === "undo") tracker.undo();
     else if (action === "redo") tracker.redo();
-    else if (action === "dials") await D.openPicker(root, { say, onChange: () => render(null), onMake: openMaker });
+    else if (action === "dials") await D.openPicker(root, { say, onChange: () => render(null), onMake: openMaker, move: (f) => moveControl(f, moved) });
+    else if (action === "loras") await browse(target || null);
     else if (action === "make_dial") openMaker();
     else if (action === "open_take") { const t = T.get(target); if (!t) throw new Error(`No take ${target}`); dailies.view(t); }
     else if (action === "run_from") { const t = T.get(target); if (!t) throw new Error(`No take ${target}`); return runFrom(t); }

@@ -113,7 +113,7 @@ export function face({ onChange, onPick, onMake }) {
 }
 
 // ---- the picker --------------------------------------------------------------------------------------------------
-export async function openPicker(host, { say, onChange, onMake }) {
+export async function openPicker(host, { say, onChange, onMake, move }) {
   await load();
   const own = family();
   let shown = own ?? "all";
@@ -135,7 +135,7 @@ export async function openPicker(host, { say, onChange, onMake }) {
         calibrated(d) ? h("i", { textContent: `useful ±${d.info.pos.useful ?? d.info.neg.useful}` }) : h("i", { className: "warn", textContent: "uncalibrated" }),
         h("i", { className: "file", textContent: d.dial.replace(/^dials\//, "").replace(/\.safetensors$/, "") }),
         d.mode === "pre" ? h("i", { title: "pre-refiner LoRA file: an approximation of the hook, keep it at strength 1 or below", textContent: "LoRA file" }) : null,
-        d.family !== own ? h("i", { textContent: d.family }) : null, on.has(d.dial) ? h("i", { className: "ok", textContent: "on the rack" }) : null))) : [h("div", { className: "snap-quiet", textContent: "No dial matches. Make one?" })]));
+        d.family !== own ? h("i", { textContent: d.family }) : null, on.has(d.dial) ? h("i", { className: "ok", textContent: "on the rack" }) : null), move?.(d.dial))) : [h("div", { className: "snap-quiet", textContent: "No dial matches. Make one?" })]));
   }
   q.addEventListener("input", draw);
   const sheet = h("div", { className: "snap-sheet snap-dial-sheet", role: "dialog", ariaLabel: "Dials" },

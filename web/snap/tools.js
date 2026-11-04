@@ -248,14 +248,28 @@ export const TOOLS = [
   },
   {
     name: "list_loras",
-    description: "Installed LoRA files with their role from the model graph (core with sub-kind turbo / fix / task / hires / edit / control, style, identity, unsorted; dial files are left out, see list_dials), family and turbo info, filtered by role, family or words in the name, plus the LoRA rows in the recipe. Identity LoRAs are private: name them only to the person.",
-    inputSchema: { type: "object", properties: { role: { type: "string", enum: ["core", "style", "identity", "unsorted"] }, family: { type: "string" }, filter: { type: "string" } } },
+    description: "Installed LoRA files with their role from the model graph (core with sub-kind turbo / fix / task / hires / edit / control, style, identity, unsorted; dial files are left out, see list_dials), category (e.g. core·fix) and tags (nsfw), family and turbo info, filtered by role, category (a role or a tag), family or words in the name, plus the LoRA rows in the recipe and the categories here with their counts. SFW only leaves nsfw files out. Identity LoRAs are private: name them only to the person.",
+    inputSchema: { type: "object", properties: { role: { type: "string", enum: ["core", "style", "identity", "unsorted"] }, category: { type: "string" }, family: { type: "string" }, filter: { type: "string" } } },
     annotations: { readOnlyHint: true },
-    run: async ({ role, family, filter = "" } = {}) => {
+    run: async ({ role, category, family, filter = "" } = {}) => {
       await M.load();
       const words = filter.toLowerCase().split(/\s+/).filter(Boolean);
-      const found = M.loraChoices().filter(([name, e]) => e.role !== "dial" && (!role || e.role === role) && (!family || e.family === family) && words.every((w) => name.toLowerCase().includes(w)));
-      return { count: found.length, loras: found.slice(0, 200).map(([name]) => ({ name, ...related(name) })), in_recipe: M.loras().map((r) => ({ brick: r.brick, row: r.row, file: r.file, strength: r.strength, on: r.on, role: r.entry?.role })) };
+      const found = M.loraFiles().filter((r) => (category ? M.inCategory(r, category) : r.entry.role !== "dial") && (!role || r.entry.role === role) && (!family || r.entry.family === family) && words.every((w) => r.file.toLowerCase().includes(w)));
+      return { count: found.length, categories: M.categories(), loras: found.slice(0, 200).map((r) => ({ name: r.file, category: r.category, tags: r.tags, ...related(r.file) })), in_recipe: M.loras().map((r) => ({ brick: r.brick, row: r.row, file: r.file, strength: r.strength, on: r.on, role: r.entry?.role })) };
+    },
+  },
+  {
+    name: "set_lora_category",
+    description: "File a LoRA under a category, as the person's 'move to…' does (the same function): role is one of core·turbo, core·fix, core·task, core·hires, core·edit, core·control, style, identity, dial, unsorted; tags is the full list it should carry (e.g. [\"nsfw\"] or []). Written to the person's snap/models.json, which wins over the pack, so the Library, the pickers, the Setup's stacks and these tools follow at once. Returns the entry now and `undo` (pass it back with undo to put the person's entry back as it was). Ask the person before filing their LoRAs.",
+    inputSchema: { type: "object", properties: { file: { type: "string" }, role: { type: "string" }, tags: { type: "array", items: { type: "string" } }, undo: { type: "array", description: "the undo list a previous call returned" } }, required: ["file"] },
+    run: async ({ file, role, tags, undo }) => {
+      await M.load();
+      if (undo) { for (const u of [...undo].reverse()) await M.restore(u); return { file, entry: M.entry(file), undone: true }; }
+      const done = [];
+      if (role && role !== M.categoryOf(M.entry(file))) done.push(await M.moveTo(file, role));
+      for (const t of M.TAGS) if (tags && tags.includes(t) !== (M.entry(file).tags ?? []).includes(t)) done.push(await M.moveTo(file, t));
+      const e = M.entry(file);
+      return { file, category: M.categoryOf(e), tags: e.tags ?? [], undo: done };
     },
   },
   {
@@ -620,8 +634,8 @@ export const TOOLS = [
   },
   {
     name: "ui",
-    description: "Drive the view: select a brick, open it (side panel or in place, by the person's setting), close, show snap or graph (focusing a brick), undo, redo, open the dial picker or maker, open the setups sheet or a slot's methods sheet (target: the slot, e.g. upscale or turbo; action turbo is the same as methods turbo), open a take, switch metadata in saved files (target on / off: the person's setting beside Run; read_ui says which), or open the onboarding sheet (target: a step, e.g. intent to add a capability).",
-    inputSchema: { type: "object", properties: { action: { type: "string", enum: ["select", "close", "snap", "graph", "undo", "redo", "dials", "make_dial", "setups", "turbo", "methods", "open_take", "metadata", "scenes", "onboarding"] }, target: { type: "string", description: "a brick key, take id, slot, on / off for metadata, or an onboarding step" } }, required: ["action"] },
+    description: "Drive the view: select a brick, open it (side panel or in place, by the person's setting), close, show snap or graph (focusing a brick), undo, redo, open the dial picker or maker, open the setups sheet or a slot's methods sheet (target: the slot, e.g. upscale or turbo; action turbo is the same as methods turbo), open a take, switch metadata in saved files (target on / off: the person's setting beside Run; read_ui says which), open the onboarding sheet (target: a step, e.g. intent to add a capability), or the LoRA sheet by category (target: a category, e.g. style).",
+    inputSchema: { type: "object", properties: { action: { type: "string", enum: ["select", "close", "snap", "graph", "undo", "redo", "dials", "make_dial", "setups", "turbo", "methods", "open_take", "metadata", "scenes", "onboarding", "loras"] }, target: { type: "string", description: "a brick key, take id, slot, on / off for metadata, or an onboarding step" } }, required: ["action"] },
     direct: true, // view changes are the agent's own navigation, not edits to accept
     run: ({ action, target }) => ui.act(action, target),
   },
