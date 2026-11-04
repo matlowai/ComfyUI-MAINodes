@@ -3,10 +3,11 @@
 // every installed dial (/mainodes/dials/catalog); "Make a dial" fills the pack's own Make Dial node and runs only that
 // node, then puts the new dial on the rack. Rows live in the rack's `rack` widget (the backend's source of truth).
 // SNAP-R2 the rack follows its widget · SNAP-R13 family from the setup, strength scale from the dials' own data ·
-// see docs/SNAP_RULES.md
+// SNAP-R25 SFW only leaves out dials the model graph tags nsfw · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
+import * as PF from "./profile.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 
@@ -16,7 +17,10 @@ export function load(force) {
   loading ??= api.fetchApi("/mainodes/dials/catalog").then((r) => (r.ok ? r.json() : { dials: [] })).then((c) => { kinds = c.families ?? {}; return (catalog = c.dials); }, () => (catalog = []));
   return loading;
 }
-export const all = () => catalog ?? [];
+// SFW only: models.js says which dial files the person's model graph tags nsfw (set there, like the family)
+let hidden = () => false;
+export const useHidden = (fn) => { hidden = fn; };
+export const all = () => (catalog ?? []).filter((d) => !hidden(d.dial));
 export const types = () => kinds; // encoder type -> dial family (minimax -> MiniMax H3)
 // the dial family a recipe is for: the recipe's own family (models.js says, from the applied setup card) and else what the
 // graph declares, a `type` setting naming an encoder type the dials know (CLIPLoader type minimax -> MiniMax H3)
@@ -54,6 +58,7 @@ export const rows = () => { try { const v = JSON.parse(E.getValue("rack", "rack"
 const write = (next) => E.setValue("rack", "rack", "rack", JSON.stringify(next)); // the rack UI follows its widget's callback
 
 export function add(dial, strength) {
+  if (hidden(dial)) throw new Error(`${dial} is tagged nsfw and SFW only is on (the person's profile)`);
   if (!E.state().bricks.some((b) => b.key === "rack")) throw new Error("Add the Dial Rack brick first");
   const r = rows();
   if (r.some((x) => x.dial === dial)) return `${label(find(dial) ?? { dial })} is already on the rack`;
@@ -134,7 +139,7 @@ export async function openPicker(host, { say, onChange, onMake }) {
   }
   q.addEventListener("input", draw);
   const sheet = h("div", { className: "snap-sheet snap-dial-sheet", role: "dialog", ariaLabel: "Dials" },
-    h("header", {}, h("strong", { textContent: "Dials" }), h("span", { className: "snap-quiet", textContent: [`${all().length} installed`, scaleNote(own)].filter(Boolean).join(" · ") }), fam, h("span", { className: "snap-spacer" }),
+    h("header", {}, h("strong", { textContent: "Dials" }), h("span", { className: "snap-quiet", textContent: [`${all().length} installed`, scaleNote(own), PF.sfwOnly() && "SFW only · nsfw-tagged dials hidden (a preference filter)"].filter(Boolean).join(" · ") }), fam, h("span", { className: "snap-spacer" }),
       h("button", { className: "snap-primary", textContent: "✦ Make a dial", onclick: () => { close(); onMake(); } }), h("button", { className: "snap-x", textContent: "×", onclick: close })),
     h("div", { className: "snap-dial-pick" }, q, grid));
   sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });

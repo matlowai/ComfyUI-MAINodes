@@ -4,13 +4,14 @@
 // ({ names(), values(name), current(), apply(name) }, e.g. the Render Preset's) plus the Library's family recipe cards.
 // SNAP-R1 generic pass-through · SNAP-R3 unresolved stays missing · SNAP-R9 setups own the model set · SNAP-R10 turbo
 // merge vs LoRA · SNAP-R11 warn, never block · SNAP-R12 LoRA roles · SNAP-R13 family rules from the model graph
-// see docs/SNAP_RULES.md
+// SNAP-R25 SFW only hides what the graph tags nsfw · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
 import * as D from "./dials.js";
 import * as L from "./library.js";
 import { BRICKS } from "./bricks.js";
+import * as PF from "./profile.js";
 
 let files = new Map(), exts = [], loading = null, notify = () => {};
 // name -> { folder, size, modified } from core's folder lists (every model folder; the first folder wins a name in two),
@@ -94,6 +95,10 @@ export async function teach(name, patch) {
   relations.set(base(name), { ...was, ...e });
   return entry(name);
 }
+// SFW only (the person's profile): a file the model graph tags nsfw is left out of pickers and agent lists. A preference
+// filter on the person's own tags, not a safety guarantee (SNAP-R25)
+export const hidden = (name) => PF.sfwOnly() && (entry(name)?.tags ?? []).includes("nsfw");
+D.useHidden(hidden);
 export const known = () => files.size;
 export const gb = (bytes) => `${(bytes / 1e9).toFixed(bytes < 1e9 ? 2 : 1)} GB`;
 
@@ -312,7 +317,7 @@ export function turbos() {
 // the brick whose sampling a turbo edits (the image Render; H3 carries its turbo in the Render Preset)
 export const turboHost = () => E.state().bricks.find((b) => BRICKS[b.key].turbo)?.key ?? null;
 // every LoRA file installed, with what the model graph says about it (for "+ LoRA")
-export const loraChoices = () => [...files].filter(([, f]) => f.folder === "loras").map(([name]) => [name, entry(name)]);
+export const loraChoices = () => [...files].filter(([name, f]) => f.folder === "loras" && !hidden(name)).map(([name]) => [name, entry(name)]);
 // the turbo the graph holds (SNAP-R2): the diffusion model when it is a turbo merge, else the first core row that is a turbo
 export function turbo() {
   const model = diffusion();
@@ -385,6 +390,7 @@ export function addRow(brick, file, strength = entry(file)?.recommended?.strengt
 // Dial Rack, and a core LoRA needs a recipe whose Render takes a core stack: H3's LoRA rides on its Render Preset with the
 // schedule it was distilled for. A second turbo is refused unless the person asked for the stack (SNAP-R10)
 export async function addLora(file, { role, strength, asked } = {}) {
+  if (hidden(file)) throw new Error(`${short(file)} is tagged nsfw and SFW only is on (the person's profile)`);
   const names = loraChoices().map(([n]) => n), name = names.includes(file) ? file : E.resolveChoice(names, file);
   if (!name) throw new Error(`No LoRA file "${file}"; list_loras shows them`);
   const e = entry(name), want = role ?? e.role;

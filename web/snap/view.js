@@ -2,7 +2,8 @@
 // graph edits and agent edits all show up by re-rendering; nothing here keeps its own copy of brick state.
 // SNAP-R1 generic pass-through · SNAP-R2 re-read widgets on outside changes · SNAP-R4 outcome faces · SNAP-R5 new
 // tabs for new work · SNAP-R7 pointer-down lists · SNAP-R19 actions call their tools' functions · SNAP-R20 the metadata
-// switch · SNAP-R9 the Setup brick · SNAP-R24 the scene navigator above the chain · see docs/SNAP_RULES.md
+// switch · SNAP-R9 the Setup brick · SNAP-R24 the scene navigator above the chain · SNAP-R25 onboarding, SFW only ·
+// see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -26,6 +27,8 @@ import * as S from "./slots.js";
 import * as PL from "./plates.js";
 import * as C from "./candidates.js";
 import * as MD from "./metadata.js";
+import * as PF from "./profile.js";
+import { openOnboarding } from "./onboardview.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -144,11 +147,14 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   const libQuery = h("input", { className: "snap-lib-q", placeholder: "Search the Library…", ariaLabel: "search the Library" });
   const libFor = h("button", { className: "snap-lib-for", hidden: true, title: "results fit the selected brick; click to search everything" });
   const libResults = h("div", { className: "snap-lib-results" });
+  const libSfw = h("div", { className: "snap-quiet", hidden: true, textContent: "SFW only · nsfw-tagged cards hidden", title: "your profile's SFW only: cards tagged nsfw, or loading files your model graph tags nsfw, are left out. A preference filter, not a guarantee" });
   let libScoped = true, libSig = "";
   libQuery.addEventListener("input", renderLibrary);
   libFor.addEventListener("click", () => { libScoped = !libScoped; renderLibrary(); });
-  rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libResults);
+  rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libSfw, libResults);
   T.onChange(() => renderLibrary());
+  PF.onChange(() => { render(null); renderLibrary(); }); // SFW only changes what the pickers and the Library list
+  PF.load().then(() => { render(null); renderLibrary(); });
   D.load().then(() => { render(null); renderLibrary(); });
   M.load().then(() => { render(null); if (M.graphProblem()) say(M.graphProblem(), true); }, () => {}); // without the model lists, settings show as plain values
   M.onCheck(() => render(null));
@@ -156,6 +162,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   L.ready().then(renderLibrary, () => libResults.replaceChildren(h("div", { className: "snap-quiet", textContent: "Library not available on this server" })));
 
   function renderLibrary() {
+    libSfw.hidden = !PF.sfwOnly();
     const target = selected && group(selected).find((k) => Object.values(L.TARGET).includes(k)), scope = libScoped ? target ?? null : null; // a Setup card fits what Render Preset takes
     libFor.hidden = !target;
     libFor.textContent = scope ? `for: ${look(selected).title} ✕` : `for: everything · fit ${look(selected)?.title ?? ""}`;
@@ -604,7 +611,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const fit = (e) => (role === "core" ? e.role === "core" : e.role === role || e.role === "unsorted") && (!fam || !e.family || e.family === fam);
     const choices = M.loraChoices().filter(([, e]) => e.role !== "dial").sort(([, a], [, b]) => fit(b) - fit(a));
     const pick = h("select", { className: "snap-lora-add", title: "add a LoRA row", onchange: (e) => { if (e.target.value) { M.addRow(key, e.target.value); changed(); } } },
-      h("option", { value: "", textContent: "+ LoRA", selected: true }), choices.map(([name, e]) => h("option", { value: name, textContent: `${fit(e) ? "" : "· "}${name}` })));
+      h("option", { value: "", textContent: PF.sfwOnly() ? "+ LoRA (SFW only: nsfw-tagged hidden)" : "+ LoRA", selected: true }), choices.map(([name, e]) => h("option", { value: name, textContent: `${fit(e) ? "" : "· "}${name}` })));
     const box = h("div", { className: "snap-loras" }, list.length ? list.map(rowEl) : h("div", { className: "snap-quiet", textContent: role === "core" ? "No core LoRAs" : "No LoRAs" }), pick);
     box.addEventListener("pointerdown", (e) => e.stopPropagation()); // SNAP-R7: rows are controls; a press never selects or opens the brick
     return box;
@@ -701,6 +708,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("span", { className: "snap-quiet", textContent: [s.output, s.values.sampler, s.values.schedule, s.values.steps && `${s.values.steps} steps`, s.values.cfg != null && `cfg ${s.values.cfg}`].filter(Boolean).join(" · ") }));
     const sheet = h("div", { className: "snap-sheet snap-setup-sheet", role: "dialog", ariaLabel: "Setups" },
       h("header", {}, h("strong", { textContent: "Setups" }), h("span", { className: "snap-quiet", textContent: "a click applies every setting of a setup together · Ctrl+Z undoes it · another family opens in a new tab" }), h("span", { className: "snap-spacer" }),
+        h("button", { className: "snap-link snap-quiet-btn", textContent: "Add a capability", title: "pick something else to make; Snap shows its setup and what's missing", onclick: () => { close(); onboard("intent"); } }),
         fam && E.state().bricks.length ? h("label", { className: "snap-quiet snap-keep" }, keep, ` keep this ${fam} stack as "Last used" when switching family`) : null,
         h("button", { className: "snap-x", textContent: "×", onclick: close })),
       here ? h("div", { className: "snap-setup-scene", textContent: `You're in ${here.scene.name} › ${SC.shotTitle(here.scene, here.shot)}. Another family opens in a scratch tab: it won't be part of the scene, and this shot stays as it is.` }) : null,
@@ -712,6 +720,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     root.append(sheet);
     sheet.querySelector(".snap-setup-card.on, .snap-setup-card")?.focus();
   }
+
+  // "I'm new, help me set up" (SNAP-R25): the opened setups land in new tabs, which re-render the chain on their own
+  const onboard = (start) => openOnboarding(root, { say, start, onOpened: () => render(null) }).catch((err) => say(err.message, true));
 
   // drag a number's label sideways to change it: 1 step per 4 px, Shift fine, Alt coarse
   function scrub(labelEl, input, set) {
@@ -1202,6 +1213,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("div", { className: "snap-empty-title", textContent: "Build a recipe" }),
       h("div", { className: "snap-quiet", textContent: "Drag bricks in from the left and they snap into a working graph. Or start from the recommended recipe." }),
       h("button", { className: "snap-primary", textContent: "Start from Dials + Pika Simple", onclick: buildSimple }),
+      // SNAP-R7: the empty state is rebuilt by the mouseup's change check, so a click on it can be lost; act on pointerup
+      h("button", { className: "snap-link", textContent: "New here? Set up Snap", title: "a few questions, then a setup for what you want to make, in new tabs", onpointerup: () => onboard() }),
       app.graph.nodes.length ? h("button", { className: "snap-link", textContent: `Snap this workflow (${app.graph.nodes.length} nodes)`, title: "show the open graph as bricks; nothing in it changes", onclick: adoptGraph }) : null)]));
     title.textContent = app.extensionManager.workflow.activeWorkflow?.filename ?? "Snap";
     fold();
@@ -1241,6 +1254,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     else if (action === "open_take") { const t = T.get(target); if (!t) throw new Error(`No take ${target}`); dailies.view(t); }
     else if (action === "run_from") { const t = T.get(target); if (!t) throw new Error(`No take ${target}`); return runFrom(t); }
     else if (action === "setups") openSetups();
+    else if (action === "onboarding") await onboard(target || undefined);
     else if (action === "scenes") sceneBar.openScenes();
     else if (action === "metadata") { if (!["on", "off"].includes(target)) throw new Error('metadata takes target "on" or "off"'); await MD.set(target === "on"); }
     else if (action === "turbo" || action === "methods") openMethods(action === "turbo" ? "turbo" : target || "upscale");

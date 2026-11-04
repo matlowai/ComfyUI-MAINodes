@@ -140,6 +140,24 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   (NEXT_DESIGN_REVIEW §10 Q2); Dylan (2026-11-04): "a scene should have the related work navigable and nested".
   *More:* `web/snap/scenes.js`, `web/snap/sceneview.js`; PLAN U59, scout/editor_layer §5.6-5.7.
 
+## Onboarding
+
+- **SNAP-R25: Onboarding proposes; it never downloads.** "I'm new, help me set up" asks at most five things, each with a
+  default and Skip: what to make, look through the models, metadata in outputs (it sets the SNAP-R20 switch), SFW only,
+  and which tasks may use API models (none by default). Hardware is read from `/system_stats`, never asked. Answers go
+  in user `snap/profile.json`, saved per step, so it resumes; reopened it asks only what's new ("Add a capability").
+  It ends on a kit per intent: the recommended setup for this machine (ready first, then one whose missing files all
+  have a download), a fast option, alternatives on request, each with good-at, VRAM fit and an evidence grade with a
+  date (measured on this machine / community-measured / community opinion / untested); "Open in new tabs" opens one
+  recommended setup per intent (SNAP-R5). Kits are data (`snap_cards/kits.json`): they name setups, and a file's
+  folder, size, source, link and license come from the model graph, a method's needs from the method registry. What's
+  missing is listed with exact files, sizes, targets and a command, node packs with author, repo, license and our
+  safety read (network at import, pickles, auto-downloads); the person or their agent runs them after a yes. API
+  setups appear only for tasks the person allowed. SFW only hides files, dials, LoRAs and Library cards the model graph
+  tags `nsfw` from pickers and agent tools; it's a preference filter on the person's own tags, and the UI says so.
+  *Why:* AGENTS.md "No Internet Requests"; Dylan (2026-11-04): intent first, light touch, metadata asked here.
+  *More:* MODEL_GRAPH_ONBOARDING §4 and §8, `web/snap/onboarding.js`, `onboardview.js`, `profile.js`.
+
 ## Agents
 
 - **SNAP-R15: Every UI action has an agent tool.** MCP and WebMCP are built from one table. Results carry the same

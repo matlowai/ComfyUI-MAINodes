@@ -1,0 +1,189 @@
+{
+  "about": "Onboarding kits (SNAP-R25): what to set up for each thing a person wants to make. A kit names setups (a Library recipe card, a Render Preset, a method from snap_cards/methods.json, plus a turbo or extra files); the files' folders, sizes, sources and download links come from the model graph (snap_cards/models.json), so they live in one place. Each setup has a tier (recommended, fast, also, api), the VRAM it wants, and evidence with a grade and a date. Snap only proposes downloads: the person or their agent runs them.",
+  "grades": {
+    "measured": "measured on this machine",
+    "community": "community-measured",
+    "opinion": "community opinion",
+    "untested": "untested"
+  },
+  "tasks": [
+    { "id": "prompt", "title": "Prompt expansion" },
+    { "id": "caption", "title": "Captioning" },
+    { "id": "judge", "title": "Judging takes" },
+    { "id": "render", "title": "Rendering" },
+    { "id": "edit", "title": "Editing" }
+  ],
+  "packs": [
+    {
+      "id": "geiru",
+      "title": "Geiru context suite",
+      "author": "roycho87",
+      "repo": "https://github.com/roycho87/geiru_context_suite",
+      "folder": "geiru_context_suite",
+      "license": "GPL-3.0",
+      "unlocks": "long-clip protection: keystone frames, late lock, context noise and Anti-Burn on clips 2+",
+      "nodes": ["H3ClownChain", "H3ClownContextExperimental", "H3ClownKeyframe", "H3ClownLateLock", "H3ClownContextNoise", "H3ClownProtectionLora"],
+      "safety": {
+        "network_at_import": false,
+        "pickles": false,
+        "auto_downloads": "Geiru Protection LoRA's default option downloads Imagineer13's Anti-Burn LoRA from Hugging Face when it runs and the file isn't in loras/; pick the local file by name",
+        "other": "adds local /clown_chain/* routes; no requirements file, no subprocess or pip"
+      },
+      "checked": { "date": "2026-11-04", "commit": "cded7e1", "how": "code read (U60)" }
+    },
+    {
+      "id": "maskvid",
+      "title": "MaskVidExperiments",
+      "author": "drozbay",
+      "repo": "https://github.com/drozbay/MaskVidExperiments",
+      "folder": "MaskVidExperiments",
+      "license": "GPL-3.0",
+      "unlocks": "cropped inpaint: re-render one face or subject inside a mask and paste it back",
+      "nodes": ["MVEx_SubjectCrop", "MVEx_SubjectUncrop", "MVEx_MaskCleanup", "MVEx_MaskToLatentSpace"],
+      "safety": { "network_at_import": false, "pickles": false, "auto_downloads": null, "other": "no requirements file, no subprocess or pip" },
+      "checked": { "date": "2026-11-04", "commit": "c32ed8c", "how": "code read (U60)" }
+    }
+  ],
+  "kits": [
+    {
+      "intent": "video",
+      "title": "Video with sound",
+      "blurb": "clips with sound from a prompt or a first frame",
+      "task": "render",
+      "setups": [
+        {
+          "id": "video-pika", "tier": "recommended", "title": "Pika H3 Flex", "recipe": "simple", "preset": "Pika H3 Flex",
+          "good_at": "4 s clips with sound, motion and dials", "vram_gb": 32,
+          "evidence": { "grade": "measured", "date": "2026-11-04", "line": "about 66 s per 4 s take at 1280×704 on a 5090", "source": "U19, 3 takes" },
+          "lowvram": [{ "below_gb": 32, "swap": ["minimax_h3_fl2va_pruned_int8_convrot.safetensors", "minimax_h3_fl2va_pruned_w6a8.safetensors"], "evidence": { "grade": "untested", "date": "2026-11-04", "line": "the W6A8 DiT (16 GB) loads in core; quality not compared here" } }]
+        },
+        {
+          "id": "video-dmad", "tier": "fast", "title": "DMAD speed LoRA", "recipe": "simple", "preset": "DMAD speed LoRA",
+          "good_at": "faster drafts", "vram_gb": 32,
+          "evidence": { "grade": "measured", "date": "2026-11-02", "line": "LoRA 0.8 at 6 steps looked crisper than the authors' 1.0 at 4 on our train-platform test", "source": "render.py preset note" }
+        },
+        {
+          "id": "video-pika-api", "tier": "api", "title": "Pika H3 Flex Video (API)", "node": "PikaH3FlexVideoNode",
+          "good_at": "the same model on Pika's servers, no local GPU", "cost": "paid per clip with Comfy credits; sends your prompt and pictures to Pika",
+          "evidence": { "grade": "untested", "date": "2026-11-04", "line": "core partner node added in ComfyUI 0.44.0" }
+        }
+      ],
+      "try_first": "Type what happens in the prompt on the Render brick and press Run. A take shows up under the chain."
+    },
+    {
+      "intent": "stills",
+      "title": "Stills",
+      "blurb": "pictures from a prompt",
+      "task": "render",
+      "setups": [
+        {
+          "id": "stills-moss-base", "tier": "recommended", "card": "setup-moss-base",
+          "good_at": "flexible stills; wants long, concrete prompts", "vram_gb": 16,
+          "evidence": { "grade": "measured", "date": "2026-11-04", "line": "8 s per 1024² image at 25 steps on a 5090; 25 steps looked as good as 50 in 20 pairs", "source": "U24" }
+        },
+        {
+          "id": "stills-kromoss-dmd2", "tier": "fast", "card": "setup-kromoss", "turbo": "lodestones_kromoss_8step_dmd2_lora.safetensors", "title": "Kromoss + DMD2 8-step",
+          "good_at": "fast drafts, crisp", "vram_gb": 16,
+          "evidence": { "grade": "measured", "date": "2026-11-04", "line": "2.7 s per 1024² image, 8 steps cfg 1", "source": "P2 renders" }
+        },
+        {
+          "id": "stills-sft-deband", "tier": "also", "card": "setup-moss-sft-deband",
+          "good_at": "the cleanest set by eye: colour, text, hands", "vram_gb": 16,
+          "evidence": { "grade": "measured", "date": "2026-11-04", "line": "7.7 s per image; no banding in 40 images (agent's eye)", "source": "U24" }
+        },
+        {
+          "id": "stills-krea", "tier": "also", "card": "setup-krea2-raw",
+          "good_at": "photographic looks; Krea dials are calibrated on it", "vram_gb": 32,
+          "evidence": { "grade": "measured", "date": "2026-11-04", "line": "67 s per 1024² image at 30 steps", "source": "P2 renders" }
+        }
+      ],
+      "try_first": "Write two or three concrete sentences about the picture (who, where, light, lens) and press Run."
+    },
+    {
+      "intent": "anime",
+      "title": "Anime",
+      "blurb": "illustration and anime stills",
+      "task": "render",
+      "setups": [
+        {
+          "id": "anime-sft-deband", "tier": "recommended", "card": "setup-moss-sft-deband",
+          "good_at": "full-colour anime", "vram_gb": 16,
+          "evidence": { "grade": "measured", "date": "2026-11-04", "line": "full-colour anime 2/2 where Base drew uncoloured line art 4/4 (agent's eye)", "source": "U24" }
+        },
+        {
+          "id": "anime-kromoss", "tier": "recommended", "card": "setup-kromoss",
+          "good_at": "crisp stills; a drop-in Base fine-tune", "vram_gb": 16,
+          "evidence": { "grade": "untested", "date": "2026-11-04", "line": "not checked on anime here; ties or beats Base on the U24 set", "source": "U24" }
+        },
+        {
+          "id": "anime-kromoss-dmd2", "tier": "fast", "card": "setup-kromoss", "turbo": "lodestones_kromoss_8step_dmd2_lora.safetensors", "title": "Kromoss + DMD2 8-step",
+          "good_at": "fast drafts", "vram_gb": 16,
+          "evidence": { "grade": "measured", "date": "2026-11-04", "line": "2.7 s per 1024² image", "source": "P2 renders" }
+        },
+        {
+          "id": "anime-upscale", "tier": "also", "title": "4x-AnimeSharp upscale", "method": "esrgan", "files": ["4x-AnimeSharp.safetensors"],
+          "good_at": "sharper line art when you upscale",
+          "evidence": { "grade": "opinion", "date": "2026-11-04", "line": "the community's pick for anime", "source": "scout/upscalers §1" }
+        }
+      ],
+      "try_first": "Name the style in the prompt (cel shading, clean line art, flat colour) and press Run."
+    },
+    {
+      "intent": "edit",
+      "title": "Edit your footage",
+      "blurb": "relight a take you made: night, dusk or dawn",
+      "task": "edit",
+      "setups": [
+        {
+          "id": "edit-night", "tier": "recommended", "title": "Night version", "recipe": "simple", "preset": "Pika H3 Flex", "method": "relight",
+          "good_at": "the same shot at night, dusk or dawn", "vram_gb": 32,
+          "evidence": { "grade": "measured", "date": "2026-11-04", "line": "100-140 s per edit on a 5090; kept layout and motion best of three routes", "source": "U53b, U54" }
+        },
+        {
+          "id": "edit-region", "tier": "also", "title": "Cropped inpaint", "method": "crop_inpaint",
+          "good_at": "one face or person among several",
+          "evidence": { "grade": "community", "date": "2026-11-04", "line": "13 min for an 8 s clip on a 3060 12 GB", "source": "scout/h3_edit_tools §1" }
+        }
+      ],
+      "try_first": "Render a take, open it from the Takes strip and pick Edit › Night version. You pick the frame you like before anything renders."
+    },
+    {
+      "intent": "long",
+      "title": "Long clips",
+      "blurb": "longer than one 4-8 s render",
+      "task": "render",
+      "setups": [
+        {
+          "id": "long-geiru", "tier": "recommended", "title": "Protected chain (Geiru)", "recipe": "simple", "preset": "Pika H3 Flex", "method": "geiru", "files": ["h3_antiburn_universal_v1.safetensors"],
+          "good_at": "minutes of video without drift", "vram_gb": 32,
+          "evidence": { "grade": "community", "date": "2026-11-04", "line": "50 clips (about 5:20) over 4 scenes held where the plain chain broke", "source": "scout/longclip_methods §3.2" }
+        },
+        {
+          "id": "long-chain", "tier": "fast", "title": "Chain", "recipe": "simple", "preset": "Pika H3 Flex", "method": "chain",
+          "good_at": "simple continuation, clip by clip", "vram_gb": 32,
+          "evidence": { "grade": "untested", "date": "2026-11-04", "line": "drift builds clip by clip", "source": "scout/longclip_methods §6" }
+        }
+      ],
+      "try_first": "Start with one good 4 s take; long-clip chains run from the graph for now."
+    },
+    {
+      "intent": "characters",
+      "title": "Characters",
+      "blurb": "the same character across shots, from pictures",
+      "task": "render",
+      "setups": [
+        {
+          "id": "characters-ref2v", "tier": "recommended", "title": "Pika + reference pictures", "recipe": "simple", "preset": "Pika + reference pictures",
+          "good_at": "who and where from your pictures", "vram_gb": 32,
+          "evidence": { "grade": "measured", "date": "2026-11-04", "line": "54 s per take on a 5090; a set picture kept the room 12/12", "source": "P2 renders, U21" }
+        },
+        {
+          "id": "characters-api", "tier": "api", "title": "Pika H3 Flex Reference to Video (API)", "node": "PikaH3FlexReferenceVideoNode",
+          "good_at": "reference video on Pika's servers", "cost": "paid per clip with Comfy credits; sends your pictures to Pika",
+          "evidence": { "grade": "untested", "date": "2026-11-04", "line": "core partner node added in ComfyUI 0.44.0" }
+        }
+      ],
+      "try_first": "Drop two or three pictures of your character on References, say who they are in the prompt, and press Run. Character LoRAs stay private by default."
+    }
+  ]
+}

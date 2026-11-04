@@ -2,13 +2,15 @@
 // search is slot-aware (a selected brick narrows it to the kinds that brick takes). Keyword search for now; the
 // multimodal embedder plugs in behind `search` once its runtime is chosen.
 // SNAP-R5 another family opens a new tab · SNAP-R12 identity rows never leave in a card · SNAP-R18 local only ·
-// SNAP-R21 a shot's reference shows its own camera · see docs/SNAP_RULES.md
+// SNAP-R21 a shot's reference shows its own camera · SNAP-R25 SFW only leaves out cards tagged or loading nsfw ·
+// see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import * as T from "./takes.js";
 import * as D from "./dials.js";
 import * as M from "./models.js";
+import * as PF from "./profile.js";
 import { BRICKS, kit } from "./bricks.js";
 import { setBlock, blocking, drawPlan, drawElevation, toBlob, coverage, atCamera, cameraAt, keeps, ownCamera, sameCamera } from "./setsnap.js";
 
@@ -63,7 +65,9 @@ const installed = () => D.all().map((d) => ({ id: `dial:${d.dial}`, kind: "dial"
   text: `${d.info.description || "No description yet."} Negative gives ${d.info.negative || "?"}, positive gives ${d.info.positive || "?"}. ${d.dial} (${d.family})`,
   brick: { dial: d.dial, strength: d.info.pos.useful ?? 0.5 } }));
 // priors and the Library's own cards first; installed dials (dozens) after them, minus the ones a card already covers
-const everything = () => [...priors(), ...cards, ...installed().filter((d) => !cards.some((c) => c.kind === "dial" && c.brick?.dial === d.brick.dial))];
+// SFW only: a card tagged nsfw, or one whose bricks load a file the model graph tags nsfw, is left out
+const nsfw = (c) => PF.sfwOnly() && ((c.tags ?? []).includes("nsfw") || (JSON.stringify(c.brick ?? {}).match(/[^"/]+\.safetensors/g) ?? []).some(M.hidden));
+const everything = () => [...priors(), ...cards, ...installed().filter((d) => !cards.some((c) => c.kind === "dial" && c.brick?.dial === d.brick.dial))].filter((c) => !nsfw(c));
 export const get = (id) => everything().find((c) => c.id === id);
 // recipe cards that are a family's setup (their `family` says which), for the Setups sheet
 export const setupCards = () => cards.filter((c) => c.kind === "recipe" && c.family);

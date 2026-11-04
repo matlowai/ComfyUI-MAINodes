@@ -8,7 +8,8 @@
 // SNAP-R11 same warnings as the UI · SNAP-R15 one table, MCP + WebMCP · SNAP-R16 GPU tools wait as proposals ·
 // SNAP-R17 by: agent · SNAP-R19 the tool table is the API · SNAP-R21 camera plates · SNAP-R23 candidates: the person's
 // pick waits as a proposal for agents · SNAP-R24 scenes own the work (the scene tools call scenes.js, as the navigator
-// does) · see docs/SNAP_RULES.md
+// does) · SNAP-R25 onboarding: the sheet's functions; propose_downloads never downloads; SFW only filters the lists ·
+// see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import { BRICKS, PACK_BRICKS } from "./bricks.js";
@@ -27,6 +28,9 @@ import * as C from "./candidates.js";
 import * as ED from "./edits.js";
 import * as K from "./checks.js";
 import * as SC from "./scenes.js";
+import * as OB from "./onboarding.js";
+import * as PF from "./profile.js";
+import * as MD from "./metadata.js";
 import { api } from "../../../scripts/api.js";
 
 // a widget as an agent reads it: value, kind, choices (cut to 50), limits, and whether a wire drives it
@@ -171,6 +175,45 @@ export const TOOLS = [
     },
   },
   {
+    name: "get_profile",
+    description: "The person's onboarding answers (userdata snap/profile.json): intents (what they want to make: video, stills, anime, edit, long, characters), sfw_only, api_tasks (tasks where API models are allowed; every other task stays local), the questions answered or skipped, done; plus metadata (the Save metadata switch) and this machine's hardware (GPU, VRAM, RAM, read from /system_stats).",
+    inputSchema: { type: "object", properties: {} },
+    annotations: { readOnlyHint: true },
+    run: async () => { await OB.load(); return { profile: PF.get(), metadata: MD.on() ? "on" : "off", hardware: await OB.hardware() }; },
+  },
+  {
+    name: "set_profile",
+    description: "Save onboarding answers, as the person gives them: intents, sfw_only (hides files, dials and cards the model graph tags nsfw from pickers and from these tools: a preference filter, not a safety guarantee), api_tasks (from list_kits' tasks: prompt, caption, judge, render, edit; API models show only for these), metadata (true / false sets the Save metadata switch), answered (step ids: intent, scan, metadata, sfw, local, kit). Ask the person first; never decide these for them.",
+    inputSchema: { type: "object", properties: { intents: { type: "array", items: { type: "string", enum: ["video", "stills", "anime", "edit", "long", "characters"] } }, sfw_only: { type: "boolean" },
+      api_tasks: { type: "array", items: { type: "string", enum: ["prompt", "caption", "judge", "render", "edit"] } }, metadata: { type: "boolean" }, answered: { type: "array", items: { type: "string" } }, done: { type: "boolean" } } },
+    run: async ({ metadata, ...patch }) => {
+      if (metadata != null) { await MD.set(metadata); patch.answered = [...(patch.answered ?? []), "metadata"]; }
+      await PF.set(patch);
+      return { profile: PF.get(), metadata: MD.on() ? "on" : "off" };
+    },
+  },
+  {
+    name: "scan_models",
+    description: "Match this machine's model folders and installed nodes against every onboarding kit: per intent, the recommended and fast setups with state ready / missing (files or node packs) / cant_load (a file core ComfyUI can't load), the missing files, what's ready now; how many model files are here and how many the model graph doesn't know (inferred from their names). Reads only local folders.",
+    inputSchema: { type: "object", properties: {} },
+    annotations: { readOnlyHint: true },
+    run: () => OB.scan(),
+  },
+  {
+    name: "list_kits",
+    description: "One intent's kit for this person and machine (or all kits without intent): recommended (the best recommended setup here: ready first, then one whose missing files all have downloads), fast, also (alternatives; API setups only when the profile allows API for the kit's task), try_first. Each setup: title, good_at, state, files (folder, size_gb, installed, cant_load, source, download, license, target folder), node packs (author, repo, license, what they unlock, our safety read), vram_gb and whether it fits this card (with the smaller files it swaps in), and evidence (grade: measured on this machine / community-measured / community opinion / untested, with date, line and source). Rate options to the person from this data.",
+    inputSchema: { type: "object", properties: { intent: { type: "string", enum: ["video", "stills", "anime", "edit", "long", "characters"] } } },
+    annotations: { readOnlyHint: true },
+    run: async ({ intent } = {}) => { await OB.load(); return intent ? OB.kit(intent) : { tasks: OB.tasks(), kits: await Promise.all(OB.kits().map((k) => OB.kit(k.intent))) }; },
+  },
+  {
+    name: "propose_downloads",
+    description: "What to fetch for the person's intents (their profile's, or the ones given; or one setup id from list_kits): exact files with size, source, download link, target folder and a command, plus node packs with their repo, license and safety read. It never downloads (downloaded: false). Show the list to the person; each file or pack needs their explicit yes, then you (in your own tools) or they run it, safetensors only. Files with no recorded link say where to look.",
+    inputSchema: { type: "object", properties: { intents: { type: "array", items: { type: "string" } }, setup: { type: "string" } } },
+    annotations: { readOnlyHint: true },
+    run: ({ intents, setup } = {}) => OB.proposeDownloads({ ...(intents ? { intents } : {}), setup }),
+  },
+  {
     name: "list_methods",
     description: "The methods a slot can hold (SNAP-R14), from the method registry (snap_cards/methods.json under the person's snap/methods.json). Every method has id, title, does, install_state (from the model folders and installed nodes now: ready, or which weights or nodes are missing), wired, fits (this recipe), current, local_or_api, guidance (one line with its evidence: measured / claimed / opinion / none, and the source), cost and constraints. A media slot (upscale) also says its factor and the outcome headline; a hand-wired step between its sockets is listed as custom. The turbo slot's methods are this family's turbos from the model graph: merges (swap the diffusion model) and turbo LoRAs (add a core row), each with the steps / cfg / sampler / scheduler it was distilled for.",
     inputSchema: { type: "object", properties: { slot: slotEnum }, required: ["slot"] },
@@ -255,7 +298,7 @@ export const TOOLS = [
       const all = [...(await M.load()).entries()];
       if (!folder) return Object.entries(Object.groupBy(all, ([, f]) => f.folder)).map(([name, list]) => ({ folder: name, files: list.length }));
       const words = filter.toLowerCase().split(/\s+/).filter(Boolean);
-      const found = all.filter(([name, f]) => f.folder === folder && words.every((w) => name.toLowerCase().includes(w)));
+      const found = all.filter(([name, f]) => f.folder === folder && !M.hidden(name) && words.every((w) => name.toLowerCase().includes(w)));
       return { folder, count: found.length, files: found.slice(0, 200).map(([name, f]) => ({ name, size_gb: +(f.size / 1e9).toFixed(2), ...related(name) })) };
     },
   },
@@ -577,8 +620,8 @@ export const TOOLS = [
   },
   {
     name: "ui",
-    description: "Drive the view: select a brick, open it (side panel or in place, by the person's setting), close, show snap or graph (focusing a brick), undo, redo, open the dial picker or maker, open the setups sheet or a slot's methods sheet (target: the slot, e.g. upscale or turbo; action turbo is the same as methods turbo), open a take, or switch metadata in saved files (target on / off: the person's setting beside Run; read_ui says which).",
-    inputSchema: { type: "object", properties: { action: { type: "string", enum: ["select", "close", "snap", "graph", "undo", "redo", "dials", "make_dial", "setups", "turbo", "methods", "open_take", "metadata", "scenes"] }, target: { type: "string", description: "a brick key, take id, slot, or on / off for metadata" } }, required: ["action"] },
+    description: "Drive the view: select a brick, open it (side panel or in place, by the person's setting), close, show snap or graph (focusing a brick), undo, redo, open the dial picker or maker, open the setups sheet or a slot's methods sheet (target: the slot, e.g. upscale or turbo; action turbo is the same as methods turbo), open a take, switch metadata in saved files (target on / off: the person's setting beside Run; read_ui says which), or open the onboarding sheet (target: a step, e.g. intent to add a capability).",
+    inputSchema: { type: "object", properties: { action: { type: "string", enum: ["select", "close", "snap", "graph", "undo", "redo", "dials", "make_dial", "setups", "turbo", "methods", "open_take", "metadata", "scenes", "onboarding"] }, target: { type: "string", description: "a brick key, take id, slot, on / off for metadata, or an onboarding step" } }, required: ["action"] },
     direct: true, // view changes are the agent's own navigation, not edits to accept
     run: ({ action, target }) => ui.act(action, target),
   },

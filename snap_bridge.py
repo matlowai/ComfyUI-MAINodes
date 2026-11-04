@@ -3,8 +3,9 @@
 The page owns the graph, so the server only relays a call to it over the websocket and waits for the page's answer.
 Also the metadata switch on saved files: a prompt queued with Snap's metadata off saves without its prompt and workflow,
 and private takes are marked for the lock badge and the export (SNAP-R20); and the copy score Snap's camera plates and
-take checks run in the queue (SNAP-R21).
-SNAP-R12 identity LoRAs are private · SNAP-R18 local only · SNAP-R20 metadata switch, private takes marked · see docs/SNAP_RULES.md"""
+take checks run in the queue (SNAP-R21); and onboarding's kits (SNAP-R25).
+SNAP-R12 identity LoRAs are private · SNAP-R18 local only · SNAP-R20 metadata switch, private takes marked · SNAP-R25 onboarding
+proposes, never downloads · see docs/SNAP_RULES.md"""
 import asyncio
 import hashlib
 import json
@@ -88,7 +89,7 @@ async def result(request):
 
 
 CARDS = Path(__file__).parent / "snap_cards"
-GRAPHS = {"models.json", "methods.json"}  # data with their own routes, not Library cards
+GRAPHS = {"models.json", "methods.json", "kits.json"}  # data with their own routes, not Library cards
 
 
 @routes.get("/mainodes/snap/cards")
@@ -114,6 +115,16 @@ async def method_registry(request):
     """The pack's method registry (snap_cards/methods.json): the slots and the methods that fill them; the person's own
     (userdata snap/methods.json) are read and merged by the page."""
     return web.json_response(json.loads((CARDS / "methods.json").read_text(encoding="utf-8")))
+
+
+@routes.get("/mainodes/snap/kits")
+async def kits(request):
+    """The pack's onboarding kits (snap_cards/kits.json: intent -> setups, files, node packs), and where each model folder and
+    custom_nodes live on this machine, so a download proposal can name its exact target. Snap never downloads (SNAP-R18)."""
+    found = json.loads((CARDS / "kits.json").read_text(encoding="utf-8"))
+    # the folder named like its key when there is one (diffusion_models lists the legacy models/unet first)
+    targets = {name: next((p for p in paths if os.path.basename(p) == name), paths[0]) for name, (paths, _) in folder_paths.folder_names_and_paths.items() if paths}
+    return web.json_response({**found, "folders": targets})
 
 
 # Semantic search: EmbeddingGemma 2 runs in tools/snap_embedder.py, a sidecar in its own venv (ComfyUI's transformers is
