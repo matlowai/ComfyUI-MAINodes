@@ -44,14 +44,16 @@ export const folders = () => { const m = new Map(); for (const [name, f] of file
 // inferred from the file's folder and name.
 const MINE = "snap/models.json";
 const base = (f) => String(f ?? "").replace(/\\/g, "/").split("/").pop();
-let relations = new Map(), relating = null, problem = null;
+// the pack's `families` say which family a file's name puts it in when no entry does (SNAP-R13: data, not code)
+let relations = new Map(), families = [], relating = null, problem = null;
 // the person's file; one that doesn't parse throws, so nothing writes over it
 const mine = async () => { const r = await api.getUserData(MINE); return r.ok ? r.json() : []; };
 export const overlay = (pack, own) => ({ ...pack, ...Object.fromEntries(Object.entries(own).filter(([, v]) => v != null)) });
 function loadGraph() {
-  relating ??= Promise.all([api.fetchApi("/mainodes/snap/models").then((r) => r.json()).then((r) => r.models, () => []),
+  relating ??= Promise.all([api.fetchApi("/mainodes/snap/models").then((r) => r.json()).catch(() => ({ models: [], families: [] })),
     mine().catch((e) => { problem = `Your snap/models.json was skipped (${e.message}); Snap uses the pack's model graph until it parses`; return []; })]).then(([pack, own]) => {
-    relations = new Map(pack.map((e) => [base(e.file), e]));
+    families = pack.families.map((f) => [new RegExp(f.names), f.name]);
+    relations = new Map(pack.models.map((e) => [base(e.file), e]));
     for (const e of own) relations.set(base(e.file), overlay(relations.get(base(e.file)), e));
     return relations;
   });
@@ -59,12 +61,11 @@ function loadGraph() {
 }
 // why the person's model graph isn't used (SNAP-R11: say it once, keep working)
 export const graphProblem = () => problem;
-const FAMILIES = [[/kromoss|moss/, "MOSS-Image"], [/krea/, "Krea 2"], [/minimax|pika|(^|_)h3(_|$)/, "MiniMax H3"]];
 function infer(name) {
   const n = base(name).toLowerCase(), folder = file(name)?.folder ?? null, steps = Number(n.match(/(\d+)[-_ ]?steps?/)?.[1]) || null;
   const kind = { loras: "lora", text_encoders: "encoder", clip: "encoder", vae: "vae" }[folder] ?? (/turbo|dmd|dmad|lightning|hyper/.test(n) ? "turbo_merge" : "base");
   const fast = ["lora", "turbo_merge"].includes(kind) && (/turbo|dmd|dmad|lightning|hyper/.test(n) || !!steps);
-  const e = { file: base(name), folder, family: FAMILIES.find(([re]) => re.test(n))?.[1] ?? null, kind, inferred: true,
+  const e = { file: base(name), folder, family: families.find(([re]) => re.test(n))?.[1] ?? null, kind, inferred: true,
     turbo: fast ? { how: kind === "lora" ? "lora" : "merged", steps, cfg: null, sampler: null, scheduler: null } : null, deband: /deband|banding/.test(n) ? (kind === "lora" ? "lora" : "merged") : "none" };
   if (kind === "lora") Object.assign(e, String(name).startsWith("dials/") ? { role: "dial" } : fast ? { role: "core", core: "turbo" } : e.deband !== "none" ? { role: "core", core: "fix" } : { role: "unsorted" });
   return e;

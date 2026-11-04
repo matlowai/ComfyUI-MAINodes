@@ -35,7 +35,7 @@ def model_graph(user_dir):
     """What decides privacy: file name -> entry (the pack's entries under each ComfyUI user's own snap/models.json, the
     person winning field by field, a null keeping the pack's value), every user's private paths and patterns, and the
     person's files that don't parse."""
-    graph = {"entries": {base(e["file"]): e for e in json.loads(PACK.read_text(encoding="utf-8"))}, "paths": [], "patterns": [], "broken": []}
+    graph = {"entries": {base(e["file"]): e for e in json.loads(PACK.read_text(encoding="utf-8"))["files"]}, "paths": [], "patterns": [], "broken": []}
     for f in sorted(Path(user_dir).glob("*/snap/models.json")):
         for e in read(f, graph["broken"]) or []:
             graph["entries"][base(e["file"])] = {**graph["entries"].get(base(e["file"]), {}), **{k: v for k, v in e.items() if v is not None}}

@@ -98,9 +98,10 @@ async def cards(request):
 
 @routes.get("/mainodes/snap/models")
 async def model_graph(request):
-    """The pack's model graph (snap_cards/models.json): how the files it knows fit together; the person's own entries
-    (userdata snap/models.json) are read and merged by the page."""
-    return web.json_response({"models": json.loads((CARDS / "models.json").read_text(encoding="utf-8"))})
+    """The pack's model graph (snap_cards/models.json): the families a file's name says it belongs to, and how the files
+    it knows fit together; the person's own entries (userdata snap/models.json) are read and merged by the page."""
+    graph = json.loads((CARDS / "models.json").read_text(encoding="utf-8"))
+    return web.json_response({"models": graph["files"], "families": graph["families"]})
 
 
 @routes.get("/mainodes/snap/methods")

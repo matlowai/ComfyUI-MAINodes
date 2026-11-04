@@ -1,1349 +1,1365 @@
-[
- {
-  "file": "moss_image_base_bf16.safetensors",
-  "folder": "diffusion_models",
-  "family": "MOSS-Image",
-  "kind": "base",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": {
-   "steps": 25,
-   "cfg": 3,
-   "sampler": "er_sde",
-   "scheduler": "simple",
-   "shift": 5,
-   "slg_layer": 22
+{
+ "families": [
+  {
+   "name": "MOSS-Image",
+   "names": "kromoss|moss"
   },
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": "https://huggingface.co/Comfy-Org/MOSS-Image",
-  "size_gb": 10.16,
-  "quant_format": "none (BF16/F32)",
-  "loads_in_core": true,
-  "notes": "Official MOSS-Image-Base, bf16 fused-qkv single file. No banding (community: base is clean). Community: good for people/portraits, weaker elsewhere (Beaon 11-03, opinion). Source repo unverified for this exact local copy. Measured 2026-11-04 (U24, int8, 1024²): ER-SDE 25 = 50 steps in quality at half the time (the Snap card runs Base without SLG; SLG on Base wasn't measured)."
- },
- {
-  "file": "moss_image_base_int8_convrot.safetensors",
-  "folder": "diffusion_models",
-  "family": "MOSS-Image",
-  "kind": "base",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": {
-   "steps": 25,
-   "cfg": 3,
-   "sampler": "er_sde",
-   "scheduler": "simple"
+  {
+   "name": "Krea 2",
+   "names": "krea"
   },
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": "https://huggingface.co/Comfy-Org/MOSS-Image",
-  "size_gb": 5.41,
-  "quant_format": "int8_tensorwise+convrot x168",
-  "loads_in_core": true,
-  "notes": "Comfy-Org int8 convrot of Base (size/format match; origin unverified). Base has no banding. Measured 2026-11-04 (U24, int8, 1024²): ER-SDE 25 = 50 steps in quality at half the time (the Snap card runs Base without SLG; SLG on Base wasn't measured)."
- },
- {
-  "file": "moss_image_sft_bf16.safetensors",
-  "folder": "diffusion_models",
-  "family": "MOSS-Image",
-  "kind": "sft",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": {
-   "steps": 50,
-   "cfg": 3,
-   "sampler": "euler",
-   "scheduler": "simple",
-   "shift": 5,
-   "slg_layer": 22
+  {
+   "name": "MiniMax H3",
+   "names": "minimax|pika|(^|_)h3(_|$)"
+  }
+ ],
+ "files": [
+  {
+   "file": "moss_image_base_bf16.safetensors",
+   "folder": "diffusion_models",
+   "family": "MOSS-Image",
+   "kind": "base",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": {
+    "steps": 25,
+    "cfg": 3,
+    "sampler": "er_sde",
+    "scheduler": "simple",
+    "shift": 5,
+    "slg_layer": 22
+   },
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/Comfy-Org/MOSS-Image",
+   "size_gb": 10.16,
+   "quant_format": "none (BF16/F32)",
+   "loads_in_core": true,
+   "notes": "Official MOSS-Image-Base, bf16 fused-qkv single file. No banding (community: base is clean). Community: good for people/portraits, weaker elsewhere (Beaon 11-03, opinion). Source repo unverified for this exact local copy. Measured 2026-11-04 (U24, int8, 1024²): ER-SDE 25 = 50 steps in quality at half the time (the Snap card runs Base without SLG; SLG on Base wasn't measured)."
   },
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": "https://huggingface.co/Comfy-Org/MOSS-Image",
-  "size_gb": 10.16,
-  "quant_format": "none (BF16/F32)",
-  "loads_in_core": true,
-  "notes": "Official MOSS-Image-SFT bf16 fused-qkv. SFT can show vertical banding (Kijai card); see deband files."
- },
- {
-  "file": "moss_image_sft_int8_convrot.safetensors",
-  "folder": "diffusion_models",
-  "family": "MOSS-Image",
-  "kind": "sft",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": {
-   "steps": 25,
-   "cfg": 3,
-   "sampler": "er_sde",
-   "scheduler": "simple"
+  {
+   "file": "moss_image_base_int8_convrot.safetensors",
+   "folder": "diffusion_models",
+   "family": "MOSS-Image",
+   "kind": "base",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": {
+    "steps": 25,
+    "cfg": 3,
+    "sampler": "er_sde",
+    "scheduler": "simple"
+   },
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/Comfy-Org/MOSS-Image",
+   "size_gb": 5.41,
+   "quant_format": "int8_tensorwise+convrot x168",
+   "loads_in_core": true,
+   "notes": "Comfy-Org int8 convrot of Base (size/format match; origin unverified). Base has no banding. Measured 2026-11-04 (U24, int8, 1024²): ER-SDE 25 = 50 steps in quality at half the time (the Snap card runs Base without SLG; SLG on Base wasn't measured)."
   },
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": "https://huggingface.co/Comfy-Org/MOSS-Image",
-  "size_gb": 5.41,
-  "quant_format": "int8_tensorwise+convrot x168",
-  "loads_in_core": true,
-  "notes": "Comfy-Org SFT int8 convrot (Kromoss card: reproduces it byte for byte from the bf16). Has SFT banding."
- },
- {
-  "file": "moss_image_sft_deband_int8_convrot.safetensors",
-  "folder": "diffusion_models",
-  "family": "MOSS-Image",
-  "kind": "finetune",
-  "trained_on": "sft",
-  "turbo": null,
-  "deband": "merged",
-  "recommended": {
-   "steps": 25,
-   "cfg": 3,
-   "sampler": "er_sde",
-   "scheduler": "simple",
-   "notes": "Dylan's moss_deband_int8 workflow; ComfyUI/Kromoss cards use euler, 50 steps, cfg 3, SLG layer 22 on negative"
+  {
+   "file": "moss_image_sft_bf16.safetensors",
+   "folder": "diffusion_models",
+   "family": "MOSS-Image",
+   "kind": "sft",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": {
+    "steps": 50,
+    "cfg": 3,
+    "sampler": "euler",
+    "scheduler": "simple",
+    "shift": 5,
+    "slg_layer": 22
+   },
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/Comfy-Org/MOSS-Image",
+   "size_gb": 10.16,
+   "quant_format": "none (BF16/F32)",
+   "loads_in_core": true,
+   "notes": "Official MOSS-Image-SFT bf16 fused-qkv. SFT can show vertical banding (Kijai card); see deband files."
   },
-  "stacks_with": [
-   "edit LoRAs",
-   "Kromoss/lodestones turbo LoRAs (as in scout recipe)"
-  ],
-  "do_not_stack_with": [
-   "moss_image_sft_banding_fix_*",
-   "moss_deband_strong_*"
-  ],
-  "source_url": null,
-  "size_gb": 5.41,
-  "quant_format": "int8_tensorwise+convrot x168",
-  "loads_in_core": true,
-  "notes": "Dylan's DeBand preset: SFT int8 with banding fix baked in (default per scout report). Recipe details unverified here; see workflows/moss HANDOFF."
- },
- {
-  "file": "moss_image_sft_deband_plus_int8_convrot.safetensors",
-  "folder": "diffusion_models",
-  "family": "MOSS-Image",
-  "kind": "finetune",
-  "trained_on": "sft",
-  "turbo": null,
-  "deband": "merged",
-  "recommended": {
-   "steps": 25,
-   "cfg": 3,
-   "sampler": "er_sde",
-   "scheduler": "simple",
-   "notes": "Dylan's moss_deband_int8 workflow; ComfyUI/Kromoss cards use euler, 50 steps, cfg 3, SLG layer 22 on negative"
+  {
+   "file": "moss_image_sft_int8_convrot.safetensors",
+   "folder": "diffusion_models",
+   "family": "MOSS-Image",
+   "kind": "sft",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": {
+    "steps": 25,
+    "cfg": 3,
+    "sampler": "er_sde",
+    "scheduler": "simple"
+   },
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/Comfy-Org/MOSS-Image",
+   "size_gb": 5.41,
+   "quant_format": "int8_tensorwise+convrot x168",
+   "loads_in_core": true,
+   "notes": "Comfy-Org SFT int8 convrot (Kromoss card: reproduces it byte for byte from the bf16). Has SFT banding."
   },
-  "stacks_with": null,
-  "do_not_stack_with": [
-   "moss_image_sft_banding_fix_*",
-   "moss_deband_strong_*"
-  ],
-  "source_url": null,
-  "size_gb": 5.41,
-  "quant_format": "int8_tensorwise+convrot x168",
-  "loads_in_core": true,
-  "notes": "Stronger DeBand variant, for wide or sky-heavy sizes (scout report). Details unverified."
- },
- {
-  "file": "moss_image_sft_deband_fast_dmd035_int8_convrot.safetensors",
-  "folder": "diffusion_models",
-  "family": "MOSS-Image",
-  "kind": "turbo_merge",
-  "trained_on": "sft",
-  "turbo": {
-   "how": "merged",
-   "steps": 10,
-   "cfg": 1,
-   "sampler": "er_sde",
-   "scheduler": "simple"
+  {
+   "file": "moss_image_sft_deband_int8_convrot.safetensors",
+   "folder": "diffusion_models",
+   "family": "MOSS-Image",
+   "kind": "finetune",
+   "trained_on": "sft",
+   "turbo": null,
+   "deband": "merged",
+   "recommended": {
+    "steps": 25,
+    "cfg": 3,
+    "sampler": "er_sde",
+    "scheduler": "simple",
+    "notes": "Dylan's moss_deband_int8 workflow; ComfyUI/Kromoss cards use euler, 50 steps, cfg 3, SLG layer 22 on negative"
+   },
+   "stacks_with": [
+    "edit LoRAs",
+    "Kromoss/lodestones turbo LoRAs (as in scout recipe)"
+   ],
+   "do_not_stack_with": [
+    "moss_image_sft_banding_fix_*",
+    "moss_deband_strong_*"
+   ],
+   "source_url": null,
+   "size_gb": 5.41,
+   "quant_format": "int8_tensorwise+convrot x168",
+   "loads_in_core": true,
+   "notes": "Dylan's DeBand preset: SFT int8 with banding fix baked in (default per scout report). Recipe details unverified here; see workflows/moss HANDOFF."
   },
-  "deband": "merged",
-  "recommended": {
-   "steps": 10,
-   "cfg": null
+  {
+   "file": "moss_image_sft_deband_plus_int8_convrot.safetensors",
+   "folder": "diffusion_models",
+   "family": "MOSS-Image",
+   "kind": "finetune",
+   "trained_on": "sft",
+   "turbo": null,
+   "deband": "merged",
+   "recommended": {
+    "steps": 25,
+    "cfg": 3,
+    "sampler": "er_sde",
+    "scheduler": "simple",
+    "notes": "Dylan's moss_deband_int8 workflow; ComfyUI/Kromoss cards use euler, 50 steps, cfg 3, SLG layer 22 on negative"
+   },
+   "stacks_with": null,
+   "do_not_stack_with": [
+    "moss_image_sft_banding_fix_*",
+    "moss_deband_strong_*"
+   ],
+   "source_url": null,
+   "size_gb": 5.41,
+   "quant_format": "int8_tensorwise+convrot x168",
+   "loads_in_core": true,
+   "notes": "Stronger DeBand variant, for wide or sky-heavy sizes (scout report). Details unverified."
   },
-  "stacks_with": null,
-  "do_not_stack_with": [
-   "any 4/8-step turbo LoRA (turbo already merged; unverified inference)"
-  ],
-  "source_url": null,
-  "size_gb": 5.41,
-  "quant_format": "int8_tensorwise+convrot x168",
-  "loads_in_core": true,
-  "notes": "DeBand with lodestones 8-step DMD LoRA baked in at 0.35 (scout report; turbo cfg and sampler for this file unverified, steps from Dylan DeBand Fast preset)."
- },
- {
-  "file": "kromoss_int8_convrot.safetensors",
-  "folder": "diffusion_models",
-  "family": "MOSS-Image",
-  "kind": "finetune",
-  "trained_on": "base",
-  "turbo": null,
-  "deband": "none",
-  "recommended": {
-   "steps": 25,
-   "cfg": 3,
-   "sampler": "er_sde",
-   "scheduler": "simple",
-   "shift": 5,
-   "slg_layer": 22
+  {
+   "file": "moss_image_sft_deband_fast_dmd035_int8_convrot.safetensors",
+   "folder": "diffusion_models",
+   "family": "MOSS-Image",
+   "kind": "turbo_merge",
+   "trained_on": "sft",
+   "turbo": {
+    "how": "merged",
+    "steps": 10,
+    "cfg": 1,
+    "sampler": "er_sde",
+    "scheduler": "simple"
+   },
+   "deband": "merged",
+   "recommended": {
+    "steps": 10,
+    "cfg": null
+   },
+   "stacks_with": null,
+   "do_not_stack_with": [
+    "any 4/8-step turbo LoRA (turbo already merged; unverified inference)"
+   ],
+   "source_url": null,
+   "size_gb": 5.41,
+   "quant_format": "int8_tensorwise+convrot x168",
+   "loads_in_core": true,
+   "notes": "DeBand with lodestones 8-step DMD LoRA baked in at 0.35 (scout report; turbo cfg and sampler for this file unverified, steps from Dylan DeBand Fast preset)."
   },
-  "stacks_with": [
-   "lodestones_kromoss_8step_dmd_lora",
-   "lodestones_kromoss_8step_dmd2_lora (one at a time)",
-   "edit LoRAs (unverified on Kromoss)"
-  ],
-  "do_not_stack_with": null,
-  "source_url": "https://huggingface.co/lodestones/Kromoss",
-  "size_gb": 5.41,
-  "quant_format": "int8_tensorwise+convrot x168 (convrot groupsize 256, 168 block linears)",
-  "loads_in_core": true,
-  "notes": "NEW 2026-11-04. Full fine-tune of MOSS Base at 1024 px (update 11000 EMA), drop-in for SFT int8. Header verified: 168 comfy_quant int8_tensorwise convrot, same as local SFT int8; sha256 matches HF. PartiPrompts CLIP 27.90 (Base 27.19) per card. Community: struggles above ~2.5 MP (FL13, opinion). No banding in 40 images (U24, bandviz 9.1-11.4; banded SFT scores 27.6). Measured 2026-11-04 (U24, 1024²): ER-SDE 25 + SLG 22 is the default (crisper than Base, same layouts); the model card's Euler 50 is the text-heavy option."
- },
- {
-  "file": "kblueleaf_moss_image_heal_int8_convrot.safetensors",
-  "folder": "diffusion_models",
-  "family": "MOSS-Image",
-  "kind": "finetune",
-  "trained_on": "base",
-  "turbo": null,
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": "https://huggingface.co/KBlueLeaf/MOSS-Image-heal",
-  "size_gb": 5.41,
-  "quant_format": "int8_tensorwise+convrot x168",
-  "loads_in_core": true,
-  "notes": "NEW 2026-11-04. Full finetune of Base with a healed residual stream (max stream value 3083 vs 58411, fp16-safe per card), outputs stay close to Base (flow loss 0.4289 vs 0.4280). Header verified same int8 convrot format as local files. Not generation-tested here; recommended settings unverified (use Base settings)."
- },
- {
-  "file": "lodestones_moss_sft_8step_dmd_lora_latest.safetensors",
-  "folder": "loras",
-  "family": "MOSS-Image",
-  "kind": "lora",
-  "trained_on": "sft",
-  "turbo": {
-   "how": "lora",
-   "steps": 8,
-   "cfg": 1,
-   "sampler": "euler",
-   "scheduler": "simple"
+  {
+   "file": "kromoss_int8_convrot.safetensors",
+   "folder": "diffusion_models",
+   "family": "MOSS-Image",
+   "kind": "finetune",
+   "trained_on": "base",
+   "turbo": null,
+   "deband": "none",
+   "recommended": {
+    "steps": 25,
+    "cfg": 3,
+    "sampler": "er_sde",
+    "scheduler": "simple",
+    "shift": 5,
+    "slg_layer": 22
+   },
+   "stacks_with": [
+    "lodestones_kromoss_8step_dmd_lora",
+    "lodestones_kromoss_8step_dmd2_lora (one at a time)",
+    "edit LoRAs (unverified on Kromoss)"
+   ],
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/lodestones/Kromoss",
+   "size_gb": 5.41,
+   "quant_format": "int8_tensorwise+convrot x168 (convrot groupsize 256, 168 block linears)",
+   "loads_in_core": true,
+   "notes": "NEW 2026-11-04. Full fine-tune of MOSS Base at 1024 px (update 11000 EMA), drop-in for SFT int8. Header verified: 168 comfy_quant int8_tensorwise convrot, same as local SFT int8; sha256 matches HF. PartiPrompts CLIP 27.90 (Base 27.19) per card. Community: struggles above ~2.5 MP (FL13, opinion). No banding in 40 images (U24, bandviz 9.1-11.4; banded SFT scores 27.6). Measured 2026-11-04 (U24, 1024²): ER-SDE 25 + SLG 22 is the default (crisper than Base, same layouts); the model card's Euler 50 is the text-heavy option."
   },
-  "deband": "none",
-  "recommended": {
-   "strength": 1,
-   "steps": 8,
-   "cfg": 1,
-   "negative": null
+  {
+   "file": "kblueleaf_moss_image_heal_int8_convrot.safetensors",
+   "folder": "diffusion_models",
+   "family": "MOSS-Image",
+   "kind": "finetune",
+   "trained_on": "base",
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/KBlueLeaf/MOSS-Image-heal",
+   "size_gb": 5.41,
+   "quant_format": "int8_tensorwise+convrot x168",
+   "loads_in_core": true,
+   "notes": "NEW 2026-11-04. Full finetune of Base with a healed residual stream (max stream value 3083 vs 58411, fp16-safe per card), outputs stay close to Base (flow loss 0.4289 vs 0.4280). Header verified same int8 convrot format as local files. Not generation-tested here; recommended settings unverified (use Base settings)."
   },
-  "stacks_with": [
-   "edit LoRAs (akhaliq README)"
-  ],
-  "do_not_stack_with": [
-   "other turbo/DMD LoRAs",
-   "deband_fast_dmd035 (turbo already merged)"
-  ],
-  "source_url": "https://huggingface.co/lodestones/MOSS-Image-SFT-8-steps-dmd",
-  "size_gb": 1.19,
-  "quant_format": "none (F32)",
-  "loads_in_core": true,
-  "notes": "SHA256 be82ab2b... equals lora_latest.safetensors in lodestones/MOSS-Image-SFT-8-steps-dmd, so this is DMD v1 (data-space DMD of MOSS-Image-SFT, 2600/12000 updates), NOT DMD2. rank 128/alpha 128, fp32, layers 0-41 all q/k/v/o/ffn. Differs from Kromoss DMD and DMD2 (different base: those were distilled from Base). 4 steps also works (card, per scout).",
-  "role": "core",
-  "core": "turbo"
- },
- {
-  "file": "lodestones_moss_sft_8step_dmd_lora.safetensors",
-  "folder": "loras",
-  "family": "MOSS-Image",
-  "kind": "lora",
-  "trained_on": "sft",
-  "turbo": {
-   "how": "lora",
-   "steps": 8,
-   "cfg": 1,
-   "sampler": "euler",
-   "scheduler": "simple"
+  {
+   "file": "lodestones_moss_sft_8step_dmd_lora_latest.safetensors",
+   "folder": "loras",
+   "family": "MOSS-Image",
+   "kind": "lora",
+   "trained_on": "sft",
+   "turbo": {
+    "how": "lora",
+    "steps": 8,
+    "cfg": 1,
+    "sampler": "euler",
+    "scheduler": "simple"
+   },
+   "deband": "none",
+   "recommended": {
+    "strength": 1,
+    "steps": 8,
+    "cfg": 1,
+    "negative": null
+   },
+   "stacks_with": [
+    "edit LoRAs (akhaliq README)"
+   ],
+   "do_not_stack_with": [
+    "other turbo/DMD LoRAs",
+    "deband_fast_dmd035 (turbo already merged)"
+   ],
+   "source_url": "https://huggingface.co/lodestones/MOSS-Image-SFT-8-steps-dmd",
+   "size_gb": 1.19,
+   "quant_format": "none (F32)",
+   "loads_in_core": true,
+   "notes": "SHA256 be82ab2b... equals lora_latest.safetensors in lodestones/MOSS-Image-SFT-8-steps-dmd, so this is DMD v1 (data-space DMD of MOSS-Image-SFT, 2600/12000 updates), NOT DMD2. rank 128/alpha 128, fp32, layers 0-41 all q/k/v/o/ffn. Differs from Kromoss DMD and DMD2 (different base: those were distilled from Base). 4 steps also works (card, per scout).",
+   "role": "core",
+   "core": "turbo"
   },
-  "deband": "none",
-  "recommended": {
-   "strength": 1,
-   "steps": 8,
-   "cfg": 1
+  {
+   "file": "lodestones_moss_sft_8step_dmd_lora.safetensors",
+   "folder": "loras",
+   "family": "MOSS-Image",
+   "kind": "lora",
+   "trained_on": "sft",
+   "turbo": {
+    "how": "lora",
+    "steps": 8,
+    "cfg": 1,
+    "sampler": "euler",
+    "scheduler": "simple"
+   },
+   "deband": "none",
+   "recommended": {
+    "strength": 1,
+    "steps": 8,
+    "cfg": 1
+   },
+   "stacks_with": null,
+   "do_not_stack_with": [
+    "other turbo/DMD LoRAs"
+   ],
+   "source_url": "https://huggingface.co/lodestones/MOSS-Image-SFT-8-steps-dmd",
+   "size_gb": 1.19,
+   "quant_format": "none (F32)",
+   "loads_in_core": true,
+   "notes": "SHA256 4abb14e3... equals lora.safetensors in lodestones/MOSS-Image-SFT-8-steps-dmd (earlier DMD v1 checkpoint than _latest; effective delta differs from _latest, rel diff ~0.57 on a 36-module sample). Repo commit 4c9ccc22 says \"probably overcooked, lower the lora weights\".",
+   "role": "core",
+   "core": "turbo"
   },
-  "stacks_with": null,
-  "do_not_stack_with": [
-   "other turbo/DMD LoRAs"
-  ],
-  "source_url": "https://huggingface.co/lodestones/MOSS-Image-SFT-8-steps-dmd",
-  "size_gb": 1.19,
-  "quant_format": "none (F32)",
-  "loads_in_core": true,
-  "notes": "SHA256 4abb14e3... equals lora.safetensors in lodestones/MOSS-Image-SFT-8-steps-dmd (earlier DMD v1 checkpoint than _latest; effective delta differs from _latest, rel diff ~0.57 on a 36-module sample). Repo commit 4c9ccc22 says \"probably overcooked, lower the lora weights\".",
-  "role": "core",
-  "core": "turbo"
- },
- {
-  "file": "lodestones_kromoss_8step_dmd_lora.safetensors",
-  "folder": "loras",
-  "family": "MOSS-Image",
-  "kind": "lora",
-  "trained_on": "base",
-  "turbo": {
-   "how": "lora",
-   "steps": 8,
-   "cfg": 1,
-   "sampler": "euler",
-   "scheduler": "simple"
+  {
+   "file": "lodestones_kromoss_8step_dmd_lora.safetensors",
+   "folder": "loras",
+   "family": "MOSS-Image",
+   "kind": "lora",
+   "trained_on": "base",
+   "turbo": {
+    "how": "lora",
+    "steps": 8,
+    "cfg": 1,
+    "sampler": "euler",
+    "scheduler": "simple"
+   },
+   "deband": "none",
+   "recommended": {
+    "strength": 1,
+    "steps": 8,
+    "cfg": 1,
+    "sampler": "euler",
+    "scheduler": "simple",
+    "note": "4 steps also works"
+   },
+   "stacks_with": [
+    "kromoss_int8_convrot",
+    "Base/SFT checkpoints (card: transfers)"
+   ],
+   "do_not_stack_with": [
+    "lodestones_kromoss_8step_dmd2_lora (card: use one at a time)",
+    "other turbo LoRAs"
+   ],
+   "source_url": "https://huggingface.co/lodestones/Kromoss",
+   "size_gb": 1.19,
+   "quant_format": "none (F32)",
+   "loads_in_core": true,
+   "notes": "NEW 2026-11-04. Kromoss repo DMD v1: data-space DMD, 12000 updates, distilled from MOSS-Image-Base. rank 128 alpha 128 fp32, layers 0-41. Card CLIP: 27.99 on Kromoss, 27.53 on Base. Not the same as the local SFT-distilled files (sha and deltas differ).",
+   "role": "core",
+   "core": "turbo"
   },
-  "deband": "none",
-  "recommended": {
-   "strength": 1,
-   "steps": 8,
-   "cfg": 1,
-   "sampler": "euler",
-   "scheduler": "simple",
-   "note": "4 steps also works"
+  {
+   "file": "lodestones_kromoss_8step_dmd2_lora.safetensors",
+   "folder": "loras",
+   "family": "MOSS-Image",
+   "kind": "lora",
+   "trained_on": "base",
+   "turbo": {
+    "how": "lora",
+    "steps": 8,
+    "cfg": 1,
+    "sampler": "euler",
+    "scheduler": "simple"
+   },
+   "deband": "none",
+   "recommended": {
+    "strength": 1,
+    "steps": 8,
+    "cfg": 1,
+    "sampler": "euler",
+    "scheduler": "simple",
+    "note": "4 steps also works; card marks this as recommended"
+   },
+   "stacks_with": [
+    "kromoss_int8_convrot",
+    "Base/SFT checkpoints (card: transfers)"
+   ],
+   "do_not_stack_with": [
+    "lodestones_kromoss_8step_dmd_lora (use one at a time)",
+    "other turbo LoRAs"
+   ],
+   "source_url": "https://huggingface.co/lodestones/Kromoss",
+   "size_gb": 1.19,
+   "quant_format": "none (F32)",
+   "loads_in_core": true,
+   "notes": "NEW 2026-11-04. DMD2: the DMD run continued 3000 updates with a GAN stage vs real images. Card CLIP 28.13 on Kromoss (best), 27.59 on Base. Same keys/rank as DMD; factors differ ~0.5% (continuation of the same run). Community (patientx 10-24, opinion): dmd2 better than dmd1 but changed an identity.",
+   "role": "core",
+   "core": "turbo"
   },
-  "stacks_with": [
-   "kromoss_int8_convrot",
-   "Base/SFT checkpoints (card: transfers)"
-  ],
-  "do_not_stack_with": [
-   "lodestones_kromoss_8step_dmd2_lora (card: use one at a time)",
-   "other turbo LoRAs"
-  ],
-  "source_url": "https://huggingface.co/lodestones/Kromoss",
-  "size_gb": 1.19,
-  "quant_format": "none (F32)",
-  "loads_in_core": true,
-  "notes": "NEW 2026-11-04. Kromoss repo DMD v1: data-space DMD, 12000 updates, distilled from MOSS-Image-Base. rank 128 alpha 128 fp32, layers 0-41. Card CLIP: 27.99 on Kromoss, 27.53 on Base. Not the same as the local SFT-distilled files (sha and deltas differ).",
-  "role": "core",
-  "core": "turbo"
- },
- {
-  "file": "lodestones_kromoss_8step_dmd2_lora.safetensors",
-  "folder": "loras",
-  "family": "MOSS-Image",
-  "kind": "lora",
-  "trained_on": "base",
-  "turbo": {
-   "how": "lora",
-   "steps": 8,
-   "cfg": 1,
-   "sampler": "euler",
-   "scheduler": "simple"
+  {
+   "file": "darask0_moss_sft_4step_dmad_lora.safetensors",
+   "folder": "loras",
+   "family": "MOSS-Image",
+   "kind": "lora",
+   "trained_on": "sft",
+   "turbo": {
+    "how": "lora",
+    "steps": 4,
+    "cfg": 1,
+    "sampler": null,
+    "scheduler": null
+   },
+   "deband": "none",
+   "recommended": {
+    "strength": 1,
+    "steps": 4,
+    "cfg": 1
+   },
+   "stacks_with": null,
+   "do_not_stack_with": [
+    "other turbo LoRAs"
+   ],
+   "source_url": "https://huggingface.co/darask0/MOSS-Image_4-step_adapter_lora",
+   "size_gb": 1.19,
+   "quant_format": "none (F32)",
+   "loads_in_core": true,
+   "notes": "DMAD 4-step continuation of the lodestones SFT DMD (iteration 500, metadata steps=4). Sampler: card says same as lodestones (unverified for scheduler). Header: rank 128, fp32. Remote repo lora.safetensors is 1189176832 B; local file is the same size, but sha256 not compared to remote (unverified).",
+   "role": "core",
+   "core": "turbo"
   },
-  "deband": "none",
-  "recommended": {
-   "strength": 1,
-   "steps": 8,
-   "cfg": 1,
-   "sampler": "euler",
-   "scheduler": "simple",
-   "note": "4 steps also works; card marks this as recommended"
+  {
+   "file": "moss_image_sft_4_steps_lora_v2_600_avg_rank_72_bf16.safetensors",
+   "folder": "loras",
+   "family": "MOSS-Image",
+   "kind": "lora",
+   "trained_on": "sft",
+   "turbo": {
+    "how": "lora",
+    "steps": 4,
+    "cfg": null,
+    "sampler": null,
+    "scheduler": null
+   },
+   "deband": "none",
+   "recommended": {
+    "strength": 1,
+    "steps": 4
+   },
+   "stacks_with": null,
+   "do_not_stack_with": [
+    "other turbo LoRAs"
+   ],
+   "source_url": "https://huggingface.co/Kijai/MOSS-image_experimental",
+   "size_gb": 0.33,
+   "quant_format": "none (BF16)",
+   "loads_in_core": true,
+   "notes": "NEW 2026-11-04 (sha matches HF). Kijai dynamic-rank reduction (sv_fro 0.99 from 128, ranks vary up to ~121) of akhaliq/MOSS-Image-SFT-4-steps euler-update-600 lora.safetensors. Different lineage from darask0 4-step (that is DMAD on lodestones DMD). cfg/sampler not stated by card (unverified; assume cfg 1).",
+   "role": "core",
+   "core": "turbo"
   },
-  "stacks_with": [
-   "kromoss_int8_convrot",
-   "Base/SFT checkpoints (card: transfers)"
-  ],
-  "do_not_stack_with": [
-   "lodestones_kromoss_8step_dmd_lora (use one at a time)",
-   "other turbo LoRAs"
-  ],
-  "source_url": "https://huggingface.co/lodestones/Kromoss",
-  "size_gb": 1.19,
-  "quant_format": "none (F32)",
-  "loads_in_core": true,
-  "notes": "NEW 2026-11-04. DMD2: the DMD run continued 3000 updates with a GAN stage vs real images. Card CLIP 28.13 on Kromoss (best), 27.59 on Base. Same keys/rank as DMD; factors differ ~0.5% (continuation of the same run). Community (patientx 10-24, opinion): dmd2 better than dmd1 but changed an identity.",
-  "role": "core",
-  "core": "turbo"
- },
- {
-  "file": "darask0_moss_sft_4step_dmad_lora.safetensors",
-  "folder": "loras",
-  "family": "MOSS-Image",
-  "kind": "lora",
-  "trained_on": "sft",
-  "turbo": {
-   "how": "lora",
-   "steps": 4,
-   "cfg": 1,
-   "sampler": null,
-   "scheduler": null
+  {
+   "file": "comfy_moss_hires_lora_test_v0.7.safetensors",
+   "folder": "loras",
+   "family": "MOSS-Image",
+   "kind": "lora",
+   "trained_on": "base",
+   "turbo": null,
+   "deband": "none",
+   "recommended": {
+    "use": "4 MP and above (card: 3.5-10 MP training)",
+    "strength": null
+   },
+   "stacks_with": null,
+   "do_not_stack_with": [
+    "unverified"
+   ],
+   "source_url": "https://huggingface.co/comfyanonymous/MOSS_image_MAX_ULTRA_hires_lora_test",
+   "size_gb": 0.18,
+   "quant_format": "none (F16)",
+   "loads_in_core": true,
+   "notes": "NEW 2026-11-04. comfyanonymous LoHa (hada_w1/w2, rank 32, fp16, all 42 layers proj.ffn_down/ffn_up_gate etc.), latest v0.7 (HF 11-02). Trained on Base (card + comfy 10-31 msg); expect to stack on Base, SFT use unverified. Community: older version failed at 3072 (QuintForms, opinion). Does LoHa load in core: comfy.lora supports hada keys generally; MOSS-specific load not run here.",
+   "role": "core",
+   "core": "hires"
   },
-  "deband": "none",
-  "recommended": {
-   "strength": 1,
-   "steps": 4,
-   "cfg": 1
+  {
+   "file": "akhaliq_moss_edit_hq_armV5.safetensors",
+   "folder": "loras",
+   "family": "MOSS-Image",
+   "kind": "lora",
+   "trained_on": "sft",
+   "turbo": null,
+   "deband": "none",
+   "recommended": {
+    "strength": 1.0,
+    "steps": 50,
+    "cfg": 3,
+    "sampler": "euler",
+    "shift": 5,
+    "slg_layer": 22,
+    "edit_format": "ai-toolkit",
+    "note": "HF card now recommends armV5 over v6; 8 steps + DMD LoRA is draft quality"
+   },
+   "stacks_with": [
+    "lodestones_moss_sft_8step_dmd_lora (card: 8 steps cfg 1, draft only)"
+   ],
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/akhaliq/MOSS-Image-Edit-HQ",
+   "size_gb": 0.5,
+   "quant_format": "none (BF16)",
+   "loads_in_core": true,
+   "notes": "NEW 2026-11-04. ai-toolkit-format edit LoRA from weights/armV5/armV5.safetensors (not the plugin-format root file). Keys diffusion_model.layers.*.lora_A/B, ranks 64 and 192 mixed, bf16, ai-toolkit 0.13.36 step 1200. Card base_model MOSS-Image-SFT. Scout cited v6, but the card says v6 regressed (color casts) and v5 is cleaner; v7s1 exists but unverified.",
+   "role": "core",
+   "core": "edit"
   },
-  "stacks_with": null,
-  "do_not_stack_with": [
-   "other turbo LoRAs"
-  ],
-  "source_url": "https://huggingface.co/darask0/MOSS-Image_4-step_adapter_lora",
-  "size_gb": 1.19,
-  "quant_format": "none (F32)",
-  "loads_in_core": true,
-  "notes": "DMAD 4-step continuation of the lodestones SFT DMD (iteration 500, metadata steps=4). Sampler: card says same as lodestones (unverified for scheduler). Header: rank 128, fp32. Remote repo lora.safetensors is 1189176832 B; local file is the same size, but sha256 not compared to remote (unverified).",
-  "role": "core",
-  "core": "turbo"
- },
- {
-  "file": "moss_image_sft_4_steps_lora_v2_600_avg_rank_72_bf16.safetensors",
-  "folder": "loras",
-  "family": "MOSS-Image",
-  "kind": "lora",
-  "trained_on": "sft",
-  "turbo": {
-   "how": "lora",
-   "steps": 4,
-   "cfg": null,
-   "sampler": null,
-   "scheduler": null
+  {
+   "file": "chinoll_moss_image_edit_adapter.safetensors",
+   "folder": "loras",
+   "family": "MOSS-Image",
+   "kind": "lora",
+   "trained_on": "sft",
+   "turbo": null,
+   "deband": "none",
+   "recommended": {
+    "strength": 1.0,
+    "cfg": 5,
+    "slg_layer": 22,
+    "edit_format": "Moss-Image-Edit"
+   },
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/chinoll/Moss-Image-Edit",
+   "size_gb": 0.3,
+   "quant_format": "none (BF16)",
+   "loads_in_core": null,
+   "notes": "NEW 2026-11-04. Original edit LoRA, moss-edit-lora format (keys layers.*.lora_A/lora_B without .weight and without diffusion_model prefix; rank 64 alpha 64 in adapter_config metadata; snapshot MOSS-Image-SFT). Pedro (10-24/25): chinoll more precise but fails more often than HQ; cfg 5. The core edit node has a Moss-Image-Edit format for it, but whether the core LoRA loader accepts these key names was not run (unverified). The plugin path wants models/model_patches/ instead.",
+   "role": "core",
+   "core": "edit"
   },
-  "deband": "none",
-  "recommended": {
-   "strength": 1,
-   "steps": 4
+  {
+   "file": "darask0_moss_color_depth_control.safetensors",
+   "folder": "loras",
+   "family": "MOSS-Image",
+   "kind": "lora",
+   "trained_on": "base",
+   "turbo": null,
+   "deband": "none",
+   "recommended": {
+    "color_end": 0.5,
+    "depth_end": 0.5,
+    "note": "0.5 for synthetic/mannequin maps, 1.0 for real-image maps; use with region prompts"
+   },
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/darask0/MOSS-Image-color-depth-control",
+   "size_gb": 0.31,
+   "quant_format": "none (BF16)",
+   "loads_in_core": false,
+   "notes": "NEW 2026-11-04. Control adapter, not a plain LoRA: rank-64 LoRA plus replacement video_embedder.weight [3072,384] (core MOSS expects 128 input channels) taking noisy+color-map+depth latents. Metadata hayate_control=1; reference implementation is Hayate (Rust). No core node consumes it, so it will not work in ComfyUI core or via a normal LoRA loader. Trained on Base, used with SFT + 4-step DMAD.",
+   "role": "core",
+   "core": "control"
   },
-  "stacks_with": null,
-  "do_not_stack_with": [
-   "other turbo LoRAs"
-  ],
-  "source_url": "https://huggingface.co/Kijai/MOSS-image_experimental",
-  "size_gb": 0.33,
-  "quant_format": "none (BF16)",
-  "loads_in_core": true,
-  "notes": "NEW 2026-11-04 (sha matches HF). Kijai dynamic-rank reduction (sv_fro 0.99 from 128, ranks vary up to ~121) of akhaliq/MOSS-Image-SFT-4-steps euler-update-600 lora.safetensors. Different lineage from darask0 4-step (that is DMAD on lodestones DMD). cfg/sampler not stated by card (unverified; assume cfg 1).",
-  "role": "core",
-  "core": "turbo"
- },
- {
-  "file": "comfy_moss_hires_lora_test_v0.7.safetensors",
-  "folder": "loras",
-  "family": "MOSS-Image",
-  "kind": "lora",
-  "trained_on": "base",
-  "turbo": null,
-  "deband": "none",
-  "recommended": {
-   "use": "4 MP and above (card: 3.5-10 MP training)",
-   "strength": null
+  {
+   "file": "congruency_moss_sft_turbo_mfd_v0.1.comfy.safetensors",
+   "folder": "loras",
+   "family": "MOSS-Image",
+   "kind": "lora",
+   "trained_on": "sft",
+   "turbo": {
+    "how": "lora",
+    "steps": "4-6",
+    "cfg": null,
+    "sampler": null,
+    "scheduler": null
+   },
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": [
+    "other turbo LoRAs"
+   ],
+   "source_url": "https://huggingface.co/congruency/MOSS-Image-Turbo-MFD",
+   "size_gb": 0.08,
+   "quant_format": "none (BF16/F32)",
+   "loads_in_core": true,
+   "notes": "NEW 2026-11-04. Mean Flow Distillation turbo LoRA, rank 16, ComfyUI key layout (diffusion_model.layers.* + text_embedder.blocks.*), 75 MB. Card: 50 aux/20 student, 4-6 steps. cfg/sampler unverified (card gives none). Unofficial research, 0 community mentions found.",
+   "role": "core",
+   "core": "turbo"
   },
-  "stacks_with": null,
-  "do_not_stack_with": [
-   "unverified"
-  ],
-  "source_url": "https://huggingface.co/comfyanonymous/MOSS_image_MAX_ULTRA_hires_lora_test",
-  "size_gb": 0.18,
-  "quant_format": "none (F16)",
-  "loads_in_core": true,
-  "notes": "NEW 2026-11-04. comfyanonymous LoHa (hada_w1/w2, rank 32, fp16, all 42 layers proj.ffn_down/ffn_up_gate etc.), latest v0.7 (HF 11-02). Trained on Base (card + comfy 10-31 msg); expect to stack on Base, SFT use unverified. Community: older version failed at 3072 (QuintForms, opinion). Does LoHa load in core: comfy.lora supports hada keys generally; MOSS-specific load not run here.",
-  "role": "core",
-  "core": "hires"
- },
- {
-  "file": "akhaliq_moss_edit_hq_armV5.safetensors",
-  "folder": "loras",
-  "family": "MOSS-Image",
-  "kind": "lora",
-  "trained_on": "sft",
-  "turbo": null,
-  "deband": "none",
-  "recommended": {
-   "strength": 1.0,
-   "steps": 50,
-   "cfg": 3,
-   "sampler": "euler",
-   "shift": 5,
-   "slg_layer": 22,
-   "edit_format": "ai-toolkit",
-   "note": "HF card now recommends armV5 over v6; 8 steps + DMD LoRA is draft quality"
+  {
+   "file": "congruency_moss_sft_turbo_mfd_v0.2.safetensors",
+   "folder": "loras",
+   "family": "MOSS-Image",
+   "kind": "lora",
+   "trained_on": "sft",
+   "turbo": {
+    "how": "lora",
+    "steps": "4-8",
+    "cfg": null,
+    "sampler": null,
+    "scheduler": null
+   },
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": [
+    "other turbo LoRAs"
+   ],
+   "source_url": "https://huggingface.co/congruency/MOSS-Image-Turbo-MFD",
+   "size_gb": 0.08,
+   "quant_format": "none (BF16)",
+   "loads_in_core": null,
+   "notes": "NEW 2026-11-04. MFD v0.2 (12 aux/6 student, 4-8 steps), rank 16, keys layers.*.lora_A.weight (no diffusion_model prefix, not the .comfy variant); core loading unverified (core maps bare module paths, so plausible).",
+   "role": "core",
+   "core": "turbo"
   },
-  "stacks_with": [
-   "lodestones_moss_sft_8step_dmd_lora (card: 8 steps cfg 1, draft only)"
-  ],
-  "do_not_stack_with": null,
-  "source_url": "https://huggingface.co/akhaliq/MOSS-Image-Edit-HQ",
-  "size_gb": 0.5,
-  "quant_format": "none (BF16)",
-  "loads_in_core": true,
-  "notes": "NEW 2026-11-04. ai-toolkit-format edit LoRA from weights/armV5/armV5.safetensors (not the plugin-format root file). Keys diffusion_model.layers.*.lora_A/B, ranks 64 and 192 mixed, bf16, ai-toolkit 0.13.36 step 1200. Card base_model MOSS-Image-SFT. Scout cited v6, but the card says v6 regressed (color casts) and v5 is cleaner; v7s1 exists but unverified.",
-  "role": "core",
-  "core": "edit"
- },
- {
-  "file": "chinoll_moss_image_edit_adapter.safetensors",
-  "folder": "loras",
-  "family": "MOSS-Image",
-  "kind": "lora",
-  "trained_on": "sft",
-  "turbo": null,
-  "deband": "none",
-  "recommended": {
-   "strength": 1.0,
-   "cfg": 5,
-   "slg_layer": 22,
-   "edit_format": "Moss-Image-Edit"
+  {
+   "file": "moss_image_sft_lora_blocks_21_to_49_rank_512_bf16.safetensors",
+   "folder": "loras",
+   "family": "MOSS-Image",
+   "kind": "lora",
+   "trained_on": "base",
+   "turbo": null,
+   "deband": "lora",
+   "recommended": {
+    "strength": -0.5,
+    "on": "SFT"
+   },
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/Kijai/MOSS-image_experimental",
+   "size_gb": 1.16,
+   "quant_format": "none (BF16)",
+   "loads_in_core": true,
+   "notes": "Kijai experimental SFT-delta LoRA (sha matches HF for ranks 256/512/blocks21-49). Per Kijai card: apply blocks 21-49 rank 512 at -0.5 on SFT to fix banding and reduce overblown SFT look; or use on Base as SFT diff (ranks do not fully capture SFT). Negative strength is the banding fix use.",
+   "role": "core",
+   "core": "fix"
   },
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": "https://huggingface.co/chinoll/Moss-Image-Edit",
-  "size_gb": 0.3,
-  "quant_format": "none (BF16)",
-  "loads_in_core": null,
-  "notes": "NEW 2026-11-04. Original edit LoRA, moss-edit-lora format (keys layers.*.lora_A/lora_B without .weight and without diffusion_model prefix; rank 64 alpha 64 in adapter_config metadata; snapshot MOSS-Image-SFT). Pedro (10-24/25): chinoll more precise but fails more often than HQ; cfg 5. The core edit node has a Moss-Image-Edit format for it, but whether the core LoRA loader accepts these key names was not run (unverified). The plugin path wants models/model_patches/ instead.",
-  "role": "core",
-  "core": "edit"
- },
- {
-  "file": "darask0_moss_color_depth_control.safetensors",
-  "folder": "loras",
-  "family": "MOSS-Image",
-  "kind": "lora",
-  "trained_on": "base",
-  "turbo": null,
-  "deband": "none",
-  "recommended": {
-   "color_end": 0.5,
-   "depth_end": 0.5,
-   "note": "0.5 for synthetic/mannequin maps, 1.0 for real-image maps; use with region prompts"
+  {
+   "file": "moss_image_sft_lora_rank_256_bf16.safetensors",
+   "folder": "loras",
+   "family": "MOSS-Image",
+   "kind": "lora",
+   "trained_on": "base",
+   "turbo": null,
+   "deband": "none",
+   "recommended": {
+    "strength": 1.0,
+    "on": "Base"
+   },
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/Kijai/MOSS-image_experimental",
+   "size_gb": 1.14,
+   "quant_format": "none (BF16)",
+   "loads_in_core": true,
+   "notes": "Kijai experimental SFT-delta LoRA (sha matches HF for ranks 256/512/blocks21-49). Per Kijai card: apply blocks 21-49 rank 512 at -0.5 on SFT to fix banding and reduce overblown SFT look; or use on Base as SFT diff (ranks do not fully capture SFT). Negative strength is the banding fix use.",
+   "role": "core",
+   "core": "task"
   },
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": "https://huggingface.co/darask0/MOSS-Image-color-depth-control",
-  "size_gb": 0.31,
-  "quant_format": "none (BF16)",
-  "loads_in_core": false,
-  "notes": "NEW 2026-11-04. Control adapter, not a plain LoRA: rank-64 LoRA plus replacement video_embedder.weight [3072,384] (core MOSS expects 128 input channels) taking noisy+color-map+depth latents. Metadata hayate_control=1; reference implementation is Hayate (Rust). No core node consumes it, so it will not work in ComfyUI core or via a normal LoRA loader. Trained on Base, used with SFT + 4-step DMAD.",
-  "role": "core",
-  "core": "control"
- },
- {
-  "file": "congruency_moss_sft_turbo_mfd_v0.1.comfy.safetensors",
-  "folder": "loras",
-  "family": "MOSS-Image",
-  "kind": "lora",
-  "trained_on": "sft",
-  "turbo": {
-   "how": "lora",
-   "steps": "4-6",
-   "cfg": null,
-   "sampler": null,
-   "scheduler": null
+  {
+   "file": "moss_image_sft_lora_rank_512_bf16.safetensors",
+   "folder": "loras",
+   "family": "MOSS-Image",
+   "kind": "lora",
+   "trained_on": "base",
+   "turbo": null,
+   "deband": "none",
+   "recommended": {
+    "strength": 1.0,
+    "on": "Base"
+   },
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/Kijai/MOSS-image_experimental",
+   "size_gb": 2.27,
+   "quant_format": "none (BF16)",
+   "loads_in_core": true,
+   "notes": "Kijai experimental SFT-delta LoRA (sha matches HF for ranks 256/512/blocks21-49). Per Kijai card: apply blocks 21-49 rank 512 at -0.5 on SFT to fix banding and reduce overblown SFT look; or use on Base as SFT diff (ranks do not fully capture SFT). Negative strength is the banding fix use.",
+   "role": "core",
+   "core": "task"
   },
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": [
-   "other turbo LoRAs"
-  ],
-  "source_url": "https://huggingface.co/congruency/MOSS-Image-Turbo-MFD",
-  "size_gb": 0.08,
-  "quant_format": "none (BF16/F32)",
-  "loads_in_core": true,
-  "notes": "NEW 2026-11-04. Mean Flow Distillation turbo LoRA, rank 16, ComfyUI key layout (diffusion_model.layers.* + text_embedder.blocks.*), 75 MB. Card: 50 aux/20 student, 4-6 steps. cfg/sampler unverified (card gives none). Unofficial research, 0 community mentions found.",
-  "role": "core",
-  "core": "turbo"
- },
- {
-  "file": "congruency_moss_sft_turbo_mfd_v0.2.safetensors",
-  "folder": "loras",
-  "family": "MOSS-Image",
-  "kind": "lora",
-  "trained_on": "sft",
-  "turbo": {
-   "how": "lora",
-   "steps": "4-8",
-   "cfg": null,
-   "sampler": null,
-   "scheduler": null
+  {
+   "file": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+   "folder": "diffusion_models/h3",
+   "family": "MiniMax H3",
+   "kind": "base",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/Comfy-Org/MiniMax-H3",
+   "size_gb": 20.97,
+   "quant_format": "int8_tensorwise+convrot x200",
+   "loads_in_core": true,
+   "notes": "Comfy-Org pruned FL2VA int8 convrot (size matches HF 20970379616). H3 video/audio+video checkpoint (also usable for images per community); image-quality use unverified here."
   },
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": [
-   "other turbo LoRAs"
-  ],
-  "source_url": "https://huggingface.co/congruency/MOSS-Image-Turbo-MFD",
-  "size_gb": 0.08,
-  "quant_format": "none (BF16)",
-  "loads_in_core": null,
-  "notes": "NEW 2026-11-04. MFD v0.2 (12 aux/6 student, 4-8 steps), rank 16, keys layers.*.lora_A.weight (no diffusion_model prefix, not the .comfy variant); core loading unverified (core maps bare module paths, so plausible).",
-  "role": "core",
-  "core": "turbo"
- },
- {
-  "file": "moss_image_sft_lora_blocks_21_to_49_rank_512_bf16.safetensors",
-  "folder": "loras",
-  "family": "MOSS-Image",
-  "kind": "lora",
-  "trained_on": "base",
-  "turbo": null,
-  "deband": "lora",
-  "recommended": {
-   "strength": -0.5,
-   "on": "SFT"
+  {
+   "file": "minimax_h3_fl2va_pruned_int8_convrot_DMADmerged_bf16src.safetensors",
+   "folder": "diffusion_models/h3",
+   "family": "MiniMax H3",
+   "kind": "turbo_merge",
+   "trained_on": null,
+   "turbo": {
+    "how": "merged",
+    "steps": 6,
+    "cfg": 1,
+    "sampler": "lcm",
+    "scheduler": "simple"
+   },
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": [
+    "minimax_h3_DMAD_4step_full_lora_avg_rank_39_bf16 (DMAD already merged)"
+   ],
+   "source_url": null,
+   "size_gb": 20.97,
+   "quant_format": "int8_tensorwise+convrot x200",
+   "loads_in_core": true,
+   "notes": "FL2VA pruned int8 with DMAD merged from bf16 source (local build). H3 video/audio+video checkpoint (also usable for images per community); image-quality use unverified here."
   },
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": "https://huggingface.co/Kijai/MOSS-image_experimental",
-  "size_gb": 1.16,
-  "quant_format": "none (BF16)",
-  "loads_in_core": true,
-  "notes": "Kijai experimental SFT-delta LoRA (sha matches HF for ranks 256/512/blocks21-49). Per Kijai card: apply blocks 21-49 rank 512 at -0.5 on SFT to fix banding and reduce overblown SFT look; or use on Base as SFT diff (ranks do not fully capture SFT). Negative strength is the banding fix use.",
-  "role": "core",
-  "core": "fix"
- },
- {
-  "file": "moss_image_sft_lora_rank_256_bf16.safetensors",
-  "folder": "loras",
-  "family": "MOSS-Image",
-  "kind": "lora",
-  "trained_on": "base",
-  "turbo": null,
-  "deband": "none",
-  "recommended": {
-   "strength": 1.0,
-   "on": "Base"
+  {
+   "file": "minimax_h3_fl2va_pruned_nvfp4_all_staticscale.safetensors",
+   "folder": "diffusion_models/h3",
+   "family": "MiniMax H3",
+   "kind": "base",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": null,
+   "size_gb": 12.53,
+   "quant_format": "nvfp4 x200",
+   "loads_in_core": true,
+   "notes": "Local nvfp4 variant, all linears static-scale (Blackwell). H3 video/audio+video checkpoint (also usable for images per community); image-quality use unverified here."
   },
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": "https://huggingface.co/Kijai/MOSS-image_experimental",
-  "size_gb": 1.14,
-  "quant_format": "none (BF16)",
-  "loads_in_core": true,
-  "notes": "Kijai experimental SFT-delta LoRA (sha matches HF for ranks 256/512/blocks21-49). Per Kijai card: apply blocks 21-49 rank 512 at -0.5 on SFT to fix banding and reduce overblown SFT look; or use on Base as SFT diff (ranks do not fully capture SFT). Negative strength is the banding fix use.",
-  "role": "core",
-  "core": "task"
- },
- {
-  "file": "moss_image_sft_lora_rank_512_bf16.safetensors",
-  "folder": "loras",
-  "family": "MOSS-Image",
-  "kind": "lora",
-  "trained_on": "base",
-  "turbo": null,
-  "deband": "none",
-  "recommended": {
-   "strength": 1.0,
-   "on": "Base"
+  {
+   "file": "minimax_h3_fl2va_pruned_nvfp4_int8fc13649_fc23649.safetensors",
+   "folder": "diffusion_models/h3",
+   "family": "MiniMax H3",
+   "kind": "base",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": null,
+   "size_gb": 13.95,
+   "quant_format": "nvfp4 x172, int8_tensorwise+convrot x28",
+   "loads_in_core": true,
+   "notes": "Local nvfp4 mixed with int8 on 28 fc layers. H3 video/audio+video checkpoint (also usable for images per community); image-quality use unverified here."
   },
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": "https://huggingface.co/Kijai/MOSS-image_experimental",
-  "size_gb": 2.27,
-  "quant_format": "none (BF16)",
-  "loads_in_core": true,
-  "notes": "Kijai experimental SFT-delta LoRA (sha matches HF for ranks 256/512/blocks21-49). Per Kijai card: apply blocks 21-49 rank 512 at -0.5 on SFT to fix banding and reduce overblown SFT look; or use on Base as SFT diff (ranks do not fully capture SFT). Negative strength is the banding fix use.",
-  "role": "core",
-  "core": "task"
- },
- {
-  "file": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
-  "folder": "diffusion_models/h3",
-  "family": "MiniMax H3",
-  "kind": "base",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": "https://huggingface.co/Comfy-Org/MiniMax-H3",
-  "size_gb": 20.97,
-  "quant_format": "int8_tensorwise+convrot x200",
-  "loads_in_core": true,
-  "notes": "Comfy-Org pruned FL2VA int8 convrot (size matches HF 20970379616). H3 video/audio+video checkpoint (also usable for images per community); image-quality use unverified here."
- },
- {
-  "file": "minimax_h3_fl2va_pruned_int8_convrot_DMADmerged_bf16src.safetensors",
-  "folder": "diffusion_models/h3",
-  "family": "MiniMax H3",
-  "kind": "turbo_merge",
-  "trained_on": null,
-  "turbo": {
-   "how": "merged",
-   "steps": 6,
-   "cfg": 1,
-   "sampler": "lcm",
-   "scheduler": "simple"
+  {
+   "file": "minimax_h3_fl2va_pruned_w6a8.safetensors",
+   "folder": "diffusion_models/h3",
+   "family": "MiniMax H3",
+   "kind": "base",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/Comfy-Org/MiniMax-H3",
+   "size_gb": 15.98,
+   "quant_format": "w6a8_int8+convrot x201, int8_tensorwise+convrot x8",
+   "loads_in_core": true,
+   "notes": "Comfy-Org pruned FL2VA w6a8 (size matches HF 15983746636). H3 video/audio+video checkpoint (also usable for images per community); image-quality use unverified here."
   },
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": [
-   "minimax_h3_DMAD_4step_full_lora_avg_rank_39_bf16 (DMAD already merged)"
-  ],
-  "source_url": null,
-  "size_gb": 20.97,
-  "quant_format": "int8_tensorwise+convrot x200",
-  "loads_in_core": true,
-  "notes": "FL2VA pruned int8 with DMAD merged from bf16 source (local build). H3 video/audio+video checkpoint (also usable for images per community); image-quality use unverified here."
- },
- {
-  "file": "minimax_h3_fl2va_pruned_nvfp4_all_staticscale.safetensors",
-  "folder": "diffusion_models/h3",
-  "family": "MiniMax H3",
-  "kind": "base",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": null,
-  "size_gb": 12.53,
-  "quant_format": "nvfp4 x200",
-  "loads_in_core": true,
-  "notes": "Local nvfp4 variant, all linears static-scale (Blackwell). H3 video/audio+video checkpoint (also usable for images per community); image-quality use unverified here."
- },
- {
-  "file": "minimax_h3_fl2va_pruned_nvfp4_int8fc13649_fc23649.safetensors",
-  "folder": "diffusion_models/h3",
-  "family": "MiniMax H3",
-  "kind": "base",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": null,
-  "size_gb": 13.95,
-  "quant_format": "nvfp4 x172, int8_tensorwise+convrot x28",
-  "loads_in_core": true,
-  "notes": "Local nvfp4 mixed with int8 on 28 fc layers. H3 video/audio+video checkpoint (also usable for images per community); image-quality use unverified here."
- },
- {
-  "file": "minimax_h3_fl2va_pruned_w6a8.safetensors",
-  "folder": "diffusion_models/h3",
-  "family": "MiniMax H3",
-  "kind": "base",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": "https://huggingface.co/Comfy-Org/MiniMax-H3",
-  "size_gb": 15.98,
-  "quant_format": "w6a8_int8+convrot x201, int8_tensorwise+convrot x8",
-  "loads_in_core": true,
-  "notes": "Comfy-Org pruned FL2VA w6a8 (size matches HF 15983746636). H3 video/audio+video checkpoint (also usable for images per community); image-quality use unverified here."
- },
- {
-  "file": "minimax_h3_fl2va_pruned_w6a8_DMADmerged_bf16src.safetensors",
-  "folder": "diffusion_models/h3",
-  "family": "MiniMax H3",
-  "kind": "turbo_merge",
-  "trained_on": null,
-  "turbo": {
-   "how": "merged",
-   "steps": 6,
-   "cfg": 1,
-   "sampler": "lcm",
-   "scheduler": "simple"
+  {
+   "file": "minimax_h3_fl2va_pruned_w6a8_DMADmerged_bf16src.safetensors",
+   "folder": "diffusion_models/h3",
+   "family": "MiniMax H3",
+   "kind": "turbo_merge",
+   "trained_on": null,
+   "turbo": {
+    "how": "merged",
+    "steps": 6,
+    "cfg": 1,
+    "sampler": "lcm",
+    "scheduler": "simple"
+   },
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": [
+    "minimax_h3_DMAD_4step_full_lora_avg_rank_39_bf16 (DMAD already merged)"
+   ],
+   "source_url": null,
+   "size_gb": 15.98,
+   "quant_format": "w6a8_int8+convrot x201, int8_tensorwise+convrot x8",
+   "loads_in_core": true,
+   "notes": "FL2VA pruned w6a8 with DMAD merged (local build). H3 video/audio+video checkpoint (also usable for images per community); image-quality use unverified here."
   },
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": [
-   "minimax_h3_DMAD_4step_full_lora_avg_rank_39_bf16 (DMAD already merged)"
-  ],
-  "source_url": null,
-  "size_gb": 15.98,
-  "quant_format": "w6a8_int8+convrot x201, int8_tensorwise+convrot x8",
-  "loads_in_core": true,
-  "notes": "FL2VA pruned w6a8 with DMAD merged (local build). H3 video/audio+video checkpoint (also usable for images per community); image-quality use unverified here."
- },
- {
-  "file": "minimax_h3_fused_refdelta_r1024_turbo8_mystic07_int8_convrot.safetensors",
-  "folder": "diffusion_models/h3",
-  "family": "MiniMax H3",
-  "kind": "turbo_merge",
-  "trained_on": null,
-  "turbo": {
-   "how": "merged",
-   "steps": 8,
-   "cfg": null,
-   "sampler": null,
-   "scheduler": null
+  {
+   "file": "minimax_h3_fused_refdelta_r1024_turbo8_mystic07_int8_convrot.safetensors",
+   "folder": "diffusion_models/h3",
+   "family": "MiniMax H3",
+   "kind": "turbo_merge",
+   "trained_on": null,
+   "turbo": {
+    "how": "merged",
+    "steps": 8,
+    "cfg": null,
+    "sampler": null,
+    "scheduler": null
+   },
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": null,
+   "size_gb": 20.98,
+   "quant_format": "int8_tensorwise+convrot x200",
+   "loads_in_core": true,
+   "notes": "Local fused build: ref delta r1024 + turbo8 LoRA + mystic 0.7 merged into int8 (per name; unverified). H3 video/audio+video checkpoint (also usable for images per community); image-quality use unverified here."
   },
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": null,
-  "size_gb": 20.98,
-  "quant_format": "int8_tensorwise+convrot x200",
-  "loads_in_core": true,
-  "notes": "Local fused build: ref delta r1024 + turbo8 LoRA + mystic 0.7 merged into int8 (per name; unverified). H3 video/audio+video checkpoint (also usable for images per community); image-quality use unverified here."
- },
- {
-  "file": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
-  "folder": "diffusion_models/h3",
-  "family": "MiniMax H3",
-  "kind": "base",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": [
-   "pika_h3_flex_ref2va_comfy_bf16"
-  ],
-  "do_not_stack_with": null,
-  "source_url": "https://huggingface.co/Comfy-Org/MiniMax-H3",
-  "size_gb": 20.97,
-  "quant_format": "int8_tensorwise+convrot x200",
-  "loads_in_core": true,
-  "notes": "Comfy-Org pruned REF2VA int8 convrot (size matches HF). H3 video/audio+video checkpoint (also usable for images per community); image-quality use unverified here. Ref2V pair: + pika_h3_flex_ref2va_comfy_bf16 (the 'Pika + reference pictures' preset)."
- },
- {
-  "file": "p-h3-image_int8_convrot.safetensors",
-  "folder": "diffusion_models/h3",
-  "family": "MiniMax H3",
-  "kind": "finetune",
-  "trained_on": null,
-  "turbo": {
-   "how": "merged",
-   "steps": 8,
-   "cfg": 1,
-   "sampler": "euler",
-   "scheduler": "ManualSigmas 8-step grid (from PrunaAI workflows)"
+  {
+   "file": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+   "folder": "diffusion_models/h3",
+   "family": "MiniMax H3",
+   "kind": "base",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": [
+    "pika_h3_flex_ref2va_comfy_bf16"
+   ],
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/Comfy-Org/MiniMax-H3",
+   "size_gb": 20.97,
+   "quant_format": "int8_tensorwise+convrot x200",
+   "loads_in_core": true,
+   "notes": "Comfy-Org pruned REF2VA int8 convrot (size matches HF). H3 video/audio+video checkpoint (also usable for images per community); image-quality use unverified here. Ref2V pair: + pika_h3_flex_ref2va_comfy_bf16 (the 'Pika + reference pictures' preset)."
   },
-  "deband": "none",
-  "recommended": {
-   "steps": 8,
-   "cfg": null,
-   "guider": "BasicGuider (no CFG, no negative)",
-   "sampler": "euler",
-   "sampling": "SamplerCustomAdvanced + ManualSigmas",
-   "model_sampling": "ModelSamplingMiniMaxH3 shifts 1.0/1.0",
-   "resolution": "8 MP, e.g. 2912x2912 (T2I); 4 MP for edits",
-   "prompt_upsampler": "keep in graph (card)"
+  {
+   "file": "p-h3-image_int8_convrot.safetensors",
+   "folder": "diffusion_models/h3",
+   "family": "MiniMax H3",
+   "kind": "finetune",
+   "trained_on": null,
+   "turbo": {
+    "how": "merged",
+    "steps": 8,
+    "cfg": 1,
+    "sampler": "euler",
+    "scheduler": "ManualSigmas 8-step grid (from PrunaAI workflows)"
+   },
+   "deband": "none",
+   "recommended": {
+    "steps": 8,
+    "cfg": null,
+    "guider": "BasicGuider (no CFG, no negative)",
+    "sampler": "euler",
+    "sampling": "SamplerCustomAdvanced + ManualSigmas",
+    "model_sampling": "ModelSamplingMiniMaxH3 shifts 1.0/1.0",
+    "resolution": "8 MP, e.g. 2912x2912 (T2I); 4 MP for edits",
+    "prompt_upsampler": "keep in graph (card)"
+   },
+   "stacks_with": [
+    "p-h3-image text encoder + VAE + prompt upsampler (Qwen3.5-9B based, NOT downloaded)"
+   ],
+   "do_not_stack_with": [
+    "p-h3-image_lora_bf16 (already merged; LoRA is for stock H3 FL2VA)"
+   ],
+   "source_url": "https://huggingface.co/PrunaAI/P-H3-Image-Comfy",
+   "size_gb": 21.21,
+   "quant_format": "int8_tensorwise+convrot x200",
+   "loads_in_core": true,
+   "notes": "NEW 2026-11-04. PrunaAI P-H3-Image: MiniMax-H3 FL2VA-pruned-derived image/edit model (8 steps, no CFG, up to 8 edit images). Header: 932 tensors with identical key set to local minimax_h3_fl2va_pruned_int8_convrot (103 tensors differ in shape/dtype), 200 comfy_quant int8_tensorwise convrot, so core model detection (video_patch_proj+audio_patch_proj) and quant loading apply. The \"p-h3-image Conditioning\" node and its Qwen3-VL-4B text encoder support are in newer ComfyUI master, NOT in the local checkout (7cebca522); workaround per hivemind (Alisson 11-03): MiniMaxH3ReferenceToVideo node. License: MiniMax H3 Community License (excludes EU/UK/Korea/US without separate license; \"Powered by MiniMax H3\"). Not generation-tested."
   },
-  "stacks_with": [
-   "p-h3-image text encoder + VAE + prompt upsampler (Qwen3.5-9B based, NOT downloaded)"
-  ],
-  "do_not_stack_with": [
-   "p-h3-image_lora_bf16 (already merged; LoRA is for stock H3 FL2VA)"
-  ],
-  "source_url": "https://huggingface.co/PrunaAI/P-H3-Image-Comfy",
-  "size_gb": 21.21,
-  "quant_format": "int8_tensorwise+convrot x200",
-  "loads_in_core": true,
-  "notes": "NEW 2026-11-04. PrunaAI P-H3-Image: MiniMax-H3 FL2VA-pruned-derived image/edit model (8 steps, no CFG, up to 8 edit images). Header: 932 tensors with identical key set to local minimax_h3_fl2va_pruned_int8_convrot (103 tensors differ in shape/dtype), 200 comfy_quant int8_tensorwise convrot, so core model detection (video_patch_proj+audio_patch_proj) and quant loading apply. The \"p-h3-image Conditioning\" node and its Qwen3-VL-4B text encoder support are in newer ComfyUI master, NOT in the local checkout (7cebca522); workaround per hivemind (Alisson 11-03): MiniMaxH3ReferenceToVideo node. License: MiniMax H3 Community License (excludes EU/UK/Korea/US without separate license; \"Powered by MiniMax H3\"). Not generation-tested."
- },
- {
-  "file": "p-h3-image_text_encoder_int8_convrot.safetensors",
-  "folder": "text_encoders/h3",
-  "family": "MiniMax H3",
-  "kind": "finetune",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": "https://huggingface.co/PrunaAI/P-H3-Image-Comfy",
-  "size_gb": 5.12,
-  "quant_format": "int8_tensorwise+convrot x253",
-  "loads_in_core": false,
-  "notes": "NEW 2026-11-04. Qwen3-VL-4B text encoder (embed 2560, 36 layers, vision tower) for P-H3-Image; Load CLIP type minimax. Local core text_encoders/minimax.py is the 32B (5120) Qwen3-VL variant, so this is expected to need newer master (read from code and header; load not run). Not the same as the local 32B nvfp4 H3 TE."
- },
- {
-  "file": "p-h3-image_vae_int8_convrot.safetensors",
-  "folder": "vae",
-  "family": "MiniMax H3",
-  "kind": "finetune",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": "https://huggingface.co/PrunaAI/P-H3-Image-Comfy",
-  "size_gb": 3.15,
-  "quant_format": "int8_tensorwise+convrot x144",
-  "loads_in_core": null,
-  "notes": "NEW 2026-11-04. P-H3-Image VAE int8 convrot (144 quantized layers). Core sd.py has an int8+convrot MiniMax VAE decoder path; load not run (unverified). Card says encoder identical to H3 (QuintForms 11-03, opinion)."
- },
- {
-  "file": "p-h3-image_lora_bf16.safetensors",
-  "folder": "loras",
-  "family": "MiniMax H3",
-  "kind": "lora",
-  "trained_on": null,
-  "turbo": {
-   "how": "lora",
-   "steps": 8,
-   "cfg": null,
-   "sampler": "euler",
-   "scheduler": "ManualSigmas"
+  {
+   "file": "p-h3-image_text_encoder_int8_convrot.safetensors",
+   "folder": "text_encoders/h3",
+   "family": "MiniMax H3",
+   "kind": "finetune",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/PrunaAI/P-H3-Image-Comfy",
+   "size_gb": 5.12,
+   "quant_format": "int8_tensorwise+convrot x253",
+   "loads_in_core": false,
+   "notes": "NEW 2026-11-04. Qwen3-VL-4B text encoder (embed 2560, 36 layers, vision tower) for P-H3-Image; Load CLIP type minimax. Local core text_encoders/minimax.py is the 32B (5120) Qwen3-VL variant, so this is expected to need newer master (read from code and header; load not run). Not the same as the local 32B nvfp4 H3 TE."
   },
-  "deband": "none",
-  "recommended": {
-   "strength": 1.0,
-   "loader": "Load LoRA (Bypass, Model Only)",
-   "base": "minimax_h3_fl2va_bf16 or pruned/quantized FL2VA",
-   "steps": 8,
-   "cfg": null
+  {
+   "file": "p-h3-image_vae_int8_convrot.safetensors",
+   "folder": "vae",
+   "family": "MiniMax H3",
+   "kind": "finetune",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/PrunaAI/P-H3-Image-Comfy",
+   "size_gb": 3.15,
+   "quant_format": "int8_tensorwise+convrot x144",
+   "loads_in_core": null,
+   "notes": "NEW 2026-11-04. P-H3-Image VAE int8 convrot (144 quantized layers). Core sd.py has an int8+convrot MiniMax VAE decoder path; load not run (unverified). Card says encoder identical to H3 (QuintForms 11-03, opinion)."
   },
-  "stacks_with": null,
-  "do_not_stack_with": [
-   "p-h3-image_int8_convrot (already merged)"
-  ],
-  "source_url": "https://huggingface.co/PrunaAI/P-H3-Image-Comfy",
-  "size_gb": 1.96,
-  "quant_format": "none (BF16/F32)",
-  "loads_in_core": null,
-  "notes": "NEW 2026-11-04. LoRA that turns stock H3 FL2VA into P-H3-Image without the second 21 GB download. Header: keys diffusion_model.blocks.* and token_refiner.blocks.*, ranks 128 and 384, F32 alpha + BF16 factors. Same 1.96 GB class as the Comfy-Org H3 turbo/Pika LoRAs. RuneX (11-03): without the LoRA skin looks more natural (opinion). Core load not run (unverified).",
-  "role": "core",
-  "core": "turbo"
- },
- {
-  "file": "krea-2-raw.safetensors",
-  "folder": "diffusion_models",
-  "family": "Krea 2",
-  "kind": "base",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": {
-   "steps": 30,
-   "cfg": 4,
-   "sampler": "res_multistep",
-   "scheduler": "beta",
-   "weight_dtype": "fp8_e4m3fn"
+  {
+   "file": "p-h3-image_lora_bf16.safetensors",
+   "folder": "loras",
+   "family": "MiniMax H3",
+   "kind": "lora",
+   "trained_on": null,
+   "turbo": {
+    "how": "lora",
+    "steps": 8,
+    "cfg": null,
+    "sampler": "euler",
+    "scheduler": "ManualSigmas"
+   },
+   "deband": "none",
+   "recommended": {
+    "strength": 1.0,
+    "loader": "Load LoRA (Bypass, Model Only)",
+    "base": "minimax_h3_fl2va_bf16 or pruned/quantized FL2VA",
+    "steps": 8,
+    "cfg": null
+   },
+   "stacks_with": null,
+   "do_not_stack_with": [
+    "p-h3-image_int8_convrot (already merged)"
+   ],
+   "source_url": "https://huggingface.co/PrunaAI/P-H3-Image-Comfy",
+   "size_gb": 1.96,
+   "quant_format": "none (BF16/F32)",
+   "loads_in_core": null,
+   "notes": "NEW 2026-11-04. LoRA that turns stock H3 FL2VA into P-H3-Image without the second 21 GB download. Header: keys diffusion_model.blocks.* and token_refiner.blocks.*, ranks 128 and 384, F32 alpha + BF16 factors. Same 1.96 GB class as the Comfy-Org H3 turbo/Pika LoRAs. RuneX (11-03): without the LoRA skin looks more natural (opinion). Core load not run (unverified).",
+   "role": "core",
+   "core": "turbo"
   },
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": null,
-  "size_gb": 26.28,
-  "quant_format": "bf16 (load as fp8_e4m3fn)",
-  "loads_in_core": true,
-  "notes": "Krea 2 Raw. The Krea dials were calibrated on it loaded as fp8_e4m3fn, res_multistep, beta (0.6, 0.6), 30 steps, cfg 4."
- },
- {
-  "file": "krea-2-raw-int8-convrot.safetensors",
-  "folder": "diffusion_models",
-  "family": "Krea 2",
-  "kind": "base",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": null,
-  "size_gb": 16.17,
-  "quant_format": "int8_rowwise + convrot",
-  "loads_in_core": false,
-  "notes": "int8_rowwise (header comfy_quant): core comfy/quant_ops.py has only int8_tensorwise, so it fails to load in core. Use krea-2-raw as fp8."
- },
- {
-  "file": "krea-2-raw-plus-distill-s71.safetensors",
-  "folder": "diffusion_models",
-  "family": "Krea 2",
-  "kind": "finetune",
-  "trained_on": "base",
-  "turbo": null,
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": null,
-  "size_gb": 26.28,
-  "quant_format": null,
-  "loads_in_core": true,
-  "notes": "Local Raw + distill merge (s71); settings unverified."
- },
- {
-  "file": "krea2_turbo_fp8_scaled.safetensors",
-  "folder": "diffusion_models",
-  "family": "Krea 2",
-  "kind": "turbo_merge",
-  "trained_on": "base",
-  "turbo": {
-   "how": "merged",
-   "steps": 8,
-   "cfg": 1,
-   "sampler": "ddim",
-   "scheduler": "beta"
+  {
+   "file": "krea-2-raw.safetensors",
+   "folder": "diffusion_models",
+   "family": "Krea 2",
+   "kind": "base",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": {
+    "steps": 30,
+    "cfg": 4,
+    "sampler": "res_multistep",
+    "scheduler": "beta",
+    "weight_dtype": "fp8_e4m3fn"
+   },
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": null,
+   "size_gb": 26.28,
+   "quant_format": "bf16 (load as fp8_e4m3fn)",
+   "loads_in_core": true,
+   "notes": "Krea 2 Raw. The Krea dials were calibrated on it loaded as fp8_e4m3fn, res_multistep, beta (0.6, 0.6), 30 steps, cfg 4."
   },
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": [
-   "any turbo LoRA (turbo already merged)"
-  ],
-  "source_url": null,
-  "size_gb": 13.14,
-  "quant_format": "fp8 scaled",
-  "loads_in_core": true,
-  "notes": "Krea 2 Turbo. workflows/krea2/k8CLdMXB.json runs it at 8 steps, cfg 1, ddim + beta57 (RES4LYF); core has no beta57, so beta (0.6, 0.6)."
- },
- {
-  "file": "krea2_turbo_fp8.safetensors",
-  "folder": "diffusion_models",
-  "family": "Krea 2",
-  "kind": "turbo_merge",
-  "trained_on": "base",
-  "turbo": {
-   "how": "merged",
-   "steps": 8,
-   "cfg": 1,
-   "sampler": "ddim",
-   "scheduler": "beta"
+  {
+   "file": "krea-2-raw-int8-convrot.safetensors",
+   "folder": "diffusion_models",
+   "family": "Krea 2",
+   "kind": "base",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": null,
+   "size_gb": 16.17,
+   "quant_format": "int8_rowwise + convrot",
+   "loads_in_core": false,
+   "notes": "int8_rowwise (header comfy_quant): core comfy/quant_ops.py has only int8_tensorwise, so it fails to load in core. Use krea-2-raw as fp8."
   },
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": [
-   "any turbo LoRA (turbo already merged)"
-  ],
-  "source_url": null,
-  "size_gb": 12.9,
-  "quant_format": "fp8",
-  "loads_in_core": true,
-  "notes": ""
- },
- {
-  "file": "krea2_turbo_nvfp4.safetensors",
-  "folder": "diffusion_models",
-  "family": "Krea 2",
-  "kind": "turbo_merge",
-  "trained_on": "base",
-  "turbo": {
-   "how": "merged",
-   "steps": 8,
-   "cfg": 1,
-   "sampler": "ddim",
-   "scheduler": "beta"
+  {
+   "file": "krea-2-raw-plus-distill-s71.safetensors",
+   "folder": "diffusion_models",
+   "family": "Krea 2",
+   "kind": "finetune",
+   "trained_on": "base",
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": null,
+   "size_gb": 26.28,
+   "quant_format": null,
+   "loads_in_core": true,
+   "notes": "Local Raw + distill merge (s71); settings unverified."
   },
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": [
-   "any turbo LoRA (turbo already merged)"
-  ],
-  "source_url": null,
-  "size_gb": 7.67,
-  "quant_format": "nvfp4",
-  "loads_in_core": true,
-  "notes": "nvfp4 (Blackwell); untested in Snap."
- },
- {
-  "file": "darkBeastKrea2_darkBeastKREA2.safetensors",
-  "folder": "diffusion_models",
-  "family": "Krea 2",
-  "kind": "finetune",
-  "trained_on": "base",
-  "turbo": null,
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": null,
-  "size_gb": 12.82,
-  "quant_format": null,
-  "loads_in_core": true,
-  "notes": "Community fine-tune; settings unverified."
- },
- {
-  "file": "qwen3vl_4b_fp8_scaled.safetensors",
-  "folder": "text_encoders",
-  "family": "Krea 2",
-  "kind": "encoder",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": {
-   "type": "krea2"
+  {
+   "file": "krea2_turbo_fp8_scaled.safetensors",
+   "folder": "diffusion_models",
+   "family": "Krea 2",
+   "kind": "turbo_merge",
+   "trained_on": "base",
+   "turbo": {
+    "how": "merged",
+    "steps": 8,
+    "cfg": 1,
+    "sampler": "ddim",
+    "scheduler": "beta"
+   },
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": [
+    "any turbo LoRA (turbo already merged)"
+   ],
+   "source_url": null,
+   "size_gb": 13.14,
+   "quant_format": "fp8 scaled",
+   "loads_in_core": true,
+   "notes": "Krea 2 Turbo. workflows/krea2/k8CLdMXB.json runs it at 8 steps, cfg 1, ddim + beta57 (RES4LYF); core has no beta57, so beta (0.6, 0.6)."
   },
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": null,
-  "size_gb": 5.24,
-  "quant_format": null,
-  "loads_in_core": true,
-  "notes": ""
- },
- {
-  "file": "krea2qwen3VLInstruct4bHeretic_v10.safetensors",
-  "folder": "text_encoders",
-  "family": "Krea 2",
-  "kind": "encoder",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": {
-   "type": "krea2"
+  {
+   "file": "krea2_turbo_fp8.safetensors",
+   "folder": "diffusion_models",
+   "family": "Krea 2",
+   "kind": "turbo_merge",
+   "trained_on": "base",
+   "turbo": {
+    "how": "merged",
+    "steps": 8,
+    "cfg": 1,
+    "sampler": "ddim",
+    "scheduler": "beta"
+   },
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": [
+    "any turbo LoRA (turbo already merged)"
+   ],
+   "source_url": null,
+   "size_gb": 12.9,
+   "quant_format": "fp8",
+   "loads_in_core": true,
+   "notes": ""
   },
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": null,
-  "size_gb": 5.24,
-  "quant_format": null,
-  "loads_in_core": true,
-  "notes": "Heretic (abliterated) Qwen3-VL 4B; the stock encoder is the default."
- },
- {
-  "file": "qwen_image_vae.safetensors",
-  "folder": "vae",
-  "family": "Krea 2",
-  "kind": "vae",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": null,
-  "size_gb": 0.25,
-  "quant_format": null,
-  "loads_in_core": true,
-  "notes": ""
- },
- {
-  "file": "qwen3.5_9b_int8_convrot.safetensors",
-  "folder": "text_encoders",
-  "family": "MOSS-Image",
-  "kind": "encoder",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": {
-   "type": "moss_image"
+  {
+   "file": "krea2_turbo_nvfp4.safetensors",
+   "folder": "diffusion_models",
+   "family": "Krea 2",
+   "kind": "turbo_merge",
+   "trained_on": "base",
+   "turbo": {
+    "how": "merged",
+    "steps": 8,
+    "cfg": 1,
+    "sampler": "ddim",
+    "scheduler": "beta"
+   },
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": [
+    "any turbo LoRA (turbo already merged)"
+   ],
+   "source_url": null,
+   "size_gb": 7.67,
+   "quant_format": "nvfp4",
+   "loads_in_core": true,
+   "notes": "nvfp4 (Blackwell); untested in Snap."
   },
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": null,
-  "size_gb": 9.75,
-  "quant_format": null,
-  "loads_in_core": true,
-  "notes": "MOSS-Image text encoder; also runs the prompt expander (TextGenerate)."
- },
- {
-  "file": "flux2-vae.safetensors",
-  "folder": "vae",
-  "family": "MOSS-Image",
-  "kind": "vae",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": null,
-  "size_gb": 0.34,
-  "quant_format": null,
-  "loads_in_core": true,
-  "notes": ""
- },
- {
-  "file": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-  "folder": "text_encoders",
-  "family": "MiniMax H3",
-  "kind": "encoder",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": {
-   "type": "minimax"
+  {
+   "file": "darkBeastKrea2_darkBeastKREA2.safetensors",
+   "folder": "diffusion_models",
+   "family": "Krea 2",
+   "kind": "finetune",
+   "trained_on": "base",
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": null,
+   "size_gb": 12.82,
+   "quant_format": null,
+   "loads_in_core": true,
+   "notes": "Community fine-tune; settings unverified."
   },
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": null,
-  "size_gb": 15.7,
-  "quant_format": null,
-  "loads_in_core": true,
-  "notes": ""
- },
- {
-  "file": "minimax_h3_video_vae_fp16.safetensors",
-  "folder": "vae",
-  "family": "MiniMax H3",
-  "kind": "vae",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": null,
-  "size_gb": 5.2,
-  "quant_format": null,
-  "loads_in_core": true,
-  "notes": ""
- },
- {
-  "file": "minimax_h3_audio_vae_fp32.safetensors",
-  "folder": "vae",
-  "family": "MiniMax H3",
-  "kind": "vae",
-  "trained_on": null,
-  "turbo": null,
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": null,
-  "source_url": null,
-  "size_gb": 0.6,
-  "quant_format": null,
-  "loads_in_core": true,
-  "notes": ""
- },
- {
-  "file": "pika_h3_flex_fl2va_v1_bf16.safetensors",
-  "folder": "loras",
-  "family": "MiniMax H3",
-  "kind": "lora",
-  "trained_on": "base",
-  "turbo": null,
-  "deband": "none",
-  "recommended": {
-   "strength": 1.0,
-   "steps": 6,
-   "cfg": 1,
-   "sampler": "lcm",
-   "scheduler": "manual Pika knots, shifts 12 / 3"
+  {
+   "file": "qwen3vl_4b_fp8_scaled.safetensors",
+   "folder": "text_encoders",
+   "family": "Krea 2",
+   "kind": "encoder",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": {
+    "type": "krea2"
+   },
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": null,
+   "size_gb": 5.24,
+   "quant_format": null,
+   "loads_in_core": true,
+   "notes": ""
   },
-  "stacks_with": [
-   "minimax_h3_fl2va_pruned_int8_convrot"
-  ],
-  "do_not_stack_with": null,
-  "source_url": "https://huggingface.co/Pika-Labs/Pika-H3-Flex",
-  "size_gb": 1.96,
-  "quant_format": null,
-  "loads_in_core": true,
-  "notes": "Pika H3 Flex for FL2V: pairs with the fl2va checkpoint.",
-  "role": "core",
-  "core": "task"
- },
- {
-  "file": "pika_h3_flex_ref2va_comfy_bf16.safetensors",
-  "folder": "loras",
-  "family": "MiniMax H3",
-  "kind": "lora",
-  "trained_on": "base",
-  "turbo": null,
-  "deband": "none",
-  "recommended": {
-   "strength": 1.0,
-   "steps": 6,
-   "cfg": 1,
-   "sampler": "lcm",
-   "scheduler": "manual Pika knots, shifts 12 / 3"
+  {
+   "file": "krea2qwen3VLInstruct4bHeretic_v10.safetensors",
+   "folder": "text_encoders",
+   "family": "Krea 2",
+   "kind": "encoder",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": {
+    "type": "krea2"
+   },
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": null,
+   "size_gb": 5.24,
+   "quant_format": null,
+   "loads_in_core": true,
+   "notes": "Heretic (abliterated) Qwen3-VL 4B; the stock encoder is the default."
   },
-  "stacks_with": [
-   "minimax_h3_ref2va_pruned_int8_convrot"
-  ],
-  "do_not_stack_with": null,
-  "source_url": "https://huggingface.co/Pika-Labs/Pika-H3-Flex",
-  "size_gb": 1.96,
-  "quant_format": null,
-  "loads_in_core": true,
-  "notes": "Pika H3 Flex for Ref2V: pairs with the ref2va checkpoint (not fl2va); same sampling as FL2V per Pika's ref2va manifest. The 'Pika + reference pictures' preset uses this pair.",
-  "role": "core",
-  "core": "task"
- },
- {
-  "file": "minimax_h3_DMAD_4step_full_lora_avg_rank_39_bf16.safetensors",
-  "folder": "loras",
-  "family": "MiniMax H3",
-  "kind": "lora",
-  "trained_on": "base",
-  "turbo": {
-   "how": "lora",
-   "steps": 6,
-   "cfg": 1,
-   "sampler": "lcm",
-   "scheduler": "simple"
+  {
+   "file": "qwen_image_vae.safetensors",
+   "folder": "vae",
+   "family": "Krea 2",
+   "kind": "vae",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": null,
+   "size_gb": 0.25,
+   "quant_format": null,
+   "loads_in_core": true,
+   "notes": ""
   },
-  "deband": "none",
-  "recommended": null,
-  "stacks_with": null,
-  "do_not_stack_with": [
-   "*_DMADmerged_* checkpoints (DMAD already merged)"
-  ],
-  "source_url": null,
-  "size_gb": 0.4,
-  "quant_format": null,
-  "loads_in_core": true,
-  "notes": "DMAD speed LoRA at 0.8, lcm simple 6 steps, shifts 12 / 2 (the DMAD speed LoRA preset).",
-  "role": "core",
-  "core": "turbo"
- },
- {
-  "file": "4x-UltraSharp.safetensors",
-  "folder": "upscale_models",
-  "family": null,
-  "kind": "upscaler",
-  "scale": 4,
-  "arch": "ESRGAN",
-  "source_url": "https://huggingface.co/Kim2091/UltraSharp",
-  "loads_in_core": true,
-  "notes": "General stills (community opinion). Scale checked with a spandrel load (scout/upscalers, Downloaded 2026-11-04)."
- },
- {
-  "file": "4x_NMKD-Siax_200k.safetensors",
-  "folder": "upscale_models",
-  "family": null,
-  "kind": "upscaler",
-  "scale": 4,
-  "arch": "ESRGAN",
-  "source_url": "https://huggingface.co/peonybun/4x_NMKD-Siax_200k",
-  "loads_in_core": true,
-  "notes": "Photo detail; community re-upload, no official safetensors. Scale checked with a spandrel load (scout/upscalers, Downloaded 2026-11-04)."
- },
- {
-  "file": "RealESRGAN_x2plus.safetensors",
-  "folder": "upscale_models",
-  "family": null,
-  "kind": "upscaler",
-  "scale": 2,
-  "arch": "ESRGAN (RRDBNet)",
-  "source_url": "https://huggingface.co/hlky/RealESRGAN_x2plus",
-  "loads_in_core": true,
-  "notes": "David Snow: beats RTX super resolution (opinion). Scale checked with a spandrel load (scout/upscalers, Downloaded 2026-11-04)."
- },
- {
-  "file": "4x-AnimeSharp.safetensors",
-  "folder": "upscale_models",
-  "family": null,
-  "kind": "upscaler",
-  "scale": 4,
-  "arch": "ESRGAN",
-  "source_url": "https://huggingface.co/Kim2091/AnimeSharp",
-  "loads_in_core": true,
-  "notes": "Anime stills; no recent community results. Scale checked with a spandrel load (scout/upscalers, Downloaded 2026-11-04)."
- },
- {
-  "file": "2x-AnimeSharpV4_RCAN.safetensors",
-  "folder": "upscale_models",
-  "family": null,
-  "kind": "upscaler",
-  "scale": 2,
-  "arch": "RCAN",
-  "source_url": "https://huggingface.co/Kim2091/2x-AnimeSharpV4",
-  "loads_in_core": true,
-  "notes": "Anime 2x. Scale checked with a spandrel load (scout/upscalers, Downloaded 2026-11-04)."
- },
- {
-  "file": "RealESRGAN_x4plus_anime_6B.safetensors",
-  "folder": "upscale_models",
-  "family": null,
-  "kind": "upscaler",
-  "scale": 4,
-  "arch": "ESRGAN",
-  "source_url": "https://huggingface.co/hlky/RealESRGAN_x4plus_anime_6B",
-  "loads_in_core": true,
-  "notes": "Anime 4x, small. Scale checked with a spandrel load (scout/upscalers, Downloaded 2026-11-04)."
- }
-]
+  {
+   "file": "qwen3.5_9b_int8_convrot.safetensors",
+   "folder": "text_encoders",
+   "family": "MOSS-Image",
+   "kind": "encoder",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": {
+    "type": "moss_image"
+   },
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": null,
+   "size_gb": 9.75,
+   "quant_format": null,
+   "loads_in_core": true,
+   "notes": "MOSS-Image text encoder; also runs the prompt expander (TextGenerate)."
+  },
+  {
+   "file": "flux2-vae.safetensors",
+   "folder": "vae",
+   "family": "MOSS-Image",
+   "kind": "vae",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": null,
+   "size_gb": 0.34,
+   "quant_format": null,
+   "loads_in_core": true,
+   "notes": ""
+  },
+  {
+   "file": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+   "folder": "text_encoders",
+   "family": "MiniMax H3",
+   "kind": "encoder",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": {
+    "type": "minimax"
+   },
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": null,
+   "size_gb": 15.7,
+   "quant_format": null,
+   "loads_in_core": true,
+   "notes": ""
+  },
+  {
+   "file": "minimax_h3_video_vae_fp16.safetensors",
+   "folder": "vae",
+   "family": "MiniMax H3",
+   "kind": "vae",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": null,
+   "size_gb": 5.2,
+   "quant_format": null,
+   "loads_in_core": true,
+   "notes": ""
+  },
+  {
+   "file": "minimax_h3_audio_vae_fp32.safetensors",
+   "folder": "vae",
+   "family": "MiniMax H3",
+   "kind": "vae",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": null,
+   "size_gb": 0.6,
+   "quant_format": null,
+   "loads_in_core": true,
+   "notes": ""
+  },
+  {
+   "file": "pika_h3_flex_fl2va_v1_bf16.safetensors",
+   "folder": "loras",
+   "family": "MiniMax H3",
+   "kind": "lora",
+   "trained_on": "base",
+   "turbo": null,
+   "deband": "none",
+   "recommended": {
+    "strength": 1.0,
+    "steps": 6,
+    "cfg": 1,
+    "sampler": "lcm",
+    "scheduler": "manual Pika knots, shifts 12 / 3"
+   },
+   "stacks_with": [
+    "minimax_h3_fl2va_pruned_int8_convrot"
+   ],
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/Pika-Labs/Pika-H3-Flex",
+   "size_gb": 1.96,
+   "quant_format": null,
+   "loads_in_core": true,
+   "notes": "Pika H3 Flex for FL2V: pairs with the fl2va checkpoint.",
+   "role": "core",
+   "core": "task"
+  },
+  {
+   "file": "pika_h3_flex_ref2va_comfy_bf16.safetensors",
+   "folder": "loras",
+   "family": "MiniMax H3",
+   "kind": "lora",
+   "trained_on": "base",
+   "turbo": null,
+   "deband": "none",
+   "recommended": {
+    "strength": 1.0,
+    "steps": 6,
+    "cfg": 1,
+    "sampler": "lcm",
+    "scheduler": "manual Pika knots, shifts 12 / 3"
+   },
+   "stacks_with": [
+    "minimax_h3_ref2va_pruned_int8_convrot"
+   ],
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/Pika-Labs/Pika-H3-Flex",
+   "size_gb": 1.96,
+   "quant_format": null,
+   "loads_in_core": true,
+   "notes": "Pika H3 Flex for Ref2V: pairs with the ref2va checkpoint (not fl2va); same sampling as FL2V per Pika's ref2va manifest. The 'Pika + reference pictures' preset uses this pair.",
+   "role": "core",
+   "core": "task"
+  },
+  {
+   "file": "minimax_h3_DMAD_4step_full_lora_avg_rank_39_bf16.safetensors",
+   "folder": "loras",
+   "family": "MiniMax H3",
+   "kind": "lora",
+   "trained_on": "base",
+   "turbo": {
+    "how": "lora",
+    "steps": 6,
+    "cfg": 1,
+    "sampler": "lcm",
+    "scheduler": "simple"
+   },
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": [
+    "*_DMADmerged_* checkpoints (DMAD already merged)"
+   ],
+   "source_url": null,
+   "size_gb": 0.4,
+   "quant_format": null,
+   "loads_in_core": true,
+   "notes": "DMAD speed LoRA at 0.8, lcm simple 6 steps, shifts 12 / 2 (the DMAD speed LoRA preset).",
+   "role": "core",
+   "core": "turbo"
+  },
+  {
+   "file": "4x-UltraSharp.safetensors",
+   "folder": "upscale_models",
+   "family": null,
+   "kind": "upscaler",
+   "scale": 4,
+   "arch": "ESRGAN",
+   "source_url": "https://huggingface.co/Kim2091/UltraSharp",
+   "loads_in_core": true,
+   "notes": "General stills (community opinion). Scale checked with a spandrel load (scout/upscalers, Downloaded 2026-11-04)."
+  },
+  {
+   "file": "4x_NMKD-Siax_200k.safetensors",
+   "folder": "upscale_models",
+   "family": null,
+   "kind": "upscaler",
+   "scale": 4,
+   "arch": "ESRGAN",
+   "source_url": "https://huggingface.co/peonybun/4x_NMKD-Siax_200k",
+   "loads_in_core": true,
+   "notes": "Photo detail; community re-upload, no official safetensors. Scale checked with a spandrel load (scout/upscalers, Downloaded 2026-11-04)."
+  },
+  {
+   "file": "RealESRGAN_x2plus.safetensors",
+   "folder": "upscale_models",
+   "family": null,
+   "kind": "upscaler",
+   "scale": 2,
+   "arch": "ESRGAN (RRDBNet)",
+   "source_url": "https://huggingface.co/hlky/RealESRGAN_x2plus",
+   "loads_in_core": true,
+   "notes": "David Snow: beats RTX super resolution (opinion). Scale checked with a spandrel load (scout/upscalers, Downloaded 2026-11-04)."
+  },
+  {
+   "file": "4x-AnimeSharp.safetensors",
+   "folder": "upscale_models",
+   "family": null,
+   "kind": "upscaler",
+   "scale": 4,
+   "arch": "ESRGAN",
+   "source_url": "https://huggingface.co/Kim2091/AnimeSharp",
+   "loads_in_core": true,
+   "notes": "Anime stills; no recent community results. Scale checked with a spandrel load (scout/upscalers, Downloaded 2026-11-04)."
+  },
+  {
+   "file": "2x-AnimeSharpV4_RCAN.safetensors",
+   "folder": "upscale_models",
+   "family": null,
+   "kind": "upscaler",
+   "scale": 2,
+   "arch": "RCAN",
+   "source_url": "https://huggingface.co/Kim2091/2x-AnimeSharpV4",
+   "loads_in_core": true,
+   "notes": "Anime 2x. Scale checked with a spandrel load (scout/upscalers, Downloaded 2026-11-04)."
+  },
+  {
+   "file": "RealESRGAN_x4plus_anime_6B.safetensors",
+   "folder": "upscale_models",
+   "family": null,
+   "kind": "upscaler",
+   "scale": 4,
+   "arch": "ESRGAN",
+   "source_url": "https://huggingface.co/hlky/RealESRGAN_x4plus_anime_6B",
+   "loads_in_core": true,
+   "notes": "Anime 4x, small. Scale checked with a spandrel load (scout/upscalers, Downloaded 2026-11-04)."
+  }
+ ]
+}
