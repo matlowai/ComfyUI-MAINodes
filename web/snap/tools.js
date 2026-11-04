@@ -7,7 +7,8 @@
 // MCP, data URLs over WebMCP.
 // SNAP-R11 same warnings as the UI · SNAP-R15 one table, MCP + WebMCP · SNAP-R16 GPU tools wait as proposals ·
 // SNAP-R17 by: agent · SNAP-R19 the tool table is the API · SNAP-R21 camera plates · SNAP-R23 candidates: the person's
-// pick waits as a proposal for agents · see docs/SNAP_RULES.md
+// pick waits as a proposal for agents · SNAP-R24 scenes own the work (the scene tools call scenes.js, as the navigator
+// does) · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import { BRICKS, PACK_BRICKS } from "./bricks.js";
@@ -25,6 +26,7 @@ import * as PL from "./plates.js";
 import * as C from "./candidates.js";
 import * as ED from "./edits.js";
 import * as K from "./checks.js";
+import * as SC from "./scenes.js";
 import { api } from "../../../scripts/api.js";
 
 // a widget as an agent reads it: value, kind, choices (cut to 50), limits, and whether a wire drives it
@@ -576,7 +578,7 @@ export const TOOLS = [
   {
     name: "ui",
     description: "Drive the view: select a brick, open it (side panel or in place, by the person's setting), close, show snap or graph (focusing a brick), undo, redo, open the dial picker or maker, open the setups sheet or a slot's methods sheet (target: the slot, e.g. upscale or turbo; action turbo is the same as methods turbo), open a take, or switch metadata in saved files (target on / off: the person's setting beside Run; read_ui says which).",
-    inputSchema: { type: "object", properties: { action: { type: "string", enum: ["select", "close", "snap", "graph", "undo", "redo", "dials", "make_dial", "setups", "turbo", "methods", "open_take", "metadata"] }, target: { type: "string", description: "a brick key, take id, slot, or on / off for metadata" } }, required: ["action"] },
+    inputSchema: { type: "object", properties: { action: { type: "string", enum: ["select", "close", "snap", "graph", "undo", "redo", "dials", "make_dial", "setups", "turbo", "methods", "open_take", "metadata", "scenes"] }, target: { type: "string", description: "a brick key, take id, slot, or on / off for metadata" } }, required: ["action"] },
     direct: true, // view changes are the agent's own navigation, not edits to accept
     run: ({ action, target }) => ui.act(action, target),
   },
@@ -641,7 +643,7 @@ export const TOOLS = [
     plan: async ({ decision }) => {
       await C.load();
       if (C.get(decision)?.kind !== "edit") return { runs: "no render: the candidate becomes the camera's plate", eta_s: 0, from: "nothing runs" };
-      return { runs: "H3 Ripple carries the picked anchors over the take, as a new take", ...(T.measured(T.all().filter((t) => t.parent && t.status === "success"), "of edits here") ?? { eta_s: 100, from: "U54: Ripple 89-103 s for 90 frames on a 5090" }) };
+      return { runs: "H3 Ripple carries the picked anchors over the take, as a new take", ...(T.measured(T.all().filter((t) => t.parent?.method.startsWith("edit/") && t.status === "success"), "of edits here") ?? { eta_s: 100, from: "U54: Ripple 89-103 s for 90 frames on a 5090" }) };
     },
     run: async ({ decision, candidate }) => { await C.load(); return C.apply(decision, candidate, "agent"); },
   },
@@ -703,6 +705,51 @@ export const TOOLS = [
       const image = { mimeType, data, width, height };
       return { take: t.id, frame: at, people, image: await K.numbered(image, people) };
     },
+  },
+  {
+    name: "list_scenes",
+    description: "The scenes (U59, SNAP-R24): a scene owns its work, nested: its shots in order, each shot's takes, and versions of a take (a night version, a take continued from another's last frame) under the take they came from; tabs are scratch. Each row: id, name, set card, shot and take counts, and open: true when the open tab shows one of its shots.",
+    inputSchema: { type: "object", properties: {} },
+    annotations: { readOnlyHint: true },
+    run: async () => { await Promise.all([SC.load(), T.load(), L.ready()]); return SC.all().map(SC.summary); },
+  },
+  {
+    name: "get_scene",
+    description: "One scene as a document: its shots in order (id, number, title, shot card, the workflow Snap keeps for it, the take groups it gathers), and each shot's takes as a tree: label (Take 2, Night version), status, verdict, versions nested under the take they came from, active: true on the shot's active take, and active_path (Take 2 › Night version). open is the shot the open tab shows.",
+    inputSchema: { type: "object", properties: { scene: { type: "string" } }, required: ["scene"] },
+    annotations: { readOnlyHint: true },
+    run: async ({ scene }) => { await Promise.all([SC.load(), T.load(), L.ready()]); const s = SC.get(scene); if (!s) throw new Error(`No scene ${scene}`); return SC.describe(s); },
+  },
+  {
+    name: "create_scene",
+    description: "Start a scene: a name, and a set snapshot card id (search_library) when its shots share one. It starts with no shots: add_shot adds them (adopt: \"open\" makes the open workflow and its takes its first shot).",
+    inputSchema: { type: "object", properties: { name: { type: "string" }, set: { type: "string" } }, required: ["name"] },
+    run: async ({ name, set }) => SC.describe(await SC.create({ name, set, by: "agent" })),
+  },
+  {
+    name: "add_shot",
+    description: "Add a shot to a scene, at `at` (0 = first; the end by default): empty, from a Library shot card (card: its id; its beat, set and camera compile into the prompt when the shot is opened), or adopting a workflow and its takes: adopt \"open\" copies the open workflow (same graph id, so its takes and later runs gather in the shot) and opens the copy in a scene tab, the open tab left as it was; adopt <group id> takes a take group (list_takes' group) and its newest take's workflow. Adopted takes keep their store; versions nest under their parent take. An empty or card shot gets its workflow when open_shot first opens it.",
+    inputSchema: { type: "object", properties: { scene: { type: "string" }, name: { type: "string" }, card: { type: "string" }, adopt: { type: "string", description: "\"open\", or a take group id" }, at: { type: "integer", minimum: 0 } }, required: ["scene"] },
+    run: async ({ scene, name, card, adopt, at }) => SC.addShot(scene, { name, card, adopt, at, by: "agent" }),
+  },
+  {
+    name: "open_shot",
+    description: "Open a shot of a scene, as a click on its tile in the scene navigator: the open shot is saved into its scene first (nothing is lost), then the scene tab shows this shot's workflow. A scratch tab or a saved workflow file's tab is never swapped: the shot opens in a new tab. A shot opened for the first time starts from the open shot's recipe (same scene) or the recommended one, with its shot card compiled in. Nothing is queued.",
+    inputSchema: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" } }, required: ["scene", "shot"] },
+    run: async ({ scene, shot }) => SC.openShot(scene, shot),
+  },
+  {
+    name: "set_active_take",
+    description: "Make a take (a version too) the shot's active take: the one that stands for the shot in the scene (its tile, the breadcrumb, a later cut). Choosing it is the person's call: unless they let agents run, this waits as a proposal; say why in reason (which take reads best, by frame).",
+    inputSchema: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" }, take: { type: "string" } }, required: ["scene", "shot", "take"] },
+    decides: true,
+    run: async ({ scene, shot, take }) => SC.setActive(scene, shot, take, "agent"),
+  },
+  {
+    name: "move_shot",
+    description: "Move a shot to another place in its scene's order (to: 0 = first).",
+    inputSchema: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" }, to: { type: "integer", minimum: 0 } }, required: ["scene", "shot", "to"] },
+    run: async ({ scene, shot, to }) => SC.moveShot(scene, shot, to),
   },
   {
     name: "list_proposals",

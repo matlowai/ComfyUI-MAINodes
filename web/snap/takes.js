@@ -6,8 +6,9 @@
 // Each take keeps a content hash of what ran (`hash`, seeds left out, and `seed_hash` for them), so stale() can say
 // when the chain no longer matches it and name the brick and field that changed (UX_GEMS #1); never re-renders.
 // A take an edit made (edits.js: a night version) names its parent take and the method; "Use as input" puts any frame of
-// a take on the First frame or References brick, with where it came from (U32). `frames` hands an agent a take's frames
-// as pictures (U23 agent eyes), `eta` what such a run took, for a GPU tool's plan (U35).
+// a take on the First frame or References brick, with where it came from (U32), and a run that starts on a take's frame
+// that way names that take as its parent too ("continue", U59: a version in the scene's takes tree). `frames` hands an
+// agent a take's frames as pictures (U23 agent eyes), `eta` what such a run took, for a GPU tool's plan (U35).
 // A take the server's save gate marked private or NSFW (history extra_data.snap_marks) says so, and the export leaves
 // both out unless asked; a take run with metadata off says its files hold no recipe.
 // SNAP-R17 person and agent kept apart (notes, judgments, rankings) · SNAP-R18 local only · SNAP-R20 private takes, metadata
@@ -101,6 +102,13 @@ api.addEventListener("execution_success", ({ detail }) => capture(detail.prompt_
 api.addEventListener("execution_error", ({ detail }) => capture(detail.prompt_id, "error", `${detail.node_type ?? ""}: ${detail.exception_message ?? ""}`.trim(), detail.node_id));
 api.addEventListener("execution_interrupted", ({ detail }) => capture(detail.prompt_id, "interrupted"));
 
+// the take a run continued from: its First frame is still the frame Use as input put there (a bypassed First frame
+// isn't in the prompt)
+function continued(graph, prompt) {
+  const b = graph?.extra?.snap?.bricks?.find((x) => x.key === "first_frame"), from = b?.from;
+  return from && prompt?.[b.nodes.image]?.inputs?.image === from.file ? { take: from.take, method: "continue", frame: from.frame } : null;
+}
+
 async function capture(id, status, error, failedNode) {
   if (!id || !running.has(id)) return; // a run this page didn't start
   const started = running.get(id);
@@ -111,13 +119,13 @@ async function capture(id, status, error, failedNode) {
   const [, , prompt, extra] = h.prompt;
   const graph = extra?.extra_pnginfo?.workflow ?? null;
   const group = graph?.id ?? groupOf(), n = takes.filter((t) => t.group === group).length + 1;
-  const { text, seed } = summary(prompt), swapped = extra?.snap_marks?.swapped ?? {};
+  const { text, seed } = summary(prompt), swapped = extra?.snap_marks?.swapped ?? {}, parent = extra?.snap_parent ?? continued(graph, prompt);
   await save({
     id: `take-${id}`, kind: "run", prompt_id: id, created: started, finished: Date.now(), seconds: Math.round((Date.now() - started) / 100) / 10,
     group, workflow: app.extensionManager.workflow.activeWorkflow?.filename ?? "", number: n,
     status, ...(error ? { error, failed_node: failedNode } : {}), text, seed, media: media(h.outputs),
     ...(extra?.snap_marks?.private ? { private: true } : {}), ...(extra?.snap_marks?.nsfw ? { nsfw: true } : {}),
-    ...(extra?.snap_marks?.metadata === false ? { metadata: false } : {}), ...(Object.keys(swapped).length ? { swapped } : {}), ...(extra?.snap_parent ? { parent: extra.snap_parent } : {}), ...await hashes(canonical(prompt, swapped)),
+    ...(extra?.snap_marks?.metadata === false ? { metadata: false } : {}), ...(Object.keys(swapped).length ? { swapped } : {}), ...(parent ? { parent } : {}), ...await hashes(canonical(prompt, swapped)),
     verdict: null, prior: false, notes: [], graph, prompt,
   });
 }
@@ -168,9 +176,9 @@ export function changes(was, now) {
   return [...new Set(out)];
 }
 // null when the live chain still makes this take (seeds aside), else what changed; takes from before hashes were kept
-// are hashed from their prompt. An edit's take was never made by the chain, so it is never stale
+// are hashed from their prompt. An edit's take was never made by the chain, so it is never stale (a continued one was)
 export async function stale(take, now) {
-  if (!take.prompt || take.parent) return null;
+  if (!take.prompt || (take.parent && take.parent.method !== "continue")) return null;
   now ??= await live();
   if ((take.hash ?? (await hashes(canonical(take.prompt, take.swapped))).hash) === (await hashes(now)).hash) return null;
   const list = changes(canonical(take.prompt, take.swapped), now);

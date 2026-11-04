@@ -7,14 +7,18 @@
 // the frame at the playhead on the First frame or References brick (U32), and "Edit this take" runs a method of the edit
 // slot (U54: night version): its candidates show in the viewer, previewed over the take, and an applied one renders as a
 // new take whose card names its parent.
+// In a scene tab the strip is the open shot's takes as a tree (U59): versions (a night version, a continued take) sit
+// in a bracket after the take they came from, the shot's active take wears a star, and ☆ makes another take the
+// active one; the viewer's title is where the take sits in the scene (Platform › Shot 1 › Take 2 › Night version).
 // SNAP-R7 pointer-down lists · SNAP-R17 blind pairs from agents are judged by the person · SNAP-R20 the lock on private
-// takes · SNAP-R21 copies flagged · SNAP-R23 candidates · see docs/SNAP_RULES.md
+// takes · SNAP-R21 copies flagged · SNAP-R23 candidates · SNAP-R24 scenes own the work · see docs/SNAP_RULES.md
 import * as T from "./takes.js";
 import * as PL from "./plates.js";
 import * as C from "./candidates.js";
 import * as ED from "./edits.js";
 import * as S from "./slots.js";
 import * as P from "./proposals.js";
+import * as SC from "./scenes.js";
 import { candidatesEl } from "./candidateview.js";
 import { url as mediaUrl } from "./checks.js";
 
@@ -35,24 +39,30 @@ function mediaEl(m, { big, muted = true } = {}) {
 export function createDailies({ host, say, onRestore, onHover, onRunFrom }) {
   const picked = new Set(); // takes ticked for compare
   const strip = h("div", { className: "snap-takes-strip" });
-  const count = h("span", { className: "snap-quiet" });
+  const count = h("span", { className: "snap-quiet" }), heading = h("strong", { textContent: "Takes" });
   const compareBtn = h("button", { className: "snap-link snap-quiet-btn", textContent: "Compare", disabled: true, onclick: () => compare([...picked]) });
   // blind pairs an agent set up for the person (setup_ab): one click opens the next, blind
   const waiting = h("button", { className: "snap-link snap-ab-waiting", hidden: true, onclick: async () => { const p = (await waitingHere())[0]; if (p) compare([p.a, p.b], { forced: true }); } });
   const el = h("section", { className: "snap-takes" },
-    h("header", {}, h("strong", { textContent: "Takes" }), count, waiting, h("span", { className: "snap-spacer" }),
+    h("header", {}, heading, count, waiting, h("span", { className: "snap-spacer" }),
       h("span", { className: "snap-quiet snap-takes-hint", textContent: "drag to rank · tick two to compare" }), compareBtn),
     strip);
   T.onChange(() => render());
+  SC.onChange(() => render());
   T.load().then(render, () => {});
   // the blind pairs waiting in this workflow (a pair set up in another workflow waits there)
   const waitingHere = async () => (await T.pending()).filter((p) => T.get(p.a)?.group === T.groupOf() && T.get(p.b)?.group === T.groupOf());
 
-  let shownGroup = null; // the strip follows the open workflow: a tab switch re-renders it (refresh runs on every view render)
+  // where a take sits in the open shot's scene, or null outside one: [scene, shot, take, version...]
+  const crumbs = (t) => { const here = SC.current(), p = here && SC.path(here.shot, t.id); return p?.length ? [here.scene.name, SC.shotTitle(here.scene, here.shot), ...p.map((id) => SC.label(T.get(id)))] : null; };
+  // the strip follows the open workflow and the shot it is in: a tab or shot switch re-renders it (refresh runs on every
+  // view render); a shot's copy of a workflow keeps the workflow's id, so the shot counts too
+  const shownNow = () => `${T.groupOf()}|${SC.current()?.shot.id ?? ""}`;
+  let shownGroup = null;
   async function render() {
-    shownGroup = T.groupOf();
-    const group = T.inGroup(), order = await T.ranking();
-    const ranked = order.map(T.get).filter((t) => t && t.group === T.groupOf());
+    shownGroup = shownNow();
+    const here = SC.current(), group = here ? SC.takesOf(here.shot).map((e) => T.get(e.take)).filter(Boolean) : T.inGroup(), order = await T.ranking();
+    const ranked = order.map(T.get).filter((t) => t && group.includes(t));
     const rest = group.filter((t) => !order.includes(t.id)).sort((a, b) => b.created - a.created);
     count.textContent = group.length ? `${group.length} · ${ranked.length} ranked · ${group.filter((t) => t.verdict === "keep").length} kept` : "";
     for (const id of picked) if (!T.get(id)) picked.delete(id);
@@ -61,13 +71,20 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom }) {
     waiting.hidden = !ab.length;
     waiting.textContent = `${ab.length} blind pair${ab.length === 1 ? "" : "s"} waiting`;
     el.classList.toggle("empty", !group.length);
+    heading.textContent = here ? `${SC.shotTitle(here.scene, here.shot)} · takes` : "Takes";
     refresh();
-    strip.replaceChildren(...(group.length ? [...ranked, ...rest].map((t) => card(t, ranked.indexOf(t))) : [h("div", { className: "snap-quiet", textContent: "Each run lands here as a take: rank it, keep or reject it, and note where it went wrong or right." })]));
+    // in a scene the versions follow the take they came from, in a bracket (nested again for a version of a version)
+    const tree = here ? SC.tree(here.shot) : [], kids = new Map(), walk = (list) => { for (const e of list) { kids.set(e.take, e.children); walk(e.children); } };
+    walk(tree);
+    const family = (t) => { const v = (kids.get(t.id) ?? []).map((e) => T.get(e.take)).filter(Boolean);
+      return v.length ? h("div", { className: "snap-take-family" }, card(t, ranked.indexOf(t), here), h("div", { className: "snap-take-versions" }, v.map(family))) : card(t, ranked.indexOf(t), here); };
+    const roots = [...ranked, ...rest].filter((t) => !here || tree.some((e) => e.take === t.id));
+    strip.replaceChildren(...(group.length ? roots.map(family) : [h("div", { className: "snap-quiet", textContent: here ? `Each run of ${SC.shotTitle(here.scene, here.shot)} lands here as a take; versions of a take (a night version, a continue) nest under it.` : "Each run lands here as a take: rank it, keep or reject it, and note where it went wrong or right." })]));
   }
 
   // stale chips: one live prompt per check, compared with every take in the strip; a newer check wins
   let checking = 0, timer = null;
-  const refresh = () => { if (shownGroup !== null && shownGroup !== T.groupOf()) return render(); clearTimeout(timer); timer = setTimeout(markStale, 250); };
+  const refresh = () => { if (shownGroup !== null && shownGroup !== shownNow()) return render(); clearTimeout(timer); timer = setTimeout(markStale, 250); };
   async function markStale() {
     const mine = ++checking, cards = [...strip.querySelectorAll(".snap-take")];
     if (!cards.length) return;
@@ -81,20 +98,23 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom }) {
     });
   }
 
-  function card(t, r) {
-    const m = t.media[0];
+  // `here` (the open shot in its scene): the card says what it is in the shot's tree, and ☆ makes it the active take
+  function card(t, r, here) {
+    const m = t.media[0], active = here?.shot.active === t.id, version = here && t.parent && SC.path(here.shot, t.id).length > 1;
+    const star = here ? h("button", { className: `snap-take-star${active ? " on" : ""}`, textContent: active ? "★ active" : "☆", title: active ? `the take that stands for ${SC.shotTitle(here.scene, here.shot)}` : `make this ${SC.shotTitle(here.scene, here.shot)}'s active take`,
+      onclick: async (e) => { e.stopPropagation(); if (active) return; try { await SC.setActive(here.scene.id, here.shot.id, t.id); say(`${crumbs(t).slice(2).join(" › ")} is now ${SC.shotTitle(here.scene, here.shot)}'s take`); } catch (err) { say(err.message, true); } } }) : null;
     const tick = h("input", { type: "checkbox", className: "snap-take-pick", checked: picked.has(t.id), title: "tick two to compare",
       onclick: (e) => { e.stopPropagation(); e.target.checked ? picked.add(t.id) : picked.delete(t.id); if (picked.size > 2) picked.delete([...picked][0]); render(); } });
-    const c = h("figure", { className: `snap-take ${t.status}${t.verdict ? ` ${t.verdict}` : ""}`, draggable: true, tabIndex: 0, title: t.text.slice(0, 300), onclick: () => view(t) },
+    const c = h("figure", { className: `snap-take ${t.status}${t.verdict ? ` ${t.verdict}` : ""}${active ? " active" : ""}${version ? " version" : ""}`, draggable: true, tabIndex: 0, title: t.text.slice(0, 300), onclick: () => view(t) },
       h("div", { className: "snap-take-media" }, mediaEl(m), tick,
         h("span", { className: "snap-take-rank", textContent: r >= 0 ? `#${r + 1}` : "" }),
         t.verdict ? h("span", { className: "snap-take-verdict", textContent: t.verdict === "keep" ? "✓" : "✗" }) : null,
         t.prior ? h("span", { className: "snap-take-prior", textContent: "prior", title: "in the Library as a prior" }) : null),
-      h("figcaption", {}, h("b", { textContent: `Take ${t.number}` }), t.seed != null ? ` · seed ${t.seed}` : "", t.status !== "success" ? h("em", { textContent: ` · ${t.status}` }) : "",
+      h("figcaption", {}, star, h("b", { textContent: version ? SC.label(t) : `Take ${t.number}` }), version ? h("span", { className: "snap-quiet snap-take-of", textContent: `⟵ take ${T.get(t.parent.take)?.number ?? "?"}` }) : t.seed != null ? ` · seed ${t.seed}` : "", t.status !== "success" ? h("em", { textContent: ` · ${t.status}` }) : "",
         h("span", { className: "snap-take-stale", hidden: true }),
         t.copy?.copied ? h("span", { className: "snap-take-copy", textContent: `copied its reference view ${Math.max(...t.copy.against.map((a) => a.last)).toFixed(2)}`,
           title: `This take ends on the view of its reference picture (last frame's copy score at or above ${t.copy.threshold}): right when that picture is this camera's own plate, wrong when it shows another camera's view.\n${t.copy.against.map((a) => `${a.image}: ${a.frames.join(" → ")}`).join("\n")}` }) : null,
-        t.parent ? h("span", { className: "snap-take-parent", textContent: `↳ ${t.parent.options?.time ?? t.parent.method.split("/").pop()} of take ${T.get(t.parent.take)?.number ?? "?"}`, title: `made from ${t.parent.take} by ${t.parent.method}` }) : null,
+        t.parent && !version ? h("span", { className: "snap-take-parent", textContent: `↳ ${t.parent.options?.time ?? t.parent.method.split("/").pop()} of take ${T.get(t.parent.take)?.number ?? "?"}`, title: `made from ${t.parent.take} by ${t.parent.method}` }) : null,
         t.private ? h("span", { className: "snap-take-lock", textContent: "🔒 private", title: `Private take (identity or Cast LoRA): exports leave it out${t.metadata === false ? "; its files were saved without the recipe inside" : ""}` }) : null,
         h("span", { className: "snap-quiet", textContent: `${t.notes.length ? `✎ ${t.notes.length} · ` : ""}${ago(t.created)}` })));
     c.dataset.take = t.id;
@@ -283,8 +303,11 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom }) {
     };
     document.addEventListener("keydown", keys, true);
 
+    const where = crumbs(t), here = where && SC.current();
+    const activeBtn = here ? h("button", { className: "snap-link", textContent: here.shot.active === t.id ? `★ ${SC.shotTitle(here.scene, here.shot)}'s active take` : `☆ Make it ${SC.shotTitle(here.scene, here.shot)}'s take`, disabled: here.shot.active === t.id,
+      onclick: async () => { try { await SC.setActive(here.scene.id, here.shot.id, t.id); activeBtn.textContent = `★ ${SC.shotTitle(here.scene, here.shot)}'s active take`; activeBtn.disabled = true; } catch (err) { say(err.message, true); } } }) : null;
     const sheet = h("div", { className: "snap-sheet snap-take-sheet", role: "dialog", ariaLabel: `Take ${t.number}` },
-      h("header", {}, h("strong", { textContent: `Take ${t.number}` }), h("span", { className: "snap-quiet", textContent: `${t.seed != null ? `seed ${t.seed} · ` : ""}${t.seconds} s · ${new Date(t.created).toLocaleString()}${t.status !== "success" ? ` · ${t.status}: ${t.error ?? ""}` : ""}` }),
+      h("header", {}, where ? h("nav", { className: "snap-crumbs", ariaLabel: "where this take is" }, where.flatMap((x, i) => [i ? h("i", { textContent: "›" }) : null, h(i === where.length - 1 ? "strong" : "span", { textContent: x })])) : h("strong", { textContent: `Take ${t.number}` }), h("span", { className: "snap-quiet", textContent: `${t.seed != null ? `seed ${t.seed} · ` : ""}${t.seconds} s · ${new Date(t.created).toLocaleString()}${t.status !== "success" ? ` · ${t.status}: ${t.error ?? ""}` : ""}` }),
         h("span", { className: "snap-spacer" }), h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: close })),
       h("div", { className: "snap-take-body" },
         h("div", { className: "snap-take-left" }, stage, markers, isVideo ? h("div", { className: "snap-quiet", textContent: "Space plays · , and . step one frame" }) : null),
@@ -300,7 +323,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom }) {
           useRow,
           isVideo && !t.private ? [h("div", { className: "snap-rail-title", textContent: "Edit this take" }), h("div", { className: "snap-set-actions" }, methodPick, timePick, editBtn), editNote, editBox] : null,
           h("div", { className: "snap-set-actions" },
-            priorBtn,
+            activeBtn, priorBtn,
             h("button", { className: "snap-link", textContent: "Use these settings", title: "put this take's settings back on the open workflow (one undo step)", onclick: () => { try { say(`${T.restore(t)} settings restored from take ${t.number}`); onRestore?.(); } catch (err) { say(err.message, true); } } }),
             h("button", { className: "snap-link", textContent: "Run from here", title: "this take's workflow and settings, seed included, in a new tab, ready to run (nothing is queued)", onclick: () => { close(); onRunFrom?.(t); } }),
             h("button", { className: "snap-link", textContent: "Continue from its last frame", title: "the take's last frame becomes the First frame", onclick: async () => { try { say((await T.use(t, { as: "first_frame", t: "last" })).said); onRestore?.(); } catch (err) { say(err.message, true); } } })))));

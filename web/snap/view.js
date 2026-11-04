@@ -2,11 +2,11 @@
 // graph edits and agent edits all show up by re-rendering; nothing here keeps its own copy of brick state.
 // SNAP-R1 generic pass-through · SNAP-R2 re-read widgets on outside changes · SNAP-R4 outcome faces · SNAP-R5 new
 // tabs for new work · SNAP-R7 pointer-down lists · SNAP-R19 actions call their tools' functions · SNAP-R20 the metadata
-// switch · SNAP-R9 the Setup brick · see docs/SNAP_RULES.md
+// switch · SNAP-R9 the Setup brick · SNAP-R24 the scene navigator above the chain · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
-import { BRICKS, SETUP, SIMPLE_RECIPE, PACK_BRICKS, nodeTypes, fits } from "./bricks.js";
+import { BRICKS, SETUP, PACK_BRICKS, nodeTypes, fits } from "./bricks.js";
 import { attachDrag } from "./drag.js";
 import { Spring, SPRINGS, animate, reducedMotion } from "./spring.js";
 import * as L from "./library.js";
@@ -16,6 +16,8 @@ import * as P from "./proposals.js";
 import * as crew from "./crew.js";
 import * as rules from "./rules.js";
 import { createDailies } from "./dailies.js";
+import { createSceneBar } from "./sceneview.js";
+import * as SC from "./scenes.js";
 import * as T from "./takes.js";
 import * as D from "./dials.js";
 import * as sight from "./sight.js";
@@ -104,6 +106,12 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // takes under the chain: "Use as input" puts a take's frame on the First frame or References brick (T.use)
   const dailies = createDailies({ host: root, say, onRestore: () => render(null), onHover: (t) => previewTake(t), onRunFrom: (t) => runFrom(t).catch((err) => say(err.message, true)) });
   stack.after(dailies.el);
+  // the scene navigator above the chain (U59): opening a shot swaps the graph in the scene tab, so the chain shows it
+  const sceneBar = createSceneBar({ host: root, say, openTake: (t) => dailies.view(t), onOpened: () => {
+    if (selected && !E.state().bricks.some((b) => b.key === selected)) select(null, false); // the panel stays as the person left it
+    render(null);
+  } });
+  notesStrip.before(sceneBar.el);
   let selected = null;
   const built = new Map(); // brick key -> { el, sig }: a brick is rebuilt only when what it shows changed
   let inspectorSig = "";
@@ -364,7 +372,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   async function startSimple() {
     await M.freshTab();
-    for (const key of SIMPLE_RECIPE) if (!(BRICKS[key].needs?.video && E.legacy())) await E.snap(key); // an older served blueprint saves its own video
+    await E.simple();
     select("render", false);
     render(null);
   }
@@ -1176,6 +1184,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // FLIP: bricks that moved spring from their old place; new ones rise in
   function render(before, entered) {
     dailies.refresh();
+    sceneBar.render();
     const old = E.legacy(), infos = cards(E.describe().filter((i) => !old || Object.keys(i.nodes).length)); // the older Render's Upscale switch had no nodes
     overridden = infos.length ? E.overrides() : [];
     for (const key of built.keys()) if (!infos.some((i) => i.brick === key)) built.delete(key);
@@ -1205,8 +1214,10 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   // what an agent reads and does through the `read_ui` / `ui` tools: the same moves a person makes
   function uiRead() {
+    const here = SC.current();
     return { selected, open: opened, side_panel: root.classList.contains("inspecting"), sheet: root.querySelector(".snap-sheet")?.ariaLabel ?? null,
-      workflow: app.extensionManager.workflow.activeWorkflow?.filename ?? null, bricks: E.state().bricks.map((b) => b.key), metadata: MD.on() ? "on" : "off" };
+      workflow: app.extensionManager.workflow.activeWorkflow?.filename ?? null, bricks: E.state().bricks.map((b) => b.key), metadata: MD.on() ? "on" : "off",
+      scene: here ? { id: here.scene.id, name: here.scene.name, shot: here.shot.id, shot_title: SC.shotTitle(here.scene, here.shot) } : null };
   }
   async function uiAct(action, target) {
     const tracker = app.extensionManager.workflow.activeWorkflow?.changeTracker;
@@ -1222,6 +1233,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     else if (action === "open_take") { const t = T.get(target); if (!t) throw new Error(`No take ${target}`); dailies.view(t); }
     else if (action === "run_from") { const t = T.get(target); if (!t) throw new Error(`No take ${target}`); return runFrom(t); }
     else if (action === "setups") openSetups();
+    else if (action === "scenes") sceneBar.openScenes();
     else if (action === "metadata") { if (!["on", "off"].includes(target)) throw new Error('metadata takes target "on" or "off"'); await MD.set(target === "on"); }
     else if (action === "turbo" || action === "methods") openMethods(action === "turbo" ? "turbo" : target || "upscale");
     else throw new Error(`Unknown ui action ${action}`);

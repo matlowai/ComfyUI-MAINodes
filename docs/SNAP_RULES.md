@@ -30,7 +30,8 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   and a scale number, and Render says nothing about upscaling. Implementation details (model variant, tiers, knobs)
   live in the inspector. *More:* MODEL_GRAPH_ONBOARDING §7.
 - **SNAP-R5: Start/new never touches open work.** Starting a recipe on a non-empty graph, or switching model family,
-  opens a new tab. *More:* LESSONS "Start/new".
+  opens a new tab. In a scene tab, opening another shot saves the open one into its scene first (SNAP-R24). *More:*
+  LESSONS "Start/new".
 - **SNAP-R6: Panels close only when the person asks.** The side panel collapses from its header button (the brick's
   icon + ›) or Esc, never from presses on the chain, empty space or a scrollbar. *Why:* a pointerdown on a scroll
   container also fires for its scrollbar. *More:* LESSONS.
@@ -108,6 +109,24 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   and frame it came from. *Why:* U49 and U52 showed one render per camera is unreliable, and U53b's edits drifted the
   person's hair; Krita's preview-then-Apply, Invoke's staging area and Runway's "use as input" (UX_GEMS #2).
   *More:* `web/snap/candidates.js`, `candidateview.js`, `edits.js`.
+
+## Scenes
+
+- **SNAP-R24: Scenes own the work; tabs are scratch.** A scene (user `snap/scenes/<id>.json`) is a document: a name,
+  a set card, and its shots in order. Each shot has the workflow Snap keeps for it (`snap/scenes/<scene>/<shot>.json`),
+  the take groups it gathers (graph ids, as takes record them), its takes by id with versions nested through their
+  parent take (a night version, a take continued from another's last frame), and one active take. Takes keep their own
+  store; a run in a shot's workflow or an edit of one of its takes joins the shot by itself. Opening a shot saves the
+  open shot first and goes to a tab that already shows it (from a scratch tab, to the scene's own tab), then swaps the
+  graph there. A scratch tab, or the tab of a saved workflow file, is never swapped (its next save would write another
+  shot into that file): the shot opens in a new tab. Adopting a workflow's takes copies its graph with its id, so its
+  take group keeps working, and leaves the workflow as it was. Above the chain the navigator shows where the tab is
+  (Scene › Shot › Take › version, ending on the active take) and the scene's shots; in a scene tab the Takes strip is
+  the shot's takes tree. The active take is the person's pick; an agent's waits as a proposal (SNAP-R16). Ids are
+  stable and the shots ordered; lanes and in/out on shots and takes come with the sequence editor (layer 3).
+  *Why:* takes grouped by the workflow's own id, so a scene's shots and their variants scattered over tabs
+  (NEXT_DESIGN_REVIEW §10 Q2); Dylan (2026-11-04): "a scene should have the related work navigable and nested".
+  *More:* `web/snap/scenes.js`, `web/snap/sceneview.js`; PLAN U59, scout/editor_layer §5.6-5.7.
 
 ## Agents
 

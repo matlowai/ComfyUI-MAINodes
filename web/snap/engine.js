@@ -4,7 +4,7 @@
 // SNAP-R2 graph round-trip · SNAP-R3 unresolved stays missing · SNAP-R19 no view DOM here · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
-import { BRICKS, RENDER_BLUEPRINT } from "./bricks.js";
+import { BRICKS, RENDER_BLUEPRINT, SIMPLE_RECIPE } from "./bricks.js";
 
 const GAP = 80;
 const COLUMN = { models: 0, preset: 0, image_models: 0, loras: 0, style: 0, cast: 0, rack: 1, first_frame: 1, refs: 1, render: 2, image: 2, upscale: 3, image_upscale: 3, image_resize: 3, save_video: 4, save_image: 4 };
@@ -231,6 +231,11 @@ async function snapOnce(key, { values, at } = {}) {
   });
   app.canvas.setDirty(true, true);
   return { brick: key, bindings };
+}
+
+// the recommended recipe on the open graph (Start, and a scene's first shot); an older served blueprint saves its own video
+export async function simple() {
+  for (const key of SIMPLE_RECIPE) if (!(BRICKS[key].needs?.video && legacy())) await snap(key);
 }
 
 // a Render made from the older H3 blueprint (before U20): Save and the RelayVSR switch live inside it and it gives no

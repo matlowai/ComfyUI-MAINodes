@@ -513,6 +513,57 @@ export const STYLE = `
 .snap-toast.show { opacity: 1; transform: translate(-50%, 0); }
 .snap-root:has(.snap-sheet) .snap-toast { bottom: auto; top: 6px; } /* a sheet's own controls sit at the bottom */
 .snap-toast.bad { background: #f0b445; color: #1b1c20; }
+/* the scene navigator above the chain (U59): breadcrumb, shots strip; a scratch tab gets one quiet line */
+.snap-scene { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 12px 40px 0; min-width: 0; }
+.snap-scene.scratch { flex-direction: row; align-items: center; gap: 8px; padding: 8px 40px 0; font-size: 12px; }
+.snap-scene.busy { opacity: .6; pointer-events: none; }
+.snap-scene-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.snap-crumbs { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 13px; white-space: nowrap; overflow: hidden; }
+.snap-crumbs > i { color: var(--s-dim); font-style: normal; padding: 0 2px; }
+.snap-crumb { all: unset; cursor: pointer; padding: 2px 6px; border-radius: 6px; color: var(--s-dim); overflow: hidden; text-overflow: ellipsis; }
+.snap-crumb:hover, .snap-crumb:focus-visible { background: var(--s-card); color: var(--s-fg); }
+.snap-crumbs > .snap-crumb:last-child { color: #f5d76e; font-weight: 600; }
+.snap-crumb-here { font-weight: 600; padding: 2px 6px; overflow: hidden; text-overflow: ellipsis; }
+.snap-scene-set { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--s-card); color: var(--s-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32ch; }
+.snap-shots { display: flex; gap: 10px; overflow: auto hidden; padding: 2px 2px 4px; }
+.snap-shot-tile { flex: none; width: 136px; margin: 0; display: flex; flex-direction: column; gap: 4px; cursor: pointer; border-radius: 10px; outline: none; }
+.snap-shot-media { position: relative; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; background: #000; border: 1px solid #ffffff14; }
+.snap-shot-media video, .snap-shot-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.snap-shot-media .snap-take-none { font-size: 10.5px; padding: 0 8px; text-align: center; background: var(--s-card); }
+.snap-shot-media b { position: absolute; left: 5px; top: 5px; font: 700 11px/1 Inter, system-ui, sans-serif; padding: 3px 6px; border-radius: 6px; background: #000a; color: #fff; }
+.snap-shot-tile.on .snap-shot-media { border-color: var(--s-accent); box-shadow: 0 0 0 2px var(--s-accent); }
+.snap-shot-tile:not(.on):hover .snap-shot-media, .snap-shot-tile:focus-visible .snap-shot-media { box-shadow: 0 0 0 2px #ffffff40; }
+.snap-shot-tile figcaption { font-size: 12px; display: flex; flex-direction: column; min-width: 0; }
+.snap-shot-tile figcaption strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.snap-shot-tile figcaption .snap-quiet { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.snap-shot-tile.dragging { opacity: .4; } .snap-shot-tile.drop-before .snap-shot-media { box-shadow: -4px 0 0 var(--s-accent); }
+.snap-scene-menu { position: absolute; z-index: 90; display: flex; flex-direction: column; min-width: 240px; max-width: 420px; padding: 6px; background: var(--s-bg); border: 1px solid var(--s-line); border-radius: 12px; box-shadow: 0 16px 40px #000a; }
+.snap-scene-menu button { all: unset; cursor: pointer; padding: 7px 10px; border-radius: 8px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.snap-scene-menu button:hover, .snap-scene-menu button:focus-visible { background: var(--s-card); }
+.snap-sheet.snap-scenes-sheet { inset: 64px max(16px, calc(50% - 480px)) auto; max-height: calc(100% - 100px); }
+.snap-scene-list { overflow: auto; display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; }
+.snap-scene-row { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(0, 2fr) auto auto; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: var(--s-card); }
+.snap-scene-row.on { box-shadow: 0 0 0 1px var(--s-accent) inset; }
+.snap-scene-name { display: flex; flex-direction: column; min-width: 0; }
+.snap-scene-name .snap-quiet { font-size: 11.5px; }
+.snap-scene-thumbs { display: flex; gap: 6px; overflow: hidden; min-width: 0; }
+.snap-scene-thumbs .snap-shot-media { width: 84px; flex: none; }
+.snap-scene-new { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--s-line); flex-wrap: wrap; }
+.snap-scene-new .snap-lib-q { flex: 1; min-width: 200px; margin: 0; }
+.snap-scene-new select { font: inherit; font-size: 12px; color: var(--s-fg); background: var(--s-card); border: 1px solid var(--s-line); border-radius: 8px; padding: 6px; max-width: 260px; }
+/* a shot's takes as a tree: versions in a bracket after the take they came from; the active take wears a star */
+.snap-take-family { flex: none; display: flex; gap: 8px; align-items: stretch; }
+.snap-take-versions { display: flex; gap: 8px; padding-left: 10px; border-left: 2px solid #6aa8ff66; }
+.snap-take.version { width: 188px; }
+.snap-take.active .snap-take-media { border-color: #f5d76e; box-shadow: 0 0 0 1px #f5d76e; }
+.snap-take-star { all: unset; cursor: pointer; font-size: 11px; padding: 0 5px; border-radius: 6px; color: var(--s-dim); }
+.snap-take-star:hover { color: #f5d76e; background: #f5d76e1f; }
+.snap-take-star.on { color: #1b1c20; background: #f5d76e; font-weight: 700; cursor: default; }
+.snap-take figcaption .snap-take-of { flex-basis: auto; font-size: 11px; }
+.snap-take-sheet > header .snap-crumbs { font-size: 14px; }
+@container (max-width: 760px) { .snap-scene, .snap-scene.scratch { padding-left: 12px; padding-right: 12px; } .snap-scene.scratch, .snap-scene-top { flex-wrap: wrap; row-gap: 2px; } .snap-scene-set { display: none; }
+  .snap-scene-top .snap-crumbs { flex: 1 1 100%; flex-wrap: wrap; white-space: normal; } .snap-scene-top .snap-spacer { display: none; }
+  .snap-scene-row { grid-template-columns: minmax(0, 1fr) auto; } .snap-scene-thumbs { grid-column: 1 / -1; grid-row: 2; } }
 /* narrow: a phone, or Snap docked in the sidebar next to the graph: the chain runs top to bottom */
 @container (max-width: 760px) {
   .snap-body { grid-template-columns: minmax(0, 1fr); } .snap-rail, .snap-inspector { display: none; }
