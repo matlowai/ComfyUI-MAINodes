@@ -7,6 +7,7 @@
 // MCP, data URLs over WebMCP.
 // SNAP-R11 same warnings as the UI · SNAP-R15 one table, MCP + WebMCP · SNAP-R16 GPU tools wait as proposals ·
 // SNAP-R30 the agent front door: errors name the accepted arguments, runs report their state, lengths in seconds ·
+// SNAP-R31 a brick title names it in every family (render = the stills recipe's image) ·
 // SNAP-R17 by: agent · SNAP-R19 the tool table is the API · SNAP-R21 camera plates · SNAP-R23 candidates: the person's
 // pick waits as a proposal for agents · SNAP-R24 scenes own the work (the scene tools call scenes.js, as the navigator
 // does) · SNAP-R25 onboarding: the sheet's functions; propose_downloads never downloads; SFW only filters the lists ·
@@ -51,12 +52,25 @@ const agents = () => ({ run: mayRun(), see: sight.sharing(), ...(sight.HEADLESS 
 const WAIT_S = 25; // run_status waits at most this long: a bridge call ends after 30 s
 
 const has = (key) => E.state().bricks.some((b) => b.key === key);
+const keys = () => E.state().bricks.map((b) => b.key);
+// SNAP-R31: a brick named by the title it shows ("render", "save", "models", "upscale") is the recipe's brick with that
+// title in any family: the stills recipe's Render is `image`, and AGENT_START says `render`
+const brickKey = (b) => (typeof b !== "string" || has(b) ? b : keys().find((k) => BRICKS[k]?.title?.toLowerCase() === b.toLowerCase()) ?? b);
+const inRecipe = (b) => { if (!has(b)) throw new Error(`No brick "${b}" in this recipe; its bricks: ${keys().join(", ")}`); };
+// a prompt still at its blueprint's text runs, with a warning (U72 F11: set_setting failed, the agent ran anyway)
+async function defaultPrompt() {
+  for (const k of keys()) {
+    const f = BRICKS[k]?.face?.find(([, name]) => name === "prompt");
+    if (f && await E.shipped(k, f[0], "prompt")) return `The ${k} prompt is still the recipe's default text: set_setting {"brick": "${k}", "name": "prompt", "value": "..."} first, unless you mean to render the example`;
+  }
+  return null;
+}
 // what a full run of the open recipe took before
 const recipeEta = async () => T.eta((await T.hashes(await T.live())).hash);
 const takeOf = async (id) => { await T.load(); const t = T.get(id); if (!t) throw new Error(`No take ${id}`); return t; };
 // the method registry's slots, read whenever the schema is (snap_view registers the tools once the registry is in)
 const slotEnum = { type: "string", get enum() { return S.slots(); } };
-const brickEnum = { type: "string", description: `a recipe brick (${PACK_BRICKS.join(", ")}) or any installed node as node:<NodeType> (a new one) / node:<NodeType>#<n> (one in the recipe)` };
+const brickEnum = { type: "string", description: `a recipe brick (${PACK_BRICKS.join(", ")}; a title such as render, save or models names that brick in any family) or any installed node as node:<NodeType> (a new one) / node:<NodeType>#<n> (one in the recipe)` };
 
 function settingsOf(key) {
   const b = E.state().bricks.find((x) => x.key === key), t = b && E.timing(key);
@@ -140,7 +154,7 @@ export const TOOLS = [
     description: "Remove a brick and its nodes from the recipe (one undo step).",
     inputSchema: { type: "object", properties: { brick: brickEnum }, required: ["brick"] },
     run: ({ brick }) => {
-      if (!has(brick)) throw new Error(`${brick} is not in the recipe`);
+      inRecipe(brick);
       E.unsnap(brick);
       return { removed: brick };
     },
@@ -150,6 +164,7 @@ export const TOOLS = [
     description: "Change one setting on a brick (a widget on one of its nodes, e.g. render.prompt, render.length, preset.lora). Choice settings must use one of the listed choices; a model file's name without its sub-folder is enough when only one choice has that name. A video length takes frames or seconds (\"5s\"): seconds round to the nearest frame count the model takes at the recipe's fps, and the answer says what it became.",
     inputSchema: { type: "object", properties: { brick: brickEnum, name: { type: "string" }, value: {} }, required: ["brick", "name", "value"] },
     run: ({ brick, name, value }) => {
+      inRecipe(brick);
       const s = settingsOf(brick).find((x) => x.name === name);
       if (!s) throw new Error(`${brick} has no setting "${name}"; it has ${settingsOf(brick).map((x) => x.name).join(", ")}`);
       if (s.choices && E.resolveChoice(s.choices, value) === undefined) throw new Error(`"${value}" is not a choice for ${brick}.${name}; choices: ${s.choices.slice(0, 50).join(", ")}${s.choices.length > 50 ? ", …" : ""}`);
@@ -169,6 +184,7 @@ export const TOOLS = [
     inputSchema: { type: "object", properties: { brick: { ...brickEnum, description: "default: the recipe's Render (the first brick with a seed)" }, mode: { type: "string", enum: ["fixed", "random"] } } },
     run: ({ brick = E.state().bricks.map((b) => b.key).find((k) => E.seedMode(k)), mode }) => {
       if (!brick) throw new Error("No brick in this recipe has a seed");
+      inRecipe(brick);
       if (mode) E.setSeedMode(brick, mode); else E.newSeed(brick);
       const [nodeKey, name] = BRICKS[brick].face.find(([, n]) => /seed/.test(n));
       return { brick, seed: E.getValue(brick, nodeKey, name), mode: E.seedMode(brick) };
@@ -361,7 +377,7 @@ export const TOOLS = [
     name: "choose_binding",
     description: "Settle an `ask` binding (several outputs fit one input): connect brick.role from one of its candidates in describe_recipe, given as `from` (the brick) and `via` (the role that brick gives it, e.g. video_vae).",
     inputSchema: { type: "object", properties: { brick: brickEnum, role: { type: "string" }, from: { type: "string" }, via: { type: "string" } }, required: ["brick", "role", "from", "via"] },
-    run: async ({ brick, role, from, via }) => { const rule = E.choose(brick, role, from, via); await rules.remember(rule); E.useRules(rules.all()); return { brick, role, from, via, remembered: true }; },
+    run: async ({ brick, role, from, via }) => { inRecipe(brick); const rule = E.choose(brick, role, from, via); await rules.remember(rule); E.useRules(rules.all()); return { brick, role, from, via, remembered: true }; },
   },
   {
     name: "explain_binding",
@@ -369,6 +385,7 @@ export const TOOLS = [
     inputSchema: { type: "object", properties: { brick: brickEnum, role: { type: "string" } }, required: ["brick", "role"] },
     annotations: { readOnlyHint: true },
     run: ({ brick, role }) => {
+      inRecipe(brick);
       const b = E.state().bindings.find((x) => x.to === brick && x.role === role);
       if (!b) throw new Error(`${brick}.${role} is not bound by Snap`);
       const o = E.overrides().find((x) => x.to === brick && x.role === role);
@@ -526,7 +543,7 @@ export const TOOLS = [
     inputSchema: { type: "object", properties: {} },
     annotations: { consequentialHint: true },
     consequential: true,
-    plan: async () => ({ runs: E.state().bricks.map((b) => BRICKS[b.key].title).join(" → ") || "the open workflow", ...await recipeEta() }),
+    plan: async () => { const warning = await defaultPrompt(); return { runs: E.state().bricks.map((b) => BRICKS[b.key].title).join(" → ") || "the open workflow", ...await recipeEta(), ...(warning ? { warning } : {}) }; },
     run: async () => {
       const before = T.runs().length;
       await app.queuePrompt(0, 1, { queueNodeIds: E.targets() });
@@ -612,7 +629,7 @@ export const TOOLS = [
     description: "Every node in the open workflow (not only bricks): id, type, title, the brick it belongs to, and each widget with its value, choices (model files, samplers…), limits and the node it is wired from. Node titles and texts come from installed packs, not from Snap.",
     inputSchema: { type: "object", properties: { brick: { type: "string", description: "only this brick's nodes" } } },
     annotations: { readOnlyHint: true, untrustedContentHint: true },
-    run: ({ brick } = {}) => app.graph.nodes.filter((n) => !brick || brickOf(n.id) === brick).map((n) => ({ id: n.id, type: n.type.length > 30 ? "blueprint" : n.type, title: n.title, brick: brickOf(n.id),
+    run: ({ brick } = {}) => (brick && inRecipe(brick), app.graph.nodes).filter((n) => !brick || brickOf(n.id) === brick).map((n) => ({ id: n.id, type: n.type.length > 30 ? "blueprint" : n.type, title: n.title, brick: brickOf(n.id),
       widgets: (n.widgets ?? []).filter((w) => w.name && !w.name.startsWith("$$") && !w.hidden).map((w) => widgetInfo(n, w)) })),
   },
   {
@@ -935,22 +952,23 @@ export async function callTool(name, args = {}, { confirmed } = {}) {
   const tool = byName.get(name);
   if (!tool) throw new Error(`Unknown Snap tool ${name}`);
   const { propose, reason, for_note, if_revision, ...rest } = args;
+  for (const k of ["brick", "after"]) if (k in rest) rest[k] = brickKey(rest[k]);
   if (if_revision != null && !readOnly(name)) {
     const was = seen.get(if_revision), now = await revision();
     if (now !== if_revision) throw new Error(`The recipe changed since revision ${if_revision} (now ${now})${was ? `: ${T.changes(was, seen.get(now)).join(", ") || "seeds"}` : ""}. Read describe_recipe again and decide with what is there now`);
   }
-  const plan = tool.plan ? await tool.plan(rest) : null;
+  const plan = tool.plan ? await tool.plan(rest) : null, warning = plan?.warning ? { warning: plan.warning } : {}; // a plan's warning (run: a default prompt) is said at the top too
   if ((tool.consequential || tool.decides) && !confirmed && !mayRun()) {
     const why = tool.decides ? "the person's pick" : "uses the GPU";
     const p = P.add(name, rest, reason ?? `${name.replaceAll("_", " ")} (${why})`, for_note, plan);
-    return { proposed: p.id, ...(plan ? { plan } : {}), status: `${why}: waiting for the person to accept (or to allow agents to run in ComfyUI's settings)` };
+    return { proposed: p.id, ...warning, ...(plan ? { plan } : {}), status: `${why}: waiting for the person to accept (or to allow agents to run in ComfyUI's settings)` };
   }
   if (propose && proposable(name)) {
     const p = P.add(name, rest, reason, for_note, plan);
-    return { proposed: p.id, ...(plan ? { plan } : {}), status: "waiting for the person to accept or reject; see list_proposals" };
+    return { proposed: p.id, ...warning, ...(plan ? { plan } : {}), status: "waiting for the person to accept or reject; see list_proposals" };
   }
   const out = await tool.run(rest);
-  return plan && out && typeof out === "object" && !Array.isArray(out) ? { ...out, plan } : out;
+  return plan && out && typeof out === "object" && !Array.isArray(out) ? { ...out, ...warning, plan } : out;
 }
 
 const PROPOSE = {

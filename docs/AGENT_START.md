@@ -67,6 +67,8 @@ You can also run the tools as an MCP server (Claude Code):
      `set_setting` on `first_frame`).
    - Upscale starts off when RelayVSR isn't installed.
 2. Set the prompt: `set_setting {"brick": "render", "name": "prompt", "value": "..."}`.
+   - `render` names the recipe's Render in every family (the stills recipe's brick id is `image`). Titles such as
+     `save`, `models` and `upscale` work the same way. A brick that isn't there is refused with the recipe's brick ids.
    - For H3 video, write the three sections, each on its own line:
      - `integrated_multimodal_description:` starts with `[Shot 1]`, then what we see: shot size, light, who does what
        and how the camera moves. `<Picture 1>` and so on name the reference pictures.
@@ -80,7 +82,8 @@ You can also run the tools as an MCP server (Claude Code):
    round to the nearest frame count the model takes (H3 at 24 fps: 17n + 5 frames), and the answer says what the
    length became. `describe_recipe` shows the seconds next to the frames.
 4. `new_seed` draws a new seed for the Render. You can name another brick with `brick`.
-5. `run` returns `run`, the run's id.
+5. `run` returns `run`, the run's id. A `warning` says when the prompt is still the recipe's default text: the run
+   still goes, so set the prompt first.
 6. Call `run_status {"run": "<id>", "wait_s": 25}` again until `state` is `done` or `failed`. The state goes
    `queued` → `running` → `done` / `failed`. When the run is done, `run_status` gives the take id and the output files
    (`path` on the ComfyUI machine, and `url`).

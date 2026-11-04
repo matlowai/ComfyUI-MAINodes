@@ -106,6 +106,14 @@ export function getValue(brickKey, nodeKey, name) {
   return widget(nodeFor(brickKey, nodeKey), name)?.value;
 }
 
+// a text setting still holding the text its blueprint ships with (run notes a prompt nobody wrote, U72 F11)
+export async function shipped(brickKey, nodeKey, name) {
+  const v = getValue(brickKey, nodeKey, name), def = BRICKS[brickKey];
+  if (!def?.blueprint || typeof v !== "string") return false;
+  const bp = await fetchBlueprint(def.blueprint);
+  return [...bp.nodes, ...(bp.definitions?.subgraphs ?? []).flatMap((g) => g.nodes)].some((n) => Array.isArray(n.widgets_values) && n.widgets_values.includes(v));
+}
+
 // the node of brick `key` that provides output `[nodeKey, slotName]`, if the user hasn't deleted it
 function provider(key, [nodeKey, out]) {
   const src = nodeFor(key, nodeKey), o = src?.findOutputSlot(out);

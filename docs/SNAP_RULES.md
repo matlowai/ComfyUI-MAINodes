@@ -222,6 +222,11 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   lock, a "ready" kit whose recipe wasn't, polling a run that never said done, guessing fps, `undefined has no seed`;
   Dylan: "once sonnet low is smooth I'll call it good". *More:* u72/FINDINGS.md F1-F10, PLAN U75, `snap_bridge.py`,
   `web/snap/tools.js`, `tools/`.
+- **SNAP-R31: A brick's title names it in every family.** Tools take a brick's id or the title it shows: `render`
+  is the stills recipe's `image` brick, `models` its `image_models`, `save` its `save_image`. A brick that isn't in the
+  recipe is refused with the recipe's brick ids. `run` warns, and still runs, while a prompt holds its blueprint's
+  default text. *Why:* U72 run 2 (Sonnet at low effort): AGENT_START's `render` failed on the stills recipe, the agent
+  pressed run anyway and got the example picture. *More:* u72/FINDINGS.md F11, `web/snap/tools.js`.
 ## Data and privacy
 
 - **SNAP-R18: Local only.** No network or telemetry: registry, takes, profile and model graph are local files. Export
