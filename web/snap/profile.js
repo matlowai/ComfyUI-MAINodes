@@ -10,6 +10,8 @@ import { api } from "../../../scripts/api.js";
 const FILE = "snap/profile.json";
 // every task stays local until the person allows the cloud for it
 export const EMPTY = { intents: [], sfw_only: false, api_tasks: [], code_review: "unknown", answered: [], done: false };
+// onboarding's questions in order (the sheet's steps; set_profile's `answered` takes these ids)
+export const STEPS = ["intent", "scan", "metadata", "sfw", "local", "code", "kit"];
 // code_review: "always" reads every pack or script an agent brings in, "unknown" only what Snap's kits have no safety read
 // for, "never" saves the tokens; every install still waits for the person's yes (SNAP-R25)
 export const REVIEWS = { always: "Always read it first", unknown: "Only code Snap doesn't know (default)", never: "Never: save the tokens" };
@@ -29,11 +31,12 @@ export const apiAllowed = (task) => get().api_tasks.includes(task);
 // whether an agent reads a pack's code before it brings it in: `known` when Snap's kits carry our safety read for it
 export const review = (known) => { const r = get().code_review; return r === "always" || (r === "unknown" && !known) ? "required" : "skipped (your setting)"; };
 
-// a patch from the sheet or set_profile: known fields only, `answered` grows (a question asked once stays answered)
+// a patch from the sheet or set_profile: known fields only, `answered` grows (a question asked once stays answered); done
+// means every question was dealt with, so it answers them all (U72 F14: an agent's done: true left answered empty)
 export async function set(patch) {
   await load();
   const known = Object.fromEntries(Object.entries(patch).filter(([k]) => k in EMPTY && k !== "answered"));
-  profile = { ...profile, ...known, answered: [...new Set([...profile.answered, ...(patch.answered ?? [])])], updated: new Date().toISOString() };
+  profile = { ...profile, ...known, answered: [...new Set([...profile.answered, ...(patch.answered ?? []), ...(known.done ? STEPS : [])])], updated: new Date().toISOString() };
   await api.storeUserData(FILE, profile);
   found = true;
   if ("code_review" in known && app.extensionManager.setting.get(REVIEW_SETTING) !== profile.code_review) await app.extensionManager.setting.set(REVIEW_SETTING, profile.code_review);

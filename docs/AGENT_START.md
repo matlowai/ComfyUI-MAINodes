@@ -13,7 +13,8 @@ Either the person opens `$BASE/?snap` in their browser, or you start a headless 
 
     bash $PACK/tools/snap_agent_page.sh $BASE
 
-- The script returns once the page has registered. It prints the page's pid, and `kill <pid>` stops the page.
+- The script returns once the page has registered. `bash $PACK/tools/snap_agent_page.sh $BASE --stop` stops the
+  page(s) it started for that ComfyUI; you need no pid and no `kill`.
 - If a page of yours is already open, the script says so and starts nothing, because calls already go to that page.
   Pass `--new` to start another one anyway.
 - Each launch uses a fresh Chrome profile, so a page that died earlier never blocks the next one.
@@ -61,9 +62,9 @@ You can also run the tools as an MCP server (Claude Code):
 
 ## 4. Render
 
-1. `start_recipe` (video) or `apply_setup` (a setup from `list_setups`). Both open a **new workflow tab** when the open
-   one has work in it, and every later call acts on that new tab. So call them first, and then set the prompt and
-   settings.
+1. `start_recipe` (video), `start_recipe {"intent": "stills"}` (pictures: an onboarding kit's recommended setup) or
+   `apply_setup` (any setup from `list_setups`). They open a **new workflow tab** when the open one has work in it, and
+   every later call acts on that new tab. So call them first, and then set the prompt and settings.
    - The video recipe starts as text to video: First frame stays off until it gets a picture (`use_take`, or
      `set_setting` on `first_frame`).
    - Upscale starts off when RelayVSR isn't installed.

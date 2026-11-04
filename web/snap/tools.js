@@ -693,9 +693,15 @@ export const TOOLS = [
   },
   {
     name: "start_recipe",
-    description: "Start the recommended recipe (Dials + Pika Simple, text to video: First frame off until given a picture, Upscale off when RelayVSR isn't installed) as the Start button does: in a new workflow tab when the open one has nodes, so the person's work is left as it is. Later calls act on that new tab.",
-    inputSchema: { type: "object", properties: {} },
-    run: () => ui.act("start"),
+    description: "Start the recommended recipe (Dials + Pika Simple, text to video: First frame off until given a picture, Upscale off when RelayVSR isn't installed) as the Start button does: in a new workflow tab when the open one has nodes, so the person's work is left as it is. Later calls act on that new tab. With `intent` (an onboarding kit: stills, anime, edit, long, characters, video) it opens that kit's recommended setup instead, e.g. {\"intent\": \"stills\"} for pictures (MOSS-Image); apply_setup opens any other.",
+    inputSchema: { type: "object", properties: { intent: { type: "string", description: "an onboarding kit: video, stills, anime, edit, long, characters (list_kits)" } } },
+    run: async ({ intent } = {}) => {
+      if (!intent) return ui.act("start");
+      await OB.load();
+      const [opened] = await OB.open([intent]);
+      if (!opened) throw new Error(`The ${intent} kit's recommended setup isn't one Snap opens here; list_setups and apply_setup open any setup`);
+      return { opened: opened.title, state: opened.state, ...(opened.notes.length ? { notes: opened.notes } : {}), bricks: E.state().bricks.map((b) => b.key) };
+    },
   },
   {
     name: "read_ui",
