@@ -602,9 +602,11 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("input", { type: "checkbox", checked: r.on, title: "on / off", onchange: (e) => { M.setRow(key, r.row, { on: e.target.checked }); changed(); } }),
       h("span", { className: "snap-lora-name", textContent: String(r.file).split("/").pop().replace(/\.safetensors$/, "").replaceAll("_", "_\u200b"), title: `${r.file}${r.entry?.notes ? `\n${r.entry.notes}` : ""}` }),
       r.entry?.role === "unsorted" ? h("select", { className: "snap-lora-ask", title: "what is this LoRA? (remembered for next time)", onchange: async (e) => {
+        // NSFW is a tag, not a role: the file stays unsorted, and SFW only hides it (SNAP-R25)
+        if (e.target.value === "nsfw") { await M.teach(r.file, { tags: [...new Set([...(r.entry.tags ?? []), "nsfw"])] }); changed(); return; }
         const [r0, core] = e.target.value.split(":");
         await M.teach(r.file, { role: r0, ...(core ? { core } : {}), ...(fam && !r.entry.family ? { family: fam } : {}) }); changed();
-      } }, h("option", { textContent: "what is this?", value: "", disabled: true, selected: true }), ROLES.map(([v, t]) => h("option", { value: v, textContent: t })))
+      } }, h("option", { textContent: "what is this?", value: "", disabled: true, selected: true }), ROLES.map(([v, t]) => h("option", { value: v, textContent: t })), (r.entry.tags ?? []).includes("nsfw") ? null : h("option", { value: "nsfw", textContent: "NSFW (SFW only hides it)" }))
         : h("i", { className: `snap-lora-kind ${badge(r.entry)}`, textContent: badge(r.entry) }),
       h("input", { type: "number", className: "snap-lora-v", value: r.strength, step: 0.05, title: "strength", onchange: (e) => { M.setRow(key, r.row, { strength: Number(e.target.value) }); changed(); } }),
       h("button", { className: "snap-x", textContent: "×", title: "remove this row", onclick: (e) => { e.stopPropagation(); M.removeRow(key, r.row); changed(); } }));
