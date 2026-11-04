@@ -420,6 +420,7 @@ export const TOOLS = [
       await T.load();
       const bad = order.filter((id) => T.get(id)?.group !== T.groupOf());
       if (bad.length) throw new Error(`Not takes of this workflow: ${bad.join(", ")}`);
+      if (new Set(order).size !== order.length) throw new Error("Name each take once: a ranking is an order of different takes");
       await T.setRanking(order, T.groupOf(), "agent");
       return { ranked: order.length, by: "agent" };
     },

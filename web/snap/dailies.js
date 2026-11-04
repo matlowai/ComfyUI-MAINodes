@@ -22,13 +22,15 @@ export function createDailies({ host, say, onRestore, onContinue }) {
   const count = h("span", { className: "snap-quiet" });
   const compareBtn = h("button", { className: "snap-link snap-quiet-btn", textContent: "Compare", disabled: true, onclick: () => compare([...picked]) });
   // blind pairs an agent set up for the person (setup_ab): one click opens the next, blind
-  const waiting = h("button", { className: "snap-link snap-ab-waiting", hidden: true, onclick: async () => { const p = (await T.pending()).find((x) => T.get(x.a) && T.get(x.b)); if (p) compare([p.a, p.b], { forced: true }); } });
+  const waiting = h("button", { className: "snap-link snap-ab-waiting", hidden: true, onclick: async () => { const p = (await waitingHere())[0]; if (p) compare([p.a, p.b], { forced: true }); } });
   const el = h("section", { className: "snap-takes" },
     h("header", {}, h("strong", { textContent: "Takes" }), count, waiting, h("span", { className: "snap-spacer" }),
       h("span", { className: "snap-quiet snap-takes-hint", textContent: "drag to rank · tick two to compare" }), compareBtn),
     strip);
   T.onChange(() => render());
   T.load().then(render, () => {});
+  // the blind pairs waiting in this workflow (a pair set up in another workflow waits there)
+  const waitingHere = async () => (await T.pending()).filter((p) => T.get(p.a)?.group === T.groupOf() && T.get(p.b)?.group === T.groupOf());
 
   async function render() {
     const group = T.inGroup(), order = await T.ranking();
@@ -37,7 +39,7 @@ export function createDailies({ host, say, onRestore, onContinue }) {
     count.textContent = group.length ? `${group.length} · ${ranked.length} ranked · ${group.filter((t) => t.verdict === "keep").length} kept` : "";
     for (const id of picked) if (!T.get(id)) picked.delete(id);
     compareBtn.disabled = picked.size !== 2;
-    const ab = (await T.pending()).filter((p) => T.get(p.a) && T.get(p.b));
+    const ab = await waitingHere();
     waiting.hidden = !ab.length;
     waiting.textContent = `${ab.length} blind pair${ab.length === 1 ? "" : "s"} waiting`;
     el.classList.toggle("empty", !group.length);
@@ -222,7 +224,7 @@ export function createDailies({ host, say, onRestore, onContinue }) {
     const pick = async (side) => {
       const [l, r] = pair();
       await T.judge(l.id, r.id, side === "tie" ? "tie" : side === "a" ? l.id : r.id, { blind, why: why.value.trim() });
-      await T.settleAB(l.id, r.id);
+      if (forced) await T.settleAB(l.id, r.id); // a compare of the same two takes the person opened leaves the agent's blind pair waiting
       say(side === "tie" ? "Recorded: a tie" : `Recorded: ${blind ? "the" : `take ${(side === "a" ? l : r).number}`} ${side.toUpperCase()} side${blind ? ` was take ${(side === "a" ? l : r).number}` : ""}`);
       close();
     };
