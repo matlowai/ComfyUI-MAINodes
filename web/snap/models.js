@@ -146,10 +146,11 @@ export function apply(name) {
   return s;
 }
 
-// a family recipe card: on a fresh tab every value; in place (same family) prompt and seed stay, bricks the card doesn't
-// list go (Style and Cast stay with the shot and the cast). A core stack always takes the card's rows: they belong to the
-// setup, so the old setup's turbo or fix row never rides along (SNAP-R12). One undo step
-const KEEP = new Set(["prompt", "noise_seed"]);
+// a family recipe card: on a fresh tab every value; in place (same family) the shot's own values stay, and of the bricks
+// the card doesn't list only those an earlier card brought go: a slot (Upscale), the person's own bricks, Style and Cast
+// stay. A core stack always takes the card's rows: they belong to the setup, so the old setup's turbo or fix row never
+// rides along (SNAP-R12). One undo step
+const KEEP = new Set(["prompt", "negative", "noise_seed", "width", "height"]);
 const coreRows = (b) => (BRICKS[b.key]?.stack?.role === "core" ? { ...b, values: { [BRICKS[b.key].stack.node]: { [BRICKS[b.key].stack.group]: 1, ...BRICKS[b.key].nodes[0].values, ...b.values[BRICKS[b.key].stack.node] } } } : b);
 export async function applyCard(card, { fresh }) {
   const bricks = (fresh ? card.brick.bricks : card.brick.bricks.map((b) => ({ ...b, values: Object.fromEntries(Object.entries(b.values).map(([k, ws]) => [k, Object.fromEntries(Object.entries(ws).filter(([name]) => !KEEP.has(name)))])) }))).map(coreRows);
@@ -157,7 +158,8 @@ export async function applyCard(card, { fresh }) {
   app.canvas.emitBeforeChange();
   try {
     keys = await E.restore(bricks);
-    const gone = E.state().bricks.map((x) => x.key).filter((b) => !keys.includes(b) && !BRICKS[b].attach && !["style", "identity"].includes(BRICKS[b].stack?.role));
+    for (const k of keys) E.remember(k, "card", card.id);
+    const gone = E.state().bricks.filter((b) => b.card && b.card !== card.id && !BRICKS[b.key].slot && !["style", "identity"].includes(BRICKS[b.key].stack?.role)).map((b) => b.key);
     for (const b of gone) E.unsnap(b);
     if (gone.length) E.rebind(); // what they fed (the Render's model) binds to the brick before them again
     E.tag("setup", card.id);
