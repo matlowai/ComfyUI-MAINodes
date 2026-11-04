@@ -24,17 +24,30 @@ export function wallOf(s, o) {
   return Object.keys(off).reduce((a, b) => (off[b] < off[a] ? b : a));
 }
 
+// where a thing sits in the camera's frame, from the part of it in view: k from -1 (left edge) to 1, and in words;
+// null when none of it is in view
+function framed(cam, points) {
+  const half = halfView(cam), seen = points.map((p) => bearing(cam, p)).filter((a) => Math.abs(a) <= half);
+  if (!seen.length) return null;
+  const k = seen.reduce((x, y) => x + y) / seen.length / half, side = k < 0 ? "left" : "right";
+  return { k, where: Math.abs(k) <= 0.15 ? "in the centre" : Math.abs(k) > 0.5 ? `on the ${side}` : `${side} of centre` };
+}
+
 // each door and window as this camera sees it (U21/U48: H3 put the window on the wrong wall when the text didn't say):
-// where it sits in the frame (from the part of it in view), or which way it is out of view
+// where it sits in the frame, or which way it is out of view
 export function openings(s) {
-  const cam = s.camera, half = halfView(cam);
+  const cam = s.camera;
   return s.room.openings.map((o) => {
-    const seen = [o.from, middle(o), o.to].map((p) => bearing(cam, p)).filter((a) => Math.abs(a) <= half);
-    const a = seen.length ? seen.reduce((x, y) => x + y) / seen.length : bearing(cam, middle(o)), k = a / half, side = a < 0 ? "left" : "right";
-    const where = !seen.length ? `${Math.abs(a) > (3 * Math.PI) / 4 ? "behind the camera" : `to the camera's ${side}`}, out of view`
-      : Math.abs(k) <= 0.15 ? "in the centre" : Math.abs(k) > 0.5 ? `on the ${side}` : `${side} of centre`;
+    const f = framed(cam, [o.from, middle(o), o.to]), a = bearing(cam, middle(o));
+    const where = f?.where ?? `${Math.abs(a) > (3 * Math.PI) / 4 ? "behind the camera" : `to the camera's ${a < 0 ? "left" : "right"}`}, out of view`;
     return `the ${o.name || o.kind} in the ${wallOf(s, o)} wall is ${where}`;
   });
+}
+
+// what this camera sees, left to right, each with where it sits in the frame (U21's camera sentences, from the plan)
+export function inFrame(s) {
+  const things = [...s.props.map((p) => [p.name, [p.at]]), ...s.room.openings.map((o) => [o.name || o.kind, [o.from, middle(o), o.to]])];
+  return things.map(([name, points]) => ({ name, ...framed(s.camera, points) })).filter((x) => x.where).sort((a, b) => a.k - b.k).map((x) => `the ${x.name} ${x.where}`).join(", ");
 }
 
 // objects in the camera's view, left to right, and the set block that pins them ("exactly these N and nothing else"),

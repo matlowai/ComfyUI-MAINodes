@@ -74,7 +74,7 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   right one 12/12 (U48). So a set keeps one people-free plate per camera, made by an orbit pass from its wide plate
   (H3 Ref2V, "the camera is not where <Picture 1> was taken" plus that camera's doors and windows), and the last frame
   of a render that re-renders the wide plate's view is rejected: copy score (DINOv3 patch tokens matched by grid
-  position) at or above the threshold the model graph gives the encoder (0.80). Each plate records its take, frame,
+  position) at or above the threshold the model graph gives the encoder (0.72: U52 found last-frame copies at 0.77-0.80). Each plate records its take, frame,
   copy score, seed, camera and who made it; the person can swap any plate. The shot compiler sends the shot's plate
   with "seen from this camera", falls back to the wide plate with "the camera is not where <Picture N> was taken", and
   uses a plate as FL2V's first frame only when the shot card asks to start on that exact frame. A plate stops counting

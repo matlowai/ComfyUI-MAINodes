@@ -13,7 +13,7 @@ import * as L from "./library.js";
 import * as M from "./models.js";
 import * as T from "./takes.js";
 import { BRICKS } from "./bricks.js";
-import { setBlock, plateCameras, atCamera, cameraAt, keeps, sameCamera } from "./setsnap.js";
+import { setBlock, plateCameras, atCamera, cameraAt, inFrame, keeps, sameCamera } from "./setsnap.js";
 
 const REF2V = "Ref2V (reference pictures)"; // the Render Preset's conditioning the orbit needs (U49: the ref2va pair)
 const SIZE = { width: 1280, height: 704, length: 97 }; // U49's orbit renders (length 97 runs as 107 frames, about 64 s)
@@ -22,11 +22,13 @@ const listeners = new Set();
 export const onChange = (fn) => listeners.add(fn);
 const changed = () => { for (const fn of listeners) fn(); };
 
-// the U49 orbit wording for one camera: the wide plate is <Picture 1>, this camera is somewhere else, and the set block
-// says what this camera sees, doors and windows included; nobody in the room
+// the U49 orbit wording for one camera: a camera sentence that says what sits where in its frame (as U49's did; without
+// it the first Snap orbit copied the wide plate 3/3), the wide plate is <Picture 1>, this camera is somewhere else, and the
+// set block says what this camera sees, doors and windows included; nobody in the room
 export function orbitText(s, cam) {
   const v = atCamera(s, cam);
-  return `integrated_multimodal_description: [Shot 1] Cinematic, ${cam.lens} mm, ${cameraAt(v)}. This is the same ${s.name} shown in <Picture 1>, but the camera is not where <Picture 1> was taken: `
+  const seen = inFrame(v), size = cam.lens <= 28 ? "wide" : cam.lens <= 60 ? "medium" : "close";
+  return `integrated_multimodal_description: [Shot 1] Cinematic ${size} shot, ${cam.lens} mm, ${cameraAt(v)}${seen ? `: ${seen}` : ""}. This is the same ${s.name} shown in <Picture 1>, but the camera is not where <Picture 1> was taken: `
     + `this is a new eye-height view from the position above, with a ${cam.lens} mm lens. Keep its ${keeps(s)} exactly as in <Picture 1>. ${s.look ? `${s.look} ` : ""}`
     + `${setBlock(v)} Nobody is in the room. The camera slowly pushes in.\n\n${SOUND}`;
 }
@@ -121,8 +123,8 @@ async function orbitModels() {
     video: await resolve("VAELoader", "vae_name", video.vae_name), audio: await resolve("VAELoader", "vae_name", audio.vae_name) };
 }
 
-// one orbit render as an API prompt (U21 (b)'s graph): the video, its last frame, and that frame-by-frame copy score
-// against the wide plate
+// one orbit render as an API prompt (U21 (b)'s graph): the video, its last frame, and that frame's copy score against
+// the wide plate (only that frame: DINOv3 runs at 1024 px, about 0.4 s a frame on a 5090)
 function orbitGraph({ text, seed, wide, prefix, models, encoder }) {
   const { name, ...preset } = models.preset;
   return {
@@ -145,7 +147,7 @@ function orbitGraph({ text, seed, wide, prefix, models, encoder }) {
     17: { class_type: "ImageFromBatch", inputs: { image: ["13", 0], batch_index: -1, length: 1 } },
     18: { class_type: "SaveImage", inputs: { images: ["17", 0], filename_prefix: `snap_plates/${prefix}` }, _meta: { title: "last frame" } },
     19: { class_type: "CLIPVisionLoader", inputs: { clip_name: encoder } },
-    20: { class_type: "MAISnapCopyScore", inputs: { clip_vision: ["19", 0], reference: ["5", 0], images: ["13", 0] } },
+    20: { class_type: "MAISnapCopyScore", inputs: { clip_vision: ["19", 0], reference: ["5", 0], images: ["17", 0] } },
   };
 }
 
@@ -195,7 +197,7 @@ async function finish(lineage, id) {
   else {
     const scores = Object.values(h.outputs).find((o) => o.copy_scores)?.copy_scores ?? [];
     const frame = Object.values(h.outputs).find((o) => o.images?.some((f) => /\.png$/i.test(f.filename)))?.images[0];
-    const record = { take: `take-${id}`, frame: scores.length - 1, copy_score: scores.at(-1), threshold: job.threshold, seed: job.seed, camera: job.view, by: job.by, at: new Date().toISOString() };
+    const record = { take: `take-${id}`, frame: "last", copy_score: scores.at(-1), threshold: job.threshold, seed: job.seed, camera: job.view, by: job.by, at: new Date().toISOString() };
     if (!frame || !scores.length) result = { rejected: { ...record, error: "the render gave no last frame or copy score" } };
     else if (record.copy_score >= job.threshold) result = { rejected: { ...record, image: null, copy: true } };
     else {
@@ -234,9 +236,10 @@ export function referencePictures(prompt) {
   }
   return out;
 }
+const FRAMES = [0, 24, 48, 72, 96]; // the frames U48 §3 validated the check on (a shorter clip repeats its last)
 const annotated = (m) => `${m.subfolder ? `${m.subfolder}/` : ""}${m.filename} [${m.type ?? "output"}]`;
 
-// score every frame of a take against each of its reference pictures; the take is flagged when the mean over its frames
+// score five frames of a take against each of its reference pictures; the take is flagged when the mean over them
 // reaches the threshold for any of them. The check runs under its own client id, so it never becomes a take itself
 export async function checkTake(take, by = "person") {
   const refs = referencePictures(take.prompt);
@@ -245,9 +248,12 @@ export async function checkTake(take, by = "person") {
   if (!m) throw new Error(`Take ${take.number} has no picture or video`);
   const { encoder, threshold } = await copyCheck();
   const g = { 1: { class_type: "CLIPVisionLoader", inputs: { clip_name: encoder } } };
-  if (m.kind === "video") Object.assign(g, { 2: { class_type: "LoadVideo", inputs: { file: annotated(m) } }, 3: { class_type: "GetVideoComponents", inputs: { video: ["2", 0] } } });
-  else g[3] = { class_type: "LoadImage", inputs: { image: annotated(m) } };
-  refs.forEach((image, i) => { g[10 + 2 * i] = { class_type: "LoadImage", inputs: { image } }; g[11 + 2 * i] = { class_type: "MAISnapCopyScore", inputs: { clip_vision: ["1", 0], reference: [String(10 + 2 * i), 0], images: ["3", 0] } }; });
+  if (m.kind === "video") {
+    Object.assign(g, { 2: { class_type: "LoadVideo", inputs: { file: annotated(m) } }, 4: { class_type: "GetVideoComponents", inputs: { video: ["2", 0] } } });
+    FRAMES.forEach((f, i) => { g[5 + i] = { class_type: "ImageFromBatch", inputs: { image: ["4", 0], batch_index: f, length: 1 } }; });
+    g[3] = { class_type: "BatchImagesNode", inputs: Object.fromEntries(FRAMES.map((_, i) => [`images.image${i}`, [String(5 + i), 0]])) };
+  } else g[3] = { class_type: "LoadImage", inputs: { image: annotated(m) } };
+  refs.forEach((image, i) => { g[20 + 2 * i] = { class_type: "LoadImage", inputs: { image } }; g[21 + 2 * i] = { class_type: "MAISnapCopyScore", inputs: { clip_vision: ["1", 0], reference: [String(20 + 2 * i), 0], images: ["3", 0] } }; });
   const id = await queue(g, "snap-copy-check", `snap-copy-check-${Date.now().toString(36)}`);
   take.copy = { pending: id, by };
   await T.save(take);
@@ -255,7 +261,7 @@ export async function checkTake(take, by = "person") {
   (async () => {
     let h = null;
     for (let i = 0; i < 600 && !(h = await done()); i++) await new Promise((r) => setTimeout(r, 1000));
-    const against = refs.map((image, i) => { const s = h?.outputs?.[String(11 + 2 * i)]?.copy_scores ?? []; return { image, mean: s.length ? +(s.reduce((a, b) => a + b) / s.length).toFixed(3) : null, max: s.length ? +Math.max(...s).toFixed(3) : null, frames: s.length }; });
+    const against = refs.map((image, i) => { const s = h?.outputs?.[String(21 + 2 * i)]?.copy_scores ?? []; return { image, mean: s.length ? +(s.reduce((a, b) => a + b) / s.length).toFixed(3) : null, max: s.length ? +Math.max(...s).toFixed(3) : null, frames: s.length }; });
     take.copy = h?.status?.status_str === "success"
       ? { against, threshold, copied: against.some((a) => a.mean >= threshold), by, at: new Date().toISOString() }
       : { error: h?.status?.status_str ?? "the check didn't finish", by, at: new Date().toISOString() };

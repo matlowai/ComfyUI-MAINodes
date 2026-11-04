@@ -1230,9 +1230,9 @@
    "quant_format": null,
    "loads_in_core": true,
    "copy_check": {
-    "threshold": 0.8,
+    "threshold": 0.72,
     "evidence": "measured",
-    "source": "U48 §3 + U49: positional patch match to a known picture; copies 0.93-0.94 (5-frame mean) / 0.86-0.90 (last frame), new views of the same room 0.50-0.65; the U49 pick agreed with the eye 12/12"
+    "source": "positional patch match to a known picture (U48 §3, U49, U52): copies 0.93-0.94 as a 5-frame mean and 0.77-0.90 on the last frame (U49 orbit_S1_22 0.77 and U52 master 0.799 were copies by eye), new views of the same room 0.50-0.66; 0.80 let both through"
    },
    "notes": "Snap's copy check (MAISnapCopyScore): did a take or a camera plate re-render its reference picture's view"
   },

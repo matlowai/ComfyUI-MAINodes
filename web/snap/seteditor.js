@@ -101,7 +101,7 @@ export function openSetEditor(host, card, { onApply, onSave }) {
       tile("wide plate", st.wide, st.wide ? `by ${st.wide.by}` : "a people-free picture of the whole set", st.wide ? "" : "missing", "wide"),
       ...st.cameras.map((c) => {
         const line = c.rendering ? "rendering…" : c.plate && !c.fits ? "the camera moved since: make again"
-          : c.plate ? (c.plate.copy_score != null ? `copy ${c.plate.copy_score.toFixed(2)} · frame ${c.plate.frame} · ${c.plate.by}` : `by hand (${c.plate.by})`)
+          : c.plate ? (c.plate.copy_score != null ? `copy ${c.plate.copy_score.toFixed(2)} · last frame · ${c.plate.by}` : `by hand (${c.plate.by})`)
           : c.rejected?.copy ? `copied the wide plate (${c.rejected.copy_score.toFixed(2)}): rejected` : c.rejected ? `failed: ${c.rejected.error}` : "no plate yet";
         return tile(c.camera, c.fits || c.rendering ? c.plate : null, line, c.rendering ? "rendering" : c.rejected && !c.fits ? "rejected" : c.fits ? "" : "missing", c.camera);
       }));
