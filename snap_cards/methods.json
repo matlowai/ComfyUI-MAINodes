@@ -1,0 +1,114 @@
+{
+  "slots": [
+    {
+      "id": "upscale",
+      "kind": "media",
+      "title": "Upscale",
+      "media": ["IMAGE", "VIDEO"],
+      "off": "the brick stays with its settings; nothing is upscaled"
+    },
+    {
+      "id": "turbo",
+      "kind": "delta",
+      "title": "Turbo",
+      "off": "the setup's own steps, cfg and sampler"
+    }
+  ],
+  "methods": [
+    {
+      "id": "esrgan",
+      "slot": "upscale",
+      "kind": "media",
+      "title": "ESRGAN-family model",
+      "does": "pixel model",
+      "media": { "in": "IMAGE", "out": "IMAGE" },
+      "kit": "image",
+      "brick": "image_upscale",
+      "scale": { "type": "fixed", "model": ["loader", "model_name"], "widget": ["resize", "scale_by"] },
+      "needs": [{ "folder": "upscale_models" }],
+      "local_or_api": "local",
+      "constraints": ["per frame: no temporal consistency"],
+      "guidance": { "line": "general stills: 4x-UltraSharp; anime: 4x-AnimeSharp; RealESRGAN x2plus beats RTX super resolution", "evidence": "opinion", "source": "scout/upscalers §1 (protector131090, David Snow)" },
+      "cost": { "community_s": [1, 2], "per": "megapixel frame", "local_s": null, "vram_gb": null }
+    },
+    {
+      "id": "resize",
+      "slot": "upscale",
+      "kind": "media",
+      "title": "Plain resize",
+      "does": "resize",
+      "media": { "in": "IMAGE", "out": "IMAGE" },
+      "kit": "image",
+      "brick": "image_resize",
+      "scale": { "type": "free", "widget": ["resize", "scale_by"] },
+      "needs": [],
+      "local_or_api": "local",
+      "guidance": { "line": "fast and soft: adds no detail", "evidence": "none" },
+      "cost": { "community_s": null, "local_s": null, "vram_gb": null }
+    },
+    {
+      "id": "relayvsr",
+      "slot": "upscale",
+      "kind": "media",
+      "title": "RelayVSR",
+      "does": "video SR",
+      "media": { "in": "VIDEO", "out": "VIDEO" },
+      "kit": "video",
+      "brick": "upscale",
+      "scale": { "type": "set", "values": [2, 4], "widget": ["settings", "output_scale"] },
+      "needs": [{ "folder": "relayvsr" }],
+      "local_or_api": "local",
+      "guidance": { "line": "X4 about 50 s per clip; flickers less than FlashVSR+, can oversharpen on H3, medium-distance faces can fail", "evidence": "measured", "source": "scout/upscalers §1 (Elvaxorn; Kijai and JohnDopamine opinion)", "n": 1, "hardware": "5090" },
+      "cost": { "community_s": [20, 50], "per": "clip", "local_s": null, "vram_gb": 13.5 }
+    },
+    {
+      "id": "seedvr2",
+      "slot": "upscale",
+      "kind": "media",
+      "title": "SeedVR2",
+      "does": "diffusion SR",
+      "media": { "in": "IMAGE", "out": "IMAGE" },
+      "kit": "image",
+      "scale": { "type": "free" },
+      "needs": [{ "folder": "diffusion_models", "match": "seedvr2" }, { "folder": "vae", "match": "seedvr2" }],
+      "packs": ["SeedVR2Preprocess", "SeedVR2Conditioning", "SeedVR2PostProcessing"],
+      "local_or_api": "local",
+      "guidance": { "line": "the usual final cleanup for stills and faces; 4× often runs out of memory untiled", "evidence": "measured", "source": "scout/upscalers §1 (Elvaxorn, RuneX; single runs)", "n": 1, "hardware": "5090 / 3090" },
+      "cost": { "community_s": [26, 160], "per": "2× clip", "local_s": null, "vram_gb": null },
+      "unwired": "not wired yet: a seven-node graph (resize, preprocess, encode, conditioning, sampler, decode, post-process)"
+    },
+    {
+      "id": "h3_latent",
+      "slot": "upscale",
+      "kind": "media",
+      "title": "H3 latent upscale (refine pass)",
+      "does": "latent + second pass",
+      "media": { "in": "LATENT", "out": "LATENT" },
+      "kit": "video",
+      "scale": { "type": "free" },
+      "needs": [{ "folder": "latent_upscale_models", "match": "minimax_h3" }],
+      "packs": ["MiniMaxH3LatentUpscaleWithModel"],
+      "local_or_api": "local",
+      "constraints": ["w, h multiples of 32"],
+      "guidance": { "line": "Pika H3 recipe: latent 1.5×, then 2 refine steps (er_sde, sigmas 0.7 / 0.494 / 0) with the refiner LoRA", "evidence": "opinion", "source": "scout/upscalers §1 (NebSH)" },
+      "cost": { "community_s": null, "local_s": null, "vram_gb": null },
+      "unwired": "works before decode with a second sampling pass; the H3 Render has no such slot yet"
+    },
+    {
+      "id": "ltx_spatial",
+      "slot": "upscale",
+      "kind": "media",
+      "title": "LTX spatial ×2 (refine pass)",
+      "does": "latent + second pass",
+      "media": { "in": "LATENT", "out": "LATENT" },
+      "kit": "video",
+      "scale": { "type": "fixed" },
+      "needs": [{ "folder": "latent_upscale_models", "match": "ltx" }],
+      "packs": ["LTXVLatentUpsampler"],
+      "local_or_api": "local",
+      "guidance": { "line": "no recent community results", "evidence": "none", "source": "scout/upscalers §1" },
+      "cost": { "community_s": null, "local_s": null, "vram_gb": null },
+      "unwired": "an LTX latent method; no LTX recipe in Snap yet"
+    }
+  ]
+}

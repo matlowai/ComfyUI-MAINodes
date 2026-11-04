@@ -33,6 +33,8 @@ export const AGENTS_RUN = "MAINodes.Snap.AgentsMayRun";
 const mayRun = () => app.extensionManager.setting.get(AGENTS_RUN) === true;
 
 const has = (key) => E.state().bricks.some((b) => b.key === key);
+// the method registry's slots, read whenever the schema is (snap_view registers the tools once the registry is in)
+const slotEnum = { type: "string", get enum() { return S.slots(); } };
 const brickEnum = { type: "string", description: `a recipe brick (${PACK_BRICKS.join(", ")}) or any installed node as node:<NodeType> (a new one) / node:<NodeType>#<n> (one in the recipe)` };
 
 function settingsOf(key) {
@@ -138,26 +140,30 @@ export const TOOLS = [
   },
   {
     name: "list_methods",
-    description: "The methods a slot can hold (SNAP-R14). slot 'turbo': this family's turbos from the model graph, merges (swap the diffusion model, same Base/SFT lineage only) and turbo LoRAs (add a core row), each with the steps / cfg / sampler / scheduler it was distilled for. slot 'upscale': every upscale method with kind, media, scale, install_state (from the model folders now: ready, or which weights are missing), whether it is wired and fits this recipe, and which one is current.",
-    inputSchema: { type: "object", properties: { slot: { type: "string", enum: ["turbo", "upscale"] } }, required: ["slot"] },
+    description: "The methods a slot can hold (SNAP-R14), from the method registry (snap_cards/methods.json under the person's snap/methods.json). Every method has id, title, does, install_state (from the model folders and installed nodes now: ready, or which weights or nodes are missing), wired, fits (this recipe), current, local_or_api, guidance (one line with its evidence: measured / claimed / opinion / none, and the source), cost and constraints. A media slot (upscale) also says its factor and the outcome headline; a hand-wired step between its sockets is listed as custom. The turbo slot's methods are this family's turbos from the model graph: merges (swap the diffusion model) and turbo LoRAs (add a core row), each with the steps / cfg / sampler / scheduler it was distilled for.",
+    inputSchema: { type: "object", properties: { slot: slotEnum }, required: ["slot"] },
     annotations: { readOnlyHint: true },
-    run: async ({ slot }) => {
-      await M.load();
-      if (slot === "turbo") return { slot, family: M.family(), on: M.turbo()?.file ?? null, methods: M.turbos() };
-      const now = S.holder(slot);
-      return { slot, current: S.method(now), on: now ? S.on(now) : false, factor: now && BRICKS[now].slot ? S.factor(now) : null, headline: now && BRICKS[now].slot ? S.headline(now) : null, methods: S.list(slot) };
-    },
+    run: async ({ slot }) => { await M.load(); await S.load(); return S.describe(slot); },
   },
   {
     name: "set_method",
-    description: "Fill a slot with a method from list_methods, as one undo step. turbo: a turbo file or name, or 'off' to go back to the quality settings from before (it swaps, never stacks a second turbo; it applies the turbo's steps / cfg / sampler / scheduler). upscale: a wired method id (it takes the place of the current one, keeping the factor) or 'off' (the brick stays, bypassed); factor 2 or 4 sets the output size. Returns what is on now and the warnings.",
-    inputSchema: { type: "object", properties: { slot: { type: "string", enum: ["turbo", "upscale"] }, method: { type: "string" }, factor: { type: "number" } }, required: ["slot", "method"] },
-    run: async ({ slot, method, factor }) => {
-      await M.load();
-      if (slot === "turbo") return M.setTurbo(method);
-      const now = S.holder(slot);
-      const res = now && method === S.method(now) && factor != null ? (S.setFactor(now, factor), { method, brick: now, factor: S.factor(now), on: S.on(now), headline: S.headline(now) }) : await S.set(slot, method, { factor });
-      return { ...res, warnings: M.warnings().map((w) => w.text) };
+    description: "Fill a slot with a method from list_methods, or 'off', as one undo step. upscale: a wired method id takes the place of the current one (a hand-wired step too) and feeds what it fed, keeping the factor when it is known; 'off' bypasses the brick and keeps its settings; factor 2 or 4 sets the output size. turbo: a turbo file or name (it swaps, never stacks a second turbo, and applies its steps / cfg / sampler / scheduler), or 'off' to go back to the quality settings. Returns what is on now and the warnings.",
+    inputSchema: { type: "object", properties: { slot: slotEnum, method: { type: "string" }, factor: { type: "number" } }, required: ["slot", "method"] },
+    run: async ({ slot, method, factor }) => { await M.load(); await S.load(); return { ...await S.set(slot, method, { factor }), warnings: M.warnings().map((w) => w.text) }; },
+  },
+  {
+    name: "preview",
+    description: "Queue only what a slot needs and feeds (its output nodes, e.g. Save after Upscale), leaving the rest of the workflow's outputs out. Returns at once; follow it with run_status. Uses GPU time: unless the person lets agents run (ComfyUI setting), this waits as a proposal they accept.",
+    inputSchema: { type: "object", properties: { slot: slotEnum }, required: ["slot"] },
+    annotations: { consequentialHint: true },
+    consequential: true,
+    run: async ({ slot }) => {
+      await S.load();
+      const targets = S.previewTargets(slot);
+      await app.queuePrompt(0, 1, { queueNodeIds: targets });
+      const errors = Object.entries(app.lastNodeErrors ?? {}).map(([id, e]) => ({ node: id, brick: brickOf(id), error: e.errors?.[0]?.message }));
+      if (errors.length) throw new Error(`Not queued: ${JSON.stringify(errors)}`);
+      return { queued: true, targets };
     },
   },
   {
@@ -517,7 +523,7 @@ export const TOOLS = [
   },
   {
     name: "ui",
-    description: "Drive the view: select a brick, open it (side panel or in place, by the person's setting), close, show snap or graph (focusing a brick), undo, redo, open the dial picker or maker, open the setups sheet, the turbo sheet or a slot's methods sheet (target: the slot, e.g. upscale), open a take.",
+    description: "Drive the view: select a brick, open it (side panel or in place, by the person's setting), close, show snap or graph (focusing a brick), undo, redo, open the dial picker or maker, open the setups sheet or a slot's methods sheet (target: the slot, e.g. upscale or turbo; action turbo is the same as methods turbo), open a take.",
     inputSchema: { type: "object", properties: { action: { type: "string", enum: ["select", "close", "snap", "graph", "undo", "redo", "dials", "make_dial", "setups", "turbo", "methods", "open_take"] }, target: { type: "string", description: "a brick key or take id" } }, required: ["action"] },
     direct: true, // view changes are the agent's own navigation, not edits to accept
     run: ({ action, target }) => ui.act(action, target),

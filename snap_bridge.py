@@ -76,6 +76,7 @@ async def result(request):
 
 
 CARDS = Path(__file__).parent / "snap_cards"
+GRAPHS = {"models.json", "methods.json"}  # data with their own routes, not Library cards
 
 
 @routes.get("/mainodes/snap/cards")
@@ -83,7 +84,7 @@ async def cards(request):
     """Library cards shipped with the pack (snap_cards/*.json); user cards will live under the user directory."""
     found = []
     for f in sorted(CARDS.glob("*.json")):
-        if f.name != "models.json":
+        if f.name not in GRAPHS:
             found += json.loads(f.read_text(encoding="utf-8"))
     return web.json_response({"cards": found})
 
@@ -93,6 +94,13 @@ async def model_graph(request):
     """The pack's model graph (snap_cards/models.json): how the files it knows fit together; the person's own entries
     (userdata snap/models.json) are read and merged by the page."""
     return web.json_response({"models": json.loads((CARDS / "models.json").read_text(encoding="utf-8"))})
+
+
+@routes.get("/mainodes/snap/methods")
+async def method_registry(request):
+    """The pack's method registry (snap_cards/methods.json): the slots and the methods that fill them; the person's own
+    (userdata snap/methods.json) are read and merged by the page."""
+    return web.json_response(json.loads((CARDS / "methods.json").read_text(encoding="utf-8")))
 
 
 # Semantic search: EmbeddingGemma 2 runs in tools/snap_embedder.py, a sidecar in its own venv (ComfyUI's transformers is

@@ -63,8 +63,9 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   deband fix; MOSS Base wants long prompts (expander on); Krea Raw int8 is `int8_rowwise` and can't load in core.
   Pack entries are in `snap_cards/models.json`, and the person's own entries win. *More:* MODEL_GRAPH_ONBOARDING §1.
 - **SNAP-R14: A method slot (upscale, turbo, and later others) is a chip over interchangeable implementations.** All
-  share one face shape. A method wired in by hand in the graph still shows up. *More:* MODEL_GRAPH_ONBOARDING §7,
-  scout/upscalers.
+  share one face shape. A method wired in by hand in the graph still shows up, recognised by its wiring (one media
+  input and the same type out), never by its name. Slots and methods are data: `snap_cards/methods.json` under the
+  person's `snap/methods.json`. *More:* MODEL_GRAPH_ONBOARDING §7, scout/upscalers, UX_GEMS §5.
 
 ## Agents
 

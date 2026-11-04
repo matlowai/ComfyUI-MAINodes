@@ -177,7 +177,7 @@ export function apply(name) {
       E.setValues("models", spec.key, Object.fromEntries(Object.entries(spec.values).filter(([k]) => !fits(n.widgets.find((w) => w.name === k), s.family))));
     }
     E.tag("family", s.family);
-    if (host()) E.remember(host(), "turbo", null); // a new setup's quality settings are the ones "Turbo off" goes back to
+    if (turboHost()) E.remember(turboHost(), "turbo", null); // a new setup's quality settings are the ones "Turbo off" goes back to
   });
   app.canvas.setDirty(true, true);
   return s;
@@ -201,7 +201,7 @@ export async function applyCard(card, { fresh }) {
     if (gone.length) E.rebind(); // what they fed (the Render's model) binds to the brick before them again
     E.tag("setup", card.id);
     E.tag("family", card.family);
-    if (host()) E.remember(host(), "turbo", null);
+    if (turboHost()) E.remember(turboHost(), "turbo", null);
   } finally { app.canvas.emitAfterChange(); }
   app.canvas.setDirty(true, true);
   return keys;
@@ -299,7 +299,8 @@ export function turbos() {
   return [...merges, ...rows].map(([name, e]) => ({ file: name, name: short(name), how: e.turbo.how, steps: e.turbo.steps, cfg: e.turbo.cfg, sampler: e.turbo.sampler, scheduler: e.turbo.scheduler,
     strength: e.recommended?.strength ?? 1, fits: lineage(e) === lineage(me), notes: e.notes ?? "" }));
 }
-const host = () => E.state().bricks.find((b) => BRICKS[b.key].turbo)?.key ?? null;
+// the brick whose sampling a turbo edits (the image Render; H3 carries its turbo in the Render Preset)
+export const turboHost = () => E.state().bricks.find((b) => BRICKS[b.key].turbo)?.key ?? null;
 // every LoRA file installed, with what the model graph says about it (for "+ LoRA")
 export const loraChoices = () => [...files].filter(([, f]) => f.folder === "loras").map(([name]) => [name, entry(name)]);
 // the turbo the graph holds (SNAP-R2): the diffusion model when it is a turbo merge, else the first core row that is a turbo
@@ -315,7 +316,7 @@ export function turbo() {
 const flat = (c) => c.brick.bricks.flatMap((b) => Object.values(b.values).flatMap((ws) => Object.entries(ws)));
 const named = (c) => flat(c).map(([, v]) => v).filter(isFile);
 function quality(was) {
-  const kept = E.state().bricks.find((b) => b.key === host())?.turbo;
+  const kept = E.state().bricks.find((b) => b.key === turboHost())?.turbo;
   if (kept?.file === was.file) return kept.quality;
   const plain = (c) => c && !named(c).some((v) => entry(v).turbo);
   const cards = L.setupCards().filter((c) => c.family === family()), model = (c) => named(c).find((v) => DIFFUSION.has(entry(v).kind));
@@ -328,7 +329,7 @@ function quality(was) {
 }
 
 export function setTurbo(name) {
-  const key = host(), stack = coreStack(), was = turbo();
+  const key = turboHost(), stack = coreStack(), was = turbo();
   if (!key || !stack) throw new Error("This recipe has no Render brick with a core LoRA stack (the image recipes have one)");
   const t = name && name !== "off" ? turbos().find((x) => x.file === name || x.name === name || base(x.file) === base(name)) : null;
   if (name && name !== "off" && !t) throw new Error(`No turbo "${name}" for ${family() ?? "this recipe"}; there are: ${turbos().map((x) => x.name).join(", ") || "none installed"}`);
@@ -379,7 +380,7 @@ export async function addLora(file, { role, strength, asked } = {}) {
   const e = entry(name), want = role ?? e.role;
   if (want === "dial") throw new Error(`${short(name)} is a dial: put it on the Dial Rack (add_dial)`);
   if (want === "unsorted") throw new Error(`The model graph doesn't say what ${short(name)} is; give its role (core, style or identity)`);
-  if (want === "core" && !host()) throw new Error(`${short(name)} is a core LoRA, and this recipe's core LoRA rides on its Render Preset with its schedule: pick a setup (list_setups, apply_setup) or set preset.lora`);
+  if (want === "core" && !turboHost()) throw new Error(`${short(name)} is a core LoRA, and this recipe's core LoRA rides on its Render Preset with its schedule: pick a setup (list_setups, apply_setup) or set preset.lora`);
   if (e.turbo && turbo() && !asked) throw new Error(`A turbo is already on (${short(turbo().file)}); swap it with set_method {slot: "turbo"}, or pass person_asked: true when the person asked for a turbo stack`);
   const key = { core: "loras", style: "style", identity: "cast" }[want], keys = E.state().bricks.map((b) => b.key);
   if (!keys.includes(key)) await E.snap(key, { at: keys.includes("rack") ? keys.indexOf("rack") : undefined });

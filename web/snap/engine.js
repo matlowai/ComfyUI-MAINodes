@@ -46,8 +46,8 @@ const inner = (n) => (n?.subgraph?.nodes ?? []).flatMap((x) => [x, ...inner(x)])
 
 // an attachment's `inner` nodes live inside its host's blueprint (found by type), the rest are the brick's own
 export function nodeFor(brickKey, nodeKey) {
-  const b = brick(brickKey), inner = BRICKS[brickKey]?.attach?.inner?.[nodeKey];
-  if (b && inner) return nodeFor(BRICKS[brickKey].attach.brick, BRICKS[brickKey].attach.brick)?.subgraph?.nodes.find((n) => n.type === inner);
+  const b = brick(brickKey), type = BRICKS[brickKey]?.attach?.inner?.[nodeKey];
+  if (b && type) return nodeFor(BRICKS[brickKey].attach.brick, BRICKS[brickKey].attach.brick)?.subgraph?.nodes.find((n) => n.type === type);
   return b && node(b.nodes[nodeKey]);
 }
 
@@ -374,14 +374,17 @@ export function nudge(key, dir) {
   transaction(() => { s.bricks = groups.flat(); });
 }
 
-// removing a host removes its attachments with it
+// removing a host removes its attachments with it. An input the person wired by hand from the removed brick binds by
+// Snap's rules again (rebind): the wire went with the brick, the person didn't clear it
 export function unsnap(key) {
   const s = state(), b = brick(key);
   if (!b) return;
   const gone = new Set([key, ...s.bricks.filter((x) => BRICKS[x.key].attach?.brick === key).map((x) => x.key)]);
-  const def = BRICKS[key];
+  const def = BRICKS[key], ids = new Set(Object.values(b.nodes).map(String));
+  const fedByHand = (x) => { const dst = node(x.target), l = dst && app.graph.getLink(dst.inputs[dst.findInputSlot(x.input)]?.link); return !!l && ids.has(String(l.origin_id)); };
   transaction(() => {
     if (def.attach) { const w = widget(nodeFor(def.attach.brick, def.attach.brick), def.attach.widget); if (w) { w.value = def.attach.off; w.callback?.(w.value); } }
+    s.bindings = s.bindings.filter((x) => !fedByHand(x));
     for (const id of Object.values(b.nodes)) { const n = node(id); if (n) app.graph.remove(n); }
     s.bricks = s.bricks.filter((x) => !gone.has(x.key));
     s.bindings = s.bindings.filter((x) => !gone.has(x.to) && !gone.has(x.from))

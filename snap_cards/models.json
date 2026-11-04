@@ -1279,5 +1279,71 @@
   "notes": "DMAD speed LoRA at 0.8, lcm simple 6 steps, shifts 12 / 2 (the DMAD speed LoRA preset).",
   "role": "core",
   "core": "turbo"
+ },
+ {
+  "file": "4x-UltraSharp.safetensors",
+  "folder": "upscale_models",
+  "family": null,
+  "kind": "upscaler",
+  "scale": 4,
+  "arch": "ESRGAN",
+  "source_url": "https://huggingface.co/Kim2091/UltraSharp",
+  "loads_in_core": true,
+  "notes": "General stills (community opinion). Scale checked with a spandrel load (scout/upscalers, Downloaded 2026-11-04)."
+ },
+ {
+  "file": "4x_NMKD-Siax_200k.safetensors",
+  "folder": "upscale_models",
+  "family": null,
+  "kind": "upscaler",
+  "scale": 4,
+  "arch": "ESRGAN",
+  "source_url": "https://huggingface.co/peonybun/4x_NMKD-Siax_200k",
+  "loads_in_core": true,
+  "notes": "Photo detail; community re-upload, no official safetensors. Scale checked with a spandrel load (scout/upscalers, Downloaded 2026-11-04)."
+ },
+ {
+  "file": "RealESRGAN_x2plus.safetensors",
+  "folder": "upscale_models",
+  "family": null,
+  "kind": "upscaler",
+  "scale": 2,
+  "arch": "ESRGAN (RRDBNet)",
+  "source_url": "https://huggingface.co/hlky/RealESRGAN_x2plus",
+  "loads_in_core": true,
+  "notes": "David Snow: beats RTX super resolution (opinion). Scale checked with a spandrel load (scout/upscalers, Downloaded 2026-11-04)."
+ },
+ {
+  "file": "4x-AnimeSharp.safetensors",
+  "folder": "upscale_models",
+  "family": null,
+  "kind": "upscaler",
+  "scale": 4,
+  "arch": "ESRGAN",
+  "source_url": "https://huggingface.co/Kim2091/AnimeSharp",
+  "loads_in_core": true,
+  "notes": "Anime stills; no recent community results. Scale checked with a spandrel load (scout/upscalers, Downloaded 2026-11-04)."
+ },
+ {
+  "file": "2x-AnimeSharpV4_RCAN.safetensors",
+  "folder": "upscale_models",
+  "family": null,
+  "kind": "upscaler",
+  "scale": 2,
+  "arch": "RCAN",
+  "source_url": "https://huggingface.co/Kim2091/2x-AnimeSharpV4",
+  "loads_in_core": true,
+  "notes": "Anime 2x. Scale checked with a spandrel load (scout/upscalers, Downloaded 2026-11-04)."
+ },
+ {
+  "file": "RealESRGAN_x4plus_anime_6B.safetensors",
+  "folder": "upscale_models",
+  "family": null,
+  "kind": "upscaler",
+  "scale": 4,
+  "arch": "ESRGAN",
+  "source_url": "https://huggingface.co/hlky/RealESRGAN_x4plus_anime_6B",
+  "loads_in_core": true,
+  "notes": "Anime 4x, small. Scale checked with a spandrel load (scout/upscalers, Downloaded 2026-11-04)."
  }
 ]

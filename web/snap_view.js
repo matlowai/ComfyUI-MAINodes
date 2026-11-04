@@ -9,6 +9,7 @@ import { createSwitch } from "./snap/switch.js";
 import { STYLE } from "./snap/style.js";
 import { callTool, schema, readOnly, registerWebMCP, ui, AGENTS_RUN } from "./snap/tools.js";
 import * as rules from "./snap/rules.js";
+import * as S from "./snap/slots.js";
 
 let view, sw;
 const seen = new Set(), pending = [];
@@ -112,10 +113,11 @@ app.registerExtension({
     rules.load().then((list) => engine.useRules(list), () => {}); // remembered picks; without them Snap just asks again
     app.extensionManager.registerSidebarTab({ id: TAB, icon: "icon-[lucide--blocks]", title: "Snap", tooltip: "Snap beside the graph", type: "custom",
       render: (el) => { sw.dock(el); announce(); }, destroy: () => setTimeout(() => sw.undock(), 0) });
-    registerWebMCP(agentCall);
+    // the tools go out once the method registry is in: their slot enum is its slots
+    S.load().catch(() => {}).then(() => registerWebMCP(agentCall));
     // the bridge sends agent calls to one tab: the one registered last (this tab registers when it loads, regains
     // focus, or reconnects after a server restart)
-    const register = () => api.fetchApi("/mainodes/snap/register", { method: "POST", body: JSON.stringify({ client: api.clientId, tools: schema() }) });
+    const register = () => S.load().catch(() => {}).then(() => api.fetchApi("/mainodes/snap/register", { method: "POST", body: JSON.stringify({ client: api.clientId, tools: schema() }) }));
     if (api.clientId) register(); else api.addEventListener("status", register, { once: true }); // the id arrives with the first status
     addEventListener("focus", register);
     api.addEventListener("reconnected", register);

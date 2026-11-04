@@ -117,6 +117,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   D.load().then(() => { render(null); renderLibrary(); });
   M.load().then(() => { render(null); if (M.graphProblem()) say(M.graphProblem(), true); }, () => {}); // without the model lists, settings show as plain values
   M.onCheck(() => render(null));
+  S.load().then(() => { render(null); if (S.registryProblem()) say(S.registryProblem(), true); }, () => {});
   L.ready().then(renderLibrary, () => libResults.replaceChildren(h("div", { className: "snap-quiet", textContent: "Library not available on this server" })));
 
   function renderLibrary() {
@@ -546,26 +547,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     if (!BRICKS[key].turbo || !M.turbos().length) return null;
     const t = M.turbo();
     const chip = h("button", { className: `snap-preset snap-turbo${t ? " on" : ""}`, title: "swap the turbo: a merge swaps the checkpoint, a LoRA adds a core row; off goes back to the quality settings",
-      onclick: (e) => { e.stopPropagation(); openTurbo(); } }, `Turbo: ${t ? String(t.file).split("/").pop().replace(/\.safetensors$/, "") : "off"} ▾`);
+      onclick: (e) => { e.stopPropagation(); openMethods("turbo"); } }, `Turbo: ${t ? String(t.file).split("/").pop().replace(/\.safetensors$/, "") : "off"} ▾`);
     chip.addEventListener("pointerdown", (e) => e.stopPropagation());
     return chip;
-  }
-  function openTurbo() {
-    root.querySelector(".snap-turbo-sheet")?.remove();
-    const now = M.turbo(), close = () => { sheet.remove(); root.focus({ preventScroll: true }); };
-    const pick = (file) => { try { const r = M.setTurbo(file); say(`Turbo ${r.turbo ? `on · ${r.sampling.steps} steps, cfg ${r.sampling.cfg}` : "off · quality settings back"}`); close(); } catch (err) { say(err.message, true); } render(null); };
-    const item = (t) => h("button", { className: `snap-setup-card${now?.file === t.file ? " on" : ""}`, onclick: () => pick(t.file) },
-      h("strong", {}, t.name.replaceAll("_", "_\u200b"), h("em", { textContent: t.how === "merged" ? "merged checkpoint" : "LoRA" })),
-      h("span", { className: "snap-quiet", textContent: [t.steps && `${t.steps} steps`, t.cfg != null && `cfg ${t.cfg}`, t.sampler, t.scheduler, t.how === "lora" && `strength ${t.strength}`, !t.fits && "trained on the other lineage (often transfers)"].filter(Boolean).join(" · ") }));
-    const sheet = h("div", { className: "snap-sheet snap-setup-sheet snap-turbo-sheet", role: "dialog", ariaLabel: "Turbo" },
-      h("header", {}, h("strong", { textContent: `Turbo · ${M.family()}` }), h("span", { className: "snap-quiet", textContent: "one turbo at a time here; stack more as LoRA rows if you want · Ctrl+Z undoes it" }), h("span", { className: "snap-spacer" }),
-        h("button", { className: "snap-x", textContent: "×", onclick: close })),
-      h("div", { className: "snap-setup-body" }, h("div", { className: "snap-setup-grid" },
-        h("button", { className: `snap-setup-card${now ? "" : " on"}`, onclick: () => pick("off") }, h("strong", {}, "Off", h("em", { textContent: "quality" })), h("span", { className: "snap-quiet", textContent: "the setup's own steps, cfg and sampler" })),
-        M.turbos().map(item))));
-    sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
-    root.append(sheet);
-    sheet.querySelector(".snap-setup-card.on")?.focus();
   }
   // what the model graph finds odd about this brick's models, as warnings (SNAP-R11: never blocks)
   const warnLines = (key) => M.warnings().filter((w) => w.brick === key).map((w) => h("div", { className: "snap-dial-warn snap-warn", textContent: `⚠ ${w.text}` }));
@@ -573,7 +557,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // a method slot's face (SNAP-R4, SNAP-R14): the method chip, the size it comes out as, one Off / 2× / 4× control
   // and what the method does to reach it; the same calls the list_methods / set_method tools make (SNAP-R19)
   function slotFace(key) {
-    const slot = BRICKS[key]?.slot ?? (S.holder("upscale") === key ? "upscale" : null);
+    const slot = S.slotOf(key);
     if (!slot) return [];
     const m = S.list(slot).find((x) => x.current), f = BRICKS[key].slot ? S.factor(key) : null, isOn = S.on(key);
     const chip = h("button", { className: "snap-preset snap-method", title: "swap the method: every one takes and gives the same picture or clip", onclick: (e) => { e.stopPropagation(); openMethods(slot); } }, `${m?.title ?? "Custom"} ▾`);
@@ -587,23 +571,35 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const q = S.quality(key);
     return [chip, h("div", { className: "snap-headline", textContent: S.headline(key) ?? "" }), seg, q ? h("div", { className: "snap-fact long" }, h("span", { textContent: "quality" }), h("b", { textContent: q })) : null];
   }
+  // a method's honest lines (UX_GEMS §5.5, #13): the guidance with its evidence grade, then what it costs and its limits
+  const range = (v) => (Array.isArray(v) ? v.join("-") : v);
+  function guidance(m) {
+    const g = m.guidance, c = m.cost;
+    return [g?.line ? `${g.evidence && g.evidence !== "none" ? `${g.evidence}: ` : ""}${g.line}${g.n ? ` (n=${g.n}${g.hardware ? `, ${g.hardware}` : ""})` : ""}` : null,
+      [c?.local_s != null ? `measured here: ${c.local_s} s` : c?.community_s != null ? `community: ${range(c.community_s)} s${c.per ? ` per ${c.per}` : ""}, not measured here` : null,
+        c?.vram_gb ? `about ${c.vram_gb} GB VRAM` : null, ...(m.constraints ?? [])].filter(Boolean).join(" · ") || null];
+  }
+  // one sheet for every slot: its methods with readiness, Off, and the honest lines; a click fills the slot (one undo step)
   function openMethods(slot) {
     root.querySelector(".snap-method-sheet")?.remove();
-    const close = () => { sheet.remove(); root.focus({ preventScroll: true }); };
-    const pick = async (id) => { try { const r = await S.set(slot, id); say(`${slot}: ${r.method}${r.headline ? ` · ${r.headline}` : ""}`); close(); } catch (err) { say(err.message, true); } render(null); };
+    const d = S.describe(slot), def = S.slot(slot), close = () => { sheet.remove(); root.focus({ preventScroll: true }); };
+    const pick = async (id) => { try { const r = await S.set(slot, id); say(def.kind === "delta" ? `Turbo ${r.turbo ? `on · ${r.sampling.steps} steps, cfg ${r.sampling.cfg}` : "off · quality settings back"}` : `${def.title}: ${r.method}${r.headline ? ` · ${r.headline}` : ""}`); close(); } catch (err) { say(err.message, true); } render(null); };
+    const detail = (m) => (def.kind === "delta" ? [m.steps && `${m.steps} steps`, m.cfg != null && `cfg ${m.cfg}`, m.sampler, m.scheduler, m.how === "lora" && `strength ${m.strength}`, !m.same_lineage && "trained on the other lineage (often transfers)"]
+      : [m.does, m.media && (m.media.in === m.media.out ? m.media.in.toLowerCase() : `${m.media.in} → ${m.media.out}`.toLowerCase())]).concat(m.local_or_api === "api" ? "API: sends frames to a partner service" : m.local_or_api).filter(Boolean).join(" · ");
     const item = (m) => h("button", { className: `snap-setup-card${m.current ? " on" : ""}${m.wired && m.fits ? "" : " unwired"}`, disabled: !(m.wired && m.fits) || m.current, onclick: () => pick(m.id) },
-      h("strong", {}, m.title, h("em", { className: m.install_state === "ready" ? "" : "tab", textContent: `${m.install_state === "ready" ? "●" : "○"} ${m.install_state}` })),
-      h("span", { className: "snap-quiet", textContent: [m.kind, m.media, m.scale].filter(Boolean).join(" · ") }),
-      !m.fits ? h("span", { className: "snap-quiet", textContent: `for ${m.media} recipes` }) : m.unwired ? h("span", { className: "snap-quiet", textContent: m.unwired }) : null);
-    const list = S.list(slot), holder = S.holder(slot);
-    const sheet = h("div", { className: "snap-sheet snap-setup-sheet snap-method-sheet", role: "dialog", ariaLabel: `${slot} methods` },
-      h("header", {}, h("strong", { textContent: `${slot[0].toUpperCase()}${slot.slice(1)} method` }), h("span", { className: "snap-quiet", textContent: "every method takes and gives the same picture or clip · ● weights here · Ctrl+Z undoes it" }), h("span", { className: "snap-spacer" }),
+      h("strong", {}, m.title.replaceAll("_", "_\u200b"), h("em", { className: m.install_state === "ready" ? "" : "tab", textContent: def.kind === "delta" ? m.does : `${m.install_state === "ready" ? "●" : "○"} ${m.install_state}` })),
+      h("span", { className: "snap-quiet", textContent: detail(m) }),
+      ...guidance(m).map((line) => line && h("span", { className: "snap-quiet snap-guidance", textContent: line })),
+      !m.fits ? h("span", { className: "snap-quiet", textContent: `for ${m.kit} recipes` }) : m.unwired ? h("span", { className: "snap-quiet", textContent: m.unwired }) : null);
+    const off = def.kind === "delta" || (d.current && BRICKS[S.holder(slot)].slot) ? h("button", { className: `snap-setup-card${d.on ? "" : " on"}`, onclick: () => pick("off") }, h("strong", {}, "Off", h("em", { textContent: def.kind === "delta" ? "quality" : "kept, bypassed" })), h("span", { className: "snap-quiet", textContent: def.off })) : null;
+    const sheet = h("div", { className: `snap-sheet snap-setup-sheet snap-method-sheet snap-${slot}-sheet`, role: "dialog", ariaLabel: `${def.title} methods` },
+      h("header", {}, h("strong", { textContent: def.kind === "delta" ? `${def.title} · ${M.family()}` : `${def.title} method` }),
+        h("span", { className: "snap-quiet", textContent: def.kind === "delta" ? "one turbo at a time here; stack more as LoRA rows if you want · Ctrl+Z undoes it" : "every method takes and gives the same picture or clip · ● weights here · Ctrl+Z undoes it" }), h("span", { className: "snap-spacer" }),
         h("button", { className: "snap-x", textContent: "×", onclick: close })),
-      h("div", { className: "snap-setup-body" }, h("div", { className: "snap-setup-grid" },
-        holder && BRICKS[holder].slot ? h("button", { className: `snap-setup-card${S.on(holder) ? "" : " on"}`, onclick: () => pick("off") }, h("strong", {}, "Off", h("em", { textContent: "kept, bypassed" })), h("span", { className: "snap-quiet", textContent: "the brick stays with its settings; nothing is upscaled" })) : null,
-        list.filter((m) => m.fits).concat(list.filter((m) => !m.fits)).map(item))));
+      h("div", { className: "snap-setup-body" }, h("div", { className: "snap-setup-grid" }, off, d.methods.filter((m) => m.fits).concat(d.methods.filter((m) => !m.fits)).map(item))));
     sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
     root.append(sheet);
+    sheet.querySelector(".snap-setup-card.on")?.focus();
   }
 
   // a brick's `check`: what the server says a run would fail on (a face says it only when something is wrong)
@@ -1064,8 +1060,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     else if (action === "make_dial") openMaker();
     else if (action === "open_take") { const t = T.get(target); if (!t) throw new Error(`No take ${target}`); dailies.view(t); }
     else if (action === "setups") openSetups();
-    else if (action === "turbo") openTurbo();
-    else if (action === "methods") openMethods(target || "upscale");
+    else if (action === "turbo" || action === "methods") openMethods(action === "turbo" ? "turbo" : target || "upscale");
     else throw new Error(`Unknown ui action ${action}`);
     return uiRead();
   }

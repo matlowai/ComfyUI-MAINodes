@@ -161,6 +161,7 @@ export const STYLE = `
 .snap-setup-about { font-size: 12px; line-height: 1.4; color: color-mix(in srgb, var(--s-fg) 80%, transparent); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .snap-setup-card strong em.tab { color: #a7b8ff; }
 .snap-ab-waiting { color: #f0b445 !important; font-weight: 600; }
+.snap-guidance { font-size: 11.5px; line-height: 1.35; }
 .snap-setup-card.unwired { opacity: .55; cursor: default; } .snap-setup-card.unwired:hover { transform: none; box-shadow: inset 0 0 0 1px var(--s-line); }
 .snap-keep { display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; }
 .snap-headline { grid-column: 1 / -1; font-size: 13px; font-weight: 650; line-height: 1.3; }
