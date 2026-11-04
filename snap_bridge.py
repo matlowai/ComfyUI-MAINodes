@@ -12,8 +12,10 @@ import hashlib
 import json
 import logging
 import os
+import re
 import secrets
 import subprocess
+import uuid
 from pathlib import Path
 
 import time
@@ -28,7 +30,7 @@ import comfy.model_management
 from comfy.cli_args import args
 import folder_paths
 import nodes
-from comfy_api.latest import io
+from comfy_api.latest import InputImpl, io
 from comfy_extras.nodes_video import SaveVideo
 from server import PromptServer
 
@@ -428,6 +430,47 @@ async def take_marks(request):
     return web.json_response({"takes": await asyncio.to_thread(find)})
 
 
+# Quiet sound (U76, from U78): H3 renders an ambience-only soundscape near-silent (about -57 dB mean, against -27..-41 dB
+# for one that names the sounds the action makes). The page reads a take's loudness once it is captured and notes "sound
+# is quiet" below about -45 dB; nothing changes until the person picks an action. "Make it louder" queues LoadVideo ->
+# MAISnapLouder -> Save Video, which lands as a version of the take: EBU R128 loudnorm (I=-23, TP=-2) on the sound, the
+# picture copied as it is (Save Video reuses the stream).
+def volume(path):
+    """(mean dB, max dB) of a file's sound from ffmpeg volumedetect, or None when it has no sound."""
+    r = subprocess.run(["nice", "-n", "10", "ffmpeg", "-hide_banner", "-nostats", "-i", path, "-vn", "-af", "volumedetect", "-f", "null", "-"], capture_output=True, text=True, timeout=120)
+    mean, peak = re.search(r"mean_volume: (-?[\d.]+) dB", r.stderr), re.search(r"max_volume: (-?[\d.]+) dB", r.stderr)
+    return (float(mean[1]), float(peak[1])) if mean and peak else None
+
+
+@routes.get("/mainodes/snap/loudness")
+async def loudness(request):
+    q = request.query
+    root = folder_paths.get_directory_by_type(q.get("type", "output"))
+    path = os.path.abspath(os.path.join(root or "", q.get("subfolder", ""), q.get("filename", "")))
+    if root is None or os.path.commonpath([path, os.path.abspath(root)]) != os.path.abspath(root) or not os.path.isfile(path):
+        return error("No such file in output, input or temp", 404)
+    found = await asyncio.to_thread(volume, path)
+    return web.json_response({"sound": False} if found is None else {"sound": True, "mean_db": found[0], "max_db": found[1]})
+
+
+class MAISnapLouder(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(node_id="MAISnapLouder", display_name="Make the sound louder (Snap)", category="MAINodes/snap",
+                         description="Loudness-normalises a video's sound to EBU R128 (ffmpeg loudnorm I=-23, TP=-2); the picture is copied as it is.",
+                         inputs=[io.Video.Input("video")], outputs=[io.Video.Output()])
+
+    @classmethod
+    def execute(cls, video) -> io.NodeOutput:
+        src, temp = video.get_stream_source(), folder_paths.get_temp_directory()
+        if not isinstance(src, str):  # a video made in this run (CreateVideo) has no file yet
+            src = os.path.join(temp, f"snap_louder_in_{uuid.uuid4().hex}.mp4")
+            video.save_to(src)
+        out = os.path.join(temp, f"snap_louder_{uuid.uuid4().hex}.mp4")
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", src, "-c:v", "copy", "-af", "loudnorm=I=-23:TP=-2", "-ar", "48000", "-c:a", "aac", "-b:a", "192k", out], check=True, timeout=600)
+        return io.NodeOutput(InputImpl.VideoFromFile(out))
+
+
 class MAISnapCopyScore(io.ComfyNode):
     """How much each picture re-renders the reference's view (U48 section 3): the mean cosine of DINOv3 patch tokens taken
     at the same grid position, so it follows what sits where in the frame, which DINOv3's CLS (room identity) can't
@@ -459,6 +502,6 @@ class MAISnapCopyScore(io.ComfyNode):
         scores = [s for chunk in images.split(16) for s in (patches(chunk) * ref).sum(-1).mean(-1).tolist()]
         return io.NodeOutput(ui={"copy_scores": [round(s, 4) for s in scores]})
 NODE_CLASS_MAPPINGS = {"MAISaveImagePrivate": MAISaveImagePrivate, "MAIPreviewImagePrivate": MAIPreviewImagePrivate,
-                       "MAISaveVideoPrivate": MAISaveVideoPrivate, "MAIPrivateSaveRefused": MAIPrivateSaveRefused, "MAIRatingRefused": MAIRatingRefused, "MAISnapCopyScore": MAISnapCopyScore}
+                       "MAISaveVideoPrivate": MAISaveVideoPrivate, "MAIPrivateSaveRefused": MAIPrivateSaveRefused, "MAIRatingRefused": MAIRatingRefused, "MAISnapLouder": MAISnapLouder, "MAISnapCopyScore": MAISnapCopyScore}
 NODE_DISPLAY_NAME_MAPPINGS = {"MAISaveImagePrivate": "Save Image (no metadata)", "MAIPreviewImagePrivate": "Preview Image (no metadata)",
-                              "MAIPrivateSaveRefused": "Metadata off: save refused", "MAIRatingRefused": "Above the rating cap: refused", "MAISnapCopyScore": "Copy score (Snap)"}
+                              "MAIPrivateSaveRefused": "Metadata off: save refused", "MAIRatingRefused": "Above the rating cap: refused", "MAISnapLouder": "Make the sound louder (Snap)", "MAISnapCopyScore": "Copy score (Snap)"}

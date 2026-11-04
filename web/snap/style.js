@@ -429,6 +429,9 @@ export const STYLE = `
 .snap-dice { all: unset; cursor: pointer; font-size: 16px; line-height: 1; padding: 1px 5px; border-radius: 6px; color: var(--s-dim); }
 .snap-dice:hover { background: #ffffff14; color: inherit; }
 .snap-take-stale { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: #f0b44526; color: #f0b445; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.snap-take-quiet { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: #6aa8ff33; color: var(--s-fg); white-space: nowrap; }
+.snap-take-quietrow { display: grid; gap: 4px; padding: 10px 12px; border-radius: 10px; border: 1px solid #6aa8ff55; background: #6aa8ff14; }
+.snap-take-quietrow .snap-set-actions { margin: 0; }
 .snap-take-copy { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: #f0b445; color: #1b1c20; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .snap-take-copyline > div { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
 .snap-take-lock { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: hsl(15 70% 55% / .22); color: #f4a988; }

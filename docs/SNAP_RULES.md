@@ -227,6 +227,16 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   recipe is refused with the recipe's brick ids. `run` warns, and still runs, while a prompt holds its blueprint's
   default text. *Why:* U72 run 2 (Sonnet at low effort): AGENT_START's `render` failed on the stills recipe, the agent
   pressed run anyway and got the example picture. *More:* u72/FINDINGS.md F11, `web/snap/tools.js`.
+- **SNAP-R36: Quiet sound is a note with two ways out, never a silent fix.** A video take's sound is read once at
+  capture (ffmpeg volumedetect through `/mainodes/snap/loudness`; no ffmpeg, no note) and kept as `sound` (mean and max
+  dB). Below -45 dB mean, the card says "sound is quiet" and the viewer offers two actions. "Make it louder" queues
+  LoadVideo → MAISnapLouder (loudnorm I=-23, TP=-2, 48 kHz AAC) → Save Video. The result is a version of the take, with
+  the picture stream copied as it is. "Re-prompt with sound events" opens the Render's prompt and shows its prompt_help.
+  Agents get `sound.quiet` in list_takes and `make_louder`. Nothing runs until someone presses or calls it. *Why:* U78:
+  an ambience-only H3 soundscape renders about -57 dB, against -27..-41 dB when it names the action's sounds; the fix
+  is the prompt, the backstop is the note. Measured on two real -57 dB kit takes: -29.5 dB mean and -23.4 LUFS after.
+  *More:* PLAN U76, U78_KIT_AUDIO_2026-11-04.md, `snap_bridge.py`, `web/snap/takes.js`, `web/snap/edits.js`.
+
 ## Signed-in installs (the pack's side of snap-gate)
 
 These hold only where snap-gate runs in front of ComfyUI (a separate install whose admin sets them). On an ungated

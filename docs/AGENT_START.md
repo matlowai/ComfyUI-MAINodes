@@ -89,7 +89,8 @@ You can also run the tools as an MCP server (Claude Code):
    `queued` → `running` → `done` / `failed`. When the run is done, `run_status` gives the take id and the output files
    (`path` on the ComfyUI machine, and `url`).
 7. `list_takes`, `take_frames` (look at a take) and `rank_takes` / `judge_takes` (your own judgments, kept apart from
-   the person's) come after that.
+   the person's) come after that. A video take whose `sound.quiet` is true is near-silent: tell the person. Offer
+   `make_louder` (a louder version of the take) or a prompt that names the sounds the action makes.
 
 ## Limits
 

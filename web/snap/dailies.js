@@ -11,7 +11,8 @@
 // in a bracket after the take they came from, the shot's active take wears a star, and ☆ makes another take the
 // active one; the viewer's title is where the take sits in the scene (Platform › Shot 1 › Take 2 › Night version).
 // SNAP-R7 pointer-down lists · SNAP-R17 blind pairs from agents are judged by the person · SNAP-R20 the lock on private
-// takes (SNAP-R27: by the current rules) · SNAP-R21 copies flagged · SNAP-R23 candidates · SNAP-R24 scenes own the work · see docs/SNAP_RULES.md
+// takes (SNAP-R27: by the current rules) · SNAP-R21 copies flagged · SNAP-R23 candidates · SNAP-R24 scenes own the work ·
+// SNAP-R36 quiet sound: a note and two actions, never applied by itself · see docs/SNAP_RULES.md
 import * as T from "./takes.js";
 import * as PL from "./plates.js";
 import * as C from "./candidates.js";
@@ -36,7 +37,7 @@ function mediaEl(m, { big, muted = true } = {}) {
 
 // `onHover(take | null)`: a take card is hovered (the chain previews it in its own output slot); `onRunFrom(take)`: Run
 // from here (a new tab with the take's settings, ready to run)
-export function createDailies({ host, say, onRestore, onHover, onRunFrom }) {
+export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReprompt }) {
   const picked = new Set(); // takes ticked for compare
   const strip = h("div", { className: "snap-takes-strip" });
   const count = h("span", { className: "snap-quiet" }), heading = h("strong", { textContent: "Takes" });
@@ -115,6 +116,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom }) {
         t.copy?.copied ? h("span", { className: "snap-take-copy", textContent: `copied its reference view ${Math.max(...t.copy.against.map((a) => a.last)).toFixed(2)}`,
           title: `This take ends on the view of its reference picture (last frame's copy score at or above ${t.copy.threshold}): right when that picture is this camera's own plate, wrong when it shows another camera's view.\n${t.copy.against.map((a) => `${a.image}: ${a.frames.join(" → ")}`).join("\n")}` }) : null,
         t.parent && !version ? h("span", { className: "snap-take-parent", textContent: `↳ ${t.parent.options?.time ?? t.parent.method.split("/").pop()} of take ${T.get(t.parent.take)?.number ?? "?"}`, title: `made from ${t.parent.take} by ${t.parent.method}` }) : null,
+        T.quiet(t) ? h("span", { className: "snap-take-quiet", textContent: "🔈 sound is quiet", title: `The sound averages ${t.sound.mean_db} dB (a take usually sits between -27 and -41 dB). Open the take to make it louder or re-prompt` }) : null,
         T.locked(t) ? h("span", { className: "snap-take-lock", textContent: "🔒 private", title: `Private take (it loads a private file or has a Cast LoRA row on): exports leave it out${t.metadata === false ? "; its files were saved without the recipe inside" : ""}` }) : null,
         h("span", { className: "snap-quiet", textContent: `${t.notes.length ? `✎ ${t.notes.length} · ` : ""}${ago(t.created)}` })));
     c.dataset.take = t.id;
@@ -243,6 +245,15 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom }) {
     };
     if (refs.length) { copyRow(); T.onChange(() => { if (copyLine.isConnected) copyRow(); }); }
 
+    // SNAP-R36: a quiet take says so and offers two ways out; neither runs unless the person presses it
+    const quietRow = T.quiet(t) ? h("div", { className: "snap-take-quietrow" },
+      h("div", {}, h("strong", { textContent: "🔈 Sound is quiet" }), h("span", { className: "snap-quiet", textContent: ` ${t.sound.mean_db} dB on average (a take usually sits between -27 and -41 dB). A soundscape of only soft ambience renders near-silent.` })),
+      h("div", { className: "snap-set-actions" },
+        h("button", { className: "snap-link", textContent: "Make it louder", title: "a new version of this take with its sound normalised to -23 LUFS (EBU R128, true peak -2 dB); the picture is copied as it is",
+          onclick: async (e) => { e.currentTarget.disabled = true; try { await ED.louder(t); say(`Making take ${t.number} louder: a new version lands in Takes`); } catch (err) { say(err.message, true); e.currentTarget.disabled = false; } } }),
+        h("button", { className: "snap-link snap-quiet-btn", textContent: "Re-prompt with sound events", title: "open the Render's prompt and say how to name the sounds the action makes",
+          onclick: () => { close(); onReprompt?.(t); } }))) : null;
+
     // Use as input (U32): the frame at the playhead goes on the First frame or into References (one undo step)
     const frameNow = () => (isVideo ? player.currentTime : "last");
     const use = (as) => async () => { try { say((await T.use(t, { as, t: frameNow() })).said); onRestore?.(); } catch (err) { say(err.message, true); } };
@@ -315,7 +326,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom }) {
       h("div", { className: "snap-take-body" },
         h("div", { className: "snap-take-left" }, stage, markers, isVideo ? h("div", { className: "snap-quiet", textContent: "Space plays · , and . step one frame" }) : null),
         h("aside", {},
-          verdicts, rankLine,
+          verdicts, rankLine, quietRow,
           h("div", { className: "snap-rail-title", textContent: "Note a moment" }), sentimentSeg, tagBox, words,
           h("div", { className: "snap-take-noteline" }, at, markBtn, regionText, h("span", { className: "snap-spacer" }), h("button", { className: "snap-primary", textContent: "Add note", onclick: add })),
           list,

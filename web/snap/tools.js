@@ -465,7 +465,7 @@ export const TOOLS = [
   },
   {
     name: "list_takes",
-    description: "The takes (finished runs) of the open workflow, ranked ones first in the person's order: number, seed, status, verdict (keep/reject), whether it's a prior, how many notes, the media files, the prompt's start, and `stale` ({changed: [\"Render.steps\", …]} when the chain no longer makes the take, seeds aside; null when it does). Private takes say so: don't name their LoRAs to anyone but the person. For dailies: read takes, then get_take for one take's notes and settings.",
+    description: "The takes (finished runs) of the open workflow, ranked ones first in the person's order: number, seed, status, verdict (keep/reject), whether it's a prior, how many notes, the media files, the prompt's start, and `stale` ({changed: [\"Render.steps\", …]} when the chain no longer makes the take, seeds aside; null when it does), `sound` (mean dB of a video's sound; quiet: true below -45 dB: tell the person, and offer make_louder or a prompt that names the sounds the action makes; never fix it unasked). Private takes say so: don't name their LoRAs to anyone but the person. For dailies: read takes, then get_take for one take's notes and settings.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
     run: async () => {
@@ -474,7 +474,7 @@ export const TOOLS = [
       const now = await T.live();
       return Promise.all(T.inGroup().sort((a, b) => (order.includes(a.id) ? order.indexOf(a.id) : 1e9 + a.created) - (order.includes(b.id) ? order.indexOf(b.id) : 1e9 + b.created))
         .map(async (t) => ({ id: t.id, number: t.number, rank: order.includes(t.id) ? order.indexOf(t.id) + 1 : null, seed: t.seed, status: t.status, verdict: t.verdict, prior: t.prior, notes: t.notes.length, media: t.media.map((m) => `${m.type}/${m.subfolder ? `${m.subfolder}/` : ""}${m.filename}`), prompt: t.text.slice(0, 200),
-          stale: await T.stale(t, now), copy: t.copy ?? null, ...(T.locked(t) ? { private: true } : {}) })));
+          stale: await T.stale(t, now), copy: t.copy ?? null, ...(t.sound ? { sound: { mean_db: t.sound.mean_db, quiet: T.quiet(t) } } : {}), ...(T.locked(t) ? { private: true } : {}) })));
     },
   },
   {
@@ -578,6 +578,12 @@ export const TOOLS = [
         running: q.queue_running?.length ?? 0, pending: q.queue_pending?.length ?? 0, brick: document.querySelector(".snap-brick.running")?.dataset.brick ?? null,
         progress: Number(document.querySelector(".snap-brick.running")?.style.getPropertyValue("--run-p") || 0), newest_take: last ? { id: last.id, number: last.number, status: last.status } : null };
     },
+  },
+  {
+    name: "make_louder",
+    description: "A new version of a take with its sound normalised to -23 LUFS (EBU R128, true peak -2 dB) and the picture copied as it is, as the take's 'Make it louder' does: for a take list_takes says is quiet, when the person wants it. It lands in Takes as a version of that take: follow `run` with run_status. A quiet take usually comes from a soundscape of only soft ambience: naming the sounds the action makes in the prompt and rendering again fixes the cause.",
+    inputSchema: { type: "object", properties: { take: { type: "string" } }, required: ["take"] },
+    run: async ({ take }) => { const r = await ED.louder(await takeOf(take)); return { run: r.prompt_id, take: r.take, next: "run_status {run, wait_s: 25} until state is done" }; },
   },
   {
     name: "rank_takes",

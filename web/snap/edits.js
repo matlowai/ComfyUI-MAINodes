@@ -149,3 +149,14 @@ C.kind("edit", { finish, apply: propagate, undo: cancel });
 
 // the take an edit's Apply made, once it is in (takes.js captures it from this page's run)
 export const result = (d) => (d?.applied?.undo?.take ? T.get(d.applied.undo.take) ?? null : null);
+
+// "Make it louder" on a quiet take (SNAP-R36): its video through MAISnapLouder (EBU R128 loudnorm, I=-23, TP=-2; the
+// picture copied) into a new version of the take, queued under this page's id so it lands in the take's group
+export async function louder(take) {
+  const v = take.media.find((m) => m.kind === "video");
+  if (!v) throw new Error(`Take ${take.number} has no video`);
+  const g = { 1: { class_type: "LoadVideo", inputs: { file: K.annotated(v) } }, 2: { class_type: "MAISnapLouder", inputs: { video: ["1", 0] } },
+    3: { class_type: "SaveVideo", inputs: { filename_prefix: `video/snap_louder/${take.id}`, format: "auto", "format.codec": "auto", codec: "auto", video: ["2", 0] } } };
+  const id = await K.queue(g, { group: take.group, extra: { snap_parent: { take: take.id, method: "louder", options: { loudnorm: "I=-23:TP=-2" } } } });
+  return { prompt_id: id, take: `take-${id}` };
+}

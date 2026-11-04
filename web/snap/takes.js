@@ -13,12 +13,17 @@
 // both out unless asked; a take run with metadata off says its files hold no recipe. The lock also follows the current
 // rules: the server re-checks the saved takes on load (`locked`), as the export does, without saving anything.
 // SNAP-R17 person and agent kept apart (notes, judgments, rankings) · SNAP-R18 local only · SNAP-R20 private takes, metadata
-// SNAP-R27 locks follow the current rules · see docs/SNAP_RULES.md
+// A video take keeps its sound's loudness (`sound`, read once at capture); below QUIET_DB it carries a "sound is quiet" note
+// with two actions the person picks from (SNAP-R36): nothing is applied by itself.
+// SNAP-R27 locks follow the current rules · SNAP-R36 quiet sound is a note · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
 import { BRICKS } from "./bricks.js";
 
+// U78: an ambience-only H3 soundscape renders about -57 dB mean, one naming the action's sounds -27..-41 dB
+export const QUIET_DB = -45;
+export const quiet = (t) => t.sound?.mean_db != null && t.sound.mean_db < QUIET_DB;
 const DIR = "snap/takes", RANKS = "snap/rankings", JUDGED = "snap/judgments", FPS = 24;
 
 // what people tag a moment with; free text always goes alongside
@@ -162,10 +167,13 @@ async function captureRun(id, started, status, error, failedNode) {
   const graph = extra?.extra_pnginfo?.workflow ?? null;
   const group = graph?.id ?? groupOf(), n = takes.filter((t) => t.group === group).length + 1;
   const { text, seed } = summary(prompt), swapped = extra?.snap_marks?.swapped ?? {}, parent = extra?.snap_parent ?? continued(graph, prompt);
+  const files = media(h.outputs), video = files.find((m) => m.kind === "video");
+  const read = video && await api.fetchApi(`/mainodes/snap/loudness?filename=${encodeURIComponent(video.filename)}&subfolder=${encodeURIComponent(video.subfolder)}&type=${video.type}`);
+  const sound = read?.ok ? await read.json() : null; // no ffmpeg here: no note, the take is saved all the same
   await save({
     id: `take-${id}`, kind: "run", prompt_id: id, created: started, finished: Date.now(), seconds: Math.round((Date.now() - started) / 100) / 10,
     group, workflow: app.extensionManager.workflow.activeWorkflow?.filename ?? "", number: n,
-    status, ...(error ? { error, failed_node: failedNode } : {}), text, seed, media: media(h.outputs),
+    status, ...(error ? { error, failed_node: failedNode } : {}), text, seed, media: files, ...(sound?.sound ? { sound: { mean_db: sound.mean_db, max_db: sound.max_db } } : {}),
     ...(extra?.snap_marks?.private ? { private: true } : {}), ...(extra?.snap_marks?.nsfw ? { nsfw: true } : {}),
     ...(extra?.snap_marks?.metadata === false ? { metadata: false } : {}), ...(Object.keys(swapped).length ? { swapped } : {}), ...(parent ? { parent } : {}), ...await hashes(canonical(prompt, swapped)),
     verdict: null, prior: false, notes: [], graph, prompt,

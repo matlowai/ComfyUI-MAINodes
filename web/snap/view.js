@@ -112,7 +112,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("button", { className: "snap-link snap-quiet-btn", title: "Ctrl/Cmd+K", onclick: () => openPalette() }, "Add brick", h("span", { className: "snap-kbd", textContent: `  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}` })), accountChip, seeBtn, seg, metaBtn, runBtn, progress),
     h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), inspector, handle), toast);
   // takes under the chain: "Use as input" puts a take's frame on the First frame or References brick (T.use)
-  const dailies = createDailies({ host: root, say, onRestore: () => render(null), onHover: (t) => previewTake(t), onRunFrom: (t) => runFrom(t).catch((err) => say(err.message, true)) });
+  const dailies = createDailies({ host: root, say, onRestore: () => render(null), onHover: (t) => previewTake(t), onRunFrom: (t) => runFrom(t).catch((err) => say(err.message, true)),
+    onReprompt: () => repromptSound() });
   stack.after(dailies.el);
   // the scene navigator above the chain (U59): opening a shot swaps the graph in the scene tab, so the chain shows it
   const sceneBar = createSceneBar({ host: root, say, run, openTake: (t) => dailies.view(t), onOpened: () => {
@@ -488,12 +489,12 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   api.addEventListener("execution_interrupted", idle);
 
   let toastTimer = 0;
-  function say(text, bad = false) {
+  function say(text, bad = false, ms = bad ? 6000 : 2500) {
     toast.textContent = text;
     toast.classList.toggle("bad", bad);
     toast.classList.add("show");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.classList.remove("show"), bad ? 6000 : 2500);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), ms);
   }
 
   // any node's widget as a control, read from the widget itself (no per-node code): its own type, options and limits;
@@ -754,6 +755,14 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
     root.append(sheet);
     sheet.querySelector(".snap-setup-card.on, .snap-setup-card")?.focus();
+  }
+
+  // SNAP-R36 "Re-prompt with sound events": the recipe's prompt opens with its model's prompt_help beside it
+  function repromptSound() {
+    const key = E.state().bricks.map((b) => b.key).find((k) => BRICKS[k]?.prompt_help);
+    if (!key) { say("This recipe has no prompt to change", true); return; }
+    if (openIn() === "brick") setOpen(key); else select(key);
+    say(`Name the sounds the action makes. ${BRICKS[key].prompt_help}`, false, 15000);
   }
 
   // "I'm new, help me set up" (SNAP-R25): the opened setups land in new tabs, which re-render the chain on their own
