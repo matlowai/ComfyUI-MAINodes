@@ -7,7 +7,7 @@ import * as E from "./engine.js";
 import * as T from "./takes.js";
 import * as D from "./dials.js";
 import * as M from "./models.js";
-import { BRICKS } from "./bricks.js";
+import { BRICKS, kit } from "./bricks.js";
 import { setBlock, blocking, drawPlan, drawElevation, toBlob, coverage } from "./setsnap.js";
 
 // the brick each kind of card goes on; a recipe goes on the whole stack (null)
@@ -61,6 +61,8 @@ const installed = () => D.all().map((d) => ({ id: `dial:${d.dial}`, kind: "dial"
 // priors and the Library's own cards first; installed dials (dozens) after them, minus the ones a card already covers
 const everything = () => [...priors(), ...cards, ...installed().filter((d) => !cards.some((c) => c.kind === "dial" && c.brick?.dial === d.brick.dial))];
 export const get = (id) => everything().find((c) => c.id === id);
+// recipe cards that are a family's setup (their `family` says which), for the Setups sheet
+export const setupCards = () => cards.filter((c) => c.kind === "recipe" && c.family);
 
 export function search(query, brick) {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -183,9 +185,21 @@ async function applyShot(card) {
   return `${card.title}: compiled into the prompt (${parts.length} parts), set in References`;
 }
 
+// the stack as a card keeps a Cast brick but never its rows: identity LoRAs are private (SNAP-R12)
+const shareable = () => E.recipe().map((b) => (BRICKS[b.key]?.stack?.role === "identity" ? { key: b.key, values: {} } : b));
+
+// before leaving a family: the open stack as that family's "Last used" card (one per family, replaced each time)
+export async function saveLast(family) {
+  const bricks = shareable(), output = kit(bricks.map((b) => b.key)) === "image" ? "image" : "video + audio";
+  const card = { id: `recipe-last-${family.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`, kind: "recipe", family, output, title: `Last used: ${family}`, saved: Date.now(),
+    about: "Your own stack, kept when you switched to another family.", text: `${bricks.length} bricks: ${bricks.map((b) => BRICKS[b.key]?.title ?? b.key).join(", ")}`, brick: { bricks } };
+  await save(card);
+  return card;
+}
+
 // save the current stack as a recipe card in the user's Library
 export async function saveRecipe(name) {
-  const bricks = E.recipe(), stamp = new Date().toTimeString().slice(0, 8);
+  const bricks = shareable(), stamp = new Date().toTimeString().slice(0, 8);
   const card = { id: `recipe-${Date.now().toString(36)}`, kind: "recipe", title: `Recipe: ${name} (saved ${stamp})`, saved: Date.now(),
     text: `${bricks.length} bricks: ${bricks.map((b) => BRICKS[b.key]?.title ?? b.key).join(", ")}`, brick: { bricks } };
   await save(card);

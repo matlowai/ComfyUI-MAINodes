@@ -15,9 +15,13 @@ export function load(force) {
   return loading;
 }
 export const all = () => catalog ?? [];
-// the dial family a recipe is for, read from what its graph declares: a `type` setting naming an encoder type the dials
-// know (CLIPLoader type minimax -> MiniMax H3); null when nothing says
-export function family() {
+export const types = () => kinds; // encoder type -> dial family (minimax -> MiniMax H3)
+// the dial family a recipe is for: the recipe's own family (models.js says, from the applied setup card) and else what the
+// graph declares, a `type` setting naming an encoder type the dials know (CLIPLoader type minimax -> MiniMax H3)
+let declared = () => null;
+export const useFamily = (fn) => { declared = fn; };
+export const family = () => declared() ?? typeFamily();
+export function typeFamily() {
   for (const b of E.state().bricks) for (const id of Object.values(b.nodes)) {
     const w = app.graph.getNodeById(id)?.widgets?.find((x) => x.name === "type" && Object.hasOwn(kinds, x.value));
     if (w) return kinds[w.value];
@@ -30,6 +34,18 @@ const short = (f) => f.replace(/^dials\//, "").replace(/\.safetensors$/, "").rep
 const side = (t) => (t && !/^\?+$/.test(t.trim()) ? t : ""); // "???" means the side was never named
 export const label = (d) => (side(d?.info?.negative) || side(d?.info?.positive) ? `${side(d.info.negative) || "−"} ↔ ${side(d.info.positive) || "+"}` : short(d?.dial ?? ""));
 export const calibrated = (d) => !!(d?.info?.pos?.useful || d?.info?.neg?.useful);
+// how strong a family's dials run, from their own calibrated useful strengths (median), next to MiniMax H3's: a family
+// whose dials need far more strength says so where dials are picked and set (MOSS-Image ≈ ±4 vs H3 ≈ ±1); agents read
+// the same numbers (list_dials)
+export function typical(fam) {
+  const u = all().filter((d) => d.family === fam).map((d) => d.info?.pos?.useful ?? d.info?.neg?.useful).filter(Boolean).sort((a, b) => a - b);
+  return u.length ? u[Math.floor(u.length / 2)] : null;
+}
+export const scale = (fam) => (typical(fam) && typical("MiniMax H3") ? typical(fam) / typical("MiniMax H3") : null);
+export function scaleNote(fam) {
+  const own = typical(fam), h3 = typical("MiniMax H3");
+  return fam && own && h3 && own >= 2 * h3 ? `${fam} dials work near ±${own} (about ${Math.round(own / h3)}× the H3 strength)` : null;
+}
 
 // rack rows: [{on, dial, strength, solo, hold?, ...}]; rows wired from Make Dial inputs have `input` instead of a file
 export const rows = () => { try { const v = JSON.parse(E.getValue("rack", "rack", "rack") || "[]"); return Array.isArray(v) ? v : []; } catch { return []; } };
@@ -82,6 +98,7 @@ export function face({ onChange, onPick, onMake }) {
       h("div", { className: "snap-dial-ends" }, h("span", { textContent: side(d?.info?.negative) || "−" }), calibrated(d) ? null : h("em", { textContent: "uncalibrated" }), h("span", { textContent: side(d?.info?.positive) || "+" })));
   });
   return h("div", { className: "snap-dials" }, ...(body.length ? body : [h("div", { className: "snap-quiet", textContent: "No dials yet" })]),
+    scaleNote(fam) ? h("div", { className: "snap-quiet snap-dial-scale", textContent: scaleNote(fam) }) : null,
     others.length ? h("div", { className: "snap-dial-warn", title: `this recipe renders with ${fam}; a dial made for another model fails at run time`, textContent: `${others.length} dial${others.length === 1 ? " is" : "s are"} for ${[...new Set(others)].join(", ")}` }) : null,
     h("div", { className: "snap-dial-actions" },
       h("button", { className: "snap-link snap-quiet-btn", textContent: "+ Dial", title: "pick one of the installed dials", onclick: (e) => { e.stopPropagation(); onPick(); } }),
@@ -115,7 +132,7 @@ export async function openPicker(host, { say, onChange, onMake }) {
   }
   q.addEventListener("input", draw);
   const sheet = h("div", { className: "snap-sheet snap-dial-sheet", role: "dialog", ariaLabel: "Dials" },
-    h("header", {}, h("strong", { textContent: "Dials" }), h("span", { className: "snap-quiet", textContent: `${all().length} installed` }), fam, h("span", { className: "snap-spacer" }),
+    h("header", {}, h("strong", { textContent: "Dials" }), h("span", { className: "snap-quiet", textContent: [`${all().length} installed`, scaleNote(own)].filter(Boolean).join(" · ") }), fam, h("span", { className: "snap-spacer" }),
       h("button", { className: "snap-primary", textContent: "✦ Make a dial", onclick: () => { close(); onMake(); } }), h("button", { className: "snap-x", textContent: "×", onclick: close })),
     h("div", { className: "snap-dial-pick" }, q, grid));
   sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });

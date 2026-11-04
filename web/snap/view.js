@@ -3,7 +3,7 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
-import { BRICKS, SIMPLE_RECIPE, PACK_BRICKS, nodeTypes } from "./bricks.js";
+import { BRICKS, SIMPLE_RECIPE, PACK_BRICKS, nodeTypes, fits } from "./bricks.js";
 import { attachDrag } from "./drag.js";
 import { Spring, SPRINGS, animate, reducedMotion } from "./spring.js";
 import * as L from "./library.js";
@@ -322,12 +322,15 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     await startSimple();
   }
 
+  // SNAP-R5: a new recipe or another family starts in its own tab; the open workflow is left alone
+  async function freshTab() {
+    if (!app.graph.nodes.length) return;
+    const was = app.extensionManager.workflow.activeWorkflow;
+    await app.extensionManager.command.execute("Comfy.NewBlankWorkflow");
+    while (app.extensionManager.workflow.activeWorkflow === was || app.graph.nodes.length) await new Promise((r) => setTimeout(r, 30));
+  }
   async function startSimple() {
-    if (app.graph.nodes.length) { // the recipe starts in its own tab; the open workflow is left alone
-      const was = app.extensionManager.workflow.activeWorkflow;
-      await app.extensionManager.command.execute("Comfy.NewBlankWorkflow");
-      while (app.extensionManager.workflow.activeWorkflow === was || app.graph.nodes.length) await new Promise((r) => setTimeout(r, 30));
-    }
+    await freshTab();
     for (const key of SIMPLE_RECIPE) await E.snap(key);
     select("render", false);
     render(null);
@@ -522,6 +525,60 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     return h("button", { className: `snap-preset${edited ? " edited" : ""}`, title: edited ? `${name}, with settings changed since; click to pick a setup` : "click to pick a setup",
       onclick: (e) => { e.stopPropagation(); openSetups(); } }, name ?? "custom settings", edited ? " · edited" : "", " ▾");
   }
+  // a LoRA stack brick's rows (SNAP-R12): on/off, the file, what the model graph says it is, strength, remove; an
+  // unsorted LoRA asks once what it is and the answer is remembered; "+ LoRA" lists the files that fit this stack first
+  const ROLES = [["core:turbo", "turbo"], ["core:fix", "fix"], ["core:task", "task"], ["core:hires", "hires"], ["core:edit", "edit"], ["core:control", "control"], ["style", "style"], ["identity", "identity / character"]];
+  const badge = (e) => (e?.role === "core" ? e.core : e?.role === "identity" ? "identity" : e?.role ?? "?");
+  function stackFace(key) {
+    const role = BRICKS[key].stack.role, list = M.rows(key), fam = M.family(), changed = () => render(null);
+    const rowEl = (r) => h("div", { className: `snap-lora${r.on ? "" : " off"}` },
+      h("input", { type: "checkbox", checked: r.on, title: "on / off", onchange: (e) => { M.setRow(key, r.row, { on: e.target.checked }); changed(); } }),
+      h("span", { className: "snap-lora-name", textContent: String(r.file).split("/").pop().replace(/\.safetensors$/, "").replaceAll("_", "_\u200b"), title: `${r.file}${r.entry?.notes ? `\n${r.entry.notes}` : ""}` }),
+      r.entry?.role === "unsorted" ? h("select", { className: "snap-lora-ask", title: "what is this LoRA? (remembered for next time)", onchange: async (e) => {
+        const [r0, core] = e.target.value.split(":");
+        await M.teach(r.file, { role: r0, ...(core ? { core } : {}), ...(fam && !r.entry.family ? { family: fam } : {}) }); changed();
+      } }, h("option", { textContent: "what is this?", value: "", disabled: true, selected: true }), ROLES.map(([v, t]) => h("option", { value: v, textContent: t })))
+        : h("i", { className: `snap-lora-kind ${badge(r.entry)}`, textContent: badge(r.entry) }),
+      h("input", { type: "number", className: "snap-lora-v", value: r.strength, step: 0.05, title: "strength", onchange: (e) => { M.setRow(key, r.row, { strength: Number(e.target.value) }); changed(); } }),
+      h("button", { className: "snap-x", textContent: "×", title: "remove this row", onclick: (e) => { e.stopPropagation(); M.removeRow(key, r.row); changed(); } }));
+    const fit = (e) => (role === "core" ? e.role === "core" : e.role === role || e.role === "unsorted") && (!fam || !e.family || e.family === fam);
+    const choices = M.loraChoices().filter(([, e]) => e.role !== "dial").sort(([, a], [, b]) => fit(b) - fit(a));
+    const pick = h("select", { className: "snap-lora-add", title: "add a LoRA row", onchange: (e) => { if (e.target.value) { M.addRow(key, e.target.value, 1); changed(); } } },
+      h("option", { value: "", textContent: "+ LoRA", selected: true }), choices.map(([name, e]) => h("option", { value: name, textContent: `${fit(e) ? "" : "· "}${name}` })));
+    const box = h("div", { className: "snap-loras" }, list.length ? list.map(rowEl) : h("div", { className: "snap-quiet", textContent: role === "core" ? "No core LoRAs" : "No LoRAs" }), pick);
+    box.addEventListener("pointerdown", (e) => e.stopPropagation()); // SNAP-R7: rows are controls; a press never selects or opens the brick
+    return box;
+  }
+
+  // the Turbo chip (SNAP-R10, SNAP-R14): what speeds this recipe up now, and one click to the list of its family's turbos
+  function turboChip(key) {
+    if (!BRICKS[key].turbo || !M.turbos().length) return null;
+    const t = M.turbo();
+    const chip = h("button", { className: `snap-preset snap-turbo${t ? " on" : ""}`, title: "swap the turbo: a merge swaps the checkpoint, a LoRA adds a core row; off goes back to the quality settings",
+      onclick: (e) => { e.stopPropagation(); openTurbo(); } }, `Turbo: ${t ? String(t.file).split("/").pop().replace(/\.safetensors$/, "") : "off"} ▾`);
+    chip.addEventListener("pointerdown", (e) => e.stopPropagation());
+    return chip;
+  }
+  function openTurbo() {
+    root.querySelector(".snap-turbo-sheet")?.remove();
+    const now = M.turbo(), close = () => { sheet.remove(); root.focus({ preventScroll: true }); };
+    const pick = (file) => { try { const r = M.setTurbo(file); say(`Turbo ${r.turbo ? `on · ${r.sampling.steps} steps, cfg ${r.sampling.cfg}` : "off · quality settings back"}`); close(); } catch (err) { say(err.message, true); } render(null); };
+    const item = (t) => h("button", { className: `snap-setup-card${now?.file === t.file ? " on" : ""}`, onclick: () => pick(t.file) },
+      h("strong", {}, t.name.replaceAll("_", "_\u200b"), h("em", { textContent: t.how === "merged" ? "merged checkpoint" : "LoRA" })),
+      h("span", { className: "snap-quiet", textContent: [t.steps && `${t.steps} steps`, t.cfg != null && `cfg ${t.cfg}`, t.sampler, t.scheduler, t.how === "lora" && `strength ${t.strength}`, !t.fits && "trained on the other lineage (often transfers)"].filter(Boolean).join(" · ") }));
+    const sheet = h("div", { className: "snap-sheet snap-setup-sheet snap-turbo-sheet", role: "dialog", ariaLabel: "Turbo" },
+      h("header", {}, h("strong", { textContent: `Turbo · ${M.family()}` }), h("span", { className: "snap-quiet", textContent: "one turbo at a time here; stack more as LoRA rows if you want · Ctrl+Z undoes it" }), h("span", { className: "snap-spacer" }),
+        h("button", { className: "snap-x", textContent: "×", onclick: close })),
+      h("div", { className: "snap-setup-body" }, h("div", { className: "snap-setup-grid" },
+        h("button", { className: `snap-setup-card${now ? "" : " on"}`, onclick: () => pick("off") }, h("strong", {}, "Off", h("em", { textContent: "quality" })), h("span", { className: "snap-quiet", textContent: "the setup's own steps, cfg and sampler" })),
+        M.turbos().map(item))));
+    sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
+    root.append(sheet);
+    sheet.querySelector(".snap-setup-card.on")?.focus();
+  }
+  // what the model graph finds odd about this brick's models, as warnings (SNAP-R11: never blocks)
+  const warnLines = (key) => M.warnings().filter((w) => w.brick === key).map((w) => h("div", { className: "snap-dial-warn snap-warn", textContent: `⚠ ${w.text}` }));
+
   // a brick's `check`: what the server says a run would fail on (a face says it only when something is wrong)
   function checkLine(key, quiet) {
     const res = M.check(key);
@@ -529,27 +586,46 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     return h("div", { className: `snap-check${res.ready ? " ok" : ""}`, title: [res.lightx2v && `LightX2V: ${res.lightx2v}`, !res.ready && res.help].filter(Boolean).join("\n") }, res.ready ? "✓ ready to run" : `✕ ${res.problems.join(" · ")}`);
   }
 
-  // the setups the recipe's nodes offer, grouped by family; a click applies one as one undo step
+  // a model setting's name as a person says it (loader widget names: unet_name, clip_name, loras.0.lora_name …)
+  const settingLabel = (name) => (/lora/.test(name) ? "LoRA" : /clip/.test(name) ? "encoder" : /vae/.test(name) ? "VAE" : /unet|ckpt|^model$/.test(name) ? "model" : name.replaceAll("_", " "));
+  // a setup: a preset applies in place; a family card in place when it is this recipe's family (prompt and seed stay),
+  // else in a new tab, after keeping this stack as its family's "Last used" card so coming back is lossless
+  async function useSetup(s, { keep = true } = {}) {
+    if (s.source === "preset") { M.apply(s.name); return `Setup: ${s.name}`; }
+    const card = L.get(s.card), fam = M.family(), leaving = E.state().bricks.length && fam !== s.family;
+    let saved = null;
+    if (leaving && keep && fam) saved = await L.saveLast(fam);
+    if (leaving || (!E.state().bricks.length && app.graph.nodes.length)) await freshTab();
+    await M.applyCard(card, { fresh: !E.state().bricks.length });
+    select(null, false);
+    return `${card.title}${leaving ? " in a new tab" : ""}${saved ? ` · your ${fam} stack is kept as "${saved.title}"` : ""}`;
+  }
+
+  // the setups: the recipe's own presets and every family's cards, grouped by family; a click applies one (one undo step)
   function openSetups() {
     root.querySelector(".snap-setup-sheet")?.remove();
-    const list = M.setups(), close = () => { sheet.remove(); root.focus({ preventScroll: true }); };
-    const families = [...new Set(list.map((s) => s.family ?? "This recipe"))];
-    const card = (s) => h("button", { className: `snap-setup-card${s.current ? " on" : ""}`, onclick: () => {
+    const list = M.setups(), close = () => { sheet.remove(); root.focus({ preventScroll: true }); }, fam = M.family();
+    const families = [...new Set([fam, ...list.map((s) => s.family ?? "This recipe")].filter(Boolean))];
+    const keep = h("input", { type: "checkbox", checked: true });
+    const ready = (m) => (m.cant_load ? "✕ can't load in core" : !m.installed ? "✕ missing" : m.size ? M.gb(m.size) : "");
+    const card = (s) => h("button", { className: `snap-setup-card${s.current ? " on" : ""}`, onclick: async () => {
       const before = rects();
-      try { M.apply(s.name); say(`Setup: ${s.name}`); close(); } catch (err) { say(err.message, true); }
+      try { say(await useSetup(s, { keep: keep.checked })); close(); } catch (err) { say(err.message, true); }
       render(before);
     } },
-      h("strong", {}, s.name, s.current ? h("em", { textContent: s.edited ? "current · edited" : "current" }) : null),
-      h("div", { className: "snap-setup-files" }, s.models.map((m) => h("span", { className: m.installed ? "" : "missing", title: m.file },
-        h("i", { textContent: m.setting.replaceAll("_", " ") }), String(m.file).split("/").pop().replace(/\.safetensors$/, "").replaceAll("_", "_\u200b"), h("em", { textContent: m.installed ? (m.size ? M.gb(m.size) : "") : "✕ missing" })))),
-      h("span", { className: "snap-quiet", textContent: [s.values.sampler, s.values.schedule, s.values.steps && `${s.values.steps} steps`, s.values.cfg != null && `cfg ${s.values.cfg}`].filter(Boolean).join(" · ") }));
+      h("strong", {}, s.name, s.current ? h("em", { textContent: s.edited ? "current · edited" : "current" }) : s.family !== fam && E.state().bricks.length ? h("em", { className: "tab", textContent: "opens a new tab" }) : null),
+      s.about ? h("span", { className: "snap-setup-about", textContent: s.about, title: s.about }) : null,
+      h("div", { className: "snap-setup-files" }, s.models.map((m) => h("span", { className: m.installed && !m.cant_load ? "" : "missing", title: m.file },
+        h("i", { textContent: settingLabel(m.setting) }), String(m.file).split("/").pop().replace(/\.safetensors$/, "").replaceAll("_", "_\u200b"), h("em", { textContent: ready(m) })))),
+      h("span", { className: "snap-quiet", textContent: [s.output, s.values.sampler, s.values.schedule, s.values.steps && `${s.values.steps} steps`, s.values.cfg != null && `cfg ${s.values.cfg}`].filter(Boolean).join(" · ") }));
     const sheet = h("div", { className: "snap-sheet snap-setup-sheet", role: "dialog", ariaLabel: "Setups" },
-      h("header", {}, h("strong", { textContent: "Setups" }), h("span", { className: "snap-quiet", textContent: "a click applies every setting of a setup together · Ctrl+Z undoes it" }), h("span", { className: "snap-spacer" }),
+      h("header", {}, h("strong", { textContent: "Setups" }), h("span", { className: "snap-quiet", textContent: "a click applies every setting of a setup together · Ctrl+Z undoes it · another family opens in a new tab" }), h("span", { className: "snap-spacer" }),
+        fam && E.state().bricks.length ? h("label", { className: "snap-quiet snap-keep" }, keep, ` keep this ${fam} stack as "Last used" when switching family`) : null,
         h("button", { className: "snap-x", textContent: "×", onclick: close })),
       h("div", { className: "snap-setup-body" }, list.length ? families.map((f) => h("section", {},
         h("div", { className: "snap-rail-title", textContent: `${f}${D.all().some((d) => d.family === f) ? ` · ${D.all().filter((d) => d.family === f).length} dials` : ""}` }),
         h("div", { className: "snap-setup-grid" }, list.filter((s) => (s.family ?? "This recipe") === f).map(card))))
-        : h("div", { className: "snap-quiet", textContent: "No brick in this recipe offers setups (the Render Preset does)." })));
+        : h("div", { className: "snap-quiet", textContent: "No setups: no brick here offers presets and the Library has no family cards." })));
     sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
     root.append(sheet);
     sheet.querySelector(".snap-setup-card.on, .snap-setup-card")?.focus();
@@ -649,19 +725,21 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   function brickEl(info) {
     const def = BRICKS[info.brick];
     const head = def.headline && h("div", { className: "snap-headline", textContent: def.headline((b, k, name) => E.getValue(b, k, name), attachedOn(info.brick)) });
-    const faces = [presetChip(info.brick), head, ...def.face.map((f) => fact(info.brick, f))].filter(Boolean);
+    const faces = [presetChip(info.brick), turboChip(info.brick), head, ...def.face.map((f) => fact(info.brick, f))].filter(Boolean);
     const body = [];
     const pics = Object.values(info.nodes).flatMap((id) => { const n = app.graph.getNodeById(id); return n ? previews(n) : []; });
     if (pics.length && info.brick !== "refs") body.push(h("div", { className: "snap-thumbs" }, pics.slice(0, 2).map((src) => h("img", { src, alt: "", loading: "lazy" }))));
     if (info.brick === "rack") body.push(D.face({ onChange: () => render(null), onPick: () => D.openPicker(root, { say, onChange: () => render(null), onMake: openMaker }), onMake: openMaker }));
     if (info.brick === "refs") body.push(...picturesFace());
+    if (def.stack) body.push(stackFace(info.brick));
+    body.push(...warnLines(info.brick));
     if (def.check && attachedOn(info.brick)) body.push(checkLine(info.brick, true)); // Off runs nothing, so nothing can be wrong
     if (info.brick === "render") {
       const shot = E.state().bricks.find((x) => x.key === "render")?.shot;
       if (shot) body.push(h("div", { className: "snap-shot-line", title: `prompt compiled from ${L.get(shot.card)?.title ?? shot.card}` }, shot.parts.map((x) => h("i", { className: `snap-dot ${x.field}` })), h("span", { textContent: (L.get(shot.card)?.title ?? shot.card).replace(/:.*/, "") })));
     }
     const open = opened === info.brick;
-    const el = h("section", { className: `snap-brick${def.attach ? " attached" : ""}${attachedOn(info.brick) ? "" : " off"}${info.brick === "render" || (info.brick === "rack" && D.rows().length) ? " wide" : ""}${selected === info.brick ? " selected" : ""}${open ? " open" : ""}`, tabIndex: 0 },
+    const el = h("section", { className: `snap-brick${def.attach ? " attached" : ""}${attachedOn(info.brick) ? "" : " off"}${["render", "image"].includes(info.brick) || (info.brick === "rack" && D.rows().length) || (def.stack && M.rows(info.brick).length) ? " wide" : ""}${selected === info.brick ? " selected" : ""}${open ? " open" : ""}`, tabIndex: 0 },
       h("header", { className: "snap-head" },
         h("span", { className: "snap-grip", textContent: def.icon, title: "drag to reorder" }),
         h("span", { className: "snap-name", textContent: def.title, title: def.blurb }),
@@ -692,7 +770,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const have = new Set(E.state().bricks.map((b) => b.key));
     bricksRail.replaceChildren(
       h("div", { className: "snap-rail-title", textContent: "Bricks" }),
-      ...PACK_BRICKS.map((key) => [key, BRICKS[key]]).map(([key, def]) => {
+      ...PACK_BRICKS.filter((key) => fits(key, [...have])).map((key) => [key, BRICKS[key]]).map(([key, def]) => {
         const tile = h("div", { className: `snap-tile${have.has(key) ? " used" : ""}`, title: have.has(key) ? "already in the recipe" : "drag into the recipe" },
           h("span", { className: "snap-grip", textContent: def.icon }), h("span", { textContent: def.title }));
         tile.dataset.source = key;
@@ -774,7 +852,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   }
 
   function renderStatus() {
-    const missing = [...E.missing(), ...M.unreadable()].map((m) => `${m.brick ? "" : "outside the recipe: "}${m.node} · ${m.setting}: ${m.value ?? "nothing installed"}${m.unreadable ? " (file not readable)" : ""}`);
+    const missing = [...E.missing(), ...M.unreadable()].map((m) => `${m.brick ? "" : "outside the recipe: "}${m.node} · ${m.setting}: ${m.value ?? "nothing installed"}${m.unreadable ? " (file not readable)" : m.cant_load ? " (core ComfyUI can't load it)" : ""}`);
     for (const b of E.state().bricks) { const res = BRICKS[b.key].check && M.check(b.key); if (res && !res.ready) missing.push(...res.problems.map((p) => `${BRICKS[b.key].title}: ${p}`)); }
     status.className = `snap-status ${missing.length ? "warn" : "ok"}`;
     status.textContent = missing.length ? `${missing.length} missing` : "ready";
@@ -782,7 +860,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const out = E.outside();
     outsideBtn.hidden = !out.length;
     outsideBtn.textContent = `${out.length} node${out.length === 1 ? "" : "s"} outside the recipe ›`;
-    const setups = M.setups(), now = setups.find((x) => x.current), fam = D.family(), size = M.total();
+    const setups = M.setups(), now = setups.find((x) => x.current), fam = M.family(), size = M.total();
     setupPill.hidden = !setups.length && !fam;
     setupPill.textContent = [fam, now ? `${now.name}${now.edited ? " · edited" : ""}` : setups.length ? "custom settings" : null, size ? M.gb(size) : null].filter(Boolean).join(" · ") + (setups.length ? " ▾" : "");
     setupPill.title = `${M.settings().map((m) => `${m.setting}: ${m.file}${m.size ? ` (${M.gb(m.size)})` : m.installed ? "" : " (missing)"}`).join("\n")}${setups.length ? "\n\nclick to switch setups" : ""}`;
@@ -792,6 +870,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   function signature(info) {
     const def = BRICKS[info.brick], values = def.face.map(([k, name]) => E.getValue(info.brick, k, name));
     if (def.attach || def.headline) values.push(attachedOn(info.brick), def.headline?.((b, k, name) => E.getValue(b, k, name), attachedOn(info.brick)));
+    if (def.stack) values.push(M.rows(info.brick).map((r) => [r.file, r.strength, r.on, r.entry?.role]));
+    if (def.turbo) values.push(M.turbo()?.file, M.turbos().length);
+    values.push(M.warnings().filter((w) => w.brick === info.brick).map((w) => w.text));
     if (info.brick === "rack") values.push(E.getValue("rack", "rack", "rack"), D.all().length, D.family()); // the face redraws once the catalog arrives
     values.push(presetNode(info.brick)?.presets.current(), BRICKS[info.brick].check && M.check(info.brick), M.known()); // chips get their sizes once the model lists arrive
     if (info.brick === "refs") values.push(E.state().bricks.find((b) => b.key === "refs")?.pictures);
@@ -970,9 +1051,17 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     else if (action === "make_dial") openMaker();
     else if (action === "open_take") { const t = T.get(target); if (!t) throw new Error(`No take ${target}`); dailies.view(t); }
     else if (action === "setups") openSetups();
+    else if (action === "turbo") openTurbo();
     else throw new Error(`Unknown ui action ${action}`);
     return uiRead();
   }
 
-  return { root, stack, render, say, select, openInChanged, uiRead, uiAct, release: () => { giveBack(); if (opened) { opened = null; render(null); } }, get opened() { return opened; }, get selected() { return selected; } };
+  // an agent's apply_setup takes the same path as the sheet (SNAP-R15)
+  async function setupFromAgent(s, options) {
+    const before = rects(), done = await useSetup(s, options);
+    render(before);
+    return done;
+  }
+
+  return { root, stack, render, say, select, openInChanged, uiRead, uiAct, setupFromAgent, release: () => { giveBack(); if (opened) { opened = null; render(null); } }, get opened() { return opened; }, get selected() { return selected; } };
 }

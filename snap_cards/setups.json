@@ -1,0 +1,285 @@
+[
+ {
+  "id": "setup-moss-base",
+  "kind": "recipe",
+  "family": "MOSS-Image",
+  "output": "image",
+  "title": "MOSS-Image Base (int8)",
+  "about": "MOSS-Image Base, int8. Flexible but not preference-tuned: it wants long, concrete prompts, so the prompt expander is on (the 9B text encoder rewrites your idea into a full caption first). No turbo merged in: the Turbo chip adds a turbo LoRA (Kromoss DMD2 8-step suits Base) or switch to the SFT DeBand card for DeBand Fast. ER-SDE 25 steps, cfg 3 to start; the community runs Base at 50 or more steps. Base has no banding.",
+  "text": "MOSS-Image setup. MOSS-Image Base, int8. Flexible but not preference-tuned: it wants long, concrete prompts, so the prompt expander is on (the 9B text encoder rewrites your idea into a full caption first). No turbo merged in: the Turbo chip adds a turbo LoRA (Kromoss DMD2 8-step suits Base) or switch to the SFT DeBand card for DeBand Fast. ER-SDE 25 steps, cfg 3 to start; the community runs Base at 50 or more steps. Base has no banding.",
+  "brick": {
+   "bricks": [
+    {
+     "key": "image_models",
+     "values": {
+      "unet": {
+       "unet_name": "moss_image_base_int8_convrot.safetensors",
+       "weight_dtype": "default"
+      },
+      "clip": {
+       "clip_name": "qwen3.5_9b_int8_convrot.safetensors",
+       "type": "moss_image",
+       "device": "default"
+      },
+      "vae": {
+       "vae_name": "flux2-vae.safetensors"
+      }
+     }
+    },
+    {
+     "key": "loras",
+     "values": {}
+    },
+    {
+     "key": "rack",
+     "values": {}
+    },
+    {
+     "key": "image",
+     "values": {
+      "image": {
+       "prompt": "A woman in a yellow raincoat stands on an old stone canal bridge in light rain, holding a red umbrella, warm shop lights reflected in the water, overcast evening, photograph",
+       "negative": "worst quality, bad anatomy, watermark, jpeg artifact",
+       "switch": true,
+       "width": 1024,
+       "height": 1024,
+       "noise_seed": 42,
+       "steps": 25,
+       "cfg": 3.0,
+       "sampler_name": "er_sde",
+       "scheduler": "simple"
+      }
+     }
+    },
+    {
+     "key": "save_image",
+     "values": {
+      "save": {
+       "filename_prefix": "image/dials_image"
+      }
+     }
+    }
+   ]
+  }
+ },
+ {
+  "id": "setup-moss-sft-deband",
+  "kind": "recipe",
+  "family": "MOSS-Image",
+  "output": "image",
+  "title": "MOSS-Image SFT DeBand (int8)",
+  "about": "MOSS-Image SFT with the banding fix merged in (DeBand), int8, with Dylan's graph: Temporal Score Rescaling 0.95 / 1.0 and skip-layer guidance on single blocks 22, 24 from 10 to 70 %, ER-SDE 25 steps, cfg 3. SFT always carries a deband fix. Turbo: the DeBand Fast merge (DMD at 0.35, 10 steps) swaps the checkpoint, or add an SFT DMD / DMAD LoRA row.",
+  "text": "MOSS-Image setup. MOSS-Image SFT with the banding fix merged in (DeBand), int8, with Dylan's graph: Temporal Score Rescaling 0.95 / 1.0 and skip-layer guidance on single blocks 22, 24 from 10 to 70 %, ER-SDE 25 steps, cfg 3. SFT always carries a deband fix. Turbo: the DeBand Fast merge (DMD at 0.35, 10 steps) swaps the checkpoint, or add an SFT DMD / DMAD LoRA row.",
+  "brick": {
+   "bricks": [
+    {
+     "key": "image_models",
+     "values": {
+      "unet": {
+       "unet_name": "moss_image_sft_deband_int8_convrot.safetensors",
+       "weight_dtype": "default"
+      },
+      "clip": {
+       "clip_name": "qwen3.5_9b_int8_convrot.safetensors",
+       "type": "moss_image",
+       "device": "default"
+      },
+      "vae": {
+       "vae_name": "flux2-vae.safetensors"
+      }
+     }
+    },
+    {
+     "key": "loras",
+     "values": {}
+    },
+    {
+     "key": "rack",
+     "values": {}
+    },
+    {
+     "key": "node:TemporalScoreRescaling",
+     "values": {
+      "node": {
+       "tsr_k": 0.95,
+       "tsr_sigma": 1.0
+      }
+     }
+    },
+    {
+     "key": "node:SkipLayerGuidanceDiTSimple",
+     "values": {
+      "node": {
+       "double_layers": "",
+       "single_layers": "22, 24",
+       "start_percent": 0.1,
+       "end_percent": 0.7
+      }
+     }
+    },
+    {
+     "key": "image",
+     "values": {
+      "image": {
+       "prompt": "A woman in a yellow raincoat stands on an old stone canal bridge in light rain, holding a red umbrella, warm shop lights reflected in the water, overcast evening, photograph",
+       "negative": "worst quality, bad anatomy, watermark, jpeg artifact",
+       "switch": false,
+       "width": 1024,
+       "height": 1024,
+       "noise_seed": 42,
+       "steps": 25,
+       "cfg": 3.0,
+       "sampler_name": "er_sde",
+       "scheduler": "simple"
+      }
+     }
+    },
+    {
+     "key": "save_image",
+     "values": {
+      "save": {
+       "filename_prefix": "image/dials_image"
+      }
+     }
+    }
+   ]
+  }
+ },
+ {
+  "id": "setup-kromoss",
+  "kind": "recipe",
+  "family": "MOSS-Image",
+  "output": "image",
+  "title": "Kromoss (int8)",
+  "about": "Kromoss: lodestones' full fine-tune of MOSS-Image Base at 1024 px, int8; keep it at or under about 2.5 MP. Skip-layer guidance on layer 22 as its card says; ER-SDE 25 steps, cfg 3 here (the Kromoss card itself uses Euler, 50 steps, shift 5). Turbo: the Kromoss DMD2 8-step LoRA (Euler, 8 steps, cfg 1, no negative), which the community rates best on Kromoss; use one DMD LoRA at a time.",
+  "text": "MOSS-Image setup. Kromoss: lodestones' full fine-tune of MOSS-Image Base at 1024 px, int8; keep it at or under about 2.5 MP. Skip-layer guidance on layer 22 as its card says; ER-SDE 25 steps, cfg 3 here (the Kromoss card itself uses Euler, 50 steps, shift 5). Turbo: the Kromoss DMD2 8-step LoRA (Euler, 8 steps, cfg 1, no negative), which the community rates best on Kromoss; use one DMD LoRA at a time.",
+  "brick": {
+   "bricks": [
+    {
+     "key": "image_models",
+     "values": {
+      "unet": {
+       "unet_name": "kromoss_int8_convrot.safetensors",
+       "weight_dtype": "default"
+      },
+      "clip": {
+       "clip_name": "qwen3.5_9b_int8_convrot.safetensors",
+       "type": "moss_image",
+       "device": "default"
+      },
+      "vae": {
+       "vae_name": "flux2-vae.safetensors"
+      }
+     }
+    },
+    {
+     "key": "loras",
+     "values": {}
+    },
+    {
+     "key": "rack",
+     "values": {}
+    },
+    {
+     "key": "node:SkipLayerGuidanceDiTSimple",
+     "values": {
+      "node": {
+       "double_layers": "",
+       "single_layers": "22",
+       "start_percent": 0.1,
+       "end_percent": 0.7
+      }
+     }
+    },
+    {
+     "key": "image",
+     "values": {
+      "image": {
+       "prompt": "A woman in a yellow raincoat stands on an old stone canal bridge in light rain, holding a red umbrella, warm shop lights reflected in the water, overcast evening, photograph",
+       "negative": "worst quality, bad anatomy, watermark, jpeg artifact",
+       "switch": false,
+       "width": 1024,
+       "height": 1024,
+       "noise_seed": 42,
+       "steps": 25,
+       "cfg": 3.0,
+       "sampler_name": "er_sde",
+       "scheduler": "simple"
+      }
+     }
+    },
+    {
+     "key": "save_image",
+     "values": {
+      "save": {
+       "filename_prefix": "image/dials_image"
+      }
+     }
+    }
+   ]
+  }
+ },
+ {
+  "id": "setup-krea2-raw",
+  "kind": "recipe",
+  "family": "Krea 2",
+  "output": "image",
+  "title": "Krea 2 Raw (fp8)",
+  "about": "Krea 2 Raw loaded as fp8_e4m3fn (the int8 ConvRot file is int8_rowwise, which core ComfyUI can't load), the stock Qwen3-VL 4B encoder and the Qwen-Image VAE, res_multistep with the beta schedule (0.6, 0.6), 30 steps, cfg 4: the settings the Krea dials were calibrated on. Turbo: the Krea 2 Turbo fp8 merge swaps the checkpoint (8 steps, cfg 1, ddim; its workflow's beta57 isn't in core, so beta). The Krea dials only steer toward their A side.",
+  "text": "Krea 2 setup. Krea 2 Raw loaded as fp8_e4m3fn (the int8 ConvRot file is int8_rowwise, which core ComfyUI can't load), the stock Qwen3-VL 4B encoder and the Qwen-Image VAE, res_multistep with the beta schedule (0.6, 0.6), 30 steps, cfg 4: the settings the Krea dials were calibrated on. Turbo: the Krea 2 Turbo fp8 merge swaps the checkpoint (8 steps, cfg 1, ddim; its workflow's beta57 isn't in core, so beta). The Krea dials only steer toward their A side.",
+  "brick": {
+   "bricks": [
+    {
+     "key": "image_models",
+     "values": {
+      "unet": {
+       "unet_name": "krea2/krea-2-raw.safetensors",
+       "weight_dtype": "fp8_e4m3fn"
+      },
+      "clip": {
+       "clip_name": "krea2/qwen3vl_4b_fp8_scaled.safetensors",
+       "type": "krea2",
+       "device": "default"
+      },
+      "vae": {
+       "vae_name": "krea2/qwen_image_vae.safetensors"
+      }
+     }
+    },
+    {
+     "key": "loras",
+     "values": {}
+    },
+    {
+     "key": "rack",
+     "values": {}
+    },
+    {
+     "key": "image",
+     "values": {
+      "image": {
+       "prompt": "A woman in a yellow raincoat stands on an old stone canal bridge in light rain, holding a red umbrella, warm shop lights reflected in the water, overcast evening, photograph",
+       "negative": "",
+       "switch": false,
+       "width": 1024,
+       "height": 1024,
+       "noise_seed": 42,
+       "steps": 30,
+       "cfg": 4.0,
+       "sampler_name": "res_multistep",
+       "scheduler": "beta"
+      }
+     }
+    },
+    {
+     "key": "save_image",
+     "values": {
+      "save": {
+       "filename_prefix": "image/dials_image"
+      }
+     }
+    }
+   ]
+  }
+ }
+]

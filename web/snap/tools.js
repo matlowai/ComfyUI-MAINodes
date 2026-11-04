@@ -48,7 +48,8 @@ async function models() {
   await M.load();
   const list = M.settings(), now = M.setups().find((s) => s.current);
   const checks = await Promise.all(E.state().bricks.filter((b) => BRICKS[b.key].check).map(async (b) => ({ brick: b.key, ...await M.checkNow(b.key) })));
-  return { family: D.family(), setup: now ? { name: now.name, edited: now.edited } : null, files: list.map((m) => ({ ...sized(m), ...related(m.file) })), missing: list.filter((m) => !m.installed).map((m) => `${m.brick}.${m.setting}: ${m.file}${m.unreadable ? " (file not readable)" : ""}`),
+  return { family: M.family(), setup: now ? { name: now.name, edited: now.edited } : null, turbo: M.turbo()?.file ?? null, warnings: M.warnings().map((w) => `${w.brick}: ${w.text}`),
+    loras: M.loras().map((r) => ({ brick: r.brick, row: r.row, file: r.file, strength: r.strength, on: r.on, role: r.entry?.role, core: r.entry?.core })), files: list.map((m) => ({ ...sized(m), ...related(m.file) })), missing: list.filter((m) => !m.installed).map((m) => `${m.brick}.${m.setting}: ${m.file}${m.unreadable ? " (file not readable)" : ""}`),
     total_gb: +(M.total(list) / 1e9).toFixed(1), checks };
 }
 
@@ -68,10 +69,11 @@ export const TOOLS = [
   },
   {
     name: "describe_recipe",
-    description: "The current workflow as bricks in reading order, with each brick's bindings (what feeds it and which rule made the link), its settings, wiring the user changed in the graph, settings that point at nothing installed, nodes outside the recipe (Run leaves them out), and `models`: the family, the setup and every model file the recipe loads with its size and whether it is installed.",
+    description: "The current workflow, starting with `about` (how the current setup card's models fit together: read it before changing anything), then as bricks in reading order, with each brick's bindings (what feeds it and which rule made the link), its settings, wiring the user changed in the graph, settings that point at nothing installed, nodes outside the recipe (Run leaves them out), and `models`: the family, the setup, the turbo, every model file the recipe loads (size, installed, and the model graph's kind / turbo / role), the LoRA rows, and warnings (a turbo LoRA on a turbo merge, stacked turbos, SFT without a deband fix, another family's file, a schedule the turbo wasn't distilled for, an encoder type that doesn't fit). Warnings never block; say them to the person.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
     run: async () => ({
+      about: M.setups().find((x) => x.current && x.about)?.about ?? null,
       models: await models(),
       bricks: E.describe().map((b) => ({ brick: b.brick, title: b.title, bindings: b.bindings, settings: shown(settingsOf(b.brick)) })),
       overridden_in_graph: E.overrides().map((o) => ({ brick: o.to, role: o.role, change: o.change })),
@@ -114,16 +116,85 @@ export const TOOLS = [
   },
   {
     name: "list_setups",
-    description: "The setups the recipe can switch to in one step (today: the Render Preset's presets, e.g. Pika H3 Flex, Pika + reference pictures, DMAD speed LoRA, and the person's own): family, which one is current (and edited since), the model files each loads with sizes and whether they are installed, and its sampling values.",
+    description: "The setups the recipe can switch to in one step: the Render Preset's presets (Pika H3 Flex, Pika + reference pictures, DMAD speed LoRA, the person's own) and every family's recipe cards (MOSS-Image Base / SFT DeBand / Kromoss, Krea 2, and 'Last used' cards): family, output, `about` (how its models fit together), which one is current, the model files each loads with sizes and readiness (installed, cant_load), and its sampling values.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
-    run: async () => { await M.load(); return M.setups().map(({ name, family, source, brick, current, edited, models, values }) => ({ name, family, source, brick, current, edited, models: models.map(sized), values })); },
+    run: async () => { await M.load(); await L.ready(); return M.setups().map(({ name, family, source, output, about, current, edited, models, values }) => ({ name, family, source, output, about, current, edited, models: models.map(sized), values })); },
   },
   {
     name: "apply_setup",
-    description: "Switch the recipe to a setup from list_setups (model, LoRA and their sampling together, one undo step). Returns the model summary afterwards, with anything missing.",
-    inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
-    run: async ({ name }) => { M.apply(name); return models(); },
+    description: "Switch to a setup from list_setups as one undo step: a preset changes the model, LoRA, sampling and the family's encoder and VAEs in place; a recipe card of this recipe's family applies in place (prompt and seed stay); another family's card opens in a new workflow tab (the open one is left as it is) after keeping the current stack as its family's 'Last used' card (save_current: false skips that). Returns the model summary afterwards, with anything missing and the warnings.",
+    inputSchema: { type: "object", properties: { name: { type: "string" }, save_current: { type: "boolean" } }, required: ["name"] },
+    run: async ({ name, save_current = true }) => {
+      await M.load(); await L.ready();
+      const s = M.setups().find((x) => x.name === name);
+      if (!s) throw new Error(`No setup "${name}"; there are: ${M.setups().map((x) => x.name).join(", ")}`);
+      const done = await ui.setup(s, { keep: save_current });
+      return { done, ...(await models()) };
+    },
+  },
+  {
+    name: "list_turbos",
+    description: "The Turbo chip's choices for this recipe's family, from the model graph: merges (they swap the diffusion model; only ones built on the same Base/SFT lineage) and turbo LoRAs (they add a core LoRA row), each with the steps / cfg / sampler / scheduler it was distilled for, and which one is on.",
+    inputSchema: { type: "object", properties: {} },
+    annotations: { readOnlyHint: true },
+    run: async () => { await M.load(); return { family: M.family(), on: M.turbo()?.file ?? null, turbos: M.turbos() }; },
+  },
+  {
+    name: "set_turbo",
+    description: "Swap the turbo (one undo step): a turbo from list_turbos, or 'off' to go back to the quality settings that were there before. It replaces the current turbo instead of stacking a second one, and applies the turbo's steps / cfg / sampler / scheduler. Returns the sampling now and the warnings.",
+    inputSchema: { type: "object", properties: { turbo: { type: "string", description: "a file or name from list_turbos, or 'off'" } }, required: ["turbo"] },
+    run: async ({ turbo }) => { await M.load(); return M.setTurbo(turbo); },
+  },
+  {
+    name: "list_loras",
+    description: "Installed LoRA files with their role from the model graph (core with sub-kind turbo / fix / task / hires / edit / control, style, identity, unsorted; dial files are left out, see list_dials), family and turbo info, filtered by role, family or words in the name, plus the LoRA rows in the recipe. Identity LoRAs are private: name them only to the person.",
+    inputSchema: { type: "object", properties: { role: { type: "string", enum: ["core", "style", "identity", "unsorted"] }, family: { type: "string" }, filter: { type: "string" } } },
+    annotations: { readOnlyHint: true },
+    run: async ({ role, family, filter = "" } = {}) => {
+      await M.load();
+      const words = filter.toLowerCase().split(/\s+/).filter(Boolean);
+      const found = M.loraChoices().filter(([name, e]) => e.role !== "dial" && (!role || e.role === role) && (!family || e.family === family) && words.every((w) => name.toLowerCase().includes(w)));
+      return { count: found.length, loras: found.slice(0, 200).map(([name]) => ({ name, ...related(name) })), in_recipe: M.loras().map((r) => ({ brick: r.brick, row: r.row, file: r.file, strength: r.strength, on: r.on, role: r.entry?.role })) };
+    },
+  },
+  {
+    name: "add_lora",
+    description: "Add a LoRA row to the stack its role belongs in: core (turbo / fix / task …) rows go to Core LoRAs and travel with the setup, style rows to Style LoRAs, identity rows to Cast LoRAs (the brick is added when missing). The role comes from the model graph unless given. A turbo LoRA while another turbo is on (a merge or a row) is refused unless person_asked is true: swap turbos with set_turbo instead. Returns the rows and the warnings.",
+    inputSchema: { type: "object", properties: { file: { type: "string" }, strength: { type: "number" }, role: { type: "string", enum: ["core", "style", "identity"] }, person_asked: { type: "boolean", description: "true only when the person asked for this stack" } }, required: ["file"] },
+    run: async ({ file, strength, role, person_asked }) => {
+      await M.load();
+      const name = M.loraChoices().map(([n]) => n).find((n) => n === file) ?? E.resolveChoice(M.loraChoices().map(([n]) => n), file);
+      if (!name) throw new Error(`No LoRA file "${file}"; list_loras shows them`);
+      const e = M.entry(name), want = role ?? (["style", "identity"].includes(e.role) ? e.role : "core");
+      const busy = M.turbo() || M.loras().some((r) => r.on && r.entry?.turbo) || M.entry(M.settings().find((x) => M.entry(x.file)?.kind === "turbo_merge")?.file)?.turbo;
+      if (e.turbo && busy && !person_asked) throw new Error(`A turbo is already on (${M.turbo()?.file ?? "a turbo merge or row"}); swap it with set_turbo, or pass person_asked: true when the person asked for a turbo stack`);
+      const key = { core: "loras", style: "style", identity: "cast" }[want];
+      if (!has(key)) { const keys = E.state().bricks.map((b) => b.key); await E.snap(key, { at: keys.includes("rack") ? keys.indexOf("rack") : undefined }); }
+      M.addRow(key, name, strength ?? e.recommended?.strength ?? 1);
+      return { brick: key, rows: M.rows(key).map(({ row, file, strength, on }) => ({ row, file, strength, on })), warnings: M.warnings().map((w) => w.text) };
+    },
+  },
+  {
+    name: "set_lora",
+    description: "Change one LoRA row (brick and row from describe_recipe.models.loras): strength, on/off, or another file.",
+    inputSchema: { type: "object", properties: { brick: { type: "string" }, row: { type: "integer" }, strength: { type: "number" }, on: { type: "boolean" }, file: { type: "string" } }, required: ["brick", "row"] },
+    run: ({ brick, row, ...patch }) => {
+      if (!BRICKS[brick]?.stack || !has(brick)) throw new Error(`${brick} is not a LoRA stack in the recipe`);
+      if (!M.rows(brick).some((r) => r.row === row)) throw new Error(`${brick} has no row ${row}`);
+      M.setRow(brick, row, patch);
+      return { brick, rows: M.rows(brick).map(({ row, file, strength, on }) => ({ row, file, strength, on })), warnings: M.warnings().map((w) => w.text) };
+    },
+  },
+  {
+    name: "remove_lora",
+    description: "Take a LoRA row off its stack (the file stays). Rows below it move up one.",
+    inputSchema: { type: "object", properties: { brick: { type: "string" }, row: { type: "integer" } }, required: ["brick", "row"] },
+    run: ({ brick, row }) => {
+      if (!BRICKS[brick]?.stack || !M.rows(brick).some((r) => r.row === row)) throw new Error(`${brick} has no LoRA row ${row}`);
+      M.removeRow(brick, row);
+      return { brick, rows: M.rows(brick).map(({ row, file, strength, on }) => ({ row, file, strength, on })) };
+    },
   },
   {
     name: "list_models",
@@ -264,14 +335,14 @@ export const TOOLS = [
   },
   {
     name: "list_dials",
-    description: "Every installed dial (a training-free steering direction for H3, MOSS-Image or Krea 2): its file, model family, what negative and positive strength give, useful and overcook strengths, description, and its row if it is on the rack. Filter with a query (words in the labels, description or file) or a family.",
+    description: "Every installed dial (a training-free steering direction for H3, MOSS-Image or Krea 2): its file, model family, family_strength_scale (how much stronger that family's dials run than H3's, e.g. 4 for MOSS-Image: use its own useful strength, not an H3 number), what negative and positive strength give, useful and overcook strengths, description, and its row if it is on the rack. Filter with a query (words in the labels, description or file) or a family.",
     inputSchema: { type: "object", properties: { query: { type: "string" }, family: { type: "string", description: "e.g. 'MiniMax H3'" } } },
     annotations: { readOnlyHint: true },
     run: async ({ query = "", family } = {}) => {
       await D.load();
       const words = query.toLowerCase().split(/\s+/).filter(Boolean), on = new Map(D.rows().map((r) => [r.dial, r]));
       return D.all().filter((d) => (!family || d.family === family) && words.every((w) => `${D.label(d)} ${d.info.description} ${d.dial}`.toLowerCase().includes(w)))
-        .map((d) => ({ dial: d.dial, family: d.family, negative: d.info.negative, positive: d.info.positive, useful: d.info.pos.useful, overcook: d.info.pos.overcook,
+        .map((d) => ({ dial: d.dial, family: d.family, family_strength_scale: D.scale(d.family), negative: d.info.negative, positive: d.info.positive, useful: d.info.pos.useful, overcook: d.info.pos.overcook,
           negative_useful: d.info.neg.useful, description: d.info.description, on_rack: on.get(d.dial) ?? null }));
     },
   },
@@ -400,8 +471,8 @@ export const TOOLS = [
   },
   {
     name: "ui",
-    description: "Drive the view: select a brick, open it (side panel or in place, by the person's setting), close, show snap or graph (focusing a brick), undo, redo, open the dial picker or maker, open the setups sheet, open a take.",
-    inputSchema: { type: "object", properties: { action: { type: "string", enum: ["select", "close", "snap", "graph", "undo", "redo", "dials", "make_dial", "setups", "open_take"] }, target: { type: "string", description: "a brick key or take id" } }, required: ["action"] },
+    description: "Drive the view: select a brick, open it (side panel or in place, by the person's setting), close, show snap or graph (focusing a brick), undo, redo, open the dial picker or maker, open the setups sheet or the turbo sheet, open a take.",
+    inputSchema: { type: "object", properties: { action: { type: "string", enum: ["select", "close", "snap", "graph", "undo", "redo", "dials", "make_dial", "setups", "turbo", "open_take"] }, target: { type: "string", description: "a brick key or take id" } }, required: ["action"] },
     direct: true, // view changes are the agent's own navigation, not edits to accept
     run: ({ action, target }) => ui.act(action, target),
   },
@@ -452,7 +523,8 @@ export const schema = () => TOOLS.map(({ name, description, inputSchema, annotat
 }));
 
 // the view tells the tools how to read and drive it (set by snap_view.js once the view exists)
-export const ui = { read: () => ({}), act: () => { throw new Error("The Snap view isn't ready"); } };
+const notReady = () => { throw new Error("The Snap view isn't ready"); };
+export const ui = { read: () => ({}), act: notReady, setup: notReady };
 
 // WebMCP (Chrome origin trial, document.modelContext; navigator.modelContext is the older spelling). No-op elsewhere.
 let webmcp = null;

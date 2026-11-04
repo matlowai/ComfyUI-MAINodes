@@ -74,6 +74,9 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   strands the person's tab; it calls the newest tab that is still connected.
 - **SNAP-R17: Keep person and agent labels apart** (`by: person|agent`) on notes, judgments and takes. The data trains
   a judge model.
+- **SNAP-R19: The tool table is the API.** Snap's own UI, agents (MCP/WebMCP) and a future form-based editor layer
+  drive the same operations through one table. Engine and tool logic stay free of Snap-view DOM concerns; a UI action
+  calls the same function its tool calls, never a private path. *More:* CONCEPT.md "Layers".
 
 ## Data and privacy
 

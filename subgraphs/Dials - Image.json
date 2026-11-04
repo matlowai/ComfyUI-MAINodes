@@ -1,0 +1,1533 @@
+{
+ "revision": 0,
+ "last_node_id": 1,
+ "last_link_id": 0,
+ "nodes": [
+  {
+   "id": 1,
+   "type": "8b7c940f-d574-51e4-aaa9-882eda23ccc7",
+   "pos": [
+    0,
+    0
+   ],
+   "size": [
+    420,
+    420
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "localized_name": "model",
+     "name": "model",
+     "type": "MODEL",
+     "link": null,
+     "label": "model (from the Dial Rack)"
+    },
+    {
+     "localized_name": "clip",
+     "name": "clip",
+     "type": "CLIP",
+     "link": null
+    },
+    {
+     "localized_name": "vae",
+     "name": "vae",
+     "type": "VAE",
+     "link": null
+    },
+    {
+     "localized_name": "prompt",
+     "name": "prompt",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "prompt"
+     }
+    },
+    {
+     "localized_name": "negative",
+     "name": "negative",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "negative"
+     }
+    },
+    {
+     "localized_name": "switch",
+     "name": "switch",
+     "type": "BOOLEAN",
+     "link": null,
+     "label": "expand prompt",
+     "widget": {
+      "name": "switch"
+     }
+    },
+    {
+     "localized_name": "width",
+     "name": "width",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "width"
+     }
+    },
+    {
+     "localized_name": "height",
+     "name": "height",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "height"
+     }
+    },
+    {
+     "localized_name": "noise_seed",
+     "name": "noise_seed",
+     "type": "INT",
+     "link": null,
+     "label": "seed",
+     "widget": {
+      "name": "noise_seed"
+     }
+    },
+    {
+     "localized_name": "steps",
+     "name": "steps",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "steps"
+     }
+    },
+    {
+     "localized_name": "cfg",
+     "name": "cfg",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "cfg"
+     }
+    },
+    {
+     "localized_name": "sampler_name",
+     "name": "sampler_name",
+     "type": "COMBO",
+     "link": null,
+     "label": "sampler",
+     "widget": {
+      "name": "sampler_name"
+     }
+    },
+    {
+     "localized_name": "scheduler",
+     "name": "scheduler",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "scheduler"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "IMAGE",
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": null
+    }
+   ],
+   "title": "Dials - Image",
+   "properties": {
+    "previewExposures": []
+   },
+   "widgets_values": [
+    "A woman in a yellow raincoat stands on an old stone canal bridge in light rain, holding a red umbrella, warm shop lights reflected in the water, overcast evening, photograph",
+    "worst quality, bad anatomy, watermark, jpeg artifact",
+    false,
+    1024,
+    1024,
+    42,
+    25,
+    3.0,
+    "er_sde",
+    "simple"
+   ],
+   "widgets_values_named": {
+    "prompt": "A woman in a yellow raincoat stands on an old stone canal bridge in light rain, holding a red umbrella, warm shop lights reflected in the water, overcast evening, photograph",
+    "negative": "worst quality, bad anatomy, watermark, jpeg artifact",
+    "switch": false,
+    "width": 1024,
+    "height": 1024,
+    "noise_seed": 42,
+    "steps": 25,
+    "cfg": 3.0,
+    "sampler_name": "er_sde",
+    "scheduler": "simple"
+   }
+  }
+ ],
+ "links": [],
+ "version": 0.4,
+ "definitions": {
+  "subgraphs": [
+   {
+    "id": "8b7c940f-d574-51e4-aaa9-882eda23ccc7",
+    "version": 1,
+    "state": {
+     "lastGroupId": 0,
+     "lastNodeId": 13,
+     "lastLinkId": 30,
+     "lastRerouteId": 0
+    },
+    "revision": 0,
+    "config": {},
+    "name": "Dials - Image",
+    "description": "Text to image for MOSS-Image (Base, SFT DeBand, Kromoss) and Krea 2: model (after the LoRAs and the Dial Rack), encoder and VAE come in from the loaders; prompt, negative, size, seed, steps, cfg, sampler and scheduler are on the node. expand prompt runs the prompt through the text encoder's own language model (TextGenerate with caption-writer instructions) first; MOSS Base wants long, concrete prompts. Gives the decoded IMAGE (Save or an upscaler goes after it). Double-click to open the graph.",
+    "inputNode": {
+     "id": -10,
+     "bounding": [
+      -660,
+      0,
+      140,
+      300
+     ]
+    },
+    "outputNode": {
+     "id": -20,
+     "bounding": [
+      2400,
+      0,
+      120,
+      48
+     ]
+    },
+    "inputs": [
+     {
+      "id": "00ef48fe-239e-5d9c-a4ad-df8bde1f025a",
+      "name": "model",
+      "type": "MODEL",
+      "linkIds": [
+       14,
+       15
+      ],
+      "localized_name": "model",
+      "label": "model (from the Dial Rack)",
+      "pos": [
+       -560,
+       20
+      ]
+     },
+     {
+      "id": "266f6710-e61c-5f8c-b812-6414689b050d",
+      "name": "clip",
+      "type": "CLIP",
+      "linkIds": [
+       16,
+       17,
+       18
+      ],
+      "localized_name": "clip",
+      "pos": [
+       -560,
+       40
+      ]
+     },
+     {
+      "id": "55d15e97-a280-564d-8218-2cb2b39dcab5",
+      "name": "vae",
+      "type": "VAE",
+      "linkIds": [
+       19
+      ],
+      "localized_name": "vae",
+      "pos": [
+       -560,
+       60
+      ]
+     },
+     {
+      "id": "7d03053d-9fe2-5c94-8ea2-188a6eea24a9",
+      "name": "prompt",
+      "type": "STRING",
+      "linkIds": [
+       20
+      ],
+      "localized_name": "prompt",
+      "pos": [
+       -560,
+       80
+      ]
+     },
+     {
+      "id": "783ad9dd-c624-5c24-8e14-40ec9796e95a",
+      "name": "negative",
+      "type": "STRING",
+      "linkIds": [
+       21
+      ],
+      "localized_name": "negative",
+      "pos": [
+       -560,
+       100
+      ]
+     },
+     {
+      "id": "f98384c7-85a7-5b17-b02a-1a1dfb5f7eea",
+      "name": "switch",
+      "type": "BOOLEAN",
+      "linkIds": [
+       22
+      ],
+      "localized_name": "switch",
+      "label": "expand prompt",
+      "pos": [
+       -560,
+       120
+      ]
+     },
+     {
+      "id": "98295b81-3bf6-5f6d-a30e-fea6aaa61a9a",
+      "name": "width",
+      "type": "INT",
+      "linkIds": [
+       23
+      ],
+      "localized_name": "width",
+      "pos": [
+       -560,
+       140
+      ]
+     },
+     {
+      "id": "12250d96-6829-58f4-a395-1f70946f592d",
+      "name": "height",
+      "type": "INT",
+      "linkIds": [
+       24
+      ],
+      "localized_name": "height",
+      "pos": [
+       -560,
+       160
+      ]
+     },
+     {
+      "id": "995ca496-e6d2-5103-b962-09b391d2c754",
+      "name": "noise_seed",
+      "type": "INT",
+      "linkIds": [
+       25
+      ],
+      "localized_name": "noise_seed",
+      "label": "seed",
+      "pos": [
+       -560,
+       180
+      ]
+     },
+     {
+      "id": "02d216df-0aa1-5cf2-92d7-051f4aa19e87",
+      "name": "steps",
+      "type": "INT",
+      "linkIds": [
+       26
+      ],
+      "localized_name": "steps",
+      "pos": [
+       -560,
+       200
+      ]
+     },
+     {
+      "id": "8be0bb90-4e8b-5671-aff2-a56479d6ca1d",
+      "name": "cfg",
+      "type": "FLOAT",
+      "linkIds": [
+       27
+      ],
+      "localized_name": "cfg",
+      "pos": [
+       -560,
+       220
+      ]
+     },
+     {
+      "id": "25baeecd-b657-5cde-ad43-44dadd2d7a89",
+      "name": "sampler_name",
+      "type": "COMBO",
+      "linkIds": [
+       28
+      ],
+      "localized_name": "sampler_name",
+      "label": "sampler",
+      "pos": [
+       -560,
+       240
+      ]
+     },
+     {
+      "id": "d1f3f526-109a-54d3-b759-af433ab3e0c0",
+      "name": "scheduler",
+      "type": "COMBO",
+      "linkIds": [
+       29
+      ],
+      "localized_name": "scheduler",
+      "pos": [
+       -560,
+       260
+      ]
+     }
+    ],
+    "outputs": [
+     {
+      "id": "e08951f6-74ed-5b6e-b96d-0d0419f72bae",
+      "name": "IMAGE",
+      "type": "IMAGE",
+      "linkIds": [
+       30
+      ],
+      "localized_name": "IMAGE",
+      "pos": [
+       2420,
+       20
+      ]
+     }
+    ],
+    "widgets": [],
+    "nodes": [
+     {
+      "id": 1,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+       -420,
+       0
+      ],
+      "size": [
+       400,
+       200
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+       {
+        "localized_name": "value",
+        "name": "value",
+        "type": "STRING",
+        "widget": {
+         "name": "value"
+        },
+        "link": 20
+       }
+      ],
+      "outputs": [
+       {
+        "localized_name": "STRING",
+        "name": "STRING",
+        "type": "STRING",
+        "links": [
+         1,
+         4
+        ]
+       }
+      ],
+      "title": "Prompt",
+      "properties": {
+       "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+       "A woman in a yellow raincoat stands on an old stone canal bridge in light rain, holding a red umbrella, warm shop lights reflected in the water, overcast evening, photograph"
+      ],
+      "widgets_values_named": {
+       "value": "A woman in a yellow raincoat stands on an old stone canal bridge in light rain, holding a red umbrella, warm shop lights reflected in the water, overcast evening, photograph"
+      }
+     },
+     {
+      "id": 2,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+       -420,
+       260
+      ],
+      "size": [
+       400,
+       200
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+       {
+        "localized_name": "value",
+        "name": "value",
+        "type": "STRING",
+        "widget": {
+         "name": "value"
+        },
+        "link": null
+       }
+      ],
+      "outputs": [
+       {
+        "localized_name": "STRING",
+        "name": "STRING",
+        "type": "STRING",
+        "links": [
+         2
+        ]
+       }
+      ],
+      "title": "Prompt expander instructions",
+      "properties": {
+       "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+       "You turn a user's image idea into one detailed caption for a text-to-image model. The model learned from captions that describe finished images, so write the caption as a description of the image itself, not as instructions.\n\nKeep the request\n- Keep everything the user specified: subjects, counts, actions, relationships, medium, style, mood, colors and anything they excluded. Never contradict or drop it.\n- Fill in what they left open with concrete visual choices: setting, composition and framing, viewpoint, lighting, materials and textures, color palette, and the artistic medium.\n- Describe only what can be seen. Leave out sounds, smells, backstory and intentions.\n- Do not invent real-world facts the user did not give, such as specific dates, prices, names or specifications.\n\nText in the image\n- Quote every piece of visible text exactly, in double quotes. Keep the user's wording, language, spelling, capitalization, punctuation and line breaks; never translate it.\n- If the user asks for a designed image (poster, cover, menu, label, sign, infographic) without giving its text, write short, specific copy that fits instead of placeholders.\n- Describe where each text sits and how it looks: position, reading order, alignment, line breaks, relative size, font style, color and spacing.\n- Do not mention watermarks or artist signatures.\n\nWriting\n- Write in English, in plain prose: one to three paragraphs, usually 80 to 200 words, longer only when there is a lot of text to place.\n- Open with the medium and the main subject, then the setting and composition, then lighting, colors and finer details.\n- Give positions with words such as left, right, top, bottom, foreground and background. No coordinates, lists, headings, JSON or Markdown.\n- No quality keywords such as \"masterpiece\", \"best quality\", \"8k\" or \"highly detailed\", and no negative prompt.\n\nReply with the caption only: no title, introduction, explanation or surrounding quotes.\n"
+      ],
+      "widgets_values_named": {
+       "value": "You turn a user's image idea into one detailed caption for a text-to-image model. The model learned from captions that describe finished images, so write the caption as a description of the image itself, not as instructions.\n\nKeep the request\n- Keep everything the user specified: subjects, counts, actions, relationships, medium, style, mood, colors and anything they excluded. Never contradict or drop it.\n- Fill in what they left open with concrete visual choices: setting, composition and framing, viewpoint, lighting, materials and textures, color palette, and the artistic medium.\n- Describe only what can be seen. Leave out sounds, smells, backstory and intentions.\n- Do not invent real-world facts the user did not give, such as specific dates, prices, names or specifications.\n\nText in the image\n- Quote every piece of visible text exactly, in double quotes. Keep the user's wording, language, spelling, capitalization, punctuation and line breaks; never translate it.\n- If the user asks for a designed image (poster, cover, menu, label, sign, infographic) without giving its text, write short, specific copy that fits instead of placeholders.\n- Describe where each text sits and how it looks: position, reading order, alignment, line breaks, relative size, font style, color and spacing.\n- Do not mention watermarks or artist signatures.\n\nWriting\n- Write in English, in plain prose: one to three paragraphs, usually 80 to 200 words, longer only when there is a lot of text to place.\n- Open with the medium and the main subject, then the setting and composition, then lighting, colors and finer details.\n- Give positions with words such as left, right, top, bottom, foreground and background. No coordinates, lists, headings, JSON or Markdown.\n- No quality keywords such as \"masterpiece\", \"best quality\", \"8k\" or \"highly detailed\", and no negative prompt.\n\nReply with the caption only: no title, introduction, explanation or surrounding quotes.\n"
+      }
+     },
+     {
+      "id": 3,
+      "type": "TextGenerate",
+      "pos": [
+       0,
+       0
+      ],
+      "size": [
+       400,
+       456
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+       {
+        "localized_name": "clip",
+        "name": "clip",
+        "type": "CLIP",
+        "link": 16
+       },
+       {
+        "localized_name": "image",
+        "name": "image",
+        "shape": 7,
+        "type": "IMAGE",
+        "link": null
+       },
+       {
+        "localized_name": "video",
+        "name": "video",
+        "shape": 7,
+        "type": "IMAGE",
+        "link": null
+       },
+       {
+        "localized_name": "audio",
+        "name": "audio",
+        "shape": 7,
+        "type": "AUDIO",
+        "link": null
+       },
+       {
+        "localized_name": "system_prompt",
+        "name": "system_prompt",
+        "shape": 7,
+        "type": "STRING",
+        "link": 2
+       },
+       {
+        "localized_name": "prompt",
+        "name": "prompt",
+        "type": "STRING",
+        "widget": {
+         "name": "prompt"
+        },
+        "link": 1
+       },
+       {
+        "localized_name": "max_length",
+        "name": "max_length",
+        "type": "INT",
+        "widget": {
+         "name": "max_length"
+        },
+        "link": null
+       },
+       {
+        "localized_name": "temperature",
+        "name": "sampling_mode.temperature",
+        "type": "FLOAT",
+        "widget": {
+         "name": "sampling_mode.temperature"
+        },
+        "link": null
+       },
+       {
+        "localized_name": "top_k",
+        "name": "sampling_mode.top_k",
+        "type": "INT",
+        "widget": {
+         "name": "sampling_mode.top_k"
+        },
+        "link": null
+       },
+       {
+        "localized_name": "top_p",
+        "name": "sampling_mode.top_p",
+        "type": "FLOAT",
+        "widget": {
+         "name": "sampling_mode.top_p"
+        },
+        "link": null
+       },
+       {
+        "localized_name": "min_p",
+        "name": "sampling_mode.min_p",
+        "type": "FLOAT",
+        "widget": {
+         "name": "sampling_mode.min_p"
+        },
+        "link": null
+       },
+       {
+        "localized_name": "repetition_penalty",
+        "name": "sampling_mode.repetition_penalty",
+        "type": "FLOAT",
+        "widget": {
+         "name": "sampling_mode.repetition_penalty"
+        },
+        "link": null
+       },
+       {
+        "localized_name": "seed",
+        "name": "sampling_mode.seed",
+        "type": "INT",
+        "widget": {
+         "name": "sampling_mode.seed"
+        },
+        "link": null
+       },
+       {
+        "localized_name": "presence_penalty",
+        "name": "sampling_mode.presence_penalty",
+        "shape": 7,
+        "type": "FLOAT",
+        "widget": {
+         "name": "sampling_mode.presence_penalty"
+        },
+        "link": null
+       },
+       {
+        "localized_name": "Sampling Mode",
+        "name": "sampling_mode",
+        "type": "COMFY_DYNAMICCOMBO_V3",
+        "widget": {
+         "name": "sampling_mode"
+        },
+        "link": null
+       },
+       {
+        "localized_name": "thinking",
+        "name": "thinking",
+        "shape": 7,
+        "type": "BOOLEAN",
+        "widget": {
+         "name": "thinking"
+        },
+        "link": null
+       },
+       {
+        "localized_name": "use_default_template",
+        "name": "use_default_template",
+        "shape": 7,
+        "type": "BOOLEAN",
+        "widget": {
+         "name": "use_default_template"
+        },
+        "link": null
+       },
+       {
+        "localized_name": "mtp",
+        "name": "mtp",
+        "shape": 7,
+        "type": "COMBO",
+        "widget": {
+         "name": "mtp"
+        },
+        "link": null
+       }
+      ],
+      "outputs": [
+       {
+        "localized_name": "generated_text",
+        "name": "generated_text",
+        "type": "STRING",
+        "links": [
+         3
+        ]
+       },
+       {
+        "localized_name": "thinking",
+        "name": "thinking",
+        "type": "STRING",
+        "links": null
+       }
+      ],
+      "title": "Prompt expander",
+      "properties": {
+       "Node name for S&R": "TextGenerate"
+      },
+      "widgets_values": [
+       "",
+       4096,
+       "on",
+       0.7,
+       64,
+       0.95,
+       0.05,
+       1.05,
+       0,
+       0,
+       false,
+       true,
+       "auto"
+      ],
+      "widgets_values_named": {
+       "prompt": "",
+       "max_length": 4096,
+       "sampling_mode": "on",
+       "sampling_mode.temperature": 0.7,
+       "sampling_mode.top_k": 64,
+       "sampling_mode.top_p": 0.95,
+       "sampling_mode.min_p": 0.05,
+       "sampling_mode.repetition_penalty": 1.05,
+       "sampling_mode.seed": 0,
+       "sampling_mode.presence_penalty": 0,
+       "thinking": false,
+       "use_default_template": true,
+       "mtp": "auto"
+      }
+     },
+     {
+      "id": 4,
+      "type": "ComfySwitchNode",
+      "pos": [
+       420,
+       0
+      ],
+      "size": [
+       270,
+       78
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+       {
+        "localized_name": "on_false",
+        "name": "on_false",
+        "shape": 7,
+        "type": "STRING",
+        "link": 4
+       },
+       {
+        "localized_name": "on_true",
+        "name": "on_true",
+        "shape": 7,
+        "type": "STRING",
+        "link": 3
+       },
+       {
+        "localized_name": "switch",
+        "name": "switch",
+        "type": "BOOLEAN",
+        "widget": {
+         "name": "switch"
+        },
+        "link": 22
+       }
+      ],
+      "outputs": [
+       {
+        "localized_name": "output",
+        "name": "output",
+        "type": "STRING",
+        "links": [
+         5
+        ]
+       }
+      ],
+      "title": "expand prompt?",
+      "properties": {
+       "Node name for S&R": "ComfySwitchNode"
+      },
+      "widgets_values": [
+       false
+      ],
+      "widgets_values_named": {
+       "switch": false
+      }
+     },
+     {
+      "id": 5,
+      "type": "CLIPTextEncode",
+      "pos": [
+       800,
+       0
+      ],
+      "size": [
+       400,
+       200
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+       {
+        "localized_name": "clip",
+        "name": "clip",
+        "type": "CLIP",
+        "link": 17
+       },
+       {
+        "localized_name": "text",
+        "name": "text",
+        "type": "STRING",
+        "widget": {
+         "name": "text"
+        },
+        "link": 5
+       }
+      ],
+      "outputs": [
+       {
+        "localized_name": "CONDITIONING",
+        "name": "CONDITIONING",
+        "type": "CONDITIONING",
+        "links": [
+         6
+        ]
+       }
+      ],
+      "title": "Positive",
+      "properties": {
+       "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+       ""
+      ],
+      "widgets_values_named": {
+       "text": ""
+      }
+     },
+     {
+      "id": 6,
+      "type": "CLIPTextEncode",
+      "pos": [
+       800,
+       260
+      ],
+      "size": [
+       400,
+       200
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+       {
+        "localized_name": "clip",
+        "name": "clip",
+        "type": "CLIP",
+        "link": 18
+       },
+       {
+        "localized_name": "text",
+        "name": "text",
+        "type": "STRING",
+        "widget": {
+         "name": "text"
+        },
+        "link": 21
+       }
+      ],
+      "outputs": [
+       {
+        "localized_name": "CONDITIONING",
+        "name": "CONDITIONING",
+        "type": "CONDITIONING",
+        "links": [
+         7
+        ]
+       }
+      ],
+      "title": "Negative",
+      "properties": {
+       "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+       "worst quality, bad anatomy, watermark, jpeg artifact"
+      ],
+      "widgets_values_named": {
+       "text": "worst quality, bad anatomy, watermark, jpeg artifact"
+      }
+     },
+     {
+      "id": 7,
+      "type": "KSamplerSelect",
+      "pos": [
+       800,
+       520
+      ],
+      "size": [
+       270,
+       58
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+       {
+        "localized_name": "sampler_name",
+        "name": "sampler_name",
+        "type": "COMBO",
+        "widget": {
+         "name": "sampler_name"
+        },
+        "link": 28
+       }
+      ],
+      "outputs": [
+       {
+        "localized_name": "SAMPLER",
+        "name": "SAMPLER",
+        "type": "SAMPLER",
+        "links": [
+         10
+        ]
+       }
+      ],
+      "properties": {
+       "Node name for S&R": "KSamplerSelect"
+      },
+      "widgets_values": [
+       "er_sde"
+      ],
+      "widgets_values_named": {
+       "sampler_name": "er_sde"
+      }
+     },
+     {
+      "id": 8,
+      "type": "BasicScheduler",
+      "pos": [
+       800,
+       680
+      ],
+      "size": [
+       270,
+       106
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+       {
+        "localized_name": "model",
+        "name": "model",
+        "type": "MODEL",
+        "link": 14
+       },
+       {
+        "localized_name": "scheduler",
+        "name": "scheduler",
+        "type": "COMBO",
+        "widget": {
+         "name": "scheduler"
+        },
+        "link": 29
+       },
+       {
+        "localized_name": "steps",
+        "name": "steps",
+        "type": "INT",
+        "widget": {
+         "name": "steps"
+        },
+        "link": 26
+       },
+       {
+        "localized_name": "denoise",
+        "name": "denoise",
+        "type": "FLOAT",
+        "widget": {
+         "name": "denoise"
+        },
+        "link": null
+       }
+      ],
+      "outputs": [
+       {
+        "localized_name": "SIGMAS",
+        "name": "SIGMAS",
+        "type": "SIGMAS",
+        "links": [
+         11
+        ]
+       }
+      ],
+      "properties": {
+       "Node name for S&R": "BasicScheduler"
+      },
+      "widgets_values": [
+       "simple",
+       25,
+       1
+      ],
+      "widgets_values_named": {
+       "scheduler": "simple",
+       "steps": 25,
+       "denoise": 1
+      }
+     },
+     {
+      "id": 9,
+      "type": "CFGGuider",
+      "pos": [
+       1200,
+       0
+      ],
+      "size": [
+       270,
+       98
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+       {
+        "localized_name": "model",
+        "name": "model",
+        "type": "MODEL",
+        "link": 15
+       },
+       {
+        "localized_name": "positive",
+        "name": "positive",
+        "type": "CONDITIONING",
+        "link": 6
+       },
+       {
+        "localized_name": "negative",
+        "name": "negative",
+        "type": "CONDITIONING",
+        "link": 7
+       },
+       {
+        "localized_name": "cfg",
+        "name": "cfg",
+        "type": "FLOAT",
+        "widget": {
+         "name": "cfg"
+        },
+        "link": 27
+       }
+      ],
+      "outputs": [
+       {
+        "localized_name": "GUIDER",
+        "name": "GUIDER",
+        "type": "GUIDER",
+        "links": [
+         9
+        ]
+       }
+      ],
+      "properties": {
+       "Node name for S&R": "CFGGuider"
+      },
+      "widgets_values": [
+       3.0
+      ],
+      "widgets_values_named": {
+       "cfg": 3.0
+      }
+     },
+     {
+      "id": 10,
+      "type": "RandomNoise",
+      "pos": [
+       1200,
+       260
+      ],
+      "size": [
+       270,
+       82
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+       {
+        "localized_name": "noise_seed",
+        "name": "noise_seed",
+        "type": "INT",
+        "widget": {
+         "name": "noise_seed"
+        },
+        "link": 25
+       }
+      ],
+      "outputs": [
+       {
+        "localized_name": "NOISE",
+        "name": "NOISE",
+        "type": "NOISE",
+        "links": [
+         8
+        ]
+       }
+      ],
+      "properties": {
+       "Node name for S&R": "RandomNoise"
+      },
+      "widgets_values": [
+       42,
+       "fixed"
+      ],
+      "widgets_values_named": {
+       "noise_seed": 42,
+       "control_after_generate": "fixed"
+      }
+     },
+     {
+      "id": 11,
+      "type": "EmptyLatentImage",
+      "pos": [
+       1200,
+       420
+      ],
+      "size": [
+       270,
+       106
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+       {
+        "localized_name": "width",
+        "name": "width",
+        "type": "INT",
+        "widget": {
+         "name": "width"
+        },
+        "link": 23
+       },
+       {
+        "localized_name": "height",
+        "name": "height",
+        "type": "INT",
+        "widget": {
+         "name": "height"
+        },
+        "link": 24
+       },
+       {
+        "localized_name": "batch_size",
+        "name": "batch_size",
+        "type": "INT",
+        "widget": {
+         "name": "batch_size"
+        },
+        "link": null
+       }
+      ],
+      "outputs": [
+       {
+        "localized_name": "LATENT",
+        "name": "LATENT",
+        "type": "LATENT",
+        "links": [
+         12
+        ]
+       }
+      ],
+      "properties": {
+       "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+       1024,
+       1024,
+       1
+      ],
+      "widgets_values_named": {
+       "width": 1024,
+       "height": 1024,
+       "batch_size": 1
+      }
+     },
+     {
+      "id": 12,
+      "type": "SamplerCustomAdvanced",
+      "pos": [
+       1600,
+       0
+      ],
+      "size": [
+       212.3638671875,
+       106
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+       {
+        "localized_name": "noise",
+        "name": "noise",
+        "type": "NOISE",
+        "link": 8
+       },
+       {
+        "localized_name": "guider",
+        "name": "guider",
+        "type": "GUIDER",
+        "link": 9
+       },
+       {
+        "localized_name": "sampler",
+        "name": "sampler",
+        "type": "SAMPLER",
+        "link": 10
+       },
+       {
+        "localized_name": "sigmas",
+        "name": "sigmas",
+        "type": "SIGMAS",
+        "link": 11
+       },
+       {
+        "localized_name": "latent_image",
+        "name": "latent_image",
+        "type": "LATENT",
+        "link": 12
+       }
+      ],
+      "outputs": [
+       {
+        "localized_name": "output",
+        "name": "output",
+        "type": "LATENT",
+        "links": [
+         13
+        ]
+       },
+       {
+        "localized_name": "denoised_output",
+        "name": "denoised_output",
+        "type": "LATENT",
+        "links": null
+       }
+      ],
+      "properties": {
+       "Node name for S&R": "SamplerCustomAdvanced"
+      }
+     },
+     {
+      "id": 13,
+      "type": "VAEDecode",
+      "pos": [
+       2000,
+       0
+      ],
+      "size": [
+       140,
+       46
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+       {
+        "localized_name": "samples",
+        "name": "samples",
+        "type": "LATENT",
+        "link": 13
+       },
+       {
+        "localized_name": "vae",
+        "name": "vae",
+        "type": "VAE",
+        "link": 19
+       }
+      ],
+      "outputs": [
+       {
+        "localized_name": "IMAGE",
+        "name": "IMAGE",
+        "type": "IMAGE",
+        "links": [
+         30
+        ]
+       }
+      ],
+      "properties": {
+       "Node name for S&R": "VAEDecode"
+      }
+     }
+    ],
+    "groups": [],
+    "links": [
+     {
+      "id": 1,
+      "origin_id": 1,
+      "origin_slot": 0,
+      "target_id": 3,
+      "target_slot": 5,
+      "type": "STRING"
+     },
+     {
+      "id": 2,
+      "origin_id": 2,
+      "origin_slot": 0,
+      "target_id": 3,
+      "target_slot": 4,
+      "type": "STRING"
+     },
+     {
+      "id": 3,
+      "origin_id": 3,
+      "origin_slot": 0,
+      "target_id": 4,
+      "target_slot": 1,
+      "type": "STRING"
+     },
+     {
+      "id": 4,
+      "origin_id": 1,
+      "origin_slot": 0,
+      "target_id": 4,
+      "target_slot": 0,
+      "type": "STRING"
+     },
+     {
+      "id": 5,
+      "origin_id": 4,
+      "origin_slot": 0,
+      "target_id": 5,
+      "target_slot": 1,
+      "type": "STRING"
+     },
+     {
+      "id": 6,
+      "origin_id": 5,
+      "origin_slot": 0,
+      "target_id": 9,
+      "target_slot": 1,
+      "type": "CONDITIONING"
+     },
+     {
+      "id": 7,
+      "origin_id": 6,
+      "origin_slot": 0,
+      "target_id": 9,
+      "target_slot": 2,
+      "type": "CONDITIONING"
+     },
+     {
+      "id": 8,
+      "origin_id": 10,
+      "origin_slot": 0,
+      "target_id": 12,
+      "target_slot": 0,
+      "type": "NOISE"
+     },
+     {
+      "id": 9,
+      "origin_id": 9,
+      "origin_slot": 0,
+      "target_id": 12,
+      "target_slot": 1,
+      "type": "GUIDER"
+     },
+     {
+      "id": 10,
+      "origin_id": 7,
+      "origin_slot": 0,
+      "target_id": 12,
+      "target_slot": 2,
+      "type": "SAMPLER"
+     },
+     {
+      "id": 11,
+      "origin_id": 8,
+      "origin_slot": 0,
+      "target_id": 12,
+      "target_slot": 3,
+      "type": "SIGMAS"
+     },
+     {
+      "id": 12,
+      "origin_id": 11,
+      "origin_slot": 0,
+      "target_id": 12,
+      "target_slot": 4,
+      "type": "LATENT"
+     },
+     {
+      "id": 13,
+      "origin_id": 12,
+      "origin_slot": 0,
+      "target_id": 13,
+      "target_slot": 0,
+      "type": "LATENT"
+     },
+     {
+      "id": 14,
+      "origin_id": -10,
+      "origin_slot": 0,
+      "target_id": 8,
+      "target_slot": 0,
+      "type": "MODEL"
+     },
+     {
+      "id": 15,
+      "origin_id": -10,
+      "origin_slot": 0,
+      "target_id": 9,
+      "target_slot": 0,
+      "type": "MODEL"
+     },
+     {
+      "id": 16,
+      "origin_id": -10,
+      "origin_slot": 1,
+      "target_id": 3,
+      "target_slot": 0,
+      "type": "CLIP"
+     },
+     {
+      "id": 17,
+      "origin_id": -10,
+      "origin_slot": 1,
+      "target_id": 5,
+      "target_slot": 0,
+      "type": "CLIP"
+     },
+     {
+      "id": 18,
+      "origin_id": -10,
+      "origin_slot": 1,
+      "target_id": 6,
+      "target_slot": 0,
+      "type": "CLIP"
+     },
+     {
+      "id": 19,
+      "origin_id": -10,
+      "origin_slot": 2,
+      "target_id": 13,
+      "target_slot": 1,
+      "type": "VAE"
+     },
+     {
+      "id": 20,
+      "origin_id": -10,
+      "origin_slot": 3,
+      "target_id": 1,
+      "target_slot": 0,
+      "type": "STRING"
+     },
+     {
+      "id": 21,
+      "origin_id": -10,
+      "origin_slot": 4,
+      "target_id": 6,
+      "target_slot": 1,
+      "type": "STRING"
+     },
+     {
+      "id": 22,
+      "origin_id": -10,
+      "origin_slot": 5,
+      "target_id": 4,
+      "target_slot": 2,
+      "type": "BOOLEAN"
+     },
+     {
+      "id": 23,
+      "origin_id": -10,
+      "origin_slot": 6,
+      "target_id": 11,
+      "target_slot": 0,
+      "type": "INT"
+     },
+     {
+      "id": 24,
+      "origin_id": -10,
+      "origin_slot": 7,
+      "target_id": 11,
+      "target_slot": 1,
+      "type": "INT"
+     },
+     {
+      "id": 25,
+      "origin_id": -10,
+      "origin_slot": 8,
+      "target_id": 10,
+      "target_slot": 0,
+      "type": "INT"
+     },
+     {
+      "id": 26,
+      "origin_id": -10,
+      "origin_slot": 9,
+      "target_id": 8,
+      "target_slot": 2,
+      "type": "INT"
+     },
+     {
+      "id": 27,
+      "origin_id": -10,
+      "origin_slot": 10,
+      "target_id": 9,
+      "target_slot": 3,
+      "type": "FLOAT"
+     },
+     {
+      "id": 28,
+      "origin_id": -10,
+      "origin_slot": 11,
+      "target_id": 7,
+      "target_slot": 0,
+      "type": "COMBO"
+     },
+     {
+      "id": 29,
+      "origin_id": -10,
+      "origin_slot": 12,
+      "target_id": 8,
+      "target_slot": 1,
+      "type": "COMBO"
+     },
+     {
+      "id": 30,
+      "origin_id": 13,
+      "origin_slot": 0,
+      "target_id": -20,
+      "target_slot": 0,
+      "type": "IMAGE"
+     }
+    ],
+    "extra": {},
+    "category": "MAINodes/Dials"
+   }
+  ]
+ }
+}

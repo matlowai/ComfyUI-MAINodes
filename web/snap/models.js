@@ -1,11 +1,15 @@
 // What a recipe loads, read generically: a combo setting is a model setting when its value or choices are files in one of
 // ComfyUI's model folders (core /experiment/models lists them with sizes), so any loader, pack node or any-node brick gets
 // model chips without per-node code. Setups are what a brick's node offers through its own `presets` interface
-// ({ names(), values(name), current(), apply(name) }, e.g. the Render Preset's); recipe cards of other families join later.
+// ({ names(), values(name), current(), apply(name) }, e.g. the Render Preset's) plus the Library's family recipe cards.
+// SNAP-R1 generic pass-through · SNAP-R3 unresolved stays missing · SNAP-R9 setups own the model set · SNAP-R10 turbo
+// merge vs LoRA · SNAP-R11 warn, never block · SNAP-R12 LoRA roles · SNAP-R13 family rules from the model graph
+// see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
 import * as D from "./dials.js";
+import * as L from "./library.js";
 import { BRICKS } from "./bricks.js";
 
 let files = new Map(), loading = null;
@@ -78,37 +82,219 @@ export function nodesOf(brickKey) {
 }
 
 // every model setting in the recipe: which file, how big, and whether it is installed
+// a LoRA stack's row that is off at strength 0 loads nothing (an empty stack keeps one such row)
+const idle = (n, w) => { const m = w.name.match(/^(.+\.\d+)\.lora_name$/), at = (f) => m && n.widgets.find((x) => x.name === `${m[1]}.${f}`)?.value; return !!m && at("enabled") === false && Number(at("strength")) === 0; };
 export function settings() {
-  return E.state().bricks.flatMap((b) => nodesOf(b.key).flatMap(([nodeKey, n]) => (n.widgets ?? []).filter(isModel).map((w) => ({
+  return E.state().bricks.flatMap((b) => nodesOf(b.key).flatMap(([nodeKey, n]) => (n.widgets ?? []).filter((w) => isModel(w) && !idle(n, w)).map((w) => ({
     brick: b.key, node: nodeKey, setting: w.name, file: w.value, folder: file(w.value)?.folder ?? null, size: file(w.value)?.size ?? null,
     installed: choices(w).includes(w.value) && readable(w.value), ...(choices(w).includes(w.value) && !readable(w.value) ? { unreadable: true } : {}),
   }))));
 }
-// model settings whose file is in the list but can't be read; the readiness badge counts them with E.missing()
-export const unreadable = () => settings().filter((s) => s.unreadable).map((s) => ({ brick: s.brick, node: E.nodeFor(s.brick, s.node)?.title, setting: s.setting, value: s.file, unreadable: true }));
+// model settings a run would fail on although the combo lists them: a file the server can't read, or one the model graph
+// says core ComfyUI can't load; the readiness badge counts them with E.missing()
+export const unreadable = () => settings().filter((s) => s.unreadable || entry(s.file)?.loads_in_core === false)
+  .map((s) => ({ brick: s.brick, node: E.nodeFor(s.brick, s.node)?.title, setting: s.setting, value: s.file, ...(s.unreadable ? { unreadable: true } : { cant_load: true }) }));
 export const total = (list = settings()) => [...new Map(list.filter((s) => s.size).map((s) => [s.file, s.size])).values()].reduce((a, b) => a + b, 0);
 
 // setups the recipe's nodes offer (one entry per preset), each with the model files it would load
+const DIFFUSION = new Set(["base", "sft", "finetune", "turbo_merge"]);
+const short = (f) => base(f).replace(/\.(safetensors|gguf|sft|ckpt)$/, "");
+// a file as a setup card or preset names it: installed (by file name in any sub-folder), and whether core can load it
+function readiness(v) {
+  const name = files.has(v) ? v : [...files.keys()].find((k) => base(k) === base(v));
+  const e = entry(name ?? v);
+  return { file: name ?? v, size: name ? file(name).size : null, installed: !!name, ...(e?.loads_in_core === false ? { cant_load: true } : {}), kind: e?.kind ?? null };
+}
+const familyOf = (values) => Object.values(values).map((v) => typeof v === "string" && entry(v)).find((e) => e && DIFFUSION.has(e.kind) && e.family)?.family ?? null;
+
 export function setups() {
-  const fam = D.family();
-  return E.state().bricks.flatMap((b) => nodesOf(b.key).filter(([, n]) => n.presets).flatMap(([nodeKey, n]) => {
+  const presets = E.state().bricks.flatMap((b) => nodesOf(b.key).filter(([, n]) => n.presets).flatMap(([nodeKey, n]) => {
     const now = n.presets.current();
     return n.presets.names().map((name) => {
       const values = n.presets.values(name);
       const models = Object.entries(values).map(([setting, v]) => [setting, v, n.widgets.find((w) => w.name === setting)]).filter(([, , w]) => isModel(w))
-        .map(([setting, v, w]) => ({ setting, file: v, size: file(v)?.size ?? null, installed: choices(w).includes(v) && readable(v) }));
-      return { name, family: fam, source: "preset", brick: b.key, node: nodeKey, current: now.name === name, edited: now.name === name && now.edited, models, values };
+        .map(([setting, v, w]) => ({ setting, ...readiness(v), installed: choices(w).includes(v) && readable(v) }));
+      return { name, family: familyOf(values) ?? family(), source: "preset", brick: b.key, node: nodeKey, current: now.name === name, edited: now.name === name && now.edited, models, values };
     });
   }));
+  // family recipe cards: every model file their bricks name, with readiness (✓ / missing / can't load)
+  const cards = L.setupCards().map((c) => {
+    const values = c.brick.bricks.flatMap((b) => Object.values(b.values).flatMap((ws) => Object.entries(ws)));
+    const models = values.filter(([, v]) => typeof v === "string" && /\.(safetensors|gguf|sft|ckpt)$/.test(v)).map(([setting, v]) => ({ setting, ...readiness(v) }));
+    const first = (names) => values.find(([k]) => names.includes(k))?.[1]; // the first of each, as sampling() reads a live recipe
+    return { name: c.title, family: c.family, source: "recipe", card: c.id, output: c.output, about: c.about, current: E.state().setup === c.id, models,
+      values: { sampler: first(SAMPLING.sampler), schedule: first(SAMPLING.scheduler), steps: first(SAMPLING.steps), cfg: first(SAMPLING.cfg) } };
+  });
+  return [...presets, ...cards];
 }
 
-// apply a setup as one undo step
+// a preset setup in place, as one undo step; it brings its family's encoder and VAEs (the Models brick's own pack values)
+// along, so the setup never sits next to another family's encoder (SNAP-R9)
 export function apply(name) {
-  const s = setups().find((x) => x.name === name);
-  if (!s) throw new Error(`No setup "${name}"; there are: ${setups().map((x) => x.name).join(", ")}`);
-  E.batch(() => E.nodeFor(s.brick, s.node).presets.apply(name));
+  const s = setups().find((x) => x.name === name && x.source === "preset");
+  if (!s) throw new Error(`No setup "${name}" on this recipe's bricks; there are: ${setups().map((x) => x.name).join(", ")}`);
+  E.batch(() => {
+    E.nodeFor(s.brick, s.node).presets.apply(name);
+    if (E.state().bricks.some((b) => b.key === "models")) for (const spec of BRICKS.models.nodes) E.setValues("models", spec.key, spec.values);
+    E.tag("family", s.family);
+    if (host()) E.remember(host(), "turbo", null); // a new setup's quality settings are the ones "Turbo off" goes back to
+  });
   app.canvas.setDirty(true, true);
   return s;
+}
+
+// a family recipe card: on a fresh tab every value; in place (same family) prompt and seed stay, bricks the card doesn't
+// list go (Style and Cast stay with the shot and the cast), and the Turbo chip starts at off. One undo step
+const KEEP = new Set(["prompt", "noise_seed"]);
+export async function applyCard(card, { fresh }) {
+  const bricks = fresh ? card.brick.bricks : card.brick.bricks.map((b) => ({ ...b, values: Object.fromEntries(Object.entries(b.values).map(([k, ws]) => [k, Object.fromEntries(Object.entries(ws).filter(([name]) => !KEEP.has(name)))])) }));
+  let keys;
+  app.canvas.emitBeforeChange();
+  try {
+    keys = await E.restore(bricks);
+    const gone = E.state().bricks.map((x) => x.key).filter((b) => !keys.includes(b) && !BRICKS[b].attach && !["style", "identity"].includes(BRICKS[b].stack?.role));
+    for (const b of gone) E.unsnap(b);
+    if (gone.length) E.rebind(); // what they fed (the Render's model) binds to the brick before them again
+    E.tag("setup", card.id);
+    E.tag("family", card.family);
+    if (host()) E.remember(host(), "turbo", null);
+  } finally { app.canvas.emitAfterChange(); }
+  app.canvas.setDirty(true, true);
+  return keys;
+}
+
+// ---- the recipe's family, its LoRAs, its sampling, and what the model graph says about them -------------------------
+// the family: what the applied setup declared, else what the diffusion model is for (model graph), else what the encoder
+// type says; the other two then only check it (warnings)
+export function family() {
+  if (E.state().family) return E.state().family;
+  for (const st of settings()) { const e = entry(st.file); if (e?.family && DIFFUSION.has(e.kind) && (st.folder === "diffusion_models" || !e.inferred)) return e.family; }
+  return D.typeFamily();
+}
+D.useFamily(() => (E.state().bricks.length ? family() : null));
+const diffusion = () => settings().find((st) => DIFFUSION.has(entry(st.file)?.kind) && (st.folder === "diffusion_models" || !entry(st.file).inferred));
+// Base or SFT lineage: what a model or LoRA is built on (Kromoss is a Base fine-tune; a DeBand file an SFT one)
+const lineage = (e) => (!e ? null : ["base", "sft"].includes(e.kind) ? e.kind : e.trained_on);
+
+// every LoRA setting in the recipe with its strength and on/off, read generically: a dynamic-group row
+// (<group>.<i>.lora_name with .strength / .enabled beside it) or a single `lora` with `lora_strength`
+export function loras() {
+  return settings().filter((st) => (st.folder ?? entry(st.file)?.folder) === "loras" && entry(st.file)?.role !== "dial").map((st) => {
+    const n = E.nodeFor(st.brick, st.node), m = st.setting.match(/^(.+)\.(\d+)\.[^.]+$/), at = (f) => n.widgets.find((w) => w.name === (m ? `${m[1]}.${m[2]}.${f}` : f))?.value;
+    const strength = Number(at(m ? "strength" : `${st.setting}_strength`) ?? 1), on = at("enabled") !== false && strength !== 0;
+    return { ...st, row: m ? Number(m[2]) : null, strength, on, entry: entry(st.file) };
+  }).filter((r) => r.on || r.strength !== 0); // an empty stack's one row (off at 0) is no LoRA
+}
+
+// the sampling a recipe runs, wherever it lives (the image Render's own widgets, H3's Render Preset): the first
+// setting of each name that no wire drives
+const SAMPLING = { steps: ["steps"], cfg: ["cfg"], sampler: ["sampler_name", "sampler"], scheduler: ["scheduler", "schedule"] };
+export function sampling() {
+  const out = {};
+  for (const b of E.state().bricks) for (const [nodeKey, n] of nodesOf(b.key)) for (const [k, names] of Object.entries(SAMPLING)) {
+    const w = !out[k] && n.widgets?.find((x) => names.includes(x.name) && !n.inputs?.some((i) => i.widget?.name === x.name && i.link != null));
+    if (w) out[k] = { brick: b.key, node: nodeKey, name: w.name, value: w.value, choices: choices(w) };
+  }
+  return out;
+}
+
+// what doesn't fit, as one line each on the brick it concerns; never blocks anything (SNAP-R11)
+export function warnings() {
+  const fam = family(), types = D.types(), out = [], say = (brick, text) => out.push({ brick, text });
+  const want = Object.keys(types).find((t) => types[t] === fam);
+  for (const b of E.state().bricks) for (const [, n] of nodesOf(b.key)) {
+    const w = want && n.widgets?.find((x) => x.name === "type" && choices(x)?.includes(want));
+    if (w && w.value !== want) say(b.key, `encoder type ${w.value} doesn't fit ${fam} (it wants ${want})`);
+  }
+  for (const st of settings()) {
+    const e = entry(st.file);
+    if (fam && e?.family && e.family !== fam && e.role !== "dial") say(st.brick, `${short(st.file)} is for ${e.family}; this recipe is ${fam}`);
+    if (e?.loads_in_core === false) say(st.brick, `${short(st.file)} can't load in core ComfyUI (${e.quant_format ?? "unsupported format"})`);
+  }
+  const model = diffusion(), me = model && entry(model.file), on = loras().filter((r) => r.on), turbo = on.filter((r) => r.entry.turbo);
+  if (me?.kind === "sft" && me.deband === "none" && !on.some((r) => r.entry.deband === "lora")) say(model.brick, `${short(model.file)} is SFT with no deband fix: expect vertical banding; use an SFT DeBand checkpoint or add a deband LoRA`);
+  if (me?.turbo?.how === "merged" && turbo.length) say(turbo[0].brick, `${short(model.file)} already has a turbo merged in; ${turbo.map((r) => short(r.file)).join(", ")} added on top anyway`);
+  if (turbo.length > 1) say(turbo[0].brick, `${turbo.length} turbo LoRAs stacked: steps and cfg follow ${short(turbo[0].file)}; lower strengths (about 0.3-0.6 each) are usual`);
+  for (const r of on) if (lineage(r.entry) && lineage(me) && lineage(r.entry) !== lineage(me)) say(r.brick, `${short(r.file)} was trained on ${lineage(r.entry) === "sft" ? "SFT" : "Base"}; this model is ${lineage(me) === "sft" ? "SFT" : "Base"}-built (it often transfers)`);
+  const t = me?.turbo ?? turbo[0]?.entry.turbo, now = sampling();
+  if (t && typeof t.steps === "number" && now.steps && (now.steps.value !== t.steps || (t.sampler && now.sampler && now.sampler.value !== t.sampler))) {
+    say(now.steps.brick, `the turbo was distilled for ${t.steps} steps${t.sampler ? ` (${t.sampler}${t.cfg != null ? `, cfg ${t.cfg}` : ""})` : ""}; this runs ${now.steps.value}${now.sampler ? ` (${now.sampler.value}${now.cfg ? `, cfg ${now.cfg.value}` : ""})` : ""}`);
+  }
+  return out;
+}
+
+// ---- the Turbo chip (SNAP-R10, SNAP-R14): the turbos this recipe's family has, merges and LoRAs alike ----------------
+// a merge swaps the diffusion model (only one built on the same Base/SFT lineage); a LoRA adds a core row; either one
+// brings its steps / cfg / sampler / scheduler. "off" puts back what was there before the first turbo: one undo step
+const coreStack = () => E.state().bricks.find((b) => BRICKS[b.key].stack?.role === "core")?.key ?? null;
+export function turbos() {
+  const fam = family(), me = diffusion() && entry(diffusion().file);
+  if (!fam || !coreStack()) return [];
+  const all = [...files.keys()].map((name) => [name, entry(name)]).filter(([, e]) => e?.turbo && e.family === fam && e.loads_in_core !== false);
+  const merges = all.filter(([, e]) => e.kind === "turbo_merge" && lineage(e) === lineage(me));
+  const rows = all.filter(([, e]) => e.kind === "lora" && e.role === "core").sort(([, a], [, b]) => (lineage(b) === lineage(me)) - (lineage(a) === lineage(me)));
+  return [...merges, ...rows].map(([name, e]) => ({ file: name, name: short(name), how: e.turbo.how, steps: e.turbo.steps, cfg: e.turbo.cfg, sampler: e.turbo.sampler, scheduler: e.turbo.scheduler,
+    strength: e.recommended?.strength ?? 1, fits: lineage(e) === lineage(me), notes: e.notes ?? "" }));
+}
+const host = () => E.state().bricks.find((b) => BRICKS[b.key].turbo)?.key ?? null;
+// every LoRA file installed, with what the model graph says about it (for "+ LoRA")
+export const loraChoices = () => [...files].filter(([, f]) => f.folder === "loras").map(([name]) => [name, entry(name)]);
+export const turbo = () => E.state().bricks.find((b) => b.key === host())?.turbo ?? null;
+
+export function setTurbo(name) {
+  const key = host(), stack = coreStack(), was = turbo();
+  if (!key || !stack) throw new Error("This recipe has no Render brick with a core LoRA stack (the image recipes have one)");
+  const t = name && name !== "off" ? turbos().find((x) => x.file === name || x.name === name || base(x.file) === base(name)) : null;
+  if (name && name !== "off" && !t) throw new Error(`No turbo "${name}" for ${family() ?? "this recipe"}; there are: ${turbos().map((x) => x.name).join(", ") || "none installed"}`);
+  E.batch(() => {
+    if (was) { // back to the quality settings first, so turbos swap instead of stacking
+      for (const [where, v] of was.quality) E.setValue(...where, v);
+      const r = was.how === "lora" && rows(stack).find((x) => x.file === was.file);
+      if (r) removeRow(stack, r.row);
+    }
+    if (!t) return E.remember(key, "turbo", null);
+    const now = sampling(), model = diffusion(), quality = [];
+    const set = (where, v) => { quality.push([where, E.getValue(...where)]); E.setValue(...where, v); };
+    if (t.how === "merged") set([model.brick, model.node, model.setting], t.file);
+    else addRow(stack, t.file, t.strength);
+    for (const k of ["steps", "cfg", "sampler", "scheduler"]) if (t[k] != null && now[k] && (!now[k].choices || now[k].choices.includes(t[k]))) set([now[k].brick, now[k].node, now[k].name], t[k]);
+    E.remember(key, "turbo", { file: t.file, how: t.how, quality });
+  });
+  app.canvas.setDirty(true, true);
+  return { turbo: t?.file ?? null, sampling: Object.fromEntries(Object.entries(sampling()).map(([k, v]) => [k, v.value])), warnings: warnings().map((w) => w.text) };
+}
+
+// ---- LoRA stacks (SNAP-R12): a brick whose `stack` names a dynamic-group node (core LoadLoraModel: rows of file,
+// strength, on). A stack always keeps one row (the node's minimum), so an empty stack is one row that is off at 0
+const stackNode = (brick) => E.nodeFor(brick, BRICKS[brick].stack.node);
+const groupOf = (brick) => BRICKS[brick].stack.group;
+export function rows(brick) {
+  const n = stackNode(brick), g = groupOf(brick), count = n?.widgets.find((w) => w.name === g)?.value ?? 0;
+  const at = (i, f) => n.widgets.find((w) => w.name === `${g}.${i}.${f}`)?.value;
+  return Array.from({ length: count }, (_, i) => ({ row: i, file: at(i, "lora_name"), strength: at(i, "strength"), on: at(i, "enabled"), entry: entry(at(i, "lora_name")) }))
+    .filter((r) => !(count === 1 && r.on === false && r.strength === 0));
+}
+export function addRow(brick, file, strength = 1) {
+  const n = stackNode(brick), g = groupOf(brick), list = rows(brick);
+  return E.batch(() => {
+    const i = list.length;
+    if (i) E.setValue(brick, BRICKS[brick].stack.node, g, i + 1);
+    E.setValues(brick, BRICKS[brick].stack.node, { [`${g}.${i}.lora_name`]: file, [`${g}.${i}.strength`]: strength, [`${g}.${i}.enabled`]: true });
+    app.canvas.setDirty(true, true);
+    return n.widgets.some((w) => w.name === `${g}.${i}.lora_name`) ? i : null;
+  });
+}
+export function setRow(brick, i, patch) {
+  const node = BRICKS[brick].stack.node, g = groupOf(brick);
+  E.setValues(brick, node, Object.fromEntries(Object.entries({ lora_name: patch.file, strength: patch.strength, enabled: patch.on }).filter(([, v]) => v !== undefined).map(([f, v]) => [`${g}.${i}.${f}`, v])));
+}
+export function removeRow(brick, i) {
+  const node = BRICKS[brick].stack.node, g = groupOf(brick), list = rows(brick);
+  E.batch(() => {
+    for (let k = i; k < list.length - 1; k++) setRow(brick, k, list[k + 1]);
+    if (list.length > 1) E.setValue(brick, node, g, list.length - 1);
+    else setRow(brick, 0, { on: false, strength: 0 });
+  });
 }
 
 // a brick's `check` (see bricks.js): the server says whether a run would find what the brick's settings point at. One

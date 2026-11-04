@@ -3,10 +3,20 @@
 // port roles to input names; rules say which role feeds which, so binding never guesses for our own bricks.
 
 export const RENDER_BLUEPRINT = "Dials - H3 + De-rope";
+export const IMAGE_BLUEPRINT = "Dials - Image";
+// a LoRA stack brick: core LoadLoraModel rows (file, strength, on); it starts with its one row off at 0 (the node keeps
+// at least one row). The role says which LoRAs belong in it (SNAP-R12): core rows travel with the setup, style rows with
+// the shot or recipe, identity rows with the cast
+const stack = (role, title, hue, blurb) => ({
+  title, icon: "≡", hue, blurb, optional: role !== "core",
+  nodes: [{ key: "loras", type: "LoadLoraModel", title, values: { "loras.0.enabled": false, "loras.0.strength": 0 } }],
+  needs: { base_model: ["loras", "model"] }, provides: { base_model: ["loras", "MODEL"] },
+  stack: { node: "loras", group: "loras", role }, face: [],
+});
 
 const PACK = {
   models: {
-    title: "Models", icon: "◇", hue: 210,
+    kit: "video", title: "Models", icon: "◇", hue: 210,
     blurb: "text encoder and the two H3 VAEs",
     nodes: [
       { key: "clip", type: "CLIPLoader", title: "Text encoder", values: { clip_name: "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors", type: "minimax" } },
@@ -17,7 +27,7 @@ const PACK = {
     face: [["clip", "clip_name", "encoder"], ["video_vae", "vae_name", "video VAE"], ["audio_vae", "vae_name", "audio VAE"]],
   },
   preset: {
-    title: "Render Preset", icon: "◎", hue: 265,
+    kit: "video", title: "Render Preset", icon: "◎", hue: 265,
     blurb: "model, LoRA, sampler and de-rope schedule",
     nodes: [{ key: "preset", type: "MAIRenderPreset", title: "Render Preset" }],
     provides: {
@@ -35,21 +45,21 @@ const PACK = {
     face: [],
   },
   first_frame: {
-    title: "First frame", icon: "▣", hue: 150, optional: true,
+    kit: "video", title: "First frame", icon: "▣", hue: 150, optional: true,
     blurb: "FL2V start picture",
     nodes: [{ key: "image", type: "LoadImage", title: "first frame (FL2V)" }],
     provides: { first_frame: ["image", "IMAGE"] },
     face: [["image", "image", "picture"]],
   },
   refs: {
-    title: "References", icon: "❖", hue: 185, optional: true,
+    kit: "video", title: "References", icon: "❖", hue: 185, optional: true,
     blurb: "pictures, clips and sound for Ref2V",
     nodes: [{ key: "refs", type: "H3References", title: "H3 References" }],
     provides: { refs: ["refs", "refs"] },
     face: [],
   },
   render: {
-    title: "Render", icon: "▶", hue: 330,
+    kit: "video", title: "Render", icon: "▶", hue: 330,
     blurb: "H3 + Pika + de-rope, saves the video",
     blueprint: RENDER_BLUEPRINT,
     needs: {
@@ -59,12 +69,45 @@ const PACK = {
     },
     face: [["render", "prompt", "prompt"], ["render", "length", "frames"], ["render", "noise_seed", "seed"], ["render", "choice", "de-rope"]],
   },
+  // image families (MOSS-Image, Krea 2): loaders, the LoRA stacks, then the Dial Rack and any model patches, into the image
+  // Render blueprint (prompt expander, sampler, SaveImage inside)
+  image_models: {
+    kit: "image", title: "Models", icon: "◇", hue: 210,
+    blurb: "diffusion model, text encoder and VAE",
+    nodes: [
+      { key: "unet", type: "UNETLoader", title: "Diffusion model" },
+      { key: "clip", type: "CLIPLoader", title: "Text encoder" },
+      { key: "vae", type: "VAELoader", title: "VAE" },
+    ],
+    provides: { base_model: ["unet", "MODEL"], clip: ["clip", "CLIP"], vae: ["vae", "VAE"] },
+    face: [["unet", "unet_name", "model"], ["clip", "clip_name", "encoder"], ["vae", "vae_name", "VAE"]],
+  },
+  loras: stack("core", "Core LoRAs", 290, "turbo, fix and task LoRAs that belong to the setup"),
+  style: stack("style", "Style LoRAs", 50, "looks, grades and media for this shot or recipe"),
+  cast: stack("identity", "Cast LoRAs", 15, "character and person LoRAs (private: never in saved or shared cards)"),
+  image: {
+    kit: "image", title: "Render", icon: "▶", hue: 330,
+    blurb: "text to image, saves the picture",
+    blueprint: IMAGE_BLUEPRINT,
+    turbo: true,
+    needs: { model: ["image", "model"], clip: ["image", "clip"], vae: ["image", "vae"] },
+    provides: { image: ["image", "IMAGE"] },
+    face: [["image", "prompt", "prompt"], ["image", "switch", "expand prompt", { inline: [{ label: "as written", value: false }, { label: "expand", value: true }] }],
+      ["image", "steps", "steps"], ["image", "cfg", "cfg"], ["image", "noise_seed", "seed"]],
+  },
+  save_image: {
+    kit: "image", title: "Save", icon: "⬇", hue: 170,
+    blurb: "saves the picture to output/",
+    nodes: [{ key: "save", type: "SaveImage", title: "Save image", values: { filename_prefix: "image/dials_image" } }],
+    needs: { image: ["save", "images"] },
+    face: [["save", "filename_prefix", "saves as"]],
+  },
   // attaches to Render's own setting: the blueprint has no VIDEO output yet, so Upscale is a switch, not a link. Its
   // settings are the RelayVSR Settings node inside the Render blueprint; `check` asks the server whether a run would find
   // LightX2V and the weights for those settings. The face is the outcome: the size the clip ends up, one Off / 2× / 4×
   // control (Off keeps the brick and its settings), and the quality preset's short name
   upscale: {
-    title: "Upscale", icon: "⤢", hue: 95, optional: true,
+    kit: "video", title: "Upscale", icon: "⤢", hue: 95, optional: true,
     blurb: "RelayVSR after the render",
     attach: { brick: "render", widget: "upscale", on: "RelayVSR 2x", off: "off", inner: { settings: "RelayVSRModelSettings" } },
     check: ["settings", "/mainodes/relayvsr/check"],
@@ -101,6 +144,9 @@ function nodeBrick(key) {
 // own keys only: agent text must not reach inherited names like "constructor"
 export const BRICKS = new Proxy(PACK, { get: (t, k) => (Object.hasOwn(t, k) ? t[k] : typeof k === "string" && k.startsWith("node:") ? (t[k] = nodeBrick(k)) : undefined) });
 export const PACK_BRICKS = Object.keys(PACK);
+// which bricks fit a recipe: H3 video bricks and image bricks don't mix (`kit`); the Dial Rack and LoRA stacks fit both
+export const kit = (keys) => keys.map((k) => PACK[k]?.kit).find(Boolean) ?? null;
+export const fits = (key, keys) => !PACK[key]?.kit || !kit(keys) || PACK[key].kit === kit(keys);
 
 // every installed node type a person can add as a brick, for the palette
 export function nodeTypes() {

@@ -107,6 +107,7 @@ app.registerExtension({
       await view.uiAct(action, target);
       return ui.read();
     };
+    ui.setup = (setup, options) => view.setupFromAgent(setup, options);
     document.body.append(view.root);
     sw = createSwitch(view);
     rules.load().then((list) => engine.useRules(list), () => {}); // remembered picks; without them Snap just asks again

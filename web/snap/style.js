@@ -144,6 +144,23 @@ export const STYLE = `
 .snap-preset:hover, .snap-preset:focus-visible { background: hsl(var(--hue) 60% 60% / .26); }
 .snap-preset.edited { box-shadow: inset 0 0 0 1px #f0b44599; }
 .snap-check { font-size: 11.5px; line-height: 1.35; color: #f0b445; } .snap-check.ok { color: #8fe3b0; }
+.snap-loras { display: flex; flex-direction: column; gap: 5px; }
+.snap-lora { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "on name x" ". kind v"; align-items: center; gap: 3px 6px; font-size: 12px; padding: 4px 0; border-top: 1px solid #ffffff0d; }
+.snap-lora > input[type=checkbox] { grid-area: on; } .snap-lora-name { grid-area: name; } .snap-lora .snap-x { grid-area: x; }
+.snap-lora-kind, .snap-lora-ask { grid-area: kind; justify-self: start; } .snap-lora-v { grid-area: v; width: 58px; }
+.snap-warn { overflow-wrap: anywhere; }
+.snap-lora.off { opacity: .5; }
+.snap-lora-name { overflow-wrap: anywhere; line-height: 1.25; }
+.snap-lora-kind { font-style: normal; font-size: 10px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; padding: 1px 6px; border-radius: 6px; background: #ffffff14; color: var(--s-dim); }
+.snap-lora-kind.turbo { background: hsl(190 70% 50% / .22); color: hsl(190 80% 78%); } .snap-lora-kind.fix { background: hsl(150 60% 45% / .22); color: #8fe3b0; }
+.snap-lora-kind.style { background: hsl(50 70% 50% / .2); color: #f5d76e; } .snap-lora-kind.identity { background: hsl(15 70% 55% / .22); color: #f4a988; }
+.snap-lora-v, .snap-lora-ask, .snap-lora-add { background: #00000040; color: var(--s-fg); border: 1px solid var(--s-line); border-radius: 6px; font: inherit; font-size: 12px; padding: 2px 4px; min-width: 0; }
+.snap-lora-add { justify-self: start; color: var(--s-dim); max-width: 100%; }
+.snap-lora .snap-x { opacity: .6; }
+.snap-turbo.on { background: hsl(190 70% 50% / .22); box-shadow: inset 0 0 0 1px hsl(190 70% 60% / .5); color: hsl(190 80% 82%); }
+.snap-setup-about { font-size: 12px; line-height: 1.4; color: color-mix(in srgb, var(--s-fg) 80%, transparent); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.snap-setup-card strong em.tab { color: #a7b8ff; }
+.snap-keep { display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; }
 .snap-headline { grid-column: 1 / -1; font-size: 13px; font-weight: 650; line-height: 1.3; }
 .snap-inline { grid-column: 1 / -1; display: flex; padding: 2px; gap: 2px; border-radius: 9px; background: #00000040; box-shadow: inset 0 0 0 1px #ffffff14; }
 .snap-inline button { all: unset; flex: 1; text-align: center; cursor: pointer; padding: 3px 0; border-radius: 7px; font-size: 12px; font-weight: 600; color: var(--s-dim); }
