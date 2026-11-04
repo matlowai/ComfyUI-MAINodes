@@ -261,3 +261,29 @@ IDs R40+ were reserved for the gate while R28-R39 were open for other work (renu
 - **SNAP-R45: No paths outside the library for non-admins.** A non-admin prompt whose string input is an absolute path
   to an existing file or folder is refused. *Why:* nodes that load arbitrary paths (`MAILoadVideoPath` and many
   custom packs) would read any file the server user can, including files no rating covers.
+- **SNAP-R46: Sessions persist, and an idle one locks.** Sessions live in the gate's `sessions.json` under the sha256
+  of the cookie, never the cookie itself, with a server-side expiry (7 days), so a gate restart signs nobody out. A
+  session with no request for the admin's idle limit (`gate.py settings --idle-minutes`, default 30) locks: API calls
+  answer 401 with `"locked": true`, a page load goes to the sign-in card ("Locked after 30 minutes without use… open
+  pages keep their work") with the name filled in, and the page's open WebSocket gets nothing more. Signing in again
+  keeps the page's client id and its runs. Account tokens (agents) don't idle. *Why:* the gated install is a shared
+  machine; a restart shouldn't sign everyone out, and an unattended screen shouldn't stay open. An untouched ComfyUI
+  page makes no requests (measured: none in 90 s), so the lock does fire for an open tab. *More:* PLAN U65.
+- **SNAP-R47: Failed sign-ins wait, per account and per client address.** Three failures on an account (ten from one
+  address, across names, the token link included) start a wait of 5 s that doubles with each further failure, capped at
+  15 minutes; failures are forgotten after an hour without one, and a sign-in clears its account and address. During a
+  wait even the right password answers 429; the card says when to try again and holds the button with a countdown.
+  Counts are kept in memory (a restart clears them). *Why:* passwords on a family machine are short; a fixed delay
+  alone lets a script guess all night. *More:* PLAN U65.
+- **SNAP-R48: Shared pack files are the admin's.** The pack's preset folders (`models/loras/dials/presets/`, render
+  presets under `render/`) and dial files' info are shared by every account, so only the admin writes them. Anyone
+  else's preset save goes to its own user data (`snap/presets/<dials|render>/<name>.json`, in the shape the pack's
+  load answers); its list is the shared presets then its own, and a load finds its own copy first. A name the shared
+  folder has is taken (409, as the pack answers). `POST /mainodes/dials/info` (it rewrites a shared dial file) is 403
+  for non-admins. *Why:* the U65 build let any account write files every account sees. *More:* PLAN U65.
+- **SNAP-R49: The admin rates files on /gate/admin.** An admin-only page lists every model file by folder (helpers
+  folded away, since unrated helpers count as PG) with a PG / Mature / Adult / Unrated select. A change writes `rating`
+  (null for Unrated, so the pack's value stands) into the signed-in admin's `snap/models.json` through core's
+  `/userdata`, reading it fresh first, the same file and field the gate rates from (SNAP-R43), so it applies at once.
+  Cross-site posts are 403. *Why:* rating by hand-editing JSON is how a kid ends up seeing an unrated file or nothing
+  new at all. *More:* PLAN U65, U77 (6).
