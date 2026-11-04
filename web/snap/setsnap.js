@@ -1,27 +1,74 @@
 // Set snapshots (LIBRARY.md): the set's state as data is the authority; the top-down plan, the side elevation and the
 // set block text are compiled from it exactly, so a later shot starts from how this one ended. Units are metres; the
 // plan's +y is north, angles are degrees clockwise from north. Diagrams carry marks, never people pictures.
+// SNAP-R22 doors and windows are said from the shot's camera · see docs/SNAP_RULES.md
 
 const W = 1024, H = 768;
 const rad = (deg) => (deg * Math.PI) / 180;
 const dir = (deg) => [Math.sin(rad(deg)), Math.cos(rad(deg))];
+const halfView = (cam) => Math.atan(36 / (2 * cam.lens));
+// a point's bearing in the camera's frame, in radians: negative is left of centre, beyond 90 degrees behind the camera
+function bearing(cam, at) {
+  const [fx, fy] = dir(cam.facing), dx = at[0] - cam.at[0], dy = at[1] - cam.at[1];
+  return Math.atan2(dx * fy - dy * fx, dx * fx + dy * fy);
+}
+const sentence = (text) => text[0].toUpperCase() + text.slice(1);
+const COMPASS = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
+const compass = (deg) => COMPASS[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
 
-// objects in the camera's view, left to right, and the set block that pins them ("exactly these N and nothing else")
-export function setBlock(s) {
-  const cam = s.camera, [fx, fy] = dir(cam.facing), half = Math.atan(36 / (2 * cam.lens));
-  const seen = s.props.map((p) => {
-    const dx = p.at[0] - cam.at[0], dy = p.at[1] - cam.at[1];
-    const ahead = dx * fx + dy * fy, side = dx * fy - dy * fx; // side > 0 is camera-right
-    return { ...p, angle: Math.atan2(side, ahead), inView: ahead > 0 && Math.abs(Math.atan2(side, ahead)) <= half };
-  }).filter((p) => p.inView).sort((a, b) => a.angle - b.angle); // image left to right is by viewing angle
-  const names = seen.map((p) => (p.state ? `${p.name} (${p.state})` : p.name));
-  const light = s.light.description[0].toUpperCase() + s.light.description.slice(1);
-  if (!names.length) return `Set: ${s.name}. ${light}. Bare walls only: no furniture or props in view.`;
-  const these = names.length === 1 ? "this one object" : `these ${names.length} objects`;
-  return `Set: ${s.name}. ${light}. Exactly ${these} and nothing else, left to right: ${names.join(", ")}.`;
+// the wall an opening is in: the one its middle lies on (openings are drawn on the room's outline)
+const middle = (o) => [(o.from[0] + o.to[0]) / 2, (o.from[1] + o.to[1]) / 2];
+export function wallOf(s, o) {
+  const [hw, hd] = s.room.size.map((v) => v / 2), [x, y] = middle(o);
+  const off = { north: Math.abs(y - hd), east: Math.abs(x - hw), south: Math.abs(y + hd), west: Math.abs(x + hw) };
+  return Object.keys(off).reduce((a, b) => (off[b] < off[a] ? b : a));
 }
 
-const COMPASS = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
+// each door and window as this camera sees it (U21/U48: H3 put the window on the wrong wall when the text didn't say):
+// where it sits in the frame (from the part of it in view), or which way it is out of view
+export function openings(s) {
+  const cam = s.camera, half = halfView(cam);
+  return s.room.openings.map((o) => {
+    const seen = [o.from, middle(o), o.to].map((p) => bearing(cam, p)).filter((a) => Math.abs(a) <= half);
+    const a = seen.length ? seen.reduce((x, y) => x + y) / seen.length : bearing(cam, middle(o)), k = a / half, side = a < 0 ? "left" : "right";
+    const where = !seen.length ? `${Math.abs(a) > (3 * Math.PI) / 4 ? "behind the camera" : `to the camera's ${side}`}, out of view`
+      : Math.abs(k) <= 0.15 ? "in the centre" : Math.abs(k) > 0.5 ? `on the ${side}` : `${side} of centre`;
+    return `the ${o.name || o.kind} in the ${wallOf(s, o)} wall is ${where}`;
+  });
+}
+
+// objects in the camera's view, left to right, and the set block that pins them ("exactly these N and nothing else"),
+// then where each door and window is from this camera
+export function setBlock(s) {
+  const cam = s.camera, half = halfView(cam);
+  const seen = s.props.map((p) => ({ ...p, angle: bearing(cam, p.at) }))
+    .filter((p) => Math.abs(p.angle) <= half).sort((a, b) => a.angle - b.angle); // image left to right is by viewing angle
+  const names = seen.map((p) => (p.state ? `${p.name} (${p.state})` : p.name));
+  const light = sentence(s.light.description), doors = openings(s);
+  const walls = doors.length ? ` ${sentence(doors.join("; "))}.` : "";
+  if (!names.length) return `Set: ${s.name}. ${light}. Bare walls only: no furniture or props in view.${walls}`;
+  const these = names.length === 1 ? "this one object" : `these ${names.length} objects`;
+  return `Set: ${s.name}. ${light}. Exactly ${these} and nothing else, left to right: ${names.join(", ")}.${walls}`;
+}
+
+// where the camera stands and looks, in words: a corner, by a wall or the middle of the room, and the compass direction
+export function cameraAt(s) {
+  const cam = s.camera, [hw, hd] = s.room.size.map((v) => v / 2);
+  const ns = cam.at[1] > hd / 2 ? "north" : cam.at[1] < -hd / 2 ? "south" : "", ew = cam.at[0] > hw / 2 ? "east" : cam.at[0] < -hw / 2 ? "west" : "";
+  const where = ns && ew ? `in the ${ns}-${ew} corner` : ns || ew ? `by the ${ns || ew} wall` : "in the middle of the room";
+  return `${Math.abs((cam.height ?? 1.5) - 1.5) < 0.3 ? "at eye height" : `${cam.height} m up`} ${where}, looking ${compass(cam.facing)}`;
+}
+
+// what a picture of the set must keep: its walls and floor, each kind of opening, and every prop
+export function keeps(s) {
+  const list = ["walls", "floor", ...new Set(s.room.openings.map((o) => o.name || o.kind)), ...s.props.map((p) => p.name)];
+  return `${list.slice(0, -1).join(", ")} and ${list.at(-1)}`;
+}
+
+// the set seen from another camera (a coverage setup, or the camera a plate was made for)
+export const atCamera = (s, cam) => ({ ...s, camera: { ...s.camera, at: cam.at, facing: cam.facing, lens: cam.lens, height: cam.height ?? s.camera.height, setup: cam.setup ?? cam.name } });
+// a camera's plate stays its plate while the camera hasn't moved since (10 cm, 10 degrees, the same lens)
+export const sameCamera = (a, b) => !!a && !!b && Math.hypot(a.at[0] - b.at[0], a.at[1] - b.at[1]) <= 0.1 && Math.abs((((a.facing - b.facing) % 360) + 540) % 360 - 180) <= 10 && a.lens === b.lens;
 
 // one sentence per actor: where they stand (by the nearest named thing), which way they face, what their hands hold
 export function blocking(s) {
@@ -29,7 +76,7 @@ export function blocking(s) {
   return s.actors.map((a) => {
     const near = things.length && things.reduce((best, t) => (Math.hypot(t[1][0] - a.at[0], t[1][1] - a.at[1]) < Math.hypot(best[1][0] - a.at[0], best[1][1] - a.at[1]) ? t : best))[0];
     const where = near ? ` by ${near.replace(/^(?!the )/, "the ")}` : "";
-    return `${a.name} stands${where}, facing ${COMPASS[Math.round(((a.facing % 360) + 360) % 360 / 45) % 8]}${a.hands ? `, ${a.hands}` : ""}.`;
+    return `${a.name} stands${where}, facing ${compass(a.facing)}${a.hands ? `, ${a.hands}` : ""}.`;
   }).join(" ");
 }
 
@@ -124,6 +171,14 @@ export function coverage(s) {
   return setups.map(({ name, at: pos, look, lens }) => ({ name, setup: name, at: pos.map((v) => Math.round(v * 100) / 100), facing: toward(pos, look), lens, height: s.camera.height }));
 }
 
+// the cameras a set gets plates for (SNAP-R21): its coverage setups and its own camera, by the name a shot uses for
+// each (a shot card's `setup`, or the set's camera for a shot without one)
+export const ownCamera = (s) => s.camera.setup ?? "set camera";
+export function plateCameras(s) {
+  const list = coverage(s);
+  return list.some((c) => c.name === ownCamera(s)) ? list : [...list, { name: ownCamera(s), at: s.camera.at, facing: s.camera.facing, lens: s.camera.lens, height: s.camera.height }];
+}
+
 // the two classic bridges for an intended crossing of the line: a neutral shot on the axis itself (no side, so the next
 // cut can go either way) and a cutaway onto a prop (no actors in frame). Cameras only; positions stay inside the room.
 export function bridges(s) {
@@ -164,7 +219,8 @@ export function drawPlan(s, { into, selected, handles, ghosts = [] } = {}) {
     const [x0, y0] = o.from, [x1, y1] = o.to;
     g.strokeStyle = o.kind === "window" ? "#5b8fd9" : "#f4f1ea"; g.lineWidth = o.kind === "window" ? 8 : 10;
     g.beginPath(); g.moveTo(X(x0), Y(y0)); g.lineTo(X(x1), Y(y1)); g.stroke();
-    label(g, o.kind, (X(x0) + X(x1)) / 2, (Y(y0) + Y(y1)) / 2 + (y0 === y1 ? (y0 < 0 ? 22 : -22) : 0), "#5b6575");
+    if (o === selected) { g.strokeStyle = "#e0a020"; g.lineWidth = 3; g.stroke(); }
+    label(g, o.name || o.kind, (X(x0) + X(x1)) / 2, (Y(y0) + Y(y1)) / 2 + (y0 === y1 ? (y0 < 0 ? 22 : -22) : 0), "#5b6575");
   }
   g.lineWidth = 2;
   for (const p of s.props) {

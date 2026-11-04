@@ -9,6 +9,7 @@
    "snapshot": {
     "name": "lamp room of the north lighthouse",
     "shot": "shot 3",
+    "look": "A square lamp room at the top of an old stone lighthouse: whitewashed plaster walls, a worn wooden plank floor, a dark iron ceiling, a tall brass lamp housing with a glass Fresnel lens in the centre, a dark wooden writing desk with a vintage valve radio against the north wall.",
     "room": {
      "size": [
       5,
@@ -38,7 +39,8 @@
         1.2
        ],
        "sill": 0.9,
-       "top": 2.2
+       "top": 2.2,
+       "name": "tall window"
       }
      ]
     },
