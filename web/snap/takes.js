@@ -80,14 +80,17 @@ function media(outputs) {
 }
 export const url = (m) => api.apiURL(`/view?filename=${encodeURIComponent(m.filename)}&subfolder=${encodeURIComponent(m.subfolder)}&type=${m.type}`);
 
-// the words and the seed of a run, read from the executed prompt: the longest text input and the first seed-like number
+// the words and the seed of a run, read from the executed prompt: the longest text input and the first noise seed, else
+// the first seed-like number (an upscaler's own seed, RelayVSR's 42, is not the take's)
 function summary(prompt) {
-  let text = "", seed = null;
+  let text = "", seed = null, noise = null;
   for (const n of Object.values(prompt ?? {})) for (const [k, v] of Object.entries(n.inputs ?? {})) {
     if (typeof v === "string" && v.length > text.length && /prompt|text/i.test(k)) text = v;
-    if (seed == null && typeof v === "number" && /seed/i.test(k)) seed = v;
+    if (typeof v !== "number") continue;
+    if (noise == null && k === "noise_seed") noise = v;
+    if (seed == null && /seed/i.test(k)) seed = v;
   }
-  return { text, seed };
+  return { text, seed: noise ?? seed };
 }
 
 // capture: execution events from this page's own client, then the run's record from /history
@@ -119,15 +122,17 @@ async function capture(id, status, error, failedNode) {
 }
 
 // what a prompt does, in a form that compares: per node its type (a save gate twin counts as the saver it stands in
-// for) and its inputs, links included; seeds go apart, so a new seed is not a change; titles only name things
+// for) and its inputs, links included; seeds go apart, so a new seed is not a change; titles only name things. The page
+// sends a list value as {"__value__": [...]} and the server keeps it plain (BranchNode's branch_names), so it is unwrapped
 const SEED = /seed/i;
 export function canonical(prompt, swapped = {}) {
   const recipe = {}, seeds = {}, titles = {};
   for (const id of Object.keys(prompt ?? {}).sort()) {
     const n = prompt[id], inputs = {};
     for (const k of Object.keys(n.inputs ?? {}).sort()) {
-      if (SEED.test(k) && typeof n.inputs[k] === "number") seeds[`${id}.${k}`] = n.inputs[k];
-      else inputs[k] = n.inputs[k];
+      const v = n.inputs[k]?.__value__ ?? n.inputs[k];
+      if (SEED.test(k) && typeof v === "number") seeds[`${id}.${k}`] = v;
+      else inputs[k] = v;
     }
     recipe[id] = { type: swapped[id] ?? n.class_type, inputs };
     titles[id] = n._meta?.title ?? n.class_type;
