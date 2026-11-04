@@ -220,3 +220,43 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   limit anything please thats for the end user to do what they decide"). *Why:* derived LoRAs that a name rule missed
   had neutral names in a neutral folder and were caught only by their stamp (U68). *More:* U68_PRIVACY_AUDIT_2026-11-04.md
   "Matcher gaps", PLAN U71, `snap_privacy.py`, `snap_bridge.py`.
+
+## Accounts and the gate (snap-gate)
+
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide).
+
+- **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
+  use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and
+  WebSocket to it. Off (`--disabled`) it relays every byte unchanged: no sign-in, no filtering, ComfyUI as it is.
+  Limits (ratings, buckets, admin-only routes) exist only when an install turns the gate on; Snap itself never limits
+  the person (Dylan, 2026-11-04 16:46: no artificial limits in Snap). *Why:* core and the pack keep updating; product
+  logic stays out of `comfy/` (ComfyUI AGENTS.md). *More:* CONTENT_RATINGS_VAULT §5, PLAN U65/U66.
+- **SNAP-R41: A session decides the user; the client never does.** Every request needs a session (the sign-in form,
+  or an account token as `Authorization: Bearer`, or a one-time `/gate/login?token=` link for a headless agent page).
+  The gate drops the client's `comfy-user`, cookie and token and sets `comfy-user` to the account's own ComfyUI user (made
+  through core's `/users` on first sign-in). `GET /users` answers in the single-user shape so core's user picker never
+  shows; `POST /users` and `/internal/*` are the admin's. Passwords are scrypt hashes in the gate's own state folder,
+  outside ComfyUI's `user/`. The admin can do everything. *Why:* `--multi-user` alone trusts a header any page can set.
+- **SNAP-R42: Work is owned.** `POST /prompt` records prompt_id -> account, and refuses a prompt_id another account owns.
+  `/history`, `/queue`, `/api/jobs`, WebSocket events, deletes, cancels and interrupts only reach the account's own runs.
+  A WebSocket client id belongs to the first account that used it, and a prompt aimed at another account's client id
+  is re-aimed at nobody. Saves go to `output/<account>/` (every `filename_prefix` input is rewritten; `shared/...` stays
+  shared; one that climbs out is refused). `/view` serves the account's folder, `shared/`, and files its own runs wrote;
+  hash names and others' files are 404. The Snap bridge passes a call only when the newest registered page is the
+  caller's (the pack still routes per page, not per account: PLAN U75). *Why:* core's history, outputs and `/view` are
+  shared by everyone on one server, and core hands a reused client id the old socket's events.
+- **SNAP-R43: Ratings cap files everywhere they appear.** Accounts have a max rating, PG / Mature / Adult (role
+  defaults: admin Adult, member Mature, kid PG; the booru four map onto them). A file's rating comes from the pack's
+  model graph under the admins' own `snap/models.json` (`rating`, or an `nsfw` tag = Adult). Other accounts' model
+  graphs never rate anything, because they can write their own user data. Files above the cap are removed from every
+  list generically (any list in `/object_info`, `/models/*`, `/experiment/models/*`, `/embeddings`, and any GET under
+  `/mainodes/`), their metadata and previews are 404, and a prompt or pack request naming one (by name or file name) is
+  refused before ComfyUI sees it. *Why:* hidden-only lists can be bypassed by typing a name into a prompt.
+- **SNAP-R44: An unrated content file counts as Adult.** An unrated LoRA, checkpoint, diffusion model, embedding (any
+  folder not in the gate's helper list) is hidden from PG and Mature accounts until an admin rates it. Unrated helpers
+  that can't decide what a picture shows (VAEs, TAESD, text encoders, CLIP vision, upscalers, detectors, ControlNets)
+  count as PG. *Why:* a fresh download is unknown. For a kid, seeing nothing new until the admin rates it is the safe
+  failure, and one rating opens it for everyone at or above that level.
+- **SNAP-R45: No paths outside the library for non-admins.** A non-admin prompt whose string input is an absolute path
+  to an existing file or folder is refused. *Why:* nodes that load arbitrary paths (`MAILoadVideoPath` and many
+  custom packs) would read any file the server user can, including files no rating covers.
