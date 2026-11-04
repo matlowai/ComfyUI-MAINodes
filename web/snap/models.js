@@ -127,11 +127,12 @@ export const total = (list = settings()) => [...new Map(list.filter((s) => s.siz
 const DIFFUSION = new Set(["base", "sft", "finetune", "turbo_merge"]);
 const short = (f) => base(f).replace(/\.(safetensors|gguf|sft|ckpt)$/, "");
 const isFile = (v) => typeof v === "string" && /\.(safetensors|gguf|sft|ckpt)$/.test(v);
-// a file as a setup card or preset names it: installed (by file name in any sub-folder), and whether core can load it
+// a file as a setup card or preset names it: installed (by file name in one sub-folder, as E.resolveChoice resolves it:
+// two files with that name are no match, SNAP-R3), and whether core can load it
 function readiness(v) {
-  const name = files.has(v) ? v : [...files.keys()].find((k) => base(k) === base(v));
+  const name = E.resolveChoice([...files.keys()], v);
   const e = entry(name ?? v);
-  return { file: name ?? v, size: name ? file(name).size : null, installed: !!name, ...(e?.loads_in_core === false ? { cant_load: true } : {}), kind: e?.kind ?? null };
+  return { file: name ?? v, size: files.has(name) ? file(name).size : null, installed: files.has(name), ...(e?.loads_in_core === false ? { cant_load: true } : {}), kind: e?.kind ?? null };
 }
 const familyOf = (values) => Object.values(values).map((v) => typeof v === "string" && entry(v)).find((e) => e && DIFFUSION.has(e.kind) && e.family)?.family ?? null;
 
