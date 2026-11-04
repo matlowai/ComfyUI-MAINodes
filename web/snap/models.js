@@ -360,7 +360,7 @@ export function rows(brick) {
   return Array.from({ length: count }, (_, i) => ({ row: i, file: at(i, "lora_name"), strength: at(i, "strength"), on: at(i, "enabled"), entry: entry(at(i, "lora_name")) }))
     .filter((r) => !(count === 1 && r.on === false && r.strength === 0));
 }
-export function addRow(brick, file, strength = 1) {
+export function addRow(brick, file, strength = entry(file)?.recommended?.strength ?? 1) {
   const n = stackNode(brick), g = groupOf(brick), list = rows(brick);
   return E.batch(() => {
     const i = list.length;
@@ -369,6 +369,22 @@ export function addRow(brick, file, strength = 1) {
     app.canvas.setDirty(true, true);
     return n.widgets.some((w) => w.name === `${g}.${i}.lora_name`) ? i : null;
   });
+}
+// a LoRA row in the stack its role belongs in (SNAP-R12; the role from the model graph unless given). A dial goes on the
+// Dial Rack, and a core LoRA needs a recipe whose Render takes a core stack: H3's LoRA rides on its Render Preset with the
+// schedule it was distilled for. A second turbo is refused unless the person asked for the stack (SNAP-R10)
+export async function addLora(file, { role, strength, asked } = {}) {
+  const names = loraChoices().map(([n]) => n), name = names.includes(file) ? file : E.resolveChoice(names, file);
+  if (!name) throw new Error(`No LoRA file "${file}"; list_loras shows them`);
+  const e = entry(name), want = role ?? e.role;
+  if (want === "dial") throw new Error(`${short(name)} is a dial: put it on the Dial Rack (add_dial)`);
+  if (want === "unsorted") throw new Error(`The model graph doesn't say what ${short(name)} is; give its role (core, style or identity)`);
+  if (want === "core" && !host()) throw new Error(`${short(name)} is a core LoRA, and this recipe's core LoRA rides on its Render Preset with its schedule: pick a setup (list_setups, apply_setup) or set preset.lora`);
+  if (e.turbo && turbo() && !asked) throw new Error(`A turbo is already on (${short(turbo().file)}); swap it with set_method {slot: "turbo"}, or pass person_asked: true when the person asked for a turbo stack`);
+  const key = { core: "loras", style: "style", identity: "cast" }[want], keys = E.state().bricks.map((b) => b.key);
+  if (!keys.includes(key)) await E.snap(key, { at: keys.includes("rack") ? keys.indexOf("rack") : undefined });
+  addRow(key, name, strength);
+  return key;
 }
 export function setRow(brick, i, patch) {
   const node = BRICKS[brick].stack.node, g = groupOf(brick);

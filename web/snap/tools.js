@@ -174,18 +174,11 @@ export const TOOLS = [
   },
   {
     name: "add_lora",
-    description: "Add a LoRA row to the stack its role belongs in: core (turbo / fix / task …) rows go to Core LoRAs and travel with the setup, style rows to Style LoRAs, identity rows to Cast LoRAs (the brick is added when missing). The role comes from the model graph unless given. A turbo LoRA while another turbo is on (a merge or a row) is refused unless person_asked is true: swap turbos with set_method {slot: 'turbo'} instead. Returns the rows and the warnings.",
+    description: "Add a LoRA row to the stack its role belongs in: core (turbo / fix / task …) rows go to Core LoRAs and travel with the setup, style rows to Style LoRAs, identity rows to Cast LoRAs (the brick is added when missing). The role comes from the model graph unless given; a LoRA the graph doesn't know needs one. Dial files are refused (add_dial puts them on the Dial Rack), and so are core LoRAs on a recipe whose LoRA rides on its Render Preset (H3: pick a setup). A turbo LoRA while another turbo is on (a merge or a row) is refused unless person_asked is true: swap turbos with set_method {slot: 'turbo'} instead. Returns the rows and the warnings.",
     inputSchema: { type: "object", properties: { file: { type: "string" }, strength: { type: "number" }, role: { type: "string", enum: ["core", "style", "identity"] }, person_asked: { type: "boolean", description: "true only when the person asked for this stack" } }, required: ["file"] },
     run: async ({ file, strength, role, person_asked }) => {
       await M.load();
-      const name = M.loraChoices().map(([n]) => n).find((n) => n === file) ?? E.resolveChoice(M.loraChoices().map(([n]) => n), file);
-      if (!name) throw new Error(`No LoRA file "${file}"; list_loras shows them`);
-      const e = M.entry(name), want = role ?? (["style", "identity"].includes(e.role) ? e.role : "core");
-      const busy = M.turbo() || M.loras().some((r) => r.on && r.entry?.turbo) || M.entry(M.settings().find((x) => M.entry(x.file)?.kind === "turbo_merge")?.file)?.turbo;
-      if (e.turbo && busy && !person_asked) throw new Error(`A turbo is already on (${M.turbo()?.file ?? "a turbo merge or row"}); swap it with set_method {slot: "turbo"}, or pass person_asked: true when the person asked for a turbo stack`);
-      const key = { core: "loras", style: "style", identity: "cast" }[want];
-      if (!has(key)) { const keys = E.state().bricks.map((b) => b.key); await E.snap(key, { at: keys.includes("rack") ? keys.indexOf("rack") : undefined }); }
-      M.addRow(key, name, strength ?? e.recommended?.strength ?? 1);
+      const key = await M.addLora(file, { role, strength, asked: person_asked });
       return { brick: key, rows: M.rows(key).map(({ row, file, strength, on }) => ({ row, file, strength, on })), warnings: M.warnings().map((w) => w.text) };
     },
   },

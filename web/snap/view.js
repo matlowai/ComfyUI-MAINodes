@@ -534,7 +534,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("button", { className: "snap-x", textContent: "×", title: "remove this row", onclick: (e) => { e.stopPropagation(); M.removeRow(key, r.row); changed(); } }));
     const fit = (e) => (role === "core" ? e.role === "core" : e.role === role || e.role === "unsorted") && (!fam || !e.family || e.family === fam);
     const choices = M.loraChoices().filter(([, e]) => e.role !== "dial").sort(([, a], [, b]) => fit(b) - fit(a));
-    const pick = h("select", { className: "snap-lora-add", title: "add a LoRA row", onchange: (e) => { if (e.target.value) { M.addRow(key, e.target.value, 1); changed(); } } },
+    const pick = h("select", { className: "snap-lora-add", title: "add a LoRA row", onchange: (e) => { if (e.target.value) { M.addRow(key, e.target.value); changed(); } } },
       h("option", { value: "", textContent: "+ LoRA", selected: true }), choices.map(([name, e]) => h("option", { value: name, textContent: `${fit(e) ? "" : "· "}${name}` })));
     const box = h("div", { className: "snap-loras" }, list.length ? list.map(rowEl) : h("div", { className: "snap-quiet", textContent: role === "core" ? "No core LoRAs" : "No LoRAs" }), pick);
     box.addEventListener("pointerdown", (e) => e.stopPropagation()); // SNAP-R7: rows are controls; a press never selects or opens the brick
