@@ -8,12 +8,21 @@ JSONL files; nothing leaves the machine:
                and author with every source that agrees: a ranking ("rank"), keep over reject in the same workflow
                ("verdict"), and A/B picks ("ab"; each judgment kept in `judgments` with blind, the reason and when)
 
+Private takes (an identity LoRA, a Cast row, a file the model graph tags private, a file under the person's private
+paths or matching their patterns in snap/private.json) and NSFW-tagged takes are left out,
+with every note and pair they are in, unless --include-private / --include-nsfw ask for them (SNAP-R20). A take counts
+as private when the save gate marked it or when its prompt and the model graph say so now.
+
   python tools/snap_dataset.py --comfy /path/to/ComfyUI --out /path/to/dataset_dir
 """
 import argparse
 import json
+import sys
 from itertools import combinations
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # the pack folder, for snap_privacy (no ComfyUI imports)
+import snap_privacy  # noqa: E402
 
 
 def read(path, missing):
@@ -26,11 +35,29 @@ def main():
     ap.add_argument("--user", default="default", help="ComfyUI user name (user/<name>)")
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--settings", action="store_true", help="include each take's full executed prompt (large)")
+    ap.add_argument("--include-private", action="store_true", help="include private takes (identity LoRAs, Cast rows, files tagged private)")
+    ap.add_argument("--include-nsfw", action="store_true", help="include takes that load a file the model graph tags nsfw")
     args = ap.parse_args()
 
     snap = args.comfy / "user" / args.user / "snap"
     roots = {"output": args.comfy / "output", "input": args.comfy / "input", "temp": args.comfy / "temp"}
-    takes = {t["id"]: t for t in (read(f, None) for f in sorted((snap / "takes").glob("*.json"))) if t}
+    graph = snap_privacy.model_graph(args.comfy / "user")
+    models = [d for d in (args.comfy / "models").glob("*") if d.is_dir()]
+
+    def loaded(value):  # what the server would load: the base folder's models/<folder>/<value> or an absolute path
+        found = [Path(value)] if Path(value).is_absolute() else [d / value for d in models]
+        return [str(f.resolve()) for f in found if f.is_file()]
+    takes, left_out = {}, {"private": 0, "nsfw": 0}
+    for t in (read(f, None) for f in sorted((snap / "takes").glob("*.json"))):
+        if not t:
+            continue
+        found = snap_privacy.marks(t.get("prompt") or {}, t.get("graph"), graph, loaded)
+        if (t.get("private") or found["private"]) and not args.include_private:
+            left_out["private"] += 1
+        elif (t.get("nsfw") or found["nsfw"]) and not args.include_nsfw:
+            left_out["nsfw"] += 1
+        else:
+            takes[t["id"]] = t
     # one ranking per group and author: <group>.json is the person's, <group>.agent.json an agent's (SNAP-R17)
     ranks = {(r["group"], r.get("by", "person")): r["order"] for r in (read(f, None) for f in (snap / "rankings").glob("*.json")) if r}
     judged = [row for f in sorted((snap / "judgments").glob("*.json")) for row in read(f, [])]
@@ -89,7 +116,7 @@ def main():
             fp.write(json.dumps(r) + "\n")
         counts["pairs"] = len(rows)
 
-    print(json.dumps({**counts, "out": str(args.out)}))
+    print(json.dumps({**counts, "left_out": left_out, "out": str(args.out)}))
 
 
 if __name__ == "__main__":

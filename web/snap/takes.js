@@ -3,7 +3,10 @@
 // takes, keep or reject them, and pin notes to the moment (and region) where something went wrong or right; kept takes
 // are the Library's priors. Everything is local JSON in the user's ComfyUI data folder; tools/snap_dataset.py turns it
 // into training rows (takes, notes, preference pairs) for a judge model, only when someone runs it.
-// SNAP-R17 person and agent kept apart (notes, judgments, rankings) · SNAP-R18 local only · see docs/SNAP_RULES.md
+// A take the server's save gate marked private or NSFW (history extra_data.snap_marks) says so: private takes saved
+// their files without the recipe inside, and the export leaves both out unless asked.
+// SNAP-R17 person and agent kept apart (notes, judgments, rankings) · SNAP-R18 local only · SNAP-R20 private takes
+// see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
@@ -102,6 +105,7 @@ async function capture(id, status, error, failedNode) {
     id: `take-${id}`, kind: "run", prompt_id: id, created: started, finished: Date.now(), seconds: Math.round((Date.now() - started) / 100) / 10,
     group, workflow: app.extensionManager.workflow.activeWorkflow?.filename ?? "", number: n,
     status, ...(error ? { error, failed_node: failedNode } : {}), text, seed, media: media(h.outputs),
+    ...(extra?.snap_marks?.private ? { private: true } : {}), ...(extra?.snap_marks?.nsfw ? { nsfw: true } : {}),
     verdict: null, prior: false, notes: [], graph, prompt,
   });
 }
