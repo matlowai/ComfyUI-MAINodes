@@ -365,6 +365,24 @@ def dial_info(dial_name):
     return check_dial_info(json.loads(stored) if stored else INFO_DEFAULTS)
 
 
+def dial_catalog():
+    """Every dial file the rack offers (loras/dials/, folders starting with '_' left out) with its family and info, read
+    from the safetensors headers only."""
+    out = []
+    for name in folder_paths.get_filename_list("loras"):
+        name = name.replace("\\", "/")
+        if not name.startswith("dials/") or not name.endswith(".safetensors") or any(d.startswith("_") for d in name.split("/")[1:-1]):
+            continue
+        with safe_open(folder_paths.get_full_path_or_raise("loras", name), "pt") as f:
+            meta, keys = f.metadata() or {}, list(f.keys())
+        mode = {v: k for k, v in KEY_SUFFIX.items()}.get(keys[0].rsplit(".", 1)[-1]) if len(keys) == 1 else None
+        if mode is None:  # not a dial file (the rack would refuse it too)
+            continue
+        stored = meta.get("dial_info")
+        out.append({"dial": name, "family": meta.get("model_family", DEFAULT_FAMILY), "mode": mode, "info": check_dial_info(json.loads(stored) if stored else INFO_DEFAULTS)})
+    return sorted(out, key=lambda d: d["dial"])
+
+
 def save_dial_info(dial_name, info):
     """Write the info into a dial file's metadata; the vector is copied unchanged and the file replaced atomically. Only
     dial files in loras/dials/ are rewritten, never another LoRA."""

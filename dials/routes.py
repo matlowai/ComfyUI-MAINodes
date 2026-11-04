@@ -65,6 +65,10 @@ def install():
         except ValueError as e:
             return error(str(e))
 
+    @routes.get("/mainodes/dials/catalog")
+    async def catalog(request):  # every dial with its family and info in one call (Snap's dial picker)
+        return web.json_response(await asyncio.to_thread(core.dial_catalog))
+
     @routes.get("/mainodes/dials/info")
     async def info(request):  # description, side labels, useful and overcook strengths for one dial file
         return await respond(core.dial_info, request.query.get("dial", ""))

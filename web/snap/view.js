@@ -14,6 +14,7 @@ import * as crew from "./crew.js";
 import * as rules from "./rules.js";
 import { createDailies } from "./dailies.js";
 import * as T from "./takes.js";
+import * as D from "./dials.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -99,6 +100,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   libFor.addEventListener("click", () => { libScoped = !libScoped; renderLibrary(); });
   rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libResults);
   T.onChange(() => renderLibrary());
+  D.load().then(() => { render(null); renderLibrary(); });
   L.ready().then(renderLibrary, () => libResults.replaceChildren(h("div", { className: "snap-quiet", textContent: "Library not available on this server" })));
 
   function renderLibrary() {
@@ -473,13 +475,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     });
   }
 
-  function rackSummary() {
-    let rows = [];
-    try { rows = JSON.parse(E.getValue("rack", "rack", "rack") || "[]"); } catch { rows = []; }
-    const on = rows.filter((r) => r.on !== false && r.dial);
-    if (!on.length) return h("div", { className: "snap-quiet", textContent: "No dials", title: "drop a dial card from the Library, or open the rack (select it)" });
-    return h("div", { className: "snap-chips" }, on.map((r) => h("span", { className: "snap-chip", textContent: `${String(r.dial).split("/").pop().replace(/\.safetensors$/, "").replace(/^h3_/, "")} ${r.strength}` })));
-  }
+  const openMaker = () => D.openMaker(root, { say, onChange: () => render(null) });
 
   // what References holds: each picture with its role, and the budget (H3 takes 9 pictures; identity refs come first)
   function picturesFace() {
@@ -555,14 +551,14 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const body = [];
     const pics = Object.values(info.nodes).flatMap((id) => { const n = app.graph.getNodeById(id); return n ? previews(n) : []; });
     if (pics.length && info.brick !== "refs") body.push(h("div", { className: "snap-thumbs" }, pics.slice(0, 2).map((src) => h("img", { src, alt: "", loading: "lazy" }))));
-    if (info.brick === "rack") body.push(rackSummary());
+    if (info.brick === "rack") body.push(D.face({ onChange: () => render(null), onPick: () => D.openPicker(root, { say, onChange: () => render(null), onMake: openMaker }), onMake: openMaker }));
     if (info.brick === "refs") body.push(...picturesFace());
     if (info.brick === "render") {
       const shot = E.state().bricks.find((x) => x.key === "render")?.shot;
       if (shot) body.push(h("div", { className: "snap-shot-line", title: `prompt compiled from ${L.get(shot.card)?.title ?? shot.card}` }, shot.parts.map((x) => h("i", { className: `snap-dot ${x.field}` })), h("span", { textContent: (L.get(shot.card)?.title ?? shot.card).replace(/:.*/, "") })));
     }
     const open = opened === info.brick;
-    const el = h("section", { className: `snap-brick${def.attach ? " attached" : ""}${info.brick === "render" ? " wide" : ""}${selected === info.brick ? " selected" : ""}${open ? " open" : ""}`, tabIndex: 0 },
+    const el = h("section", { className: `snap-brick${def.attach ? " attached" : ""}${info.brick === "render" || (info.brick === "rack" && D.rows().length) ? " wide" : ""}${selected === info.brick ? " selected" : ""}${open ? " open" : ""}`, tabIndex: 0 },
       h("header", { className: "snap-head" },
         h("span", { className: "snap-grip", textContent: def.icon, title: "drag to reorder" }),
         h("span", { className: "snap-name", textContent: def.title, title: def.blurb }),
@@ -680,7 +676,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // what a brick shows: its bindings, overrides and face values (a graph edit or undo changes one of these)
   function signature(info) {
     const values = BRICKS[info.brick].face.map(([k, name]) => E.getValue(info.brick, k, name));
-    if (info.brick === "rack") values.push(E.getValue("rack", "rack", "rack"));
+    if (info.brick === "rack") values.push(E.getValue("rack", "rack", "rack"), D.all().length); // the face redraws once the catalog arrives
     if (info.brick === "refs") values.push(E.state().bricks.find((b) => b.key === "refs")?.pictures);
     if (info.brick === "render") values.push(E.state().bricks.find((b) => b.key === "render")?.shot);
     const notes = openNotes(info.brick).map((n) => [n.id, n.status, n.reply, P.all().filter((p) => p.note === n.id && p.status === "waiting").length]);
@@ -839,5 +835,25 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     }
   }
 
-  return { root, stack, render, say, select, openInChanged, release: () => { giveBack(); if (opened) { opened = null; render(null); } }, get opened() { return opened; }, get selected() { return selected; } };
+  // what an agent reads and does through the `read_ui` / `ui` tools: the same moves a person makes
+  function uiRead() {
+    return { selected, open: opened, side_panel: root.classList.contains("inspecting"), sheet: root.querySelector(".snap-sheet")?.ariaLabel ?? null,
+      workflow: app.extensionManager.workflow.activeWorkflow?.filename ?? null, bricks: E.state().bricks.map((b) => b.key) };
+  }
+  async function uiAct(action, target) {
+    const tracker = app.extensionManager.workflow.activeWorkflow?.changeTracker;
+    if (action === "select") {
+      if (!E.state().bricks.some((b) => b.key === target)) throw new Error(`No brick ${target} in the recipe`);
+      if (openIn() === "brick") setOpen(target); else select(target);
+    } else if (action === "close") { for (const sh of root.querySelectorAll(".snap-sheet")) sh.remove(); setOpen(null); noting = false; select(null); }
+    else if (action === "undo") tracker.undo();
+    else if (action === "redo") tracker.redo();
+    else if (action === "dials") await D.openPicker(root, { say, onChange: () => render(null), onMake: openMaker });
+    else if (action === "make_dial") openMaker();
+    else if (action === "open_take") { const t = T.get(target); if (!t) throw new Error(`No take ${target}`); dailies.view(t); }
+    else throw new Error(`Unknown ui action ${action}`);
+    return uiRead();
+  }
+
+  return { root, stack, render, say, select, openInChanged, uiRead, uiAct, release: () => { giveBack(); if (opened) { opened = null; render(null); } }, get opened() { return opened; }, get selected() { return selected; } };
 }

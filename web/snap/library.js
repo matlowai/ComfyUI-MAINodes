@@ -5,6 +5,7 @@ import { api } from "../../../scripts/api.js";
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import * as T from "./takes.js";
+import * as D from "./dials.js";
 import { BRICKS } from "./bricks.js";
 import { setBlock, blocking, drawPlan, drawElevation, toBlob, coverage } from "./setsnap.js";
 
@@ -53,7 +54,11 @@ const priors = () => T.all().filter((t) => t.prior).map((t) => ({
   text: [t.text, ...t.notes.map((n) => `${n.sentiment === "right" ? "went right" : "went wrong"}: ${n.tags.join(", ")} ${n.text}`)].join(". "),
   media: t.media.slice(0, 1), brick: { take: t.id, seed: t.seed },
 }));
-const everything = () => [...priors(), ...cards];
+const installed = () => D.all().map((d) => ({ id: `dial:${d.dial}`, kind: "dial", title: `Dial: ${D.label(d)}${d.mode === "pre" ? " · LoRA file" : ""}`, family: d.family,
+  text: `${d.info.description || "No description yet."} Negative gives ${d.info.negative || "?"}, positive gives ${d.info.positive || "?"}. ${d.dial} (${d.family})`,
+  brick: { dial: d.dial, strength: d.info.pos.useful ?? 0.5 } }));
+// priors and the Library's own cards first; installed dials (dozens) after them, minus the ones a card already covers
+const everything = () => [...priors(), ...cards, ...installed().filter((d) => !cards.some((c) => c.kind === "dial" && c.brick?.dial === d.brick.dial))];
 export const get = (id) => everything().find((c) => c.id === id);
 
 export function search(query, brick) {
@@ -200,15 +205,7 @@ export async function apply(card) {
     if (!E.state().bricks.some((x) => x.key === "refs")) throw new Error(`${card.title} needs the References brick for its set pictures; add it first`);
     return applyShot(card);
   }
-  if (card.kind === "dial") {
-    const rows = JSON.parse(E.getValue("rack", "rack", "rack") || "[]");
-    if (rows.some((r) => r.dial === card.brick.dial)) return `${card.title} is already on the rack`;
-    rows.push({ on: true, dial: card.brick.dial, strength: card.brick.strength, solo: false });
-    E.setValue("rack", "rack", "rack", JSON.stringify(rows));
-    const ui = E.nodeFor("rack", "rack")?.dialRack; // the rack owns its rows UI; tell it to re-read them
-    ui?.load(); ui?.render();
-    return `${card.title} added to the rack at ${card.brick.strength}`;
-  }
+  if (card.kind === "dial") return D.add(card.brick.dial, card.brick.strength);
   if (card.kind === "lora") {
     const w = E.nodeFor("preset", "preset").widgets.find((x) => x.name === "lora");
     const file = w.options.values.find((v) => String(v).split(/[\\/]/).pop() === card.brick.lora);

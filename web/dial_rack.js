@@ -1165,6 +1165,8 @@ class DialRackUI {
       this.sw.computeSize = () => [0, -4];
       for (const el of [this.sw.element, this.sw.inputEl]) if (el) el.style.display = "none";
     }
+    // rows written from elsewhere (Snap, a Library card, an agent) set the widget and call its callback: follow them
+    if (this.sw) this.sw.callback = () => { this.load(); this.render(); };
     this.load();
     this.build();
     listDials().then(() => this.render());

@@ -240,6 +240,50 @@ export const STYLE = `
 .snap-part.beat { color: #f5d76e; } .snap-part.character { color: #f08fb8; } .snap-part.set, .snap-part.blocking { color: #7fd1c7; }
 .snap-part.camera { color: #a7b8ff; } .snap-part.direction { color: #f0b445; }
 .snap-quiet { color: var(--s-dim); font-size: 12px; }
+/* dials: two-sided sliders on the rack brick, the picker, the maker */
+.snap-dials { display: flex; flex-direction: column; gap: 10px; }
+.snap-dial { display: flex; flex-direction: column; gap: 3px; }
+.snap-dial.off { opacity: .45; }
+.snap-dial-top { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.snap-dial-top input[type=checkbox] { margin: 0; accent-color: hsl(35 85% 60%); }
+.snap-dial-name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.snap-dial-v { font: 600 12px/1 ui-monospace, monospace; color: hsl(35 85% 72%); }
+.snap-dial .snap-x { width: 18px; height: 18px; }
+.snap-dial:hover .snap-x { opacity: 1; }
+.snap-dial-range { -webkit-appearance: none; appearance: none; width: 100%; height: 18px; margin: 0; background: transparent; cursor: ew-resize; }
+.snap-dial-range::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, transparent calc(50% - 1px), #ffffff55 calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)), var(--bands); }
+.snap-dial-range::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -4px; border-radius: 50%; background: hsl(35 90% 65%); box-shadow: 0 0 0 3px #0006, 0 2px 6px #0008; }
+.snap-dial-range::-moz-range-track { height: 6px; border-radius: 3px; background: var(--bands); }
+.snap-dial-range::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: hsl(35 90% 65%); }
+.snap-dial-ends { display: flex; justify-content: space-between; gap: 6px; font-size: 10.5px; color: var(--s-dim); }
+.snap-dial-ends em { font-style: normal; color: #f0b445; }
+.snap-dial-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.snap-dial-actions .snap-quiet-btn { padding: 4px 8px; font-size: 11.5px; }
+.snap-dial-sheet { inset: 40px max(24px, calc(50% - 560px)); }
+.snap-dial-pick { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding: 16px; }
+.snap-dial-grid { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; align-content: start; }
+.snap-dial-tile { all: unset; cursor: pointer; display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; background: var(--s-card); box-shadow: inset 0 0 0 1px var(--s-line); transition: box-shadow .12s ease-out, transform .12s ease-out; }
+.snap-dial-tile:hover, .snap-dial-tile:focus-visible { box-shadow: inset 0 0 0 1px hsl(35 85% 60% / .8); transform: translateY(-1px); }
+.snap-dial-tile.on { box-shadow: inset 0 0 0 1px #57c78599; }
+.snap-dial-tile strong { font-size: 14px; }
+.snap-dial-tile .snap-quiet { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.snap-dial-meta { display: flex; flex-wrap: wrap; gap: 4px; }
+.snap-dial-meta i { font-style: normal; font-size: 10.5px; padding: 2px 7px; border-radius: 999px; background: #ffffff10; color: var(--s-dim); }
+.snap-dial-meta i.warn { color: #f0b445; } .snap-dial-meta i.file { font-family: ui-monospace, monospace; background: none; padding-left: 0; } .snap-dial-meta i.ok { color: #8fe3b0; }
+.snap-dial-make { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 16px 20px; }
+.snap-dial-make .snap-field input, .snap-dial-make .snap-field textarea { --hue: 35; }
+.snap-dial-sides { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: end; }
+.snap-dial-arrow { font-size: 20px; color: var(--s-dim); padding-bottom: 6px; }
+.snap-pairs { display: flex; flex-direction: column; gap: 8px; }
+.snap-pair { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: start; }
+.snap-pair textarea { font: inherit; font-size: 13px; color: var(--s-fg); background: #0000002e; border: 1px solid #ffffff14; border-radius: 9px; padding: 7px 9px; resize: vertical; }
+.snap-pair textarea:first-child { border-left: 3px solid hsl(210 70% 60% / .7); } .snap-pair textarea:nth-child(2) { border-left: 3px solid hsl(35 85% 60% / .8); }
+.snap-pair .snap-x { opacity: .6; }
+.snap-dial-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.snap-dial-two > div { display: flex; flex-direction: column; gap: 8px; }
+.snap-dial-go { display: flex; align-items: flex-start; gap: 12px; margin-top: 4px; }
+.snap-dial-status { flex: 1; white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 11.5px; max-height: 160px; overflow: auto; }
+.snap-dial-go .snap-primary { margin: 0; }
 /* live run on the bricks */
 .snap-brick.running { border-color: hsl(var(--hue) 80% 66%); box-shadow: 0 0 0 4px hsl(var(--hue) 80% 60% / .22), 0 0 32px hsl(var(--hue) 80% 60% / .35); }
 .snap-brick.running::before { content: ""; position: absolute; left: 14px; right: 14px; bottom: 8px; height: 3px; border-radius: 2px; background: linear-gradient(90deg, hsl(var(--hue) 80% 66%) calc(var(--run-p, 0) * 100%), #ffffff14 0); }
@@ -334,7 +378,7 @@ export const STYLE = `
 .snap-toast { position: absolute; z-index: 90; left: 50%; bottom: 24px; transform: translate(-50%, 12px); opacity: 0; pointer-events: none; padding: 10px 16px; max-width: min(640px, 80%);
   border-radius: 12px; background: var(--s-fg); color: var(--s-bg); font-size: 12.5px; box-shadow: 0 12px 32px #0008; transition: opacity .15s ease-out, transform .15s ease-out; }
 .snap-toast.show { opacity: 1; transform: translate(-50%, 0); }
-.snap-root:has(.snap-sheet) .snap-toast { bottom: auto; top: 64px; } /* a sheet's own controls sit at the bottom */
+.snap-root:has(.snap-sheet) .snap-toast { bottom: auto; top: 6px; } /* a sheet's own controls sit at the bottom */
 .snap-toast.bad { background: #f0b445; color: #1b1c20; }
 /* narrow: a phone, or Snap docked in the sidebar next to the graph: the chain runs top to bottom */
 @container (max-width: 760px) {
