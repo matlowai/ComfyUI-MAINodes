@@ -732,11 +732,11 @@
             },
             "widgets_values": [
               0,
-              "randomize"
+              "fixed"
             ],
             "widgets_values_named": {
               "noise_seed": 0,
-              "control_after_generate": "randomize"
+              "control_after_generate": "fixed"
             }
           },
           {
@@ -2066,11 +2066,11 @@
             },
             "widgets_values": [
               43,
-              "randomize"
+              "fixed"
             ],
             "widgets_values_named": {
               "noise_seed": 43,
-              "control_after_generate": "randomize"
+              "control_after_generate": "fixed"
             }
           },
           {

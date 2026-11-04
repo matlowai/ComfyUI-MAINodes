@@ -40,6 +40,9 @@ const node = (id) => app.graph.getNodeById(id);
 const widget = (n, name) => n?.widgets?.find((w) => w.name === name);
 const brick = (key) => state().bricks.find((b) => b.key === key);
 
+// every node inside a blueprint node (nested ones too)
+const inner = (n) => (n?.subgraph?.nodes ?? []).flatMap((x) => [x, ...inner(x)]);
+
 // an attachment's `inner` nodes live inside its host's blueprint (found by type), the rest are the brick's own
 export function nodeFor(brickKey, nodeKey) {
   const b = brick(brickKey), inner = BRICKS[brickKey]?.attach?.inner?.[nodeKey];
@@ -215,7 +218,11 @@ async function snapOnce(key, { values, at } = {}) {
   const y = below.length ? Math.max(...below.map((n) => n.pos[1] + n.size[1])) + 80 : 0;
   const bindings = transaction(() => {
     const ids = {};
-    if (bp) ids[key] = insertBlueprint(bp, [x, y]).id;
+    if (bp) { // a blueprint saved against another core version may hold a choice that moved: resolve it, else it shows as missing
+      const outer = insertBlueprint(bp, [x, y]);
+      ids[key] = outer.id;
+      for (const n of inner(outer)) for (const w of n.widgets ?? []) if (Array.isArray(w.options?.values) && !w.options.values.includes(w.value)) put(w, w.value);
+    }
     let dy = 0;
     for (const spec of def.nodes ?? []) {
       const n = LiteGraph.createNode(spec.type);
@@ -446,8 +453,8 @@ export function targets() {
 // (brick null); what the readiness badge shows
 export function missing() {
   const out = [];
-  const check = (key, n) => { for (const w of n?.widgets ?? []) if (Array.isArray(w.options?.values) && !w.options.values.includes(w.value)) out.push({ brick: key, node: n.title, setting: w.name, value: w.value ?? null }); };
-  for (const b of state().bricks) for (const id of Object.values(b.nodes)) check(b.key, node(id));
+  const check = (key, n, at = "") => { for (const w of n?.widgets ?? []) if (Array.isArray(w.options?.values) && !w.options.values.includes(w.value)) out.push({ brick: key, node: `${at}${n.title}`, setting: w.name, value: w.value ?? null }); };
+  for (const b of state().bricks) for (const id of Object.values(b.nodes)) { check(b.key, node(id)); for (const n of inner(node(id))) check(b.key, n, `${node(id).title} › `); }
   for (const n of outside()) check(null, n);
   return out;
 }
