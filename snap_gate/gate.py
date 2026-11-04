@@ -175,6 +175,14 @@ class Gate:
     def is_admin(self, name):
         return self.accounts.load()[name]["role"] == "admin"
 
+    def publish_admins(self):
+        """user/snap_admins.json: the admins' ComfyUI user ids, so the pack takes ratings and private/nsfw tags only from
+        their snap/ files (the pack's SNAP-R32). It sits outside every user's folder, where no page can write."""
+        ids = sorted(a["comfy_user"] for a in self.accounts.load().values() if a["role"] == "admin" and a.get("comfy_user"))
+        f = self.user_dir / "snap_admins.json"
+        if not f.exists() or json.loads(f.read_text(encoding="utf-8")) != {"admins": ids}:
+            write_json(f, {"admins": ids})
+
     async def comfy_user(self, name):
         """The account's ComfyUI user id, created through core's own /users the first time."""
         a = self.accounts.load()[name]
@@ -187,6 +195,7 @@ class Gate:
         return a["comfy_user"]
 
     def start_session(self, request, name, target):
+        self.publish_admins()  # on every sign-in, so a role changed with `account set` counts from the next one
         tok, now, sessions = secrets.token_urlsafe(32), time.time(), self.sessions.load()
         sessions.pop(sha(request.cookies.get(COOKIE, "")), None)  # the page's old (locked) session
         sessions[sha(tok)] = {"account": name, "expires": now + SESSION_SECONDS, "seen": now}
@@ -796,6 +805,7 @@ async def serve(args):
         users = await gate.get("/users")
         if "users" not in users:
             sys.exit(f"snap-gate: ComfyUI at {args.upstream} runs single-user; start it with --multi-user, or run the gate with --disabled.")
+        gate.publish_admins()
     app = web.Application(client_max_size=0)
     if not args.disabled:
         app.router.add_get("/gate/login", gate.login_page)
