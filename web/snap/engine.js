@@ -6,7 +6,7 @@ import { api } from "../../../scripts/api.js";
 import { BRICKS, RENDER_BLUEPRINT } from "./bricks.js";
 
 const GAP = 80;
-const COLUMN = { models: 0, preset: 0, rack: 1, first_frame: 1, refs: 1, render: 2 };
+const COLUMN = { models: 0, preset: 0, image_models: 0, loras: 0, style: 0, cast: 0, rack: 1, first_frame: 1, refs: 1, render: 2, image: 2, save_image: 3 };
 const column = (key) => (Object.hasOwn(COLUMN, key) ? COLUMN[key] : Object.hasOwn(COLUMN, BRICKS[key]?.attach?.brick ?? "") ? COLUMN[BRICKS[key].attach.brick] : key.startsWith("node:") ? 3 : 0); // any-node bricks go right of the render
 const EMPTY = Object.freeze({ version: 1, bricks: Object.freeze([]), bindings: Object.freeze([]) });
 
@@ -110,7 +110,17 @@ function resolve(toBrick, role, type, downstream) {
   const order = state().bricks.map((b) => b.key), at = order.indexOf(toBrick);
   const upstream = order.slice(0, at).reverse().concat(downstream ? order.slice(at + 1) : []);
   const fits = (p) => !toBrick.startsWith("node:") || [p.src.outputs[p.o].type, "*"].includes(type) || type === "*"; // our bricks' rules are curated
+  // an any-node brick that takes and gives the same type (a model patch such as skip-layer guidance) sits in that chain:
+  // the nearest one feeds the next input of that type, whatever its output is called
+  const patch = (key) => {
+    if (!key.startsWith("node:")) return null;
+    const def = BRICKS[key], takes = Object.values(def.needs ?? {}).some(([k, name]) => nodeFor(key, k)?.inputs?.find((i) => i.name === name)?.type === type);
+    const gives = Object.values(def.provides ?? {}).filter((out) => provider(key, out)?.src.outputs[provider(key, out).o].type === type);
+    return takes && gives.length === 1 ? gives[0] : null;
+  };
   for (const key of upstream) {
+    const through = order.indexOf(key) < at && patch(key); // only from upstream: a later patch never feeds back
+    if (through) return { from: key, out: through, rule: `patch:${type}` };
     const out = BRICKS[key].provides?.[role], p = out && provider(key, out);
     if (p && fits(p)) return { from: key, out, rule: `pack:${key}.${role}` };
   }
@@ -372,6 +382,9 @@ export function unsnap(key) {
   app.canvas.setDirty(true, true);
 }
 
+// bind what is left unbound (after bricks were removed), as one undo step
+export const rebind = () => transaction(bindAll);
+
 // a binding is overridden when its target input is now fed by something else (or nothing)
 export function overrides() {
   const s = state();
@@ -395,6 +408,10 @@ export function addNote(text, brickKey = null) {
   const note = { id: `n${Date.now().toString(36)}`, brick: brickKey, text, status: "open", created: Date.now() };
   transaction(() => { const s = record(); s.notes = [...(s.notes ?? []), note]; });
   return note;
+}
+// a field on the recipe's own record (e.g. the setup card it was built from), one undo step
+export function tag(field, value) {
+  transaction(() => { record()[field] = value; });
 }
 // a field on one brick's record (e.g. the set text References last put into the prompt), one undo step
 export function remember(brickKey, field, value) {
@@ -453,9 +470,12 @@ export async function restore(saved) {
 
 async function rebuild(saved) {
   const keys = [];
-  for (const { key } of saved) { // bricks already in the stack are reused (any-node bricks of a type in order), the rest snapped
-    const have = key.startsWith("node:") ? state().bricks.map((x) => x.key).find((k) => k.split("#")[0] === key && !keys.includes(k)) : brick(key) && key;
-    keys.push(have || (await snap(key)).brick);
+  const had = (key) => (key.startsWith("node:") ? state().bricks.map((x) => x.key).find((k) => k.split("#")[0] === key && !keys.includes(k)) : brick(key) && key);
+  for (const [i, { key }] of saved.entries()) { // bricks already in the stack are reused (any-node bricks of a type in order), the rest snapped
+    // a new brick goes where the saved recipe has it (before the next brick it lists that is already here), so it binds
+    // between its neighbours instead of dangling after the render
+    const next = saved.slice(i + 1).map((x) => had(x.key)).find(Boolean), at = next ? state().bricks.findIndex((b) => b.key === next) : undefined;
+    keys.push(had(key) || (await snap(key, { at })).brick);
   }
   transaction(() => saved.forEach(({ values }, i) => {
     for (const [nodeKey, ws] of Object.entries(values)) {
