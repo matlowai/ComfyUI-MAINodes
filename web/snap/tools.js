@@ -451,15 +451,24 @@ export const TOOLS = [
   },
   {
     name: "save_workflow",
-    description: "Save the open workflow (graph and recipe) under a name in the person's Workflows (user workflows/<name>.json). An existing name is refused unless overwrite is true.",
+    description: "Save the open workflow (graph and recipe) under a name in the person's Workflows, as their Save As does for an unsaved tab (the tab becomes that workflow); a saved tab is copied to the new name and stays what it is. An existing name is refused unless overwrite is true.",
     inputSchema: { type: "object", properties: { name: { type: "string" }, overwrite: { type: "boolean" } }, required: ["name"] },
+    // the frontend workflow service's Save As (1.58.5), through the store it uses, without its name and overwrite dialogs
     run: async ({ name, overwrite }) => {
       const clean = String(name).trim().replace(/\.json$/, "");
       if (!/^[\w .-]{1,80}$/.test(clean) || clean.startsWith(".")) throw new Error("A workflow name takes letters, digits, spaces, '.', '_' and '-'");
-      const path = `workflows/${clean}.json`;
-      if (!overwrite && (await api.getUserData(path)).ok) throw new Error(`${clean} exists; pass overwrite: true to replace it`);
-      await api.storeUserData(path, app.graph.serialize());
-      return { saved: path };
+      const store = app.extensionManager.workflow, open = store.activeWorkflow, path = `${open.directory}/${clean}.json`;
+      const there = store.getWorkflowByPath(path), same = there?.path === open.path && !there.isTemporary;
+      if (there && !there.isTemporary && !same) {
+        if (!overwrite) throw new Error(`${clean} exists; pass overwrite: true to replace it`);
+        await store.deleteWorkflow(there);
+      }
+      open.changeTracker?.prepareForSave();
+      let saved = open;
+      if (open.isTemporary) await store.renameWorkflow(open, path);
+      else if (!same) { saved = store.saveAs(open, path); await saved.load(); } // a copy; this tab stays the workflow it is
+      await store.saveWorkflow(saved);
+      return { saved: saved.path, tab: open.path };
     },
   },
   {
