@@ -108,9 +108,11 @@ export function nodesOf(brickKey) {
   return keys.map((k) => [k, E.nodeFor(brickKey, k)]).filter(([, n]) => n);
 }
 
+// a dynamic group's placeholder: a LoRA stack keeps one row (the node's minimum), so an empty stack is its only row, off
+// at strength 0; it loads nothing
+const placeholder = (n, g) => { const at = (f) => n.widgets.find((w) => w.name === `${g}${f}`)?.value; return at("") === 1 && at(".0.enabled") === false && Number(at(".0.strength")) === 0; };
+const idle = (n, w) => { const g = w.name.match(/^(.+)\.0\.lora_name$/)?.[1]; return !!g && placeholder(n, g); };
 // every model setting in the recipe: which file, how big, and whether it is installed
-// a LoRA stack's row that is off at strength 0 loads nothing (an empty stack keeps one such row)
-const idle = (n, w) => { const m = w.name.match(/^(.+\.\d+)\.lora_name$/), at = (f) => m && n.widgets.find((x) => x.name === `${m[1]}.${f}`)?.value; return !!m && at("enabled") === false && Number(at("strength")) === 0; };
 export function settings() {
   return E.state().bricks.flatMap((b) => nodesOf(b.key).flatMap(([nodeKey, n]) => (n.widgets ?? []).filter((w) => isModel(w) && !idle(n, w)).map((w) => ({
     brick: b.key, node: nodeKey, setting: w.name, file: w.value, folder: file(w.value)?.folder ?? null, size: file(w.value)?.size ?? null,
@@ -253,7 +255,7 @@ export function loras() {
 // the sampling a recipe runs, wherever it lives (the image Render's own widgets, H3's Render Preset): the first
 // setting of each name that no wire drives
 const SAMPLING = { steps: ["steps"], cfg: ["cfg"], sampler: ["sampler_name", "sampler"], scheduler: ["scheduler", "schedule"] };
-export function sampling() {
+function sampling() {
   const out = {};
   for (const b of E.state().bricks) for (const [nodeKey, n] of nodesOf(b.key)) for (const [k, names] of Object.entries(SAMPLING)) {
     const w = !out[k] && n.widgets?.find((x) => names.includes(x.name) && !n.inputs?.some((i) => i.widget?.name === x.name && i.link != null));
@@ -353,14 +355,14 @@ export function setTurbo(name) {
 }
 
 // ---- LoRA stacks (SNAP-R12): a brick whose `stack` names a dynamic-group node (core LoadLoraModel: rows of file,
-// strength, on). A stack always keeps one row (the node's minimum), so an empty stack is one row that is off at 0
+// strength, on); an empty stack is its placeholder row
 const stackNode = (brick) => E.nodeFor(brick, BRICKS[brick].stack.node);
 const groupOf = (brick) => BRICKS[brick].stack.group;
 export function rows(brick) {
   const n = stackNode(brick), g = groupOf(brick), count = n?.widgets.find((w) => w.name === g)?.value ?? 0;
+  if (!n || placeholder(n, g)) return [];
   const at = (i, f) => n.widgets.find((w) => w.name === `${g}.${i}.${f}`)?.value;
-  return Array.from({ length: count }, (_, i) => ({ row: i, file: at(i, "lora_name"), strength: at(i, "strength"), on: at(i, "enabled"), entry: entry(at(i, "lora_name")) }))
-    .filter((r) => !(count === 1 && r.on === false && r.strength === 0));
+  return Array.from({ length: count }, (_, i) => ({ row: i, file: at(i, "lora_name"), strength: at(i, "strength"), on: at(i, "enabled"), entry: entry(at(i, "lora_name")) }));
 }
 export function addRow(brick, file, strength = entry(file)?.recommended?.strength ?? 1) {
   const n = stackNode(brick), g = groupOf(brick), list = rows(brick);
