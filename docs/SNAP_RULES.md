@@ -214,7 +214,9 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   value's folder part (a symlinked folder named like a pattern). The lock follows today's rules, not only the mark saved
   at queue time: `/mainodes/snap/take_marks` re-checks the saved takes (booleans, never file names) and
   `/mainodes/snap/private_loras` names the LoRA files the rules match, so LoRA rows in the sheet, the stack faces, the
-  + LoRA picker and `list_loras` carry a lock. Marking only: nothing is hidden, gated or re-run, and the row still works
-  (Dylan, 2026-11-04: "my machine isn't going to be the private one"). *Why:* derived LoRAs that a name rule missed
+  + LoRA picker and `list_loras` carry a lock. A version of a private take (an edit, a continued take) is private too,
+  in the lock and the export, so a private take can be edited like any other. Marking only: nothing is hidden, gated or
+  re-run, and the row still works (Dylan, 2026-11-04: "my machine isn't going to be the private one"; "dont artificially
+  limit anything please thats for the end user to do what they decide"). *Why:* derived LoRAs that a name rule missed
   had neutral names in a neutral folder and were caught only by their stamp (U68). *More:* U68_PRIVACY_AUDIT_2026-11-04.md
   "Matcher gaps", PLAN U71, `snap_privacy.py`, `snap_bridge.py`.

@@ -10,7 +10,7 @@ JSONL files; nothing leaves the machine:
 
 Private takes (an identity LoRA, a Cast row, a file the model graph tags private, a file under the person's private
 paths or matching their patterns in snap/private.json, a safetensors file stamped private in its header, SNAP-R27) and
-NSFW-tagged takes are left out,
+NSFW-tagged takes are left out (a version of a private take too),
 with every note and pair they are in, unless --include-private / --include-nsfw ask for them (SNAP-R20). A take counts
 as private when the save gate marked it or when its prompt and the model graph say so now.
 
@@ -48,14 +48,17 @@ def main():
     def loaded(value):  # what the server would load: the base folder's models/<folder>/<value> or an absolute path
         found = [Path(value)] if Path(value).is_absolute() else [d / value for d in models]
         return [str(f.resolve()) for f in found if f.is_file()]
+    every = {t["id"]: t for t in (read(f, None) for f in sorted((snap / "takes").glob("*.json"))) if t}
+    found = {i: snap_privacy.marks(t.get("prompt") or {}, t.get("graph"), graph, loaded) for i, t in every.items()}
+
+    def private(t):  # a version of a private take (an edit, a continued take) is private too (SNAP-R27)
+        parent = every.get((t.get("parent") or {}).get("take"))
+        return bool(t.get("private") or found[t["id"]]["private"] or (parent and private(parent)))
     takes, left_out = {}, {"private": 0, "nsfw": 0}
-    for t in (read(f, None) for f in sorted((snap / "takes").glob("*.json"))):
-        if not t:
-            continue
-        found = snap_privacy.marks(t.get("prompt") or {}, t.get("graph"), graph, loaded)
-        if (t.get("private") or found["private"]) and not args.include_private:
+    for t in every.values():
+        if private(t) and not args.include_private:
             left_out["private"] += 1
-        elif (t.get("nsfw") or found["nsfw"]) and not args.include_nsfw:
+        elif (t.get("nsfw") or found[t["id"]]["nsfw"]) and not args.include_nsfw:
             left_out["nsfw"] += 1
         else:
             takes[t["id"]] = t

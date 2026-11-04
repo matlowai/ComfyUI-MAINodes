@@ -52,8 +52,9 @@ export function load() {
 }
 
 export const all = () => takes;
-// private by its saved mark or by the rules now (SNAP-R27): what the lock shows and the export leaves out
-export const locked = (t) => !!(t.private || marks[t.id]?.private);
+// private by its saved mark, by the rules now, or as a version of a private take (SNAP-R27): what the lock shows and the
+// export leaves out
+export const locked = (t) => !!(t.private || marks[t.id]?.private || (t.parent && get(t.parent.take) && locked(get(t.parent.take))));
 export const get = (id) => takes.find((t) => t.id === id);
 // takes of one workflow rank together; the workflow's own id is saved in its JSON, so renames and tab switches don't split it
 export const groupOf = () => app.graph.id ?? "unsaved";
