@@ -86,7 +86,7 @@ export async function openOnboarding(host, { say, onOpened, start }) {
       const ks = await Promise.all(intents.map(OB.kit)), wanted = await OB.proposeDownloads({ intents });
       body.replaceChildren(h("h2", { textContent: ks.length > 1 ? "Your setups" : "Your setup" }),
         ...ks.map((k) => h("section", { className: "snap-ob-kit" }, h("div", { className: "snap-rail-title", textContent: k.title }),
-          h("div", { className: "snap-ob-cards" }, card(k.recommended, "Recommended for you"), k.fast ? card(k.fast, "Fast option") : null),
+          h("div", { className: "snap-ob-cards" }, card(k.recommended, "Recommended for you"), k.fast ? card(k.fast, "Fast option") : h("div", { className: "snap-ob-card none" }, h("div", { className: "snap-ob-card-top" }, h("i", { textContent: "Fast option" })), h("span", { className: "snap-quiet", textContent: k.fast_note }))),
           k.also.length ? h("button", { className: "snap-link", textContent: showAlso.has(k.intent) ? "Hide alternatives" : `See alternatives (${k.also.length})`, onclick: () => { showAlso.has(k.intent) ? showAlso.delete(k.intent) : showAlso.add(k.intent); draw(); } }) : null,
           showAlso.has(k.intent) ? h("div", { className: "snap-ob-cards" }, k.also.map((r) => card(r, r.tier === "api" ? "API" : "Also good"))) : null,
           k.try_first ? h("p", { className: "snap-ob-try" }, h("b", { textContent: "Try this first: " }), k.try_first) : null)),

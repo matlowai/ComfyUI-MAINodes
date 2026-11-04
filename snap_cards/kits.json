@@ -1,7 +1,7 @@
 {
-  "about": "Onboarding kits (SNAP-R25): what to set up for each thing a person wants to make. A kit names setups (a Library recipe card, a Render Preset, a method from snap_cards/methods.json, plus a turbo or extra files); the files' folders, sizes, sources and download links come from the model graph (snap_cards/models.json), so they live in one place. Each setup has a tier (recommended, fast, also, api), the VRAM it wants, and evidence with a grade and a date. Snap only proposes downloads: the person or their agent runs them.",
+  "about": "Onboarding kits (SNAP-R25): what to set up for each thing a person wants to make. A kit names setups (a Library recipe card, a Render Preset, a method from snap_cards/methods.json, plus a turbo or extra files); the files' folders, sizes, sources and download links come from the model graph (snap_cards/models.json), so they live in one place. Each setup has a tier (recommended, fast, also, api), the VRAM it wants, and evidence with a grade, the hardware it was measured on (`on`) and a date. Snap only proposes downloads: the person or their agent runs them.",
   "grades": {
-    "measured": "measured on this machine",
+    "measured": "measured",
     "community": "community-measured",
     "opinion": "community opinion",
     "untested": "untested"
@@ -54,13 +54,13 @@
         {
           "id": "video-pika", "tier": "recommended", "title": "Pika H3 Flex", "recipe": "simple", "preset": "Pika H3 Flex",
           "good_at": "4 s clips with sound, motion and dials", "vram_gb": 32,
-          "evidence": { "grade": "measured", "date": "2026-11-04", "line": "about 66 s per 4 s take at 1280×704 on a 5090", "source": "U19, 3 takes" },
+          "evidence": { "grade": "measured", "on": "an RTX 5090 (32 GB)", "date": "2026-11-04", "line": "about 66 s per 4 s take at 1280×704", "source": "U19, 3 takes" },
           "lowvram": [{ "below_gb": 32, "swap": ["minimax_h3_fl2va_pruned_int8_convrot.safetensors", "minimax_h3_fl2va_pruned_w6a8.safetensors"], "evidence": { "grade": "untested", "date": "2026-11-04", "line": "the W6A8 DiT (16 GB) loads in core; quality not compared here" } }]
         },
         {
           "id": "video-dmad", "tier": "fast", "title": "DMAD speed LoRA", "recipe": "simple", "preset": "DMAD speed LoRA",
           "good_at": "faster drafts", "vram_gb": 32,
-          "evidence": { "grade": "measured", "date": "2026-11-02", "line": "LoRA 0.8 at 6 steps looked crisper than the authors' 1.0 at 4 on our train-platform test", "source": "render.py preset note" }
+          "evidence": { "grade": "measured", "on": "an RTX 5090 (32 GB)", "date": "2026-11-02", "line": "LoRA 0.8 at 6 steps looked crisper than the authors' 1.0 at 4 on our train-platform test", "source": "render.py preset note" }
         },
         {
           "id": "video-pika-api", "tier": "api", "title": "Pika H3 Flex Video (API)", "node": "PikaH3FlexVideoNode",
@@ -79,22 +79,22 @@
         {
           "id": "stills-moss-base", "tier": "recommended", "card": "setup-moss-base",
           "good_at": "flexible stills; wants long, concrete prompts", "vram_gb": 16,
-          "evidence": { "grade": "measured", "date": "2026-11-04", "line": "8 s per 1024² image at 25 steps on a 5090; 25 steps looked as good as 50 in 20 pairs", "source": "U24" }
+          "evidence": { "grade": "measured", "on": "an RTX 5090 (32 GB)", "date": "2026-11-04", "line": "8 s per 1024² image at 25 steps; 25 steps looked as good as 50 in 20 pairs", "source": "U24" }
         },
         {
           "id": "stills-kromoss-dmd2", "tier": "fast", "card": "setup-kromoss", "turbo": "lodestones_kromoss_8step_dmd2_lora.safetensors", "title": "Kromoss + DMD2 8-step",
           "good_at": "fast drafts, crisp", "vram_gb": 16,
-          "evidence": { "grade": "measured", "date": "2026-11-04", "line": "2.7 s per 1024² image, 8 steps cfg 1", "source": "P2 renders" }
+          "evidence": { "grade": "measured", "on": "an RTX 5090 (32 GB)", "date": "2026-11-04", "line": "2.7 s per 1024² image, 8 steps cfg 1", "source": "P2 renders" }
         },
         {
           "id": "stills-sft-deband", "tier": "also", "card": "setup-moss-sft-deband",
           "good_at": "the cleanest set by eye: colour, text, hands", "vram_gb": 16,
-          "evidence": { "grade": "measured", "date": "2026-11-04", "line": "7.7 s per image; no banding in 40 images (agent's eye)", "source": "U24" }
+          "evidence": { "grade": "measured", "on": "an RTX 5090 (32 GB)", "date": "2026-11-04", "line": "7.7 s per image; no banding in 40 images (agent's eye)", "source": "U24" }
         },
         {
           "id": "stills-krea", "tier": "also", "card": "setup-krea2-raw",
           "good_at": "photographic looks; Krea dials are calibrated on it", "vram_gb": 32,
-          "evidence": { "grade": "measured", "date": "2026-11-04", "line": "67 s per 1024² image at 30 steps", "source": "P2 renders" }
+          "evidence": { "grade": "measured", "on": "an RTX 5090 (32 GB)", "date": "2026-11-04", "line": "67 s per 1024² image at 30 steps", "source": "P2 renders" }
         }
       ],
       "try_first": "Write two or three concrete sentences about the picture (who, where, light, lens) and press Run."
@@ -108,7 +108,7 @@
         {
           "id": "anime-sft-deband", "tier": "recommended", "card": "setup-moss-sft-deband",
           "good_at": "full-colour anime", "vram_gb": 16,
-          "evidence": { "grade": "measured", "date": "2026-11-04", "line": "full-colour anime 2/2 where Base drew uncoloured line art 4/4 (agent's eye)", "source": "U24" }
+          "evidence": { "grade": "measured", "on": "an RTX 5090 (32 GB)", "date": "2026-11-04", "line": "full-colour anime 2/2 where Base drew uncoloured line art 4/4 (agent's eye)", "source": "U24" }
         },
         {
           "id": "anime-kromoss", "tier": "recommended", "card": "setup-kromoss",
@@ -118,7 +118,7 @@
         {
           "id": "anime-kromoss-dmd2", "tier": "fast", "card": "setup-kromoss", "turbo": "lodestones_kromoss_8step_dmd2_lora.safetensors", "title": "Kromoss + DMD2 8-step",
           "good_at": "fast drafts", "vram_gb": 16,
-          "evidence": { "grade": "measured", "date": "2026-11-04", "line": "2.7 s per 1024² image", "source": "P2 renders" }
+          "evidence": { "grade": "measured", "on": "an RTX 5090 (32 GB)", "date": "2026-11-04", "line": "2.7 s per 1024² image", "source": "P2 renders" }
         },
         {
           "id": "anime-upscale", "tier": "also", "title": "4x-AnimeSharp upscale", "method": "esrgan", "files": ["4x-AnimeSharp.safetensors"],
@@ -137,12 +137,12 @@
         {
           "id": "edit-night", "tier": "recommended", "title": "Night version", "recipe": "simple", "preset": "Pika H3 Flex", "method": "relight",
           "good_at": "the same shot at night, dusk or dawn", "vram_gb": 32,
-          "evidence": { "grade": "measured", "date": "2026-11-04", "line": "100-140 s per edit on a 5090; kept layout and motion best of three routes", "source": "U53b, U54" }
+          "evidence": { "grade": "measured", "on": "an RTX 5090 (32 GB)", "date": "2026-11-04", "line": "100-140 s per edit; kept layout and motion best of three routes", "source": "U53b, U54" }
         },
         {
           "id": "edit-region", "tier": "also", "title": "Cropped inpaint", "method": "crop_inpaint",
           "good_at": "one face or person among several",
-          "evidence": { "grade": "community", "date": "2026-11-04", "line": "13 min for an 8 s clip on a 3060 12 GB", "source": "scout/h3_edit_tools §1" }
+          "evidence": { "grade": "community", "date": "2026-11-04", "on": "an RTX 3060 (12 GB)", "line": "13 min for an 8 s clip", "source": "scout/h3_edit_tools §1" }
         }
       ],
       "try_first": "Render a take, open it from the Takes strip and pick Edit › Night version. You pick the frame you like before anything renders."
@@ -175,7 +175,7 @@
         {
           "id": "characters-ref2v", "tier": "recommended", "title": "Pika + reference pictures", "recipe": "simple", "preset": "Pika + reference pictures",
           "good_at": "who and where from your pictures", "vram_gb": 32,
-          "evidence": { "grade": "measured", "date": "2026-11-04", "line": "54 s per take on a 5090; a set picture kept the room 12/12", "source": "P2 renders, U21" }
+          "evidence": { "grade": "measured", "on": "an RTX 5090 (32 GB)", "date": "2026-11-04", "line": "54 s per take; a set picture kept the room 12/12", "source": "P2 renders, U21" }
         },
         {
           "id": "characters-api", "tier": "api", "title": "Pika H3 Flex Reference to Video (API)", "node": "PikaH3FlexReferenceVideoNode",

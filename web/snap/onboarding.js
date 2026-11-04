@@ -23,6 +23,8 @@ export function load() {
 export const kits = () => data?.kits ?? [];
 export const tasks = () => data?.tasks ?? [];
 export const grade = (g) => data?.grades?.[g] ?? g;
+// a measurement names where it was made ("measured on an RTX 5090 (32 GB)"), whatever machine reads it
+const evidence = (e) => [grade(e?.grade), e?.on && `on ${e.on}`].filter(Boolean).join(" ");
 
 // hardware is read, never asked: the first device /system_stats lists (a CPU-only server says so). Cards report a bit
 // under their size (a 5090 gives 31.4 GiB), so the size rounds up to the card's own 32 GB
@@ -70,7 +72,7 @@ async function rate(s, hw) {
     state: s.node ? "api" : cant.length ? "cant_load" : missing.length || packs.some((p) => !p.installed) || (m && m.install_state !== "ready") ? "missing" : "ready",
     files, packs, missing_gb: +missing.reduce((a, f) => a + (f.size_gb ?? 0), 0).toFixed(1), downloadable: missing.every((f) => f.download),
     vram_gb: s.vram_gb ?? null, fits: !s.vram_gb || !hw.vram_gb || hw.vram_gb >= s.vram_gb || swaps(s, hw).length > 0,
-    swaps: swaps(s, hw).map((x) => ({ from: x.swap[0], to: x.swap[1], evidence: x.evidence })), evidence: { ...s.evidence, label: grade(s.evidence?.grade) },
+    swaps: swaps(s, hw).map((x) => ({ from: x.swap[0], to: x.swap[1], evidence: x.evidence })), evidence: { ...s.evidence, label: evidence(s.evidence) },
     ...(m?.unwired ? { unwired: "not wired in Snap yet: runs from the graph" } : {}), ...(s.cost ? { cost: s.cost } : {}), ...(s.node ? { node: s.node } : {}),
     hidden: files.some((f) => M.hidden(f.file)) };
 }
@@ -85,7 +87,7 @@ export async function kit(intent) {
   if (!k) throw new Error(`No kit "${intent}"; there are: ${kits().map((x) => x.intent).join(", ")}`);
   const hw = await hardware(), rated = (await Promise.all(k.setups.map((s) => rate(s, hw)))).filter((r) => !r.hidden && (r.tier !== "api" || PF.apiAllowed(k.task)));
   const recommended = best(rated.filter((r) => r.tier === "recommended")), fast = best(rated.filter((r) => r.tier === "fast"));
-  return { intent, title: k.title, blurb: k.blurb, task: k.task, recommended, fast, also: rated.filter((r) => r !== recommended && r !== fast), try_first: k.try_first,
+  return { intent, title: k.title, blurb: k.blurb, task: k.task, recommended, fast, ...(fast ? {} : { fast_note: "no measured fast option yet" }), also: rated.filter((r) => r !== recommended && r !== fast), try_first: k.try_first,
     ...(PF.apiAllowed(k.task) ? {} : { api: `API models stay hidden: ${k.task} is local only in your profile` }) };
 }
 
