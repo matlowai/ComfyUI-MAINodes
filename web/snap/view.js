@@ -685,9 +685,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       ...Array.from({ length: E.PICTURE_SLOTS }, (_, i) => h("span", { className: i < pics.length ? "on" : "" })), h("em", { textContent: `${pics.length} of ${E.PICTURE_SLOTS} pictures` }));
     if (!pics.length) return [meter, h("div", { className: "snap-quiet", textContent: "Drop pictures here", title: "a set snapshot or character card from the Library" })];
     return [meter, h("div", { className: "snap-pics" }, pics.map((p) => {
-      const [sub, ...name] = p.file.split("/");
+      const cut = p.file.lastIndexOf("/"), sub = p.file.slice(0, Math.max(cut, 0)), name = p.file.slice(cut + 1); // plates sit two folders down (snap/plates)
       const from = p.source && (L.get(p.card) ?? L.get(`${p.source}-mine`) ?? L.get(p.source)); // the exact version in References
-      return h("figure", { title: `${p.reason}${from ? "\nclick to edit the set" : ""}`, className: from ? "editable" : "", onclick: from ? () => editSet(from) : null }, h("img", { src: api.apiURL(`/view?filename=${encodeURIComponent(name.join("/"))}&subfolder=${encodeURIComponent(sub)}&type=input`), alt: p.role, loading: "lazy" }), h("figcaption", { textContent: p.role }));
+      return h("figure", { title: `${p.reason}${from ? "\nclick to edit the set" : ""}`, className: from ? "editable" : "", onclick: from ? () => editSet(from) : null }, h("img", { src: api.apiURL(`/view?filename=${encodeURIComponent(name)}&subfolder=${encodeURIComponent(sub)}&type=input`), alt: p.role, loading: "lazy" }), h("figcaption", { textContent: p.role }));
     }))];
   }
 

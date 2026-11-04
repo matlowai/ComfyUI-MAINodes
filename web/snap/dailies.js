@@ -1,10 +1,13 @@
 // Dailies: the takes strip under the chain, the take viewer (play, scrub, keep / reject, rank, notes pinned to a moment
 // and optionally a region: "where it went wrong / right"), and blind A/B compare. What people do here is the data a
 // judge model learns from (takes.js keeps it; tools/snap_dataset.py exports it). A take the chain no longer makes shows
-// "stale: Render.steps changed" (U31); checked after graph edits, written into the cards in place.
+// "stale: Render.steps changed" (U31); checked after graph edits, written into the cards in place. A take that re-rendered
+// its own reference picture's view says "copied its reference view" once its copy check has run (U48: DINOv3's room
+// score can't tell a copy of the reference's view from a new view of the same room).
 // SNAP-R7 pointer-down lists · SNAP-R17 blind pairs from agents are judged by the person · SNAP-R20 the lock on private
-// takes · see docs/SNAP_RULES.md
+// takes · SNAP-R21 copies flagged · see docs/SNAP_RULES.md
 import * as T from "./takes.js";
+import * as PL from "./plates.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const clock = (t) => `${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, "0")}`;
@@ -76,6 +79,8 @@ export function createDailies({ host, say, onRestore, onContinue }) {
         t.prior ? h("span", { className: "snap-take-prior", textContent: "prior", title: "in the Library as a prior" }) : null),
       h("figcaption", {}, h("b", { textContent: `Take ${t.number}` }), t.seed != null ? ` · seed ${t.seed}` : "", t.status !== "success" ? h("em", { textContent: ` · ${t.status}` }) : "",
         h("span", { className: "snap-take-stale", hidden: true }),
+        t.copy?.copied ? h("span", { className: "snap-take-copy", textContent: `copied its reference view ${Math.max(...t.copy.against.map((a) => a.mean)).toFixed(2)}`,
+          title: `This take re-rendered the view of its reference picture instead of its own camera's (copy score at or above ${t.copy.threshold}):\n${t.copy.against.map((a) => `${a.image}: ${a.mean}`).join("\n")}` }) : null,
         t.private ? h("span", { className: "snap-take-lock", textContent: "🔒 private", title: "Private take (identity or Cast LoRA): its files were saved without the recipe inside, and exports leave it out" }) : null,
         h("span", { className: "snap-quiet", textContent: `${t.notes.length ? `✎ ${t.notes.length} · ` : ""}${ago(t.created)}` })));
     c.dataset.take = t.id;
@@ -190,6 +195,16 @@ export function createDailies({ host, say, onRestore, onContinue }) {
 
     const prev = T.inGroup(t.group).filter((x) => x.created < t.created).at(-1);
     const changes = prev ? T.delta(prev, t) : [];
+    // the copy check (Ref2V takes): did the take re-render its reference picture's view? The person's click runs it
+    const refs = PL.referencePictures(t.prompt), copyLine = h("div", { className: "snap-take-copyline" });
+    const copyRow = () => {
+      const c = t.copy, said = !c ? "not checked yet" : c.pending ? "checking…" : c.error ? `check failed: ${c.error}`
+        : c.copied ? `copied its reference view (${c.against.map((a) => a.mean).join(", ")} ≥ ${c.threshold})` : `its own view (${c.against.map((a) => a.mean).join(", ")} < ${c.threshold})`;
+      copyLine.replaceChildren(...h("div", {}, h("span", { className: c?.copied ? "snap-take-copy" : "snap-quiet", textContent: `Copy check: ${said}` }),
+        h("button", { className: "snap-link snap-quiet-btn", textContent: c && !c.pending ? "Check again" : "Check copies", disabled: !!c?.pending, title: "score every frame against the take's reference pictures (a few seconds on the GPU)",
+          onclick: async () => { try { await PL.checkTake(t, "person"); copyRow(); } catch (err) { say(err.message, true); } } })).childNodes);
+    };
+    if (refs.length) { copyRow(); T.onChange(() => { if (copyLine.isConnected) copyRow(); }); }
     const keys = (e) => {
       if (e.target.closest("input,textarea,select")) return;
       if (e.key === "Escape") { e.stopPropagation(); close(); }
@@ -210,6 +225,7 @@ export function createDailies({ host, say, onRestore, onContinue }) {
           list,
           h("div", { className: "snap-rail-title", textContent: prev ? `Changed since take ${prev.number}` : "First take of this workflow" }),
           changes.length ? h("ul", { className: "snap-take-delta" }, changes.slice(0, 10).map((c) => h("li", {}, h("b", { textContent: `${c.node} · ${c.input}` }), ` ${String(c.from).slice(0, 40)} → ${String(c.to).slice(0, 60)}`))) : prev ? h("div", { className: "snap-quiet", textContent: "same settings" }) : null,
+          copyLine,
           t.text ? h("details", {}, h("summary", { textContent: "Prompt" }), h("p", { className: "snap-take-text", textContent: t.text })) : null,
           h("div", { className: "snap-set-actions" },
             priorBtn,

@@ -67,6 +67,25 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   input and the same type out), never by its name. Slots and methods are data: `snap_cards/methods.json` under the
   person's `snap/methods.json`. *More:* MODEL_GRAPH_ONBOARDING §7, scout/upscalers, UX_GEMS §5.
 
+## Sets and continuity
+
+- **SNAP-R21: A shot's reference picture shows that shot's own camera.** H3 copies whatever picture it is given, view
+  included: one wide plate as every shot's reference became the wrong view in 8/12 takes (U21), a per-shot picture the
+  right one 12/12 (U48). So a set keeps one people-free plate per camera, made by an orbit pass from its wide plate
+  (H3 Ref2V, "the camera is not where <Picture 1> was taken" plus that camera's doors and windows), and the last frame
+  of a render that re-renders the wide plate's view is rejected: copy score (DINOv3 patch tokens matched by grid
+  position) at or above the threshold the model graph gives the encoder (0.80). Each plate records its take, frame,
+  copy score, seed, camera and who made it; the person can swap any plate. The shot compiler sends the shot's plate
+  with "seen from this camera", falls back to the wide plate with "the camera is not where <Picture N> was taken", and
+  uses a plate as FL2V's first frame only when the shot card asks to start on that exact frame. A plate stops counting
+  once its camera moves. The same score flags a take that copied its own reference picture's view (DINOv3's room score
+  can't). *More:* U48_PER_SHOT_PLATES §3 and U49, `web/snap/plates.js`, `MAISnapCopyScore`.
+- **SNAP-R22: Doors and windows are said from the shot's camera.** The set card names each opening and its wall (from
+  the plan geometry); the set block says where each is for this camera ("the tall window in the east wall is on the
+  right", "the door in the south wall is behind the camera, out of view"), computed, never typed per shot. *Why:* with
+  props only, H3 and MOSS put the window on the wrong wall in every reverse shot of U21 and U48. *More:* `setsnap.js`
+  `openings`.
+
 ## Agents
 
 - **SNAP-R15: Every UI action has an agent tool.** MCP and WebMCP are built from one table. Results carry the same

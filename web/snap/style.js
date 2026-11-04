@@ -119,7 +119,7 @@ export const STYLE = `
 .snap-shot-line { display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--s-dim); }
 .snap-shot-line span { margin-left: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .snap-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
-.snap-dot.beat { color: #f5d76e; } .snap-dot.character { color: #f08fb8; } .snap-dot.set, .snap-dot.blocking { color: #7fd1c7; } .snap-dot.camera { color: #a7b8ff; } .snap-dot.direction { color: #f0b445; }
+.snap-dot.beat { color: #f5d76e; } .snap-dot.character { color: #f08fb8; } .snap-dot.set, .snap-dot.blocking, .snap-dot.reference { color: #7fd1c7; } .snap-dot.camera { color: #a7b8ff; } .snap-dot.direction { color: #f0b445; }
 .snap-head .snap-blurb { grid-column: 2; grid-row: 2; white-space: nowrap; }
 .snap-head .snap-x { grid-column: 4; grid-row: 1; }
 .snap-head .snap-fold { grid-column: 2 / -1; grid-row: 3; justify-self: start; margin: 6px 0 0; }
@@ -253,6 +253,20 @@ export const STYLE = `
 .snap-set-notes li.check b { color: #f0b445; }
 .snap-set-notes li.note b, .snap-set-notes li.none { color: var(--s-dim); }
 .snap-set-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.snap-set-doors { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.snap-set-door { display: grid; grid-template-columns: 74px minmax(0, 1fr) 96px 22px; gap: 4px; align-items: center; }
+.snap-set-door select, .snap-set-door input { min-width: 0; font: inherit; color: var(--s-fg); background: var(--s-card); border: 1px solid var(--s-line); border-radius: 6px; padding: 3px 4px; }
+.snap-set-plates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.snap-set-plate { margin: 0; display: flex; flex-direction: column; gap: 2px; padding: 4px; border-radius: 8px; background: var(--s-card); font-size: 11px; min-width: 0; }
+.snap-set-plate img, .snap-set-plate-none { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; background: #0003; }
+.snap-set-plate-none { display: grid; place-items: center; color: var(--s-dim); }
+.snap-set-plate figcaption { display: flex; flex-direction: column; min-width: 0; }
+.snap-set-plate figcaption span { color: var(--s-dim); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.snap-set-plate figcaption button { align-self: flex-start; }
+.snap-set-plate.missing .snap-set-plate-none { outline: 1px dashed var(--s-line); }
+.snap-set-plate.rejected figcaption span { color: #f0b445; }
+.snap-set-plate.rendering .snap-set-plate-none { animation: snap-pulse 1.4s ease-in-out infinite; }
+@keyframes snap-pulse { 50% { opacity: .45; } }
 @container (max-width: 760px) { .snap-set-body { grid-template-columns: minmax(0, 1fr); } }
 @media (prefers-reduced-motion: reduce) { .snap-sheet { animation: none; } }
 .snap-proposals { display: inline-flex; flex: none; align-items: center; gap: 6px; font-size: 12px; white-space: nowrap; padding: 2px 4px 2px 10px; border-radius: 999px; background: #a78bfa22; color: #c4b5fd; }
@@ -294,7 +308,7 @@ export const STYLE = `
 .snap-fold:hover { color: var(--s-fg); }
 .snap-shot-parts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 8px; }
 .snap-part { font-size: 10px; letter-spacing: .04em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; background: var(--s-bg); color: var(--s-dim); cursor: help; }
-.snap-part.beat { color: #f5d76e; } .snap-part.character { color: #f08fb8; } .snap-part.set, .snap-part.blocking { color: #7fd1c7; }
+.snap-part.beat { color: #f5d76e; } .snap-part.character { color: #f08fb8; } .snap-part.set, .snap-part.blocking, .snap-part.reference { color: #7fd1c7; }
 .snap-part.camera { color: #a7b8ff; } .snap-part.direction { color: #f0b445; }
 .snap-quiet { color: var(--s-dim); font-size: 12px; }
 /* dials: two-sided sliders on the rack brick, the picker, the maker */
@@ -379,6 +393,8 @@ export const STYLE = `
 .snap-dice { all: unset; cursor: pointer; font-size: 16px; line-height: 1; padding: 1px 5px; border-radius: 6px; color: var(--s-dim); }
 .snap-dice:hover { background: #ffffff14; color: inherit; }
 .snap-take-stale { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: #f0b44526; color: #f0b445; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.snap-take-copy { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: #f0b445; color: #1b1c20; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.snap-take-copyline > div { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
 .snap-take-lock { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: hsl(15 70% 55% / .22); color: #f4a988; }
 .snap-take-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 16px; padding: 16px; }
 .snap-take-left { display: flex; flex-direction: column; gap: 6px; min-height: 0; }

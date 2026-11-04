@@ -2,7 +2,7 @@
 // One table, two transports: in-page WebMCP when the browser has it, and the /mainodes/snap bridge that the local MCP
 // server (tools/snap_mcp.py) calls. Every call goes through the engine, so an agent can't build a graph a person couldn't.
 // SNAP-R11 same warnings as the UI · SNAP-R15 one table, MCP + WebMCP · SNAP-R16 GPU tools wait as proposals ·
-// SNAP-R17 by: agent · SNAP-R19 the tool table is the API · see docs/SNAP_RULES.md
+// SNAP-R17 by: agent · SNAP-R19 the tool table is the API · SNAP-R21 camera plates · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import { BRICKS, PACK_BRICKS } from "./bricks.js";
@@ -16,6 +16,7 @@ import * as D from "./dials.js";
 import * as sight from "./sight.js";
 import * as M from "./models.js";
 import * as S from "./slots.js";
+import * as PL from "./plates.js";
 import { api } from "../../../scripts/api.js";
 
 // a widget as an agent reads it: value, kind, choices (cut to 50), limits, and whether a wire drives it
@@ -330,7 +331,7 @@ export const TOOLS = [
       const now = await T.live();
       return Promise.all(T.inGroup().sort((a, b) => (order.includes(a.id) ? order.indexOf(a.id) : 1e9 + a.created) - (order.includes(b.id) ? order.indexOf(b.id) : 1e9 + b.created))
         .map(async (t) => ({ id: t.id, number: t.number, rank: order.includes(t.id) ? order.indexOf(t.id) + 1 : null, seed: t.seed, status: t.status, verdict: t.verdict, prior: t.prior, notes: t.notes.length, media: t.media.map((m) => `${m.type}/${m.subfolder ? `${m.subfolder}/` : ""}${m.filename}`), prompt: t.text.slice(0, 200),
-          stale: await T.stale(t, now), ...(t.private ? { private: true } : {}) })));
+          stale: await T.stale(t, now), copy: t.copy ?? null, ...(t.private ? { private: true } : {}) })));
     },
   },
   {
@@ -343,7 +344,7 @@ export const TOOLS = [
       const t = T.get(take);
       if (!t) throw new Error(`No take ${take}`);
       const prev = T.inGroup(t.group).filter((x) => x.created < t.created).at(-1);
-      return { id: t.id, number: t.number, seed: t.seed, status: t.status, error: t.error, verdict: t.verdict, prior: t.prior, seconds: t.seconds, prompt: t.text, notes: t.notes, media: t.media, changed_since_previous: prev ? T.delta(prev, t) : [] };
+      return { id: t.id, number: t.number, seed: t.seed, status: t.status, error: t.error, verdict: t.verdict, prior: t.prior, seconds: t.seconds, prompt: t.text, notes: t.notes, media: t.media, copy: t.copy ?? null, changed_since_previous: prev ? T.delta(prev, t) : [] };
     },
   },
   {
@@ -553,10 +554,39 @@ export const TOOLS = [
   },
   {
     name: "compile_shot",
-    description: "Preview what a shot card compiles to (the Render prompt's first line, and which card each part came from) without changing anything. apply_card on the shot card applies it.",
+    description: "Preview what a shot card compiles to (the Render prompt's first line, which card each part came from, and `picture`: the set picture its References gets, the plate made from its camera, else the set's wide plate, or null for the plan and elevation) without changing anything. apply_card on the shot card applies it.",
     inputSchema: { type: "object", properties: { card: { type: "string" } }, required: ["card"] },
     annotations: { readOnlyHint: true },
     run: async ({ card }) => { await L.ready(); const c = L.get(card); if (c?.kind !== "shot") throw new Error(`No shot card ${card}`); return L.compile(c); },
+  },
+  {
+    name: "set_plates",
+    description: "A set snapshot's camera plates (SNAP-R21): its wide plate, and per camera (its coverage setups and its own camera, by the names shot cards use) the plate with its provenance (take, frame, copy score, seed, the camera it was made for, by), whether it still fits the camera (fits: false once the camera moved), a render in progress, or the last rejected try (a copy of the wide plate, or an error).",
+    inputSchema: { type: "object", properties: { set: { type: "string" } }, required: ["set"] },
+    annotations: { readOnlyHint: true },
+    run: async ({ set }) => { await L.ready(); const c = L.get(set); if (c?.kind !== "set_snapshot") throw new Error(`No set snapshot card ${set}`); await PL.settle(); return PL.status(c); },
+  },
+  {
+    name: "make_set_plates",
+    description: "Make camera plates for a set snapshot (the orbit pass, U49): one H3 Ref2V render per camera from the set's wide plate (Pika + reference pictures), told the camera is not where the wide plate was taken and where the doors and windows are; each render's last frame becomes that camera's plate unless its copy score against the wide plate reaches the threshold (a copy: rejected). Without `cameras`, the cameras that have no plate that fits. Returns at once with the queued renders (about 64 s each); follow with set_plates. Needs a wide plate (set_set_plate camera: wide). Uses GPU time: unless the person lets agents run (ComfyUI setting), this waits as a proposal they accept.",
+    inputSchema: { type: "object", properties: { set: { type: "string" }, cameras: { type: "array", items: { type: "string" } } }, required: ["set"] },
+    annotations: { consequentialHint: true },
+    consequential: true,
+    run: async ({ set, cameras }) => { await L.ready(); const c = L.get(set); if (c?.kind !== "set_snapshot") throw new Error(`No set snapshot card ${set}`); return PL.make(c.lineage ?? c.id, { cameras, by: "agent" }); },
+  },
+  {
+    name: "set_set_plate",
+    description: "Put a picture by hand as a set's wide plate (camera: wide; a people-free picture of the whole set, which the orbit pass starts from) or as one camera's plate (a swap: it replaces what the orbit made). image is a file in ComfyUI's input folder (upload it with the MCP server's upload_file); null clears it.",
+    inputSchema: { type: "object", properties: { set: { type: "string" }, camera: { type: "string" }, image: { type: ["string", "null"] } }, required: ["set", "camera", "image"] },
+    run: async ({ set, camera, image }) => { await L.ready(); const c = L.get(set); if (c?.kind !== "set_snapshot") throw new Error(`No set snapshot card ${set}`); return { camera, plate: await PL.setPlate(c.lineage ?? c.id, camera, image, "agent") }; },
+  },
+  {
+    name: "check_copies",
+    description: "The copy check on a take (U48): score every frame against each of the take's own reference pictures (DINOv3 patches by grid position) and flag it when the mean reaches the threshold: the take re-rendered its reference's view instead of its own camera's. Returns at once; list_takes / get_take show `copy` when it is done (a few seconds). Uses GPU time: unless the person lets agents run, this waits as a proposal they accept.",
+    inputSchema: { type: "object", properties: { take: { type: "string" } }, required: ["take"] },
+    annotations: { consequentialHint: true },
+    consequential: true,
+    run: async ({ take }) => { await T.load(); const t = T.get(take); if (!t) throw new Error(`No take ${take}`); return PL.checkTake(t, "agent"); },
   },
   {
     name: "list_proposals",

@@ -2,7 +2,7 @@
 // search is slot-aware (a selected brick narrows it to the kinds that brick takes). Keyword search for now; the
 // multimodal embedder plugs in behind `search` once its runtime is chosen.
 // SNAP-R5 another family opens a new tab · SNAP-R12 identity rows never leave in a card · SNAP-R18 local only ·
-// see docs/SNAP_RULES.md
+// SNAP-R21 a shot's reference shows its own camera · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
@@ -10,7 +10,7 @@ import * as T from "./takes.js";
 import * as D from "./dials.js";
 import * as M from "./models.js";
 import { BRICKS, kit } from "./bricks.js";
-import { setBlock, blocking, drawPlan, drawElevation, toBlob, coverage } from "./setsnap.js";
+import { setBlock, blocking, drawPlan, drawElevation, toBlob, coverage, atCamera, cameraAt, keeps, ownCamera, sameCamera } from "./setsnap.js";
 
 // the brick each kind of card goes on; a recipe goes on the whole stack (null)
 export const TARGET = { recipe: null, shot: "render", set_snapshot: "refs", dial: "rack", lora: "preset", character: "render", setting: "render", scene: "render", principle: "render", pose: "first_frame", motion_guide: "refs", run: "render" };
@@ -30,13 +30,15 @@ async function loadAll() {
 // pack cards and the user's cards, loaded once per page; a failed load is retried on the next call
 export const ready = () => (loading ??= loadAll().then((all) => (cards = all), (e) => { loading = null; throw e; }));
 
-// a version of a set card holding an edited snapshot: `mine` is the one working copy Apply keeps, otherwise a new card
+// a version of a set card holding an edited snapshot: `mine` is the one working copy Apply keeps, otherwise a new card.
+// The set's camera plates come along (the working copy's, which plates.js keeps current): each records its camera, so
+// one a later edit moved away from stops counting by itself
 export function version(card, snapshot, mine) {
-  const lineage = card.lineage ?? card.id;
+  const lineage = card.lineage ?? card.id, plates = get(`${lineage}-mine`)?.plates ?? card.plates;
   const stamp = new Date().toTimeString().slice(0, 8);
   return { id: mine ? `${lineage}-mine` : `${lineage}-${Date.now().toString(36)}`, kind: "set_snapshot", lineage, saved: Date.now(),
     title: mine ? `Set snapshot: ${snapshot.name}, end of ${snapshot.shot} (my edit)` : `Set snapshot: ${snapshot.name}, end of ${snapshot.shot} (saved ${stamp})`,
-    text: card.text, brick: { snapshot } };
+    text: card.text, brick: { snapshot }, ...(plates ? { plates: structuredClone(plates) } : {}) };
 }
 
 // every saved state of one set, in shot order: the original first, then versions by when they were saved
@@ -158,33 +160,77 @@ export async function applySet(card, s = card.brick.snapshot, { prompt = true } 
 // the set a shot uses: the person's edit of it (the set editor's working copy) when there is one
 const shotSet = (id) => get(`${id}-mine`) ?? get(id);
 
+// the picture of the set a shot gets (SNAP-R21, U49): the plate made from this shot's camera, seen from this camera;
+// else the set's wide plate, told the camera is somewhere else; null when the set has neither (its plan and elevation
+// go in as before). A shot that asks to start on an exact frame gets its plate as FL2V's first frame instead
+function setPicture(set, key, cam, b) {
+  const p = set.plates ?? {}, plate = p.cameras?.[key];
+  if (plate && sameCamera(plate.camera, cam)) return { use: b.start === "exact" ? "first_frame" : "plate", image: plate.image, camera: key, why: `the plate made from ${key}` };
+  const moved = plate ? ` (its plate was made before the camera moved)` : "";
+  if (b.start === "exact") return null;
+  return p.wide ? { use: "wide", image: p.wide.image, camera: key, why: `the set's wide plate: ${key} has no plate yet${moved}` } : null;
+}
+// the number H3 gives the set's plate among References' pictures (in socket order): its slot when it is there, else the next
+const PLATE_ROLE = "set: plate";
+function pictureNumber(source) {
+  const pics = E.state().bricks.find((x) => x.key === "refs")?.pictures ?? [], i = pics.findIndex((x) => x.source === source && x.role === PLATE_ROLE);
+  return (i >= 0 ? i : pics.length) + 1;
+}
+
 export function compile(card) {
   const b = card.brick, set = shotSet(b.set), s = set?.brick.snapshot;
   if (!s) throw new Error(`${card.title}: its set ${b.set} isn't in the Library`);
   const part = (field, text, from) => (text ? [{ field, text: text[0].toUpperCase() + text.slice(1), from }] : []); // each part reads as a sentence
   const cam = b.setup && coverage(s).find((c) => c.name === b.setup);
   if (b.setup && !cam) throw new Error(`${card.title}: "${b.setup}" isn't a setup for this set's two actors`);
+  const view = cam ? atCamera(s, cam) : s; // the set as this shot's camera sees it: what is in frame, where the doors are
+  const picture = setPicture(set, cam?.name ?? ownCamera(s), view.camera, b), n = picture && pictureNumber(set.lineage ?? set.id);
+  const reference = !picture || picture.use === "first_frame" ? ""
+    : picture.use === "plate" ? `This is the ${s.name} shown in <Picture ${n}>, seen from this camera; keep its ${keeps(s)} exactly as in <Picture ${n}>.`
+    : `This is the same ${s.name} shown in <Picture ${n}>, but the camera is not where <Picture ${n}> was taken: this is a new view from this shot's camera. Keep its ${keeps(s)} exactly as in <Picture ${n}>.`;
+  const shooting = cam ? `${cam.name.replace(/^OTS on/, "over the shoulder, on").replace(/^single/, "a single on")}, ${cam.lens} mm lens` : `${s.camera.lens} mm lens`;
   const parts = [
     ...part("beat", `${b.beat}.`, card.id),
     ...(b.characters ?? []).map(get).filter(Boolean).flatMap((c) => part("character", `${cues(c).join(", ")}.`, c.id)),
-    ...part("set", setBlock(s), set.id),
+    ...part("set", setBlock(view), set.id),
     ...part("blocking", blocking(s), set.id),
-    ...part("camera", cam && `Camera: ${cam.name.replace(/^OTS on/, "over the shoulder, on").replace(/^single/, "a single on")}, ${cam.lens} mm lens.`, set.id),
+    ...part("camera", `Camera: ${shooting}, ${cameraAt(view)}.`, set.id),
+    ...part("reference", reference, set.id),
     ...(b.principles ?? []).map(get).filter(Boolean).flatMap((p) => part("direction", cues(p).length ? `${cues(p).join(", ")}.` : "", p.id)),
   ];
-  return { line: `integrated_multimodal_description: [${b.shot}] ${parts.map((x) => x.text).join(" ")}`, parts };
+  return { line: `integrated_multimodal_description: [${b.shot}] ${parts.map((x) => x.text).join(" ")}`, parts, picture };
+}
+
+// the Render Preset a picture needs: Ref2V for a reference, FL2V for a first frame. The first preset that conditions
+// that way (Pika + reference pictures / Pika H3 Flex) takes over when the current one doesn't; null when it already does
+function conditionFor(want) {
+  if (!E.state().bricks.some((x) => x.key === "preset") || String(E.getValue("preset", "preset", "conditioning")).startsWith(want)) return null;
+  const s = M.setups().find((x) => x.source === "preset" && String(x.values.conditioning).startsWith(want));
+  if (!s) throw new Error(`No Render Preset conditions on ${want}; the set's picture would do nothing`);
+  M.apply(s.name);
+  return s.name;
 }
 
 async function applyShot(card) {
-  const { line, parts } = compile(card), set = shotSet(card.brick.set);
-  app.canvas.emitBeforeChange(); // the set pictures, the prompt line, the length and the record are one undo step
+  const { line, parts, picture } = compile(card), set = shotSet(card.brick.set);
+  if (picture?.use === "first_frame" && !E.state().bricks.some((x) => x.key === "first_frame")) throw new Error(`${card.title} starts on its plate's exact frame: add the First frame brick first`);
+  app.canvas.emitBeforeChange(); // the set pictures, the prompt line, the length, the preset and the record are one undo step
+  let preset = null;
   try {
-    await applySet(set, set.brick.snapshot, { prompt: false });
+    if (!picture) await applySet(set, set.brick.snapshot, { prompt: false });
+    else if (picture.use === "first_frame") {
+      const w = E.nodeFor("first_frame", "image").widgets.find((x) => x.name === "image");
+      if (!w.options.values.includes(picture.image)) w.options.values.push(picture.image); // uploaded after the page loaded
+      E.setValue("first_frame", "image", "image", picture.image);
+      preset = conditionFor("FL2V");
+    }
+    else { E.addPicture(picture.image, { role: PLATE_ROLE, reason: picture.why, source: set.lineage ?? set.id, card: set.id }); preset = conditionFor("Ref2V"); }
     const [, ...rest] = (E.getValue("render", "render", "prompt") ?? "").split("\n");
     E.setValues("render", "render", { prompt: [line, ...rest].join("\n"), ...(card.brick.length ? { length: card.brick.length } : {}) });
-    E.remember("render", "shot", { card: card.id, parts: parts.map(({ field, from, text }) => ({ field, from, text })) });
+    E.remember("render", "shot", { card: card.id, parts: parts.map(({ field, from, text }) => ({ field, from, text })), ...(picture ? { picture } : {}) });
   } finally { app.canvas.emitAfterChange(); }
-  return `${card.title}: compiled into the prompt (${parts.length} parts), set in References`;
+  const where = !picture ? "set in References" : picture.use === "first_frame" ? `its plate as the first frame` : `${picture.why} in References`;
+  return `${card.title}: compiled into the prompt (${parts.length} parts), ${where}${preset ? `; Render Preset now ${preset} (the picture needs it)` : ""}`;
 }
 
 // the stack as a card keeps a Cast brick but never its rows: identity LoRAs are private (SNAP-R12)
