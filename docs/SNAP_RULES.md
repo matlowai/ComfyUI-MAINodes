@@ -84,11 +84,13 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
 - **SNAP-R18: Local only.** No network or telemetry: registry, takes, profile and model graph are local files. Export
   happens only when the person asks. Model downloads run only when the person asks, in the agent's own tools, never
   from ComfyUI core.
-- **SNAP-R20: Private takes stay private, in the file too.** A take is private when its prompt loads a file the model
-  graph gives role `identity` or tags `private`, or Snap's Cast brick has a LoRA row on; it is NSFW when it loads a file
-  tagged `nsfw`. A private prompt saves without metadata: the server swaps core's Save Image / Preview Image / Save
+- **SNAP-R20: Private takes stay private, in the file too.** A take is private when any node of its prompt loads a file
+  the model graph gives role `identity` or tags `private`, whose real path (symlinks followed) is under one of the
+  person's private paths or matches one of their private patterns (user `snap/private.json`, local, never in the pack
+  and never read by the page), or when Snap's Cast brick has a LoRA row on; it is NSFW when it loads a file tagged
+  `nsfw`. Reasons name nodes, never files. A private prompt saves without metadata: the server swaps core's Save Image / Preview Image / Save
   Video for twins that write no prompt or workflow, and refuses, before anything runs, any other node that would write
   them. The export leaves private and NSFW takes out unless asked (`--include-private`, `--include-nsfw`); the take
-  card shows a lock. A person's model graph that doesn't parse makes every prompt private. *Why:* core writes the
+  card shows a lock. A person's model graph or private.json that doesn't parse makes every prompt private. *Why:* core writes the
   executed prompt and workflow, LoRA file names included, into every PNG and mp4 (verified with ffprobe on a U19 take),
   and `--disable-metadata` is global. *More:* `snap_privacy.py`, `snap_bridge.py`; UX_GEMS #6, PLAN U22.

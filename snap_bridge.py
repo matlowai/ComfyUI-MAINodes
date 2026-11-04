@@ -252,12 +252,19 @@ def writes_metadata(class_type):
     return bool({"PROMPT", "EXTRA_PNGINFO"} & set(cls.INPUT_TYPES().get("hidden", {}).values()))
 
 
+def loaded(value):
+    """The real paths (symlinks followed) a string input would load from any model folder, or as an absolute path."""
+    if os.path.isabs(value):
+        return [os.path.realpath(value)] if os.path.isfile(value) else []
+    return [os.path.realpath(p) for p in (folder_paths.get_full_path(f, value) for f in folder_paths.folder_names_and_paths) if p]
+
+
 def private_saves(json_data):
     prompt = json_data.get("prompt")
     if not isinstance(prompt, dict):
         return json_data
     extra = json_data.setdefault("extra_data", {})
-    found = snap_privacy.marks(prompt, (extra.get("extra_pnginfo") or {}).get("workflow"), snap_privacy.model_graph(folder_paths.get_user_directory()))
+    found = snap_privacy.marks(prompt, (extra.get("extra_pnginfo") or {}).get("workflow"), snap_privacy.model_graph(folder_paths.get_user_directory()), loaded)
     if not (found["private"] or found["nsfw"]):
         return json_data
     swapped = {}
