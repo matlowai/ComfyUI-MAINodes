@@ -721,7 +721,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     if (openIn() === "brick" && !noting) { if (inspectorSig) { giveBack(); inspector.replaceChildren(); inspectorSig = ""; } return; }
     const info = E.describe().find((b) => b.brick === selected);
     const sig = info ? `${selected}|${signature(info)}|${JSON.stringify(Object.values(info.nodes).map((id) => app.graph.getNodeById(id)?.widgets?.map((w) => w.value)))}` : "";
-    if (sig && (sig === inspectorSig || (inspector.contains(document.activeElement) && inspectorSig.startsWith(`${selected}|`)))) return;
+    // SNAP-R2: the panel follows its widgets like the face; it holds still only while a text field in it is typed in
+    const typing = inspector.contains(document.activeElement) && document.activeElement.matches("textarea,input:not([type=checkbox]):not([type=range]),[contenteditable]");
+    if (sig && (sig === inspectorSig || (typing && inspectorSig.startsWith(`${selected}|`)))) return;
     inspectorSig = sig;
     if (!info) {
       if (inspector.contains(document.activeElement) && inspectorSig === "") return; // a whole-recipe note is being typed
