@@ -15,6 +15,7 @@ import * as rules from "./rules.js";
 import { createDailies } from "./dailies.js";
 import * as T from "./takes.js";
 import * as D from "./dials.js";
+import * as sight from "./sight.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -59,6 +60,11 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   const proposalsPill = h("span", { className: "snap-proposals", hidden: true });
   const title = h("strong", { className: "snap-title" });
   const runLabel = h("span", { textContent: "Run" }), progress = h("div", { className: "snap-progress" });
+  // one click lets agents see this tab (the screenshot tool); click again to stop sharing
+  const seeBtn = h("button", { className: "snap-see", title: "let agents see this tab (screen share of this tab only; frames are taken only when a tool asks)",
+    onclick: async () => { try { sight.sharing() ? sight.stop() : await sight.start(); } catch (err) { say(err.name === "NotAllowedError" ? "Sharing was declined" : err.message, true); } } });
+  const seeLabel = () => { seeBtn.textContent = sight.sharing() ? "● Agents can see" : "👁 Let agents see"; seeBtn.classList.toggle("on", sight.sharing()); };
+  sight.onChange(seeLabel); seeLabel();
   const runBtn = h("button", { className: "snap-run", title: "queue this recipe (Ctrl+Enter in the graph)", onclick: () => queue() }, h("span", { textContent: "▶" }), runLabel);
   const toast = h("div", { className: "snap-toast", role: "status" });
   const seg = h("div", { className: "snap-seg", role: "tablist" },
@@ -71,7 +77,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Note", title: "a director's note on the whole recipe; agents answer it", onclick: () => { noting = true; select(null); inspector.querySelector("textarea")?.focus(); } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Make app", title: "open this recipe in ComfyUI's App mode: the brick faces become a run-only app (reloads the graph)", onclick: () => onMakeApp() }),
-      h("button", { className: "snap-link snap-quiet-btn", textContent: `Add brick  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}`, title: "Ctrl/Cmd+K", onclick: () => openPalette() }), seg, runBtn, progress),
+      h("button", { className: "snap-link snap-quiet-btn", textContent: `Add brick  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}`, title: "Ctrl/Cmd+K", onclick: () => openPalette() }), seeBtn, seg, runBtn, progress),
     h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), inspector, handle), toast);
   // takes under the chain: "continue from its last frame" puts that frame on the First frame brick
   const dailies = createDailies({ host: root, say, onRestore: () => render(null), onContinue: (file) => {
@@ -299,6 +305,10 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   async function buildSimple(e) {
     e.currentTarget.disabled = true; // snap() already dedupes per brick; this keeps the button honest too
+    await startSimple();
+  }
+
+  async function startSimple() {
     if (app.graph.nodes.length) { // the recipe starts in its own tab; the open workflow is left alone
       const was = app.extensionManager.workflow.activeWorkflow;
       await app.extensionManager.command.execute("Comfy.NewBlankWorkflow");
@@ -846,6 +856,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       if (!E.state().bricks.some((b) => b.key === target)) throw new Error(`No brick ${target} in the recipe`);
       if (openIn() === "brick") setOpen(target); else select(target);
     } else if (action === "close") { for (const sh of root.querySelectorAll(".snap-sheet")) sh.remove(); setOpen(null); noting = false; select(null); }
+    else if (action === "start") await startSimple();
     else if (action === "undo") tracker.undo();
     else if (action === "redo") tracker.redo();
     else if (action === "dials") await D.openPicker(root, { say, onChange: () => render(null), onMake: openMaker });

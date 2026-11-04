@@ -11,6 +11,7 @@ import * as crew from "./crew.js";
 import * as rules from "./rules.js";
 import * as T from "./takes.js";
 import * as D from "./dials.js";
+import * as sight from "./sight.js";
 import { api } from "../../../scripts/api.js";
 
 // a widget as an agent reads it: value, kind, choices (cut to 50), limits, and whether a wire drives it
@@ -334,6 +335,19 @@ export const TOOLS = [
       w.callback?.(w, app.canvas, n, [0, 0]);
       return { pressed: name };
     },
+  },
+  {
+    name: "screenshot",
+    description: "What the person sees in this tab right now, as an image (the Snap view or the graph, videos and all). Works once they have pressed 'Let agents see' in Snap's top bar (it shares only this tab); otherwise it says so.",
+    inputSchema: { type: "object", properties: { max_width: { type: "integer", minimum: 320, maximum: 3840 } } },
+    annotations: { readOnlyHint: true },
+    run: ({ max_width } = {}) => ({ image: sight.frame(max_width) }),
+  },
+  {
+    name: "start_recipe",
+    description: "Start the recommended recipe (Dials + Pika Simple) as the Start button does: in a new workflow tab when the open one has nodes, so the person's work is left as it is.",
+    inputSchema: { type: "object", properties: {} },
+    run: () => ui.act("start"),
   },
   {
     name: "read_ui",

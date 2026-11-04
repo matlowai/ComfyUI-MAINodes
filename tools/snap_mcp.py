@@ -66,7 +66,12 @@ def handle(base, message):
     if method == "tools/call":
         answer = http(base, "/mainodes/snap/call", {"tool": params.get("name"), "args": params.get("arguments") or {}})
         failed = "error" in answer
-        text = answer["error"] if failed else json.dumps(answer.get("result"), indent=1)
+        result = answer.get("result")
+        if not failed and isinstance(result, dict) and isinstance(result.get("image"), dict):  # a screenshot: an image the agent can look at
+            image = result["image"]
+            return {"content": [{"type": "image", "data": image["data"], "mimeType": image["mimeType"]},
+                                {"type": "text", "text": f"{image['width']}x{image['height']} screenshot of the person's tab"}], "isError": False}
+        text = answer["error"] if failed else json.dumps(result, indent=1)
         return {"content": [{"type": "text", "text": text}], "isError": failed}
     if method == "ping":
         return {}

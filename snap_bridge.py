@@ -18,7 +18,12 @@ from server import PromptServer
 
 TIMEOUT = 30
 tools = []         # the tool table the open Snap page registered
-page = {"client": None}  # the websocket client id of the tab that registered last; calls go only to it
+pages = []         # websocket client ids of the tabs that registered, oldest first; a call goes to the newest still connected
+
+
+def page():
+    """The tab calls go to: the one that registered last and is still connected (a closed tab hands back to the one before)."""
+    return next((c for c in reversed(pages) if c in PromptServer.instance.sockets), None)
 pending = {}       # call id -> future answered by /mainodes/snap/result
 
 
@@ -33,7 +38,7 @@ routes = PromptServer.instance.routes
 async def register(request):
     body = await request.json()
     tools[:] = body["tools"]
-    page["client"] = body["client"]
+    pages[:] = [c for c in pages if c != body["client"] and c in PromptServer.instance.sockets] + [body["client"]]
     return web.json_response({"tools": len(tools)})
 
 
@@ -45,13 +50,14 @@ async def listing(request):
 @routes.post("/mainodes/snap/call")
 async def call(request):
     body = await request.json()
-    if not tools or page["client"] not in PromptServer.instance.sockets:
+    client = page()
+    if not tools or client is None:
         return error("No Snap page is open: open ComfyUI in a browser first.", 503)
     if body.get("tool") not in {t["name"] for t in tools}:
         return error(f"Unknown Snap tool {body.get('tool')!r}.", 404)
     call_id = secrets.token_hex(8)
     pending[call_id] = asyncio.get_running_loop().create_future()
-    await PromptServer.instance.send("mainodes-snap-call", {"id": call_id, "tool": body["tool"], "args": body.get("args") or {}}, page["client"])
+    await PromptServer.instance.send("mainodes-snap-call", {"id": call_id, "tool": body["tool"], "args": body.get("args") or {}}, client)
     try:
         return web.json_response(await asyncio.wait_for(pending[call_id], TIMEOUT))
     except TimeoutError:
@@ -64,7 +70,7 @@ async def call(request):
 async def result(request):
     body = await request.json()
     future = pending.get(str(body.get("id")))
-    if future and not future.done() and body.get("client") == page["client"]:
+    if future and not future.done() and body.get("client") in pages:
         future.set_result({k: body[k] for k in ("result", "error") if k in body})
     return web.json_response({})
 

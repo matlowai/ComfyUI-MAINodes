@@ -369,6 +369,13 @@ export const STYLE = `
 .snap-ghost.snap-acquired { border-color: var(--s-accent); }
 .snap-quiet-btn { margin-top: 0; padding: 6px 11px; font-size: 12.5px; color: var(--s-dim); box-shadow: none; background: transparent; }
 .snap-quiet-btn:hover { color: var(--s-fg); background: var(--s-card); }
+/* the first thing to press when working with an agent: as big as Run, in the agents' violet */
+.snap-see { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; padding: 7px 16px; border-radius: 10px; font-weight: 700; font-size: 13.5px; color: #1a1030;
+  background: linear-gradient(180deg, #c4b5fd, #a78bfa); box-shadow: 0 1px 0 #ffffff66 inset, 0 4px 16px #a78bfa55; transition: filter .15s ease-out, transform .1s ease-out; white-space: nowrap; }
+.snap-see:hover { filter: brightness(1.08); } .snap-see:active { transform: scale(.97); }
+.snap-see.on { color: #fff; background: linear-gradient(180deg, #f87171, #dc2626); box-shadow: 0 1px 0 #ffffff44 inset, 0 0 0 0 #f8717188; animation: snap-see-pulse 2s ease-out infinite; }
+@keyframes snap-see-pulse { 0% { box-shadow: 0 1px 0 #ffffff44 inset, 0 0 0 0 #f8717199; } 70% { box-shadow: 0 1px 0 #ffffff44 inset, 0 0 0 10px #f8717100; } 100% { box-shadow: 0 1px 0 #ffffff44 inset, 0 0 0 0 #f8717100; } }
+@media (prefers-reduced-motion: reduce) { .snap-see.on { animation: none; } }
 .snap-palette { position: absolute; left: 50%; top: 16%; transform: translateX(-50%); width: min(560px, calc(100% - 32px)); z-index: 70;
   background: var(--s-bg); border: 1px solid var(--s-line); border-radius: 16px; box-shadow: 0 30px 80px #000b; overflow: hidden; }
 .snap-palette input { all: unset; box-sizing: border-box; width: 100%; padding: 16px 18px; font-size: 16px; border-bottom: 1px solid var(--s-line); }
