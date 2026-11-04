@@ -103,7 +103,11 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   (take, frame, seed, by) and pre-screen notes (copy score, layout against the plan, identity). The person previews a
   candidate in place (the plate slot or the take viewer shows it; nothing is edited), applies one (one step Undo takes
   back) or rejects one. A check only leaves a note: it never rejects alone, because every score so far overlaps between
-  right and wrong somewhere. Agents list and pre-screen candidates and recommend one; their apply / reject / undo waits
+  right and wrong somewhere. An edit's identity notes are two flags with thresholds from the model graph: "probably a
+  different person" (ArcFace on a crop around SAM 3.1's face mask, cosine below `identity_check.different_person`, U56)
+  and "hair lighter than original" (SAM 3.1's hair mask, lit-hair L* p90 over the take's own frames above
+  `hair_check.lighter`, U56b); both miss things (dark frames and profiles score low, blonder hair doesn't show), so the
+  head crops sit beside them and decide. Agents list and pre-screen candidates and recommend one; their apply / reject / undo waits
   for the person as a proposal unless "Let agents run" is on (SNAP-R16), and every pick records who made it (SNAP-R17).
   Any take's frame can be used as an input (First frame or a reference picture), and the brick remembers which take
   and frame it came from. *Why:* U49 and U52 showed one render per camera is unreliable, and U53b's edits drifted the

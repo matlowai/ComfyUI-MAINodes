@@ -1234,13 +1234,7 @@
     "evidence": "measured",
     "source": "positional patch match to a known picture (U48 §3, U49, U52): copies 0.93-0.94 as a 5-frame mean and 0.77-0.90 on the last frame (U49 orbit_S1_22 0.77 and U52 master 0.799 were copies by eye), new views of the same room 0.50-0.66; 0.80 let both through"
    },
-   "identity_check": {
-    "threshold": 0.85,
-    "region": "head",
-    "evidence": "measured",
-    "source": "U54: the same patch match on SAM 3.1 head crops of a take's frame and its edit. A pure relight keeps 0.99; edits that reframed her or made her hair blonder 0.68-0.81 (U54 chinoll 0.675 / 0.777, U53b seed B 0.807 / 0.71); 0.86-0.90 holds both U53b seed A (hair grey-silver by eye) and U54 akhaliq (hair kept by eye, 0.870 / 0.871), so above 0.85 the crops on the candidate decide; another frame of the same woman 0.62, another woman 0.40. n = 6 edits, 1 scene"
-   },
-   "notes": "Snap's copy check (MAISnapCopyScore): did a take or a camera plate re-render its reference picture's view; and its identity check on head crops (edit a take)"
+   "notes": "Snap's copy check (MAISnapCopyScore): did a take or a camera plate re-render its reference picture's view. Not an identity check: on head crops it scored U53b's grey-haired edit 0.86-0.90, like an edit that kept her hair (U54, U56)"
   },
   {
    "file": "sam3.1_multiplex_fp16.safetensors",
@@ -1258,7 +1252,35 @@
    "quant_format": null,
    "loads_in_core": true,
    "detects": "text",
-   "notes": "Snap's pre-screen checks find things by name with core SAM3_Detect: the head for the identity check, doors, windows and props for the layout check (it reads 'lamp housing' as the floor lantern in the lamp room)"
+   "hair_check": {
+    "lighter": 10,
+    "evidence": "measured",
+    "source": "U56b: L* 90th percentile of the 'hair' mask (eroded 5 px) minus the median over the original take's frames. Grey or silver edits +14 to +41 (U53b seed A akhaliq +41, its Ripple f0/f24 +39/+14); kept, same-take and benign frames at most +9 (U54 take 4 and c1 -11 to -3, day jitter -4 to +5); blonder drift misses (U54 c2 -3/+4, U19 dial +1.5 +8). The margin is 1 L*. Snap's port matches U56b's numbers within 0.4 L* on its 43 frames. n = 2 seeds, 1 scene"
+   },
+   "notes": "Snap's pre-screen checks find things by name with core SAM3_Detect: the head (its crop is shown), face and hair for the identity notes, doors, windows and props for the layout check (it reads 'lamp housing' as the floor lantern in the lamp room)"
+  },
+  {
+   "file": "cvlface_arcface_ir101_webface4m.safetensors",
+   "folder": "face_recognition",
+   "family": null,
+   "kind": "encoder",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/minchul/cvlface_arcface_ir101_webface4m",
+   "size_gb": 0.26,
+   "quant_format": null,
+   "loads_in_core": true,
+   "identity_check": {
+    "different_person": 0.35,
+    "region": "head",
+    "evidence": "measured",
+    "source": "U56 on SCRFD face boxes, 1.5x: a different woman 0.25-0.34 by day, 0.34-0.45 at night; the same woman 0.58-0.80 by day, 0.34-0.60 at night with a moving head. Snap's crop (1.5x the SAM 3.1 face mask's box) on the same frames: different woman 0.18-0.24 day, 0.38-0.41 night; same take 0.49-0.79 day, 0.34-0.58 night; U54's kept night anchor c1 0.29-0.30 (a false alarm: night anchors against a day frame), its blonder c2 0.13, U53b's silver edit 0.31. It can't see hair colour; the hair check can (proto/test_identity_notes.py). A note, never a verdict; the head crops (region) decide. n = 2 seeds, 1 scene"
+   },
+   "notes": "Snap's identity notes on edit candidates (MAISnapFaceModelLoader + MAISnapIdentity, snap_faces.py): ArcFace IResNet-101 trained on WebFace4M (research-use dataset licence). Profiles and dark frames lower every score"
   },
   {
    "file": "pika_h3_flex_fl2va_v1_bf16.safetensors",

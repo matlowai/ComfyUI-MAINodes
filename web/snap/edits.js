@@ -1,7 +1,7 @@
 // Edit a take (U54, the method registry's "edit" slot): a method makes a new take from an existing one. The first is
 // relight ("Night version", with dusk and dawn as options), U53b's best route: MOSS-edit the take's anchor frames (0 and
-// mid) with core TextEncodeMOSSImageEdit and an edit LoRA, show each pair as a candidate with an identity check against
-// the take (the MOSS edit turned hair grey-silver in U53b, and every route after it inherited that), and once the person
+// mid) with core TextEncodeMOSSImageEdit and an edit LoRA, show each pair as a candidate with identity notes against the
+// take (the MOSS edit turned hair grey-silver in U53b, and every route after it inherited that), and once the person
 // applies one, H3 Ripple propagates the edit over the take with the original as its guide. The render lands as a new
 // take in the same group whose parent is the original. What a method runs (models, prompts, steps) is registry data.
 // SNAP-R13 data, not code branches · SNAP-R14 method slots · SNAP-R16 GPU work waits for the person · SNAP-R17 by ·
@@ -77,13 +77,26 @@ export async function start(take, id = "relight", { time = "night", by = "person
   return { decision: d.id, candidates: d.candidates.map((c) => ({ id: c.id, prompt_id: c.prompt_id, seed: c.seed, lora: c.made.lora })), seconds_each: 40 };
 }
 
-// an anchor pair finished: its two frames are the candidate's pictures; the identity check (head crops against the
-// take's own frames) follows as a note
+// an anchor pair finished: its two frames are the candidate's pictures; the identity notes (face and hair against the
+// take's own frames, its quarter and three-quarter frames too for the hair's baseline) follow
 async function finish(d, c, h) {
   c.pictures = [0, 1].map((i) => ({ label: `frame ${c.frame[i]}`, frame: c.frame[i], media: h.outputs[`a${i}o`]?.images?.[0] }));
   if (c.pictures.some((p) => !p.media)) { c.state = "failed"; c.error = "the edit saved no frame"; return; }
-  K.identityCheck(c.pictures.map((p) => [{ video: d.clip.video, frame: p.frame }, { image: K.annotated(p.media) }]))
-    .catch((e) => ({ error: e.message })).then((r) => C.note(d, c, "identity", r));
+  identity(d, c).then((r) => C.note(d, c, "identity", r));
+}
+function identity(d, c) {
+  const v = d.clip.video, more = [Math.round(d.clip.frames / 4), Math.round((3 * d.clip.frames) / 4)].map((frame) => ({ video: v, frame }));
+  return K.identityCheck(c.pictures.map((p) => [{ video: v, frame: p.frame }, { image: K.annotated(p.media) }]), more).catch((e) => ({ error: e.message }));
+}
+// the identity notes again, for every candidate of an edit that has its frames (a note from an older check, or after the
+// model graph's thresholds changed); a few seconds of detection, nothing renders
+export async function recheck(id) {
+  await C.load();
+  const d = C.get(id);
+  if (d?.kind !== "edit") throw new Error(`No edit decision ${id}`);
+  const list = d.candidates.filter((c) => c.pictures.length && c.pictures.every((p) => p.media));
+  for (const [c, r] of await Promise.all(list.map(async (c) => [c, await identity(d, c)]))) await C.note(d, c, "identity", r);
+  return { decision: id, identity: Object.fromEntries(list.map((c) => [c.id, c.notes.identity])) };
 }
 
 // Apply: H3 Ripple over the take (U53b graph: FL2VA + Ripple + 4-step turbo, the take as guide from frame 0, the edited

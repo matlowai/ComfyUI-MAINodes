@@ -5,9 +5,11 @@
 //   order", which the copy score can't (U52: push-ins 0.56-0.68 overlap new views 0.50-0.66). Openings out of view count
 //   too (a door the plan puts behind the camera must not be found); props out of view don't (SAM 3.1 reads the lamp
 //   room's "lamp housing" as the floor lantern).
-// - identity: did an edit keep the person? DINOv3 patches by grid position (MAISnapCopyScore) on SAM 3.1 head crops of
-//   the original frame and the edited one; the model graph gives the threshold (a pure relight keeps 0.99, reframed or
-//   blonder edits 0.68-0.81; 0.86-0.90 holds both kept and grey-haired edits, so the tile shows the crops).
+// - identity (U61): did an edit keep the person? Two notes from SAM 3.1's face and hair masks (MAISnapIdentity), with
+//   thresholds from the model graph: "probably a different person" when ArcFace scores a pair's faces below
+//   different_person (U56), "hair lighter than original" when an edit's lit hair (L* p90) rises more than hair_check's
+//   lighter over the take's own frames (U56b). Both miss things (profiles, dark frames, blonder hair), so the tile shows
+//   SAM 3.1 head crops of both and the person decides.
 // - people: each person SAM 3.1 finds in a frame, boxed and numbered left to right, so a person and an agent can name
 //   "person 2" (U35 agent eyes, UX_GEMS #5).
 // SNAP-R18 local only · SNAP-R21 plates · SNAP-R23 checks are notes, never rejections · see docs/SNAP_RULES.md
@@ -16,11 +18,13 @@ import * as M from "./models.js";
 import * as MD from "./metadata.js";
 import { layout as planned } from "./setsnap.js";
 
-// the files the checks need, from the model graph: the encoder with copy_check / identity_check, the text detector
+// the files the checks need, from the model graph: the encoder with copy_check, the face model with identity_check, the
+// text detector (with the hair check's threshold)
 export async function needs() {
   await M.load();
-  const f = M.folders(), encoder = (f.get("clip_vision") ?? []).find((n) => M.entry(n)?.copy_check) ?? null, detector = (f.get("checkpoints") ?? []).find((n) => M.entry(n)?.detects === "text") ?? null;
-  return { encoder, detector, copy: encoder && M.entry(encoder).copy_check, identity: encoder && M.entry(encoder).identity_check };
+  const f = M.folders(), pick = (folder, has) => (f.get(folder) ?? []).find((n) => has(M.entry(n))) ?? null;
+  const encoder = pick("clip_vision", (e) => e?.copy_check), face = pick("face_recognition", (e) => e?.identity_check), detector = pick("checkpoints", (e) => e?.detects === "text");
+  return { encoder, face, detector, copy: encoder && M.entry(encoder).copy_check, identity: face && M.entry(face).identity_check, hair: detector && M.entry(detector).hair_check };
 }
 
 // an API prompt this page builds. A take is made only from a run queued under this page's client id (takes.js), into
@@ -104,29 +108,36 @@ export async function layoutCheck(image, view) {
   return { checked: judged.length, as_planned: judged.filter((r) => r.ok).length, openings: rows.filter((r) => r.kind !== "prop"), order: pairs.length ? `${pairs.filter(Boolean).length}/${pairs.length}` : null, rows, detector: name };
 }
 
-// the identity check: pairs of [original, edited] pictures (see source()); per pair the head crops' patch match, and
-// the crops themselves for the person to look at. A crop that isn't the crop size means no head was found
-export async function identityCheck(pairs) {
-  const { encoder, detector: name, identity } = await needs();
-  if (!name || !identity) return { error: `the identity check needs ${!name ? "SAM 3.1 (models/checkpoints)" : "an encoder with identity_check in the model graph (DINOv3)"}` };
-  const g = { ...detector(name), e: { class_type: "CLIPVisionLoader", inputs: { clip_name: encoder } } };
-  pairs.forEach(([a, b], i) => {
-    const crops = [a, b].map((src, j) => {
-      const img = source(g, `s${i}${j}`, src), hit = find(g, `h${i}${j}`, img, identity.region);
-      g[`c${i}${j}`] = { class_type: "CropByBBoxes", inputs: { image: img, bboxes: [hit, 1], output_width: 512, output_height: 512, padding: 8, keep_aspect: "pad" } };
-      g[`v${i}${j}`] = { class_type: "PreviewImage", inputs: { images: [`c${i}${j}`, 0] } };
-      return `c${i}${j}`;
-    });
-    g[`x${i}`] = { class_type: "MAISnapCopyScore", inputs: { clip_vision: ["e", 0], reference: [crops[0], 0], images: [crops[1], 0] } };
-  });
-  const h = await screen(g);
+// the identity notes: pairs of [original, edited] pictures (see source()), and `baseline`, more of the original's frames
+// for the hair's baseline (U56b compares against the take's frames, not one). Per picture SAM 3.1 finds the head (its
+// crop is for the person: one that isn't the crop size means no head was found), the face and the hair; per pair the
+// faces' cosine, per edit its hair's rise over the originals' median
+export async function identityCheck(pairs, baseline = []) {
+  const { detector: name, face, identity, hair } = await needs();
+  if (!name || !face || !hair) return { error: `the identity notes need ${!name ? "SAM 3.1 (models/checkpoints)" : !face ? "a face model with identity_check in the model graph (models/face_recognition/cvlface_arcface_ir101_webface4m.safetensors)" : "hair_check on SAM 3.1 in the model graph"}` };
+  const g = { ...detector(name), fm: { class_type: "MAISnapFaceModelLoader", inputs: { model_name: face } } };
+  const measure = (k, src, crop) => {
+    const img = source(g, `s${k}`, src);
+    g[`x${k}`] = { class_type: "MAISnapIdentity", inputs: { face_model: ["fm", 0], image: img, face: [find(g, `f${k}`, img, "face"), 0], hair: [find(g, `r${k}`, img, "hair"), 0] } };
+    if (!crop) return;
+    g[`c${k}`] = { class_type: "CropByBBoxes", inputs: { image: img, bboxes: [find(g, `h${k}`, img, identity.region), 1], output_width: 512, output_height: 512, padding: 8, keep_aspect: "pad" } };
+    g[`v${k}`] = { class_type: "PreviewImage", inputs: { images: [`c${k}`, 0] } };
+  };
+  pairs.forEach((pair, i) => pair.forEach((src, j) => measure(`${i}${j}`, src, true)));
+  baseline.forEach((src, i) => measure(`b${i}`, src, false));
+  const h = await screen(g), look = (k) => ({ face: h.outputs[`x${k}`]?.face?.[0] ?? null, hair: h.outputs[`x${k}`]?.hair_l90?.[0] ?? null });
+  const lit = [...pairs.map((_, i) => look(`${i}0`).hair), ...baseline.map((_, i) => look(`b${i}`).hair)].filter((x) => x != null).sort((a, b) => a - b);
+  const base = lit.length ? (lit[(lit.length - 1) >> 1] + lit[lit.length >> 1]) / 2 : null;
   const size = async (m) => { const img = new Image(); img.src = url(m); await img.decode(); return [img.naturalWidth, img.naturalHeight]; };
   const scores = await Promise.all(pairs.map(async (_, i) => {
-    const crops = [first(h, `v${i}0`), first(h, `v${i}1`)], heads = (await Promise.all(crops.map(size))).map(([w, ht]) => w === 512 && ht === 512);
-    return { score: h.outputs[`x${i}`]?.copy_scores?.[0] ?? null, crops, ...(heads.every(Boolean) ? {} : { no_head: heads.map((x) => !x) }) };
+    const [a, b] = [look(`${i}0`), look(`${i}1`)], crops = [first(h, `v${i}0`), first(h, `v${i}1`)], heads = (await Promise.all(crops.map(size))).map(([w, ht]) => w === 512 && ht === 512);
+    return { face: a.face && b.face ? +a.face.reduce((s, v, k) => s + v * b.face[k], 0).toFixed(3) : null, hair: b.hair != null && base != null ? +(b.hair - base).toFixed(1) : null, crops,
+      ...(heads.every(Boolean) ? {} : { no_head: heads.map((x) => !x) }) };
   }));
-  const low = Math.min(...scores.map((s) => s.score ?? 0));
-  return { scores, low: +low.toFixed(3), threshold: identity.threshold, region: identity.region, drifted: low < identity.threshold || scores.some((s) => s.no_head) };
+  const faces = scores.map((s) => s.face).filter((x) => x != null), rises = scores.map((s) => s.hair).filter((x) => x != null);
+  const low = faces.length ? Math.min(...faces) : null, up = rises.length ? Math.max(...rises) : null;
+  return { scores, face_low: low, hair_up: up, hair_base: base == null ? null : +base.toFixed(1), different_person: identity.different_person, hair_lighter: hair.lighter, region: identity.region,
+    different: low != null && low < identity.different_person, lighter: up != null && up > hair.lighter, ...(faces.length < pairs.length || rises.length < pairs.length ? { unread: { faces: pairs.length - faces.length, hair: pairs.length - rises.length } } : {}) };
 }
 
 // a mask picture's box as fractions of the frame [x, y, w, h]; null when it is empty

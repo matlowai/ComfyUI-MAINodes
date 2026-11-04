@@ -629,7 +629,7 @@ export const TOOLS = [
   },
   {
     name: "list_candidates",
-    description: "Decisions that hold candidates (SNAP-R23): camera plates (kind plate, target <set>/<camera>) and edits of a take (kind edit, target the take id). Each candidate has its state (rendering, ready, applied, rejected, failed), provenance (take, frame, seed, by) and pre-screen notes: copy (score vs threshold, likely_copy), layout (each door, window and prop: where the plan puts it and where SAM 3.1 found it; as_planned of checked, prop order), identity (head-crop patch match against the take's own frames, low vs threshold, drifted). Notes inform; they never decide. Filter by kind, target, or open: true for those still waiting for a pick.",
+    description: "Decisions that hold candidates (SNAP-R23): camera plates (kind plate, target <set>/<camera>) and edits of a take (kind edit, target the take id). Each candidate has its state (rendering, ready, applied, rejected, failed), provenance (take, frame, seed, by) and pre-screen notes: copy (score vs threshold, likely_copy), layout (each door, window and prop: where the plan puts it and where SAM 3.1 found it; as_planned of checked, prop order), identity (face_low: the lowest ArcFace face cosine of the take's frame against the edit, different: true below different_person, \"probably a different person\"; hair_up: how far the edit's lit hair (L* p90) rises over the take's frames, lighter: true above hair_lighter, \"hair lighter than original\"; head crops of both for the person). Notes inform; they never decide: the face score is low on dark frames and profiles too, the hair one misses blonder drift. Filter by kind, target, or open: true for those still waiting for a pick.",
     inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["plate", "edit"] }, target: { type: "string" }, open: { type: "boolean" } } },
     annotations: { readOnlyHint: true },
     run: async ({ kind, target, open } = {}) => { await C.load(); await C.settle(); return C.all().filter((d) => (!kind || d.kind === kind) && (!target || d.target === target) && (!open || d.status === "open")).map(C.describe); },
@@ -662,12 +662,19 @@ export const TOOLS = [
     run: async ({ decision }) => { await C.load(); return C.undo(decision, "agent"); },
   },
   {
+    name: "check_identity",
+    description: "Run the identity notes again on every candidate of an edit decision that has its frames (list_candidates kind edit), e.g. one whose note came from an older check: SAM 3.1 finds the head, face and hair in the take's frames and the edit's, ArcFace compares the faces, the hair's lightness is compared with the take's own frames. A short detection on the server's queue (a few seconds a candidate), nothing is rendered. Returns each candidate's identity note.",
+    inputSchema: { type: "object", properties: { decision: { type: "string" } }, required: ["decision"] },
+    direct: true, // a check, nothing rendered: the notes only inform the person's pick
+    run: async ({ decision }) => ED.recheck(decision),
+  },
+  {
     name: "edit_take",
-    description: "Edit a take with a method of the edit slot (list_methods slot: edit). relight ('Night version'; time: night, dusk or dawn): MOSS edits the take's frame 0 and mid frame, `count` candidates (default 2; the edit LoRAs take turns, seeds vary), each with an identity check against the take's own frames (head crops; drifted below the threshold: U53b's edits turned hair grey). Returns at once with the decision id; follow with list_candidates, then apply_candidate runs the Ripple render. Uses GPU time: unless the person lets agents run, this waits as a proposal they accept.",
+    description: "Edit a take with a method of the edit slot (list_methods slot: edit). relight ('Night version'; time: night, dusk or dawn): MOSS edits the take's frame 0 and mid frame, `count` candidates (default 2; the edit LoRAs take turns, seeds vary), each with identity notes against the take's own frames (\"probably a different person\" from ArcFace on the faces, \"hair lighter than original\" from SAM 3.1's hair mask: U53b's edits turned hair grey; head crops of both). Returns at once with the decision id; follow with list_candidates, then apply_candidate runs the Ripple render. Uses GPU time: unless the person lets agents run, this waits as a proposal they accept.",
     inputSchema: { type: "object", properties: { take: { type: "string" }, method: { type: "string" }, time: { type: "string", enum: ["night", "dusk", "dawn"] }, count: { type: "integer", minimum: 1, maximum: 3 } }, required: ["take"] },
     annotations: { consequentialHint: true },
     consequential: true,
-    plan: async ({ count = 2 }) => ({ runs: `${count} MOSS edit candidates of frame 0 and the middle frame, each with an identity check; the Ripple render waits for the pick`, eta_s: count * 2 * 16, from: "U54: 12-19 s per anchor edit on a 5090" }),
+    plan: async ({ count = 2 }) => ({ runs: `${count} MOSS edit candidates of frame 0 and the middle frame, each with identity notes; the Ripple render waits for the pick`, eta_s: count * 2 * 16, from: "U54: 12-19 s per anchor edit on a 5090" }),
     run: async ({ take, method = "relight", time = "night", count = 2 }) => { await T.load(); const t = T.get(take); if (!t) throw new Error(`No take ${take}`); return ED.start(t, method, { time, count, by: "agent" }); },
   },
   {

@@ -18,9 +18,18 @@ export function noteChips(c) {
   if (n.layout) out.push(n.layout.error ? h("span", { className: "snap-cand-note", textContent: "layout: not checked", title: n.layout.error })
     : h("span", { className: `snap-cand-note${n.layout.as_planned < n.layout.checked ? " warn" : ""}`, textContent: `layout ${n.layout.as_planned}/${n.layout.checked}${n.layout.order ? ` · order ${n.layout.order}` : ""}`,
       title: `where ${n.layout.detector} finds each thing against the plan:\n${n.layout.rows.map((r) => `${r.ok === false ? "✗" : r.ok ? "✓" : "·"} ${r.name}: plan ${r.plan}, found ${r.found}`).join("\n")}` }));
-  if (n.identity) out.push(n.identity.error ? h("span", { className: "snap-cand-note", textContent: "identity: not checked", title: n.identity.error })
-    : h("span", { className: `snap-cand-note${n.identity.drifted ? " warn" : ""}`, textContent: `${n.identity.drifted ? "⚠ identity" : "identity"} ${n.identity.low.toFixed(2)}`,
-      title: `${n.identity.region} crops of the take's frames against the edited ones (DINOv3 patches by position): ${n.identity.scores.map((s) => s.score).join(", ")}; a pure relight keeps about 0.99, below ${n.identity.threshold} the person changed (face, hair, framing); just above it, compare the crops${n.identity.scores.some((s) => s.no_head) ? "; no head found in one of them" : ""}` }));
+  // identity (U61): a chip per flag, else the two numbers quietly; the head crops on the tile decide
+  const id = n.identity, sign = (x) => `${x > 0 ? "+" : ""}${x}`;
+  if (id?.error) out.push(h("span", { className: "snap-cand-note", textContent: "identity: not checked", title: id.error }));
+  else if (id && !("face_low" in id)) out.push(h("span", { className: "snap-cand-note", textContent: "identity: older check", title: "a note from the DINOv3 head-crop check, which couldn't tell grey hair from kept hair; check again for the face and hair notes" }));
+  else if (id) {
+    const faces = `ArcFace on the face, the take's frame against the edit: ${id.scores.map((s) => s.face ?? "no face").join(", ")}`, hair = `lit hair (L* p90) against the take's frames (median ${id.hair_base ?? "?"}): ${id.scores.map((s) => (s.hair == null ? "not read" : sign(s.hair))).join(", ")}`;
+    const missed = `${id.scores.some((s) => s.no_head) ? "; no head found in one of the crops" : ""}${id.unread ? `; not read: ${id.unread.faces} face(s), ${id.unread.hair} hair` : ""}`;
+    if (id.different) out.push(h("span", { className: "snap-cand-note warn", textContent: "probably a different person", title: `${faces}; below ${id.different_person} it is likely someone else, but dark frames and profiles score low too: compare the head crops${missed}` }));
+    if (id.lighter) out.push(h("span", { className: "snap-cand-note warn", textContent: "hair lighter than original", title: `${hair}; above ${sign(id.hair_lighter)} the edit lightened her hair (it catches grey and silver, not blonder): compare the head crops${missed}` }));
+    if (!id.different && !id.lighter) out.push(h("span", { className: "snap-cand-note", textContent: `face ${id.face_low?.toFixed(2) ?? "–"} · hair ${id.hair_up == null ? "–" : sign(id.hair_up)}`,
+      title: `no identity flag. ${faces}; ${hair}. These miss blonder hair and drift on profiles: the head crops decide${missed}` }));
+  }
   if (!out.length && c.state === "ready") out.push(h("span", { className: "snap-cand-note", textContent: "checking…" }));
   return out;
 }
