@@ -497,7 +497,21 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     let text = v == null ? "missing" : typeof v === "boolean" ? (v ? "on" : "off") : Array.isArray(values) ? String(v).split("/").pop().replace(/\.safetensors$/, "") : String(v);
     if (opt?.short) text = text.split(/[:(]/)[0].trim(); // "faithful: back-projection + residual 0.85" reads "faithful"
     if (name === "prompt") return h("div", { className: "snap-fact snap-prompt", title: v ?? "" }, h("span", { textContent: label }), h("p", { textContent: text.replace(/^integrated_multimodal_description:\s*/, "") }));
+    if (E.seedMode(brick) && /seed/.test(name)) return seedFact(brick, label, text);
     return h("div", { className: `snap-fact${missing ? " missing" : ""}${text.length > 14 ? " long" : ""}`, title: missing ? `${text} (missing)` : text }, h("span", { textContent: label }), h("b", { textContent: text }));
+  }
+
+  // the seed on a face: the dice draws a new one now; fixed keeps it across runs, random draws one after each run (L9)
+  function seedFact(brick, label, text) {
+    const press = (fn) => (e) => { e.stopPropagation(); fn(); render(null); };
+    const mode = E.seedMode(brick);
+    const el = h("div", { className: "snap-fact snap-seed" }, h("span", { textContent: label }),
+      h("div", { className: "snap-seed-row" }, h("b", { textContent: text }),
+        h("button", { className: "snap-dice", textContent: "⚄", title: "new seed", ariaLabel: "new seed", onclick: press(() => E.newSeed(brick)) }),
+        h("div", { className: "snap-inline", role: "radiogroup", ariaLabel: "seed mode" }, ["fixed", "random"].map((m) => h("button", { className: m === mode ? "on" : "", role: "radio", ariaChecked: String(m === mode), textContent: m,
+          title: m === "fixed" ? "keep this seed for every run" : "a new seed after each run", onclick: press(() => E.setSeedMode(brick, m)) })))));
+    el.addEventListener("pointerdown", (e) => { if (e.target.closest("button")) e.stopPropagation(); }); // SNAP-R7: a press here must not select or open the brick
+    return el;
   }
 
   // a model file on a face: its whole name (wrapping at underscores), installed or missing, size on disk; the tooltip has
@@ -877,7 +891,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   // what a brick shows: its bindings, overrides and face values (a graph edit or undo changes one of these)
   function signature(info) {
-    const def = BRICKS[info.brick], values = def.face.map(([k, name]) => E.getValue(info.brick, k, name));
+    const def = BRICKS[info.brick], values = [...def.face.map(([k, name]) => E.getValue(info.brick, k, name)), E.seedMode(info.brick)];
     if (def.slot) values.push(S.on(info.brick), S.headline(info.brick), S.quality(info.brick), S.list(def.slot).map((m) => m.install_state));
     if (def.stack) values.push(M.rows(info.brick).map((r) => [r.file, r.strength, r.on, r.entry?.role]));
     if (def.turbo) values.push(M.turbo()?.file, M.turbos().length);

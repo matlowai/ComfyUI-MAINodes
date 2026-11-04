@@ -431,6 +431,24 @@ export function remember(brickKey, field, value) {
   if (b) transaction(() => { b[field] = value; });
 }
 
+// a new seed on a brick's seed setting (the face field named like `seed`), drawn within its limits; one undo step. A
+// brick in seed mode "random" draws one after each run this page queues, as ComfyUI's control_after_generate does;
+// "fixed" (the default) keeps it, so takes of one chain differ only by what the person changed
+const seedName = (key) => BRICKS[key]?.face?.find(([, name]) => /seed/.test(name));
+export function newSeed(key) {
+  const [nodeKey, name] = seedName(key) ?? (() => { throw new Error(`${key} has no seed`); })();
+  const w = widget(nodeFor(key, nodeKey), name), lo = w.options?.min ?? 0, hi = Math.min(w.options?.max ?? 2 ** 32 - 1, 2 ** 32 - 1);
+  setValue(key, nodeKey, name, lo + Math.floor(Math.random() * (hi - lo + 1)));
+  return getValue(key, nodeKey, name);
+}
+export const seedMode = (key) => (seedName(key) ? brick(key)?.seed ?? "fixed" : null);
+export function setSeedMode(key, mode) {
+  if (!seedName(key)) throw new Error(`${key} has no seed`);
+  if (!["fixed", "random"].includes(mode)) throw new Error("A seed mode is fixed or random");
+  remember(key, "seed", mode === "random" ? "random" : undefined);
+}
+api.addEventListener("promptQueued", () => { for (const b of state().bricks) if (b.seed === "random") newSeed(b.key); });
+
 export function updateNote(id, changes) {
   const s = state();
   if (!notes().some((n) => n.id === id)) throw new Error(`No note ${id}`);

@@ -375,6 +375,10 @@ export const STYLE = `
 .snap-take figcaption { font-size: 12px; display: flex; flex-wrap: wrap; gap: 0 4px; align-items: baseline; }
 .snap-take figcaption .snap-quiet { flex-basis: 100%; font-size: 11px; }
 .snap-take figcaption em { color: #f0b445; font-style: normal; }
+.snap-seed-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.snap-seed .snap-inline button { padding: 3px 10px; }
+.snap-dice { all: unset; cursor: pointer; font-size: 16px; line-height: 1; padding: 1px 5px; border-radius: 6px; color: var(--s-dim); }
+.snap-dice:hover { background: #ffffff14; color: inherit; }
 .snap-take-stale { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: #f0b44526; color: #f0b445; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .snap-take-lock { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: hsl(15 70% 55% / .22); color: #f4a988; }
 .snap-take-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 16px; padding: 16px; }

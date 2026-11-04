@@ -121,6 +121,16 @@ export const TOOLS = [
     },
   },
   {
+    name: "new_seed",
+    description: "Draw a new seed for a brick now (the dice on its face), or with `mode` set its seed mode instead: fixed keeps the seed across runs (the default, so takes differ only by what changed), random draws a new one after each run. Returns the seed and the mode.",
+    inputSchema: { type: "object", properties: { brick: brickEnum, mode: { type: "string", enum: ["fixed", "random"] } }, required: ["brick"] },
+    run: ({ brick, mode }) => {
+      if (mode) E.setSeedMode(brick, mode); else E.newSeed(brick);
+      const [nodeKey, name] = BRICKS[brick].face.find(([, n]) => /seed/.test(n));
+      return { brick, seed: E.getValue(brick, nodeKey, name), mode: E.seedMode(brick) };
+    },
+  },
+  {
     name: "list_setups",
     description: "The setups the recipe can switch to in one step: the Render Preset's presets (Pika H3 Flex, Pika + reference pictures, DMAD speed LoRA, the person's own) and every family's recipe cards (MOSS-Image Base / SFT DeBand / Kromoss, Krea 2, and 'Last used' cards): family, output, `about` (how its models fit together), which one is current, the model files each loads with sizes and readiness (installed, cant_load), and its sampling values.",
     inputSchema: { type: "object", properties: {} },
