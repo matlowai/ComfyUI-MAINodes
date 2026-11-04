@@ -48,10 +48,10 @@ const sized = (m) => ({ ...m, size_gb: m.size ? +(m.size / 1e9).toFixed(2) : nul
 // what the model graph says about a file, in an agent's answer (SNAP-R10, SNAP-R12)
 const related = (name) => { const e = M.entry(name); return e && { family: e.family, kind: e.kind, turbo: e.turbo ?? null, ...(e.role ? { role: e.role, core: e.core } : {}), ...(e.loads_in_core === false ? { loads_in_core: false } : {}), ...(e.inferred ? { inferred: true } : {}) }; };
 async function models() {
-  await M.load();
+  await M.current();
   const list = M.settings(), now = M.setups().find((s) => s.current);
   const checks = await Promise.all(E.state().bricks.filter((b) => BRICKS[b.key].check).map(async (b) => ({ brick: b.key, ...await M.checkNow(b.key) })));
-  return { family: M.family(), setup: now ? { name: now.name, edited: now.edited } : null, turbo: M.turbo()?.file ?? null, warnings: M.warnings().map((w) => `${w.brick}: ${w.text}`),
+  return { family: M.family(), setup: now ? { name: now.name, edited: now.edited } : null, turbo: M.turbo()?.file ?? null, warnings: [M.graphProblem(), ...M.warnings().map((w) => `${w.brick}: ${w.text}`)].filter(Boolean),
     loras: M.loras().map((r) => ({ brick: r.brick, row: r.row, file: r.file, strength: r.strength, on: r.on, role: r.entry?.role, core: r.entry?.core })), files: list.map((m) => ({ ...sized(m), ...related(m.file) })), missing: list.filter((m) => !m.installed).map((m) => `${m.brick}.${m.setting}: ${m.file}${m.unreadable ? " (file not readable)" : ""}`),
     total_gb: +(M.total(list) / 1e9).toFixed(1), checks };
 }

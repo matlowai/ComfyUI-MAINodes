@@ -12,19 +12,26 @@ import * as D from "./dials.js";
 import * as L from "./library.js";
 import { BRICKS } from "./bricks.js";
 
-let files = new Map(), loading = null;
-// name -> { folder, size, modified }, read once per page (every model folder; the first folder wins a name in two), with
-// the model graph
+let files = new Map(), exts = [], loading = null, notify = () => {};
+// name -> { folder, size, modified } from core's folder lists (every model folder; the first folder wins a name in two),
+// with the model graph; read once per page, and again when a recipe names a file they don't have yet (readable)
 export function load() {
   loadGraph();
   loading ??= api.fetchApi("/experiment/models").then((r) => r.json())
-    .then((folders) => Promise.all(folders.map(async ({ name }) => [name, await (await api.fetchApi(`/experiment/models/${encodeURIComponent(name)}`)).json()])))
+    .then((folders) => Promise.all(folders.map(async ({ name, extensions }) => [name, extensions, await (await api.fetchApi(`/experiment/models/${encodeURIComponent(name)}`)).json()])))
     .then((lists) => {
       files = new Map();
-      for (const [folder, list] of lists) for (const f of list) if (!files.has(f.name)) files.set(f.name, { folder, size: f.size, modified: f.modified });
+      exts = [...new Set(lists.flatMap(([, x]) => x))];
+      for (const [folder, , list] of lists) for (const f of list) if (!files.has(f.name)) files.set(f.name, { folder, size: f.size, modified: f.modified });
       return files;
     }).then(async (f) => { await loadGraph(); return f; });
   return loading;
+}
+// the lists as a tool should read them: loaded, and asked again for any recipe file they didn't have yet
+export async function current() {
+  await load();
+  settings();
+  return load();
 }
 export const file = (name) => files.get(name);
 // folder -> the file names in it (core's lists), for readiness checks that look at what is installed now
@@ -32,20 +39,26 @@ export const folders = () => { const m = new Map(); for (const [name, f] of file
 
 // The model graph (SNAP-R10, SNAP-R12, SNAP-R13): one entry per file saying how it fits with others (family, kind
 // base / sft / finetune / turbo_merge / lora, turbo merged or LoRA with its steps / cfg / sampler, deband, LoRA role,
-// trained_on, loads_in_core). The pack's entries (snap_cards/models.json) under the person's own (userdata
-// snap/models.json, merged field by field: the person wins); a file neither knows is inferred from its folder and name.
+// trained_on, loads_in_core, an upscaler's scale). The pack's entries (snap_cards/models.json) under the person's own
+// (userdata snap/models.json, merged field by field: the person wins, a null leaves the pack value); what neither says is
+// inferred from the file's folder and name.
 const MINE = "snap/models.json";
 const base = (f) => String(f ?? "").replace(/\\/g, "/").split("/").pop();
-let relations = new Map(), relating = null;
-const mine = () => api.getUserData(MINE).then((r) => (r.ok ? r.json() : []), () => []);
-export function loadGraph() {
-  relating ??= Promise.all([api.fetchApi("/mainodes/snap/models").then((r) => r.json()).then((r) => r.models, () => []), mine()]).then(([pack, own]) => {
+let relations = new Map(), relating = null, problem = null;
+// the person's file; one that doesn't parse throws, so nothing writes over it
+const mine = async () => { const r = await api.getUserData(MINE); return r.ok ? r.json() : []; };
+export const overlay = (pack, own) => ({ ...pack, ...Object.fromEntries(Object.entries(own).filter(([, v]) => v != null)) });
+function loadGraph() {
+  relating ??= Promise.all([api.fetchApi("/mainodes/snap/models").then((r) => r.json()).then((r) => r.models, () => []),
+    mine().catch((e) => { problem = `Your snap/models.json was skipped (${e.message}); Snap uses the pack's model graph until it parses`; return []; })]).then(([pack, own]) => {
     relations = new Map(pack.map((e) => [base(e.file), e]));
-    for (const e of own) relations.set(base(e.file), { ...relations.get(base(e.file)), ...e });
+    for (const e of own) relations.set(base(e.file), overlay(relations.get(base(e.file)), e));
     return relations;
   });
   return relating;
 }
+// why the person's model graph isn't used (SNAP-R11: say it once, keep working)
+export const graphProblem = () => problem;
 const FAMILIES = [[/kromoss|moss/, "MOSS-Image"], [/krea/, "Krea 2"], [/minimax|pika|(^|_)h3(_|$)/, "MiniMax H3"]];
 function infer(name) {
   const n = base(name).toLowerCase(), folder = file(name)?.folder ?? null, steps = Number(n.match(/(\d+)[-_ ]?steps?/)?.[1]) || null;
@@ -56,10 +69,15 @@ function infer(name) {
   if (kind === "lora") Object.assign(e, String(name).startsWith("dials/") ? { role: "dial" } : fast ? { role: "core", core: "turbo" } : e.deband !== "none" ? { role: "core", core: "fix" } : { role: "unsorted" });
   return e;
 }
-export const entry = (name) => (name ? relations.get(base(name)) ?? infer(name) : null);
+export function entry(name) {
+  if (!name) return null;
+  const e = relations.get(base(name)), { inferred, ...guess } = infer(name);
+  return e ? { ...guess, ...e } : { ...guess, inferred };
+}
 // the person files a file ("what is this?"): kept in their snap/models.json, so the answer is remembered
 export async function teach(name, patch) {
-  const own = await mine(), at = own.findIndex((e) => base(e.file) === base(name));
+  const own = await mine().catch((e) => { throw new Error(`snap/models.json doesn't parse (${e.message}); fix it before Snap adds to it`); });
+  const at = own.findIndex((e) => base(e.file) === base(name));
   const e = { ...(own[at] ?? { file: base(name) }), ...patch };
   own.splice(at < 0 ? own.length : at, at < 0 ? 0 : 1, e);
   await api.storeUserData(MINE, own);
@@ -72,9 +90,16 @@ export const gb = (bytes) => `${(bytes / 1e9).toFixed(bytes < 1e9 ? 2 : 1)} GB`;
 
 const choices = (w) => (Array.isArray(w?.options?.values) ? w.options.values : null);
 export const isModel = (w) => !!choices(w) && (files.has(w.value) || choices(w).some((v) => files.has(v)));
-// a choice the folder lists don't have is a file the server can't read (moved away, broken link): it stays in the combo
-// until a restart, but a run would fail on it (SNAP-R3)
-export const readable = (name) => !files.size || files.has(name);
+// a choice the folder lists don't have, with an extension they list, is a file the server can't read (moved away, a
+// broken link): it stays in the combo until a restart, but a run would fail on it (SNAP-R3). `none` and a .gguf aren't
+// such files. A file downloaded after the page opened is in the combo before it is in these lists, so the lists are
+// fetched once more first; the view re-renders when they arrive (onCheck)
+const asked = new Set();
+export function readable(name) {
+  if (!files.size || files.has(name) || !exts.some((x) => String(name).endsWith(x))) return true;
+  if (!asked.has(name)) { asked.add(name); loading = null; load().then(() => notify()); }
+  return false;
+}
 
 // a brick's nodes, its attachment's inner ones included, as [nodeKey, node]
 export function nodesOf(brickKey) {
@@ -361,7 +386,6 @@ export function removeRow(brick, i) {
 // a brick's `check` (see bricks.js): the server says whether a run would find what the brick's settings point at. One
 // request per distinct set of values; the view re-renders when an answer arrives (onCheck)
 const checked = new Map();
-let notify = () => {};
 export const onCheck = (fn) => { notify = fn; };
 function checking(brickKey) {
   const def = BRICKS[brickKey]?.check, n = def && E.nodeFor(brickKey, def[0]);

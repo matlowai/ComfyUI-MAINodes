@@ -115,7 +115,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libResults);
   T.onChange(() => renderLibrary());
   D.load().then(() => { render(null); renderLibrary(); });
-  M.load().then(() => render(null), () => {}); // without the model lists, settings show as plain values
+  M.load().then(() => { render(null); if (M.graphProblem()) say(M.graphProblem(), true); }, () => {}); // without the model lists, settings show as plain values
   M.onCheck(() => render(null));
   L.ready().then(renderLibrary, () => libResults.replaceChildren(h("div", { className: "snap-quiet", textContent: "Library not available on this server" })));
 
