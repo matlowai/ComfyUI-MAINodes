@@ -139,11 +139,12 @@ app.registerExtension({
       open();
     }
     // each workflow tab remembers Snap or Graph (as App mode does): recorded when the person switches, restored when
-    // another tab loads; undo reloads the same tab and changes nothing
+    // another tab loads; undo, or a scene's next shot loaded into the same tab, keeps the mode and only re-renders (a
+    // same-tab load fires no graphChanged until the next mouseup)
     let tab = activeTab();
     // the graph is configured before the frontend marks the new tab active, so look once the switch has settled
     app.graph.events.addEventListener("configured", () => setTimeout(() => {
-      if (activeTab() === tab) return;
+      if (activeTab() === tab) { if (sw.showing) view.render(null); return; }
       tab = activeTab();
       if (sw.docked) return view.render(null);
       // a tab seen before gets its mode back; an unseen one with a recipe keeps the current mode, a plain graph opens as one
