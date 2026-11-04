@@ -186,5 +186,10 @@ export function nodeTypes() {
     .map(([type, c]) => ({ type, title: c.nodeData.display_name || type, category: c.nodeData.category || "" }));
 }
 
+// the Setup brick (SNAP-R9): in Snap the model set and how it samples read as one brick, the first of these the recipe
+// has; the graph keeps each brick's own nodes and the engine its own bricks (SNAP-R2), so setups, the Turbo chip and the
+// agent tools work on them as before
+export const SETUP = { title: "Setup", icon: "◇", hue: 210, blurb: "the model set and how it samples: family, model, turbo", members: ["models", "preset", "image_models", "loras"] };
+
 // the Simple recipe in reading order
 export const SIMPLE_RECIPE = ["models", "preset", "rack", "first_frame", "refs", "render", "upscale", "save_video"];

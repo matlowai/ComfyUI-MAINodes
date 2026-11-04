@@ -262,7 +262,7 @@ export function loras() {
 // the sampling a recipe runs, wherever it lives (the image Render's own widgets, H3's Render Preset): the first
 // setting of each name that no wire drives
 const SAMPLING = { steps: ["steps"], cfg: ["cfg"], sampler: ["sampler_name", "sampler"], scheduler: ["scheduler", "schedule"] };
-function sampling() {
+export function sampling() {
   const out = {};
   for (const b of E.state().bricks) for (const [nodeKey, n] of nodesOf(b.key)) for (const [k, names] of Object.entries(SAMPLING)) {
     const w = !out[k] && n.widgets?.find((x) => names.includes(x.name) && !n.inputs?.some((i) => i.widget?.name === x.name && i.link != null));

@@ -13,7 +13,7 @@ export const STYLE = `
   background: color-mix(in srgb, var(--s-bg) calc(var(--veil) * 100%), transparent); }
 .snap-brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; letter-spacing: -.01em; padding-right: 12px; margin-right: 2px; border-right: 1px solid var(--s-line); height: 26px; }
 .snap-brand i { width: 20px; height: 20px; border-radius: 6px; background: conic-gradient(from 200deg, #6aa8ff, #c084fc, #f472b6, #f0b445, #57c785, #6aa8ff); box-shadow: 0 0 0 1px #ffffff1f inset; }
-.snap-title { font-size: 14px; font-weight: 600; max-width: 32ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.snap-title { font-size: 14px; font-weight: 600; max-width: 32ch; min-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .snap-spacer { flex: 1; }
 .snap-status { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--s-card); color: var(--s-dim); cursor: default; white-space: nowrap; }
 .snap-status::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; background: currentColor; vertical-align: 1px; }
@@ -526,5 +526,5 @@ export const STYLE = `
 .snap-root.docked .snap-seg, .snap-root.docked .snap-run { display: none; }
 @media (prefers-reduced-motion: reduce) { .snap-details { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .snap-toast, .snap-seg button, .snap-brick, .snap-tile, .snap-card { transition: none; } }
-@container (max-width: 560px) { .snap-setup, .snap-outside, .snap-see { display: none; } } /* phone width: the Render Preset chip opens the setups */
+@container (max-width: 560px) { .snap-setup, .snap-outside, .snap-see { display: none; } .snap-meta span { display: none; } .snap-title { min-width: 0; } } /* phone width: the Setup chip opens the setups; the metadata switch keeps its knob and its name for screen readers */
 `;

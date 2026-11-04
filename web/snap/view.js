@@ -2,11 +2,11 @@
 // graph edits and agent edits all show up by re-rendering; nothing here keeps its own copy of brick state.
 // SNAP-R1 generic pass-through · SNAP-R2 re-read widgets on outside changes · SNAP-R4 outcome faces · SNAP-R5 new
 // tabs for new work · SNAP-R7 pointer-down lists · SNAP-R19 actions call their tools' functions · SNAP-R20 the metadata
-// switch · see docs/SNAP_RULES.md
+// switch · SNAP-R9 the Setup brick · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
-import { BRICKS, SIMPLE_RECIPE, PACK_BRICKS, nodeTypes, fits } from "./bricks.js";
+import { BRICKS, SETUP, SIMPLE_RECIPE, PACK_BRICKS, nodeTypes, fits } from "./bricks.js";
 import { attachDrag } from "./drag.js";
 import { Spring, SPRINGS, animate, reducedMotion } from "./spring.js";
 import * as L from "./library.js";
@@ -78,7 +78,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   const seeLabel = () => { seeBtn.textContent = sight.sharing() ? "● Agents can see" : "👁 Let agents see"; seeBtn.classList.toggle("on", sight.sharing()); };
   sight.onChange(seeLabel); seeLabel();
   // SNAP-R20: metadata in saved files, beside Run where every run starts; the person's ComfyUI setting (on by default)
-  const metaBtn = h("button", { className: "snap-meta", role: "switch", onclick: () => MD.set(!MD.on()) }, h("i"), h("span", { textContent: "Save metadata" }));
+  const metaBtn = h("button", { className: "snap-meta", role: "switch", ariaLabel: "Save metadata", onclick: () => MD.set(!MD.on()) }, h("i"), h("span", { textContent: "Save metadata" }));
   function metadataChanged() {
     const v = MD.on();
     metaBtn.ariaChecked = String(v);
@@ -111,6 +111,26 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   let crewLine = null; // the crew summary element, rebuilt after each logged decision
   const unfolded = new Set(); // node types whose folded run of bricks the person opened
 
+  // the Setup brick (SNAP-R9): the recipe's model-set bricks (SETUP.members) show as one card, hosted by the first of
+  // them; the engine and the graph keep them apart, so a brick key from anywhere maps to its card here
+  const members = () => E.state().bricks.map((b) => b.key).filter((k) => SETUP.members.includes(k));
+  const shown = (key) => (SETUP.members.includes(key) && members().length ? members()[0] : key);
+  const group = (key) => (SETUP.members.includes(key) ? members() : [key]);
+  const look = (key) => (SETUP.members.includes(key) && members().length ? SETUP : BRICKS[key]); // title, icon, hue, blurb
+  function cards(infos) {
+    const ms = infos.filter((i) => SETUP.members.includes(i.brick));
+    if (!ms.length) return infos;
+    const setup = { brick: ms[0].brick, members: ms.map((i) => i.brick), nodes: Object.fromEntries(ms.flatMap((i) => Object.entries(i.nodes).map(([k, v]) => [`${i.brick}.${k}`, v]))),
+      bindings: ms.flatMap((i) => i.bindings).filter((b) => !SETUP.members.includes(b.from)) };
+    return infos.filter((i) => !ms.includes(i) || i === ms[0]).map((i) => (i === ms[0] ? setup : i));
+  }
+  // a card moved or a brick dropped lands before the card under it: a moved card's bricks go there in their order
+  const chain = () => [...stack.querySelectorAll(":scope > [data-brick]")].map((el) => el.dataset.brick);
+  const indexOf = (key) => (key ? E.state().bricks.findIndex((b) => b.key === key) : undefined);
+  function place(keys, before) {
+    E.batch(() => { for (const k of keys) { const rest = E.state().bricks.map((b) => b.key).filter((x) => x !== k); E.move(k, before ? rest.indexOf(before) : rest.length); } });
+  }
+
   // the Library section is built once (typing survives re-renders); only its results follow the query and the selection
   const bricksRail = h("div", { className: "snap-rail-part" });
   const libQuery = h("input", { className: "snap-lib-q", placeholder: "Search the Library…", ariaLabel: "search the Library" });
@@ -128,9 +148,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   L.ready().then(renderLibrary, () => libResults.replaceChildren(h("div", { className: "snap-quiet", textContent: "Library not available on this server" })));
 
   function renderLibrary() {
-    const scope = libScoped && selected && Object.values(L.TARGET).includes(selected) ? selected : null;
-    libFor.hidden = !selected || !Object.values(L.TARGET).includes(selected);
-    libFor.textContent = scope ? `for: ${BRICKS[selected].title} ✕` : `for: everything · fit ${BRICKS[selected]?.title ?? ""}`;
+    const target = selected && group(selected).find((k) => Object.values(L.TARGET).includes(k)), scope = libScoped ? target ?? null : null; // a Setup card fits what Render Preset takes
+    libFor.hidden = !target;
+    libFor.textContent = scope ? `for: ${look(selected).title} ✕` : `for: everything · fit ${look(selected)?.title ?? ""}`;
     // the last meaning ranking for this query and slot stays up through re-renders (a flip back to keyword order would
     // replace the card under a click); a fresh one replaces it when it arrives
     const q = libQuery.value, here = `${q}|${scope}`;
@@ -204,11 +224,11 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   attachDrag(root, {
     stack,
-    cardTarget: (id) => L.TARGET[L.get(id)?.kind],
+    cardTarget: (id) => shown(L.TARGET[L.get(id)?.kind]),
     onCard: (id) => applyCard(id),
     accepts: (key) => !E.state().bricks.some((b) => b.key === key),
-    onMove: (key, index) => { const before = rects(); E.move(key, index); render(before); },
-    onInsert: (key, index) => add(key, index),
+    onMove: (key, index) => { const before = rects(); place(group(key), chain().filter((k) => k !== key)[index] ?? null); render(before); },
+    onInsert: (key, index) => add(key, indexOf(chain()[index])),
   });
 
   // Ctrl/Cmd+K: type to find a brick, Enter adds it after the selected one (UX_SPEC 4: results in < 50 ms, no open animation)
@@ -234,7 +254,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   function pick(key) {
     closePalette();
     const keys = E.state().bricks.map((b) => b.key);
-    let i = keys.indexOf(selected);
+    let i = selected ? Math.max(...group(selected).map((k) => keys.indexOf(k))) : -1;
     if (i < 0) i = keys.length - 1;
     add(key, i + 1);
   }
@@ -310,14 +330,14 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     if (e.target.closest("input,textarea,select")) return;
     if (e.key === "Escape" && opened && palette.hidden && !root.querySelector(".snap-sheet")) { setOpen(null); return; }
     if (e.key === "Escape" && (selected || noting) && palette.hidden && !root.querySelector(".snap-sheet")) { noting = false; select(null); return; }
-    const keys = E.state().bricks.map((b) => b.key), i = keys.indexOf(selected);
+    const keys = chain(), i = keys.indexOf(selected);
     // arrows move along the chain: left/right in the full view, up/down when it runs top to bottom (narrow, docked)
     const across = getComputedStyle(stack).display === "grid";
     const step = { ArrowRight: across ? 1 : 0, ArrowLeft: across ? -1 : 0, ArrowDown: across ? 0 : 1, ArrowUp: across ? 0 : -1 }[e.key];
     if (step) {
       e.preventDefault();
       const j = Math.max(0, Math.min(keys.length - 1, i + step));
-      if (e.altKey && i >= 0) { const before = rects(); E.nudge(selected, step); render(before); } else { select(keys[j]); brickNode(keys[j])?.focus({ preventScroll: true }); brickNode(keys[j])?.scrollIntoView({ inline: "nearest", block: "nearest" }); }
+      if (e.altKey && i >= 0) { const before = rects(); if (j !== i) place(group(selected), step > 0 ? keys[j + 1] ?? null : keys[j]); render(before); } else { select(keys[j]); brickNode(keys[j])?.focus({ preventScroll: true }); brickNode(keys[j])?.scrollIntoView({ inline: "nearest", block: "nearest" }); }
     }
   });
 
@@ -357,6 +377,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // size while its neighbours slide aside. One open at a time; its header, Esc or the empty chain close it
   let opened = null;
   function setOpen(key) {
+    key = key && shown(key);
     if (key === opened) return;
     const before = rects(), from = key && before.get(key);
     giveBack();
@@ -381,6 +402,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // the inspector slides in for a selected brick (or a recipe note) and out again, giving the chain the room
   let noting = false;
   function select(key, rerender = true) {
+    key = key && shown(key);
     if (key !== selected) libScoped = true;
     selected = key;
     if (key) noting = false;
@@ -405,7 +427,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     } catch (err) { say(`Couldn't queue: ${err.message}`, true); }
     runBtn.disabled = false;
   }
-  const brickOfNode = (id) => { const outer = String(id ?? "").split(":")[0]; return E.state().bricks.find((b) => Object.values(b.nodes).some((n) => String(n) === outer))?.key; };
+  const brickOfNode = (id) => { const outer = String(id ?? "").split(":")[0], key = E.state().bricks.find((b) => Object.values(b.nodes).some((n) => String(n) === outer))?.key; return key && shown(key); };
   const mark = (cls, key) => { for (const el of stack.querySelectorAll(`.snap-brick.${cls}`)) if (el.dataset.brick !== key) el.classList.remove(cls); if (key) brickNode(key)?.classList.add(cls); };
   api.addEventListener("executing", ({ detail }) => { const key = detail == null || typeof detail === "object" && detail.node == null ? null : brickOfNode(detail?.node ?? detail); mark("running", key); if (key) brickNode(key)?.style.setProperty("--run-p", 0); });
   api.addEventListener("execution_start", () => { mark("failed", null); for (const el of stack.querySelectorAll(".snap-brick")) el.removeAttribute("data-error"); });
@@ -582,7 +604,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   // the Turbo chip (SNAP-R10, SNAP-R14): what speeds this recipe up now, and one click to the list of its family's turbos
   function turboChip(key) {
-    if (!BRICKS[key].turbo || !M.turbos().length) return null;
+    if (key !== (members()[0] ?? M.turboHost()) || !M.turbos().length) return null; // on the Setup card, else where the turbo's sampling lives
     const t = M.turbo();
     const chip = h("button", { className: `snap-preset snap-turbo${t ? " on" : ""}`, title: "swap the turbo: a merge swaps the checkpoint, a LoRA adds a core row; off goes back to the quality settings",
       onclick: (e) => { e.stopPropagation(); openMethods("turbo"); } }, `Turbo: ${t ? String(t.file).split("/").pop().replace(/\.safetensors$/, "") : "off"} ▾`);
@@ -724,30 +746,30 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   function bindingsLine(key, info, brief) {
     // three or more wires from one brick read as one chip ("Render Preset ×5"); the inspector lists each
     const count = new Map();
-    for (const b of info.bindings) if (b.rule !== "ask" && b.value == null) count.set(b.from, (count.get(b.from) ?? 0) + 1);
+    for (const b of info.bindings) if (b.rule !== "ask" && b.value == null) count.set(shown(b.from), (count.get(shown(b.from)) ?? 0) + 1);
     const grouped = new Set();
     // on a brick in the full view only the chips that want attention show (the lanes carry the rest); narrow, all of them
     const more = (b) => brief && !["ask", "remembered", "chosen"].includes(b.rule) && b.value == null;
     const chips = info.bindings.flatMap((b) => {
-      if (b.rule !== "ask" && b.value == null && count.get(b.from) >= 3) {
-        if (grouped.has(b.from)) return [];
-        grouped.add(b.from);
-        const roles = info.bindings.filter((x) => x.from === b.from && x.rule !== "ask").map((x) => x.role);
-        const chip = h("button", { className: `snap-bind group${more(b) ? " more" : ""}`, textContent: `${BRICKS[b.from]?.title ?? b.from} ×${roles.length}`, title: `${roles.join(", ")}\nclick to show in the graph`,
+      if (b.rule !== "ask" && b.value == null && count.get(shown(b.from)) >= 3) {
+        if (grouped.has(shown(b.from))) return [];
+        grouped.add(shown(b.from));
+        const roles = info.bindings.filter((x) => shown(x.from) === shown(b.from) && x.rule !== "ask").map((x) => x.role);
+        const chip = h("button", { className: `snap-bind group${more(b) ? " more" : ""}`, textContent: `${look(b.from)?.title ?? b.from} ×${roles.length}`, title: `${roles.join(", ")}\nclick to show in the graph`,
           onclick: (e) => { e.stopPropagation(); select(key); onSwitch(key); } });
-        chip.style.setProperty("--from", BRICKS[b.from]?.hue ?? 215);
+        chip.style.setProperty("--from", look(b.from)?.hue ?? 215);
         return [chip];
       }
       if (b.rule === "ask") { // several candidates fit: the person picks, the pick is remembered
         return h("span", { className: "snap-bind ask", title: "more than one output fits; pick the one you mean" }, `${b.role} ← which one? `,
-          b.candidates.map((c) => h("button", { className: "snap-choice", textContent: `${BRICKS[c.from]?.title ?? c.from} · ${c.via.replaceAll("_", " ")}`, onclick: (e) => { e.stopPropagation(); const before = rects(); pickBinding(key, b.role, c.from, c.via); render(before); } })));
+          b.candidates.map((c) => h("button", { className: "snap-choice", textContent: `${look(c.from)?.title ?? c.from} · ${c.via.replaceAll("_", " ")}`, onclick: (e) => { e.stopPropagation(); const before = rects(); pickBinding(key, b.role, c.from, c.via); render(before); } })));
       }
       const kind = b.rule.split(":")[0];
-      const label = b.value != null ? `${b.role} = ${b.value}` : `${b.role} ← ${BRICKS[b.from]?.title ?? b.from}${b.rule === "chosen" || b.rule === "remembered" ? ` · ${b.via.replaceAll("_", " ")}` : ""}`;
+      const label = b.value != null ? `${b.role} = ${b.value}` : `${b.role} ← ${look(b.from)?.title ?? b.from}${b.rule === "chosen" || b.rule === "remembered" ? ` · ${b.via.replaceAll("_", " ")}` : ""}`;
       const chip = h("button", { className: `snap-bind ${kind}${more(b) ? " more" : ""}`, textContent: label, title: `rule: ${b.rule}\nclick to show in the graph`,
         onclick: (e) => { e.stopPropagation(); select(key); onSwitch(key); } });
       if (b.rule === "remembered") chip.title = `rule: your earlier pick for this pair\nclick to show in the graph`;
-      chip.style.setProperty("--from", BRICKS[b.from]?.hue ?? 215);
+      chip.style.setProperty("--from", look(b.from)?.hue ?? 215);
       return [chip];
     });
     const over = overridden.filter((o) => o.to === key);
@@ -820,8 +842,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   }
 
   function brickEl(info) {
-    const def = BRICKS[info.brick];
-    const faces = [presetChip(info.brick), turboChip(info.brick), ...slotFace(info.brick), def.off ? startFace(info.brick) : null, ...def.face.map((f) => fact(info.brick, f))].filter(Boolean);
+    const def = info.members ? SETUP : BRICKS[info.brick];
+    const faces = info.members ? setupFace(info) : [presetChip(info.brick), turboChip(info.brick), ...slotFace(info.brick), def.off ? startFace(info.brick) : null, ...def.face.map((f) => fact(info.brick, f))].filter(Boolean);
+    if (def.off && !isOn(info.brick)) for (const el of faces) if (el.classList.contains("missing")) { el.classList.remove("missing"); el.querySelector("b").textContent = "none yet"; } // off, nothing is loaded
     const body = [];
     const pics = Object.values(info.nodes).flatMap((id) => { const n = app.graph.getNodeById(id); return n ? previews(n) : []; });
     if (ends(info.brick)) body.push(outSlot());
@@ -829,7 +852,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     if (info.brick === "rack") body.push(D.face({ onChange: () => render(null), onPick: () => D.openPicker(root, { say, onChange: () => render(null), onMake: openMaker }), onMake: openMaker }));
     if (info.brick === "refs") body.push(...picturesFace());
     if (def.stack) body.push(stackFace(info.brick));
-    body.push(...warnLines(info.brick));
+    body.push(...group(info.brick).flatMap(warnLines));
     if (def.check && isOn(info.brick)) body.push(checkLine(info.brick, true)); // Off runs nothing, so nothing can be wrong
     const from = info.brick === "first_frame" && takenFrom();
     if (from) body.push(h("button", { className: "snap-link snap-quiet-btn snap-from", textContent: `↳ take ${from.number}, frame ${from.frame}`, title: "this picture is a frame of that take (Use as input): click to open the take",
@@ -844,9 +867,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
         h("span", { className: "snap-grip", textContent: def.icon, title: "drag to reorder" }),
         h("span", { className: "snap-name", textContent: def.title, title: def.blurb }),
         open ? h("button", { className: "snap-mode", textContent: "⇥", title: "open bricks in the side panel instead (remembered; also in Settings › MAINodes)", onclick: (e) => { e.stopPropagation(); setOpenIn("panel"); } }) : null,
-        h("button", { className: "snap-x", textContent: "×", title: "remove from the recipe", onclick: (e) => { e.stopPropagation(); const before = rects(); E.unsnap(info.brick); if (selected === info.brick) selected = null; if (opened === info.brick) opened = null; render(before); } })),
+        h("button", { className: "snap-x", textContent: "×", title: "remove from the recipe", onclick: (e) => { e.stopPropagation(); const before = rects(); E.batch(() => { for (const k of group(info.brick)) E.unsnap(k); }); if (selected === info.brick) selected = null; if (opened === info.brick) opened = null; render(before); } })),
       ...(open ? [details(info)] : [faces.length ? h("div", { className: "snap-face" }, faces) : null, ...body]),
-      bindingsLine(info.brick, open ? { ...info, bindings: info.bindings.filter((b) => b.rule === "ask") } : info, true), openNotes(info.brick).map(noteEl)); // open, the details list the wiring; only questions stay as chips
+      bindingsLine(info.brick, open ? { ...info, bindings: info.bindings.filter((b) => b.rule === "ask") } : info, true), group(info.brick).flatMap(openNotes).map(noteEl)); // open, the details list the wiring; only questions stay as chips
     // in brick mode a press released in place opens it (a drag moves further); on an open brick, its header closes it. Done on
     // pointerup, before ComfyUI's mouseup change check can re-render the chain and drop the click
     let press = null;
@@ -881,7 +904,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   // pin a note to the selected brick, or to the whole recipe when nothing is selected
   function noteComposer() {
-    const text = h("textarea", { className: "snap-note-input", rows: 2, placeholder: selected ? `Note on ${BRICKS[selected].title}: what should change?` : "Note on the whole recipe…" });
+    const text = h("textarea", { className: "snap-note-input", rows: 2, placeholder: selected ? `Note on ${look(selected).title}: what should change?` : "Note on the whole recipe…" });
     const pin = () => { if (!text.value.trim()) return; E.addNote(text.value.trim(), selected); text.value = ""; say("Note pinned; agents see it with get_notes"); render(null); };
     // Ctrl+Enter is ComfyUI's Queue Prompt: in the note box it pins the note and must go no further
     text.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); e.stopPropagation(); pin(); } });
@@ -896,7 +919,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   function renderInspector() {
     if (openIn() === "brick" && !noting) { if (inspectorSig) { giveBack(); inspector.replaceChildren(); inspectorSig = ""; } return; }
-    const info = E.describe().find((b) => b.brick === selected);
+    const info = cards(E.describe()).find((b) => b.brick === selected);
     const sig = info ? `${selected}|${signature(info)}|${JSON.stringify(Object.values(info.nodes).map((id) => app.graph.getNodeById(id)?.widgets?.map((w) => w.value)))}` : "";
     // SNAP-R2: the panel follows its widgets like the face; it holds still only while a text field in it is typed in
     const typing = inspector.contains(document.activeElement) && document.activeElement.matches("textarea,input:not([type=checkbox]):not([type=range]),[contenteditable]");
@@ -917,15 +940,48 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       return;
     }
     giveBack();
-    const def = BRICKS[info.brick];
+    const def = info.members ? SETUP : BRICKS[info.brick];
     inspector.replaceChildren(...h("div", {},
       h("div", { className: "snap-insp-title", style: `--hue:${def.hue}` }, collapse(def.icon, () => select(null)), def.title,
         h("button", { className: "snap-mode", textContent: "⤢", title: "open bricks in place instead (remembered; also in Settings › MAINodes)", onclick: () => setOpenIn("brick") })),
       details(info), noteComposer()).childNodes); // h() drops the nulls
   }
 
+  // the Setup card's face: family and setup (a click opens the setups), the diffusion model, the turbo
+  function setupFace(info) {
+    const now = M.setups().find((x) => x.current), fam = M.family();
+    const pick = h("button", { className: `snap-preset${now?.edited ? " edited" : ""}`, title: "click to pick a setup", onclick: (e) => { e.stopPropagation(); openSetups(); } },
+      [fam, now?.name ?? "custom settings"].filter(Boolean).join(" · "), now?.edited ? " · edited" : "", " ▾");
+    pick.addEventListener("pointerdown", (e) => e.stopPropagation());
+    const model = info.members.flatMap((k) => BRICKS[k].face.filter((f) => f[2] === "model").map((f) => [k, f])).find(([k, f]) => E.nodeFor(k, f[0])?.widgets?.some((w) => w.name === f[1]));
+    const t = M.turbo() ?? M.loras().find((r) => r.on && r.entry?.turbo), name = t && String(t.file).split("/").pop().replace(/\.safetensors$/, "");
+    const turbo = turboChip(info.brick) ?? h("div", { className: "snap-fact long" }, h("span", { textContent: "turbo" }), h("b", { textContent: name ?? "none" }));
+    // SNAP-R3: any other face value of its bricks that doesn't resolve (an encoder or VAE not installed) shows here too
+    const broken = info.members.flatMap((k) => BRICKS[k].face.filter((f) => f !== model?.[1]).map((f) => fact(k, f))).filter((el) => el?.classList.contains("missing"));
+    return [pick, model ? fact(model[0], model[1]) : null, ...broken, turbo].filter(Boolean);
+  }
+  // the Setup card opened: its bricks' settings in two sections, Models (files and how they load, core LoRA rows) and
+  // Sampling (everything else they hold, and the sampling settings the setup's turbo changes wherever they live), read
+  // generically like any brick (SNAP-R1)
+  const loads = (w) => M.isModel(w) || /\.(safetensors|gguf|sft|ckpt|pth?|bin)$/.test(String(w.value)) || ["type", "weight_dtype", "device", "lora_strength"].includes(w.name); // a file the model lists don't know yet still loads
+  function setupDetails(info) {
+    const stacks = info.members.filter((k) => BRICKS[k].stack), rest = info.members.filter((k) => !BRICKS[k].stack); // LoRA rows show as the stack's own rows
+    const ws = rest.flatMap((k) => M.nodesOf(k).flatMap(([nk, n]) => (n.widgets ?? []).filter((w) => w.name && !w.name.startsWith("$$") && w.type !== "button").map((w) => [k, nk, w])));
+    const elsewhere = Object.values(M.sampling()).filter((x) => !info.members.includes(x.brick));
+    const section = (title, list) => (list.length ? [h("div", { className: "snap-insp-type", textContent: title }), h("div", { className: "snap-insp-node" }, list)] : []);
+    return h("div", { className: "snap-details" },
+      h("div", { className: "snap-quiet", textContent: SETUP.blurb }), ...h("div", {}, setupFace(info).filter((el) => !el.classList.contains("snap-model"))).childNodes, // the model file is a Models control below
+      ...section("Models", [...ws.filter(([, , w]) => loads(w)).map(([k, nk, w]) => control(k, [nk, w.name])), ...stacks.map(stackFace)]),
+      ...section("Sampling", [...ws.filter(([, , w]) => !loads(w)).map(([k, nk, w]) => control(k, [nk, w.name])),
+        ...elsewhere.map((x) => control(x.brick, [x.node, x.name, `${x.name.replaceAll("_", " ")} (on ${look(x.brick).title})`]))]),
+      info.bindings.length ? h("div", { className: "snap-insp-type", textContent: "Wired from" }) : null,
+      info.bindings.length ? h("div", { className: "snap-binds" }, info.bindings.filter((b) => b.rule !== "ask").map((b) => h("span", { className: `snap-bind ${b.rule.split(":")[0]}`, textContent: `${b.role} ← ${look(b.from)?.title ?? b.from}` }))) : null,
+      h("button", { className: "snap-link", textContent: "Show in graph", onclick: () => onSwitch(info.brick) }));
+  }
+
   // everything a brick's nodes offer, read generically (see control): the same in the side panel and in an open brick
   function details(info) {
+    if (info.members) return setupDetails(info);
     const def = BRICKS[info.brick];
     const nodes = M.nodesOf(info.brick);
     const faced = new Set(def.face.map(([k, name]) => `${k}.${name}`));
@@ -944,8 +1000,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
           control(info.brick, [k, w.name])]))),
       info.bindings.length ? h("div", { className: "snap-insp-type", textContent: "Wired from" }) : null,
       info.bindings.length ? h("div", { className: "snap-binds" }, info.bindings.filter((b) => b.rule !== "ask").map((b) => {
-        const chip = h("button", { className: `snap-bind ${b.rule.split(":")[0]}`, textContent: b.value != null ? `${b.role} = ${b.value}` : `${b.role} ← ${BRICKS[b.from]?.title ?? b.from}`, title: `rule: ${b.rule}`, onclick: () => onSwitch(info.brick) });
-        chip.style.setProperty("--from", BRICKS[b.from]?.hue ?? 215);
+        const chip = h("button", { className: `snap-bind ${b.rule.split(":")[0]}`, textContent: b.value != null ? `${b.role} = ${b.value}` : `${b.role} ← ${look(b.from)?.title ?? b.from}`, title: `rule: ${b.rule}`, onclick: () => onSwitch(info.brick) });
+        chip.style.setProperty("--from", look(b.from)?.hue ?? 215);
         return chip;
       })) : null,
       h("button", { className: "snap-link", textContent: "Show in graph", onclick: () => onSwitch(info.brick) }));
@@ -968,6 +1024,11 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   // what a brick shows: its bindings, overrides and face values (a graph edit or undo changes one of these)
   function signature(info) {
+    if (info.members) { // the Setup card shows every value its bricks hold, the setup, family and turbo
+      const vals = info.members.map((k) => M.nodesOf(k).map(([, n]) => n.widgets?.map((w) => (typeof w.value === "object" ? null : w.value))));
+      return JSON.stringify([info.nodes, info.bindings, vals, M.setups().find((x) => x.current), M.family(), M.turbo()?.file, M.turbos().length, Object.values(M.sampling()).map((x) => x.value),
+        info.members.map((k) => M.warnings().filter((w) => w.brick === k).map((w) => w.text)), M.known(), info.members.flatMap(openNotes).map((n) => [n.id, n.status, n.reply]), opened === info.brick, overridden.filter((o) => info.members.includes(o.to)).map((o) => o.change)]);
+    }
     const def = BRICKS[info.brick], values = [...def.face.map(([k, name]) => E.getValue(info.brick, k, name)), E.seedMode(info.brick)];
     if (def.slot) values.push(S.on(info.brick), S.headline(info.brick), S.quality(info.brick), S.list(def.slot).map((m) => m.install_state));
     if (def.off) values.push(S.on(info.brick));
@@ -996,7 +1057,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   // where the First frame's picture came from (T.use), while the brick still shows that picture
   const takenFrom = () => { const f = E.state().bricks.find((b) => b.key === "first_frame")?.from; return f && E.getValue("first_frame", "image", "image") === f.file ? f : null; };
-  const brickNode = (key) => (key == null ? undefined : [...stack.children].find((el) => el.dataset?.brick === key)); // keys can come from agents: no selector strings; the lanes SVG has no brick
+  const brickNode = (key) => (key == null ? undefined : [...stack.children].find((el) => el.dataset?.brick === shown(key))); // keys can come from agents: no selector strings; the lanes SVG has no brick
 
   // agent proposals: ghost bricks for proposed snaps, dashed chips on the brick for everything else
   async function decide(id, accept) {
@@ -1068,12 +1129,12 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   // a brick that takes the previous brick's output is coupled to it: the two read as one piece
   function couple() {
-    const els = [...stack.querySelectorAll(":scope > [data-brick]:not(.snap-folded)")], infos = new Map(E.describe().map((i) => [i.brick, i]));
+    const els = [...stack.querySelectorAll(":scope > [data-brick]:not(.snap-folded)")], infos = new Map(cards(E.describe()).map((i) => [i.brick, i]));
     els.forEach((el, i) => {
       const next = els[i + 1], key = el.dataset.brick, info = next && infos.get(next.dataset.brick);
-      const feeds = !!info && info.bindings.some((b) => b.from === key && b.rule !== "ask");
+      const feeds = !!info && info.bindings.some((b) => shown(b.from) === key && b.rule !== "ask");
       el.classList.toggle("feeds", feeds);
-      if (feeds) el.style.setProperty("--next", BRICKS[info.brick].hue);
+      if (feeds) el.style.setProperty("--next", look(info.brick).hue);
     });
   }
 
@@ -1087,23 +1148,23 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     if (!across || els.length < 2) { lanes.remove(); stack.style.removeProperty("--lanes-h"); return; }
     const at = new Map(els.map((el, i) => [el.dataset.brick, { i, x: el.offsetLeft + el.offsetWidth / 2, bottom: el.offsetTop + el.offsetHeight }]));
     const feeds = new Map();
-    for (const info of E.describe()) for (const b of info.bindings) {
-      const p = at.get(b.from), c = at.get(info.brick);
+    for (const info of cards(E.describe())) for (const b of info.bindings) {
+      const from = shown(b.from), p = at.get(from), c = at.get(info.brick);
       if (b.value != null || b.rule === "ask" || !p || !c || c.i === p.i + 1) continue; // neighbours are coupled, not bussed
-      if (!feeds.has(b.from)) feeds.set(b.from, new Set());
-      feeds.get(b.from).add(info.brick);
+      if (!feeds.has(from)) feeds.set(from, new Set());
+      feeds.get(from).add(info.brick);
     }
     const rows = [...feeds.keys()].sort((a, b) => at.get(a).i - at.get(b).i);
     const y0 = Math.max(...[...at.values()].map((v) => v.bottom)) + 26;
     rows.forEach((from, k) => {
-      const p = at.get(from), y = y0 + k * LANE, color = `hsl(${BRICKS[from]?.hue ?? 215} 65% 62%)`;
+      const p = at.get(from), y = y0 + k * LANE, color = `hsl(${look(from)?.hue ?? 215} 65% 62%)`;
       const xs = [...feeds.get(from)].map((to) => at.get(to));
       const lo = Math.min(p.x, ...xs.map((c) => c.x)), hi = Math.max(p.x, ...xs.map((c) => c.x)), off = (k - rows.length / 2) * 6; // drops side by side
       lanes.append(svg("path", { d: `M${p.x + off} ${p.bottom} V${y} M${lo + off} ${y} H${hi + off}`, stroke: color, "stroke-width": 2, fill: "none", "stroke-linecap": "round", opacity: 0.85 }),
         svg("circle", { cx: p.x + off, cy: p.bottom + 1, r: 4, fill: color }));
       for (const c of xs) lanes.append(svg("path", { d: `M${c.x + off} ${y} V${c.bottom + 6}`, stroke: color, "stroke-width": 2, fill: "none", "stroke-linecap": "round", opacity: 0.85 }),
         svg("path", { d: `M${c.x + off - 4} ${c.bottom + 9} l4 -5 l4 5`, stroke: color, "stroke-width": 2, fill: "none", "stroke-linecap": "round", "stroke-linejoin": "round" }));
-      const label = svg("text", { x: p.x + off + 8, y: y - 4, fill: color }); label.textContent = BRICKS[from]?.title ?? from;
+      const label = svg("text", { x: p.x + off + 8, y: y - 4, fill: color }); label.textContent = look(from)?.title ?? from;
       lanes.append(label);
     });
     stack.style.setProperty("--lanes-h", `${rows.length * LANE + 26}px`);
@@ -1115,7 +1176,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // FLIP: bricks that moved spring from their old place; new ones rise in
   function render(before, entered) {
     dailies.refresh();
-    const old = E.legacy(), infos = E.describe().filter((i) => !old || Object.keys(i.nodes).length); // the older Render's Upscale switch had no nodes
+    const old = E.legacy(), infos = cards(E.describe().filter((i) => !old || Object.keys(i.nodes).length)); // the older Render's Upscale switch had no nodes
     overridden = infos.length ? E.overrides() : [];
     for (const key of built.keys()) if (!infos.some((i) => i.brick === key)) built.delete(key);
     notesStrip.replaceChildren(...[legacyNote(old), ...openNotes(null).map(noteEl)].filter(Boolean));
