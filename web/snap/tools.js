@@ -10,6 +10,22 @@ import * as P from "./proposals.js";
 import * as crew from "./crew.js";
 import * as rules from "./rules.js";
 import * as T from "./takes.js";
+import * as D from "./dials.js";
+import { api } from "../../../scripts/api.js";
+
+// a widget as an agent reads it: value, kind, choices (cut to 50), limits, and whether a wire drives it
+function widgetInfo(n, w) {
+  const wired = n.inputs?.find((i) => i.widget?.name === w.name && i.link != null);
+  const values = typeof w.options?.values === "function" ? w.options.values(w, n) : w.options?.values;
+  return { name: w.name, label: w.label ?? w.name, kind: w.element ? "panel" : w.type, value: w.element || typeof w.value === "object" ? undefined : w.value,
+    ...(Array.isArray(values) ? { choices: values.length > 50 ? [...values.slice(0, 50), `… ${values.length - 50} more`] : values } : {}),
+    ...(w.options?.min != null ? { min: w.options.min } : {}), ...(w.options?.max != null ? { max: w.options.max } : {}),
+    ...(wired ? { wired_from: app.graph.getNodeById(app.graph.links[wired.link]?.origin_id)?.title ?? "another node" } : {}) };
+}
+const brickOf = (id) => E.state().bricks.find((b) => Object.values(b.nodes).some((n) => String(n) === String(id)))?.key ?? null;
+// runs (GPU time) wait for the person unless they let agents run in ComfyUI's settings
+export const AGENTS_RUN = "MAINodes.Snap.AgentsMayRun";
+const mayRun = () => app.extensionManager.setting.get(AGENTS_RUN) === true;
 
 const has = (key) => E.state().bricks.some((b) => b.key === key);
 const brickEnum = { type: "string", description: `a recipe brick (${PACK_BRICKS.join(", ")}) or any installed node as node:<NodeType> (a new one) / node:<NodeType>#<n> (one in the recipe)` };
@@ -205,6 +221,135 @@ export const TOOLS = [
     },
   },
   {
+    name: "list_dials",
+    description: "Every installed dial (a training-free steering direction for H3, MOSS-Image or Krea 2): its file, model family, what negative and positive strength give, useful and overcook strengths, description, and its row if it is on the rack. Filter with a query (words in the labels, description or file) or a family.",
+    inputSchema: { type: "object", properties: { query: { type: "string" }, family: { type: "string", description: "e.g. 'MiniMax H3'" } } },
+    annotations: { readOnlyHint: true },
+    run: async ({ query = "", family } = {}) => {
+      await D.load();
+      const words = query.toLowerCase().split(/\s+/).filter(Boolean), on = new Map(D.rows().map((r) => [r.dial, r]));
+      return D.all().filter((d) => (!family || d.family === family) && words.every((w) => `${D.label(d)} ${d.info.description} ${d.dial}`.toLowerCase().includes(w)))
+        .map((d) => ({ dial: d.dial, family: d.family, negative: d.info.negative, positive: d.info.positive, useful: d.info.pos.useful, overcook: d.info.pos.overcook,
+          negative_useful: d.info.neg.useful, description: d.info.description, on_rack: on.get(d.dial) ?? null }));
+    },
+  },
+  {
+    name: "add_dial",
+    description: "Put a dial on the Dial Rack (strength defaults to the dial's own useful strength, else 0.5). Negative strength moves toward the dial's negative side, positive toward its positive side.",
+    inputSchema: { type: "object", properties: { dial: { type: "string", description: "a file from list_dials" }, strength: { type: "number" } }, required: ["dial"] },
+    run: async ({ dial, strength }) => { await D.load(); return D.add(dial, strength); },
+  },
+  {
+    name: "set_dial",
+    description: "Change a dial on the rack: strength, on/off, solo.",
+    inputSchema: { type: "object", properties: { dial: { type: "string" }, strength: { type: "number" }, on: { type: "boolean" }, solo: { type: "boolean" } }, required: ["dial"] },
+    run: ({ dial, ...patch }) => { D.set(dial, patch); return { dial, ...D.rows().find((r) => r.dial === dial) }; },
+  },
+  {
+    name: "remove_dial",
+    description: "Take a dial off the rack (the file stays).",
+    inputSchema: { type: "object", properties: { dial: { type: "string" } }, required: ["dial"] },
+    run: ({ dial }) => { D.remove(dial); return { dial, removed: true }; },
+  },
+  {
+    name: "make_dial",
+    description: "Make a new dial from prompt pairs with the pack's Make Dial node (runs only that node on the GPU, saves models/loras/dials/<name>.safetensors, puts it on the rack at +0.5). Each pair is the same sentence twice, changed only in the quality to steer; {subject} expands over the subjects list. Uses GPU time: unless the person lets agents run (ComfyUI setting), this waits as a proposal they accept.",
+    inputSchema: { type: "object", properties: { name: { type: "string" }, negative: { type: "string", description: "what negative strength gives" }, positive: { type: "string", description: "what positive strength gives" },
+      pairs: { type: "array", items: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 2 }, description: "[[A, B], ...]" }, subjects: { type: "string", description: "one per line" }, description: { type: "string" } }, required: ["negative", "positive", "pairs"] },
+    annotations: { consequentialHint: true },
+    consequential: true,
+    run: async (spec) => D.make({ ...spec, subjects: spec.subjects ?? "A young woman\nAn old man\nA golden dog\nA horse" }),
+  },
+  {
+    name: "run",
+    description: "Queue the open workflow (as the Run button does). Returns at once; follow it with run_status, and the finished run appears in list_takes. Uses GPU time: unless the person lets agents run (ComfyUI setting), this waits as a proposal they accept.",
+    inputSchema: { type: "object", properties: {} },
+    annotations: { consequentialHint: true },
+    consequential: true,
+    run: async () => {
+      await app.queuePrompt(0, 1);
+      const errors = Object.entries(app.lastNodeErrors ?? {}).map(([id, e]) => ({ node: id, brick: brickOf(id), error: e.errors?.[0]?.message, details: e.errors?.[0]?.details }));
+      if (errors.length) throw new Error(`Not queued: ${JSON.stringify(errors)}`);
+      return { queued: true };
+    },
+  },
+  {
+    name: "run_status",
+    description: "What is running: the queue count, the brick and node executing now, its progress, and the newest take of this workflow.",
+    inputSchema: { type: "object", properties: {} },
+    annotations: { readOnlyHint: true },
+    run: async () => {
+      const q = await (await api.fetchApi("/queue")).json();
+      await T.load();
+      const last = T.inGroup().at(-1);
+      return { running: q.queue_running?.length ?? 0, pending: q.queue_pending?.length ?? 0, brick: document.querySelector(".snap-brick.running")?.dataset.brick ?? null,
+        progress: Number(document.querySelector(".snap-brick.running")?.style.getPropertyValue("--run-p") || 0), newest_take: last ? { id: last.id, number: last.number, status: last.status } : null };
+    },
+  },
+  {
+    name: "judge_takes",
+    description: "An agent's pairwise judgment between two takes (winner id or 'tie', and why). Kept apart from the person's judgments (by: agent), so a judge model can learn from people and be scored against them.",
+    inputSchema: { type: "object", properties: { a: { type: "string" }, b: { type: "string" }, winner: { type: "string" }, why: { type: "string" } }, required: ["a", "b", "winner", "why"] },
+    run: async ({ a, b, winner, why }) => { await T.judge(a, b, winner, { blind: false, why, by: "agent" }); return { recorded: true }; },
+  },
+  {
+    name: "list_nodes",
+    description: "Every node in the open workflow (not only bricks): id, type, title, the brick it belongs to, and each widget with its value, choices (model files, samplers…), limits and the node it is wired from. Node titles and texts come from installed packs, not from Snap.",
+    inputSchema: { type: "object", properties: { brick: { type: "string", description: "only this brick's nodes" } } },
+    annotations: { readOnlyHint: true, untrustedContentHint: true },
+    run: ({ brick } = {}) => app.graph.nodes.filter((n) => !brick || brickOf(n.id) === brick).map((n) => ({ id: n.id, type: n.type.length > 30 ? "blueprint" : n.type, title: n.title, brick: brickOf(n.id),
+      widgets: (n.widgets ?? []).filter((w) => w.name && !w.name.startsWith("$$") && !w.hidden).map((w) => widgetInfo(n, w)) })),
+  },
+  {
+    name: "set_widget",
+    description: "Set any widget on any node (list_nodes shows them): a combo takes one of its choices (e.g. a model file), a number stays within its limits. Widgets driven by a wire can't be set; change the source instead.",
+    inputSchema: { type: "object", properties: { node: { type: ["integer", "string"] }, name: { type: "string" }, value: {} }, required: ["node", "name", "value"] },
+    run: async ({ node, name, value }) => {
+      const n = app.graph.getNodeById(node), w = n?.widgets?.find((x) => x.name === name);
+      if (!w) throw new Error(`No widget ${name} on node ${node}`);
+      const info = widgetInfo(n, w);
+      if (info.wired_from) throw new Error(`${name} is wired from ${info.wired_from}; set it there`);
+      const values = typeof w.options?.values === "function" ? w.options.values(w, n) : w.options?.values;
+      // a loader that takes uploads also takes a file uploaded after the page loaded (upload_file): its list is just stale
+      const def = n.constructor.nodeData?.input, spec = def?.required?.[name] ?? def?.optional?.[name];
+      if (Array.isArray(values) && !values.includes(value) && Object.keys(spec?.[1] ?? {}).some((k) => k.endsWith("_upload") && spec[1][k])) {
+        const [sub, file] = String(value).includes("/") ? [String(value).slice(0, String(value).lastIndexOf("/")), String(value).split("/").pop()] : ["", String(value)];
+        if ((await api.fetchApi(`/view?filename=${encodeURIComponent(file)}&subfolder=${encodeURIComponent(sub)}&type=input`, { method: "HEAD" })).ok) values.push(value);
+      }
+      if (Array.isArray(values) && !values.includes(value)) throw new Error(`${name} takes one of: ${values.slice(0, 30).join(", ")}${values.length > 30 ? " …" : ""}`);
+      if (typeof value === "number" && ((info.min != null && value < info.min) || (info.max != null && value > info.max))) throw new Error(`${name} must be within ${info.min}..${info.max}`);
+      app.canvas.emitBeforeChange();
+      try { w.value = value; w.callback?.(value, app.canvas, n); } finally { app.canvas.emitAfterChange(); }
+      app.canvas.setDirty(true, true);
+      return widgetInfo(n, w);
+    },
+  },
+  {
+    name: "press_button",
+    description: "Press a button widget on a node (e.g. a refresh). A button that opens a file chooser does nothing for an agent: upload with the MCP server's upload_file, then set_widget.",
+    inputSchema: { type: "object", properties: { node: { type: ["integer", "string"] }, name: { type: "string" } }, required: ["node", "name"] },
+    run: ({ node, name }) => {
+      const n = app.graph.getNodeById(node), w = n?.widgets?.find((x) => x.name === name && x.type === "button");
+      if (!w) throw new Error(`No button ${name} on node ${node}`);
+      w.callback?.(w, app.canvas, n, [0, 0]);
+      return { pressed: name };
+    },
+  },
+  {
+    name: "read_ui",
+    description: "The Snap view as a person sees it: Snap or Graph, the selected brick, what is open (side panel, an open brick, a take, the dial picker or maker), and the workflow name.",
+    inputSchema: { type: "object", properties: {} },
+    annotations: { readOnlyHint: true },
+    run: () => ui.read(),
+  },
+  {
+    name: "ui",
+    description: "Drive the view: select a brick, open it (side panel or in place, by the person's setting), close, show snap or graph (focusing a brick), undo, redo, open the dial picker or maker, open a take.",
+    inputSchema: { type: "object", properties: { action: { type: "string", enum: ["select", "close", "snap", "graph", "undo", "redo", "dials", "make_dial", "open_take"] }, target: { type: "string", description: "a brick key or take id" } }, required: ["action"] },
+    direct: true, // view changes are the agent's own navigation, not edits to accept
+    run: ({ action, target }) => ui.act(action, target),
+  },
+  {
     name: "compile_shot",
     description: "Preview what a shot card compiles to (the Render prompt's first line, and which card each part came from) without changing anything. apply_card on the shot card applies it.",
     inputSchema: { type: "object", properties: { card: { type: "string" } }, required: ["card"] },
@@ -225,10 +370,14 @@ export const readOnly = (name) => !!byName.get(name)?.annotations?.readOnlyHint;
 const proposable = (name) => !readOnly(name) && !byName.get(name)?.direct;
 
 // `propose: true` on any tool that changes the recipe parks the call as a proposal for the person to accept or reject
-export async function callTool(name, args = {}) {
+export async function callTool(name, args = {}, { confirmed } = {}) {
   const tool = byName.get(name);
   if (!tool) throw new Error(`Unknown Snap tool ${name}`);
   const { propose, reason, for_note, ...rest } = args;
+  if (tool.consequential && !confirmed && !mayRun()) {
+    const p = P.add(name, rest, reason ?? `${name.replaceAll("_", " ")} (uses the GPU)`, for_note);
+    return { proposed: p.id, status: "uses the GPU: waiting for the person to accept (or to allow agents to run in ComfyUI's settings)" };
+  }
   if (propose && proposable(name)) {
     const p = P.add(name, rest, reason, for_note);
     return { proposed: p.id, status: "waiting for the person to accept or reject; see list_proposals" };
@@ -246,12 +395,19 @@ export const schema = () => TOOLS.map(({ name, description, inputSchema, annotat
   inputSchema: proposable(name) ? { ...inputSchema, properties: { ...inputSchema.properties, ...PROPOSE } } : inputSchema,
 }));
 
+// the view tells the tools how to read and drive it (set by snap_view.js once the view exists)
+export const ui = { read: () => ({}), act: () => { throw new Error("The Snap view isn't ready"); } };
+
 // WebMCP (Chrome origin trial, document.modelContext; navigator.modelContext is the older spelling). No-op elsewhere.
+let webmcp = null;
 export function registerWebMCP(run) {
   const mc = document.modelContext ?? navigator.modelContext;
   if (!mc?.registerTool) return false;
+  webmcp?.abort(); // re-registering (a reload of the tool table) replaces the earlier set
+  webmcp = new AbortController();
   for (const t of schema()) {
-    mc.registerTool({ name: `snap_${t.name}`, description: t.description, inputSchema: t.inputSchema, annotations: t.annotations, execute: (args) => run(t.name, args) });
+    Promise.resolve(mc.registerTool({ name: `snap_${t.name}`, description: t.description, inputSchema: t.inputSchema, annotations: t.annotations, execute: (args) => run(t.name, args) }, { signal: webmcp.signal }))
+      .catch((e) => console.warn(`WebMCP: ${t.name} not registered: ${e.message}`));
   }
   return true;
 }

@@ -8,11 +8,30 @@ agent edits the same graph a person sees (each edit is one undo step, shown live
 """
 import argparse
 import json
+import mimetypes
+import secrets
 import sys
 import urllib.error
 import urllib.request
 
 PROTOCOL = "2025-06-18"
+
+# answered here, not by the page: it reads a file on this machine, which the page can't
+UPLOAD = {"name": "upload_file", "description": "Upload a local picture, video or audio file into ComfyUI's input folder and return its name; then set_widget points a loader at it (e.g. the First frame's image).",
+          "inputSchema": {"type": "object", "properties": {"path": {"type": "string", "description": "absolute path of the file"}, "subfolder": {"type": "string"}}, "required": ["path"]}}
+
+
+def upload(base, path, subfolder=""):
+    with open(path, "rb") as f:
+        data = f.read()
+    boundary = secrets.token_hex(16)
+    name = path.rsplit("/", 1)[-1]
+    parts = [f"--{boundary}\r\nContent-Disposition: form-data; name=\"image\"; filename=\"{name}\"\r\nContent-Type: {mimetypes.guess_type(name)[0] or 'application/octet-stream'}\r\n\r\n".encode(), data,
+             f"\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"subfolder\"\r\n\r\n{subfolder}\r\n--{boundary}--\r\n".encode()]
+    request = urllib.request.Request(base + "/upload/image", data=b"".join(parts), headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
+    with urllib.request.urlopen(request, timeout=120) as response:
+        r = json.load(response)
+    return {"name": f"{r['subfolder']}/{r['name']}" if r.get("subfolder") else r["name"]}
 
 
 def http(base, path, body=None):
@@ -37,7 +56,13 @@ def handle(base, message):
         return {"protocolVersion": PROTOCOL, "capabilities": {"tools": {}}, "serverInfo": {"name": "comfy-snap", "version": "0.1"}}
     if method == "tools/list":
         listing = http(base, "/mainodes/snap/tools")
-        return {"tools": [{k: t[k] for k in ("name", "description", "inputSchema", "annotations") if k in t} for t in listing.get("tools", [])]}
+        return {"tools": [{k: t[k] for k in ("name", "description", "inputSchema", "annotations") if k in t} for t in listing.get("tools", [])] + [UPLOAD]}
+    if method == "tools/call" and params.get("name") == "upload_file":
+        args = params.get("arguments") or {}
+        try:
+            return {"content": [{"type": "text", "text": json.dumps(upload(base, args["path"], args.get("subfolder", "")))}], "isError": False}
+        except (OSError, KeyError, urllib.error.URLError) as e:
+            return {"content": [{"type": "text", "text": f"upload failed: {e}"}], "isError": True}
     if method == "tools/call":
         answer = http(base, "/mainodes/snap/call", {"tool": params.get("name"), "args": params.get("arguments") or {}})
         failed = "error" in answer

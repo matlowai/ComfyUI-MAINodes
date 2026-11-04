@@ -7,7 +7,7 @@ import * as engine from "./snap/engine.js";
 import { createView } from "./snap/view.js";
 import { createSwitch } from "./snap/switch.js";
 import { STYLE } from "./snap/style.js";
-import { callTool, schema, readOnly, registerWebMCP } from "./snap/tools.js";
+import { callTool, schema, readOnly, registerWebMCP, ui, AGENTS_RUN } from "./snap/tools.js";
 import * as rules from "./snap/rules.js";
 
 let view, sw;
@@ -90,13 +90,23 @@ const setOpenIn = (place) => app.extensionManager.setting.set(OPEN_IN, Object.ke
 app.registerExtension({
   name: "MAINodes.Snap",
   settings: [{ id: OPEN_IN, category: ["MAINodes", "Snap", "Open in"], name: "Clicking a Snap brick opens its settings in", type: "combo",
-    options: Object.keys(PLACES), defaultValue: "Side panel", onChange: () => view?.openInChanged() }],
+    options: Object.keys(PLACES), defaultValue: "Side panel", onChange: () => view?.openInChanged() },
+    { id: AGENTS_RUN, category: ["MAINodes", "Snap", "Agents run"], name: "Let agents run renders and make dials without asking", type: "boolean", defaultValue: false,
+      tooltip: "Off: an agent's run or make_dial waits as a proposal you accept. On: it starts right away (it uses GPU time)." }],
   commands: [{ id: "MAINodes.Snap.Toggle", label: "Toggle Snap view", icon: "icon-[lucide--blocks]", function: () => toggle() }],
   keybindings: [{ combo: { key: "s", alt: true }, commandId: "MAINodes.Snap.Toggle" }],
   actionBarButtons: [{ icon: "icon-[lucide--blocks]", label: "Snap", tooltip: "Snap view (Alt+S)", onClick: () => toggle() }],
   setup() {
     document.head.append(Object.assign(document.createElement("style"), { textContent: STYLE }));
-    view = createView({ onSwitch: (key) => toGraph(key), onMakeApp: makeApp, run: callTool, openIn, setOpenIn });
+    view = createView({ onSwitch: (key) => toGraph(key), onMakeApp: makeApp, run: (name, args) => callTool(name, args, { confirmed: true }), openIn, setOpenIn });
+    // agents read and drive the view through the read_ui / ui tools; switching views lives here with the switch
+    ui.read = () => ({ ...view.uiRead(), view: sw.showing ? (sw.docked ? "snap (docked)" : "snap") : "graph" });
+    ui.act = async (action, target) => {
+      if (action === "snap") { if (!sw.showing) await toggle(); return ui.read(); }
+      if (action === "graph") { if (sw.showing && !sw.docked) toGraph(target); return ui.read(); }
+      await view.uiAct(action, target);
+      return ui.read();
+    };
     document.body.append(view.root);
     sw = createSwitch(view);
     rules.load().then((list) => engine.useRules(list), () => {}); // remembered picks; without them Snap just asks again

@@ -71,7 +71,7 @@ def main():
             if j["winner"] == "tie" or j["a"] not in takes or j["b"] not in takes:
                 continue
             loser = j["b"] if j["winner"] == j["a"] else j["a"]
-            rows.append(pair(j["winner"], loser, source="ab", blind=j["blind"], why=j["why"], at=j["at"]))
+            rows.append(pair(j["winner"], loser, source="ab", blind=j["blind"], why=j["why"], at=j["at"], by=j.get("by", "person")))
         for r in rows:
             fp.write(json.dumps(r) + "\n")
         counts["pairs"] = len(rows)

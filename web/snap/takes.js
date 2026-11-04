@@ -121,10 +121,10 @@ export async function rank(id, index, group = groupOf()) {
 }
 
 // a preference between two takes (blind or not), with the reason: the pairwise rows a judge model learns from
-export async function judge(a, b, winner, { blind, why }) {
+export async function judge(a, b, winner, { blind, why, by = "person" }) {
   const file = `${JUDGED}/${new Date().toISOString().slice(0, 10)}.json`;
   const rows = await readJson(file, []);
-  rows.push({ at: new Date().toISOString(), a, b, winner, blind: !!blind, why: why ?? "", by: "person" });
+  rows.push({ at: new Date().toISOString(), a, b, winner, blind: !!blind, why: why ?? "", by });
   await store(file, rows);
 }
 
