@@ -107,7 +107,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   const dailies = createDailies({ host: root, say, onRestore: () => render(null), onHover: (t) => previewTake(t), onRunFrom: (t) => runFrom(t).catch((err) => say(err.message, true)) });
   stack.after(dailies.el);
   // the scene navigator above the chain (U59): opening a shot swaps the graph in the scene tab, so the chain shows it
-  const sceneBar = createSceneBar({ host: root, say, openTake: (t) => dailies.view(t), onOpened: () => {
+  const sceneBar = createSceneBar({ host: root, say, run, openTake: (t) => dailies.view(t), onOpened: () => {
     if (selected && !E.state().bricks.some((b) => b.key === selected)) select(null, false); // the panel stays as the person left it
     render(null);
   } });
@@ -683,6 +683,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   function openSetups() {
     root.querySelector(".snap-setup-sheet")?.remove();
     const list = M.setups(), close = () => { sheet.remove(); root.focus({ preventScroll: true }); }, fam = M.family();
+    // in a scene's shot, another family opens in a scratch tab outside the scene (whether it should stay in the scene as a
+    // version of the shot is Dylan's open question, U59); the sheet says so where the choice is made
+    const here = SC.current(), away = here ? "opens a scratch tab, outside this scene" : "opens a new tab";
     const families = [...new Set([fam, ...list.map((s) => s.family ?? "This recipe")].filter(Boolean))];
     const keep = h("input", { type: "checkbox", checked: true });
     const ready = (m) => (m.cant_load ? "✕ can't load in core" : !m.installed ? "✕ missing" : m.size ? M.gb(m.size) : "");
@@ -691,7 +694,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       try { say(await M.useSetup(s, { keep: keep.checked })); select(null, false); close(); } catch (err) { say(err.message, true); }
       render(before);
     } },
-      h("strong", {}, s.name, s.current ? h("em", { textContent: s.edited ? "current · edited" : "current" }) : s.family !== fam && E.state().bricks.length ? h("em", { className: "tab", textContent: "opens a new tab" }) : null),
+      h("strong", {}, s.name, s.current ? h("em", { textContent: s.edited ? "current · edited" : "current" }) : s.family !== fam && E.state().bricks.length ? h("em", { className: "tab", textContent: away }) : null),
       s.about ? h("span", { className: "snap-setup-about", textContent: s.about, title: s.about }) : null,
       h("div", { className: "snap-setup-files" }, s.models.map((m) => h("span", { className: m.installed && !m.cant_load ? "" : "missing", title: m.file },
         h("i", { textContent: settingLabel(m.setting) }), String(m.file).split("/").pop().replace(/\.safetensors$/, "").replaceAll("_", "_\u200b"), h("em", { textContent: ready(m) })))),
@@ -700,6 +703,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("header", {}, h("strong", { textContent: "Setups" }), h("span", { className: "snap-quiet", textContent: "a click applies every setting of a setup together · Ctrl+Z undoes it · another family opens in a new tab" }), h("span", { className: "snap-spacer" }),
         fam && E.state().bricks.length ? h("label", { className: "snap-quiet snap-keep" }, keep, ` keep this ${fam} stack as "Last used" when switching family`) : null,
         h("button", { className: "snap-x", textContent: "×", onclick: close })),
+      here ? h("div", { className: "snap-setup-scene", textContent: `You're in ${here.scene.name} › ${SC.shotTitle(here.scene, here.shot)}. Another family opens in a scratch tab: it won't be part of the scene, and this shot stays as it is.` }) : null,
       h("div", { className: "snap-setup-body" }, list.length ? families.map((f) => h("section", {},
         h("div", { className: "snap-rail-title", textContent: `${f}${D.all().some((d) => d.family === f) ? ` · ${D.all().filter((d) => d.family === f).length} dials` : ""}` }),
         h("div", { className: "snap-setup-grid" }, list.filter((s) => (s.family ?? "This recipe") === f).map(card))))

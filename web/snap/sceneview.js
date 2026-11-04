@@ -1,9 +1,10 @@
 // The scene navigator (U59), above the chain: where the open tab sits in its scene, as a breadcrumb (Scene › Shot ›
 // Take › version, ending on the shot's active take), and the scene's shots in order, each with its active take's
-// picture. A click opens a shot in the scene tab (the open shot is saved first), a drag reorders the shots, + adds one
-// (empty, or from a Library shot card) and opens it. A scratch tab shows one quiet line instead: open a scene, or add
-// this workflow and its takes to one. The Scenes sheet lists the scenes and makes new ones. Every action here is a
-// scenes.js function that an agent tool calls too.
+// picture. A click opens a shot in the scene tab (the open shot is saved first; a card shot with no camera plate offers
+// its plate candidates as a proposal), a drag reorders the shots, + adds one (empty, or from a Library shot card) and
+// opens it, a shot's ⋯ renames it or takes it out of the scene. A scratch tab shows one quiet line instead: open a
+// scene, or add this workflow and its takes to one. The Scenes sheet lists the scenes, makes new ones, renames and
+// deletes them (a deleted scene is parked, never lost). Every action here is the function an agent tool calls too.
 // SNAP-R7 lists hold while a pointer is down · SNAP-R19 one function per action · SNAP-R24 scenes own the work, tabs are
 // scratch · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
@@ -19,8 +20,9 @@ function thumb(t, empty) {
   return m.kind === "video" ? h("video", { src: T.url(m), muted: true, loop: true, playsInline: true, preload: "metadata" }) : h("img", { src: T.url(m), alt: "", loading: "lazy" });
 }
 
-// `onOpened()`: a shot was opened (the view re-renders); `openTake(take)`: show a take in the take viewer
-export function createSceneBar({ host, say, onOpened, openTake }) {
+// `onOpened()`: a shot was opened (the view re-renders); `openTake(take)`: show a take in the take viewer; `run(tool,
+// args)`: the tool table, as the person calls it
+export function createSceneBar({ host, say, onOpened, openTake, run }) {
   const el = h("section", { className: "snap-scene" });
   let sig = "", pressed = false, busy = false;
   el.addEventListener("pointerdown", () => { pressed = true; });
@@ -35,7 +37,13 @@ export function createSceneBar({ host, say, onOpened, openTake }) {
     try { const said = await fn(); if (said) say(said); onOpened(); } catch (err) { say(err.message, true); }
     busy = false; el.classList.remove("busy");
   }
-  const open = (scene, shot) => act(async () => (await SC.openShot(scene, shot)).said);
+  // open_shot, as agents call it: a card shot whose camera has no plate yet comes back with that offer (U55, U62)
+  async function opened(scene, shot) {
+    const r = await run("open_shot", { scene, shot }), p = r.plates;
+    return `${r.said}${p?.proposed ? ` · ${p.camera} has no camera plate yet: making its candidates waits for your yes above the chain (${p.plan.renders} renders, about ${p.plan.eta_s} s)`
+      : p?.rendering ? ` · ${p.camera}'s plate candidates are rendering` : p?.waiting ? ` · ${p.camera}'s plate candidates wait for your pick in the set editor` : ""}`;
+  }
+  const open = (scene, shot) => act(() => opened(scene, shot));
 
   function render() {
     if (pressed) return;
@@ -73,6 +81,8 @@ export function createSceneBar({ host, say, onOpened, openTake }) {
     const t = h("figure", { className: `snap-shot-tile${on ? " on" : ""}`, role: "listitem", tabIndex: 0, draggable: true,
       title: on ? "the open shot" : `open ${SC.shotTitle(scene, shot)} here (this shot is saved first)`, onclick: () => on || open(scene.id, shot.id) },
       h("div", { className: "snap-shot-media" }, thumb(active, card ? "shot card, not rendered yet" : "no takes yet"), h("b", { textContent: String(i + 1) })),
+      h("button", { className: "snap-shot-more", textContent: "⋯", title: "rename, or take it out of the scene", ariaLabel: `${SC.shotTitle(scene, shot)}: more`,
+        onclick: (e) => { e.stopPropagation(); shotMenu(e.currentTarget, scene, shot); } }),
       h("figcaption", {}, h("strong", { textContent: shot.name || `Shot ${i + 1}` }),
         h("span", { className: "snap-quiet", textContent: n ? `${n} take${n === 1 ? "" : "s"}${active ? ` · ★ ${SC.label(active)}` : ""}` : card ? "from its shot card" : "empty" })));
     t.dataset.shot = shot.id;
@@ -100,7 +110,7 @@ export function createSceneBar({ host, say, onOpened, openTake }) {
     await L.ready();
     const close = () => { menu.remove(); removeEventListener("pointerdown", outside, true); };
     const outside = (e) => { if (!menu.contains(e.target)) close(); };
-    const add = (card) => () => { close(); act(async () => { const r = await SC.addShot(scene.id, { card }); return (await SC.openShot(scene.id, r.shot.id)).said; }); };
+    const add = (card) => () => { close(); act(async () => opened(scene.id, (await SC.addShot(scene.id, { card })).shot.id)); };
     const menu = h("div", { className: "snap-scene-menu", role: "menu" },
       h("button", { textContent: "Empty shot", title: "starts from the open shot's recipe", onclick: add(null) }),
       L.search("shot").filter((c) => c.kind === "shot").map((c) => h("button", { textContent: c.title, title: c.text, onclick: add(c.id) })));
@@ -108,6 +118,28 @@ export function createSceneBar({ host, say, onOpened, openTake }) {
     Object.assign(menu.style, { top: `${r.bottom - box.top + 4}px`, right: `${box.right - r.right}px` });
     host.append(menu);
     addEventListener("pointerdown", outside, true);
+  }
+
+  // a shot's ⋯: rename it, or take it out of the scene (its takes and workflow are kept; see scenes.js removeShot)
+  function shotMenu(anchor, scene, shot) {
+    host.querySelector(".snap-scene-menu")?.remove();
+    const close = () => { menu.remove(); removeEventListener("pointerdown", outside, true); };
+    const outside = (e) => { if (!menu.contains(e.target)) close(); };
+    const name = h("input", { className: "snap-lib-q", value: shot.name ?? "", placeholder: SC.shotTitle(scene, shot), ariaLabel: "shot name" });
+    const rename = () => { close(); act(async () => `Renamed: ${(await SC.renameShot(scene.id, shot.id, name.value)).title}`); };
+    name.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); rename(); } if (e.key === "Escape") { e.stopPropagation(); close(); } });
+    const n = SC.takesOf(shot).length;
+    const confirm = h("div", { className: "snap-scene-confirm", hidden: true },
+      h("span", { className: "snap-quiet", textContent: `Its ${n} take${n === 1 ? "" : "s"} and its workflow are kept; the scene's file lists it under removed.` }),
+      h("button", { className: "snap-danger", textContent: `Remove ${SC.shotTitle(scene, shot)}`, onclick: () => { close(); act(async () => (await SC.removeShot(scene.id, shot.id)).said); } }));
+    const menu = h("div", { className: "snap-scene-menu", role: "menu" },
+      h("div", { className: "snap-scene-rename" }, name, h("button", { className: "snap-primary", textContent: "Rename", onclick: rename })),
+      h("button", { textContent: "Remove from the scene…", onclick: (e) => { e.currentTarget.hidden = true; confirm.hidden = false; } }), confirm);
+    const r = anchor.getBoundingClientRect(), box = host.getBoundingClientRect();
+    Object.assign(menu.style, { top: `${r.bottom - box.top + 4}px`, left: `${Math.max(8, r.left - box.left - 200)}px` });
+    host.append(menu);
+    addEventListener("pointerdown", outside, true);
+    name.focus({ preventScroll: true }); name.select();
   }
 
   // the Scenes sheet: every scene with its shots' active takes, Open, and (in a scratch tab) Add this workflow; a new
@@ -124,21 +156,39 @@ export function createSceneBar({ host, say, onOpened, openTake }) {
     const create = () => go(async () => {
       const s = await SC.create({ name: name.value, set: set.value || null });
       if (withThis?.checked) return `${s.name}: ${(await SC.addShot(s.id, { adopt: "open" })).opened}`;
-      return (await SC.openShot(s.id, (await SC.addShot(s.id)).shot.id)).said;
+      return opened(s.id, (await SC.addShot(s.id)).shot.id);
     });
     name.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); create(); } });
     const row = (s) => {
       const info = SC.summary(s), setCard = s.set && L.get(s.set);
-      return h("div", { className: `snap-scene-row${info.open ? " on" : ""}` },
-        h("div", { className: "snap-scene-name" }, h("strong", { textContent: s.name }), h("span", { className: "snap-quiet", textContent: `${info.shots} shot${info.shots === 1 ? "" : "s"} · ${info.takes} take${info.takes === 1 ? "" : "s"}${setCard ? ` · ${setCard.title.replace(/^Set snapshot:\s*/, "")}` : ""}${info.open ? " · open here" : ""}` })),
-        h("div", { className: "snap-scene-thumbs" }, s.shots.map((x, i) => h("div", { className: "snap-shot-media", title: SC.shotTitle(s, x) }, thumb(T.get(x.active), ""), h("b", { textContent: String(i + 1) })))),
+      const title = h("strong", { textContent: s.name }), line = h("span", { className: "snap-quiet", textContent: `${info.shots} shot${info.shots === 1 ? "" : "s"} · ${info.takes} take${info.takes === 1 ? "" : "s"}${setCard ? ` · ${setCard.title.replace(/^Set snapshot:\s*/, "")}` : ""}${info.open ? " · open here" : ""}` });
+      const nameBox = h("div", { className: "snap-scene-name" }, title, line);
+      // Rename turns the name into a field (Enter keeps it, Esc leaves it); Delete asks once, saying what is kept
+      const rename = () => {
+        const field = h("input", { className: "snap-lib-q", value: s.name, ariaLabel: "scene name" });
+        const done = (keep) => { if (!field.isConnected) return; if (!keep || field.value.trim() === s.name) { field.replaceWith(title); return; } SC.renameScene(s.id, field.value).then(() => sheet.isConnected && rows.replaceChildren(...SC.all().map(row)), (err) => say(err.message, true)); };
+        field.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); done(true); } if (e.key === "Escape") { e.stopPropagation(); done(false); } });
+        field.addEventListener("blur", () => done(true));
+        title.replaceWith(field); field.focus(); field.select();
+      };
+      const acts = h("div", { className: "snap-scene-acts" },
+        h("button", { className: "snap-link snap-quiet-btn", textContent: "Rename", onclick: rename }),
+        h("button", { className: "snap-link snap-quiet-btn", textContent: "Delete", onclick: () => acts.replaceChildren(
+          h("span", { className: "snap-quiet", textContent: `Delete ${s.name}? Its document is parked in snap/scenes/_parked/; its takes and shot workflows are kept.` }),
+          h("button", { className: "snap-danger", textContent: "Delete scene", onclick: () => SC.removeScene(s.id).then((r) => { say(r.said); onOpened(); if (sheet.isConnected) rows.replaceChildren(...(SC.all().length ? SC.all().map(row) : [h("div", { className: "snap-quiet", textContent: "No scenes yet." })])); }, (err) => say(err.message, true)) }),
+          h("button", { className: "snap-link snap-quiet-btn", textContent: "Keep", onclick: () => sheet.isConnected && rows.replaceChildren(...SC.all().map(row)) })) }),
         canAdopt ? h("button", { className: "snap-link", textContent: "Add this workflow", title: `this workflow and its ${n} take${n === 1 ? "" : "s"} become a shot of ${s.name} (this tab stays as it is)`, onclick: () => go(async () => (await SC.addShot(s.id, { adopt: "open" })).opened) }) : null,
-        h("button", { className: "snap-primary", textContent: "Open", onclick: () => go(async () => (await SC.openShot(s.id, (here?.scene.id === s.id ? here.shot : s.shots[0])?.id ?? (await SC.addShot(s.id)).shot.id)).said) }));
+        h("button", { className: "snap-primary", textContent: "Open", onclick: () => go(async () => opened(s.id, (here?.scene.id === s.id ? here.shot : s.shots[0])?.id ?? (await SC.addShot(s.id)).shot.id)) }));
+      const el = h("div", { className: `snap-scene-row${info.open ? " on" : ""}` }, nameBox,
+        h("div", { className: "snap-scene-thumbs" }, s.shots.map((x, i) => h("div", { className: "snap-shot-media", title: SC.shotTitle(s, x) }, thumb(T.get(x.active), ""), h("b", { textContent: String(i + 1) })))), acts);
+      el.dataset.scene = s.id;
+      return el;
     };
+    const rows = h("div", { className: "snap-scene-list" }, SC.all().length ? SC.all().map(row) : h("div", { className: "snap-quiet", textContent: "No scenes yet." }));
     const sheet = h("div", { className: "snap-sheet snap-scenes-sheet", role: "dialog", ariaLabel: "Scenes" },
       h("header", {}, h("strong", { textContent: "Scenes" }), h("span", { className: "snap-quiet", textContent: "a scene owns its shots, their takes and versions · tabs are scratch" }), h("span", { className: "snap-spacer" }),
         h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: close })),
-      h("div", { className: "snap-scene-list" }, SC.all().length ? SC.all().map(row) : h("div", { className: "snap-quiet", textContent: "No scenes yet." })),
+      rows,
       h("footer", { className: "snap-scene-new" }, name, set, withThis ? h("label", { className: "snap-check" }, withThis, `with this workflow and its ${n} take${n === 1 ? "" : "s"} as Shot 1`) : null,
         h("button", { className: "snap-primary", textContent: "New scene", onclick: create })));
     sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });

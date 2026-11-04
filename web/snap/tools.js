@@ -743,7 +743,33 @@ export const TOOLS = [
     name: "open_shot",
     description: "Open a shot of a scene, as a click on its tile in the scene navigator: the open shot is saved into its scene first (nothing is lost), then the scene tab shows this shot's workflow. A scratch tab or a saved workflow file's tab is never swapped: the shot opens in a new tab. A shot opened for the first time starts from the open shot's recipe (same scene) or the recommended one, with its shot card compiled in. Nothing is queued.",
     inputSchema: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" } }, required: ["scene", "shot"] },
-    run: async ({ scene, shot }) => SC.openShot(scene, shot),
+    run: async ({ scene, shot }) => { const r = await SC.openShot(scene, shot), plates = await offerPlates(scene, shot); return plates ? { ...r, plates } : r; },
+  },
+  {
+    name: "rename_scene",
+    description: "Give a scene a new name (its id, shots and takes stay as they are; a scene tab's title follows).",
+    inputSchema: { type: "object", properties: { scene: { type: "string" }, name: { type: "string" } }, required: ["scene", "name"] },
+    run: async ({ scene, name }) => SC.renameScene(scene, name),
+  },
+  {
+    name: "rename_shot",
+    description: "Give a shot a name (empty clears it; the shot keeps its number, Shot 2 · <name>).",
+    inputSchema: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" }, name: { type: "string" } }, required: ["scene", "shot", "name"] },
+    run: async ({ scene, shot, name }) => SC.renameShot(scene, shot, name),
+  },
+  {
+    name: "remove_shot",
+    description: "Take a shot out of its scene's order. Nothing is deleted: its takes and its workflow file stay, and the scene's file keeps it under removed with its takes listed; a tab that shows it becomes scratch work. The person's call: unless they let agents run, this waits as a proposal; say why in reason.",
+    inputSchema: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" } }, required: ["scene", "shot"] },
+    decides: true,
+    run: async ({ scene, shot }) => SC.removeShot(scene, shot, "agent"),
+  },
+  {
+    name: "remove_scene",
+    description: "Delete a scene from the list. Nothing it owns is deleted: its document moves to the user folder's snap/scenes/_parked/<id>.json (moving it back restores it), its shots' workflows and its takes stay where they are; tabs that show its shots become scratch work. The person's call: unless they let agents run, this waits as a proposal; say why in reason.",
+    inputSchema: { type: "object", properties: { scene: { type: "string" } }, required: ["scene"] },
+    decides: true,
+    run: async ({ scene }) => SC.removeScene(scene, "agent"),
   },
   {
     name: "set_active_take",
@@ -766,6 +792,18 @@ export const TOOLS = [
     run: () => P.all(),
   },
 ];
+
+// a card shot opened with no plate for its camera offers that camera's plate candidates (U55): GPU time nobody asked for
+// by opening a shot, so always a proposal (one per set and camera), never a render; null when the shot needs none
+async function offerPlates(sceneId, shotId) {
+  const scene = SC.get(sceneId), shot = scene?.shots.find((x) => x.id === shotId), card = shot?.card && L.get(shot.card);
+  if (card?.kind !== "shot") return null;
+  const need = await PL.forShot(card);
+  if (!need || need.rendering || need.waiting) return need;
+  const args = { set: need.set, cameras: [need.camera] }, same = P.pending().find((p) => p.tool === "make_set_plates" && p.args.set === need.set && p.args.cameras?.join() === need.camera);
+  const p = same ?? P.add("make_set_plates", args, `${SC.shotTitle(scene, shot)}: ${need.camera} has no camera plate yet; make candidates to pick from`, null, await byName.get("make_set_plates").plan(args));
+  return { ...need, proposed: p.id, plan: p.plan };
+}
 
 // the revision an agent read (describe_recipe) and the recipe it stood for, so a refused change can say what moved
 const seen = new Map();

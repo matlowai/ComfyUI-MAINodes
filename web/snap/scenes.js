@@ -8,6 +8,8 @@
 // tab, or a tab of a saved workflow file, is never swapped (its next save would write another shot into that file): the
 // shot opens in a new tab. Adopting a workflow's takes copies its graph with its id, so its take group keeps working
 // and gathers in the shot, and leaves a saved workflow file as it was.
+// Renaming and removing delete nothing: a removed shot stays in its scene's file under `removed`, with its takes listed
+// and its workflow file kept, and a deleted scene's document is parked in snap/scenes/_parked/ (U62).
 // Plain data with stable ids, so a sequence editor can sit on it later: shots in order now, lanes and in/out on shots
 // and takes later (scout/editor_layer §5.6-5.7).
 // SNAP-R5 open work is never lost · SNAP-R17 by · SNAP-R18 local only · SNAP-R19 the tools call these · SNAP-R24 scenes
@@ -27,6 +29,7 @@ const changed = () => { for (const fn of listeners) fn(); };
 const stamp = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const fileOf = (id) => `${DIR}/${id}.json`;
 const workflowFile = (scene, shot) => `${DIR}/${scene}/${shot}.json`;
+const parkedFile = (id) => `${DIR}/_parked/${id}.json`;
 
 async function read(path) {
   const r = await api.getUserData(path);
@@ -63,7 +66,8 @@ export const shotTitle = (scene, shot) => `Shot ${scene.shots.indexOf(shot) + 1}
 const writes = new Map();
 function update(id, fn) {
   const next = (writes.get(id) ?? Promise.resolve()).catch(() => {}).then(async () => {
-    const s = (await read(fileOf(id))) ?? structuredClone(need(id));
+    const s = await read(fileOf(id));
+    if (!s) { scenes = scenes.filter((x) => x.id !== id); changed(); throw new Error(`The scene ${id} isn't there any more (deleted in another tab? It is parked in ${parkedFile(id)})`); }
     const out = fn(s);
     s.updated = Date.now();
     await api.storeUserData(fileOf(id), s);
@@ -238,6 +242,51 @@ export async function addShot(sceneId, { name, card = null, adopt = null, at, by
   await update(scene.id, (s) => s.shots.splice(at == null ? s.shots.length : Math.max(0, Math.min(at, s.shots.length)), 0, shot));
   const opened = adopt === "open" ? await openShot(scene.id, shot.id) : null;
   return { scene: scene.id, shot: describeShot(get(scene.id), get(scene.id).shots.find((x) => x.id === shot.id)), ...(opened ? { opened: opened.said } : {}) };
+}
+
+// ---- rename and remove: nothing a scene owns is deleted -------------------------------------------------------------
+// the open tab's title follows ("<scene> · Shot n · name")
+async function retitleOpen() { const here = current(); if (here) await retitle(here.scene, here.shot); }
+export async function renameScene(id, name) {
+  await load();
+  need(id);
+  if (!name?.trim()) throw new Error("A scene needs a name");
+  await update(id, (s) => { s.name = name.trim(); });
+  await retitleOpen();
+  return { scene: id, name: get(id).name };
+}
+export async function renameShot(sceneId, shotId, name) {
+  await load();
+  shotOf(need(sceneId), shotId);
+  await update(sceneId, (s) => { s.shots.find((x) => x.id === shotId).name = name?.trim() ?? ""; });
+  await retitleOpen();
+  const scene = get(sceneId);
+  return { scene: sceneId, shot: shotId, title: shotTitle(scene, scene.shots.find((x) => x.id === shotId)) };
+}
+// a shot leaves the scene's order; it stays in the scene file under `removed` with its takes listed, its workflow file
+// and its takes stay where they are. A tab that shows it becomes scratch work
+export async function removeShot(sceneId, shotId, by = "person") {
+  await Promise.all([load(), T.load()]);
+  const scene = need(sceneId), shot = shotOf(scene, shotId), title = shotTitle(scene, shot), n = takesOf(shot).length, open = current()?.shot.id === shotId;
+  await update(sceneId, (s) => {
+    const [x] = s.shots.splice(s.shots.findIndex((y) => y.id === shotId), 1);
+    s.removed = [...(s.removed ?? []), { ...x, takes: takesOf(x), removed: { by, at: new Date().toISOString() } }];
+  });
+  await retitleOpen();
+  return { scene: sceneId, removed: shotId, said: `${title} left ${scene.name}: its ${n} take${n === 1 ? "" : "s"}${shot.workflow ? " and its workflow" : ""} are kept, listed under "removed" in the scene's file${open ? " · this tab is scratch work now" : ""}` };
+}
+// deleting a scene parks its document (snap/scenes/_parked/<id>.json, marked who parked it and when): its shots'
+// workflows (snap/scenes/<id>/) and its takes stay where they are; moving the file back restores it. Tabs that show
+// its shots become scratch work
+export async function removeScene(id, by = "person") {
+  await Promise.all([load(), T.load()]);
+  const scene = need(id), takes = scene.shots.reduce((n, x) => n + takesOf(x).length, 0);
+  await update(id, (s) => { s.parked = { by, at: new Date().toISOString() }; });
+  const r = await api.moveUserData(fileOf(id), parkedFile(id), { overwrite: false });
+  if (r.status !== 200) throw new Error(`${scene.name} couldn't be parked (${r.status} ${await r.text()})`);
+  scenes = scenes.filter((x) => x.id !== id);
+  changed();
+  return { scene: id, parked: parkedFile(id), said: `${scene.name} deleted: its document is parked in your user folder (${parkedFile(id)}); its ${scene.shots.length} shot workflow${scene.shots.length === 1 ? "" : "s"} and ${takes} take${takes === 1 ? "" : "s"} are kept` };
 }
 
 export async function moveShot(sceneId, shotId, to) {

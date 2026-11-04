@@ -85,7 +85,8 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   candidates (SNAP-R23) and the person picks. The copy score (DINOv3 patch tokens matched by grid position, threshold
   from the model graph: 0.72) marks a likely copy of the wide plate's view and the layout check says where each door,
   window and prop landed against the plan; neither rejects (push-ins score 0.56-0.68, like new views at 0.50-0.66).
-  A shot that compiles with no plate for its camera gets its candidates made then; "make all" does every camera. Each
+  A shot that compiles with no plate for its camera gets its candidates made then; opening a scene's card shot with no
+  plate offers them as a proposal (GPU time nobody asked for by opening it); "make all" does every camera. Each
   plate records its take, frame, copy score, seed, camera, who made it and who picked it; the person can swap any
   plate. The shot compiler sends the shot's plate with "seen from this camera", falls back to the wide plate with "the
   camera is not where <Picture N> was taken", and uses a plate as FL2V's first frame only when the shot card asks to
@@ -126,7 +127,12 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   shot into that file): the shot opens in a new tab. Adopting a workflow's takes copies its graph with its id, so its
   take group keeps working, and leaves the workflow as it was. Above the chain the navigator shows where the tab is
   (Scene › Shot › Take › version, ending on the active take) and the scene's shots; in a scene tab the Takes strip is
-  the shot's takes tree. The active take is the person's pick; an agent's waits as a proposal (SNAP-R16). Ids are
+  the shot's takes tree. The active take is the person's pick; an agent's waits as a proposal (SNAP-R16). Renaming
+  and deleting delete nothing: a shot taken out of a scene stays in the scene's file under `removed` (its takes listed,
+  its workflow file kept), and a deleted scene's document is parked in `snap/scenes/_parked/<id>.json` with its shot
+  workflows and takes where they were; an agent's remove waits for the person. Switching model family inside a shot
+  opens a scratch tab outside the scene, and the setups sheet says so (whether it should stay as a version of the shot
+  is Dylan's open question). Ids are
   stable and the shots ordered; lanes and in/out on shots and takes come with the sequence editor (layer 3).
   *Why:* takes grouped by the workflow's own id, so a scene's shots and their variants scattered over tabs
   (NEXT_DESIGN_REVIEW §10 Q2); Dylan (2026-11-04): "a scene should have the related work navigable and nested".
