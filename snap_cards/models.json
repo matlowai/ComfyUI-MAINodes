@@ -1215,6 +1215,28 @@
    "notes": ""
   },
   {
+   "file": "dino_v3_vit_h_bf16.safetensors",
+   "folder": "clip_vision",
+   "family": null,
+   "kind": "encoder",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": null,
+   "size_gb": 1.68,
+   "quant_format": null,
+   "loads_in_core": true,
+   "copy_check": {
+    "threshold": 0.8,
+    "evidence": "measured",
+    "source": "U48 §3 + U49: positional patch match to a known picture; copies 0.93-0.94 (5-frame mean) / 0.86-0.90 (last frame), new views of the same room 0.50-0.65; the U49 pick agreed with the eye 12/12"
+   },
+   "notes": "Snap's copy check (MAISnapCopyScore): did a take or a camera plate re-render its reference picture's view"
+  },
+  {
    "file": "pika_h3_flex_fl2va_v1_bf16.safetensors",
    "folder": "loras",
    "family": "MiniMax H3",

@@ -1,7 +1,8 @@
 """The /mainodes/snap routes: Library cards, semantic Library search, and a local bridge so CLI agents
 (tools/snap_mcp.py) call the same Snap tools the open page runs.
 The page owns the graph, so the server only relays a call to it over the websocket and waits for the page's answer.
-Also the privacy gate on saved files: a private prompt saves without its prompt and workflow (SNAP-R20).
+Also the privacy gate on saved files: a private prompt saves without its prompt and workflow (SNAP-R20), and the copy
+score Snap's camera plates and take checks run in the queue (SNAP-R21).
 SNAP-R12 identity LoRAs are private · SNAP-R18 local only · SNAP-R20 private takes save without metadata · see docs/SNAP_RULES.md"""
 import asyncio
 import hashlib
@@ -13,8 +14,11 @@ from pathlib import Path
 
 import aiohttp
 import numpy as np
+import torch
 from aiohttp import web
 
+import comfy.clip_model
+import comfy.model_management
 import folder_paths
 import nodes
 from comfy_api.latest import io
@@ -281,7 +285,39 @@ def private_saves(json_data):
 
 
 PromptServer.instance.add_on_prompt_handler(private_saves)
+
+
+class MAISnapCopyScore(io.ComfyNode):
+    """How much each picture re-renders the reference's view (U48 section 3): the mean cosine of DINOv3 patch tokens taken
+    at the same grid position, so it follows what sits where in the frame, which DINOv3's CLS (room identity) can't
+    see. Validated as a copy detector against a known picture: copies 0.93-0.94, new views of the same room 0.52-0.65."""
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="MAISnapCopyScore",
+            display_name="Copy score (Snap)",
+            category="MAINodes/snap",
+            description="Scores each image against a reference picture by DINOv3 patch tokens at the same grid position: "
+                        "about 0.93 for a re-render of the reference's view, about 0.6 for another view of the same place. "
+                        "Load DINOv3 with Load CLIP Vision.",
+            inputs=[io.ClipVision.Input("clip_vision"), io.Image.Input("reference"), io.Image.Input("images")],
+            outputs=[],
+            is_output_node=True,
+        )
+
+    @classmethod
+    def execute(cls, clip_vision, reference, images) -> io.NodeOutput:
+        def patches(x):  # whole frame resized to the encoder's square input, no crop: a set's landmarks sit at the edges
+            comfy.model_management.load_model_gpu(clip_vision.patcher)
+            px = comfy.clip_model.clip_preprocess(x.to(clip_vision.load_device), size=clip_vision.image_size, mean=clip_vision.image_mean, std=clip_vision.image_std, crop=False).float()
+            seq = clip_vision.model(pixel_values=px)[0]
+            return torch.nn.functional.normalize(seq[:, clip_vision.model.num_prefix_tokens:].float(), dim=-1)
+
+        ref = patches(reference[:1])
+        scores = [s for chunk in images.split(16) for s in (patches(chunk) * ref).sum(-1).mean(-1).tolist()]
+        return io.NodeOutput(ui={"copy_scores": [round(s, 4) for s in scores]})
 NODE_CLASS_MAPPINGS = {"MAISaveImagePrivate": MAISaveImagePrivate, "MAIPreviewImagePrivate": MAIPreviewImagePrivate,
-                       "MAISaveVideoPrivate": MAISaveVideoPrivate, "MAIPrivateSaveRefused": MAIPrivateSaveRefused}
+                       "MAISaveVideoPrivate": MAISaveVideoPrivate, "MAIPrivateSaveRefused": MAIPrivateSaveRefused, "MAISnapCopyScore": MAISnapCopyScore}
 NODE_DISPLAY_NAME_MAPPINGS = {"MAISaveImagePrivate": "Save Image (no metadata)", "MAIPreviewImagePrivate": "Preview Image (no metadata)",
-                              "MAIPrivateSaveRefused": "Private take: save refused"}
+                              "MAIPrivateSaveRefused": "Private take: save refused", "MAISnapCopyScore": "Copy score (Snap)"}
