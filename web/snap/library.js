@@ -208,8 +208,10 @@ export async function saveRecipe(name) {
   return card;
 }
 
-// apply a card to its brick; returns what happened, or throws with the reason it can't
-export async function apply(card) {
+// apply a card to its brick; returns what happened, or throws with the reason it can't. A family's recipe card is a setup:
+// it goes the Setups sheet's way (another family opens a new tab; `keep` saves this stack as "Last used" first)
+export async function apply(card, { keep = true } = {}) {
+  if (card.kind === "recipe" && card.family) return M.useSetup({ source: "recipe", card: card.id }, { keep });
   if (card.kind === "recipe") {
     const keys = await E.restore(card.brick.bricks);
     return `${card.title}: ${keys.length} bricks with their settings`;

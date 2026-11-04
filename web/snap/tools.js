@@ -126,13 +126,13 @@ export const TOOLS = [
   },
   {
     name: "apply_setup",
-    description: "Switch to a setup from list_setups as one undo step: a preset changes the model, LoRA, sampling and the family's encoder and VAEs in place; a recipe card of this recipe's family applies in place (prompt and seed stay); another family's card opens in a new workflow tab (the open one is left as it is) after keeping the current stack as its family's 'Last used' card (save_current: false skips that). Returns the model summary afterwards, with anything missing and the warnings.",
+    description: "Switch to a setup from list_setups as one undo step: a preset changes the model, LoRA, sampling and, where they don't fit its family, the encoder and VAEs in place; a recipe card of this recipe's family applies in place (prompt, negative, seed, size, the person's own bricks and Upscale stay; the core LoRA rows become the card's); another family's card opens in a new workflow tab (the open one is left as it is). save_current: true also keeps the current stack as its family's 'Last used' card (the person's sheet does that; an agent normally leaves it). Returns the model summary afterwards, with anything missing and the warnings.",
     inputSchema: { type: "object", properties: { name: { type: "string" }, save_current: { type: "boolean" } }, required: ["name"] },
-    run: async ({ name, save_current = true }) => {
+    run: async ({ name, save_current = false }) => {
       await M.load(); await L.ready();
       const s = M.setups().find((x) => x.name === name);
       if (!s) throw new Error(`No setup "${name}"; there are: ${M.setups().map((x) => x.name).join(", ")}`);
-      const done = await ui.setup(s, { keep: save_current });
+      const done = await M.useSetup(s, { keep: save_current });
       return { done, ...(await models()) };
     },
   },
@@ -260,13 +260,13 @@ export const TOOLS = [
   },
   {
     name: "apply_card",
-    description: "Snap a Library card onto the brick it belongs to (a dial onto the rack, a character or principle into the Render prompt, a LoRA onto the Render Preset, a run's seed). Returns what changed, or why it can't.",
+    description: "Snap a Library card onto the brick it belongs to (a dial onto the rack, a character or principle into the Render prompt, a LoRA onto the Render Preset, a run's seed). A family's setup card is applied as apply_setup does (another family opens a new tab). Returns what changed, or why it can't.",
     inputSchema: { type: "object", properties: { card: { type: "string" } }, required: ["card"] },
     run: async ({ card }) => {
       await L.ready();
       const c = L.get(card);
       if (!c) throw new Error(`No Library card ${card}`);
-      return { card, done: await L.apply(c) };
+      return { card, done: await L.apply(c, { keep: false }) };
     },
   },
   {
@@ -577,7 +577,7 @@ export const schema = () => TOOLS.map(({ name, description, inputSchema, annotat
 
 // the view tells the tools how to read and drive it (set by snap_view.js once the view exists)
 const notReady = () => { throw new Error("The Snap view isn't ready"); };
-export const ui = { read: () => ({}), act: notReady, setup: notReady };
+export const ui = { read: () => ({}), act: notReady };
 
 // WebMCP (Chrome origin trial, document.modelContext; navigator.modelContext is the older spelling). No-op elsewhere.
 let webmcp = null;

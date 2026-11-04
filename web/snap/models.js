@@ -182,6 +182,25 @@ export async function applyCard(card, { fresh }) {
   return keys;
 }
 
+// SNAP-R5: another family (or a recipe on a graph Snap doesn't own) starts in its own tab; the open workflow is left alone
+export async function freshTab() {
+  if (!app.graph.nodes.length) return;
+  const was = app.extensionManager.workflow.activeWorkflow;
+  await app.extensionManager.command.execute("Comfy.NewBlankWorkflow");
+  while (app.extensionManager.workflow.activeWorkflow === was || app.graph.nodes.length) await new Promise((r) => setTimeout(r, 30));
+}
+// a setup from setups(), as the Setups sheet, the Library and the apply_setup / apply_card tools all apply it (SNAP-R19):
+// a preset in place; a family card in place when it is this recipe's family, else in a new tab after keeping this stack
+// as its family's "Last used" card (keep), so coming back is lossless
+export async function useSetup(s, { keep = true } = {}) {
+  if (s.source === "preset") { apply(s.name); return `Setup: ${s.name}`; }
+  const card = L.get(s.card), fam = family(), leaving = E.state().bricks.length && fam !== card.family;
+  const saved = leaving && keep && fam ? await L.saveLast(fam) : null;
+  if (leaving || (!E.state().bricks.length && app.graph.nodes.length)) await freshTab();
+  await applyCard(card, { fresh: !E.state().bricks.length });
+  return `${card.title}${leaving ? " in a new tab" : ""}${saved ? ` · your ${fam} stack is kept as "${saved.title}"` : ""}`;
+}
+
 // ---- the recipe's family, its LoRAs, its sampling, and what the model graph says about them -------------------------
 // the family: what the applied setup declared, else what the diffusion model is for (model graph), else what the encoder
 // type says; the other two then only check it (warnings)

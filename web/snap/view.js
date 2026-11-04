@@ -325,15 +325,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     await startSimple();
   }
 
-  // SNAP-R5: a new recipe or another family starts in its own tab; the open workflow is left alone
-  async function freshTab() {
-    if (!app.graph.nodes.length) return;
-    const was = app.extensionManager.workflow.activeWorkflow;
-    await app.extensionManager.command.execute("Comfy.NewBlankWorkflow");
-    while (app.extensionManager.workflow.activeWorkflow === was || app.graph.nodes.length) await new Promise((r) => setTimeout(r, 30));
-  }
   async function startSimple() {
-    await freshTab();
+    await M.freshTab();
     for (const key of SIMPLE_RECIPE) await E.snap(key);
     select("render", false);
     render(null);
@@ -622,19 +615,6 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   // a model setting's name as a person says it (loader widget names: unet_name, clip_name, loras.0.lora_name …)
   const settingLabel = (name) => (/lora/.test(name) ? "LoRA" : /clip/.test(name) ? "encoder" : /vae/.test(name) ? "VAE" : /unet|ckpt|^model$/.test(name) ? "model" : name.replaceAll("_", " "));
-  // a setup: a preset applies in place; a family card in place when it is this recipe's family (prompt and seed stay),
-  // else in a new tab, after keeping this stack as its family's "Last used" card so coming back is lossless
-  async function useSetup(s, { keep = true } = {}) {
-    if (s.source === "preset") { M.apply(s.name); return `Setup: ${s.name}`; }
-    const card = L.get(s.card), fam = M.family(), leaving = E.state().bricks.length && fam !== s.family;
-    let saved = null;
-    if (leaving && keep && fam) saved = await L.saveLast(fam);
-    if (leaving || (!E.state().bricks.length && app.graph.nodes.length)) await freshTab();
-    await M.applyCard(card, { fresh: !E.state().bricks.length });
-    select(null, false);
-    return `${card.title}${leaving ? " in a new tab" : ""}${saved ? ` · your ${fam} stack is kept as "${saved.title}"` : ""}`;
-  }
-
   // the setups: the recipe's own presets and every family's cards, grouped by family; a click applies one (one undo step)
   function openSetups() {
     root.querySelector(".snap-setup-sheet")?.remove();
@@ -644,7 +624,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const ready = (m) => (m.cant_load ? "✕ can't load in core" : !m.installed ? "✕ missing" : m.size ? M.gb(m.size) : "");
     const card = (s) => h("button", { className: `snap-setup-card${s.current ? " on" : ""}`, onclick: async () => {
       const before = rects();
-      try { say(await useSetup(s, { keep: keep.checked })); close(); } catch (err) { say(err.message, true); }
+      try { say(await M.useSetup(s, { keep: keep.checked })); select(null, false); close(); } catch (err) { say(err.message, true); }
       render(before);
     } },
       h("strong", {}, s.name, s.current ? h("em", { textContent: s.edited ? "current · edited" : "current" }) : s.family !== fam && E.state().bricks.length ? h("em", { className: "tab", textContent: "opens a new tab" }) : null),
@@ -1090,12 +1070,5 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     return uiRead();
   }
 
-  // an agent's apply_setup takes the same path as the sheet (SNAP-R15)
-  async function setupFromAgent(s, options) {
-    const before = rects(), done = await useSetup(s, options);
-    render(before);
-    return done;
-  }
-
-  return { root, stack, render, say, select, openInChanged, uiRead, uiAct, setupFromAgent, release: () => { giveBack(); if (opened) { opened = null; render(null); } }, get opened() { return opened; }, get selected() { return selected; } };
+  return { root, stack, render, say, select, openInChanged, uiRead, uiAct, release: () => { giveBack(); if (opened) { opened = null; render(null); } }, get opened() { return opened; }, get selected() { return selected; } };
 }
