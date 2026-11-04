@@ -46,7 +46,7 @@ async function models() {
   await M.load();
   const list = M.settings(), now = M.setups().find((s) => s.current);
   const checks = await Promise.all(E.state().bricks.filter((b) => BRICKS[b.key].check).map(async (b) => ({ brick: b.key, ...await M.checkNow(b.key) })));
-  return { family: D.family(), setup: now ? { name: now.name, edited: now.edited } : null, files: list.map(sized), missing: list.filter((m) => !m.installed).map((m) => `${m.brick}.${m.setting}: ${m.file}`),
+  return { family: D.family(), setup: now ? { name: now.name, edited: now.edited } : null, files: list.map(sized), missing: list.filter((m) => !m.installed).map((m) => `${m.brick}.${m.setting}: ${m.file}${m.unreadable ? " (file not readable)" : ""}`),
     total_gb: +(M.total(list) / 1e9).toFixed(1), checks };
 }
 
@@ -73,7 +73,7 @@ export const TOOLS = [
       models: await models(),
       bricks: E.describe().map((b) => ({ brick: b.brick, title: b.title, bindings: b.bindings, settings: shown(settingsOf(b.brick)) })),
       overridden_in_graph: E.overrides().map((o) => ({ brick: o.to, role: o.role, change: o.change })),
-      missing: E.missing(),
+      missing: [...E.missing(), ...M.unreadable()],
       outside_recipe: E.outside().map((n) => ({ id: n.id, type: n.type, title: n.title })),
     }),
   },

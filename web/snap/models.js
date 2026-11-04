@@ -26,6 +26,9 @@ export const gb = (bytes) => `${(bytes / 1e9).toFixed(bytes < 1e9 ? 2 : 1)} GB`;
 
 const choices = (w) => (Array.isArray(w?.options?.values) ? w.options.values : null);
 export const isModel = (w) => !!choices(w) && (files.has(w.value) || choices(w).some((v) => files.has(v)));
+// a choice the folder lists don't have is a file the server can't read (moved away, broken link): it stays in the combo
+// until a restart, but a run would fail on it (SNAP-R3)
+export const readable = (name) => !files.size || files.has(name);
 
 // a brick's nodes, its attachment's inner ones included, as [nodeKey, node]
 export function nodesOf(brickKey) {
@@ -37,9 +40,12 @@ export function nodesOf(brickKey) {
 // every model setting in the recipe: which file, how big, and whether it is installed
 export function settings() {
   return E.state().bricks.flatMap((b) => nodesOf(b.key).flatMap(([nodeKey, n]) => (n.widgets ?? []).filter(isModel).map((w) => ({
-    brick: b.key, node: nodeKey, setting: w.name, file: w.value, folder: file(w.value)?.folder ?? null, size: file(w.value)?.size ?? null, installed: choices(w).includes(w.value),
+    brick: b.key, node: nodeKey, setting: w.name, file: w.value, folder: file(w.value)?.folder ?? null, size: file(w.value)?.size ?? null,
+    installed: choices(w).includes(w.value) && readable(w.value), ...(choices(w).includes(w.value) && !readable(w.value) ? { unreadable: true } : {}),
   }))));
 }
+// model settings whose file is in the list but can't be read; the readiness badge counts them with E.missing()
+export const unreadable = () => settings().filter((s) => s.unreadable).map((s) => ({ brick: s.brick, node: E.nodeFor(s.brick, s.node)?.title, setting: s.setting, value: s.file, unreadable: true }));
 export const total = (list = settings()) => [...new Map(list.filter((s) => s.size).map((s) => [s.file, s.size])).values()].reduce((a, b) => a + b, 0);
 
 // setups the recipe's nodes offer (one entry per preset), each with the model files it would load
@@ -50,7 +56,7 @@ export function setups() {
     return n.presets.names().map((name) => {
       const values = n.presets.values(name);
       const models = Object.entries(values).map(([setting, v]) => [setting, v, n.widgets.find((w) => w.name === setting)]).filter(([, , w]) => isModel(w))
-        .map(([setting, v, w]) => ({ setting, file: v, size: file(v)?.size ?? null, installed: choices(w).includes(v) }));
+        .map(([setting, v, w]) => ({ setting, file: v, size: file(v)?.size ?? null, installed: choices(w).includes(v) && readable(v) }));
       return { name, family: fam, source: "preset", brick: b.key, node: nodeKey, current: now.name === name, edited: now.name === name && now.edited, models, values };
     });
   }));

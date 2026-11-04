@@ -498,7 +498,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     if (!w || w.type === "button" || w.hidden || (w.element && !(typeof w.value === "string" && w.value))) return null; // a panel without a value isn't a fact
     const v = w.value, values = w.options?.values;
     const missing = v == null || (Array.isArray(values) && !values.includes(v));
-    if (M.isModel(w)) return modelChip(w, label, missing);
+    if (M.isModel(w)) return modelChip(w, label, missing, !missing && !M.readable(v));
     let text = v == null ? "missing" : typeof v === "boolean" ? (v ? "on" : "off") : Array.isArray(values) ? String(v).split("/").pop().replace(/\.safetensors$/, "") : String(v);
     if (opt?.short) text = text.split(/[:(]/)[0].trim(); // "faithful: back-projection + residual 0.85" reads "faithful"
     if (name === "prompt") return h("div", { className: "snap-fact snap-prompt", title: v ?? "" }, h("span", { textContent: label }), h("p", { textContent: text.replace(/^integrated_multimodal_description:\s*/, "") }));
@@ -507,10 +507,10 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   // a model file on a face: its whole name (wrapping at underscores), installed or missing, size on disk; the tooltip has
   // the full path
-  function modelChip(w, label, missing) {
+  function modelChip(w, label, missing, unreadable) {
     const f = M.file(w.value), name = String(w.value ?? "").split("/").pop().replace(/\.(safetensors|gguf|sft|ckpt)$/, "");
-    return h("div", { className: `snap-fact snap-model${missing ? " missing" : ""}`, title: missing ? `${w.value} is not installed` : f ? `${w.value}\n${f.folder} · ${M.gb(f.size)}` : String(w.value) },
-      h("span", {}, label, h("em", { textContent: missing ? "✕ missing" : f ? `✓ ${M.gb(f.size)}` : "" })), h("b", { textContent: name.replaceAll("_", "_\u200b") }));
+    return h("div", { className: `snap-fact snap-model${missing || unreadable ? " missing" : ""}`, title: missing ? `${w.value} is not installed` : unreadable ? `${w.value} is listed but the server can't read the file (moved or a broken link)` : f ? `${w.value}\n${f.folder} · ${M.gb(f.size)}` : String(w.value) },
+      h("span", {}, label, h("em", { textContent: missing ? "✕ missing" : unreadable ? "✕ file not readable" : f ? `✓ ${M.gb(f.size)}` : "" })), h("b", { textContent: name.replaceAll("_", "_\u200b") }));
   }
   const presetNode = (key) => M.nodesOf(key).find(([, n]) => n.presets)?.[1];
   // a node that offers presets gets a chip on its brick: the preset it holds (and whether it was edited since); a click
@@ -774,7 +774,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   }
 
   function renderStatus() {
-    const missing = E.missing().map((m) => `${m.brick ? "" : "outside the recipe: "}${m.node} · ${m.setting}: ${m.value ?? "nothing installed"}`);
+    const missing = [...E.missing(), ...M.unreadable()].map((m) => `${m.brick ? "" : "outside the recipe: "}${m.node} · ${m.setting}: ${m.value ?? "nothing installed"}${m.unreadable ? " (file not readable)" : ""}`);
     for (const b of E.state().bricks) { const res = BRICKS[b.key].check && M.check(b.key); if (res && !res.ready) missing.push(...res.problems.map((p) => `${BRICKS[b.key].title}: ${p}`)); }
     status.className = `snap-status ${missing.length ? "warn" : "ok"}`;
     status.textContent = missing.length ? `${missing.length} missing` : "ready";
