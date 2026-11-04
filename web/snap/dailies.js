@@ -79,8 +79,8 @@ export function createDailies({ host, say, onRestore, onContinue }) {
         t.prior ? h("span", { className: "snap-take-prior", textContent: "prior", title: "in the Library as a prior" }) : null),
       h("figcaption", {}, h("b", { textContent: `Take ${t.number}` }), t.seed != null ? ` · seed ${t.seed}` : "", t.status !== "success" ? h("em", { textContent: ` · ${t.status}` }) : "",
         h("span", { className: "snap-take-stale", hidden: true }),
-        t.copy?.copied ? h("span", { className: "snap-take-copy", textContent: `copied its reference view ${Math.max(...t.copy.against.map((a) => a.mean)).toFixed(2)}`,
-          title: `This take re-rendered the view of its reference picture instead of its own camera's (copy score at or above ${t.copy.threshold}):\n${t.copy.against.map((a) => `${a.image}: ${a.mean}`).join("\n")}` }) : null,
+        t.copy?.copied ? h("span", { className: "snap-take-copy", textContent: `copied its reference view ${Math.max(...t.copy.against.map((a) => a.last)).toFixed(2)}`,
+          title: `This take ends on the view of its reference picture (last frame's copy score at or above ${t.copy.threshold}): right when that picture is this camera's own plate, wrong when it shows another camera's view.\n${t.copy.against.map((a) => `${a.image}: ${a.frames.join(" → ")}`).join("\n")}` }) : null,
         t.private ? h("span", { className: "snap-take-lock", textContent: "🔒 private", title: "Private take (identity or Cast LoRA): its files were saved without the recipe inside, and exports leave it out" }) : null,
         h("span", { className: "snap-quiet", textContent: `${t.notes.length ? `✎ ${t.notes.length} · ` : ""}${ago(t.created)}` })));
     c.dataset.take = t.id;
@@ -199,7 +199,7 @@ export function createDailies({ host, say, onRestore, onContinue }) {
     const refs = PL.referencePictures(t.prompt), copyLine = h("div", { className: "snap-take-copyline" });
     const copyRow = () => {
       const c = t.copy, said = !c ? "not checked yet" : c.pending ? "checking…" : c.error ? `check failed: ${c.error}`
-        : c.copied ? `copied its reference view (${c.against.map((a) => a.mean).join(", ")} ≥ ${c.threshold})` : `its own view (${c.against.map((a) => a.mean).join(", ")} < ${c.threshold})`;
+        : `${c.copied ? "copied its reference view" : "its own view"} (frames ${c.against.map((a) => a.frames.join(" → ")).join("; ")}; ${c.copied ? "≥" : "<"} ${c.threshold} at the end)`;
       copyLine.replaceChildren(...h("div", {}, h("span", { className: c?.copied ? "snap-take-copy" : "snap-quiet", textContent: `Copy check: ${said}` }),
         h("button", { className: "snap-link snap-quiet-btn", textContent: c && !c.pending ? "Check again" : "Check copies", disabled: !!c?.pending, title: "score every frame against the take's reference pictures (a few seconds on the GPU)",
           onclick: async () => { try { await PL.checkTake(t, "person"); copyRow(); } catch (err) { say(err.message, true); } } })).childNodes);

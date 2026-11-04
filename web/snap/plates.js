@@ -236,11 +236,12 @@ export function referencePictures(prompt) {
   }
   return out;
 }
-const FRAMES = [0, 24, 48, 72, 96]; // the frames U48 §3 validated the check on (a shorter clip repeats its last)
+const FRAMES = [0, 24, 48, 72, -1]; // the frames scored (U48 §3's, ending on the last); a shorter clip repeats its last
 const annotated = (m) => `${m.subfolder ? `${m.subfolder}/` : ""}${m.filename} [${m.type ?? "output"}]`;
 
-// score five frames of a take against each of its reference pictures; the take is flagged when the mean over them
-// reaches the threshold for any of them. The check runs under its own client id, so it never becomes a take itself
+// score five frames of a take against each of its reference pictures; the take is flagged when its last frame reaches
+// the threshold for any of them, as the plate pick decides: a Ref2V take often starts on its reference's view (0.98 at
+// frame 0 in U52's orbit takes) and is judged by where its camera ended up. The check runs under its own client id, so it never becomes a take itself
 export async function checkTake(take, by = "person") {
   const refs = referencePictures(take.prompt);
   if (!refs.length) throw new Error(`Take ${take.number} had no reference pictures to compare with`);
@@ -261,9 +262,9 @@ export async function checkTake(take, by = "person") {
   (async () => {
     let h = null;
     for (let i = 0; i < 600 && !(h = await done()); i++) await new Promise((r) => setTimeout(r, 1000));
-    const against = refs.map((image, i) => { const s = h?.outputs?.[String(21 + 2 * i)]?.copy_scores ?? []; return { image, mean: s.length ? +(s.reduce((a, b) => a + b) / s.length).toFixed(3) : null, max: s.length ? +Math.max(...s).toFixed(3) : null, frames: s.length }; });
+    const against = refs.map((image, i) => { const s = h?.outputs?.[String(21 + 2 * i)]?.copy_scores ?? []; return { image, last: s.at(-1) ?? null, frames: s.map((x) => +x.toFixed(3)) }; });
     take.copy = h?.status?.status_str === "success"
-      ? { against, threshold, copied: against.some((a) => a.mean >= threshold), by, at: new Date().toISOString() }
+      ? { against, threshold, copied: against.some((a) => a.last >= threshold), by, at: new Date().toISOString() }
       : { error: h?.status?.status_str ?? "the check didn't finish", by, at: new Date().toISOString() };
     await T.save(take);
   })().catch((e) => console.warn(`copy check ${id}: ${e.message}`));
