@@ -12,6 +12,7 @@ import * as rules from "./rules.js";
 import * as T from "./takes.js";
 import * as D from "./dials.js";
 import * as sight from "./sight.js";
+import * as M from "./models.js";
 import { api } from "../../../scripts/api.js";
 
 // a widget as an agent reads it: value, kind, choices (cut to 50), limits, and whether a wire drives it
@@ -39,6 +40,16 @@ function settingsOf(key) {
     .map((w) => ({ node: nodeKey, name: w.name, value: w.value, ...(Array.isArray(w.options?.values) ? { choices: w.options.values } : {}) })));
 }
 
+// what the recipe loads, in one answer: family, current setup, each model file (size, installed), the total on disk
+const sized = (m) => ({ ...m, size_gb: m.size ? +(m.size / 1e9).toFixed(2) : null, size: undefined });
+async function models() {
+  await M.load();
+  const list = M.settings(), now = M.setups().find((s) => s.current);
+  const checks = await Promise.all(E.state().bricks.filter((b) => BRICKS[b.key].check).map(async (b) => ({ brick: b.key, ...await M.checkNow(b.key) })));
+  return { family: D.family(), setup: now ? { name: now.name, edited: now.edited } : null, files: list.map(sized), missing: list.filter((m) => !m.installed).map((m) => `${m.brick}.${m.setting}: ${m.file}`),
+    total_gb: +(M.total(list) / 1e9).toFixed(1), checks };
+}
+
 // what an agent reads back: long choice lists (model folders) are cut to the first 50
 const shown = (settings) => settings.map((x) => (x.choices?.length > 50 ? { ...x, choices: [...x.choices.slice(0, 50), `… ${x.choices.length - 50} more`] } : x));
 
@@ -55,13 +66,15 @@ export const TOOLS = [
   },
   {
     name: "describe_recipe",
-    description: "The current workflow as bricks in reading order, with each brick's bindings (what feeds it and which rule made the link), its settings, wiring the user changed in the graph, and settings that point at nothing installed.",
+    description: "The current workflow as bricks in reading order, with each brick's bindings (what feeds it and which rule made the link), its settings, wiring the user changed in the graph, settings that point at nothing installed, nodes outside the recipe (Run leaves them out), and `models`: the family, the setup and every model file the recipe loads with its size and whether it is installed.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
-    run: () => ({
+    run: async () => ({
+      models: await models(),
       bricks: E.describe().map((b) => ({ brick: b.brick, title: b.title, bindings: b.bindings, settings: shown(settingsOf(b.brick)) })),
       overridden_in_graph: E.overrides().map((o) => ({ brick: o.to, role: o.role, change: o.change })),
       missing: E.missing(),
+      outside_recipe: E.outside().map((n) => ({ id: n.id, type: n.type, title: n.title })),
     }),
   },
   {
@@ -87,14 +100,40 @@ export const TOOLS = [
   },
   {
     name: "set_setting",
-    description: "Change one setting on a brick (a widget on one of its nodes, e.g. render.prompt, render.length, preset.lora). Choice settings must use one of the listed choices.",
+    description: "Change one setting on a brick (a widget on one of its nodes, e.g. render.prompt, render.length, preset.lora). Choice settings must use one of the listed choices; a model file's name without its sub-folder is enough when only one choice has that name.",
     inputSchema: { type: "object", properties: { brick: brickEnum, name: { type: "string" }, value: {} }, required: ["brick", "name", "value"] },
     run: ({ brick, name, value }) => {
       const s = settingsOf(brick).find((x) => x.name === name);
       if (!s) throw new Error(`${brick} has no setting "${name}"; it has ${settingsOf(brick).map((x) => x.name).join(", ")}`);
-      if (s.choices && !s.choices.includes(value)) throw new Error(`"${value}" is not a choice for ${brick}.${name}; choices: ${s.choices.slice(0, 50).join(", ")}${s.choices.length > 50 ? ", …" : ""}`);
+      if (s.choices && E.resolveChoice(s.choices, value) === undefined) throw new Error(`"${value}" is not a choice for ${brick}.${name}; choices: ${s.choices.slice(0, 50).join(", ")}${s.choices.length > 50 ? ", …" : ""}`);
       E.setValue(brick, s.node, name, value);
       return { brick, name, value: E.getValue(brick, s.node, name) };
+    },
+  },
+  {
+    name: "list_setups",
+    description: "The setups the recipe can switch to in one step (today: the Render Preset's presets, e.g. Pika H3 Flex, Pika + reference pictures, DMAD speed LoRA, and the person's own): family, which one is current (and edited since), the model files each loads with sizes and whether they are installed, and its sampling values.",
+    inputSchema: { type: "object", properties: {} },
+    annotations: { readOnlyHint: true },
+    run: async () => { await M.load(); return M.setups().map(({ name, family, source, brick, current, edited, models, values }) => ({ name, family, source, brick, current, edited, models: models.map(sized), values })); },
+  },
+  {
+    name: "apply_setup",
+    description: "Switch the recipe to a setup from list_setups (model, LoRA and their sampling together, one undo step). Returns the model summary afterwards, with anything missing.",
+    inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
+    run: async ({ name }) => { M.apply(name); return models(); },
+  },
+  {
+    name: "list_models",
+    description: "Model files installed in one of ComfyUI's model folders (diffusion_models, text_encoders, vae, loras, …) with sizes, filtered by words in the name. Without a folder: the folders and how many files each holds.",
+    inputSchema: { type: "object", properties: { folder: { type: "string" }, filter: { type: "string" } } },
+    annotations: { readOnlyHint: true },
+    run: async ({ folder, filter = "" } = {}) => {
+      const all = [...(await M.load()).entries()];
+      if (!folder) return Object.entries(Object.groupBy(all, ([, f]) => f.folder)).map(([name, list]) => ({ folder: name, files: list.length }));
+      const words = filter.toLowerCase().split(/\s+/).filter(Boolean);
+      const found = all.filter(([name, f]) => f.folder === folder && words.every((w) => name.toLowerCase().includes(w)));
+      return { folder, count: found.length, files: found.slice(0, 200).map(([name, f]) => ({ name, size_gb: +(f.size / 1e9).toFixed(2) })) };
     },
   },
   {
@@ -263,12 +302,12 @@ export const TOOLS = [
   },
   {
     name: "run",
-    description: "Queue the open workflow (as the Run button does). Returns at once; follow it with run_status, and the finished run appears in list_takes. Uses GPU time: unless the person lets agents run (ComfyUI setting), this waits as a proposal they accept.",
+    description: "Queue the recipe (as the Run button does; nodes outside the recipe are left out). Returns at once; follow it with run_status, and the finished run appears in list_takes. Uses GPU time: unless the person lets agents run (ComfyUI setting), this waits as a proposal they accept.",
     inputSchema: { type: "object", properties: {} },
     annotations: { consequentialHint: true },
     consequential: true,
     run: async () => {
-      await app.queuePrompt(0, 1);
+      await app.queuePrompt(0, 1, { queueNodeIds: E.targets() });
       const errors = Object.entries(app.lastNodeErrors ?? {}).map(([id, e]) => ({ node: id, brick: brickOf(id), error: e.errors?.[0]?.message, details: e.errors?.[0]?.details }));
       if (errors.length) throw new Error(`Not queued: ${JSON.stringify(errors)}`);
       return { queued: true };
@@ -303,7 +342,7 @@ export const TOOLS = [
   },
   {
     name: "set_widget",
-    description: "Set any widget on any node (list_nodes shows them): a combo takes one of its choices (e.g. a model file), a number stays within its limits. Widgets driven by a wire can't be set; change the source instead.",
+    description: "Set any widget on any node (list_nodes shows them): a combo takes one of its choices (e.g. a model file; its name without the sub-folder is enough when unique), a number stays within its limits. Widgets driven by a wire can't be set; change the source instead.",
     inputSchema: { type: "object", properties: { node: { type: ["integer", "string"] }, name: { type: "string" }, value: {} }, required: ["node", "name", "value"] },
     run: async ({ node, name, value }) => {
       const n = app.graph.getNodeById(node), w = n?.widgets?.find((x) => x.name === name);
@@ -317,7 +356,8 @@ export const TOOLS = [
         const [sub, file] = String(value).includes("/") ? [String(value).slice(0, String(value).lastIndexOf("/")), String(value).split("/").pop()] : ["", String(value)];
         if ((await api.fetchApi(`/view?filename=${encodeURIComponent(file)}&subfolder=${encodeURIComponent(sub)}&type=input`, { method: "HEAD" })).ok) values.push(value);
       }
-      if (Array.isArray(values) && !values.includes(value)) throw new Error(`${name} takes one of: ${values.slice(0, 30).join(", ")}${values.length > 30 ? " …" : ""}`);
+      if (Array.isArray(values)) value = E.resolveChoice(values, value);
+      if (value === undefined) throw new Error(`${name} takes one of: ${values.slice(0, 30).join(", ")}${values.length > 30 ? " …" : ""}`);
       if (typeof value === "number" && ((info.min != null && value < info.min) || (info.max != null && value > info.max))) throw new Error(`${name} must be within ${info.min}..${info.max}`);
       app.canvas.emitBeforeChange();
       try { w.value = value; w.callback?.(value, app.canvas, n); } finally { app.canvas.emitAfterChange(); }
@@ -358,8 +398,8 @@ export const TOOLS = [
   },
   {
     name: "ui",
-    description: "Drive the view: select a brick, open it (side panel or in place, by the person's setting), close, show snap or graph (focusing a brick), undo, redo, open the dial picker or maker, open a take.",
-    inputSchema: { type: "object", properties: { action: { type: "string", enum: ["select", "close", "snap", "graph", "undo", "redo", "dials", "make_dial", "open_take"] }, target: { type: "string", description: "a brick key or take id" } }, required: ["action"] },
+    description: "Drive the view: select a brick, open it (side panel or in place, by the person's setting), close, show snap or graph (focusing a brick), undo, redo, open the dial picker or maker, open the setups sheet, open a take.",
+    inputSchema: { type: "object", properties: { action: { type: "string", enum: ["select", "close", "snap", "graph", "undo", "redo", "dials", "make_dial", "setups", "open_take"] }, target: { type: "string", description: "a brick key or take id" } }, required: ["action"] },
     direct: true, // view changes are the agent's own navigation, not edits to accept
     run: ({ action, target }) => ui.act(action, target),
   },

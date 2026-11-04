@@ -9,12 +9,12 @@ const PACK = {
     title: "Models", icon: "◇", hue: 210,
     blurb: "text encoder and the two H3 VAEs",
     nodes: [
-      { key: "clip", type: "CLIPLoader", title: "Text encoder" },
+      { key: "clip", type: "CLIPLoader", title: "Text encoder", values: { clip_name: "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors", type: "minimax" } },
       { key: "video_vae", type: "VAELoader", title: "Video VAE", values: { vae_name: "minimax_h3_video_vae_fp16.safetensors" } },
       { key: "audio_vae", type: "VAELoader", title: "Audio VAE", values: { vae_name: "minimax_h3_audio_vae_fp32.safetensors" } },
     ],
     provides: { clip: ["clip", "CLIP"], video_vae: ["video_vae", "VAE"], audio_vae: ["audio_vae", "VAE"] },
-    face: [["clip", "clip_name", "encoder"]],
+    face: [["clip", "clip_name", "encoder"], ["video_vae", "vae_name", "video VAE"], ["audio_vae", "vae_name", "audio VAE"]],
   },
   preset: {
     title: "Render Preset", icon: "◎", hue: 265,
@@ -24,7 +24,7 @@ const PACK = {
       base_model: ["preset", "MODEL"], sampler: ["preset", "SAMPLER"], sigmas: ["preset", "sigmas"],
       derope_steps: ["preset", "derope_steps"], conditioning: ["preset", "conditioning"], cfg: ["preset", "cfg"],
     },
-    face: [["preset", "lora", "LoRA"], ["preset", "conditioning", "mode"], ["preset", "steps", "steps"]],
+    face: [["preset", "model", "model"], ["preset", "lora", "LoRA"], ["preset", "lora_strength", "LoRA strength"], ["preset", "steps", "steps"]],
   },
   rack: {
     title: "Dial Rack", icon: "◐", hue: 35,
@@ -59,12 +59,15 @@ const PACK = {
     },
     face: [["render", "prompt", "prompt"], ["render", "length", "frames"], ["render", "noise_seed", "seed"], ["render", "choice", "de-rope"]],
   },
-  // attaches to Render's own setting: the blueprint has no VIDEO output yet, so Upscale is a switch, not a link
+  // attaches to Render's own setting: the blueprint has no VIDEO output yet, so Upscale is a switch, not a link. Its
+  // settings are the RelayVSR Settings node inside the Render blueprint; `check` asks the server whether a run would find
+  // LightX2V and the weights for those settings
   upscale: {
     title: "Upscale", icon: "⤢", hue: 95, optional: true,
     blurb: "RelayVSR 2x after the render",
-    attach: { brick: "render", widget: "upscale", on: "RelayVSR 2x", off: "off" },
-    face: [],
+    attach: { brick: "render", widget: "upscale", on: "RelayVSR 2x", off: "off", inner: { settings: "RelayVSRModelSettings" } },
+    check: ["settings", "/mainodes/relayvsr/check"],
+    face: [["settings", "variant", "RelayVSR"], ["settings", "output_scale", "scale"]],
   },
 };
 

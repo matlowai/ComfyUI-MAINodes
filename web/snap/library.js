@@ -6,6 +6,7 @@ import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import * as T from "./takes.js";
 import * as D from "./dials.js";
+import * as M from "./models.js";
 import { BRICKS } from "./bricks.js";
 import { setBlock, blocking, drawPlan, drawElevation, toBlob, coverage } from "./setsnap.js";
 
@@ -206,12 +207,9 @@ export async function apply(card) {
     return applyShot(card);
   }
   if (card.kind === "dial") return D.add(card.brick.dial, card.brick.strength);
-  if (card.kind === "lora") {
-    const w = E.nodeFor("preset", "preset").widgets.find((x) => x.name === "lora");
-    const file = w.options.values.find((v) => String(v).split(/[\\/]/).pop() === card.brick.lora);
-    if (!file) throw new Error(`${card.brick.lora} is not installed here`);
-    E.setValues("preset", "preset", { lora: file, lora_strength: card.brick.strength });
-    return `${card.title} on the Render Preset`;
+  if (card.kind === "lora") { // a distilled LoRA only works on its own schedule: a LoRA card names the setup that carries both
+    M.apply(card.brick.setup);
+    return `${card.brick.setup} on the Render Preset`;
   }
   if (card.kind === "run") {
     E.setValue("render", "render", "noise_seed", card.brick.seed);

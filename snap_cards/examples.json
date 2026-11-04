@@ -249,8 +249,17 @@
   "title": "LoRA: Pika H3 Flex FL2VA",
   "text": "Pika H3 Flex LoRA for first-and-last-frame video with audio on MiniMax H3. The recommended render LoRA in the Dials Simple workflow, paired with de-rope.",
   "brick": {
-   "lora": "pika_h3_flex_fl2va_v1_bf16.safetensors",
-   "strength": 1.0
+   "setup": "Pika H3 Flex"
+  },
+  "example": true
+ },
+ {
+  "id": "lora-dmad",
+  "kind": "lora",
+  "title": "LoRA: DMAD 4-step speed LoRA",
+  "text": "DMAD distilled speed LoRA for MiniMax H3 at 0.8, with the lcm + simple schedule it was distilled for (6 steps, shifts 12 / 2). Faster takes; swaps out the Pika LoRA.",
+  "brick": {
+   "setup": "DMAD speed LoRA"
   },
   "example": true
  },
