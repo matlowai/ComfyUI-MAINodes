@@ -2,7 +2,8 @@
 // One table, two transports: in-page WebMCP when the browser has it, and the /mainodes/snap bridge that the local MCP
 // server (tools/snap_mcp.py) calls. Every call goes through the engine, so an agent can't build a graph a person couldn't.
 // SNAP-R11 same warnings as the UI · SNAP-R15 one table, MCP + WebMCP · SNAP-R16 GPU tools wait as proposals ·
-// SNAP-R17 by: agent · SNAP-R19 the tool table is the API · SNAP-R21 camera plates · see docs/SNAP_RULES.md
+// SNAP-R17 by: agent · SNAP-R19 the tool table is the API · SNAP-R21 camera plates · SNAP-R23 candidates: the person's
+// pick waits as a proposal for agents · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import { BRICKS, PACK_BRICKS } from "./bricks.js";
@@ -17,6 +18,8 @@ import * as sight from "./sight.js";
 import * as M from "./models.js";
 import * as S from "./slots.js";
 import * as PL from "./plates.js";
+import * as C from "./candidates.js";
+import * as ED from "./edits.js";
 import { api } from "../../../scripts/api.js";
 
 // a widget as an agent reads it: value, kind, choices (cut to 50), limits, and whether a wire drives it
@@ -271,13 +274,16 @@ export const TOOLS = [
   },
   {
     name: "apply_card",
-    description: "Snap a Library card onto the brick it belongs to (a dial onto the rack, a character or principle into the Render prompt, a LoRA onto the Render Preset, a run's seed). A family's setup card is applied as apply_setup does (another family opens a new tab). Returns what changed, or why it can't.",
+    description: "Snap a Library card onto the brick it belongs to (a dial onto the rack, a character or principle into the Render prompt, a LoRA onto the Render Preset, a run's seed). A family's setup card is applied as apply_setup does (another family opens a new tab). A shot card whose camera has no plate yet compiles with the set's wide plate and asks for that camera's plate candidates (make_set_plates, so a proposal unless agents may run); `plates` says so, or that candidates are rendering or waiting for the person's pick. Returns what changed, or why it can't.",
     inputSchema: { type: "object", properties: { card: { type: "string" } }, required: ["card"] },
     run: async ({ card }) => {
       await L.ready();
       const c = L.get(card);
       if (!c) throw new Error(`No Library card ${card}`);
-      return { card, done: await L.apply(c, { keep: false }) };
+      const done = await L.apply(c, { keep: false }), need = c.kind === "shot" ? await PL.forShot(c) : null;
+      // a shot with no plate for its camera gets plate candidates (U55): GPU time, so a proposal unless agents may run
+      const plates = need && !need.rendering && !need.waiting ? await callTool("make_set_plates", { set: need.set, cameras: [need.camera], reason: `${c.title}: ${need.camera} has no camera plate yet` }) : need;
+      return { card, done, ...(plates ? { plates } : {}) };
     },
   },
   {
@@ -561,18 +567,18 @@ export const TOOLS = [
   },
   {
     name: "set_plates",
-    description: "A set snapshot's camera plates (SNAP-R21): its wide plate, and per camera (its coverage setups and its own camera, by the names shot cards use) the plate with its provenance (take, frame, copy score, seed, the camera it was made for, by), whether it still fits the camera (fits: false once the camera moved), a render in progress, or the last rejected try (a copy of the wide plate, or an error).",
+    description: "A set snapshot's camera plates (SNAP-R21): its wide plate, and per camera (its coverage setups and its own camera, by the names shot cards use) the plate with its provenance (take, frame, copy score, seed, the camera it was made for, who made it, the candidate it was picked from), whether it still fits the camera (fits: false once the camera moved), and its plate candidates (decision id; how many render, wait for the pick, failed; which one is applied). list_candidates shows the candidates with their notes.",
     inputSchema: { type: "object", properties: { set: { type: "string" } }, required: ["set"] },
     annotations: { readOnlyHint: true },
-    run: async ({ set }) => { await L.ready(); const c = L.get(set); if (c?.kind !== "set_snapshot") throw new Error(`No set snapshot card ${set}`); await PL.settle(); return PL.status(c); },
+    run: async ({ set }) => { await L.ready(); const c = L.get(set); if (c?.kind !== "set_snapshot") throw new Error(`No set snapshot card ${set}`); await C.settle(); return PL.status(c); },
   },
   {
     name: "make_set_plates",
-    description: "Make camera plates for a set snapshot (the orbit pass, U49): one H3 Ref2V render per camera from the set's wide plate (Pika + reference pictures), told the camera is not where the wide plate was taken and where the doors and windows are; each render's last frame becomes that camera's plate unless its copy score against the wide plate reaches the threshold (a copy: rejected). Without `cameras`, the cameras that have no plate that fits. Returns at once with the queued renders (about 64 s each); follow with set_plates. Needs a wide plate (set_set_plate camera: wide). Uses GPU time: unless the person lets agents run (ComfyUI setting), this waits as a proposal they accept.",
-    inputSchema: { type: "object", properties: { set: { type: "string" }, cameras: { type: "array", items: { type: "string" } } }, required: ["set"] },
+    description: "Make camera plate candidates for a set snapshot (the orbit pass, U49/U55): `count` (2 or 3, default 2) H3 Ref2V renders per camera from the set's wide plate (Pika + reference pictures), seeds varied, told the camera is not where the wide plate was taken and where the doors and windows are. Each render's last frame becomes a candidate for that camera's plate with two pre-screen notes: its copy score against the wide plate (likely_copy at or above the threshold) and the layout check (where SAM 3.1 finds each door, window and prop against the plan). Neither rejects: the person picks (apply_candidate). Without `cameras`, the cameras that have no plate that fits. Returns at once with the queued renders (about 64 s each); follow with list_candidates. Needs a wide plate (set_set_plate camera: wide). Uses GPU time: unless the person lets agents run (ComfyUI setting), this waits as a proposal they accept.",
+    inputSchema: { type: "object", properties: { set: { type: "string" }, cameras: { type: "array", items: { type: "string" } }, count: { type: "integer", minimum: 1, maximum: 3 } }, required: ["set"] },
     annotations: { consequentialHint: true },
     consequential: true,
-    run: async ({ set, cameras }) => { await L.ready(); const c = L.get(set); if (c?.kind !== "set_snapshot") throw new Error(`No set snapshot card ${set}`); return PL.make(c.lineage ?? c.id, { cameras, by: "agent" }); },
+    run: async ({ set, cameras, count }) => { await L.ready(); const c = L.get(set); if (c?.kind !== "set_snapshot") throw new Error(`No set snapshot card ${set}`); return PL.make(c.lineage ?? c.id, { cameras, count, by: "agent" }); },
   },
   {
     name: "set_set_plate",
@@ -587,6 +593,49 @@ export const TOOLS = [
     annotations: { consequentialHint: true },
     consequential: true,
     run: async ({ take }) => { await T.load(); const t = T.get(take); if (!t) throw new Error(`No take ${take}`); return PL.checkTake(t, "agent"); },
+  },
+  {
+    name: "list_candidates",
+    description: "Decisions that hold candidates (SNAP-R23): camera plates (kind plate, target <set>/<camera>) and edits of a take (kind edit, target the take id). Each candidate has its state (rendering, ready, applied, rejected, failed), provenance (take, frame, seed, by) and pre-screen notes: copy (score vs threshold, likely_copy), layout (each door, window and prop: where the plan puts it and where SAM 3.1 found it; as_planned of checked, prop order), identity (head-crop patch match against the take's own frames, low vs threshold, drifted). Notes inform; they never decide. Filter by kind, target, or open: true for those still waiting for a pick.",
+    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["plate", "edit"] }, target: { type: "string" }, open: { type: "boolean" } } },
+    annotations: { readOnlyHint: true },
+    run: async ({ kind, target, open } = {}) => { await C.load(); await C.settle(); return C.all().filter((d) => (!kind || d.kind === kind) && (!target || d.target === target) && (!open || d.status === "open")).map(C.describe); },
+  },
+  {
+    name: "apply_candidate",
+    description: "Apply one candidate of a decision: a plate candidate becomes the camera's plate (a shot compiled from that camera on the open chain compiles again with it); an edit candidate's anchors are propagated over the take with H3 Ripple (GPU, about 90-110 s) and land as a new take whose parent is the original. Applying another candidate of the same decision first undoes the earlier one. The pick is the person's: unless they let agents run, this waits as a proposal, which is how an agent recommends one (give the reason: which notes made it the best).",
+    inputSchema: { type: "object", properties: { decision: { type: "string" }, candidate: { type: "string" } }, required: ["decision", "candidate"] },
+    annotations: { consequentialHint: true },
+    decides: true,
+    run: async ({ decision, candidate }) => { await C.load(); return C.apply(decision, candidate, "agent"); },
+  },
+  {
+    name: "reject_candidate",
+    description: "Reject one candidate of a decision (it stays listed, marked rejected, by agent). The person's call: unless they let agents run, this waits as a proposal.",
+    inputSchema: { type: "object", properties: { decision: { type: "string" }, candidate: { type: "string" } }, required: ["decision", "candidate"] },
+    decides: true,
+    run: async ({ decision, candidate }) => { await C.load(); return C.reject(decision, candidate, "agent"); },
+  },
+  {
+    name: "undo_candidate",
+    description: "Take back the applied candidate of a decision (one step): the camera's earlier plate comes back; an edit's render is taken out of the queue while it waits (a render that started is a take: reject it there). The person's call: unless they let agents run, this waits as a proposal.",
+    inputSchema: { type: "object", properties: { decision: { type: "string" } }, required: ["decision"] },
+    decides: true,
+    run: async ({ decision }) => { await C.load(); return C.undo(decision, "agent"); },
+  },
+  {
+    name: "edit_take",
+    description: "Edit a take with a method of the edit slot (list_methods slot: edit). relight ('Night version'; time: night, dusk or dawn): MOSS edits the take's frame 0 and mid frame, `count` candidates (default 2; the edit LoRAs take turns, seeds vary), each with an identity check against the take's own frames (head crops; drifted below the threshold: U53b's edits turned hair grey). Returns at once with the decision id; follow with list_candidates, then apply_candidate runs the Ripple render. Uses GPU time: unless the person lets agents run, this waits as a proposal they accept.",
+    inputSchema: { type: "object", properties: { take: { type: "string" }, method: { type: "string" }, time: { type: "string", enum: ["night", "dusk", "dawn"] }, count: { type: "integer", minimum: 1, maximum: 3 } }, required: ["take"] },
+    annotations: { consequentialHint: true },
+    consequential: true,
+    run: async ({ take, method = "relight", time = "night", count = 2 }) => { await T.load(); const t = T.get(take); if (!t) throw new Error(`No take ${take}`); return ED.start(t, method, { time, count, by: "agent" }); },
+  },
+  {
+    name: "use_take",
+    description: "Use a frame of a take as an input (U32): as first_frame it goes on the First frame brick (FL2V's start picture), as reference into References as a picture; at is the moment in seconds, or 'last' (the default) for its end. One undo step; the brick remembers the take and frame it came from.",
+    inputSchema: { type: "object", properties: { take: { type: "string" }, as: { type: "string", enum: ["first_frame", "reference"] }, at: { type: ["number", "string"] } }, required: ["take", "as"] },
+    run: async ({ take, as, at = "last" }) => { await T.load(); const t = T.get(take); if (!t) throw new Error(`No take ${take}`); return T.use(t, { as, t: at, by: "agent" }); },
   },
   {
     name: "list_proposals",
@@ -619,9 +668,10 @@ export async function callTool(name, args = {}, { confirmed } = {}) {
     const was = seen.get(if_revision), now = await revision();
     if (now !== if_revision) throw new Error(`The recipe changed since revision ${if_revision} (now ${now})${was ? `: ${T.changes(was, seen.get(now)).join(", ") || "seeds"}` : ""}. Read describe_recipe again and decide with what is there now`);
   }
-  if (tool.consequential && !confirmed && !mayRun()) {
-    const p = P.add(name, rest, reason ?? `${name.replaceAll("_", " ")} (uses the GPU)`, for_note);
-    return { proposed: p.id, status: "uses the GPU: waiting for the person to accept (or to allow agents to run in ComfyUI's settings)" };
+  if ((tool.consequential || tool.decides) && !confirmed && !mayRun()) {
+    const why = tool.decides ? "the person's pick" : "uses the GPU";
+    const p = P.add(name, rest, reason ?? `${name.replaceAll("_", " ")} (${why})`, for_note);
+    return { proposed: p.id, status: `${why}: waiting for the person to accept (or to allow agents to run in ComfyUI's settings)` };
   }
   if (propose && proposable(name)) {
     const p = P.add(name, rest, reason, for_note);

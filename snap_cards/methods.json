@@ -12,6 +12,13 @@
       "kind": "delta",
       "title": "Turbo",
       "off": "the setup's own steps, cfg and sampler"
+    },
+    {
+      "id": "edit",
+      "kind": "take",
+      "title": "Edit a take",
+      "off": "the take stays as it is",
+      "about": "a method that makes a new take from an existing one (relight now; recast or cleanup later): its anchor frames are edited as candidates the person picks, then the edit is propagated over the take"
     }
   ],
   "methods": [
@@ -109,6 +116,42 @@
       "guidance": { "line": "no recent community results", "evidence": "none", "source": "scout/upscalers §1" },
       "cost": { "community_s": null, "local_s": null, "vram_gb": null },
       "unwired": "an LTX latent method; no LTX recipe in Snap yet"
+    },
+    {
+      "id": "relight",
+      "slot": "edit",
+      "kind": "take",
+      "title": "Night version",
+      "does": "relight",
+      "options": {
+        "time": {
+          "night": { "edit": "a dark night sky, dim cool moonlight and the place's artificial lamps switched on", "avoid": "daylight, bright sky" },
+          "dusk": { "edit": "a deep orange and violet dusk sky, low warm sunlight and the first lamps coming on", "avoid": "midday light, blue sky" },
+          "dawn": { "edit": "a pale pink and gold dawn sky with soft low light and long shadows", "avoid": "midday light, night sky" }
+        }
+      },
+      "anchors": {
+        "prompt": "Change only the time of day to {time}: {edit}. Keep every person exactly as they are: the same face, the same hair colour and hairstyle, the same clothes and pose. Keep the place, every object and the composition unchanged.",
+        "negative": "nsfw, worst quality, bad anatomy, watermark, jpeg artifact, changed hair colour, grey hair, {avoid}",
+        "unet": "moss_image_sft_int8_convrot.safetensors", "clip": "qwen3.5_9b_int8_convrot.safetensors", "vae": "flux2-vae.safetensors",
+        "steps": 30, "sampler": "euler", "scheduler": "normal", "slg_single": "22",
+        "recipes": [
+          { "lora": "akhaliq_moss_edit_hq_armV5.safetensors", "format": "ai-toolkit", "cfg": 3.0 },
+          { "lora": "chinoll_moss_image_edit_adapter.safetensors", "format": "ai-toolkit", "cfg": 5.0 }
+        ]
+      },
+      "propagate": {
+        "prompt": "Edit propagation: each edited frame shows exactly how that moment of the video should look after the edit. Apply the same changes to every frame of the clip, before, between and after the edited frames, so the edit stays consistent through the whole video. Keep the guide video's motion, timing, camera movement, composition and all unedited content unchanged.",
+        "unet": "h3/minimax_h3_fl2va_pruned_int8_convrot.safetensors", "lora": "h3/minimax_H3_Ripple-v1.safetensors",
+        "turbo": "h3/minimax_h3_fl2v_lightx2v_turbo_4step_v1.0_768p_resized_avg_rank_31_bf16.safetensors",
+        "clip": "h3/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors", "vae": "h3/minimax_h3_video_vae_fp16.safetensors", "audio_vae": "h3/minimax_h3_audio_vae_fp32.safetensors",
+        "steps": 4, "sampler": "euler", "scheduler": "simple", "shift": [12.0, 3.0]
+      },
+      "needs": [{ "folder": "diffusion_models", "match": "moss_image_sft_int8" }, { "folder": "loras", "match": "moss_edit" }, { "folder": "loras", "match": "h3_ripple" }, { "folder": "diffusion_models", "match": "minimax_h3_fl2va" }],
+      "local_or_api": "local",
+      "constraints": ["the MOSS edit is not a pure relight: it can reframe, swap objects and change hair colour (U53b), so check the anchors before the render"],
+      "guidance": { "line": "MOSS edit of frames 0 and mid, then H3 Ripple with the take as its guide: night in the same shot, the best layout and motion tracking of three routes (patch to the day take 0.87 / 0.81 vs 0.73 / 0.69 for FL2V first frame)", "evidence": "measured", "source": "U53b (U40_DIAL_ENVELOPES, U53b section)", "n": 2, "hardware": "5090" },
+      "cost": { "community_s": null, "local_s": [100, 140], "per": "two anchor edits (12-19 s each) plus the Ripple render (89-103 s for 90 frames)", "vram_gb": null }
     }
   ]
 }

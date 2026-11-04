@@ -72,19 +72,35 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
 - **SNAP-R21: A shot's reference picture shows that shot's own camera.** H3 copies whatever picture it is given, view
   included: one wide plate as every shot's reference became the wrong view in 8/12 takes (U21), a per-shot picture the
   right one 12/12 (U48). So a set keeps one people-free plate per camera, made by an orbit pass from its wide plate
-  (H3 Ref2V, "the camera is not where <Picture 1> was taken" plus that camera's doors and windows), and the last frame
-  of a render that re-renders the wide plate's view is rejected: copy score (DINOv3 patch tokens matched by grid
-  position) at or above the threshold the model graph gives the encoder (0.72: U52 found last-frame copies at 0.77-0.80). Each plate records its take, frame,
-  copy score, seed, camera and who made it; the person can swap any plate. The shot compiler sends the shot's plate
-  with "seen from this camera", falls back to the wide plate with "the camera is not where <Picture N> was taken", and
-  uses a plate as FL2V's first frame only when the shot card asks to start on that exact frame. A plate stops counting
-  once its camera moves. The same score flags a take that copied its own reference picture's view (DINOv3's room score
-  can't). *More:* U48_PER_SHOT_PLATES §3 and U49, `web/snap/plates.js`, `MAISnapCopyScore`.
+  (H3 Ref2V, "the camera is not where <Picture 1> was taken" plus that camera's doors and windows). One render per
+  camera is unreliable (U49 moved off the plate 8/9, U52 pass 1 copied 3/3), so each camera gets 2-3 renders as
+  candidates (SNAP-R23) and the person picks. The copy score (DINOv3 patch tokens matched by grid position, threshold
+  from the model graph: 0.72) marks a likely copy of the wide plate's view and the layout check says where each door,
+  window and prop landed against the plan; neither rejects (push-ins score 0.56-0.68, like new views at 0.50-0.66).
+  A shot that compiles with no plate for its camera gets its candidates made then; "make all" does every camera. Each
+  plate records its take, frame, copy score, seed, camera, who made it and who picked it; the person can swap any
+  plate. The shot compiler sends the shot's plate with "seen from this camera", falls back to the wide plate with "the
+  camera is not where <Picture N> was taken", and uses a plate as FL2V's first frame only when the shot card asks to
+  start on that exact frame. A plate stops counting once its camera moves. The same score flags a take that copied its
+  own reference picture's view (DINOv3's room score can't). *More:* U48_PER_SHOT_PLATES §3 and U49, `web/snap/plates.js`,
+  `web/snap/checks.js`, `MAISnapCopyScore`.
 - **SNAP-R22: Doors and windows are said from the shot's camera.** The set card names each opening and its wall (from
   the plan geometry); the set block says where each is for this camera ("the tall window in the east wall is on the
   right", "the door in the south wall is behind the camera, out of view"), computed, never typed per shot. *Why:* with
   props only, H3 and MOSS put the window on the wrong wall in every reverse shot of U21 and U48. *More:* `setsnap.js`
   `openings`.
+
+- **SNAP-R23: A decision with several possible results shows them as candidates before anything changes.** Camera
+  plates, an edit's anchor frames and later any "make N, keep one" step hold N candidates, each with its provenance
+  (take, frame, seed, by) and pre-screen notes (copy score, layout against the plan, identity). The person previews a
+  candidate in place (the plate slot or the take viewer shows it; nothing is edited), applies one (one step Undo takes
+  back) or rejects one. A check only leaves a note: it never rejects alone, because every score so far overlaps between
+  right and wrong somewhere. Agents list and pre-screen candidates and recommend one; their apply / reject / undo waits
+  for the person as a proposal unless "Let agents run" is on (SNAP-R16), and every pick records who made it (SNAP-R17).
+  Any take's frame can be used as an input (First frame or a reference picture), and the brick remembers which take
+  and frame it came from. *Why:* U49 and U52 showed one render per camera is unreliable, and U53b's edits drifted the
+  person's hair; Krita's preview-then-Apply, Invoke's staging area and Runway's "use as input" (UX_GEMS #2).
+  *More:* `web/snap/candidates.js`, `candidateview.js`, `edits.js`.
 
 ## Agents
 

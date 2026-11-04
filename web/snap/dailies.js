@@ -3,11 +3,20 @@
 // judge model learns from (takes.js keeps it; tools/snap_dataset.py exports it). A take the chain no longer makes shows
 // "stale: Render.steps changed" (U31); checked after graph edits, written into the cards in place. A take that re-rendered
 // its own reference picture's view says "copied its reference view" once its copy check has run (U48: DINOv3's room
-// score can't tell a copy of the reference's view from a new view of the same room).
+// score can't tell a copy of the reference's view from a new view of the same room). In the viewer, "Use as input" puts
+// the frame at the playhead on the First frame or References brick (U32), and "Edit this take" runs a method of the edit
+// slot (U54: night version): its candidates show in the viewer, previewed over the take, and an applied one renders as a
+// new take whose card names its parent.
 // SNAP-R7 pointer-down lists · SNAP-R17 blind pairs from agents are judged by the person · SNAP-R20 the lock on private
-// takes · SNAP-R21 copies flagged · see docs/SNAP_RULES.md
+// takes · SNAP-R21 copies flagged · SNAP-R23 candidates · see docs/SNAP_RULES.md
 import * as T from "./takes.js";
 import * as PL from "./plates.js";
+import * as C from "./candidates.js";
+import * as ED from "./edits.js";
+import * as S from "./slots.js";
+import * as P from "./proposals.js";
+import { candidatesEl } from "./candidateview.js";
+import { url as mediaUrl } from "./checks.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const clock = (t) => `${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, "0")}`;
@@ -21,7 +30,7 @@ function mediaEl(m, { big, muted = true } = {}) {
   return h("audio", { src: T.url(m), controls: true });
 }
 
-export function createDailies({ host, say, onRestore, onContinue }) {
+export function createDailies({ host, say, onRestore }) {
   const picked = new Set(); // takes ticked for compare
   const strip = h("div", { className: "snap-takes-strip" });
   const count = h("span", { className: "snap-quiet" });
@@ -81,6 +90,7 @@ export function createDailies({ host, say, onRestore, onContinue }) {
         h("span", { className: "snap-take-stale", hidden: true }),
         t.copy?.copied ? h("span", { className: "snap-take-copy", textContent: `copied its reference view ${Math.max(...t.copy.against.map((a) => a.last)).toFixed(2)}`,
           title: `This take ends on the view of its reference picture (last frame's copy score at or above ${t.copy.threshold}): right when that picture is this camera's own plate, wrong when it shows another camera's view.\n${t.copy.against.map((a) => `${a.image}: ${a.frames.join(" → ")}`).join("\n")}` }) : null,
+        t.parent ? h("span", { className: "snap-take-parent", textContent: `↳ ${t.parent.options?.time ?? t.parent.method.split("/").pop()} of take ${T.get(t.parent.take)?.number ?? "?"}`, title: `made from ${t.parent.take} by ${t.parent.method}` }) : null,
         t.private ? h("span", { className: "snap-take-lock", textContent: "🔒 private", title: "Private take (identity or Cast LoRA): its files were saved without the recipe inside, and exports leave it out" }) : null,
         h("span", { className: "snap-quiet", textContent: `${t.notes.length ? `✎ ${t.notes.length} · ` : ""}${ago(t.created)}` })));
     c.dataset.take = t.id;
@@ -110,7 +120,9 @@ export function createDailies({ host, say, onRestore, onContinue }) {
     const player = mediaEl(m, { big: true, muted: false });
     const isVideo = player.tagName === "VIDEO";
     const overlay = h("canvas", { className: "snap-take-overlay" });
-    const stage = h("div", { className: "snap-take-stage" }, player, overlay);
+    // a candidate previewed in place: its picture over the take, at its own frame (nothing is edited)
+    const previewImg = h("img", { className: "snap-take-preview", alt: "", hidden: true }), previewTag = h("span", { className: "snap-take-preview-tag", hidden: true });
+    const stage = h("div", { className: "snap-take-stage" }, player, overlay, previewImg, previewTag);
     const markers = h("div", { className: "snap-take-markers" });
     const now = () => (isVideo ? player.currentTime : 0);
 
@@ -205,6 +217,59 @@ export function createDailies({ host, say, onRestore, onContinue }) {
           onclick: async () => { try { await PL.checkTake(t, "person"); copyRow(); } catch (err) { say(err.message, true); } } })).childNodes);
     };
     if (refs.length) { copyRow(); T.onChange(() => { if (copyLine.isConnected) copyRow(); }); }
+
+    // Use as input (U32): the frame at the playhead goes on the First frame or into References (one undo step)
+    const frameNow = () => (isVideo ? player.currentTime : "last");
+    const use = (as) => async () => { try { say((await T.use(t, { as, t: frameNow() })).said); onRestore?.(); } catch (err) { say(err.message, true); } };
+    const useRow = h("div", { className: "snap-set-actions" }, h("span", { className: "snap-quiet", textContent: "Use this frame as" }),
+      h("button", { className: "snap-link", textContent: "First frame", title: "the frame at the playhead becomes FL2V's start picture", onclick: use("first_frame") }),
+      h("button", { className: "snap-link", textContent: "Reference", title: "the frame at the playhead goes into References as a picture", onclick: use("reference") }));
+
+    // Edit this take (U54): a method of the edit slot makes anchor candidates; the person applies one to render it
+    const editBox = h("div", { className: "snap-take-edits" }), editNote = h("div", { className: "snap-quiet", role: "status" });
+    const methodPick = h("select", { ariaLabel: "edit method" }), timePick = h("select", { ariaLabel: "time of day" });
+    const editBtn = h("button", { className: "snap-primary", textContent: "Make 2 candidates", onclick: async () => {
+      editBtn.disabled = true;
+      try { const r = await ED.start(t, methodPick.value, { time: timePick.value }); editNote.textContent = `Editing frames 0 and ${ED.clip(t).mid}: ${r.candidates.length} candidates (about ${r.seconds_each} s each). Apply one to render it over the take`; } catch (err) { editNote.textContent = err.message; }
+      editBtn.disabled = false;
+    } });
+    S.load().then(() => {
+      const list = S.list("edit");
+      methodPick.replaceChildren(...list.map((m) => h("option", { value: m.id, textContent: m.title })));
+      const times = () => { const m = list.find((x) => x.id === methodPick.value); timePick.replaceChildren(...Object.keys(m?.options?.time ?? {}).map((k) => h("option", { value: k, textContent: k }))); timePick.hidden = !timePick.options.length;
+        editBtn.disabled = m?.install_state !== "ready"; editBtn.title = m?.install_state === "ready" ? m.guidance?.line ?? "" : m?.install_state ?? ""; };
+      methodPick.onchange = times; times();
+    }, (err) => { editNote.textContent = `Edit methods unavailable: ${err.message}`; });
+    let editSig = "", pressed = false;
+    editBox.addEventListener("pointerdown", () => { pressed = true; });
+    editBox.addEventListener("pointerup", () => { pressed = false; setTimeout(edits, 0); });
+    function edits() {
+      const mine = C.all().filter((d) => d.kind === "edit" && d.target === t.id && d.status !== "closed");
+      const sig = JSON.stringify([mine.map((d) => [d.id, d.status, d.applied, d.candidates.map((c) => [c.state, c.notes])]), P.pending().map((p) => p.id), mine.map((d) => ED.result(d)?.id)]);
+      if (sig === editSig || pressed || !editBox.isConnected && editSig) return;
+      editSig = sig;
+      editBox.replaceChildren(...mine.map((d) => {
+        const made = ED.result(d);
+        return h("div", { className: "snap-set-candrow" }, h("div", { className: "snap-rail-title", textContent: d.title }), candidatesEl(d, { say, crops: true }),
+          d.applied ? h("div", { className: "snap-quiet" }, made ? h("button", { className: "snap-link", textContent: `→ Take ${made.number} (${made.status})`, onclick: () => { close(); view(made); } }) : "rendering the take with H3 Ripple…") : null);
+      }));
+    }
+    // hovering a candidate shows it over the take at its frame; hovering one of its pictures shows that one
+    let hoverPic = 0;
+    editBox.addEventListener("pointerover", (e) => { const img = e.target.closest(".snap-cand-pics img"); if (img) { hoverPic = [...img.parentNode.children].indexOf(img); showPreview(C.previewed()); } });
+    function showPreview(shown) {
+      const d = shown && C.get(shown.decision), c = d?.target === t.id ? C.candidate(d, shown.candidate) : null, pic = c?.pictures[Math.min(hoverPic, c.pictures.length - 1)];
+      previewImg.hidden = previewTag.hidden = !pic;
+      if (!pic) return;
+      previewImg.src = mediaUrl(pic.media);
+      previewTag.textContent = `preview: ${c.id}, ${pic.label} edited (nothing applied)`;
+      if (isVideo) { player.pause(); player.currentTime = pic.frame / FPS; }
+    }
+    C.onPreview((shown) => { if (stage.isConnected) { if (!shown) hoverPic = 0; showPreview(shown); } });
+    C.onChange(() => { if (editBox.isConnected) edits(); });
+    P.onChange(() => { if (editBox.isConnected) edits(); });
+    T.onChange(() => { if (editBox.isConnected) edits(); });
+    C.load().then(edits, () => {});
     const keys = (e) => {
       if (e.target.closest("input,textarea,select")) return;
       if (e.key === "Escape") { e.stopPropagation(); close(); }
@@ -227,11 +292,13 @@ export function createDailies({ host, say, onRestore, onContinue }) {
           changes.length ? h("ul", { className: "snap-take-delta" }, changes.slice(0, 10).map((c) => h("li", {}, h("b", { textContent: `${c.node} · ${c.input}` }), ` ${String(c.from).slice(0, 40)} → ${String(c.to).slice(0, 60)}`))) : prev ? h("div", { className: "snap-quiet", textContent: "same settings" }) : null,
           copyLine,
           t.text ? h("details", {}, h("summary", { textContent: "Prompt" }), h("p", { className: "snap-take-text", textContent: t.text })) : null,
+          useRow,
+          isVideo && !t.private ? [h("div", { className: "snap-rail-title", textContent: "Edit this take" }), h("div", { className: "snap-set-actions" }, methodPick, timePick, editBtn), editNote, editBox] : null,
           h("div", { className: "snap-set-actions" },
             priorBtn,
             h("button", { className: "snap-link", textContent: "Use these settings", title: "put this take's settings back on the open workflow (one undo step)", onclick: () => { try { say(`${T.restore(t)} settings restored from take ${t.number}`); onRestore?.(); } catch (err) { say(err.message, true); } } }),
             h("button", { className: "snap-link", textContent: "Open as a new tab", onclick: () => T.openAsTab(t) }),
-            onContinue ? h("button", { className: "snap-link", textContent: "Continue from its last frame", title: "the take's last frame becomes the First frame", onclick: async () => { try { say(await onContinue(await T.lastFrame(t))); } catch (err) { say(err.message, true); } } }) : null))));
+            h("button", { className: "snap-link", textContent: "Continue from its last frame", title: "the take's last frame becomes the First frame", onclick: async () => { try { say((await T.use(t, { as: "first_frame", t: "last" })).said); onRestore?.(); } catch (err) { say(err.message, true); } } })))));
     tags(); refresh(); rankRow(); regionLine();
     host.append(sheet);
     if (isVideo) player.focus({ preventScroll: true });

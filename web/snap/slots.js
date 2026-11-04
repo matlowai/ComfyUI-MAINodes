@@ -1,7 +1,8 @@
 // Method slots (SNAP-R14, UX_GEMS §5): a slot is a named position holding one interchangeable method. A media slot sits
 // between two media sockets (upscale: the image Render's IMAGE and Save; RelayVSR is H3's switch inside its Render until
 // that blueprint gives VIDEO); a delta slot edits values on nodes that exist (turbo: its methods are the model graph's
-// turbos, in models.js). The registry is snap_cards/methods.json under the person's userdata snap/methods.json (field by
+// turbos, in models.js); a take slot holds methods that make a new take from an existing one (edit: relight, in
+// edits.js), so nothing in the chain fills it. The registry is snap_cards/methods.json under the person's userdata snap/methods.json (field by
 // field, the person wins, as the model graph). Readiness comes from the model folders and installed nodes at run time.
 // SNAP-R1 generic pass-through · SNAP-R4 outcome faces · SNAP-R11 warn, never block · SNAP-R13 data, not code branches ·
 // SNAP-R14 method slots · SNAP-R19 the tool table is the API · see docs/SNAP_RULES.md
@@ -42,6 +43,7 @@ function passes(key, media) {
 export function holder(id) {
   const s = slot(id), keys = E.state().bricks.map((b) => b.key);
   if (s.kind === "delta") return M.turboHost();
+  if (s.kind === "take") return null;
   return keys.find((k) => methodOf(k)?.slot === id) ?? keys.find((k) => passes(k, s.media)) ?? null;
 }
 // the media slot a brick fills, if any (the view's face)
@@ -61,6 +63,7 @@ export function list(id) {
     const now = M.turbo()?.file;
     return M.turbos().map((t) => ({ ...t, id: t.file, title: t.name, does: t.how === "merged" ? "merged checkpoint" : "LoRA", same_lineage: t.fits, install_state: "ready", wired: true, fits: true, current: t.file === now, local_or_api: "local" }));
   }
+  if (slot(id).kind === "take") return methods(id).map((m) => ({ ...m, install_state: installState(m), wired: true, fits: true, current: false }));
   const now = holder(id), k = kit(E.state().bricks.map((b) => b.key));
   return methods(id).map((m) => ({ ...m, install_state: installState(m), wired: !!m.brick && !m.unwired, fits: !k || m.kit === k, current: !!now && method(now) === m.id }))
     .concat(now?.startsWith("node:") ? [{ id: "custom", title: `Custom: ${BRICKS[now].title}`, does: "hand-wired", scale: null, install_state: "ready", wired: true, fits: true, current: true }] : []);
@@ -124,6 +127,7 @@ export function headline(key) {
 // list_methods' answer: the slot, what fills it now, and its methods
 export function describe(id) {
   if (slot(id).kind === "delta") return { slot: id, kind: "delta", family: M.family(), current: M.turbo()?.file ?? null, on: !!M.turbo(), methods: list(id) };
+  if (slot(id).kind === "take") return { slot: id, kind: "take", runs_on: "a take (edit_take)", methods: list(id) };
   const now = holder(id), ours = now && methodOf(now);
   return { slot: id, kind: "media", current: method(now), on: now ? on(now) : false, factor: ours ? factor(now) : null, headline: ours ? headline(now) : null, methods: list(id) };
 }
@@ -142,6 +146,7 @@ const sink = (media) => E.state().bricks.findIndex((b) => M.nodesOf(b.key).some(
 export async function set(id, choice, { factor: f } = {}) {
   const s = slot(id);
   if (s.kind === "delta") return M.setTurbo(choice);
+  if (s.kind === "take") throw new Error(`${s.title} methods run on a take, not on the chain: use edit_take (or Edit in the take viewer)`);
   const now = holder(id);
   if (choice === "off") { if (!now) throw new Error(`Nothing fills the ${id} slot`); setOn(now, false); return { method: method(now), on: false }; }
   const m = methods(id).find((x) => x.id === choice);

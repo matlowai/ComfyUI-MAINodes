@@ -1,12 +1,17 @@
 // Set Snapshot editor (UX_SPEC 7): the 2D blocking plan is the authority. Drag props, actor marks, doors, windows and the
 // camera; drag an arrow tip to turn an actor or aim the camera. The set block and the 180-degree check update live; Apply
 // refreshes the set pictures in References, Save keeps the edited state as a new card in the user's Library. The set's
-// camera plates are made and swapped here too (they live on the set's working copy, so they don't wait for Apply).
-// SNAP-R21 one plate per camera · SNAP-R22 doors and windows from the camera · see docs/SNAP_RULES.md
+// camera plates are made and swapped here too (they live on the set's working copy, so they don't wait for Apply): each
+// camera's orbit renders come as candidates to pick from, and hovering one shows it in that camera's plate slot.
+// SNAP-R21 one plate per camera · SNAP-R22 doors and windows from the camera · SNAP-R23 candidates · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import { drawPlan, planFrame, setBlock, blocking, coverage, bridges, between, sideTrack, wallOf, plateCameras } from "./setsnap.js";
 import { diff, eyelines } from "./continuity.js";
 import * as PL from "./plates.js";
+import * as C from "./candidates.js";
+import * as K from "./checks.js";
+import * as P from "./proposals.js";
+import { candidatesEl } from "./candidateview.js";
 
 const GRID = 0.05;
 const REACH = 0.6; // actor arrow length in metres; the camera's aim handle sits 1.4x further out
@@ -86,31 +91,61 @@ export function openSetEditor(host, card, { onApply, onSave }) {
     } });
     input.click();
   };
+  // the orbit pass makes 2-3 candidates per camera that has no plate (U55); the person picks each camera's plate below
+  const count = h("select", { className: "snap-set-count", ariaLabel: "candidates per camera", title: "renders per camera, seeds varied (about a minute each)" }, ...[2, 3].map((n) => h("option", { value: n, textContent: `${n} per camera` })));
   const makeBtn = h("button", { className: "snap-primary", onclick: async () => {
     makeBtn.disabled = true;
-    try { const r = await PL.make(lineage, { s, by: "person" }); plateNote.textContent = r.queued.length ? `Rendering ${r.queued.length} plate${r.queued.length === 1 ? "" : "s"} (about ${r.seconds_each} s each); a copy of the wide plate (≥ ${r.threshold}) is rejected` : r.note; } catch (err) { plateNote.textContent = err.message; }
+    try { const r = await PL.make(lineage, { s, by: "person", count: +count.value }); plateNote.textContent = r.queued.length ? `Rendering ${r.queued.length} plate candidates (${r.per_camera} per camera, about ${r.seconds_each} s each). Pick one per camera: a likely copy or a layout miss is marked, never thrown away` : r.note; } catch (err) { plateNote.textContent = err.message; }
     plates();
   } });
-  let plateSig = "";
+  // the tiles and each camera's candidates (right under its tile) are rebuilt only when what they show changed, never
+  // under a pressed pointer (SNAP-R7); a hovered candidate shows in its camera's tile without a rebuild
+  let plateSig = "", boxSig = "", pressed = false;
+  platesBox.addEventListener("pointerdown", () => { pressed = true; });
+  addEventListener("pointerup", () => { if (!pressed) return; pressed = false; if (sheet.isConnected) setTimeout(plates, 0); });
   function plates() {
-    const st = PL.status(card, s), missing = st.cameras.filter((c) => !c.fits && !c.rendering).length;
-    const tile = (name, plate, line, cls, action) => h("figure", { className: `snap-set-plate ${cls}`, title: plate ? Object.entries(plate).filter(([k]) => k !== "camera").map(([k, v]) => `${k}: ${v}`).join("\n") : "" },
-      plate?.image ? h("img", { src: inputUrl(plate.image), alt: `${name} plate` }) : h("div", { className: "snap-set-plate-none", textContent: cls === "rendering" ? "rendering…" : "no plate" }),
-      h("figcaption", {}, h("b", { textContent: name }), h("span", { textContent: line }), h("button", { className: "snap-link snap-quiet-btn", textContent: plate?.image ? "Replace…" : "Choose…", onclick: () => choose(action) })));
-    platesBox.replaceChildren(
-      tile("wide plate", st.wide, st.wide ? `by ${st.wide.by}` : "a people-free picture of the whole set", st.wide ? "" : "missing", "wide"),
-      ...st.cameras.map((c) => {
-        const line = c.rendering ? "rendering…" : c.plate && !c.fits ? "the camera moved since: make again"
-          : c.plate ? (c.plate.copy_score != null ? `copy ${c.plate.copy_score.toFixed(2)} · last frame · ${c.plate.by}` : `by hand (${c.plate.by})`)
-          : c.rejected?.copy ? `copied the wide plate (${c.rejected.copy_score.toFixed(2)}): rejected` : c.rejected ? `failed: ${c.rejected.error}` : "no plate yet";
-        return tile(c.camera, c.fits || c.rendering ? c.plate : null, line, c.rendering ? "rendering" : c.rejected && !c.fits ? "rejected" : c.fits ? "" : "missing", c.camera);
-      }));
-    makeBtn.textContent = missing ? `Make ${missing} camera plate${missing === 1 ? "" : "s"}` : "Every camera has a plate";
+    const st = PL.status(card, s), missing = st.cameras.filter((c) => !c.fits && !c.candidates?.rendering && !(c.candidates?.ready && !c.candidates.applied)).length;
+    makeBtn.textContent = missing ? `Make plate candidates for ${missing} camera${missing === 1 ? "" : "s"}` : "Every camera has a plate or candidates";
     makeBtn.disabled = !st.wide || !missing;
-    makeBtn.title = st.wide ? "one H3 Ref2V render per camera from the wide plate (about a minute each)" : "choose a wide plate first";
+    makeBtn.title = st.wide ? "H3 Ref2V renders from the wide plate per camera (about a minute each); you pick one per camera" : "choose a wide plate first";
+    const open = new Map(st.cameras.filter((c) => c.candidates).map((c) => [c.camera, C.get(c.candidates.decision)]));
+    const sig = JSON.stringify([st, [...open.values()].map((d) => [d.id, d.status, d.candidates.map((x) => [x.state, x.notes])]), P.pending().map((p) => p.id)]);
+    if (sig !== boxSig && !pressed) {
+      boxSig = sig;
+      const tile = (name, plate, line, cls, action) => h("figure", { className: `snap-set-plate ${cls}`, title: plate ? Object.entries(plate).filter(([k]) => k !== "camera").map(([k, v]) => `${k}: ${v}`).join("\n") : "" },
+        h("img", { src: plate?.image ? inputUrl(plate.image) : "", alt: `${name} plate`, hidden: !plate?.image }), plate?.image ? null : h("div", { className: "snap-set-plate-none", textContent: cls === "rendering" ? "rendering…" : "no plate" }),
+        h("span", { className: "snap-set-preview", textContent: "preview", hidden: true }),
+        h("figcaption", {}, h("b", { textContent: name }), h("span", { textContent: line }), h("button", { className: "snap-link snap-quiet-btn", textContent: plate?.image ? "Replace…" : "Choose…", onclick: () => choose(action) })));
+      platesBox.replaceChildren(
+        tile("wide plate", st.wide, st.wide ? `by ${st.wide.by}` : "a people-free picture of the whole set", st.wide ? "" : "missing", "wide"),
+        ...st.cameras.flatMap((c) => {
+          const k = c.candidates, d = open.get(c.camera);
+          const line = k?.rendering ? `rendering ${k.rendering} candidate${k.rendering === 1 ? "" : "s"}…` : k?.ready && !k.applied ? `${k.ready} candidate${k.ready === 1 ? "" : "s"} to pick below` : c.plate && !c.fits ? "the camera moved since: make again"
+            : c.plate ? (c.plate.copy_score != null ? `copy ${c.plate.copy_score.toFixed(2)} · picked ${c.plate.candidate ? c.plate.candidate.split("/").pop() : ""} · ${c.plate.picked_by ?? c.plate.by}` : `by hand (${c.plate.by})`)
+            : k?.failed ? `${k.failed} candidate${k.failed === 1 ? "" : "s"} failed` : "no plate yet";
+          const t = tile(c.camera, c.fits ? c.plate : null, line, k?.rendering && !c.fits ? "rendering" : c.fits ? "" : "missing", c.camera);
+          t.dataset.camera = c.camera;
+          return [t, d ? h("div", { className: "snap-set-candrow" }, h("div", { className: "snap-rail-title", textContent: `${d.camera}: pick its plate` }), candidatesEl(d, { say: (x) => { plateNote.textContent = x; } })) : null];
+        }));
+    }
+    preview();
   }
-  PL.onChange(() => { if (sheet.isConnected) plates(); });
-  PL.settle().catch(() => {});
+  // the hovered candidate in its camera's tile (page state only: nothing is applied)
+  function preview() {
+    const shown = C.previewed(), d = shown && C.get(shown.decision), pic = d?.kind === "plate" && C.candidate(d, shown.candidate)?.pictures[0];
+    for (const t of platesBox.querySelectorAll(".snap-set-plate[data-camera]")) {
+      const img = t.querySelector("img"), on = !!pic && d.camera === t.dataset.camera;
+      img.dataset.src ??= img.getAttribute("src") ?? "";
+      if (on) img.src = K.url(pic.media); else if (img.dataset.src) img.src = img.dataset.src;
+      img.hidden = !on && !img.dataset.src;
+      t.querySelector(".snap-set-plate-none")?.toggleAttribute("hidden", on || !!img.dataset.src);
+      t.querySelector(".snap-set-preview").hidden = !on;
+      t.classList.toggle("previewing", on);
+    }
+  }
+  C.onChange(() => { if (sheet.isConnected) plates(); });
+  C.onPreview(() => { if (sheet.isConnected) preview(); });
+  P.onChange(() => { if (sheet.isConnected) plates(); });
   const sheet = h("div", { className: "snap-sheet", role: "dialog", ariaLabel: `edit ${card.title}` },
     h("header", {}, h("strong", { textContent: card.title }), h("span", { className: "snap-spacer" }), h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: close })),
     h("div", { className: "snap-set-body" }, h("div", { className: "snap-set-plancol" }, plan,
@@ -118,7 +153,7 @@ export function openSetEditor(host, card, { onApply, onSave }) {
       h("aside", {}, h("label", { className: "snap-field" }, h("span", { textContent: "this state is the end of" }), shot),
         h("div", { className: "snap-rail-title", textContent: "Set block" }), blockText, h("div", { className: "snap-rail-title", textContent: "Blocking" }), blockingText,
         h("div", { className: "snap-rail-title", textContent: "Doors and windows" }), doorList,
-        h("div", { className: "snap-rail-title", textContent: "Camera plates" }), platesBox, h("div", { className: "snap-set-actions" }, makeBtn), plateNote,
+        h("div", { className: "snap-rail-title", textContent: "Camera plates" }), platesBox, h("div", { className: "snap-set-actions" }, makeBtn, count), plateNote,
         h("div", { className: "snap-rail-title", textContent: "Changes since the last shot" }), notes, bridgeBar,
         h("div", { className: "snap-set-actions" },
           h("label", { className: "snap-check" }, dialogue, " dialogue scene (check eyelines)"),

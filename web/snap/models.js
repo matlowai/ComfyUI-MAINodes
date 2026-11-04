@@ -34,6 +34,14 @@ export async function current() {
   return load();
 }
 export const file = (name) => files.get(name);
+// a file a graph Snap builds names, as this server's loader lists it (basename matching, SNAP-R3); one that isn't there
+// fails here, by name. Legacy combos list their choices as [[...]], V3 ones as ["COMBO", { options }]
+export async function choice(type, input, value) {
+  const spec = (await (await api.fetchApi(`/object_info/${type}`)).json())[type].input.required[input], list = Array.isArray(spec[0]) ? spec[0] : spec[1].options;
+  const hit = E.resolveChoice(list, value);
+  if (hit === undefined || !list.includes(hit)) throw new Error(`${type}.${input}: ${value} isn't installed`);
+  return hit;
+}
 // folder -> the file names in it (core's lists), for readiness checks that look at what is installed now
 export const folders = () => { const m = new Map(); for (const [name, f] of files) m.set(f.folder, [...(m.get(f.folder) ?? []), name]); return m; };
 

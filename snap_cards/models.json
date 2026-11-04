@@ -1234,7 +1234,31 @@
     "evidence": "measured",
     "source": "positional patch match to a known picture (U48 §3, U49, U52): copies 0.93-0.94 as a 5-frame mean and 0.77-0.90 on the last frame (U49 orbit_S1_22 0.77 and U52 master 0.799 were copies by eye), new views of the same room 0.50-0.66; 0.80 let both through"
    },
-   "notes": "Snap's copy check (MAISnapCopyScore): did a take or a camera plate re-render its reference picture's view"
+   "identity_check": {
+    "threshold": 0.93,
+    "region": "head",
+    "evidence": "measured",
+    "source": "U54 calibration: the same patch match on SAM 3.1 head crops of a take's frame and its edit. A pure relight (same pixels darker and bluer) keeps 0.99; the four U53b MOSS night edits, whose hair went grey-silver or blonder by eye, scored 0.71-0.90; another frame of the same woman 0.62, another woman 0.40. n = 4 edits, 1 scene"
+   },
+   "notes": "Snap's copy check (MAISnapCopyScore): did a take or a camera plate re-render its reference picture's view; and its identity check on head crops (edit a take)"
+  },
+  {
+   "file": "sam3.1_multiplex_fp16.safetensors",
+   "folder": "checkpoints",
+   "family": null,
+   "kind": "detector",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": null,
+   "size_gb": 1.75,
+   "quant_format": null,
+   "loads_in_core": true,
+   "detects": "text",
+   "notes": "Snap's pre-screen checks find things by name with core SAM3_Detect: the head for the identity check, doors, windows and props for the layout check (it reads 'lamp housing' as the floor lantern in the lamp room)"
   },
   {
    "file": "pika_h3_flex_fl2va_v1_bf16.safetensors",

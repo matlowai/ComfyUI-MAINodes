@@ -44,10 +44,14 @@ export function openings(s) {
   });
 }
 
+// every prop, door and window as this camera sees it: where it sits in the frame (k from -1 left to 1 right, and in
+// words), or k null when it is out of view; `query` is the word a detector looks for (the layout check, U55)
+export const layout = (s) => [...s.props.map((p) => ({ name: p.name, kind: "prop", query: p.name, points: [p.at] })), ...s.room.openings.map((o) => ({ name: o.name || o.kind, kind: o.kind, query: o.kind, points: [o.from, middle(o), o.to] }))]
+  .map(({ points, ...x }) => ({ ...x, k: null, where: null, ...framed(s.camera, points) }));
+
 // what this camera sees, left to right, each with where it sits in the frame (U21's camera sentences, from the plan)
 export function inFrame(s) {
-  const things = [...s.props.map((p) => [p.name, [p.at]]), ...s.room.openings.map((o) => [o.name || o.kind, [o.from, middle(o), o.to]])];
-  return things.map(([name, points]) => ({ name, ...framed(s.camera, points) })).filter((x) => x.where).sort((a, b) => a.k - b.k).map((x) => `the ${x.name} ${x.where}`).join(", ");
+  return layout(s).filter((x) => x.where).sort((a, b) => a.k - b.k).map((x) => `the ${x.name} ${x.where}`).join(", ");
 }
 
 // objects in the camera's view, left to right, and the set block that pins them ("exactly these N and nothing else"),

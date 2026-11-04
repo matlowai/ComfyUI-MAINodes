@@ -20,6 +20,8 @@ import * as D from "./dials.js";
 import * as sight from "./sight.js";
 import * as M from "./models.js";
 import * as S from "./slots.js";
+import * as PL from "./plates.js";
+import * as C from "./candidates.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -87,15 +89,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Make app", title: "open this recipe in ComfyUI's App mode: the brick faces become a run-only app (reloads the graph)", onclick: () => onMakeApp() }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: `Add brick  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}`, title: "Ctrl/Cmd+K", onclick: () => openPalette() }), seeBtn, seg, runBtn, progress),
     h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), inspector, handle), toast);
-  // takes under the chain: "continue from its last frame" puts that frame on the First frame brick
-  const dailies = createDailies({ host: root, say, onRestore: () => render(null), onContinue: (file) => {
-    const w = E.nodeFor("first_frame", "image")?.widgets?.find((x) => x.name === "image");
-    if (!w) throw new Error("Add the First frame brick to continue from a take");
-    if (!w.options.values.includes(file)) w.options.values.push(file);
-    E.setValue("first_frame", "image", "image", file);
-    render(null);
-    return "Its last frame is now the First frame";
-  } });
+  // takes under the chain: "Use as input" puts a take's frame on the First frame or References brick (T.use)
+  const dailies = createDailies({ host: root, say, onRestore: () => render(null) });
   stack.after(dailies.el);
   let selected = null;
   const built = new Map(); // brick key -> { el, sig }: a brick is rebuilt only when what it shows changed
@@ -181,8 +176,18 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   async function applyCard(id) {
     const card = L.get(id), before = rects();
-    try { say(await L.apply(card)); if (L.TARGET[card.kind]) select(L.TARGET[card.kind], false); } catch (err) { say(err.message, true); }
+    try { say(await L.apply(card)); if (L.TARGET[card.kind]) select(L.TARGET[card.kind], false); } catch (err) { say(err.message, true); render(before); return; }
     render(before);
+    if (card.kind === "shot") plateFor(card).catch((err) => say(err.message, true));
+  }
+  // a shot compiled with no plate for its camera: its plate candidates are made now (U55), the person picks one in the set
+  // editor, and the shot compiles again with it
+  async function plateFor(card) {
+    const need = await PL.forShot(card);
+    if (!need) return;
+    if (need.rendering || need.waiting) return say(`${need.camera}: its plate candidates ${need.rendering ? "are rendering" : "wait for your pick"} in the set editor; the shot uses the wide plate until then`);
+    const r = await PL.make(need.set, { cameras: [need.camera], by: "person" });
+    say(`${need.camera} has no plate: rendering ${r.queued.length} candidates (about ${r.seconds_each} s each). Pick one in the set editor; the shot compiles again with it`);
   }
 
   attachDrag(root, {
@@ -757,6 +762,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     if (def.stack) body.push(stackFace(info.brick));
     body.push(...warnLines(info.brick));
     if (def.check && attachedOn(info.brick)) body.push(checkLine(info.brick, true)); // Off runs nothing, so nothing can be wrong
+    const from = info.brick === "first_frame" && takenFrom();
+    if (from) body.push(h("button", { className: "snap-link snap-quiet-btn snap-from", textContent: `↳ take ${from.number}, frame ${from.frame}`, title: "this picture is a frame of that take (Use as input): click to open the take",
+      onclick: (e) => { e.stopPropagation(); const t = T.get(from.take); if (t) dailies.view(t); else say(`Take ${from.number} isn't in this page's takes`, true); } }));
     if (info.brick === "render") {
       const shot = E.state().bricks.find((x) => x.key === "render")?.shot;
       if (shot) body.push(h("div", { className: "snap-shot-line", title: `prompt compiled from ${L.get(shot.card)?.title ?? shot.card}` }, shot.parts.map((x) => h("i", { className: `snap-dot ${x.field}` })), h("span", { textContent: (L.get(shot.card)?.title ?? shot.card).replace(/:.*/, "") })));
@@ -900,6 +908,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     values.push(presetNode(info.brick)?.presets.current(), BRICKS[info.brick].check && M.check(info.brick), M.known()); // chips get their sizes once the model lists arrive
     if (info.brick === "refs") values.push(E.state().bricks.find((b) => b.key === "refs")?.pictures);
     if (info.brick === "render") values.push(E.state().bricks.find((b) => b.key === "render")?.shot);
+    if (info.brick === "first_frame") values.push(takenFrom());
     const notes = openNotes(info.brick).map((n) => [n.id, n.status, n.reply, P.all().filter((p) => p.note === n.id && p.status === "waiting").length]);
     const open = opened === info.brick && Object.values(info.nodes).map((id) => app.graph.getNodeById(id)?.widgets?.map((w) => (typeof w.value === "object" ? null : w.value)));
     return JSON.stringify([info.nodes, info.bindings, overridden.filter((o) => o.to === info.brick).map((o) => o.change), values, notes, open]);
@@ -915,6 +924,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     return el;
   }
 
+  // where the First frame's picture came from (T.use), while the brick still shows that picture
+  const takenFrom = () => { const f = E.state().bricks.find((b) => b.key === "first_frame")?.from; return f && E.getValue("first_frame", "image", "image") === f.file ? f : null; };
   const brickNode = (key) => (key == null ? undefined : [...stack.children].find((el) => el.dataset?.brick === key)); // keys can come from agents: no selector strings; the lanes SVG has no brick
 
   // agent proposals: ghost bricks for proposed snaps, dashed chips on the brick for everything else
@@ -928,7 +939,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   function proposalEl(p, ghost) {
     const label = p.tool === "snap" ? `Add ${BRICKS[p.args.brick]?.title ?? p.args.brick}` : p.tool === "set_setting" ? `${p.args.name} → ${JSON.stringify(p.args.value)}`
-      : p.tool === "apply_card" ? `Apply ${L.get(p.args.card)?.title ?? p.args.card}` : `${p.tool.replaceAll("_", " ")} ${p.args.brick ?? ""}`;
+      : p.tool === "apply_card" ? `Apply ${L.get(p.args.card)?.title ?? p.args.card}`
+      : /^(apply|reject|undo)_candidate$/.test(p.tool) ? `${p.tool.split("_")[0][0].toUpperCase()}${p.tool.split("_")[0].slice(1)} ${p.args.candidate ?? ""} · ${C.get(p.args.decision)?.title ?? p.args.decision}`
+      : p.tool === "edit_take" ? `${p.args.time ?? "night"} version of take ${T.get(p.args.take)?.number ?? p.args.take}` : `${p.tool.replaceAll("_", " ")} ${p.args.brick ?? ""}`;
     const el = h(ghost ? "section" : "div", { className: ghost ? "snap-brick snap-ghost-brick" : "snap-proposal", tabIndex: 0, title: "Enter accepts · Backspace rejects" },
       h("span", { className: "snap-agent", textContent: "agent" }), h("span", { className: "snap-proposal-what", textContent: label }),
       p.reason ? h("span", { className: "snap-blurb", textContent: p.reason }) : null,

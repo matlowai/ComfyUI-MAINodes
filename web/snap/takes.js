@@ -5,6 +5,8 @@
 // into training rows (takes, notes, preference pairs) for a judge model, only when someone runs it.
 // Each take keeps a content hash of what ran (`hash`, seeds left out, and `seed_hash` for them), so stale() can say
 // when the chain no longer matches it and name the brick and field that changed (UX_GEMS #1); never re-renders.
+// A take an edit made (edits.js: a night version) names its parent take and the method; "Use as input" puts any frame of
+// a take on the First frame or References brick, with where it came from (U32).
 // A take the server's save gate marked private or NSFW (history extra_data.snap_marks) says so: private takes saved
 // their files without the recipe inside, and the export leaves both out unless asked.
 // SNAP-R17 person and agent kept apart (notes, judgments, rankings) · SNAP-R18 local only · SNAP-R20 private takes
@@ -110,7 +112,7 @@ async function capture(id, status, error, failedNode) {
     group, workflow: app.extensionManager.workflow.activeWorkflow?.filename ?? "", number: n,
     status, ...(error ? { error, failed_node: failedNode } : {}), text, seed, media: media(h.outputs),
     ...(extra?.snap_marks?.private ? { private: true } : {}), ...(extra?.snap_marks?.nsfw ? { nsfw: true } : {}),
-    ...(Object.keys(swapped).length ? { swapped } : {}), ...await hashes(canonical(prompt, swapped)),
+    ...(Object.keys(swapped).length ? { swapped } : {}), ...(extra?.snap_parent ? { parent: extra.snap_parent } : {}), ...await hashes(canonical(prompt, swapped)),
     verdict: null, prior: false, notes: [], graph, prompt,
   });
 }
@@ -159,9 +161,9 @@ export function changes(was, now) {
   return [...new Set(out)];
 }
 // null when the live chain still makes this take (seeds aside), else what changed; takes from before hashes were kept
-// are hashed from their prompt
+// are hashed from their prompt. An edit's take was never made by the chain, so it is never stale
 export async function stale(take, now) {
-  if (!take.prompt) return null;
+  if (!take.prompt || take.parent) return null;
   now ??= await live();
   if ((take.hash ?? (await hashes(canonical(take.prompt, take.swapped))).hash) === (await hashes(now)).hash) return null;
   const list = changes(canonical(take.prompt, take.swapped), now);
@@ -252,20 +254,41 @@ export function delta(a, b) {
   return out;
 }
 
-// the last frame of a video take as a picture in ComfyUI's input folder ("continue from end of shot")
-export async function lastFrame(take) {
+// a frame of a take as a picture in ComfyUI's input folder: `t` in seconds, "last" for its end ("continue from end of shot")
+export async function frameAt(take, t = "last") {
   const m = take.media.find((x) => x.kind === "video") ?? take.media.find((x) => x.kind === "image");
   if (!m) throw new Error("This take has no picture or video");
+  let at = 0;
   const blob = m.kind === "image" ? await (await fetch(url(m))).blob() : await new Promise((resolve, reject) => {
     const v = Object.assign(document.createElement("video"), { src: url(m), muted: true, preload: "auto" });
-    v.onloadedmetadata = () => { v.currentTime = Math.max(0, v.duration - 0.05); };
+    v.onloadedmetadata = () => { at = t === "last" ? Math.max(0, v.duration - 0.05) : Math.min(Math.max(0, t), v.duration - 0.05); v.currentTime = at; };
     v.onseeked = () => { const c = Object.assign(document.createElement("canvas"), { width: v.videoWidth, height: v.videoHeight }); c.getContext("2d").drawImage(v, 0, 0); c.toBlob(resolve, "image/png"); };
-    v.onerror = () => reject(new Error("couldn't read the video's last frame"));
+    v.onerror = () => reject(new Error("couldn't read the video's frame"));
   });
-  const form = new FormData();
-  form.append("image", blob, `${take.id}_last.png`);
+  const frame = Math.round(at * 24), form = new FormData();
+  form.append("image", blob, `${take.id}_f${frame}.png`);
   form.append("subfolder", "snap");
   form.append("overwrite", "true");
   const r = await (await api.fetchApi("/upload/image", { method: "POST", body: form })).json();
-  return `${r.subfolder}/${r.name}`;
+  return { file: `${r.subfolder}/${r.name}`, frame };
+}
+
+// "Use as input" (U32): a take's frame becomes the First frame (FL2V's start) or a reference picture, through the bricks'
+// own loaders, as one undo step; the brick remembers the take and frame it came from
+export async function use(take, { as = "first_frame", t = "last", by = "person" } = {}) {
+  if (!["first_frame", "reference"].includes(as)) throw new Error(`Use a take as first_frame or reference, not ${as}`);
+  const key = as === "first_frame" ? "first_frame" : "refs";
+  if (!E.state().bricks.some((b) => b.key === key)) throw new Error(`Add the ${BRICKS[key].title} brick to use a take ${as === "first_frame" ? "as its first frame" : "as a reference"}`);
+  const { file, frame } = await frameAt(take, t), from = { take: take.id, number: take.number, frame, file, by };
+  app.canvas.emitBeforeChange();
+  try {
+    if (as === "reference") E.addPicture(file, { role: `take ${take.number}, frame ${frame}`, reason: `frame ${frame} of take ${take.number} (${take.id})`, source: take.id });
+    else {
+      const w = E.nodeFor("first_frame", "image").widgets.find((x) => x.name === "image");
+      if (!w.options.values.includes(file)) w.options.values.push(file); // uploaded after the page loaded
+      E.setValue("first_frame", "image", "image", file);
+      E.remember("first_frame", "from", from);
+    }
+  } finally { app.canvas.emitAfterChange(); }
+  return { as, file, ...from, said: `Frame ${frame} of take ${take.number} is now ${as === "first_frame" ? "the First frame" : "a reference picture"}` };
 }
