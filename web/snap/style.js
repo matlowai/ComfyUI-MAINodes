@@ -399,7 +399,8 @@ export const STYLE = `
 /* takes */
 .snap-takes { flex: none; height: 232px; display: flex; flex-direction: column; border-top: 1px solid var(--s-line); background: color-mix(in srgb, var(--s-bg) calc(var(--veil) * 70%), transparent); }
 .snap-takes.empty { height: 92px; }
-.snap-takes > header { display: flex; align-items: center; gap: 10px; padding: 10px 18px 6px; }
+.snap-takes > header { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; padding: 10px 18px 6px; }
+.snap-takes-hint { white-space: nowrap; }
 .snap-takes > header strong { font-size: 13px; }
 .snap-takes-strip { flex: 1; min-height: 0; display: flex; gap: 12px; overflow: auto hidden; padding: 4px 18px 14px; align-items: stretch; }
 .snap-takes-strip > .snap-quiet { align-self: center; }
@@ -487,7 +488,7 @@ export const STYLE = `
 .snap-compare-pick .snap-primary, .snap-compare-pick .snap-link { margin: 0; }
 .snap-card-thumb { margin: -2px -4px 4px; border-radius: 8px; overflow: hidden; aspect-ratio: 16 / 9; background: #000; }
 .snap-card-thumb video, .snap-card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-@container (max-width: 760px) { .snap-takes { height: 200px; } .snap-take-body { grid-template-columns: minmax(0, 1fr); } }
+@container (max-width: 760px) { .snap-takes { height: 200px; } .snap-takes-hint { order: 9; flex-basis: 100%; } .snap-takes.empty { height: auto; } /* phone: the hint gets its own row under Takes … Compare, and the empty strip's sentence its whole height */ .snap-take-body { grid-template-columns: minmax(0, 1fr); } }
 .snap-empty { margin: auto; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center; max-width: 440px; }
 .snap-empty-art { display: flex; align-items: center; margin-bottom: 14px; }
 .snap-empty-art i { width: 64px; height: 46px; border-radius: 12px; background: linear-gradient(180deg, hsl(var(--hue) 40% 30%), hsl(var(--hue) 30% 20%)); border: 1px solid hsl(var(--hue) 50% 60% / .4); }
