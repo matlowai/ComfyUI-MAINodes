@@ -91,8 +91,9 @@ You can also run the tools as an MCP server (Claude Code):
    (`path` on the ComfyUI machine, and `url`). `metadata_kept` names nodes that wrote the prompt into their files
    although Save metadata was off: tell the person.
 7. `list_takes`, `take_frames` (look at a take) and `rank_takes` / `judge_takes` (your own judgments, kept apart from
-   the person's) come after that. A video take whose `sound.quiet` is true is near-silent: tell the person. Offer
-   `make_louder` (a louder version of the take) or a prompt that names the sounds the action makes.
+   the person's) come after that. Snap notes a take whose sound is quiet (mean below about -45 dB): its `sound.quiet` is
+   true. Then tell the person, and offer `make_louder` (a louder version of the take) or a prompt that names the sounds
+   the action makes. With no note the level is normal (our good takes are about -25 to -45 dB): don't re-render for it.
 8. To make a take longer, call `edit_take {"take": "<id>", "method": "chain", "clips": 2}`. Standard (`chain`) holds the
    colour; `geiru` (Strong) keeps the look but may reset the action. Each clip adds about 4.25 s, and the longer take
    lands as a version of the take.
