@@ -689,7 +689,7 @@ export const STYLE = `
 .snap-pin.moved:hover { background: #f0b44526; } .snap-pin.moved:focus-visible { outline: 2px solid var(--s-accent); outline-offset: 2px; } .snap-pin.missing { color: #f08a7a; }
 .snap-set-note { font: inherit; font-size: 12px; color: var(--s-fg); background: #0000002e; border: 1px solid #ffffff10; border-radius: 8px; padding: 6px 8px; min-width: 0; flex: 1 1 180px; }
 /* the World sheet and the opened-file sheet (U87, SNAP-R61/R62) */
-.snap-sheet.snap-world-sheet, .snap-sheet.snap-opened-sheet { inset: 64px max(24px, calc(50% - 480px)) auto; max-height: calc(100% - 100px); display: flex; flex-direction: column; }
+.snap-sheet.snap-world-sheet, .snap-sheet.snap-opened-sheet, .snap-sheet.snap-rerun-sheet { inset: 64px max(24px, calc(50% - 480px)) auto; max-height: calc(100% - 100px); display: flex; flex-direction: column; }
 .snap-world-body, .snap-opened-body { min-height: 0; overflow: auto; padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 8px; }
 .snap-world-list, .snap-world-rows { display: flex; flex-direction: column; gap: 6px; }
 .snap-world-item, .snap-world-row { background: var(--s-card); border-radius: 10px; box-shadow: inset 0 0 0 1px var(--s-line); padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
@@ -703,7 +703,13 @@ export const STYLE = `
 .snap-danger { font: inherit; font-size: 12.5px; color: #fff; background: #c2453a; border: 0; border-radius: 8px; padding: 6px 12px; cursor: pointer; } .snap-danger:focus-visible { outline: 2px solid var(--s-accent); outline-offset: 2px; }
 .snap-world-del { color: #f08a7a; }
 .snap-world-fields { margin: 2px 0 0; padding-left: 18px; font-size: 12px; color: var(--s-dim); overflow-wrap: anywhere; }
-@container (max-width: 760px) { .snap-sheet.snap-world-sheet, .snap-sheet.snap-opened-sheet { inset: 56px 8px auto; } .snap-world-line .snap-spacer { flex-basis: 100%; height: 0; } }
+/* the Re-run sheet (U89): each row's pick under its name, what the pick changes under it; the land, seed and buttons on one wrapping row */
+.snap-rerun-sheet select { font: inherit; font-size: 12px; color: var(--s-fg); background: var(--s-card); border: 1px solid var(--s-line); border-radius: 8px; padding: 6px; }
+.snap-rerun-pick { display: block; width: 100%; max-width: 100%; margin-top: 6px; }
+.snap-rerun-what { font-size: 12px; margin-top: 4px; } .snap-rerun-what:empty { display: none; }
+.snap-rerun-route { margin: 10px 0 4px; }
+.snap-rerun-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; } .snap-rerun-actions select { max-width: 100%; }
+@container (max-width: 760px) { .snap-sheet.snap-world-sheet, .snap-sheet.snap-opened-sheet, .snap-sheet.snap-rerun-sheet { inset: 56px 8px auto; } .snap-world-line .snap-spacer { flex-basis: 100%; height: 0; } }
 .snap-rail-actions { display: flex; flex-wrap: wrap; gap: 0 12px; }
 .snap-world-warn { flex-basis: 100%; font-size: 12px; line-height: 1.4; color: #f0b445; }
 .snap-take-unplaced { font-size: 11px; color: #f08a7a; }

@@ -36,7 +36,7 @@ import { openLoras, moveControl, label as catLabel } from "./loraview.js";
 import { openCast } from "./castview.js";
 import * as RT from "./retake.js";
 import { openWorld } from "./worldview.js";
-import { openWorldSheet } from "./worldsheet.js";
+import { openRerunSheet } from "./rerunsheet.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -120,10 +120,11 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // takes under the chain: "Use as input" puts a take's frame on the First frame or References brick (T.use)
   const dailies = createDailies({ host: root, say, onRestore: () => render(null), onHover: (t) => previewTake(t), onRunFrom: (t) => runFrom(t).catch((err) => say(err.message, true)),
     onRetake: (t, world) => RT.retake(t, { world }).then((r) => { say(r.said); render(null); }, (err) => say(err.message, true)),
+    onRerun: (t) => openRerunSheet(root, { take: t, say, edit: editPinned }).catch((err) => say(err.message, true)),
     onReprompt: () => repromptSound() });
   stack.after(dailies.el);
   // the scene navigator above the chain (U59): opening a shot swaps the graph in the scene tab, so the chain shows it
-  const sceneBar = createSceneBar({ host: root, say, run, openTake: (t) => dailies.view(t), onOpened: () => {
+  const sceneBar = createSceneBar({ host: root, say, run, openTake: (t) => dailies.view(t), rerun: (t) => openRerunSheet(root, { take: t, say, edit: editPinned }).catch((err) => say(err.message, true)), onOpened: () => {
     if (selected && !E.state().bricks.some((b) => b.key === selected)) select(null, false); // the panel stays as the person left it
     render(null);
   } });
@@ -390,7 +391,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   app.graph.events?.addEventListener("configured", () => setTimeout(() => {
     if (!fileOpened || Date.now() - fileOpened.at > 15000) return;
     const o = fileOpened; fileOpened = null;
-    if (Object.keys(E.state().world ?? {}).length) openWorldSheet(root, { name: o.name, say, edit: editPinned }).catch((err) => say(err.message, true));
+    if (Object.keys(E.state().world ?? {}).length) openRerunSheet(root, { name: o.name, say, edit: editPinned }).catch((err) => say(err.message, true));
   }, 500));
   const fileInput = h("input", { type: "file", hidden: true, accept: "image/png,image/webp,video/mp4,video/webm,application/json", onchange: () => { const f = fileInput.files[0]; fileInput.value = ""; if (f) openSaved(f, "file_button"); } });
   root.append(fileInput);

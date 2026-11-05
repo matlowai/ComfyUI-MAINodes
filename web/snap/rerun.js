@@ -8,6 +8,7 @@
 // A swap that changes nothing the prompt holds is said before the run: core would serve the take's own file.
 // SNAP-R63 re-run with swaps · SNAP-R61 as it was / today's world · SNAP-R60 pins · SNAP-R24 where it lands · SNAP-R11
 // warn, never block · SNAP-R58 every choice listed in full · see docs/SNAP_RULES.md
+import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import * as L from "./library.js";
 import * as M from "./models.js";
@@ -20,6 +21,10 @@ export const ROUTES = ["regenerate"], SEEDS = RT.SEEDS;
 // what a Cast version puts into a run: its lore, alias, rating and name don't reach the prompt
 const INTO_RUN = ["trigger", "details", "lora", "refs"];
 const recordName = (r) => (r.kind === "cast" ? W.headOf(r).body.name : L.nameOf(W.headOf(r).body));
+
+// a saved file opened in Snap as a subject: the open workflow, its pins and preset; it is no take, so a run of it has no parent
+export const opened = (name) => ({ id: null, title: name, world: E.state().world ?? {}, graph: app.graph.serialize(), group: app.graph.id });
+const named = (take) => take.title ?? `Take ${take.number}`;
 
 // the take's Setup: its setup pin, else the Render Preset its workflow ran (the node's preset), else "custom"
 export function setupOf(take) {
@@ -57,7 +62,7 @@ const choices = (s) => (s.kind === "scene" ? `pinned (the scene it is in), or an
 
 // one asked swap as {slot, to, ref, text, fields, warning, into_run}; keep: true when it leaves the slot as it was
 function one(take, s, to) {
-  const no = () => { throw new Error(`Take ${take.number}: swaps["${s.slot}"].to ${JSON.stringify(to)} isn't one of ${choices(s)}`); };
+  const no = () => { throw new Error(`${named(take)}: swaps["${s.slot}"].to ${JSON.stringify(to)} isn't one of ${choices(s)}`); };
   if (to === "pinned" || to == null) return { slot: s.slot, to: "pinned", keep: true, text: `${s.name}${s.n ? ` v${s.n}` : ""} as it was`, into_run: false };
   if (s.kind === "scene") {
     const scene = typeof to === "string" && to.startsWith("scene:") ? SC.get(to.slice(6)) : null;
@@ -68,11 +73,13 @@ function one(take, s, to) {
   }
   if (s.kind === "setup") return s.others.some((o) => o.ref === to) ? { slot: s.slot, to, text: `Setup ${s.name} → ${to}`, into_run: true } : no();
   const { kind, id } = W.parse(s.slot);
+  if (to === "latest" && s.n === 0) return { slot: s.slot, to, latest: true, text: `${s.name}: today's pack card`, into_run: true }; // a pack card moves with the pack
   let ref;
   if (to === "latest") ref = W.refOf(kind, id);
   else if (/^@\d+$/.test(to)) ref = s.versions.some((v) => v.n === +to.slice(1)) ? W.refOf(kind, id, +to.slice(1)) : no();
   else if (typeof to === "string" && to.startsWith(`${kind}:`)) { const x = W.parse(to); ref = W.get(to) && (x.id === id || s.others.some((o) => o.ref === W.refOf(kind, x.id))) ? to : no(); }
   else no();
+  if (!W.get(ref)) no();
   const now = W.get(ref), x = W.parse(ref), same = x.id === id, was = W.get(W.refOf(kind, id, s.n))?.version.body;
   if (same && now.version.n === s.n) return { slot: s.slot, to, keep: true, text: `${s.name} v${s.n} is already ${to === "latest" ? "the newest" : "that version"}`, into_run: false };
   const body = now.version.body, name = kind === "cast" ? body.name : L.nameOf(body), fields = W.diff(was, body);
@@ -87,7 +94,7 @@ export async function resolve(take, swaps = {}) {
   const list = await slots(take);
   return Object.entries(swaps).map(([slot, ask]) => {
     const s = list.find((x) => x.slot === slot);
-    if (!s) throw new Error(`Take ${take.number} has no slot "${slot}"; its slots are ${list.map((x) => x.slot).join(", ")}`);
+    if (!s) throw new Error(`${named(take)} has no slot "${slot}"; its slots are ${list.map((x) => x.slot).join(", ")}`);
     return one(take, s, typeof ask === "string" || ask == null ? ask : ask.to);
   });
 }
@@ -112,19 +119,20 @@ async function put(s) {
   return s.latest ? L.updatePin(s.slot) : L.swapPin(s.slot, s.ref);
 }
 
-// Re-generate: the take's recipe again with the swaps, the same seed unless `seed` is new; queue: false only opens it
+// Re-generate: the take's recipe again with the swaps, the same seed unless `seed` is new; queue: false only opens it.
+// An opened file (opened()) runs in place, unmarked
 export async function rerun(take, { swaps = {}, route = "regenerate", seed = "same", land, queue: go = true } = {}) {
   if (!ROUTES.includes(route)) throw new Error(`route is one of ${ROUTES.join(", ")}`);
   if (!SEEDS.includes(seed)) throw new Error(`seed is one of ${SEEDS.join(", ")}`);
-  if (!take.graph) throw new Error(`Take ${take.number} has no workflow saved with it`);
-  const asked = await resolve(take, swaps), home = landing(land), where = await RT.openTake(take, home), done = [];
+  if (!take.graph) throw new Error(`${named(take)} has no workflow saved with it`);
+  const asked = await resolve(take, swaps), home = landing(land), where = take.id ? await RT.openTake(take, home) : "this tab", done = [];
   for (const s of asked.filter((x) => !x.keep)) done.push(await put(s));
   const seedKey = E.state().bricks.find((b) => E.seedMode(b.key))?.key, newSeed = seed === "new" && seedKey ? E.newSeed(seedKey) : null;
   const cached = seed === "same" && (await T.hashes(await T.live())).hash === take.hash;
   const marks = Object.fromEntries(asked.map((s) => [s.slot, { to: s.ref ?? s.to, text: s.text, ...(s.keep ? { kept: true } : {}) }]));
-  const run = go ? await RT.queue("rerun", { take: take.id, route, swaps: marks, seed, ...(land != null ? { land } : {}) }) : null;
+  const run = go ? await RT.queue("rerun", take.id ? { take: take.id, route, swaps: marks, seed, ...(land != null ? { land } : {}) } : undefined) : null;
   const what = asked.filter((s) => !s.keep).map((s) => s.text);
   return { take: take.id, route, seed, opened: where, swapped: done, ...(newSeed != null ? { new_seed: newSeed } : {}), run,
     ...(cached ? { cache_hit: `nothing the prompt holds changed: ComfyUI serves take ${take.number}'s own file from its cache. Re-run with seed new for a fresh render` } : {}),
-    said: `Take ${take.number} ${go ? "re-run" : "opened"} ${what.length ? `with ${what.join(", ")}` : "as it was"} in ${where}${done.length ? ` · ${done.join(" · ")}` : ""}${go ? "" : " · nothing is queued"}` };
+    said: `${named(take)} ${go ? (take.id ? "re-run" : "running") : "opened"} ${what.length ? `with ${what.join(", ")}` : "as it was"} in ${where}${done.length ? ` · ${done.join(" · ")}` : ""}${go ? "" : " · nothing is queued"}` };
 }

@@ -2,7 +2,7 @@
 // Take › version, ending on the shot's active take), and the scene's shots in order, each with its active take's
 // picture. A click opens a shot in the scene tab (the open shot is saved first; a card shot with no camera plate offers
 // its plate candidates as a proposal), a drag reorders the shots, + adds one (empty, or from a Library shot card) and
-// opens it, a shot's ⋯ renames it or takes it out of the scene. A scratch tab shows one quiet line instead: open a
+// opens it, a shot's ⋯ renames it, re-runs its take with swaps or takes it out of the scene. A scratch tab shows one quiet line instead: open a
 // scene, or add this workflow and its takes to one. The Scenes sheet lists the scenes, makes new ones, renames and
 // deletes them (a deleted scene is parked, never lost). Every action here is the function an agent tool calls too.
 // SNAP-R7 lists hold while a pointer is down · SNAP-R19 one function per action · SNAP-R24 scenes own the work, tabs are
@@ -22,7 +22,7 @@ function thumb(t, empty) {
 
 // `onOpened()`: a shot was opened (the view re-renders); `openTake(take)`: show a take in the take viewer; `run(tool,
 // args)`: the tool table, as the person calls it
-export function createSceneBar({ host, say, onOpened, openTake, run }) {
+export function createSceneBar({ host, say, onOpened, openTake, run, rerun }) {
   const el = h("section", { className: "snap-scene" });
   let sig = "", pressed = false, busy = false;
   el.addEventListener("pointerdown", () => { pressed = true; });
@@ -81,7 +81,7 @@ export function createSceneBar({ host, say, onOpened, openTake, run }) {
     const t = h("figure", { className: `snap-shot-tile${on ? " on" : ""}`, role: "listitem", tabIndex: 0, draggable: true,
       title: on ? "the open shot" : `open ${SC.shotTitle(scene, shot)} here (this shot is saved first)`, onclick: () => on || open(scene.id, shot.id) },
       h("div", { className: "snap-shot-media" }, thumb(active, card ? "shot card, not rendered yet" : "no takes yet"), h("b", { textContent: String(i + 1) })),
-      h("button", { className: "snap-shot-more", textContent: "⋯", title: "rename, or take it out of the scene", ariaLabel: `${SC.shotTitle(scene, shot)}: more`,
+      h("button", { className: "snap-shot-more", textContent: "⋯", title: "rename, re-run its take with swaps, or take it out of the scene", ariaLabel: `${SC.shotTitle(scene, shot)}: more`,
         onclick: (e) => { e.stopPropagation(); shotMenu(e.currentTarget, scene, shot); } }),
       h("figcaption", {}, h("strong", { textContent: shot.name || `Shot ${i + 1}` }),
         h("span", { className: "snap-quiet", textContent: n ? `${n} take${n === 1 ? "" : "s"}${active ? ` · ★ ${SC.label(active)}` : ""}` : card ? "from its shot card" : "empty" })));
@@ -120,7 +120,7 @@ export function createSceneBar({ host, say, onOpened, openTake, run }) {
     addEventListener("pointerdown", outside, true);
   }
 
-  // a shot's ⋯: rename it, or take it out of the scene (its takes and workflow are kept; see scenes.js removeShot)
+  // a shot's ⋯: rename it, re-run its take with swaps (SNAP-R63), or take it out of the scene (its takes and workflow are kept; see scenes.js removeShot)
   function shotMenu(anchor, scene, shot) {
     host.querySelector(".snap-scene-menu")?.remove();
     const close = () => { menu.remove(); removeEventListener("pointerdown", outside, true); };
@@ -128,12 +128,13 @@ export function createSceneBar({ host, say, onOpened, openTake, run }) {
     const name = h("input", { className: "snap-lib-q", value: shot.name ?? "", placeholder: SC.shotTitle(scene, shot), ariaLabel: "shot name" });
     const rename = () => { close(); act(async () => `Renamed: ${(await SC.renameShot(scene.id, shot.id, name.value)).title}`); };
     name.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); rename(); } if (e.key === "Escape") { e.stopPropagation(); close(); } });
-    const n = SC.takesOf(shot).length;
+    const n = SC.takesOf(shot).length, take = T.get(shot.active) ?? T.get(SC.takesOf(shot).at(-1)?.take); // the shot's active take, else its newest
     const confirm = h("div", { className: "snap-scene-confirm", hidden: true },
       h("span", { className: "snap-quiet", textContent: `${n ? `Its ${n} take${n === 1 ? "" : "s"} and its workflow stay` : "Its workflow stays"}; the scene's file lists it under removed.` }),
       h("button", { className: "snap-danger", textContent: `Remove ${SC.shotTitle(scene, shot)}`, onclick: () => { close(); act(async () => (await SC.removeShot(scene.id, shot.id)).said); } }));
     const menu = h("div", { className: "snap-scene-menu", role: "menu" },
       h("div", { className: "snap-scene-rename" }, name, h("button", { className: "snap-primary", textContent: "Rename", onclick: rename })),
+      take?.graph ? h("button", { textContent: `Re-run take ${take.number} with swaps…`, title: `${SC.label(take)}, the shot's ${shot.active === take.id ? "active" : "newest"} take, with another version, character, set, scene or setup (SNAP-R63)`, onclick: () => { close(); rerun?.(take); } }) : null,
       h("button", { textContent: "Remove from the scene…", onclick: (e) => { e.currentTarget.hidden = true; confirm.hidden = false; } }), confirm);
     const r = anchor.getBoundingClientRect(), box = host.getBoundingClientRect();
     Object.assign(menu.style, { top: `${r.bottom - box.top + 4}px`, left: `${Math.max(8, r.left - box.left - 200)}px` });

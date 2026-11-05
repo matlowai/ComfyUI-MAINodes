@@ -85,10 +85,3 @@ export async function retake(take, { world = "pinned", seed = "same", refs, queu
   return { take: take.id, world, seed, opened: where, updated, ...(newSeed != null ? { new_seed: newSeed } : {}), run,
     said: `Take ${take.number} ${go ? "re-taken" : "opened"} ${worldShown(world)} in ${where}${updated.length ? ` · ${updated.join(" · ")}` : ""}${go ? "" : " · nothing is queued"}` };
 }
-// the open workflow, run as it is or with today's world (a saved file opened in Snap: it is no take, so no parent)
-export async function runOpen({ world = "pinned" } = {}) {
-  const updated = world === "latest" ? await toToday() : [];
-  const before = T.runs().length;
-  await app.queuePrompt(0, 1, { queueNodeIds: E.targets() });
-  return { world, updated, run: T.runs()[before]?.id ?? null };
-}
