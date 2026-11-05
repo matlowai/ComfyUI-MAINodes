@@ -144,6 +144,26 @@ compare the frames with the character's picture. A version number says what Snap
 `apply_cast` says the pictures are not read, or `describe_recipe` has `references_unused`, fix that first (a setup with
 reference pictures); a take card that says "not all of it ran" names what didn't reach the render.
 
+### Re-run with swaps (the same shot with another character, set or version)
+
+Every record a take pinned is a slot you can swap (SNAP-R63). `rerun_slots {"take": ...}` lists each slot with every
+choice: `pinned`, `latest`, `@n` (a version), or another record of its kind (`cast:<id>`); plus `scene` (another
+scene's set comes in: `scene:<id>`) and `setup` (a setup name from `list_setups`). Two routes:
+
+- **Re-generate** rebuilds the recipe with the swaps, the same seed by default: similar motion, not the same.
+  `rerun {"take": ..., "swaps": {"cast:<kon>": {"to": "cast:<mara>"}}, "route": "regenerate"}`. The plan says what
+  changes per swap, the rating it would have, and `cache_hit` when nothing the prompt holds changes (pick
+  `"seed": "new"`). The new take is "Re-run · Kon → Mara" under the old one.
+- **Reuse the motion** keeps the take's own video: a Cast swap is a recast (Viggle Remake, painted from the new Cast's
+  details line and its first picture; its LoRA doesn't reach Remake), a set or card swap is a Change something. It
+  returns a candidates decision: `list_candidates`, look at the painted frames, then `apply_candidate` (about 3 min).
+  A Setup or shot swap can't use the take's own motion and comes back under `not_possible`.
+- **Several at once:** give a list, `{"to": ["cast:<a>", "cast:<b>", "cast:<c>"]}`. Re-generate returns one decision
+  whose candidates are the new takes; `apply_candidate` makes one the shot's active take.
+
+Both spend GPU time and wait as proposals unless agents may run. Look at every new take with `take_frames` before you
+say who is in it. A saved file works too: `rerun {"file": "output/<subfolder>/<name>", ...}` finds the take it is.
+
 `get_record {"ref": "cast:<id>@1"}` reads one version and the takes that pinned it; `diff_record {"a": "cast:<id>@1",
 "b": "cast:<id>"}` lists what changed. Note: H3 copies a reference picture closely, so a new look (clothes, hair)
 needs a new picture, not only new words. `list_world` shows every record with its size; `archive_record`,

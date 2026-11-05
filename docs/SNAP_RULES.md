@@ -241,8 +241,14 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   sentence and pictures; a set's pictures and text; a card's words), keeps the take's seed unless asked for a new one,
   and nests the new take under the original ("Re-run · Kon → Mara"). A Cast a shot card compiled in is swapped by
   compiling that shot again, the card untouched and its pin marked `edited`. A swap that changes nothing the prompt holds
-  is said before the run (core serves the take's own file): a note and a new-seed choice, never a refusal. Errors name
-  the take's slots and every choice of a slot. *Why:* Dylan, 2026-11-04 22:45: "run as it was, run with today's world,
+  is said before the run (core serves the take's own file): a note and a new-seed choice, never a refusal. Reuse the
+  motion keeps the take's own video: a Cast swap is a recast painted from the new Cast's details line and its first
+  picture (the paint's Picture 2; its LoRA can't reach Remake), a set, scene or card swap is a Change something, and a
+  Setup or shot swap says it can't use the take's motion (Re-generate does it). A take shorter than Remake's 90 frames
+  holds its last frame and is cut back. A list of choices is a batch: Re-generate gathers the takes as one decision's
+  candidates (Apply = the shot's active take, Reject = the take's verdict, by whoever pressed it). The plan says the
+  rating the run would have, and on a signed-in install that the server will refuse one above the cap. A file saved
+  without metadata re-runs from the take it is. Errors name the take's slots and every choice of a slot. *Why:* Dylan, 2026-11-04 22:45: "run as it was, run with today's world,
   run with a version or a different scene, run scene with different characters... think Disney re-running the same
   animations with different movies and characters but same motions"; coordinator calls 2026-11-05 03:34. *More:* PLAN
   U89, DESIGN_U89_RERUN_SWAPS_2026-11-05.md, `web/snap/rerun.js`.
