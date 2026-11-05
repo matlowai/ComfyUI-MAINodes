@@ -19,10 +19,11 @@ On a snap-gate install, only the admins' snap/ files count (SNAP-R32), and a fil
 (SNAP-R33).
 Ratings come from how a thing was made (SNAP-R39): a prompt is rated from its text (the terms list) and the files it
 loads, highest wins; a file made here (a dial) is rated when it is saved, in user/snap_ratings.json, a file the server
-writes outside every user's folder; the pack's model graph rates what the kits download.
+writes outside every user's folder; the pack's model graph rates what the kits download; a dial file nobody rated (a
+released one) is rated from the sentences and parents its own metadata records (SNAP-R54).
 SNAP-R12 identity LoRAs are private · SNAP-R20 private takes marked · SNAP-R27 a file stamped private · SNAP-R32 the
 admins' files decide on a gated install · SNAP-R33 the rating cap's second line · SNAP-R37 privacy is per install, off
-by default · SNAP-R39 ratings from how a thing was made · see docs/SNAP_RULES.md
+by default · SNAP-R39 ratings from how a thing was made · SNAP-R54 dials rated from their own sentences · see docs/SNAP_RULES.md
 """
 import json
 import os
@@ -125,6 +126,53 @@ def model_graph(user_dir):
     return graph
 
 
+def metadata(real):
+    """A safetensors file's header metadata (`__metadata__`, string values), header only and capped; {} for a header past
+    the cap or without metadata, None when it can't be read."""
+    try:
+        with open(real, "rb") as f:
+            n = struct.unpack("<Q", f.read(8))[0]
+            header = json.loads(f.read(n)) if n <= HEADER_CAP else {}
+    except (OSError, ValueError, RecursionError, struct.error):
+        return None
+    meta = header.get("__metadata__") if isinstance(header, dict) else None
+    return meta if isinstance(meta, dict) else {}
+
+
+def strings(o):
+    """Every string in a parsed JSON value."""
+    if isinstance(o, str):
+        return [o]
+    if isinstance(o, dict):
+        o = list(o.values())
+    return [t for x in o for t in strings(x)] if isinstance(o, list) else []
+
+
+def dial_rating(graph, meta, parent_level):
+    """(level, why) of a dial file nobody rated, from how it was made (SNAP-R54), or None when that can't be told: its
+    own sentences (the pairs, the hold groups and its info, in the file's metadata) through the terms list, raised to its
+    parents' ratings (a Combine or an edit names them; `parent_level(name)` rates one, None when nobody can). A dial made
+    from pictures or videos inherits from them, and a file doesn't record which, so it stays unrated (the gate's admin
+    rates it), and so does one with no sentences and no parents."""
+    def loads(v):
+        try:
+            return json.loads(v) if isinstance(v, str) else v
+        except ValueError:
+            return v
+    if meta.get("source") in ("pictures", "videos"):
+        return None
+    texts = [t for t in strings([loads(meta.get(k)) for k in ("pairs", "hold_groups", "dial_info")]) if t.strip()]
+    parents = [p for p in (loads(meta.get("parents")) or []) if isinstance(p, str)]
+    if not texts and not parents:
+        return None
+    lvl, term = text_level("\n".join(texts), graph)
+    found = [parent_level(p) for p in parents]
+    if None in found:
+        return None
+    why = ([f'its sentences say "{term}"'] if term else ["rated from its own sentences"] if texts else []) + [f"made from {p}, rated {NAMES[r]}" for p, r in zip(parents, found)]
+    return max([lvl, *found]), why
+
+
 def stamp(real):
     """(privacy == "full", trigger words) from a safetensors header's metadata, header only. Trainers write them inside
     JSON-string fields (`lorastery_recipe` holds {"privacy": "full", "dataset": {"trigger": "<word>"}}), so a string that
@@ -136,14 +184,11 @@ def stamp(real):
     key = (st.st_mtime_ns, st.st_size)
     if real in stamps and stamps[real][0] == key:
         return stamps[real][1]
-    try:
-        with open(real, "rb") as f:
-            n = struct.unpack("<Q", f.read(8))[0]
-            header = json.loads(f.read(n)) if n <= HEADER_CAP else {}
-    except (OSError, ValueError, RecursionError, struct.error):
+    meta = metadata(real)
+    if meta is None:
         return False, ()
     full, triggers = False, []
-    todo = [(header.get("__metadata__"), 0)] if isinstance(header, dict) else []
+    todo = [(meta, 0)]
     while todo:
         o, depth = todo.pop()
         if isinstance(o, str) and o.lstrip()[:1] in ("{", "[") and depth < 4:

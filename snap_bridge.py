@@ -33,6 +33,7 @@ from comfy.cli_args import args
 import folder_paths
 import nodes
 from comfy_api.latest import InputImpl, io
+from comfy_execution.utils import get_executing_context
 from comfy_extras.nodes_video import SaveVideo
 from server import PromptServer
 
@@ -142,6 +143,7 @@ async def cards(request):
 async def model_graph(request):
     """The pack's model graph (snap_cards/models.json): the families a file's name says it belongs to, and how the files
     it knows fit together; the person's own entries (userdata snap/models.json) are read and merged by the page."""
+    await asyncio.to_thread(rate_released)  # a dial dropped in since the last look gets its rating before the page reads ratings
     graph = json.loads((CARDS / "models.json").read_text(encoding="utf-8"))
     return web.json_response({"models": graph["files"], "families": graph["families"]})
 
@@ -416,21 +418,55 @@ def rating_cap(json_data):
     return json_data
 
 
+def queued_rating():
+    """The rating the running prompt was queued with (extra_data.snap_marks.rating: its text and the files it loads), or
+    None outside a run (the Dial editor's export is a route, not a run)."""
+    ctx = get_executing_context()
+    running = PromptServer.instance.prompt_queue.get_current_queue_volatile()[0] if ctx else []
+    marks = next((item[3].get("snap_marks") or {} for item in running if item[1] == ctx.prompt_id), {})
+    return snap_privacy.LEVELS.get(str(marks.get("rating")).lower())
+
+
 def rate_dial(file, texts, parents):
-    """A dial saved here is rated as what made it (SNAP-R39): Adult when its sentences hold one of the terms, else the
-    highest of its parent dials' ratings, else PG. A parent nobody rated leaves the new dial unrated too, so it counts as
-    the gate counts its parent."""
+    """A dial saved here is rated as what made it (SNAP-R39, SNAP-R54): Adult when its sentences hold one of the terms,
+    raised to its parent dials' ratings and to the rating of the run that made it (a dial from pictures or videos
+    inherits from its inputs that way: the files and words of the prompt that loaded them). A parent nobody rated leaves
+    the new dial unrated too, so it counts as the gate counts its parent."""
     user = folder_paths.get_user_directory()
     graph = snap_privacy.model_graph(user)
     lvl, term = snap_privacy.text_level("\n".join(t for t in texts if t), graph)
     found = [snap_privacy.rated(graph, p, ["loras"]) for p in parents]
     if None in found:
         return
-    why = [f'its sentences say "{term}"'] if term else []
-    snap_privacy.record(user, "loras", file, max([lvl, *found]), why + [f"made from {p}, rated {snap_privacy.NAMES[r]}" for p, r in zip(parents, found)])
+    run = queued_rating()
+    why = ([f'its sentences say "{term}"'] if term else []) + ([f"the run that made it was rated {snap_privacy.NAMES[run]}"] if run else [])
+    snap_privacy.record(user, "loras", file, max([lvl, run or 0, *found]), why + [f"made from {p}, rated {snap_privacy.NAMES[r]}" for p, r in zip(parents, found)])
+
+
+def rate_released():
+    """SNAP-R54: a dial file in loras/dials/ that nothing rates (a released dial someone downloaded or copied in) is rated
+    from the sentences and parents its own metadata records, once, in user/snap_ratings.json; one that can't be told
+    that way stays unrated."""
+    user = folder_paths.get_user_directory()
+    graph = snap_privacy.model_graph(user)
+
+    def level(name, seen=()):
+        r = snap_privacy.rated(graph, name, ["loras"])
+        if r is not None or name in seen:
+            return r
+        path = folder_paths.get_full_path("loras", name)
+        found = path and snap_privacy.dial_rating(graph, snap_privacy.metadata(path) or {}, lambda p: level(f"{dial_core.DIAL_SUBDIR}/{p}.safetensors", (*seen, name)))
+        if found:
+            snap_privacy.record(user, "loras", name, *found)
+            graph["made"][f"loras/{name}"] = {"rating": snap_privacy.NAMES[found[0]]}
+        return found[0] if found else None
+    for name in folder_paths.get_filename_list("loras"):
+        if name.replace("\\", "/").startswith(dial_core.DIAL_SUBDIR + "/"):
+            level(name.replace("\\", "/"))
 
 
 dial_core.on_saved.append(rate_dial)
+rate_released()
 # before metadata_gate: it sees the prompt as queued, not the twins and refusals metadata_gate swaps in
 PromptServer.instance.add_on_prompt_handler(rating_cap)
 PromptServer.instance.add_on_prompt_handler(metadata_gate)

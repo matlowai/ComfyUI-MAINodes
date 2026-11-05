@@ -12,7 +12,8 @@
 // active one; the viewer's title is where the take sits in the scene (Platform › Shot 1 › Take 2 › Night version).
 // SNAP-R7 pointer-down lists · SNAP-R17 blind pairs from agents are judged by the person · SNAP-R20 the lock on private
 // takes (SNAP-R27: by the current rules) · SNAP-R21 copies flagged · SNAP-R23 candidates · SNAP-R24 scenes own the work ·
-// SNAP-R36 quiet sound: a note and two actions, never applied by itself · see docs/SNAP_RULES.md
+// SNAP-R36 quiet sound: a note and two actions, never applied by itself · SNAP-R54 takes above the account's cap are
+// left out · see docs/SNAP_RULES.md
 import * as T from "./takes.js";
 import * as PL from "./plates.js";
 import * as C from "./candidates.js";
@@ -74,10 +75,11 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onRepr
   let shownGroup = null;
   async function render() {
     shownGroup = shownNow();
-    const here = SC.current(), group = here ? SC.takesOf(here.shot).map((e) => T.get(e.take)).filter(Boolean) : T.inGroup(), order = await T.ranking();
+    const here = SC.current(), all = here ? SC.takesOf(here.shot).map((e) => T.get(e.take)).filter(Boolean) : T.inGroup(), order = await T.ranking();
+    const group = all.filter((t) => !T.aboveCap(t)), capped = all.length - group.length;
     const ranked = order.map(T.get).filter((t) => t && group.includes(t));
     const rest = group.filter((t) => !order.includes(t.id)).sort((a, b) => b.created - a.created);
-    count.textContent = group.length ? `${group.length} · ${ranked.length} ranked · ${group.filter((t) => t.verdict === "keep").length} kept` : "";
+    count.textContent = [group.length ? `${group.length} · ${ranked.length} ranked · ${group.filter((t) => t.verdict === "keep").length} kept` : "", capped ? `${capped} above your rating not shown` : ""].filter(Boolean).join(" · ");
     for (const id of picked) if (!T.get(id)) picked.delete(id);
     compareBtn.disabled = picked.size !== 2;
     const ab = await waitingHere();

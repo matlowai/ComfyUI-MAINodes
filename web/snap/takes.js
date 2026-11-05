@@ -18,11 +18,12 @@
 // A take is rated as what made it (SNAP-R39): the rating the server gave its prompt (its text and the files it loads), raised
 // to the rating of any take it came from (a version, an edit, a run from a take's frame); the person's own rating wins.
 // SNAP-R27 locks follow the current rules · SNAP-R36 quiet sound is a note · SNAP-R39 ratings from how a thing was made ·
-// see docs/SNAP_RULES.md
+// SNAP-R54 takes above the account's cap are left out · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
 import { BRICKS } from "./bricks.js";
+import * as ACC from "./account.js";
 
 // U78: an ambience-only H3 soundscape renders about -57 dB mean, one naming the action's sounds -27..-41 dB
 export const QUIET_DB = -45;
@@ -68,6 +69,9 @@ export const locked = (t) => privacy && !!(t.private || marks[t.id]?.private || 
 export const get = (id) => takes.find((t) => t.id === id);
 export const RATINGS = ["pg", "mature", "adult"], RATING_SHOWN = { pg: "PG", mature: "Mature", adult: "Adult" };
 export const ratingOf = (t) => t.rating_set ?? t.rating ?? null;
+// SNAP-R54: on a signed-in install a take rated above the account's cap is left out of list_takes, get_take and Dailies
+// (snap-gate refuses its files too, its SNAP-R56); no gate, no cap
+export const aboveCap = (t) => { const cap = ACC.account()?.max_rating; return !!cap && RATINGS.indexOf(ratingOf(t)) > RATINGS.indexOf(cap); };
 // what a version is called on its card and in the scene: an example's name, the change in short, or "X → Y"
 export const versionOf = (o = {}) => o.label ?? o.time ?? null;
 export async function setRating(take, rating) {

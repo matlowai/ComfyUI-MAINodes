@@ -326,6 +326,7 @@ class MakeDialFromPictures(io.ComfyNode):
                                               debias=debias, nuisance_dims=nuisance_dims)
         if name:
             report += f"\nsaved {core.save_dial(dial, name, info)}"
+            core.saved(name, [*prompts, info["description"], info["negative"], info["positive"]])
         return io.NodeOutput(dial, ui=ui.PreviewText(report))
 
 
@@ -369,6 +370,7 @@ class MakeDialFromVideos(io.ComfyNode):
                                             name or "unsaved", debias=debias, nuisance_dims=nuisance_dims)
         if name:
             report += f"\nsaved {core.save_dial(dial, name, info)}"
+            core.saved(name, [prompt, info["description"], info["negative"], info["positive"]])
         return io.NodeOutput(dial, ui=ui.PreviewText(report))
 
 
@@ -416,6 +418,7 @@ class CombineDials(io.ComfyNode):
         report = f"cos(a, b) = {cos:.3f}; {core.dial_label(dial)}{note}"
         if name:
             report += f"\nsaved {core.save_dial(dial, name, info)}"
+            core.saved(name, [info["description"], info["negative"], info["positive"]], [f"{core.DIAL_SUBDIR}/{d['meta'].get('name')}.safetensors" for d in (a, b)])
         return io.NodeOutput(dial, ui=ui.PreviewText(report))
 
 
