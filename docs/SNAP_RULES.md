@@ -661,8 +661,11 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
 - **SNAP-R79: A new view says which picture it copied.** Each New view candidate is scored against each of its context
   pictures with the copy check (DINOv3 patch tokens at the same grid position, MAISnapCopyScore, the model graph's
   threshold); at or above it the tile says "copied Picture n" (the note `copied`: threshold, each picture's score, the
-  numbers copied), else "no copy". A note, never a gate (SNAP-R23). *Why:* F-C14: P01's establishing candidates re-drew
-  the master's aerial and nothing flagged it. *More:* the dogfood study's FINDINGS F-C14, proto/test_u101_fc.js.
+  numbers copied), else "no copy · nearest Picture n" with its score. A note, never a gate (SNAP-R23). It catches a
+  re-render of a picture's framing (plates' copies 0.77-0.94); P01's establishing candidates, the master's aerial re-drawn
+  and turned, score only 0.52-0.54 against it (two-shots in the same village 0.42-0.45), under the threshold, so the
+  nearest score is shown and the person looks. *Why:* F-C14: P01's establishing candidates re-drew the master's aerial
+  and nothing flagged it. *More:* the dogfood study's FINDINGS F-C14, proto/test_u101_fc.js.
 - **SNAP-R80: Every picture is one click from full size.** A thumbnail (References' `<Picture n>` rows, the New view
   tray, Cast pictures, camera plates, candidate tiles and their head crops, the Re-run sheet) opens Snap's viewer on a
   click: fit or 100 %, wheel zoom about the pointer, drag to pan, ← → through the same row or tray, Esc closes, with

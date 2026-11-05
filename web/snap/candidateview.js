@@ -22,7 +22,10 @@ export function noteChips(c) {
   if (n.copied) out.push(...(n.copied.error ? [h("span", { className: "snap-cand-note", textContent: "copy: not checked", title: n.copied.error })]
     : n.copied.copied.length ? n.copied.against.filter((a) => n.copied.copied.includes(a.n)).map((a) => h("span", { className: "snap-cand-note warn", textContent: `copied Picture ${a.n} ${a.score.toFixed(2)}`,
       title: `copy score against Picture ${a.n} (${a.label}): ${a.score}, at or above ${n.copied.threshold}: it likely re-renders that picture's view; look before you apply it` }))
-    : [h("span", { className: "snap-cand-note", textContent: "no copy", title: `copy score against each picture, below ${n.copied.threshold} for all: ${n.copied.against.map((a) => `Picture ${a.n} ${a.score ?? "not read"}`).join(", ")}` })]));
+    : (() => { const top = n.copied.against.filter((a) => a.score != null).sort((a, b) => b.score - a.score)[0]; // the nearest picture, said quietly: a re-drawn
+      // view of a picture (P01's turned aerials of the master, 0.52-0.54) scores under the threshold, above new views (0.42-0.45)
+      return [h("span", { className: "snap-cand-note", textContent: top ? `no copy · nearest Picture ${top.n} ${top.score.toFixed(2)}` : "copy: not read",
+        title: `copy score against each picture, below ${n.copied.threshold} for all: ${n.copied.against.map((a) => `Picture ${a.n} ${a.score ?? "not read"}`).join(", ")}. It catches a re-render of a picture's framing; a view re-drawn from the same viewpoint but turned scores lower (short03 P01's aerials 0.52-0.54 against the master, new views 0.42-0.45), so look` })]; })()));
   if (n.layout) out.push(n.layout.error ? h("span", { className: "snap-cand-note", textContent: "layout: not checked", title: n.layout.error })
     : h("span", { className: `snap-cand-note${n.layout.as_planned < n.layout.checked ? " warn" : ""}`, textContent: `layout ${n.layout.as_planned}/${n.layout.checked}${n.layout.order ? ` · order ${n.layout.order}` : ""}`,
       title: `where ${n.layout.detector} finds each thing against the plan:\n${n.layout.rows.map((r) => `${r.ok === false ? "✗" : r.ok ? "✓" : "·"} ${r.name}: plan ${r.plan}, found ${r.found}`).join("\n")}` }));
