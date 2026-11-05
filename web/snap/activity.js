@@ -111,14 +111,14 @@ function announce() {
   const was = seen;
   seen = new Map(rows.map((r) => [r.id, r.state]));
   if (!was) return;
-  const lost = rows.filter((r) => r.state === "gone" && was.get(r.id) && was.get(r.id) !== "gone");
+  const dropped = rows.filter((r) => r.state === "gone" && was.get(r.id) && was.get(r.id) !== "gone");
   for (const r of rows) {
     const before = was.get(r.id), fresh = !before && (r.queued_at ?? 0) > loadedAt;
     if (before === r.state || r.zone === "parked" || r.source === "refusal" || (!before && !fresh && !LIVE.has(r.state))) continue;
     const what = r.state === "failed" ? "failed" : r.state === "done" || r.state === "waiting" ? "landed" : !before && LIVE.has(r.state) && (r.by === "agent" || !J.own(r.id)) ? "start" : null;
     if (what) for (const fn of arrivals) fn(what, r);
   }
-  if (lost.length) for (const fn of arrivals) fn("lost", { count: lost.length });
+  if (dropped.length) for (const fn of arrivals) fn("lost", { count: dropped.length });
 }
 
 let pairs = [];
