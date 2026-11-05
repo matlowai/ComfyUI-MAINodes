@@ -590,7 +590,7 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
 R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start at R71.
 
 - **SNAP-R71: A new view of a known place is an edit from context pictures, in the asker's words.** "New view from these
-  pictures" (the take viewer's tray; `edit_from_context`) makes a still with MOSS Image Edit from 1 or more context
+  pictures" (the take viewer's tray; `edit_from_context`) makes a still with an H3 model from 1 or more context
   pictures (a still take, a video take's frame, an input/ file, a Cast's picture, whole or cropped) and a prompt the
   person or agent writes; nothing is added to it, so the in-place Change something's "keep the place and the
   composition unchanged" text stays only on that route. It works on stills (masters, plates, boards), unlike Change
@@ -598,20 +598,17 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   Picture 1's take's shot); Apply makes it the shot's active take, Reject marks the take. The take's parent and the
   decision name every context picture (`options.context`: number, take and frame, file, Cast version, crop, label), the
   lock and the rating follow every context take (SNAP-R27, R39), and a Cast picture pins its version (SNAP-R60). What it
-  runs is registry data (slot `view`, method `moss_view`, SNAP-R13/R14). *Why:* Dylan 2026-11-05: "a location is one
+  runs is registry data (slot `view`, methods `ph3_view` and `fizgig_still`, SNAP-R13/R14). *Why:* Dylan 2026-11-05: "a location is one
   topology… every view of it is an edit from prior context", "moss is WAY better than klein", "when snap cant do the job
   that means you need to update snap"; short03's three different gates (F-C09). *More:* PLAN U101, LESSONS "U101".
-- **SNAP-R72: The order is the person's, and what Picture 1 is depends on the model.** MOSS Image Edit keeps the first picture's
-  framing and composition: short03's test with the aerial master first gave the aerial view in every seed, with one
-  figure pasted in. So the tray and the tool keep the pictures in the order given, say "Picture 1 sets the camera" next
-  to it, and let the person move each picture up or down, take it out, or add a marked region of a still as a crop (a
-  part of a master: the gatehouse). Put a picture that already has the wanted camera first and the set after it. The
-  encoder sees each picture after a "Picture N:" marker, so prompts may name them that way. How strongly Picture 1
-  holds depends on the model: MOSS's akhaliq LoRA copies it (camera, people, objects), chinoll follows the words more
-  and moved the camera into the square (U101 C2 test, 30 stills); P-H3-Image edits Picture 1 but the words set the
-  camera (the master first gave eye height in the square), and the Fizgig H3 still reads every picture as a reference.
-  So the label beside Picture 1 and its tip come from each method's `picture_one` in the registry, never from code. *Why:* the coordinator's 13:4x note from short03's
-  sheet; the U101 C2 test. *More:* PLAN U101, the dogfood study's F-C09, LESSONS "U101".
+- **SNAP-R72: The order is the person's, and what Picture 1 is depends on the model.** The tray and the tool keep the
+  pictures in the order given, name beside Picture 1 what it is for the picked model, and let the person move each
+  picture up or down, take it out, or add a marked region of a still as a crop (a part of a master: the gatehouse).
+  P-H3-Image edits Picture 1 with the rest as references and the Fizgig H3 still reads every picture as a reference; for
+  both the words set the camera, so a location's master can go first. The label and its tip come from each method's
+  `picture_one` in the registry, never from code. (MOSS Image Edit, tested first, kept Picture 1's framing: its aerial
+  master first gave the aerial view in every seed; it is no longer a New view model, SNAP-R75.) *Why:* the coordinator's
+  13:4x note from short03's sheet; the U101 C2 test. *More:* PLAN U101, the dogfood study's F-C09, LESSONS "U101".
 - **SNAP-R73: Audio references are the pictures' twins.** An audio file goes into References as a Load Audio node wired
   into H3 References' next free `ref_audios` slot (3), and the prompt cites it as `<Audio n>`, n its place among the wired
   audio slots (`describe_recipe.references` lists every `<Picture n>` and `<Audio n>`). A Cast may hold one voice
@@ -625,13 +622,14 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   audio under input/snap/ and the page adds it to Load Audio's choices; the node's own validation already accepts any
   input file. Snap's audio tools put the file on the node's widget whatever its folder. *Why:* F-C08. *More:* PLAN
   U101.
-- **SNAP-R75: The new view's model is the person's pick.** The view slot holds more than one model as registry data
-  (`moss_view`: MOSS Image Edit with its edit LoRAs; `ph3_view`: PrunaAI's P-H3-Image on core `PH3ImageConditioning`,
-  an edit of Picture 1 with the rest as references, 8 steps, no negative; `fizgig_still`: stock H3 Reference to Video on
-  the Fizgig H3 Still pack's one-frame latent, which says it needs that pack when it isn't installed). The tray's model menu and the tool's
-  `method` choose; each model's own choices show only with it (MOSS's LoRA menu). Snap does not pick a default for the
-  person between them from one test: the comparison is shown and the person calls it. *Why:* Dylan 2026-11-05 14:0x,
-  after the MOSS C2 results: P-H3-Image is the strong H3-based edit he meant. *More:* PLAN U101, U17.
+- **SNAP-R75: The new view's model is the person's pick, among H3 models.** The view slot holds its models as registry
+  data: `ph3_view` (PrunaAI's P-H3-Image on core `PH3ImageConditioning`, an edit of Picture 1 with the rest as
+  references, 8 steps, no negative) and `fizgig_still` (stock H3 Reference to Video on the Fizgig H3 Still pack's
+  one-frame latent, which says it needs that pack when it isn't installed). The tray's model menu and the tool's
+  `method` choose; the first listed is used when none is named. MOSS Image Edit is not a New view model: on short03's C2
+  it copied Picture 1 or redesigned the set and the people across views (Dylan 2026-11-05: "Not any moss edit those were
+  bad"); Change something on video takes still uses it. *Why:* Dylan 2026-11-05 14:0x-15:0x after the C2 sheets.
+  *More:* PLAN U101, U17, PROGRESS 2026-11-05 13:57-15:0x.
 
 ## Accounts and the gate (snap-gate)
 

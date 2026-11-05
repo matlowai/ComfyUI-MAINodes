@@ -191,31 +191,28 @@ needs a new picture, not only new words. `list_world` shows every record with it
 ### A new view of a place (stills from context pictures)
 
 A location is one place: make each new view of it from pictures you already have, not from words alone.
-`edit_from_context` makes a still with MOSS Image Edit from context pictures and your own words (nothing is added to
+`edit_from_context` makes a still with an H3 model from context pictures and your own words (nothing is added to
 them). It works on stills: masters, plates, boards.
 
-    edit_from_context {"pictures": [{"take": "<a still with the camera you want>"},
-                                    {"take": "<the master>", "crop": [0.3, 0.18, 0.26, 0.62], "label": "the gatehouse"},
-                                    {"cast": "cast:<id>"}],
-                       "prompt": "Replace the gate in Picture 1 with the gatehouse from Picture 2 ...", "seeds": [1, 2, 3]}
+    edit_from_context {"method": "fizgig_still", "width": 2112, "height": 1184, "seeds": [1, 2, 3],
+                       "pictures": [{"take": "<the location's master>"}, {"take": "<the nearest earlier view>"},
+                                    {"cast": "cast:<id>"}, {"cast": "cast:<id2>"}],
+                       "prompt": "<Picture 1> shows the village ... Show the same gatehouse from inside the square at eye height ... the woman from <Picture 3> on the left ..."}
 
 - A picture is `{take}` (a still; a video take with `frame`), `{file}` (in input/) or `{cast, ref}` (a Cast's
   picture). `crop` is `[x, y, width, height]` in fractions of the picture.
-- **What Picture 1 is depends on the model** (each view method's `picture_one` in `list_methods {"slot": "view"}`; the
-  answer names it too). MOSS (`moss_view`) keeps Picture 1's framing: put a still that already has the camera you want
-  first and the set (the master, or a crop of it) after it. P-H3-Image (`ph3_view`) edits Picture 1 and the words set
-  the camera, so the location's master can go first. The Fizgig H3 still reads every picture as a reference. Name the
-  pictures in the prompt as Picture 1, Picture 2, … (`<Picture n>` for the H3 models) or in plain words.
+- `method` picks the model (`list_methods {"slot": "view"}`): `ph3_view` (P-H3-Image, listed first: an edit of
+  Picture 1 with the others as references, 8 steps, about 8 s at 1280x704, up to 9 pictures) or `fizgig_still`
+  (stock H3 Reference to Video on the Fizgig H3 Still pack's one-frame latent: every picture a reference, 20 steps,
+  about 38 s at 2.5 MP; soft below 2-3 MP, so give `width`/`height`). In U101's C2 test both held the location's
+  gatehouse at eye height with both people on-model; the Fizgig still gave the closest two-shots.
+- **What Picture 1 is depends on the model** (each method's `picture_one`; the answer names it too). For both, the
+  words set the camera, so the location's master can go first. Write `<Picture 1>`, `<Picture 2>`, … in the prompt.
 - One candidate per seed (`seeds`, or `count`), each a take in the shot it lands in (`land`; by default Picture 1's
   shot). `wait_for {job: <decision>, until: "waiting"}`, look with `candidate_frames` beside the master, then
   `apply_candidate` makes the one that holds the set the shot's take.
-- `method` picks the model (`list_methods {"slot": "view"}`): `moss_view` (MOSS Image Edit, the default) or `ph3_view`
-  (P-H3-Image: an edit of Picture 1 with the others as references; write `<Picture 1>`, `<Picture 2>`, …; 8 steps, no
-  negative, up to 9 pictures) or `fizgig_still` (stock H3 on the Fizgig H3 Still pack: Reference to Video with
-  `<Picture n>`, a one-frame latent; soft below 2-3 MP, so give `width`/`height`). For MOSS, `lora` keeps every candidate on one edit LoRA, else they take turns: akhaliq
-  keeps Picture 1 almost as it is (change one thing), chinoll follows the words and can move the camera.
 - In the take viewer the same route is "New view from these pictures": add this picture, a marked region of it, or a
-  Cast's picture, and move them up or down.
+  Cast's picture, move them up or down, and pick the model.
 
 ### Voices and audio references
 

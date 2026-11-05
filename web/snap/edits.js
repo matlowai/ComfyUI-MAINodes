@@ -6,11 +6,11 @@
 // they were painted from (remake_edit, remake_swap, U69). Night, rain and snow are examples of a change, not features: any
 // change can be written. A recast swaps the identity notes for a "new person" note, and nothing is refused. The render
 // lands as a new take in the same group whose parent is the original. What a method runs is registry data.
-// New view from these pictures (U101, the "view" slot) is the stills' route: MOSS Image Edit from ordered context
-// pictures and free words, each seed a candidate take in a shot (fromContext, below).
+// New view from these pictures (U101, the "view" slot) is the stills' route: an H3 model from ordered context pictures
+// and free words, each seed a candidate take in a shot (fromContext, below).
 // SNAP-R13 data, not code branches · SNAP-R14 method slots · SNAP-R16 GPU work waits for the person · SNAP-R17 by ·
 // SNAP-R23 candidates · SNAP-R51 change something, recast, pins · SNAP-R71 a new view from context, in the asker's words ·
-// SNAP-R72 what Picture 1 is, per model · SNAP-R75 the view slot's models are data (MOSS, P-H3-Image, H3 still) · see docs/SNAP_RULES.md
+// SNAP-R72 what Picture 1 is, per model · SNAP-R75 the view slot's models are data (P-H3-Image, H3 still) · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as C from "./candidates.js";
 import * as K from "./checks.js";
@@ -42,22 +42,15 @@ export function clip(take) {
   return { video: K.annotated(m), frames, mid: Math.floor(frames / 2), width: r.width, height: r.height };
 }
 
-// MOSS Image Edit's models (nodes 1-5): the model with the recipe's edit LoRA and SLG, the text encoder, the VAE
-async function mossNodes(a, recipe) {
-  const files = { unet: await M.choice("UNETLoader", "unet_name", a.unet), clip: await M.choice("CLIPLoader", "clip_name", a.clip), vae: await M.choice("VAELoader", "vae_name", a.vae), lora: await M.choice("LoraLoaderModelOnly", "lora_name", recipe.lora) };
-  return {
+// the painted frames of one candidate, as one prompt (U53b's edit graph: 1.0 MP, SLG 22, 30 steps euler/normal)
+async function anchorsGraph(take, a, recipe, frames, values, seed) {
+  const c = clip(take), files = { unet: await M.choice("UNETLoader", "unet_name", a.unet), clip: await M.choice("CLIPLoader", "clip_name", a.clip), vae: await M.choice("VAELoader", "vae_name", a.vae), lora: await M.choice("LoraLoaderModelOnly", "lora_name", recipe.lora) };
+  const g = {
     1: { class_type: "UNETLoader", inputs: { unet_name: files.unet, weight_dtype: "default" } },
     2: { class_type: "CLIPLoader", inputs: { clip_name: files.clip, type: "moss_image", device: "default" } },
     3: { class_type: "VAELoader", inputs: { vae_name: files.vae } },
     4: { class_type: "LoraLoaderModelOnly", inputs: { model: ["1", 0], lora_name: files.lora, strength_model: 1.0 } },
     5: { class_type: "SkipLayerGuidanceDiTSimple", inputs: { model: ["4", 0], double_layers: "", single_layers: a.slg_single, start_percent: 0.0, end_percent: 1.0 } },
-  };
-}
-// the painted frames of one candidate, as one prompt (U53b's edit graph: 1.0 MP, SLG 22, 30 steps euler/normal)
-async function anchorsGraph(take, a, recipe, frames, values, seed) {
-  const c = clip(take);
-  const g = {
-    ...await mossNodes(a, recipe),
     6: { class_type: "LoadVideo", inputs: { file: c.video } },
     7: { class_type: "GetVideoComponents", inputs: { video: ["6", 0] } },
   };
@@ -283,10 +276,10 @@ C.kind("edit", { finish, apply: propagate, undo: cancel });
 export const result = (d) => (d?.applied?.undo?.take ? T.get(d.applied.undo.take) ?? null : null);
 
 // ---- New view from these pictures (U101, SNAP-R71/R72) --------------------------------------------------------------
-// A new still from context pictures in order and words the person or agent writes: MOSS Image Edit reads every picture
-// (images.image_0, image_1, … on core TextEncodeMOSSImageEdit), and Picture 1 sets the camera (the edit keeps its
-// framing: with short03's aerial master first every seed kept the aerial view), so the order is the person's to choose.
-// What Picture 1 is depends on the model (its registry `picture_one`): P-H3-Image edits it and the words move the camera.
+// A new still from context pictures in order and words the person or agent writes, on an H3 model of the view slot
+// (P-H3-Image, the Fizgig H3 still; MOSS Image Edit was tested on short03's C2 and left out by Dylan: it copied Picture 1
+// or redesigned the set and the people). What Picture 1 is depends on the model (its registry `picture_one`), and the
+// order is the person's to choose.
 // A picture is a still take, a video take's frame, an input/ file or a Cast's picture, whole or cropped. Each seed is a
 // candidate take in the shot it lands in; its parent names every context picture.
 
@@ -356,23 +349,6 @@ async function landing(land, said) {
   if (!home.shot.groups.includes(group)) await SC.addGroup(home.scene.id, home.shot.id, group);
   return { group, scene: home.scene.id, shot: home.shot.id, where: `${SC.shotTitle(home.scene, home.shot)} of ${home.scene.name}` };
 }
-// one candidate: every context picture scaled to the method's megapixels, the words, one seed; the still is Picture 1's
-// size (as scaled) unless width and height are given
-function viewGraph(a, models, recipe, pics, values, seed, size, prefix) {
-  const g = { ...models };
-  pics.forEach((p, i) => Object.assign(g, p.nodes, { [`s${i}`]: { class_type: "ImageScaleToTotalPixels", inputs: { image: p.out, upscale_method: "lanczos", megapixels: a.megapixels, resolution_steps: 16 } } }));
-  const images = Object.fromEntries(pics.map((p, i) => [`images.image_${i}`, [`s${i}`, 0]]));
-  const enc = (text) => ({ class_type: "TextEncodeMOSSImageEdit", inputs: { clip: ["2", 0], prompt: text, vae: ["3", 0], edit_format: recipe.format, ...images, image_strength: 1.0 } });
-  Object.assign(g, size ? { l: { class_type: "EmptyFlux2LatentImage", inputs: { width: size.width, height: size.height, batch_size: 1 } } }
-    : { z: { class_type: "GetImageSize", inputs: { image: ["s0", 0] } }, l: { class_type: "EmptyFlux2LatentImage", inputs: { width: ["z", 0], height: ["z", 1], batch_size: 1 } } });
-  Object.assign(g, {
-    p: enc(fill(a.prompt, values)), n: enc(fill(a.negative, values)),
-    k: { class_type: "KSampler", inputs: { model: ["5", 0], seed, steps: a.steps, cfg: recipe.cfg, sampler_name: a.sampler, scheduler: a.scheduler, positive: ["p", 0], negative: ["n", 0], latent_image: ["l", 0], denoise: 1.0 } },
-    d: { class_type: "VAEDecode", inputs: { samples: ["k", 0], vae: ["3", 0] } },
-    o: { class_type: "SaveImage", inputs: { images: ["d", 0], filename_prefix: prefix } },
-  });
-  return g;
-}
 // one P-H3-Image candidate (Pruna's edit graph: ModelSamplingMiniMaxH3 1.0/1.0, BasicGuider, 8 euler steps on their
 // ManualSigmas grid): core PH3ImageConditioning edits image_1 with the rest as references; width and height 0 is
 // image_1's own size
@@ -424,38 +400,32 @@ async function fizgigGraph(a, pics, values, seed, size, prefix) {
   });
   return g;
 }
-// make a new view: `pictures` in order (what Picture 1 is: the method's `picture_one`), `prompt` the person's or agent's words, one candidate
-// per seed (`seeds`, else `count` new ones), on the view slot's `method` (moss_view, ph3_view, fizgig_still); `lora` keeps every MOSS
-// candidate on one edit LoRA, else the method's take turns.
+// make a new view: `pictures` in order (what Picture 1 is: the method's `picture_one`), `prompt` the person's or agent's
+// words, one candidate per seed (`seeds`, else `count` new ones), on the view slot's `method` (ph3_view, fizgig_still; by
+// default the first the registry lists).
 // Returns at once; each candidate is a take in the shot it lands in once its paint finishes
-export async function fromContext(pictures, prompt, { method: id = "moss_view", lora, seeds, count = 2, width, height, avoid = "", land, by = "person" } = {}) {
+export async function fromContext(pictures, prompt, { method, seeds, count = 2, width, height, land, by = "person" } = {}) {
   await Promise.all([S.load(), M.load(), T.load(), W.load()]);
-  const m = S.list("view").find((x) => x.id === id);
+  const id = method ?? S.list("view")[0]?.id, m = S.list("view").find((x) => x.id === id);
   if (!m) throw new Error(`No method "${id}" for a new view; there are: ${S.list("view").map((x) => x.id).join(", ")}`);
   if (m.install_state !== "ready") throw new Error(`${m.title} ${m.install_state}`);
   if (!pictures?.length) throw new Error(`${m.title}: give at least one picture (Picture 1 ${m.picture_one?.label ?? "comes first"})`);
   if (!prompt?.trim()) throw new Error(`${m.title}: say what the new still shows (prompt), naming the pictures as Picture 1, Picture 2, … if you like`);
   if ((width == null) !== (height == null)) throw new Error(`${m.title}: give width and height together, or neither (then the still is Picture 1's size)`);
-  if (lora && !m.anchors.recipes) throw new Error(`${m.title} has no edit LoRA to pick; lora is for the methods that have them (list_methods {slot: "view"})`);
   if (m.anchors.max_pictures && pictures.length > m.anchors.max_pictures) throw new Error(`${m.title} reads up to ${m.anchors.max_pictures} pictures; ${pictures.length} given`);
-  const recipes = !m.anchors.recipes ? [null] : lora ? m.anchors.recipes.filter((r) => r.lora === lora) : m.anchors.recipes;
-  if (!recipes.length) throw new Error(`${m.title}: lora is one of ${m.anchors.recipes.map((r) => r.lora).join(", ")}; not ${lora}`);
   const pics = []; for (const [i, p] of pictures.entries()) pics.push(await contextPicture(p, i));
   const said = pics.map((p) => p.said), where = await landing(land, said), world = Object.fromEntries(pics.map((p) => p.world).filter(Boolean));
   const list = seeds?.length ? seeds : Array.from({ length: count }, () => Math.floor(Math.random() * 2 ** 32));
   const label = prompt.trim().length > 40 ? `${prompt.trim().slice(0, 38)}…` : prompt.trim(), first = said.find((x) => x.take)?.take ?? null;
-  const models = new Map(), made = [];
+  const made = [], size = width != null ? { width, height } : null, prefix = `snap_views/${where.group.slice(0, 8)}`, build = m.anchors.kind === "ph3" ? ph3Graph : fizgigGraph;
   for (const [i, seed] of list.entries()) {
-    const recipe = recipes[i % recipes.length], size = width != null ? { width, height } : null, prefix = `snap_views/${where.group.slice(0, 8)}`;
-    if (recipe && !models.has(recipe.lora)) models.set(recipe.lora, await mossNodes(m.anchors, recipe));
-    const g = m.anchors.kind === "ph3" ? await ph3Graph(m.anchors, pics, { prompt: prompt.trim() }, seed, size, prefix)
-      : m.anchors.kind === "fizgig" ? await fizgigGraph(m.anchors, pics, { prompt: prompt.trim() }, seed, size, prefix) : viewGraph(m.anchors, models.get(recipe.lora), recipe, pics, { prompt: prompt.trim(), avoid }, seed, size, prefix);
+    const g = await build(m.anchors, pics, { prompt: prompt.trim() }, seed, size, prefix);
     const job = { kind: "paint", title: `New view (${label}), candidate ${i + 1} of ${list.length}`, about: { take: first, group: where.group, scene: where.scene, shot: where.shot }, by, eta_s: [m.cost?.local_s].flat().at(-1) ?? null };
-    made.push({ prompt_id: await K.queue(g, { group: where.group, world, job, extra: { snap_parent: { take: first, method: `view/${id}`, options: { label, prompt: prompt.trim(), context: said, ...(avoid ? { avoid } : {}) } } } }),
-      seed, made: recipe ? { lora: recipe.lora, cfg: recipe.cfg } : { model: m.anchors.unet.split("/").pop() }, label: "new view" }); // a take, no check to wait for (its tile's chips)
+    made.push({ prompt_id: await K.queue(g, { group: where.group, world, job, extra: { snap_parent: { take: first, method: `view/${id}`, options: { label, prompt: prompt.trim(), context: said } } } }),
+      seed, made: { model: m.anchors.unet.split("/").pop() }, label: "new view" }); // a take, no check to wait for (its tile's chips)
   }
   const d = await C.create({ kind: "view", target: first ?? where.group, title: `New view (${label}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: first, method: id,
-    options: { prompt: prompt.trim(), context: said, ...(avoid ? { avoid } : {}), ...(width != null ? { width, height } : {}) }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}) }, made);
+    options: { prompt: prompt.trim(), context: said, ...(size ?? {}) }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}) }, made);
   return { decision: d.id, pictures: said.map((x) => `Picture ${x.n}${x.n === 1 && m.picture_one ? ` (${m.picture_one.label})` : ""}: ${x.label}`), lands: where.where,
     candidates: d.candidates.map((c) => ({ id: c.id, prompt_id: c.prompt_id, take: `take-${c.prompt_id}`, seed: c.seed, ...c.made })), seconds_each: [m.cost?.local_s].flat().at(-1) ?? null };
 }

@@ -72,7 +72,7 @@
       "kind": "take",
       "title": "New view from these pictures",
       "off": "nothing new is made",
-      "about": "a new still made from 1 or more context pictures in order (a location's master or plate, the nearest earlier still or board, a Cast picture, a crop of any of them) and words the person or agent writes, never a fixed keep-the-composition text; each seed is a candidate take in the shot it lands in, with every context picture in its provenance (U101)"
+      "about": "a new still made by an H3 model from 1 or more context pictures in order (a location's master or plate, the nearest earlier still or board, a Cast picture, a crop of any of them) and words the person or agent writes, never a fixed keep-the-composition text; each seed is a candidate take in the shot it lands in, with every context picture in its provenance (U101; MOSS Image Edit was tested and left out: it copied Picture 1 or redesigned the set and the people)"
     }
   ],
   "methods": [
@@ -448,42 +448,6 @@
       },
       "cost": { "community_s": null, "local_s": [154, 181], "per": "107 frames at 1280×704 on a 5090, after the painted frame", "vram_gb": null },
       "credit": "Viggle Remake (https://huggingface.co/Viggle/Viggle-Remake) · MiniMax H3"
-    },
-    {
-      "id": "moss_view",
-      "slot": "view",
-      "kind": "take",
-      "title": "New view · MOSS Image Edit",
-      "face": "a new still from the pictures you give, in your words",
-      "picture_one": { "label": "sets the camera", "tip": "MOSS keeps Picture 1's framing and composition: put a picture that already has the camera you want first, the set (or a marked region of it) after it" },
-      "does": "edit",
-      "anchors": {
-        "prompt": "{prompt}",
-        "negative": "nsfw, worst quality, bad anatomy, watermark, jpeg artifact, text",
-        "unet": "moss_image_sft_int8_convrot.safetensors",
-        "clip": "qwen3.5_9b_int8_convrot.safetensors",
-        "vae": "flux2-vae.safetensors",
-        "steps": 30,
-        "sampler": "euler",
-        "scheduler": "normal",
-        "slg_single": "22",
-        "megapixels": 1.0,
-        "recipes": [
-          { "lora": "akhaliq_moss_edit_hq_armV5.safetensors", "format": "ai-toolkit", "cfg": 3.0 },
-          { "lora": "chinoll_moss_image_edit_adapter.safetensors", "format": "ai-toolkit", "cfg": 5.0 }
-        ]
-      },
-      "needs": [{ "folder": "diffusion_models", "match": "moss_image_sft_int8" }, { "folder": "loras", "match": "moss_edit" }],
-      "local_or_api": "local",
-      "constraints": [
-        "Picture 1 sets the camera: the new still keeps Picture 1's framing and composition (U101: with a location's aerial master first, every seed kept the aerial view), so put a still that already has the camera you want first and the set, the master or a crop of it, after it",
-        "the edit LoRAs differ (U101, short03 C2, 30 stills): akhaliq (cfg 3) keeps Picture 1 almost as it is, its people and objects too, so use it to change one thing in a picture; chinoll (cfg 5) follows the words and moved the camera into the square with the nearest view first and the master second",
-        "a camera move goes better in two steps: first the place from a new side (the camera may stay high), then that still as Picture 1 with 'move the camera down to eye height' and the people",
-        "every picture is scaled to 1 MP; the new still is Picture 1's size unless a size is given",
-        "the text encoder sees each picture after a 'Picture N:' marker, so the words can name them as Picture 1, Picture 2, …"
-      ],
-      "guidance": { "line": "short03 C2 (the gate seen from inside the square): chinoll with the road view first and the master second moved into the square 6/6 and kept the gatehouse, palisade, well and house rows; a second edit lowered the camera to about eye height with both people recognisable (Maren's armour drifted); akhaliq copied Picture 1 in every arm", "evidence": "measured", "source": "U101 (proto/ui/u101, PROGRESS 2026-11-05 13:57)", "n": 30, "hardware": "5090" },
-      "cost": { "community_s": null, "local_s": [17, 25], "per": "one still at about 1 MP with 2-4 context pictures on a 5090 (U101: 51-75 s for 3 seeds)", "vram_gb": null }
     },
     {
       "id": "ph3_view",
