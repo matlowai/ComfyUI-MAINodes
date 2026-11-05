@@ -328,8 +328,11 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   calls the same function its tool calls, never a private path. *More:* CONCEPT.md "Layers".
 - **SNAP-R30: The agent front door works for a moderate agent on its first try.** Everything an agent needs is in the
   tool table, its errors or the pack's `docs/AGENT_START.md`, never only in code. Pages are keyed by the ComfyUI user
-  (the comfy-user header snap-gate sets per account): a call goes to the newest connected page of the caller's own user,
-  and only that page may answer it. `GET /mainodes/snap/tools` lists the caller's open pages, when each registered and
+  (the comfy-user header snap-gate sets per account): a call goes to a connected page of the caller's own user, and only
+  that page may answer it: the newest tab whose person turned "Let agents see" on (that control is how a person lets
+  agents drive their tab, Dylan 2026-11-05), else an agent's own headless page; a person's tab with it off is never
+  driven. `SNAP_PAGE` (snapcall.py, snap_mcp.py) or the `X-Snap-Page` header names one page, so an agent doing
+  background work stays on its own page; every answer names the page that answered (`page.id`). `GET /mainodes/snap/tools` lists the caller's open pages, when each registered and
   last answered; with none open, a call says it may have been locked or closed and how to open one (`tools/snap_agent_page.sh <port>`, which uses a new
   Chrome profile per launch, returns once the page has registered, starts nothing when a page is already open, and
   with `--stop` ends the pages it started, with no pid or kill from the caller). Every brick in `describe_recipe` has an `id`, exactly what
@@ -338,13 +341,13 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   `snap_mcp.py` and `snapcall.py` take a base URL and send `SNAP_TOKEN` as a Bearer header. An agent's call with an
   unknown or missing argument is refused, and every tool error names the arguments the tool takes (the U44 contract).
   `get_profile` says whether agents may run and see, and `set_agent_permissions` sets what the person said, live. `run`
-  returns its run id; `run_status` gives each run's state (queued, running, done, failed), its take and output paths,
+  always returns its run id (or says why it was refused); `run_status` gives each run's state (queued, running, done, failed), its take and output paths,
   and waits up to 25 s (`wait_s`; a call ends after 30 s). A recipe opens runnable: an optional brick whose own check
   fails (Upscale without RelayVSR) and a LoRA stack with no file start off, a brick that is off says so and why in
   `describe_recipe`, and a kit lists add-ons the recipe runs without under `optional`, apart from its files. Video
   lengths read as frames and seconds at the recipe's fps, and `set_setting` takes `"5s"`, rounds to the model's frame
   grid and says what it became. `describe_recipe` carries the model's `prompt_help` (H3's sections; name the sounds the
-  action makes). A headless page's screenshot says to use take_frames. The embedder sidecar's port follows ComfyUI's
+  action makes). A headless page from `snap_agent_page.sh` screenshots itself through its own Chrome's DevTools port (no press). The embedder sidecar's port follows ComfyUI's
   (port + 230; 8188 keeps 8418). *Why:* U72 run 1 (Sonnet at low effort): grepping JS for a setting id, a stale Chrome
   lock, a "ready" kit whose recipe wasn't, polling a run that never said done, guessing fps, `undefined has no seed`;
   Dylan: "once sonnet low is smooth I'll call it good". *More:* u72/FINDINGS.md F1-F10, PLAN U75, `snap_bridge.py`,
