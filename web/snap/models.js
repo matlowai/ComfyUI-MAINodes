@@ -382,7 +382,14 @@ const coreStack = () => E.state().bricks.find((b) => BRICKS[b.key].stack?.role =
 // a family's base variants (H3: ref2v, fl2v) come from the model graph's families: a file whose name holds one is for it
 const variantOf = (name) => (variants.get(family()) ?? []).find((v) => base(name).toLowerCase().includes(v)) ?? null;
 // H3 carries its one LoRA on the Render Preset (`lora`), not in a core stack: that setting is where its turbo lives
-const single = () => loras().find((r) => r.row === null && r.brick === turboHost()) ?? null;
+// (a setting with a `<name>_strength` beside it, installed or not)
+const single = () => {
+  for (const [node, n] of nodesOf(turboHost())) {
+    const w = n.widgets?.find((x) => n.widgets.some((y) => y.name === `${x.name}_strength`));
+    if (w) return { brick: turboHost(), node, setting: w.name, file: w.value };
+  }
+  return null;
+};
 export function turbos() {
   const fam = family(), me = diffusion() && entry(diffusion().file), mine = diffusion() && variantOf(diffusion().file);
   if (!fam || (!coreStack() && !single())) return [];
@@ -485,7 +492,7 @@ export async function addLora(file, { role, strength, asked } = {}) {
   const e = entry(name), want = role ?? e.role;
   if (want === "dial") throw new Error(`${short(name)} is a dial: put it on the Dial Rack (add_dial)`);
   if (want === "unsorted") throw new Error(`The model graph doesn't say what ${short(name)} is; give its role (core, style or identity)`);
-  if (want === "core" && !turboHost()) throw new Error(`${short(name)} is a core LoRA, and this recipe's core LoRA rides on its Render Preset with its schedule: pick a setup (list_setups, apply_setup) or set preset.lora`);
+  if (want === "core" && !coreStack() && single()) throw new Error(`${short(name)} is a core LoRA, and this recipe's core LoRA rides on its Render Preset with its schedule: pick a setup (list_setups, apply_setup) or set preset.lora`);
   if (e.turbo && turbo() && !asked) throw new Error(`A turbo is already on (${short(turbo().file)}); swap it with set_method {slot: "turbo"}, or pass person_asked: true when the person asked for a turbo stack`);
   const key = { core: "loras", style: "style", identity: "cast" }[want], keys = E.state().bricks.map((b) => b.key);
   if (!keys.includes(key)) await E.snap(key, { at: keys.includes("rack") ? keys.indexOf("rack") : undefined });
