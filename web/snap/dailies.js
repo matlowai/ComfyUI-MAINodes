@@ -50,7 +50,7 @@ function mediaEl(m, { big, muted = true } = {}) {
 
 // `onHover(take | null)`: a take card is hovered (the chain previews it in its own output slot); `onRunFrom(take)`: Run
 // from here (a new tab with the take's settings, ready to run)
-export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReprompt }) {
+export function createDailies({ host, say, onRestore, onHover, onRunFrom, onRetake, onReprompt }) {
   const picked = new Set(); // takes ticked for compare
   const strip = h("div", { className: "snap-takes-strip" });
   const count = h("span", { className: "snap-quiet" }), heading = h("strong", { textContent: "Takes" });
@@ -406,10 +406,21 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onRepr
             activeBtn, priorBtn,
             h("button", { className: "snap-link", textContent: "Use these settings", title: "put this take's settings back on the open workflow (one undo step)", onclick: () => { try { say(`${T.restore(t)} settings restored from take ${t.number}`); onRestore?.(); } catch (err) { say(err.message, true); } } }),
             h("button", { className: "snap-link", textContent: "Run from here", title: "this take's workflow and settings, seed included, in a new tab, ready to run (nothing is queued)", onclick: () => { close(); onRunFrom?.(t); } }),
+            // SNAP-R61: a take re-runs as it was (the versions it pinned) or with today's world (each moved record updated first)
+            t.world && Object.keys(t.world).length ? retakeRow(t) : null,
             h("button", { className: "snap-link", textContent: "Continue from its last frame", title: "the take's last frame becomes the First frame", onclick: async () => { try { say((await T.use(t, { as: "first_frame", t: "last" })).said); onRestore?.(); } catch (err) { say(err.message, true); } } })))));
     tags(); refresh(); rankRow(); regionLine();
     host.append(sheet);
     if (isVideo) player.focus({ preventScroll: true });
+  }
+
+  // the two re-take buttons, with what today's world would change in their titles
+  function retakeRow(t) {
+    const moved = T.moves(t.world), go = (world) => () => { document.querySelector(".snap-take-sheet")?.remove(); onRetake?.(t, world); };
+    return h("div", { className: "snap-set-actions snap-retake" },
+      h("button", { className: "snap-link", textContent: "Re-take as it was", title: `the versions this take used, seed included${moved.length ? ` (${moved.map(T.moveText).join(", ")} kept as they were)` : ""}`, onclick: go("pinned") }),
+      h("button", { className: "snap-link", textContent: moved.length ? `Re-take with today's world (${moved.map(T.moveText).join(", ")})` : "Re-take with today's world", disabled: !moved.some((m) => !m.missing),
+        title: moved.length ? `each record with a newer version is updated first: ${moved.map(T.moveText).join(", ")}` : "nothing this take used has a newer version", onclick: go("latest") }));
   }
 
   // ---- blind A/B ------------------------------------------------------------------------------------------------

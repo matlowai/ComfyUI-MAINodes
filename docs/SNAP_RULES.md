@@ -203,6 +203,19 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   regenerate with updated world state, or with the old world state"; 20:51: keep every version, files by name. *More:*
   `web/snap/world.js`, `snap_world.py`; DESIGN_U86_U87_CAST_VERSIONS_2026-11-04.md §4.3; PLAN U87.
 
+- **SNAP-R61: A take or a saved file re-runs as it was, with today's world, or edited first.** "As it was" runs the
+  workflow the take or file holds, seed included: it already holds what each pinned version put in, so it reproduces
+  even where a record has moved on or isn't here. "With today's world" updates each pinned record that moved on (or only
+  the ones named) to its newest version first, through the same apply paths, and says what differs field by field.
+  "Edit then run" opens the pinned versions in their editors; saving there makes a new version. A re-take opens in the
+  shot's own scene tab when the take belongs to a shot (the take's whole graph, not widget by widget), else in a new
+  tab, never on unrelated open work; its run carries `extra.snap.retake`, so the new take nests under the original as
+  "Retake · as it was" / "Retake · today's world". An agent's retake spends GPU time, so it waits as a proposal with its
+  plan (SNAP-R16). Saved files carry core's prompt and workflow (with `extra.snap.world`); with Save metadata off they
+  carry nothing (SNAP-R38). *Why:* Dylan 2026-11-04 22:44: "open/drop a file in Snap → 'Run as it was' / 'Run with
+  today's world' / 'Edit then run' … showing what differs". *More:* `web/snap/retake.js`, `web/snap/worldsheet.js`;
+  DESIGN_U86_U87 §4.4; PLAN U87, U89 (swap any reference builds on it).
+
 ## Onboarding
 
 - **SNAP-R25: Onboarding proposes; it never downloads.** "I'm new, help me set up" asks at most six things, each with a

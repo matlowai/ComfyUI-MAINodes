@@ -193,6 +193,8 @@ function continued(graph, prompt) {
   const b = graph?.extra?.snap?.bricks?.find((x) => x.key === "first_frame"), from = b?.from;
   return from && prompt?.[b.nodes.image]?.inputs?.image === from.file ? { take: from.take, method: "continue", frame: from.frame } : null;
 }
+// a re-take (retake.js marks the queued workflow): a version of the take it re-made, "as it was" or "with today's world"
+const retaken = (graph) => { const r = graph?.extra?.snap?.retake; return r?.take ? { take: r.take, method: "retake", options: { world: r.world, seed: r.seed } } : null; };
 
 const saving = new Set(); // runs whose take is being written
 async function capture(id, status, error, failedNode) {
@@ -209,7 +211,7 @@ async function captureRun(id, started, status, error, failedNode) {
   const [, , prompt, extra] = h.prompt;
   const graph = extra?.extra_pnginfo?.workflow ?? null;
   const group = graph?.id ?? groupOf(), n = takes.filter((t) => t.group === group).length + 1;
-  const { text, seed } = summary(prompt), swapped = extra?.snap_marks?.swapped ?? {}, parent = extra?.snap_parent ?? continued(graph, prompt);
+  const { text, seed } = summary(prompt), swapped = extra?.snap_marks?.swapped ?? {}, parent = extra?.snap_parent ?? retaken(graph) ?? continued(graph, prompt);
   const files = media(h.outputs), video = files.find((m) => m.kind === "video");
   const read = video && await api.fetchApi(`/mainodes/snap/loudness?filename=${encodeURIComponent(video.filename)}&subfolder=${encodeURIComponent(video.subfolder)}&type=${video.type}`);
   const sound = read?.ok ? await read.json() : null; // no ffmpeg here: no note, the take is saved all the same

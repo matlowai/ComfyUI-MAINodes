@@ -107,6 +107,7 @@ export function label(t) {
   const p = t.parent;
   if (!p) return `Take ${t.number}`;
   if (p.method === "continue") return `Continued from frame ${p.frame}`;
+  if (p.method === "retake") return `Retake · ${p.options?.world === "latest" ? "today's world" : "as it was"}`; // SNAP-R61
   return `${cap(T.versionOf(p.options) ?? p.method.split("/").pop())} version`;
 }
 

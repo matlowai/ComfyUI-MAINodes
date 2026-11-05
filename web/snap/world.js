@@ -62,6 +62,20 @@ export function get(ref) {
   return version ? { record: r, version } : null;
 }
 
+// what changed between two bodies, field by field: "lora.strength 0.8 → 0.6", "details changed", "refs 2 → 1 items"
+export function diff(a, b, at = "") {
+  const out = [], show = (v) => (typeof v === "string" ? (v.length > 40 ? null : JSON.stringify(v)) : JSON.stringify(v));
+  for (const k of new Set([...Object.keys(a ?? {}), ...Object.keys(b ?? {})])) {
+    const x = a?.[k], y = b?.[k], name = `${at}${k}`;
+    if (canonical(x) === canonical(y)) continue;
+    if (x && y && typeof x === "object" && typeof y === "object" && !Array.isArray(x) && !Array.isArray(y)) out.push(...diff(x, y, `${name}.`));
+    else if (Array.isArray(x) && Array.isArray(y) && x.length !== y.length) out.push(`${name} ${x.length} → ${y.length} items`);
+    else if (show(x) == null || show(y) == null || Array.isArray(x)) out.push(`${name} changed`);
+    else out.push(`${name} ${show(x) ?? "none"} → ${show(y) ?? "none"}`);
+  }
+  return out;
+}
+
 // writes go through the server (snap_world.py), one at a time there, so two pages saving one record keep both versions
 async function post(route, q) {
   const r = await api.fetchApi(`/mainodes/snap/world/${route}`, { method: "POST", body: JSON.stringify(q) }), out = await r.json().catch(() => ({}));

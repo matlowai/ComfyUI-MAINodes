@@ -37,6 +37,7 @@ import * as PF from "./profile.js";
 import * as MD from "./metadata.js";
 import * as ACC from "./account.js";
 import * as W from "./world.js";
+import * as RT from "./retake.js";
 import { api } from "../../../scripts/api.js";
 
 // a widget as an agent reads it: value, kind, every choice, limits, and whether a wire drives it
@@ -467,6 +468,16 @@ export const TOOLS = [
     description: "Put a Cast record into the open recipe (U86): `cast` is cast:<id> (the newest version) or cast:<id>@n (that version). Its LoRA becomes a row on the Cast brick (added when missing), its trigger words and details go into the Render prompt's first line, its pictures into References; applying it again (another version, or after a hand edit) replaces what the last apply put there. The recipe pins the version (describe_recipe.world), so takes say which version made them. strength overrides the record's for this recipe only.",
     inputSchema: { type: "object", properties: { cast: { type: "string" }, strength: { type: "number" } }, required: ["cast"] },
     run: async ({ cast, strength }) => ({ cast, done: await L.applyCast(cast, { strength }), world: E.state().world ?? {} }),
+  },
+  {
+    name: "retake",
+    description: "Re-take a take (U87, SNAP-R61): open its chain (in its shot's scene tab when it belongs to a shot, else a new tab) and run it again. world: pinned = as it was (the record versions it used, which the workflow already holds), latest = with today's world (each pinned record with a newer version is updated first; refs limits that to those records, kind:id). seed: same (default) or new. The new take nests under the original as 'Retake · as it was' / 'Retake · today's world'. get_take's world shows what moved. Uses GPU time: unless the person lets agents run, this waits as a proposal; plan says what would change.",
+    inputSchema: { type: "object", properties: { take: { type: "string" }, world: { type: "string", enum: ["pinned", "latest"] }, seed: { type: "string", enum: ["same", "new"] }, refs: { type: "array", items: { type: "string" } } }, required: ["take"] },
+    annotations: { consequentialHint: true },
+    consequential: true,
+    plan: async ({ take, world = "pinned", refs }) => { const t = await takeOf(take), moved = await RT.differs(t.world), used = world === "latest" ? moved.filter((m) => !m.missing && (!refs?.length || refs.includes(m.ref))) : [];
+      return { runs: `take ${t.number}'s workflow again, ${RT.worldShown(world)}`, updates: used.map((m) => ({ ref: m.ref, text: m.text, fields: m.fields })), ...(world === "pinned" && moved.length ? { kept_as_it_was: moved.map((m) => m.text) } : {}), ...T.measured([t], "of the take re-made") }; },
+    run: async ({ take, world, seed, refs }) => { const t = await takeOf(take); return { ...await RT.retake(t, { world, seed, refs }), next: "run_status {run, wait_s: 25} until state is done" }; },
   },
   {
     name: "check_continuity",

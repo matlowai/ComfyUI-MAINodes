@@ -34,6 +34,7 @@ import * as W from "./world.js";
 import { openOnboarding } from "./onboardview.js";
 import { openLoras, moveControl, label as catLabel } from "./loraview.js";
 import { openCast } from "./castview.js";
+import * as RT from "./retake.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -115,6 +116,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), inspector, handle), toast);
   // takes under the chain: "Use as input" puts a take's frame on the First frame or References brick (T.use)
   const dailies = createDailies({ host: root, say, onRestore: () => render(null), onHover: (t) => previewTake(t), onRunFrom: (t) => runFrom(t).catch((err) => say(err.message, true)),
+    onRetake: (t, world) => RT.retake(t, { world }).then((r) => { say(r.said); render(null); }, (err) => say(err.message, true)),
     onReprompt: () => repromptSound() });
   stack.after(dailies.el);
   // the scene navigator above the chain (U59): opening a shot swaps the graph in the scene tab, so the chain shows it
