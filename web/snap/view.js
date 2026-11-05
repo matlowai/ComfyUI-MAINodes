@@ -436,7 +436,14 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const to = el.getBoundingClientRect();
     if (from && !reducedMotion()) el.animate([{ clipPath: `inset(0 ${Math.max(0, to.width - from.width)}px ${Math.max(0, to.height - from.height)}px 0 round 18px)` }, { clipPath: "inset(0 0 0 0 round 18px)" }],
       { duration: 300, easing: "cubic-bezier(.2, .8, .2, 1)" });
-    setTimeout(() => el.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" }), 60);
+    setTimeout(() => reveal(key), 60);
+  }
+  // a brick in focus is brought into view, but the chain stays at its start whenever that brick is in view there too, so
+  // the first brick is never left clipped (it was after the inspector closed on a Render picked at the start)
+  function reveal(key) {
+    const el = brickNode(key);
+    if (el && el.getBoundingClientRect().right - stack.getBoundingClientRect().left + stack.scrollLeft > stack.clientWidth) el.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" });
+    else stack.scrollTo({ left: 0, behavior: reducedMotion() ? "auto" : "smooth" });
   }
   // the setting changed (here or in ComfyUI's Settings): carry the current selection over to the other place
   function openInChanged() {
@@ -449,11 +456,12 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   function select(key, rerender = true) {
     key = key && shown(key);
     if (key !== selected) libScoped = true;
+    const was = selected;
     selected = key;
     if (key) noting = false;
     root.classList.toggle("inspecting", (!!key && openIn() === "panel") || noting);
     // keep the selected brick in view beside the inspector once it has slid open
-    if (key && openIn() === "panel") setTimeout(() => brickNode(key)?.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" }), 320);
+    if (openIn() === "panel" && (key || was)) setTimeout(() => reveal(key ?? was), 320); // after the inspector slid in or out
     if (rerender) {
       for (const el of stack.querySelectorAll("[data-brick]")) el.classList.toggle("selected", el.dataset.brick === key);
       renderInspector();
