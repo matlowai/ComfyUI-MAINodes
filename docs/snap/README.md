@@ -117,8 +117,8 @@ yours to read and follow before you use it.**
 | P-H3-Image (model, text encoder, VAE, LoRA) | H3-based image and edit model | [PrunaAI/P-H3-Image-Comfy](https://huggingface.co/PrunaAI/P-H3-Image-Comfy) | MiniMax H3 Community License Agreement |
 | H3 latent upscaler | H3 latent upscale method (not wired yet) | not recorded in the branch; several community uploads exist | see the upload you use |
 
-The Pika H3 Flex Video and Reference to Video **(API)** setups use ComfyUI's Pika partner nodes, which call Pika's
-service with your own account; nothing local runs.
+The Pika H3 Flex Video and Reference to Video **(API)** setups use ComfyUI's Pika partner nodes: the clip renders on
+Pika's servers, paid with Comfy credits, and your prompt and pictures are sent to Pika.
 
 ### MOSS-Image, Kromoss and Krea 2 (stills)
 
