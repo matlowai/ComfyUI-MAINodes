@@ -121,6 +121,7 @@ export function label(t) {
   if (p.method === "continue") return `Continued from frame ${p.frame}`;
   if (p.method === "retake") return `Retake · ${p.options?.world === "latest" ? "today's world" : "as it was"}`; // SNAP-R61
   if (p.options?.rerun) return `${p.method.startsWith("recast/") ? "Recast" : "Changed"} · ${p.options.rerun.text} (take ${T.get(p.take)?.number ?? "?"}'s motion)`; // SNAP-R63 Reuse the motion
+  if (p.method.startsWith("view/")) return `New view · ${p.options?.label ?? "from context pictures"}`; // U101
   if (p.method.startsWith("rerun/")) { const s = Object.values(p.options?.swaps ?? {}).filter((x) => !x.kept).map((x) => x.text); return `Re-run · ${s.length ? s.join(", ") : "as it was"}`; } // SNAP-R63
   return `${cap(T.versionOf(p.options) ?? p.method.split("/").pop())} version`;
 }
@@ -353,6 +354,9 @@ export async function setActive(sceneId, shotId, takeId, by = "person") {
   const scene = get(sceneId), now = scene.shots.find((x) => x.id === shotId);
   return { scene: sceneId, shot: shotId, active: takeId, by, path: [scene.name, shotTitle(scene, now), ...(takeId ? path(now, takeId).map((id) => label(T.get(id))) : [])] };
 }
+
+// a take group joins a shot, so its takes are the shot's (U101: a new view lands in a shot whose workflow never ran)
+export const addGroup = (sceneId, shotId, group) => update(sceneId, (s) => { const x = s.shots.find((y) => y.id === shotId); if (x && !x.groups.includes(group)) x.groups.push(group); });
 
 // takes that joined a shot since its file was written are listed in it too (a run in its workflow, an edit of its take)
 let syncing = 0;

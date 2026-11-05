@@ -6,14 +6,20 @@
 // they were painted from (remake_edit, remake_swap, U69). Night, rain and snow are examples of a change, not features: any
 // change can be written. A recast swaps the identity notes for a "new person" note, and nothing is refused. The render
 // lands as a new take in the same group whose parent is the original. What a method runs is registry data.
+// New view from these pictures (U101, the "view" slot) is the stills' route: MOSS Image Edit from ordered context
+// pictures and free words, each seed a candidate take in a shot (fromContext, below).
 // SNAP-R13 data, not code branches · SNAP-R14 method slots · SNAP-R16 GPU work waits for the person · SNAP-R17 by ·
-// SNAP-R23 candidates · SNAP-R51 change something, recast, pins · see docs/SNAP_RULES.md
+// SNAP-R23 candidates · SNAP-R51 change something, recast, pins · SNAP-R71 a new view from context, in the asker's words ·
+// SNAP-R72 Picture 1 sets the camera · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as C from "./candidates.js";
 import * as K from "./checks.js";
 import * as M from "./models.js";
+import * as RT from "./retake.js";
 import * as S from "./slots.js";
+import * as SC from "./scenes.js";
 import * as T from "./takes.js";
+import * as W from "./world.js";
 
 const fill = (text, values) => text.replace(/\{(\w+)\}/g, (_, k) => values[k] ?? "");
 const SLOTS = ["edit", "recast"];
@@ -29,22 +35,29 @@ const clock = (frame) => { const ms = Math.round((frame / 24) * 1000); return `$
 // grid, as the take was rendered), the mid frame and the size
 export function clip(take) {
   const m = take.media.find((x) => x.kind === "video");
-  if (!m) throw new Error(`Take ${take.number} has no video to edit`);
+  if (!m) throw new Error(`Take ${take.number} has no video to edit${take.media.some((x) => x.kind === "image") ? ": it is a still. To make a new still from it, use New view from these pictures (edit_from_context {pictures: [{take}], prompt})" : ""}`);
   const r = Object.values(take.prompt ?? {}).map((x) => x.inputs ?? {}).filter((x) => typeof x.length === "number" && typeof x.width === "number").sort((a, b) => b.length - a.length)[0];
   if (!r) throw new Error(`Take ${take.number}: its prompt has no render length and size to edit at`);
   const frames = Math.ceil((r.length - 5) / 17) * 17 + 5;
   return { video: K.annotated(m), frames, mid: Math.floor(frames / 2), width: r.width, height: r.height };
 }
 
-// the painted frames of one candidate, as one prompt (U53b's edit graph: 1.0 MP, SLG 22, 30 steps euler/normal)
-async function anchorsGraph(take, a, recipe, frames, values, seed) {
-  const c = clip(take), files = { unet: await M.choice("UNETLoader", "unet_name", a.unet), clip: await M.choice("CLIPLoader", "clip_name", a.clip), vae: await M.choice("VAELoader", "vae_name", a.vae), lora: await M.choice("LoraLoaderModelOnly", "lora_name", recipe.lora) };
-  const g = {
+// MOSS Image Edit's models (nodes 1-5): the model with the recipe's edit LoRA and SLG, the text encoder, the VAE
+async function mossNodes(a, recipe) {
+  const files = { unet: await M.choice("UNETLoader", "unet_name", a.unet), clip: await M.choice("CLIPLoader", "clip_name", a.clip), vae: await M.choice("VAELoader", "vae_name", a.vae), lora: await M.choice("LoraLoaderModelOnly", "lora_name", recipe.lora) };
+  return {
     1: { class_type: "UNETLoader", inputs: { unet_name: files.unet, weight_dtype: "default" } },
     2: { class_type: "CLIPLoader", inputs: { clip_name: files.clip, type: "moss_image", device: "default" } },
     3: { class_type: "VAELoader", inputs: { vae_name: files.vae } },
     4: { class_type: "LoraLoaderModelOnly", inputs: { model: ["1", 0], lora_name: files.lora, strength_model: 1.0 } },
     5: { class_type: "SkipLayerGuidanceDiTSimple", inputs: { model: ["4", 0], double_layers: "", single_layers: a.slg_single, start_percent: 0.0, end_percent: 1.0 } },
+  };
+}
+// the painted frames of one candidate, as one prompt (U53b's edit graph: 1.0 MP, SLG 22, 30 steps euler/normal)
+async function anchorsGraph(take, a, recipe, frames, values, seed) {
+  const c = clip(take);
+  const g = {
+    ...await mossNodes(a, recipe),
     6: { class_type: "LoadVideo", inputs: { file: c.video } },
     7: { class_type: "GetVideoComponents", inputs: { video: ["6", 0] } },
   };
@@ -268,6 +281,129 @@ C.kind("edit", { finish, apply: propagate, undo: cancel });
 
 // the take an edit's Apply made, once it is in (takes.js captures it from this page's run)
 export const result = (d) => (d?.applied?.undo?.take ? T.get(d.applied.undo.take) ?? null : null);
+
+// ---- New view from these pictures (U101, SNAP-R71/R72) --------------------------------------------------------------
+// A new still from context pictures in order and words the person or agent writes: MOSS Image Edit reads every picture
+// (images.image_0, image_1, … on core TextEncodeMOSSImageEdit), and Picture 1 sets the camera (the edit keeps its
+// framing: with short03's aerial master first every seed kept the aerial view), so the order is the person's to choose.
+// A picture is a still take, a video take's frame, an input/ file or a Cast's picture, whole or cropped. Each seed is a
+// candidate take in the shot it lands in; its parent names every context picture.
+
+// how big a picture is, in pixels (a crop is asked for in fractions of it)
+const sizeOf = (src) => new Promise((done, fail) => { const i = new Image(); i.onload = () => done({ width: i.naturalWidth, height: i.naturalHeight }); i.onerror = () => fail(new Error(`couldn't read ${src}`)); i.src = src; });
+const inputUrl = (file) => { const cut = file.lastIndexOf("/"); return K.url({ filename: file.slice(cut + 1), subfolder: file.slice(0, Math.max(cut, 0)), type: "input" }); };
+// one context picture: the nodes that load it (keys prefixed `c<i>`), its output, and what the provenance says
+async function contextPicture(p, i) {
+  const k = (x) => `c${i}${x}`, nodes = {}, said = { n: i + 1 };
+  let out, size, world = null;
+  if (p.take) {
+    const t = T.get(p.take);
+    if (!t) throw new Error(`Picture ${i + 1}: no take ${p.take}`);
+    const v = t.media.find((m) => m.kind === "video"), m = v ?? t.media.find((x) => x.kind === "image");
+    if (!m) throw new Error(`Picture ${i + 1}: take ${t.number} has no picture or video`);
+    if (v) {
+      const c = clip(t), frame = p.frame ?? c.mid;
+      if (!Number.isInteger(frame) || frame < 0 || frame >= c.frames) throw new Error(`Picture ${i + 1}: frame is a whole frame number of take ${t.number}, from 0 to ${c.frames - 1}; not ${frame}`);
+      Object.assign(nodes, { [k("v")]: { class_type: "LoadVideo", inputs: { file: c.video } }, [k("g")]: { class_type: "GetVideoComponents", inputs: { video: [k("v"), 0] } },
+        [k("f")]: { class_type: "ImageFromBatch", inputs: { image: [k("g"), 0], batch_index: frame, length: 1 } } });
+      out = [k("f"), 0]; size = { width: c.width, height: c.height };
+      Object.assign(said, { take: t.id, frame, label: p.label ?? `take ${t.number}, frame ${frame}` });
+    } else {
+      nodes[k("l")] = { class_type: "LoadImage", inputs: { image: K.annotated(m) } };
+      out = [k("l"), 0]; size = p.crop && await sizeOf(K.url(m));
+      Object.assign(said, { take: t.id, label: p.label ?? `take ${t.number}` });
+    }
+  } else if (p.cast) {
+    const got = W.get(p.cast), { id } = W.parse(p.cast), b = got?.version.body, r = b?.refs?.[p.ref ?? 0];
+    if (!got) throw new Error(`Picture ${i + 1}: no Cast ${p.cast} (list_cast shows them)`);
+    if (!r) throw new Error(`Picture ${i + 1}: ${b.name} v${got.version.n} has no picture ${p.ref ?? 0}; it has ${b.refs.length}`);
+    nodes[k("l")] = { class_type: "LoadImage", inputs: { image: r.file } };
+    out = [k("l"), 0]; size = p.crop && await sizeOf(inputUrl(r.file));
+    Object.assign(said, { cast: W.refOf("cast", id, got.version.n), file: r.file, label: p.label ?? `${b.name}, ${r.role}` });
+    world = [`cast:${id}`, { n: got.version.n, hash: W.short(got.version.hash), name: b.name }];
+  } else if (p.file) {
+    const at = await (await api.fetchApi(`/mainodes/snap/info?input=${encodeURIComponent(p.file)}`)).json();
+    if (!at.input_exists) throw new Error(`Picture ${i + 1}: "${p.file}" isn't in this server's input folder (${at.input}); upload it with POST /upload/image (subfolder=snap) and give "snap/<its name>"`);
+    nodes[k("l")] = { class_type: "LoadImage", inputs: { image: p.file } };
+    out = [k("l"), 0]; size = p.crop && await sizeOf(inputUrl(p.file));
+    Object.assign(said, { file: p.file, label: p.label ?? p.file.split("/").pop() });
+  } else throw new Error(`Picture ${i + 1}: give take (and frame for a video), file (in input/) or cast (cast:<id>, ref: its picture's number from 0)`);
+  if (p.crop) { // fractions of the picture, as the take viewer's marked region holds them
+    const [x, y, w, hgt] = p.crop;
+    if (![x, y, w, hgt].every((v) => typeof v === "number" && v >= 0 && v <= 1) || w <= 0 || hgt <= 0) throw new Error(`Picture ${i + 1}: crop is [x, y, width, height] in fractions of the picture (0 to 1); not ${JSON.stringify(p.crop)}`);
+    nodes[k("c")] = { class_type: "ImageCropV2", inputs: { image: out, crop_region: { x: Math.round(x * size.width), y: Math.round(y * size.height), width: Math.max(1, Math.round(w * size.width)), height: Math.max(1, Math.round(hgt * size.height)) } } };
+    out = [k("c"), 0]; said.crop = p.crop; if (!p.label) said.label += " (cropped)";
+  }
+  return { nodes, out, said, world };
+}
+// where the new view lands: the shot asked for, else the shot Picture 1's take (or the first take among the pictures) is
+// in, else the open tab's shot, else the open tab
+async function landing(land, said) {
+  await SC.load();
+  if (land === "tab") return { group: T.groupOf(), where: "this tab" };
+  let home = null;
+  if (land) {
+    const scene = SC.get(land.scene);
+    if (!scene) throw new Error(`land: "tab", or {scene, shot} of ${SC.all().map((x) => `${x.id} (${x.name}: ${x.shots.map((y) => y.id).join(", ")})`).join("; ") || "no scenes yet"}`);
+    home = { scene, shot: SC.shotOf(scene, land.shot) };
+  } else {
+    const first = said.map((x) => x.take && T.get(x.take)).find(Boolean);
+    home = (first && RT.shotOf(first)) ?? SC.current();
+  }
+  if (!home) return { group: T.groupOf(), where: "this tab" };
+  const group = home.shot.groups[0] ?? crypto.randomUUID();
+  if (!home.shot.groups.includes(group)) await SC.addGroup(home.scene.id, home.shot.id, group);
+  return { group, scene: home.scene.id, shot: home.shot.id, where: `${SC.shotTitle(home.scene, home.shot)} of ${home.scene.name}` };
+}
+// one candidate: every context picture scaled to the method's megapixels, the words, one seed; the still is Picture 1's
+// size (as scaled) unless width and height are given
+function viewGraph(a, models, recipe, pics, values, seed, size, prefix) {
+  const g = { ...models };
+  pics.forEach((p, i) => Object.assign(g, p.nodes, { [`s${i}`]: { class_type: "ImageScaleToTotalPixels", inputs: { image: p.out, upscale_method: "lanczos", megapixels: a.megapixels, resolution_steps: 16 } } }));
+  const images = Object.fromEntries(pics.map((p, i) => [`images.image_${i}`, [`s${i}`, 0]]));
+  const enc = (text) => ({ class_type: "TextEncodeMOSSImageEdit", inputs: { clip: ["2", 0], prompt: text, vae: ["3", 0], edit_format: recipe.format, ...images, image_strength: 1.0 } });
+  Object.assign(g, size ? { l: { class_type: "EmptyFlux2LatentImage", inputs: { width: size.width, height: size.height, batch_size: 1 } } }
+    : { z: { class_type: "GetImageSize", inputs: { image: ["s0", 0] } }, l: { class_type: "EmptyFlux2LatentImage", inputs: { width: ["z", 0], height: ["z", 1], batch_size: 1 } } });
+  Object.assign(g, {
+    p: enc(fill(a.prompt, values)), n: enc(fill(a.negative, values)),
+    k: { class_type: "KSampler", inputs: { model: ["5", 0], seed, steps: a.steps, cfg: recipe.cfg, sampler_name: a.sampler, scheduler: a.scheduler, positive: ["p", 0], negative: ["n", 0], latent_image: ["l", 0], denoise: 1.0 } },
+    d: { class_type: "VAEDecode", inputs: { samples: ["k", 0], vae: ["3", 0] } },
+    o: { class_type: "SaveImage", inputs: { images: ["d", 0], filename_prefix: prefix } },
+  });
+  return g;
+}
+// make a new view: `pictures` in order (Picture 1 sets the camera), `prompt` the person's or agent's words, one candidate
+// per seed (`seeds`, else `count` new ones); `lora` keeps every candidate on one edit LoRA, else the method's take turns.
+// Returns at once; each candidate is a take in the shot it lands in once its paint finishes
+export async function fromContext(pictures, prompt, { method: id = "moss_view", lora, seeds, count = 2, width, height, avoid = "", land, by = "person" } = {}) {
+  await Promise.all([S.load(), M.load(), T.load(), W.load()]);
+  const m = S.list("view").find((x) => x.id === id);
+  if (!m) throw new Error(`No method "${id}" for a new view; there are: ${S.list("view").map((x) => x.id).join(", ")}`);
+  if (m.install_state !== "ready") throw new Error(`${m.title} ${m.install_state}`);
+  if (!pictures?.length) throw new Error(`${m.title}: give at least one picture (Picture 1 sets the camera)`);
+  if (!prompt?.trim()) throw new Error(`${m.title}: say what the new still shows (prompt), naming the pictures as Picture 1, Picture 2, … if you like`);
+  if ((width == null) !== (height == null)) throw new Error(`${m.title}: give width and height together, or neither (then the still is Picture 1's size)`);
+  const recipes = lora ? m.anchors.recipes.filter((r) => r.lora === lora) : m.anchors.recipes;
+  if (!recipes.length) throw new Error(`${m.title}: lora is one of ${m.anchors.recipes.map((r) => r.lora).join(", ")}; not ${lora}`);
+  const pics = []; for (const [i, p] of pictures.entries()) pics.push(await contextPicture(p, i));
+  const said = pics.map((p) => p.said), where = await landing(land, said), world = Object.fromEntries(pics.map((p) => p.world).filter(Boolean));
+  const list = seeds?.length ? seeds : Array.from({ length: count }, () => Math.floor(Math.random() * 2 ** 32));
+  const label = prompt.trim().length > 40 ? `${prompt.trim().slice(0, 38)}…` : prompt.trim(), first = said.find((x) => x.take)?.take ?? null;
+  const models = new Map(), made = [];
+  for (const [i, seed] of list.entries()) {
+    const recipe = recipes[i % recipes.length];
+    if (!models.has(recipe.lora)) models.set(recipe.lora, await mossNodes(m.anchors, recipe));
+    const g = viewGraph(m.anchors, models.get(recipe.lora), recipe, pics, { prompt: prompt.trim(), avoid }, seed, width != null ? { width, height } : null, `snap_views/${where.group.slice(0, 8)}`);
+    const job = { kind: "paint", title: `New view (${label}), candidate ${i + 1} of ${list.length}`, about: { take: first, group: where.group, scene: where.scene, shot: where.shot }, by, eta_s: [m.cost?.local_s].flat().at(-1) ?? null };
+    made.push({ prompt_id: await K.queue(g, { group: where.group, world, job, extra: { snap_parent: { take: first, method: `view/${id}`, options: { label, prompt: prompt.trim(), context: said, ...(avoid ? { avoid } : {}) } } } }),
+      seed, made: { lora: recipe.lora, cfg: recipe.cfg }, label: `seed ${seed}` });
+  }
+  const d = await C.create({ kind: "view", target: first ?? where.group, title: `New view (${label}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: first, method: id,
+    options: { prompt: prompt.trim(), context: said, ...(avoid ? { avoid } : {}), ...(width != null ? { width, height } : {}) }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}) }, made);
+  return { decision: d.id, pictures: said.map((x) => `Picture ${x.n}${x.n === 1 ? " (sets the camera)" : ""}: ${x.label}`), lands: where.where,
+    candidates: d.candidates.map((c) => ({ id: c.id, prompt_id: c.prompt_id, take: `take-${c.prompt_id}`, seed: c.seed, lora: c.made.lora })), seconds_each: [m.cost?.local_s].flat().at(-1) ?? null };
+}
+C.kind("view", RT.takeCandidate);
 
 // "Make it louder" on a quiet take (SNAP-R36): its video through MAISnapLouder (EBU R128 loudnorm, I=-23, TP=-2; the
 // picture copied) into a new version of the take, queued under this page's id so it lands in the take's group

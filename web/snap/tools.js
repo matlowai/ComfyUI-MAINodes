@@ -13,7 +13,8 @@
 // pick waits as a proposal for agents · SNAP-R24 scenes own the work (the scene tools call scenes.js, as the navigator
 // does) · SNAP-R25 onboarding: the sheet's functions; propose_downloads never downloads; SFW only filters the lists ·
 // SNAP-R59 Cast by reference (list_cast, save_cast, apply_cast) · SNAP-R60/R61 records, pins, retake, update_pins ·
-// SNAP-R62 clean-up: delete_record waits for the person · SNAP-R63 rerun: any pinned reference swapped · SNAP-R65 list_activity, list_docket, wait_for read the Work card · see docs/SNAP_RULES.md
+// SNAP-R62 clean-up: delete_record waits for the person · SNAP-R63 rerun: any pinned reference swapped · SNAP-R65 list_activity, list_docket, wait_for read the Work card ·
+// SNAP-R71/R72 edit_from_context (a new view from ordered context pictures) · SNAP-R73 add_audio_ref, remove_audio_ref, a Cast's voice · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import { BRICKS, PACK_BRICKS } from "./bricks.js";
@@ -954,8 +955,8 @@ export const TOOLS = [
   },
   {
     name: "list_candidates",
-    description: "Decisions that hold candidates (SNAP-R23): camera plates (kind plate, target <set>/<camera>), edits of a take (kind edit, target the take id) and re-run batches (kind rerun, target the take re-run: each candidate is a take). Each candidate has its state (rendering, ready, applied, rejected, failed), provenance (take, frame, seed, by) and pre-screen notes: copy (score vs threshold, likely_copy), layout (each door, window and prop: where the plan puts it and where SAM 3.1 found it; as_planned of checked, prop order), identity (face_low: the lowest ArcFace face cosine of the take's frame against the edit, different: true below different_person, \"probably a different person\"; hair_up: how far the edit's lit hair (L* p90) rises over the take's frames, lighter: true above hair_lighter, \"hair lighter than original\"; head crops of both for the person; a recast instead has new_person, and cast {name, picture, face_low, different, scores with crops} when it was painted from a Cast's picture). Notes inform; they never decide: the face score is low on dark frames and profiles too, the hair one misses blonder drift. Each candidate's pictures come with their label and path (output/…); to look at them, candidate_frames. Filter by decision (its id), kind, target, or open: true for those still waiting for a pick.",
-    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["plate", "edit", "rerun"] }, target: { type: "string" }, open: { type: "boolean" }, decision: { type: "string", description: "one decision's id" } } },
+    description: "Decisions that hold candidates (SNAP-R23): camera plates (kind plate, target <set>/<camera>), edits of a take (kind edit, target the take id), re-run batches (kind rerun, target the take re-run: each candidate is a take) and new views from context pictures (kind view, target Picture 1's take: each candidate is a still take in the shot it lands in, and the decision's options.context names every picture). Each candidate has its state (rendering, ready, applied, rejected, failed), provenance (take, frame, seed, by) and pre-screen notes: copy (score vs threshold, likely_copy), layout (each door, window and prop: where the plan puts it and where SAM 3.1 found it; as_planned of checked, prop order), identity (face_low: the lowest ArcFace face cosine of the take's frame against the edit, different: true below different_person, \"probably a different person\"; hair_up: how far the edit's lit hair (L* p90) rises over the take's frames, lighter: true above hair_lighter, \"hair lighter than original\"; head crops of both for the person; a recast instead has new_person, and cast {name, picture, face_low, different, scores with crops} when it was painted from a Cast's picture). Notes inform; they never decide: the face score is low on dark frames and profiles too, the hair one misses blonder drift. Each candidate's pictures come with their label and path (output/…); to look at them, candidate_frames. Filter by decision (its id), kind, target, or open: true for those still waiting for a pick.",
+    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["plate", "edit", "rerun", "view"] }, target: { type: "string" }, open: { type: "boolean" }, decision: { type: "string", description: "one decision's id" } } },
     annotations: { readOnlyHint: true },
     run: async ({ kind, target, open, decision } = {}) => { await C.load(); await C.settle(); return C.all().filter((d) => (!decision || d.id === decision) && (!kind || d.kind === kind) && (!target || d.target === target) && (!open || d.status === "open")).map(C.describe); },
   },
@@ -980,13 +981,13 @@ export const TOOLS = [
   },
   {
     name: "apply_candidate",
-    description: "Apply one candidate of a decision: a plate candidate becomes the camera's plate (a shot compiled from that camera on the open chain compiles again with it); an edit or recast candidate's painted frames are carried over the take (H3 Ripple about 90-110 s, Viggle Remake 150-190 s on a 5090) and land as a new take whose parent is the original. `pin` (Remake methods only) places the painted frames at the frames they were painted from (on by default) or, false, uses them only as references. Applying another candidate of the same decision first undoes the earlier one. The pick is the person's: unless they let agents run, this waits as a proposal, which is how an agent recommends one (give the reason: which notes made it the best).",
+    description: "Apply one candidate of a decision: a plate candidate becomes the camera's plate (a shot compiled from that camera on the open chain compiles again with it); an edit or recast candidate's painted frames are carried over the take (H3 Ripple about 90-110 s, Viggle Remake 150-190 s on a 5090) and land as a new take whose parent is the original. A re-run or new-view candidate is already a take: it becomes the shot's active take (nothing renders). `pin` (Remake methods only) places the painted frames at the frames they were painted from (on by default) or, false, uses them only as references. Applying another candidate of the same decision first undoes the earlier one. The pick is the person's: unless they let agents run, this waits as a proposal, which is how an agent recommends one (give the reason: which notes made it the best).",
     inputSchema: { type: "object", properties: { decision: { type: "string" }, candidate: { type: "string" }, pin: { type: "boolean" } }, required: ["decision", "candidate"] },
     annotations: { consequentialHint: true },
     decides: true,
     plan: async ({ decision }) => {
       await C.load();
-      if (C.get(decision)?.kind === "rerun") return { runs: "no render: the candidate's take becomes the shot's active take", eta_s: 0, from: "nothing runs" };
+      if (["rerun", "view"].includes(C.get(decision)?.kind)) return { runs: "no render: the candidate's take becomes the shot's active take", eta_s: 0, from: "nothing runs" };
       if (C.get(decision)?.kind !== "edit") return { runs: "no render: the candidate becomes the camera's plate", eta_s: 0, from: "nothing runs" };
       return { runs: "the picked painted frames carried over the take, as a new take", ...(T.measured(T.all().filter((t) => /^(edit|recast)\//.test(t.parent?.method ?? "") && t.status === "success"), "of edits here") ?? { eta_s: 100, from: "U54: Ripple 89-103 s for 90 frames on a 5090; U69: Remake 154-193 s for 107 frames" }) };
     },
@@ -1054,6 +1055,22 @@ export const TOOLS = [
       const t = await takeOf(take), shot = await T.frames(t, { frames, count, maxWidth: max_width });
       return { take: t.id, number: t.number, frames: shot.map(({ frame, t: at }) => ({ frame, t: at })), look: "the pictures are in clip order: compare them across the clip (start, middle, end) before you judge motion or who is in it; one frame doesn't show motion", images: shot.map(({ frame, t: at, ...image }) => image) };
     },
+  },
+  {
+    name: "edit_from_context",
+    description: "New view from these pictures (U101, SNAP-R71): a new still made by MOSS Image Edit from context pictures and your own words, e.g. the same place from another camera. pictures, in order, each one of {take} (a still take; a video take with frame, default its middle), {file} (a picture in input/), {cast: \"cast:<id>\", ref} (a Cast's picture, ref its number from 0, default 0); any of them with crop [x, y, width, height] in fractions of the picture (a part of a master, a face) and label (what the picture is, for the provenance). Picture 1 sets the camera: the new still keeps Picture 1's framing and composition (U101: with an aerial master first every seed stayed aerial), so put a still that already has the camera you want first and the set (a master, or a crop of it around the part you need) after it, then Cast pictures. The encoder sees each picture after a 'Picture N:' marker: name them in the prompt as Picture 1, Picture 2, … or describe them in plain words. prompt is free text: nothing is added to it (no keep-the-composition line). seeds: one candidate per seed (else count new seeds, default 2). lora: one of the method's edit LoRAs for every candidate (list_methods slot view: akhaliq cfg 3, chinoll cfg 5), else they take turns. width and height: the still's size (default: Picture 1's, scaled to about 1 MP). avoid: words for the negative prompt. land: where the candidate takes go: by default the shot Picture 1's take is in (else the open shot), {scene, shot}, or \"tab\". Returns the decision id, which picture is which number, and the candidates (each a take: run_status its prompt_id); wait_for {job: decision, until: waiting}, look with candidate_frames beside the pictures, then apply_candidate makes the picked one the shot's active take. Uses GPU time: unless the person lets agents run, this waits as a proposal they accept.",
+    inputSchema: { type: "object", properties: {
+      pictures: { type: "array", minItems: 1, items: { type: "object", properties: { take: { type: "string" }, frame: { type: "integer", minimum: 0 }, file: { type: "string" }, cast: { type: "string" }, ref: { type: "integer", minimum: 0 },
+        crop: { type: "array", items: { type: "number", minimum: 0, maximum: 1 }, minItems: 4, maxItems: 4 }, label: { type: "string" } } } },
+      prompt: { type: "string" }, method: { type: "string" }, lora: { type: "string" }, seeds: { type: "array", items: { type: "integer", minimum: 0 } }, count: { type: "integer", minimum: 1 },
+      width: { type: "integer", minimum: 16 }, height: { type: "integer", minimum: 16 }, avoid: { type: "string" },
+      land: { anyOf: [{ type: "string", enum: ["tab"] }, { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" } }, required: ["scene", "shot"] }] } }, required: ["pictures", "prompt"] },
+    annotations: { consequentialHint: true },
+    consequential: true,
+    plan: async ({ pictures, seeds, count = 2 }) => { await S.load(); const m = S.list("view").find((x) => x.id === "moss_view"), n = seeds?.length || count;
+      return { runs: `${n} candidate still${n > 1 ? "s" : ""} from ${pictures?.length ?? 0} context picture${pictures?.length === 1 ? "" : "s"} (MOSS Image Edit, 30 steps); each lands as a take, and the pick makes one the shot's take`, eta_s: n * ([m?.cost?.local_s].flat().at(-1) ?? 28), from: m?.cost?.per ?? "U101" }; },
+    run: async ({ pictures, prompt, method, lora, seeds, count, width, height, avoid, land }) => ({ ...await ED.fromContext(pictures, prompt, { method, lora, seeds, count, width, height, avoid, land, by: "agent" }),
+      next: "wait_for {job: <decision>, until: \"waiting\"}, then candidate_frames {decision} and apply_candidate the one that holds the set" }),
   },
   {
     name: "find_people",

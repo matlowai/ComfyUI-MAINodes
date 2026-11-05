@@ -104,8 +104,9 @@ export async function setRating(take, rating) {
   take.rating_set = rating;
   await save(take);
 }
-// the takes a run came from: the one it versions or continues, and every take a picture of its bricks was taken from
-const sources = (graph, parent) => [...new Set([parent?.take, ...(JSON.stringify(graph?.extra?.snap ?? {}).match(/"(?:source|take)":"take-[^"]+"/g) ?? []).map((x) => x.split('":"')[1].slice(0, -1))])].map(get).filter(Boolean);
+// the takes a run came from: the one it versions or continues, every take a picture of its bricks was taken from, and a
+// new view's context pictures (U101)
+const sources = (graph, parent) => [...new Set([parent?.take, ...(parent?.options?.context ?? []).map((p) => p.take), ...(JSON.stringify(graph?.extra?.snap ?? {}).match(/"(?:source|take)":"take-[^"]+"/g) ?? []).map((x) => x.split('":"')[1].slice(0, -1))])].map(get).filter(Boolean);
 function rated(marks, graph, parent) {
   if (!marks?.rating) return {}; // a server from before SNAP-R39 rates nothing
   let rating = marks.rating;

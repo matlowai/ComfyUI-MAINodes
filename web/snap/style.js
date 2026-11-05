@@ -466,6 +466,11 @@ export const STYLE = `
 .snap-take-paint input[type=text]:focus, .snap-take-clips:focus { outline: none; border-color: hsl(215 75% 64% / .9); }
 .snap-cand-pin { display: block; font-size: 12px; margin: 2px 0; }
 .snap-take-clips { width: 52px; }
+.snap-ctx { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.snap-ctx-row { display: flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.snap-ctx-row img, .snap-ctx-none { width: 56px; height: 34px; object-fit: cover; border-radius: 6px; flex: none; background: #0000002e; display: grid; place-items: center; color: var(--s-dim); }
+.snap-ctx-what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.snap-ctx-what em { font-style: normal; font-size: 11px; color: hsl(215 75% 72%); }
 .snap-take-burn { display: flex; gap: 8px; align-items: center; font-size: 12.5px; }
 .snap-take-burn input { flex: 1; }
 .snap-take-rating { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: #c0607a33; color: var(--s-fg); white-space: nowrap; }

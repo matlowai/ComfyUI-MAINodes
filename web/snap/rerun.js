@@ -204,23 +204,7 @@ async function batch(take, all, { route, seed, land, go, count, who, by }) {
     said: `Take ${take.number} re-run ${list.length} times (${list.map((c) => c.label).join(" · ")}), one after another; they come back as candidates to pick from. The chain now holds the last one (${list.at(-1).label}): Undo in the graph puts it back` };
 }
 
-// a re-run candidate is a take: its media is the picture; Apply makes it the shot's active take (in a scratch tab it is
-// marked keep), Undo puts back what was active, Reject marks the take rejected by whoever pressed it (SNAP-R17)
-C.kind("rerun", {
-  finish: (d, c, h) => { c.pictures = T.media(h.outputs).slice(0, 1).map((m) => ({ label: c.label, media: m })); c.take = `take-${c.prompt_id}`; },
-  apply: async (d, c, by) => {
-    await T.load(); await SC.load();
-    const t = T.get(`take-${c.prompt_id}`);
-    if (!t) throw new Error(`${d.title}: candidate ${c.id}'s take isn't here yet (run_status ${c.prompt_id})`);
-    const home = RT.shotOf(t);
-    if (!home) { t.verdict = "keep"; await T.save(t); return { take: t.id, kept: true }; }
-    const was = home.shot.active ?? null;
-    await SC.setActive(home.scene.id, home.shot.id, t.id, by);
-    return { take: t.id, scene: home.scene.id, shot: home.shot.id, was };
-  },
-  undo: async (d, c, that) => { if (that.scene) await SC.setActive(that.scene, that.shot, that.was, "person"); else { const t = T.get(that.take); if (t) { t.verdict = null; await T.save(t); } } },
-  reject: async (d, c, by) => { await T.load(); const t = T.get(`take-${c.prompt_id}`); if (t) { t.verdict = "reject"; t.verdict_by = by; await T.save(t); } },
-});
+C.kind("rerun", RT.takeCandidate); // a re-run candidate is a take (retake.js)
 
 // Re-generate: the take's recipe again with the swaps, the same seed unless `seed` is new; queue: false only opens it.
 // An opened file (opened()) runs in place, unmarked

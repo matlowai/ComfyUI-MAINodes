@@ -8,7 +8,8 @@
 // world". Saved files: core writes the queued prompt and workflow (extra.snap.world inside) as it always does; with
 // Save metadata off they hold nothing (SNAP-R38).
 // SNAP-R5 open work untouched · SNAP-R16 GPU tools wait as proposals · SNAP-R24 scenes own the work · SNAP-R60 pins ·
-// SNAP-R61 re-run as it was, with today's world, or edited · SNAP-R65 the run carries its job stamp · see docs/SNAP_RULES.md
+// SNAP-R61 re-run as it was, with today's world, or edited · SNAP-R65 the run carries its job stamp · SNAP-R23 a candidate
+// that is a take (takeCandidate: re-run batches, new views) · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import * as L from "./library.js";
@@ -37,6 +38,25 @@ export function shotOf(take) {
   for (const scene of SC.all()) for (const shot of scene.shots) if (shot.groups.includes(take.group) || shot.takes.some((e) => e.take === take.id)) return { scene, shot };
   return null;
 }
+
+// a candidate that is a take (a re-run batch's, SNAP-R63; a new view's, U101): its media is the picture; Apply makes it
+// the shot's active take (in a scratch tab it is marked keep), Undo puts back what was active, Reject marks the take
+// rejected by whoever pressed it (SNAP-R17)
+export const takeCandidate = {
+  finish: (d, c, h) => { c.pictures = T.media(h.outputs).slice(0, 1).map((m) => ({ label: c.label, media: m })); c.take = `take-${c.prompt_id}`; },
+  apply: async (d, c, by) => {
+    await T.load(); await SC.load();
+    const t = T.get(`take-${c.prompt_id}`);
+    if (!t) throw new Error(`${d.title}: candidate ${c.id}'s take isn't here yet (run_status ${c.prompt_id})`);
+    const home = shotOf(t);
+    if (!home) { t.verdict = "keep"; await T.save(t); return { take: t.id, kept: true }; }
+    const was = home.shot.active ?? null;
+    await SC.setActive(home.scene.id, home.shot.id, t.id, by);
+    return { take: t.id, scene: home.scene.id, shot: home.shot.id, was };
+  },
+  undo: async (d, c, that) => { if (that.scene) await SC.setActive(that.scene, that.shot, that.was, "person"); else { const t = T.get(that.take); if (t) { t.verdict = null; await T.save(t); } } },
+  reject: async (d, c, by) => { await T.load(); const t = T.get(`take-${c.prompt_id}`); if (t) { t.verdict = "reject"; t.verdict_by = by; await T.save(t); } },
+};
 
 // open the take's chain as it ran: the shot's tab (or the shot `home` names, U89's "lands in") with the take's settings
 // and pins put back, else a scratch tab (home null)

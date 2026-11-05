@@ -66,6 +66,13 @@
       "title": "Recast a person",
       "off": "everyone stays who they are",
       "about": "a method that puts a different person in a take in place of one who is there, with the take's camera, motion, timing and sound; the painted frames are candidates the person picks (U69, U73)"
+    },
+    {
+      "id": "view",
+      "kind": "take",
+      "title": "New view from these pictures",
+      "off": "nothing new is made",
+      "about": "a new still made from 1 or more context pictures in order (a location's master or plate, the nearest earlier still or board, a Cast picture, a crop of any of them) and words the person or agent writes, never a fixed keep-the-composition text; each seed is a candidate take in the shot it lands in, with every context picture in its provenance (U101)"
     }
   ],
   "methods": [
@@ -441,6 +448,39 @@
       },
       "cost": { "community_s": null, "local_s": [154, 181], "per": "107 frames at 1280×704 on a 5090, after the painted frame", "vram_gb": null },
       "credit": "Viggle Remake (https://huggingface.co/Viggle/Viggle-Remake) · MiniMax H3"
+    },
+    {
+      "id": "moss_view",
+      "slot": "view",
+      "kind": "take",
+      "title": "New view · MOSS Image Edit",
+      "face": "a new still from the pictures you give, in your words",
+      "does": "edit",
+      "anchors": {
+        "prompt": "{prompt}",
+        "negative": "nsfw, worst quality, bad anatomy, watermark, jpeg artifact, text",
+        "unet": "moss_image_sft_int8_convrot.safetensors",
+        "clip": "qwen3.5_9b_int8_convrot.safetensors",
+        "vae": "flux2-vae.safetensors",
+        "steps": 30,
+        "sampler": "euler",
+        "scheduler": "normal",
+        "slg_single": "22",
+        "megapixels": 1.0,
+        "recipes": [
+          { "lora": "akhaliq_moss_edit_hq_armV5.safetensors", "format": "ai-toolkit", "cfg": 3.0 },
+          { "lora": "chinoll_moss_image_edit_adapter.safetensors", "format": "ai-toolkit", "cfg": 5.0 }
+        ]
+      },
+      "needs": [{ "folder": "diffusion_models", "match": "moss_image_sft_int8" }, { "folder": "loras", "match": "moss_edit" }],
+      "local_or_api": "local",
+      "constraints": [
+        "Picture 1 sets the camera: the new still keeps Picture 1's framing and composition (U101: with a location's aerial master first, every seed kept the aerial view), so put a still that already has the camera you want first and the set, the master or a crop of it, after it",
+        "every picture is scaled to 1 MP; the new still is Picture 1's size unless a size is given",
+        "the text encoder sees each picture after a 'Picture N:' marker, so the words can name them as Picture 1, Picture 2, …"
+      ],
+      "guidance": { "line": "not measured yet", "evidence": "untested", "source": "U101", "n": 0, "hardware": "5090" },
+      "cost": { "community_s": null, "local_s": [22, 28], "per": "one still at about 1 MP with 4 context pictures on a 5090 (short03's test outside Snap)", "vram_gb": null }
     },
     {
       "id": "crop_inpaint",

@@ -13,7 +13,8 @@
 // SNAP-R7 pointer-down lists · SNAP-R17 blind pairs from agents are judged by the person · SNAP-R20 the lock on private
 // takes (SNAP-R27: by the current rules) · SNAP-R21 copies flagged · SNAP-R23 candidates · SNAP-R24 scenes own the work ·
 // SNAP-R36 quiet sound: a note and two actions, never applied by itself · SNAP-R54 takes above the account's cap are
-// left out · SNAP-R65 a job shows on its take's card and as a ghost card · see docs/SNAP_RULES.md
+// left out · SNAP-R65 a job shows on its take's card and as a ghost card · SNAP-R71/R72 New view from these pictures (its
+// tray: contextview.js) · see docs/SNAP_RULES.md
 import * as T from "./takes.js";
 import * as RT from "./retake.js";
 import * as PL from "./plates.js";
@@ -24,6 +25,7 @@ import * as S from "./slots.js";
 import * as P from "./proposals.js";
 import * as SC from "./scenes.js";
 import { candidatesEl } from "./candidateview.js";
+import { contextPanel } from "./contextview.js";
 import { url as mediaUrl } from "./checks.js";
 import * as A from "./activity.js";
 import * as WV from "./workview.js";
@@ -405,7 +407,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
     editBox.addEventListener("pointerdown", () => { pressed = true; });
     editBox.addEventListener("pointerup", () => { pressed = false; setTimeout(edits, 0); });
     function edits() {
-      const mine = C.all().filter((d) => ["edit", "rerun"].includes(d.kind) && d.target === t.id && d.status !== "closed"); // its edits, and its re-run batches (SNAP-R63)
+      const mine = C.all().filter((d) => ["edit", "rerun", "view"].includes(d.kind) && d.target === t.id && d.status !== "closed"); // its edits, its re-run batches (SNAP-R63) and new views with it as Picture 1 (U101)
       const sig = JSON.stringify([mine.map((d) => [d.id, d.status, d.applied, d.candidates.map((c) => [c.state, c.notes])]), P.pending().map((p) => p.id), mine.map((d) => ED.result(d)?.id)]);
       if (sig === editSig || pressed || !editBox.isConnected && editSig) return;
       editSig = sig;
@@ -415,7 +417,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
         const again = older ? h("button", { className: "snap-link snap-quiet-btn", textContent: "Check identity again", title: "face and hair notes for these candidates: a few seconds of detection, nothing renders",
           onclick: (e) => { e.currentTarget.disabled = true; e.currentTarget.textContent = "checking…"; ED.recheck(d.id).then(() => say(`${d.title}: identity notes updated`), (err) => say(err.message, true)); } }) : null;
         return Object.assign(h("div", { className: "snap-set-candrow" }, h("div", { className: "snap-rail-title" }, d.title, again), candidatesEl(d, { say, crops: true }),
-          d.applied ? h("div", { className: "snap-quiet" }, made ? h("button", { className: "snap-link", textContent: `→ Take ${made.number} (${made.status})`, onclick: () => { close(); view(made); } }) : d.kind === "rerun" ? "" : "rendering the take with H3 Ripple…") : null), { id: `snap-decision-${d.id}` });
+          d.applied ? h("div", { className: "snap-quiet" }, made ? h("button", { className: "snap-link", textContent: `→ Take ${made.number} (${made.status})`, onclick: () => { close(); view(made); } }) : d.kind !== "edit" ? "" : "rendering the take with H3 Ripple…") : null), { id: `snap-decision-${d.id}` });
       }));
     }
     // hovering a candidate shows it over the take at its frame; hovering one of its pictures shows that one
@@ -465,7 +467,8 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
           T.locked(t) ? h("p", { className: "snap-quiet", textContent: "🔒 Private take: its edits are private too (locked, left out of exports)." }) : null, editBox,
           h("div", { className: "snap-rail-title", textContent: "Make it longer" }), h("div", { className: "snap-set-actions" }, longPick, h("label", { className: "snap-quiet" }, "+ ", clipsIn, " clips")), longWhy, burnRow,
           h("div", { className: "snap-set-actions" }, longBtn), longNote] : null,
-          isVideo ? null : editBox, // a picture's re-run batches (SNAP-R63) show here too
+          isVideo ? null : editBox, // a picture's re-run batches (SNAP-R63) and new views (U101) show here too
+          contextPanel(t, { say, frame: () => (isVideo ? Math.round(player.currentTime * FPS) : null), region: () => region }),
           h("div", { className: "snap-set-actions" },
             activeBtn, priorBtn,
             h("button", { className: "snap-link", textContent: "Use these settings", title: "put this take's settings back on the open workflow (one undo step)", onclick: () => { try { say(`${T.restore(t)} settings restored from take ${t.number}`); onRestore?.(); } catch (err) { say(err.message, true); } } }),
