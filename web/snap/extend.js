@@ -62,7 +62,7 @@ export async function start(take, id, { clips = 1, antiburn = 0, prompt, by = "p
   const c = ED.clip(take), L = run.clip_frames, F = c.frames, p = preset(take, run);
   const f = { clip: await M.choice("CLIPLoader", "clip_name", run.clip), vae: await M.choice("VAELoader", "vae_name", run.vae), audio: await M.choice("VAELoader", "vae_name", run.audio_vae),
     model: await M.choice("MAIRenderPreset", "model", p.model), lora: p.lora === "none" ? "none" : await M.choice("MAIRenderPreset", "lora", p.lora) };
-  const burn = strong ? m.protection.antiburn : antiburn, ab = burn > 0 ? await M.choice("LoraLoaderModelOnly", "lora_name", m.options?.antiburn?.file ?? m.protection?.file) : null;
+  const burn = strong ? m.protection.antiburn : m.options?.antiburn ? antiburn : 0, ab = burn > 0 ? await M.choice("LoraLoaderModelOnly", "lora_name", m.options?.antiburn?.file ?? m.protection?.file) : null;
   const text = prompt ?? continued(take.text, run);
   const g = {
     clip: { class_type: "CLIPLoader", inputs: { clip_name: f.clip, type: "minimax", device: "default" } },
@@ -136,7 +136,7 @@ export async function start(take, id, { clips = 1, antiburn = 0, prompt, by = "p
     out: { class_type: "CreateVideo", inputs: { images, audio, fps: FPS, bit_depth: 8, color_space: "sRGB", chroma_subsampling: "auto", codec: "none" } },
     save: { class_type: "SaveVideo", inputs: { video: ["out", 0], filename_prefix: `video/snap_extend/${take.id}`, format: "auto", "format.codec": "auto", codec: "auto" } },
   });
-  const options = { clips, ...(strong ? {} : { antiburn }), ...(prompt ? { prompt } : {}) };
+  const options = { clips, ...(m.options?.antiburn ? { antiburn } : {}), ...(prompt ? { prompt } : {}) };
   const runId = await K.queue(g, { group: take.group, extra: { snap_parent: { take: take.id, method: `extend/${id}`, options, by } } });
   return { prompt_id: runId, take: `take-${runId}`, ...length(take, clips), eta_s: clips * (m.cost?.local_s_per_clip ?? 60) };
 }
