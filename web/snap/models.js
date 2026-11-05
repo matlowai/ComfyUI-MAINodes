@@ -33,12 +33,15 @@ export function load() {
   return loading;
 }
 // LoRA files the person's private rules match now (the server checks; the page never reads private.json): a lock beside
-// them, marking only, so the row still works (SNAP-R27). Asked once per page; a server before the route has none
-let locked = new Set(), locking = null;
+// them, marking only, so the row still works (SNAP-R27). Asked once per page and again after a move; a server before the
+// route has none, and a read that fails (a restart) is asked again next time instead of leaving the sheet dead (U76 L4)
+let locked = new Set(), locking = null, privacy = false;
 export function locks() {
-  locking ??= api.fetchApi("/mainodes/snap/private_loras").then((r) => (r.ok ? r.json() : { loras: [] })).then((r) => { locked = new Set(r.loras); notify(); });
+  locking ??= api.fetchApi("/mainodes/snap/private_loras").then((r) => (r.ok ? r.json() : { loras: [] })).then((r) => { locked = new Set(r.loras); privacy = r.privacy === true; notify(); })
+    .catch(() => { locking = null; });
   return locking;
 }
+api.addEventListener("reconnected", () => { locking = null; locks(); });
 export const isLocked = (name) => locked.has(name);
 export const lockCount = () => locked.size; // in the faces' signatures: rows get their lock when the answer arrives
 // the lists as a tool should read them: loaded, and asked again for any recipe file they didn't have yet
@@ -68,8 +71,18 @@ const MINE = "snap/models.json";
 const base = (f) => String(f ?? "").replace(/\\/g, "/").split("/").pop();
 // the pack's `families` say which family a file's name puts it in when no entry does (SNAP-R13: data, not code)
 let relations = new Map(), packed = new Map(), families = [], variants = new Map(), relating = null, problem = null;
-// the person's file; one that doesn't parse throws, so nothing writes over it
-const mine = async () => { const r = await api.getUserData(MINE); return r.ok ? r.json() : []; };
+// the person's file; one that doesn't parse or can't be read (a 5xx) throws, so nothing writes over it; only a missing one is
+// empty (U76 L10)
+const mine = async () => {
+  const r = await api.getUserData(MINE);
+  if (r.status === 404) return [];
+  if (!r.ok) throw new Error(`reading it answered ${r.status}`);
+  return r.json();
+};
+// U76 M5: every write of the person's file reads it fresh inside one chain, so parallel moves (an agent filing several
+// LoRAs at once) each keep their change
+let writing = Promise.resolve();
+const serial = (fn) => (writing = writing.catch(() => {}).then(fn));
 export const overlay = (pack, own) => ({ ...pack, ...Object.fromEntries(Object.entries(own).filter(([, v]) => v != null)) });
 function loadGraph() {
   relating ??= Promise.all([api.fetchApi("/mainodes/snap/models").then((r) => r.json()).catch(() => ({ models: [], families: [] })),
@@ -103,7 +116,8 @@ export function entry(name) {
   return e ? { ...guess, ...e } : { ...guess, inferred };
 }
 // the person files a file ("what is this?"): kept in their snap/models.json, so the answer is remembered
-export async function teach(name, patch) {
+export const teach = (name, patch) => serial(() => write(name, patch));
+async function write(name, patch) {
   const own = await mine().catch((e) => { throw new Error(`snap/models.json doesn't parse (${e.message}); fix it before Snap adds to it`); });
   const at = own.findIndex((e) => base(e.file) === base(name));
   const e = { ...(own[at] ?? { file: base(name) }), ...patch };
@@ -140,7 +154,8 @@ export function categories() {
 // file a LoRA under a role ("style", "core·fix") or switch a tag on or off ("nsfw"), in the person's snap/models.json, so it
 // wins over the pack everywhere at once, with who filed it and why (`filed`, SNAP-R55). Returns the undo: the person's own
 // entry as it was (null when there was none)
-export async function moveTo(file, id, { by = "person", reason = null } = {}) {
+export const moveTo = (file, id, opts) => serial(() => move(file, id, opts));
+async function move(file, id, { by = "person", reason = null } = {}) {
   const own = await mine().catch((e) => { throw new Error(`snap/models.json doesn't parse (${e.message}); fix it before Snap adds to it`); });
   const before = own.find((e) => base(e.file) === base(file)) ?? null, e = entry(file);
   // SNAP-R55: the person's filing wins over an agent's (an entry of theirs from before `filed` existed counts as theirs)
@@ -151,7 +166,10 @@ export async function moveTo(file, id, { by = "person", reason = null } = {}) {
   else if (ROLES.includes(id)) {
     const [role, core] = id.split("·");
     patch = { role, core: core ?? null };
-    if (core === "turbo" && !e.turbo) patch.turbo = { how: "lora", steps: null, cfg: null, sampler: null, scheduler: null }; // the Turbo slot lists it (SNAP-R26: the person beats the name)
+    // the Turbo slot lists it (SNAP-R26: the person beats the name); back to turbo, the pack's numbers stand again (null)
+    if (core === "turbo" && !e.turbo) patch.turbo = packed.get(base(file))?.turbo ? null : infer(file).turbo ?? { how: "lora", steps: null, cfg: null, sampler: null, scheduler: null };
+    // U76 M4: any other role is no turbo, whatever the pack or the name said (false survives overlay; null wouldn't)
+    if (core !== "turbo") patch.turbo = false;
   }
   else if (id.startsWith("rating:") && (RATINGS.includes(id.slice(7)) || id === "rating:")) {
     if (!mayRate()) throw new Error("On this install only the admin rates files (their ratings are the ones the gate reads)");
@@ -159,12 +177,16 @@ export async function moveTo(file, id, { by = "person", reason = null } = {}) {
   }
   else throw new Error(`No category "${id}"; there are: ${[...ROLES, ...TAGS, ...RATINGS.map((r) => `rating:${r}`), "rating:"].join(", ")}`);
   if (!id.startsWith("rating:")) patch.filed = { by, reason, at: new Date().toISOString() };
-  await teach(file, patch);
+  await write(file, patch);
+  locking = null; locks(); // a move can change what the private rules match (the identity role)
   notify();
-  return { file: base(file), before };
+  // U76 L7: leaving identity can end its privacy quietly; say so where privacy is on (SNAP-R37)
+  const left = privacy && e.role === "identity" && ROLES.includes(id) && id !== "identity";
+  return { file: base(file), before, ...(left ? { note: `${base(file)} was private as an identity LoRA; now it is private only if your private rules match it` } : {}) };
 }
 // put back the person's own entry from a move's undo (or take it out, so the pack's entry stands again)
-export async function restore({ file, before }) {
+export const restore = (undo) => serial(() => putBack(undo));
+async function putBack({ file, before }) {
   const own = (await mine()).filter((e) => base(e.file) !== file);
   await api.storeUserData(MINE, before ? [...own, before] : own);
   relations.set(file, before ? overlay(packed.get(file), before) : packed.get(file));
@@ -400,7 +422,7 @@ const hostSetting = (name) => {
 export function turbos() {
   const fam = family(), me = diffusion() && entry(diffusion().file), mine = diffusion() && variantOf(diffusion().file);
   if (!fam || (!coreStack() && !single())) return [];
-  const all = [...files.keys()].map((name) => [name, entry(name)]).filter(([, e]) => e?.turbo && e.family === fam && e.loads_in_core !== false);
+  const all = [...files.keys()].map((name) => [name, entry(name)]).filter(([name, e]) => e?.turbo && e.family === fam && e.loads_in_core !== false && !hidden(name)); // U76 L8
   const merges = all.filter(([, e]) => e.kind === "turbo_merge" && lineage(e) === lineage(me));
   // the ones built for this model come first (Base / SFT lineage, and the base variant: ref2v vs fl2v); the rest stay, labelled
   const fit = ([name, e]) => (!lineage(e) || !lineage(me) || lineage(e) === lineage(me)) && (!mine || !variantOf(name) || variantOf(name) === mine);

@@ -497,6 +497,7 @@ export const STYLE = `
 .snap-link { background: var(--s-card); color: var(--s-fg); font-weight: 500; box-shadow: inset 0 0 0 1px var(--s-line); align-self: flex-start; }
 .snap-empty .snap-link { align-self: center; }
 .snap-link:hover, .snap-primary:hover { filter: brightness(1.1); }
+.snap-primary:disabled { opacity: .4; cursor: default; filter: saturate(.3); }
 .snap-pressed { filter: brightness(1.08); }
 .snap-lifted { z-index: 5; box-shadow: 0 24px 48px #0009, 0 4px 10px #0005 !important; cursor: grabbing; }
 .snap-ghost { z-index: 60; pointer-events: none; }

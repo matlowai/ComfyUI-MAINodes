@@ -45,7 +45,7 @@ export async function openLoras(host, { say, onChange, start = null, onAdd = nul
   sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
 
   async function move(file, id) {
-    try { undo.push(await M.moveTo(file, id)); say(`${short(file)} → ${label(id)} (Undo move puts it back)`); } catch (err) { say(err.message, true); }
+    try { const u = await M.moveTo(file, id); undo.push(u); say(`${short(file)} → ${label(id)} (Undo move puts it back)${u.note ? ` · ${u.note}` : ""}`); } catch (err) { say(err.message, true); }
     changed();
   }
   function changed() { sig = ""; draw(); onChange(); }
@@ -77,7 +77,7 @@ export async function openLoras(host, { say, onChange, start = null, onAdd = nul
           // SNAP-R55: an agent's filing says so, with its reason; move to… makes it the person's
           r.entry.filed?.by === "agent" ? h("span", { className: "snap-quiet snap-lora-filed", textContent: `agent: ${r.entry.filed.reason ?? "no reason given"}`,
             title: `Filed by an agent: ${r.entry.filed.reason ?? "no reason given"}\nMove to… files it as yours, and yours wins.` }) : null),
-        moveControl(r.file, (u, id, err) => { if (err) { say(err.message, true); return; } undo.push(u); say(`${short(r.file)} → ${label(id)} (Undo move puts it back)`); changed(); }),
+        moveControl(r.file, (u, id, err) => { if (err) { say(err.message, true); return; } undo.push(u); say(`${short(r.file)} → ${label(id)} (Undo move puts it back)${u.note ? ` · ${u.note}` : ""}`); changed(); }),
         onAdd && r.category !== "dial" ? h("button", { className: "snap-link snap-quiet-btn", textContent: "+ add", title: "add it to this stack", onclick: () => { onAdd(r.file); close(); } }) : null);
       row.dataset.file = r.file;
       row.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/x-snap-lora", r.file); e.dataTransfer.effectAllowed = "move"; });

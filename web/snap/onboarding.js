@@ -129,7 +129,7 @@ export async function proposeDownloads({ intents = PF.get().intents, setup, pack
     for (const f of r.files.filter((x) => !x.installed)) {
       const into = f.download && f.target ? files : own;
       into.set(f.file, { ...f, for: [...(into.get(f.file)?.for ?? []), r.title],
-        ...(into === files ? { command: `curl -L --fail -o "${f.target}/${f.file}" "${f.download}"` } : { optional: true, why: `${OWN}${f.source ? ` (or look on its source page: ${f.source})` : ""}` }) });
+        ...(into === files ? { command: `curl -L --fail -o "${f.target}/${f.file}" --create-dirs "${f.download}"` } : { optional: true, why: `${OWN}${f.source ? ` (or look on its source page: ${f.source})` : ""}` }) });
     }
     for (const p of r.packs.filter((x) => !x.installed)) packs.set(p.id, packRow(p.id));
   }

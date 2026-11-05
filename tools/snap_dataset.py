@@ -51,9 +51,9 @@ def main():
     every = {t["id"]: t for t in (read(f, None) for f in sorted((snap / "takes").glob("*.json"))) if t}
     found = {i: snap_privacy.marks(t.get("prompt") or {}, t.get("graph"), graph, loaded) for i, t in every.items()}
 
-    def private(t):  # a version of a private take (an edit, a continued take) is private too (SNAP-R27)
-        parent = every.get((t.get("parent") or {}).get("take"))
-        return graph["private"] and bool(t.get("private") or found[t["id"]]["private"] or (parent and private(parent)))  # SNAP-R37
+    def private(t, seen=()):  # a version of a private take (an edit, a continued take), or one made from its frame, is private too (SNAP-R27, U76 M2)
+        came = [every.get(i) for i in [(t.get("parent") or {}).get("take"), *t.get("made_from", [])] if i not in seen]
+        return graph["private"] and bool(t.get("private") or found[t["id"]]["private"] or any(c and private(c, (*seen, t["id"])) for c in came))  # SNAP-R37
     takes, left_out = {}, {"private": 0, "nsfw": 0}
     for t in every.values():
         if private(t) and not args.include_private:

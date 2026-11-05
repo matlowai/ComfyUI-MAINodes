@@ -44,9 +44,9 @@ export async function openOnboarding(host, { say, onOpened, start }) {
   const choice = (on, title, line, onclick) => h("button", { className: `snap-ob-choice${on ? " on" : ""}`, ariaPressed: String(on), onclick }, h("strong", { textContent: title }), line ? h("span", { className: "snap-quiet", textContent: line }) : null);
   const question = (title, line, ...rest) => [h("h2", { textContent: title }), line ? h("p", { className: "snap-quiet", textContent: line }) : null, ...rest].filter(Boolean);
   // replaceChildren prints a null as "null": every list handed to it drops the missing parts first
-  const footer = (primary, label = "Next") => foot.replaceChildren(...[h("button", { className: "snap-link", textContent: "Skip", title: "keep the default and go on", onclick: () => next(false) }),
-    h("span", { className: "snap-spacer" }), at ? h("button", { className: "snap-link", textContent: "Back", onclick: () => { at -= 1; draw(); } }) : null,
-    h("button", { className: "snap-primary", textContent: label, onclick: primary })].filter(Boolean));
+  const footer = (primary, label = "Next", wait = null) => foot.replaceChildren(...[h("button", { className: "snap-link", textContent: "Skip", title: "keep the default and go on", onclick: () => next(false) }),
+    h("span", { className: "snap-spacer" }), wait ? h("span", { className: "snap-quiet", textContent: wait }) : null, at ? h("button", { className: "snap-link", textContent: "Back", onclick: () => { at -= 1; draw(); } }) : null,
+    h("button", { className: "snap-primary", textContent: label, disabled: !!wait, onclick: primary })].filter(Boolean));
 
   const steps = {
     intent: () => {
@@ -54,7 +54,7 @@ export async function openOnboarding(host, { say, onOpened, start }) {
         h("div", { className: "snap-ob-grid" }, OB.kits().map((k) => choice(draft.intents.includes(k.intent), k.title, k.blurb, () => {
           draft.intents = draft.intents.includes(k.intent) ? draft.intents.filter((x) => x !== k.intent) : [...draft.intents, k.intent]; draw();
         })))));
-      footer(() => next(true));
+      footer(() => next(true), "Next", draft.intents.length ? null : "Pick at least one"); // U76 L9: none picked would leave the kit step empty
     },
     scan: () => {
       const rows = scanned && scanned.kits.filter((k) => draft.intents.includes(k.intent));
@@ -72,7 +72,7 @@ export async function openOnboarding(host, { say, onOpened, start }) {
       footer(() => next(true));
     },
     sfw: () => {
-      body.replaceChildren(...question("SFW only?", "Hides models, LoRAs, dials and Library cards tagged nsfw in your model graph.",
+      body.replaceChildren(...question("SFW only?", "Hides LoRAs, dials, turbos, model lists in agent tools and Library cards tagged nsfw in your model graph, from Snap's pickers and agent tools. Takes and the graph view's own lists still show them.",
         h("div", { className: "snap-ob-grid two" }, choice(!draft.sfw_only, "Show everything", null, () => { draft.sfw_only = false; draw(); }),
           choice(draft.sfw_only, "SFW only", null, () => { draft.sfw_only = true; draw(); })),
         h("p", { className: "snap-quiet", textContent: "A preference filter on your own tags, not a safety guarantee." })));
@@ -93,7 +93,7 @@ export async function openOnboarding(host, { say, onOpened, start }) {
       footer(() => next(true));
     },
     kit: async () => {
-      const intents = PF.get().intents.length ? PF.get().intents : draft.intents;
+      const intents = PF.get().intents.length ? PF.get().intents : draft.intents.length ? draft.intents : ["video"]; // a skipped intent step keeps the default
       const ks = await Promise.all(intents.map(OB.kit)), wanted = await OB.proposeDownloads({ intents });
       body.replaceChildren(h("h2", { textContent: ks.length > 1 ? "Your setups" : "Your setup" }),
         ...ks.map((k) => h("section", { className: "snap-ob-kit" }, h("div", { className: "snap-rail-title", textContent: k.title }),

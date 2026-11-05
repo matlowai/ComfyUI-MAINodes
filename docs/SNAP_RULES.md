@@ -72,7 +72,9 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   chip per category the model graph gives the files here (core · sub-kind, style, identity, dial, unsorted, and tags such
   as nsfw); "move to…" on any LoRA row, card or dial tile, or a row dropped on a chip, files it in the person's
   `snap/models.json` (person over pack), everything follows at once, and Undo puts the person's entry back
-  (`set_lora_category` is the same function). Identity LoRAs are private by default: never exported or
+  (`set_lora_category` is the same function). Filing under any role but core·turbo writes `turbo: false`, so neither the
+  pack nor the name keeps it a turbo; every write of that file reads it fresh inside one chain, so parallel filings all
+  stand, and a read that fails (a 5xx) writes nothing (U76 M4, M5, L10). Identity LoRAs are private by default: never exported or
   shown on shared pages. *More:* MODEL_GRAPH_ONBOARDING §6.
 - **SNAP-R26: A LoRA's name files it as a turbo only with a step count.** The model graph says first; with no entry, a
   name counts only with a sampling step count (16 or fewer, no digits after: `8step`, `4_steps`). Distillation words
@@ -183,8 +185,9 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   folder, size, source, link and license come from the model graph, a method's needs from the method registry. What's
   missing is listed with exact files, sizes, targets and a command, node packs with author, repo, license and our
   safety read (network at import, pickles, auto-downloads); the person or their agent runs them after a yes. API
-  setups appear only for tasks the person allowed. SFW only hides files, dials, LoRAs and Library cards the model graph
-  tags `nsfw` from pickers and agent tools; it's a preference filter on the person's own tags, and the UI says so.
+  setups appear only for tasks the person allowed; the intent step holds Next until one is picked. SFW only hides files,
+  dials, LoRAs, turbos (the Turbo slot) and Library cards the model graph tags `nsfw` from pickers and agent tools
+  (list_models' counts too); takes and the graph view's own lists still show them; it's a preference filter on the person's own tags, and the UI says so.
   *Why:* AGENTS.md "No Internet Requests"; Dylan (2026-11-04): intent first, light touch, metadata asked here.
   *More:* MODEL_GRAPH_ONBOARDING §4 and §8, `web/snap/onboarding.js`, `onboardview.js`, `profile.js`.
 
@@ -431,8 +434,10 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   never stop a render. The lock follows today's rules, not only the mark saved at queue time:
   `/mainodes/snap/take_marks` re-checks the saved takes (booleans, never file names) and `/mainodes/snap/private_loras`
   names the LoRA files the rules match, so LoRA rows in the sheet, the stack faces, the + LoRA picker and `list_loras`
-  carry a lock. A version of a private take (an edit, a continued take) is private too, in the lock and the export, so a
-  private take can be edited like any other. Marking only: nothing is hidden, gated or re-run, and the row still works
+  carry a lock. A version of a private take (an edit, a continued take), or a take made from one of its frames (a
+  reference picture's `source`, kept as `made_from`), is private too, in the lock and the export, so a private take can
+  be edited like any other (U76 M2). A take file that doesn't parse is named under `unreadable` in take_marks, never a
+  500 that hides every lock; moving a LoRA out of identity says it may no longer be private. Marking only: nothing is hidden, gated or re-run, and the row still works
   (Dylan, 2026-11-04: "my machine isn't going to be the private one"; "dont artificially limit anything please thats
   for the end user to do what they decide"). *Why:* derived LoRAs with neutral names in a neutral folder were caught
   only by their stamp (U68). *More:* U68_PRIVACY_AUDIT_2026-11-04.md "Matcher gaps", PLAN U71, `snap_privacy.py`,

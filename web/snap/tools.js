@@ -94,7 +94,7 @@ function offNote(key) {
 // what the recipe loads, in one answer: family, current setup, each model file (size, installed), the total on disk
 const sized = (m) => ({ ...m, size_gb: m.size ? +(m.size / 1e9).toFixed(2) : null, size: undefined });
 // what the model graph says about a file, in an agent's answer (SNAP-R10, SNAP-R12)
-const related = (name) => { const e = M.entry(name); return e && { family: e.family, kind: e.kind, turbo: e.turbo ?? null, ...(e.role ? { role: e.role, core: e.core } : {}), ...(e.loads_in_core === false ? { loads_in_core: false } : {}), ...(e.inferred ? { inferred: true } : {}) }; };
+const related = (name) => { const e = M.entry(name); return e && { family: e.family, kind: e.kind, turbo: e.turbo || null, ...(e.role ? { role: e.role, core: e.core } : {}), ...(e.loads_in_core === false ? { loads_in_core: false } : {}), ...(e.inferred ? { inferred: true } : {}) }; };
 async function models() {
   await M.current();
   const list = M.settings(), now = M.setups().find((s) => s.current);
@@ -326,7 +326,8 @@ export const TOOLS = [
       for (const t of M.TAGS) if (tags && tags.includes(t) !== (M.entry(file).tags ?? []).includes(t)) done.push(await M.moveTo(file, t, { by, reason }));
       if (rating != null) done.push(await M.moveTo(file, `rating:${rating}`, { by, reason }));
       const e = M.entry(file);
-      return { file, category: M.categoryOf(e), tags: e.tags ?? [], rating: e.rating ?? null, filed: e.filed ?? null, undo: done };
+      const notes = done.map((u) => u.note).filter(Boolean);
+      return { file, category: M.categoryOf(e), tags: e.tags ?? [], rating: e.rating ?? null, filed: e.filed ?? null, undo: done, ...(notes.length ? { note: notes.join("; ") } : {}) };
     },
   },
   {
@@ -379,10 +380,10 @@ export const TOOLS = [
     inputSchema: { type: "object", properties: { folder: { type: "string" }, filter: { type: "string" } } },
     annotations: { readOnlyHint: true },
     run: async ({ folder, filter = "" } = {}) => {
-      const all = [...(await M.load()).entries()];
+      const all = [...(await M.load()).entries()].filter(([name]) => !M.hidden(name)); // SFW only: the counts leave nsfw-tagged files out too (U76 L8)
       if (!folder) return Object.entries(Object.groupBy(all, ([, f]) => f.folder)).map(([name, list]) => ({ folder: name, files: list.length }));
       const words = filter.toLowerCase().split(/\s+/).filter(Boolean);
-      const found = all.filter(([name, f]) => f.folder === folder && !M.hidden(name) && words.every((w) => name.toLowerCase().includes(w)));
+      const found = all.filter(([name, f]) => f.folder === folder && words.every((w) => name.toLowerCase().includes(w)));
       return { folder, count: found.length, files: found.map(([name, f]) => ({ name, size_gb: +(f.size / 1e9).toFixed(2), ...related(name) })) };
     },
   },

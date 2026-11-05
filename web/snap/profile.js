@@ -16,11 +16,14 @@ export const STEPS = ["intent", "scan", "metadata", "sfw", "local", "code", "kit
 // for, "never" saves the tokens; every install still waits for the person's yes (SNAP-R25)
 export const REVIEWS = { always: "Always read it first", unknown: "Only code Snap doesn't know (default)", never: "Never: save the tokens" };
 export const REVIEW_SETTING = "MAINodes.Snap.CodeReview";
-let profile = null, loading = null, found = false, notify = () => {};
+let profile = null, loading = null, found = false, unread = false, notify = () => {};
 
 export function load(again = false) {
   if (again) loading = null; // read the file once more (an agent may have written it from another page)
-  loading ??= api.getUserData(FILE).then(async (r) => { found = r.ok; return (profile = r.ok ? { ...EMPTY, ...(await r.json()) } : { ...EMPTY }); }, () => (profile = { ...EMPTY }));
+  // only a missing file means no profile: a read that fails (a 5xx, a restart) never lets the first visit write an empty one
+  // over a real one, and isn't kept (U76 L10)
+  loading ??= api.getUserData(FILE).then(async (r) => { found = r.status !== 404; unread = !r.ok && found; if (unread) loading = null; return (profile = r.ok ? { ...EMPTY, ...(await r.json()) } : { ...EMPTY }); },
+    () => { found = unread = true; loading = null; return (profile = { ...EMPTY }); });
   return loading;
 }
 export const get = () => profile ?? EMPTY;
@@ -35,6 +38,8 @@ export const review = (known) => { const r = get().code_review; return r === "al
 // means every question was dealt with, so it answers them all (U72 F14: an agent's done: true left answered empty)
 export async function set(patch) {
   await load();
+  if (unread) await load();
+  if (unread) throw new Error(`${FILE} couldn't be read just now; nothing was written over it. Try again in a moment`);
   const known = Object.fromEntries(Object.entries(patch).filter(([k]) => k in EMPTY && k !== "answered"));
   profile = { ...profile, ...known, answered: [...new Set([...profile.answered, ...(patch.answered ?? []), ...(known.done ? STEPS : [])])], updated: new Date().toISOString() };
   await api.storeUserData(FILE, profile);

@@ -519,9 +519,12 @@ async def private_loras(request):
     def find():
         graph, names = snap_privacy.model_graph(folder_paths.get_user_directory()), folder_paths.get_filename_list("loras")
         if not graph["private"]:  # SNAP-R37: privacy is off on this install
-            return []
-        return names if graph["broken"] else [n for n in names if snap_privacy.why(n, loaded(n), graph)]  # unreadable rules lock every row, as they mark every take
-    return web.json_response({"loras": await asyncio.to_thread(find)})
+            return {"loras": [], "privacy": False}
+        # a broken link loads nothing; asking core for it would log a warning per row on every page load (U76 L6)
+        dead = lambda n: any(os.path.islink(p) and not os.path.exists(p) for p in (os.path.join(d, n) for d in folder_paths.get_folder_paths("loras")))
+        # unreadable rules lock every row, as they mark every take
+        return {"loras": names if graph["broken"] else [n for n in names if not dead(n) and snap_privacy.why(n, loaded(n), graph)], "privacy": True}
+    return web.json_response(await asyncio.to_thread(find))
 
 
 @routes.get("/mainodes/snap/take_marks")
@@ -529,13 +532,20 @@ async def take_marks(request):
     folder = Path(PromptServer.instance.user_manager.get_request_user_filepath(request, "snap/takes", create_dir=False))
 
     def find():
-        graph, found = snap_privacy.model_graph(folder_paths.get_user_directory()), {}
+        graph, found, unread = snap_privacy.model_graph(folder_paths.get_user_directory()), {}, []
         for f in sorted(folder.glob("*.json")):
-            t = json.loads(f.read_text(encoding="utf-8"))
-            m = snap_privacy.marks(t.get("prompt") or {}, t.get("graph"), graph, loaded)
+            # one half-written or hand-broken take file is named and skipped, never a 500 that hides every lock (U76 L5)
+            try:
+                t = json.loads(f.read_text(encoding="utf-8"))
+                m = snap_privacy.marks(t.get("prompt") or {}, t.get("graph"), graph, loaded)
+                tid = t["id"]
+            except (OSError, ValueError, KeyError, TypeError, AttributeError) as e:
+                unread.append(f"{f.name}: {e}")
+                continue
             if m["private"] or m["nsfw"]:
-                found[t["id"]] = {"private": bool(m["private"]), "nsfw": bool(m["nsfw"])}
-        return {"takes": found, "privacy": graph["private"]}  # the page shows no locks at all while privacy is off (SNAP-R37)
+                found[tid] = {"private": bool(m["private"]), "nsfw": bool(m["nsfw"])}
+        # the page shows no locks at all while privacy is off (SNAP-R37)
+        return {"takes": found, "privacy": graph["private"], **({"unreadable": unread} if unread else {})}
     return web.json_response(await asyncio.to_thread(find))
 
 

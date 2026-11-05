@@ -53,19 +53,26 @@ export function load() {
     const files = (await api.listUserDataFullInfo(DIR)).filter((f) => f.path.endsWith(".json"));
     takes = (await Promise.all(files.map((f) => readJson(`${DIR}/${f.path}`, null)))).filter(Boolean).sort((a, b) => a.created - b.created);
     changed();
-    // a server from before the route answers 404: the saved marks stand alone until its restart
-    marked = api.fetchApi("/mainodes/snap/take_marks").then((r) => (r.ok ? r.json() : { takes: {} })).then((r) => { marks = r.takes; privacy = r.privacy === true; changed(); });
+    remark();
     return takes;
   })().catch((e) => { loading = null; throw e; });
   return loading;
 }
+
+// a server from before the route answers 404: the saved marks stand alone until its restart; a read that fails (a restart)
+// keeps the last answer and is asked again when the socket comes back (U76 L4)
+function remark() {
+  marked = api.fetchApi("/mainodes/snap/take_marks").then((r) => (r.ok ? r.json() : { takes: {} })).then((r) => { marks = r.takes; privacy = r.privacy === true; changed(); }, () => {});
+}
+api.addEventListener("reconnected", () => { if (loading) remark(); });
 
 export const all = () => takes;
 // private by its saved mark, by the rules now, or as a version of a private take (SNAP-R27): what the lock shows and the
 // export leaves out
 // SNAP-R37: no lock at all on an install with privacy off, whatever a take recorded when it ran
 export const privacyOn = async () => { await load(); await marked; return privacy; };
-export const locked = (t) => privacy && !!(t.private || marks[t.id]?.private || (t.parent && get(t.parent.take) && locked(get(t.parent.take))));
+// ... or one made from a private take's frame (a reference picture, U76 M2); `seen` stops a hand-edited loop
+export const locked = (t, seen = new Set()) => privacy && !seen.has(t.id) && (seen.add(t.id), !!(t.private || marks[t.id]?.private || [t.parent?.take, ...(t.made_from ?? [])].some((id) => get(id) && locked(get(id), seen))));
 export const get = (id) => takes.find((t) => t.id === id);
 export const RATINGS = ["pg", "mature", "adult"], RATING_SHOWN = { pg: "PG", mature: "Mature", adult: "Adult" };
 export const ratingOf = (t) => t.rating_set ?? t.rating ?? null;
@@ -92,6 +99,8 @@ function rated(marks, graph, parent) {
   }
   return { rating, rating_why: why };
 }
+// the takes a picture of its bricks came from, beside the parent (U76 M2: the lock and the export follow them)
+const madeFrom = (graph, parent) => { const ids = sources(graph, parent).map((t) => t.id).filter((id) => id !== parent?.take); return ids.length ? { made_from: ids } : {}; };
 // takes of one workflow rank together; the workflow's own id is saved in its JSON, so renames and tab switches don't split it
 export const groupOf = () => app.graph.id ?? "unsaved";
 export const inGroup = (group = groupOf()) => takes.filter((t) => t.group === group);
@@ -207,7 +216,7 @@ async function captureRun(id, started, status, error, failedNode) {
     group, workflow: app.extensionManager.workflow.activeWorkflow?.filename ?? "", number: n,
     status, ...(error ? { error, failed_node: failedNode } : {}), text, seed, media: files, ...(sound?.sound ? { sound: { mean_db: sound.mean_db, max_db: sound.max_db } } : {}),
     ...(extra?.snap_marks?.private ? { private: true } : {}), ...(extra?.snap_marks?.nsfw ? { nsfw: true } : {}),
-    ...rated(extra?.snap_marks, graph, parent),
+    ...rated(extra?.snap_marks, graph, parent), ...madeFrom(graph, parent),
     ...(extra?.snap_marks?.metadata === false ? { metadata: false } : {}), ...(extra?.snap_marks?.kept ? { metadata_kept: extra.snap_marks.kept } : {}), ...(Object.keys(swapped).length ? { swapped } : {}), ...(parent ? { parent } : {}), ...await hashes(canonical(prompt, swapped)),
     verdict: null, prior: false, notes: [], graph, prompt,
   });

@@ -160,7 +160,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // LoRAs by category (SNAP-R12): one chip per category the model graph gives the files here; a chip opens the LoRA sheet there
   const libLoras = h("div", { className: "snap-lora-chips rail" });
   const moves = []; // undo for "move to…" anywhere in the view (the LoRA sheet, Library cards, the dial picker)
-  const moved = (u, id, err) => { if (err) { say(err.message, true); return; } moves.push(u); say(`${u.file.replace(/\.safetensors$/, "")} → ${catLabel(id)}`); render(null); renderLibrary(); };
+  const moved = (u, id, err) => { if (err) { say(err.message, true); return; } moves.push(u); say(`${u.file.replace(/\.safetensors$/, "")} → ${catLabel(id)}${u.note ? ` · ${u.note}` : ""}`); render(null); renderLibrary(); };
   const browse = (start, onAdd) => openLoras(root, { say, start, onAdd, undo: moves, onChange: () => { render(null); renderLibrary(); } }).catch((err) => say(err.message, true));
   function drawLoraChips() {
     const cats = M.categories(), sig = JSON.stringify([cats, moves.length]);
