@@ -1,10 +1,13 @@
-"""Call one Snap tool from a shell, through the bridge to a Snap page of your user: the newest tab whose person turned
-"Let agents see" on, else an agent's headless page from snap_agent_page.sh. SNAP_PAGE in the environment names one page
-(an id from GET /mainodes/snap/tools `pages`) to keep the call on it, e.g. your own page when you must not drive the
-person's tab. Pictures (screenshot, take_frames) are saved as files in a folder of their own
+"""Call one Snap tool from a shell, through the bridge to a Snap page of your user. Name yourself with SNAP_AGENT (e.g.
+SNAP_AGENT=anime-studio): `--page <id|name>` then binds you to that page (use_page) and later calls without --page keep
+going there; one agent drives a page at a time. `pages` lists your pages (ids, names, who drives them). With nothing
+picked, calls go to the newest tab whose person turned "Let agents see" on, else an agent's headless page from
+snap_agent_page.sh. SNAP_PAGE names a page for one call without binding. Pictures (screenshot, take_frames) are saved as files in a folder of their own
 under the system temp folder (snapcall-pictures/<time>-<tool>-<unique>/ per call, never where you run it: U72 F27, F29) and their paths and folder (saved_in) printed. SNAP_TOKEN in the environment goes out as a Bearer header (a snap-gate account token).
-usage: python3 snapcall.py <port or base URL> <tool> ['<json args>']
+usage: python3 snapcall.py <port or base URL> [--page <id|name>] <tool> ['<json args>']
+       python3 snapcall.py <port or base URL> pages
   e.g. python3 snapcall.py 8188 get_profile
+       SNAP_AGENT=my-studio python3 snapcall.py 8188 --page 3f9a2c run
        python3 snapcall.py 8188 run_status '{"wait_s": 25}'
 SNAP-R30 the agent front door · see docs/SNAP_RULES.md
 """
@@ -17,13 +20,28 @@ import time
 import urllib.error
 import urllib.request
 
-if len(sys.argv) < 3:
+argv = sys.argv[1:]
+page = None
+if "--page" in argv:
+    i = argv.index("--page")
+    page = argv[i + 1] if i + 1 < len(argv) else sys.exit("--page takes a page id or name (python3 snapcall.py <port> pages lists them)")
+    del argv[i:i + 2]
+if len(argv) < 2:
     sys.exit(__doc__)
-where, tool = sys.argv[1], sys.argv[2]
+where, tool = argv[0], argv[1]
 base = (f"http://127.0.0.1:{where}" if where.isdigit() else where).rstrip("/")
-args = json.loads(sys.argv[3]) if len(sys.argv) > 3 else {}
+args = json.loads(argv[2]) if len(argv) > 2 else {}
+if tool == "pages":
+    tool = "list_pages"
 auth = {"Authorization": f"Bearer {os.environ['SNAP_TOKEN']}"} if os.environ.get("SNAP_TOKEN") else {}
 auth.update({"X-Snap-Page": os.environ["SNAP_PAGE"]} if os.environ.get("SNAP_PAGE") else {})
+auth.update({"X-Snap-Agent": os.environ["SNAP_AGENT"]} if os.environ.get("SNAP_AGENT") else {})
+if page is not None:  # bind first (use_page); its refusal (a page another agent drives) is printed as the answer
+    bind = urllib.request.Request(f"{base}/mainodes/snap/call", data=json.dumps({"tool": "use_page", "args": {"page": page}}).encode(), headers={"Content-Type": "application/json", **auth})
+    try:
+        urllib.request.urlopen(bind, timeout=60).read()
+    except urllib.error.HTTPError as e:
+        sys.exit(e.read().decode(errors="replace"))
 request = urllib.request.Request(f"{base}/mainodes/snap/call", data=json.dumps({"tool": tool, "args": args}).encode(), headers={"Content-Type": "application/json", **auth})
 try:
     with urllib.request.urlopen(request, timeout=60) as r:

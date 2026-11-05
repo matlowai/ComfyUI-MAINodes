@@ -3,8 +3,10 @@
 # It returns once the page has registered with the bridge, and leaves the page running; --stop closes the pages it
 # started for that ComfyUI (no pid or kill needed, U72 F13: an agent's sandbox may refuse kill).
 # Each launch uses its own new Chrome profile, so a profile left locked by an earlier page that died never blocks it.
-# When a Snap page of yours running the server's current code is already open, it says so and starts nothing (calls
-# already go there); a page running older code doesn't count; --new starts another anyway. The page reaches only this machine and the ComfyUI host: other host names don't resolve.
+# When an agent page of yours running the server's current code is already open, it says so and starts nothing; a
+# person's tab never counts as yours (it is driven only when its person turns "Let agents see" on), nor does a page
+# running older code; --new always starts a fresh page. It prints the new page's id: bind to it with
+# `SNAP_AGENT=<you> snapcall.py <port> --page <id> ...` or use_page. The page reaches only this machine and the ComfyUI host: other host names don't resolve.
 # The page gets no pointer or key input, so it never uses the person's one-time onboarding (SNAP-R29).
 # Its Chrome listens for DevTools on a free 127.0.0.1 port, which it tells the bridge, so `screenshot` on this page
 # returns a picture of it with no gesture (anime dogfood F-A01); nothing outside this machine can reach that port.
@@ -43,14 +45,14 @@ try:
     p = json.load(sys.stdin).get("pages") or []
 except ValueError:
     p = []
-p = [x for x in p if x.get("code_current", True)]  # pages running older Snap code are left out (U72 F20)
-last = [x["last_answer_s_ago"] for x in p if x.get("calls_go_here")]
+p = [x for x in p if x.get("code_current", True) and x.get("headless")]  # agent pages only (never a person'"'"'s tab), current code (U72 F20)
+last = [x["last_answer_s_ago"] for x in p[-1:]]
 print(len(p), last[0] if last and last[0] is not None else "-")'
 }
 curl -s --max-time 10 -o /dev/null "${auth[@]}" "$base/system_stats" || { echo "ComfyUI is not reachable at $base: start it first." >&2; exit 1; }
 read -r before answered <<<"$(pages)"
 if [ "$before" -gt 0 ] && [ $new = 0 ]; then
-  echo "A Snap page of yours is already open on $base ($before open; the one calls go to last answered ${answered} s ago, - = not yet): calls go to it, nothing started. Pass --new to start another anyway."
+  echo "An agent page of yours is already open on $base ($before open; the newest last answered ${answered} s ago, - = not yet): nothing started. Its id is under pages in curl -s $base/mainodes/snap/tools; pass --new to start another anyway."
   exit 0
 fi
 
@@ -71,7 +73,8 @@ for _ in $(seq 90); do
   read -r now _ <<<"$(pages)"
   if [ "$now" -gt "$before" ]; then
     curl -s --max-time 10 -o /dev/null "${auth[@]}" -X POST "$base/mainodes/snap/agent_page" -H 'Content-Type: application/json' -d "{\"cdp\": $cdp}"
-    echo "Snap agent page is open on $base and registered (pid $pid, profile $profile). Calls go to it. Stop it with: $0 $where --stop"
+    id=$(curl -s --max-time 10 "${auth[@]}" "$base/mainodes/snap/tools" | python3 -c 'import json, sys; p = [x for x in json.load(sys.stdin).get("pages") or [] if x.get("headless")]; print(p[-1]["id"] if p else "")')
+    echo "Snap agent page is open on $base and registered (id $id, pid $pid, profile $profile). Bind to it: SNAP_AGENT=<your name> python3 $(dirname "$0")/snapcall.py $base --page $id <tool> (or use_page {\"page\": \"$id\"}). Stop it with: $0 $where --stop"
     exit 0
   fi
 done

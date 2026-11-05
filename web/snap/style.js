@@ -542,6 +542,9 @@ export const STYLE = `
 @keyframes snap-see-pulse { 0% { box-shadow: 0 1px 0 #ffffff44 inset, 0 0 0 0 #f8717199; } 70% { box-shadow: 0 1px 0 #ffffff44 inset, 0 0 0 10px #f8717100; } 100% { box-shadow: 0 1px 0 #ffffff44 inset, 0 0 0 0 #f8717100; } }
 @media (prefers-reduced-motion: reduce) { .snap-see.on { animation: none; } }
 /* metadata in saved files: a switch beside Run, the knob right while on (SNAP-R20) */
+.snap-driver { display: inline-flex; align-items: center; gap: 8px; padding: 4px 6px 4px 10px; border-radius: 10px; font-size: 12.5px; white-space: nowrap; background: #a78bfa22; color: #c4b5fd; }
+.snap-driver[hidden] { display: none; }
+.snap-driver button { all: unset; cursor: pointer; padding: 2px 9px; border-radius: 8px; background: #ffffff14; color: var(--s-fg); } .snap-driver button:hover { background: #ffffff26; }
 .snap-account { display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: 10px; font-size: 12.5px; white-space: nowrap; color: var(--s-dim); border: 1px solid var(--s-line); }
 .snap-account strong { color: var(--s-fg); font-weight: 600; }
 .snap-account span { padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; background: var(--s-card); color: var(--s-fg); }

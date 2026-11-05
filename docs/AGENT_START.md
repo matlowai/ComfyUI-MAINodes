@@ -29,12 +29,22 @@ Either the person opens `$BASE/?snap` in their browser, or you start a headless 
 - On a signed-in install, give the sign-in link as the page:
   `bash $PACK/tools/snap_agent_page.sh $BASE "$BASE/gate/login?token=$SNAP_TOKEN&next=/%3Fsnap"`
 
-Calls go to a page of your own user that is still connected: the newest tab whose person turned "Let agents see" on
-(that control is how they let agents drive their tab), else your own headless page (one running the server's current
-code first). A person's tab with the control off is never driven. Each call's answer names the page under `page`
-(`id`, `headless`, `sees`). When you must stay on your own page (background work while the person works in their
-tab), name it: `SNAP_PAGE=<id>` for snapcall.py and snap_mcp.py, or the `X-Snap-Page: <id>` header with curl; the ids
-are under `pages` in `curl -s $BASE/mainodes/snap/tools`.
+**Pick your page, and name yourself.** Several people's tabs and agents' pages can be open on one ComfyUI; choose the
+one you work in so you never collide:
+- `list_pages` (or `python3 $PACK/tools/snapcall.py $BASE pages`) lists every page of yours: `id`, `name` (whose it
+  is, the id's first six characters, the tab or shot it shows), `headless` (an agent's page), `sees` (its person lets
+  agents see and drive it), `driven_by`, `yours`, and `calls_go_here`.
+- `use_page {"page": "<id, the start of one, or a name>"}` binds you to that page for your session: every call goes
+  there until you pick another or pass `null`. With snapcall, name yourself once and bind with `--page`:
+  `SNAP_AGENT=my-studio python3 $PACK/tools/snapcall.py $BASE --page 3f9a2c get_profile`; later calls with the same
+  SNAP_AGENT keep going there. snap_mcp.py names each connection itself (or SNAP_AGENT).
+- One agent drives a page at a time. The page shows "Driven by: <you>" with a Release button for its person. A page
+  another agent drives is refused with its name: pick another, start your own (`snap_agent_page.sh $BASE --new`), or
+  ask the person. If the person presses Release, your next call says so; pick a page again.
+- With nothing picked, calls go to the newest tab whose person turned "Let agents see" on (that control is how they let
+  agents drive their tab), else your own headless page. A person's tab with the control off is never driven, and
+  `snap_agent_page.sh` never takes a person's tab for yours. `SNAP_PAGE=<id>` (or the `X-Snap-Page` header) sends one
+  call to a page without binding. Every answer names its page under `page` (`id`, `name`, `driven_by`).
 If it says the page runs older Snap code (`page_warning`, or an "Unknown Snap tool" error that says so), start your own
 page with `snap_agent_page.sh $BASE --new`; never reload or close the person's tab yourself. Run `curl -s $BASE/mainodes/snap/tools` to see
 your open pages under `pages`, with when each registered and when it last answered. When no page is open, every call

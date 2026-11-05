@@ -121,6 +121,13 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     onclick: async () => { try { sight.sharing() ? sight.stop() : await sight.start(); } catch (err) { say(err.name === "NotAllowedError" ? "Sharing was declined" : err.message, true); } } });
   const seeLabel = () => { seeBtn.textContent = sight.sharing() ? "● Agents can see" : "👁 Let agents see"; seeBtn.classList.toggle("on", sight.sharing()); };
   sight.onChange(seeLabel); seeLabel();
+  // one agent drives this page at a time (use_page); the person sees which and can let it go
+  const driverChip = h("span", { className: "snap-driver", hidden: true });
+  function driver(agent) {
+    driverChip.hidden = !agent;
+    driverChip.replaceChildren(...(agent ? [h("span", { textContent: `Driven by: ${agent}` }), h("button", { textContent: "Release", title: "this agent stops driving this page; it is told so on its next call",
+      onclick: () => api.fetchApi("/mainodes/snap/release", { method: "POST", body: JSON.stringify({ client: api.clientId }) }).then(() => say(`${agent} no longer drives this page`)) })] : []));
+  }
   // SNAP-R34: on a snap-gate install, who is signed in and their cap; nothing without a gate
   const accountChip = h("span", { className: "snap-account", hidden: true });
   // SNAP-R20: metadata in saved files, beside Run where every run starts; the person's ComfyUI setting (on by default)
@@ -146,7 +153,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Note", title: "a director's note on the whole recipe; agents answer it", onclick: () => { noting = true; select(null); inspector.querySelector("textarea")?.focus(); } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Make app", title: "open this recipe in ComfyUI's App mode: the brick faces become a run-only app (reloads the graph)", onclick: () => onMakeApp() }),
-      h("button", { className: "snap-link snap-quiet-btn", title: "Ctrl/Cmd+K", onclick: () => openPalette() }, "Add brick", h("span", { className: "snap-kbd", textContent: `  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}` })), accountChip, seeBtn, seg, metaBtn, runBtn, progress),
+      h("button", { className: "snap-link snap-quiet-btn", title: "Ctrl/Cmd+K", onclick: () => openPalette() }, "Add brick", h("span", { className: "snap-kbd", textContent: `  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}` })), accountChip, driverChip, seeBtn, seg, metaBtn, runBtn, progress),
     h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), inspector, handle), toast);
   // takes under the chain: "Use as input" puts a take's frame on the First frame or References brick (T.use)
   const dailies = createDailies({ host: root, say, onRestore: () => render(null), onHover: (t) => previewTake(t), onRunFrom: (t) => runFrom(t).catch((err) => say(err.message, true)),
@@ -1450,5 +1457,5 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     return uiRead();
   }
 
-  return { root, stack, render, say, select, openInChanged, metadataChanged, uiRead, uiAct, firstVisit, release: () => { giveBack(); if (opened) { opened = null; render(null); } }, get opened() { return opened; }, get selected() { return selected; } };
+  return { root, stack, render, say, select, driver, openInChanged, metadataChanged, uiRead, uiAct, firstVisit, release: () => { giveBack(); if (opened) { opened = null; render(null); } }, get opened() { return opened; }, get selected() { return selected; } };
 }
