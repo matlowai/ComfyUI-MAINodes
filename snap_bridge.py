@@ -442,12 +442,16 @@ def rating_cap(json_data):
         return json_data
     notes = [f"node {nid} ({node.get('class_type')}) saves without a filename_prefix, so its file may land outside {extra.get('snap_user')}'s output folder"
              for nid, node in prompt.items() if saves_without_prefix(node.get("class_type"))]
-    found = snap_privacy.above(prompt, snap_privacy.model_graph(folder_paths.get_user_directory()), cap, folders_of)
-    if found:
-        logging.warning("Snap: %s's prompt names files above their %s cap (nodes %s); refused", extra.get("snap_user"), extra["snap_max_rating"], ", ".join(found))
-        shown = "PG" if cap == 0 else str(extra["snap_max_rating"]).capitalize()
-        json_data["prompt"] = {nid: {"class_type": "MAIRatingRefused", "inputs": {"why": f"Node {nid} ({title}) loads a file rated above this account's {shown} cap. Ask the admin."},
-                                     "_meta": prompt[nid].get("_meta", {})} for nid, title in found.items()}
+    graph, shown = snap_privacy.model_graph(folder_paths.get_user_directory()), "PG" if cap == 0 else str(extra["snap_max_rating"]).capitalize()
+    title = lambda nid: (prompt[nid].get("_meta") or {}).get("title") or prompt[nid].get("class_type")
+    refused = {nid: f"Node {nid} ({t}) loads a file rated above this account's {shown} cap. Ask the admin." for nid, t in snap_privacy.above(prompt, graph, cap, folders_of).items()}
+    # U90: words that rate the prompt Adult are refused here too, for any cap below Adult (they always count there,
+    # SNAP-R39), so the run never renders only to be hidden from its own account
+    for nid, k, term in snap_privacy.said(prompt, graph, folders_of) if cap < snap_privacy.LEVELS["adult"] else []:
+        refused.setdefault(nid, f"Node {nid} ({title(nid)}): its {k} says \"{term}\", which rates this prompt Adult, above this account's {shown} cap. Change the words, or ask the admin.")
+    if refused:
+        logging.warning("Snap: %s's prompt rates above their %s cap (nodes %s); refused", extra.get("snap_user"), extra["snap_max_rating"], ", ".join(refused))
+        json_data["prompt"] = {nid: {"class_type": "MAIRatingRefused", "inputs": {"why": why}, "_meta": prompt[nid].get("_meta", {})} for nid, why in refused.items()}
     if notes:
         logging.warning("Snap: %s", "; ".join(notes))
         json_data.setdefault("extra_data", {})["snap_notes"] = notes

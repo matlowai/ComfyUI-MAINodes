@@ -300,7 +300,11 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   levels: the file's `rating`, else Adult when tagged nsfw, else PG in helper folders (VAE, encoders, upscalers…) and
   Adult anywhere else (SNAP-R44). A prompt that still names one becomes one MAIRatingRefused node per such node, which
   fails validation with "Node N (title) loads a file rated above this account's PG cap. Ask the admin.", so nothing of
-  it runs. Core would otherwise run the prompt's other outputs. A saver named Save… with no filename_prefix (SaveLoRA)
+  it runs. Core would otherwise run the prompt's other outputs. Under a cap below Adult a prompt's words always count
+  (SNAP-R39), so one whose words rate it Adult is refused the same way when it is queued, naming the node, the input and
+  the word ("its value says "nude", which rates this prompt Adult, above this account's PG cap. Change the words, or ask
+  the admin."), instead of rendering and then being hidden from its own account (U90; CONTENT_RATINGS_VAULT §2 "refused
+  at validation"). A saver named Save… with no filename_prefix (SaveLoRA)
   is noted in the log and in extra_data.snap_notes, never refused. With no snap_max_rating nothing changes. *Why:* the
   gate is the first line; the pack sees the executed prompt and the files on disk. *More:* PLAN U77 (3), `snap_bridge.py`.
 - **SNAP-R34: Snap shows the signed-in account and keeps the page through an idle lock.** `GET /gate/me` names the

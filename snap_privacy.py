@@ -303,33 +303,41 @@ def text_level(text, graph):
     return (LEVELS["adult"], hit) if hit else (LEVELS["pg"], None)
 
 
-def rating(prompt, graph, folders_of, gated, words):
-    """(level, reasons) of what an API prompt makes (SNAP-R39): the highest of the files it loads and, with `words`, its
-    text (every string input that names no model file; text that only feeds a negative input doesn't count). A file
-    nothing rates counts only on a gated install (`gated`), as the gate counts it; ungated, ratings are labels and it adds
-    nothing."""
+def said(prompt, graph, folders_of):
+    """(node id, input, term) for every text input whose words rate it Adult (SNAP-R39): a string input that names no model
+    file; text that only feeds a negative input doesn't count."""
     negative = {str(v[0]) for n in prompt.values() for k, v in (n.get("inputs") or {}).items() if "negative" in k.lower() and isinstance(v, list) and len(v) == 2}
     feeds = {str(v[0]) for n in prompt.values() for k, v in (n.get("inputs") or {}).items() if "negative" not in k.lower() and isinstance(v, list) and len(v) == 2}
-    top, why = LEVELS["pg"], []
+    out = []
     for nid, node in prompt.items():
-        quiet = str(nid) in negative and str(nid) not in feeds
+        if str(nid) in negative and str(nid) not in feeds:
+            continue
         for k, v in (node.get("inputs") or {}).items():
-            files = set()
-            for n in dict.fromkeys(names(v)):
-                folders = folders_of(n)
-                if folders:
-                    files.add(n)
-                    lvl = rated(graph, n, folders)
-                    lvl = level(graph, n, folders) if lvl is None and gated else lvl
-                    if lvl:
-                        why.append(f"node {nid} loads a file rated {NAMES[lvl]}")
-                        top = max(top, lvl)
-            if not words or quiet or "negative" in k.lower() or not isinstance(v, str) or v in files:
+            if "negative" in k.lower() or not isinstance(v, str) or (v in names(v) and folders_of(v)):
                 continue
             lvl, term = text_level(v, graph)
             if lvl:
-                why.append(f"node {nid}'s {k} says \"{term}\"")
-                top = max(top, lvl)
+                out.append((nid, k, term))
+    return out
+
+
+def rating(prompt, graph, folders_of, gated, words):
+    """(level, reasons) of what an API prompt makes (SNAP-R39): the highest of the files it loads and, with `words`, its
+    text (said). A file nothing rates counts only on a gated install (`gated`), as the gate counts it; ungated, ratings
+    are labels and it adds nothing."""
+    top, why = LEVELS["pg"], []
+    for nid, node in prompt.items():
+        for v in (node.get("inputs") or {}).values():
+            for n in dict.fromkeys(names(v)):
+                folders = folders_of(n)
+                lvl = folders and rated(graph, n, folders)
+                lvl = level(graph, n, folders) if folders and lvl is None and gated else lvl
+                if lvl:
+                    why.append(f"node {nid} loads a file rated {NAMES[lvl]}")
+                    top = max(top, lvl)
+    for nid, k, term in said(prompt, graph, folders_of) if words else []:
+        why.append(f"node {nid}'s {k} says \"{term}\"")
+        top = LEVELS["adult"]
     return top, list(dict.fromkeys(why))
 
 
