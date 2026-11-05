@@ -188,6 +188,43 @@ the motion matches or not (one frame doesn't show motion). A saved file works to
 needs a new picture, not only new words. `list_world` shows every record with its size; `archive_record`,
 `export_records` and `import_records` tidy them. `delete_record` can't be undone: it waits for the person.
 
+### A new view of a place (stills from context pictures)
+
+A location is one place: make each new view of it from pictures you already have, not from words alone.
+`edit_from_context` makes a still with MOSS Image Edit from context pictures and your own words (nothing is added to
+them). It works on stills: masters, plates, boards.
+
+    edit_from_context {"pictures": [{"take": "<a still with the camera you want>"},
+                                    {"take": "<the master>", "crop": [0.3, 0.18, 0.26, 0.62], "label": "the gatehouse"},
+                                    {"cast": "cast:<id>"}],
+                       "prompt": "Replace the gate in Picture 1 with the gatehouse from Picture 2 ...", "seeds": [1, 2, 3]}
+
+- A picture is `{take}` (a still; a video take with `frame`), `{file}` (in input/) or `{cast, ref}` (a Cast's
+  picture). `crop` is `[x, y, width, height]` in fractions of the picture.
+- **Picture 1 sets the camera.** The new still keeps Picture 1's framing and composition: a master seen from above as
+  Picture 1 gives a view from above again. Put a picture that already has the camera you want first, and the set (the
+  master, or a crop of it) after it. The answer says which picture is which number; name them in the prompt as
+  Picture 1, Picture 2, … or in plain words.
+- One candidate per seed (`seeds`, or `count`), each a take in the shot it lands in (`land`; by default Picture 1's
+  shot). `wait_for {job: <decision>, until: "waiting"}`, look with `candidate_frames` beside the master, then
+  `apply_candidate` makes the one that holds the set the shot's take.
+- `lora` keeps every candidate on one edit LoRA (`list_methods {"slot": "view"}`); else they take turns.
+- In the take viewer the same route is "New view from these pictures": add this picture, a marked region of it, or a
+  Cast's picture, and move them up or down.
+
+### Voices and audio references
+
+- Upload audio like pictures: `curl -s -F image=@line.wav -F subfolder=snap $BASE/upload/image` gives `snap/line.wav`.
+  Load Audio lists the audio under input/snap/.
+- `add_audio_ref {"file": "snap/line.wav", "role": "voice: Kon"}` wires it into References and answers `cite`, the
+  `<Audio n>` to write in the prompt ("her voice is the voice of <Audio 1>: the same speaker and timbre, not repeating
+  its words"). `describe_recipe.references` lists every `<Picture n>` and `<Audio n>`; `remove_audio_ref {"audio": n}`
+  takes one out (the later ones move up).
+- A Cast can hold the voice: `save_cast {..., "voice": {"file": "snap/kon_voice.wav", "casting": "young woman, low
+  cool alto, clipped"}}`. `apply_cast` then puts the voice in with the pictures and says its `<Audio n>`.
+- H3 reads audio references only with a reference setup (Ref2V). A voice reference itself is made at 12 steps or more
+  (low resolution is fine); normal video takes stay at the setup's steps.
+
 ## Limits
 
 - A call times out after 30 s. `run_status` waits at most 25 s per call.

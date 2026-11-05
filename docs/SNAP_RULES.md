@@ -585,9 +585,46 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   only by their stamp (U68). *More:* U68_PRIVACY_AUDIT_2026-11-04.md "Matcher gaps", PLAN U71, `snap_privacy.py`,
   `snap_bridge.py`.
 
+## Context and references (U101)
+
+R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start at R71.
+
+- **SNAP-R71: A new view of a known place is an edit from context pictures, in the asker's words.** "New view from these
+  pictures" (the take viewer's tray; `edit_from_context`) makes a still with MOSS Image Edit from 1 or more context
+  pictures (a still take, a video take's frame, an input/ file, a Cast's picture, whole or cropped) and a prompt the
+  person or agent writes; nothing is added to it, so the in-place Change something's "keep the place and the
+  composition unchanged" text stays only on that route. It works on stills (masters, plates, boards), unlike Change
+  something, which edits a video take. Each seed is a candidate take (SNAP-R23) in the shot it lands in (by default
+  Picture 1's take's shot); Apply makes it the shot's active take, Reject marks the take. The take's parent and the
+  decision name every context picture (`options.context`: number, take and frame, file, Cast version, crop, label), the
+  lock and the rating follow every context take (SNAP-R27, R39), and a Cast picture pins its version (SNAP-R60). What it
+  runs is registry data (slot `view`, method `moss_view`, SNAP-R13/R14). *Why:* Dylan 2026-11-05: "a location is one
+  topology… every view of it is an edit from prior context", "moss is WAY better than klein", "when snap cant do the job
+  that means you need to update snap"; short03's three different gates (F-C09). *More:* PLAN U101, LESSONS "U101".
+- **SNAP-R72: Picture 1 sets the camera, and the order is the person's.** MOSS Image Edit keeps the first picture's
+  framing and composition: short03's test with the aerial master first gave the aerial view in every seed, with one
+  figure pasted in. So the tray and the tool keep the pictures in the order given, say "Picture 1 sets the camera" next
+  to it, and let the person move each picture up or down, take it out, or add a marked region of a still as a crop (a
+  part of a master: the gatehouse). Put a picture that already has the wanted camera first and the set after it. The
+  encoder sees each picture after a "Picture N:" marker, so prompts may name them that way. *Why:* the coordinator's
+  13:4x note from short03's sheet. *More:* PLAN U101, the dogfood study's F-C09, LESSONS "U101".
+- **SNAP-R73: Audio references are the pictures' twins.** An audio file goes into References as a Load Audio node wired
+  into H3 References' next free `ref_audios` slot (3), and the prompt cites it as `<Audio n>`, n its place among the wired
+  audio slots (`describe_recipe.references` lists every `<Picture n>` and `<Audio n>`). A Cast may hold one voice
+  reference (`voice {file, casting}`: a clean 3-6 s line and the casting words it was made from); `apply_cast` puts it
+  in with the Cast's pictures and says its `<Audio n>`, and a version without one takes the last apply's out. Agents
+  add or remove audio by tool (`add_audio_ref`, `remove_audio_ref`). *Why:* F-C07: a cut could not cite a voice through
+  Snap at all; Dylan 2026-11-05: characters get voice references for timbre, cited in every cut where they speak.
+  *More:* PLAN U101, the dogfood study's F-C07.
+- **SNAP-R74: Load Audio lists Snap's audio under input/snap/.** Core Load Audio lists only input/'s top level, so a file
+  uploaded with `subfolder=snap` (as AGENT_START says) never showed. The pack's `/mainodes/snap/input_audio` lists the
+  audio under input/snap/ and the page adds it to Load Audio's choices; the node's own validation already accepts any
+  input file. Snap's audio tools put the file on the node's widget whatever its folder. *Why:* F-C08. *More:* PLAN
+  U101.
+
 ## Accounts and the gate (snap-gate)
 
-IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67 on).
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; R75 on).
 
 - **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
   use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and
