@@ -188,6 +188,15 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   agent's headless page wrote the profile before the newcomer arrived; F3: core's Templates dialog sat on top of
   onboarding on a fresh install. *More:* u72/FINDINGS.md, `web/snap/view.js` firstVisit, LESSONS "Newcomer batch".
 
+- **SNAP-R53: A file with no download link is never proposed as required.** `propose_downloads` puts a file in
+  `files` only when the model graph has its download link and a target folder, so every row there has a command. A
+  kit file without one (a local build such as the SFT DeBand checkpoint, or the converted rank-128 Viggle LoRAs) is
+  listed under `optional` with `why: "no public download: bring your own file"` and `for` (the setups that use it),
+  never in the total size. Kit selection already prefers a setup whose missing files can all be fetched. Links are
+  recorded only after the repo file was found and matched (the local copy's sha256 against the repo's LFS id). *Why:*
+  U72 run 5: the newcomer kit listed the DMAD LoRA with no link, and the agent had to judge whether to skip a "required"
+  file. *More:* u72/FINDINGS.md F17, `web/snap/onboarding.js` (`proposeDownloads`), `snap_cards/models.json`.
+
 ## Agents
 
 - **SNAP-R15: Every UI action has an agent tool.** MCP and WebMCP are built from one table. Results carry the same

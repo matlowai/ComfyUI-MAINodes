@@ -6,7 +6,7 @@
 // the agent tools call the same functions (SNAP-R19).
 // SNAP-R3 missing stays visible · SNAP-R5 setups open in new tabs · SNAP-R11 warn, never block · SNAP-R18 local only ·
 // SNAP-R19 one table · SNAP-R25 onboarding · SNAP-R28 agents read new code per the person's setting · SNAP-R39 kit files
-// arrive rated · see docs/SNAP_RULES.md
+// arrive rated · SNAP-R53 no link, not required · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
 import * as M from "./models.js";
@@ -123,18 +123,23 @@ export async function proposeDownloads({ intents = PF.get().intents, setup, pack
   const ks = await Promise.all((setup || !intents.length ? kits().map((k) => k.intent) : intents).map(kit));
   const chosen = setup ? ks.flatMap((k) => [k.recommended, k.fast, ...k.also]).filter((r) => r?.id === setup).slice(0, 1) : ks.flatMap((k) => [k.recommended, k.fast]).filter(Boolean);
   if (setup && !chosen.length) throw new Error(`No setup "${setup}" in these kits`);
-  const files = new Map(), packs = new Map();
+  // SNAP-R53: a file with no download link is never required: it is listed under optional, to bring your own (U72 F17)
+  const files = new Map(), own = new Map(), packs = new Map();
   for (const r of chosen) {
-    for (const f of r.files.filter((x) => !x.installed)) files.set(f.file, { ...f, for: [...(files.get(f.file)?.for ?? []), r.title],
-      ...(f.download && f.target ? { command: `curl -L --fail -o "${f.target}/${f.file}" "${f.download}"` } : { why: f.source ? "the exact path in the repo isn't recorded: get it from the source page" : "no public source recorded (a local file)" }) });
+    for (const f of r.files.filter((x) => !x.installed)) {
+      const into = f.download && f.target ? files : own;
+      into.set(f.file, { ...f, for: [...(into.get(f.file)?.for ?? []), r.title],
+        ...(into === files ? { command: `curl -L --fail -o "${f.target}/${f.file}" "${f.download}"` } : { optional: true, why: `${OWN}${f.source ? ` (or look on its source page: ${f.source})` : ""}` }) });
+    }
     for (const p of r.packs.filter((x) => !x.installed)) packs.set(p.id, packRow(p.id));
   }
   const list = [...files.values()];
   // add-ons the chosen recipes can use and run without (RelayVSR for the Upscale brick): apart, never in the total
   const recipes = new Set(chosen.map((r) => kits().flatMap((k) => k.setups).find((x) => x.id === r.id)?.recipe));
-  const optional = (data.extras ?? []).filter((x) => recipes.has(x.recipe) && method(x.method)?.install_state !== "ready").map(({ recipe, method: m, ...x }) => ({ ...x, optional: true }));
+  const optional = [...own.values(), ...(data.extras ?? []).filter((x) => recipes.has(x.recipe) && method(x.method)?.install_state !== "ready").map(({ recipe, method: m, ...x }) => ({ ...x, optional: true }))];
   return { downloaded: false, files: list, packs: [...packs.values()], total_gb: +list.reduce((a, f) => a + (f.size_gb ?? 0), 0).toFixed(1), ...(optional.length ? { optional } : {}), note: NOTE };
 }
+const OWN = "no public download: bring your own file";
 const NOTE = "Snap never downloads. Each file and pack needs the person's yes; run the commands yourself or have your agent do it. Safetensors only; check each license on its source. A pack's review says whether the agent reads its code first (the person's setting).";
 
 // the recommended setup of each intent, each in a new tab (SNAP-R5: an empty tab is used, open work never is); two

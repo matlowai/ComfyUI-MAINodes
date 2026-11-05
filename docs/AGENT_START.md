@@ -57,6 +57,8 @@ You can also run the tools as an MCP server (Claude Code):
 5. `propose_downloads` gives exact files, sizes, target folders and commands.
    - Add-ons the recipe runs without are listed apart under `optional`, with their size and how to install them.
      RelayVSR for the Upscale brick is one; offer these as optional.
+   - A file with no public download is under `optional` too ("no public download: bring your own file"): ask the
+     person whether they have it, and go on without it if not.
    - Each file needs the person's yes, and then you run the command (safetensors only).
    - A pack's `review` follows the person's code-review setting.
 
