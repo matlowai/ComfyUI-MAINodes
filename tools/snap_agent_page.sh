@@ -3,8 +3,8 @@
 # It returns once the page has registered with the bridge, and leaves the page running; --stop closes the pages it
 # started for that ComfyUI (no pid or kill needed, U72 F13: an agent's sandbox may refuse kill).
 # Each launch uses its own new Chrome profile, so a profile left locked by an earlier page that died never blocks it.
-# When a Snap page of yours is already open on that ComfyUI, it says so and starts nothing (calls already go there);
-# --new starts another anyway. The page reaches only this machine and the ComfyUI host: other host names don't resolve.
+# When a Snap page of yours running the server's current code is already open, it says so and starts nothing (calls
+# already go there); a page running older code doesn't count; --new starts another anyway. The page reaches only this machine and the ComfyUI host: other host names don't resolve.
 # The page gets no pointer or key input, so it never uses the person's one-time onboarding (SNAP-R29).
 # usage: snap_agent_page.sh [port or base URL, default 8188] [page URL, default <base>/?snap] [--new]
 #        snap_agent_page.sh [port or base URL] --stop
@@ -41,6 +41,7 @@ try:
     p = json.load(sys.stdin).get("pages") or []
 except ValueError:
     p = []
+p = [x for x in p if x.get("code_current", True)]  # pages running older Snap code are left out (U72 F20)
 last = [x["last_answer_s_ago"] for x in p if x.get("calls_go_here")]
 print(len(p), last[0] if last and last[0] is not None else "-")'
 }

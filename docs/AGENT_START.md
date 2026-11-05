@@ -7,6 +7,14 @@ Below, `$BASE` is the ComfyUI address (for example `http://127.0.0.1:8188`) and 
 `<ComfyUI>/custom_nodes/ComfyUI-MAINodes`. On a signed-in install (snap-gate), `$BASE` is the gate's address. There you
 `export SNAP_TOKEN=<your account token>`, which every tool below sends as a Bearer header.
 
+## 0. Find this server's Snap
+
+    curl -s $BASE/mainodes/snap/info
+
+It returns `pack` (use it as `$PACK` below: `tools/snap_agent_page.sh` and `tools/snapcall.py` are in it), `input`
+(this server's input folder: pictures you name must be there), `output`, `base`, and `code` (the Snap code the server
+serves). A machine can hold several ComfyUI installs: trust this answer, not a folder you found by searching.
+
 ## 1. Open a Snap page
 
 Either the person opens `$BASE/?snap` in their browser, or you start a headless page of your own:
@@ -21,7 +29,10 @@ Either the person opens `$BASE/?snap` in their browser, or you start a headless 
 - On a signed-in install, give the sign-in link as the page:
   `bash $PACK/tools/snap_agent_page.sh $BASE "$BASE/gate/login?token=$SNAP_TOKEN&next=/%3Fsnap"`
 
-Calls go to the newest page of your own user that is still connected. Run `curl -s $BASE/mainodes/snap/tools` to see
+Calls go to a page of your own user that is still connected: one running the server's current code first, then your
+own headless page before the person's visible tab, then the newest. Each call's answer names the page under `page`.
+If it says the page runs older Snap code (`page_warning`, or an "Unknown Snap tool" error that says so), start your own
+page with `snap_agent_page.sh $BASE --new`; never reload or close the person's tab yourself. Run `curl -s $BASE/mainodes/snap/tools` to see
 your open pages under `pages`, with when each registered and when it last answered. When no page is open, every call
 says how to start one.
 
@@ -109,17 +120,21 @@ A character lives once, on a Cast record: name, trigger words, a details line, a
 reference pictures. Every save of a record is a new version; old versions stay. Recipes and takes pin the version
 they used (`cast:<id>@2`).
 
-1. Make one: `save_cast {"name": "Kon", "trigger": "kon_fennec", "details": "a fennec-eared courier girl, teal hoodie",
+1. Put the picture into this server's input folder first (works on a signed-in install too, with your Bearer header):
+   `curl -s -F image=@front.png -F subfolder=snap $BASE/upload/image` answers `{"name": ..., "subfolder": "snap"}`: the
+   file is then `snap/<name>`. A file already there is fine: `curl -s "$BASE/mainodes/snap/info?input=snap/front.png"`
+   says `input_exists`.
+2. Make one: `save_cast {"name": "Kon", "trigger": "kon_fennec", "details": "a fennec-eared courier girl, teal hoodie",
    "lora": {"file": "<an identity LoRA from list_loras>", "strength": 0.8}, "refs": [{"file": "<input picture>",
    "role": "identity: front"}]}`. Without a LoRA, give `"lora": null`. A take's frame becomes a picture with
    `use_take {"take": ..., "as": "reference"}` (its file is in References).
-2. Put it in the recipe: `apply_cast {"cast": "cast:<id>"}`. The Cast row, the details sentence and the pictures go in;
+3. Put it in the recipe: `apply_cast {"cast": "cast:<id>"}`. The Cast row, the details sentence and the pictures go in;
    `describe_recipe` → `world` shows `n` (the version the recipe holds).
-3. Render as usual (`run`, `run_status`).
-4. Change the character: `save_cast` again with `"cast": "cast:<id>"` and the whole character (say what changed in
+4. Render as usual (`run`, `run_status`).
+5. Change the character: `save_cast` again with `"cast": "cast:<id>"` and the whole character (say what changed in
    `note`). The recipe does not change by itself: `describe_recipe.world` says `moved: true`, and `list_takes` shows
    `stale.world` ("Kon v1 → v2").
-5. Re-take: `retake {"take": "<id>", "world": "latest"}` updates each moved record first ("today's world");
+6. Re-take: `retake {"take": "<id>", "world": "latest"}` updates each moved record first ("today's world");
    `"world": "pinned"` runs it exactly as it was. It spends GPU time, so it waits as a proposal unless agents may run.
    The new take is a version of the old one in `get_scene`. To update the open recipe without running, call
    `update_pins`.

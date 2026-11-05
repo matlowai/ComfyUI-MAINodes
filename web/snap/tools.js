@@ -460,6 +460,11 @@ export const TOOLS = [
       const id = cast ? W.parse(cast).id : null;
       if (id && !W.record("cast", id)) throw new Error(`No Cast record ${cast}; list_cast shows them`);
       if (lora?.file && !M.loraChoices().some(([f]) => f === lora.file)) throw new Error(`No LoRA file "${lora.file}" here; list_loras shows them (a file is pinned by its name)`);
+      // U72 F21: a picture must be in this server's input folder; say which folder was looked in and how to put it there
+      for (const r of body.refs ?? []) {
+        const at = await (await api.fetchApi(`/mainodes/snap/info?input=${encodeURIComponent(r.file ?? "")}`)).json();
+        if (!at.input_exists) throw new Error(`The picture "${r.file}" isn't in this server's input folder (${at.input}). Put it there with POST ${location.origin}/upload/image (multipart: image=<file>, subfolder=snap), then give refs [{"file": "snap/<its name>", ...}]`);
+      }
       const out = await L.saveCast(id, { ...body, lora: lora ?? null }, { note, by: "agent" });
       return { cast: `cast:${out.id}`, ref: out.ref, version: out.n, made: out.made, said: out.made ? `${body.name} v${out.n} saved` : `nothing changed: ${body.name} stays v${out.n}`, ...(out.warning ? { warning: out.warning } : {}), next: "apply_cast {cast} puts it in the open recipe" };
     },

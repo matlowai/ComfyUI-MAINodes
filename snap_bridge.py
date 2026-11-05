@@ -42,12 +42,25 @@ from .dials import core as dial_core
 from .video_out import MAIVideoOut
 
 TIMEOUT = 30
-tools = []         # the tool table the open Snap page registered
 # the tabs that registered, oldest first: websocket client id -> the ComfyUI user whose page it is (the comfy-user header,
-# set by snap-gate per account), when it registered and when it last answered. A call goes to the newest page of the
-# caller's own user that is still connected, so one account's agent never drives another's page
+# set by snap-gate per account), when it registered and when it last answered, the Snap code it loaded, whether it is a
+# headless (agent's) page, and its tool table. A call goes to a page of the caller's own user that is still connected,
+# so one account's agent never drives another's page: one running the code the server serves now first, then an
+# agent's own page before a person's visible tab, then the newest (U72 F20)
 pages = {}
-PAGE_SH = Path(__file__).parent / "tools" / "snap_agent_page.sh"
+PACK = Path(__file__).parent
+PAGE_SH = PACK / "tools" / "snap_agent_page.sh"
+WEB = PACK / "web"
+
+
+def served_code():
+    """A short hash of the Snap code the server serves now (each web file's name, size and change time): a page that
+    loaded other code runs older code than a reload would give it."""
+    h = hashlib.sha1()
+    for p in sorted(WEB.rglob("*.js")):
+        st = p.stat()
+        h.update(f"{p.relative_to(WEB)}|{st.st_size}|{st.st_mtime_ns}".encode())
+    return h.hexdigest()[:12]
 
 
 def user_of(request):
@@ -62,10 +75,25 @@ def open_pages(user):
     return [c for c, p in pages.items() if p["user"] == user and c in PromptServer.instance.sockets]
 
 
+def chosen(user, code=None):
+    """The page calls go to: current code first, then an agent's own (headless) page, then the newest."""
+    found, code = open_pages(user), code or served_code()
+    return max(found, key=lambda c: (pages[c]["code"] == code, pages[c]["headless"], found.index(c))) if found else None
+
+
+def stale_note(client, base):
+    p = pages[client]
+    loaded = f"loaded {time.strftime('%H:%M', time.localtime(p['registered_first']))}" + ("" if p["code"] else ", before pages reported their code")
+    who = "an agent's page" if p["headless"] else "a person's visible tab"
+    return (f"This Snap page ({who}, {loaded}) runs older Snap code than the server serves now, so tools added since are missing. "
+            f"Reload it, or start your own agent page: bash {PAGE_SH} {base} --new (calls then go to it).")
+
+
 def health(user):
-    now, found = time.time(), open_pages(user)
+    now, found, code = time.time(), open_pages(user), served_code()
+    to = chosen(user, code)
     return [{"registered_s_ago": round(now - pages[c]["registered"]), "last_answer_s_ago": None if pages[c]["answered"] is None else round(now - pages[c]["answered"]),
-             "calls_go_here": c == found[-1]} for c in found]
+             "code_current": pages[c]["code"] == code, "headless": pages[c]["headless"], "tools": len(pages[c]["tools"]), "calls_go_here": c == to} for c in found]
 pending = {}       # call id -> (future answered by /mainodes/snap/result, the page it was sent to)
 
 
@@ -79,35 +107,67 @@ routes = PromptServer.instance.routes
 @routes.post("/mainodes/snap/register")
 async def register(request):
     body = await request.json()
-    tools[:] = body["tools"]
     for c in [c for c in pages if c not in PromptServer.instance.sockets]:
         del pages[c]
-    pages.pop(body["client"], None)  # re-registering (focus, reconnect) makes it the newest
-    pages[body["client"]] = {"user": user_of(request), "registered": time.time(), "answered": None}
-    return web.json_response({"tools": len(tools)})
+    was = pages.pop(body["client"], None)  # re-registering (focus, reconnect) makes it the newest
+    now = time.time()
+    pages[body["client"]] = {"user": user_of(request), "registered": now, "registered_first": was["registered_first"] if was else now, "answered": None,
+                             "code": body.get("code"), "headless": bool(body.get("headless")), "tools": body["tools"]}
+    return web.json_response({"tools": len(body["tools"]), "code_current": body.get("code") == served_code()})
 
 
 @routes.get("/mainodes/snap/tools")
 async def listing(request):
-    """The tool table, and the caller's open Snap pages: when each registered and last answered (a health check)."""
-    return web.json_response({"tools": tools, "pages": health(user_of(request))})
+    """The tool table of the page calls go to, and the caller's open Snap pages: when each registered and last answered,
+    whether it runs the code the server serves now, whether it is an agent's own page (a health check)."""
+    user = user_of(request)
+    to = chosen(user)
+    out = {"tools": pages[to]["tools"] if to else [], "pages": health(user), "code": served_code()}
+    if to and pages[to]["code"] != out["code"]:
+        out["warning"] = stale_note(to, f"{request.scheme}://{request.host}")
+    return web.json_response(out)
+
+
+@routes.get("/mainodes/snap/info")
+async def info(request):
+    """Where this server and its Snap live (U72 F22): the pack folder (tools/snap_agent_page.sh, tools/snapcall.py are in
+    it), the code it serves, ComfyUI's base, input and output folders. ?input=<path> says whether that file is in input/."""
+    q = {"pack": str(PACK), "code": served_code(), "agent_page": str(PAGE_SH), "snapcall": str(PACK / "tools" / "snapcall.py"), "mcp": str(PACK / "tools" / "snap_mcp.py"),
+         "base": str(Path(folder_paths.base_path)), "input": folder_paths.get_input_directory(), "output": folder_paths.get_output_directory(),
+         "upload": "POST /upload/image (multipart: image=<file>, subfolder=snap) puts a picture into input/; its value is <subfolder>/<name>"}
+    if "input" in request.query:
+        root = os.path.abspath(folder_paths.get_input_directory())
+        path = os.path.abspath(os.path.join(root, request.query["input"]))
+        q["input_exists"] = os.path.commonpath((root, path)) == root and os.path.isfile(path)
+    return web.json_response(q)
 
 
 @routes.post("/mainodes/snap/call")
 async def call(request):
     body = await request.json()
-    found = open_pages(user_of(request))
-    if not tools or not found:
-        base = f"{request.scheme}://{request.host}"
+    base = f"{request.scheme}://{request.host}"
+    client, code = chosen(user_of(request)), served_code()
+    if not client:
         return error(f"No Snap page is open for you on this ComfyUI: it may have been locked or closed. Open {base}/?snap in a browser, or start a "
                      f"headless one for yourself: bash {PAGE_SH} {base} (it returns once the page has registered).", 503)
-    if body.get("tool") not in {t["name"] for t in tools}:
-        return error(f"Unknown Snap tool {body.get('tool')!r}: GET /mainodes/snap/tools lists them.", 404)
-    client, call_id = found[-1], secrets.token_hex(8)
+    stale = pages[client]["code"] != code
+    if body.get("tool") not in {t["name"] for t in pages[client]["tools"]}:
+        return error(f"Unknown Snap tool {body.get('tool')!r}: GET /mainodes/snap/tools lists them." + (f" {stale_note(client, base)}" if stale else ""), 404)
+    call_id = secrets.token_hex(8)
     pending[call_id] = (asyncio.get_running_loop().create_future(), client)
     await PromptServer.instance.send("mainodes-snap-call", {"id": call_id, "tool": body["tool"], "args": body.get("args") or {}}, client)
+    page = {"headless": pages[client]["headless"], "code_current": not stale}
     try:
-        return web.json_response(await asyncio.wait_for(pending[call_id][0], TIMEOUT))
+        out = await asyncio.wait_for(pending[call_id][0], TIMEOUT)
+        if stale:  # said inside the answer, where every client shows it
+            note = stale_note(client, base)
+            if "error" in out:
+                out["error"] = f"{out['error']} ({note})"
+            elif isinstance(out.get("result"), dict):
+                out["result"] = {**out["result"], "page_warning": note}
+            else:
+                out["warning"] = note
+        return web.json_response({**out, "page": page})
     except TimeoutError:
         return error(f"The Snap page did not answer within {TIMEOUT} s. Long work returns at once (run, then run_status with wait_s); "
                      "GET /mainodes/snap/tools shows when your page last answered.", 504)

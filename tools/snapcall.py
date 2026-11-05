@@ -41,6 +41,6 @@ if pictures:
         with open(path, "wb") as f:
             f.write(base64.b64decode(p["data"]))
         saved.append(path)
-    out = {"result": {**{k: v for k, v in result.items() if k not in ("image", "images")}, "saved": saved}}
+    out = {**out, "result": {**{k: v for k, v in result.items() if k not in ("image", "images")}, "saved": saved}}
 print(json.dumps(out, indent=1))
 sys.exit(1 if "error" in out else 0)

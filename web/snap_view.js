@@ -13,6 +13,7 @@ import * as rules from "./snap/rules.js";
 import * as S from "./snap/slots.js";
 import * as MD from "./snap/metadata.js";
 import * as PF from "./snap/profile.js";
+import * as sight from "./snap/sight.js";
 
 let view, sw;
 const seen = new Set(), pending = [];
@@ -137,7 +138,10 @@ app.registerExtension({
     S.load().catch(() => {}).then(() => registerWebMCP(agentCall));
     // the bridge sends agent calls to one tab: the one registered last (this tab registers when it loads, regains
     // focus, or reconnects after a server restart)
-    const register = () => S.load().catch(() => {}).then(() => api.fetchApi("/mainodes/snap/register", { method: "POST", body: JSON.stringify({ client: api.clientId, tools: schema() }) }));
+    // U72 F20: the page says which Snap code it loaded (the server's hash of its web files when this page started), and
+    // whether it is an agent's headless page, so the bridge can prefer a current page and say when one runs older code
+    const loaded = api.fetchApi("/mainodes/snap/info").then((r) => (r.ok ? r.json() : {}), () => ({})).then((x) => x.code ?? null);
+    const register = () => Promise.all([S.load().catch(() => {}), loaded]).then(([, code]) => api.fetchApi("/mainodes/snap/register", { method: "POST", body: JSON.stringify({ client: api.clientId, tools: schema(), code, headless: sight.HEADLESS }) }));
     if (api.clientId) register(); else api.addEventListener("status", register, { once: true }); // the id arrives with the first status
     addEventListener("focus", register);
     api.addEventListener("reconnected", register);
