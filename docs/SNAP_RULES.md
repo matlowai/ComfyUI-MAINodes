@@ -331,8 +331,13 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   (the comfy-user header snap-gate sets per account): a call goes to a connected page of the caller's own user, and only
   that page may answer it: the newest tab whose person turned "Let agents see" on (that control is how a person lets
   agents drive their tab, Dylan 2026-11-05), else an agent's own headless page; a person's tab with it off is never
-  driven. `SNAP_PAGE` (snapcall.py, snap_mcp.py) or the `X-Snap-Page` header names one page, so an agent doing
-  background work stays on its own page; every answer names the page that answered (`page.id`). `GET /mainodes/snap/tools` lists the caller's open pages, when each registered and
+  driven. An agent picks its page: `list_pages` names each one (whose, the id's start, the tab or shot it shows) and
+  `use_page` binds the agent (named by `X-Snap-Agent`: SNAP_AGENT for snapcall.py, one name per snap_mcp.py connection)
+  to one page for its session; one agent drives a page at a time, the page shows "Driven by: <agent>" with Release, and
+  another agent reaching it is refused with the driver's name, never switched silently (Dylan 2026-11-05: "easily
+  select which web ui instance you want to interact with and not collide"). `SNAP_PAGE` or the `X-Snap-Page` header
+  sends one call to a page; every answer names the page that answered (`page.id`, `page.name`). `snap_agent_page.sh`
+  never takes a person's tab for the agent's own page. `GET /mainodes/snap/tools` lists the caller's open pages, when each registered and
   last answered; with none open, a call says it may have been locked or closed and how to open one (`tools/snap_agent_page.sh <port>`, which uses a new
   Chrome profile per launch, returns once the page has registered, starts nothing when a page is already open, and
   with `--stop` ends the pages it started, with no pid or kill from the caller). Every brick in `describe_recipe` has an `id`, exactly what
