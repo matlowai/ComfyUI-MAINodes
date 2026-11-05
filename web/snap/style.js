@@ -26,12 +26,15 @@ export const STYLE = `
 .snap-run:hover { filter: brightness(1.08); } .snap-run:active { transform: scale(.97); }
 .snap-run:disabled { opacity: .6; cursor: default; }
 .snap-progress { position: absolute; left: 0; bottom: -1px; height: 2px; width: calc(var(--p, 0) * 100%); background: linear-gradient(90deg, #6aa8ff, #c084fc); transition: width .2s linear, opacity .3s; }
-.snap-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 224px minmax(0, 1fr) 0px; transition: grid-template-columns .3s cubic-bezier(.2, .8, .2, 1); }
-.snap-root.inspecting .snap-body { grid-template-columns: 224px minmax(0, 1fr) var(--insp-w, clamp(380px, 33vw, 860px)); }
+.snap-body { flex: 1; min-height: 0; display: grid; grid-template-columns: var(--rail-w, 304px) minmax(0, 1fr) 0px; transition: grid-template-columns .3s cubic-bezier(.2, .8, .2, 1); }
+.snap-root.inspecting .snap-body { grid-template-columns: var(--rail-w, 304px) minmax(0, 1fr) var(--insp-w, clamp(380px, 33vw, 860px)); }
 .snap-body { position: relative; }
 .snap-root.resizing .snap-body { transition: none; } .snap-root.resizing { cursor: col-resize; user-select: none; }
 .snap-insp-handle { position: absolute; top: 0; bottom: 0; right: var(--insp-w, clamp(380px, 33vw, 860px)); width: 10px; margin-right: -5px; z-index: 6; cursor: col-resize; touch-action: none; display: none; }
 .snap-root.inspecting .snap-insp-handle { display: block; }
+.snap-rail-handle { position: absolute; top: 0; bottom: 0; left: var(--rail-w, 304px); width: 10px; margin-left: -5px; z-index: 6; cursor: col-resize; touch-action: none; }
+.snap-rail-handle::after { content: ""; position: absolute; left: 4px; top: 0; bottom: 0; width: 2px; background: var(--s-accent); opacity: 0; transition: opacity .15s ease-out; }
+.snap-rail-handle:hover::after, .snap-root.resizing .snap-rail-handle::after { opacity: .7; }
 .snap-insp-handle::after { content: ""; position: absolute; left: 4px; top: 0; bottom: 0; width: 2px; background: var(--s-accent); opacity: 0; transition: opacity .15s ease-out; }
 .snap-insp-handle:hover::after, .snap-root.resizing .snap-insp-handle::after { opacity: .7; }
 .snap-root:not(.inspecting) .snap-inspector { visibility: hidden; padding-left: 0; padding-right: 0; border: 0; }
@@ -438,7 +441,7 @@ export const STYLE = `
 .snap-take.dragging { opacity: .4; }
 .snap-take.drop-before { box-shadow: -4px 0 0 var(--s-accent); }
 .snap-take-media { position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #000; border: 1px solid #ffffff14; }
-.snap-take-media video, .snap-take-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.snap-take-media video, .snap-take-media img { width: 100%; height: 100%; object-fit: contain; display: block; } /* a portrait still fits whole, never a torso slice */
 .snap-take.keep .snap-take-media { border-color: #57c785; } .snap-take.reject .snap-take-media { opacity: .55; }
 .snap-take.error .snap-take-media, .snap-take.interrupted .snap-take-media { border-color: #f0b445; }
 .snap-take-none { display: grid; place-items: center; height: 100%; color: var(--s-dim); font-size: 11px; }
@@ -604,7 +607,7 @@ export const STYLE = `
 .snap-shots { display: flex; gap: 10px; overflow: auto hidden; padding: 2px 2px 4px; }
 .snap-shot-tile { flex: none; width: 136px; margin: 0; display: flex; flex-direction: column; gap: 4px; cursor: pointer; border-radius: 10px; outline: none; }
 .snap-shot-media { position: relative; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; background: #000; border: 1px solid #ffffff14; }
-.snap-shot-media video, .snap-shot-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.snap-shot-media video, .snap-shot-media img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .snap-shot-media .snap-take-none { font-size: 10.5px; padding: 0 8px; text-align: center; background: var(--s-card); }
 .snap-shot-media b { position: absolute; left: 5px; top: 5px; font: 700 11px/1 Inter, system-ui, sans-serif; padding: 3px 6px; border-radius: 6px; background: #000a; color: #fff; }
 .snap-shot-tile.on .snap-shot-media { border-color: var(--s-accent); box-shadow: 0 0 0 2px var(--s-accent); }
@@ -623,6 +626,7 @@ export const STYLE = `
 .snap-danger { all: unset; cursor: pointer; padding: 6px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 600; background: #e5534b; color: #fff; white-space: nowrap; }
 .snap-danger:hover, .snap-danger:focus-visible { background: #f06a62; }
 .snap-shot-tile { position: relative; }
+.snap-shot-star { all: unset; position: absolute; left: 4px; bottom: 4px; z-index: 2; cursor: pointer; padding: 1px 7px; border-radius: 6px; font-size: 11px; background: #000b; color: #ffd23f; } .snap-shot-star:hover { background: #000e; }
 .snap-shot-more { all: unset; position: absolute; top: 4px; right: 4px; z-index: 2; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 6px; background: #0009; color: #fff;
   font-size: 14px; cursor: pointer; opacity: 0; } .snap-shot-tile:hover .snap-shot-more, .snap-shot-tile.on .snap-shot-more, .snap-shot-more:focus-visible { opacity: 1; }
 .snap-scene-rename { display: flex; gap: 6px; align-items: center; padding: 4px; } .snap-scene-rename input { flex: 1; min-width: 0; }
@@ -666,7 +670,7 @@ export const STYLE = `
   .snap-stack { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; padding: 16px 12px 48px; --gap: 28px; }
   .snap-brick, .snap-brick.wide { width: auto; min-height: 0; }
   .snap-brick.feeds::after { left: 50%; top: calc(100% - 10px); width: 18px; height: calc(var(--gap) + 20px); margin-left: -9px; background: linear-gradient(180deg, hsl(var(--hue) 65% 58%), hsl(var(--next, var(--hue)) 65% 58%)); }
-  .snap-lanes { display: none; } .snap-brick .snap-bind.more { display: inline-block; } .snap-insp-handle { display: none !important; }
+  .snap-lanes { display: none; } .snap-brick .snap-bind.more { display: inline-block; } .snap-insp-handle, .snap-rail-handle { display: none !important; }
   .snap-top { padding: 0 10px; gap: 6px; } .snap-brand, .snap-top .snap-quiet-btn { display: none; } .snap-notes { padding: 10px 12px 0; }
 }
 .snap-root.docked { position: absolute; z-index: 2; }

@@ -82,6 +82,29 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     handle.addEventListener("pointercancel", up, { once: true });
   });
   handle.addEventListener("dblclick", () => { setWidth(null); try { localStorage.removeItem(WIDTH_KEY); } catch { /* nothing kept */ } });
+  // the bricks rail's width the same way (Dylan 2026-11-05: "the bricks on the left area isnt quite wide enough"): drag
+  // its right edge, double-click resets, kept per browser
+  const RAIL_KEY = "mainodes.snap.railWidth";
+  const railHandle = h("div", { className: "snap-rail-handle", title: "drag to resize the bricks · double-click resets" });
+  const setRail = (px) => { if (px == null) root.style.removeProperty("--rail-w"); else root.style.setProperty("--rail-w", `${Math.round(Math.max(200, Math.min(px, innerWidth * 0.45)))}px`); };
+  try { setRail(Number(localStorage.getItem(RAIL_KEY)) || null); } catch { /* storage blocked: default width */ }
+  railHandle.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    railHandle.setPointerCapture(e.pointerId);
+    root.classList.add("resizing");
+    const left = root.querySelector(".snap-body").getBoundingClientRect().left, move = (m) => setRail(m.clientX - left);
+    const up = () => {
+      railHandle.removeEventListener("pointermove", move);
+      root.classList.remove("resizing");
+      drawLanes();
+      try { localStorage.setItem(RAIL_KEY, String(rail.getBoundingClientRect().width)); } catch { /* not kept */ }
+    };
+    railHandle.addEventListener("pointermove", move);
+    railHandle.addEventListener("pointerup", up, { once: true });
+    railHandle.addEventListener("pointercancel", up, { once: true });
+  });
+  railHandle.addEventListener("dblclick", () => { setRail(null); try { localStorage.removeItem(RAIL_KEY); } catch { /* nothing kept */ } });
   const status = h("span", { className: "snap-status" });
   // what the recipe loads, at a glance: family, setup, size on disk; a click opens the setups
   const setupPill = h("button", { className: "snap-setup", hidden: true, onclick: () => openSetups() });
@@ -165,7 +188,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Make app", title: "open this recipe in ComfyUI's App mode: the brick faces become a run-only app (reloads the graph)", onclick: () => onMakeApp() }),
       h("button", { className: "snap-link snap-quiet-btn", title: "Ctrl/Cmd+K", onclick: () => openPalette() }, "Add brick", h("span", { className: "snap-kbd", textContent: `  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}` })), accountChip, driverChip, seeBtn, seg, metaBtn, runBtn, progress),
     staleBar,
-    h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), inspector, handle), toast);
+    h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), inspector, handle, railHandle), toast);
   // takes under the chain: "Use as input" puts a take's frame on the First frame or References brick (T.use)
   const dailies = createDailies({ host: root, say, onRestore: () => render(null), onHover: (t) => previewTake(t), onRunFrom: (t) => runFrom(t).catch((err) => say(err.message, true)),
     onRetake: (t, world) => RT.retake(t, { world }).then((r) => { say(r.said); render(null); }, (err) => say(err.message, true)),

@@ -51,6 +51,15 @@ const FPS = 24;
 const fullItems = (t) => t.media.filter((m) => m.kind !== "audio").map((m, i, all) => ({ src: T.url(m), name: `Take ${t.number}${all.length > 1 ? ` · ${i + 1} of ${all.length}` : ""}`, source: [m.type ?? "output", m.subfolder, m.filename].filter(Boolean).join("/"), kind: m.kind }));
 const fullBtn = (t) => h("button", { className: "snap-take-full", textContent: "⤢", title: "full size", onclick: (e) => { e.stopPropagation(); LB.show(fullItems(t)); } });
 
+// a changed setting as a person reads it (takes.js changes() names node.input, the tooltip keeps that): "Render.text"
+// → "Render prompt changed"; an input it has no words for is spelled out ("shift_video" → "shift video")
+const WORDS = { text: "prompt", prompt: "prompt", value: "setting", noise_seed: "seed", steps: "steps", cfg: "CFG", sampler_name: "sampler", scheduler: "schedule", lora_name: "LoRA",
+  strength_model: "LoRA strength", unet_name: "model", ckpt_name: "model", clip_name: "text encoder", vae_name: "VAE", image: "picture", filename_prefix: "save name" };
+const settingWords = (x) => { const m = x.match(/^(.*)\.([^.\s]+)( rewired)?$/); return m ? `${m[1]} ${WORDS[m[2]] ?? m[2].replace(/_/g, " ")} ${m[3] ? "rewired" : "changed"}` : x; };
+// what of a pinned Cast didn't reach a take (takes.js placedCheck), in plain words; a reason it can't state isn't shown
+const UNPLACED = [[/^its details line isn't in the prompt that ran$/, () => "its description wasn't in the prompt"], [/^its pictures weren't read: (.+)$/, (x) => `its pictures weren't used (${x[1]})`]];
+const unplaced = (p) => (p.placed?.missing ?? []).map((m) => { const hit = UNPLACED.find(([re]) => re.test(m)); return hit && hit[1](m.match(hit[0])); }).filter(Boolean);
+
 function mediaEl(m, { big, muted = true } = {}) {
   if (!m) return h("div", { className: "snap-take-none", textContent: "no picture" });
   if (m.kind === "video") return h("video", { src: T.url(m), muted, loop: !big, playsInline: true, preload: big ? "auto" : "metadata", controls: !!big });
@@ -124,7 +133,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
     if (mine !== checking) return;
     cards.forEach((c, i) => {
       // SNAP-R60: a pinned record that moved on reads first ("Kon v1 → v2"): it is the one a re-take can act on
-      const chip = c.querySelector(".snap-take-stale"), world = (found[i]?.world ?? []).map(T.moveText), list = [...world, ...(found[i]?.changed ?? []).map((x) => `${x}${x.endsWith(" rewired") || / (added|removed|swapped)$/.test(x) ? "" : " changed"}`)];
+      const chip = c.querySelector(".snap-take-stale"), world = (found[i]?.world ?? []).map(T.moveText), list = [...world, ...(found[i]?.changed ?? []).map(settingWords)];
       chip.hidden = !list.length;
       chip.textContent = list.length ? `stale: ${list[0]}${list.length > 1 ? ` +${list.length - 1}` : ""}` : "";
       chip.title = list.length ? [world.length ? `Newer versions of what this take used:\n${world.join("\n")}` : null, found[i]?.changed?.length ? `The chain no longer makes this take:\n${found[i].changed.join("\n")}` : null].filter(Boolean).join("\n\n") : "";
@@ -148,7 +157,8 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
         t.copy?.copied ? h("span", { className: "snap-take-copy", textContent: `copied its reference view ${Math.max(...t.copy.against.map((a) => a.last)).toFixed(2)}`,
           title: `This take ends on the view of its reference picture (last frame's copy score at or above ${t.copy.threshold}): right when that picture is this camera's own plate, wrong when it shows another camera's view.\n${t.copy.against.map((a) => `${a.image}: ${a.frames.join(" → ")}`).join("\n")}` }) : null,
         t.parent && !version ? h("span", { className: "snap-take-parent", textContent: `↳ ${T.versionOf(t.parent.options) ?? t.parent.method.split("/").pop()} of take ${T.get(t.parent.take)?.number ?? "?"}`, title: `made from ${t.parent.take} by ${t.parent.method}` }) : null,
-        ...Object.values(t.world ?? {}).filter((p) => p.placed?.missing).map((p) => h("span", { className: "snap-take-unplaced", textContent: `${p.name} v${p.n}: not all of it ran`, title: p.placed.missing.join("\n") })), // U72 F25
+        ...Object.values(t.world ?? {}).map((p) => [p, unplaced(p)]).filter(([, m]) => m.length).map(([p, m]) => h("span", { className: "snap-take-unplaced", textContent: `${p.name} v${p.n}: ${m[0]}${m.length > 1 ? ` +${m.length - 1}` : ""}`,
+          title: `Parts of ${p.name} v${p.n} (Cast) that didn't reach this take:\n${m.join("\n")}` })), // U72 F25, in plain words (Dylan 2026-11-05)
         t.cached_from ? h("span", { className: "snap-take-parent snap-take-cached", textContent: `= same result as take ${T.get(t.cached_from)?.number ?? "?"}`, title: "identical recipe, seed included: ComfyUI served the earlier result from its cache, so this take is that same file (an exact reproduction, not a new render)" }) : null,
         t.metadata_kept ? h("span", { className: "snap-take-kept", textContent: "metadata kept", title: `Save metadata was off, but ${t.metadata_kept.join("; ")}: those files hold the prompt and workflow` }) : null,
         T.quiet(t) ? h("span", { className: "snap-take-quiet", textContent: "🔈 sound is quiet", title: `The sound averages ${t.sound.mean_db} dB (a take usually sits between -27 and -41 dB). Open the take to make it louder or re-prompt` }) : null,

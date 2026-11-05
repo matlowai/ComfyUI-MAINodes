@@ -1,6 +1,6 @@
 // The scene navigator (U59), above the chain: where the open tab sits in its scene, as a breadcrumb (Scene › Shot ›
 // Take › version, ending on the shot's active take), and the scene's shots in order, each with its active take's
-// picture. A click opens a shot in the scene tab (the open shot is saved first; a card shot with no camera plate offers
+// picture (or, with none active, its newest take's and "☆ make active"). A click opens a shot in the scene tab (the open shot is saved first; a card shot with no camera plate offers
 // its plate candidates as a proposal), a drag reorders the shots, + adds one (empty, or from a Library shot card) and
 // opens it, a shot's ⋯ renames it, re-runs its take with swaps or takes it out of the scene. A scratch tab shows one quiet line instead: open a
 // scene, or add this workflow and its takes to one. The Scenes sheet lists the scenes, makes new ones, renames and
@@ -50,9 +50,11 @@ export function createSceneBar({ host, say, onOpened, openTake, run, rerun }) {
   function render() {
     if (pressed) return;
     const here = SC.current();
-    const shots = here ? here.scene.shots.map((x) => ({ x, active: T.get(x.active), n: SC.takesOf(x).length, jobs: jobsOf(x) })) : [];
+    // a shot with takes and none active shows its newest take (Dylan 2026-11-05: tiles said "no takes yet" over 78 takes)
+    const newest = (x) => SC.takesOf(x).map((e) => T.get(e.take)).filter(Boolean).sort((a, b) => a.created - b.created).at(-1) ?? null;
+    const shots = here ? here.scene.shots.map((x) => ({ x, active: T.get(x.active), latest: x.active ? null : newest(x), n: SC.takesOf(x).length, jobs: jobsOf(x) })) : [];
     const trail = here?.shot.active ? SC.path(here.shot, here.shot.active).map(T.get) : [];
-    const now = JSON.stringify(here ? [here.scene.id, here.scene.name, here.scene.set, here.shot.id, shots.map(({ x, active, n, jobs }) => [x.id, x.name, x.card, n, active?.id, shown(active)?.filename, jobs]), trail.map((t) => t?.id)]
+    const now = JSON.stringify(here ? [here.scene.id, here.scene.name, here.scene.set, here.shot.id, shots.map(({ x, active, latest, n, jobs }) => [x.id, x.name, x.card, n, active?.id, shown(active ?? latest)?.filename, jobs]), trail.map((t) => t?.id)]
       : ["scratch", app.graph.nodes.length > 0, SC.all().length]);
     if (now === sig) return;
     sig = now;
@@ -75,7 +77,7 @@ export function createSceneBar({ host, say, onOpened, openTake, run, rerun }) {
         set ? h("span", { className: "snap-scene-set", textContent: `set: ${set.title.replace(/^Set snapshot:\s*/, "")}` }) : null,
         h("button", { className: "snap-link snap-quiet-btn", textContent: "+ Shot", title: "add a shot to this scene and open it", onclick: (e) => addMenu(e.currentTarget, scene) }),
         h("button", { className: "snap-link snap-quiet-btn", textContent: "Scenes", onclick: () => openScenes() })),
-      h("div", { className: "snap-shots", role: "list" }, shots.map(({ x, active, n, jobs }, i) => tile(scene, x, active, n, i, x.id === shot.id, jobs))));
+      h("div", { className: "snap-shots", role: "list" }, shots.map(({ x, active, latest, n, jobs }, i) => tile(scene, x, active, latest, n, i, x.id === shot.id, jobs))));
   }
 
   // the shot's open jobs (in flight, or waiting for a pick): how many, and the most pressing state
@@ -84,16 +86,18 @@ export function createSceneBar({ host, say, onOpened, openTake, run, rerun }) {
       && (r.about.shot === shot.id || mine.has(r.about.take) || shot.groups.includes(r.about.group)));
     return rows.length ? { n: rows.length, state: rows.some((r) => r.state === "failed") ? "failed" : rows.some((r) => r.state === "waiting") ? "waiting" : "live", titles: rows.map((r) => r.title) } : null;
   }
-  function tile(scene, shot, active, n, i, on, jobs) {
+  function tile(scene, shot, active, latest, n, i, on, jobs) {
     const card = shot.card && L.get(shot.card);
     const t = h("figure", { className: `snap-shot-tile${on ? " on" : ""}`, role: "listitem", tabIndex: 0, draggable: true,
       title: on ? "the open shot" : `open ${SC.shotTitle(scene, shot)} here (this shot is saved first)`, onclick: () => on || open(scene.id, shot.id) },
-      h("div", { className: "snap-shot-media" }, thumb(active, card ? "shot card, not rendered yet" : "no takes yet"), h("b", { textContent: String(i + 1) }),
+      h("div", { className: "snap-shot-media" }, thumb(active ?? latest, card ? "shot card, not rendered yet" : "no takes yet"), h("b", { textContent: String(i + 1) }),
+        latest ? h("button", { className: "snap-shot-star", textContent: "☆ make active", title: `make the newest take (${SC.label(latest)}) this shot's active take; the takes strip's ☆ picks another`,
+          onclick: (e) => { e.stopPropagation(); act(async () => (await run("set_active_take", { scene: scene.id, shot: shot.id, take: latest.id }), `${SC.label(latest)} is now ${SC.shotTitle(scene, shot)}'s take`)); } }) : null,
         jobs ? h("span", { className: `snap-shot-jobs ${jobs.state}`, textContent: String(jobs.n), title: `${jobs.n} open job${jobs.n === 1 ? "" : "s"} (the Work card has them):\n${jobs.titles.join("\n")}` }) : null),
       h("button", { className: "snap-shot-more", textContent: "⋯", title: "rename, re-run its take with swaps, or take it out of the scene", ariaLabel: `${SC.shotTitle(scene, shot)}: more`,
         onclick: (e) => { e.stopPropagation(); shotMenu(e.currentTarget, scene, shot); } }),
       h("figcaption", {}, h("strong", { textContent: shot.name || `Shot ${i + 1}` }),
-        h("span", { className: "snap-quiet", textContent: n ? `${n} take${n === 1 ? "" : "s"}${active ? ` · ★ ${SC.label(active)}` : ""}` : card ? "from its shot card" : "empty" })));
+        h("span", { className: "snap-quiet", textContent: n ? (active ? `${n} take${n === 1 ? "" : "s"} · ★ ${SC.label(active)}` : `no active take · ${n} take${n === 1 ? "" : "s"}`) : card ? "from its shot card" : "empty" })));
     t.dataset.shot = shot.id;
     t.addEventListener("keydown", (e) => { if (e.key === "Enter" && !on) open(scene.id, shot.id); });
     const v = t.querySelector("video");
