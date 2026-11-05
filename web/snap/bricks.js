@@ -37,6 +37,7 @@ const PACK = {
       derope_steps: ["preset", "derope_steps"], conditioning: ["preset", "conditioning"], cfg: ["preset", "cfg"],
     },
     face: [["preset", "model", "model"], ["preset", "lora", "LoRA"], ["preset", "lora_strength", "LoRA strength"], ["preset", "steps", "steps"]],
+    turbo: true, // H3's turbo is the preset's LoRA (Pika Flex, DMAD): the Turbo slot swaps it here (SNAP-R10)
   },
   rack: {
     title: "Dial Rack", icon: "◐", hue: 35,

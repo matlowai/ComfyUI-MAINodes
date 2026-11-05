@@ -67,7 +67,7 @@ export const folders = () => { const m = new Map(); for (const [name, f] of file
 const MINE = "snap/models.json";
 const base = (f) => String(f ?? "").replace(/\\/g, "/").split("/").pop();
 // the pack's `families` say which family a file's name puts it in when no entry does (SNAP-R13: data, not code)
-let relations = new Map(), packed = new Map(), families = [], relating = null, problem = null;
+let relations = new Map(), packed = new Map(), families = [], variants = new Map(), relating = null, problem = null;
 // the person's file; one that doesn't parse throws, so nothing writes over it
 const mine = async () => { const r = await api.getUserData(MINE); return r.ok ? r.json() : []; };
 export const overlay = (pack, own) => ({ ...pack, ...Object.fromEntries(Object.entries(own).filter(([, v]) => v != null)) });
@@ -75,6 +75,7 @@ function loadGraph() {
   relating ??= Promise.all([api.fetchApi("/mainodes/snap/models").then((r) => r.json()).catch(() => ({ models: [], families: [] })),
     mine().catch((e) => { problem = `Your snap/models.json was skipped (${e.message}); Snap uses the pack's model graph until it parses`; return []; })]).then(([pack, own]) => {
     families = pack.families.map((f) => [new RegExp(f.names), f.name]);
+    variants = new Map(pack.families.map((f) => [f.name, f.variants ?? []]));
     relations = new Map(pack.models.map((e) => [base(e.file), e]));
     packed = new Map(relations);
     for (const e of own) relations.set(base(e.file), overlay(relations.get(base(e.file)), e));
@@ -378,19 +379,27 @@ export function warnings() {
 // a merge swaps the diffusion model (only one built on the same Base/SFT lineage); a LoRA adds a core row; either one
 // brings its steps / cfg / sampler / scheduler. "off" puts back what was there before the first turbo: one undo step
 const coreStack = () => E.state().bricks.find((b) => BRICKS[b.key].stack?.role === "core")?.key ?? null;
+// a family's base variants (H3: ref2v, fl2v) come from the model graph's families: a file whose name holds one is for it
+const variantOf = (name) => (variants.get(family()) ?? []).find((v) => base(name).toLowerCase().includes(v)) ?? null;
+// H3 carries its one LoRA on the Render Preset (`lora`), not in a core stack: that setting is where its turbo lives
+const single = () => loras().find((r) => r.row === null && r.brick === turboHost()) ?? null;
 export function turbos() {
-  const fam = family(), me = diffusion() && entry(diffusion().file);
-  if (!fam || !coreStack()) return [];
+  const fam = family(), me = diffusion() && entry(diffusion().file), mine = diffusion() && variantOf(diffusion().file);
+  if (!fam || (!coreStack() && !single())) return [];
   const all = [...files.keys()].map((name) => [name, entry(name)]).filter(([, e]) => e?.turbo && e.family === fam && e.loads_in_core !== false);
   const merges = all.filter(([, e]) => e.kind === "turbo_merge" && lineage(e) === lineage(me));
-  const rows = all.filter(([, e]) => e.kind === "lora" && e.role === "core").sort(([, a], [, b]) => (lineage(b) === lineage(me)) - (lineage(a) === lineage(me)));
+  // the ones built for this model come first (Base / SFT lineage, and the base variant: ref2v vs fl2v); the rest stay, labelled
+  const fit = ([name, e]) => (!lineage(e) || !lineage(me) || lineage(e) === lineage(me)) && (!mine || !variantOf(name) || variantOf(name) === mine);
+  const rows = all.filter(([, e]) => e.kind === "lora" && e.role === "core").sort((a, b) => fit(b) - fit(a));
   // a file in two folders under one name (krea2/x and x) is one turbo: the copy in the setup model's folder, else the first
   const dir = (n) => n.replace(/\\/g, "/").replace(/[^/]*$/, ""), home = me && dir(diffusion().file);
   const once = [...merges, ...rows].filter(([name], i, list) => { const twins = list.filter(([n]) => short(n) === short(name)); return (twins.find(([n]) => dir(n) === home) ?? twins[0])[0] === name; });
   return once.map(([name, e]) => ({ file: name, name: short(name), how: e.turbo.how, steps: e.turbo.steps, cfg: e.turbo.cfg, sampler: e.turbo.sampler, scheduler: e.turbo.scheduler,
-    strength: e.recommended?.strength ?? 1, fits: lineage(e) === lineage(me), notes: e.notes ?? "" }));
+    ...(e.turbo.sigmas ? { sigmas: e.turbo.sigmas } : {}), strength: e.recommended?.strength ?? 1, fits: fit([name, e]),
+    ...(fit([name, e]) ? {} : { mismatch: variantOf(name) && variantOf(name) !== mine ? `made for ${variantOf(name)}; this model is ${mine}` : `trained on ${lineage(e) === "sft" ? "SFT" : "Base"}; this model is ${lineage(me) === "sft" ? "SFT" : "Base"}-built` }),
+    notes: e.notes ?? "" }));
 }
-// the brick whose sampling a turbo edits (the image Render; H3 carries its turbo in the Render Preset)
+// the brick whose sampling a turbo edits (the image Render; H3 carries its turbo in the Render Preset, whose LoRA is a turbo)
 export const turboHost = () => E.state().bricks.find((b) => BRICKS[b.key].turbo)?.key ?? null;
 // every LoRA file installed, with what the model graph says about it (for "+ LoRA")
 export const loraChoices = () => [...files].filter(([name, f]) => f.folder === "loras" && !hidden(name)).map(([name]) => [name, entry(name)]);
@@ -398,7 +407,7 @@ export const loraChoices = () => [...files].filter(([name, f]) => f.folder === "
 export function turbo() {
   const model = diffusion();
   if (model && entry(model.file).turbo?.how === "merged") return { file: model.file, how: "merged" };
-  const r = coreStack() && rows(coreStack()).find((x) => x.on && x.entry?.turbo);
+  const r = loras().find((x) => x.on && x.entry?.turbo); // a core row, or the Render Preset's one LoRA (H3: Pika Flex)
   return r ? { file: r.file, how: "lora" } : null;
 }
 
@@ -420,22 +429,26 @@ function quality(was) {
 }
 
 export function setTurbo(name) {
-  const key = turboHost(), stack = coreStack(), was = turbo();
-  if (!key || !stack) throw new Error("This recipe has no Render brick with a core LoRA stack (the image recipes have one)");
+  const key = turboHost(), stack = coreStack(), one = !stack && single(), was = turbo();
+  if (!key || (!stack && !one)) throw new Error("This recipe has no Render brick with a core LoRA stack or a Render Preset LoRA (the image and H3 recipes have one)");
   const t = name && name !== "off" ? turbos().find((x) => x.file === name || x.name === name || base(x.file) === base(name)) : null;
   if (name && name !== "off" && !t) throw new Error(`No turbo "${name}" for ${family() ?? "this recipe"}; there are: ${turbos().map((x) => x.name).join(", ") || "none installed"}`);
-  const back = was && quality(was);
+  // the Render Preset's one LoRA is swapped in place, so a swap needs no way back; "off" does (a setup card, else pick a setup)
+  const back = was && !(one && t) ? quality(was) : [];
   E.batch(() => {
     if (was) { // back to the quality settings first, so turbos swap instead of stacking
       for (const [where, v] of back) E.setValue(...where, v);
-      if (was.how === "lora") removeRow(stack, rows(stack).find((x) => x.file === was.file).row);
+      if (was.how === "lora" && stack) removeRow(stack, rows(stack).find((x) => x.file === was.file).row);
     }
     if (!t) return E.remember(key, "turbo", null);
     const now = sampling(), model = diffusion(), kept = [];
     const set = (where, v) => { kept.push([where, E.getValue(...where)]); E.setValue(...where, v); };
     if (t.how === "merged") set([model.brick, model.node, model.setting], t.file);
-    else addRow(stack, t.file, t.strength);
+    else if (stack) addRow(stack, t.file, t.strength);
+    else { set([one.brick, one.node, one.setting], t.file); set([one.brick, one.node, `${one.setting}_strength`], t.strength); }
     for (const k of ["steps", "cfg", "sampler", "scheduler"]) if (t[k] != null && now[k] && (!now[k].choices || now[k].choices.includes(t[k]))) set([now[k].brick, now[k].node, now[k].name], t[k]);
+    const sig = t.sigmas != null && nodesOf(key).map(([k, n]) => [k, n.widgets?.find((w) => w.name === "sigmas")]).find(([, w]) => w); // a manual schedule's knots (Pika's)
+    if (sig) set([key, sig[0], "sigmas"], t.sigmas);
     E.remember(key, "turbo", { file: t.file, how: t.how, quality: kept });
   });
   app.canvas.setDirty(true, true);

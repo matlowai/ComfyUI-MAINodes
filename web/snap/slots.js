@@ -61,7 +61,8 @@ function installState(m) {
 export function list(id) {
   if (slot(id).kind === "delta") {
     const now = M.turbo()?.file;
-    return M.turbos().map((t) => ({ ...t, id: t.file, title: t.name, does: t.how === "merged" ? "merged checkpoint" : "LoRA", same_lineage: t.fits, install_state: "ready", wired: true, fits: true, current: t.file === now, local_or_api: "local" }));
+    // a turbo built for another base variant or lineage is listed after the fitting ones and says why; it still runs (SNAP-R11)
+    return M.turbos().map((t) => ({ ...t, id: t.file, title: t.name, does: `${t.how === "merged" ? "merged checkpoint" : "LoRA"}${t.mismatch ? ` · ${t.mismatch}` : ""}`, same_lineage: t.fits, install_state: "ready", wired: true, fits: true, current: t.file === now, local_or_api: "local" }));
   }
   if (slot(id).kind === "take") return methods(id).map((m) => ({ ...m, install_state: installState(m), wired: !m.unwired, fits: true, current: false }));
   const now = holder(id), k = kit(E.state().bricks.map((b) => b.key));

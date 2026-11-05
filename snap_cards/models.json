@@ -10,7 +10,8 @@
   },
   {
    "name": "MiniMax H3",
-   "names": "minimax|pika|(^|_)h3(_|$)"
+   "names": "minimax|pika|(^|_)h3(_|$)",
+   "variants": ["ref2v", "fl2v"]
   }
  ],
  "files": [
@@ -1388,7 +1389,7 @@
    "kind": "lora",
    "rating": "pg",
    "trained_on": "base",
-   "turbo": null,
+   "turbo": {"how": "lora", "steps": 6, "cfg": 1, "sampler": "lcm", "scheduler": "manual", "sigmas": "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"},
    "deband": "none",
    "recommended": {
     "strength": 1.0,
@@ -1408,7 +1409,7 @@
    "loads_in_core": true,
    "notes": "Pika H3 Flex for FL2V: pairs with the fl2va checkpoint.",
    "role": "core",
-   "core": "task"
+   "core": "turbo"
   },
   {
    "file": "pika_h3_flex_ref2va_comfy_bf16.safetensors",
@@ -1417,7 +1418,7 @@
    "kind": "lora",
    "rating": "pg",
    "trained_on": "base",
-   "turbo": null,
+   "turbo": {"how": "lora", "steps": 6, "cfg": 1, "sampler": "lcm", "scheduler": "manual", "sigmas": "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"},
    "deband": "none",
    "recommended": {
     "strength": 1.0,
@@ -1437,7 +1438,7 @@
    "loads_in_core": true,
    "notes": "Pika H3 Flex for Ref2V: pairs with the ref2va checkpoint (not fl2va); same sampling as FL2V per Pika's ref2va manifest. The 'Pika + reference pictures' preset uses this pair.",
    "role": "core",
-   "core": "task"
+   "core": "turbo"
   },
   {
    "file": "minimax_h3_DMAD_4step_full_lora_avg_rank_39_bf16.safetensors",
