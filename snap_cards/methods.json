@@ -25,7 +25,29 @@
       "kind": "take",
       "title": "Extend / long clip",
       "off": "the take ends where it ends",
-      "about": "a method that continues a take past H3's clip length, clip by clip, keeping it from drifting (colour, grit) as it goes (PLAN U46, scout/longclip_methods §6)"
+      "about": "a method that continues a take past H3's clip length, clip by clip, keeping it from drifting (colour, grit) as it goes; the longer take lands as a version of the take (PLAN U46, U46b, U46c)",
+      "run": {
+        "clip_frames": 141,
+        "clip": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "vae": "minimax_h3_video_vae_fp16.safetensors",
+        "audio_vae": "minimax_h3_audio_vae_fp32.safetensors",
+        "preset": {
+          "model": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+          "lora": "pika_h3_flex_fl2va_v1_bf16.safetensors",
+          "lora_strength": 1.0,
+          "conditioning": "FL2V (first frame)",
+          "sampler": "lcm",
+          "schedule": "manual",
+          "sigmas": "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0",
+          "steps": 6,
+          "derope_steps": 0,
+          "shift_video": 12.0,
+          "shift_audio": 3.0,
+          "cfg": 1.0
+        },
+        "prompt": "integrated_multimodal_description: [Shot 1] The shot continues without a cut: {scene} The existing motion, camera path, lighting and action carry on uninterrupted from the shot already in progress.",
+        "sound": "Sounds continue without a fresh start: {sound}"
+      }
     },
     {
       "id": "region",
@@ -171,29 +193,64 @@
       "id": "chain",
       "slot": "extend",
       "kind": "take",
-      "title": "Chain",
-      "does": "masked carry, clip by clip",
-      "packs": ["H3ExtensionPlan", "H3TailContext", "H3ProtectPrefix", "H3SeamNormalize"],
-      "needs": [{ "folder": "diffusion_models", "match": "minimax_h3" }],
+      "title": "Standard",
+      "face": "keeps going, colour holds",
+      "does": "carries the sampler's latent from clip to clip (Geiru Context, protection off) and matches each clip's colour at the join (Seam Normalize)",
+      "packs": ["H3ClownContextExperimental", "H3SeamNormalize", "LTXVConcatAVLatent"],
+      "needs": [{ "folder": "diffusion_models", "match": "minimax_h3_fl2va" }, { "folder": "text_encoders", "match": "minimax_h3" }, { "folder": "vae", "match": "minimax_h3_audio_vae" }],
+      "options": {
+        "antiburn": {
+          "default": 0,
+          "min": 0,
+          "max": 1,
+          "step": 0.05,
+          "file": "h3_antiburn_universal_v1.safetensors",
+          "why": "off by default: on a carry chain it only softened the picture at every length tested (8 clips, 35 s; detail 0.59 vs 1.41 of the first clip)"
+        }
+      },
       "local_or_api": "local",
-      "constraints": ["17k+5 frames per clip; overlap 39 + 51k frames"],
-      "guidance": { "line": "unlimited length, drift builds clip by clip; Anti-Burn 0.5 on clips 2+ is the cheap Standard protection (untested here)", "evidence": "opinion", "source": "scout/longclip_methods §6 (MAINodes h3_extend.py)" },
-      "cost": { "community_s": null, "local_s": null, "vram_gb": null },
-      "unwired": "not wired yet: needs the extend graph (U46) and one real run; untested in Snap"
+      "constraints": [
+        "each new clip is 141 frames: it adds 102 frames (4.25 s), the last one 119 (4.96 s)",
+        "the take's dials don't carry into the new clips; its own H3 preset does when it rendered from a first frame or text"
+      ],
+      "guidance": {
+        "line": "colour holds over 8 clips (saturation 1.08-1.16 of the first clip, the old re-encode chain 1.37-1.58), seams no worse; faces get a little crisper by 35 s, no grain at 100 %",
+        "evidence": "measured",
+        "source": "U46b (2 scenes, 8 clips, one seed) + U46c crop check (proto/ui/262)",
+        "n": 2,
+        "hardware": "RTX 5090"
+      },
+      "cost": { "local_s_per_clip": 85, "per": "141-frame clip at 1280×704 on a 5090 (U46c: 2 clips in 190 s with the model load; 28-40 s at 832×480 in U46b)", "vram_gb": null }
     },
     {
       "id": "geiru",
       "slot": "extend",
       "kind": "take",
-      "title": "Protected chain (Geiru)",
-      "does": "chain + keystone, late lock, context noise",
-      "packs": ["H3ClownContextExperimental", "H3ClownKeyframe", "H3ClownLateLock", "H3ClownContextNoise", "H3ClownProtectionLora", "H3ClownChain"],
-      "needs": [{ "folder": "diffusion_models", "match": "minimax_h3" }, { "folder": "loras", "match": "antiburn" }],
+      "title": "Strong (Geiru)",
+      "face": "keeps the look, may reset the action",
+      "does": "Standard's carry plus Geiru's protection: a keystone from the take's end, Late Lock, context noise and Anti-Burn on every new clip",
+      "packs": ["H3ClownContextExperimental", "H3ClownKeyframe", "H3ClownLateLock", "H3ClownContextNoise", "H3ClownProtectionLora", "H3SeamNormalize", "LTXVConcatAVLatent"],
+      "needs": [
+        { "folder": "diffusion_models", "match": "minimax_h3_fl2va" },
+        { "folder": "text_encoders", "match": "minimax_h3" },
+        { "folder": "vae", "match": "minimax_h3_audio_vae" },
+        { "folder": "loras", "match": "antiburn" }
+      ],
+      "protection": { "antiburn": 0.5, "file": "h3_antiburn_universal_v1.safetensors", "context_noise": 1.0, "placement": "keystone front + capstone back", "late_lock_step": 3 },
       "local_or_api": "local",
-      "constraints": ["8 s clips (192 frames), context 39, drop_last 17", "turn protection off at cuts; the keystone must match the scene", "point Geiru Protection LoRA at the local Anti-Burn file: its default downloads it"],
-      "guidance": { "line": "best measured protection: 50 clips (about 5:20) over 4 scenes held where the plain chain broke; keystone + Late Lock step 4 + context noise 1 linear + Anti-Burn 0.6 on clips 2+; static shots still darken (untested here)", "evidence": "measured", "source": "scout/longclip_methods §3.2 (roycho87 NerdNotes, one seed per run)", "n": 1 },
-      "cost": { "community_s": null, "local_s": null, "vram_gb": null },
-      "unwired": "not wired yet: the Geiru nodes run through the graph, chained per clip; no Snap graph for it yet and no GPU run here (untested)"
+      "constraints": [
+        "turn it off across cuts and scene changes: the keystone pulls every clip back toward the take's end",
+        "Geiru's own Protection LoRA downloads Anti-Burn by default; Snap always names the local file"
+      ],
+      "guidance": {
+        "line": "holds the look hardest, but the keystone can pull the action back (U46: scene 1 looped toward its first frame); for long stretches of one locked scene",
+        "evidence": "measured",
+        "source": "U46 arm c (5 scenes, 3 clips, one seed) + scout/longclip_methods §3.2",
+        "n": 5,
+        "hardware": "RTX 5090"
+      },
+      "cost": { "local_s_per_clip": 45, "per": "141-frame clip at 832×480 on a 5090", "vram_gb": null },
+      "credit": "Geiru context suite by roycho87 (https://github.com/roycho87/geiru_context_suite)"
     },
     {
       "id": "crop_inpaint",

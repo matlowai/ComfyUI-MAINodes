@@ -17,6 +17,7 @@ import * as T from "./takes.js";
 import * as PL from "./plates.js";
 import * as C from "./candidates.js";
 import * as ED from "./edits.js";
+import * as EX from "./extend.js";
 import * as S from "./slots.js";
 import * as P from "./proposals.js";
 import * as SC from "./scenes.js";
@@ -290,6 +291,28 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onRepr
         editBtn.disabled = m?.install_state !== "ready"; editBtn.title = m?.install_state === "ready" ? m.guidance?.line ?? "" : m?.install_state ?? ""; };
       methodPick.onchange = times; times();
     }, (err) => { editNote.textContent = `Edit methods unavailable: ${err.message}`; });
+    // Make it longer (U46c, SNAP-R50): the extend slot's methods; the button says the length it makes (SNAP-R4)
+    const longPick = h("select", { ariaLabel: "how to make it longer" }), clipsIn = h("input", { type: "number", min: 1, step: 1, value: 1, ariaLabel: "clips to add", className: "snap-take-clips" });
+    const burnIn = h("input", { type: "range", min: 0, max: 1, step: 0.05, value: 0, ariaLabel: "Anti-Burn" }), burnOut = h("span", { className: "snap-quiet" });
+    const burnRow = h("label", { className: "snap-take-burn", title: "" }, h("span", { textContent: "Anti-Burn" }), burnIn, burnOut);
+    const longNote = h("div", { className: "snap-quiet", role: "status" });
+    const longBtn = h("button", { className: "snap-primary", onclick: async () => {
+      longBtn.disabled = true;
+      try { const r = await EX.start(t, longPick.value, { clips: Number(clipsIn.value), antiburn: Number(burnIn.value) }); longNote.textContent = `Making it ${r.seconds} s (about ${r.eta_s} s of GPU): the longer take lands in Takes as a version of take ${t.number}`; } catch (err) { longNote.textContent = err.message; }
+      longBtn.disabled = false;
+    } });
+    S.load().then(() => {
+      const list = S.list("extend");
+      longPick.replaceChildren(...list.map((m) => h("option", { value: m.id, textContent: `${m.title} · ${m.face}` })));
+      const face = () => {
+        const m = list.find((x) => x.id === longPick.value), n = Math.max(1, Math.floor(Number(clipsIn.value)) || 1), burn = Number(burnIn.value);
+        burnRow.hidden = !m?.options?.antiburn; burnRow.title = m?.options?.antiburn?.why ?? ""; burnOut.textContent = burn ? burn.toFixed(2) : "off";
+        try { const l = EX.length(t, n); longBtn.textContent = `Make it ${l.seconds} s (+${l.added} s)`; } catch (err) { longBtn.textContent = "Make it longer"; longNote.textContent = err.message; }
+        longBtn.disabled = m?.install_state !== "ready";
+        longBtn.title = [m?.install_state === "ready" ? m.guidance?.line : m?.install_state, m?.credit && `Powered by ${m.credit}`].filter(Boolean).join("\n");
+      };
+      longPick.onchange = clipsIn.oninput = burnIn.oninput = face; face();
+    }, (err) => { longNote.textContent = `Extend methods unavailable: ${err.message}`; });
     let editSig = "", pressed = false;
     editBox.addEventListener("pointerdown", () => { pressed = true; });
     editBox.addEventListener("pointerup", () => { pressed = false; setTimeout(edits, 0); });
@@ -351,7 +374,9 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onRepr
           t.text ? h("details", {}, h("summary", { textContent: "Prompt" }), h("p", { className: "snap-take-text", textContent: t.text })) : null,
           useRow,
           isVideo ? [h("div", { className: "snap-rail-title", textContent: "Edit this take" }), h("div", { className: "snap-set-actions" }, methodPick, timePick, editBtn), editNote,
-          T.locked(t) ? h("p", { className: "snap-quiet", textContent: "🔒 Private take: its edits are private too (locked, left out of exports)." }) : null, editBox] : null,
+          T.locked(t) ? h("p", { className: "snap-quiet", textContent: "🔒 Private take: its edits are private too (locked, left out of exports)." }) : null, editBox,
+          h("div", { className: "snap-rail-title", textContent: "Make it longer" }), h("div", { className: "snap-set-actions" }, longPick, h("label", { className: "snap-quiet" }, "+ ", clipsIn, " clips")), burnRow,
+          h("div", { className: "snap-set-actions" }, longBtn), longNote] : null,
           h("div", { className: "snap-set-actions" },
             activeBtn, priorBtn,
             h("button", { className: "snap-link", textContent: "Use these settings", title: "put this take's settings back on the open workflow (one undo step)", onclick: () => { try { say(`${T.restore(t)} settings restored from take ${t.number}`); onRestore?.(); } catch (err) { say(err.message, true); } } }),

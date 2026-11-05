@@ -1,8 +1,8 @@
 // Method slots (SNAP-R14, UX_GEMS §5): a slot is a named position holding one interchangeable method. A media slot sits
 // between two media sockets (upscale: the Render's IMAGE or VIDEO and Save); a delta slot edits values on nodes that
 // exist (turbo: its methods are the model graph's turbos, in models.js); a take slot holds methods that make a new take
-// from an existing one (edit: relight, in edits.js; extend and region: data-only entries for installed packs, not wired
-// yet), so nothing in the chain fills it. The registry is snap_cards/methods.json under the person's userdata snap/methods.json (field by
+// from an existing one (edit: relight, in edits.js; extend: Standard and Strong, in extend.js; region: data-only entries
+// for installed packs, not wired yet), so nothing in the chain fills it. The registry is snap_cards/methods.json under the person's userdata snap/methods.json (field by
 // field, the person wins, as the model graph). Readiness comes from the model folders and installed nodes at run time.
 // SNAP-R1 generic pass-through · SNAP-R4 outcome faces · SNAP-R11 warn, never block · SNAP-R13 data, not code branches ·
 // SNAP-R14 method slots · SNAP-R19 the tool table is the API · see docs/SNAP_RULES.md

@@ -305,6 +305,16 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   are dial files, which keep their own sentence pairs. *Why:* Dylan, 2026-11-04: "Save metadata off should stop metadata
   from writing. If there's anything that doesn't have a toggle for that in the flow, let them know." *More:* PLAN U81,
   `snap_bridge.py`, proto/test_metadata_off.py, test_metadata_flows.js.
+- **SNAP-R50: A longer take carries the sampler's latent.** The extend slot makes a take longer by whole clips and lands
+  the joined clip as a version of the take. Standard encodes the take's last 39 frames and their sound once, then every
+  new clip starts from the clip before it as sampled (Geiru Context, protection off, head 39, drop_last 17): nothing is
+  decoded and encoded again per clip, which is where the old chain's colour creep came from. Each clip's colour is matched
+  on the 22 frames it holds (Seam Normalize). Anti-Burn is a slider, off by default. Strong adds Geiru's keystone (the
+  take's end), Late Lock, context noise and Anti-Burn 0.5, and its face says "keeps the look, may reset the action". The
+  button says the length it makes ("Make it 15.6 s (+9.8 s)"). Any number of clips can be asked for. *Why:* U46b:
+  saturation over 8 clips 1.08-1.16 with the carry vs 1.37-1.58 re-encoding; Anti-Burn on a carry only softened (detail
+  0.59 vs 1.41); a 100 % crop of the carry's rising detail shows crisper faces, no grain (proto/ui/262). *More:* PLAN
+  U46c, U46_EXTEND_AB_2026-11-04.md, `web/snap/extend.js`.
 - **SNAP-R39: A rating comes from how a thing was made.** Nothing Snap makes or proposes is unrated. A prompt is rated
   when it is queued, from its text and the files it loads, and the highest wins: Adult when a string input holds one of
   the terms in `snap_cards/nsfw_terms.json` (parts anywhere, words as whole words, camelCase split; a person's own

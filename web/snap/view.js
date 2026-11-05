@@ -697,11 +697,15 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const pick = async (id) => { try { const r = await S.set(slot, id); say(def.kind === "delta" ? `Turbo ${r.turbo ? `on · ${r.sampling.steps} steps, cfg ${r.sampling.cfg}` : "off · quality settings back"}` : `${def.title}: ${r.method}${r.headline ? ` · ${r.headline}` : ""}`); close(); } catch (err) { say(err.message, true); } render(null); };
     const detail = (m) => (def.kind === "delta" ? [m.steps && `${m.steps} steps`, m.cfg != null && `cfg ${m.cfg}`, m.sampler, m.scheduler, m.how === "lora" && `strength ${m.strength}`, !m.same_lineage && "trained on the other lineage (often transfers)"]
       : [m.does, m.media && (m.media.in === m.media.out ? m.media.in.toLowerCase() : `${m.media.in} → ${m.media.out}`.toLowerCase())]).concat(m.local_or_api === "api" ? "API: sends frames to a partner service" : m.local_or_api).filter(Boolean).join(" · ");
-    const item = (m) => h("button", { className: `snap-setup-card${m.current ? " on" : ""}${m.wired && m.fits ? "" : " unwired"}`, disabled: !(m.wired && m.fits) || m.current, onclick: () => pick(m.id) },
+    // a take slot's methods run from a take (its viewer, or edit_take), so here they are read, not picked; a method's
+    // `credit` is its tooltip (U73)
+    const item = (m) => h("button", { className: `snap-setup-card${m.current ? " on" : ""}${m.wired && m.fits ? "" : " unwired"}`, disabled: !(m.wired && m.fits) || m.current || def.kind === "take",
+      title: m.credit ? `Powered by ${m.credit}` : "", onclick: () => pick(m.id) },
       h("strong", {}, m.title.replaceAll("_", "_\u200b"), h("em", { className: m.install_state === "ready" ? "" : "tab", textContent: def.kind === "delta" ? m.does : `${m.install_state === "ready" ? "●" : "○"} ${m.install_state}` })),
+      m.face ? h("span", { className: "snap-face-line", textContent: m.face }) : null,
       h("span", { className: "snap-quiet", textContent: detail(m) }),
       ...guidance(m).map((line) => line && h("span", { className: "snap-quiet snap-guidance", textContent: line })),
-      !m.fits ? h("span", { className: "snap-quiet", textContent: `for ${m.kit} recipes` }) : m.unwired ? h("span", { className: "snap-quiet", textContent: m.unwired }) : null);
+      !m.fits ? h("span", { className: "snap-quiet", textContent: `for ${m.kit} recipes` }) : m.unwired ? h("span", { className: "snap-quiet", textContent: m.unwired }) : def.kind === "take" ? h("span", { className: "snap-quiet", textContent: "runs on a take: open one in Takes" }) : null);
     const off = def.kind === "delta" || (d.current && BRICKS[S.holder(slot)].slot) ? h("button", { className: `snap-setup-card${d.on ? "" : " on"}`, onclick: () => pick("off") }, h("strong", {}, "Off", h("em", { textContent: def.kind === "delta" ? "quality" : "kept, bypassed" })), h("span", { className: "snap-quiet", textContent: def.off })) : null;
     const sheet = h("div", { className: `snap-sheet snap-setup-sheet snap-method-sheet snap-${slot}-sheet`, role: "dialog", ariaLabel: `${def.title} methods` },
       h("header", {}, h("strong", { textContent: def.kind === "delta" ? `${def.title} · ${M.family()}` : `${def.title} method` }),

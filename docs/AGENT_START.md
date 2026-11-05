@@ -93,6 +93,9 @@ You can also run the tools as an MCP server (Claude Code):
 7. `list_takes`, `take_frames` (look at a take) and `rank_takes` / `judge_takes` (your own judgments, kept apart from
    the person's) come after that. A video take whose `sound.quiet` is true is near-silent: tell the person. Offer
    `make_louder` (a louder version of the take) or a prompt that names the sounds the action makes.
+8. To make a take longer, call `edit_take {"take": "<id>", "method": "chain", "clips": 2}`. Standard (`chain`) holds the
+   colour; `geiru` (Strong) keeps the look but may reset the action. Each clip adds about 4.25 s, and the longer take
+   lands as a version of the take.
 
 ## Limits
 

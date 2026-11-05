@@ -28,6 +28,7 @@ import * as S from "./slots.js";
 import * as PL from "./plates.js";
 import * as C from "./candidates.js";
 import * as ED from "./edits.js";
+import * as EX from "./extend.js";
 import * as K from "./checks.js";
 import * as SC from "./scenes.js";
 import * as OB from "./onboarding.js";
@@ -805,12 +806,18 @@ export const TOOLS = [
   },
   {
     name: "edit_take",
-    description: "Edit a take with a method of the edit slot (list_methods slot: edit). relight ('Night version'; time: night, dusk or dawn): MOSS edits the take's frame 0 and mid frame, `count` candidates (default 2; the edit LoRAs take turns, seeds vary), each with identity notes against the take's own frames (\"probably a different person\" from ArcFace on the faces, \"hair lighter than original\" from SAM 3.1's hair mask: U53b's edits turned hair grey; head crops of both). Returns at once with the decision id; follow with list_candidates, then apply_candidate runs the Ripple render. Uses GPU time: unless the person lets agents run, this waits as a proposal they accept.",
-    inputSchema: { type: "object", properties: { take: { type: "string" }, method: { type: "string" }, time: { type: "string", enum: ["night", "dusk", "dawn"] }, count: { type: "integer", minimum: 1, maximum: 3 } }, required: ["take"] },
+    description: "Edit a take with a method of the edit slot (list_methods slot: edit). relight ('Night version'; time: night, dusk or dawn): MOSS edits the take's frame 0 and mid frame, `count` candidates (default 2; the edit LoRAs take turns, seeds vary), each with identity notes against the take's own frames (\"probably a different person\" from ArcFace on the faces, \"hair lighter than original\" from SAM 3.1's hair mask: U53b's edits turned hair grey; head crops of both). Returns at once with the decision id; follow with list_candidates, then apply_candidate runs the Ripple render. Also makes a take longer with a method of the extend slot: chain (Standard: carries the latent clip to clip, colour holds; antiburn 0-1, off by default) or geiru (Strong: keeps the look, may reset the action); `clips` new clips (1 or more, no limit), each adding about 4.25 s; the longer take lands as a version at once, no candidates. Uses GPU time: unless the person lets agents run, this waits as a proposal they accept.",
+    inputSchema: { type: "object", properties: { take: { type: "string" }, method: { type: "string" }, time: { type: "string", enum: ["night", "dusk", "dawn"] }, count: { type: "integer", minimum: 1, maximum: 3 },
+      clips: { type: "integer", minimum: 1 }, antiburn: { type: "number", minimum: 0, maximum: 1 }, prompt: { type: "string", description: "extend only: the new clips' prompt (default: the take's own, said to continue without a cut)" } }, required: ["take"] },
     annotations: { consequentialHint: true },
     consequential: true,
-    plan: async ({ count = 2 }) => ({ runs: `${count} MOSS edit candidates of frame 0 and the middle frame, each with identity notes; the Ripple render waits for the pick`, eta_s: count * 2 * 16, from: "U54: 12-19 s per anchor edit on a 5090" }),
-    run: async ({ take, method = "relight", time = "night", count = 2 }) => { await T.load(); const t = T.get(take); if (!t) throw new Error(`No take ${take}`); return ED.start(t, method, { time, count, by: "agent" }); },
+    plan: async ({ method = "relight", count = 2, clips = 1 }) => (await S.load(), S.list("extend").some((m) => m.id === method)
+      ? { runs: `${clips} new clip${clips > 1 ? "s" : ""} after the take, joined to it as a version`, eta_s: clips * ((await EX.method(method)).cost?.local_s_per_clip ?? 60), from: "U46b: 28-40 s per 141-frame clip at 832×480 on a 5090" }
+      : { runs: `${count} MOSS edit candidates of frame 0 and the middle frame, each with identity notes; the Ripple render waits for the pick`, eta_s: count * 2 * 16, from: "U54: 12-19 s per anchor edit on a 5090" }),
+    run: async ({ take, method = "relight", time = "night", count = 2, clips = 1, antiburn = 0, prompt }) => {
+      await Promise.all([T.load(), S.load()]); const t = T.get(take); if (!t) throw new Error(`No take ${take}`);
+      return S.list("extend").some((m) => m.id === method) ? EX.start(t, method, { clips, antiburn, prompt, by: "agent" }) : ED.start(t, method, { time, count, by: "agent" });
+    },
   },
   {
     name: "use_take",
