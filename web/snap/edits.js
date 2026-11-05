@@ -137,9 +137,19 @@ export async function does(d) {
 }
 async function identity(d, c) {
   const m = await method(d.method);
-  if (m.identity === "new person") return { new_person: m.does }; // a recast's point is someone else (U69: ArcFace ~0, "hair" on a bald head +65)
+  if (m.identity === "new person") return { new_person: m.does, ...(d.options?.picture ? { cast: await castFace(d, c) } : {}) }; // a recast's point is someone else (U69: ArcFace ~0, "hair" on a bald head +65)
   const v = d.clip.video, more = [Math.round(d.clip.frames / 4), Math.round((3 * d.clip.frames) / 4)].map((frame) => ({ video: v, frame }));
   try { return await K.identityCheck(c.pictures.map((p) => [{ video: v, frame: p.frame }, { image: K.annotated(p.media) }]), more, { does: await does(d) }); } catch (e) { return { error: e.message }; }
+}
+// a recast painted from a Cast's picture (U89 Reuse the motion): each painted face against that picture, so a person sees
+// which candidate kept the Cast's face (run 7: c1 matched, c2 was another woman). The same check as an edit's, the
+// picture in the take's place; a note, never a gate (SNAP-R23)
+async function castFace(d, c) {
+  const name = Object.values(d.world ?? {})[0]?.name ?? "the Cast";
+  try {
+    const n = await K.identityCheck(c.pictures.map((p) => [{ image: d.options.picture }, { image: K.annotated(p.media) }]));
+    return n.error ? { name, picture: d.options.picture, error: n.error } : { name, picture: d.options.picture, face_low: n.face_low, different: n.face_low != null && n.face_low < n.different_person, different_person: n.different_person, scores: n.scores.map(({ face, crops, no_head }) => ({ face, crops, ...(no_head ? { no_head } : {}) })) };
+  } catch (e) { return { name, picture: d.options.picture, error: e.message }; }
 }
 // the identity notes again, for every candidate of an edit that has its frames (a note from an older check, or after the
 // model graph's thresholds changed); a few seconds of detection, nothing renders

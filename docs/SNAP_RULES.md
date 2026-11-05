@@ -144,7 +144,11 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   woman scores 0.34-0.60 at night) shows its cosine as "face check unreliable under relighting" and never the
   different-person flag. What an edit does is its example's `does` (night, dusk, dawn: relight), else its method's:
   Change something in the person's own words is an edit and keeps the face check, whichever method runs it (Dylan's
-  "make her jacket sparkle magic" on Ripple was muted as a relight and a different woman went unflagged, batch E). Both miss things (dark frames and profiles score low, blonder hair doesn't show), so the
+  "make her jacket sparkle magic" on Ripple was muted as a relight and a different woman went unflagged, batch E). A
+  recast has no face check against the take (someone else is the point), but one painted from a Cast's picture compares
+  each painted face with that picture: "probably not <name>" below the same threshold, else the number only ("face vs
+  Lio's picture 0.72"), since above it ArcFace doesn't rank likeness (batch E GPU check: run 7's other-looking c2 scored
+  0.72, the closer c1 0.53). Both miss things (dark frames and profiles score low, blonder hair doesn't show), so the
   head crops sit beside them and decide. Agents list and pre-screen candidates and recommend one; their apply / reject / undo waits
   for the person as a proposal unless "Let agents run" is on (SNAP-R16), and every pick records who made it (SNAP-R17).
   Any take's frame can be used as an input (First frame or a reference picture), and the brick remembers which take

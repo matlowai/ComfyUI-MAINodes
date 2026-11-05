@@ -21,7 +21,11 @@ export function noteChips(c) {
       title: `where ${n.layout.detector} finds each thing against the plan:\n${n.layout.rows.map((r) => `${r.ok === false ? "✗" : r.ok ? "✓" : "·"} ${r.name}: plan ${r.plan}, found ${r.found}`).join("\n")}` }));
   // identity (U61): a chip per flag, else the two numbers quietly; the head crops on the tile decide
   const id = n.identity, sign = (x) => `${x > 0 ? "+" : ""}${x}`;
-  if (id?.new_person) out.push(h("span", { className: "snap-cand-note", textContent: "new person", title: "A recast puts someone else in on purpose, so there is no face or hair check: look at the painted frame" }));
+  const cast = id?.cast, faces = cast?.scores?.map((s) => s.face ?? "no face").join(", ");
+  if (id?.new_person && cast && !cast.error && cast.face_low != null) out.push(cast.different
+    ? h("span", { className: "snap-cand-note warn", textContent: `probably not ${cast.name}`, title: `ArcFace, ${cast.name}'s picture against the painted face: ${faces}; below ${cast.different_person} it is likely someone else (a profile or a small face scores low too): compare the head crops` })
+    : h("span", { className: "snap-cand-note", textContent: `face vs ${cast.name}'s picture ${cast.face_low.toFixed(2)}`, title: `ArcFace, ${cast.name}'s picture against the painted face: ${faces} (below ${cast.different_person} it reads "probably not ${cast.name}"). Above that it doesn't rank likeness well: a painted face that looks like someone else can score higher than one that looks like ${cast.name}, so compare the head crops` }));
+  else if (id?.new_person) out.push(h("span", { className: "snap-cand-note", textContent: "new person", title: cast?.error ? `A recast puts someone else in on purpose; the face against the Cast's picture wasn't checked: ${cast.error}` : "A recast puts someone else in on purpose, so there is no face or hair check: look at the painted frame" }));
   else if (id?.error) out.push(h("span", { className: "snap-cand-note", textContent: "identity: not checked", title: id.error }));
   else if (id && !("face_low" in id)) out.push(h("span", { className: "snap-cand-note", textContent: "identity: older check", title: "a note from the DINOv3 head-crop check, which couldn't tell grey hair from kept hair; check again for the face and hair notes" }));
   else if (id) {
@@ -52,10 +56,10 @@ export function candidatesEl(d, { say, crops } = {}) {
       : [h("span", { className: "snap-quiet", textContent: c.state === "rendering" ? "rendering…" : c.state === "failed" ? `failed: ${c.error ?? ""}` : `rejected by ${c.rejected?.by ?? "person"}` })];
     const pics = c.pictures.length ? c.pictures.map((p) => (/\.(mp4|webm|mov)$/i.test(p.media?.filename ?? "") ? h("video", { src: url(p.media), title: p.label, muted: true, loop: true, playsInline: true, preload: "metadata", onpointerenter: (e) => e.target.play(), onpointerleave: (e) => e.target.pause() }) // a re-run's candidate is a take's video
       : h("img", { src: url(p.media), alt: p.label, title: p.label, loading: "lazy" }))) : [h("div", { className: "snap-cand-none" })];
-    const id = crops && c.notes.identity?.scores;
+    const id = crops && (c.notes.identity?.scores ?? c.notes.identity?.cast?.scores), versus = c.notes.identity?.cast ? `${c.notes.identity.cast.name}'s picture` : "the take's frame";
     const tile = h("figure", { className: `snap-cand ${c.state}${rec ? " recommended" : ""}`, tabIndex: 0 },
       h("div", { className: "snap-cand-pics" }, pics),
-      id ? h("div", { className: "snap-cand-crops", title: "head crops: the take's frame | the edit" }, id.flatMap((s) => s.crops.filter(Boolean).map((m) => h("img", { src: url(m), alt: "head crop", loading: "lazy" })))) : null,
+      id ? h("div", { className: "snap-cand-crops", title: `head crops: ${versus} | the edit` }, id.flatMap((s) => (s.crops ?? []).filter(Boolean).map((m) => h("img", { src: url(m), alt: "head crop", loading: "lazy" })))) : null,
       h("figcaption", {},
         h("div", { className: "snap-cand-line" }, h("b", { textContent: c.label ? `${c.id} · ${c.label}` : c.id }), h("span", { className: "snap-quiet", textContent: [c.seed != null ? `seed ${c.seed}` : null, c.made?.lora ? c.made.lora.replace(/\.safetensors$/, "").replace(/_/g, " ").slice(0, 28) : null, c.by !== "person" ? `by ${c.by}` : null].filter(Boolean).join(" · ") })),
         h("div", { className: "snap-cand-notes" }, noteChips(c)),
