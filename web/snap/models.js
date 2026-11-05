@@ -118,7 +118,7 @@ export function entry(name) {
 // the person files a file ("what is this?"): kept in their snap/models.json, so the answer is remembered
 export const teach = (name, patch) => serial(() => write(name, patch));
 async function write(name, patch) {
-  const own = await mine().catch((e) => { throw new Error(`snap/models.json doesn't parse (${e.message}); fix it before Snap adds to it`); });
+  const own = await mine().catch((e) => { throw new Error(`snap/models.json couldn't be read or doesn't parse (${e.message}); nothing was written over it`); });
   const at = own.findIndex((e) => base(e.file) === base(name));
   const e = { ...(own[at] ?? { file: base(name) }), ...patch };
   own.splice(at < 0 ? own.length : at, at < 0 ? 0 : 1, e);
@@ -156,7 +156,7 @@ export function categories() {
 // entry as it was (null when there was none)
 export const moveTo = (file, id, opts) => serial(() => move(file, id, opts));
 async function move(file, id, { by = "person", reason = null } = {}) {
-  const own = await mine().catch((e) => { throw new Error(`snap/models.json doesn't parse (${e.message}); fix it before Snap adds to it`); });
+  const own = await mine().catch((e) => { throw new Error(`snap/models.json couldn't be read or doesn't parse (${e.message}); nothing was written over it`); });
   const before = own.find((e) => base(e.file) === base(file)) ?? null, e = entry(file);
   // SNAP-R55: the person's filing wins over an agent's (an entry of theirs from before `filed` existed counts as theirs)
   if (by === "agent" && !id.startsWith("rating:") && (before?.role || before?.tags) && before.filed?.by !== "agent")
