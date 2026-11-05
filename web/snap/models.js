@@ -379,7 +379,10 @@ export function turbos() {
   const all = [...files.keys()].map((name) => [name, entry(name)]).filter(([, e]) => e?.turbo && e.family === fam && e.loads_in_core !== false);
   const merges = all.filter(([, e]) => e.kind === "turbo_merge" && lineage(e) === lineage(me));
   const rows = all.filter(([, e]) => e.kind === "lora" && e.role === "core").sort(([, a], [, b]) => (lineage(b) === lineage(me)) - (lineage(a) === lineage(me)));
-  return [...merges, ...rows].map(([name, e]) => ({ file: name, name: short(name), how: e.turbo.how, steps: e.turbo.steps, cfg: e.turbo.cfg, sampler: e.turbo.sampler, scheduler: e.turbo.scheduler,
+  // a file in two folders under one name (krea2/x and x) is one turbo: the copy in the setup model's folder, else the first
+  const dir = (n) => n.replace(/\\/g, "/").replace(/[^/]*$/, ""), home = me && dir(diffusion().file);
+  const once = [...merges, ...rows].filter(([name], i, list) => { const twins = list.filter(([n]) => short(n) === short(name)); return (twins.find(([n]) => dir(n) === home) ?? twins[0])[0] === name; });
+  return once.map(([name, e]) => ({ file: name, name: short(name), how: e.turbo.how, steps: e.turbo.steps, cfg: e.turbo.cfg, sampler: e.turbo.sampler, scheduler: e.turbo.scheduler,
     strength: e.recommended?.strength ?? 1, fits: lineage(e) === lineage(me), notes: e.notes ?? "" }));
 }
 // the brick whose sampling a turbo edits (the image Render; H3 carries its turbo in the Render Preset)
