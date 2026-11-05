@@ -54,6 +54,9 @@ The amber steps are what the model actually gets: one value per latent frame, ab
 - **times**: `0..1 of the clip` stretches with the clip length, `seconds` stays put (use it to match "(1-6 s)" in a
   prompt). Switching converts the points without moving them. **clip s** is the length the editor draws; a run sets it.
 - Presets: **off → on**, **on → off**, **ramp up**, **ramp down**, and **dip** (1 with a short dip to −1 in the middle).
+- **rate smoothing** (0 to 1, linear curves): 0 draws straight lines between the points; higher values round the
+  corners so the strength eases in and out of each point instead of changing speed at once. The curve still goes
+  through every point and never past it. A manual step envelope has the same slider.
 - The text box under the canvas holds the points as `[[time, level], ...]`: type there for exact numbers.
 - **Copy / Paste** move a curve to another row or another rack (for de-rope, copy it to the stage-2 rack).
 - Points stay at least 1/6 s apart. Changes sharper than a latent frame are averaged, and renders ramp over about

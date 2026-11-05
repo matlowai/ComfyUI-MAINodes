@@ -2,7 +2,7 @@
 
 The rack row's **time** editor (`timeEditor` in `web/dial_rack.js`) used to only draw the curve; points came from presets
 and a JSON box. This note is the plan for editing keyframe curves on the canvas. The saved row is unchanged
-(`time: {type: "keys", points, unit, interp, steps, audio}`, checked by `dials/timecurve.py` `check_spec`): the editor
+(`time: {type: "keys", points, unit, interp, smooth, steps, audio}`, checked by `dials/timecurve.py` `check_spec`): the editor
 writes the same fields through the same widget, so old workflows load as they were and the backend is not touched.
 
 ## How people will use it
@@ -77,7 +77,10 @@ to 0.1 s labels and the latent-frame ticks, hit tests, snapping and the box all 
   (and reload the node) along with the curve.
 
 ## Not built, and why
-- **Bezier / smooth handles:** the backend has linear and step only, and renders ramp over ~1.5 s anyway.
+- **Bezier / smooth handles:** per-point handles are not built; one **rate smoothing** slider (`smooth` 0..1, linear
+  only) rounds every corner instead: the slope ramps across each key, still through the key and never past it
+  (`dials/envelopes.py` `keyframes`; the editor's `keyframes` in `web/dial_rack.js` mirrors it, checked by
+  `tests/test_dial_timecurve.py`). The blue curve and the amber per-frame bars both show the smoothed curve.
 - **Live scale fields:** the scale tools apply on a button press with the number beside it, so a half-typed number
   never rewrites the curve; undo covers each press.
 - **Invert of the whole curve (1 − M):** flip (−M) covers the reversal Dylan needed.

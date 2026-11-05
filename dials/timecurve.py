@@ -13,7 +13,8 @@ frames, an audio frame's M the curve at its start.
 Curves: keyframes [[t, m], ...] in seconds or normalized clip time (0 = first frame, 1 = clip end) with linear or step
 interpolation, or a feature of the rack's curve_audio (the music given to H3 as reference audio), shaped as
 M = offset + gain * f with f = the feature scaled to 0..1 over the track, thresholded, attack/release smoothed and
-optionally inverted.
+optionally inverted. Linear keys take rate smoothing, smooth 0..1 (0, the default, is straight lines): the slope ramps
+across each key instead of jumping, through every key and without overshoot (envelopes.keyframes); step ignores it.
 
 De-rope (two passes): with Time Smear's hold_map_used on the rack, a sampler whose clip has the stretched length evaluates
 the curves in real clip time. Stretched pixel frame s shows real frame r(s) (the held copies of a frame all show it) and
@@ -52,9 +53,11 @@ def check_spec(spec):
         if not points or any(not math.isfinite(t) or not math.isfinite(m) for t, m in points) or any(
                 a[0] >= b[0] for a, b in zip(points, points[1:])):
             raise ValueError("time curve keys need finite [time, value] points with strictly increasing times")
-        out.update(points=points, unit=spec.get("unit", "normalized"), interp=spec.get("interp", "linear"))
+        out.update(points=points, unit=spec.get("unit", "normalized"), interp=spec.get("interp", "linear"), smooth=float(spec.get("smooth", 0.)))
         if out["unit"] not in ("seconds", "normalized") or out["interp"] not in ("linear", "step"):
             raise ValueError("time curve keys: unit is 'seconds' or 'normalized', interp 'linear' or 'step'")
+        if not 0 <= out["smooth"] <= 1:
+            raise ValueError(f"time curve keys: smooth (rate smoothing) is a number from 0 to 1 (0 = linear), not {out['smooth']}")
     elif kind == "audio":
         out["feature"] = spec.get("feature", "onset")
         if out["feature"] not in FEATURES:
@@ -104,11 +107,11 @@ def curve_fn(spec, duration, features=None):
         times = np.arange(len(values)) / FEATURE_RATE
         return lambda t: np.interp(t, times, values)
     scale = duration if spec["unit"] == "normalized" else 1.
-    times = np.array([t * scale for t, _ in spec["points"]])
-    values = np.array([m for _, m in spec["points"]])
     if spec["interp"] == "step":
+        times = np.array([t * scale for t, _ in spec["points"]])
+        values = np.array([m for _, m in spec["points"]])
         return lambda t: values[np.clip(np.searchsorted(times, t, side="right") - 1, 0, None)]
-    return lambda t: np.interp(t, times, values)
+    return envelopes.keyframes([(t * scale, m) for t, m in spec["points"]], spec["smooth"])
 
 
 def clip_clock(latent_t, audio_t):

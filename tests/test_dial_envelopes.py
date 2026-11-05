@@ -156,13 +156,21 @@ def main():
     manual = envelopes.envelope_points({"type": "manual", "points": [[.2, -1.], [.8, 2.]]})
     assert envelopes.interpolate(manual, 0) == -1 and envelopes.interpolate(manual, 1) == 2
     assert abs(envelopes.interpolate(manual, .5) - .5) < 1e-12
+    bell = {"type": "manual", "points": [[0, 0], [.5, 1], [1, 0]]}
+    linear = envelopes.EnvelopeForward([("a", a, 1., envelopes.envelope_curve(bell))], PIKA).rows[0][2]
+    assert linear == envelopes.EnvelopeForward([("a", a, 1., envelopes.envelope_curve(dict(bell, smooth=0)))], PIKA).rows[0][2]
+    assert linear == [envelopes.interpolate(envelopes.envelope_points(bell), i / 5) for i in range(6)]
+    smooth = envelopes.EnvelopeForward([("a", a, 1., envelopes.envelope_curve(dict(bell, smooth=1)))], PIKA).rows[0][2]
+    assert smooth[0] == 0 and all(0 <= v <= 1 for v in smooth) and smooth[1] < linear[1] and smooth[2] > linear[2], smooth  # eases out of 0, rounds the peak
+    for bad in (-.5, 2):
+        fails(lambda: envelopes.envelope_curve(dict(bell, smooth=bad)), "envelope smooth (rate smoothing) is a number from 0 to 1")
     for shape, expected in (("constant", [1., 1., 1., 1., 1., 1.]), ("early", [1., .6, .2, 0., 0., 0.]),
                             ("late", [0., 0., 0., .2, .6, 1.]), ("bell", [0., .4, .8, .8, .4, 0.])):
-        compiled = envelopes.EnvelopeForward([("a", a, 1., envelopes.envelope_points(shape))], PIKA)
+        compiled = envelopes.EnvelopeForward([("a", a, 1., envelopes.envelope_curve(shape))], PIKA)
         actual = compiled.rows[0][2]
         assert len(actual) == 6 and all(abs(a - b) < 1e-12 for a, b in zip(actual, expected))
     fails(lambda: envelopes.EnvelopeForward([], torch.tensor([1., 1., 0.])), "strictly decreasing")
-    assert len(envelopes.EnvelopeForward([("a", a, 1., manual)], torch.tensor([.5, 0.])).progress) == 1
+    assert len(envelopes.EnvelopeForward([("a", a, 1., envelopes.keyframes(manual))], torch.tensor([.5, 0.])).progress) == 1
     assert not any("D1" in k for k in nodes.NODE_CLASS_MAPPINGS), "D1 diagnostics still registered"
     print(json.dumps({"constant_parity": evidence, "zero_max_abs_diff": 0.0, "checks": "all passed"}, indent=2))
     print("dial envelopes: constant/zero, sigma selection, ordering, isolation, filtering and validation passed")

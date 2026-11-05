@@ -7,13 +7,21 @@
      the curve or, with protect, stays exactly the plain prediction;
   4. rows with one spec share a branch (float64 sum), different specs blend independently;
   5. the H3 clock: latent frames <-> pixel frames <-> seconds, audio frames at 40 Hz;
-  6. audio features and shaping on synthetic signals; validation errors; the curve_audio input is last and optional.
+  6. audio features and shaping on synthetic signals; validation errors; the curve_audio input is last and optional;
+  7. rate smoothing: smooth 0 is the linear curve bit for bit, smooth > 0 passes through every key, stays monotone
+     between keys (no overshoot), has a continuous slope at every key, keeps the flat holds and leaves step alone; the
+     editor's JS (web/dial_rack.js, run with node) computes the same curve.
 """
 import importlib
 import json
 import logging
 import math
+import os
+import re
+import shutil
+import subprocess
 
+import numpy as np
 import torch
 
 from test_dial_rack import H, comfy, dial, nodes, rack
@@ -217,17 +225,84 @@ def check_ui():
     spec = {"type": "audio", "feature": "low", "gain": 2, "audio": "protect"}
     assert presets.preset_rows([{"dial": "dials/x.safetensors", "strength": 1, "time": spec}])[0]["time"] == spec
     fails(lambda: presets.preset_rows([{"dial": "dials/x.safetensors", "strength": 1, "time": {"type": "keys"}}]), "invalid preset time curve")
+    smooth = keys([[0, 0], [.5, 1], [1, 0]], smooth=.5)
+    assert presets.preset_rows([{"dial": "dials/x.safetensors", "strength": 1, "time": smooth}])[0]["time"] == smooth
+    fails(lambda: presets.preset_rows([{"dial": "dials/x.safetensors", "strength": 1, "time": dict(smooth, smooth=2)}]), "smooth (rate smoothing)")
     inputs = nodes.DialRack.GET_SCHEMA().inputs
     assert inputs[-2].id == "curve_audio" and inputs[-2].optional
 
 
+def random_keys(rng, n):
+    times = np.cumsum(rng.uniform(.05, 1.5, n)) - rng.uniform(0, .5)
+    values = rng.choice([rng.uniform(-2, 2), 0., 1.], n) if rng.random() < .3 else rng.uniform(-2, 2, n)
+    return [[float(t), float(m)] for t, m in zip(times, values)]
+
+
+def js_curves(cases):
+    """-> M from the editor's timeCurve (web/dial_rack.js) for each (spec, seconds, times), run with node."""
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "web", "dial_rack.js")).read()
+    funcs = [re.search(rf"^function {name}\(.*?^}}$", src, re.M | re.S).group(0) for name in ("keyframes", "timeCurve")]
+    script = "\n".join(funcs) + "\nconst cases = JSON.parse(require('fs').readFileSync(0, 'utf8'));\n" \
+        "process.stdout.write(JSON.stringify(cases.map(([spec, seconds, times]) => timeCurve(spec, seconds, times))));"
+    out = subprocess.run(["node", "-e", script], input=json.dumps(cases), capture_output=True, text=True, check=True)
+    return json.loads(out.stdout)
+
+
+def check_smooth():
+    rng = np.random.default_rng(7)
+    sets = [[[0, 0], [.3, 1], [.6, 1], [.8, -1], [1, .5]], [[0, 0], [.5, 1]], [[0, 1], [.4, 1], [.45, -1], [.55, -1], [.6, 1]],
+            [[.1, 0], [.2, .2], [.7, .9], [.9, 1]], [[.5, .7]]] + [random_keys(rng, int(rng.integers(2, 9))) for _ in range(40)]
+    for points in sets:
+        linear = timecurve.check_spec(keys(points))
+        assert linear["smooth"] == 0 and timecurve.frame_weights(linear, 42, 235) == timecurve.frame_weights(timecurve.check_spec(keys(points, smooth=0)), 42, 235)
+        t = np.linspace(points[0][0] - .5, points[-1][0] + .5, 4001)
+        x, y = np.array(points).T
+        assert np.array_equal(timecurve.curve_fn(linear, 1.)(t), np.interp(t, x, y)), "smooth 0 is not the linear curve"
+        step = timecurve.check_spec(keys(points, interp="step"))
+        assert np.array_equal(timecurve.curve_fn(dict(step, smooth=1.), 1.)(t), timecurve.curve_fn(step, 1.)(t))
+        for smooth in (.05, .3, .5, .8, 1.):
+            f = timecurve.curve_fn(timecurve.check_spec(keys(points, smooth=smooth)), 1.)
+            assert np.allclose(f(x), y, rtol=0, atol=1e-12), (points, smooth)
+            assert np.all(f(t[t <= x[0]]) == y[0]) and np.all(f(t[t >= x[-1]]) == y[-1]), "flat holds moved"
+            for (t0, m0), (t1, m1) in zip(points, points[1:]):
+                v = f(np.linspace(t0, t1, 400))
+                lo, hi = min(m0, m1), max(m0, m1)
+                assert v.min() >= lo - 1e-12 and v.max() <= hi + 1e-12, f"overshoot between keys {(t0, m0)} and {(t1, m1)}"
+                assert np.all(np.diff(v) * np.sign(m1 - m0) >= -1e-12), "not monotone between keys"
+            for i in range(len(x) if len(x) > 1 else 0):  # one-sided slopes meet at every key (the ends meet the flat holds)
+                gap, scale = min(np.diff(x).min(), 1.) * 1e-4, 1 + np.abs(np.diff(y) / np.diff(x)).max()
+                left, right = (f(x[i]) - f(x[i] - gap)) / gap, (f(x[i] + gap) - f(x[i])) / gap
+                assert abs(left - right) < 1e-2 * scale / smooth, (points, smooth, i, left, right)
+    corner = timecurve.curve_fn(timecurve.check_spec(keys([[0, 0], [.5, 1], [1, 0]])), 1.)
+    assert abs((corner(.5) - corner(.5 - 1e-4)) / 1e-4 - (corner(.5 + 1e-4) - corner(.5)) / 1e-4) > 3, "the linear corner is gone"
+    for bad in (-.1, 1.5, float("nan")):
+        fails(lambda: timecurve.check_spec(keys([[0, 0], [1, 1]], smooth=bad)), "smooth (rate smoothing) is a number from 0 to 1")
+
+    if shutil.which("node") is None:
+        raise AssertionError("node is needed for the JS parity check (web/dial_rack.js timeCurve)")
+    cases, want = [], []
+    for points in sets:
+        for smooth in (0, .25, .5, 1) if len(points) > 1 else (0, 1):
+            for unit, seconds in (("normalized", 5.875), ("seconds", 1.)):
+                spec = timecurve.check_spec(keys(points, smooth=smooth, unit=unit))
+                times = list(rng.uniform(points[0][0] * seconds - 1, points[-1][0] * seconds + 1, 200)) + [p[0] * seconds for p in points]
+                cases.append([{"type": "keys", "points": points, "unit": unit, "interp": "linear", **({"smooth": smooth} if smooth else {})}, seconds, times])
+                want.append(timecurve.curve_fn(spec, seconds)(np.array(times)))
+    got = js_curves(cases)
+    worst = max(float(np.abs(np.array(g) - w).max()) for g, w in zip(got, want))
+    assert worst < 1e-12, f"JS and Python curves differ by {worst}"
+    return len(cases), worst
+
+
 def main():
+    parity = check_smooth()
     check_clock()
     check_audio()
     for dtype in (torch.float32, torch.bfloat16):
         check_blend(dtype)
     check_ui()
-    print("dial time curves: zero/one identity, per-frame blend, audio follow/protect, groups, clock, features and validation passed")
+    print(f"rate smoothing JS/Python parity: {parity[0]} curves, max abs difference {parity[1]:.3g}")
+    print("dial time curves: zero/one identity, per-frame blend, audio follow/protect, groups, clock, features, validation and rate smoothing passed")
 
 
 if __name__ == "__main__":

@@ -197,7 +197,7 @@ def check_envelopes(m, clip, dial):
     assert torch.equal(run(constant), forward(m.model.diffusion_model).detach()), "shifted outside sampling"
 
     early = rack(m, [row(0, 1., envelope="early")], ins)
-    values = envelopes.EnvelopeForward([("a", dial, 1., envelopes.envelope_points("early"))], SIGMAS).rows[0][2]
+    values = envelopes.EnvelopeForward([("a", dial, 1., envelopes.envelope_curve("early"))], SIGMAS).rows[0][2]
     for i, (got, strength) in enumerate(zip(sample(early), values)):
         want = sample(rack(m, [row(0, strength)], ins))[i] if strength else plain[i]
         assert torch.equal(got, want), f"early envelope step {i} (strength {strength})"

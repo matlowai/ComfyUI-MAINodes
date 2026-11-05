@@ -102,7 +102,7 @@ def apply_rack(model, rows, specs, profiles, holds=(), node_id=None, report=""):
         w = [1.] * n if w is None else [float(x) for x in w]
         if len(w) != n:
             raise ValueError(f"{label}: block strengths cover {len(w)} blocks; this model has {n}")
-        post.append((label, dial, strength, envelopes.envelope_points(spec)))
+        post.append((label, dial, strength, envelopes.envelope_curve(spec)))
         weights.append(w)
     text = "\n".join([f"block strengths over {n} model blocks:"] + [f"  {label}: {runs(w)}" for (label, *_), w in zip(post, weights)])
     if any(spec is not None for spec in specs):

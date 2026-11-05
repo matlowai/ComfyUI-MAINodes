@@ -65,7 +65,8 @@ second generation); keep it for editing a clip that already exists.
 - **H3 generating its own audio:** two passes with the same seed (generate, analyse, regenerate with the curve). Reading
   the forming audio mid-sampling is research; nice to have, not the main case.
 - UI: a per-row time curve (keyframes, or an audio input plus feature and shaping), drawn over the clip timeline with
-  the waveform; one curve type shared with step envelopes.
+  the waveform; one curve type shared with step envelopes (both take rate smoothing, `smooth` 0..1, through
+  `envelopes.keyframes`).
 
 ## Dials that leave audio alone (exploration)
 Some dials break speech or Foley (the expressive-face dial added 4.8 dB of loudness; evil dials can change voices).

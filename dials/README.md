@@ -195,7 +195,8 @@ Keep row order when reproducing a result: reordering rows changed one render (un
 Each rack row can shape its strength across denoising: **constant**, **early** (falls to zero by the midpoint),
 **late** (rises from zero after the midpoint), **bell** (a triangular middle peak), or **manual** `[progress, gain]`
 points. Gains multiply the row's strength; they are not automatically normalized. Manual points interpolate linearly
-and hold their endpoint values outside the specified range. Progress runs from 0 at the first model step to 1 at
+and hold their endpoint values outside the specified range; `"smooth"` (0..1, default 0, the **rate smoothing** slider
+next to the points) rounds the corners as on time curves (`envelopes.keyframes`). Progress runs from 0 at the first model step to 1 at
 the last, excluding the terminal sigma; a one-step schedule uses progress 0. This controls denoising, not video time.
 Progress is measured within each sampler call: with two sampler stages (split sigmas, or a second pass at
 denoise < 1) the envelope is applied to each stage on its own.
@@ -259,7 +260,8 @@ the undialled branch. H3 samples batch size 1, so the branches are two calls: ea
 call. A curve that is 0 everywhere runs no extra call and renders bit-identical to the rack without the row; 1 on every
 step equals the constant row (both pixel-identical on Pika, seed 42).
 
-Curves are keyframes (`[time, M]` in clip fractions or seconds, linear or step) or **audio-driven**: connect the music to
+Curves are keyframes (`[time, M]` in clip fractions or seconds, linear or step; linear takes **rate smoothing**
+`smooth` 0..1, default 0 = straight lines, which rounds each corner while staying on every key and never past it) or **audio-driven**: connect the music to
 the rack's `curve_audio` input (and give H3 the same track) and pick a feature (onsets, loudness, low / mid / high band)
 with gain, offset, threshold, attack, release and invert; M = offset + gain × the feature scaled to 0..1 over the track.
 The editor draws M per latent frame over the clip, with the waveform after a run; keyframes are edited with the mouse
@@ -274,6 +276,8 @@ pixel-identical to the older setup, a copy of the rack on stage 2 with `hold_map
 ```json
 {"dial": "dials/h3_day_night_hook.safetensors", "strength": 1.5,
  "time": {"type": "keys", "points": [[0, 0], [0.5, 1]], "unit": "normalized", "interp": "step", "steps": 2, "audio": "follow"}}
+{"dial": "dials/h3_day_night_hook.safetensors", "strength": 1.5,
+ "time": {"type": "keys", "points": [[0, 0], [0.4, 1], [0.7, 0.2]], "interp": "linear", "smooth": 0.5, "steps": 2}}
 {"dial": "dials/h3_motion_hook.safetensors", "strength": 2,
  "time": {"type": "audio", "feature": "onset", "gain": 2, "threshold": 0.1, "attack": 0.01, "release": 0.12, "steps": 2}}
 ```

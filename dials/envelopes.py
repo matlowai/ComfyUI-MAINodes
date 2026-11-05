@@ -45,12 +45,53 @@ def envelope_points(spec):
     return points
 
 
+def keyframes(points, smooth=0.):
+    """-> f(x array) through the [x, y] points, held flat before the first and after the last.
+
+    smooth 0 is linear interpolation (np.interp). For smooth s in (0, 1] the rate (slope), which jumps at every point of
+    the linear curve, ramps instead: each point gets one rate, the harmonic mean of its two secants (0 at the first and
+    last point, where the holds are flat, and where the secants change sign), and over s/2 of each neighbouring interval
+    the rate moves linearly between it and the interval's middle rate k = (d - s(m0 + m1)/4) / (1 - s/2), so the curve
+    still meets the next point. The curve is C1 and piecewise quadratic; a point's rate is at most twice either secant,
+    so k keeps the interval's sign and every interval stays monotone between its two points: no overshoot.
+    """
+    x, y = (np.array(v, dtype=np.float64) for v in zip(*points))
+    if smooth == 0 or len(x) < 2:
+        return lambda t: np.interp(t, x, y)
+    h = np.diff(x)
+    d = np.diff(y) / h
+    a, b = d[:-1], d[1:]
+    same = a * b > 0
+    m = np.concatenate([[0.], np.where(same, 2 * a * b / np.where(same, a + b, 1.), 0.), [0.]])
+    w = smooth * h / 2
+    k = (d - smooth * (m[:-1] + m[1:]) / 4) / (1 - smooth / 2)
+
+    def f(t):
+        i = np.clip(np.searchsorted(x, t, side="right") - 1, 0, len(h) - 1)
+        u = np.clip(t - x[i], 0, h[i])
+        v = h[i] - u
+        m0, m1, ki, wi = m[i], m[i + 1], k[i], w[i]
+        left = y[i] + m0 * u + (ki - m0) * u * u / (2 * wi)
+        right = y[i + 1] - m1 * v - (ki - m1) * v * v / (2 * wi)
+        return np.where(u < wi, left, np.where(v < wi, right, y[i] + (m0 + ki) * wi / 2 + ki * (u - wi)))
+    return f
+
+
+def envelope_curve(spec):
+    """-> f(progress) giving the gain; a dict spec may add smooth (0..1, default 0: linear), see keyframes."""
+    smooth = float(spec.get("smooth", 0.)) if isinstance(spec, dict) else 0.
+    if not 0 <= smooth <= 1:
+        raise ValueError(f"envelope smooth (rate smoothing) is a number from 0 to 1 (0 = linear), not {smooth}")
+    return keyframes(envelope_points(spec), smooth)
+
+
 def interpolate(points, x):
     return float(np.interp(x, [p for p, _ in points], [v for _, v in points]))
 
 
 class EnvelopeForward:
-    """Diffusion-model wrapper compiled once per sampler call: each row's strength at every step's sigma."""
+    """Diffusion-model wrapper compiled once per sampler call: each row's strength at every step's sigma; rows
+    [(label, dial, strength, envelope_curve)]."""
 
     def __init__(self, rows, sigmas):
         self.sigmas = sigmas.tolist()
@@ -59,8 +100,8 @@ class EnvelopeForward:
             raise ValueError("dial envelopes need a finite, strictly decreasing sampler sigma schedule")
         n = len(self.sigmas) - 1
         self.progress = [i / max(n - 1, 1) for i in range(n)]
-        self.rows = [(label, dict(dial, vec=dial["vec"].to(sigmas.device)), [strength * interpolate(points, p) for p in self.progress])
-                     for label, dial, strength, points in rows]  # vectors on the sampling device once, not copied per call
+        self.rows = [(label, dict(dial, vec=dial["vec"].to(sigmas.device)), [strength * float(curve(p)) for p in self.progress])
+                     for label, dial, strength, curve in rows]  # vectors on the sampling device once, not copied per call
 
     def report(self):
         text = "envelope sigmas (terminal omitted): " + ", ".join(f"{s:.6g}" for s in self.sigmas[:-1])
@@ -145,7 +186,7 @@ def apply_rack(model, rows, specs, node_id=None, report=""):
         if spec is not None and (dial["mode"] != "post" or dial["target"] != path.post):
             raise ValueError(f"step envelopes support post-refiner {path.post} dials only; pre-refiner rows cannot be scheduled")
         if scheduled and dial["mode"] == "post":
-            post.append((label, dial, strength, envelope_points(spec)))
+            post.append((label, dial, strength, envelope_curve(spec)))
         else:
             core.apply_dial(model, dial, strength)
     if post:

@@ -64,6 +64,30 @@ const TIME_KEYS = [
   ["dip", "1, with a short dip to −1 (the dial reversed) in the middle", [[0, 1], [0.4, 1], [0.45, -1], [0.55, -1], [0.6, 1]], "linear"],
 ];
 
+// the curve through [x, y] points at each of xs, held flat outside them; smooth > 0 ramps the rate across each point
+// (mirrors dials/envelopes.py keyframes, which explains the math)
+function keyframes(p, smooth, xs) {
+  const n = p.length - 1;
+  if (!smooth || !n) return xs.map((t) => {
+    const i = p.findIndex(([pt]) => pt > t);
+    if (i === 0) return p[0][1];
+    if (i < 0) return p[n][1];
+    const [t0, m0] = p[i - 1], [t1, m1] = p[i];
+    return m0 + (m1 - m0) * (t - t0) / (t1 - t0);
+  });
+  const h = p.slice(1).map(([t], i) => t - p[i][0]), d = h.map((v, i) => (p[i + 1][1] - p[i][1]) / v);
+  const m = p.map((_, i) => (i && i < n && d[i - 1] * d[i] > 0 ? 2 * d[i - 1] * d[i] / (d[i - 1] + d[i]) : 0));
+  const w = h.map((v) => smooth * v / 2), k = d.map((v, i) => (v - smooth * (m[i] + m[i + 1]) / 4) / (1 - smooth / 2));
+  return xs.map((t) => {
+    let i = 0;
+    while (i < n - 1 && p[i + 1][0] <= t) i++;
+    const u = Math.min(h[i], Math.max(0, t - p[i][0])), v = h[i] - u;
+    if (u < w[i]) return p[i][1] + m[i] * u + (k[i] - m[i]) * u * u / (2 * w[i]);
+    if (v < w[i]) return p[i + 1][1] - m[i + 1] * v - (k[i] - m[i + 1]) * v * v / (2 * w[i]);
+    return p[i][1] + (m[i] + k[i]) * w[i] / 2 + k[i] * (u - w[i]);
+  });
+}
+
 // M(t) of a row's time curve at the given seconds (mirrors dials/timecurve.py curve_fn and shape)
 function timeCurve(spec, seconds, times, audio) {
   if (spec.type === "audio") {
@@ -82,13 +106,10 @@ function timeCurve(spec, seconds, times, audio) {
   const scale = (spec.unit || "normalized") === "normalized" ? seconds : 1;
   const p = (spec.points || []).map(([t, m]) => [t * scale, m]);
   if (!p.length) return null;
+  if (spec.interp !== "step") return keyframes(p, spec.smooth, times);
   return times.map((t) => {
     const i = p.findIndex(([pt]) => pt > t);
-    if (i === 0) return p[0][1];
-    if (i < 0) return p[p.length - 1][1];
-    if (spec.interp === "step") return p[i - 1][1];
-    const [t0, m0] = p[i - 1], [t1, m1] = p[i];
-    return m0 + (m1 - m0) * (t - t0) / (t1 - t0);
+    return p[i === 0 ? 0 : i < 0 ? p.length - 1 : i - 1][1];
   });
 }
 
@@ -206,7 +227,7 @@ function drawTime(c, spec, seconds, audio, W, H, view = {}) {
     g.stroke();
   }
   g.strokeStyle = big ? "#8fb4ff" : "#ffc145"; g.lineWidth = big ? 1.5 : 1; g.beginPath();
-  if (keys) {  // through the points, held flat past the first and last; step holds each level until the next point
+  if (keys && (spec.interp === "step" || !spec.smooth)) {  // through the points, held flat past the first and last; step holds each level until the next point
     g.moveTo(x(0), y(points[0][1]));
     points.forEach(([t, v], i) => { if (i && spec.interp === "step") g.lineTo(x(t), y(points[i - 1][1])); g.lineTo(x(t), y(v)); });
     g.lineTo(x(span), y(points[points.length - 1][1]));
@@ -1440,7 +1461,8 @@ class DialRackUI {
     const st = this.curve?.r === r ? this.curve : (this.curve = { r, past: [], future: [], sel: [], top: 1, bottom: 0, win: null });
     const norm = () => (spec.unit || "normalized") === "normalized";
     const toS = (t) => (norm() ? t * seconds : t), fromS = (s) => Math.round((norm() ? s / seconds : s) * 1e4) / 1e4;
-    const state = () => JSON.stringify([spec.points, spec.unit || "normalized", spec.interp || "linear"]);
+    const state = () => JSON.stringify([spec.points, spec.unit || "normalized", spec.interp || "linear", spec.smooth || 0]);
+    const restore = (text) => { [spec.points, spec.unit, spec.interp, spec.smooth] = JSON.parse(text); if (!spec.smooth) delete spec.smooth; };
     const strength = () => Number(r.strength);
     st.opened ??= state();
     const onsets = onsetTimes(audio);
@@ -1452,6 +1474,23 @@ class DialRackUI {
     }), { padding: "1px 6px" });
     const interpBox = select(shape, [["linear", "linear"], ["step", "step"]], spec.interp || "linear", "between keyframes: ramp, or hold until the next",
       (v) => change(() => { spec.interp = v; }));
+    const smoothLabel = this.el("span", { color: "#888" }, shape, "rate smoothing");
+    const smoothBox = this.el("input", { width: "64px", accentColor: "#8fb4ff" }, shape);
+    Object.assign(smoothBox, { type: "range", min: 0, max: 1, step: 0.05 });
+    const smoothText = this.el("span", { color: "#ffc145", minWidth: "26px" }, shape);
+    smoothLabel.title = smoothBox.title = "rounds the corners at each point (0: straight lines; 1: fully smooth), still through every point and never past it; linear only";
+    let smoothFrom = null;  // one undo step per slider drag
+    smoothBox.oninput = () => {
+      smoothFrom ??= state();
+      spec.smooth = parseFloat(smoothBox.value);
+      if (!spec.smooth) delete spec.smooth;
+      refresh();
+    };
+    smoothBox.onchange = () => {
+      if (smoothFrom !== null && state() !== smoothFrom) { st.past.push(smoothFrom); st.future = []; }
+      smoothFrom = null;
+      refresh();
+    };
     const unitBox = select(shape, [["normalized", "times: 0..1 of the clip"], ["seconds", "times: seconds"]], spec.unit || "normalized",
       "0..1 stretches with the clip length, seconds stay put; switching converts the points, so nothing moves", (v) => change(() => {
         const s = spec.points.map(([t, m]) => [toS(t), m]);
@@ -1502,7 +1541,7 @@ class DialRackUI {
     const msg = this.el("span", { color: "#ff8a5c" }, tools);
     const undo = this.button(tools, "Undo", "undo (Ctrl+Z on the canvas)", () => step(st.past, st.future), { padding: "1px 6px", marginLeft: "auto" });
     const redo = this.button(tools, "Redo", "redo (Ctrl+Shift+Z or Ctrl+Y on the canvas)", () => step(st.future, st.past), { padding: "1px 6px" });
-    this.button(tools, "Reset", "back to the curve this editor opened with", () => change(() => { [spec.points, spec.unit, spec.interp] = JSON.parse(st.opened); }), { padding: "1px 6px" });
+    this.button(tools, "Reset", "back to the curve this editor opened with", () => change(() => restore(st.opened)), { padding: "1px 6px" });
 
     // scale tools: on the selected points, or all of them
     const scaling = this.el("div", { display: "flex", gap: "4px", alignItems: "center", flexWrap: "wrap" }, box);
@@ -1555,6 +1594,8 @@ class DialRackUI {
       st.bottom = Math.min(st.bottom, ...spec.points.map((p) => p[1]));
       json.value = JSON.stringify(spec.points); json.setCustomValidity("");
       interpBox.value = spec.interp || "linear"; unitBox.value = spec.unit || "normalized"; topBox.value = st.top; bottomBox.value = st.bottom;
+      smoothBox.value = spec.smooth || 0; smoothText.textContent = (spec.smooth || 0).toFixed(2);
+      smoothBox.disabled = spec.interp === "step"; smoothLabel.style.opacity = smoothText.style.opacity = spec.interp === "step" ? "0.4" : "";
       const i = main(), p = spec.points[i], n = st.sel.length;
       which.textContent = p ? `point ${i + 1} of ${spec.points.length}${n > 1 ? ` (${n} selected)` : ""}:` : "no point selected:";
       timeBox.disabled = levelBox.disabled = !p; del.disabled = !n;
@@ -1577,7 +1618,7 @@ class DialRackUI {
     const step = (from, to) => {
       if (!from.length) return;
       to.push(state());
-      [spec.points, spec.unit, spec.interp] = JSON.parse(from.pop());
+      restore(from.pop());
       refresh();
     };
     // points idx (in time order) to from[k] + [dt seconds, dv]: dt keeps them CURVE_GAP from the points that stay and within
@@ -1938,7 +1979,18 @@ class DialRackUI {
       if (this.timeEditing === i && !r.hold) this.timeEditor(r, this.rowName(i), mini);
       if (this.dialEditor?.r === r) { this.list.appendChild(this.dialEditor.box); this.dialEditor.draw(); }
       if (r.envelope?.type === "manual") {
-        const points = this.el("input", { boxSizing: "border-box", width: "100%", background: "#111", color: "#ddd", border: "1px solid #333" }, this.list);
+        const line = this.el("div", { display: "flex", gap: "4px", alignItems: "center" }, this.list);
+        const points = this.el("input", { boxSizing: "border-box", flex: "1 1 auto", minWidth: "0", background: "#111", color: "#ddd", border: "1px solid #333" }, line);
+        const label = this.el("span", { color: "#888" }, line, "rate smoothing");
+        const smooth = this.el("input", { width: "64px", accentColor: "#8fb4ff" }, line);
+        Object.assign(smooth, { type: "range", min: 0, max: 1, step: 0.05, value: r.envelope.smooth || 0 });
+        const value = this.el("span", { color: "#ffc145", minWidth: "26px" }, line, (r.envelope.smooth || 0).toFixed(2));
+        label.title = smooth.title = "rounds the corners at each point (0: straight lines; 1: fully smooth), still through every point and never past it";
+        smooth.oninput = () => {
+          r.envelope.smooth = parseFloat(smooth.value);
+          if (!r.envelope.smooth) delete r.envelope.smooth;
+          value.textContent = (r.envelope.smooth || 0).toFixed(2); this.commit();
+        };
         points.value = JSON.stringify(r.envelope.points);
         points.title = "JSON [progress, gain] points; progress increases from 0 to 1; gain multiplies the row strength";
         points.onchange = () => {

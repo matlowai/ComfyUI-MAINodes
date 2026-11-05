@@ -105,7 +105,8 @@ def main():
         presets.preset_path(f"bad_{i}").write_text(json.dumps(value))
         rejects(presets.load_preset, f"bad_{i}")
     print("dial presets: all checks passed (round-trip, hash mismatch, missing rows, no overwrite, names, schema)")
-    for bad in ({"type": "wobble"}, {"type": "manual", "points": [[0.5, 1], [0.2, 0]]}, {}, 7):
+    for bad in ({"type": "wobble"}, {"type": "manual", "points": [[0.5, 1], [0.2, 0]]}, {}, 7,
+                {"type": "manual", "points": [[0, 0], [1, 1]], "smooth": 1.5}):
         rejects(presets.preset_rows, [dict(dial="dials/x.safetensors", strength=1, envelope=bad)])
     rejects(presets.preset_rows, [dict(dial="dials/x.safetensors", strength=1, hold=True, envelope="early")])
     scratch.cleanup()

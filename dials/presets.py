@@ -59,7 +59,7 @@ def preset_rows(rows):
             if row.get("hold"):
                 raise ValueError("a hold row cannot have a step envelope")
             try:
-                envelopes.envelope_points(row["envelope"])
+                envelopes.envelope_curve(row["envelope"])
             except (KeyError, TypeError) as e:
                 raise ValueError(f"invalid preset envelope: {row['envelope']!r}") from e
             result[-1]["envelope"] = row["envelope"]
