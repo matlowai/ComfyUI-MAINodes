@@ -402,6 +402,19 @@ export function addPicture(file, { role, reason, source, card }) {
   });
 }
 
+// a picture out of References: its LoadImage node goes, the file stays in input/ (one undo step)
+export function removePicture(nodeId) {
+  const b = brick("refs");
+  if (!b?.pictures?.some((p) => p.node === nodeId)) return;
+  transaction(() => {
+    const n = node(nodeId);
+    if (n) app.graph.remove(n);
+    b.pictures = b.pictures.filter((p) => p.node !== nodeId);
+    delete b.nodes[`picture_${nodeId}`];
+    delete b.placed[nodeId];
+  });
+}
+
 // lay Snap-placed nodes out again with their current sizes (DOM widgets grow after mounting); nodes the user moved
 // in the graph keep their place. One undo step, and only when something moves.
 export function tidy() {

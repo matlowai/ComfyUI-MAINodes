@@ -172,6 +172,19 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
 
 ## World state
 
+- **SNAP-R59: Cast by reference: a character's details live once, on its Cast record.** A Cast record (user
+  `snap/cast/<id>.json`, versioned by SNAP-R60) holds the name, alias, trigger words, the details line, the identity LoRA
+  and strength (by file name), reference pictures (input/ files, in `input/snap/cast/<id>/` when uploaded), lore and a
+  rating. The graph stays plain ComfyUI: `applyCast` writes one version into the recipe (a row on the Cast brick, the
+  trigger + details sentence in the prompt's first line, the pictures in References with `source: cast:<id>`) and pins
+  it in `extra.snap.world["cast:<id>"]` with where each piece went, so applying again (another version, or after a
+  hand edit) replaces its own pieces in place. So every check that reads the queued prompt (the gate's cap, the pack's
+  second line, privacy marks, metadata twins, the take hash, core's cache) still sees what runs, and the file runs in
+  plain ComfyUI. Editing a character means editing the record (the Cast sheet, `save_cast`); a recipe changes only when
+  the person applies it. The `character` card kind is `cast`. *Why:* Dylan 2026-11-04 20:48: "metadata for the cast rows
+  should live with that cast record. the cast id would live on the image, not everything about the character itself";
+  22:44: files carry what ran plus the pins (design Option C). *More:* `web/snap/library.js` (applyCast),
+  `web/snap/castview.js`; DESIGN_U86_U87_CAST_VERSIONS_2026-11-04.md §4.1-4.2; PLAN U86.
 - **SNAP-R60: World state is versioned, and a take pins the versions it used.** The records a take depends on (Cast
   records, set snapshots, the person's own Library cards) live one per file in user `snap/<kind>/<id>.json` with every
   version inside (`n`, a sha-256 `hash` of the body, `at`, `by`, `note`). Saving is versioning: a body equal to the head

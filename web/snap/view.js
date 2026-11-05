@@ -30,8 +30,10 @@ import * as C from "./candidates.js";
 import * as MD from "./metadata.js";
 import * as PF from "./profile.js";
 import * as ACC from "./account.js";
+import * as W from "./world.js";
 import { openOnboarding } from "./onboardview.js";
 import { openLoras, moveControl, label as catLabel } from "./loraview.js";
+import { openCast } from "./castview.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -169,7 +171,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     libLoras.replaceChildren(...[...cats.map((c) => h("button", { className: "snap-lora-chip", textContent: catLabel(c.id), title: `${c.count} LoRA file${c.count === 1 ? "" : "s"}: browse, search and file them`, onclick: () => browse(c.id) }, h("i", { textContent: String(c.count) }))),
       moves.length ? h("button", { className: "snap-lora-chip undo", textContent: "↶ undo move", onclick: async () => { const u = moves.pop(); await M.restore(u); say(`${u.file.replace(/\.safetensors$/, "")} is back where it was`); render(null); renderLibrary(); } }) : null].filter(Boolean));
   }
-  rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libSfw, h("div", { className: "snap-rail-sub", textContent: "LoRAs by kind" }), libLoras, libResults);
+  const editCast = (o = {}) => openCast(root, { ...o, say, onApplied: () => { render(null); renderLibrary(); } }).catch((err) => say(err.message, true));
+  const newCast = h("button", { className: "snap-link snap-quiet-btn snap-new-cast", textContent: "+ New cast member", title: "a character kept once on a Cast record: name, trigger words, details, identity LoRA, reference pictures" , onclick: () => editCast() });
+  rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libSfw, h("div", { className: "snap-rail-sub", textContent: "LoRAs by kind" }), libLoras, newCast, libResults);
   T.onChange(() => renderLibrary());
   PF.onChange(() => { render(null); renderLibrary(); }); // SFW only changes what the pickers and the Library list
   PF.load().then(() => { render(null); renderLibrary(); });
@@ -227,7 +231,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
         h("span", { className: "snap-kind", textContent: (L.KIND_LABEL[c.kind] ?? c.kind).replace(/s$/, "") }), h("span", { className: "snap-card-title", textContent: c.title }),
         c.kind === "set_snapshot" ? h("span", { className: "snap-card-tools" },
           h("button", { className: "snap-edit", textContent: "▦", title: "plan-board: every saved state of this set side by side", onclick: (e) => { e.stopPropagation(); openBoard(root, L.lineage(c), { onOpen: editSet }); } }),
-          h("button", { className: "snap-edit", textContent: "✎", title: "open the set plan to block it", onclick: (e) => { e.stopPropagation(); editSet(c); } })) : null);
+          h("button", { className: "snap-edit", textContent: "✎", title: "open the set plan to block it", onclick: (e) => { e.stopPropagation(); editSet(c); } }))
+        : c.kind === "cast" && c.brick?.cast ? h("span", { className: "snap-card-tools" }, // SNAP-R59: the record is where a character changes
+          h("button", { className: "snap-edit", textContent: "✎", title: "edit this character's Cast record (saving makes a new version)", onclick: (e) => { e.stopPropagation(); editCast({ id: c.id }); } })) : null);
       if (c.kind === "dial" && c.brick?.dial) tile.append(moveControl(c.brick.dial, moved));
       tile.dataset.card = c.id;
       tile.style.setProperty("--hue", goes ? BRICKS[goes].hue : 45);
@@ -830,8 +836,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     if (!pics.length) return [meter, h("div", { className: "snap-quiet", textContent: "Drop pictures here", title: "a set snapshot or character card from the Library" })];
     return [meter, h("div", { className: "snap-pics" }, pics.map((p) => {
       const cut = p.file.lastIndexOf("/"), sub = p.file.slice(0, Math.max(cut, 0)), name = p.file.slice(cut + 1); // plates sit two folders down (snap/plates)
-      const from = p.source && (L.get(p.card) ?? L.get(`${p.source}-mine`) ?? L.get(p.source)); // the exact version in References
-      return h("figure", { title: `${p.reason}${from ? "\nclick to edit the set" : ""}`, className: from ? "editable" : "", onclick: from ? () => editSet(from) : null }, h("img", { src: api.apiURL(`/view?filename=${encodeURIComponent(name)}&subfolder=${encodeURIComponent(sub)}&type=input`), alt: p.role, loading: "lazy" }), h("figcaption", { textContent: p.role }));
+      const cast = p.source?.startsWith("cast:") && p.card ? W.parse(p.card) : null; // SNAP-R59: a Cast picture opens its record at the version it came from
+      const from = !cast && p.source && (L.get(p.card) ?? L.get(`${p.source}-mine`) ?? L.get(p.source)); // the exact version in References
+      return h("figure", { title: `${p.reason}${from ? "\nclick to edit the set" : cast ? "\nclick to edit the character" : ""}`, className: from || cast ? "editable" : "", onclick: from ? () => editSet(from) : cast ? () => editCast({ id: cast.id, n: cast.n }) : null }, h("img", { src: api.apiURL(`/view?filename=${encodeURIComponent(name)}&subfolder=${encodeURIComponent(sub)}&type=input`), alt: p.role, loading: "lazy" }), h("figcaption", { textContent: p.role }));
     }))];
   }
 

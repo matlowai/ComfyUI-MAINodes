@@ -3,7 +3,7 @@
 // multimodal embedder plugs in behind `search` once its runtime is chosen.
 // SNAP-R5 another family opens a new tab · SNAP-R12 identity rows never leave in a card · SNAP-R18 local only ·
 // SNAP-R21 a shot's reference shows its own camera · SNAP-R25 SFW only leaves out cards tagged or loading nsfw ·
-// SNAP-R60 the person's cards are world records (world.js) ·
+// SNAP-R59 Cast by reference (applyCast) · SNAP-R60 the person's cards are world records (world.js) ·
 // see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import { app } from "../../../scripts/app.js";
@@ -34,6 +34,7 @@ function rebuild() {
     for (const v of r.versions.filter((x) => x.listed !== false)) { mine.push(withPlates(v.body)); origins.set(v.body.id, { kind: "set_snapshot", id: r.id, n: v.n }); }
     if (r.draft) { mine.push(withPlates(r.draft)); origins.set(r.draft.id, { kind: "set_snapshot", id: r.id, n: null }); }
   }
+  for (const r of W.all("cast")) { const v = W.headOf(r); if (v) { mine.push(castCard(r.id, v.body)); origins.set(r.id, { kind: "cast", id: r.id, n: v.n }); } }
   cards = [...mine, ...pack].filter((c) => c.kind in TARGET); // kinds Snap doesn't know are dropped
   return cards;
 }
@@ -129,7 +130,7 @@ function removeFromPrompt(phrases) {
   const before = first;
   for (const x of phrases) first = first.replace(x, "");
   if (first === before) return; // nothing of ours was there: leave the person's text exactly as it is
-  first = first.replace(/\s*,\s*(?=[,.])/g, "").replace(/\s{2,}/g, " ").replace(/\s+\./g, ".").trimEnd();
+  first = first.replace(/\s*,\s*(?=[,.])/g, "").replace(/\s{2,}/g, " ").replace(/\s+\./g, ".").replace(/\.{2,}/g, ".").trimEnd();
   E.setValue("render", "render", "prompt", [first, ...rest].join("\n"));
 }
 
@@ -254,6 +255,79 @@ async function applyShot(card) {
   return `${card.title}: compiled into the prompt (${parts.length} parts), ${where}${preset ? `; Render Preset now ${preset} (the picture needs it)` : ""}`;
 }
 
+// ---- Cast (U86, SNAP-R59): a character's details live once, on its Cast record; a recipe holds what ran (the Cast row,
+// the details sentence, the pictures), written by applyCast from one version and pinned in extra.snap.world
+// the sentence a Cast version puts into the prompt: its trigger words, then its details line
+export const castLine = (b) => [b.trigger, b.details].map((x) => x?.trim()).filter(Boolean).join(", ");
+const castCard = (id, b) => ({ id, kind: "cast", title: `Cast: ${b.name}`, text: [b.details, b.lore].filter(Boolean).join(" ") || b.name,
+  brick: { cast: `cast:${id}`, ...(castLine(b) ? { prompt_fragment: castLine(b) } : {}) }, ...(b.rating ? { rating: b.rating } : {}) });
+const castStamp = () => `cast-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+// a new version of a Cast record (a new record when id is null): {id, ref, n, made}
+export async function saveCast(id, body, { note = "", by = "person" } = {}) {
+  await ready();
+  if (!body?.name?.trim()) throw new Error("A cast member needs a name");
+  const clean = { name: body.name.trim(), alias: body.alias?.trim() ?? "", trigger: body.trigger?.trim() ?? "", details: body.details?.trim() ?? "",
+    lora: body.lora?.file ? { file: body.lora.file, strength: +(body.lora.strength ?? 1) } : null, refs: (body.refs ?? []).map((r) => ({ file: r.file, role: r.role || "identity" })),
+    lore: body.lore?.trim() ?? "", rating: body.rating ?? null };
+  id ??= castStamp();
+  const out = await W.save("cast", id, clean, { note, by });
+  rebuild();
+  return { id, ref: out.ref, n: out.n, made: out.made };
+}
+// a reference picture for a Cast record, into input/snap/cast/<id>/; returns the LoadImage value
+export async function uploadCastPicture(file, id) {
+  const form = new FormData();
+  form.append("image", file, file.name);
+  form.append("subfolder", `snap/cast/${id}`);
+  form.append("overwrite", "false");
+  const r = await (await api.fetchApi("/upload/image", { method: "POST", body: form })).json();
+  return `${r.subfolder}/${r.name}`;
+}
+// the pin a recipe keeps for one record: which version it holds, and where that version's pieces went
+export const pinOf = (ref) => E.state().world?.[ref] ?? null;
+function pin(ref, entry) { E.tag("world", { ...E.state().world, [ref]: entry }); }
+
+// put one Cast version into the open recipe, replacing what an earlier apply of the same record put there: its LoRA row
+// on the Cast brick (snapped in when missing), its sentence in the prompt's first line, its pictures in References.
+// `strength` overrides the record's for this recipe (the pin says so). Returns what happened
+export async function applyCast(ref, { strength } = {}) {
+  await ready();
+  const { kind, id, n } = W.parse(ref);
+  if (kind !== "cast") throw new Error(`${ref} isn't a Cast reference (cast:<id> or cast:<id>@n)`);
+  const got = W.get(ref);
+  if (!got) throw new Error(W.record("cast", id) ? `Cast ${id} has no version ${n}; it has v1-v${W.record("cast", id).head}` : `No Cast record ${id}`);
+  const b = got.version.body, key = `cast:${id}`, was = pinOf(key)?.placed ?? {}, placed = {}, line = castLine(b);
+  if (!E.state().bricks.some((x) => x.key === "render")) throw new Error(`${b.name} goes into the Render prompt: add the Render brick first`);
+  const keys = () => E.state().bricks.map((x) => x.key);
+  app.canvas.emitBeforeChange(); // the row, the sentence, the pictures and the pin are one undo step
+  try {
+    const rows = keys().includes("cast") ? M.rows("cast") : [], mine = was.row != null && rows[was.row] ? was.row : null;
+    if (b.lora) {
+      const s = strength ?? b.lora.strength;
+      if (mine != null) { M.setRow("cast", mine, { file: b.lora.file, strength: s, on: true }); placed.row = mine; }
+      else {
+        if (!keys().includes("cast")) await E.snap("cast", { at: keys().includes("rack") ? keys().indexOf("rack") : undefined });
+        placed.row = M.addRow("cast", b.lora.file, s);
+      }
+    } else if (mine != null) { // this version has no LoRA: its row goes, and the other Cast pins' rows below it move up
+      M.removeRow("cast", mine);
+      for (const [r, p] of Object.entries(E.state().world ?? {})) if (r !== key && p.placed?.row > mine) pin(r, { ...p, placed: { ...p.placed, row: p.placed.row - 1 } });
+    }
+    if (was.text && was.text !== line) removeFromPrompt([was.text]);
+    if (line) { addToPrompt([line]); placed.text = line; }
+    if (b.refs.length || was.roles?.length) {
+      if (!keys().includes("refs")) await E.snap("refs");
+      const roles = b.refs.map((r) => `cast: ${b.name}, ${r.role}`);
+      for (const p of E.state().bricks.find((x) => x.key === "refs").pictures ?? []) if (p.source === key && !roles.includes(p.role)) E.removePicture(p.node);
+      b.refs.forEach((r, i) => E.addPicture(r.file, { role: roles[i], reason: `${b.name}, cast v${got.version.n}`, source: key, card: W.refOf("cast", id, got.version.n) }));
+      placed.roles = roles;
+    }
+    pin(key, { n: got.version.n, hash: W.short(got.version.hash), follow: pinOf(key)?.follow ?? true, placed, ...(strength != null ? { strength } : {}) });
+  } finally { app.canvas.emitAfterChange(); }
+  app.canvas.setDirty(true, true);
+  return `${b.name} v${got.version.n}: ${[b.lora && `${b.lora.file.split("/").pop().replace(/\.safetensors$/, "")} at ${strength ?? b.lora.strength} on Cast`, line && "the details in the prompt", b.refs.length && `${b.refs.length} picture${b.refs.length === 1 ? "" : "s"} in References`].filter(Boolean).join(", ") || "nothing to put in (no LoRA, words or pictures)"}`;
+}
+
 // the stack as a card keeps a Cast brick but never its rows: identity LoRAs are private (SNAP-R12)
 const shareable = async () => { const strip = await T.privacyOn(); return E.recipe().map((b) => (strip && BRICKS[b.key]?.stack?.role === "identity" ? { key: b.key, values: {} } : b)); }; // SNAP-R37: only where privacy is on
 
@@ -292,6 +366,7 @@ export async function apply(card, { keep = true } = {}) {
     return applyShot(card);
   }
   if (card.kind === "dial") return D.add(card.brick.dial, card.brick.strength);
+  if (card.kind === "cast" && card.brick.cast) return applyCast(card.brick.cast);
   if (card.kind === "lora") { // a distilled LoRA only works on its own schedule: a LoRA card names the setup that carries both
     M.apply(card.brick.setup);
     return `${card.brick.setup} on the Render Preset`;
