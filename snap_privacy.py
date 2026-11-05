@@ -341,6 +341,13 @@ def rating(prompt, graph, folders_of, gated, words):
     return top, list(dict.fromkeys(why))
 
 
+def pinned(workflow):
+    """(level, "Vex v1") for each world record a workflow pinned with a rating of its own (the page copies the pinned
+    version's rating onto its pin, SNAP-R60): a Cast or card rated Adult makes what it is in Adult (SNAP-R39)."""
+    world = (((workflow or {}).get("extra") or {}).get("snap") or {}).get("world") or {}
+    return [(LEVELS[str(p["rating"]).lower()], f"{p.get('name') or ref} v{p.get('n')}") for ref, p in world.items() if isinstance(p, dict) and str(p.get("rating")).lower() in LEVELS]
+
+
 def made(user_dir):
     """The ratings files made here were saved with (SNAP-R39), from user/snap_ratings.json; one that doesn't parse rates nothing."""
     try:

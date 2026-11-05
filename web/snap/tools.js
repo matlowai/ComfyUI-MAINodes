@@ -313,7 +313,7 @@ export const TOOLS = [
       await S.load();
       const targets = S.previewTargets(slot);
       await app.queuePrompt(0, 1, { queueNodeIds: targets });
-      const errors = Object.entries(app.lastNodeErrors ?? {}).map(([id, e]) => ({ node: id, brick: brickOf(id), error: e.errors?.[0]?.message }));
+      const errors = Object.entries(app.lastNodeErrors ?? {}).map(([id, e]) => ({ node: id, brick: brickOf(id), error: e.errors?.[0]?.message, details: e.errors?.[0]?.details }));
       if (errors.length) throw new Error(`Not queued: ${JSON.stringify(errors)}`);
       return { queued: true, targets };
     },

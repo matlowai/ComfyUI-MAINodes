@@ -434,6 +434,9 @@ def metadata_gate(json_data):
         # an account capped below Adult always has its prompt's words rated; anyone else only with their setting on
         words = (cap is not None and cap < snap_privacy.LEVELS["adult"]) or ((workflow or {}).get("extra") or {}).get("snap_rate_words") is True
         rated, rated_why = snap_privacy.rating(prompt, graph, folders_of, gated=cap is not None, words=words)
+        for lvl, who in snap_privacy.pinned(workflow):
+            if lvl:
+                rated, rated_why = max(rated, lvl), rated_why + [f"{who} is rated {snap_privacy.NAMES[lvl]}"]
     except Exception:
         on = snap_privacy.switched_on(folder_paths.get_user_directory())
         logging.exception("Snap: privacy rules unreadable" + ("; this prompt is marked private" if on else ""))
@@ -511,9 +514,13 @@ def rating_cap(json_data):
     # SNAP-R39), so the run never renders only to be hidden from its own account
     for nid, k, term in snap_privacy.said(prompt, graph, folders_of) if cap < snap_privacy.LEVELS["adult"] else []:
         refused.setdefault(nid, f"Node {nid} ({title(nid)}): its {k} says \"{term}\", which rates this prompt Adult, above this account's {shown} cap. Change the words, or ask the admin.")
+    # a pinned record rated above the cap (a Cast the person rated Adult): what the re-run plan said the server refuses
+    over = [f"{who} is rated {snap_privacy.NAMES[lvl].capitalize()}" for lvl, who in snap_privacy.pinned((extra.get("extra_pnginfo") or {}).get("workflow")) if lvl > cap]
+    if over:
+        refused["world"] = f"{', '.join(over)}, above this account's {shown} cap. Pick another version or record, or ask the admin."
     if refused:
         logging.warning("Snap: %s's prompt rates above their %s cap (nodes %s); refused", extra.get("snap_user"), extra["snap_max_rating"], ", ".join(refused))
-        json_data["prompt"] = {nid: {"class_type": "MAIRatingRefused", "inputs": {"why": why}, "_meta": prompt[nid].get("_meta", {})} for nid, why in refused.items()}
+        json_data["prompt"] = {nid: {"class_type": "MAIRatingRefused", "inputs": {"why": why}, "_meta": prompt.get(nid, {}).get("_meta", {})} for nid, why in refused.items()}  # "world" is no node
     if notes:
         logging.warning("Snap: %s", "; ".join(notes))
         json_data.setdefault("extra_data", {})["snap_notes"] = notes

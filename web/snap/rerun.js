@@ -170,7 +170,7 @@ export async function motionOf(take, s, who) {
   if (!asWho) throw new Error(`who: say who in take ${take.number} ${now.name} replaces, in words ("the woman in the red coat") or as find_people numbers them ("person 2"): ${was?.name ?? s.slot} has no details line`);
   const becomes = now.details || now.name, v = W.get(s.ref).version;
   return { ...base, method: "remake_swap", args: { who: asWho, becomes }, ...(now.refs?.[0] ? { picture: now.refs[0].file } : {}),
-    world: { [W.refOf("cast", x.id)]: { follow: true, n: v.n, hash: W.short(v.hash), name: now.name, placed: { recast: true, text: becomes } } } };
+    world: { [W.refOf("cast", x.id)]: { follow: true, n: v.n, hash: W.short(v.hash), name: now.name, placed: { recast: true, text: becomes }, ...(now.rating ? { rating: now.rating } : {}) } } };
 }
 
 // Reuse the motion: the first swap the take's own motion can do starts its candidates decision; the rest are listed

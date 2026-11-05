@@ -153,7 +153,11 @@ function addToPrompt(phrases) {
 // ---- pins (SNAP-R60): the recipe remembers which version of each record it holds, in extra.snap.world
 // the pin a recipe keeps for one record: which version it holds, and where that version's pieces went
 export const pinOf = (ref) => E.state().world?.[ref] ?? null;
-function pin(ref, entry) { E.tag("world", { ...E.state().world, [ref]: { follow: pinOf(ref)?.follow ?? true, ...entry } }); }
+// the pinned version's own rating rides on the pin, so the server rates and caps the run with it (SNAP-R39, SNAP-R33)
+function pin(ref, { rating: _, ...entry }) {
+  const { kind, id } = W.parse(ref), rating = W.get(W.refOf(kind, id, entry.n))?.version.body.rating;
+  E.tag("world", { ...E.state().world, [ref]: { follow: pinOf(ref)?.follow ?? true, ...entry, ...(rating ? { rating } : {}) } });
+}
 // a record as a person names it: a Cast's name, a set's name and moment, else the card's title
 export const nameOf = (body) => body?.name ?? (body?.brick?.snapshot ? `${body.brick.snapshot.name}, end of ${body.brick.snapshot.shot}` : body?.title ?? "?");
 // the version a card stands for, saved first when it is a set's working copy (a take never pins a draft; the same
