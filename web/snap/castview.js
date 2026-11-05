@@ -14,7 +14,7 @@ import * as W from "./world.js";
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const short = (f) => String(f).split("/").pop().replace(/\.safetensors$/, "");
 const when = (at) => new Date(at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-const view = (file) => { const cut = file.lastIndexOf("/"); return api.apiURL(`/view?filename=${encodeURIComponent(file.slice(cut + 1))}&subfolder=${encodeURIComponent(file.slice(0, Math.max(cut, 0)))}&type=input`); };
+export const view = (file) => { const cut = file.lastIndexOf("/"); return api.apiURL(`/view?filename=${encodeURIComponent(file.slice(cut + 1))}&subfolder=${encodeURIComponent(file.slice(0, Math.max(cut, 0)))}&type=input`); };
 
 // open the sheet on a record (id), a version of it (n), or a new one (id null; `lora` starts it from that LoRA file)
 export async function openCast(host, { id = null, n = null, lora = null, say, onApplied }) {

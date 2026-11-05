@@ -79,6 +79,13 @@ export function diff(a, b, at = "") {
   }
   return out;
 }
+// the reference pictures that changed between two bodies, one per role ({role, was, now}; null for a picture added or
+// taken out), so a person reads "front picture changed" with the two pictures; diff() keeps the full refs for agents
+export function pictures(a, b) {
+  const by = (x) => new Map((x?.refs ?? []).map((r, i) => [r.role || `picture ${i + 1}`, r.file]));
+  const was = by(a), now = by(b);
+  return [...new Set([...was.keys(), ...now.keys()])].filter((k) => was.get(k) !== now.get(k)).map((role) => ({ role, was: was.get(role) ?? null, now: now.get(role) ?? null }));
+}
 
 // writes go through the server (snap_world.py), one at a time there, so two pages saving one record keep both versions
 async function post(route, q) {

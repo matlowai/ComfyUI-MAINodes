@@ -703,6 +703,7 @@ export const STYLE = `
 .snap-danger { font: inherit; font-size: 12.5px; color: #fff; background: #c2453a; border: 0; border-radius: 8px; padding: 6px 12px; cursor: pointer; } .snap-danger:focus-visible { outline: 2px solid var(--s-accent); outline-offset: 2px; }
 .snap-world-del { color: #f08a7a; }
 .snap-world-fields { margin: 2px 0 0; padding-left: 18px; font-size: 12px; color: var(--s-dim); overflow-wrap: anywhere; }
+.snap-world-pic-pair { display: flex; align-items: center; gap: 8px; margin: 4px 0 2px; } .snap-world-pic-pair img { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--s-line); }
 /* the Re-run sheet (U89): each row's pick under its name, what the pick changes under it; the land, seed and buttons on one wrapping row */
 .snap-rerun-sheet select { font: inherit; font-size: 12px; color: var(--s-fg); background: var(--s-card); border: 1px solid var(--s-line); border-radius: 8px; padding: 6px; }
 .snap-rerun-pick { display: block; width: 100%; max-width: 100%; margin-top: 6px; }

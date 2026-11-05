@@ -251,7 +251,9 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   holds its last frame and is cut back. A list of choices is a batch: Re-generate gathers the takes as one decision's
   candidates (Apply = the shot's active take, Reject = the take's verdict, by whoever pressed it). The plan says the
   rating the run would have, and on a signed-in install that the server will refuse one above the cap. A file saved
-  without metadata re-runs from the take it is. Errors name the take's slots and every choice of a slot. *Why:* Dylan, 2026-11-04 22:45: "run as it was, run with today's world,
+  without metadata re-runs from the take it is. Errors name the take's slots and every choice of a slot. A changed
+  reference picture reads "front picture changed" with both pictures and their file names on the sheets; the tools keep
+  the whole refs line in `fields` and add `pictures` [{role, was, now}] (SNAP-R58). *Why:* Dylan, 2026-11-04 22:45: "run as it was, run with today's world,
   run with a version or a different scene, run scene with different characters... think Disney re-running the same
   animations with different movies and characters but same motions"; coordinator calls 2026-11-05 03:34. *More:* PLAN
   U89, DESIGN_U89_RERUN_SWAPS_2026-11-05.md, `web/snap/rerun.js`.

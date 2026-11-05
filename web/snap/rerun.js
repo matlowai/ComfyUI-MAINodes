@@ -95,9 +95,9 @@ function one(take, s, to) {
   if (!W.get(ref)) no();
   const now = W.get(ref), x = W.parse(ref), same = x.id === id, was = W.get(W.refOf(kind, id, s.n))?.version.body;
   if (same && now.version.n === s.n) return { slot: s.slot, to, keep: true, text: `${s.name} v${s.n} is already ${to === "latest" ? "the newest" : "that version"}`, into_run: false };
-  const body = now.version.body, name = kind === "cast" ? body.name : L.nameOf(body), fields = W.diff(was, body);
+  const body = now.version.body, name = kind === "cast" ? body.name : L.nameOf(body), fields = W.diff(was, body), pics = W.pictures(was, body);
   const warning = kind !== "cast" ? null : same ? L.lookWarning(was, body) : was?.refs?.length && !body.refs?.length ? `${name} has no pictures: the render draws them from words only` : null;
-  return { slot: s.slot, to, ref: same ? ref : W.refOf(kind, x.id, now.version.n), text: same ? `${s.name} v${s.n} → v${now.version.n}` : `${s.name} → ${name}`, fields, ...(warning ? { warning } : {}),
+  return { slot: s.slot, to, ref: same ? ref : W.refOf(kind, x.id, now.version.n), text: same ? `${s.name} v${s.n} → v${now.version.n}` : `${s.name} → ${name}`, fields, ...(pics.length ? { pictures: pics } : {}), ...(warning ? { warning } : {}),
     into_run: kind === "cast" ? (!same || fields.some((f) => INTO_RUN.includes(f.split(/[ .]/)[0]))) : fields.length > 0, latest: to === "latest" };
 }
 

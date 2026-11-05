@@ -8,8 +8,11 @@
 // Cast's details line and picture, a Change something) or why it can't (a Setup, a shot card: Re-generate does those).
 // "Several at once" on a row ticks other records for that slot: one re-run each, as one decision's candidates (U89 batch).
 // An opened file keeps Run as it was / Run with today's world / Edit then run (each pinned version opens in its editor).
+// A changed reference picture reads "front picture changed" with both pictures and their file names; the tools keep the
+// full refs line (SNAP-R58).
 // SNAP-R63 re-run swaps any reference · SNAP-R61 as it was, today's world, edited · SNAP-R60 pins · SNAP-R5 nothing changes
-// until a press · SNAP-R11 warn, never block · see docs/SNAP_RULES.md
+// until a press · SNAP-R11 warn, never block · SNAP-R58 agents get every field whole · see docs/SNAP_RULES.md
+import { view } from "./castview.js";
 import * as R from "./retake.js";
 import * as RR from "./rerun.js";
 import * as SC from "./scenes.js";
@@ -17,6 +20,18 @@ import * as W from "./world.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const option = ([value, text, disabled]) => h("option", { value, textContent: text, disabled: !!disabled });
+
+// what a pick or a newer version changes, as a person reads it: a line per field, except a picture change, which shows
+// the two pictures ("front picture changed") in place of the refs line
+const named = (f) => f.split("/").pop();
+const thumb = (f) => (f ? h("img", { src: view(f), alt: named(f), title: f, loading: "lazy" }) : h("span", { className: "snap-quiet", textContent: "none" }));
+function changes({ fields = [], pictures = [] }) {
+  const lines = pictures.length ? fields.filter((f) => !f.startsWith("refs ")) : fields;
+  if (!lines.length && !pictures.length) return null;
+  return h("ul", { className: "snap-world-fields" }, lines.map((f) => h("li", { textContent: f })),
+    pictures.map((p) => h("li", { className: "snap-world-pic" }, `${p.role.includes(": ") ? `${p.role.split(": ").pop()} picture` : p.role} ${p.was && p.now ? "changed" : p.now ? "added" : "taken out"}`,
+      h("div", { className: "snap-world-pic-pair" }, thumb(p.was), "→", thumb(p.now)), h("div", { textContent: [p.was, p.now].filter(Boolean).map(named).join(" → ") }))));
+}
 
 // a slot's picks, as the person reads them
 function picks(s) {
@@ -73,14 +88,14 @@ export async function openRerunSheet(host, { take, name, say, edit }) {
     pick.onchange = async () => {
       if (pick.value === "pinned") delete chosen[s.slot]; else chosen[s.slot] = pick.value;
       const [r] = pick.value === "pinned" ? [] : await RR.resolve(subject, { [s.slot]: pick.value }).catch((err) => [{ text: err.message }]);
-      what.replaceChildren(...(r ? [h("strong", { textContent: r.text }), r.fields?.length ? h("ul", { className: "snap-world-fields" }, r.fields.map((f) => h("li", { textContent: f }))) : null, r.warning ? h("div", { className: "snap-world-warn", textContent: r.warning }) : null].filter(Boolean) : []));
+      what.replaceChildren(...(r ? [h("strong", { textContent: r.text }), changes(r), r.warning ? h("div", { className: "snap-world-warn", textContent: r.warning }) : null].filter(Boolean) : []));
       update();
     };
     const state = s.not_a_record ? `not a record: ${s.not_a_record}` : !s.n ? "a pack card" : m?.missing ? "not in your records (the recipe still holds what it put in)" : m ? `today: v${m.now}${m.archived ? " (archived)" : ""}` : "today: the same version";
     const editable = (s.kind === "cast" || s.kind === "set_snapshot") && s.n && !s.missing;
     return h("div", { className: `snap-world-row${m ? (m.missing ? " missing" : " moved") : ""}` },
       h("strong", { textContent: `${s.kind === "scene" ? "Scene: " : s.kind === "setup" ? "Setup: " : ""}${m?.name ?? s.name ?? s.slot}${s.n ? ` v${s.n}` : ""}` }), h("span", { className: "snap-quiet", textContent: state }),
-      m?.fields?.length ? h("ul", { className: "snap-world-fields" }, m.fields.map((f) => h("li", { textContent: f }))) : null,
+      m ? changes(m) : null,
       m?.warning ? h("div", { className: "snap-world-warn", textContent: m.warning }) : null,
       pick, others, what,
       editing && editable ? h("button", { className: "snap-link", textContent: `Edit v${s.n}`, title: "open this version: saving makes a new version, and Save and use puts it into this recipe", onclick: () => edit(s.slot, s.n) }) : null);
