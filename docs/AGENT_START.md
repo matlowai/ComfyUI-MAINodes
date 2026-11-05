@@ -214,6 +214,22 @@ them). It works on stills: masters, plates, boards.
 - In the take viewer the same route is "New view from these pictures": add this picture, a marked region of it, or a
   Cast's picture, move them up or down, and pick the model.
 
+### Character sheets (turnarounds)
+
+`make_character_sheet` draws a Cast as a sheet with one method of the sheet slot (`list_methods {"slot": "sheet"}`):
+
+    make_character_sheet {"cast": "cast:<id>", "method": "contact_sheet", "seeds": [1, 2, 3]}
+
+- `contact_sheet` (H3 Turnaround LoRA: five views jointly denoised from the Cast's picture; `contact_sheet_instruct` is
+  its early checkpoint), `h3_ref_sheet` (stock H3 Ref2V lays out an 8-panel sheet from five pictures: the Cast's
+  picture plus four more in `pictures`, e.g. a turnaround's views or crops), `fizgig_sheet` (the Fizgig still with a
+  sheet prompt), `krea2_quadview`, `krea2_dynamic` (Krea 2 sheet LoRAs) and `moss_charref` (MOSS-Image CharRef asked
+  for a turnaround).
+- `design` is the character in words for the methods that write it into the prompt (default the Cast's details; `;`
+  separates Krea's identity locks).
+- One candidate per seed, each a still take: `candidate_frames {decision}` shows the sheet first, then each view the
+  method draws apart (the contact sheet's five). `apply_candidate` keeps the one that holds the design.
+
 ### Voices and audio references
 
 - Upload audio like pictures: `curl -s -F image=@line.wav -F subfolder=snap $BASE/upload/image` gives `snap/line.wav`.

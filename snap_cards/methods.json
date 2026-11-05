@@ -73,6 +73,13 @@
       "title": "New view from these pictures",
       "off": "nothing new is made",
       "about": "a new still made by an H3 model from 1 or more context pictures in order (a location's master or plate, the nearest earlier still or board, a Cast picture, a crop of any of them) and words the person or agent writes, never a fixed keep-the-composition text; each seed is a candidate take in the shot it lands in, with every context picture in its provenance (U101; MOSS Image Edit was tested and left out: it copied Picture 1 or redesigned the set and the people)"
+    },
+    {
+      "id": "sheet",
+      "kind": "take",
+      "title": "Character sheet",
+      "off": "no sheet is made",
+      "about": "a character sheet (turnaround) of a Cast made by one model from the Cast's picture and any more pictures given: each seed is a candidate still take holding the sheet and, where the method draws them apart, each view; every picture is in its provenance (U101 turnaround round 2)"
     }
   ],
   "methods": [
@@ -512,6 +519,449 @@
       "guidance": { "line": "not measured yet", "evidence": "untested", "source": "U101", "n": 0, "hardware": "5090" },
       "cost": { "community_s": null, "local_s": null, "per": "one still", "vram_gb": null },
       "credit": "Fizgig H3 Still by shootthesound (https://github.com/shootthesound/ComfyUI-Fizgig-H3-Still, MIT) · turbo LoRA larryvrh/MiniMax-H3-Turbo-Lora · MiniMax H3"
+    },
+    {
+      "id": "contact_sheet",
+      "slot": "sheet",
+      "kind": "take",
+      "title": "Character sheet · H3 Turnaround LoRA (five views)",
+      "face": "five rotated views of the Cast from one picture, jointly denoised (H3 Contact-Sheet diffusion)",
+      "does": "turnaround",
+      "anchors": {
+        "kind": "contact",
+        "prompt": "the camera orbits the subject of <Picture 1> ninety degrees clockwise",
+        "unet": "h3/minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+        "clip": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "vae": "h3/minimax_h3_video_vae_fp16.safetensors",
+        "lora": "h3/minimax_h3_five_view_512_s1500.safetensors",
+        "strength": 1.0,
+        "steps": 28,
+        "sampler": "res_multistep",
+        "scheduler": "simple",
+        "size": 1024,
+        "max_pictures": 1
+      },
+      "needs": [
+        {
+          "folder": "diffusion_models",
+          "match": "minimax_h3_ref2va_pruned"
+        },
+        {
+          "folder": "loras",
+          "match": "minimax_h3_five_view_512_s1500"
+        },
+        {
+          "folder": "vae",
+          "match": "minimax_h3_video_vae"
+        }
+      ],
+      "local_or_api": "local",
+      "constraints": [
+        "one reference picture (the Cast's); the words are the LoRA's own orbit caption, the design is read from the picture",
+        "five square views jointly denoised as a five-slot H3 latent (the node's packing): a plain LoRA load in a video graph does not work and degrades motion, so the LoRA is used only here",
+        "width is each view's size (512 = the LoRA's training size, 1024 the author's sweet spot; height is ignored)",
+        "the rotation follows the subject's pose and some subjects under-rotate (the LoRA's notes)"
+      ],
+      "guidance": {
+        "line": "not measured yet",
+        "evidence": "untested",
+        "source": "U101 turnaround round 2",
+        "n": 0,
+        "hardware": "5090"
+      },
+      "cost": {
+        "community_s": [
+          10,
+          57
+        ],
+        "local_s": null,
+        "per": "one five-view sheet at 512 / 1024 a view (RTX PRO 6000, the LoRA's card)",
+        "vram_gb": null
+      },
+      "credit": "H3 Turnaround LoRA by matlowai (https://huggingface.co/matlod/minimax-h3-turnaround, MiniMax licence) · the contact sheet nodes are this pack's own (contact_sheet.py, as github.com/matlowai/ComfyUI-H3-ContactSheet) · MiniMax H3"
+    },
+    {
+      "id": "contact_sheet_instruct",
+      "slot": "sheet",
+      "kind": "take",
+      "title": "Character sheet · H3 Turnaround LoRA, instruct (five views)",
+      "face": "five rotated views from one picture on a neutral studio background (the LoRA's early checkpoint: follows words better, rotates less)",
+      "does": "turnaround",
+      "anchors": {
+        "kind": "contact",
+        "prompt": "the camera orbits the subject of <Picture 1> ninety degrees clockwise, neutral studio background, constant lighting",
+        "unet": "h3/minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+        "clip": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "vae": "h3/minimax_h3_video_vae_fp16.safetensors",
+        "lora": "h3/minimax_h3_five_view_512_s400_instruct.safetensors",
+        "strength": 1.0,
+        "steps": 28,
+        "sampler": "res_multistep",
+        "scheduler": "simple",
+        "size": 1024,
+        "max_pictures": 1
+      },
+      "needs": [
+        {
+          "folder": "diffusion_models",
+          "match": "minimax_h3_ref2va_pruned"
+        },
+        {
+          "folder": "loras",
+          "match": "minimax_h3_five_view_512_s400_instruct"
+        },
+        {
+          "folder": "vae",
+          "match": "minimax_h3_video_vae"
+        }
+      ],
+      "local_or_api": "local",
+      "constraints": [
+        "one reference picture (the Cast's); the words are the LoRA's own orbit caption, the design is read from the picture",
+        "five square views jointly denoised as a five-slot H3 latent (the node's packing): a plain LoRA load in a video graph does not work and degrades motion, so the LoRA is used only here",
+        "width is each view's size (512 = the LoRA's training size, 1024 the author's sweet spot; height is ignored)",
+        "the rotation follows the subject's pose and some subjects under-rotate (the LoRA's notes)",
+        "the step-400 checkpoint: the background words are honoured, the arc is shallower than the default's"
+      ],
+      "guidance": {
+        "line": "not measured yet",
+        "evidence": "untested",
+        "source": "U101 turnaround round 2",
+        "n": 0,
+        "hardware": "5090"
+      },
+      "cost": {
+        "community_s": [
+          10,
+          57
+        ],
+        "local_s": null,
+        "per": "one five-view sheet at 512 / 1024 a view (RTX PRO 6000)",
+        "vram_gb": null
+      },
+      "credit": "H3 Turnaround LoRA by matlowai (https://huggingface.co/matlod/minimax-h3-turnaround, MiniMax licence) · the contact sheet nodes are this pack's own (contact_sheet.py, as github.com/matlowai/ComfyUI-H3-ContactSheet) · MiniMax H3"
+    },
+    {
+      "id": "h3_ref_sheet",
+      "slot": "sheet",
+      "kind": "take",
+      "title": "Character sheet · H3 five-reference sheet (JahJedi prompt)",
+      "face": "an 8-panel sheet (four full views over four close-ups) laid out by stock H3 Ref2V from five pictures of the character",
+      "does": "turnaround",
+      "anchors": {
+        "kind": "h3",
+        "prompt": "subject_definitions:\n<Subject 1> is ONE single character, shown across all the reference images from different angles and in different close-ups. They are all the same character - not several different designs - and nothing is combined or mixed between them. Their face, hair, every part of their clothing, armour, gear, colour and material is exactly as it appears there. Only the character is taken from those images: not their backgrounds, not their lighting, and not any other object or person visible in them.\n\nsummary:\n[reference generation] The target video is a single still frame: a reference data sheet that lays out <Subject 1> as they appear across <Picture 1> to <Picture 5> - full views along the top and close-ups of the main parts along the bottom - against a neutral studio backdrop. The composition does not change for the length of the clip, so one frame can be exported and used as a reference sheet.\n\nretention_analysis:\n<Picture 1>: fully_preserved - the face, hair, clothing, gear, colours and materials of the character are retained.\n<Picture 2>: fully_preserved - the face, hair, clothing, gear, colours and materials of the character are retained.\n<Picture 3>: fully_preserved - the face, hair, clothing, gear, colours and materials of the character are retained.\n<Picture 4>: fully_preserved - the face, hair, clothing, gear, colours and materials of the character are retained.\n<Picture 5>: fully_preserved - the face, hair, clothing, gear, colours and materials of the character are retained.\n\ndetailed_description:\nThe target video is a STILL IMAGE - a frozen reference data sheet, with no motion of any kind from the first frame to the last: a seamless neutral mid-grey background, soft even studio light from the front and both sides so every surface is readable and nothing falls into black shadow, neutral accurate colour, no environment of any kind, drawn in the same style as the reference images.\n\nWHAT IS TAKEN FROM THE REFERENCE IMAGES: the character exactly as they already are. Every strap, buckle, plate, seam, layer, weapon and attachment keeps the shape, size and position it has there, on the same side of the body. Every colour, metal, cloth and leather keeps its exact hue and finish. The proportions and the silhouette are the same. Nothing is redesigned, restyled, simplified, tidied, embellished, modernised or improved, nothing is added that is not on the references and nothing on them is left out. This is a documentation sheet of an existing design, not a new one.\n\n[Shot 1] The frame is a grid of panels on that grey background, separated by thin even neutral-grey gutters of equal width, with a matching margin around the outside. Every panel is a plain rectangle, flat to the camera, with no tilt, no perspective and no drop shadow.\n\nTOP ROW - FOUR FULL VIEWS, equal panels side by side, the whole character in each, head to feet, shown at exactly the same scale, at the same height, upright and level, centred in their own panel, lit identically, from the same camera height and distance. Only the viewing angle differs:\n  1 - FRONT, facing the camera straight on\n  2 - THREE-QUARTER, turned 45 degrees to their own right\n  3 - SIDE, a STRICT profile at exactly 90 degrees: the camera sees only one side of the character, the far arm and far leg are hidden behind the near ones, and the face is seen edge-on with the nose in silhouette. This panel must be clearly different from panel 2, not a second three-quarter view.\n  4 - BACK, seen from directly behind\n\nBOTTOM ROW - FOUR CLOSE-UPS, equal panels side by side, each a tight crop on one main area of the same character, filling its panel, on the same grey background and in the same light. The four areas are DIFFERENT from each other and each appears ONCE. No two of these panels show the same area, the same framing or the same crop, and none of them repeats another:\n  5 - HEAD AND SHOULDERS: the face, the hair and the collar, front-on.\n  6 - CHEST AND WAIST: the torso, the belt or sash line and what sits on it, front-on. No head in frame.\n  7 - ARM AND HAND: one whole arm from shoulder to fingertips, with the hand open and clearly visible.\n  8 - LEG AND FOOT: one whole leg from hip to the ground, with the foot clearly visible.\nAny angle or crop that the reference images do not already contain is built from the ones that do, keeping the same silhouette, shapes, layering and proportions. Each close-up is shot STRAIGHT ON, square to that part of the character, filling its panel, large and readable. The head close-up faces the camera front-on, not turned to the side.\n\nIt is one and the same character in every panel, top row and bottom row alike, with the same face, hair, colours, materials, proportions and number of parts. Nothing is added, removed, redesigned or restyled between panels; the back view belongs to the same character as the front view, and each close-up belongs to the same character as the full views.\n\nPOSE - in the four full views the character stands in a relaxed A-pose, feet shoulder width apart, arms held slightly away from the body with open hands, head level and facing along the body, the same pose in all four.\n\nThis is a FROZEN FRAME. Nothing moves at all. The camera holds a static shot and does not move, zoom, tilt, shake or drift. The panels do not slide, resize, reorder, cross-fade or animate. The character does not move, turn, gesture, breathe or change pose inside any panel. Every frame is identical to the first: the shot reads as a single picture, not as a video.\n\nNo text, letters, numbers, captions, labels, titles, arrows, callouts, measurement lines, colour swatches, logos or watermarks of any kind anywhere in the frame or in the gutters, no second copy of the character inside a panel, no repeated panel, no two panels showing the same area or the same crop, no extra panels, no empty panels, no overlapping panels, no other object or person, no environment, no floor pattern, no cast shadow on the background, no camera movement, no cuts, no fades, no dissolves, no motion blur, no depth-of-field blur, no dramatic or coloured lighting, no lens flare, no smoke or atmosphere.\n\noverall_soundscape:\nSilence.\n\nnon_diegetic_music: N/A",
+        "unet": "h3/minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+        "clip": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "vae": "h3/minimax_h3_video_vae_fp16.safetensors",
+        "steps": 20,
+        "sampler": "res_multistep",
+        "scheduler": "simple",
+        "frames": 5,
+        "ref_image_size": "max",
+        "size": [
+          1920,
+          1088
+        ],
+        "max_pictures": 9
+      },
+      "needs": [
+        {
+          "folder": "diffusion_models",
+          "match": "minimax_h3_ref2va_pruned"
+        },
+        {
+          "folder": "vae",
+          "match": "minimax_h3_video_vae"
+        }
+      ],
+      "local_or_api": "local",
+      "constraints": [
+        "five pictures: the Cast's picture first, then four more of the same character (other views, close-ups: a turnaround's views, a cropped Cast picture); the prompt names <Picture 1> to <Picture 5> and never describes the character in words",
+        "stock MiniMax H3 Reference to Video (Ref2VA), a frozen 5-frame clip (H3's minimum), references at their max size; the sheet is frame 0",
+        "JahJedi's prompt for armour, with the mannequin block dropped for a character as the author says; 20 steps res_multistep, no negative (BasicGuider)"
+      ],
+      "guidance": {
+        "line": "not measured yet",
+        "evidence": "untested",
+        "source": "U101 turnaround round 2",
+        "n": 0,
+        "hardware": "5090"
+      },
+      "cost": {
+        "community_s": null,
+        "local_s": null,
+        "per": "one 1920x1088 sheet",
+        "vram_gb": null
+      },
+      "credit": "Character sheet prompt by JahJedi (https://huggingface.co/JahJedi/MiniMax-H3-Character-Sheet, Apache-2.0) · MiniMax H3"
+    },
+    {
+      "id": "fizgig_sheet",
+      "slot": "sheet",
+      "kind": "take",
+      "title": "Character sheet · H3 still (Fizgig), one sheet",
+      "face": "a turnaround and callout sheet drawn as one H3 still from the Cast's picture (U101 round 1's baseline)",
+      "does": "turnaround",
+      "anchors": {
+        "kind": "h3",
+        "prompt": "A character model sheet of {name} from <Picture 1> on a plain light-grey background. Top row: five full-body views side by side at the same size and scale: front, left profile, back, right profile, and seen from above. Bottom row: five zoomed callout panels with thin borders of the most identity-critical details. The same design in every view as in <Picture 1>: {design}. Clean lineart, flat cel shading, no text.",
+        "unet": "h3/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+        "clip": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "vae": "h3/minimax_h3_video_vae_fp16.safetensors",
+        "turbo": {
+          "lora": "h3/minimax_h3_turbo_v4_step600_ema.safetensors",
+          "strength": 0.38
+        },
+        "steps": 20,
+        "sampler": "er_sde",
+        "scheduler": "simple",
+        "frames": 1,
+        "size": [
+          2112,
+          1184
+        ],
+        "max_pictures": 9
+      },
+      "packs": [
+        "FizgigH3StillLatent",
+        "FizgigH3StillDecode"
+      ],
+      "needs": [
+        {
+          "folder": "diffusion_models",
+          "match": "minimax_h3_fl2va_pruned"
+        },
+        {
+          "folder": "loras",
+          "match": "minimax_h3_turbo_v4"
+        },
+        {
+          "folder": "vae",
+          "match": "minimax_h3_video_vae"
+        }
+      ],
+      "local_or_api": "local",
+      "constraints": [
+        "the New view's Fizgig still with a sheet prompt: the design words come from the Cast (or `design`)"
+      ],
+      "guidance": {
+        "line": "U101 round 1 (C1): legible sheets 6/6, four distinct views, 'seen from above' 0/6 (a second back view), the profiles drop the greatsword 3/3",
+        "evidence": "measured",
+        "source": "U101 bake-off C (PROGRESS 2026-11-05 16:01)",
+        "n": 6,
+        "hardware": "5090"
+      },
+      "cost": {
+        "community_s": null,
+        "local_s": [
+          29,
+          17
+        ],
+        "per": "one 2112x1184 sheet on a 5090 (first / each more seed)",
+        "vram_gb": null
+      },
+      "credit": "Fizgig H3 Still by shootthesound (https://github.com/shootthesound/ComfyUI-Fizgig-H3-Still, MIT) · turbo LoRA larryvrh/MiniMax-H3-Turbo-Lora · MiniMax H3"
+    },
+    {
+      "id": "krea2_quadview",
+      "slot": "sheet",
+      "kind": "take",
+      "title": "Character sheet · Krea 2 QuadView",
+      "face": "a face close-up plus front, side and back full-body views, a Krea 2 edit of the Cast's picture",
+      "does": "turnaround",
+      "anchors": {
+        "kind": "krea2edit",
+        "prompt": "Convert the character in the image to a Character Sheet showing a face close-up, front full body, side full body and back full body views",
+        "unet": "krea2/krea2_turbo_fp8_scaled.safetensors",
+        "clip": "krea2/qwen3vl_4b_fp8_scaled.safetensors",
+        "vae": "krea2/qwen_image_vae.safetensors",
+        "lora": "krea2/QuadView_krea2_v1.safetensors",
+        "steps": 10,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "ref_max": 1024,
+        "ref_boost": 1.0,
+        "size": [
+          1536,
+          1024
+        ],
+        "max_pictures": 1
+      },
+      "packs": [
+        "Krea2EditModelPatch",
+        "Krea2EditGroundedEncode"
+      ],
+      "needs": [
+        {
+          "folder": "diffusion_models",
+          "match": "krea2_turbo"
+        },
+        {
+          "folder": "text_encoders",
+          "match": "qwen3vl_4b"
+        },
+        {
+          "folder": "vae",
+          "match": "qwen_image_vae"
+        },
+        {
+          "folder": "loras",
+          "match": "quadview_krea2"
+        }
+      ],
+      "local_or_api": "local",
+      "constraints": [
+        "one picture; the LoRA's own trigger caption, the design is read from the picture",
+        "Krea 2 Turbo, 10 steps cfg 1 euler/simple, the reference grounded in the text encoder and as source tokens (comfyui-krea2edit, the LoRA's workflow)"
+      ],
+      "guidance": {
+        "line": "not measured yet",
+        "evidence": "untested",
+        "source": "U101 turnaround round 2",
+        "n": 0,
+        "hardware": "5090"
+      },
+      "cost": {
+        "community_s": null,
+        "local_s": null,
+        "per": "one 1536x1024 sheet",
+        "vram_gb": null
+      },
+      "credit": "CharacterSheet LoRAs by Alissonerdx (https://huggingface.co/Alissonerdx/CharacterSheet; civitai model licence: https://civitai.red/models/2764727/tripleview) · comfyui-krea2edit by lbouaraba (Apache-2.0) · Krea 2 (Krea 2 Community License)"
+    },
+    {
+      "id": "krea2_dynamic",
+      "slot": "sheet",
+      "kind": "take",
+      "title": "Character sheet · Krea 2 DynamicCharacterSheet",
+      "face": "a full entity sheet (hero view, turnaround, action poses, silhouettes, expressions, details) from the Cast's picture, a Krea 2 edit (experimental)",
+      "does": "turnaround",
+      "anchors": {
+        "kind": "krea2edit",
+        "prompt": "[TASK: ENTITY_SHEET_GENERATION]\n[TEMPLATE: MULTI_ANGLE_ENTITY_SHEET_V1]\n[ENTITY_TYPE: STYLIZED_CHARACTER]\n[ENTITY_ID: {name}]\n\nConvert the subject in Image 1 into one standardized advanced Character Sheet. Image 1 is the sole identity and design reference for {name}. Preserve the exact same design, proportions, colors, materials, markings, surface wear, and every signature detail. Do not redesign, beautify, age-shift, or simplify it.\n\nFIXED LANDSCAPE SHEET FORMAT\nUse a clean 3:2 landscape canvas with a warm off-white paper background and generous white space. Organize one coherent sheet with these fixed zones:\n1. LEFT METADATA COLUMN: the exact name \"{name}\", ENTITY TYPE, CORE MOOD, and VISUAL SIGNATURE in compact readable English.\n2. LARGE CENTER HERO VIEW: one dominant full-body three-quarter view.\n3. TOP-RIGHT TURNAROUND ROW: neutral FRONT FULL BODY, SIDE FULL BODY, and BACK FULL BODY views at matching scale, with all extremities visible.\n4. MID-RIGHT ACTION POSES: three readable views including a low angle, an overhead or high angle, and one characteristic action.\n5. BOTTOM-LEFT SILHOUETTE STUDY: three solid black silhouettes that preserve the design shape.\n6. BOTTOM-CENTER EXPRESSION STUDY: one clear neutral face close-up plus three compact expression studies showing meaningful variation without changing identity.\n7. BOTTOM-RIGHT DETAIL STUDY: six close-up crops of the most identity-critical features, materials, face, markings and accessories.\n\nIDENTITY LOCKS\n{design_lines}\n- Keep the subject from Image 1 recognizable in every view.\n- Keep handedness, asymmetry, markings, costume, hardware, and color placement consistent.\n- Use clean anime cel-shaded illustration style with sharp linework throughout the sheet.\n\nVISIBLE TEXT\nAll labels must be English only. Keep labels short and legible. Do not invent lore paragraphs.\n\nNEGATIVE CONSTRAINTS\nNo extra character or object, identity drift, wardrobe drift, material drift, inconsistent markings, changed proportions, missing extremities, duplicated limbs, merged views, overlapping panels, logo, watermark, or unrelated decoration.",
+        "unet": "krea2/krea2_turbo_fp8_scaled.safetensors",
+        "clip": "krea2/qwen3vl_4b_fp8_scaled.safetensors",
+        "vae": "krea2/qwen_image_vae.safetensors",
+        "lora": "krea2/DynamicCharacterSheet_krea2_v1.safetensors",
+        "steps": 10,
+        "cfg": 1.0,
+        "sampler": "lcm",
+        "scheduler": "simple",
+        "ref_max": 1024,
+        "ref_boost": 1.0,
+        "size": [
+          1536,
+          1024
+        ],
+        "max_pictures": 1
+      },
+      "packs": [
+        "Krea2EditModelPatch",
+        "Krea2EditGroundedEncode"
+      ],
+      "needs": [
+        {
+          "folder": "diffusion_models",
+          "match": "krea2_turbo"
+        },
+        {
+          "folder": "text_encoders",
+          "match": "qwen3vl_4b"
+        },
+        {
+          "folder": "vae",
+          "match": "qwen_image_vae"
+        },
+        {
+          "folder": "loras",
+          "match": "dynamiccharactersheet_krea2"
+        }
+      ],
+      "local_or_api": "local",
+      "constraints": [
+        "one picture; the author's structured prompt with the Cast's name and its design words as identity locks (one per ';' in `design`)",
+        "Krea 2 Turbo, 10 steps cfg 1, LCM/simple (the author's best)",
+        "text on the sheet is imperfect (the author's note)"
+      ],
+      "guidance": {
+        "line": "not measured yet",
+        "evidence": "untested",
+        "source": "U101 turnaround round 2",
+        "n": 0,
+        "hardware": "5090"
+      },
+      "cost": {
+        "community_s": null,
+        "local_s": null,
+        "per": "one 1536x1024 sheet",
+        "vram_gb": null
+      },
+      "credit": "CharacterSheet LoRAs by Alissonerdx (https://huggingface.co/Alissonerdx/CharacterSheet; civitai model licence: https://civitai.red/models/2764727/tripleview) · comfyui-krea2edit by lbouaraba (Apache-2.0) · Krea 2 (Krea 2 Community License)"
+    },
+    {
+      "id": "moss_charref",
+      "slot": "sheet",
+      "kind": "take",
+      "title": "Character sheet · MOSS-Image CharRef",
+      "face": "a turnaround sheet drawn by MOSS-Image Base with a character-reference LoRA from the Cast's picture",
+      "does": "turnaround",
+      "anchors": {
+        "kind": "moss_ref",
+        "prompt": "Same character and art style as Picture 1. A character turnaround model sheet of {name} on a plain light-grey background: five full-body views side by side at the same size and scale: front, left profile, back, right profile, and seen from above. {design}",
+        "negative": "",
+        "unet": "moss_image_base_int8_convrot.safetensors",
+        "clip": "qwen3.5_9b_int8_convrot.safetensors",
+        "vae": "flux2-vae.safetensors",
+        "lora": "moss_image_charref_v2.safetensors",
+        "format": "ai-toolkit",
+        "steps": 50,
+        "cfg": 3.0,
+        "sampler": "euler",
+        "scheduler": "sgm_uniform",
+        "slg_single": "22",
+        "megapixels": 1.0,
+        "size": [
+          1536,
+          1024
+        ],
+        "max_pictures": 1
+      },
+      "needs": [
+        {
+          "folder": "diffusion_models",
+          "match": "moss_image_base"
+        },
+        {
+          "folder": "loras",
+          "match": "moss_image_charref"
+        },
+        {
+          "folder": "vae",
+          "match": "flux2-vae"
+        }
+      ],
+      "local_or_api": "local",
+      "constraints": [
+        "one picture; core Text Encode MOSS-Image Edit in its ai-toolkit layout (kv_cache on: the LoRA's training), the reference at 1 MP",
+        "50 steps cfg 3 euler/sgm_uniform, SLG on single layer 22 (the author's full mode)",
+        "anime and illustrated characters; one reference per image (the author's notes)"
+      ],
+      "guidance": {
+        "line": "not measured yet",
+        "evidence": "untested",
+        "source": "U101 turnaround round 2",
+        "n": 0,
+        "hardware": "5090"
+      },
+      "cost": {
+        "community_s": null,
+        "local_s": null,
+        "per": "one 1536x1024 sheet",
+        "vram_gb": null
+      },
+      "credit": "MOSS-Image CharRef v2 by 7err4 (https://huggingface.co/7err4/MOSS-Image-CharRef, Apache-2.0) · MOSS-Image Base"
     },
     {
       "id": "crop_inpaint",

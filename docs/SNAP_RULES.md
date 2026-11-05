@@ -639,10 +639,22 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   "person:20" the same way. *Why:* the U101 bake-off: a Maren-and-Brann board scored Maren and showed Brann's head,
   and Brann was never measured. ArcFace still scores profiles and bowed heads low (Brann's bow: 0.06), so the crops
   decide. *More:* PLAN U101, proto/test_u101_faces.js, proto/ui/u101/faces_twoshot_after*.
+- **SNAP-R77: A character sheet is a method of the sheet slot, and its candidates are takes.** "Make a character sheet"
+  (`make_character_sheet`) draws a Cast's picture (and any more pictures, e.g. a turnaround's views) as a sheet with one
+  method of the slot `sheet`: the H3 Turnaround LoRA through ComfyUI-H3-ContactSheet (five views jointly denoised, and
+  its instruct checkpoint), stock H3 Ref2V with JahJedi's five-reference prompt, the Fizgig H3 still with a sheet
+  prompt, Krea 2 with Alissonerdx's QuadView / DynamicCharacterSheet LoRAs (comfyui-krea2edit), MOSS-Image Base with the
+  CharRef LoRA. Which graph a method runs, its words, LoRA, steps and size are registry data (`anchors.kind` picks one
+  of the edits.js graphs, SNAP-R13/R14). Each seed is one candidate still take (SNAP-R23) in the shot it lands in, its
+  pictures the sheet first and then each view the method draws apart; its parent names the Cast and every picture, and
+  the Cast's version is pinned (SNAP-R60). A five-view LoRA is only ever used through its node, never in a video graph
+  (it breaks motion). *Why:* Dylan 2026-11-05: "even fizgig had a hard time" on turnarounds; "an early prototype, feel
+  free to try it out tho with the others". *More:* PLAN U101, PROGRESS 2026-11-05 (turnaround round 2),
+  proto/ui/u101/bakeoff/round2_*.
 
 ## Accounts and the gate (snap-gate)
 
-IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; R77 on).
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; R78 on).
 
 - **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
   use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and

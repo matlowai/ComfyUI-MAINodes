@@ -7,10 +7,12 @@
 // change can be written. A recast swaps the identity notes for a "new person" note, and nothing is refused. The render
 // lands as a new take in the same group whose parent is the original. What a method runs is registry data.
 // New view from these pictures (U101, the "view" slot) is the stills' route: an H3 model from ordered context pictures
-// and free words, each seed a candidate take in a shot (fromContext, below).
+// and free words, each seed a candidate take in a shot (fromContext, below). A character sheet of a Cast (the "sheet"
+// slot, sheet below) rides the same pictures, landing and candidates.
 // SNAP-R13 data, not code branches · SNAP-R14 method slots · SNAP-R16 GPU work waits for the person · SNAP-R17 by ·
 // SNAP-R23 candidates · SNAP-R51 change something, recast, pins · SNAP-R71 a new view from context, in the asker's words ·
-// SNAP-R72 what Picture 1 is, per model · SNAP-R75 the view slot's models are data (P-H3-Image, H3 still) · see docs/SNAP_RULES.md
+// SNAP-R72 what Picture 1 is, per model · SNAP-R75 the view slot's models are data (P-H3-Image, H3 still) ·
+// SNAP-R77 a character sheet is a sheet-slot method whose candidates are takes · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as C from "./candidates.js";
 import * as K from "./checks.js";
@@ -375,31 +377,108 @@ async function ph3Graph(a, pics, values, seed, size, prefix) {
 }
 // one H3 still (the Fizgig H3 Still pack's edit graph): core MiniMax H3 Reference to Video with the pictures as
 // <Picture n>, the pack's one-frame latent and its decode, the turbo LoRA at the pack's strength, er_sde. The still is
-// Picture 1's size at the method's megapixels unless a size is given
+// Picture 1's size at the method's megapixels unless a size is given. A method with `frames: 5` (the five-reference
+// sheet) samples Ref2V's own frozen 5-frame clip and keeps frame 0, and one without `turbo` runs the model as it is
 async function fizgigGraph(a, pics, values, seed, size, prefix) {
-  const files = { unet: await M.choice("UNETLoader", "unet_name", a.unet), clip: await M.choice("CLIPLoader", "clip_name", a.clip), vae: await M.choice("VAELoader", "vae_name", a.vae), turbo: await M.choice("LoraLoaderModelOnly", "lora_name", a.turbo.lora) };
+  const files = { unet: await M.choice("UNETLoader", "unet_name", a.unet), clip: await M.choice("CLIPLoader", "clip_name", a.clip), vae: await M.choice("VAELoader", "vae_name", a.vae), turbo: a.turbo && await M.choice("LoraLoaderModelOnly", "lora_name", a.turbo.lora) };
   const g = {
     1: { class_type: "UNETLoader", inputs: { unet_name: files.unet, weight_dtype: "default" } },
     2: { class_type: "CLIPLoader", inputs: { clip_name: files.clip, type: "minimax", device: "default" } },
     3: { class_type: "VAELoader", inputs: { vae_name: files.vae } },
-    4: { class_type: "LoraLoaderModelOnly", inputs: { model: ["1", 0], lora_name: files.turbo, strength_model: a.turbo.strength } },
+    ...(a.turbo ? { 4: { class_type: "LoraLoaderModelOnly", inputs: { model: ["1", 0], lora_name: files.turbo, strength_model: a.turbo.strength } } } : {}),
   };
+  const model = a.turbo ? ["4", 0] : ["1", 0], clipFrames = a.frames === 5;
   pics.forEach((p) => Object.assign(g, p.nodes));
   if (!size) Object.assign(g, { s0: { class_type: "ImageScaleToTotalPixels", inputs: { image: pics[0].out, upscale_method: "lanczos", megapixels: a.megapixels, resolution_steps: 32 } }, z: { class_type: "GetImageSize", inputs: { image: ["s0", 0] } } });
   const w = size?.width ?? ["z", 0], hgt = size?.height ?? ["z", 1];
   Object.assign(g, {
-    p: { class_type: "MiniMaxH3ReferenceToVideo", inputs: { clip: ["2", 0], vae: ["3", 0], prompt: fill(a.prompt, values), width: w, height: hgt, length: 5, ref_image_size: "match", ...Object.fromEntries(pics.map((x, i) => [`ref_images.ref_image_${i}`, x.out])) } },
-    g: { class_type: "BasicGuider", inputs: { model: ["4", 0], conditioning: ["p", 0] } },
+    p: { class_type: "MiniMaxH3ReferenceToVideo", inputs: { clip: ["2", 0], vae: ["3", 0], prompt: fill(a.prompt, values), width: w, height: hgt, length: 5, ref_image_size: a.ref_image_size ?? "match", ...Object.fromEntries(pics.map((x, i) => [`ref_images.ref_image_${i}`, x.out])) } },
+    g: { class_type: "BasicGuider", inputs: { model, conditioning: ["p", 0] } },
     r: { class_type: "RandomNoise", inputs: { noise_seed: seed } },
     s: { class_type: "KSamplerSelect", inputs: { sampler_name: a.sampler } },
-    m: { class_type: "BasicScheduler", inputs: { model: ["4", 0], scheduler: a.scheduler, steps: a.steps, denoise: 1.0 } },
-    l: { class_type: "FizgigH3StillLatent", inputs: { width: w, height: hgt, batch_size: 1 } },
-    k: { class_type: "SamplerCustomAdvanced", inputs: { noise: ["r", 0], guider: ["g", 0], sampler: ["s", 0], sigmas: ["m", 0], latent_image: ["l", 0] } },
-    d: { class_type: "FizgigH3StillDecode", inputs: { samples: ["k", 0], vae: ["3", 0] } },
+    m: { class_type: "BasicScheduler", inputs: { model, scheduler: a.scheduler, steps: a.steps, denoise: 1.0 } },
+    ...(clipFrames ? {} : { l: { class_type: "FizgigH3StillLatent", inputs: { width: w, height: hgt, batch_size: 1 } } }),
+    k: { class_type: "SamplerCustomAdvanced", inputs: { noise: ["r", 0], guider: ["g", 0], sampler: ["s", 0], sigmas: ["m", 0], latent_image: clipFrames ? ["p", 1] : ["l", 0] } },
+    ...(clipFrames ? { v: { class_type: "VAEDecode", inputs: { samples: ["k", 0], vae: ["3", 0] } }, d: { class_type: "ImageFromBatch", inputs: { image: ["v", 0], batch_index: 0, length: 1 } } }
+      : { d: { class_type: "FizgigH3StillDecode", inputs: { samples: ["k", 0], vae: ["3", 0] } } }),
     o: { class_type: "SaveImage", inputs: { images: ["d", 0], filename_prefix: prefix } },
   });
   return g;
 }
+// one five-view contact sheet (ComfyUI-H3-ContactSheet's graph): the H3 Turnaround LoRA on the ref2va model, the
+// node's five-slot latent from Picture 1, a stock sampler, the node's per-slot decode: the five views (`v`) and their
+// strip (`o`). Each view is `size.width` square, else the method's size
+async function contactGraph(a, pics, values, seed, size, prefix) {
+  const files = { unet: await M.choice("UNETLoader", "unet_name", a.unet), clip: await M.choice("CLIPLoader", "clip_name", a.clip), vae: await M.choice("VAELoader", "vae_name", a.vae), lora: await M.choice("LoraLoaderModelOnly", "lora_name", a.lora) };
+  const g = {
+    1: { class_type: "UNETLoader", inputs: { unet_name: files.unet, weight_dtype: "default" } },
+    2: { class_type: "CLIPLoader", inputs: { clip_name: files.clip, type: "minimax", device: "default" } },
+    3: { class_type: "VAELoader", inputs: { vae_name: files.vae } },
+    4: { class_type: "LoraLoaderModelOnly", inputs: { model: ["1", 0], lora_name: files.lora, strength_model: a.strength } },
+  };
+  pics.forEach((p) => Object.assign(g, p.nodes));
+  Object.assign(g, {
+    p: { class_type: "H3ContactSheet", inputs: { clip: ["2", 0], vae: ["3", 0], prompt: fill(a.prompt, values), ref_image: pics[0].out, size: size?.width ?? a.size } },
+    g: { class_type: "BasicGuider", inputs: { model: ["4", 0], conditioning: ["p", 0] } },
+    r: { class_type: "RandomNoise", inputs: { noise_seed: seed } },
+    s: { class_type: "KSamplerSelect", inputs: { sampler_name: a.sampler } },
+    m: { class_type: "BasicScheduler", inputs: { model: ["4", 0], scheduler: a.scheduler, steps: a.steps, denoise: 1.0 } },
+    k: { class_type: "SamplerCustomAdvanced", inputs: { noise: ["r", 0], guider: ["g", 0], sampler: ["s", 0], sigmas: ["m", 0], latent_image: ["p", 1] } },
+    d: { class_type: "H3ContactSheetDecode", inputs: { vae: ["3", 0], samples: ["k", 0] } },
+    o: { class_type: "SaveImage", inputs: { images: ["d", 1], filename_prefix: prefix } },
+    v: { class_type: "SaveImage", inputs: { images: ["d", 0], filename_prefix: `${prefix}_views` } },
+  });
+  return g;
+}
+// one Krea 2 edit (the CharacterSheet LoRAs' workflow, comfyui-krea2edit): Picture 1 at most `ref_max` px, grounded in
+// the text encoder and given to the model as source tokens fitted to the output, Krea 2 Turbo at cfg 1
+async function kreaGraph(a, pics, values, seed, size, prefix) {
+  const files = { unet: await M.choice("UNETLoader", "unet_name", a.unet), clip: await M.choice("CLIPLoader", "clip_name", a.clip), vae: await M.choice("VAELoader", "vae_name", a.vae), lora: await M.choice("LoraLoaderModelOnly", "lora_name", a.lora) };
+  const [w, hgt] = size ? [size.width, size.height] : a.size, grounded = (text, px) => ({ class_type: "Krea2EditGroundedEncode", inputs: { clip: ["2", 0], prompt: text, image: ["q", 0], grounding_px: px, system_prompt: "" } });
+  const g = {
+    1: { class_type: "UNETLoader", inputs: { unet_name: files.unet, weight_dtype: "default" } },
+    2: { class_type: "CLIPLoader", inputs: { clip_name: files.clip, type: "krea2", device: "default" } },
+    3: { class_type: "VAELoader", inputs: { vae_name: files.vae } },
+    4: { class_type: "LoraLoaderModelOnly", inputs: { model: ["1", 0], lora_name: files.lora, strength_model: 1.0 } },
+  };
+  pics.forEach((p) => Object.assign(g, p.nodes));
+  Object.assign(g, {
+    q: { class_type: "ImageScaleToMaxDimension", inputs: { image: pics[0].out, upscale_method: "lanczos", largest_size: a.ref_max } },
+    e: { class_type: "VAEEncode", inputs: { pixels: ["q", 0], vae: ["3", 0] } },
+    l: { class_type: "EmptySD3LatentImage", inputs: { width: w, height: hgt, batch_size: 1 } },
+    x: { class_type: "Krea2EditModelPatch", inputs: { model: ["4", 0], source_latent: ["e", 0], ref_boost: a.ref_boost, ref_boost_a: 1.0, fit_mode: "fit", vae: ["3", 0], source_image: ["q", 0], target_latent: ["l", 0] } },
+    p: grounded(fill(a.prompt, values), 0), n: grounded("", 768),
+    k: { class_type: "KSampler", inputs: { model: ["x", 0], seed, steps: a.steps, cfg: a.cfg, sampler_name: a.sampler, scheduler: a.scheduler, positive: ["p", 0], negative: ["n", 0], latent_image: ["l", 0], denoise: 1.0 } },
+    d: { class_type: "VAEDecode", inputs: { samples: ["k", 0], vae: ["3", 0] } },
+    o: { class_type: "SaveImage", inputs: { images: ["d", 0], filename_prefix: prefix } },
+  });
+  return g;
+}
+// one MOSS-Image picture from a reference (a character-reference LoRA on MOSS-Image Base): core Text Encode MOSS-Image
+// Edit in the LoRA's layout with Picture 1 at the method's megapixels, its empty-prompt twin as the negative, SLG
+async function mossRefGraph(a, pics, values, seed, size, prefix) {
+  const files = { unet: await M.choice("UNETLoader", "unet_name", a.unet), clip: await M.choice("CLIPLoader", "clip_name", a.clip), vae: await M.choice("VAELoader", "vae_name", a.vae), lora: await M.choice("LoraLoaderModelOnly", "lora_name", a.lora) };
+  const [w, hgt] = size ? [size.width, size.height] : a.size, enc = (text) => ({ class_type: "TextEncodeMOSSImageEdit", inputs: { clip: ["2", 0], prompt: text, vae: ["3", 0], edit_format: a.format, "images.image_0": ["q", 0], image_strength: 1.0 } });
+  const g = {
+    1: { class_type: "UNETLoader", inputs: { unet_name: files.unet, weight_dtype: "default" } },
+    2: { class_type: "CLIPLoader", inputs: { clip_name: files.clip, type: "moss_image", device: "default" } },
+    3: { class_type: "VAELoader", inputs: { vae_name: files.vae } },
+    4: { class_type: "LoraLoaderModelOnly", inputs: { model: ["1", 0], lora_name: files.lora, strength_model: 1.0 } },
+    5: { class_type: "SkipLayerGuidanceDiTSimple", inputs: { model: ["4", 0], double_layers: "", single_layers: a.slg_single, start_percent: 0.0, end_percent: 1.0 } },
+  };
+  pics.forEach((p) => Object.assign(g, p.nodes));
+  Object.assign(g, {
+    q: { class_type: "ImageScaleToTotalPixels", inputs: { image: pics[0].out, upscale_method: "lanczos", megapixels: a.megapixels, resolution_steps: 16 } },
+    p: enc(fill(a.prompt, values)), n: enc(fill(a.negative, values)),
+    l: { class_type: "EmptyFlux2LatentImage", inputs: { width: w, height: hgt, batch_size: 1 } },
+    k: { class_type: "KSampler", inputs: { model: ["5", 0], seed, steps: a.steps, cfg: a.cfg, sampler_name: a.sampler, scheduler: a.scheduler, positive: ["p", 0], negative: ["n", 0], latent_image: ["l", 0], denoise: 1.0 } },
+    d: { class_type: "VAEDecode", inputs: { samples: ["k", 0], vae: ["3", 0] } },
+    o: { class_type: "SaveImage", inputs: { images: ["d", 0], filename_prefix: prefix } },
+  });
+  return g;
+}
+// the graph each method kind runs (the registry's anchors.kind)
+const GRAPHS = { ph3: ph3Graph, fizgig: fizgigGraph, h3: fizgigGraph, contact: contactGraph, krea2edit: kreaGraph, moss_ref: mossRefGraph };
 // make a new view: `pictures` in order (what Picture 1 is: the method's `picture_one`), `prompt` the person's or agent's
 // words, one candidate per seed (`seeds`, else `count` new ones), on the view slot's `method` (ph3_view, fizgig_still; by
 // default the first the registry lists).
@@ -417,7 +496,7 @@ export async function fromContext(pictures, prompt, { method, seeds, count = 2, 
   const said = pics.map((p) => p.said), where = await landing(land, said), world = Object.fromEntries(pics.map((p) => p.world).filter(Boolean));
   const list = seeds?.length ? seeds : Array.from({ length: count }, () => Math.floor(Math.random() * 2 ** 32));
   const label = prompt.trim().length > 40 ? `${prompt.trim().slice(0, 38)}…` : prompt.trim(), first = said.find((x) => x.take)?.take ?? null;
-  const made = [], size = width != null ? { width, height } : null, prefix = `snap_views/${where.group.slice(0, 8)}`, build = m.anchors.kind === "ph3" ? ph3Graph : fizgigGraph;
+  const made = [], size = width != null ? { width, height } : null, prefix = `snap_views/${where.group.slice(0, 8)}`, build = GRAPHS[m.anchors.kind];
   for (const [i, seed] of list.entries()) {
     const g = await build(m.anchors, pics, { prompt: prompt.trim() }, seed, size, prefix);
     const job = { kind: "paint", title: `New view (${label}), candidate ${i + 1} of ${list.length}`, about: { take: first, group: where.group, scene: where.scene, shot: where.shot }, by, eta_s: [m.cost?.local_s].flat().at(-1) ?? null };
@@ -441,6 +520,46 @@ async function castFaces(d, c) {
   } catch (e) { return { error: e.message }; }
 }
 C.kind("view", { ...RT.takeCandidate, finish: (d, c, h) => { RT.takeCandidate.finish(d, c, h); castFaces(d, c).then((r) => r && C.note(d, c, "identity", r)); } });
+
+// A character sheet of a Cast (the sheet slot, U101 turnaround round 2): the method draws the Cast's picture `ref`
+// (plus any more `pictures`, e.g. a turnaround's views for the five-reference sheet) as one sheet, or as five views and
+// their strip (the contact sheet). `design` is the character in words for the methods whose prompt names it (else the
+// Cast's details); ';' parts are the Krea sheet's identity locks. One candidate per seed, each a still take whose
+// pictures are the sheet first, then each view; the parent names the Cast and every picture. Returns at once
+export async function sheet(cast, { method, ref = 0, pictures = [], design, seeds, count = 2, width, height, land, by = "person" } = {}) {
+  await Promise.all([S.load(), M.load(), T.load(), W.load()]);
+  const id = method ?? S.list("sheet")[0]?.id, m = S.list("sheet").find((x) => x.id === id);
+  if (!m) throw new Error(`No method "${id}" for a character sheet; there are: ${S.list("sheet").map((x) => x.id).join(", ")}`);
+  if (m.install_state !== "ready") throw new Error(`${m.title} ${m.install_state}`);
+  const got = W.get(cast);
+  if (!got) throw new Error(`${m.title}: no Cast ${cast} (list_cast shows them)`);
+  if ((width == null) !== (height == null)) throw new Error(`${m.title}: give width and height together, or neither (then the method's size)`);
+  const all = [{ cast, ref }, ...pictures];
+  if (m.anchors.max_pictures && all.length > m.anchors.max_pictures) throw new Error(`${m.title} reads up to ${m.anchors.max_pictures} picture${m.anchors.max_pictures > 1 ? "s" : ""} (the Cast's first); ${all.length} given`);
+  const pics = []; for (const [i, p] of all.entries()) pics.push(await contextPicture(p, i));
+  const b = got.version.body, words = (design ?? b.details ?? "").trim();
+  const values = { name: b.name, design: words, design_lines: words.split(/\s*;\s*/).filter(Boolean).map((x) => `- ${x}`).join("\n") };
+  const said = pics.map((p) => p.said), where = await landing(land, said), world = Object.fromEntries(pics.map((p) => p.world).filter(Boolean));
+  const list = seeds?.length ? seeds : Array.from({ length: count }, () => Math.floor(Math.random() * 2 ** 32));
+  const [w, hgt] = width != null ? [width, height] : [m.anchors.size].flat(), size = { width: w, height: hgt ?? w }, prefix = `snap_sheets/${where.group.slice(0, 8)}`, prompt = fill(m.anchors.prompt, values), made = [];
+  for (const [i, seed] of list.entries()) {
+    const g = await GRAPHS[m.anchors.kind](m.anchors, pics, values, seed, size, prefix);
+    const job = { kind: "paint", title: `Character sheet of ${b.name} (${m.title}), candidate ${i + 1} of ${list.length}`, about: { entity: cast, group: where.group, scene: where.scene, shot: where.shot }, by, eta_s: [m.cost?.local_s].flat().at(-1) ?? null };
+    made.push({ prompt_id: await K.queue(g, { group: where.group, world, job, extra: { snap_parent: { take: null, method: `sheet/${id}`, options: { cast, prompt, context: said } } } }),
+      seed, made: { model: m.anchors.unet.split("/").pop(), lora: m.anchors.lora?.split("/").pop() ?? m.anchors.turbo?.lora.split("/").pop() ?? null }, label: "sheet" });
+  }
+  const d = await C.create({ kind: "sheet", target: cast, title: `Character sheet of ${b.name} (${m.title}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: null, method: id,
+    options: { prompt, context: said, ...size }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}) }, made);
+  return { decision: d.id, method: id, pictures: said.map((x) => `Picture ${x.n}: ${x.label}`), lands: where.where, size,
+    candidates: d.candidates.map((c) => ({ id: c.id, prompt_id: c.prompt_id, take: `take-${c.prompt_id}`, seed: c.seed, ...c.made })), seconds_each: [m.cost?.local_s].flat().at(-1) ?? null };
+}
+// a sheet's pictures: the sheet (the strip of a contact sheet) first, then each view in slot order
+const sheetFinish = (d, c, h) => {
+  const media = T.media(h.outputs), views = media.filter((x) => x.node === "v");
+  c.pictures = [...media.filter((x) => x.node !== "v").map((x) => ({ label: "sheet", media: x })), ...views.map((x, i) => ({ label: `view ${i + 1}`, media: x }))];
+  c.take = `take-${c.prompt_id}`;
+};
+C.kind("sheet", { ...RT.takeCandidate, finish: (d, c, h) => { sheetFinish(d, c, h); castFaces(d, c).then((r) => r && C.note(d, c, "identity", r)); } });
 
 // "Make it louder" on a quiet take (SNAP-R36): its video through MAISnapLouder (EBU R128 loudnorm, I=-23, TP=-2; the
 // picture copied) into a new version of the take, queued under this page's id so it lands in the take's group
