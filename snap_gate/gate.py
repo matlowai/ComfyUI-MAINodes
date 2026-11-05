@@ -603,6 +603,8 @@ class Gate:
             body["client_id"] = f"snapgate-{name}"  # never a broadcast, never another account's page
         extra = body.setdefault("extra_data", {})
         extra["snap_user"], extra["snap_max_rating"] = name, self.accounts.load()[name]["max_rating"]
+        if isinstance(extra.get("snap_job"), dict):  # SNAP-R42 + the pack's SNAP-R65: the Work card's account is the session's, never what the page says
+            extra["snap_job"]["account"] = name
         status, out = await self.fetch(request, name, body=body)
         if status == 200 and isinstance(out, dict) and out.get("prompt_id"):
             self.owners[out["prompt_id"]] = name
@@ -798,6 +800,13 @@ class Gate:
                 return web.json_response({"error": "Dial files are shared: only the admin can change their info."}, status=403)
             if m == "POST":
                 return await self.relay(request, name, **({"body": body} if body is not None else {}))
+        if m == "GET" and p == "/mainodes/snap/jobs":  # the Work card (pack SNAP-R65): this account's jobs whole; another's queued work only as "the GPU is busy"
+            status, out = await self.fetch(request, name)
+            if status != 200 or isinstance(out, str):
+                return web.json_response(out, status=status) if not isinstance(out, str) else web.Response(text=out, status=status)
+            rows = [r if self.owns(name, r["id"]) and self.within_cap(name, r["id"]) else {"id": r["id"], "state": r["state"], "user": "another account"}
+                    for r in out["rows"] if r["state"] in ("running", "queued") or (self.owns(name, r["id"]) and self.within_cap(name, r["id"]))]
+            return web.json_response({**out, "rows": rows, "count": len(rows)})
         if m == "GET" and (p in ("/object_info", "/embeddings") or p.startswith(("/object_info/", "/models/", "/experiment/models/", "/mainodes/"))):
             status, out = await self.fetch(request, name)
             if isinstance(out, str):
