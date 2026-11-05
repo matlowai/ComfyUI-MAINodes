@@ -394,6 +394,64 @@ export function keepPinnedText() {
   return kept;
 }
 
+// U89 (SNAP-R63): a re-run sends one pin elsewhere, to another version of its record or to another record of its kind.
+// The old record's pieces come out before the new ones go in (applyCast and applySet replace only by their own key, and
+// References has a slot cap): a Cast's row, sentence and pictures, a set's pictures and set text, a card's words. A Cast
+// a shot card compiled in has nothing of its own placed: that shot is compiled again with the swap, the card itself
+// untouched and its pin marked edited (coordinator call 2026-11-05, SNAP-R2/R5). Returns what happened
+const bodyOf = (ref) => { const { kind, id, n } = W.parse(ref); return (n !== 0 && W.get(ref)?.version.body) || (W.packCard(W.refOf(kind, id)) && get(W.packCard(W.refOf(kind, id)).id)) || null; };
+const unpin = (ref) => { const { [ref]: _, ...rest } = E.state().world ?? {}; E.tag("world", rest); };
+export async function swapPin(from, to) {
+  await ready();
+  const old = pinOf(from), a = W.parse(from), b = W.parse(to), key = W.refOf(b.kind, b.id);
+  if (!old) throw new Error(`${from} isn't pinned in this recipe; its pins: ${Object.keys(E.state().world ?? {}).join(", ") || "none"}`);
+  if (a.kind !== b.kind) throw new Error(`${from} is a ${a.kind}: it swaps for another ${a.kind}, not ${to}`);
+  const was = bodyOf(W.refOf(a.kind, a.id, old.n)), now = bodyOf(to);
+  if (!now) throw new Error(`${to} isn't in your records${W.record(b.kind, b.id) ? ` (it has v1-v${W.record(b.kind, b.id).head})` : ""}`);
+  const other = a.id !== b.id, said = [];
+  if (b.kind === "cast") {
+    const shot = E.state().bricks.find((x) => x.key === "render")?.shot, compiled = !old.placed && shot?.parts?.some((x) => x.field === "character" && x.from === a.id);
+    if (compiled) { // the shot card names this Cast: compile it again with the other one, the card unchanged
+      const card = get(shot.card);
+      if (!card) throw new Error(`${old.name ?? from} came in through the shot card ${shot.card}, which isn't in the Library any more`);
+      const edited = { ...card, brick: { ...card.brick, characters: (card.brick.characters ?? []).map((c) => (c === a.id ? b.id : c)) } };
+      const o = originOf(card.id), sref = o ? W.refOf(o.kind, o.id) : packRef(card), held = pinOf(sref);
+      said.push(await applyShot(edited));
+      if (other) unpin(from);
+      if (held) pin(sref, { ...held, edited: { characters: { ...held.edited?.characters, [a.id]: b.id } } }); // the version it held, now edited in this recipe
+      return `${said.join("; ")} (the shot card ${card.title} is unchanged: this recipe's line swaps ${old.name ?? a.id} for ${nameOf(now)})`;
+    }
+    if (other) {
+      const p = old.placed ?? {};
+      app.canvas.emitBeforeChange();
+      try {
+        if (p.row != null && M.rows("cast")[p.row]) {
+          M.removeRow("cast", p.row);
+          for (const [r, q] of Object.entries(E.state().world ?? {})) if (r !== from && q.placed?.row > p.row) pin(r, { ...q, placed: { ...q.placed, row: q.placed.row - 1 } });
+        }
+        if (p.text) { const before = E.getValue("render", "render", "prompt"); removeFromPrompt([p.text]); if (E.getValue("render", "render", "prompt") === before) said.push(`${old.name}'s line wasn't found as written; check the prompt`); }
+        for (const x of E.state().bricks.find((k) => k.key === "refs")?.pictures ?? []) if (x.source === from) E.removePicture(x.node);
+        unpin(from);
+      } finally { app.canvas.emitAfterChange(); }
+    }
+    return [await applyCast(to), ...said].join("; ");
+  }
+  if (b.kind === "set_snapshot") {
+    if (other) {
+      const refs = E.state().bricks.find((x) => x.key === "refs"), source = was?.lineage ?? a.id;
+      for (const x of refs?.pictures ?? []) if (x.source === source) E.removePicture(x.node);
+      if (refs?.setText?.[source]) { removeFromPrompt(refs.setText[source]); const { [source]: _, ...rest } = refs.setText; E.remember("refs", "setText", rest); }
+      unpin(from);
+    }
+    const r = W.record(b.kind, b.id), v = r && (b.n == null ? W.headOf(r) : r.versions.find((x) => x.n === b.n));
+    return applySet(now, now.brick.snapshot, v ? { version: { ref: key, n: v.n, hash: W.short(v.hash) } } : {});
+  }
+  if (other) { if (was && was.kind !== "shot") removeFromPrompt(cues(was)); unpin(from); }
+  const out = await apply(now, { keep: false }), v = W.get(to)?.version;
+  if (v) pin(key, { ...pinOf(key), n: v.n, hash: W.short(v.hash), name: nameOf(now) }); // the version asked for, not the head apply pins
+  return out;
+}
+
 // "update" on a pin's chip (SNAP-R60: never by itself): the record's newest version replaces what the recipe holds
 export async function updatePin(ref) {
   await ready();

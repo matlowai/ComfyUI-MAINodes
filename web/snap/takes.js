@@ -202,8 +202,11 @@ function continued(graph, prompt) {
   const b = graph?.extra?.snap?.bricks?.find((x) => x.key === "first_frame"), from = b?.from;
   return from && prompt?.[b.nodes.image]?.inputs?.image === from.file ? { take: from.take, method: "continue", frame: from.frame } : null;
 }
-// a re-take (retake.js marks the queued workflow): a version of the take it re-made, "as it was" or "with today's world"
-const retaken = (graph) => { const r = graph?.extra?.snap?.retake; return r?.take ? { take: r.take, method: "retake", options: { world: r.world, seed: r.seed } } : null; };
+// a re-take (retake.js marks the queued workflow): a version of the take it re-made, "as it was" or "with today's world";
+// a re-run (rerun.js, SNAP-R63): a version made with swaps, each swap's text kept for its label
+const retaken = (graph) => { const r = graph?.extra?.snap?.retake, x = graph?.extra?.snap?.rerun;
+  if (x?.take) return { take: x.take, method: `rerun/${x.route}`, options: { swaps: x.swaps, seed: x.seed, ...(x.land != null ? { land: x.land } : {}), ...(x.decision ? { decision: x.decision, candidate: x.candidate } : {}) } };
+  return r?.take ? { take: r.take, method: "retake", options: { world: r.world, seed: r.seed } } : null; };
 
 const saving = new Set(); // runs whose take is being written
 async function capture(id, status, error, failedNode) {
@@ -306,9 +309,9 @@ export const moveText = (m) => (m.pack ? `${m.name} (${m.missing ? "no longer in
   : `${m.name} v${m.was}${m.missing ? " (record missing)" : m.now !== m.was ? ` → v${m.now}` : ""}${m.archived ? " (record archived)" : ""}`);
 // null when the live chain still makes this take and nothing it pinned moved on, else {changed, world}: what changed in
 // the chain (seeds aside) and which pinned records have newer versions. Takes from before hashes were kept are hashed
-// from their prompt. An edit's take was never made by the chain, so it is never stale (a continued or re-taken one was)
+// from their prompt. An edit's take was never made by the chain, so it is never stale (a continued, re-taken or re-generated one was)
 export async function stale(take, now) {
-  if (!take.prompt || (take.parent && !["continue", "retake"].includes(take.parent.method))) return null;
+  if (!take.prompt || (take.parent && !["continue", "retake", "rerun/regenerate"].includes(take.parent.method))) return null;
   await W.load();
   const world = moves(take.world);
   now ??= await live();

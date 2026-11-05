@@ -30,15 +30,16 @@ export async function differs(world) {
 }
 
 // the scene shot a take belongs to (its workflow's group is one of the shot's), or null
-function shotOf(take) {
+export function shotOf(take) {
   for (const scene of SC.all()) for (const shot of scene.shots) if (shot.groups.includes(take.group) || shot.takes.some((e) => e.take === take.id)) return { scene, shot };
   return null;
 }
 
-// open the take's chain as it ran: the shot's tab with the take's settings and pins put back, else a scratch tab
-async function openTake(take) {
+// open the take's chain as it ran: the shot's tab (or the shot `home` names, U89's "lands in") with the take's settings
+// and pins put back, else a scratch tab (home null)
+export async function openTake(take, home) {
   await SC.load();
-  const home = shotOf(take);
+  if (home === undefined) home = shotOf(take);
   if (home) {
     await SC.openShot(home.scene.id, home.shot.id);
     // the take's whole graph into the shot's own tab (a scene tab is never a saved file, SNAP-R24): widget-by-widget restore
@@ -60,16 +61,17 @@ export async function toToday(refs) {
   return said;
 }
 
-// mark the next queued run as a re-take of `take` (read from the queued workflow at capture), then queue it as Run does
-async function queue(take, world, seed) {
-  E.tag("retake", { take: take.id, world, seed });
+// mark the next queued run (extra.snap[mark]: a re-take or a re-run of a take, read from the queued workflow at capture),
+// then queue it as Run does
+export async function queue(mark, value) {
+  E.tag(mark, value);
   try {
     const before = T.runs().length;
     await app.queuePrompt(0, 1, { queueNodeIds: E.targets() });
     const errors = Object.entries(app.lastNodeErrors ?? {}).map(([id, e]) => `${id}: ${e.errors?.[0]?.message}`);
     if (errors.length) throw new Error(`Not queued: ${errors.join("; ")}`);
     return T.runs()[before]?.id ?? null;
-  } finally { E.tag("retake", undefined); }
+  } finally { E.tag(mark, undefined); }
 }
 
 // re-take a take: open its chain, today's world when asked, the same seed or a new one, then run (queue: false only opens)
@@ -79,7 +81,7 @@ export async function retake(take, { world = "pinned", seed = "same", refs, queu
   if (!take.graph) throw new Error(`Take ${take.number} has no workflow saved with it`);
   const where = await openTake(take), updated = world === "latest" ? await toToday(refs) : [];
   const seedKey = E.state().bricks.find((b) => E.seedMode(b.key))?.key, newSeed = seed === "new" && seedKey ? E.newSeed(seedKey) : null;
-  const run = go ? await queue(take, world, seed) : null;
+  const run = go ? await queue("retake", { take: take.id, world, seed }) : null;
   return { take: take.id, world, seed, opened: where, updated, ...(newSeed != null ? { new_seed: newSeed } : {}), run,
     said: `Take ${take.number} ${go ? "re-taken" : "opened"} ${worldShown(world)} in ${where}${updated.length ? ` · ${updated.join(" · ")}` : ""}${go ? "" : " · nothing is queued"}` };
 }

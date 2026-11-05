@@ -233,6 +233,19 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   shape: it is the one step that can't be undone). *Why:* Dylan 2026-11-04 20:51: "keep every world-state version
   forever; when it grows, a clean-up UX offers archive / export (zip) / delete, always the person's choice".
   *More:* `web/snap/worldview.js`, `snap_world.py`; DESIGN_U86_U87 §4.5.
+- **SNAP-R63: Re-run swaps any reference.** Every record a take (or a saved file) pinned is a slot that stays pinned, or
+  goes to the newest version, a chosen version, or another record of its kind. Two slots are not records and say so: the
+  scene (a different scene brings its set into the recipe; where the new take lands is a separate choice) and the Setup
+  (the take's setup pin, else read from its prompt; Re-generate only). Re-generate opens the take's whole graph where it
+  belongs, puts each swap in through the record's own apply, with the old record's pieces taken out first (its Cast row,
+  sentence and pictures; a set's pictures and text; a card's words), keeps the take's seed unless asked for a new one,
+  and nests the new take under the original ("Re-run · Kon → Mara"). A Cast a shot card compiled in is swapped by
+  compiling that shot again, the card untouched and its pin marked `edited`. A swap that changes nothing the prompt holds
+  is said before the run (core serves the take's own file): a note and a new-seed choice, never a refusal. Errors name
+  the take's slots and every choice of a slot. *Why:* Dylan, 2026-11-04 22:45: "run as it was, run with today's world,
+  run with a version or a different scene, run scene with different characters... think Disney re-running the same
+  animations with different movies and characters but same motions"; coordinator calls 2026-11-05 03:34. *More:* PLAN
+  U89, DESIGN_U89_RERUN_SWAPS_2026-11-05.md, `web/snap/rerun.js`.
 
 ## Onboarding
 
