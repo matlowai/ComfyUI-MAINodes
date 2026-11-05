@@ -513,11 +513,11 @@
       "local_or_api": "local",
       "constraints": [
         "core MiniMax H3 Reference to Video reads the pictures as <Picture 1>, <Picture 2>, … (up to 9); the Fizgig pack's one-frame latent and decode make the still (the stock VAE Decode bands a lone frame)",
-        "the pack's recommended edit setup: stock FL2VA pruned int8, the larryvrh turbo LoRA v4 at 0.38, er_sde 20 steps, no negative",
+        "the pack's recommended edit setup: stock FL2VA pruned int8 under Reference to Video (its own edit example does the same), the larryvrh turbo LoRA v4 at 0.38, er_sde 20 steps, no negative; F-C13's A/B on short03's C2 two-shot (3 seeds, 2112x1184): ref2va pruned ran at the same speed and the same Maren likeness (ArcFace 0.52 vs 0.51) but gave her a gold-fitted sword hanging in front of her in 2/3 and a wider shot in 1/3, where FL2VA kept the medium two-shot and the steel greatsword on her back, so FL2VA stays",
         "H3 stills are soft below about 2-3 MP (community: 'shit under 8 MP'; SmallKino: not below 2 MP): give a size, or refine with an upscale"
       ],
-      "guidance": { "line": "not measured yet", "evidence": "untested", "source": "U101", "n": 0, "hardware": "5090" },
-      "cost": { "community_s": null, "local_s": null, "per": "one still", "vram_gb": null },
+      "guidance": { "line": "short03 C2 two-shot at 2.5 MP: the master's gatehouse, palisade, well and houses, both people on-model and the beat right 6/6; bake-off B (character consistency) 25/33 vs P-H3 22/33, keeps the braid in back views", "evidence": "measured", "source": "U101 (PROGRESS 2026-11-05 14:49, 15:45; F-C13 A/B 17:40)", "n": 42, "hardware": "5090" },
+      "cost": { "community_s": null, "local_s": [24, 38], "per": "one still on a 5090 at 1280x704 / 2112x1184, after the first (first one about 58 s)", "vram_gb": null },
       "credit": "Fizgig H3 Still by shootthesound (https://github.com/shootthesound/ComfyUI-Fizgig-H3-Still, MIT) · turbo LoRA larryvrh/MiniMax-H3-Turbo-Lora · MiniMax H3"
     },
     {

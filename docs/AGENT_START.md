@@ -205,7 +205,8 @@ them). It works on stills: masters, plates, boards.
   picture). `crop` is `[x, y, width, height]` in fractions of the picture.
 - `method` picks the model (`list_methods {"slot": "view"}`): `ph3_view` (P-H3-Image, listed first: an edit of
   Picture 1 with the others as references, 8 steps, about 8 s at 1280x704, up to 9 pictures) or `fizgig_still`
-  (stock H3 Reference to Video on the Fizgig H3 Still pack's one-frame latent: every picture a reference, 20 steps,
+  (stock H3 Reference to Video on the FL2VA model and the Fizgig H3 Still pack's one-frame latent, as the pack's own
+  edit example runs it: every picture a reference, 20 steps,
   about 38 s at 2.5 MP; soft below 2-3 MP, so give `width`/`height`). In U101's C2 test both held the location's
   gatehouse at eye height with both people on-model; the Fizgig still gave the closest two-shots.
 - **What Picture 1 is depends on the model** (each method's `picture_one`; the answer names it too). For both, the

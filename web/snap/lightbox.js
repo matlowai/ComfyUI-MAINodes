@@ -37,7 +37,9 @@ export function show(items, at = 0) {
   let fit = true, scale = 1, x = 0, y = 0, drag = null;
   const media = h("div", { className: "snap-lb-stage" }), head = h("div", { className: "snap-lb-what" });
   const fitBtn = h("button", { onclick: () => { fit = !fit; scale = 1; x = y = 0; place(); } });
-  const zoom = (k) => { if (fit) { scale = current().clientWidth && natural().w ? current().clientWidth / natural().w : 1; fit = false; } scale = Math.min(16, Math.max(0.05, scale * k)); place(); };
+  // the scale fit shows it at: the whole picture in the stage, small ones enlarged too
+  const fitScale = () => { const n = natural(), r = media.getBoundingClientRect(); return n.w && n.h ? Math.min(r.width / n.w, r.height / n.h) : 1; };
+  const zoom = (k) => { if (fit) { scale = fitScale(); fit = false; x = y = 0; } scale = Math.min(16, Math.max(0.05, scale * k)); place(); };
   const tab = h("a", { className: "snap-lb-btn", target: "_blank", rel: "noopener", textContent: "Open in a new tab ↗" }), act = h("button", { hidden: true });
   const root = h("div", { className: "snap-lb", role: "dialog", ariaModal: "true", ariaLabel: "picture at full size", tabIndex: -1 },
     h("div", { className: "snap-lb-bar" }, head, h("span", { className: "snap-spacer" }), act, fitBtn,
@@ -59,8 +61,8 @@ export function show(items, at = 0) {
     const it = open.items[open.at];
     fit = true; scale = 1; x = y = 0;
     const m = it.kind === "video" ? h("video", { src: it.src, controls: true, autoplay: true, loop: true, playsInline: true }) : h("img", { src: it.src, alt: it.name || "picture", draggable: false });
-    const what = () => { const n = natural(); head.replaceChildren(h("b", { textContent: it.name || "picture" }), it.source ? h("span", { textContent: ` · ${it.source}` }) : null,
-      n.w ? h("span", { textContent: ` · ${n.w}×${n.h}` }) : null, open.items.length > 1 ? h("span", { className: "snap-quiet", textContent: ` · ${open.at + 1} of ${open.items.length}` }) : null); };
+    const what = () => { const n = natural(); head.replaceChildren(...[h("b", { textContent: it.name || "picture" }), it.source ? h("span", { textContent: ` · ${it.source}` }) : null,
+      n.w ? h("span", { textContent: ` · ${n.w}×${n.h}` }) : null, open.items.length > 1 ? h("span", { className: "snap-quiet", textContent: ` · ${open.at + 1} of ${open.items.length}` }) : null].filter(Boolean)); };
     m.addEventListener(it.kind === "video" ? "loadedmetadata" : "load", () => { what(); place(); });
     media.replaceChildren(m); what(); place();
     tab.href = it.src;
@@ -71,8 +73,8 @@ export function show(items, at = 0) {
   function step(k) { open.at = (open.at + k + open.items.length) % open.items.length; load(); }
   media.addEventListener("wheel", (e) => {
     e.preventDefault();
-    const r = media.getBoundingClientRect(), px = e.clientX - r.left - r.width / 2, py = e.clientY - r.top - r.height / 2, was = fit ? (current()?.clientWidth ?? 0) / (natural().w || 1) : scale;
-    if (fit) { scale = was; fit = false; x = y = 0; }
+    const r = media.getBoundingClientRect(), px = e.clientX - r.left - r.width / 2, py = e.clientY - r.top - r.height / 2;
+    if (fit) { scale = fitScale(); fit = false; x = y = 0; }
     const k = e.deltaY < 0 ? 1.15 : 1 / 1.15, next = Math.min(16, Math.max(0.05, scale * k));
     x = px - (px - x) * (next / scale); y = py - (py - y) * (next / scale); scale = next; place(); // about the pointer
   }, { passive: false });
@@ -83,12 +85,12 @@ export function show(items, at = 0) {
   // a click on the picture switches fit and 100 % (not after a drag); on the dark around it, closes
   root.addEventListener("click", (e) => { if (e.target === root || e.target === media) close(); else if (e.target === current() && current().tagName === "IMG" && !moved) { fit = !fit; scale = 1; x = y = 0; place(); } });
   const keys = (e) => {
-    if (e.key === "Escape") { e.stopPropagation(); close(); } else if (e.key === "ArrowRight") step(1); else if (e.key === "ArrowLeft") step(-1);
+    if (e.key === "Escape") close(); else if (e.key === "ArrowRight") step(1); else if (e.key === "ArrowLeft") step(-1);
     else if (e.key === "0" || e.key === "f") { fit = !fit; scale = 1; x = y = 0; place(); } else return;
-    e.preventDefault();
+    e.preventDefault(); e.stopImmediatePropagation(); // the take viewer under it keeps its own Esc and arrows
   };
   open = { items, at: Math.min(Math.max(0, at), items.length - 1), root, keys };
-  document.addEventListener("keydown", keys, true);
+  window.addEventListener("keydown", keys, true); // before the document's capture listeners (the take viewer's)
   document.body.append(root);
   load();
   root.focus();
@@ -96,7 +98,7 @@ export function show(items, at = 0) {
 }
 export function close() {
   if (!open) return;
-  document.removeEventListener("keydown", open.keys, true);
+  window.removeEventListener("keydown", open.keys, true);
   open.root.remove();
   open = null;
 }
