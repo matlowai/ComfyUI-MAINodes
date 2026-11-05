@@ -193,16 +193,18 @@ async function rippleGraph(d, c, m, take) {
 }
 // Viggle Remake (U69 graph: FL2VA + the Remake LoRA bypassed in, keyframes held to sigma 0.9, 6 euler steps on the method's
 // sigmas): the take is the source, the candidate's painted frames its pictures, pinned at their frames unless unpinned.
-// The six-section prompt is the method's, filled with the change (or who and who instead) and one line per picture
+// The six-section prompt is the method's, filled with the change (or who and who instead) and one line per picture.
+// A take shorter than Remake's shortest output (min_frames, 90) runs with its last frame held to that length, and the
+// render is cut back to the take's own length (AGENTS user-input tolerance: the smallest change that lets it run)
 async function remakeGraph(d, c, m, take) {
-  const p = m.propagate, v = d.clip, light = m.options.lighter.swap_lora;
+  const p = m.propagate, v = d.clip, light = m.options.lighter.swap_lora, len = Math.max(v.frames, p.min_frames ?? 0), pad = len - v.frames;
   // the lighter LoRA when asked, or when it is the only one here (the same picture, U74)
   const lora = d.options.lighter || !(M.folders().get("loras") ?? []).some((n) => n.endsWith(p.lora)) ? light : p.lora;
   const f = { clip: await M.choice("CLIPLoader", "clip_name", p.clip), vae: await M.choice("VAELoader", "vae_name", p.vae), audio: await M.choice("VAELoader", "vae_name", p.audio_vae),
     unet: await M.choice("UNETLoader", "unet_name", p.unet), lora: await M.choice("LoraLoaderBypassModelOnly", "lora_name", lora) };
   const pinned = c.pin !== false, n = c.pictures.length;
   const lines = (fn) => c.pictures.map((pic, i) => fn(`<Picture ${i + 1}>`, clock(pic.frame))).join("\n");
-  const prompt = fill(p.prompt, { ...d.options, end: clock(v.frames - 1),
+  const prompt = fill(p.prompt, { ...d.options, end: clock(len - 1),
     pictures: lines((P, t) => (pinned ? `${P} is a frame of the target video at ${t}, exactly as the target video shows it at that moment.` : `${P} shows how the target video looks after the edit.`)),
     kept: lines((P) => (pinned ? `${P} (target keyframe): fully_preserved - the target video passes through this exact frame.` : `${P} (reference): the look of the target video.`)),
     moments: pinned ? c.pictures.map((pic, i) => `At ${clock(pic.frame)} the scene matches <Picture ${i + 1}>.`).join(" ") : "" });
@@ -216,7 +218,7 @@ async function remakeGraph(d, c, m, take) {
     6: { class_type: "VAELoader", inputs: { vae_name: f.audio } },
     7: { class_type: "LoadVideo", inputs: { file: v.video } },
     8: { class_type: "GetVideoComponents", inputs: { video: ["7", 0] } },
-    11: { class_type: "RemakeConditioning", inputs: { clip: ["4", 0], vae: ["5", 0], audio_vae: ["6", 0], source: ["8", 0], audio: ["8", 1], prompt, pins: pinned ? c.pictures.map((x) => x.frame).join(", ") : "", frames: v.frames, short_edge: edge } },
+    11: { class_type: "RemakeConditioning", inputs: { clip: ["4", 0], vae: ["5", 0], audio_vae: ["6", 0], source: pad ? ["23", 0] : ["8", 0], audio: ["8", 1], prompt, pins: pinned ? c.pictures.map((x) => x.frame).join(", ") : "", frames: len, short_edge: edge } },
     12: { class_type: "RemakeNoise", inputs: { positive: ["11", 0], seed: c.seed } },
     13: { class_type: "BasicGuider", inputs: { model: ["3", 0], conditioning: ["11", 0] } },
     14: { class_type: "KSamplerSelect", inputs: { sampler_name: p.sampler } },
@@ -224,10 +226,17 @@ async function remakeGraph(d, c, m, take) {
     16: { class_type: "SamplerCustomAdvanced", inputs: { noise: ["12", 0], guider: ["13", 0], sampler: ["14", 0], sigmas: ["15", 0], latent_image: ["11", 1] } },
     17: { class_type: "VAEDecode", inputs: { samples: ["16", 0], vae: ["5", 0] } },
     18: { class_type: "VAEDecodeAudio", inputs: { samples: ["16", 0], vae: ["6", 0] } },
-    19: { class_type: "CreateVideo", inputs: { images: ["17", 0], audio: ["18", 0], fps: 24.0, bit_depth: 8, color_space: "sRGB", chroma_subsampling: "auto", codec: "none" } },
+    19: { class_type: "CreateVideo", inputs: { images: pad ? ["24", 0] : ["17", 0], audio: pad ? ["25", 0] : ["18", 0], fps: 24.0, bit_depth: 8, color_space: "sRGB", chroma_subsampling: "auto", codec: "none" } },
     20: { class_type: "SaveVideo", inputs: { video: ["19", 0], filename_prefix: `video/snap_edits/${take.id}`, format: "auto", "format.codec": "auto", codec: "auto" } },
   };
   c.pictures.forEach((pic, i) => { g[`9${i}`] = { class_type: "LoadImage", inputs: { image: K.annotated(pic.media) } }; g[11].inputs[`ref_${i + 1}`] = [`9${i}`, 0]; });
+  if (pad) Object.assign(g, {
+    21: { class_type: "ImageFromBatch", inputs: { image: ["8", 0], batch_index: v.frames - 1, length: 1 } },
+    22: { class_type: "RepeatImageBatch", inputs: { image: ["21", 0], amount: pad } },
+    23: { class_type: "ImageBatch", inputs: { image1: ["8", 0], image2: ["22", 0] } },
+    24: { class_type: "ImageFromBatch", inputs: { image: ["17", 0], batch_index: 0, length: v.frames } },
+    25: { class_type: "TrimAudioDuration", inputs: { audio: ["18", 0], start_index: 0, duration: v.frames / 24 } },
+  });
   return g;
 }
 // Undo takes a render back while it waits in the queue; a render that started or finished is a take: reject it there
