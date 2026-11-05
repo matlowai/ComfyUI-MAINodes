@@ -12,11 +12,13 @@
 // SNAP-R13 data, not code branches · SNAP-R14 method slots · SNAP-R16 GPU work waits for the person · SNAP-R17 by ·
 // SNAP-R23 candidates · SNAP-R51 change something, recast, pins · SNAP-R71 a new view from context, in the asker's words ·
 // SNAP-R72 what Picture 1 is, per model · SNAP-R75 the view slot's models are data (P-H3-Image, H3 still) ·
-// SNAP-R77 a character sheet is a sheet-slot method whose candidates are takes · see docs/SNAP_RULES.md
+// SNAP-R77 a character sheet is a sheet-slot method whose candidates are takes · SNAP-R79 a new view says which
+// picture it copied · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as C from "./candidates.js";
 import * as K from "./checks.js";
 import * as M from "./models.js";
+import { copyCheck } from "./plates.js";
 import * as RT from "./retake.js";
 import * as S from "./slots.js";
 import * as SC from "./scenes.js";
@@ -505,7 +507,10 @@ export async function fromContext(pictures, prompt, { method, seeds, count = 2, 
   }
   const d = await C.create({ kind: "view", target: first ?? where.group, title: `New view (${label}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: first, method: id,
     options: { prompt: prompt.trim(), context: said, ...(size ?? {}) }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}) }, made);
+  // F-C15: landed away from the shot a context board belongs to: say where it would sit beside that board
+  const board = land && land !== "tab" ? said.map((x) => x.take && T.get(x.take)).map((t) => t && { t, home: RT.shotOf(t) }).find((x) => x?.home && x.home.shot.id !== where.shot) : null;
   return { decision: d.id, pictures: said.map((x) => `Picture ${x.n}${x.n === 1 && m.picture_one ? ` (${m.picture_one.label})` : ""}: ${x.label}`), lands: where.where,
+    ...(board ? { land_hint: `take ${board.t.number} among the pictures is in ${SC.shotTitle(board.home.scene, board.home.shot)} of ${board.home.scene.name}: to put this view beside it (each cut's shot holds its own board), land {scene: "${board.home.scene.id}", shot: "${board.home.shot.id}"}, or leave land out` } : {}),
     candidates: d.candidates.map((c) => ({ id: c.id, prompt_id: c.prompt_id, take: `take-${c.prompt_id}`, seed: c.seed, ...c.made })), seconds_each: [m.cost?.local_s].flat().at(-1) ?? null };
 }
 // each Cast picture a new view was made from, against the face in the still matched to it (all Casts at once, so two
@@ -519,7 +524,25 @@ async function castFaces(d, c) {
     return { different_person: n.different_person, casts: casts.map((x, i) => ({ name: x.label.split(",")[0], cast: x.cast, face: n.scores[i].face, different: n.scores[i].face != null && n.scores[i].face < n.different_person, crops: n.scores[i].crops })) };
   } catch (e) { return { error: e.message }; }
 }
-C.kind("view", { ...RT.takeCandidate, finish: (d, c, h) => { RT.takeCandidate.finish(d, c, h); castFaces(d, c).then((r) => r && C.note(d, c, "identity", r)); } });
+// F-C14: the new still against each context picture with the copy check's score (DINOv3 patch tokens at the same grid
+// position, plates.js): at or above the model graph's threshold it "copied Picture n" (P01's aerial views copied the
+// master). A note, never a gate (SNAP-R23)
+async function contextCopies(d, c) {
+  const still = c.pictures[0]?.media;
+  if (!still || !d.options.context?.length) return null;
+  try {
+    const { encoder, threshold } = await copyCheck(), g = { e: { class_type: "CLIPVisionLoader", inputs: { clip_name: encoder } }, s: { class_type: "LoadImage", inputs: { image: K.annotated(still) } } };
+    for (const [i, x] of d.options.context.entries()) {
+      const p = await contextPicture(x.cast ? { file: x.file, crop: x.crop } : { take: x.take, frame: x.frame, file: x.file, crop: x.crop }, i);
+      Object.assign(g, p.nodes, { [`q${i}`]: { class_type: "MAISnapCopyScore", inputs: { clip_vision: ["e", 0], reference: p.out, images: ["s", 0] } } });
+    }
+    const h = await K.screen(g, { title: `Copy check: did ${c.id} of ${d.title} copy one of its pictures?`, about: { decision: d.id, candidate: c.id } });
+    const against = d.options.context.map((x, i) => ({ n: x.n, label: x.label, score: h.outputs?.[`q${i}`]?.copy_scores?.[0] ?? null }));
+    return { threshold, against, copied: against.filter((a) => a.score != null && a.score >= threshold).map((a) => a.n) };
+  } catch (e) { return { error: e.message }; }
+}
+C.kind("view", { ...RT.takeCandidate, finish: (d, c, h) => { RT.takeCandidate.finish(d, c, h);
+  castFaces(d, c).then((r) => r && C.note(d, c, "identity", r)).then(() => contextCopies(d, c)).then((r) => r && C.note(d, c, "copied", r)); } });
 
 // A character sheet of a Cast (the sheet slot, U101 turnaround round 2): the method draws the Cast's picture `ref`
 // (plus any more `pictures`, e.g. a turnaround's views for the five-reference sheet) as one sheet, or as five views and

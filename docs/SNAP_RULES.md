@@ -651,10 +651,22 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   (it breaks motion). *Why:* Dylan 2026-11-05: "even fizgig had a hard time" on turnarounds; "an early prototype, feel
   free to try it out tho with the others". *More:* PLAN U101, PROGRESS 2026-11-05 (turnaround round 2),
   proto/ui/u101/bakeoff/round2_*.
+- **SNAP-R78: A stale tab says so; agents ask, the person reloads.** A tab whose Snap code is older than the code the
+  server serves (it registers with the hash it loaded; `code_current` false) shows a non-blocking "Snap was updated:
+  reload to get the new tools" bar with a Reload button and ✕, on registering (load, focus, reconnect after a restart).
+  An agent asks with the bridge tool `request_reload` (the server's, so a stale tab without the new page tools still
+  gets it), and the bar names the agent. Nothing reloads by itself (SNAP-R5), and a tab whose code predates the bar is
+  named as such so the agent asks in words. *Why:* F-C12: short03 waited 9 min for a reload only the coordinator could
+  ask for. *More:* the dogfood study's FINDINGS F-C12, proto/test_u101_fc.js.
+- **SNAP-R79: A new view says which picture it copied.** Each New view candidate is scored against each of its context
+  pictures with the copy check (DINOv3 patch tokens at the same grid position, MAISnapCopyScore, the model graph's
+  threshold); at or above it the tile says "copied Picture n" (the note `copied`: threshold, each picture's score, the
+  numbers copied), else "no copy". A note, never a gate (SNAP-R23). *Why:* F-C14: P01's establishing candidates re-drew
+  the master's aerial and nothing flagged it. *More:* the dogfood study's FINDINGS F-C14, proto/test_u101_fc.js.
 
 ## Accounts and the gate (snap-gate)
 
-IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; R78 on).
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; R80 on).
 
 - **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
   use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and

@@ -46,7 +46,9 @@ one you work in so you never collide:
   `snap_agent_page.sh` never takes a person's tab for yours. `SNAP_PAGE=<id>` (or the `X-Snap-Page` header) sends one
   call to a page without binding. Every answer names its page under `page` (`id`, `name`, `driven_by`).
 If it says the page runs older Snap code (`page_warning`, or an "Unknown Snap tool" error that says so), start your own
-page with `snap_agent_page.sh $BASE --new`; never reload or close the person's tab yourself. Run `curl -s $BASE/mainodes/snap/tools` to see
+page with `snap_agent_page.sh $BASE --new`; never reload or close the person's tab yourself. To ask the person to
+reload their tab, `request_reload {page}` shows a "Snap was updated: reload to get the new tools" bar on it with your
+name (the tab shows it by itself after an update too); the person presses Reload. Run `curl -s $BASE/mainodes/snap/tools` to see
 your open pages under `pages`, with when each registered and when it last answered. When no page is open, every call
 says how to start one.
 
@@ -213,6 +215,14 @@ them). It works on stills: masters, plates, boards.
   `apply_candidate` makes the one that holds the set the shot's take.
 - In the take viewer the same route is "New view from these pictures": add this picture, a marked region of it, or a
   Cast's picture, move them up or down, and pick the model.
+- A small change to one detail (eyes, a prop): `ph3_view` with the still (or a crop of the part, e.g. the face) as
+  Picture 1, name only the change, describe its shape and say what it is not: "Change only her eyes: gold irises, each
+  with a single thin black vertical slit pupil like a cat's, no round pupil. Everything else stays." drew true slits
+  3/3 (short03 F-C16); "slit pupils" alone gave round ones, and an unpinned head turns to show the eyes.
+- Each candidate gets notes: each Cast's face against its picture, and "copied Picture n" when its copy score against
+  a context picture reaches the threshold (it re-rendered that view, e.g. the master's aerial). Notes inform, never block.
+- Land each cut's board in that cut's shot (`land`), so each shot holds its own take; the answer's `land_hint` says
+  when a context board sits in another shot.
 
 ### Character sheets (turnarounds)
 

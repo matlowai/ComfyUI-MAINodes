@@ -3,7 +3,7 @@
 // Hovering or pressing a tile previews it in place (C.preview: the plate slot or the take viewer shows it, nothing is
 // edited). The buttons call the same functions as the apply_candidate / reject_candidate / undo_candidate tools.
 // SNAP-R7 lists keep their elements while a pointer is down · SNAP-R17 by · SNAP-R23 candidates · SNAP-R76 a score per
-// person, with that person's crops · see docs/SNAP_RULES.md
+// person, with that person's crops · SNAP-R79 copied Picture n · see docs/SNAP_RULES.md
 import * as C from "./candidates.js";
 import * as P from "./proposals.js";
 import * as ED from "./edits.js";
@@ -17,6 +17,11 @@ export function noteChips(c) {
   const n = c.notes, out = [];
   if (n.copy) out.push(h("span", { className: `snap-cand-note${n.copy.likely_copy ? " warn" : ""}`, textContent: `${n.copy.likely_copy ? "likely copy" : "copy"} ${n.copy.score.toFixed(2)}`,
     title: `last frame against the wide plate: ${n.copy.score} (a copy of its view at or above ${n.copy.threshold}); push-ins score like new views, so look` }));
+  // a new view (F-C14): "copied Picture n" when its copy score against a context picture reaches the threshold
+  if (n.copied) out.push(...(n.copied.error ? [h("span", { className: "snap-cand-note", textContent: "copy: not checked", title: n.copied.error })]
+    : n.copied.copied.length ? n.copied.against.filter((a) => n.copied.copied.includes(a.n)).map((a) => h("span", { className: "snap-cand-note warn", textContent: `copied Picture ${a.n} ${a.score.toFixed(2)}`,
+      title: `copy score against Picture ${a.n} (${a.label}): ${a.score}, at or above ${n.copied.threshold}: it likely re-renders that picture's view; look before you apply it` }))
+    : [h("span", { className: "snap-cand-note", textContent: "no copy", title: `copy score against each picture, below ${n.copied.threshold} for all: ${n.copied.against.map((a) => `Picture ${a.n} ${a.score ?? "not read"}`).join(", ")}` })]));
   if (n.layout) out.push(n.layout.error ? h("span", { className: "snap-cand-note", textContent: "layout: not checked", title: n.layout.error })
     : h("span", { className: `snap-cand-note${n.layout.as_planned < n.layout.checked ? " warn" : ""}`, textContent: `layout ${n.layout.as_planned}/${n.layout.checked}${n.layout.order ? ` · order ${n.layout.order}` : ""}`,
       title: `where ${n.layout.detector} finds each thing against the plan:\n${n.layout.rows.map((r) => `${r.ok === false ? "✗" : r.ok ? "✓" : "·"} ${r.name}: plan ${r.plan}, found ${r.found}`).join("\n")}` }));
