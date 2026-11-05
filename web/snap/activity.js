@@ -116,7 +116,7 @@ function announce() {
     const before = was.get(r.id), fresh = !before && (r.queued_at ?? 0) > loadedAt;
     if (before === r.state || r.zone === "parked" || r.source === "refusal" || (!before && !fresh && !LIVE.has(r.state))) continue;
     if (r.result?.note) continue; // a run whose take nobody wrote (its page closed) only stopped waiting for it: nothing landed
-    const what = r.state === "failed" ? "failed" : r.state === "done" || r.state === "waiting" ? "landed" : !before && LIVE.has(r.state) && (r.by === "agent" || !J.own(r.id)) ? "start" : null;
+    const what = r.state === "failed" ? "failed" : r.state === "done" || r.state === "waiting" ? "landed" : !before && LIVE.has(r.state) && (r.by === "agent" || (r.source === "prompt" && !J.own(r.id))) ? "start" : null; // this page's own decision isn't news
     if (what) for (const fn of arrivals) fn(what, r);
   }
   if (dropped.length) for (const fn of arrivals) fn("lost", { count: dropped.length });

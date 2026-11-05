@@ -169,7 +169,7 @@ async function propagate(d, c, by = "person") {
   const take = T.get(d.take), m = await method(d.method);
   if (!take) throw new Error(`The take ${d.take} isn't here any more`);
   const g = m.propagate.kind === "remake" ? await remakeGraph(d, c, m, take) : await rippleGraph(d, c, m, take);
-  const job = { kind: "propagate", title: `${d.title}: ${c.id} carried over the whole take`, about: { take: take.id, group: take.group, decision: d.id, candidate: c.id }, by, eta_s: m.cost?.local_s ?? null };
+  const job = { kind: "propagate", title: `${d.title}: ${c.id} carried over the whole take`, about: { take: take.id, group: take.group, decision: d.id, candidate: c.id }, by, eta_s: [m.cost?.local_s].flat().at(-1) ?? null }; // a measured range: its upper end
   const id = await K.queue(g, { group: take.group, world: d.world, job, extra: { snap_parent: { take: take.id, method: `${m.slot}/${d.method}`, options: d.options, decision: d.id, candidate: c.id } } });
   return { prompt_id: id, take: `take-${id}` };
 }
