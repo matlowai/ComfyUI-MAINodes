@@ -561,6 +561,7 @@ export async function sheet(cast, { method, ref = 0, pictures = [], design, seed
   if (m.anchors.max_pictures && all.length > m.anchors.max_pictures) throw new Error(`${m.title} reads up to ${m.anchors.max_pictures} picture${m.anchors.max_pictures > 1 ? "s" : ""} (the Cast's first); ${all.length} given`);
   const pics = []; for (const [i, p] of all.entries()) pics.push(await contextPicture(p, i));
   const b = got.version.body, words = (design ?? b.details ?? "").trim();
+  if (m.anchors.square) await squared(pics[0], b.refs[ref]?.file);
   const values = { name: b.name, design: words, design_lines: words.split(/\s*;\s*/).filter(Boolean).map((x) => `- ${x}`).join("\n") };
   const said = pics.map((p) => p.said), where = await landing(land, said), world = Object.fromEntries(pics.map((p) => p.world).filter(Boolean));
   const list = seeds?.length ? seeds : Array.from({ length: count }, () => Math.floor(Math.random() * 2 ** 32));
@@ -575,6 +576,21 @@ export async function sheet(cast, { method, ref = 0, pictures = [], design, seed
     options: { prompt, context: said, ...size }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}) }, made);
   return { decision: d.id, method: id, pictures: said.map((x) => `Picture ${x.n}: ${x.label}`), lands: where.where, size,
     candidates: d.candidates.map((c) => ({ id: c.id, prompt_id: c.prompt_id, take: `take-${c.prompt_id}`, seed: c.seed, ...c.made })), seconds_each: [m.cost?.local_s].flat().at(-1) ?? null };
+}
+// Picture 1 padded to a square with its own corner colour (core Pad Image), for a method whose model wants a square
+// reference: the H3 Turnaround LoRA rolled the camera in 4 of 6 sheets from the portrait Cast picture and orbited in
+// 6 of 6 from the same picture padded square (U101 turnaround round 2)
+async function squared(p, file) {
+  const img = new Image(); img.src = inputUrl(file); await img.decode();
+  const { naturalWidth: w, naturalHeight: hgt } = img, c = Object.assign(document.createElement("canvas"), { width: 1, height: 1 });
+  c.getContext("2d").drawImage(img, 0, 0, 1, 1, 0, 0, 1, 1);
+  const color = `#${[...c.getContext("2d").getImageData(0, 0, 1, 1).data.slice(0, 3)].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+  const [x, y] = w < hgt ? [hgt - w, 0] : [0, w - hgt];
+  if (!x && !y) return;
+  p.nodes.c0sq = { class_type: "PadImageNode", inputs: { image: p.out, padding_type: "pad dimensions", "padding_type.left": x >> 1, "padding_type.right": x - (x >> 1), "padding_type.top": y >> 1, "padding_type.bottom": y - (y >> 1),
+    padding_style: "color", "padding_style.color": color, "padding_style.feathering": 0 } };
+  p.out = ["c0sq", 0];
+  p.said.squared = color;
 }
 // a sheet's pictures: the sheet (the strip of a contact sheet) first, then each view in slot order
 const sheetFinish = (d, c, h) => {

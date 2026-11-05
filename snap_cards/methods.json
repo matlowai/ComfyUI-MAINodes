@@ -539,6 +539,7 @@
         "sampler": "res_multistep",
         "scheduler": "simple",
         "size": 1024,
+        "square": true,
         "max_pictures": 1
       },
       "needs": [
@@ -560,6 +561,7 @@
         "one reference picture (the Cast's); the words are the LoRA's own orbit caption, the design is read from the picture",
         "five square views jointly denoised as a five-slot H3 latent (the node's packing): a plain LoRA load in a video graph does not work and degrades motion, so the LoRA is used only here",
         "width is each view's size (512 = the LoRA's training size, 1024 the author's sweet spot; height is ignored)",
+        "Picture 1 is padded to a square with its own corner colour: from the portrait Cast picture the camera rolled in 4 of 6 sheets, padded square it orbited in 6 of 6 (front to profile to back, the turn arriving in the last views; U101 round 2)",
         "the rotation follows the subject's pose and some subjects under-rotate (the LoRA's notes)"
       ],
       "guidance": {
@@ -599,6 +601,7 @@
         "sampler": "res_multistep",
         "scheduler": "simple",
         "size": 1024,
+        "square": true,
         "max_pictures": 1
       },
       "needs": [
@@ -620,6 +623,7 @@
         "one reference picture (the Cast's); the words are the LoRA's own orbit caption, the design is read from the picture",
         "five square views jointly denoised as a five-slot H3 latent (the node's packing): a plain LoRA load in a video graph does not work and degrades motion, so the LoRA is used only here",
         "width is each view's size (512 = the LoRA's training size, 1024 the author's sweet spot; height is ignored)",
+        "Picture 1 is padded to a square with its own corner colour: from the portrait Cast picture the camera rolled in 4 of 6 sheets, padded square it orbited in 6 of 6 (front to profile to back, the turn arriving in the last views; U101 round 2)",
         "the rotation follows the subject's pose and some subjects under-rotate (the LoRA's notes)",
         "the step-400 checkpoint: the background words are honoured, the arc is shallower than the default's"
       ],
