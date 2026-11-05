@@ -126,17 +126,24 @@ def model_graph(user_dir):
     return graph
 
 
-def metadata(real):
-    """A safetensors file's header metadata (`__metadata__`, string values), header only and capped; {} for a header past
-    the cap or without metadata, None when it can't be read."""
+def header(real):
+    """A safetensors file's JSON header (tensor names, shapes and `__metadata__`), read alone and capped; {} for a header
+    past the cap, None when it can't be read."""
     try:
         with open(real, "rb") as f:
             n = struct.unpack("<Q", f.read(8))[0]
-            header = json.loads(f.read(n)) if n <= HEADER_CAP else {}
+            found = json.loads(f.read(n)) if n <= HEADER_CAP else {}
     except (OSError, ValueError, RecursionError, struct.error):
         return None
-    meta = header.get("__metadata__") if isinstance(header, dict) else None
-    return meta if isinstance(meta, dict) else {}
+    return found if isinstance(found, dict) else {}
+
+
+def metadata(real):
+    """A safetensors file's header metadata (`__metadata__`, string values); {} when there is none, None when the header
+    can't be read."""
+    found = header(real)
+    meta = found.get("__metadata__") if found is not None else None
+    return meta if isinstance(meta, dict) else None if found is None else {}
 
 
 def strings(o):

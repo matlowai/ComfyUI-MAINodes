@@ -84,16 +84,16 @@ function loadGraph() {
 }
 // why the person's model graph isn't used (SNAP-R11: say it once, keep working)
 export const graphProblem = () => problem;
-// a distillation method named as its own word in a LoRA's name (SNAP-R26: "turbo" alone is not one)
-const SPEED = /(^|[^a-z])(p?dmd\d?|dmad|lightx2v|lcm|causvid)([^a-z]|$)/;
+// SNAP-R26 (U84): a LoRA's name says its kind only with a sampling step count; anything else is unsorted until an agent
+// reads the file (describe_lora) or the person files it
 function infer(name) {
   const n = base(name).toLowerCase(), folder = file(name)?.folder ?? null, found = Number(n.match(/(\d+)[-_ ]?steps?(?![-_ ]?\d)/)?.[1]) || null;
   const steps = found && found <= 16 ? found : null; // "step1500" / "v2_step_1500" / "5000steps" are training steps, not a turbo's
   const kind = { loras: "lora", text_encoders: "encoder", clip: "encoder", vae: "vae" }[folder] ?? (/turbo|dmd|dmad|lightning|hyper/.test(n) ? "turbo_merge" : "base");
-  const fast = kind === "turbo_merge" || (kind === "lora" && (!!steps || SPEED.test(n)));
+  const fast = kind === "turbo_merge" || (kind === "lora" && !!steps);
   const e = { file: base(name), folder, family: families.find(([re]) => re.test(n))?.[1] ?? null, kind, inferred: true,
     turbo: fast ? { how: kind === "lora" ? "lora" : "merged", steps, cfg: null, sampler: null, scheduler: null } : null, deband: /deband|banding/.test(n) ? (kind === "lora" ? "lora" : "merged") : "none" };
-  if (kind === "lora") Object.assign(e, String(name).startsWith("dials/") ? { role: "dial" } : fast ? { role: "core", core: "turbo" } : e.deband !== "none" ? { role: "core", core: "fix" } : { role: "unsorted" });
+  if (kind === "lora") Object.assign(e, String(name).startsWith("dials/") ? { role: "dial" } : fast ? { role: "core", core: "turbo" } : { role: "unsorted" });
   return e;
 }
 export function entry(name) {
@@ -137,10 +137,14 @@ export function categories() {
   return [...n].map(([id, count]) => ({ id, count })).sort((a, b) => at(a.id) - at(b.id) || a.id.localeCompare(b.id));
 }
 // file a LoRA under a role ("style", "core·fix") or switch a tag on or off ("nsfw"), in the person's snap/models.json, so it
-// wins over the pack everywhere at once. Returns the undo: the person's own entry as it was (null when there was none)
-export async function moveTo(file, id) {
+// wins over the pack everywhere at once, with who filed it and why (`filed`, SNAP-R55). Returns the undo: the person's own
+// entry as it was (null when there was none)
+export async function moveTo(file, id, { by = "person", reason = null } = {}) {
   const own = await mine().catch((e) => { throw new Error(`snap/models.json doesn't parse (${e.message}); fix it before Snap adds to it`); });
   const before = own.find((e) => base(e.file) === base(file)) ?? null, e = entry(file);
+  // SNAP-R55: the person's filing wins over an agent's (an entry of theirs from before `filed` existed counts as theirs)
+  if (by === "agent" && !id.startsWith("rating:") && (before?.role || before?.tags) && before.filed?.by !== "agent")
+    throw new Error(`The person filed ${base(file)} as ${categoryOf(e)}${(e.tags ?? []).length ? ` (${e.tags.join(", ")})` : ""}; their filing wins. Ask them, or propose it (propose: true)`);
   let patch;
   if (TAGS.includes(id)) patch = { tags: e.tags?.includes(id) ? e.tags.filter((t) => t !== id) : [...(e.tags ?? []), id] };
   else if (ROLES.includes(id)) {
@@ -153,6 +157,7 @@ export async function moveTo(file, id) {
     patch = { rating: id.slice(7) || null };
   }
   else throw new Error(`No category "${id}"; there are: ${[...ROLES, ...TAGS, ...RATINGS.map((r) => `rating:${r}`), "rating:"].join(", ")}`);
+  if (!id.startsWith("rating:")) patch.filed = { by, reason, at: new Date().toISOString() };
   await teach(file, patch);
   notify();
   return { file: base(file), before };

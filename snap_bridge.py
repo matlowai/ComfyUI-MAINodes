@@ -148,6 +148,41 @@ async def model_graph(request):
     return web.json_response({"models": graph["files"], "families": graph["families"]})
 
 
+# what a LoRA file says about itself, for an agent judging its kind (U84, SNAP-R55): Snap makes no LLM call, the agent is
+# the LLM. Header only: training tags (ss_*), base model, network dim / alpha and the rank its tensors have, trigger
+# words, modelspec and other text fields (each cut to 400 characters), the tags it was trained on (top 30), size, folder
+BIG = {"ss_tag_frequency", "ss_dataset_dirs", "ss_bucket_info", "ss_datasets", "ss_reg_dataset_dirs"}
+
+
+@routes.get("/mainodes/snap/lora_info")
+async def lora_info(request):
+    name = request.query.get("file", "")
+    path = folder_paths.get_full_path("loras", name)
+    if not path:
+        return error(f"No LoRA {name!r} in the loras folders; list_loras names them", 404)
+    found = snap_privacy.header(path)
+    if found is None:
+        return error(f"{name} has no safetensors header Snap can read")
+    meta = {k: str(v)[:400] for k, v in (found.get("__metadata__") or {}).items() if k not in BIG}
+    tags = {}
+    try:
+        for folder in json.loads(found.get("__metadata__", {}).get("ss_tag_frequency") or "{}").values():
+            for t, n in folder.items():
+                tags[t] = tags.get(t, 0) + n
+    except (ValueError, AttributeError):
+        pass
+    down = next((v["shape"] for k, v in found.items() if k != "__metadata__" and re.search(r"(lora_down|lora_A)(\.default)?\.weight$", k)), None)
+    keys = [k for k in found if k != "__metadata__"]
+    return web.json_response({
+        "file": name, "folder": os.path.dirname(name.replace("\\", "/")) or None, "size_mb": round(os.path.getsize(path) / 1e6, 1),
+        "training": {k: v for k, v in meta.items() if k.startswith("ss_")},
+        "trained_tags": [t for t, _ in sorted(tags.items(), key=lambda x: -x[1])[:30]],
+        "triggers": [v for k, v in meta.items() if k.lower().rsplit(".", 1)[-1] in snap_privacy.TRIGGER_KEYS],
+        "modelspec": {k: v for k, v in meta.items() if k.startswith("modelspec.")},
+        "other": {k: v for k, v in meta.items() if not k.startswith(("ss_", "modelspec."))},
+        "rank_from_tensors": down[0] if down else None, "tensors": len(keys), "key_prefix": os.path.commonprefix(keys).rsplit(".", 1)[0] if keys else None})
+
+
 @routes.get("/mainodes/snap/methods")
 async def method_registry(request):
     """The pack's method registry (snap_cards/methods.json): the slots and the methods that fill them; the person's own

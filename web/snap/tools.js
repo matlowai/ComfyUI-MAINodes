@@ -318,17 +318,31 @@ export const TOOLS = [
   },
   {
     name: "set_lora_category",
-    description: "File a LoRA under a category, as the person's 'move to…' does (the same function): role is one of core·turbo, core·fix, core·task, core·hires, core·edit, core·control, style, identity, dial, unsorted; tags is the full list it should carry (e.g. [\"nsfw\"] or []); rating is pg, mature or adult (\"\" clears the person's own; on a snap-gate install only the admin may rate, and only the admin's ratings count). Written to the person's snap/models.json, which wins over the pack, so the Library, the pickers, the Setup's stacks and these tools follow at once. Returns the entry now and `undo` (pass it back with undo to put the person's entry back as it was). Ask the person before filing their LoRAs.",
-    inputSchema: { type: "object", properties: { file: { type: "string" }, role: { type: "string" }, tags: { type: "array", items: { type: "string" } }, rating: { type: "string", enum: ["pg", "mature", "adult", ""] }, undo: { type: "array", description: "the undo list a previous call returned" } }, required: ["file"] },
-    run: async ({ file, role, tags, rating, undo }) => {
+    description: "File a LoRA under a category, as the person's 'move to…' does (the same function): role is one of core·turbo, core·fix, core·task, core·hires, core·edit, core·control, style, identity, dial, unsorted; tags is the full list it should carry (e.g. [\"nsfw\"] or []); rating is pg, mature or adult (\"\" clears the person's own; on a snap-gate install only the admin may rate, and only the admin's ratings count). by: agent (default: you judged it, e.g. from describe_lora) or person (the person told you this filing); reason: one short line why (what in the file's metadata says so), kept with the filing and shown on its row. A person's filing wins: an agent filing of a LoRA the person filed is refused (ask them, or propose it). Written to the person's snap/models.json, which wins over the pack, so the Library, the pickers, the Setup's stacks and these tools follow at once. Returns the entry now and `undo` (pass it back with undo to put the person's entry back as it was).",
+    inputSchema: { type: "object", properties: { file: { type: "string" }, role: { type: "string", enum: M.ROLES }, tags: { type: "array", items: { type: "string", enum: M.TAGS } }, rating: { type: "string", enum: ["pg", "mature", "adult", ""] },
+      by: { type: "string", enum: ["agent", "person"] }, reason: { type: "string", description: "one short line: why this category (from describe_lora's metadata), kept with the filing" }, undo: { type: "array", description: "the undo list a previous call returned" } }, required: ["file"] },
+    run: async ({ file, role, tags, rating, by = "agent", reason = null, undo }) => {
       await M.load();
       if (undo) { for (const u of [...undo].reverse()) await M.restore(u); return { file, entry: M.entry(file), undone: true }; }
       const done = [];
-      if (role && role !== M.categoryOf(M.entry(file))) done.push(await M.moveTo(file, role));
-      for (const t of M.TAGS) if (tags && tags.includes(t) !== (M.entry(file).tags ?? []).includes(t)) done.push(await M.moveTo(file, t));
-      if (rating != null) done.push(await M.moveTo(file, `rating:${rating}`));
+      if (role && role !== M.categoryOf(M.entry(file))) done.push(await M.moveTo(file, role, { by, reason }));
+      for (const t of M.TAGS) if (tags && tags.includes(t) !== (M.entry(file).tags ?? []).includes(t)) done.push(await M.moveTo(file, t, { by, reason }));
+      if (rating != null) done.push(await M.moveTo(file, `rating:${rating}`, { by, reason }));
       const e = M.entry(file);
-      return { file, category: M.categoryOf(e), tags: e.tags ?? [], rating: e.rating ?? null, undo: done };
+      return { file, category: M.categoryOf(e), tags: e.tags ?? [], rating: e.rating ?? null, filed: e.filed ?? null, undo: done };
+    },
+  },
+  {
+    name: "describe_lora",
+    description: "What one LoRA file says about itself, to judge its kind (turbo / fix / task / hires / edit / control, style, identity) from the file rather than its name: its training metadata (ss_*: base model, network dim / alpha, steps, epochs, output name, comment), the tags it was trained on (top 30), trigger words, modelspec fields (title, description, architecture), other text fields, the rank its tensors have, size and folder, plus how Snap files it now (category, filed: by agent or person and why; inferred: true when nobody filed it). Snap makes no LLM call: you judge, then file it with set_lora_category {by: 'agent', reason}. Private ones (private: true) are named only to the person.",
+    inputSchema: { type: "object", properties: { file: { type: "string", description: "a LoRA as list_loras names it" } }, required: ["file"] },
+    annotations: { readOnlyHint: true },
+    run: async ({ file }) => {
+      await M.load();
+      const r = await api.fetchApi(`/mainodes/snap/lora_info?file=${encodeURIComponent(file)}`), info = await r.json();
+      if (!r.ok) throw new Error(info.error ?? `describe_lora failed (${r.status})`);
+      const e = M.entry(file);
+      return { ...info, category: M.categoryOf(e), tags: e.tags ?? [], filed: e.filed ?? null, ...(e.inferred ? { inferred: true } : {}), ...(M.isLocked(file) ? { private: true } : {}) };
     },
   },
   {
@@ -997,6 +1011,7 @@ export async function callTool(name, args = {}, { confirmed } = {}) {
     const was = seen.get(if_revision), now = await revision();
     if (now !== if_revision) throw new Error(`The recipe changed since revision ${if_revision} (now ${now})${was ? `: ${T.changes(was, seen.get(now)).join(", ") || "seeds"}` : ""}. Read describe_recipe again and decide with what is there now`);
   }
+  if ("reason" in (tool.inputSchema.properties ?? {})) rest.reason = reason; // the tool's own argument too (set_lora_category), kept when it waits as a proposal
   const plan = tool.plan ? await tool.plan(rest) : null, warning = plan?.warning ? { warning: plan.warning } : {}; // a plan's warning (run: a default prompt) is said at the top too
   if ((tool.consequential || tool.decides) && !confirmed && !mayRun()) {
     const why = tool.decides ? "the person's pick" : "uses the GPU";
@@ -1017,9 +1032,11 @@ const PROPOSE = {
   for_note: { type: "string", description: "id of the director's note this proposal answers (from get_notes)" },
 };
 const IF_REVISION = { if_revision: { type: "string", description: "the revision from describe_recipe this change is meant for: refused, naming what changed, when the recipe moved since" } };
+// a tool's own argument of the same name (set_lora_category's reason) keeps its description
+const own = (props, extra) => Object.fromEntries(Object.entries(extra).filter(([k]) => !(k in props)));
 export const schema = () => TOOLS.map(({ name, description, inputSchema, annotations = {} }) => ({
   name, description, annotations,
-  inputSchema: readOnly(name) ? inputSchema : { ...inputSchema, properties: { ...inputSchema.properties, ...(proposable(name) ? PROPOSE : {}), ...IF_REVISION } },
+  inputSchema: readOnly(name) ? inputSchema : { ...inputSchema, properties: { ...inputSchema.properties, ...(proposable(name) ? own(inputSchema.properties, PROPOSE) : {}), ...IF_REVISION } },
 }));
 
 // the view tells the tools how to read and drive it (set by snap_view.js once the view exists)

@@ -61,6 +61,9 @@ You can also run the tools as an MCP server (Claude Code):
      person whether they have it, and go on without it if not.
    - Each file needs the person's yes, and then you run the command (safetensors only).
    - A pack's `review` follows the person's code-review setting.
+6. Unsorted LoRAs (`list_loras {"role": "unsorted"}`): read each with `describe_lora` and file it with
+   `set_lora_category {"file": ..., "role": ..., "by": "agent", "reason": "<what in its metadata says so>"}`; the person
+   can re-file any of them, and their filing wins. A name alone says a kind only with a step count (`4step`).
 
 ## 4. Render
 

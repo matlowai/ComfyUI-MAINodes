@@ -68,12 +68,24 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   `snap/models.json` (person over pack), everything follows at once, and Undo puts the person's entry back
   (`set_lora_category` is the same function). Identity LoRAs are private by default: never exported or
   shown on shared pages. *More:* MODEL_GRAPH_ONBOARDING §6.
-- **SNAP-R26: A LoRA's name files it as a turbo only on a strong signal.** The model graph says first; with no entry,
-  a name counts only with a sampling step count (16 or fewer, no digits after: `8step`, `4_steps`) or a distillation
-  method as its own word (dmd, pdmd, dmd2, dmad, lightx2v, lcm, causvid). "turbo" inside a name and training step counts
-  (`step1500`, `5000steps`) are not signals; such a LoRA is unsorted until someone files it. *Why:* concept LoRAs
-  trained on a turbo model (`<concept>-krea-turbo`, an ai-toolkit run of 2500 steps) and training checkpoints
-  (`..._v01_step1500`) showed as core·turbo on the live server (PLAN U67).
+- **SNAP-R26: A LoRA's name files it as a turbo only with a step count.** The model graph says first; with no entry, a
+  name counts only with a sampling step count (16 or fewer, no digits after: `8step`, `4_steps`). Distillation words
+  (dmd, dmad, lightx2v, lcm, causvid), "turbo" inside a name, "deband" and training step counts (`step1500`,
+  `5000steps`) are not signals; such a LoRA is unsorted until an agent reads the file or the person files it
+  (SNAP-R55). *Why:* concept LoRAs trained on a turbo model (`<concept>-krea-turbo`, an ai-toolkit run of 2500 steps)
+  and training checkpoints (`..._v01_step1500`) showed as core·turbo on the live server (PLAN U67); Dylan, 2026-11-04
+  20:41: the kind is "checked by an LLM reading the LoRA itself (metadata, source), regardless of name, unless the
+  name says something unambiguous like '4step'" (PLAN U84).
+- **SNAP-R55: A LoRA's kind is judged by an agent reading the file; the person's filing wins.** Snap makes no LLM
+  call (no internet; the agent is the LLM). `describe_lora {file}` returns what the file says about itself: its
+  training metadata (ss_*), the tags it was trained on, trigger words, modelspec and other text fields, the rank its
+  tensors have, size and folder, and how Snap files it now. `set_lora_category` takes `by` (agent, the default, or
+  person when the person said it) and a short `reason`, kept in the person's `snap/models.json` as `filed: {by, reason,
+  at}`; the LoRA sheet shows an agent's filing as "agent: <reason>" on the row. An agent filing a LoRA the person filed
+  (move to…, or an entry of theirs from before `filed` existed) is refused, naming their filing: ask them or propose
+  it. AGENT_START asks agents to work through the unsorted LoRAs that way. Never blocks a run. *Why:* Dylan, 2026-11-04
+  20:41 (PLAN U84). *More:* `snap_bridge.py` (`/mainodes/snap/lora_info`), `web/snap/models.js` (`moveTo`),
+  `web/snap/tools.js`, `web/snap/loraview.js`.
 - **SNAP-R13: Family rules come from the model graph, not code branches.** These include: MOSS SFT always carries a
   deband fix; MOSS Base wants long, concrete prompts, and its prompt expander ("✨ Enhance prompt (LLM)" on the
   Render) stays off by default because it can drop details; Krea Raw int8 is `int8_rowwise` and can't load in core.

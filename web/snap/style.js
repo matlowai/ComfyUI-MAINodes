@@ -654,8 +654,9 @@ export const STYLE = `
 .snap-lora-pick { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; min-height: 0; overflow: hidden; }
 .snap-lora-list { display: flex; flex-direction: column; gap: 4px; overflow: auto; min-height: 0; }
 .snap-lora-row { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) auto auto auto; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 9px; background: var(--s-card); cursor: grab; }
+.snap-lora-filed { max-width: 34ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .snap-lora-row strong { font-weight: 550; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .snap-lora-row .snap-quiet { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.snap-lora-cats { display: flex; gap: 4px; } .snap-lora-cats .tag { color: #f0b445; }
+.snap-lora-cats { display: flex; gap: 4px; align-items: center; min-width: 0; } .snap-lora-cats .tag { color: #f0b445; }
 .snap-move { font-size: 11.5px; max-width: 110px; background: var(--s-bg); color: var(--s-dim); border: 1px solid var(--s-line); border-radius: 6px; padding: 2px 4px; }
 .snap-card .snap-move { margin-top: 4px; align-self: flex-start; } .snap-dial-tile .snap-move { align-self: flex-start; }
 .snap-lora-addrow { display: flex; gap: 6px; align-items: center; } .snap-lora-addrow .snap-lora-add { flex: 1; min-width: 0; } .snap-lora-browse { margin: 0; }

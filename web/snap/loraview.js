@@ -4,7 +4,7 @@
 // function set_lora_category calls, SNAP-R19), so the Library, the pickers, the Setup's stacks and the agent tools all see
 // it at once; Undo puts back what was there. SFW only leaves the nsfw files out, and so their chip.
 // SNAP-R12 LoRA roles · SNAP-R19 one function · SNAP-R25 SFW only · SNAP-R27 a lock on private ones, the row still works ·
-// SNAP-R35 a rating from move to… · see docs/SNAP_RULES.md
+// SNAP-R35 a rating from move to… · SNAP-R55 an agent's filing shows its reason, the person's wins · see docs/SNAP_RULES.md
 import * as M from "./models.js";
 import * as PF from "./profile.js";
 
@@ -73,7 +73,10 @@ export async function openLoras(host, { say, onChange, start = null, onAdd = nul
       const row = h("div", { className: "snap-lora-row", draggable: true },
         h("strong", { textContent: `${M.isLocked(r.file) ? "🔒 " : ""}${short(r.file).replaceAll("_", "_​")}`, title: M.isLocked(r.file) ? `${r.file}\nprivate: your private rules match it, so takes that load it are locked and left out of exports` : r.file }),
         h("span", { className: "snap-quiet", textContent: [r.entry.family, r.file.includes("/") && r.file.split("/").slice(0, -1).join("/")].filter(Boolean).join(" · ") }),
-        h("span", { className: "snap-lora-cats" }, h("i", { className: `snap-lora-kind ${r.entry.role ?? "unsorted"}`, textContent: label(r.category) }), r.tags.map((t) => h("i", { className: "snap-lora-kind tag", textContent: t }))),
+        h("span", { className: "snap-lora-cats" }, h("i", { className: `snap-lora-kind ${r.entry.role ?? "unsorted"}`, textContent: label(r.category) }), r.tags.map((t) => h("i", { className: "snap-lora-kind tag", textContent: t })),
+          // SNAP-R55: an agent's filing says so, with its reason; move to… makes it the person's
+          r.entry.filed?.by === "agent" ? h("span", { className: "snap-quiet snap-lora-filed", textContent: `agent: ${r.entry.filed.reason ?? "no reason given"}`,
+            title: `Filed by an agent: ${r.entry.filed.reason ?? "no reason given"}\nMove to… files it as yours, and yours wins.` }) : null),
         moveControl(r.file, (u, id, err) => { if (err) { say(err.message, true); return; } undo.push(u); say(`${short(r.file)} → ${label(id)} (Undo move puts it back)`); changed(); }),
         onAdd && r.category !== "dial" ? h("button", { className: "snap-link snap-quiet-btn", textContent: "+ add", title: "add it to this stack", onclick: () => { onAdd(r.file); close(); } }) : null);
       row.dataset.file = r.file;
