@@ -737,7 +737,7 @@ class Gate:
 
         if m == "GET" and p == "/view":
             return await self.relay(request, name) if await self.view_ok(request, name) else web.Response(status=404)
-        if p.startswith("/assets") or p == "/tags" or p.startswith("/tags/"):  # core's assets API lists every account's files
+        if request.path.startswith(("/api/assets", "/api/tags")):  # core's assets API lists every account's files (/assets/ is the frontend's own)
             return web.json_response({"error": "Core's assets API is the admin's on a signed-in install."}, status=403)
         if m == "GET" and (p.startswith("/view_metadata/") or p.startswith("/experiment/models/preview/")):
             fn, hidden = request.query.get("filename", "") if p.startswith("/view_metadata/") else p.split("/", 6)[-1], await self.hidden(name)
