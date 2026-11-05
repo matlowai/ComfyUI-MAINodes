@@ -29,8 +29,12 @@ Either the person opens `$BASE/?snap` in their browser, or you start a headless 
 - On a signed-in install, give the sign-in link as the page:
   `bash $PACK/tools/snap_agent_page.sh $BASE "$BASE/gate/login?token=$SNAP_TOKEN&next=/%3Fsnap"`
 
-Calls go to a page of your own user that is still connected: one running the server's current code first, then your
-own headless page before the person's visible tab, then the newest. Each call's answer names the page under `page`.
+Calls go to a page of your own user that is still connected: the newest tab whose person turned "Let agents see" on
+(that control is how they let agents drive their tab), else your own headless page (one running the server's current
+code first). A person's tab with the control off is never driven. Each call's answer names the page under `page`
+(`id`, `headless`, `sees`). When you must stay on your own page (background work while the person works in their
+tab), name it: `SNAP_PAGE=<id>` for snapcall.py and snap_mcp.py, or the `X-Snap-Page: <id>` header with curl; the ids
+are under `pages` in `curl -s $BASE/mainodes/snap/tools`.
 If it says the page runs older Snap code (`page_warning`, or an "Unknown Snap tool" error that says so), start your own
 page with `snap_agent_page.sh $BASE --new`; never reload or close the person's tab yourself. Run `curl -s $BASE/mainodes/snap/tools` to see
 your open pages under `pages`, with when each registered and when it last answered. When no page is open, every call

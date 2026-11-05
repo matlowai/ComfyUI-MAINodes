@@ -46,9 +46,9 @@ from .video_out import MAIVideoOut
 TIMEOUT = 30
 # the tabs that registered, oldest first: websocket client id -> the ComfyUI user whose page it is (the comfy-user header,
 # set by snap-gate per account), when it registered and when it last answered, the Snap code it loaded, whether it is a
-# headless (agent's) page, and its tool table. A call goes to a page of the caller's own user that is still connected,
-# so one account's agent never drives another's page: one running the code the server serves now first, then an
-# agent's own page before a person's visible tab, then the newest (U72 F20)
+# headless (agent's) page, whether its person turned "Let agents see" on, and its tool table. A call goes to a page of the
+# caller's own user that is still connected, so one account's agent never drives another's page (U72 F20), and
+# "Let agents see" is what lets agents drive a person's tab (Dylan 2026-11-05: "this is the whole point of this control")
 pages = {}
 PACK = Path(__file__).parent
 PAGE_SH = PACK / "tools" / "snap_agent_page.sh"
@@ -77,10 +77,18 @@ def open_pages(user):
     return [c for c, p in pages.items() if p["user"] == user and c in PromptServer.instance.sockets]
 
 
-def chosen(user, code=None):
-    """The page calls go to: current code first, then an agent's own (headless) page, then the newest."""
+def chosen(user, code=None, target=None):
+    """The page calls go to: the page `target` names (an agent that must stay on its own page); else the newest tab whose
+    person turned "Let agents see" on; else an agent's own headless page, one running the code the server serves now
+    first, newest first. A person's tab with the control off is never driven."""
     found, code = open_pages(user), code or served_code()
-    return max(found, key=lambda c: (pages[c]["code"] == code, pages[c]["headless"], found.index(c))) if found else None
+    if target:
+        return target if target in found else None
+    seeing = [c for c in found if pages[c]["sees"] and not pages[c]["headless"]]
+    if seeing:
+        return seeing[-1]
+    agents = [c for c in found if pages[c]["headless"]]
+    return max(agents, key=lambda c: (pages[c]["code"] == code, agents.index(c))) if agents else None
 
 
 def stale_note(client, base):
@@ -96,8 +104,8 @@ def stale_note(client, base):
 def health(user):
     now, found, code = time.time(), open_pages(user), served_code()
     to = chosen(user, code)
-    return [{"registered_s_ago": round(now - pages[c]["registered"]), "last_answer_s_ago": None if pages[c]["answered"] is None else round(now - pages[c]["answered"]),
-             "code_current": pages[c]["code"] == code, "headless": pages[c]["headless"], "tools": len(pages[c]["tools"]), "calls_go_here": c == to} for c in found]
+    return [{"id": c, "registered_s_ago": round(now - pages[c]["registered"]), "last_answer_s_ago": None if pages[c]["answered"] is None else round(now - pages[c]["answered"]),
+             "code_current": pages[c]["code"] == code, "headless": pages[c]["headless"], "sees": pages[c]["sees"], "tools": len(pages[c]["tools"]), "calls_go_here": c == to} for c in found]
 pending = {}       # call id -> (future answered by /mainodes/snap/result, the page it was sent to)
 
 
@@ -116,16 +124,17 @@ async def register(request):
     was = pages.pop(body["client"], None)  # re-registering (focus, reconnect) makes it the newest
     now = time.time()
     pages[body["client"]] = {"user": user_of(request), "registered": now, "registered_first": was["registered_first"] if was else now, "answered": None,
-                             "code": body.get("code"), "headless": bool(body.get("headless")), "tools": body["tools"]}
+                             "code": body.get("code"), "headless": bool(body.get("headless")), "sees": bool(body.get("sees")), "tools": body["tools"]}
     return web.json_response({"tools": len(body["tools"]), "code_current": body.get("code") == served_code()})
 
 
 @routes.get("/mainodes/snap/tools")
 async def listing(request):
-    """The tool table of the page calls go to, and the caller's open Snap pages: when each registered and last answered,
-    whether it runs the code the server serves now, whether it is an agent's own page (a health check)."""
+    """The tool table of the page calls go to, and the caller's open Snap pages: each one's id (the X-Snap-Page header
+    names one), when it registered and last answered, whether it runs the code the server serves now, whether it is an
+    agent's own page, whether its person lets agents see (and drive) it, and where calls go (a health check)."""
     user = user_of(request)
-    to = chosen(user)
+    to = chosen(user, target=request.headers.get("X-Snap-Page"))
     out = {"tools": pages[to]["tools"] if to else [], "pages": health(user), "code": served_code()}
     if to and pages[to]["code"] != out["code"]:
         out["warning"] = stale_note(to, f"{request.scheme}://{request.host}")
@@ -150,17 +159,22 @@ async def info(request):
 async def call(request):
     body = await request.json()
     base = f"{request.scheme}://{request.host}"
-    client, code = chosen(user_of(request)), served_code()
+    user, target, code = user_of(request), request.headers.get("X-Snap-Page") or body.get("page"), served_code()
+    client = chosen(user, code, target)
     if not client:
-        return error(f"No Snap page is open for you on this ComfyUI: it may have been locked or closed. Open {base}/?snap in a browser, or start a "
-                     f"headless one for yourself: bash {PAGE_SH} {base} (it returns once the page has registered).", 503)
+        if target:
+            return error(f"No open Snap page {target!r} of yours (X-Snap-Page); your open pages: {', '.join(open_pages(user)) or 'none'} (GET /mainodes/snap/tools lists them).", 404)
+        tabs = [c for c in open_pages(user) if not pages[c]["headless"]]
+        return error((f"Your Snap tab{'s have' if len(tabs) > 1 else ' has'} 'Let agents see' off, so agents don't drive {'them' if len(tabs) > 1 else 'it'}: ask the person to press it in Snap's top bar, or start "
+                      if tabs else f"No Snap page is open for you on this ComfyUI: it may have been locked or closed. Ask the person to open {base}/?snap and press 'Let agents see', or start ")
+                     + f"a headless page for yourself: bash {PAGE_SH} {base} (it returns once the page has registered).", 503)
     stale = pages[client]["code"] != code
     if body.get("tool") not in {t["name"] for t in pages[client]["tools"]}:
         return error(f"Unknown Snap tool {body.get('tool')!r}: GET /mainodes/snap/tools lists them." + (f" {stale_note(client, base)}" if stale else ""), 404)
     call_id = secrets.token_hex(8)
     pending[call_id] = (asyncio.get_running_loop().create_future(), client)
     await PromptServer.instance.send("mainodes-snap-call", {"id": call_id, "tool": body["tool"], "args": body.get("args") or {}}, client)
-    page = {"headless": pages[client]["headless"], "code_current": not stale}
+    page = {"id": client, "headless": pages[client]["headless"], "sees": pages[client]["sees"], "code_current": not stale}
     try:
         out = await asyncio.wait_for(pending[call_id][0], TIMEOUT)
         if stale:  # said inside the answer, where every client shows it
@@ -292,7 +306,7 @@ async def page_shot(request):
                     shot = await cdp(ws, "Page.captureScreenshot", {"format": "jpeg", "quality": 85, "clip": {"x": 0, "y": 0, "width": size["clientWidth"], "height": size["clientHeight"], "scale": k}})
                     return web.json_response({"mimeType": "image/jpeg", "data": shot["data"], "width": round(size["clientWidth"] * k), "height": round(size["clientHeight"] * k)})
     return error("This page's Chrome isn't one snap_agent_page.sh started on this machine (no DevTools port knows it"
-                 + (f"; ports tried: {', '.join(tried)}" if tried else "") + "). Start your page with tools/snap_agent_page.sh, or use take_frames and read_ui.", 404)
+                 + (f"; ports tried: {', '.join(tried)}" if tried else "") + "). Start your page with tools/snap_agent_page.sh, or use take_frames and read_ui; a person at this page can press 'Let agents see'.", 404)
 
 
 CARDS = Path(__file__).parent / "snap_cards"

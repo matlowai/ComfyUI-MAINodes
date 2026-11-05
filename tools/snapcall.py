@@ -1,5 +1,7 @@
-"""Call one Snap tool from a shell, through the bridge to the newest Snap page of your user (a person's tab or an agent's
-headless page from snap_agent_page.sh). Pictures (screenshot, take_frames) are saved as files in a folder of their own
+"""Call one Snap tool from a shell, through the bridge to a Snap page of your user: the newest tab whose person turned
+"Let agents see" on, else an agent's headless page from snap_agent_page.sh. SNAP_PAGE in the environment names one page
+(an id from GET /mainodes/snap/tools `pages`) to keep the call on it, e.g. your own page when you must not drive the
+person's tab. Pictures (screenshot, take_frames) are saved as files in a folder of their own
 under the system temp folder (snapcall-pictures/<time>-<tool>-<unique>/ per call, never where you run it: U72 F27, F29) and their paths and folder (saved_in) printed. SNAP_TOKEN in the environment goes out as a Bearer header (a snap-gate account token).
 usage: python3 snapcall.py <port or base URL> <tool> ['<json args>']
   e.g. python3 snapcall.py 8188 get_profile
@@ -21,6 +23,7 @@ where, tool = sys.argv[1], sys.argv[2]
 base = (f"http://127.0.0.1:{where}" if where.isdigit() else where).rstrip("/")
 args = json.loads(sys.argv[3]) if len(sys.argv) > 3 else {}
 auth = {"Authorization": f"Bearer {os.environ['SNAP_TOKEN']}"} if os.environ.get("SNAP_TOKEN") else {}
+auth.update({"X-Snap-Page": os.environ["SNAP_PAGE"]} if os.environ.get("SNAP_PAGE") else {})
 request = urllib.request.Request(f"{base}/mainodes/snap/call", data=json.dumps({"tool": tool, "args": args}).encode(), headers={"Content-Type": "application/json", **auth})
 try:
     with urllib.request.urlopen(request, timeout=60) as r:

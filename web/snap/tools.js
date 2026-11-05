@@ -879,7 +879,7 @@ export const TOOLS = [
     description: "What this page shows right now, as an image (the Snap view or the graph, videos and all). On a person's tab it works once they have pressed 'Let agents see' in Snap's top bar (it shares only this tab); otherwise it says so. On an agent's own headless page (tools/snap_agent_page.sh) it works at once: Chrome renders it for the bridge, no gesture needed.",
     inputSchema: { type: "object", properties: { max_width: { type: "integer", minimum: 320, maximum: 3840 } } },
     annotations: { readOnlyHint: true },
-    run: async ({ max_width } = {}) => ({ image: sight.HEADLESS ? await sight.self(max_width) : sight.frame(max_width) }),
+    run: async ({ max_width } = {}) => ({ image: sight.HEADLESS && !sight.sharing() ? await sight.self(max_width) : sight.frame(max_width) }),
   },
   {
     name: "start_recipe",

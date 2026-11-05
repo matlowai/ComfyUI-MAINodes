@@ -157,9 +157,12 @@ app.registerExtension({
     // U72 F20: the page says which Snap code it loaded (the server's hash of its web files when this page started), and
     // whether it is an agent's headless page, so the bridge can prefer a current page and say when one runs older code
     const loaded = api.fetchApi("/mainodes/snap/info").then((r) => (r.ok ? r.json() : {}), () => ({})).then((x) => x.code ?? null);
-    const register = () => Promise.all([S.load().catch(() => {}), loaded]).then(([, code]) => api.fetchApi("/mainodes/snap/register", { method: "POST", body: JSON.stringify({ client: api.clientId, tools: schema(), code, headless: sight.HEADLESS }) }));
+    // `sees`: the person turned "Let agents see" on, which is what lets agents drive this tab (the bridge sends calls to the
+    // newest such tab, then to an agent's own headless page; a tab with it off is never driven)
+    const register = () => Promise.all([S.load().catch(() => {}), loaded]).then(([, code]) => api.fetchApi("/mainodes/snap/register", { method: "POST", body: JSON.stringify({ client: api.clientId, tools: schema(), code, headless: sight.HEADLESS, sees: sight.sharing() }) }));
     if (api.clientId) register(); else api.addEventListener("status", register, { once: true }); // the id arrives with the first status
     addEventListener("focus", register);
+    sight.onChange(register);
     api.addEventListener("reconnected", register);
     api.addEventListener("mainodes-snap-call", async ({ detail }) => {
       let reply;
