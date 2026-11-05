@@ -93,6 +93,19 @@ export const fields = (kind, id, set, by = "person") => post("fields", { kind, i
 export const archive = (kind, id) => post("archive", { kind, id, archived: true });
 export const restore = (kind, id) => post("archive", { kind, id, archived: false });
 
+// ---- clean-up (SNAP-R62): sizes, an export zip, an import, a delete; always the person's act (an agent's delete waits)
+async function call(route, q) {
+  const r = await api.fetchApi(route, q ? { method: "POST", body: JSON.stringify(q) } : undefined), out = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(out.error ?? `${route} failed (${r.status})`);
+  return out;
+}
+const reload = async () => { loading = null; await load(); };
+export const sizes = () => call("/mainodes/snap/sizes");
+export const exportRecords = (refs, { with_takes = false } = {}) => call("/mainodes/snap/world/export", { refs, with_takes });
+export async function importExport(where) { const out = await call("/mainodes/snap/world/import", where); await reload(); return out; }
+// n: one version; none: the whole record file. Pins on takes keep what the record put in, so they still run as they were
+export async function remove(kind, id, n) { const out = await call("/mainodes/snap/world/delete", { kind, id, ...(n != null ? { n } : {}) }); if (!out.record) records.delete(key(kind, id)); else records.set(key(kind, id), out.record); changed(); return out; }
+
 // ---- migration: cards saved before records (one-element arrays in snap/cards/) ----------------------------------
 // Each card becomes v1 of a card record; a set's states become one set_snapshot record per lineage (the user's own root
 // first, then its saved states in the order they were saved; the pack's root stays the pack card, version 0), its

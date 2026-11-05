@@ -219,6 +219,18 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   today's world' / 'Edit then run' … showing what differs". *More:* `web/snap/retake.js`, `web/snap/worldsheet.js`;
   DESIGN_U86_U87 §4.4; PLAN U87, U89 (swap any reference builds on it).
 
+- **SNAP-R62: Clean-up is the person's choice; nothing is pruned by itself.** The World sheet (Library rail, "World:
+  versions and sizes") lists every record biggest first with its versions, its bytes (its file and the input/
+  pictures it names, from `/mainodes/snap/sizes`) and the takes that pin each version. Archive moves a record to
+  `snap/_archived/` (out of the Library and pickers, still resolving, one press back). Export writes a zip to
+  `output/snap_exports/` (manifest with refs, versions, hashes and files; the record files; their pictures; with takes,
+  the takes that pin them and their files); import adds what isn't there and never renumbers a version (a clash is
+  reported). Delete (a version or a record) first says how many takes pin it and that they still run as they were,
+  and offers Export first; its pictures stay in input/. An agent's `delete_record` waits as a proposal (SNAP-R16's
+  shape: it is the one step that can't be undone). *Why:* Dylan 2026-11-04 20:51: "keep every world-state version
+  forever; when it grows, a clean-up UX offers archive / export (zip) / delete, always the person's choice".
+  *More:* `web/snap/worldview.js`, `snap_world.py`; DESIGN_U86_U87 §4.5.
+
 ## Onboarding
 
 - **SNAP-R25: Onboarding proposes; it never downloads.** "I'm new, help me set up" asks at most six things, each with a

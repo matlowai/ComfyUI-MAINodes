@@ -12,7 +12,8 @@
 // SNAP-R17 by: agent · SNAP-R19 the tool table is the API · SNAP-R21 camera plates · SNAP-R23 candidates: the person's
 // pick waits as a proposal for agents · SNAP-R24 scenes own the work (the scene tools call scenes.js, as the navigator
 // does) · SNAP-R25 onboarding: the sheet's functions; propose_downloads never downloads; SFW only filters the lists ·
-// SNAP-R59 Cast by reference (list_cast, save_cast, apply_cast) · see docs/SNAP_RULES.md
+// SNAP-R59 Cast by reference (list_cast, save_cast, apply_cast) · SNAP-R60/R61 records, pins, retake, update_pins ·
+// SNAP-R62 clean-up: delete_record waits for the person · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import { BRICKS, PACK_BRICKS } from "./bricks.js";
@@ -504,6 +505,54 @@ export const TOOLS = [
       const va = at(x.n), vb = at(y.n);
       return { a: W.refOf(x.kind, x.id, va.n), b: W.refOf(x.kind, x.id, vb.n), changes: W.diff(va.body, vb.body) };
     },
+  },
+  {
+    name: "update_pins",
+    description: "Put today's world into the open recipe (SNAP-R61): each pinned record with a newer version (describe_recipe.world moved: true), or only the refs given (kind:id), is updated to its newest version through its own apply (a Cast's row, sentence and pictures; a set's pictures and text; a card's words). This is 'Run with today's world' without the run: call run after it. A saved file opened in Snap runs as it was until this is called.",
+    inputSchema: { type: "object", properties: { refs: { type: "array", items: { type: "string" } } } },
+    run: async ({ refs } = {}) => { await W.load(); const done = await RT.toToday(refs); return { updated: done, world: await worldOf(E.state().world) }; },
+  },
+  {
+    name: "list_world",
+    description: "Every world record the person keeps (SNAP-R62), biggest first: ref, kind, name, newest version, every version (n, at, by, note, pinned_by takes), bytes (its file) and media_bytes (the input/ pictures it names, listed under media), archived, pinned_by; plus the takes' totals and the export zips there are (import_records takes one). Nothing is left out.",
+    inputSchema: { type: "object", properties: {} },
+    annotations: { readOnlyHint: true },
+    run: async () => { const d = await W.sizes(); d.records.sort((a, b) => b.bytes + b.media_bytes - (a.bytes + a.media_bytes)); return d; },
+  },
+  {
+    name: "archive_record",
+    description: "Archive a record (kind:id): it leaves the Library and pickers, keeps every version, and takes that pin it still resolve. restore_record brings it back.",
+    inputSchema: { type: "object", properties: { ref: { type: "string" } }, required: ["ref"] },
+    run: async ({ ref }) => { const { kind, id } = W.parse(ref); await W.archive(kind, id); return { ref: W.refOf(kind, id), archived: true }; },
+  },
+  {
+    name: "restore_record",
+    description: "Bring an archived record (kind:id) back into the Library.",
+    inputSchema: { type: "object", properties: { ref: { type: "string" } }, required: ["ref"] },
+    run: async ({ ref }) => { const { kind, id } = W.parse(ref); await W.restore(kind, id); return { ref: W.refOf(kind, id), archived: false }; },
+  },
+  {
+    name: "export_records",
+    description: "Write a zip of records (refs: kind:id) to output/snap_exports/: manifest.json (refs, versions and hashes, files), the record files, the input/ pictures they name, and with with_takes the takes that pin them with their output files. import_records brings it back here or on another install.",
+    inputSchema: { type: "object", properties: { refs: { type: "array", items: { type: "string" } }, with_takes: { type: "boolean" } }, required: ["refs"] },
+    run: async ({ refs, with_takes }) => W.exportRecords(refs, { with_takes }),
+  },
+  {
+    name: "import_records",
+    description: "Import an export zip (list_world.exports: file, subfolder, type output or input): records not here are added whole, a record here gains the versions it lacks (never renumbered: a version number already taken by different content is reported under conflicts), pictures and takes are written only where nothing is.",
+    inputSchema: { type: "object", properties: { file: { type: "string" }, subfolder: { type: "string" }, type: { type: "string", enum: ["output", "input"] } }, required: ["file"] },
+    run: async ({ file, subfolder = "snap_exports", type = "output" }) => W.importExport({ file, subfolder, type }),
+  },
+  {
+    name: "delete_record",
+    description: "Delete a record (ref kind:id) or one version (kind:id@n). It can't be undone: always the person's call, so unless they let agents run this waits as a proposal; say why in reason, and offer export_records first. Takes that pinned it keep what it put in (they still run as they were); its pictures stay in input/.",
+    inputSchema: { type: "object", properties: { ref: { type: "string" } }, required: ["ref"] },
+    decides: true,
+    plan: async ({ ref }) => { const { kind, id, n } = W.parse(ref), row = (await W.sizes()).records.find((r) => r.kind === kind && r.id === id);
+      if (!row) throw new Error(`No ${kind} record ${id}`);
+      const pinned = n == null ? row.pinned_by : row.versions.find((v) => v.n === n)?.pinned_by ?? [];
+      return { deletes: n == null ? `${row.name}: the record and its ${row.versions.length} version(s)` : `${row.name} v${n}`, pinned_by: pinned, keeps: "its input/ pictures; the takes, which still run as they were" }; },
+    run: async ({ ref }) => { const { kind, id, n } = W.parse(ref); return W.remove(kind, id, n); },
   },
   {
     name: "check_continuity",

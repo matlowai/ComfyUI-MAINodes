@@ -103,6 +103,32 @@ You can also run the tools as an MCP server (Claude Code):
    colour; `geiru` (Strong) keeps the look but may reset the action. Each clip adds about 4.25 s, and the longer take
    lands as a version of the take.
 
+## 5. Characters, versions and re-takes
+
+A character lives once, on a Cast record: name, trigger words, a details line, an identity LoRA (optional) and
+reference pictures. Every save of a record is a new version; old versions stay. Recipes and takes pin the version
+they used (`cast:<id>@2`).
+
+1. Make one: `save_cast {"name": "Kon", "trigger": "kon_fennec", "details": "a fennec-eared courier girl, teal hoodie",
+   "lora": {"file": "<an identity LoRA from list_loras>", "strength": 0.8}, "refs": [{"file": "<input picture>",
+   "role": "identity: front"}]}`. Without a LoRA, give `"lora": null`. A take's frame becomes a picture with
+   `use_take {"take": ..., "as": "reference"}` (its file is in References).
+2. Put it in the recipe: `apply_cast {"cast": "cast:<id>"}`. The Cast row, the details sentence and the pictures go in;
+   `describe_recipe` → `world` shows `n` (the version the recipe holds).
+3. Render as usual (`run`, `run_status`).
+4. Change the character: `save_cast` again with `"cast": "cast:<id>"` and the whole character (say what changed in
+   `note`). The recipe does not change by itself: `describe_recipe.world` says `moved: true`, and `list_takes` shows
+   `stale.world` ("Kon v1 → v2").
+5. Re-take: `retake {"take": "<id>", "world": "latest"}` updates each moved record first ("today's world");
+   `"world": "pinned"` runs it exactly as it was. It spends GPU time, so it waits as a proposal unless agents may run.
+   The new take is a version of the old one in `get_scene`. To update the open recipe without running, call
+   `update_pins`.
+
+`get_record {"ref": "cast:<id>@1"}` reads one version and the takes that pinned it; `diff_record {"a": "cast:<id>@1",
+"b": "cast:<id>"}` lists what changed. Note: H3 copies a reference picture closely, so a new look (clothes, hair)
+needs a new picture, not only new words. `list_world` shows every record with its size; `archive_record`,
+`export_records` and `import_records` tidy them. `delete_record` can't be undone: it waits for the person.
+
 ## Limits
 
 - A call times out after 30 s. `run_status` waits at most 25 s per call.

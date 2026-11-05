@@ -35,6 +35,8 @@ import { openOnboarding } from "./onboardview.js";
 import { openLoras, moveControl, label as catLabel } from "./loraview.js";
 import { openCast } from "./castview.js";
 import * as RT from "./retake.js";
+import { openWorld } from "./worldview.js";
+import { openWorldSheet } from "./worldsheet.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -107,6 +109,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     h("button", { textContent: "Graph", role: "tab", onclick: () => onSwitch() }));
   root.append(
     h("header", { className: "snap-top" }, h("span", { className: "snap-brand" }, h("i"), "Snap"), title, setupPill, status, outsideBtn, h("span", { className: "snap-spacer" }),
+      h("button", { className: "snap-link snap-quiet-btn", textContent: "Open file", title: "open a saved picture or video (or a workflow): its recipe opens in a new tab, and when it pinned Cast, sets or cards, run it as it was or with today's versions", onclick: () => fileInput.click() }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Save recipe", title: "keep these bricks and their settings as a Library card you can rebuild anywhere", onclick: async () => {
         try { const c = await L.saveRecipe(app.extensionManager.workflow.activeWorkflow?.filename ?? "recipe"); say(`Saved "${c.title}" to your Library`); renderLibrary(); } catch (err) { say(err.message, true); }
       } }),
@@ -175,7 +178,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   }
   const editCast = (o = {}) => openCast(root, { ...o, say, onApplied: () => { render(null); renderLibrary(); } }).catch((err) => say(err.message, true));
   const newCast = h("button", { className: "snap-link snap-quiet-btn snap-new-cast", textContent: "+ New cast member", title: "a character kept once on a Cast record: name, trigger words, details, identity LoRA, reference pictures" , onclick: () => editCast() });
-  rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libSfw, h("div", { className: "snap-rail-sub", textContent: "LoRAs by kind" }), libLoras, newCast, libResults);
+  const worldBtn = h("button", { className: "snap-link snap-quiet-btn snap-new-cast", textContent: "World: versions and sizes", title: "every record and version you keep, with sizes and the takes that pin them: archive, export or delete (your choice)",
+    onclick: () => openWorld(root, { say, onChange: () => { render(null); renderLibrary(); } }).catch((err) => say(err.message, true)) });
+  rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libSfw, h("div", { className: "snap-rail-sub", textContent: "LoRAs by kind" }), libLoras, h("div", { className: "snap-rail-actions" }, newCast, worldBtn), libResults);
   T.onChange(() => renderLibrary());
   PF.onChange(() => { render(null); renderLibrary(); }); // SFW only changes what the pickers and the Library list
   PF.load().then(() => { render(null); renderLibrary(); });
@@ -353,6 +358,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     e.preventDefault(); e.stopPropagation();
     for (const b of stack.querySelectorAll(".snap-target")) b.classList.remove("snap-target");
     const el = e.target.closest?.("[data-brick]"), file = e.dataTransfer.files[0];
+    if (!el && file) return openSaved(file, "file_drop"); // SNAP-R61: a saved picture, video or workflow dropped off the bricks opens its recipe
     const t = el && file && taker(el.dataset.brick, file.type);
     if (!t) return say(el ? `${BRICKS[el.dataset.brick]?.title ?? "This brick"} doesn't take ${file?.type.split("/")[0] || "that"} files` : "Drop the file on a brick that takes it (First frame, References)", true);
     const before = rects();
@@ -370,6 +376,24 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     } catch (err) { say(err.message, true); }
     render(before);
   });
+
+  // SNAP-R61: a saved file opened in Snap (dropped off the bricks, Open file, or dropped on ComfyUI's canvas) loads its
+  // workflow the way core does (a new tab named after it); when that workflow pins records, the opened-file sheet offers
+  // Run as it was / Run with today's world / Edit then run, with what differs
+  let fileOpened = null;
+  document.addEventListener("drop", (e) => { const f = e.dataTransfer?.files?.[0]; if (f) fileOpened = { name: f.name, at: Date.now() }; }, true);
+  async function openSaved(file, how) {
+    fileOpened = { name: file.name, at: Date.now() };
+    try { await app.handleFile(file, how); } catch (err) { say(err.message, true); }
+  }
+  const editPinned = (ref, n) => { const { kind, id } = W.parse(ref); if (kind === "cast") return editCast({ id, n }); const v = W.get(W.refOf(kind, id, n))?.version.body; if (v) editSet(v); };
+  app.graph.events?.addEventListener("configured", () => setTimeout(() => {
+    if (!fileOpened || Date.now() - fileOpened.at > 15000) return;
+    const o = fileOpened; fileOpened = null;
+    if (Object.keys(E.state().world ?? {}).length) openWorldSheet(root, { name: o.name, say, edit: editPinned }).catch((err) => say(err.message, true));
+  }, 500));
+  const fileInput = h("input", { type: "file", hidden: true, accept: "image/png,image/webp,video/mp4,video/webm,application/json", onchange: () => { const f = fileInput.files[0]; fileInput.value = ""; if (f) openSaved(f, "file_button"); } });
+  root.append(fileInput);
 
   // the side panel stays open until its collapse button (or Esc); a press on the empty chain only closes a brick opened in
   // place. A press on the stack's own scrollbar has the stack as its target too, so presses outside its content box are skipped
