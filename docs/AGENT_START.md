@@ -201,10 +201,11 @@ them). It works on stills: masters, plates, boards.
 
 - A picture is `{take}` (a still; a video take with `frame`), `{file}` (in input/) or `{cast, ref}` (a Cast's
   picture). `crop` is `[x, y, width, height]` in fractions of the picture.
-- **Picture 1 sets the camera.** The new still keeps Picture 1's framing and composition: a master seen from above as
-  Picture 1 gives a view from above again. Put a picture that already has the camera you want first, and the set (the
-  master, or a crop of it) after it. The answer says which picture is which number; name them in the prompt as
-  Picture 1, Picture 2, … or in plain words.
+- **What Picture 1 is depends on the model** (each view method's `picture_one` in `list_methods {"slot": "view"}`; the
+  answer names it too). MOSS (`moss_view`) keeps Picture 1's framing: put a still that already has the camera you want
+  first and the set (the master, or a crop of it) after it. P-H3-Image (`ph3_view`) edits Picture 1 and the words set
+  the camera, so the location's master can go first. The Fizgig H3 still reads every picture as a reference. Name the
+  pictures in the prompt as Picture 1, Picture 2, … (`<Picture n>` for the H3 models) or in plain words.
 - One candidate per seed (`seeds`, or `count`), each a take in the shot it lands in (`land`; by default Picture 1's
   shot). `wait_for {job: <decision>, until: "waiting"}`, look with `candidate_frames` beside the master, then
   `apply_candidate` makes the one that holds the set the shot's take.

@@ -1,9 +1,10 @@
 // New view from these pictures (U101): the context tray in the take viewer. "Add this picture" (a still), "Add this
 // frame" (a video take at the playhead) or the marked region as a crop puts a picture in the tray; a Cast's picture comes
-// from the picker. The tray is ordered and Picture 1 sets the camera, so each row moves up or down and goes with ✕; the
+// from the picker. The tray is ordered, and what Picture 1 is comes from the picked model (MOSS: it sets the camera;
+// P-H3-Image: it is the picture edited, the words move the camera), so each row moves up or down and goes with ✕; the
 // tray stays while the person opens other takes (page state only, never saved). The words are the person's, and Make
 // runs the same ED.fromContext as the edit_from_context tool.
-// SNAP-R71 a new view is an edit from context, in the person's words · SNAP-R72 Picture 1 sets the camera, the order is
+// SNAP-R71 a new view is an edit from context, in the person's words · SNAP-R72 what Picture 1 is, per model; the order is
 // the person's · SNAP-R75 the model is the person's pick (MOSS with its LoRAs, P-H3-Image) · SNAP-R19 the tool table is the
 // API · SNAP-R23 candidates · see docs/SNAP_RULES.md
 import * as ED from "./edits.js";
@@ -25,17 +26,20 @@ export function contextPanel(t, { say, frame, region }) {
   const words = h("textarea", { className: "snap-note-input", rows: 3, ariaLabel: "what the new still shows",
     placeholder: "what the new still shows, e.g. the same gatehouse from inside the square at eye height; the woman in Picture 3 on the left" });
   const model = h("select", { ariaLabel: "model" }), lora = h("select", { ariaLabel: "edit LoRA" }), count = h("input", { type: "number", min: 1, step: 1, value: 2, ariaLabel: "candidates", className: "snap-take-clips" });
-  const cast = h("select", { ariaLabel: "add a Cast picture" });
+  const cast = h("select", { ariaLabel: "add a Cast picture" }), intro = h("div", { className: "snap-quiet" });
+  let methods = [];
+  const one = () => methods.find((x) => x.id === model.value)?.picture_one ?? null; // what Picture 1 is for the picked model
   const thumb = (p) => { const still = p.take && p.frame == null && T.get(p.take)?.media.find((m) => m.kind === "image"); return still ? url(still) : p.file ? inputUrl(p.file) : null; };
   function paint() {
     rows.replaceChildren(...tray.map((p, i) => h("li", { className: "snap-ctx-row" },
       thumb(p) ? h("img", { src: thumb(p), alt: "", loading: "lazy", ...(p.crop ? { style: `object-view-box: inset(${pct(p.crop[1])} ${pct(1 - p.crop[0] - p.crop[2])} ${pct(1 - p.crop[1] - p.crop[3])} ${pct(p.crop[0])})` } : {}) }) // the crop as the edit reads it
         : h("span", { className: "snap-ctx-none", textContent: "▣" }),
-      h("span", { className: "snap-ctx-what" }, h("b", { textContent: `Picture ${i + 1}` }), i === 0 ? h("em", { textContent: " sets the camera" }) : null, h("span", { className: "snap-quiet", textContent: ` · ${p.label}` })),
-      h("button", { className: "snap-link snap-quiet-btn", textContent: "↑", title: "earlier (Picture 1 sets the camera)", disabled: i === 0, onclick: () => { tray.splice(i - 1, 0, ...tray.splice(i, 1)); changed(); } }),
+      h("span", { className: "snap-ctx-what" }, h("b", { textContent: `Picture ${i + 1}` }), i === 0 && one() ? h("em", { textContent: ` ${one().label}`, title: one().tip }) : null, h("span", { className: "snap-quiet", textContent: ` · ${p.label}` })),
+      h("button", { className: "snap-link snap-quiet-btn", textContent: "↑", title: `earlier${one() ? ` (Picture 1 ${one().label})` : ""}`, disabled: i === 0, onclick: () => { tray.splice(i - 1, 0, ...tray.splice(i, 1)); changed(); } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "↓", title: "later", disabled: i === tray.length - 1, onclick: () => { tray.splice(i + 1, 0, ...tray.splice(i, 1)); changed(); } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "✕", title: "take it out of the pictures", onclick: () => { tray.splice(i, 1); changed(); } }))));
-    if (!tray.length) rows.append(h("li", { className: "snap-quiet", textContent: "No pictures yet: add this one, a marked region of it, or a Cast's picture. Picture 1 sets the camera." }));
+    if (!tray.length) rows.append(h("li", { className: "snap-quiet", textContent: `No pictures yet: add this one, a marked region of it, or a Cast's picture.${one() ? ` Picture 1 ${one().label}.` : ""}` }));
+    intro.textContent = `A new still from the pictures below, in your words: the same place from another camera, a person put in.${one() ? ` ${one().tip}.` : ""}`;
     make.disabled = !tray.length;
     make.textContent = `Make ${Math.max(1, Number(count.value) || 1)} candidate${Number(count.value) === 1 ? "" : "s"}`;
   }
@@ -57,7 +61,7 @@ export function contextPanel(t, { say, frame, region }) {
   cast.onchange = () => { const [ref, i] = cast.value.split("#"); if (!ref) return; const b = W.get(ref)?.version.body, r = b?.refs[Number(i)];
     if (r) { tray.push({ cast: ref, ref: Number(i), file: r.file, label: `${b.name}, ${r.role}` }); changed(); } cast.value = ""; };
   Promise.all([S.load(), W.load()]).then(() => {
-    const list = S.list("view");
+    const list = methods = S.list("view");
     model.replaceChildren(...list.map((x) => h("option", { value: x.id, textContent: `${x.title.replace(/^New view · /, "")}${x.install_state === "ready" ? "" : ` (${x.install_state})`}` })));
     const picked = () => { // the model's own choices: MOSS's edit LoRAs; what it is good at in the tooltip
       const m = list.find((x) => x.id === model.value);
@@ -65,13 +69,13 @@ export function contextPanel(t, { say, frame, region }) {
       lora.hidden = !m?.anchors.recipes;
       make.title = model.title = [m?.install_state === "ready" ? m.guidance?.line : m?.install_state, ...(m?.constraints ?? []), m?.credit && `Powered by ${m.credit}`].filter(Boolean).join("\n");
     };
-    model.onchange = picked; picked();
+    model.onchange = () => { picked(); paint(); }; picked(); paint();
     cast.replaceChildren(h("option", { value: "", textContent: "＋ a Cast's picture…" }), ...W.all("cast").flatMap((r) => { const b = W.headOf(r).body; return b.refs.map((x, i) => h("option", { value: `cast:${r.id}#${i}`, textContent: `${b.name}, ${x.role}` })); }));
   }, (err) => { note.textContent = `New view unavailable: ${err.message}`; });
   const redraw = () => { if (rows.isConnected) paint(); };
   listeners.add(redraw);
   paint();
   return [h("div", { className: "snap-rail-title", textContent: "New view from these pictures" }),
-    h("div", { className: "snap-quiet", textContent: "A new still from the pictures below, in your words: the same place from another camera, a person put in. Picture 1 sets the camera and framing: put a picture that already has the camera you want first, the set (or a marked region of it) after it." }),
+    intro,
     rows, h("div", { className: "snap-set-actions" }, addBtn, cast), words, h("div", { className: "snap-set-actions" }, model, lora, h("label", { className: "snap-quiet" }, count, " candidates"), make), note];
 }

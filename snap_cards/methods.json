@@ -455,6 +455,7 @@
       "kind": "take",
       "title": "New view · MOSS Image Edit",
       "face": "a new still from the pictures you give, in your words",
+      "picture_one": { "label": "sets the camera", "tip": "MOSS keeps Picture 1's framing and composition: put a picture that already has the camera you want first, the set (or a marked region of it) after it" },
       "does": "edit",
       "anchors": {
         "prompt": "{prompt}",
@@ -489,6 +490,7 @@
       "slot": "view",
       "kind": "take",
       "title": "New view · P-H3-Image",
+      "picture_one": { "label": "is the picture edited", "tip": "P-H3-Image edits Picture 1 with the others as references, and the words set the camera: the location's master can go first (U101: master first, then the road board, gave eye height in the square)" },
       "face": "a new still from the pictures you give, in your words (H3-based edit, 8 steps)",
       "does": "edit",
       "anchors": {
@@ -519,6 +521,7 @@
       "slot": "view",
       "kind": "take",
       "title": "New view · H3 still (Fizgig)",
+      "picture_one": { "label": "is the first reference", "tip": "every picture is a reference for H3 (<Picture n>), and the words set the camera" },
       "face": "a new still from the pictures you give, in your words (stock H3 Ref2V on a one-frame latent)",
       "does": "edit",
       "anchors": {

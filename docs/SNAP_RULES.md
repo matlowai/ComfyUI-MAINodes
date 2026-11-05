@@ -601,14 +601,16 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   runs is registry data (slot `view`, method `moss_view`, SNAP-R13/R14). *Why:* Dylan 2026-11-05: "a location is one
   topology… every view of it is an edit from prior context", "moss is WAY better than klein", "when snap cant do the job
   that means you need to update snap"; short03's three different gates (F-C09). *More:* PLAN U101, LESSONS "U101".
-- **SNAP-R72: Picture 1 sets the camera, and the order is the person's.** MOSS Image Edit keeps the first picture's
+- **SNAP-R72: The order is the person's, and what Picture 1 is depends on the model.** MOSS Image Edit keeps the first picture's
   framing and composition: short03's test with the aerial master first gave the aerial view in every seed, with one
   figure pasted in. So the tray and the tool keep the pictures in the order given, say "Picture 1 sets the camera" next
   to it, and let the person move each picture up or down, take it out, or add a marked region of a still as a crop (a
   part of a master: the gatehouse). Put a picture that already has the wanted camera first and the set after it. The
   encoder sees each picture after a "Picture N:" marker, so prompts may name them that way. How strongly Picture 1
   holds depends on the model: MOSS's akhaliq LoRA copies it (camera, people, objects), chinoll follows the words more
-  and moved the camera into the square (U101 C2 test, 30 stills). *Why:* the coordinator's 13:4x note from short03's
+  and moved the camera into the square (U101 C2 test, 30 stills); P-H3-Image edits Picture 1 but the words set the
+  camera (the master first gave eye height in the square), and the Fizgig H3 still reads every picture as a reference.
+  So the label beside Picture 1 and its tip come from each method's `picture_one` in the registry, never from code. *Why:* the coordinator's 13:4x note from short03's
   sheet; the U101 C2 test. *More:* PLAN U101, the dogfood study's F-C09, LESSONS "U101".
 - **SNAP-R73: Audio references are the pictures' twins.** An audio file goes into References as a Load Audio node wired
   into H3 References' next free `ref_audios` slot (3), and the prompt cites it as `<Audio n>`, n its place among the wired

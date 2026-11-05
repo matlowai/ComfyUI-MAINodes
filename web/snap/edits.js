@@ -10,7 +10,7 @@
 // pictures and free words, each seed a candidate take in a shot (fromContext, below).
 // SNAP-R13 data, not code branches · SNAP-R14 method slots · SNAP-R16 GPU work waits for the person · SNAP-R17 by ·
 // SNAP-R23 candidates · SNAP-R51 change something, recast, pins · SNAP-R71 a new view from context, in the asker's words ·
-// SNAP-R72 Picture 1 sets the camera · SNAP-R75 the view slot's models are data (MOSS, P-H3-Image, H3 still) · see docs/SNAP_RULES.md
+// SNAP-R72 what Picture 1 is, per model · SNAP-R75 the view slot's models are data (MOSS, P-H3-Image, H3 still) · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as C from "./candidates.js";
 import * as K from "./checks.js";
@@ -286,6 +286,7 @@ export const result = (d) => (d?.applied?.undo?.take ? T.get(d.applied.undo.take
 // A new still from context pictures in order and words the person or agent writes: MOSS Image Edit reads every picture
 // (images.image_0, image_1, … on core TextEncodeMOSSImageEdit), and Picture 1 sets the camera (the edit keeps its
 // framing: with short03's aerial master first every seed kept the aerial view), so the order is the person's to choose.
+// What Picture 1 is depends on the model (its registry `picture_one`): P-H3-Image edits it and the words move the camera.
 // A picture is a still take, a video take's frame, an input/ file or a Cast's picture, whole or cropped. Each seed is a
 // candidate take in the shot it lands in; its parent names every context picture.
 
@@ -423,7 +424,7 @@ async function fizgigGraph(a, pics, values, seed, size, prefix) {
   });
   return g;
 }
-// make a new view: `pictures` in order (Picture 1 sets the camera), `prompt` the person's or agent's words, one candidate
+// make a new view: `pictures` in order (what Picture 1 is: the method's `picture_one`), `prompt` the person's or agent's words, one candidate
 // per seed (`seeds`, else `count` new ones), on the view slot's `method` (moss_view, ph3_view, fizgig_still); `lora` keeps every MOSS
 // candidate on one edit LoRA, else the method's take turns.
 // Returns at once; each candidate is a take in the shot it lands in once its paint finishes
@@ -432,7 +433,7 @@ export async function fromContext(pictures, prompt, { method: id = "moss_view", 
   const m = S.list("view").find((x) => x.id === id);
   if (!m) throw new Error(`No method "${id}" for a new view; there are: ${S.list("view").map((x) => x.id).join(", ")}`);
   if (m.install_state !== "ready") throw new Error(`${m.title} ${m.install_state}`);
-  if (!pictures?.length) throw new Error(`${m.title}: give at least one picture (Picture 1 sets the camera)`);
+  if (!pictures?.length) throw new Error(`${m.title}: give at least one picture (Picture 1 ${m.picture_one?.label ?? "comes first"})`);
   if (!prompt?.trim()) throw new Error(`${m.title}: say what the new still shows (prompt), naming the pictures as Picture 1, Picture 2, … if you like`);
   if ((width == null) !== (height == null)) throw new Error(`${m.title}: give width and height together, or neither (then the still is Picture 1's size)`);
   if (lora && !m.anchors.recipes) throw new Error(`${m.title} has no edit LoRA to pick; lora is for the methods that have them (list_methods {slot: "view"})`);
@@ -455,7 +456,7 @@ export async function fromContext(pictures, prompt, { method: id = "moss_view", 
   }
   const d = await C.create({ kind: "view", target: first ?? where.group, title: `New view (${label}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: first, method: id,
     options: { prompt: prompt.trim(), context: said, ...(avoid ? { avoid } : {}), ...(width != null ? { width, height } : {}) }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}) }, made);
-  return { decision: d.id, pictures: said.map((x) => `Picture ${x.n}${x.n === 1 ? " (sets the camera)" : ""}: ${x.label}`), lands: where.where,
+  return { decision: d.id, pictures: said.map((x) => `Picture ${x.n}${x.n === 1 && m.picture_one ? ` (${m.picture_one.label})` : ""}: ${x.label}`), lands: where.where,
     candidates: d.candidates.map((c) => ({ id: c.id, prompt_id: c.prompt_id, take: `take-${c.prompt_id}`, seed: c.seed, ...c.made })), seconds_each: [m.cost?.local_s].flat().at(-1) ?? null };
 }
 C.kind("view", RT.takeCandidate);
