@@ -39,10 +39,18 @@ export function pick(take, clips) {
   return { method: row.method, why: row.why, seconds };
 }
 
-// the continuation prompt: the take's description and soundscape, said to go on without a cut (U46's wording)
-function continued(text, run) {
+// the continuation prompt: the take's description and soundscape, said to go on without a cut (U46's wording). The extend
+// graph wires no pictures, so a take's "<Picture N>" (a Ref2V take's References, in socket order) can't stay: a Cast
+// picture's token becomes the person's name ("<Picture 1> Ana" reads "Ana"), and a sentence that points at any other
+// picture (a set plate's "shown in <Picture 2>") is left out
+function unpictured(text, pictures) {
+  const name = (i) => /^cast: ([^,]+),/.exec(pictures[i - 1]?.role ?? "")?.[1] ?? null;
+  return text.split(/(?<=[.!?])\s+/).filter((x) => [...x.matchAll(/<Picture (\d+)>/g)].every((m) => name(+m[1]))).join(" ")
+    .replace(/<Picture (\d+)>(\s+(\S+))?/g, (_, i, gap, next) => (next?.toLowerCase() === name(+i).toLowerCase() ? name(+i) : `${name(+i)}${gap ?? ""}`));
+}
+function continued(text, run, pictures) {
   const [desc, sound] = text.split(/\n*overall_soundscape:\s*/);
-  const scene = desc.replace(/^integrated_multimodal_description:\s*/, "").replace(/^\[Shot \d+\]\s*/, "");
+  const scene = unpictured(desc.replace(/^integrated_multimodal_description:\s*/, "").replace(/^\[Shot \d+\]\s*/, ""), pictures);
   return run.prompt.replace("{scene}", scene.trim()) + (sound ? `\n\noverall_soundscape: ${run.sound.replace("{sound}", sound.trim())}` : "");
 }
 
@@ -63,7 +71,7 @@ export async function start(take, id, { clips = 1, antiburn = 0, prompt, by = "p
   const f = { clip: await M.choice("CLIPLoader", "clip_name", run.clip), vae: await M.choice("VAELoader", "vae_name", run.vae), audio: await M.choice("VAELoader", "vae_name", run.audio_vae),
     model: await M.choice("MAIRenderPreset", "model", p.model), lora: p.lora === "none" ? "none" : await M.choice("MAIRenderPreset", "lora", p.lora) };
   const burn = strong ? m.protection.antiburn : m.options?.antiburn ? antiburn : 0, ab = burn > 0 ? await M.choice("LoraLoaderModelOnly", "lora_name", m.options?.antiburn?.file ?? m.protection?.file) : null;
-  const text = prompt ?? continued(take.text, run);
+  const text = prompt ?? continued(take.text, run, take.graph?.extra?.snap?.bricks?.find((x) => x.key === "refs")?.pictures ?? []);
   const g = {
     clip: { class_type: "CLIPLoader", inputs: { clip_name: f.clip, type: "minimax", device: "default" } },
     vae: { class_type: "VAELoader", inputs: { vae_name: f.vae } },
