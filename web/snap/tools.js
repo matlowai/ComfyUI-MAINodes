@@ -14,7 +14,7 @@
 // does) · SNAP-R25 onboarding: the sheet's functions; propose_downloads never downloads; SFW only filters the lists ·
 // SNAP-R59 Cast by reference (list_cast, save_cast, apply_cast) · SNAP-R60/R61 records, pins, retake, update_pins ·
 // SNAP-R62 clean-up: delete_record waits for the person · SNAP-R63 rerun: any pinned reference swapped · SNAP-R65 list_activity, list_docket, wait_for read the Work card ·
-// SNAP-R71/R72 edit_from_context (a new view from ordered context pictures) · SNAP-R77 make_character_sheet · SNAP-R73 add_audio_ref, remove_audio_ref, a Cast's voice · see docs/SNAP_RULES.md
+// SNAP-R71/R72 edit_from_context (a new view from ordered context pictures) · SNAP-R77 make_character_sheet · SNAP-R80 open_view (a picture full size) · SNAP-R73 add_audio_ref, remove_audio_ref, a Cast's voice · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import { BRICKS, PACK_BRICKS } from "./bricks.js";
@@ -43,6 +43,7 @@ import * as RT from "./retake.js";
 import * as RR from "./rerun.js";
 import * as J from "./jobs.js";
 import * as A from "./activity.js";
+import * as LB from "./lightbox.js";
 import { api } from "../../../scripts/api.js";
 
 // a widget as an agent reads it: value, kind, every choice, limits, and whether a wire drives it
@@ -1089,6 +1090,42 @@ export const TOOLS = [
       return { runs: `${n} character sheet${n > 1 ? "s" : ""} of ${cast} (${m?.title ?? method}); each lands as a still take`, eta_s: n * ([m?.cost?.local_s].flat().at(-1) ?? 60), from: m?.cost?.per ?? "U101" }; },
     run: async ({ cast, method, ref, pictures, design, seeds, count, width, height, land }) => ({ ...await ED.sheet(cast, { method, ref, pictures, design, seeds, count, width, height, land, by: "agent" }),
       next: "wait_for {job: <decision>, until: \"waiting\"}, then candidate_frames {decision} (the sheet, then each view) and apply_candidate the one that holds the design" }),
+  },
+  {
+    name: "open_view",
+    description: "Open a view on this page for its person (SNAP-R80; F-A27's twin: today view \"picture\"): a picture full size in Snap's viewer (fit / 100 %, zoom, pan, arrows through its row, Esc closes), on the tab your calls go to, so an agent driving the person's tab can show them a picture. Name it by one of: take (a take id: its pictures and videos, a sheet's views too; index picks one), cast (cast:<id>, ref its picture's number from 0: steps through the Cast's pictures), decision (a candidate decision; candidate picks where it starts: steps through every candidate's pictures), file (a picture in input/), path (output/… or input/…, as candidate_frames and list_candidates give). Nothing changes and the page doesn't navigate; the person closes it. Returns what is showing.",
+    inputSchema: { type: "object", properties: { view: { type: "string", enum: ["picture"] }, take: { type: "string" }, index: { type: "integer", minimum: 0 }, cast: { type: "string" }, ref: { type: "integer", minimum: 0 },
+      decision: { type: "string" }, candidate: { type: "string" }, file: { type: "string" }, path: { type: "string" } }, required: ["view"] },
+    run: async ({ take, index = 0, cast, ref = 0, decision, candidate, file, path }) => {
+      const at = (f, type) => { const cut = f.lastIndexOf("/"); return K.url({ filename: f.slice(cut + 1), subfolder: f.slice(0, Math.max(cut, 0)), type }); };
+      let items, start = 0;
+      if (take) {
+        await T.load(); const t = T.get(take);
+        if (!t) throw new Error(`No take ${take} (list_takes lists them)`);
+        items = t.media.filter((m) => m.kind !== "audio").map((m, i, all) => ({ src: T.url(m), name: `Take ${t.number}${all.length > 1 ? ` · ${i + 1} of ${all.length}` : ""}`, source: C.path(m), kind: m.kind }));
+        if (!items.length) throw new Error(`Take ${t.number} has no picture or video`);
+        start = index;
+      } else if (cast) {
+        await W.load(); const got = W.get(cast);
+        if (!got) throw new Error(`No Cast ${cast} (list_cast lists them)`);
+        const b = got.version.body;
+        items = b.refs.map((r) => ({ src: at(r.file, "input"), name: `${b.name}, ${r.role}`, source: `Cast ${cast} v${got.version.n}, input/${r.file}` }));
+        if (!items.length) throw new Error(`${b.name} has no pictures`);
+        start = ref;
+      } else if (decision) {
+        await C.load(); const d = C.get(decision);
+        if (!d) throw new Error(`No decision ${decision}; list_candidates lists them`);
+        items = d.candidates.flatMap((c) => c.pictures.filter((p) => p.media).map((p) => ({ src: K.url(p.media), name: `${c.id} · ${p.label}`, source: C.path(p.media), kind: /\.(mp4|webm|mov)$/i.test(p.media.filename) ? "video" : "image", c: c.id })));
+        if (!items.length) throw new Error(`${d.title}: no candidate has a picture yet`);
+        start = candidate ? items.findIndex((x) => x.c === candidate) : 0;
+        if (start < 0) throw new Error(`${d.title} has no pictures for candidate ${candidate}; it has ${d.candidates.map((c) => c.id).join(", ")}`);
+      } else if (file || path) {
+        const [type, rest] = file ? ["input", file] : path.match(/^(output|input|temp)\/(.+)$/)?.slice(1) ?? [];
+        if (!rest) throw new Error(`path is output/… or input/… (as candidate_frames gives it); not ${path}`);
+        items = [{ src: at(rest, type), name: rest.split("/").pop(), source: `${type}/${rest}`, kind: /\.(mp4|webm|mov)$/i.test(rest) ? "video" : "image" }];
+      } else throw new Error("open_view picture: give take, cast, decision, file or path");
+      return { showing: LB.show(items, start), said: "the person sees it full size on this page; they close it (Esc)" };
+    },
   },
   {
     name: "use_take",

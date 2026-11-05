@@ -16,6 +16,7 @@
 // left out · SNAP-R65 a job shows on its take's card and as a ghost card · SNAP-R71/R72 New view from these pictures (its
 // tray: contextview.js) · see docs/SNAP_RULES.md
 import * as T from "./takes.js";
+import * as LB from "./lightbox.js";
 import * as RT from "./retake.js";
 import * as PL from "./plates.js";
 import * as C from "./candidates.js";
@@ -45,6 +46,10 @@ const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.crea
 const clock = (t) => `${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, "0")}`;
 const ago = (ms) => { const s = (Date.now() - ms) / 1000; return s < 90 ? "just now" : s < 5400 ? `${Math.round(s / 60)} min ago` : s < 129600 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} d ago`; };
 const FPS = 24;
+
+// the take's pictures and videos for the full-size viewer (SNAP-R80): a sheet take steps through the sheet and its views
+const fullItems = (t) => t.media.filter((m) => m.kind !== "audio").map((m, i, all) => ({ src: T.url(m), name: `Take ${t.number}${all.length > 1 ? ` · ${i + 1} of ${all.length}` : ""}`, source: [m.type ?? "output", m.subfolder, m.filename].filter(Boolean).join("/"), kind: m.kind }));
+const fullBtn = (t) => h("button", { className: "snap-take-full", textContent: "⤢", title: "full size", onclick: (e) => { e.stopPropagation(); LB.show(fullItems(t)); } });
 
 function mediaEl(m, { big, muted = true } = {}) {
   if (!m) return h("div", { className: "snap-take-none", textContent: "no picture" });
@@ -134,7 +139,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
     const tick = h("input", { type: "checkbox", className: "snap-take-pick", checked: picked.has(t.id), title: "tick two to compare",
       onclick: (e) => { e.stopPropagation(); e.target.checked ? picked.add(t.id) : picked.delete(t.id); if (picked.size > 2) picked.delete([...picked][0]); render(); } });
     const c = h("figure", { className: `snap-take ${t.status}${t.verdict ? ` ${t.verdict}` : ""}${active ? " active" : ""}${version ? " version" : ""}`, draggable: true, tabIndex: 0, title: t.text.slice(0, 300), onclick: () => view(t) },
-      h("div", { className: "snap-take-media" }, mediaEl(m), tick,
+      h("div", { className: "snap-take-media" }, mediaEl(m), tick, m ? fullBtn(t) : null,
         h("span", { className: "snap-take-rank", textContent: r >= 0 ? `#${r + 1}` : "" }),
         t.verdict ? h("span", { className: "snap-take-verdict", textContent: { keep: "✓", reject: "✗", neither: "neither" }[t.verdict] ?? t.verdict, title: t.verdict_note ?? "" }) : null,
         t.prior ? h("span", { className: "snap-take-prior", textContent: "prior", title: "in the Library as a prior" }) : null),
@@ -223,7 +228,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
     const overlay = h("canvas", { className: "snap-take-overlay" });
     // a candidate previewed in place: its picture over the take, at its own frame (nothing is edited)
     const previewImg = h("img", { className: "snap-take-preview", alt: "", hidden: true }), previewTag = h("span", { className: "snap-take-preview-tag", hidden: true });
-    const stage = h("div", { className: "snap-take-stage" }, player, overlay, previewImg, previewTag);
+    const stage = h("div", { className: "snap-take-stage" }, player, overlay, previewImg, previewTag, m ? fullBtn(t) : null);
     const markers = h("div", { className: "snap-take-markers" });
     const now = () => (isVideo ? player.currentTime : 0);
 

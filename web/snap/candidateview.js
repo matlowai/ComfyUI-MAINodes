@@ -8,6 +8,7 @@ import * as C from "./candidates.js";
 import * as P from "./proposals.js";
 import * as ED from "./edits.js";
 import { url } from "./checks.js";
+import { full } from "./lightbox.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const TOOL = { apply_candidate: "recommends this one", reject_candidate: "suggests rejecting it" };
@@ -65,11 +66,11 @@ export function candidatesEl(d, { say, crops } = {}) {
       : c.state === "applied" ? [h("span", { className: "snap-cand-on", textContent: `✓ applied by ${d.applied?.by ?? "person"}` }), h("button", { className: "snap-link snap-quiet-btn", textContent: "Undo", onclick: () => act(() => C.undo(d.id, "person"), `${d.title}: undone`) })]
       : [h("span", { className: "snap-quiet", textContent: c.state === "rendering" ? "rendering…" : c.state === "failed" ? `failed: ${c.error ?? ""}` : `rejected by ${c.rejected?.by ?? "person"}` })];
     const pics = c.pictures.length ? c.pictures.map((p) => (/\.(mp4|webm|mov)$/i.test(p.media?.filename ?? "") ? h("video", { src: url(p.media), title: p.label, muted: true, loop: true, playsInline: true, preload: "metadata", onpointerenter: (e) => e.target.play(), onpointerleave: (e) => e.target.pause() }) // a re-run's candidate is a take's video
-      : h("img", { src: url(p.media), alt: p.label, title: p.label, loading: "lazy" }))) : [h("div", { className: "snap-cand-none" })];
+      : full(h("img", { src: url(p.media), alt: p.label, title: p.label, loading: "lazy" }), { src: url(p.media), name: `${c.id} · ${p.label}`, source: C.path(p.media) }, `cand:${d.id}`))) : [h("div", { className: "snap-cand-none" })];
     const id = crops && (c.notes.identity?.scores ?? c.notes.identity?.cast?.scores ?? c.notes.identity?.casts), versus = c.notes.identity?.casts ? "each Cast's picture" : c.notes.identity?.cast ? `${c.notes.identity.cast.name}'s picture` : "the take's frame";
     const tile = h("figure", { className: `snap-cand ${c.state}${rec ? " recommended" : ""}`, tabIndex: 0 },
       h("div", { className: "snap-cand-pics" }, pics),
-      id ? h("div", { className: "snap-cand-crops", title: `head crops: ${versus} | the edit` }, id.flatMap((s) => (s.people ?? [s]).flatMap((x) => x.crops ?? []).filter(Boolean).map((m) => h("img", { src: url(m), alt: "head crop", loading: "lazy" })))) : null,
+      id ? h("div", { className: "snap-cand-crops", title: `head crops: ${versus} | the edit` }, id.flatMap((s) => (s.people ?? [s]).flatMap((x) => x.crops ?? []).filter(Boolean).map((m) => full(h("img", { src: url(m), alt: "head crop", loading: "lazy" }), { src: url(m), name: `${c.id} · head crop`, source: C.path(m) }, `crops:${d.id}:${c.id}`)))) : null,
       h("figcaption", {},
         h("div", { className: "snap-cand-line" }, h("b", { textContent: c.label ? `${c.id} · ${c.label}` : c.id }), h("span", { className: "snap-quiet", textContent: [c.seed != null ? `seed ${c.seed}` : null, (c.made?.lora ?? c.made?.model) ? (c.made.lora ?? c.made.model).replace(/\.safetensors$/, "").replace(/_/g, " ").slice(0, 28) : null, c.by !== "person" ? `by ${c.by}` : null].filter(Boolean).join(" · ") })),
         h("div", { className: "snap-cand-notes" }, noteChips(c)),

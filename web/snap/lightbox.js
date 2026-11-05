@@ -1,0 +1,102 @@
+// Every picture is one click from full size (Dylan 2026-11-05: "click on a picture and it brings it up full size"): a
+// thumbnail marked with full() opens this in-page viewer over Snap. Fit or 100 %, wheel zoom about the pointer, drag to
+// pan, ← → through the pictures of the same row or tray (its group), Esc closes; it names the picture, its source and
+// size, and "Open in a new tab" leaves this tab as it is. Viewing never changes anything; a thumbnail whose click did
+// something else (the References row opened its Cast or set) keeps that as a button in the viewer.
+// The agent twin is open_view {view: "picture"} (tools.js), which opens it on the person's tab.
+// SNAP-R5 never navigate away from the work · SNAP-R80 every picture one click from full size · see docs/SNAP_RULES.md
+
+const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
+const actions = new WeakMap(); // a thumbnail's own action, offered in the viewer
+
+// mark a thumbnail: `item` {src, name, source, kind: "image" | "video"} (src the full file), `group` the row or tray it
+// steps through with the arrows, `action` {label, run} what its click did before
+export function full(el, item, group, action) {
+  el.classList.add("snap-full");
+  Object.assign(el.dataset, { fullSrc: item.src, fullName: item.name ?? "", fullSource: item.source ?? "", fullKind: item.kind ?? "image", fullGroup: group ?? "" });
+  if (action) actions.set(el, action);
+  return el;
+}
+const itemOf = (el) => ({ src: el.dataset.fullSrc, name: el.dataset.fullName, source: el.dataset.fullSource, kind: el.dataset.fullKind, action: actions.get(el) ?? null });
+
+// one capture-phase listener: a marked thumbnail's click opens the viewer and stops there (the row's own click doesn't run)
+document.addEventListener("click", (e) => {
+  const el = e.target.closest?.(".snap-full");
+  if (!el || e.button !== 0) return;
+  e.preventDefault(); e.stopPropagation();
+  const row = el.dataset.fullGroup ? [...document.querySelectorAll(".snap-full")].filter((x) => x.dataset.fullGroup === el.dataset.fullGroup) : [el];
+  show(row.map(itemOf), row.indexOf(el));
+}, true);
+
+let open = null;
+export const showing = () => open && { index: open.at, count: open.items.length, ...open.items[open.at], action: open.items[open.at].action?.label ?? null };
+
+// the viewer on `items` at `at`
+export function show(items, at = 0) {
+  close();
+  let fit = true, scale = 1, x = 0, y = 0, drag = null;
+  const media = h("div", { className: "snap-lb-stage" }), head = h("div", { className: "snap-lb-what" });
+  const fitBtn = h("button", { onclick: () => { fit = !fit; scale = 1; x = y = 0; place(); } });
+  const zoom = (k) => { if (fit) { scale = current().clientWidth && natural().w ? current().clientWidth / natural().w : 1; fit = false; } scale = Math.min(16, Math.max(0.05, scale * k)); place(); };
+  const tab = h("a", { className: "snap-lb-btn", target: "_blank", rel: "noopener", textContent: "Open in a new tab ↗" }), act = h("button", { hidden: true });
+  const root = h("div", { className: "snap-lb", role: "dialog", ariaModal: "true", ariaLabel: "picture at full size", tabIndex: -1 },
+    h("div", { className: "snap-lb-bar" }, head, h("span", { className: "snap-spacer" }), act, fitBtn,
+      h("button", { textContent: "−", title: "zoom out", onclick: () => zoom(1 / 1.25) }), h("button", { textContent: "+", title: "zoom in", onclick: () => zoom(1.25) }), tab,
+      h("button", { textContent: "✕", title: "close (Esc)", onclick: () => close() })),
+    media,
+    h("button", { className: "snap-lb-prev", textContent: "‹", title: "previous (←)", onclick: () => step(-1) }), h("button", { className: "snap-lb-next", textContent: "›", title: "next (→)", onclick: () => step(1) }));
+  const current = () => media.firstElementChild;
+  const natural = () => { const m = current(); return m ? { w: m.naturalWidth ?? m.videoWidth ?? 0, h: m.naturalHeight ?? m.videoHeight ?? 0 } : { w: 0, h: 0 }; };
+  function place() {
+    const m = current();
+    if (!m) return;
+    m.classList.toggle("fit", fit);
+    m.style.transform = fit ? "" : `translate(${x}px, ${y}px) scale(${scale})`;
+    fitBtn.textContent = fit ? "100 %" : "Fit";
+    fitBtn.title = fit ? "show it at its own size (pixel for pixel)" : "fit it to the window";
+  }
+  function load() {
+    const it = open.items[open.at];
+    fit = true; scale = 1; x = y = 0;
+    const m = it.kind === "video" ? h("video", { src: it.src, controls: true, autoplay: true, loop: true, playsInline: true }) : h("img", { src: it.src, alt: it.name || "picture", draggable: false });
+    const what = () => { const n = natural(); head.replaceChildren(h("b", { textContent: it.name || "picture" }), it.source ? h("span", { textContent: ` · ${it.source}` }) : null,
+      n.w ? h("span", { textContent: ` · ${n.w}×${n.h}` }) : null, open.items.length > 1 ? h("span", { className: "snap-quiet", textContent: ` · ${open.at + 1} of ${open.items.length}` }) : null); };
+    m.addEventListener(it.kind === "video" ? "loadedmetadata" : "load", () => { what(); place(); });
+    media.replaceChildren(m); what(); place();
+    tab.href = it.src;
+    act.hidden = !it.action;
+    if (it.action) { act.textContent = it.action.label; act.onclick = () => { close(); it.action.run(); }; }
+    root.querySelector(".snap-lb-prev").disabled = root.querySelector(".snap-lb-next").disabled = open.items.length < 2;
+  }
+  function step(k) { open.at = (open.at + k + open.items.length) % open.items.length; load(); }
+  media.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const r = media.getBoundingClientRect(), px = e.clientX - r.left - r.width / 2, py = e.clientY - r.top - r.height / 2, was = fit ? (current()?.clientWidth ?? 0) / (natural().w || 1) : scale;
+    if (fit) { scale = was; fit = false; x = y = 0; }
+    const k = e.deltaY < 0 ? 1.15 : 1 / 1.15, next = Math.min(16, Math.max(0.05, scale * k));
+    x = px - (px - x) * (next / scale); y = py - (py - y) * (next / scale); scale = next; place(); // about the pointer
+  }, { passive: false });
+  let moved = false;
+  media.addEventListener("pointerdown", (e) => { moved = false; if (fit || e.button !== 0) return; drag = { sx: e.clientX - x, sy: e.clientY - y }; media.setPointerCapture(e.pointerId); });
+  media.addEventListener("pointermove", (e) => { if (!drag) return; moved = true; x = e.clientX - drag.sx; y = e.clientY - drag.sy; place(); });
+  media.addEventListener("pointerup", () => { drag = null; });
+  // a click on the picture switches fit and 100 % (not after a drag); on the dark around it, closes
+  root.addEventListener("click", (e) => { if (e.target === root || e.target === media) close(); else if (e.target === current() && current().tagName === "IMG" && !moved) { fit = !fit; scale = 1; x = y = 0; place(); } });
+  const keys = (e) => {
+    if (e.key === "Escape") { e.stopPropagation(); close(); } else if (e.key === "ArrowRight") step(1); else if (e.key === "ArrowLeft") step(-1);
+    else if (e.key === "0" || e.key === "f") { fit = !fit; scale = 1; x = y = 0; place(); } else return;
+    e.preventDefault();
+  };
+  open = { items, at: Math.min(Math.max(0, at), items.length - 1), root, keys };
+  document.addEventListener("keydown", keys, true);
+  document.body.append(root);
+  load();
+  root.focus();
+  return showing();
+}
+export function close() {
+  if (!open) return;
+  document.removeEventListener("keydown", open.keys, true);
+  open.root.remove();
+  open = null;
+}

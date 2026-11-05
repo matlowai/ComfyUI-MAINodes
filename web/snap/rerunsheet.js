@@ -13,6 +13,7 @@
 // SNAP-R63 re-run swaps any reference · SNAP-R61 as it was, today's world, edited · SNAP-R60 pins · SNAP-R5 nothing changes
 // until a press · SNAP-R11 warn, never block · SNAP-R58 agents get every field whole · see docs/SNAP_RULES.md
 import { view } from "./castview.js";
+import { full } from "./lightbox.js";
 import * as R from "./retake.js";
 import * as RR from "./rerun.js";
 import * as SC from "./scenes.js";
@@ -24,7 +25,7 @@ const option = ([value, text, disabled]) => h("option", { value, textContent: te
 // what a pick or a newer version changes, as a person reads it: a line per field, except a picture change, which shows
 // the two pictures ("front picture changed") in place of the refs line
 const named = (f) => f.split("/").pop();
-const thumb = (f) => (f ? h("img", { src: view(f), alt: named(f), title: f, loading: "lazy" }) : h("span", { className: "snap-quiet", textContent: "none" }));
+const thumb = (f) => (f ? full(h("img", { src: view(f), alt: named(f), title: f, loading: "lazy" }), { src: view(f), name: named(f), source: `input/${f}` }, "rerun") : h("span", { className: "snap-quiet", textContent: "none" }));
 function changes({ fields = [], pictures = [] }) {
   const lines = pictures.length ? fields.filter((f) => !f.startsWith("refs ")) : fields;
   if (!lines.length && !pictures.length) return null;

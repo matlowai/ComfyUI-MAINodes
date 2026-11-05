@@ -224,6 +224,12 @@ them). It works on stills: masters, plates, boards.
 - Land each cut's board in that cut's shot (`land`), so each shot holds its own take; the answer's `land_hint` says
   when a context board sits in another shot.
 
+### Showing a picture
+
+`open_view {"view": "picture", "take": "<id>"}` (or `cast` + `ref`, `decision` + `candidate`, `file`, `path`) opens it
+full size on the page you drive, for its person: fit / 100 %, zoom, arrows through its row, Esc closes. Every
+thumbnail in Snap opens the same viewer on a click; nothing changes by viewing.
+
 ### Character sheets (turnarounds)
 
 `make_character_sheet` draws a Cast as a sheet with one method of the sheet slot (`list_methods {"slot": "sheet"}`):

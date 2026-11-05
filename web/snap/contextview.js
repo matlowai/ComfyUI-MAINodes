@@ -12,6 +12,7 @@ import * as S from "./slots.js";
 import * as T from "./takes.js";
 import * as W from "./world.js";
 import { url } from "./checks.js";
+import { full } from "./lightbox.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const tray = [], listeners = new Set();
@@ -32,7 +33,7 @@ export function contextPanel(t, { say, frame, region }) {
   const thumb = (p) => { const still = p.take && p.frame == null && T.get(p.take)?.media.find((m) => m.kind === "image"); return still ? url(still) : p.file ? inputUrl(p.file) : null; };
   function paint() {
     rows.replaceChildren(...tray.map((p, i) => h("li", { className: "snap-ctx-row" },
-      thumb(p) ? h("img", { src: thumb(p), alt: "", loading: "lazy", ...(p.crop ? { style: `object-view-box: inset(${pct(p.crop[1])} ${pct(1 - p.crop[0] - p.crop[2])} ${pct(1 - p.crop[1] - p.crop[3])} ${pct(p.crop[0])})` } : {}) }) // the crop as the edit reads it
+      thumb(p) ? full(h("img", { src: thumb(p), alt: "", loading: "lazy", ...(p.crop ? { style: `object-view-box: inset(${pct(p.crop[1])} ${pct(1 - p.crop[0] - p.crop[2])} ${pct(1 - p.crop[1] - p.crop[3])} ${pct(p.crop[0])})` } : {}) }), { src: thumb(p), name: `Picture ${i + 1} · ${p.label}`, source: p.file ? `input/${p.file}` : p.take ? `take ${T.get(p.take)?.number ?? p.take}` : p.cast ?? "" }, "tray") // the crop as the edit reads it
         : h("span", { className: "snap-ctx-none", textContent: "▣" }),
       h("span", { className: "snap-ctx-what" }, h("b", { textContent: `Picture ${i + 1}` }), i === 0 && one() ? h("em", { textContent: ` ${one().label}`, title: one().tip }) : null, h("span", { className: "snap-quiet", textContent: ` · ${p.label}` })),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "↑", title: `earlier${one() ? ` (Picture 1 ${one().label})` : ""}`, disabled: i === 0, onclick: () => { tray.splice(i - 1, 0, ...tray.splice(i, 1)); changed(); } }),

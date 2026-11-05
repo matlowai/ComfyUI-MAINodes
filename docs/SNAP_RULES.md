@@ -663,10 +663,19 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   threshold); at or above it the tile says "copied Picture n" (the note `copied`: threshold, each picture's score, the
   numbers copied), else "no copy". A note, never a gate (SNAP-R23). *Why:* F-C14: P01's establishing candidates re-drew
   the master's aerial and nothing flagged it. *More:* the dogfood study's FINDINGS F-C14, proto/test_u101_fc.js.
+- **SNAP-R80: Every picture is one click from full size.** A thumbnail (References' `<Picture n>` rows, the New view
+  tray, Cast pictures, camera plates, candidate tiles and their head crops, the Re-run sheet) opens Snap's viewer on a
+  click: fit or 100 %, wheel zoom about the pointer, drag to pan, ← → through the same row or tray, Esc closes, with
+  the picture's name, source and size, and "Open in a new tab". A take card and the take viewer have a ⤢ button (their
+  own click opens the take and marks regions). A thumbnail whose click did something else keeps it as a button in the
+  viewer (References: Edit the Cast record / the set); an audio reference row plays on a click. Viewing never
+  navigates away or changes anything (SNAP-R5). The agent twin is `open_view {view: "picture"}` on the page the agent
+  drives. *Why:* Dylan 2026-11-05: "it would sure be nice to click on the references, click on a picture and it brings
+  it up full size in the web ui". *More:* DECISIONS 2026-11-05, proto/test_u101_full.js.
 
 ## Accounts and the gate (snap-gate)
 
-IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; R80 on).
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; R81 on).
 
 - **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
   use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and

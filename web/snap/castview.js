@@ -11,6 +11,7 @@ import * as E from "./engine.js";
 import * as L from "./library.js";
 import * as M from "./models.js";
 import * as W from "./world.js";
+import { full } from "./lightbox.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const short = (f) => String(f).split("/").pop().replace(/\.safetensors$/, "");
@@ -39,7 +40,7 @@ export async function openCast(host, { id = null, n = null, lora = null, say, on
   // reference pictures: each an input/ file with what it shows; from References (pictures already there) or an upload
   const refsBox = h("div", { className: "snap-cast-refs" });
   const drawRefs = () => refsBox.replaceChildren(...b.refs.map((r, i) => h("figure", {},
-    h("img", { src: view(r.file), alt: r.role, loading: "lazy", onerror: (e) => { e.target.replaceWith(h("div", { className: "snap-cast-missing", textContent: `✕ ${short(r.file)} isn't in input/` })); } }),
+    full(h("img", { src: view(r.file), alt: r.role, loading: "lazy", onerror: (e) => { e.target.replaceWith(h("div", { className: "snap-cast-missing", textContent: `✕ ${short(r.file)} isn't in input/` })); } }), { src: view(r.file), name: `${b.name || "Cast"}, ${r.role}`, source: `input/${r.file}` }, "cast"),
     h("input", { value: r.role, ariaLabel: "what this picture shows", oninput: (e) => { r.role = e.target.value; } }),
     h("button", { className: "snap-x", textContent: "×", title: "take this picture out of the record (the file stays)", onclick: () => { b.refs.splice(i, 1); drawRefs(); } }))),
   h("div", { className: "snap-set-actions" },

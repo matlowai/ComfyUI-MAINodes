@@ -12,6 +12,7 @@ import * as C from "./candidates.js";
 import * as K from "./checks.js";
 import * as P from "./proposals.js";
 import { candidatesEl } from "./candidateview.js";
+import { full } from "./lightbox.js";
 
 const GRID = 0.05;
 const REACH = 0.6; // actor arrow length in metres; the camera's aim handle sits 1.4x further out
@@ -114,7 +115,7 @@ export function openSetEditor(host, card, { onApply, onSave }) {
     if (sig !== boxSig && !pressed) {
       boxSig = sig;
       const tile = (name, plate, line, cls, action) => h("figure", { className: `snap-set-plate ${cls}`, title: plate ? Object.entries(plate).filter(([k]) => k !== "camera").map(([k, v]) => `${k}: ${v}`).join("\n") : "" },
-        h("img", { src: plate?.image ? inputUrl(plate.image) : "", alt: `${name} plate`, hidden: !plate?.image }), plate?.image ? null : h("div", { className: "snap-set-plate-none", textContent: cls === "rendering" ? "rendering…" : "no plate" }),
+        plate?.image ? full(h("img", { src: inputUrl(plate.image), alt: `${name} plate` }), { src: inputUrl(plate.image), name: `${name} plate`, source: `input/${plate.image}` }, "plates") : h("img", { alt: `${name} plate`, hidden: true }), plate?.image ? null : h("div", { className: "snap-set-plate-none", textContent: cls === "rendering" ? "rendering…" : "no plate" }),
         h("span", { className: "snap-set-preview", textContent: "preview", hidden: true }),
         h("figcaption", {}, h("b", { textContent: name }), h("span", { textContent: line }), h("button", { className: "snap-link snap-quiet-btn", textContent: plate?.image ? "Replace…" : "Choose…", onclick: () => choose(action) })));
       platesBox.replaceChildren(

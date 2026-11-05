@@ -41,6 +41,7 @@ import * as J from "./jobs.js";
 import * as A from "./activity.js";
 import * as WV from "./workview.js";
 import { openWork } from "./workview.js";
+import { full } from "./lightbox.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -939,16 +940,22 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       ...Array.from({ length: E.PICTURE_SLOTS }, (_, i) => h("span", { className: i < pics.length ? "on" : "" })), h("em", { textContent: `${pics.length} of ${E.PICTURE_SLOTS} pictures` }));
     // SNAP-R73: audio references (a Cast's voice, add_audio_ref), each as the <Audio n> the prompt cites
     const audio = (E.references()?.audio ?? []).map((x) => { const cut = x.file?.lastIndexOf("/") ?? -1;
-      return h("div", { className: "snap-ref-audio", title: E.state().bricks.find((b) => b.key === "refs")?.audios?.find((y) => y.node === x.node)?.reason ?? x.file ?? "" },
+      return h("div", { className: "snap-ref-audio", title: E.state().bricks.find((b) => b.key === "refs")?.audios?.find((y) => y.node === x.node)?.reason ?? x.file ?? "",
+        onclick: (e) => { const a = e.currentTarget.querySelector("audio"); if (a && !e.target.closest("audio, button")) { e.stopPropagation(); a.paused ? a.play() : a.pause(); } } }, // SNAP-R80: a click plays it
         h("b", { textContent: x.cite }), h("span", { textContent: ` ${x.role ?? x.file}` }),
         x.file ? h("audio", { controls: true, preload: "none", src: api.apiURL(`/view?filename=${encodeURIComponent(x.file.slice(cut + 1))}&subfolder=${encodeURIComponent(x.file.slice(0, Math.max(cut, 0)))}&type=input`) }) : null,
         h("button", { className: "snap-x", textContent: "×", title: "take this audio reference out (the file stays in input/)", onclick: (e) => { e.stopPropagation(); E.removeAudio(x.node); render(null); } })); });
     if (!pics.length) return [meter, h("div", { className: "snap-quiet", textContent: "Drop pictures here", title: "a set snapshot or Cast card from the Library" }), ...audio];
-    return [meter, h("div", { className: "snap-pics" }, pics.map((p) => {
+    return [meter, h("div", { className: "snap-pics" }, pics.map((p, i) => {
       const cut = p.file.lastIndexOf("/"), sub = p.file.slice(0, Math.max(cut, 0)), name = p.file.slice(cut + 1); // plates sit two folders down (snap/plates)
       const cast = p.source?.startsWith("cast:") && p.card ? W.parse(p.card) : null; // SNAP-R59: a Cast picture opens its record at the version it came from
       const from = !cast && p.source && (L.get(p.card) ?? L.get(`${p.source}-mine`) ?? L.get(p.source)); // the exact version in References
-      return h("figure", { title: `${p.reason}${from ? "\nclick to edit the set" : cast ? "\nclick to edit the Cast record" : ""}`, className: from || cast ? "editable" : "", onclick: from ? () => editSet(from) : cast ? () => editCast({ id: cast.id, n: cast.n }) : null }, h("img", { src: api.apiURL(`/view?filename=${encodeURIComponent(name)}&subfolder=${encodeURIComponent(sub)}&type=input`), alt: p.role, loading: "lazy" }), h("figcaption", { textContent: p.role }));
+      return h("figure", { title: `${p.reason}${from ? "\nclick to edit the set" : cast ? "\nclick to edit the Cast record" : ""}`, className: from || cast ? "editable" : "", onclick: from ? () => editSet(from) : cast ? () => editCast({ id: cast.id, n: cast.n }) : null },
+        // SNAP-R80: the picture opens full size; the row's own click (edit the set or the Cast) is a button there
+        full(h("img", { src: api.apiURL(`/view?filename=${encodeURIComponent(name)}&subfolder=${encodeURIComponent(sub)}&type=input`), alt: p.role, loading: "lazy" }),
+          { src: api.apiURL(`/view?filename=${encodeURIComponent(name)}&subfolder=${encodeURIComponent(sub)}&type=input`), name: `<Picture ${i + 1}> ${p.role}`, source: cast ? `Cast ${p.card}, input/${p.file}` : `input/${p.file}` },
+          "refs", from ? { label: "Edit the set", run: () => editSet(from) } : cast ? { label: "Edit the Cast record", run: () => editCast({ id: cast.id, n: cast.n }) } : null),
+        h("figcaption", { textContent: p.role }));
     })), ...audio];
   }
 

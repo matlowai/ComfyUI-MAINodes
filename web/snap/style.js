@@ -769,4 +769,18 @@ export const STYLE = `
 .snap-rail-actions { display: flex; flex-wrap: wrap; gap: 0 12px; }
 .snap-world-warn { flex-basis: 100%; font-size: 12px; line-height: 1.4; color: #f0b445; }
 .snap-take-unplaced { font-size: 11px; color: #f08a7a; }
+.snap-full { cursor: zoom-in; }
+.snap-take-full { all: unset; position: absolute; right: 6px; bottom: 6px; z-index: 5; cursor: zoom-in; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 8px; font-size: 15px; background: #000a; color: #fff; opacity: .75; }
+.snap-take-full:hover { opacity: 1; background: #000d; }
+.snap-lb { position: fixed; inset: 0; z-index: 3000; display: grid; grid-template-rows: auto 1fr; background: #05070bf2; color: #e8ecf4; font: 13px/1.4 system-ui, sans-serif; outline: none; }
+.snap-lb-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #0b0f17; border-bottom: 1px solid #ffffff1a; }
+.snap-lb-bar .snap-spacer { flex: 1; }
+.snap-lb-what { min-width: 0; overflow-wrap: anywhere; } .snap-lb-what .snap-quiet { color: #9aa4b8; }
+.snap-lb-bar button, .snap-lb-btn { all: unset; cursor: pointer; padding: 4px 11px; border-radius: 8px; background: #ffffff14; color: #e8ecf4; white-space: nowrap; }
+.snap-lb-bar button:hover, .snap-lb-btn:hover { background: #ffffff2a; } .snap-lb-bar button[hidden] { display: none; }
+.snap-lb-stage { position: relative; overflow: hidden; display: grid; place-items: center; min-height: 0; cursor: grab; touch-action: none; }
+.snap-lb-stage > img, .snap-lb-stage > video { max-width: none; max-height: none; transform-origin: center; user-select: none; }
+.snap-lb-stage > .fit { max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; }
+.snap-lb-prev, .snap-lb-next { all: unset; position: fixed; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 34px; padding: 12px 16px; border-radius: 12px; background: #0008; color: #fff; }
+.snap-lb-prev { left: 12px; } .snap-lb-next { right: 12px; } .snap-lb-prev:disabled, .snap-lb-next:disabled { display: none; }
 `;
