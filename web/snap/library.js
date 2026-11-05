@@ -4,7 +4,7 @@
 // SNAP-R5 another family opens a new tab · SNAP-R12 identity rows never leave in a card · SNAP-R18 local only ·
 // SNAP-R21 a shot's reference shows its own camera · SNAP-R25 SFW only leaves out cards tagged or loading nsfw ·
 // SNAP-R59 Cast by reference (applyCast) · SNAP-R60 the person's cards are world records (world.js) ·
-// see docs/SNAP_RULES.md
+// SNAP-R73 a Cast's voice reference goes in as an <Audio n> · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
@@ -320,7 +320,8 @@ export async function saveCast(id, body, { note = "", by = "person" } = {}) {
   if (!body?.name?.trim()) throw new Error("A cast member needs a name");
   const clean = { name: body.name.trim(), alias: body.alias?.trim() ?? "", trigger: body.trigger?.trim() ?? "", details: body.details?.trim() ?? "",
     lora: body.lora?.file ? { file: body.lora.file, strength: +(body.lora.strength ?? 1) } : null, refs: (body.refs ?? []).map((r) => ({ file: r.file, role: r.role || "identity" })),
-    lore: body.lore?.trim() ?? "", rating: body.rating ?? null };
+    lore: body.lore?.trim() ?? "", rating: body.rating ?? null,
+    ...(body.voice?.file ? { voice: { file: body.voice.file, casting: body.voice.casting?.trim() ?? "" } } : {}) }; // U101: a voice reference only when given, so older records save unchanged
   id ??= castStamp();
   const was = W.headOf(W.record("cast", id))?.body, out = await W.save("cast", id, clean, { note, by });
   rebuild();
@@ -375,10 +376,18 @@ export async function applyCast(ref, { strength } = {}) {
       // setup that does, saying so (SNAP-R11); where none can, the pin says the pictures go unread
       if (b.refs.length) { try { preset = conditionFor("Ref2V"); } catch (e) { placed.unread = e.message; } }
     }
+    // SNAP-R73: the Cast's voice reference goes into References as an audio reference, cited <Audio n>; a version without
+    // one takes the last apply's out
+    const voiced = E.state().bricks.find((x) => x.key === "refs")?.audios?.find((x) => x.source === key);
+    if (b.voice?.file) {
+      if (!keys().includes("refs")) await E.snap("refs");
+      const a = E.addAudio(b.voice.file, { role: `cast: ${b.name}, voice`, reason: `${b.name}, cast v${got.version.n}${b.voice.casting ? `: ${b.voice.casting}` : ""}`, source: key, card: W.refOf("cast", id, got.version.n) });
+      placed.voice = `<Audio ${E.audioNumber(a.node)}>`;
+    } else if (voiced) E.removeAudio(voiced.node);
     pin(key, { n: got.version.n, hash: W.short(got.version.hash), name: b.name, placed, ...(strength != null ? { strength } : {}) });
   } finally { app.canvas.emitAfterChange(); }
   app.canvas.setDirty(true, true);
-  return `${b.name} v${got.version.n}: ${[b.lora && `${b.lora.file.split("/").pop().replace(/\.safetensors$/, "")} at ${strength ?? b.lora.strength} on Cast`, line && "the details in the prompt", b.refs.length && `${b.refs.length} picture${b.refs.length === 1 ? "" : "s"} in References`].filter(Boolean).join(", ") || "nothing to put in (no LoRA, words or pictures)"}${preset ? `; Render Preset now ${preset} (the pictures need it)` : ""}${placed.unread ? `; the pictures are not read by this render: ${placed.unread}` : ""}`;
+  return `${b.name} v${got.version.n}: ${[b.lora && `${b.lora.file.split("/").pop().replace(/\.safetensors$/, "")} at ${strength ?? b.lora.strength} on Cast`, line && "the details in the prompt", b.refs.length && `${b.refs.length} picture${b.refs.length === 1 ? "" : "s"} in References`, placed.voice && `the voice reference as ${placed.voice} (cite it in the prompt)`].filter(Boolean).join(", ") || "nothing to put in (no LoRA, words or pictures)"}${preset ? `; Render Preset now ${preset} (the pictures need it)` : ""}${placed.unread ? `; the pictures are not read by this render: ${placed.unread}` : ""}`;
 }
 
 // U72 F23: References that this render won't read (H3 reads pictures only with a Ref2V conditioning), as one line, or null

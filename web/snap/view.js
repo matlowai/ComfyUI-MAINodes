@@ -4,7 +4,7 @@
 // tabs for new work · SNAP-R7 pointer-down lists · SNAP-R19 actions call their tools' functions · SNAP-R20 the metadata
 // switch · SNAP-R9 the Setup brick · SNAP-R24 the scene navigator above the chain · SNAP-R25 onboarding, SFW only ·
 // SNAP-R29 onboarding opens by itself only for a person · SNAP-R30 a recipe opens runnable (seconds on the Render face) ·
-// SNAP-R34 the gate's account in the top bar, a lock that keeps the page · SNAP-R65 the Work pill · SNAP-R66 arrivals announce, Open moves · see docs/SNAP_RULES.md
+// SNAP-R34 the gate's account in the top bar, a lock that keeps the page · SNAP-R65 the Work pill · SNAP-R66 arrivals announce, Open moves · SNAP-R73 References shows each <Audio n> · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -927,13 +927,19 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const pics = E.state().bricks.find((b) => b.key === "refs")?.pictures ?? [];
     const meter = h("div", { className: "snap-meter", title: "H3 References takes 9 pictures; put identity references first" },
       ...Array.from({ length: E.PICTURE_SLOTS }, (_, i) => h("span", { className: i < pics.length ? "on" : "" })), h("em", { textContent: `${pics.length} of ${E.PICTURE_SLOTS} pictures` }));
-    if (!pics.length) return [meter, h("div", { className: "snap-quiet", textContent: "Drop pictures here", title: "a set snapshot or Cast card from the Library" })];
+    // SNAP-R73: audio references (a Cast's voice, add_audio_ref), each as the <Audio n> the prompt cites
+    const audio = (E.references()?.audio ?? []).map((x) => { const cut = x.file?.lastIndexOf("/") ?? -1;
+      return h("div", { className: "snap-ref-audio", title: E.state().bricks.find((b) => b.key === "refs")?.audios?.find((y) => y.node === x.node)?.reason ?? x.file ?? "" },
+        h("b", { textContent: x.cite }), h("span", { textContent: ` ${x.role ?? x.file}` }),
+        x.file ? h("audio", { controls: true, preload: "none", src: api.apiURL(`/view?filename=${encodeURIComponent(x.file.slice(cut + 1))}&subfolder=${encodeURIComponent(x.file.slice(0, Math.max(cut, 0)))}&type=input`) }) : null,
+        h("button", { className: "snap-x", textContent: "×", title: "take this audio reference out (the file stays in input/)", onclick: (e) => { e.stopPropagation(); E.removeAudio(x.node); render(null); } })); });
+    if (!pics.length) return [meter, h("div", { className: "snap-quiet", textContent: "Drop pictures here", title: "a set snapshot or Cast card from the Library" }), ...audio];
     return [meter, h("div", { className: "snap-pics" }, pics.map((p) => {
       const cut = p.file.lastIndexOf("/"), sub = p.file.slice(0, Math.max(cut, 0)), name = p.file.slice(cut + 1); // plates sit two folders down (snap/plates)
       const cast = p.source?.startsWith("cast:") && p.card ? W.parse(p.card) : null; // SNAP-R59: a Cast picture opens its record at the version it came from
       const from = !cast && p.source && (L.get(p.card) ?? L.get(`${p.source}-mine`) ?? L.get(p.source)); // the exact version in References
       return h("figure", { title: `${p.reason}${from ? "\nclick to edit the set" : cast ? "\nclick to edit the Cast record" : ""}`, className: from || cast ? "editable" : "", onclick: from ? () => editSet(from) : cast ? () => editCast({ id: cast.id, n: cast.n }) : null }, h("img", { src: api.apiURL(`/view?filename=${encodeURIComponent(name)}&subfolder=${encodeURIComponent(sub)}&type=input`), alt: p.role, loading: "lazy" }), h("figcaption", { textContent: p.role }));
-    }))];
+    })), ...audio];
   }
 
   // a pick is remembered for the same pair in any workflow
@@ -1256,7 +1262,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     values.push(M.warnings().filter((w) => w.brick === info.brick).map((w) => w.text));
     if (info.brick === "rack") values.push(E.getValue("rack", "rack", "rack"), D.all().length, D.family()); // the face redraws once the catalog arrives
     values.push(presetNode(info.brick)?.presets.current(), BRICKS[info.brick].check && M.check(info.brick), M.known()); // chips get their sizes once the model lists arrive
-    if (info.brick === "refs") values.push(E.state().bricks.find((b) => b.key === "refs")?.pictures);
+    if (info.brick === "refs") values.push(E.state().bricks.find((b) => b.key === "refs")?.pictures, E.references()?.audio);
     values.push(E.state().world, T.moves(E.state().world)); // the pin chips follow the pins and the records' newest versions
     if (info.brick === "render") values.push(E.state().bricks.find((b) => b.key === "render")?.shot);
     if (info.brick === "first_frame") values.push(takenFrom());

@@ -2,7 +2,7 @@
 // graph.extra.snap, and finds user overrides by diffing the live links against that record.
 // Only node ids are kept: undo/redo reloads the graph and replaces every node object (frontend 1.57.1).
 // SNAP-R2 graph round-trip · SNAP-R3 unresolved stays missing · SNAP-R19 no view DOM here · SNAP-R30 a recipe opens runnable ·
-// see docs/SNAP_RULES.md
+// SNAP-R73 audio references, cited <Audio n> · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import { BRICKS, RENDER_BLUEPRINT, SIMPLE_RECIPE } from "./bricks.js";
@@ -411,6 +411,64 @@ export function removePicture(nodeId) {
     if (n) app.graph.remove(n);
     b.pictures = b.pictures.filter((p) => p.node !== nodeId);
     delete b.nodes[`picture_${nodeId}`];
+    delete b.placed[nodeId];
+  });
+}
+
+// an audio reference (U101, SNAP-R73): a LoadAudio node owned by the References brick, wired into the next free
+// ref_audios slot (H3 takes 3), recorded like a picture. The prompt cites it as <Audio n>, n its place among the wired
+// ref_audios slots, which audioNumber() reads back
+export const AUDIO_SLOTS = 3;
+export function audioNumber(nodeId) {
+  const refs = node(brick("refs")?.nodes.refs);
+  const wired = (refs?.inputs ?? []).filter((i) => i.name.startsWith("ref_audios.") && i.link != null);
+  return wired.findIndex((i) => app.graph.getLink(i.link)?.origin_id === nodeId) + 1 || null;
+}
+// what References holds as the prompt cites it: each picture as <Picture n> and each audio as <Audio n>, in slot order
+export function references() {
+  const b = brick("refs"), refs = node(b?.nodes.refs);
+  if (!refs) return null;
+  const of = (group, list, tag) => (refs.inputs ?? []).filter((i) => i.name.startsWith(group) && i.link != null).map((i, k) => {
+    const from = app.graph.getLink(i.link)?.origin_id, x = list.find((p) => p.node === from);
+    return { cite: `<${tag} ${k + 1}>`, node: from, file: x?.file ?? widget(node(from), tag === "Audio" ? "audio" : "image")?.value ?? null, role: x?.role ?? null };
+  });
+  return { pictures: of("ref_images.", b.pictures ?? [], "Picture"), audio: of("ref_audios.", b.audios ?? [], "Audio") };
+}
+export function addAudio(file, { role, reason, source, card }) {
+  const b = brick("refs");
+  if (!b) throw new Error("Add the References brick first");
+  const audios = (b.audios ?? []).filter((x) => node(x.node)); // one deleted in the graph is gone
+  const had = audios.find((x) => x.file === file);
+  if (had) return { ...had, n: audioNumber(had.node) };
+  const same = source && audios.find((x) => x.source === source);
+  if (same) removeAudio(same.node); // the same Cast's voice, another version: its slot goes to the new file
+  if (audios.length - (same ? 1 : 0) >= AUDIO_SLOTS) throw new Error(`References holds ${AUDIO_SLOTS} audio references (H3's limit); remove one first`);
+  const refs = node(b.nodes.refs);
+  return transaction(() => {
+    const n = LiteGraph.createNode("LoadAudio");
+    n.title = role;
+    n.pos = [refs.pos[0] - 360, refs.pos[1] + (b.audios?.length ?? 0) * 160];
+    app.graph.add(n);
+    const w = widget(n, "audio");
+    if (!w.options.values.includes(file)) w.options.values.push(file); // a file under input/snap/ is a choice too (SNAP-R74)
+    w.value = file;
+    n.connect(0, refs, refs.inputs.findIndex((i) => i.name.startsWith("ref_audios.") && i.link == null));
+    const audio = { node: n.id, file, role, reason, ...(source ? { source, card } : {}) };
+    b.nodes[`audio_${n.id}`] = n.id;
+    b.placed[n.id] = [...n.pos];
+    b.audios = [...(b.audios ?? []).filter((x) => node(x.node)), audio];
+    return { ...audio, n: audioNumber(n.id) };
+  });
+}
+// an audio reference out of References: its LoadAudio node goes, the file stays in input/ (one undo step)
+export function removeAudio(nodeId) {
+  const b = brick("refs");
+  if (!b?.audios?.some((x) => x.node === nodeId)) return;
+  transaction(() => {
+    const n = node(nodeId);
+    if (n) app.graph.remove(n);
+    b.audios = b.audios.filter((x) => x.node !== nodeId);
+    delete b.nodes[`audio_${nodeId}`];
     delete b.placed[nodeId];
   });
 }

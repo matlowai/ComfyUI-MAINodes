@@ -118,6 +118,15 @@ app.registerExtension({
   commands: [{ id: "MAINodes.Snap.Toggle", label: "Toggle Snap view", icon: "icon-[lucide--blocks]", function: () => toggle() }],
   keybindings: [{ combo: { key: "s", alt: true }, commandId: "MAINodes.Snap.Toggle" }],
   actionBarButtons: [{ icon: "icon-[lucide--blocks]", label: "Snap", tooltip: "Snap view (Alt+S)", onClick: () => toggle() }],
+  // SNAP-R74 (anime dogfood F-C08): core Load Audio lists only input/'s top level, so audio Snap put under input/snap/
+  // (uploads, Cast voices) is added to its choices; its own validation accepts any input file
+  async beforeRegisterNodeDef(nodeType, nodeData) {
+    if (nodeData.name !== "LoadAudio") return;
+    const spec = nodeData.input?.required?.audio, list = Array.isArray(spec?.[0]) ? spec[0] : spec?.[1]?.options;
+    if (!Array.isArray(list)) return;
+    const mine = await api.fetchApi("/mainodes/snap/input_audio").then((r) => (r.ok ? r.json() : []), () => []);
+    list.push(...mine.filter((f) => !list.includes(f)));
+  },
   setup() {
     document.head.append(Object.assign(document.createElement("style"), { textContent: STYLE }));
     // SNAP-R20: every prompt this page queues (Snap's Run, the graph's, an agent's) says whether its files keep metadata;

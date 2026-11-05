@@ -466,6 +466,8 @@ export const STYLE = `
 .snap-take-paint input[type=text]:focus, .snap-take-clips:focus { outline: none; border-color: hsl(215 75% 64% / .9); }
 .snap-cand-pin { display: block; font-size: 12px; margin: 2px 0; }
 .snap-take-clips { width: 52px; }
+.snap-ref-audio { display: flex; align-items: center; gap: 6px; font-size: 12px; margin: 4px 0; }
+.snap-ref-audio audio { height: 26px; max-width: 150px; flex: 1; }
 .snap-ctx { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .snap-ctx-row { display: flex; align-items: center; gap: 6px; font-size: 12.5px; }
 .snap-ctx-row img, .snap-ctx-none { width: 56px; height: 34px; object-fit: cover; border-radius: 6px; flex: none; background: #0000002e; display: grid; place-items: center; color: var(--s-dim); }

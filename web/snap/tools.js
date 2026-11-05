@@ -147,6 +147,7 @@ export const TOOLS = [
       missing: [...E.missing(), ...M.unreadable()],
       outside_recipe: E.outside().map((n) => ({ id: n.id, type: n.type, title: n.title })),
       ...(L.picturesUnread() ? { references_unused: L.picturesUnread() } : {}),
+      ...(E.references() ? { references: E.references() } : {}), // U101: the <Picture n> / <Audio n> each reference is cited as
       world: await worldOf(E.state().world),
       ...(E.legacy() ? { older_render: { upscale: E.legacy().upscale, about: "the older H3 Render blueprint: it saves the video itself and holds the RelayVSR switch (its `upscale` setting); it runs as saved. upgrade_render gives Upscale and Save as bricks" } } : {}),
     }),
@@ -467,19 +468,20 @@ export const TOOLS = [
   },
   {
     name: "save_cast",
-    description: "Make or change a Cast record (U86, SNAP-R59): leave out `cast` for a new character, or give `cast` (cast:<id>) to save a new version of one (the old versions stay; a save that changes nothing makes none). Give the whole character each time: name (required), alias, trigger (the LoRA's trigger words, as they must appear in the prompt), details (one line: build, hair, eyes, clothes), lora {file, strength} (an installed LoRA, list_loras; null for pictures and words only), refs [{file, role}] (input/ pictures, e.g. a take's frame from use_take, role like 'identity: front'), lore, rating (pg / mature / adult, or null to rate it from how it was made). Returns the reference to pin (cast:<id>@n). Nothing in the open recipe changes: apply_cast does that.",
+    description: "Make or change a Cast record (U86, SNAP-R59): leave out `cast` for a new character, or give `cast` (cast:<id>) to save a new version of one (the old versions stay; a save that changes nothing makes none). Give the whole character each time: name (required), alias, trigger (the LoRA's trigger words, as they must appear in the prompt), details (one line: build, hair, eyes, clothes), lora {file, strength} (an installed LoRA, list_loras; null for pictures and words only), refs [{file, role}] (input/ pictures, e.g. a take's frame from use_take, role like 'identity: front'), lore, rating (pg / mature / adult, or null to rate it from how it was made), voice {file, casting} (U101: a voice reference, an input/ audio file of a clean 3-6 s line, and the casting words it was made from: register, pitch, timbre, energy, cadence; apply_cast puts it into References as an <Audio n> to cite; leave it out for none). Returns the reference to pin (cast:<id>@n). Nothing in the open recipe changes: apply_cast does that.",
     inputSchema: { type: "object", properties: { cast: { type: "string" }, name: { type: "string" }, alias: { type: "string" }, trigger: { type: "string" }, details: { type: "string" },
       lora: { type: ["object", "null"], properties: { file: { type: "string" }, strength: { type: "number" } } }, refs: { type: "array", items: { type: "object", properties: { file: { type: "string" }, role: { type: "string" } } } },
-      lore: { type: "string" }, rating: { type: ["string", "null"], enum: ["pg", "mature", "adult", null] }, note: { type: "string", description: "what changed, shown in the version list" } }, required: ["name"] },
+      lore: { type: "string" }, rating: { type: ["string", "null"], enum: ["pg", "mature", "adult", null] }, voice: { type: ["object", "null"], properties: { file: { type: "string" }, casting: { type: "string" } } },
+      note: { type: "string", description: "what changed, shown in the version list" } }, required: ["name"] },
     run: async ({ cast, note = "", lora, ...body }) => {
       await Promise.all([L.ready(), M.load()]);
       const id = cast ? W.parse(cast).id : null;
       if (id && !W.record("cast", id)) throw new Error(`No Cast record ${cast}; list_cast shows them`);
       if (lora?.file && !M.loraChoices().some(([f]) => f === lora.file)) throw new Error(`No LoRA file "${lora.file}" here; list_loras shows them (a file is pinned by its name)`);
       // U72 F21: a picture must be in this server's input folder; say which folder was looked in and how to put it there
-      for (const r of body.refs ?? []) {
+      for (const r of [...body.refs ?? [], ...(body.voice?.file ? [body.voice] : [])]) {
         const at = await (await api.fetchApi(`/mainodes/snap/info?input=${encodeURIComponent(r.file ?? "")}`)).json();
-        if (!at.input_exists) throw new Error(`The picture "${r.file}" isn't in this server's input folder (${at.input}). Put it there with POST ${location.origin}/upload/image (multipart: image=<file>, subfolder=snap), then give refs [{"file": "snap/<its name>", ...}]`);
+        if (!at.input_exists) throw new Error(`The ${r === body.voice ? "voice reference" : "picture"} "${r.file}" isn't in this server's input folder (${at.input}). Put it there with POST ${location.origin}/upload/image (multipart: image=<file>, subfolder=snap), then give ${r === body.voice ? `voice {"file": "snap/<its name>", "casting": ...}` : `refs [{"file": "snap/<its name>", ...}]`}`);
       }
       const out = await L.saveCast(id, { ...body, lora: lora ?? null }, { note, by: "agent" });
       return { cast: `cast:${out.id}`, ref: out.ref, version: out.n, made: out.made, said: out.made ? `${body.name} v${out.n} saved` : `nothing changed: ${body.name} stays v${out.n}`, ...(out.warning ? { warning: out.warning } : {}), next: "apply_cast {cast} puts it in the open recipe" };
@@ -487,9 +489,32 @@ export const TOOLS = [
   },
   {
     name: "apply_cast",
-    description: "Put a Cast record into the open recipe (U86): `cast` is cast:<id> (the newest version) or cast:<id>@n (that version). Its LoRA becomes a row on the Cast brick (added when missing), its trigger words and details go into the Render prompt's first line, its pictures into References; applying it again (another version, or after a hand edit) replaces what the last apply put there. The recipe pins the version (describe_recipe.world), so takes say which version made them. strength overrides the record's for this recipe only.",
+    description: "Put a Cast record into the open recipe (U86): `cast` is cast:<id> (the newest version) or cast:<id>@n (that version). Its LoRA becomes a row on the Cast brick (added when missing), its trigger words and details go into the Render prompt's first line, its pictures into References, its voice reference (when it has one) into References as an audio reference: the answer says its <Audio n> to cite; applying it again (another version, or after a hand edit) replaces what the last apply put there. The recipe pins the version (describe_recipe.world), so takes say which version made them. strength overrides the record's for this recipe only.",
     inputSchema: { type: "object", properties: { cast: { type: "string" }, strength: { type: "number" } }, required: ["cast"] },
     run: async ({ cast, strength }) => ({ cast, done: await L.applyCast(cast, { strength }), world: E.state().world ?? {} }),
+  },
+  {
+    name: "add_audio_ref",
+    description: "Put an audio file into References as an audio reference (U101, SNAP-R73), e.g. a character's voice line for timbre: a Load Audio node wired into H3 References' next free ref_audios slot (H3 takes 3). file is in this server's input folder (upload it with POST /upload/image, multipart image=<file>, subfolder=snap: audio uploads there too, and Load Audio lists input/snap/ files, SNAP-R74). Returns `cite`, the <Audio n> to write in the prompt (\"<Subject 1> speaks with the voice of <Audio 1>\"); describe_recipe.references lists every <Picture n> and <Audio n>. H3 reads audio references only with a reference setup (Ref2V); a Cast with a voice (save_cast voice) puts its voice in with apply_cast. One undo step.",
+    inputSchema: { type: "object", properties: { file: { type: "string" }, role: { type: "string", description: "what it is, e.g. 'voice: Maren'" } }, required: ["file"] },
+    run: async ({ file, role }) => {
+      const at = await (await api.fetchApi(`/mainodes/snap/info?input=${encodeURIComponent(file)}`)).json();
+      if (!at.input_exists) throw new Error(`The audio "${file}" isn't in this server's input folder (${at.input}). Put it there with POST ${location.origin}/upload/image (multipart: image=<file>, subfolder=snap), then give "snap/<its name>"`);
+      if (!E.state().bricks.some((b) => b.key === "refs")) await E.snap("refs");
+      const a = E.addAudio(file, { role: role || `audio: ${file.split("/").pop()}`, reason: "added by an agent" });
+      return { cite: `<Audio ${a.n}>`, node: a.node, file, references: E.references(), ...(L.picturesUnread() ? { references_unused: L.picturesUnread() } : {}) };
+    },
+  },
+  {
+    name: "remove_audio_ref",
+    description: "Take an audio reference out of References (its Load Audio node goes, the file stays in input/): audio is its number n of <Audio n> (describe_recipe.references) or its file. The later ones move up a number: read references again before citing. One undo step.",
+    inputSchema: { type: "object", properties: { audio: { type: ["integer", "string"] } }, required: ["audio"] },
+    run: async ({ audio }) => {
+      const list = E.references()?.audio ?? [], x = typeof audio === "number" ? list[audio - 1] : list.find((a) => a.file === audio);
+      if (!x) throw new Error(`No audio reference ${JSON.stringify(audio)}; References holds ${list.map((a) => `${a.cite} ${a.file}`).join(", ") || "none"}`);
+      E.removeAudio(x.node);
+      return { removed: x.file, references: E.references() };
+    },
   },
   {
     name: "retake",
@@ -1035,6 +1060,22 @@ export const TOOLS = [
     },
   },
   {
+    name: "edit_from_context",
+    description: "New view from these pictures (U101, SNAP-R71): a new still made by MOSS Image Edit from context pictures and your own words, e.g. the same place from another camera. pictures, in order, each one of {take} (a still take; a video take with frame, default its middle), {file} (a picture in input/), {cast: \"cast:<id>\", ref} (a Cast's picture, ref its number from 0, default 0); any of them with crop [x, y, width, height] in fractions of the picture (a part of a master, a face) and label (what the picture is, for the provenance). Picture 1 sets the camera: the new still keeps Picture 1's framing and composition (U101: with an aerial master first every seed stayed aerial), so put a still that already has the camera you want first and the set (a master, or a crop of it around the part you need) after it, then Cast pictures. The encoder sees each picture after a 'Picture N:' marker: name them in the prompt as Picture 1, Picture 2, … or describe them in plain words. prompt is free text: nothing is added to it (no keep-the-composition line). seeds: one candidate per seed (else count new seeds, default 2). lora: one of the method's edit LoRAs for every candidate (list_methods slot view: akhaliq cfg 3, chinoll cfg 5), else they take turns. width and height: the still's size (default: Picture 1's, scaled to about 1 MP). avoid: words for the negative prompt. land: where the candidate takes go: by default the shot Picture 1's take is in (else the open shot), {scene, shot}, or \"tab\". Returns the decision id, which picture is which number, and the candidates (each a take: run_status its prompt_id); wait_for {job: decision, until: waiting}, look with candidate_frames beside the pictures, then apply_candidate makes the picked one the shot's active take. Uses GPU time: unless the person lets agents run, this waits as a proposal they accept.",
+    inputSchema: { type: "object", properties: {
+      pictures: { type: "array", minItems: 1, items: { type: "object", properties: { take: { type: "string" }, frame: { type: "integer", minimum: 0 }, file: { type: "string" }, cast: { type: "string" }, ref: { type: "integer", minimum: 0 },
+        crop: { type: "array", items: { type: "number", minimum: 0, maximum: 1 }, minItems: 4, maxItems: 4 }, label: { type: "string" } } } },
+      prompt: { type: "string" }, method: { type: "string" }, lora: { type: "string" }, seeds: { type: "array", items: { type: "integer", minimum: 0 } }, count: { type: "integer", minimum: 1 },
+      width: { type: "integer", minimum: 16 }, height: { type: "integer", minimum: 16 }, avoid: { type: "string" },
+      land: { anyOf: [{ type: "string", enum: ["tab"] }, { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" } }, required: ["scene", "shot"] }] } }, required: ["pictures", "prompt"] },
+    annotations: { consequentialHint: true },
+    consequential: true,
+    plan: async ({ pictures, seeds, count = 2 }) => { await S.load(); const m = S.list("view").find((x) => x.id === "moss_view"), n = seeds?.length || count;
+      return { runs: `${n} candidate still${n > 1 ? "s" : ""} from ${pictures?.length ?? 0} context picture${pictures?.length === 1 ? "" : "s"} (MOSS Image Edit, 30 steps); each lands as a take, and the pick makes one the shot's take`, eta_s: n * ([m?.cost?.local_s].flat().at(-1) ?? 28), from: m?.cost?.per ?? "U101" }; },
+    run: async ({ pictures, prompt, method, lora, seeds, count, width, height, avoid, land }) => ({ ...await ED.fromContext(pictures, prompt, { method, lora, seeds, count, width, height, avoid, land, by: "agent" }),
+      next: "wait_for {job: <decision>, until: \"waiting\"}, then candidate_frames {decision} and apply_candidate the one that holds the set" }),
+  },
+  {
     name: "use_take",
     description: "Use a frame of a take as an input (U32): as first_frame it goes on the First frame brick (FL2V's start picture), as reference into References as a picture; at is the moment in seconds, or 'last' (the default) for its end. One undo step; the brick remembers the take and frame it came from.",
     inputSchema: { type: "object", properties: { take: { type: "string" }, as: { type: "string", enum: ["first_frame", "reference"] }, at: { type: ["number", "string"] } }, required: ["take", "as"] },
@@ -1055,22 +1096,6 @@ export const TOOLS = [
       const t = await takeOf(take), shot = await T.frames(t, { frames, count, maxWidth: max_width });
       return { take: t.id, number: t.number, frames: shot.map(({ frame, t: at }) => ({ frame, t: at })), look: "the pictures are in clip order: compare them across the clip (start, middle, end) before you judge motion or who is in it; one frame doesn't show motion", images: shot.map(({ frame, t: at, ...image }) => image) };
     },
-  },
-  {
-    name: "edit_from_context",
-    description: "New view from these pictures (U101, SNAP-R71): a new still made by MOSS Image Edit from context pictures and your own words, e.g. the same place from another camera. pictures, in order, each one of {take} (a still take; a video take with frame, default its middle), {file} (a picture in input/), {cast: \"cast:<id>\", ref} (a Cast's picture, ref its number from 0, default 0); any of them with crop [x, y, width, height] in fractions of the picture (a part of a master, a face) and label (what the picture is, for the provenance). Picture 1 sets the camera: the new still keeps Picture 1's framing and composition (U101: with an aerial master first every seed stayed aerial), so put a still that already has the camera you want first and the set (a master, or a crop of it around the part you need) after it, then Cast pictures. The encoder sees each picture after a 'Picture N:' marker: name them in the prompt as Picture 1, Picture 2, … or describe them in plain words. prompt is free text: nothing is added to it (no keep-the-composition line). seeds: one candidate per seed (else count new seeds, default 2). lora: one of the method's edit LoRAs for every candidate (list_methods slot view: akhaliq cfg 3, chinoll cfg 5), else they take turns. width and height: the still's size (default: Picture 1's, scaled to about 1 MP). avoid: words for the negative prompt. land: where the candidate takes go: by default the shot Picture 1's take is in (else the open shot), {scene, shot}, or \"tab\". Returns the decision id, which picture is which number, and the candidates (each a take: run_status its prompt_id); wait_for {job: decision, until: waiting}, look with candidate_frames beside the pictures, then apply_candidate makes the picked one the shot's active take. Uses GPU time: unless the person lets agents run, this waits as a proposal they accept.",
-    inputSchema: { type: "object", properties: {
-      pictures: { type: "array", minItems: 1, items: { type: "object", properties: { take: { type: "string" }, frame: { type: "integer", minimum: 0 }, file: { type: "string" }, cast: { type: "string" }, ref: { type: "integer", minimum: 0 },
-        crop: { type: "array", items: { type: "number", minimum: 0, maximum: 1 }, minItems: 4, maxItems: 4 }, label: { type: "string" } } } },
-      prompt: { type: "string" }, method: { type: "string" }, lora: { type: "string" }, seeds: { type: "array", items: { type: "integer", minimum: 0 } }, count: { type: "integer", minimum: 1 },
-      width: { type: "integer", minimum: 16 }, height: { type: "integer", minimum: 16 }, avoid: { type: "string" },
-      land: { anyOf: [{ type: "string", enum: ["tab"] }, { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" } }, required: ["scene", "shot"] }] } }, required: ["pictures", "prompt"] },
-    annotations: { consequentialHint: true },
-    consequential: true,
-    plan: async ({ pictures, seeds, count = 2 }) => { await S.load(); const m = S.list("view").find((x) => x.id === "moss_view"), n = seeds?.length || count;
-      return { runs: `${n} candidate still${n > 1 ? "s" : ""} from ${pictures?.length ?? 0} context picture${pictures?.length === 1 ? "" : "s"} (MOSS Image Edit, 30 steps); each lands as a take, and the pick makes one the shot's take`, eta_s: n * ([m?.cost?.local_s].flat().at(-1) ?? 28), from: m?.cost?.per ?? "U101" }; },
-    run: async ({ pictures, prompt, method, lora, seeds, count, width, height, avoid, land }) => ({ ...await ED.fromContext(pictures, prompt, { method, lora, seeds, count, width, height, avoid, land, by: "agent" }),
-      next: "wait_for {job: <decision>, until: \"waiting\"}, then candidate_frames {decision} and apply_candidate the one that holds the set" }),
   },
   {
     name: "find_people",

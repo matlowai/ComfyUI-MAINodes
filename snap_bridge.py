@@ -8,7 +8,8 @@ SNAP-R12 identity LoRAs are private · SNAP-R18 local only · SNAP-R20 metadata 
 proposes, never downloads · SNAP-R27 locks follow the current rules · SNAP-R30 the agent front door: pages per user, a
 health listing, errors that say what to do · SNAP-R33 the rating cap's second line · SNAP-R36 quiet sound ·
 SNAP-R37 privacy per install · SNAP-R38 metadata off writes none, the rest is named · SNAP-R39 ratings from how a thing
-was made · SNAP-R65 the Work card's jobs and progress, an agent page's own screenshot · see docs/SNAP_RULES.md"""
+was made · SNAP-R65 the Work card's jobs and progress, an agent page's own screenshot · SNAP-R74 Load Audio lists input/snap/ ·
+see docs/SNAP_RULES.md"""
 import asyncio
 import hashlib
 import itertools
@@ -232,6 +233,15 @@ async def info(request):
         path = os.path.abspath(os.path.join(root, request.query["input"]))
         q["input_exists"] = os.path.commonpath((root, path)) == root and os.path.isfile(path)
     return web.json_response(q)
+
+
+@routes.get("/mainodes/snap/input_audio")
+async def input_audio(request):
+    """Audio files Snap put under input/snap/ (uploads with subfolder=snap, Cast voices), as Load Audio values: core Load
+    Audio lists only the input folder's top level (anime dogfood F-C08, SNAP-R74)"""
+    root = os.path.join(folder_paths.get_input_directory(), "snap")
+    found = [os.path.relpath(os.path.join(d, f), folder_paths.get_input_directory()).replace(os.sep, "/") for d, _, fs in os.walk(root) for f in fs]
+    return web.json_response(sorted(folder_paths.filter_files_content_types(found, ["audio"])))
 
 
 @routes.post("/mainodes/snap/call")

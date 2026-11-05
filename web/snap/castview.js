@@ -2,9 +2,10 @@
 // trigger words, the details line, an identity LoRA and its strength (by file name), reference pictures, lore and a
 // rating. Saving is a new version (an unchanged body makes none); the version list shows every one, and opening an
 // older version edits from it (saving it makes the next version, the old one stays). "Save and use" puts this version
-// into the open recipe (L.applyCast): the Cast row, the details sentence in the prompt, the pictures in References.
+// into the open recipe (L.applyCast): the Cast row, the details sentence in the prompt, the pictures in References,
+// and the voice reference (an audio file plus its casting words, U101) as an <Audio n>.
 // SNAP-R59 Cast by reference · SNAP-R60 versions · SNAP-R3 a file that isn't here shows as missing · SNAP-R11 warn,
-// never block · see docs/SNAP_RULES.md
+// never block · SNAP-R73 audio references · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
 import * as L from "./library.js";
@@ -51,6 +52,12 @@ export async function openCast(host, { id = null, n = null, lora = null, say, on
     for (const f of upload.files) b.refs.push({ file: await L.uploadCastPicture(f, recId ?? "new"), role: `identity: ${b.refs.length ? "picture " + (b.refs.length + 1) : "front"}` });
     upload.value = ""; drawRefs();
   } });
+  // a voice reference (U101, SNAP-R73): one audio file in input/ (a clean 3-6 s line) and the casting words it was made from
+  const player = h("audio", { controls: true, preload: "none", hidden: !b.voice?.file, ...(b.voice?.file ? { src: view(b.voice.file) } : {}) });
+  const setVoice = () => { const f = voiceFile.value.trim(); b.voice = f ? { file: f, casting: casting.value } : undefined; player.hidden = !f; if (f) player.src = view(f); };
+  const voiceFile = h("input", { value: b.voice?.file ?? "", placeholder: "an audio file in input/, e.g. snap/kon_voice.wav", ariaLabel: "voice reference file", oninput: () => setVoice() });
+  const casting = h("textarea", { rows: 2, value: b.voice?.casting ?? "", placeholder: "how they sound: register, pitch, timbre, energy, cadence", ariaLabel: "casting", oninput: () => setVoice() });
+  const voiceUpload = h("input", { type: "file", accept: "audio/*", onchange: async () => { const f = voiceUpload.files[0]; if (!f) return; voiceFile.value = await L.uploadCastPicture(f, recId ?? "new"); voiceUpload.value = ""; setVoice(); } });
   const note = h("input", { placeholder: "what changed (optional, shown in the version list)", ariaLabel: "version note" });
   const status = h("div", { className: "snap-quiet", role: "status" }), warn = h("div", { className: "snap-world-warn", hidden: true });
   let shown = from?.n ?? null; // the version the sheet shows; a save moves it to the new one
@@ -85,6 +92,8 @@ export async function openCast(host, { id = null, n = null, lora = null, say, on
         field("details", text("details", "one line that describes them: build, hair, eyes, clothes", 3)),
         field("identity LoRA", h("div", { className: "snap-cast-lora" }, loraSel, strength)),
         h("div", { className: "snap-rail-title", textContent: "Reference pictures" }), refsBox,
+        h("div", { className: "snap-rail-title", textContent: "Voice reference" }), field("audio file", h("div", { className: "snap-cast-lora" }, voiceFile, h("button", { className: "snap-link", textContent: "+ audio", onclick: () => voiceUpload.click() }))), player,
+        field("casting (how they sound)", casting),
         field("lore (searched, never sent to a model)", text("lore", "who they are", 2)), field("rating", rating)),
       h("aside", {}, versions,
         olderNote,
