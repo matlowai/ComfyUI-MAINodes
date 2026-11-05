@@ -32,7 +32,7 @@ export const TAGS = {
   right: ["identity", "motion", "physics", "camera", "lighting", "composition", "acting", "prompt", "audio", "continuity", "texture"],
 };
 
-let takes = [], loading = null, marks = {};
+let takes = [], loading = null, marks = {}, privacy = false, marked = null;
 const listeners = new Set();
 export const onChange = (fn) => listeners.add(fn);
 const changed = () => { for (const fn of listeners) fn(); };
@@ -50,7 +50,7 @@ export function load() {
     takes = (await Promise.all(files.map((f) => readJson(`${DIR}/${f.path}`, null)))).filter(Boolean).sort((a, b) => a.created - b.created);
     changed();
     // a server from before the route answers 404: the saved marks stand alone until its restart
-    api.fetchApi("/mainodes/snap/take_marks").then((r) => (r.ok ? r.json() : { takes: {} })).then((r) => { marks = r.takes; changed(); });
+    marked = api.fetchApi("/mainodes/snap/take_marks").then((r) => (r.ok ? r.json() : { takes: {} })).then((r) => { marks = r.takes; privacy = r.privacy === true; changed(); });
     return takes;
   })().catch((e) => { loading = null; throw e; });
   return loading;
@@ -59,7 +59,9 @@ export function load() {
 export const all = () => takes;
 // private by its saved mark, by the rules now, or as a version of a private take (SNAP-R27): what the lock shows and the
 // export leaves out
-export const locked = (t) => !!(t.private || marks[t.id]?.private || (t.parent && get(t.parent.take) && locked(get(t.parent.take))));
+// SNAP-R37: no lock at all on an install with privacy off, whatever a take recorded when it ran
+export const privacyOn = async () => { await load(); await marked; return privacy; };
+export const locked = (t) => privacy && !!(t.private || marks[t.id]?.private || (t.parent && get(t.parent.take) && locked(get(t.parent.take))));
 export const get = (id) => takes.find((t) => t.id === id);
 // takes of one workflow rank together; the workflow's own id is saved in its JSON, so renames and tab switches don't split it
 export const groupOf = () => app.graph.id ?? "unsaved";

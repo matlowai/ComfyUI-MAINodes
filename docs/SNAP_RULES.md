@@ -292,6 +292,16 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   private. *Why:* core writes the executed prompt and workflow, LoRA file names included, into every PNG and mp4, and
   `--disable-metadata` is global; Dylan chose metadata on for everything with one clean switch (2026-11-04) over
   stripping private takes automatically. *More:* `snap_privacy.py`, `snap_bridge.py`, `web/snap/metadata.js`; PLAN U22, U58.
+- **SNAP-R37: Privacy is a per-install opt-in, off by default.** Everything private in SNAP-R12, R20, R27 and R32 holds
+  only where `user/snap_privacy.json` says `{"on": true}`. That file sits outside every user's folder, so no page can
+  write it; the install's admin puts it there (snapbox does). Off, nothing is private from any source: private.json
+  rules aren't read, and header stamps, the identity role, the `private` tag and Cast rows mark nothing. There are no
+  lock badges (`take_marks` says `privacy: false`, `private_loras` is empty), the export leaves nothing out for privacy,
+  recipe cards keep their Cast rows, and rules that can't be read don't fail closed. Saves are exactly as core makes them,
+  and the Save metadata switch stays the person's own (SNAP-R20). NSFW tags for SFW-only filtering are a separate feature
+  and stay. A switch file that doesn't parse counts as on and as broken. *Why:* Dylan, 2026-11-04 19:00: "Private
+  should only be on our new comfyui instance; my main instance isn't Private." *More:* PLAN U80, `snap_privacy.py`
+  (`switched_on`).
 - **SNAP-R27: A file stamped private in its own header is private, and locks follow the current rules.** Besides the
   model graph and the person's private paths and patterns, a `.safetensors` / `.sft` file whose header metadata says
   `"privacy": "full"` (any case, at any level, inside JSON-string fields too, parsed a few levels deep) is private, and

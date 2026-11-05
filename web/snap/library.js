@@ -238,11 +238,11 @@ async function applyShot(card) {
 }
 
 // the stack as a card keeps a Cast brick but never its rows: identity LoRAs are private (SNAP-R12)
-const shareable = () => E.recipe().map((b) => (BRICKS[b.key]?.stack?.role === "identity" ? { key: b.key, values: {} } : b));
+const shareable = async () => { const strip = await T.privacyOn(); return E.recipe().map((b) => (strip && BRICKS[b.key]?.stack?.role === "identity" ? { key: b.key, values: {} } : b)); }; // SNAP-R37: only where privacy is on
 
 // before leaving a family: the open stack as that family's "Last used" card (one per family, replaced each time)
 export async function saveLast(family) {
-  const bricks = shareable(), output = kit(bricks.map((b) => b.key)) === "image" ? "image" : "video + audio";
+  const bricks = await shareable(), output = kit(bricks.map((b) => b.key)) === "image" ? "image" : "video + audio";
   const card = { id: `recipe-last-${family.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`, kind: "recipe", family, output, title: `Last used: ${family}`, saved: Date.now(),
     about: "Your own stack, kept when you switched to another family.", text: `${bricks.length} bricks: ${bricks.map((b) => BRICKS[b.key]?.title ?? b.key).join(", ")}`, brick: { bricks } };
   await save(card);
@@ -251,7 +251,7 @@ export async function saveLast(family) {
 
 // save the current stack as a recipe card in the user's Library
 export async function saveRecipe(name) {
-  const bricks = shareable(), stamp = new Date().toTimeString().slice(0, 8);
+  const bricks = await shareable(), stamp = new Date().toTimeString().slice(0, 8);
   const card = { id: `recipe-${Date.now().toString(36)}`, kind: "recipe", title: `Recipe: ${name} (saved ${stamp})`, saved: Date.now(),
     text: `${bricks.length} bricks: ${bricks.map((b) => BRICKS[b.key]?.title ?? b.key).join(", ")}`, brick: { bricks } };
   await save(card);

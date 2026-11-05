@@ -323,11 +323,12 @@ def metadata_gate(json_data):
     try:
         graph = snap_privacy.model_graph(folder_paths.get_user_directory())
         found = snap_privacy.marks(prompt, workflow, graph, loaded)
-        if graph["broken"]:
+        if graph["broken"] and graph["private"]:
             logging.error("Snap: privacy rules unreadable (%s); this prompt is marked private until they are fixed", ", ".join(graph["broken"]))
     except Exception:
-        logging.exception("Snap: privacy rules unreadable; this prompt is marked private")
-        found = {"private": ["privacy rules unreadable"], "nsfw": []}
+        on = snap_privacy.switched_on(folder_paths.get_user_directory())
+        logging.exception("Snap: privacy rules unreadable" + ("; this prompt is marked private" if on else ""))
+        found = {"private": ["privacy rules unreadable"] if on else [], "nsfw": []}
     if not (off or found["private"] or found["nsfw"]):
         return json_data
     swapped = {}
@@ -411,6 +412,8 @@ PromptServer.instance.add_on_prompt_handler(metadata_gate)
 async def private_loras(request):
     def find():
         graph, names = snap_privacy.model_graph(folder_paths.get_user_directory()), folder_paths.get_filename_list("loras")
+        if not graph["private"]:  # SNAP-R37: privacy is off on this install
+            return []
         return names if graph["broken"] else [n for n in names if snap_privacy.why(n, loaded(n), graph)]  # unreadable rules lock every row, as they mark every take
     return web.json_response({"loras": await asyncio.to_thread(find)})
 
@@ -426,8 +429,8 @@ async def take_marks(request):
             m = snap_privacy.marks(t.get("prompt") or {}, t.get("graph"), graph, loaded)
             if m["private"] or m["nsfw"]:
                 found[t["id"]] = {"private": bool(m["private"]), "nsfw": bool(m["nsfw"])}
-        return found
-    return web.json_response({"takes": await asyncio.to_thread(find)})
+        return {"takes": found, "privacy": graph["private"]}  # the page shows no locks at all while privacy is off (SNAP-R37)
+    return web.json_response(await asyncio.to_thread(find))
 
 
 # Quiet sound (U76, from U78): H3 renders an ambience-only soundscape near-silent (about -57 dB mean, against -27..-41 dB

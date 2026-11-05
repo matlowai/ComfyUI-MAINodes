@@ -8,7 +8,7 @@ JSONL files; nothing leaves the machine:
                and author with every source that agrees: a ranking ("rank"), keep over reject in the same workflow
                ("verdict"), and A/B picks ("ab"; each judgment kept in `judgments` with blind, the reason and when)
 
-Private takes (an identity LoRA, a Cast row, a file the model graph tags private, a file under the person's private
+On an install with privacy on (SNAP-R37), private takes (an identity LoRA, a Cast row, a file the model graph tags private, a file under the person's private
 paths or matching their patterns in snap/private.json, a safetensors file stamped private in its header, SNAP-R27) and
 NSFW-tagged takes are left out (a version of a private take too),
 with every note and pair they are in, unless --include-private / --include-nsfw ask for them (SNAP-R20). A take counts
@@ -53,7 +53,7 @@ def main():
 
     def private(t):  # a version of a private take (an edit, a continued take) is private too (SNAP-R27)
         parent = every.get((t.get("parent") or {}).get("take"))
-        return bool(t.get("private") or found[t["id"]]["private"] or (parent and private(parent)))
+        return graph["private"] and bool(t.get("private") or found[t["id"]]["private"] or (parent and private(parent)))  # SNAP-R37
     takes, left_out = {}, {"private": 0, "nsfw": 0}
     for t in every.values():
         if private(t) and not args.include_private:

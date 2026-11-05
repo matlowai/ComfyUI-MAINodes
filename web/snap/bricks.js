@@ -95,7 +95,7 @@ const PACK = {
   },
   loras: stack("core", "Core LoRAs", 290, "turbo, fix and task LoRAs that belong to the setup"),
   style: stack("style", "Style LoRAs", 50, "looks, grades and media for this shot or recipe"),
-  cast: stack("identity", "Cast LoRAs", 15, "character and person LoRAs (private: never in saved or shared cards)"),
+  cast: stack("identity", "Cast LoRAs", 15, "character and person LoRAs (private where this install marks privacy)"),
   image: {
     kit: "image", title: "Render", icon: "▶", hue: 330,
     blurb: "text to image, saves the picture",

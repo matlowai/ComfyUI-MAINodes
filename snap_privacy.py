@@ -13,10 +13,13 @@ in text.
 The private paths, patterns and triggers live only in the person's own user/<name>/snap/private.json
 ({"paths": [globs], "patterns": [globs], "triggers": [words]}), never in the pack, and the page never reads them.
 Reasons name nodes, never files.
+All of this is off unless the install turns it on (SNAP-R37): with no user/snap_privacy.json {"on": true}, nothing is
+private, from any source, and only the NSFW tags count.
 On a snap-gate install, only the admins' snap/ files count (SNAP-R32), and a file's rating level backs up the gate's cap
 (SNAP-R33).
 SNAP-R12 identity LoRAs are private · SNAP-R20 private takes marked · SNAP-R27 a file stamped private · SNAP-R32 the
-admins' files decide on a gated install · SNAP-R33 the rating cap's second line · see docs/SNAP_RULES.md
+admins' files decide on a gated install · SNAP-R33 the rating cap's second line · SNAP-R37 privacy is per install, off
+by default · see docs/SNAP_RULES.md
 """
 import json
 import os
@@ -55,6 +58,17 @@ def read(f, broken, shape):
     return data
 
 
+def switched_on(user_dir, broken=None):
+    """Whether this install marks anything private (SNAP-R37): user/snap_privacy.json says {"on": true}. It sits outside
+    every user's folder, so no page can write it; with no such file privacy is off. One that doesn't parse was put there
+    to turn privacy on, so it counts as on and as broken (every take private until it is fixed)."""
+    f = Path(user_dir) / "snap_privacy.json"
+    if not f.exists():
+        return False
+    data = read(f, [] if broken is None else broken, dict)
+    return data is None or data.get("on") is True
+
+
 def owners(user_dir, broken):
     """Whose snap/ files count: every ComfyUI user's (None), or, when snap-gate wrote user/snap_admins.json
     ({"admins": [ComfyUI user ids]}), only the admins' (SNAP-R32). That file sits outside every user's folder, so no page
@@ -75,13 +89,14 @@ def model_graph(user_dir):
     and triggers, and the files that don't parse or have the wrong shape (a rules file that can't be read whole counts as
     broken, never as fewer rules; a model graph entry with no file name is skipped)."""
     graph = {"entries": {base(e["file"]): e for e in json.loads(PACK.read_text(encoding="utf-8"))["files"]}, "paths": [], "patterns": [], "triggers": [], "broken": []}
+    graph["private"] = switched_on(user_dir, graph["broken"])
     who = owners(user_dir, graph["broken"])
     counted = lambda name: sorted(f for f in Path(user_dir).glob(f"*/snap/{name}") if who is None or f.parent.parent.name in who)
     for f in counted("models.json"):
         for e in read(f, graph["broken"], list) or []:
             if isinstance(e, dict) and isinstance(e.get("file"), str):
                 graph["entries"][base(e["file"])] = {**graph["entries"].get(base(e["file"]), {}), **{k: v for k, v in e.items() if v is not None}}
-    for f in counted("private.json"):
+    for f in counted("private.json") if graph["private"] else []:
         rules = read(f, graph["broken"], dict)
         if rules is None:
             continue
@@ -167,20 +182,21 @@ def marks(prompt, workflow, graph, resolve):
     """{"private": [reasons], "nsfw": [reasons]} for an API prompt and the workflow it came from. `resolve(value)` gives
     the real paths a string input loads (none for text). Any node counts, whatever loader it is. A model graph or
     private.json the person wrote that doesn't parse (or has the wrong shape) can't say what is private, so every prompt
-    counts as private then."""
-    private = [f"privacy rules unreadable: {f} doesn't parse or has the wrong shape, so nothing can be told apart" for f in graph["broken"]]
+    counts as private then. With privacy off for this install (SNAP-R37) nothing is private, whatever the files say."""
+    on = graph["private"]
+    private = [f"privacy rules unreadable: {f} doesn't parse or has the wrong shape, so nothing can be told apart" for f in graph["broken"]] if on else []
     nsfw = []
     snap = ((workflow or {}).get("extra") or {}).get("snap") or {}
     cast = {str(n) for b in snap.get("bricks", []) if b.get("key") == "cast" for n in b.get("nodes", {}).values()}
     for nid, node in prompt.items():
         inputs = node.get("inputs") or {}
         for v in dict.fromkeys(n for x in inputs.values() for n in names(x)):
-            reason = why(v, resolve(v), graph)
+            reason = on and why(v, resolve(v), graph)
             if reason:
                 private.append(f"node {nid} loads {reason}")
             if "nsfw" in (graph["entries"].get(base(v), {}).get("tags") or []):
                 nsfw.append(f"node {nid} loads a file tagged nsfw")
-        if str(nid) in cast and any(k.endswith(".lora_name") and v not in (None, "", "None") and inputs.get(k[:-len("lora_name")] + "enabled") is True for k, v in inputs.items()):
+        if on and str(nid) in cast and any(k.endswith(".lora_name") and v not in (None, "", "None") and inputs.get(k[:-len("lora_name")] + "enabled") is True for k, v in inputs.items()):
             private.append(f"node {nid} has a Cast LoRA row on")
     return {"private": private, "nsfw": nsfw}
 
