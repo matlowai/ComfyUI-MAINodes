@@ -77,7 +77,7 @@ function asked(m, { example, change, who, becomes }) {
   if (example && !ex) throw new Error(`${m.title}: no example "${example}"; there are ${Object.keys(m.options?.examples ?? {}).join(", ")}, or write your own change`);
   const text = (change ?? ex?.change ?? "").trim();
   if (!text) throw new Error(`${m.title}: say what changes (change), e.g. "the benches into a yellow phone booth", or pick an example: ${Object.keys(m.options?.examples ?? {}).join(", ")}`);
-  return { change: text, avoid: ex && !change ? ex.avoid : "", label: ex && !change ? example : text.length > 40 ? `${text.slice(0, 38)}…` : text };
+  return { change: text, avoid: ex && !change ? ex.avoid : "", label: ex && !change ? example : text.length > 40 ? `${text.slice(0, 38)}…` : text, ...(ex && !change ? { example } : {}) };
 }
 // the frames painted: the take's first and middle (relight, U53b), or the frames asked for (a moving object: where it
 // enters and where it leaves, U69), else the middle one
@@ -128,11 +128,18 @@ async function finish(d, c, h) {
   if (c.pictures.some((p) => !p.media)) { c.state = "failed"; c.error = "the edit saved no frame"; return; }
   identity(d, c).then((r) => C.note(d, c, "identity", r));
 }
+// what an edit does, for the face check: its example's `does` (night, dusk, dawn relight), else its method's. Only a
+// relight mutes the face check (U56 measured the same woman at 0.34-0.60 at night); words written for Change something
+// ("make her jacket sparkle") keep it, so a painted frame with another woman's face is flagged
+export async function does(d) {
+  const m = await method(d.method);
+  return m.options?.examples?.[d.options?.example]?.does ?? m.does;
+}
 async function identity(d, c) {
   const m = await method(d.method);
   if (m.identity === "new person") return { new_person: m.does }; // a recast's point is someone else (U69: ArcFace ~0, "hair" on a bald head +65)
   const v = d.clip.video, more = [Math.round(d.clip.frames / 4), Math.round((3 * d.clip.frames) / 4)].map((frame) => ({ video: v, frame }));
-  try { return await K.identityCheck(c.pictures.map((p) => [{ video: v, frame: p.frame }, { image: K.annotated(p.media) }]), more, { does: (await method(d.method)).does }); } catch (e) { return { error: e.message }; }
+  try { return await K.identityCheck(c.pictures.map((p) => [{ video: v, frame: p.frame }, { image: K.annotated(p.media) }]), more, { does: await does(d) }); } catch (e) { return { error: e.message }; }
 }
 // the identity notes again, for every candidate of an edit that has its frames (a note from an older check, or after the
 // model graph's thresholds changed); a few seconds of detection, nothing renders

@@ -140,9 +140,11 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   right and wrong somewhere. An edit's identity notes are two flags with thresholds from the model graph: "probably a
   different person" (ArcFace on a crop around SAM 3.1's face mask, cosine below `identity_check.different_person`, U56)
   and "hair lighter than original" (SAM 3.1's hair mask, lit-hair L* p90 over the take's own frames above
-  `hair_check.lighter`, U56b). An edit whose method `does` something in `identity_check.unreliable_for` (relighting:
-  the same woman scores 0.34-0.60 at night) shows its cosine as "face check unreliable under relighting" and never the
-  different-person flag. Both miss things (dark frames and profiles score low, blonder hair doesn't show), so the
+  `hair_check.lighter`, U56b). An edit that `does` something in `identity_check.unreliable_for` (relighting: the same
+  woman scores 0.34-0.60 at night) shows its cosine as "face check unreliable under relighting" and never the
+  different-person flag. What an edit does is its example's `does` (night, dusk, dawn: relight), else its method's:
+  Change something in the person's own words is an edit and keeps the face check, whichever method runs it (Dylan's
+  "make her jacket sparkle magic" on Ripple was muted as a relight and a different woman went unflagged, batch E). Both miss things (dark frames and profiles score low, blonder hair doesn't show), so the
   head crops sit beside them and decide. Agents list and pre-screen candidates and recommend one; their apply / reject / undo waits
   for the person as a proposal unless "Let agents run" is on (SNAP-R16), and every pick records who made it (SNAP-R17).
   Any take's frame can be used as an input (First frame or a reference picture), and the brick remembers which take

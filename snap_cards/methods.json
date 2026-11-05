@@ -170,12 +170,12 @@
       "kind": "take",
       "title": "Change something · Ripple",
       "face": "same shot, changed; fastest, tested on light",
-      "does": "relight",
+      "does": "edit",
       "options": {
         "examples": {
-          "night": { "change": "the time of day to night: a dark night sky, dim cool moonlight and the place's artificial lamps switched on", "avoid": "daylight, bright sky" },
-          "dusk": { "change": "the time of day to dusk: a deep orange and violet dusk sky, low warm sunlight and the first lamps coming on", "avoid": "midday light, blue sky" },
-          "dawn": { "change": "the time of day to dawn: a pale pink and gold dawn sky with soft low light and long shadows", "avoid": "midday light, night sky" }
+          "night": { "change": "the time of day to night: a dark night sky, dim cool moonlight and the place's artificial lamps switched on", "avoid": "daylight, bright sky", "does": "relight" },
+          "dusk": { "change": "the time of day to dusk: a deep orange and violet dusk sky, low warm sunlight and the first lamps coming on", "avoid": "midday light, blue sky", "does": "relight" },
+          "dawn": { "change": "the time of day to dawn: a pale pink and gold dawn sky with soft low light and long shadows", "avoid": "midday light, night sky", "does": "relight" }
         }
       },
       "anchors": {
@@ -236,7 +236,7 @@
       "does": "edit",
       "options": {
         "examples": {
-          "night": { "change": "the time of day to night: a dark night sky, dim cool moonlight and the place's artificial lamps switched on", "avoid": "daylight, bright sky" },
+          "night": { "change": "the time of day to night: a dark night sky, dim cool moonlight and the place's artificial lamps switched on", "avoid": "daylight, bright sky", "does": "relight" },
           "rain": { "change": "the weather to heavy rain: wet glistening ground, rain streaks falling through the light, a grey overcast sky", "avoid": "dry ground, sunshine" },
           "snow": { "change": "the season to winter: snow lying on every surface and falling softly, a pale white sky", "avoid": "green leaves, summer light" }
         },
