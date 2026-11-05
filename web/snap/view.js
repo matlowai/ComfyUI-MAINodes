@@ -8,7 +8,7 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
-import { BRICKS, SETUP, PACK_BRICKS, nodeTypes, fits } from "./bricks.js";
+import { BRICKS, SETUP, PACK_BRICKS, nodeTypes, fits, listTitle, kitShown } from "./bricks.js";
 import { attachDrag } from "./drag.js";
 import { Spring, SPRINGS, animate, reducedMotion } from "./spring.js";
 import * as L from "./library.js";
@@ -287,12 +287,12 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   function closePalette() { palette.hidden = true; root.focus({ preventScroll: true }); }
   function search() {
     const q = query.value.trim().toLowerCase(), have = new Set(E.state().bricks.map((b) => b.key));
-    hits = PACK_BRICKS.filter((k) => !have.has(k) && `${BRICKS[k].title} ${BRICKS[k].blurb}`.toLowerCase().includes(q));
+    hits = PACK_BRICKS.filter((k) => !have.has(k) && fits(k, [...have]) && `${listTitle(k, [...have])} ${BRICKS[k].blurb}`.toLowerCase().includes(q));
     // any installed node, once there's something to search for (they are hundreds)
     if (q.length >= 2) hits.push(...nodeTypes().filter((n) => `${n.title} ${n.type} ${n.category}`.toLowerCase().includes(q)).slice(0, 12).map((n) => `node:${n.type}`));
     hit = 0;
     results.replaceChildren(...(hits.length ? hits.map((k, i) => h("div", { className: `snap-hit${i === hit ? " on" : ""}`, role: "option", onpointerdown: (e) => { e.preventDefault(); pick(k); } },
-      h("span", { className: "snap-grip", textContent: BRICKS[k].icon }), h("span", { textContent: BRICKS[k].title }), h("span", { className: "snap-blurb", textContent: k.startsWith("node:") ? `node · ${BRICKS[k].blurb}` : BRICKS[k].blurb })))
+      h("span", { className: "snap-grip", textContent: BRICKS[k].icon }), h("span", { textContent: k.startsWith("node:") ? BRICKS[k].title : listTitle(k, [...have]) }), h("span", { className: "snap-blurb", textContent: k.startsWith("node:") ? `node · ${BRICKS[k].blurb}` : BRICKS[k].blurb })))
       : [h("div", { className: "snap-quiet", textContent: q ? "no brick matches · the Library arrives in phase 2" : "every brick is already in the recipe" })]));
     for (const [i, el] of [...results.children].entries()) el.style.setProperty("--hue", BRICKS[hits[i]]?.hue ?? 210);
   }
@@ -983,7 +983,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("div", { className: "snap-rail-title", textContent: "Bricks" }),
       ...PACK_BRICKS.filter((key) => fits(key, [...have])).map((key) => [key, BRICKS[key]]).map(([key, def]) => {
         const tile = h("div", { className: `snap-tile${have.has(key) ? " used" : ""}`, title: have.has(key) ? "already in the recipe" : "drag into the recipe" },
-          h("span", { className: "snap-grip", textContent: def.icon }), h("span", { textContent: def.title }));
+          h("span", { className: "snap-grip", textContent: def.icon }), h("span", {}, def.title, kitShown(key, [...have]) ? h("small", { className: "snap-tile-kit", textContent: kitShown(key, [...have]) }) : null));
         tile.dataset.source = key;
         tile.style.setProperty("--hue", def.hue);
         return tile;

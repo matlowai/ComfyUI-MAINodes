@@ -185,6 +185,10 @@ export const slotDefault = (slot, k) => Object.keys(PACK).find((key) => PACK[key
 // which bricks fit a recipe: H3 video bricks and image bricks don't mix (`kit`); the Dial Rack and LoRA stacks fit both
 export const kit = (keys) => keys.map((k) => PACK[k]?.kit).find(Boolean) ?? null;
 export const fits = (key, keys) => (!PACK[key]?.kit || !kit(keys) || PACK[key].kit === kit(keys)) && (!PACK[key]?.slot || slotDefault(PACK[key].slot, PACK[key].kit) === key);
+// the kit to name beside a pack brick in a list, when a brick of the other kit with the same title is offered too (an
+// empty recipe offers both Models, both Render, …); null when its title alone is clear
+export const kitShown = (key, keys) => (PACK[key]?.kit && PACK_BRICKS.some((o) => o !== key && PACK[o].title === PACK[key].title && fits(o, keys)) ? (PACK[key].kit === "image" ? "pictures" : "video") : null);
+export const listTitle = (key, keys) => [BRICKS[key].title, kitShown(key, keys)].filter(Boolean).join(" · ");
 
 // every installed node type a person can add as a brick, for the palette
 export function nodeTypes() {

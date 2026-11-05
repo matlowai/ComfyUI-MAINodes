@@ -429,6 +429,7 @@ export const STYLE = `
 .snap-dice { all: unset; cursor: pointer; font-size: 16px; line-height: 1; padding: 1px 5px; border-radius: 6px; color: var(--s-dim); }
 .snap-dice:hover { background: #ffffff14; color: inherit; }
 .snap-take-stale { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: #f0b44526; color: #f0b445; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.snap-tile-kit { display: block; font-size: 10.5px; font-weight: 500; color: var(--s-dim); }
 .snap-face-line { font-size: 12.5px; font-weight: 600; }
 .snap-take-paint input[type=text], .snap-take-clips { font: inherit; font-size: 13px; color: var(--s-fg); background: #0000002e; border: 1px solid #ffffff14; border-radius: 9px; padding: 7px 9px; }
 .snap-take-paint input[type=text] { flex: 1 1 100%; min-width: 0; }
