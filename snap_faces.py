@@ -6,6 +6,8 @@ page compares them against the take's own frames with thresholds from the model 
 - the hair: the lightness of the lit part of SAM 3.1's hair mask (L* 90th percentile). U56b: grey and silver edits
   rise +14 to +41 over the original take's frames, kept ones stay at or below +9; blonder drift doesn't show.
 Notes only: the head crops on the candidate decide (SNAP-R23).
+IRBlock and IResNet101 follow the IResNet of insightface's arcface_torch (github.com/deepinsight/insightface, code MIT),
+in the key layout CVLface (github.com/mk-minchul/CVLface, MIT) saves; no weights ship here (docs/snap/README.md, Notices).
 SNAP-R18 local only · SNAP-R23 checks are notes, never rejections · see docs/SNAP_RULES.md"""
 import os
 
