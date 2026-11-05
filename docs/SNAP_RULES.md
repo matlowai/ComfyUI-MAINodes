@@ -248,12 +248,15 @@ IDs R40+ were reserved for the gate while R28-R39 were open for other work (renu
   shared by everyone on one server, and core hands a reused client id the old socket's events.
 - **SNAP-R43: Ratings cap files everywhere they appear.** Accounts have a max rating, PG / Mature / Adult (role
   defaults: admin Adult, member Mature, kid PG; the booru four map onto them). A file's rating comes from the pack's
-  model graph under the admins' own `snap/models.json` (`rating`, or an `nsfw` tag = Adult). Other accounts' model
-  graphs never rate anything, because they can write their own user data. Files above the cap are removed from every
+  model graph under the admins' own `snap/models.json` (`rating`, or an `nsfw` tag = Adult), else from the rating the
+  pack saved a file made here with (`user/snap_ratings.json`, the pack's SNAP-R39). The pack graph is the one of the
+  pack ComfyUI runs (`<comfy-dir>/custom_nodes/ComfyUI-MAINodes`), so a gate from another checkout rates the same way.
+  Other accounts' model graphs never rate anything, because they can write their own user data. Files above the cap are removed from every
   list generically (any list in `/object_info`, `/models/*`, `/experiment/models/*`, `/embeddings`, and any GET under
   `/mainodes/`), their metadata and previews are 404, and a prompt or pack request naming one (by name or file name) is
   refused before ComfyUI sees it. *Why:* hidden-only lists can be bypassed by typing a name into a prompt.
-- **SNAP-R44: An unrated content file counts as Adult.** An unrated LoRA, checkpoint, diffusion model, embedding (any
+- **SNAP-R44: An unrated content file counts as Adult.** Kit downloads arrive rated and made files are rated when
+  they are saved (the pack's SNAP-R39), so this covers files someone drops in by hand. An unrated LoRA, checkpoint, diffusion model, embedding (any
   folder not in the gate's helper list) is hidden from PG and Mature accounts until an admin rates it. Unrated helpers
   that can't decide what a picture shows (VAEs, TAESD, text encoders, CLIP vision, upscalers, detectors, ControlNets)
   count as PG. *Why:* a fresh download is unknown. For a kid, seeing nothing new until the admin rates it is the safe

@@ -38,7 +38,7 @@ from urllib.parse import quote
 import aiohttp
 from aiohttp import WSMsgType, web
 
-PACK_GRAPH = Path(__file__).resolve().parent.parent / "snap_cards" / "models.json"
+PACK_GRAPH = Path("snap_cards") / "models.json"  # in the pack ComfyUI runs, else the one this gate ships in
 COOKIE = "snap_gate"
 LEVELS = {"pg": 0, "general": 0, "mature": 1, "sensitive": 1, "questionable": 1, "adult": 2, "explicit": 2}  # shown as PG / Mature / Adult
 CAPS = ["pg", "mature", "adult"]
@@ -104,6 +104,8 @@ class Gate:
     def __init__(self, upstream, comfy_dir, state, disabled):
         self.upstream, self.disabled = upstream.rstrip("/"), disabled
         self.user_dir = Path(comfy_dir) / "user"
+        # rate with the model graph of the pack ComfyUI runs: a gate from another checkout must not miss its ratings
+        self.pack_graph = next(f for f in (Path(comfy_dir) / "custom_nodes" / "ComfyUI-MAINodes" / PACK_GRAPH, Path(__file__).resolve().parent.parent / PACK_GRAPH) if f.is_file())
         self.state = Path(state)
         self.accounts = StateFile(state, "accounts.json")
         self.sessions = StateFile(state, "sessions.json")
@@ -274,7 +276,7 @@ class Gate:
             rows = []
             for n in files:
                 own_level = CAPS[LEVELS[mine[base(n)]]] if mine.get(base(n)) in LEVELS else ""
-                unrated += folder not in HELPER_FOLDERS and base(n) not in rated
+                unrated += folder not in HELPER_FOLDERS and known(rated, folder, n) is None
                 options = "".join(f'<option value="{v}"{" selected" if v == own_level else ""}>{label}</option>' for v, label in (("", "Unrated"), *SHOWN.items()))
                 folder_part, _, file = n.replace("\\", "/").rpartition("/")
                 rows.append(f'<li data-name="{html.escape(n.lower())}"><span class="f">{html.escape(folder_part + "/" if folder_part else "")}<b>{html.escape(file)}</b></span>'
@@ -313,9 +315,11 @@ class Gate:
 
     # ---- ratings (SNAP-R43, SNAP-R44) -------------------------------------------------------------------------------
     def ratings(self):
-        """File name -> level from the pack's model graph under the admins' own snap/models.json. Other accounts can write
+        """File name -> level from the pack's model graph (it rates every kit file) under the admins' own snap/models.json,
+        and "<folder>/<name>" -> level for files made here, as the pack rated them when it saved them (user/snap_ratings.json,
+        server-written outside every user's folder, like snap_admins.json; the pack's SNAP-R39). Other accounts can write
         their own user data, so their model graphs never rate anything."""
-        entries = {base(e["file"]): e for e in json.loads(PACK_GRAPH.read_text(encoding="utf-8"))["files"]}
+        entries = {base(e["file"]): e for e in json.loads(self.pack_graph.read_text(encoding="utf-8"))["files"]}
         for a in self.accounts.load().values():
             f = self.user_dir / str(a.get("comfy_user")) / GRAPH
             if a["role"] == "admin" and a.get("comfy_user") and f.is_file():
@@ -327,6 +331,11 @@ class Gate:
                 out[name] = LEVELS[str(e["rating"]).lower()]
             elif "nsfw" in (e.get("tags") or []):
                 out[name] = LEVELS["adult"]
+        f = self.user_dir / "snap_ratings.json"
+        made = json.loads(f.read_text(encoding="utf-8")) if f.is_file() else {}
+        for key, m in made.items() if isinstance(made, dict) else ():
+            if isinstance(m, dict) and str(m.get("rating")).lower() in LEVELS:
+                out[key] = LEVELS[str(m["rating"]).lower()]
         return out
 
     async def model_lists(self):
@@ -663,9 +672,16 @@ class Gate:
         return await self.relay(request, name)
 
 
+def known(rated, folder, name):
+    """A listed file's rating level, or None: the model graphs' by file name, else what it was made with here. A made
+    file's key always has a folder, so it never meets a file-name key."""
+    return rated.get(base(name), rated.get(f"{folder}/{name}".replace("\\", "/")))
+
+
 def level(rated, folder, name):
-    """A listed file's level: its rating, else what SNAP-R44 gives an unrated file in that folder."""
-    return rated.get(base(name), LEVELS["pg"] if folder in HELPER_FOLDERS else LEVELS["adult"])
+    """A listed file's level: its rating, else what SNAP-R44 gives a file nobody rated (one dropped in by hand)."""
+    r = known(rated, folder, name)
+    return r if r is not None else LEVELS["pg"] if folder in HELPER_FOLDERS else LEVELS["adult"]
 
 
 def scrub(o, hidden):
