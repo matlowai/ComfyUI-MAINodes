@@ -606,8 +606,10 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   figure pasted in. So the tray and the tool keep the pictures in the order given, say "Picture 1 sets the camera" next
   to it, and let the person move each picture up or down, take it out, or add a marked region of a still as a crop (a
   part of a master: the gatehouse). Put a picture that already has the wanted camera first and the set after it. The
-  encoder sees each picture after a "Picture N:" marker, so prompts may name them that way. *Why:* the coordinator's
-  13:4x note from short03's sheet. *More:* PLAN U101, the dogfood study's F-C09, LESSONS "U101".
+  encoder sees each picture after a "Picture N:" marker, so prompts may name them that way. How strongly Picture 1
+  holds depends on the model: MOSS's akhaliq LoRA copies it (camera, people, objects), chinoll follows the words more
+  and moved the camera into the square (U101 C2 test, 30 stills). *Why:* the coordinator's 13:4x note from short03's
+  sheet; the U101 C2 test. *More:* PLAN U101, the dogfood study's F-C09, LESSONS "U101".
 - **SNAP-R73: Audio references are the pictures' twins.** An audio file goes into References as a Load Audio node wired
   into H3 References' next free `ref_audios` slot (3), and the prompt cites it as `<Audio n>`, n its place among the wired
   audio slots (`describe_recipe.references` lists every `<Picture n>` and `<Audio n>`). A Cast may hold one voice
@@ -621,10 +623,16 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   audio under input/snap/ and the page adds it to Load Audio's choices; the node's own validation already accepts any
   input file. Snap's audio tools put the file on the node's widget whatever its folder. *Why:* F-C08. *More:* PLAN
   U101.
+- **SNAP-R75: The new view's model is the person's pick.** The view slot holds more than one model as registry data
+  (`moss_view`: MOSS Image Edit with its edit LoRAs; `ph3_view`: PrunaAI's P-H3-Image on core `PH3ImageConditioning`,
+  an edit of Picture 1 with the rest as references, 8 steps, no negative). The tray's model menu and the tool's
+  `method` choose; each model's own choices show only with it (MOSS's LoRA menu). Snap does not pick a default for the
+  person between them from one test: the comparison is shown and the person calls it. *Why:* Dylan 2026-11-05 14:0x,
+  after the MOSS C2 results: P-H3-Image is the strong H3-based edit he meant. *More:* PLAN U101, U17.
 
 ## Accounts and the gate (snap-gate)
 
-IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; R75 on).
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; R76 on).
 
 - **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
   use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and

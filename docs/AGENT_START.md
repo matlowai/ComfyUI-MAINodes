@@ -208,7 +208,10 @@ them). It works on stills: masters, plates, boards.
 - One candidate per seed (`seeds`, or `count`), each a take in the shot it lands in (`land`; by default Picture 1's
   shot). `wait_for {job: <decision>, until: "waiting"}`, look with `candidate_frames` beside the master, then
   `apply_candidate` makes the one that holds the set the shot's take.
-- `lora` keeps every candidate on one edit LoRA (`list_methods {"slot": "view"}`); else they take turns.
+- `method` picks the model (`list_methods {"slot": "view"}`): `moss_view` (MOSS Image Edit, the default) or `ph3_view`
+  (P-H3-Image: an edit of Picture 1 with the others as references; write `<Picture 1>`, `<Picture 2>`, …; 8 steps, no
+  negative, up to 9 pictures). For MOSS, `lora` keeps every candidate on one edit LoRA, else they take turns: akhaliq
+  keeps Picture 1 almost as it is (change one thing), chinoll follows the words and can move the camera.
 - In the take viewer the same route is "New view from these pictures": add this picture, a marked region of it, or a
   Cast's picture, and move them up or down.
 

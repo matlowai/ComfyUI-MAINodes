@@ -4,7 +4,8 @@
 // tray stays while the person opens other takes (page state only, never saved). The words are the person's, and Make
 // runs the same ED.fromContext as the edit_from_context tool.
 // SNAP-R71 a new view is an edit from context, in the person's words · SNAP-R72 Picture 1 sets the camera, the order is
-// the person's · SNAP-R19 the tool table is the API · SNAP-R23 candidates · see docs/SNAP_RULES.md
+// the person's · SNAP-R75 the model is the person's pick (MOSS with its LoRAs, P-H3-Image) · SNAP-R19 the tool table is the
+// API · SNAP-R23 candidates · see docs/SNAP_RULES.md
 import * as ED from "./edits.js";
 import * as S from "./slots.js";
 import * as T from "./takes.js";
@@ -23,7 +24,7 @@ export function contextPanel(t, { say, frame, region }) {
   const rows = h("ol", { className: "snap-ctx" }), note = h("div", { className: "snap-quiet", role: "status" });
   const words = h("textarea", { className: "snap-note-input", rows: 3, ariaLabel: "what the new still shows",
     placeholder: "what the new still shows, e.g. the same gatehouse from inside the square at eye height; the woman in Picture 3 on the left" });
-  const lora = h("select", { ariaLabel: "edit LoRA" }), count = h("input", { type: "number", min: 1, step: 1, value: 2, ariaLabel: "candidates", className: "snap-take-clips" });
+  const model = h("select", { ariaLabel: "model" }), lora = h("select", { ariaLabel: "edit LoRA" }), count = h("input", { type: "number", min: 1, step: 1, value: 2, ariaLabel: "candidates", className: "snap-take-clips" });
   const cast = h("select", { ariaLabel: "add a Cast picture" });
   const thumb = (p) => { const still = p.take && p.frame == null && T.get(p.take)?.media.find((m) => m.kind === "image"); return still ? url(still) : p.file ? inputUrl(p.file) : null; };
   function paint() {
@@ -47,7 +48,7 @@ export function contextPanel(t, { say, frame, region }) {
   const make = h("button", { className: "snap-primary", onclick: async () => {
     make.disabled = true;
     try {
-      const r = await ED.fromContext(tray.map(({ label, ...p }) => ({ ...p, label })), words.value, { lora: lora.value || undefined, count: Math.max(1, Number(count.value) || 1) });
+      const r = await ED.fromContext(tray.map(({ label, ...p }) => ({ ...p, label })), words.value, { method: model.value || undefined, lora: (!lora.hidden && lora.value) || undefined, count: Math.max(1, Number(count.value) || 1) });
       note.textContent = `Painting ${r.candidates.length} candidate${r.candidates.length > 1 ? "s" : ""} into ${r.lands}${r.seconds_each ? ` (about ${r.seconds_each} s each)` : ""}: ${r.pictures.join(" · ")}. They show under ${tray[0].take ? "Picture 1's take" : "the Work card"}; Apply one to make it the shot's take`;
     } catch (err) { note.textContent = err.message; say?.(err.message, true); }
     paint();
@@ -56,9 +57,15 @@ export function contextPanel(t, { say, frame, region }) {
   cast.onchange = () => { const [ref, i] = cast.value.split("#"); if (!ref) return; const b = W.get(ref)?.version.body, r = b?.refs[Number(i)];
     if (r) { tray.push({ cast: ref, ref: Number(i), file: r.file, label: `${b.name}, ${r.role}` }); changed(); } cast.value = ""; };
   Promise.all([S.load(), W.load()]).then(() => {
-    const m = S.list("view")[0];
-    lora.replaceChildren(h("option", { value: "", textContent: "edit LoRAs take turns" }), ...(m?.anchors.recipes ?? []).map((r) => h("option", { value: r.lora, textContent: `${r.lora.replace(/\.safetensors$/, "").replace(/_/g, " ")} (cfg ${r.cfg})` })));
-    make.title = [m?.install_state === "ready" ? m.guidance?.line : m?.install_state, ...(m?.constraints ?? [])].filter(Boolean).join("\n");
+    const list = S.list("view");
+    model.replaceChildren(...list.map((x) => h("option", { value: x.id, textContent: `${x.title.replace(/^New view · /, "")}${x.install_state === "ready" ? "" : ` (${x.install_state})`}` })));
+    const picked = () => { // the model's own choices: MOSS's edit LoRAs; what it is good at in the tooltip
+      const m = list.find((x) => x.id === model.value);
+      lora.replaceChildren(h("option", { value: "", textContent: "edit LoRAs take turns" }), ...(m?.anchors.recipes ?? []).map((r) => h("option", { value: r.lora, textContent: `${r.lora.replace(/\.safetensors$/, "").replace(/_/g, " ")} (cfg ${r.cfg})` })));
+      lora.hidden = !m?.anchors.recipes;
+      make.title = model.title = [m?.install_state === "ready" ? m.guidance?.line : m?.install_state, ...(m?.constraints ?? []), m?.credit && `Powered by ${m.credit}`].filter(Boolean).join("\n");
+    };
+    model.onchange = picked; picked();
     cast.replaceChildren(h("option", { value: "", textContent: "＋ a Cast's picture…" }), ...W.all("cast").flatMap((r) => { const b = W.headOf(r).body; return b.refs.map((x, i) => h("option", { value: `cast:${r.id}#${i}`, textContent: `${b.name}, ${x.role}` })); }));
   }, (err) => { note.textContent = `New view unavailable: ${err.message}`; });
   const redraw = () => { if (rows.isConnected) paint(); };
@@ -66,5 +73,5 @@ export function contextPanel(t, { say, frame, region }) {
   paint();
   return [h("div", { className: "snap-rail-title", textContent: "New view from these pictures" }),
     h("div", { className: "snap-quiet", textContent: "A new still from the pictures below, in your words: the same place from another camera, a person put in. Picture 1 sets the camera and framing: put a picture that already has the camera you want first, the set (or a marked region of it) after it." }),
-    rows, h("div", { className: "snap-set-actions" }, addBtn, cast), words, h("div", { className: "snap-set-actions" }, lora, h("label", { className: "snap-quiet" }, count, " candidates"), make), note];
+    rows, h("div", { className: "snap-set-actions" }, addBtn, cast), words, h("div", { className: "snap-set-actions" }, model, lora, h("label", { className: "snap-quiet" }, count, " candidates"), make), note];
 }

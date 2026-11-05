@@ -476,11 +476,42 @@
       "local_or_api": "local",
       "constraints": [
         "Picture 1 sets the camera: the new still keeps Picture 1's framing and composition (U101: with a location's aerial master first, every seed kept the aerial view), so put a still that already has the camera you want first and the set, the master or a crop of it, after it",
+        "the edit LoRAs differ (U101, short03 C2, 30 stills): akhaliq (cfg 3) keeps Picture 1 almost as it is, its people and objects too, so use it to change one thing in a picture; chinoll (cfg 5) follows the words and moved the camera into the square with the nearest view first and the master second",
+        "a camera move goes better in two steps: first the place from a new side (the camera may stay high), then that still as Picture 1 with 'move the camera down to eye height' and the people",
         "every picture is scaled to 1 MP; the new still is Picture 1's size unless a size is given",
         "the text encoder sees each picture after a 'Picture N:' marker, so the words can name them as Picture 1, Picture 2, …"
       ],
+      "guidance": { "line": "short03 C2 (the gate seen from inside the square): chinoll with the road view first and the master second moved into the square 6/6 and kept the gatehouse, palisade, well and house rows; a second edit lowered the camera to about eye height with both people recognisable (Maren's armour drifted); akhaliq copied Picture 1 in every arm", "evidence": "measured", "source": "U101 (proto/ui/u101, PROGRESS 2026-11-05 13:57)", "n": 30, "hardware": "5090" },
+      "cost": { "community_s": null, "local_s": [17, 25], "per": "one still at about 1 MP with 2-4 context pictures on a 5090 (U101: 51-75 s for 3 seeds)", "vram_gb": null }
+    },
+    {
+      "id": "ph3_view",
+      "slot": "view",
+      "kind": "take",
+      "title": "New view · P-H3-Image",
+      "face": "a new still from the pictures you give, in your words (H3-based edit, 8 steps)",
+      "does": "edit",
+      "anchors": {
+        "kind": "ph3",
+        "prompt": "{prompt}",
+        "unet": "h3/p-h3-image_int8_convrot.safetensors",
+        "clip": "h3/p-h3-image_text_encoder_int8_convrot.safetensors",
+        "vae": "h3/p-h3-image_vae_int8_convrot.safetensors",
+        "shift": [1.0, 1.0],
+        "sampler": "euler",
+        "sigmas": "1.0, 0.984753, 0.967905, 0.951688, 0.925372, 0.881923, 0.810083, 0.528718, 0.0",
+        "max_pictures": 9
+      },
+      "needs": [{ "folder": "diffusion_models", "match": "p-h3-image" }, { "folder": "text_encoders", "match": "p-h3-image_text_encoder" }, { "folder": "vae", "match": "p-h3-image_vae" }],
+      "local_or_api": "local",
+      "constraints": [
+        "an edit of Picture 1 with the others as references: the prompt names them <Picture 1>, <Picture 2>, …; a short instruction gets \"Edit <Picture 1>.\" in front (core PH3ImageConditioning)",
+        "up to 9 pictures; no negative prompt and no CFG (BasicGuider), 8 steps on Pruna's ManualSigmas grid with ModelSamplingMiniMaxH3 at 1.0/1.0",
+        "the still is Picture 1's own size unless a size is given (pictures are only scaled down)"
+      ],
       "guidance": { "line": "not measured yet", "evidence": "untested", "source": "U101", "n": 0, "hardware": "5090" },
-      "cost": { "community_s": null, "local_s": [22, 28], "per": "one still at about 1 MP with 4 context pictures on a 5090 (short03's test outside Snap)", "vram_gb": null }
+      "cost": { "community_s": null, "local_s": null, "per": "one still", "vram_gb": null },
+      "credit": "P-H3-Image by PrunaAI (https://huggingface.co/PrunaAI/P-H3-Image-Comfy) · MiniMax H3"
     },
     {
       "id": "crop_inpaint",

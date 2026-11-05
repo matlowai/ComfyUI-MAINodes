@@ -10,7 +10,7 @@
 // pictures and free words, each seed a candidate take in a shot (fromContext, below).
 // SNAP-R13 data, not code branches · SNAP-R14 method slots · SNAP-R16 GPU work waits for the person · SNAP-R17 by ·
 // SNAP-R23 candidates · SNAP-R51 change something, recast, pins · SNAP-R71 a new view from context, in the asker's words ·
-// SNAP-R72 Picture 1 sets the camera · see docs/SNAP_RULES.md
+// SNAP-R72 Picture 1 sets the camera · SNAP-R75 the view slot's models are data (MOSS, P-H3-Image) · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as C from "./candidates.js";
 import * as K from "./checks.js";
@@ -372,8 +372,33 @@ function viewGraph(a, models, recipe, pics, values, seed, size, prefix) {
   });
   return g;
 }
+// one P-H3-Image candidate (Pruna's edit graph: ModelSamplingMiniMaxH3 1.0/1.0, BasicGuider, 8 euler steps on their
+// ManualSigmas grid): core PH3ImageConditioning edits image_1 with the rest as references; width and height 0 is
+// image_1's own size
+async function ph3Graph(a, pics, values, seed, size, prefix) {
+  const files = { unet: await M.choice("UNETLoader", "unet_name", a.unet), clip: await M.choice("CLIPLoader", "clip_name", a.clip), vae: await M.choice("VAELoader", "vae_name", a.vae) };
+  const g = {
+    1: { class_type: "UNETLoader", inputs: { unet_name: files.unet, weight_dtype: "default" } },
+    2: { class_type: "CLIPLoader", inputs: { clip_name: files.clip, type: "minimax", device: "default" } },
+    3: { class_type: "VAELoader", inputs: { vae_name: files.vae } },
+    4: { class_type: "MiniMaxH3SigmaShift", inputs: { model: ["1", 0], shift_video: a.shift[0], shift_audio: a.shift[1] } },
+  };
+  pics.forEach((p) => Object.assign(g, p.nodes));
+  Object.assign(g, {
+    p: { class_type: "PH3ImageConditioning", inputs: { clip: ["2", 0], vae: ["3", 0], prompt: fill(a.prompt, values), width: size?.width ?? 0, height: size?.height ?? 0, ...Object.fromEntries(pics.map((x, i) => [`images.image_${i + 1}`, x.out])) } },
+    g: { class_type: "BasicGuider", inputs: { model: ["4", 0], conditioning: ["p", 0] } },
+    r: { class_type: "RandomNoise", inputs: { noise_seed: seed } },
+    s: { class_type: "KSamplerSelect", inputs: { sampler_name: a.sampler } },
+    m: { class_type: "ManualSigmas", inputs: { sigmas: a.sigmas } },
+    k: { class_type: "SamplerCustomAdvanced", inputs: { noise: ["r", 0], guider: ["g", 0], sampler: ["s", 0], sigmas: ["m", 0], latent_image: ["p", 1] } },
+    d: { class_type: "VAEDecode", inputs: { samples: ["k", 0], vae: ["3", 0] } },
+    o: { class_type: "SaveImage", inputs: { images: ["d", 0], filename_prefix: prefix } },
+  });
+  return g;
+}
 // make a new view: `pictures` in order (Picture 1 sets the camera), `prompt` the person's or agent's words, one candidate
-// per seed (`seeds`, else `count` new ones); `lora` keeps every candidate on one edit LoRA, else the method's take turns.
+// per seed (`seeds`, else `count` new ones), on the view slot's `method` (moss_view, ph3_view); `lora` keeps every MOSS
+// candidate on one edit LoRA, else the method's take turns.
 // Returns at once; each candidate is a take in the shot it lands in once its paint finishes
 export async function fromContext(pictures, prompt, { method: id = "moss_view", lora, seeds, count = 2, width, height, avoid = "", land, by = "person" } = {}) {
   await Promise.all([S.load(), M.load(), T.load(), W.load()]);
@@ -383,7 +408,9 @@ export async function fromContext(pictures, prompt, { method: id = "moss_view", 
   if (!pictures?.length) throw new Error(`${m.title}: give at least one picture (Picture 1 sets the camera)`);
   if (!prompt?.trim()) throw new Error(`${m.title}: say what the new still shows (prompt), naming the pictures as Picture 1, Picture 2, … if you like`);
   if ((width == null) !== (height == null)) throw new Error(`${m.title}: give width and height together, or neither (then the still is Picture 1's size)`);
-  const recipes = lora ? m.anchors.recipes.filter((r) => r.lora === lora) : m.anchors.recipes;
+  if (lora && !m.anchors.recipes) throw new Error(`${m.title} has no edit LoRA to pick; lora is for the methods that have them (list_methods {slot: "view"})`);
+  if (m.anchors.max_pictures && pictures.length > m.anchors.max_pictures) throw new Error(`${m.title} reads up to ${m.anchors.max_pictures} pictures; ${pictures.length} given`);
+  const recipes = !m.anchors.recipes ? [null] : lora ? m.anchors.recipes.filter((r) => r.lora === lora) : m.anchors.recipes;
   if (!recipes.length) throw new Error(`${m.title}: lora is one of ${m.anchors.recipes.map((r) => r.lora).join(", ")}; not ${lora}`);
   const pics = []; for (const [i, p] of pictures.entries()) pics.push(await contextPicture(p, i));
   const said = pics.map((p) => p.said), where = await landing(land, said), world = Object.fromEntries(pics.map((p) => p.world).filter(Boolean));
@@ -391,17 +418,17 @@ export async function fromContext(pictures, prompt, { method: id = "moss_view", 
   const label = prompt.trim().length > 40 ? `${prompt.trim().slice(0, 38)}…` : prompt.trim(), first = said.find((x) => x.take)?.take ?? null;
   const models = new Map(), made = [];
   for (const [i, seed] of list.entries()) {
-    const recipe = recipes[i % recipes.length];
-    if (!models.has(recipe.lora)) models.set(recipe.lora, await mossNodes(m.anchors, recipe));
-    const g = viewGraph(m.anchors, models.get(recipe.lora), recipe, pics, { prompt: prompt.trim(), avoid }, seed, width != null ? { width, height } : null, `snap_views/${where.group.slice(0, 8)}`);
+    const recipe = recipes[i % recipes.length], size = width != null ? { width, height } : null, prefix = `snap_views/${where.group.slice(0, 8)}`;
+    if (recipe && !models.has(recipe.lora)) models.set(recipe.lora, await mossNodes(m.anchors, recipe));
+    const g = m.anchors.kind === "ph3" ? await ph3Graph(m.anchors, pics, { prompt: prompt.trim() }, seed, size, prefix) : viewGraph(m.anchors, models.get(recipe.lora), recipe, pics, { prompt: prompt.trim(), avoid }, seed, size, prefix);
     const job = { kind: "paint", title: `New view (${label}), candidate ${i + 1} of ${list.length}`, about: { take: first, group: where.group, scene: where.scene, shot: where.shot }, by, eta_s: [m.cost?.local_s].flat().at(-1) ?? null };
     made.push({ prompt_id: await K.queue(g, { group: where.group, world, job, extra: { snap_parent: { take: first, method: `view/${id}`, options: { label, prompt: prompt.trim(), context: said, ...(avoid ? { avoid } : {}) } } } }),
-      seed, made: { lora: recipe.lora, cfg: recipe.cfg }, label: "new view" }); // a take, no check to wait for (its tile's chips)
+      seed, made: recipe ? { lora: recipe.lora, cfg: recipe.cfg } : { model: m.anchors.unet.split("/").pop() }, label: "new view" }); // a take, no check to wait for (its tile's chips)
   }
   const d = await C.create({ kind: "view", target: first ?? where.group, title: `New view (${label}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: first, method: id,
     options: { prompt: prompt.trim(), context: said, ...(avoid ? { avoid } : {}), ...(width != null ? { width, height } : {}) }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}) }, made);
   return { decision: d.id, pictures: said.map((x) => `Picture ${x.n}${x.n === 1 ? " (sets the camera)" : ""}: ${x.label}`), lands: where.where,
-    candidates: d.candidates.map((c) => ({ id: c.id, prompt_id: c.prompt_id, take: `take-${c.prompt_id}`, seed: c.seed, lora: c.made.lora })), seconds_each: [m.cost?.local_s].flat().at(-1) ?? null };
+    candidates: d.candidates.map((c) => ({ id: c.id, prompt_id: c.prompt_id, take: `take-${c.prompt_id}`, seed: c.seed, ...c.made })), seconds_each: [m.cost?.local_s].flat().at(-1) ?? null };
 }
 C.kind("view", RT.takeCandidate);
 
