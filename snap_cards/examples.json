@@ -1,7 +1,7 @@
 [
  {
   "id": "char-kon",
-  "kind": "character",
+  "kind": "cast",
   "title": "Kon, the fennec courier (ComfyUI mascot)",
   "text": "Kon is a cheerful anime girl with massive fennec ears, a big fluffy cream tail, long blonde wavy hair and bright blue eyes. Wears an oversized teal hoodie with a node-graph patch, cargo shorts, chunky sneakers, a canvas messenger bag full of glowing cables. Sheet: front, three-quarter, side and back turnarounds; expressions: grin, determined squint, surprised ears-up. Lore: delivers wires between floating node islands in Graph City; ears twitch before she jumps; never walks when she can bound. Voice: bright, quick, a little breathless.",
   "brick": {
@@ -15,7 +15,7 @@
  },
  {
   "id": "char-old-ferro",
-  "kind": "character",
+  "kind": "cast",
   "title": "Old Ferro, the lighthouse keeper",
   "text": "A tall, weathered man in his seventies with a salt-white beard, yellow oilskin coat and a brass spyglass. Moves slowly and deliberately, pauses to listen to the sea. Lore: has kept the north light for forty winters, talks to the gulls, distrusts machines but secretly fixes radios. Speaks in a low gravelly voice with long pauses.",
   "brick": {

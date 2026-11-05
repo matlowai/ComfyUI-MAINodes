@@ -3,6 +3,7 @@
 // multimodal embedder plugs in behind `search` once its runtime is chosen.
 // SNAP-R5 another family opens a new tab · SNAP-R12 identity rows never leave in a card · SNAP-R18 local only ·
 // SNAP-R21 a shot's reference shows its own camera · SNAP-R25 SFW only leaves out cards tagged or loading nsfw ·
+// SNAP-R60 the person's cards are world records (world.js) ·
 // see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import { app } from "../../../scripts/app.js";
@@ -11,26 +12,37 @@ import * as T from "./takes.js";
 import * as D from "./dials.js";
 import * as M from "./models.js";
 import * as PF from "./profile.js";
+import * as W from "./world.js";
 import { BRICKS, kit } from "./bricks.js";
 import { setBlock, blocking, drawPlan, drawElevation, toBlob, coverage, atCamera, cameraAt, keeps, ownCamera, sameCamera } from "./setsnap.js";
 
 // the brick each kind of card goes on; a recipe goes on the whole stack (null)
-export const TARGET = { recipe: null, shot: "render", set_snapshot: "refs", dial: "rack", lora: "preset", character: "render", setting: "render", scene: "render", principle: "render", pose: "first_frame", motion_guide: "refs", run: "render" };
-export const KIND_LABEL = { recipe: "Recipes", shot: "Shots", set_snapshot: "Set snapshots", character: "Characters", setting: "Settings", scene: "Scenes", principle: "Principles", motion_guide: "Motion", pose: "Poses", dial: "Dials", lora: "LoRAs", run: "Runs" };
+export const TARGET = { recipe: null, shot: "render", set_snapshot: "refs", dial: "rack", lora: "preset", cast: "render", setting: "render", scene: "render", principle: "render", pose: "first_frame", motion_guide: "refs", run: "render" };
+export const KIND_LABEL = { recipe: "Recipes", shot: "Shots", set_snapshot: "Set snapshots", cast: "Characters", setting: "Settings", scene: "Scenes", principle: "Principles", motion_guide: "Motion", pose: "Poses", dial: "Dials", lora: "LoRAs", run: "Runs" };
 
-let cards = [], loading;
-// cards load once per page; the view and the agent tools both wait on the same request
-const USER_DIR = "snap/cards"; // the user's own cards, in ComfyUI's per-user data folder
-
-async function loadAll() {
-  const pack = (await (await api.fetchApi("/mainodes/snap/cards")).json()).cards;
-  const mine = await Promise.all((await api.listUserDataFullInfo(USER_DIR)).filter((f) => f.path.endsWith(".json"))
-    .map(async (f) => (await api.getUserData(`${USER_DIR}/${f.path}`)).json()));
-  return [...mine.flat(), ...pack].filter((c) => c.kind in TARGET); // kinds Snap doesn't know are dropped
+let cards = [], pack = [], loading;
+// cards load once per page; the view and the agent tools both wait on the same request. The person's own cards are
+// world records (world.js): a card record's head, every listed state of a set and its working copy (`<set>-mine`)
+const origins = new Map(); // card id -> the record version it shows ({kind, id, n}; n null for a set's working copy)
+const loadPack = async () => (pack = (await (await api.fetchApi("/mainodes/snap/cards")).json()).cards);
+function rebuild() {
+  origins.clear();
+  const mine = [];
+  for (const r of W.all("card")) { const v = W.headOf(r); if (v) { mine.push(v.body); origins.set(v.body.id, { kind: "card", id: r.id, n: v.n }); } }
+  for (const r of W.all("set_snapshot")) {
+    const withPlates = (c) => (r.plates ? { ...c, plates: r.plates } : c);
+    for (const v of r.versions.filter((x) => x.listed !== false)) { mine.push(withPlates(v.body)); origins.set(v.body.id, { kind: "set_snapshot", id: r.id, n: v.n }); }
+    if (r.draft) { mine.push(withPlates(r.draft)); origins.set(r.draft.id, { kind: "set_snapshot", id: r.id, n: null }); }
+  }
+  cards = [...mine, ...pack].filter((c) => c.kind in TARGET); // kinds Snap doesn't know are dropped
+  return cards;
 }
+W.onChange(() => { if (pack.length) rebuild(); });
+// the record version a card shows ({kind, id, n}; n null for a set's working copy), null for a pack card
+export const originOf = (id) => origins.get(id) ?? null;
 
 // pack cards and the user's cards, loaded once per page; a failed load is retried on the next call
-export const ready = () => (loading ??= loadAll().then((all) => (cards = all), (e) => { loading = null; throw e; }));
+export const ready = () => (loading ??= Promise.all([loadPack(), W.load()]).then(rebuild, (e) => { loading = null; throw e; }));
 
 // a version of a set card holding an edited snapshot: `mine` is the one working copy Apply keeps, otherwise a new card.
 // The set's camera plates come along (the working copy's, which plates.js keeps current): each records its camera, so
@@ -49,11 +61,16 @@ export function lineage(card) {
   return cards.filter((c) => c.kind === "set_snapshot" && (c.id === root || c.lineage === root)).sort((a, b) => (a.id === root ? -1 : b.id === root ? 1 : (a.saved ?? 0) - (b.saved ?? 0)));
 }
 
-// keep an edited card as the user's own (never overwrites a pack card)
-export async function save(card) {
-  await api.storeUserData(`${USER_DIR}/${card.id}.json`, [card]);
-  loading = null;
+// keep an edited card as the user's own (never overwrites a pack card): a set's working copy is its record's draft (with
+// the plates), any other state of a set a new version of its record, any other card a new version of its own record
+export async function save(card, { note = "", by = "person" } = {}) {
   await ready();
+  if (card.kind === "set_snapshot") {
+    const lineage = card.lineage ?? card.id, { plates, ...body } = card;
+    if (card.id === `${lineage}-mine`) await W.fields("set_snapshot", lineage, { draft: body, ...(plates ? { plates } : {}) }, by);
+    else { await W.save("set_snapshot", lineage, body, { note, by, listed: true }); if (plates && !W.record("set_snapshot", lineage)?.plates) await W.fields("set_snapshot", lineage, { plates }); }
+  } else await W.save("card", card.id, card, { note, by });
+  rebuild();
 }
 // kept takes are the Library's priors: a run card that restores the take's settings; its notes are what it's searched by
 const priors = () => T.all().filter((t) => t.prior).map((t) => ({

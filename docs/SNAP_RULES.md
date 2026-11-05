@@ -170,6 +170,21 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   (NEXT_DESIGN_REVIEW §10 Q2); Dylan (2026-11-04): "a scene should have the related work navigable and nested".
   *More:* `web/snap/scenes.js`, `web/snap/sceneview.js`; PLAN U59, scout/editor_layer §5.6-5.7.
 
+## World state
+
+- **SNAP-R60: World state is versioned, and a take pins the versions it used.** The records a take depends on (Cast
+  records, set snapshots, the person's own Library cards) live one per file in user `snap/<kind>/<id>.json` with every
+  version inside (`n`, a sha-256 `hash` of the body, `at`, `by`, `note`). Saving is versioning: a body equal to the head
+  makes no version, any other is appended as the next number; no code edits or removes a version. Writes go through
+  the pack's `/mainodes/snap/world/*` routes, one at a time on the server, so two pages can't drop each other's
+  version. A set keeps its editor's working copy (`draft`, shown as the `<set>-mine` card) and its camera plates outside
+  the versions. A reference is `kind:id@n`, or `kind:id` for the newest; a pack card is version 0. Model and LoRA files
+  are pinned by name only. Every version is kept forever; archiving (`snap/_archived/`) keeps it resolvable. Cards from
+  before records (`snap/cards/`) are wrapped once on load and the originals parked in `snap/_migrated/cards/`. *Why:*
+  Dylan 2026-11-04 20:49: "versioning so you can properly recall the state of what it was when it was generated and
+  regenerate with updated world state, or with the old world state"; 20:51: keep every version, files by name. *More:*
+  `web/snap/world.js`, `snap_world.py`; DESIGN_U86_U87_CAST_VERSIONS_2026-11-04.md §4.3; PLAN U87.
+
 ## Onboarding
 
 - **SNAP-R25: Onboarding proposes; it never downloads.** "I'm new, help me set up" asks at most six things, each with a
