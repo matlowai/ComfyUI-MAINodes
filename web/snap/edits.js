@@ -396,7 +396,7 @@ export async function fromContext(pictures, prompt, { method: id = "moss_view", 
     const g = viewGraph(m.anchors, models.get(recipe.lora), recipe, pics, { prompt: prompt.trim(), avoid }, seed, width != null ? { width, height } : null, `snap_views/${where.group.slice(0, 8)}`);
     const job = { kind: "paint", title: `New view (${label}), candidate ${i + 1} of ${list.length}`, about: { take: first, group: where.group, scene: where.scene, shot: where.shot }, by, eta_s: [m.cost?.local_s].flat().at(-1) ?? null };
     made.push({ prompt_id: await K.queue(g, { group: where.group, world, job, extra: { snap_parent: { take: first, method: `view/${id}`, options: { label, prompt: prompt.trim(), context: said, ...(avoid ? { avoid } : {}) } } } }),
-      seed, made: { lora: recipe.lora, cfg: recipe.cfg }, label: `seed ${seed}` });
+      seed, made: { lora: recipe.lora, cfg: recipe.cfg }, label: "new view" }); // a take, no check to wait for (its tile's chips)
   }
   const d = await C.create({ kind: "view", target: first ?? where.group, title: `New view (${label}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: first, method: id,
     options: { prompt: prompt.trim(), context: said, ...(avoid ? { avoid } : {}), ...(width != null ? { width, height } : {}) }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}) }, made);

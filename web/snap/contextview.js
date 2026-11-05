@@ -15,6 +15,7 @@ const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.crea
 const tray = [], listeners = new Set();
 const changed = () => { for (const fn of listeners) fn(); };
 export const pictures = () => tray;
+const pct = (x) => `${Math.round(x * 1000) / 10}%`;
 const inputUrl = (file) => { const cut = file.lastIndexOf("/"); return url({ filename: file.slice(cut + 1), subfolder: file.slice(0, Math.max(cut, 0)), type: "input" }); };
 
 // the panel for take `t`: `frame()` is the playhead's frame (null on a still), `region()` the marked box or null
@@ -27,7 +28,8 @@ export function contextPanel(t, { say, frame, region }) {
   const thumb = (p) => { const still = p.take && p.frame == null && T.get(p.take)?.media.find((m) => m.kind === "image"); return still ? url(still) : p.file ? inputUrl(p.file) : null; };
   function paint() {
     rows.replaceChildren(...tray.map((p, i) => h("li", { className: "snap-ctx-row" },
-      thumb(p) ? h("img", { src: thumb(p), alt: "", loading: "lazy" }) : h("span", { className: "snap-ctx-none", textContent: "▣" }),
+      thumb(p) ? h("img", { src: thumb(p), alt: "", loading: "lazy", ...(p.crop ? { style: `object-view-box: inset(${pct(p.crop[1])} ${pct(1 - p.crop[0] - p.crop[2])} ${pct(1 - p.crop[1] - p.crop[3])} ${pct(p.crop[0])})` } : {}) }) // the crop as the edit reads it
+        : h("span", { className: "snap-ctx-none", textContent: "▣" }),
       h("span", { className: "snap-ctx-what" }, h("b", { textContent: `Picture ${i + 1}` }), i === 0 ? h("em", { textContent: " sets the camera" }) : null, h("span", { className: "snap-quiet", textContent: ` · ${p.label}` })),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "↑", title: "earlier (Picture 1 sets the camera)", disabled: i === 0, onclick: () => { tray.splice(i - 1, 0, ...tray.splice(i, 1)); changed(); } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "↓", title: "later", disabled: i === tray.length - 1, onclick: () => { tray.splice(i + 1, 0, ...tray.splice(i, 1)); changed(); } }),
