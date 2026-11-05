@@ -549,8 +549,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     runBtn.disabled = true;
     try {
       const job = { kind: "run", title: `Run ${J.where()}`, about: J.here(), eta_s: (await T.eta((await T.hashes(await T.live())).hash)).eta_s };
-      const id = await J.queueRun(job, () => app.queuePrompt(0, 1, { queueNodeIds: E.targets() }));
-      if (id) say(`Queued: ${job.title}${job.eta_s != null ? ` · about ${Math.round(job.eta_s)} s` : " · no estimate yet"}`, false, 2500, { label: "Work", run: () => openWork(root, { say, open: openJob, decide }) });
+      await J.queueRun(job, () => app.queuePrompt(0, 1, { queueNodeIds: E.targets() }));
       const errors = Object.entries(app.lastNodeErrors ?? {}).map(([id, e]) => `${app.graph.getNodeById(id)?.title ?? e.class_type}: ${e.errors?.[0]?.message ?? "error"}${e.errors?.[0]?.details ? ` (${e.errors[0].details})` : ""}`);
       if (errors.length) say(`Can't run yet · ${errors[0]}${errors.length > 1 ? ` · +${errors.length - 1} more` : ""}`, true);
     } catch (err) { say(`Couldn't queue: ${err.message}`, true); }
@@ -571,6 +570,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   api.addEventListener("progress", ({ detail }) => { progress.style.setProperty("--p", detail.value / detail.max); progress.style.opacity = 1; runLabel.textContent = `Rendering ${Math.round((100 * detail.value) / detail.max)}%`; });
   const idle = () => { runLabel.textContent = "Run"; progress.style.opacity = 0; setTimeout(() => progress.style.setProperty("--p", 0), 300); };
   api.addEventListener("execution_error", idle);
+  // a run this page queued (Run, an agent's run, the graph's Queue button) says what it is
+  api.addEventListener("promptQueued", () => { const j = J.lastSent(); say(j ? `Queued: ${j.title} · ${j.eta_s != null ? `about ${Math.round(j.eta_s)} s` : "no estimate yet"}` : "Queued", false, 2500, { label: "Work", run: () => openWork(root, { say, open: openJob, decide }) }); });
   // SNAP-R66: a job that started elsewhere, landed or failed is said with one press to its result; nothing moves until
   // that press. No word when its home is already on screen (that take's viewer: it updates in place), except a failure.
   // In the graph view Snap's toast is hidden, so ComfyUI's own toast says it (Open waits for Snap)

@@ -44,6 +44,7 @@ export const nodeErrors = () => Object.values(app.lastNodeErrors ?? {}).map((e) 
 // the jobs this page queued, by prompt id, as soon as the server took them (the Work card reads the rest from the server)
 const mine = new Map();
 export const own = (id) => mine.get(id) ?? null;
+export const lastSent = () => [...mine.values()].at(-1) ?? null;
 export const sentHere = () => mine;
 
 let outgoing = null, delivered = null, lock = Promise.resolve();
