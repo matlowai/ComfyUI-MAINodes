@@ -5,7 +5,9 @@ agent edits the same graph a person sees (each edit is one undo step, shown live
 127.0.0.1 by default (--port), or to --base-url (a snap-gate in front of ComfyUI). SNAP_TOKEN in the environment goes out
 as an Authorization: Bearer header (a snap-gate account token); SNAP_PAGE names one Snap page (an id from GET
 /mainodes/snap/tools `pages`) that every call goes to, e.g. the agent's own page when it must not drive the person's tab
-(calls otherwise go to the newest tab whose person turned "Let agents see" on, else the agent's headless page). Example Claude Code config entry (not installed by the pack):
+(calls otherwise go to the newest tab whose person turned "Let agents see" on, else the agent's headless page). Each
+connection names itself to the bridge (SNAP_AGENT, else mcp-<random>), so use_page binds this connection to one page.
+Example Claude Code config entry (not installed by the pack):
 
     {"mcpServers": {"comfy-snap": {"command": "python", "args": ["custom_nodes/ComfyUI-MAINodes/tools/snap_mcp.py", "--port", "8188"]}}}
 
@@ -23,6 +25,8 @@ import urllib.request
 PROTOCOL = "2025-06-18"
 AUTH = {"Authorization": f"Bearer {os.environ['SNAP_TOKEN']}"} if os.environ.get("SNAP_TOKEN") else {}
 AUTH.update({"X-Snap-Page": os.environ["SNAP_PAGE"]} if os.environ.get("SNAP_PAGE") else {})
+# this connection's name for the bridge (use_page binds it to one page; one agent drives a page at a time)
+AUTH["X-Snap-Agent"] = os.environ.get("SNAP_AGENT") or f"mcp-{secrets.token_hex(3)}"
 
 # answered here, not by the page: it reads a file on this machine, which the page can't
 UPLOAD = {"name": "upload_file", "description": "Upload a local picture, video or audio file into ComfyUI's input folder and return its name; then set_widget points a loader at it (e.g. the First frame's image).",
