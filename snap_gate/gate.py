@@ -133,6 +133,8 @@ class Gate:
         if tok:
             key, now = sha(tok), time.time()
             s = self.sessions.load().get(key)
+            if s and s.get("token") and s["token"] != self.accounts.load().get(s["account"], {}).get("token"):
+                s = None  # a new token for the account signs out the pages the old one opened
             if self.live(s) and s["account"] in self.accounts.load():
                 s["seen"] = now
                 if now - self.saved > 60:
@@ -155,8 +157,10 @@ class Gate:
         return float(self.settings.load().get("idle_minutes", IDLE_MINUTES)) * 60
 
     def live(self, s):
+        """A session that is signed in now. One a token sign-in link opened (an agent's headless page) never idles, like
+        the token itself (SNAP-R46; U72 F18: a page waiting out a 39-minute download was locked)."""
         now = time.time()
-        return s is not None and not s.get("locked") and s["expires"] > now and now - s["seen"] < self.idle_seconds()
+        return s is not None and not s.get("locked") and s["expires"] > now and (s.get("token") or now - s["seen"] < self.idle_seconds())
 
     def save_sessions(self):
         self.sessions.all = {k: s for k, s in self.sessions.all.items() if s["expires"] > time.time()}
@@ -202,11 +206,12 @@ class Gate:
             self.accounts.save()
         return a["comfy_user"]
 
-    def start_session(self, request, name, target):
+    def start_session(self, request, name, target, token=None):
+        """A cookie session; `token` is the account's token digest when a token sign-in link opened it."""
         self.publish_admins()  # on every sign-in, so a role changed with `account set` counts from the next one
         tok, now, sessions = secrets.token_urlsafe(32), time.time(), self.sessions.load()
         sessions.pop(sha(request.cookies.get(COOKIE, "")), None)  # the page's old (locked) session
-        sessions[sha(tok)] = {"account": name, "expires": now + SESSION_SECONDS, "seen": now}
+        sessions[sha(tok)] = {"account": name, "expires": now + SESSION_SECONDS, "seen": now, **({"token": token} if token else {})}
         self.save_sessions()
         resp = web.HTTPFound(target)
         resp.set_cookie(COOKIE, tok, httponly=True, samesite="Strict", max_age=SESSION_SECONDS, path="/")
@@ -224,7 +229,7 @@ class Gate:
                 if a.get("token") and hmac.compare_digest(a["token"], digest):
                     self.signed_in(keys)
                     await self.comfy_user(name)
-                    return self.start_session(request, name, target)
+                    return self.start_session(request, name, target, token=a["token"])
             self.failed(keys)
             await asyncio.sleep(0.5)
             return page(target, "That sign-in link has expired. Ask the admin for a new one.", 401, wait=self.wait(keys))

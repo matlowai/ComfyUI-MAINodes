@@ -274,7 +274,8 @@ IDs R40+ were reserved for the gate while R28-R39 were open for other work (renu
   session with no request for the admin's idle limit (`gate.py settings --idle-minutes`, default 30) locks: API calls
   answer 401 with `"locked": true`, a page load goes to the sign-in card ("Locked after 30 minutes without use… open
   pages keep their work") with the name filled in, and the page's open WebSocket gets nothing more. Signing in again
-  keeps the page's client id and its runs. Account tokens (agents) don't idle. *Why:* the gated install is a shared
+  keeps the page's client id and its runs. Account tokens (agents) don't idle, and neither does a page a token sign-in
+  link opened (its session carries the token; a new token for the account signs those pages out; U72 F18). *Why:* the gated install is a shared
   machine; a restart shouldn't sign everyone out, and an unattended screen shouldn't stay open. An untouched ComfyUI
   page makes no requests (measured: none in 90 s), so the lock does fire for an open tab. *More:* PLAN U65.
 - **SNAP-R47: Failed sign-ins wait, per account and per client address.** Three failures on an account (ten from one
