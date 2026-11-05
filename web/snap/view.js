@@ -252,9 +252,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
         try { await L.save(mine); say(await L.applySet(mine, s)); } catch (err) { say(err.message, true); }
         render(before);
       },
-      onSave: async (s) => {
+      onSave: async (s, note) => {
         const saved = L.version(card, s, false);
-        try { await L.save(saved); say(`Saved "${saved.title}" to your Library`); } catch (err) { say(err.message, true); }
+        try { await L.save(saved, { note }); say(`Saved "${saved.title}" as a version of the set${note ? ` (${note})` : ""}`); } catch (err) { say(err.message, true); }
         renderLibrary();
       },
     });

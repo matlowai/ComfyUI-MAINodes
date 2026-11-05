@@ -12,7 +12,7 @@
 // and its workflow file kept, and a deleted scene's document is parked in snap/scenes/_parked/ (U62).
 // Plain data with stable ids, so a sequence editor can sit on it later: shots in order now, lanes and in/out on shots
 // and takes later (scout/editor_layer §5.6-5.7).
-// SNAP-R5 open work is never lost · SNAP-R17 by · SNAP-R18 local only · SNAP-R19 the tools call these · SNAP-R24 scenes
+// SNAP-R5 open work is never lost · SNAP-R60 authored fields versioned · SNAP-R17 by · SNAP-R18 local only · SNAP-R19 the tools call these · SNAP-R24 scenes
 // own the work, tabs are scratch · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
@@ -20,6 +20,7 @@ import * as E from "./engine.js";
 import * as L from "./library.js";
 import * as P from "./proposals.js";
 import * as T from "./takes.js";
+import * as W from "./world.js";
 
 const DIR = "snap/scenes";
 let scenes = [], loading = null;
@@ -63,13 +64,24 @@ export function shotOf(scene, id) {
 // how a shot reads: its place in the scene, then its name when it has one
 export const shotTitle = (scene, shot) => `Shot ${scene.shots.indexOf(shot) + 1}${shot.name ? ` · ${shot.name}` : ""}`;
 
+// a scene versions its authored fields only (SNAP-R60): its name, set, and shots in order with their names and cards. A
+// write that changes them appends {n, hash, at, by, note, body}; bookkeeping (take lists, the active take, workflow
+// files) makes none
+const authored = (s) => ({ name: s.name, set: s.set ?? null, shots: s.shots.map((x) => ({ id: x.id, name: x.name ?? "", card: x.card ?? null })) });
+async function versioned(s, by, note) {
+  const body = authored(s), hash = await W.sha(body), head = s.versions?.find((v) => v.n === s.head);
+  if (head?.hash === hash) return;
+  s.versions = [...(s.versions ?? []), { n: (s.versions?.at(-1)?.n ?? 0) + 1, hash, at: Date.now(), by, note, body }];
+  s.head = s.versions.at(-1).n;
+}
 // one write per scene at a time, each on the file as it is now (another tab may have changed it): fn edits it in place
 const writes = new Map();
-function update(id, fn) {
+function update(id, fn, { by = "person", note = "" } = {}) {
   const next = (writes.get(id) ?? Promise.resolve()).catch(() => {}).then(async () => {
     const s = await read(fileOf(id));
     if (!s) { scenes = scenes.filter((x) => x.id !== id); changed(); throw new Error(`The scene ${id} isn't there any more (deleted in another tab? It is parked in ${parkedFile(id)})`); }
     const out = fn(s);
+    await versioned(s, by, note);
     s.updated = Date.now();
     await api.storeUserData(fileOf(id), s);
     scenes = [...scenes.filter((x) => x.id !== id), s].sort((a, b) => a.created - b.created);
@@ -205,6 +217,7 @@ export async function create({ name, set = null, by = "person" }) {
   if (set) { await L.ready(); if (L.get(set)?.kind !== "set_snapshot") throw new Error(`No set snapshot card ${set}`); }
   await load();
   const s = { id: `scene-${stamp()}`, version: 1, name: name.trim(), set, by, created: Date.now(), updated: Date.now(), shots: [] };
+  await versioned(s, by, "created");
   await api.storeUserData(fileOf(s.id), s);
   scenes = [...scenes, s];
   changed();
@@ -241,7 +254,7 @@ export async function addShot(sceneId, { name, card = null, adopt = null, at, by
       await api.storeUserData(shot.workflow, graph);
     }
   }
-  await update(scene.id, (s) => s.shots.splice(at == null ? s.shots.length : Math.max(0, Math.min(at, s.shots.length)), 0, shot));
+  await update(scene.id, (s) => s.shots.splice(at == null ? s.shots.length : Math.max(0, Math.min(at, s.shots.length)), 0, shot), { by, note: `added ${shot.name || "a shot"}` });
   const opened = adopt === "open" ? await openShot(scene.id, shot.id) : null;
   return { scene: scene.id, shot: describeShot(get(scene.id), get(scene.id).shots.find((x) => x.id === shot.id)), ...(opened ? { opened: opened.said } : {}) };
 }
@@ -253,14 +266,14 @@ export async function renameScene(id, name) {
   await load();
   need(id);
   if (!name?.trim()) throw new Error("A scene needs a name");
-  await update(id, (s) => { s.name = name.trim(); });
+  await update(id, (s) => { s.name = name.trim(); }, { note: "renamed" });
   await retitleOpen();
   return { scene: id, name: get(id).name };
 }
 export async function renameShot(sceneId, shotId, name) {
   await load();
   shotOf(need(sceneId), shotId);
-  await update(sceneId, (s) => { s.shots.find((x) => x.id === shotId).name = name?.trim() ?? ""; });
+  await update(sceneId, (s) => { s.shots.find((x) => x.id === shotId).name = name?.trim() ?? ""; }, { note: "shot renamed" });
   await retitleOpen();
   const scene = get(sceneId);
   return { scene: sceneId, shot: shotId, title: shotTitle(scene, scene.shots.find((x) => x.id === shotId)) };
@@ -273,7 +286,7 @@ export async function removeShot(sceneId, shotId, by = "person") {
   await update(sceneId, (s) => {
     const [x] = s.shots.splice(s.shots.findIndex((y) => y.id === shotId), 1);
     s.removed = [...(s.removed ?? []), { ...x, takes: takesOf(x), removed: { by, at: new Date().toISOString() } }];
-  });
+  }, { by, note: `took out ${title}` });
   await retitleOpen();
   return { scene: sceneId, removed: shotId, said: `${title} left ${scene.name}: ${[n ? `its ${n} take${n === 1 ? "" : "s"}` : null, shot.workflow ? "its workflow" : null].filter(Boolean).join(" and ") || "the shot"} ${n > 1 || (n && shot.workflow) ? "are" : "is"} kept, listed under "removed" in the scene's file${open ? " · this tab is scratch work now" : ""}` };
 }
@@ -298,7 +311,7 @@ export async function moveShot(sceneId, shotId, to) {
   await update(sceneId, (s) => {
     const i = s.shots.findIndex((x) => x.id === shotId), [shot] = s.shots.splice(i, 1);
     s.shots.splice(Math.max(0, Math.min(to, s.shots.length)), 0, shot);
-  });
+  }, { note: "shots reordered" });
   return { scene: sceneId, order: get(sceneId).shots.map((x) => x.id) };
 }
 

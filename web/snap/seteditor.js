@@ -83,6 +83,7 @@ export function openSetEditor(host, card, { onApply, onSave }) {
 
   // camera plates (SNAP-R21): the wide plate the orbit pass starts from, then one plate per camera with its provenance
   const lineage = card.lineage ?? card.id;
+  const versionNote = h("input", { className: "snap-set-note", placeholder: "what this version is (optional)", ariaLabel: "version note" });
   const platesBox = h("div", { className: "snap-set-plates" }), plateNote = h("div", { className: "snap-quiet", role: "status" });
   const choose = (camera) => {
     const input = h("input", { type: "file", accept: "image/png,image/jpeg,image/webp", onchange: async () => {
@@ -160,7 +161,7 @@ export function openSetEditor(host, card, { onApply, onSave }) {
           h("button", { className: "snap-link", textContent: "Coverage", title: "show the standard setups for these two actors on this side of the line; click one to use it", onclick: () => { showCoverage = !showCoverage; dirty = true; } })),
         h("div", { className: "snap-set-actions" },
           h("button", { className: "snap-primary", textContent: "Use in References", onclick: () => { onApply(s); close(); } }),
-          h("button", { className: "snap-link", textContent: "Save as new card", onclick: () => onSave(s) })),
+          versionNote, h("button", { className: "snap-link", textContent: "Save as version", title: "keep this state as a new version of the set (every version stays; SNAP-R60)", onclick: () => { onSave(s, versionNote.value.trim()); versionNote.value = ""; } })),
         h("div", { className: "snap-quiet", textContent: "drag things on the plan · drag an arrow tip to turn · arrows nudge 5 cm · Esc closes" }))));
   host.append(sheet);
 

@@ -198,7 +198,10 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   copy saved first as an unlisted version, so a take never pins a draft), a shot card with its set and characters, a
   card's words. A take keeps the pins it ran with (`world`), and its stale flag names a record that moved on first
   ("Kon v1 → v2"), before the chain's own changes. A pinned reference never updates by itself: the brick that holds it
-  shows "v2 available · update", one press. *Why:*
+  shows "v2 available · update", one press. Scenes version their authored fields only (name, set, shots in order
+  with names and cards) inside their own document; take lists, the active take and workflow files make no version. The
+  set editor's "Save as version" takes a note. `get_record` and `diff_record` read any version and what changed, values
+  whole. *Why:*
   Dylan 2026-11-04 20:49: "versioning so you can properly recall the state of what it was when it was generated and
   regenerate with updated world state, or with the old world state"; 20:51: keep every version, files by name. *More:*
   `web/snap/world.js`, `snap_world.py`; DESIGN_U86_U87_CAST_VERSIONS_2026-11-04.md §4.3; PLAN U87.

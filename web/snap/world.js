@@ -62,16 +62,14 @@ export function get(ref) {
   return version ? { record: r, version } : null;
 }
 
-// what changed between two bodies, field by field: "lora.strength 0.8 → 0.6", "details changed", "refs 2 → 1 items"
+// what changed between two bodies, field by field, with both values whole (SNAP-R58): "lora.strength 0.8 → 0.6"
 export function diff(a, b, at = "") {
-  const out = [], show = (v) => (typeof v === "string" ? (v.length > 40 ? null : JSON.stringify(v)) : JSON.stringify(v));
-  for (const k of new Set([...Object.keys(a ?? {}), ...Object.keys(b ?? {})])) {
+  const out = [], skip = at ? [] : ["id", "saved"]; // a card's id and save stamp are bookkeeping
+  for (const k of new Set([...Object.keys(a ?? {}), ...Object.keys(b ?? {})].filter((k) => !skip.includes(k)))) {
     const x = a?.[k], y = b?.[k], name = `${at}${k}`;
     if (canonical(x) === canonical(y)) continue;
     if (x && y && typeof x === "object" && typeof y === "object" && !Array.isArray(x) && !Array.isArray(y)) out.push(...diff(x, y, `${name}.`));
-    else if (Array.isArray(x) && Array.isArray(y) && x.length !== y.length) out.push(`${name} ${x.length} → ${y.length} items`);
-    else if (show(x) == null || show(y) == null || Array.isArray(x)) out.push(`${name} changed`);
-    else out.push(`${name} ${show(x) ?? "none"} → ${show(y) ?? "none"}`);
+    else out.push(`${name} ${JSON.stringify(x) ?? "none"} → ${JSON.stringify(y) ?? "none"}`);
   }
   return out;
 }
