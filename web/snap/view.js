@@ -128,6 +128,15 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     driverChip.replaceChildren(...(agent ? [h("span", { textContent: `Driven by: ${agent}` }), h("button", { textContent: "Release", title: "this agent stops driving this page; it is told so on its next call",
       onclick: () => api.fetchApi("/mainodes/snap/release", { method: "POST", body: JSON.stringify({ client: api.clientId }) }).then(() => say(`${agent} no longer drives this page`)) })] : []));
   }
+  // F-C12: a tab that runs older Snap code than the server serves says so, with the agent that asked when one did
+  // (request_reload); only the person's Reload reloads (SNAP-R5), and ✕ hides the bar until the next ask
+  const staleBar = h("div", { className: "snap-stale", role: "status", hidden: true });
+  function stale(agent) {
+    staleBar.hidden = false;
+    staleBar.replaceChildren(h("span", { textContent: `Snap was updated: reload to get the new tools${agent ? ` (${agent} asked)` : ""}` }),
+      h("button", { textContent: "Reload", title: "reload this tab: the open work is saved in its tabs, unsaved graph changes ask first", onclick: () => location.reload() }),
+      h("button", { className: "snap-quiet-btn", textContent: "✕", title: "hide this until the next update or ask", onclick: () => { staleBar.hidden = true; } }));
+  }
   // SNAP-R34: on a snap-gate install, who is signed in and their cap; nothing without a gate
   const accountChip = h("span", { className: "snap-account", hidden: true });
   // SNAP-R20: metadata in saved files, beside Run where every run starts; the person's ComfyUI setting (on by default)
@@ -154,6 +163,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Note", title: "a director's note on the whole recipe; agents answer it", onclick: () => { noting = true; select(null); inspector.querySelector("textarea")?.focus(); } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Make app", title: "open this recipe in ComfyUI's App mode: the brick faces become a run-only app (reloads the graph)", onclick: () => onMakeApp() }),
       h("button", { className: "snap-link snap-quiet-btn", title: "Ctrl/Cmd+K", onclick: () => openPalette() }, "Add brick", h("span", { className: "snap-kbd", textContent: `  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}` })), accountChip, driverChip, seeBtn, seg, metaBtn, runBtn, progress),
+    staleBar,
     h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), inspector, handle), toast);
   // takes under the chain: "Use as input" puts a take's frame on the First frame or References brick (T.use)
   const dailies = createDailies({ host: root, say, onRestore: () => render(null), onHover: (t) => previewTake(t), onRunFrom: (t) => runFrom(t).catch((err) => say(err.message, true)),
@@ -1463,5 +1473,5 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     return uiRead();
   }
 
-  return { root, stack, render, say, select, driver, openInChanged, metadataChanged, uiRead, uiAct, firstVisit, release: () => { giveBack(); if (opened) { opened = null; render(null); } }, get opened() { return opened; }, get selected() { return selected; } };
+  return { root, stack, render, say, select, driver, stale, openInChanged, metadataChanged, uiRead, uiAct, firstVisit, release: () => { giveBack(); if (opened) { opened = null; render(null); } }, get opened() { return opened; }, get selected() { return selected; } };
 }

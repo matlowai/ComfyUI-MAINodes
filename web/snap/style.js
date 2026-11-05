@@ -552,6 +552,9 @@ export const STYLE = `
 /* metadata in saved files: a switch beside Run, the knob right while on (SNAP-R20) */
 .snap-driver { display: inline-flex; align-items: center; gap: 8px; padding: 4px 6px 4px 10px; border-radius: 10px; font-size: 12.5px; white-space: nowrap; background: #a78bfa22; color: #c4b5fd; }
 .snap-driver[hidden] { display: none; }
+.snap-stale { display: flex; align-items: center; gap: 10px; padding: 6px 14px; font-size: 13px; background: #f59e0b22; color: #fcd34d; border-bottom: 1px solid #f59e0b44; }
+.snap-stale[hidden] { display: none; }
+.snap-stale button { all: unset; cursor: pointer; padding: 2px 10px; border-radius: 8px; background: #ffffff14; color: var(--s-fg); } .snap-stale button:hover { background: #ffffff26; }
 .snap-driver button { all: unset; cursor: pointer; padding: 2px 9px; border-radius: 8px; background: #ffffff14; color: var(--s-fg); } .snap-driver button:hover { background: #ffffff26; }
 .snap-account { display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: 10px; font-size: 12.5px; white-space: nowrap; color: var(--s-dim); border: 1px solid var(--s-line); }
 .snap-account strong { color: var(--s-fg); font-weight: 600; }

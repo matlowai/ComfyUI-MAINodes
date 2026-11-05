@@ -9,6 +9,7 @@ proposes, never downloads · SNAP-R27 locks follow the current rules · SNAP-R30
 health listing, errors that say what to do · SNAP-R33 the rating cap's second line · SNAP-R36 quiet sound ·
 SNAP-R37 privacy per install · SNAP-R38 metadata off writes none, the rest is named · SNAP-R39 ratings from how a thing
 was made · SNAP-R65 the Work card's jobs and progress, an agent page's own screenshot · SNAP-R74 Load Audio lists input/snap/ ·
+SNAP-R78 a stale tab says so, agents ask (request_reload), the person reloads ·
 see docs/SNAP_RULES.md"""
 import asyncio
 import hashlib
@@ -98,7 +99,9 @@ def stale_note(client, base):
     # when its code was loaded
     since = f"connected to this server since {time.strftime('%H:%M', time.localtime(p['registered_first']))}" + ("" if p["code"] else ", from before pages reported their code")
     who = "an agent's page" if p["headless"] else "a person's visible tab"
-    return (f"This Snap page ({who}, {since}) runs older Snap code than the server serves now, so tools added since are missing. "
+    ask = (" It shows its person a 'Snap was updated: reload' bar; request_reload shows it again with your name." if p["banner"] and not p["headless"]
+           else " Its code is older than the reload bar, so ask its person to reload it." if not p["headless"] else "")
+    return (f"This Snap page ({who}, {since}) runs older Snap code than the server serves now, so tools added since are missing.{ask} "
             f"Reload it, or start your own agent page: bash {PAGE_SH} {base} --new (calls then go to it).")
 
 
@@ -152,7 +155,7 @@ async def register(request):
     now = time.time()
     pages[body["client"]] = {"user": user_of(request), "registered": now, "registered_first": was["registered_first"] if was else now, "answered": None,
                              "code": body.get("code"), "headless": bool(body.get("headless")), "sees": bool(body.get("sees")), "tools": body["tools"],
-                             "title": body.get("title"), "who": body.get("who")}
+                             "title": body.get("title"), "who": body.get("who"), "banner": bool(body.get("banner"))}
     return web.json_response({"tools": len(body["tools"]), "code_current": body.get("code") == served_code(), "driven_by": drivers.get(body["client"])})
 
 
@@ -183,12 +186,24 @@ BRIDGE_TOOLS = [
      "inputSchema": {"type": "object", "properties": {}}, "annotations": {"readOnlyHint": True}},
     {"name": "use_page", "description": "Bind yourself to one Snap page for this session: your calls go there until you pick another, pass null, or the person presses Release on it. One agent drives a page at a time: a page another agent holds is refused, naming it. page: an id, the start of one, or a name from list_pages. Name yourself with the X-Snap-Agent header (snapcall.py: SNAP_AGENT; snap_mcp.py names each connection), or every unnamed caller shares one binding.",
      "inputSchema": {"type": "object", "properties": {"page": {"type": ["string", "null"]}}, "required": ["page"]}},
+    {"name": "request_reload", "description": "Ask the person to reload a Snap tab that runs older Snap code than the server serves now (list_pages: code_current false): the tab shows a 'Snap was updated: reload to get the new tools' bar with your name (X-Snap-Agent) and a Reload button. It never reloads the tab itself; the person does (SNAP-R5). page: an id, the start of one, or a name from list_pages (default: the page your calls go to). Answers whether the bar was shown; a tab whose code predates the bar can't show it, so say it in words to the person.",
+     "inputSchema": {"type": "object", "properties": {"page": {"type": "string"}}}},
 ]
 
 
 async def bridge_tool(request, user, agent, tool, args):
     if tool == "list_pages":
         return web.json_response({"result": {"pages": health(user, agent), "you": agent}})
+    if tool == "request_reload":
+        client = find_page(user, args["page"]) if args.get("page") else chosen(user, target=bound.get((user, agent)))
+        if not client:
+            return error(f"No open Snap page {args.get('page')!r} of yours; your pages: {'; '.join(page_name(c) for c in open_pages(user)) or 'none'} (list_pages).", 404)
+        if pages[client]["code"] == served_code():
+            return web.json_response({"result": {"page": page_name(client), "shown": False, "said": f"{page_name(client)} runs the Snap code the server serves now: nothing to reload"}})
+        if not pages[client]["banner"]:
+            return web.json_response({"result": {"page": page_name(client), "shown": False, "said": f"{page_name(client)} runs Snap code from before the reload bar, so it can't show it: ask its person in words to reload the tab"}})
+        await PromptServer.instance.send("mainodes-snap-reload", {"agent": agent}, client)
+        return web.json_response({"result": {"page": page_name(client), "shown": True, "said": f"{page_name(client)} shows 'Snap was updated: reload to get the new tools ({agent} asked)'; the person reloads it, nothing reloads by itself"}})
     ref = args.get("page")
     was = bound.pop((user, agent), None)
     if was and drivers.get(was) == agent:
