@@ -354,7 +354,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
     editBox.addEventListener("pointerdown", () => { pressed = true; });
     editBox.addEventListener("pointerup", () => { pressed = false; setTimeout(edits, 0); });
     function edits() {
-      const mine = C.all().filter((d) => d.kind === "edit" && d.target === t.id && d.status !== "closed");
+      const mine = C.all().filter((d) => ["edit", "rerun"].includes(d.kind) && d.target === t.id && d.status !== "closed"); // its edits, and its re-run batches (SNAP-R63)
       const sig = JSON.stringify([mine.map((d) => [d.id, d.status, d.applied, d.candidates.map((c) => [c.state, c.notes])]), P.pending().map((p) => p.id), mine.map((d) => ED.result(d)?.id)]);
       if (sig === editSig || pressed || !editBox.isConnected && editSig) return;
       editSig = sig;
@@ -364,7 +364,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
         const again = older ? h("button", { className: "snap-link snap-quiet-btn", textContent: "Check identity again", title: "face and hair notes for these candidates: a few seconds of detection, nothing renders",
           onclick: (e) => { e.currentTarget.disabled = true; e.currentTarget.textContent = "checking…"; ED.recheck(d.id).then(() => say(`${d.title}: identity notes updated`), (err) => say(err.message, true)); } }) : null;
         return h("div", { className: "snap-set-candrow" }, h("div", { className: "snap-rail-title" }, d.title, again), candidatesEl(d, { say, crops: true }),
-          d.applied ? h("div", { className: "snap-quiet" }, made ? h("button", { className: "snap-link", textContent: `→ Take ${made.number} (${made.status})`, onclick: () => { close(); view(made); } }) : "rendering the take with H3 Ripple…") : null);
+          d.applied ? h("div", { className: "snap-quiet" }, made ? h("button", { className: "snap-link", textContent: `→ Take ${made.number} (${made.status})`, onclick: () => { close(); view(made); } }) : d.kind === "rerun" ? "" : "rendering the take with H3 Ripple…") : null);
       }));
     }
     // hovering a candidate shows it over the take at its frame; hovering one of its pictures shows that one
@@ -414,6 +414,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
           T.locked(t) ? h("p", { className: "snap-quiet", textContent: "🔒 Private take: its edits are private too (locked, left out of exports)." }) : null, editBox,
           h("div", { className: "snap-rail-title", textContent: "Make it longer" }), h("div", { className: "snap-set-actions" }, longPick, h("label", { className: "snap-quiet" }, "+ ", clipsIn, " clips")), longWhy, burnRow,
           h("div", { className: "snap-set-actions" }, longBtn), longNote] : null,
+          isVideo ? null : editBox, // a picture's re-run batches (SNAP-R63) show here too
           h("div", { className: "snap-set-actions" },
             activeBtn, priorBtn,
             h("button", { className: "snap-link", textContent: "Use these settings", title: "put this take's settings back on the open workflow (one undo step)", onclick: () => { try { say(`${T.restore(t)} settings restored from take ${t.number}`); onRestore?.(); } catch (err) { say(err.message, true); } } }),

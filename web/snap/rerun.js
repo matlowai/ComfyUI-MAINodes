@@ -10,9 +10,13 @@
 // new Cast's details line and, when it has one, its picture), a set, a scene's set or a card's words are a "Change
 // something" (Remake edit); a Setup or a shot card can't be done on the take's own motion, and it says so (Re-generate
 // does those). One swap starts one candidates decision; the others wait for the person's pick and are listed.
+// A slot may take a list ("this shot with each of these 3 characters"): every combination is one re-run. Re-generate
+// makes them one candidates decision whose candidates are the queued takes (Apply makes one the shot's active take,
+// Reject marks its take rejected by whoever pressed it); Reuse the motion makes one decision per combination.
 // SNAP-R63 re-run with swaps · SNAP-R61 as it was / today's world · SNAP-R60 pins · SNAP-R24 where it lands · SNAP-R11
 // warn, never block · SNAP-R58 every choice listed in full · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
+import * as C from "./candidates.js";
 import * as E from "./engine.js";
 import * as ED from "./edits.js";
 import * as L from "./library.js";
@@ -94,6 +98,15 @@ function one(take, s, to) {
     into_run: kind === "cast" ? (!same || fields.some((f) => INTO_RUN.includes(f.split(/[ .]/)[0]))) : fields.length > 0, latest: to === "latest" };
 }
 
+// a swaps map whose slots may hold lists, as the single re-runs it stands for: every combination, in slot order
+export function combos(swaps = {}) {
+  return Object.entries(swaps ?? {}).reduce((list, [slot, ask]) => {
+    const to = typeof ask === "string" || ask == null || Array.isArray(ask) ? ask : ask.to, picks = Array.isArray(to) ? to : [to]; // {to}, or the choice (or list) itself
+    if (!picks.length) throw new Error(`swaps["${slot}"].to is an empty list: give one choice or several`);
+    return list.flatMap((m) => picks.map((p) => ({ ...m, [slot]: { to: p } })));
+  }, [{}]);
+}
+
 // each asked swap, checked against the take's slots: refused naming the slots there are and every choice of the slot
 export async function resolve(take, swaps = {}) {
   if (swaps == null || typeof swaps !== "object" || Array.isArray(swaps)) throw new Error(`swaps: an object of slot → {to}, e.g. {"cast:cast-k7f2x9": {"to": "cast:cast-m2a9"}}`);
@@ -155,11 +168,50 @@ async function reuse(take, asked, { count = 2, who, by = "person" }) {
     next: "list_candidates (look at each painted frame), then apply_candidate", said: `Take ${take.number}'s motion with ${first.text}: ${count} painted candidate${count === 1 ? "" : "s"} to pick from${waiting.length ? `; then ${waiting.map((p) => p.text).join(", ")}` : ""}${not_possible.length ? `; not on its own motion: ${not_possible.map((p) => p.text).join(", ")} (Re-generate)` : ""}` };
 }
 
+// several re-runs at once: Re-generate queues each as a take and gathers them as one decision's candidates; Reuse the
+// motion opens a decision per combination
+async function batch(take, all, { route, seed, land, go, count, who, by }) {
+  for (const m of all) await resolve(take, m); // every combination is checked before anything opens or runs
+  if (route === "reuse_motion") {
+    const out = [];
+    for (const m of all) out.push(await reuse(take, await resolve(take, m), { count, who, by }));
+    return { take: take.id, route, decisions: out.flatMap((r) => r.decisions), runs: all.length, ...(out.some((r) => r.not_possible) ? { not_possible: out.flatMap((r) => r.not_possible ?? []) } : {}),
+      next: "list_candidates (look at each painted frame), then apply_candidate", said: out.map((r) => r.said).join(" · ") };
+  }
+  const list = [];
+  for (const m of all) { const r = await rerun(take, { swaps: m, route, seed, land, queue: go }); list.push({ prompt_id: r.run, swaps: m, text: r.said, label: (await resolve(take, m)).filter((s) => !s.keep).map((s) => s.text).join(", ") || "as it was", ...(r.new_seed != null ? { seed: r.new_seed } : {}) }); }
+  if (!go) return { take: take.id, route, runs: list.length, said: `${list.length} re-runs opened one after another; the chain holds the last (${list.at(-1).label}) · nothing is queued` };
+  const d = await C.create({ kind: "rerun", target: take.id, title: `Take ${take.number} with ${list.map((c) => c.label).join(" · ")}`, by, take: take.id, route, seed }, list.map(({ text, ...c }) => c));
+  return { take: take.id, route, decision: d.id, runs: d.candidates.map((c) => ({ candidate: c.id, run: c.prompt_id, take: `take-${c.prompt_id}`, swaps: c.label })),
+    next: "run_status each run until done, then list_candidates {kind: rerun} and apply_candidate the one to keep (it becomes the shot's active take)",
+    said: `Take ${take.number} re-run ${list.length} times (${list.map((c) => c.label).join(" · ")}), one after another; they come back as candidates to pick from. The chain now holds the last one (${list.at(-1).label}): Undo in the graph puts it back` };
+}
+
+// a re-run candidate is a take: its media is the picture; Apply makes it the shot's active take (in a scratch tab it is
+// marked keep), Undo puts back what was active, Reject marks the take rejected by whoever pressed it (SNAP-R17)
+C.kind("rerun", {
+  finish: (d, c, h) => { c.pictures = T.media(h.outputs).slice(0, 1).map((m) => ({ label: c.label, media: m })); c.take = `take-${c.prompt_id}`; },
+  apply: async (d, c, by) => {
+    await T.load(); await SC.load();
+    const t = T.get(`take-${c.prompt_id}`);
+    if (!t) throw new Error(`${d.title}: candidate ${c.id}'s take isn't here yet (run_status ${c.prompt_id})`);
+    const home = RT.shotOf(t);
+    if (!home) { t.verdict = "keep"; await T.save(t); return { take: t.id, kept: true }; }
+    const was = home.shot.active ?? null;
+    await SC.setActive(home.scene.id, home.shot.id, t.id, by);
+    return { take: t.id, scene: home.scene.id, shot: home.shot.id, was };
+  },
+  undo: async (d, c, that) => { if (that.scene) await SC.setActive(that.scene, that.shot, that.was, "person"); else { const t = T.get(that.take); if (t) { t.verdict = null; await T.save(t); } } },
+  reject: async (d, c, by) => { await T.load(); const t = T.get(`take-${c.prompt_id}`); if (t) { t.verdict = "reject"; t.verdict_by = by; await T.save(t); } },
+});
+
 // Re-generate: the take's recipe again with the swaps, the same seed unless `seed` is new; queue: false only opens it.
 // An opened file (opened()) runs in place, unmarked
-export async function rerun(take, { swaps = {}, route = "regenerate", seed = "same", land, queue: go = true, count, who, by } = {}) {
+export async function rerun(take, { swaps = {}, route = "regenerate", seed = "same", land, queue: go = true, count, who, by = "person" } = {}) {
   if (!ROUTES.includes(route)) throw new Error(`route is one of ${ROUTES.join(", ")}`);
   if (!SEEDS.includes(seed)) throw new Error(`seed is one of ${SEEDS.join(", ")}`);
+  const all = combos(swaps);
+  if (all.length > 1) return batch(take, all, { route, seed, land, go, count, who, by });
   if (route === "reuse_motion") { if (!take.id) throw new Error("Reuse the motion needs a take (its video is the motion): this file isn't one here"); return reuse(take, await resolve(take, swaps), { count, who, by }); }
   if (!take.graph) throw new Error(`${named(take)} has no workflow saved with it`);
   const asked = await resolve(take, swaps), home = landing(land), where = take.id ? await RT.openTake(take, home) : "this tab", done = [];

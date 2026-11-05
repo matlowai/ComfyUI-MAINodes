@@ -321,10 +321,10 @@ export async function moveShot(sceneId, shotId, to) {
 export async function setActive(sceneId, shotId, takeId, by = "person") {
   await Promise.all([load(), T.load()]);
   const shot = shotOf(need(sceneId), shotId);
-  if (!takesOf(shot).some((e) => e.take === takeId)) throw new Error(`${takeId} isn't a take of ${shotTitle(get(sceneId), shot)}`);
+  if (takeId != null && !takesOf(shot).some((e) => e.take === takeId)) throw new Error(`${takeId} isn't a take of ${shotTitle(get(sceneId), shot)}`); // null: no active take (an Undo back to none)
   await update(sceneId, (s) => { const x = s.shots.find((y) => y.id === shotId); x.takes = takesOf(x); x.active = takeId; x.active_by = by; });
   const scene = get(sceneId), now = scene.shots.find((x) => x.id === shotId);
-  return { scene: sceneId, shot: shotId, active: takeId, by, path: [scene.name, shotTitle(scene, now), ...path(now, takeId).map((id) => label(T.get(id)))] };
+  return { scene: sceneId, shot: shotId, active: takeId, by, path: [scene.name, shotTitle(scene, now), ...(takeId ? path(now, takeId).map((id) => label(T.get(id))) : [])] };
 }
 
 // takes that joined a shot since its file was written are listed in it too (a run in its workflow, an edit of its take)

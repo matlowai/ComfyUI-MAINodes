@@ -33,7 +33,7 @@ export function noteChips(c) {
     if (!id.different && !id.lighter) out.push(h("span", { className: "snap-cand-note", textContent: `${id.face_unreliable ? "" : `face ${id.face_low?.toFixed(2) ?? "–"} · `}hair ${id.hair_up == null ? "–" : sign(id.hair_up)}`,
       title: `no identity flag. ${faces}; ${hair}. These miss blonder hair and drift on profiles: the head crops decide${missed}` }));
   }
-  if (!out.length && c.state === "ready") out.push(h("span", { className: "snap-cand-note", textContent: "checking…" }));
+  if (!out.length && c.state === "ready" && !c.label) out.push(h("span", { className: "snap-cand-note", textContent: "checking…" })); // a re-run's candidate (a labelled take) has no checks to wait for
   return out;
 }
 
@@ -50,13 +50,14 @@ export function candidatesEl(d, { say, crops } = {}) {
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Reject", onclick: () => act(async () => { await C.reject(d.id, c.id, "person"); if (rec) await settle(rec.tool === "reject_candidate"); }) })]
       : c.state === "applied" ? [h("span", { className: "snap-cand-on", textContent: `✓ applied by ${d.applied?.by ?? "person"}` }), h("button", { className: "snap-link snap-quiet-btn", textContent: "Undo", onclick: () => act(() => C.undo(d.id, "person"), `${d.title}: undone`) })]
       : [h("span", { className: "snap-quiet", textContent: c.state === "rendering" ? "rendering…" : c.state === "failed" ? `failed: ${c.error ?? ""}` : `rejected by ${c.rejected?.by ?? "person"}` })];
-    const pics = c.pictures.length ? c.pictures.map((p) => h("img", { src: url(p.media), alt: p.label, title: p.label, loading: "lazy" })) : [h("div", { className: "snap-cand-none" })];
+    const pics = c.pictures.length ? c.pictures.map((p) => (/\.(mp4|webm|mov)$/i.test(p.media?.filename ?? "") ? h("video", { src: url(p.media), title: p.label, muted: true, loop: true, playsInline: true, preload: "metadata", onpointerenter: (e) => e.target.play(), onpointerleave: (e) => e.target.pause() }) // a re-run's candidate is a take's video
+      : h("img", { src: url(p.media), alt: p.label, title: p.label, loading: "lazy" }))) : [h("div", { className: "snap-cand-none" })];
     const id = crops && c.notes.identity?.scores;
     const tile = h("figure", { className: `snap-cand ${c.state}${rec ? " recommended" : ""}`, tabIndex: 0 },
       h("div", { className: "snap-cand-pics" }, pics),
       id ? h("div", { className: "snap-cand-crops", title: "head crops: the take's frame | the edit" }, id.flatMap((s) => s.crops.filter(Boolean).map((m) => h("img", { src: url(m), alt: "head crop", loading: "lazy" })))) : null,
       h("figcaption", {},
-        h("div", { className: "snap-cand-line" }, h("b", { textContent: c.id }), h("span", { className: "snap-quiet", textContent: [c.seed != null ? `seed ${c.seed}` : null, c.made?.lora ? c.made.lora.replace(/\.safetensors$/, "").replace(/_/g, " ").slice(0, 28) : null, c.by !== "person" ? `by ${c.by}` : null].filter(Boolean).join(" · ") })),
+        h("div", { className: "snap-cand-line" }, h("b", { textContent: c.label ? `${c.id} · ${c.label}` : c.id }), h("span", { className: "snap-quiet", textContent: [c.seed != null ? `seed ${c.seed}` : null, c.made?.lora ? c.made.lora.replace(/\.safetensors$/, "").replace(/_/g, " ").slice(0, 28) : null, c.by !== "person" ? `by ${c.by}` : null].filter(Boolean).join(" · ") })),
         h("div", { className: "snap-cand-notes" }, noteChips(c)),
         // SNAP-R51: a pinning method's painted frames sit at the frames they came from until the person unpins them
         "pin" in c && c.state === "ready" ? h("label", { className: "snap-cand-pin", title: "on: the take passes through these painted frames at those moments; off: they only set the look (fine on one shot, worse at cuts)" },

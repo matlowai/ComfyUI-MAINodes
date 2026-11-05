@@ -125,7 +125,7 @@ export async function save(take) {
 // what a node wrote: every listed file in its outputs, by kind from the extension; a loader's preview of an input file
 // (LoadVideo shows the guide clip an edit read) is not something the run made
 const KIND = (f) => (/\.(mp4|webm|mov|mkv)$/i.test(f) ? "video" : /\.(png|jpe?g|webp|gif|avif)$/i.test(f) ? "image" : /\.(wav|flac|mp3|ogg|m4a)$/i.test(f) ? "audio" : null);
-function media(outputs) {
+export function media(outputs) {
   const found = [];
   for (const [node, out] of Object.entries(outputs ?? {})) for (const list of Object.values(out)) {
     if (!Array.isArray(list)) continue;
@@ -205,7 +205,7 @@ function continued(graph, prompt) {
 // a re-take (retake.js marks the queued workflow): a version of the take it re-made, "as it was" or "with today's world";
 // a re-run (rerun.js, SNAP-R63): a version made with swaps, each swap's text kept for its label
 const retaken = (graph) => { const r = graph?.extra?.snap?.retake, x = graph?.extra?.snap?.rerun;
-  if (x?.take) return { take: x.take, method: `rerun/${x.route}`, options: { swaps: x.swaps, seed: x.seed, ...(x.land != null ? { land: x.land } : {}), ...(x.decision ? { decision: x.decision, candidate: x.candidate } : {}) } };
+  if (x?.take) return { take: x.take, method: `rerun/${x.route}`, options: { swaps: x.swaps, seed: x.seed, ...(x.land != null ? { land: x.land } : {}) } };
   return r?.take ? { take: r.take, method: "retake", options: { world: r.world, seed: r.seed } } : null; };
 
 const saving = new Set(); // runs whose take is being written

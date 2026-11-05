@@ -6,6 +6,7 @@
 // take's unless the person picks a new one, and a pick that changes nothing the prompt holds says so before the press.
 // Reuse the motion (a take only) says per swap what it becomes on the take's own video (a recast painted from the new
 // Cast's details line and picture, a Change something) or why it can't (a Setup, a shot card: Re-generate does those).
+// "Several at once" on a row ticks other records for that slot: one re-run each, as one decision's candidates (U89 batch).
 // An opened file keeps Run as it was / Run with today's world / Edit then run (each pinned version opens in its editor).
 // SNAP-R63 re-run swaps any reference · SNAP-R61 as it was, today's world, edited · SNAP-R60 pins · SNAP-R5 nothing changes
 // until a press · SNAP-R11 warn, never block · see docs/SNAP_RULES.md
@@ -42,9 +43,13 @@ export async function openRerunSheet(host, { take, name, say, edit }) {
   let editing = false, regen = null, reuse = null;
   const rows = h("div", { className: "snap-world-rows" });
   async function update() {
-    const asked = await RR.resolve(subject, chosen).catch((err) => { status.textContent = err.message; return []; }), go = asked.filter((s) => !s.keep);
-    route.textContent = `Re-generate: the same recipe${seed.value === "same" ? " and seed" : " with a new seed"}${go.length ? `, with ${go.map((s) => s.text).join(", ")}` : ", as it was"}. Similar motion, not the same.`;
-    cache.textContent = !file && seed.value === "same" && !asked.some((s) => s.into_run) ? `Nothing the prompt holds changes: ComfyUI would serve take ${take.number}'s own file from its cache. Pick a new seed for a fresh render.` : "";
+    const all = RR.combos(chosen), each = await Promise.all(all.map((m) => RR.resolve(subject, m))).catch((err) => { status.textContent = err.message; return [[]]; });
+    const asked = each[0], go = asked.filter((s) => !s.keep), many = all.length > 1, texts = (list) => list.filter((s) => !s.keep).map((s) => s.text).join(", ") || "as it was";
+    route.textContent = many ? `Re-generate × ${all.length}, one after another, back as candidates to pick from: ${each.map(texts).join(" · ")}. Similar motion, not the same.`
+      : `Re-generate: the same recipe${seed.value === "same" ? " and seed" : " with a new seed"}${go.length ? `, with ${go.map((s) => s.text).join(", ")}` : ", as it was"}. Similar motion, not the same.`;
+    regen.textContent = file ? "Run with these swaps" : many ? `Re-generate × ${all.length}` : "Re-generate";
+    if (reuse) reuse.textContent = many ? `Reuse the motion × ${all.length}` : "Reuse the motion";
+    cache.textContent = !file && !many && seed.value === "same" && !asked.some((s) => s.into_run) ? `Nothing the prompt holds changes: ComfyUI would serve take ${take.number}'s own file from its cache. Pick a new seed for a fresh render.` : "";
     cache.hidden = !cache.textContent;
     if (file) { regen.disabled = !go.length; return; }
     const ways = await Promise.all(go.map((s) => RR.motionOf(take, s).catch((err) => ({ text: s.text, not_possible: err.message })))), first = ways.find((w) => !w.not_possible);
@@ -54,6 +59,13 @@ export async function openRerunSheet(host, { take, name, say, edit }) {
     reuse.title = first ? "paint the swap into the take's frames as candidates; the render waits for your pick" : "none of these swaps can use the take's own motion: Re-generate does them";
   }
   const row = (s) => {
+    const others = s.others.length > 0 && !file ? h("details", { className: "snap-rerun-many" }, h("summary", { textContent: "Several at once…" }),
+      s.others.map((o) => h("label", {}, h("input", { type: "checkbox", value: o.ref, onchange: () => {
+        const ticked = [...others.querySelectorAll("input:checked")].map((x) => x.value);
+        if (ticked.length) chosen[s.slot] = ticked; else delete chosen[s.slot];
+        pick.disabled = ticked.length > 0; what.replaceChildren(...(ticked.length ? [h("strong", { textContent: `one re-run each: ${ticked.map((r) => s.others.find((o) => o.ref === r).name).join(", ")}` })] : []));
+        update();
+      } }), ` ${o.name}`))) : null;
     const m = moved.get(s.slot), pick = h("select", { className: "snap-rerun-pick", ariaLabel: `${s.name ?? s.slot}: re-run with` }, picks(s).map(option)), what = h("div", { className: "snap-rerun-what" });
     pick.value = chosen[s.slot] ?? "pinned";
     pick.onchange = async () => {
@@ -68,7 +80,7 @@ export async function openRerunSheet(host, { take, name, say, edit }) {
       h("strong", { textContent: `${s.kind === "scene" ? "Scene: " : s.kind === "setup" ? "Setup: " : ""}${m?.name ?? s.name ?? s.slot}${s.n ? ` v${s.n}` : ""}` }), h("span", { className: "snap-quiet", textContent: state }),
       m?.fields?.length ? h("ul", { className: "snap-world-fields" }, m.fields.map((f) => h("li", { textContent: f }))) : null,
       m?.warning ? h("div", { className: "snap-world-warn", textContent: m.warning }) : null,
-      pick, what,
+      pick, others, what,
       editing && editable ? h("button", { className: "snap-link", textContent: `Edit v${s.n}`, title: "open this version: saving makes a new version, and Save and use puts it into this recipe", onclick: () => edit(s.slot, s.n) }) : null);
   };
   const draw = () => rows.replaceChildren(...slots.filter((s) => !file || s.kind !== "scene").map(row)); // an opened file belongs to no scene

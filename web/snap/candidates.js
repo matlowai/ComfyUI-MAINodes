@@ -17,7 +17,7 @@ export const onChange = (fn) => listeners.add(fn);
 const changed = () => { for (const fn of listeners) fn(); };
 
 // finish(decision, candidate, history) fills a rendered candidate; apply(decision, candidate, by) returns what
-// undo(decision, candidate, that) needs
+// undo(decision, candidate, that) needs; reject(decision, candidate, by), when a kind has it, follows a Reject
 export const kind = (name, handlers) => kinds.set(name, handlers);
 const handler = (d) => kinds.get(d.kind) ?? (() => { throw new Error(`No handler for ${d.kind} candidates on this page`); })();
 
@@ -86,6 +86,7 @@ export async function reject(id, cid, by = "person") {
   if (c.state === "applied") throw new Error(`${d.title}: candidate ${cid} is applied; undo it first`);
   c.state = "rejected";
   c.rejected = { by, at: new Date().toISOString() };
+  await kinds.get(d.kind)?.reject?.(d, c, by); // a kind whose candidates are takes marks the take (rerun: verdict reject, SNAP-R17)
   if (d.candidates.every((x) => x.state === "rejected" || x.state === "failed")) d.status = "closed";
   await save(d);
   return { decision: id, rejected: cid, by };
