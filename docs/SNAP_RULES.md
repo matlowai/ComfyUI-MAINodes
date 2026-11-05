@@ -196,7 +196,10 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   before records (`snap/cards/`) are wrapped once on load and the originals parked in `snap/_migrated/cards/`. Every
   apply path pins what it put in, in `extra.snap.world` (`{n, hash, name, follow, placed}`): applyCast, a set (its working
   copy saved first as an unlisted version, so a take never pins a draft), a shot card with its set and characters, a
-  card's words. A take keeps the pins it ran with (`world`), and its stale flag names a record that moved on first
+  card's words, and the family recipe card a setup came from (`setup: true`, one at a time: the next setup replaces it;
+  a setup that opens a new tab pins on that tab, and the tab it left keeps its own pins). A pack card's pin (version 0)
+  keeps the card's hash: when a pack update changes the card it reads "<name> (the pack updated this card)" with the same
+  one-press update, and "(no longer in the pack)" when the pack drops it. A take keeps the pins it ran with (`world`), and its stale flag names a record that moved on first
   ("Kon v1 → v2"), before the chain's own changes. A pinned reference never updates by itself: the brick that holds it
   shows "v2 available · update", one press. Scenes version their authored fields only (name, set, shots in order
   with names and cards) inside their own document; take lists, the active take and workflow files make no version. The

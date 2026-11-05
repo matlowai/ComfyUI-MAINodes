@@ -22,6 +22,12 @@ const changed = () => { for (const fn of listeners) fn(); };
 const canonical = (x) => JSON.stringify(x, (k, v) => (v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.keys(v).sort().map((x) => [x, v[x]])) : v));
 export const sha = async (x) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical(x))))].map((b) => b.toString(16).padStart(2, "0")).join("");
 export const short = (hash) => hash?.slice(0, 12) ?? null;
+// today's pack cards (version 0 of their references): ref -> {hash, name, id}, set by the Library when it loads the
+// pack; null until then, so nothing reads as moved or missing before it is known
+let packCards = null;
+export const setPack = (map) => { packCards = map; changed(); };
+export const packCard = (ref) => packCards?.get(ref) ?? null;
+export const packKnown = () => packCards != null;
 
 export function parse(ref) {
   const m = /^([a-z_]+):([^@\s]+?)(?:@(\d+))?$/.exec(ref ?? "");

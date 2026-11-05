@@ -303,6 +303,7 @@ const coreRows = (b) => (BRICKS[b.key]?.stack?.role === "core" ? { ...b, values:
 export async function applyCard(card, { fresh }) {
   const bricks = (fresh ? card.brick.bricks : card.brick.bricks.map((b) => ({ ...b, values: Object.fromEntries(Object.entries(b.values).map(([k, ws]) => [k, Object.fromEntries(Object.entries(ws).filter(([name]) => !KEEP.has(name)))])) }))).map(coreRows);
   let keys;
+  const was = E.state().setup;
   app.canvas.emitBeforeChange();
   try {
     keys = await E.restore(bricks);
@@ -312,6 +313,7 @@ export async function applyCard(card, { fresh }) {
     E.tag("setup", card.id);
     E.tag("family", card.family);
     if (turboHost()) E.remember(turboHost(), "turbo", null);
+    await L.pinSetup(card, was); // SNAP-R60: on the tab the card went onto (useSetup opened a new one first if it had to)
   } finally { app.canvas.emitAfterChange(); }
   app.canvas.setDirty(true, true);
   return keys;

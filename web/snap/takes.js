@@ -287,7 +287,12 @@ export function changes(was, now) {
 export function moves(world) {
   const out = [];
   for (const [ref, p] of Object.entries(world ?? {})) {
-    if (!p.n) continue;
+    if (!p.n) { // a pack card: moved when the pack changed it, missing when the pack dropped it
+      const now = W.packKnown() && W.packCard(ref);
+      if (W.packKnown() && !now) out.push({ ref, name: p.name ?? ref, was: 0, now: null, missing: true, pack: true });
+      else if (now && now.hash !== p.hash) out.push({ ref, name: now.name, was: 0, now: 0, pack: true });
+      continue;
+    }
     const { kind, id } = W.parse(ref), r = W.record(kind, id);
     if (!r) { out.push({ ref, name: p.name ?? id, was: p.n, now: null, missing: true }); continue; }
     const name = r.kind === "cast" ? W.headOf(r).body.name : p.name ?? id;
@@ -295,8 +300,10 @@ export function moves(world) {
   }
   return out;
 }
-// how a move reads: "Kon v1 → v3", "Kon v2 (record archived)", "Kon v2 (record missing)"
-export const moveText = (m) => `${m.name} v${m.was}${m.missing ? " (record missing)" : m.now !== m.was ? ` → v${m.now}` : ""}${m.archived ? " (record archived)" : ""}`;
+// how a move reads: "Kon v1 → v3", "Kon v2 (record archived)", "Kon v2 (record missing)", "Squash and stretch (the pack
+// updated this card)"
+export const moveText = (m) => (m.pack ? `${m.name} (${m.missing ? "no longer in the pack" : "the pack updated this card"})`
+  : `${m.name} v${m.was}${m.missing ? " (record missing)" : m.now !== m.was ? ` → v${m.now}` : ""}${m.archived ? " (record archived)" : ""}`);
 // null when the live chain still makes this take and nothing it pinned moved on, else {changed, world}: what changed in
 // the chain (seeds aside) and which pinned records have newer versions. Takes from before hashes were kept are hashed
 // from their prompt. An edit's take was never made by the chain, so it is never stale (a continued or re-taken one was)

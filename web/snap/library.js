@@ -43,7 +43,13 @@ W.onChange(() => { if (pack.length) rebuild(); });
 export const originOf = (id) => origins.get(id) ?? null;
 
 // pack cards and the user's cards, loaded once per page; a failed load is retried on the next call
-export const ready = () => (loading ??= Promise.all([loadPack(), W.load()]).then(rebuild, (e) => { loading = null; throw e; }));
+export const ready = () => (loading ??= Promise.all([loadPack(), W.load()]).then(rebuild).then(hashPack).catch((e) => { loading = null; throw e; }));
+// a pack card is version 0 of its reference, known by its hash: the world store keeps today's hash of each, so a pin on
+// one reads as moved when a pack update changes the card, and as missing when the pack drops it (SNAP-R60)
+const packRef = (card) => `${card.kind === "set_snapshot" ? "set_snapshot" : card.kind === "cast" ? "cast" : "card"}:${card.lineage ?? card.id}`;
+async function hashPack() {
+  W.setPack(new Map(await Promise.all(pack.map(async (c) => [packRef(c), { hash: W.short(await W.sha(c)), name: nameOf(c), id: c.id }]))));
+}
 
 // a version of a set card holding an edited snapshot: `mine` is the one working copy Apply keeps, otherwise a new card.
 // The set's camera plates come along (the working copy's, which plates.js keeps current): each records its camera, so
@@ -160,9 +166,19 @@ async function versionOf(card) {
     return { ref: W.refOf("set_snapshot", o.id), n: out.n, hash: W.short(W.get(out.ref).version.hash) };
   }
   if (o) return { ref: W.refOf(o.kind, o.id), n: o.n, hash: W.short(W.get(W.refOf(o.kind, o.id, o.n)).version.hash) };
-  return { ref: `${card.kind === "set_snapshot" ? "set_snapshot" : card.kind === "cast" ? "cast" : "card"}:${card.lineage ?? card.id}`, n: 0, hash: W.short(await W.sha(card)) };
+  return { ref: packRef(card), n: 0, hash: W.short(await W.sha(card)) };
 }
 async function pinCard(card) { const v = await versionOf(card); pin(v.ref, { n: v.n, hash: v.hash, name: nameOf(card) }); return v; }
+// the setup a recipe was applied from (a family recipe card) is pinned like any card, one at a time: applying another
+// drops the pin of the one it replaces (`was`, the card id the recipe held). Called on the tab the card went onto, so a
+// setup that opened a new tab pins there and the tab it left keeps its own pins
+export async function pinSetup(card, was) {
+  const old = was && was !== card.id ? get(was) : null;
+  if (old) { const o = originOf(old.id), { [o ? W.refOf(o.kind, o.id) : packRef(old)]: _, ...rest } = E.state().world ?? {}; E.tag("world", rest); }
+  const v = await versionOf(card);
+  pin(v.ref, { n: v.n, hash: v.hash, name: nameOf(card), setup: true });
+  return v;
+}
 
 // local upload into ComfyUI's input/snap folder; returns the LoadImage value ("snap/<name>")
 async function upload(canvas, name) {
@@ -382,6 +398,11 @@ export function keepPinnedText() {
 export async function updatePin(ref) {
   await ready();
   const { kind, id } = W.parse(ref), r = W.record(kind, id);
+  if (!r && pinOf(ref)?.n === 0) { // a pack card the pack updated: today's card goes in as the pack has it
+    const now = W.packCard(ref);
+    if (!now) throw new Error(`${pinOf(ref).name ?? ref} is no longer in the pack, so it can't be updated`);
+    return apply(get(now.id), { keep: false });
+  }
   if (!r) throw new Error(`${ref} isn't in your records (archived records stay listed; a missing one can't be updated)`);
   if (kind === "cast") return applyCast(W.refOf(kind, id));
   const card = W.headOf(r)?.body;

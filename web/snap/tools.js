@@ -1105,7 +1105,7 @@ async function worldOf(world) {
   await W.load();
   const moved = new Map(T.moves(world).map((m) => [m.ref, m]));
   return Object.entries(world ?? {}).map(([ref, p]) => { const { kind, id } = W.parse(ref), r = W.record(kind, id), m = moved.get(ref);
-    return { ref, name: m?.name ?? p.name ?? id, n: p.n, head: p.n === 0 ? 0 : r?.head ?? null, moved: !!m && !m.missing && m.now !== p.n, ...(m?.archived ? { archived: true } : {}), ...(p.n && !r ? { missing: true } : {}),
+    return { ref, name: m?.name ?? p.name ?? id, n: p.n, head: p.n === 0 ? 0 : r?.head ?? null, moved: !!m && !m.missing && (m.pack || m.now !== p.n), ...(m?.archived ? { archived: true } : {}), ...((p.n && !r) || m?.missing ? { missing: true } : {}),
       follow: p.follow !== false, ...(p.placed ? { placed: p.placed } : {}), ...(p.strength != null ? { strength: p.strength } : {}) }; });
 }
 
