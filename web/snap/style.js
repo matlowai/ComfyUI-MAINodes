@@ -628,8 +628,12 @@ export const STYLE = `
 .snap-ob-dots i.done { background: color-mix(in srgb, var(--s-accent) 45%, var(--s-line)); } .snap-ob-dots i.on { background: var(--s-accent); width: 18px; border-radius: 4px; }
 .snap-ob-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 8px; } .snap-ob-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 520px; }
 .snap-ob-choice { all: unset; cursor: pointer; display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: 12px; background: var(--s-card); box-shadow: inset 0 0 0 1px var(--s-line); transition: box-shadow .12s ease-out; }
-.snap-ob-choice strong { font-size: 14px; font-weight: 600; } .snap-ob-choice:hover { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--s-accent) 50%, var(--s-line)); }
-.snap-ob-choice.on { box-shadow: inset 0 0 0 2px var(--s-accent); background: color-mix(in srgb, var(--s-accent) 10%, var(--s-card)); }
+.snap-ob-choice strong { font-size: 14px; font-weight: 600; } .snap-ob-choice:hover { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--s-fg) 35%, var(--s-line)); }
+/* picked reads as picked (filled, an accent ring and a check); hover and keyboard focus stay neutral rings outside, so
+   neither looks like a pick while the footer says "Pick at least one" */
+.snap-ob-choice { position: relative; } .snap-ob-choice:focus-visible { outline: 2px solid color-mix(in srgb, var(--s-fg) 55%, transparent); outline-offset: 3px; }
+.snap-ob-choice.on { box-shadow: inset 0 0 0 2px var(--s-accent); background: color-mix(in srgb, var(--s-accent) 16%, var(--s-card)); }
+.snap-ob-choice.on::after { content: "✓"; position: absolute; top: 10px; right: 12px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--s-bg); background: var(--s-accent); }
 .snap-ob-scan, .snap-ob-tasks { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
 .snap-ob-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; background: var(--s-card); } .snap-ob-row > strong { min-width: 150px; }
 .snap-ob-row > span:not(.snap-spacer) { flex: 1; color: var(--s-dim); }
