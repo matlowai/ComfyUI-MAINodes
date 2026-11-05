@@ -1,7 +1,7 @@
 // Method slots (SNAP-R14, UX_GEMS §5): a slot is a named position holding one interchangeable method. A media slot sits
 // between two media sockets (upscale: the Render's IMAGE or VIDEO and Save); a delta slot edits values on nodes that
 // exist (turbo: its methods are the model graph's turbos, in models.js); a take slot holds methods that make a new take
-// from an existing one (edit: relight, in edits.js; extend: Standard and Strong, in extend.js; region: data-only entries
+// from an existing one (edit: relight, in edits.js; extend: Standard, Long and Strong, in extend.js; region: data-only entries
 // for installed packs, not wired yet), so nothing in the chain fills it. The registry is snap_cards/methods.json under the person's userdata snap/methods.json (field by
 // field, the person wins, as the model graph). Readiness comes from the model folders and installed nodes at run time.
 // SNAP-R1 generic pass-through · SNAP-R4 outcome faces · SNAP-R11 warn, never block · SNAP-R13 data, not code branches ·
@@ -122,7 +122,7 @@ export function headline(key) {
 // list_methods' answer: the slot, what fills it now, and its methods
 export function describe(id) {
   if (slot(id).kind === "delta") return { slot: id, kind: "delta", family: M.family(), current: M.turbo()?.file ?? null, on: !!M.turbo(), methods: list(id) };
-  if (slot(id).kind === "take") return { slot: id, kind: "take", runs_on: "a take (edit_take runs the wired ones)", about: slot(id).about, methods: list(id) };
+  if (slot(id).kind === "take") return { slot: id, kind: "take", runs_on: "a take (edit_take runs the wired ones)", about: slot(id).about, defaults: slot(id).defaults ?? null, methods: list(id) };
   const now = holder(id), ours = now && methodOf(now);
   return { slot: id, kind: "media", current: method(now), on: now ? on(now) : false, factor: ours ? factor(now) : null, headline: ours ? headline(now) : null, methods: list(id) };
 }

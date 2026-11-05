@@ -439,6 +439,18 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   saturation over 8 clips 1.08-1.16 with the carry vs 1.37-1.58 re-encoding; Anti-Burn on a carry only softened (detail
   0.59 vs 1.41); a 100 % crop of the carry's rising detail shows crisper faces, no grain (proto/ui/262). *More:* PLAN
   U46c, U46_EXTEND_AB_2026-11-04.md, `web/snap/extend.js`.
+- **SNAP-R64: Long re-anchors, and the extend default follows the length.** Long is Standard's carry plus Geiru's
+  keystone front + capstone back from the take's first clip on every 3rd clip of the longer take (the take is clip 1),
+  with Geiru Context's protection flag on and `hold_audio` off on exactly those clips; nothing else of Strong (no Late
+  Lock, protection LoRA or context noise). Its face: "keeps the face and the sound for 2 minutes". The slot's
+  `defaults` pick the method by the length asked for, Standard up to 40 s and Long beyond; Strong is only ever a pick.
+  The take viewer follows the length until the person picks a method, then keeps their pick and names it as theirs;
+  either way it says why, and list_methods gives agents the same rows. If the drone comes back between anchors on
+  chains past ~2 minutes, the fallback is `hold_audio` off on every clip, not a new node. *Why:* U46d: Standard grows
+  a mosaic texture past ~40 s (detail 1.63x at 91 s); U46e/U46f: the re-anchor alone holds 2 minutes, face included
+  (detail 1.07x, ArcFace 0.75-0.89), and Late Lock makes it decay; U46g: the H3 audio drone rides on Context's audio
+  carry, and cutting it on the anchor clips gave 0 of 24 drone segments with the picture unchanged. *More:* PLAN U46e,
+  U46g, U46_EXTEND_AB_2026-11-04.md, U46g_LONG_AUDIO_2026-11-05.md, `web/snap/extend.js`.
 - **SNAP-R39: A rating comes from how a thing was made.** Nothing Snap makes or proposes is unrated. A prompt is rated
   when it is queued, from the files it loads and its words, and the highest wins. Its words count for an account capped
   below Adult; anyone else (an Adult cap, or no gate) counts them only with their setting "Rate takes from their prompt's

@@ -4,11 +4,15 @@
 // sampled, so nothing is decoded and encoded again per clip, the source of the old chain's colour creep (U46b: saturation
 // 1.42 -> 1.10). Seam Normalize matches each clip's colour to the frames it continues; Anti-Burn is an opt-in slider, off by
 // default (it only softened, at every length tested up to 35 s). Strong is the Geiru bundle (keystone + late lock + context
-// noise + Anti-Burn): it keeps the look and may reset the action. Joins follow the Geiru README: each clip holds the last
+// noise + Anti-Burn): it keeps the look and may reset the action. Long (U46e-g) is Standard plus a re-anchor to the take's
+// first clip on every 3rd clip (Geiru keystone front + capstone back, nothing else of Strong), and those clips don't carry
+// the clip before's sound (hold_audio off): the H3 audio drone rides on that carry (U46g). The slot's default follows
+// the length asked for (Standard up to ~40 s, Long beyond; Strong is a pick). Joins follow the Geiru README: each clip holds the last
 // 22 kept frames of the one before, the 17 after them are generated free, so a clip adds L - 39 frames (the last L - 22).
 // What runs (models, frame counts, prompts) is registry data, the slot's `run`.
 // SNAP-R4 outcome faces · SNAP-R13 data, not code branches · SNAP-R14 method slots · SNAP-R16 GPU work waits for the
-// person · SNAP-R50 a longer take carries the latent · see docs/SNAP_RULES.md
+// person · SNAP-R50 a longer take carries the latent · SNAP-R64 Long re-anchors, the default follows the length ·
+// see docs/SNAP_RULES.md
 import * as ED from "./edits.js";
 import * as K from "./checks.js";
 import * as M from "./models.js";
@@ -29,6 +33,12 @@ export function length(take, clips) {
   return { frames, seconds: +(frames / FPS).toFixed(1), added: +((frames - c.frames) / FPS).toFixed(1), from: +(c.frames / FPS).toFixed(1) };
 }
 
+// the method a take this long gets by default, and why (the slot's `defaults`: the first row it fits, SNAP-R64)
+export function pick(take, clips) {
+  const { seconds } = length(take, clips), row = S.slot("extend").defaults.find((d) => d.up_to_s == null || seconds <= d.up_to_s);
+  return { method: row.method, why: row.why, seconds };
+}
+
 // the continuation prompt: the take's description and soundscape, said to go on without a cut (U46's wording)
 function continued(text, run) {
   const [desc, sound] = text.split(/\n*overall_soundscape:\s*/);
@@ -44,8 +54,9 @@ function preset(take, run) {
 
 // queue the longer version: `clips` new clips (as many as asked), Anti-Burn at `antiburn` on Standard (0 = off). Lands as
 // a version of the take in its group
-export async function start(take, id = "chain", { clips = 1, antiburn = 0, prompt, by = "person" } = {}) {
-  const m = await method(id), run = S.slot("extend").run, strong = !!m.protection;
+export async function start(take, id, { clips = 1, antiburn = 0, prompt, by = "person" } = {}) {
+  await S.load(); id ??= pick(take, clips).method;
+  const m = await method(id), run = S.slot("extend").run, strong = !!m.protection, every = m.anchor?.every;
   if (m.install_state !== "ready") throw new Error(`${m.title}: ${m.install_state}`);
   if (!(Number.isInteger(clips) && clips >= 1)) throw new Error("clips: how many clips to add, 1 or more");
   const c = ED.clip(take), L = run.clip_frames, F = c.frames, p = preset(take, run);
@@ -69,16 +80,22 @@ export async function start(take, id = "chain", { clips = 1, antiburn = 0, promp
     keep0: { class_type: "ImageFromBatch", inputs: { image: ["srcp", 0], batch_index: 0, length: F - DROP } },
     keep0a: { class_type: "TrimAudioDuration", inputs: { audio: ["srcp", 1], start_index: 0, duration: (F - DROP) / FPS } },
     held0: { class_type: "ImageFromBatch", inputs: { image: ["srcp", 0], batch_index: F - HEAD, length: HELD } },
+    // Long's anchor: the take's first clip (its first 141 frames), encoded once; its first and last single-frame latents are
+    // the keystone and the capstone (U46e anchors to clip 1)
+    ...(every && clips + 1 >= every ? {
+      anc: { class_type: "ImageFromBatch", inputs: { image: ["srcp", 0], batch_index: 0, length: Math.min(F, L) } },
+      ancv: { class_type: "VAEEncode", inputs: { pixels: ["anc", 0], vae: ["vae", 0] } },
+    } : {}),
     ...(ab && !strong ? { abm: { class_type: "LoraLoaderModelOnly", inputs: { model: ["rp", 0], lora_name: ab, strength_model: burn } } } : {}),
   };
   let images = ["keep0", 0], audio = ["keep0a", 0], held = ["held0", 0];
   for (let k = 1; k <= clips; k++) {
-    const end = k < clips ? L - DROP : L, prev = k === 1 ? ["tailav", 0] : [`s${k - 1}`, 0];
+    const end = k < clips ? L - DROP : L, prev = k === 1 ? ["tailav", 0] : [`s${k - 1}`, 0], anchor = !!every && (k + 1) % every === 0;
     Object.assign(g, {
       [`c${k}`]: { class_type: "MiniMaxH3ImageToVideo", inputs: { clip: ["clip", 0], vae: ["vae", 0], prompt: text, width: c.width, height: c.height, length: L } },
       [`sh${k}`]: { class_type: "PrimitiveInt", inputs: { value: k + 1 } }, // the take is shot 1
-      [`cx${k}`]: { class_type: "H3ClownContextExperimental", inputs: { latent: [`c${k}`, 1], head_frames: HEAD, drop_last: DROP, drop_first: 0, hold_audio: true, first_shot: 1, audio_frames: 0,
-        audio_feather_ticks: 0, degradation_protection: strong, shot_number: [`sh${k}`, 0], previous_shot: prev } },
+      [`cx${k}`]: { class_type: "H3ClownContextExperimental", inputs: { latent: [`c${k}`, 1], head_frames: HEAD, drop_last: DROP, drop_first: 0, hold_audio: !anchor || m.anchor.hold_audio, first_shot: 1, audio_frames: 0,
+        audio_feather_ticks: 0, degradation_protection: strong || anchor, shot_number: [`sh${k}`, 0], previous_shot: prev } },
     });
     let model = ab && !strong ? ["abm", 0] : ["rp", 0], latent = [`cx${k}`, 0];
     if (strong) {
@@ -90,6 +107,9 @@ export async function start(take, id = "chain", { clips = 1, antiburn = 0, promp
         [`ll${k}`]: { class_type: "H3ClownLateLock", inputs: { model: [`ky${k}`, 1], latent: [`ky${k}`, 0], swap_step: pr.late_lock_step, slots: "capstone slot (back)" } },
       });
       model = [`ll${k}`, 0]; latent = [`ll${k}`, 1];
+    } else if (anchor) {
+      g[`ky${k}`] = { class_type: "H3ClownKeyframe", inputs: { latent, enabled: true, placement: m.anchor.placement, source_clip: 1, keyframe: ["ancv", 0], shot_number: [`sh${k}`, 0], model } };
+      model = [`ky${k}`, 1]; latent = [`ky${k}`, 0];
     }
     Object.assign(g, {
       [`nz${k}`]: { class_type: "RandomNoise", inputs: { noise_seed: Math.floor(Math.random() * 2 ** 32) } },

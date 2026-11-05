@@ -26,6 +26,10 @@
       "title": "Extend / long clip",
       "off": "the take ends where it ends",
       "about": "a method that continues a take past H3's clip length, clip by clip, keeping it from drifting (colour, grit) as it goes; the longer take lands as a version of the take (PLAN U46, U46b, U46c)",
+      "defaults": [
+        { "up_to_s": 40, "method": "chain", "why": "it holds the look up to about 40 s (U46d: detail 1.17x of the first loop at 39 s)" },
+        { "method": "long", "why": "past about 40 s Standard grows a mosaic texture and smears faces (U46d, U46f); Long re-anchors to the take every 3rd clip and keeps both for 2 minutes, the sound too (U46e, U46f, U46g)" }
+      ],
       "run": {
         "clip_frames": 141,
         "clip": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
@@ -295,7 +299,7 @@
       "slot": "extend",
       "kind": "take",
       "title": "Standard",
-      "face": "keeps going, colour holds",
+      "face": "colour holds, good to ~40 s",
       "does": "carries the sampler's latent from clip to clip (Geiru Context, protection off) and matches each clip's colour at the join (Seam Normalize)",
       "packs": ["H3ClownContextExperimental", "H3SeamNormalize", "LTXVConcatAVLatent"],
       "needs": [{ "folder": "diffusion_models", "match": "minimax_h3_fl2va" }, { "folder": "text_encoders", "match": "minimax_h3" }, { "folder": "vae", "match": "minimax_h3_audio_vae" }],
@@ -322,6 +326,31 @@
         "hardware": "RTX 5090"
       },
       "cost": { "local_s_per_clip": 85, "per": "141-frame clip at 1280×704 on a 5090 (U46c: 2 clips in 190 s with the model load; 28-40 s at 832×480 in U46b)", "vram_gb": null }
+    },
+    {
+      "id": "long",
+      "slot": "extend",
+      "kind": "take",
+      "title": "Long",
+      "face": "keeps the face and the sound for 2 minutes",
+      "does": "Standard's carry, re-anchored to the take's first clip on every 3rd clip (Geiru keystone front + capstone back) with a fresh soundtrack on those clips; no Late Lock, protection LoRA or context noise",
+      "packs": ["H3ClownContextExperimental", "H3ClownKeyframe", "H3SeamNormalize", "LTXVConcatAVLatent"],
+      "needs": [{ "folder": "diffusion_models", "match": "minimax_h3_fl2va" }, { "folder": "text_encoders", "match": "minimax_h3" }, { "folder": "vae", "match": "minimax_h3_audio_vae" }],
+      "anchor": { "every": 3, "placement": "keystone front + capstone back", "hold_audio": false },
+      "local_or_api": "local",
+      "constraints": [
+        "the take is clip 1: clips 3, 6, 9 … of the longer take are re-anchored to it, so turn it off across cuts and scene changes",
+        "the re-anchor moves the action once (a person may turn away), then it stays steady, as with Strong"
+      ],
+      "guidance": {
+        "line": "holds 2 minutes like Strong at Standard's cost: detail 1.07x of the first loop at 91 s (Standard 1.63x), the same woman at 100 % (ArcFace 0.75-0.89, Standard 0.31), 0 of 24 segments with the audio drone (re-anchor with the audio carried: 6)",
+        "evidence": "measured",
+        "source": "U46e (wide fountain loop, 24 clips), U46f (face close-up loop), U46g (audio: hold_audio off on the anchor clips); one seed per scene",
+        "n": 2,
+        "hardware": "RTX 5090"
+      },
+      "cost": { "local_s_per_clip": 85, "per": "141-frame clip at 1280×704 on a 5090, as Standard (U46e: 31 s per clip at 832×480, the same as Standard)", "vram_gb": null },
+      "credit": "Geiru context suite by roycho87 (https://github.com/roycho87/geiru_context_suite)"
     },
     {
       "id": "geiru",

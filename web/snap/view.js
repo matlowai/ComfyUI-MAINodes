@@ -753,7 +753,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("header", {}, h("strong", { textContent: def.kind === "delta" ? `${def.title} · ${M.family()}` : `${def.title} method` }),
         h("span", { className: "snap-quiet", textContent: def.kind === "delta" ? "one turbo at a time here; stack more as LoRA rows if you want · Ctrl+Z undoes it" : "every method takes and gives the same picture or clip · ● weights here · Ctrl+Z undoes it" }), h("span", { className: "snap-spacer" }),
         h("button", { className: "snap-x", textContent: "×", onclick: close })),
-      h("div", { className: "snap-setup-body" }, h("div", { className: "snap-setup-grid" }, off, d.methods.filter((m) => m.fits).concat(d.methods.filter((m) => !m.fits)).map(item))));
+      h("div", { className: "snap-setup-body" }, d.defaults ? h("p", { className: "snap-quiet snap-method-defaults", textContent: `Picked by length: ${d.defaults.map((r) => `${d.methods.find((m) => m.id === r.method)?.title ?? r.method} ${r.up_to_s != null ? `up to ${r.up_to_s} s` : "beyond"}`).join(", ")}; the others are yours to pick in the take viewer` }) : null,
+        h("div", { className: "snap-setup-grid" }, off, d.methods.filter((m) => m.fits).concat(d.methods.filter((m) => !m.fits)).map(item))));
     sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
     root.append(sheet);
     sheet.querySelector(".snap-setup-card.on")?.focus();
