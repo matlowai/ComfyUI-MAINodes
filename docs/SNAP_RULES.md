@@ -579,3 +579,102 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   for the end user to do what they decide"). *Why:* derived LoRAs with neutral names in a neutral folder were caught
   only by their stamp (U68). *More:* U68_PRIVACY_AUDIT_2026-11-04.md "Matcher gaps", PLAN U71, `snap_privacy.py`,
   `snap_bridge.py`.
+
+## Accounts and the gate (snap-gate)
+
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67 on).
+
+- **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
+  use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and
+  WebSocket to it. Off (`--disabled`) it relays every byte unchanged: no sign-in, no filtering, ComfyUI as it is.
+  Limits (ratings, buckets, admin-only routes) exist only when an install turns the gate on; Snap itself never limits
+  the person (Dylan, 2026-11-04 16:46: no artificial limits in Snap). *Why:* core and the pack keep updating; product
+  logic stays out of `comfy/` (ComfyUI AGENTS.md). *More:* CONTENT_RATINGS_VAULT §5, PLAN U65/U66.
+- **SNAP-R41: A session decides the user; the client never does.** Every request needs a session (the sign-in form,
+  or an account token as `Authorization: Bearer`, or a one-time `/gate/login?token=` link for a headless agent page).
+  The gate drops the client's `comfy-user`, cookie and token and sets `comfy-user` to the account's own ComfyUI user (made
+  through core's `/users` on first sign-in). `GET /users` answers in the single-user shape so core's user picker never
+  shows; `POST /users` and `/internal/*` are the admin's. Passwords are scrypt hashes in the gate's own state folder,
+  outside ComfyUI's `user/`. The admin can do everything. *Why:* `--multi-user` alone trusts a header any page can set.
+- **SNAP-R42: Work is owned.** `POST /prompt` records prompt_id -> account, and refuses a prompt_id another account owns.
+  `/history`, `/queue`, `/api/jobs`, WebSocket events, deletes, cancels and interrupts only reach the account's own runs.
+  A WebSocket client id belongs to the first account that used it, and a prompt aimed at another account's client id
+  is re-aimed at nobody. Saves go to `output/<account>/` (every `filename_prefix` input is rewritten; `shared/...` stays
+  shared; one that climbs out is refused). `/view` serves the account's folder, `shared/`, and files its own runs wrote;
+  hash names and others' files are 404. The Snap bridge sends a call to the newest page of the caller's own account (the
+  pack keys pages by the comfy-user header the gate sets, SNAP-R30), and a page registers only its account's own socket.
+  *Why:* core's history, outputs and `/view` are
+  shared by everyone on one server, and core hands a reused client id the old socket's events.
+- **SNAP-R43: Ratings cap files everywhere they appear.** Accounts have a max rating, PG / Mature / Adult (role
+  defaults: admin Adult, member Mature, kid PG; the booru four map onto them). A file's rating comes from the pack's
+  model graph under the admins' own `snap/models.json` (`rating`, or an `nsfw` tag = Adult), else from the rating the
+  pack saved a file made here with (`user/snap_ratings.json`, the pack's SNAP-R39). The pack graph is the one of the
+  pack ComfyUI runs (`<comfy-dir>/custom_nodes/ComfyUI-MAINodes`), so a gate from another checkout rates the same way.
+  Other accounts' model graphs never rate anything, because they can write their own user data. Files above the cap are removed from every
+  list generically (any list in `/object_info`, `/models/*`, `/experiment/models/*`, `/embeddings`, and any GET under
+  `/mainodes/`), their metadata and previews are 404, and a prompt or pack request naming one (by name or file name) is
+  refused before ComfyUI sees it. *Why:* hidden-only lists can be bypassed by typing a name into a prompt.
+- **SNAP-R44: An unrated content file counts as Adult.** Kit downloads arrive rated and made files are rated when
+  they are saved (the pack's SNAP-R39), so this covers files someone drops in by hand. An unrated LoRA, checkpoint, diffusion model, embedding (any
+  folder not in the gate's helper list) is hidden from PG and Mature accounts until an admin rates it. Unrated helpers
+  that can't decide what a picture shows (VAEs, TAESD, text encoders, CLIP vision, upscalers, detectors, ControlNets)
+  count as PG. *Why:* a fresh download is unknown. For a kid, seeing nothing new until the admin rates it is the safe
+  failure, and one rating opens it for everyone at or above that level.
+- **SNAP-R45: Loading is decided by scope, not by the path's form.** A non-admin may load any library file within their
+  cap, by name or by absolute path, and nothing outside the library and their own folders. An absolute path in a
+  non-admin's prompt (or in a pack request) that names a file or folder on disk must be inside a model folder ComfyUI
+  lists (`/experiment/models`) and rated at or below the account's cap, or inside the account's own, shared or top-level
+  input, or its own or shared output within its cap (SNAP-R56, SNAP-R57); anything else is refused, naming why. Text
+  that names nothing on disk is left alone. *Why:* Dylan, 2026-11-04 20:41: "non-admins load models only in their scope
+  (their role + rating)"; scope, not path form, decides. Nodes that load arbitrary paths (`MAILoadVideoPath` and many
+  custom packs) would otherwise read any file the server user can. *More:* PLAN U83.
+- **SNAP-R46: Sessions persist, and an idle one locks.** Sessions live in the gate's `sessions.json` under the sha256
+  of the cookie, never the cookie itself, with a server-side expiry (7 days), so a gate restart signs nobody out. A
+  session with no request for the admin's idle limit (`gate.py settings --idle-minutes`, default 30) locks: API calls
+  answer 401 with `"locked": true`, a page load goes to the sign-in card ("Locked after 30 minutes without use… open
+  pages keep their work") with the name filled in, and the page's open WebSocket gets nothing more. Signing in again
+  keeps the page's client id and its runs. Account tokens (agents) don't idle, and neither does a page a token sign-in
+  link opened (its session carries the token; a new token for the account signs those pages out; U72 F18). *Why:* the gated install is a shared
+  machine; a restart shouldn't sign everyone out, and an unattended screen shouldn't stay open. An untouched ComfyUI
+  page makes no requests (measured: none in 90 s), so the lock does fire for an open tab. *More:* PLAN U65.
+- **SNAP-R47: Failed sign-ins wait, per account and per client address.** Three failures on an account (ten from one
+  address, across names, the token link included) start a wait of 5 s that doubles with each further failure, capped at
+  15 minutes; failures are forgotten after an hour without one, and a sign-in clears its account and address. During a
+  wait even the right password answers 429; the card says when to try again and holds the button with a countdown.
+  Counts are kept in memory (a restart clears them). *Why:* passwords on a family machine are short; a fixed delay
+  alone lets a script guess all night. *More:* PLAN U65.
+- **SNAP-R48: Shared pack files are the admin's.** The pack's preset folders (`models/loras/dials/presets/`, render
+  presets under `render/`) and dial files' info are shared by every account, so only the admin writes them. Anyone
+  else's preset save goes to its own user data (`snap/presets/<dials|render>/<name>.json`, in the shape the pack's
+  load answers); its list is the shared presets then its own, and a load finds its own copy first. A name the shared
+  folder has is taken (409, as the pack answers). `POST /mainodes/dials/info` (it rewrites a shared dial file) is 403
+  for non-admins. *Why:* the U65 build let any account write files every account sees. *More:* PLAN U65.
+- **SNAP-R49: The admin rates files on /gate/admin.** An admin-only page lists every model file by folder (helpers
+  folded away, since unrated helpers count as PG) with a PG / Mature / Adult / Unrated select. A change writes `rating`
+  (null for Unrated, so the pack's value stands) into the signed-in admin's `snap/models.json` through core's
+  `/userdata`, reading it fresh first, the same file and field the gate rates from (SNAP-R43), so it applies at once.
+  Cross-site posts are 403. The page also lists every file in `output/shared/` (its own "output/shared" section, the
+  same selects): one a run wrote shows what it counts as from its run, one put there by hand "counts as Adult (nobody
+  rated it)". The admin's rating of an output is kept in the gate's `outputs.json` (`admin`), wins over the run's own
+  rating for `/view`, and Unrated hands it back; only files inside `output/shared/` can be rated
+  (`POST /gate/admin/output_rating`). *Why:* rating by hand-editing JSON is how a kid ends up seeing an unrated file or
+  nothing new at all; a picture the admin copies into shared/ for everyone stayed Adult with no way to open it (U90).
+  *More:* PLAN U65, U77 (6), U90 (4).
+- **SNAP-R56: An output keeps the rating of the prompt that wrote it, and nobody sees above their cap.** The pack rates
+  every prompt when it is queued (`extra_data.snap_marks.rating`, server-side; the pack's SNAP-R39). The gate learns
+  each run's rating and the files it wrote from ComfyUI's history (whenever it reads it, and when a run's
+  `execution_success` passes an open page) and keeps them in its own `outputs.json`, so a rating outlives ComfyUI's
+  history. A non-admin never gets a run or a file rated above their cap: `/view` is 404 (in output/shared/ and in their
+  own folder alike), and `/history`, `/history/<id>`, `/api/jobs` and `/api/jobs/<id>` leave the run out. A file in
+  output/shared/ that no run wrote (put there by hand) counts as Adult (SNAP-R44) until the admin rates it (SNAP-R49). Core's assets API (`/api/assets`,
+  `/api/tags`), which lists every account's files, is the admin's. The admin sees everything. *Why:* a member could
+  save into shared/ what a kid then opened; CONTENT_RATINGS_VAULT §2: caps are server-enforced, items above the cap are
+  omitted. *More:* PLAN U88 (2).
+- **SNAP-R57: input/ is per account.** An upload (`/upload/image`, `/upload/mask`) lands in `input/<account>/` (output
+  uploads in `output/<account>/`), the admin's too, since the admin is a person with a bucket; a subfolder the page
+  asks for goes inside it (`snap` → `input/<account>/snap/`). Only the admin puts files in `input/shared/`. A file name
+  can't carry a folder. Anyone reads their own input, `input/shared/` and top-level files (the admin's); another
+  account's input is 404 on `/view`, refused in a prompt or pack request (`kid/x.png`, `kid/x.png [input]`, or its
+  absolute path), left out of the loaders' lists in `/object_info` (an input folder named after another account and
+  anything in it), and a mask upload can't start from it. The admin sees all of it. *Why:* Dylan, 2026-11-04 20:41:
+  "input/ is per account; admin has access to all". *More:* PLAN U83.
