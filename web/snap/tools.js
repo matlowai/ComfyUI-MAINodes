@@ -120,7 +120,7 @@ export const TOOLS = [
   },
   {
     name: "describe_recipe",
-    description: "The current workflow, starting with `revision` (a content hash of what Run would queue; pass it as if_revision to a change so it is refused when the person or another agent edited in between) and `about` (how the current setup card's models fit together: read it before changing anything), then `prompt_help` (how this recipe's model reads a prompt: H3's sections, what makes its sound audible), then as bricks in reading order (a brick that is off says on: false and why: its values are not used), with each brick's bindings (what feeds it and which rule made the link), its settings, wiring the user changed in the graph, settings that point at nothing installed, nodes outside the recipe (Run leaves them out), and `models`: the family, the setup, the turbo, every model file the recipe loads (size, installed, and the model graph's kind / turbo / role), the LoRA rows, and warnings (a turbo LoRA on a turbo merge, stacked turbos, SFT without a deband fix, another family's file, a schedule the turbo wasn't distilled for, an encoder type that doesn't fit). Warnings never block; say them to the person.",
+    description: "The current workflow, starting with `revision` (a content hash of what Run would queue; pass it as if_revision to a change so it is refused when the person or another agent edited in between) and `about` (how the current setup card's models fit together: read it before changing anything), then `prompt_help` (how this recipe's model reads a prompt: H3's sections, what makes its sound audible), then as bricks in reading order, each with its `id` (exactly what set_setting's and every other tool's `brick` takes: the stills recipe's Render is `image`) next to its `title` and `kit` (a brick that is off says on: false and why: its values are not used), with each brick's bindings (what feeds it and which rule made the link), its settings, wiring the user changed in the graph, settings that point at nothing installed, nodes outside the recipe (Run leaves them out), and `models`: the family, the setup, the turbo, every model file the recipe loads (size, installed, and the model graph's kind / turbo / role), the LoRA rows, and warnings (a turbo LoRA on a turbo merge, stacked turbos, SFT without a deband fix, another family's file, a schedule the turbo wasn't distilled for, an encoder type that doesn't fit). Warnings never block; say them to the person.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
     run: async () => ({
@@ -128,7 +128,7 @@ export const TOOLS = [
       about: M.setups().find((x) => x.current && x.about)?.about ?? null,
       prompt_help: E.state().bricks.map((b) => BRICKS[b.key]?.prompt_help).find(Boolean) ?? null,
       models: await models(),
-      bricks: E.describe().map((b) => ({ brick: b.brick, title: b.title, ...offNote(b.brick), bindings: b.bindings, settings: shown(settingsOf(b.brick)) })),
+      bricks: E.describe().map((b) => ({ id: b.brick, brick: b.brick, title: b.title, kit: BRICKS[b.brick]?.kit ?? null, ...offNote(b.brick), bindings: b.bindings, settings: shown(settingsOf(b.brick)) })), // U72 F19: a plain id
       overridden_in_graph: E.overrides().map((o) => ({ brick: o.to, role: o.role, change: o.change })),
       missing: [...E.missing(), ...M.unreadable()],
       outside_recipe: E.outside().map((n) => ({ id: n.id, type: n.type, title: n.title })),

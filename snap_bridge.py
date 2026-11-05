@@ -99,8 +99,8 @@ async def call(request):
     found = open_pages(user_of(request))
     if not tools or not found:
         base = f"{request.scheme}://{request.host}"
-        return error(f"No Snap page is open for you on this ComfyUI. Open {base}/?snap in a browser, or start a headless one for yourself: "
-                     f"bash {PAGE_SH} {base} (it returns once the page has registered).", 503)
+        return error(f"No Snap page is open for you on this ComfyUI: it may have been locked or closed. Open {base}/?snap in a browser, or start a "
+                     f"headless one for yourself: bash {PAGE_SH} {base} (it returns once the page has registered).", 503)
     if body.get("tool") not in {t["name"] for t in tools}:
         return error(f"Unknown Snap tool {body.get('tool')!r}: GET /mainodes/snap/tools lists them.", 404)
     client, call_id = found[-1], secrets.token_hex(8)

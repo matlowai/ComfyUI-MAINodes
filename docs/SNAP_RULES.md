@@ -227,9 +227,10 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   tool table, its errors or the pack's `docs/AGENT_START.md`, never only in code. Pages are keyed by the ComfyUI user
   (the comfy-user header snap-gate sets per account): a call goes to the newest connected page of the caller's own user,
   and only that page may answer it. `GET /mainodes/snap/tools` lists the caller's open pages, when each registered and
-  last answered; with none open, a call says how to open one (`tools/snap_agent_page.sh <port>`, which uses a new
+  last answered; with none open, a call says it may have been locked or closed and how to open one (`tools/snap_agent_page.sh <port>`, which uses a new
   Chrome profile per launch, returns once the page has registered, starts nothing when a page is already open, and
-  with `--stop` ends the pages it started, with no pid or kill from the caller). `start_recipe` takes an onboarding
+  with `--stop` ends the pages it started, with no pid or kill from the caller). Every brick in `describe_recipe` has an `id`, exactly what
+  `set_setting`'s `brick` takes, next to its title and kit (U72 F19). `start_recipe` takes an onboarding
   kit's `intent` (stills opens MOSS-Image), and `set_profile {done: true}` answers every question (U72 run 3, F12-F14).
   `snap_mcp.py` and `snapcall.py` take a base URL and send `SNAP_TOKEN` as a Bearer header. An agent's call with an
   unknown or missing argument is refused, and every tool error names the arguments the tool takes (the U44 contract).
