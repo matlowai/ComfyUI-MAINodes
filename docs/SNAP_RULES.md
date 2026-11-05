@@ -294,15 +294,20 @@ IDs R40+ were reserved for the gate while R28-R39 were open for other work (renu
   folded away, since unrated helpers count as PG) with a PG / Mature / Adult / Unrated select. A change writes `rating`
   (null for Unrated, so the pack's value stands) into the signed-in admin's `snap/models.json` through core's
   `/userdata`, reading it fresh first, the same file and field the gate rates from (SNAP-R43), so it applies at once.
-  Cross-site posts are 403. *Why:* rating by hand-editing JSON is how a kid ends up seeing an unrated file or nothing
-  new at all. *More:* PLAN U65, U77 (6).
+  Cross-site posts are 403. The page also lists every file in `output/shared/` (its own "output/shared" section, the
+  same selects): one a run wrote shows what it counts as from its run, one put there by hand "counts as Adult (nobody
+  rated it)". The admin's rating of an output is kept in the gate's `outputs.json` (`admin`), wins over the run's own
+  rating for `/view`, and Unrated hands it back; only files inside `output/shared/` can be rated
+  (`POST /gate/admin/output_rating`). *Why:* rating by hand-editing JSON is how a kid ends up seeing an unrated file or
+  nothing new at all; a picture the admin copies into shared/ for everyone stayed Adult with no way to open it (U90).
+  *More:* PLAN U65, U77 (6), U90 (4).
 - **SNAP-R56: An output keeps the rating of the prompt that wrote it, and nobody sees above their cap.** The pack rates
   every prompt when it is queued (`extra_data.snap_marks.rating`, server-side; the pack's SNAP-R39). The gate learns
   each run's rating and the files it wrote from ComfyUI's history (whenever it reads it, and when a run's
   `execution_success` passes an open page) and keeps them in its own `outputs.json`, so a rating outlives ComfyUI's
   history. A non-admin never gets a run or a file rated above their cap: `/view` is 404 (in output/shared/ and in their
   own folder alike), and `/history`, `/history/<id>`, `/api/jobs` and `/api/jobs/<id>` leave the run out. A file in
-  output/shared/ that no run wrote (put there by hand) counts as Adult (SNAP-R44). Core's assets API (`/api/assets`,
+  output/shared/ that no run wrote (put there by hand) counts as Adult (SNAP-R44) until the admin rates it (SNAP-R49). Core's assets API (`/api/assets`,
   `/api/tags`), which lists every account's files, is the admin's. The admin sees everything. *Why:* a member could
   save into shared/ what a kid then opened; CONTENT_RATINGS_VAULT §2: caps are server-enforced, items above the cap are
   omitted. *More:* PLAN U88 (2).

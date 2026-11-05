@@ -118,8 +118,10 @@ class Gate:
         self.clients = {}     # websocket client id -> account (SNAP-R42: an id is never handed to another account)
         self.produced = {}    # account -> {(type, subfolder, filename)} its runs wrote
         self.input_dir, self.output_dir = Path(comfy_dir) / "input", Path(comfy_dir) / "output"
-        rated = self.state / "outputs.json"  # SNAP-R56: {"runs": prompt_id -> level, "files": "<type>/<subfolder>/<file>" -> level}
-        self.rated = json.loads(rated.read_text(encoding="utf-8")) if rated.exists() else {"runs": {}, "files": {}}
+        # SNAP-R56: {"runs": prompt_id -> level, "files": "<type>/<subfolder>/<file>" -> level, "admin": the same keys -> the
+        # admin's own rating of an output (SNAP-R49), which wins over the run's}
+        rated = self.state / "outputs.json"
+        self.rated = {"runs": {}, "files": {}, "admin": {}, **(json.loads(rated.read_text(encoding="utf-8")) if rated.exists() else {})}
         self.learned_at = 0
         self.lists = (0, {})  # (time, folder -> file names) from ComfyUI's /models
         self.roots = (0, {})  # (time, folder -> its folders on disk) from ComfyUI's /experiment/models
@@ -294,7 +296,7 @@ class Gate:
                             f'<select data-file="{html.escape(base(n))}" data-v="{own_level}" aria-label="rating of {html.escape(file)}">{options}</select>'
                             f'<span class="as">{"" if own_level else "counts as " + SHOWN[CAPS[level(rated, folder, n)]]}</span></li>')
             (helpers if folder in HELPER_FOLDERS else content).append(f'<section><h2>{html.escape(folder)} <span>{len(files)}</span></h2><ul>{"".join(rows)}</ul></section>')
-        body = "".join(content) + (f'<details><summary>Helper files: VAEs, text encoders, upscalers and the like. Unrated ones count as PG.</summary>{"".join(helpers)}</details>' if helpers else "")
+        body = "".join(content) + self.shared_outputs() + (f'<details><summary>Helper files: VAEs, text encoders, upscalers and the like. Unrated ones count as PG.</summary>{"".join(helpers)}</details>' if helpers else "")
         text = ADMIN.replace("{account}", html.escape(name)).replace("{unrated}", str(unrated)).replace("{body}", body or '<p class="intro">No model files yet.</p>')
         return web.Response(content_type="text/html", text=text)
 
@@ -323,6 +325,44 @@ class Gate:
         if status != 200:
             return web.json_response({"error": f"ComfyUI didn't save {GRAPH}: {out}"}, status=502)
         return web.json_response({"file": file, "rating": rating, "counts_as": SHOWN[CAPS[level(self.ratings(), folders[0], file)]]})
+
+    def shared_outputs(self):
+        """/gate/admin's output/shared section: every file there, with the admin's rating or what it counts as (its run's
+        rating, else Adult for a file put there by hand)."""
+        root, rows = self.output_dir / "shared", []
+        for f in sorted(p for p in root.rglob("*") if p.is_file()) if root.is_dir() else []:
+            rel = f.relative_to(self.output_dir).as_posix()
+            own = self.rated["admin"].get("output/" + rel)
+            options = "".join(f'<option value="{v}"{" selected" if own is not None and v == CAPS[own] else ""}>{label}</option>' for v, label in (("", "Unrated"), *SHOWN.items()))
+            folder_part, _, file = rel.rpartition("/")
+            rows.append(f'<li data-name="{html.escape(rel.lower())}"><span class="f">{html.escape(folder_part + "/")}<b>{html.escape(file)}</b></span>'
+                        f'<select data-output="{html.escape(rel)}" data-v="{CAPS[own] if own is not None else ""}" aria-label="rating of {html.escape(file)}">{options}</select>'
+                        f'<span class="as">{"" if own is not None else "counts as %s (%s)" % self.counts_as(rel)}</span></li>')
+        return (f'<section><h2>output/shared <span>{len(rows)}</span></h2><p class="note">Outputs everyone can open. One a run wrote counts as its prompt\'s '
+                f'rating; one put here by hand counts as Adult until you rate it. Kept in the gate\'s outputs.json.</p><ul>{"".join(rows)}</ul></section>') if rows else ""
+
+    def counts_as(self, rel):
+        """(shown level, why) of a shared output the admin hasn't rated: its run's rating, else Adult (put there by hand)."""
+        r = self.rated["files"].get("output/" + rel)
+        return (SHOWN[CAPS[r]], "its run") if r is not None else ("Adult", "nobody rated it")
+
+    async def rate_output(self, request):
+        """Set or clear the admin's rating of one file in output/shared/ (SNAP-R49, SNAP-R56)."""
+        name = self.account(request)
+        if name is None or not self.is_admin(name) or cross_site(request):
+            return web.json_response({"error": "Only the admin can rate outputs, from /gate/admin."}, status=403)
+        body = await request.json()
+        rel, rating = posixpath.normpath(str(body.get("file", "")).replace("\\", "/")), body.get("rating")
+        if rating not in (None, *CAPS):
+            return web.json_response({"error": "A rating is pg, mature, adult, or null for unrated."}, status=400)
+        if rel.split("/")[0] != "shared" or ".." in rel.split("/") or not (self.output_dir / rel).is_file():
+            return web.json_response({"error": f"There's no file {rel} in output/shared/."}, status=404)
+        if rating is None:
+            self.rated["admin"].pop("output/" + rel, None)
+        else:
+            self.rated["admin"]["output/" + rel] = LEVELS[rating]
+        write_json(self.state / "outputs.json", self.rated)
+        return web.json_response({"file": rel, "rating": rating, "counts_as": SHOWN[rating] if rating else self.counts_as(rel)[0]})
 
     # ---- ratings (SNAP-R43, SNAP-R44) -------------------------------------------------------------------------------
     def ratings(self):
@@ -525,7 +565,8 @@ class Gate:
         top = sub.split("/")[0]
         if kind == "input":
             return None if sub == "." or top in (name, "shared") else "reads another account's input folder."
-        r = self.rated["files"].get(f"{kind}/{sub}/{base(filename)}")
+        key = f"{kind}/{sub}/{base(filename)}"
+        r = self.rated["admin"].get(key, self.rated["files"].get(key))
         r = LEVELS["adult"] if r is None and kind == "output" and top == "shared" else r
         return "reads an output rated above this account's cap." if r is not None and r > self.cap(name) else None
 
@@ -948,7 +989,8 @@ li{display:grid;grid-template-columns:minmax(0,1fr) 128px 132px;gap:12px;align-i
 .f{overflow-wrap:anywhere;font-size:14px;color:var(--dim)}.f b{color:var(--text);font-weight:500}
 li select{padding:7px 10px;border-left:4px solid var(--line)}
 select[data-v=pg]{border-left-color:#5fd38d}select[data-v=mature]{border-left-color:#f2b84b}select[data-v=adult]{border-left-color:#ff6a9a}
-.as{color:var(--dim);font-size:12.5px}
+.as{color:var(--dim);font-size:12.5px}.note{color:var(--dim);font-size:13px;margin:0;padding:0 18px 10px}
+[hidden]{display:none!important}
 summary{cursor:pointer;color:var(--dim);font-size:14px;margin:20px 0 12px}
 @media(max-width:560px){li{grid-template-columns:minmax(0,1fr) 116px}.as{grid-column:1/-1;margin-top:-6px}}
 </style></head><body><main><header><div class="mark"><i></i>Snap <small>· Ratings</small></div>
@@ -961,11 +1003,12 @@ counts as Adult until you rate it ({unrated} unrated now). Changes apply at once
 const status = (text, bad) => { const s = document.getElementById("status"); s.textContent = text; s.className = bad ? "bad" : ""; };
 for (const sel of document.querySelectorAll("li select")) sel.addEventListener("change", async () => {
   sel.disabled = true;
+  const out = "output" in sel.dataset, attr = out ? "data-output" : "data-file";
   try {
-    const r = await fetch("/gate/admin/rating", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ file: sel.dataset.file, rating: sel.value || null }) });
+    const r = await fetch(out ? "/gate/admin/output_rating" : "/gate/admin/rating", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ file: out ? sel.dataset.output : sel.dataset.file, rating: sel.value || null }) });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || r.status);
-    for (const s of document.querySelectorAll(`li select[data-file="${CSS.escape(d.file)}"]`)) {
+    for (const s of document.querySelectorAll(`li select[${attr}="${CSS.escape(d.file)}"]`)) {
       s.value = d.rating || ""; s.dataset.v = d.rating || "";
       s.closest("li").querySelector(".as").textContent = d.rating ? "" : "counts as " + d.counts_as;
     }
@@ -998,6 +1041,7 @@ async def serve(args):
         app.router.add_get("/gate/me", gate.me)
         app.router.add_get("/gate/admin", gate.admin_page)
         app.router.add_post("/gate/admin/rating", gate.rate)
+        app.router.add_post("/gate/admin/output_rating", gate.rate_output)
     app.router.add_route("*", "/{tail:.*}", gate.handle)
     runner = web.AppRunner(app, access_log=None)
     await runner.setup()
