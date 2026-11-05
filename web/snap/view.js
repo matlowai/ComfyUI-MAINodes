@@ -548,7 +548,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   async function queue() {
     runBtn.disabled = true;
     try {
-      const job = { kind: "run", title: `Run ${J.where()}`, about: J.here(), eta_s: (await T.eta((await T.hashes(await T.live())).hash)).eta_s };
+      const job = { kind: "run", title: `Run ${J.where()}`, about: J.here(), eta_s: T.eta(null).eta_s }; // this workflow's measured takes: hashing the live recipe first would delay the press
       await J.queueRun(job, () => app.queuePrompt(0, 1, { queueNodeIds: E.targets() }));
       const errors = Object.entries(app.lastNodeErrors ?? {}).map(([id, e]) => `${app.graph.getNodeById(id)?.title ?? e.class_type}: ${e.errors?.[0]?.message ?? "error"}${e.errors?.[0]?.details ? ` (${e.errors[0].details})` : ""}`);
       if (errors.length) say(`Can't run yet · ${errors[0]}${errors.length > 1 ? ` · +${errors.length - 1} more` : ""}`, true);
