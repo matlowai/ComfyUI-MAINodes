@@ -629,7 +629,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   `method` choose; the first listed is used when none is named. MOSS Image Edit is not a New view model: on short03's C2
   it copied Picture 1 or redesigned the set and the people across views (Dylan 2026-11-05: "Not any moss edit those were
   bad"); Change something on video takes still uses it. *Why:* Dylan 2026-11-05 14:0x-15:0x after the C2 sheets.
-  *More:* PLAN U101, U17, PROGRESS 2026-11-05 13:57-15:0x.
+  *More:* PLAN U101, U17, PROGRESS 2026-11-05 13:57-14:55.
 
 ## Accounts and the gate (snap-gate)
 
