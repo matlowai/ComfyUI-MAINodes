@@ -132,6 +132,7 @@ export const TOOLS = [
       overridden_in_graph: E.overrides().map((o) => ({ brick: o.to, role: o.role, change: o.change })),
       missing: [...E.missing(), ...M.unreadable()],
       outside_recipe: E.outside().map((n) => ({ id: n.id, type: n.type, title: n.title })),
+      ...(L.picturesUnread() ? { references_unused: L.picturesUnread() } : {}),
       world: await worldOf(E.state().world),
       ...(E.legacy() ? { older_render: { upscale: E.legacy().upscale, about: "the older H3 Render blueprint: it saves the video itself and holds the RelayVSR switch (its `upscale` setting); it runs as saved. upgrade_render gives Upscale and Save as bricks" } } : {}),
     }),
@@ -178,8 +179,9 @@ export const TOOLS = [
         if (value == null) throw new Error(`${brick}.${name} takes frames (a number) or seconds like "5s", not ${JSON.stringify(asked)}`);
       }
       E.setValue(brick, s.node, name, value);
+      const kept = brick === "render" && name === "prompt" ? L.keepPinnedText() : []; // U72 F24: the Cast's sentence stays
       const now = E.getValue(brick, s.node, name);
-      return { brick, name, value: now, ...(t ? { seconds: E.seconds(t, now), ...(typeof asked === "string" ? { note: `${asked} is ${now} frames at ${t.fps} fps (${E.seconds(t, now)} s): this model takes ${t.min} + n × ${t.step} frames` } : {}) } : {}) };
+      return { brick, name, value: now, ...(kept.length ? { kept_cast: kept, note: `Kept in the prompt's first line: ${kept.join("; ")}. A Cast's words come from its record (save_cast changes them)` } : {}), ...(t ? { seconds: E.seconds(t, now), ...(typeof asked === "string" ? { note: `${asked} is ${now} frames at ${t.fps} fps (${E.seconds(t, now)} s): this model takes ${t.min} + n × ${t.step} frames` } : {}) } : {}) };
     },
   },
   {

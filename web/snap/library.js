@@ -326,6 +326,7 @@ export async function applyCast(ref, { strength } = {}) {
   const got = W.get(ref);
   if (!got) throw new Error(W.record("cast", id) ? `Cast ${id} has no version ${n}; it has v1-v${W.record("cast", id).head}` : `No Cast record ${id}`);
   const b = got.version.body, key = `cast:${id}`, was = pinOf(key)?.placed ?? {}, placed = {}, line = castLine(b);
+  let preset = null;
   if (!E.state().bricks.some((x) => x.key === "render")) throw new Error(`${b.name} goes into the Render prompt: add the Render brick first`);
   const keys = () => E.state().bricks.map((x) => x.key);
   app.canvas.emitBeforeChange(); // the row, the sentence, the pictures and the pin are one undo step
@@ -350,11 +351,31 @@ export async function applyCast(ref, { strength } = {}) {
       for (const p of E.state().bricks.find((x) => x.key === "refs").pictures ?? []) if (p.source === key && !roles.includes(p.role)) E.removePicture(p.node);
       b.refs.forEach((r, i) => E.addPicture(r.file, { role: roles[i], reason: `${b.name}, cast v${got.version.n}`, source: key, card: W.refOf("cast", id, got.version.n) }));
       placed.roles = roles;
+      // U72 F23: References reach only a render that reads them (H3: a Ref2V conditioning). Switch the Render Preset to a
+      // setup that does, saying so (SNAP-R11); where none can, the pin says the pictures go unread
+      if (b.refs.length) { try { preset = conditionFor("Ref2V"); } catch (e) { placed.unread = e.message; } }
     }
     pin(key, { n: got.version.n, hash: W.short(got.version.hash), name: b.name, placed, ...(strength != null ? { strength } : {}) });
   } finally { app.canvas.emitAfterChange(); }
   app.canvas.setDirty(true, true);
-  return `${b.name} v${got.version.n}: ${[b.lora && `${b.lora.file.split("/").pop().replace(/\.safetensors$/, "")} at ${strength ?? b.lora.strength} on Cast`, line && "the details in the prompt", b.refs.length && `${b.refs.length} picture${b.refs.length === 1 ? "" : "s"} in References`].filter(Boolean).join(", ") || "nothing to put in (no LoRA, words or pictures)"}`;
+  return `${b.name} v${got.version.n}: ${[b.lora && `${b.lora.file.split("/").pop().replace(/\.safetensors$/, "")} at ${strength ?? b.lora.strength} on Cast`, line && "the details in the prompt", b.refs.length && `${b.refs.length} picture${b.refs.length === 1 ? "" : "s"} in References`].filter(Boolean).join(", ") || "nothing to put in (no LoRA, words or pictures)"}${preset ? `; Render Preset now ${preset} (the pictures need it)` : ""}${placed.unread ? `; the pictures are not read by this render: ${placed.unread}` : ""}`;
+}
+
+// U72 F23: References that this render won't read (H3 reads pictures only with a Ref2V conditioning), as one line, or null
+export function picturesUnread() {
+  const n = E.state().bricks.find((x) => x.key === "refs")?.pictures?.length ?? 0, c = E.state().bricks.some((x) => x.key === "preset") ? String(E.getValue("preset", "preset", "conditioning") ?? "") : null;
+  return n && c && !c.startsWith("Ref2V") ? `References holds ${n} picture${n === 1 ? "" : "s"}, but the Render Preset conditions on ${c}: this render doesn't read them. Pick a reference-pictures setup (list_setups, apply_setup), or apply_cast again` : null;
+}
+// U72 F24: a prompt written over a Cast's sentence gets it back (the agent's words and the Cast both reach the render);
+// returns what was put back
+export function keepPinnedText() {
+  const kept = [];
+  for (const [ref, p] of Object.entries(E.state().world ?? {})) {
+    if (!p.placed?.text || !ref.startsWith("cast:")) continue;
+    const first = (E.getValue("render", "render", "prompt") ?? "").split("\n")[0];
+    if (!first.includes(p.placed.text) && addToPrompt([p.placed.text])) kept.push(`${p.name} v${p.n}'s details line (${ref})`);
+  }
+  return kept;
 }
 
 // "update" on a pin's chip (SNAP-R60: never by itself): the record's newest version replaces what the recipe holds

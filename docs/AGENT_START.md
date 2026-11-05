@@ -139,6 +139,11 @@ they used (`cast:<id>@2`).
    The new take is a version of the old one in `get_scene`. To update the open recipe without running, call
    `update_pins`.
 
+Before you tell the person how a take looks, or that a look changed, look at it: `take_frames {"take": ...}`, and
+compare the frames with the character's picture. A version number says what Snap put in, not what the model drew. If
+`apply_cast` says the pictures are not read, or `describe_recipe` has `references_unused`, fix that first (a setup with
+reference pictures); a take card that says "not all of it ran" names what didn't reach the render.
+
 `get_record {"ref": "cast:<id>@1"}` reads one version and the takes that pinned it; `diff_record {"a": "cast:<id>@1",
 "b": "cast:<id>"}` lists what changed. Note: H3 copies a reference picture closely, so a new look (clothes, hair)
 needs a new picture, not only new words. `list_world` shows every record with its size; `archive_record`,

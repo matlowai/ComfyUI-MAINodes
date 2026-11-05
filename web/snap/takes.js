@@ -187,6 +187,15 @@ export async function runState(id) {
     outputs: files.map((m) => ({ kind: m.kind, ...(dir ? { path: [dir, m.subfolder, m.filename].filter(Boolean).join("/") } : {}), url: new URL(url(m), location.href).href })) };
 }
 
+// U72 F25: a pin claims only what reached the render: a sentence missing from every text the queued prompt holds, or
+// pictures the apply found no reading for, are listed under placed.missing (the card says so)
+function placedCheck(world, prompt) {
+  const texts = Object.values(prompt ?? {}).flatMap((n) => Object.values(n.inputs ?? {})).filter((v) => typeof v === "string");
+  return Object.fromEntries(Object.entries(world).map(([ref, p]) => {
+    const missing = [...(p.placed?.text && !texts.some((t) => t.includes(p.placed.text)) ? ["its details line isn't in the prompt that ran"] : []), ...(p.placed?.unread ? [`its pictures weren't read: ${p.placed.unread}`] : [])];
+    return [ref, missing.length ? { ...p, placed: { ...p.placed, missing } } : p];
+  }));
+}
 // the take a run continued from: its First frame is still the frame Use as input put there (a bypassed First frame
 // isn't in the prompt)
 function continued(graph, prompt) {
@@ -224,7 +233,7 @@ async function captureRun(id, started, status, error, failedNode) {
     ...(extra?.snap_marks?.private ? { private: true } : {}), ...(extra?.snap_marks?.nsfw ? { nsfw: true } : {}),
     ...rated(extra?.snap_marks, graph, parent), ...madeFrom(graph, parent),
     ...(extra?.snap_marks?.metadata === false ? { metadata: false } : {}), ...(extra?.snap_marks?.kept ? { metadata_kept: extra.snap_marks.kept } : {}), ...(Object.keys(swapped).length ? { swapped } : {}), ...(parent ? { parent } : {}), ...await hashes(canonical(prompt, swapped)),
-    ...(graph?.extra?.snap?.world ? { world: graph.extra.snap.world } : {}), ...(twin ? { cached_from: twin.id } : {}), verdict: null, prior: false, notes: [], graph, prompt,
+    ...(graph?.extra?.snap?.world ? { world: placedCheck(graph.extra.snap.world, prompt) } : {}), ...(twin ? { cached_from: twin.id } : {}), verdict: null, prior: false, notes: [], graph, prompt,
   });
 }
 
