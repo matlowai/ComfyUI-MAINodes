@@ -24,10 +24,10 @@ export function stateText(r) {
     const p = r.progress, node = p?.max > 1 ? ` · step ${p.value} of ${p.max}` : "";
     return `${r.candidates ? `painting ${r.candidates.rendering} of ${r.candidates.count}` : "running"}${node}${p?.nodes ? ` · ${p.finished} of ${p.nodes} nodes done` : ""} · ${r.eta}`;
   }
-  if (r.state === "checking") return "checking each candidate (identity notes)";
+  if (r.state === "checking") return r.result?.saving ? "rendered · writing its take" : "checking each candidate (identity notes)";
   if (r.state === "waiting") return r.source === "proposal" ? `waiting for your yes${r.plan?.eta_s ? ` · about ${Math.round(r.plan.eta_s)} s of GPU` : ""}` : r.source === "blind_pair" ? "waiting for your judgment"
     : `${r.candidates.ready} candidate${r.candidates.ready === 1 ? "" : "s"} ready: pick one`;
-  if (r.state === "done") return r.result?.take ? `done · take ${r.result.number}` : r.result?.applied ? `done · ${r.result.applied} applied` : r.result?.saving ?? "done";
+  if (r.state === "done") return r.result?.take ? `done · take ${r.result.number}` : r.result?.applied ? `done · ${r.result.applied} applied` : r.result?.note ? `done · ${r.result.note}` : "done";
   if (r.state === "gone") return "the server has no record of it any more (restarted?)";
   return "failed";
 }

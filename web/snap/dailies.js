@@ -445,7 +445,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
     const where = crumbs(t), here = where && SC.current();
     const activeBtn = here ? h("button", { className: "snap-link", textContent: here.shot.active === t.id ? `★ ${SC.shotTitle(here.scene, here.shot)}'s active take` : `☆ Make it ${SC.shotTitle(here.scene, here.shot)}'s take`, disabled: here.shot.active === t.id,
       onclick: async () => { try { await SC.setActive(here.scene.id, here.shot.id, t.id); activeBtn.textContent = `★ ${SC.shotTitle(here.scene, here.shot)}'s active take`; activeBtn.disabled = true; } catch (err) { say(err.message, true); } } }) : null;
-    const sheet = h("div", { className: "snap-sheet snap-take-sheet", role: "dialog", ariaLabel: `Take ${t.number}` },
+    const sheet = h("div", { className: "snap-sheet snap-take-sheet", role: "dialog", ariaLabel: `Take ${t.number}`, id: `snap-viewer-${t.id}` },
       h("header", {}, where ? h("nav", { className: "snap-crumbs", ariaLabel: "where this take is" }, where.flatMap((x, i) => [i ? h("i", { textContent: "›" }) : null, h(i === where.length - 1 ? "strong" : "span", { textContent: x })])) : h("strong", { textContent: `Take ${t.number}` }), h("span", { className: "snap-quiet", textContent: `${t.seed != null ? `seed ${t.seed} · ` : ""}${t.seconds} s · ${new Date(t.created).toLocaleString()}${t.status !== "success" ? ` · ${t.status}: ${t.error ?? ""}` : ""}` }),
         h("span", { className: "snap-spacer" }), h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: close })),
       h("div", { className: "snap-take-body" },

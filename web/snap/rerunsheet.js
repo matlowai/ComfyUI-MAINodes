@@ -94,7 +94,7 @@ export async function openRerunSheet(host, { take, name, say, edit }) {
     const state = s.not_a_record ? `not a record: ${s.not_a_record}` : !s.n ? "a pack card" : m?.missing ? "not in your records (the recipe still holds what it put in)" : m ? `today: v${m.now}${m.archived ? " (archived)" : ""}` : "today: the same version";
     const editable = (s.kind === "cast" || s.kind === "set_snapshot") && s.n && !s.missing;
     return h("div", { className: `snap-world-row${m ? (m.missing ? " missing" : " moved") : ""}` },
-      h("strong", { textContent: `${s.kind === "scene" ? "Scene: " : s.kind === "setup" ? "Setup: " : ""}${m?.name ?? s.name ?? s.slot}${s.n ? ` v${s.n}` : ""}` }), h("span", { className: "snap-quiet", textContent: state }),
+      h("strong", { textContent: `${s.kind === "scene" ? "Scene: " : s.kind === "setup" ? "Setup: " : ""}${m?.name ?? s.name ?? (s.kind === "scene" ? "none (this take isn't in a scene)" : s.slot)}${s.n ? ` v${s.n}` : ""}` }), h("span", { className: "snap-quiet", textContent: state }),
       m ? changes(m) : null,
       m?.warning ? h("div", { className: "snap-world-warn", textContent: m.warning }) : null,
       pick, others, what,
@@ -106,7 +106,7 @@ export async function openRerunSheet(host, { take, name, say, edit }) {
   };
   const today = Object.fromEntries([...moved.values()].filter((m) => !m.missing).map((m) => [m.ref, "latest"]));
   const runFile = (swaps) => async () => { try { const r = await RR.rerun(subject, { swaps }); say?.(r.said); close(); } catch (err) { status.textContent = err.message; } };
-  const anyMoved = Object.keys(today).length > 0, anyMissing = [...moved.values()].some((m) => m.missing), pins = Object.keys(subject.world).length;
+  const anyMoved = Object.keys(today).length > 0, anyMissing = [...moved.values()].some((m) => m.missing), pins = Object.keys(subject.world ?? {}).length;
   reuse = take ? h("button", { className: "snap-link", textContent: "Reuse the motion", disabled: true, onclick: async () => { try { const r = await RR.rerun(take, { swaps: chosen, route: "reuse_motion" }); say?.(r.said); close(); } catch (err) { status.textContent = err.message; } } }) : null;
   regen = h("button", { className: file ? "snap-link" : "snap-primary", textContent: file ? "Run with these swaps" : "Re-generate", title: "the recipe again with the picks above (the rerun tool does the same)", onclick: go({}) });
   const sheet = h("div", { className: `snap-sheet snap-setup-sheet snap-rerun-sheet${file ? " snap-opened-sheet" : ""}`, role: "dialog", ariaLabel: file ? "Opened file" : `Re-run take ${take.number}` },

@@ -28,6 +28,19 @@ export const here = () => { const m = app.graph?.extra?.snap_scene; return { gro
 // a run from the graph view, ComfyUI's Queue button or Ctrl+Enter: Snap didn't start it, the person did
 const plain = () => job({ kind: "run", title: `Run ${where()}`, about: here() });
 
+// queue attempts refused before anything ran (validation, the rating cap, a missing file): the Work card shows each as a
+// failed row with the reason until it is parked or retried, so a refusal is never only a toast (batch E's gap)
+const refused = [], hooks = new Set();
+export const refusals = () => refused;
+export const onRefuse = (fn) => hooks.add(fn);
+export function refuse(spec, error, retry) {
+  refused.unshift({ id: `refused-${Date.now().toString(36)}-${refused.length}`, spec, error, retry, at: Date.now() });
+  for (const fn of hooks) fn();
+}
+// what ComfyUI said about a prompt it refused, every node's own reason (a node's custom refusal keeps it in details)
+export const nodeErrors = () => Object.values(app.lastNodeErrors ?? {}).map((e) => { const x = e.errors?.[0] ?? {};
+  return x.type === "custom_validation_failed" ? x.details.replace(/^[\w.]+ - /, "") : `${e.class_type}: ${x.message}${x.details ? ` (${x.details})` : ""}`; });
+
 // the jobs this page queued, by prompt id, as soon as the server took them (the Work card reads the rest from the server)
 const mine = new Map();
 export const own = (id) => mine.get(id) ?? null;
@@ -48,10 +61,11 @@ export function queueRun(spec, go) {
     outgoing = j;
     try {
       await go();
-      if (outgoing === j && Object.keys(app.lastNodeErrors ?? {}).length) return null; // refused before it was sent
+      if (outgoing === j && Object.keys(app.lastNodeErrors ?? {}).length) { refuse(spec, nodeErrors().join("; "), () => queueRun(spec, go)); return null; } // refused before it was sent
       // app.queuePrompt returns at once while ComfyUI still sends an earlier run; this one goes out after it
       const got = await Promise.race([id, new Promise((done) => setTimeout(() => done(undefined), 30000))]);
       if (got === undefined) throw new Error(`ComfyUI hasn't sent "${j.title}" within 30 s (it is still sending an earlier run); list_activity shows it once it goes out`);
+      if (got === null) refuse(spec, nodeErrors().join("; ") || "the server refused it", () => queueRun(spec, go));
       return got;
     } finally { if (outgoing === j) outgoing = null; delivered = null; }
   });

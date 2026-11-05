@@ -40,7 +40,11 @@ export async function queue(prompt, { group, extra, world, job } = {}) {
   const r = await api.fetchApi("/prompt", { method: "POST", body: JSON.stringify({ client_id: api.clientId, prompt,
     extra_data: { ...extra, snap_job, ...(workflow ? { extra_pnginfo: { workflow } } : {}) } }) });
   const out = await r.json();
-  if (r.status !== 200) throw new Error(`Not queued: ${out.error?.message ?? ""} ${JSON.stringify(out.node_errors ?? {})}`.trim());
+  if (r.status !== 200) {
+    const why = `${out.error?.message ?? ""} ${JSON.stringify(out.node_errors ?? {})}`.trim();
+    J.refuse(job, why, () => queue(prompt, { group, extra, world, job }));
+    throw new Error(`Not queued: ${why}`);
+  }
   J.sent(snap_job, out.prompt_id);
   return out.prompt_id;
 }

@@ -17,6 +17,7 @@ import * as C from "./candidates.js";
 import * as P from "./proposals.js";
 import * as SC from "./scenes.js";
 import * as ACC from "./account.js";
+import * as J from "./jobs.js";
 
 export const STATES = ["queued", "running", "checking", "waiting", "done", "failed", "gone"];
 export const ZONES = ["in_flight", "landed", "parked", "closed"];
@@ -24,8 +25,15 @@ export const ZONE_NAMES = { in_flight: "In flight", landed: "Landed, unjudged", 
 const LIVE = new Set(["queued", "running", "checking"]);
 const WORK = "snap/work.json", DAY = 86400000;
 
-let rows = [], server = [], marks = { parked: {}, opened: {} }, progress = { prompt_id: null, nodes: {} }, problem = null;
-const refusals = [];
+let rows = [], server = [], marks = { parked: {}, opened: {} }, progress = { prompt_id: null, nodes: {} }, problem = null, seen = null;
+const arrivals = new Set();
+// live jobs a server restart dropped (the socket reconnected and they are in neither the queue nor the history): kept as
+// "gone" rows so the person learns what was lost; a job cancelled here just leaves
+let restarted = false;
+const lost = new Map();
+// the person hears of a job when it starts elsewhere (an agent, another tab), lands or fails: fn(what, row), what is
+// "start" | "landed" | "failed" | "lost"; the view decides where it is said (SNAP-R66: it never moves anyone)
+export const onArrive = (fn) => arrivals.add(fn);
 const listeners = new Set();
 export const onChange = (fn) => listeners.add(fn);
 export const all = () => rows;
@@ -51,13 +59,15 @@ function progressOf(id) {
 function fromPrompt(p, ahead) {
   const mine = !p.user || !ACC.account() || p.user === ACC.account().name;
   const job = p.job ?? { kind: "run", title: "A run queued outside Snap", about: {}, by: "outside" };
-  const state = { running: "running", queued: "queued", success: "done", done: "done", error: "failed", interrupted: "failed" }[p.state];
   const take = job.takes !== false ? T.get(`take-${p.id}`) : null;
+  // a finished run whose take isn't written yet is still being saved (by whichever page queued it) for up to a minute
+  const saving = p.state === "success" && job.takes !== false && p.job && !take && Date.now() - (p.finished ?? 0) < 60000;
+  const state = saving ? "checking" : { running: "running", queued: "queued", success: "done", done: "done", error: "failed", interrupted: "failed" }[p.state];
   return { id: p.id, source: "prompt", kind: job.kind, title: mine ? job.title : "Another account's job", by: mine ? job.by : "another account", owner: mine ? (job.by === "agent" ? "agents" : job.by === "person" ? "you" : "others") : "others",
     state, about: mine ? job.about ?? {} : {}, where: mine ? where(job.about) : "", eta_s: job.eta_s ?? null, queued_at: job.at ?? null, started_at: p.started ?? null, finished_at: p.finished ?? null,
     ...(state === "queued" ? { ahead } : {}), ...(state === "running" ? { progress: progressOf(p.id) } : {}),
     ...(p.state === "interrupted" ? { error: "stopped before it finished (interrupted)" } : p.error ? { error: errorText(p.error), traceback: p.error.traceback } : {}),
-    result: take ? { take: take.id, number: take.number } : job.takes === false ? null : state === "done" ? { take: null, saving: "the take is being written" } : null, client: p.client, takes: job.takes !== false };
+    result: take ? { take: take.id, number: take.number } : saving ? { take: null, saving: "the take is being written" } : job.takes !== false && state === "done" ? { take: null, note: "no take was written for it (the page that queued it closed before it finished?)" } : null, client: p.client, takes: job.takes !== false };
 }
 // a decision's candidates: one row from painting to the person's pick
 function fromDecision(d, byId) {
@@ -82,12 +92,29 @@ function build() {
   const prompts = server.filter((p) => !folded.has(p.id) && (p.job || p.state === "running" || p.state === "queued")).map((p) => fromPrompt(p, p.state === "queued" ? ahead++ : undefined));
   const asked = P.all().filter((p) => p.status === "waiting").map((p) => ({ id: `p:${p.id}`, proposal: p.id, source: "proposal", kind: "proposal", title: p.reason || p.tool.replaceAll("_", " "), by: "agent", owner: "agents", state: "waiting",
     about: { take: p.args?.take, slot: p.args?.slot }, where: where({ take: p.args?.take }), tool: p.tool, eta_s: p.plan?.eta_s ?? null, plan: p.plan ?? null, queued_at: null }));
-  rows = [...prompts, ...decisions, ...asked, ...pairs, ...refusals].map((r) => {
+  const refusals = J.refusals().map((x) => ({ id: x.id, source: "refusal", kind: x.spec.kind, title: x.spec.title, by: x.spec.by ?? "person", owner: x.spec.by === "agent" ? "agents" : "you", state: "failed",
+    about: x.spec.about ?? {}, where: where(x.spec.about), error: `refused at queue: ${x.error}`, queued_at: x.at, retry: x.retry }));
+  rows = [...prompts, ...decisions, ...asked, ...pairs, ...refusals, ...lost.values()].map((r) => {
     const parked = marks.parked[r.id] ?? null, opened = marks.opened[r.id] ?? null;
     const zone = parked ? "parked" : LIVE.has(r.state) || r.state === "failed" || r.state === "gone" ? "in_flight" : r.state === "waiting" || (r.state === "done" && !opened) ? "landed" : "closed";
     return { ...r, zone, eta: eta(r), ...(parked ? { parked } : {}), ...(opened ? { opened } : {}) };
   }).sort((a, b) => (b.queued_at ?? b.started_at ?? 0) - (a.queued_at ?? a.started_at ?? 0));
+  if (server.length || !problem) announce();
   for (const fn of listeners) fn();
+}
+// what changed since the last build, said once: the first build after a load only remembers
+function announce() {
+  const was = seen;
+  seen = new Map(rows.map((r) => [r.id, r.state]));
+  if (!was) return;
+  const lost = rows.filter((r) => r.state === "gone" && was.get(r.id) && was.get(r.id) !== "gone");
+  for (const r of rows) {
+    const before = was.get(r.id);
+    if (before === r.state || r.zone === "parked") continue;
+    const what = r.state === "failed" ? "failed" : r.state === "done" || r.state === "waiting" ? "landed" : !before && LIVE.has(r.state) && (r.by === "agent" || !J.own(r.id)) && r.source !== "refusal" ? "start" : null;
+    if (what) for (const fn of arrivals) fn(what, r);
+  }
+  if (lost.length) for (const fn of arrivals) fn("lost", { count: lost.length });
 }
 
 let pairs = [];
@@ -101,7 +128,9 @@ export function reconcile() {
     const before = new Set(server.filter((p) => LIVE.has(p.state)).map((p) => p.id));
     server = r.ok ? (await r.json()).rows : [];
     const gone = [...before].filter((id) => !server.some((p) => p.id === id));
-    if (gone.length || server.some((p) => before.has(p.id) && !LIVE.has(p.state))) await Promise.all([T.reload(), C.reload()]); // something left the queue: another page may have written its take or decision
+    if (restarted) for (const id of gone) { const r = rows.find((x) => x.id === id); if (r) lost.set(id, { ...r, state: "gone", error: "the server restarted before it finished: it is in neither the queue nor the history" }); }
+    restarted = false;
+    if (gone.length || server.some((p) => before.has(p.id) && !LIVE.has(p.state)) || rows.some((r) => r.result?.saving)) await Promise.all([T.reload(), C.reload()]); // something left the queue: another page may have written its take or decision
     if (server.some((p) => p.state === "running")) progress = await (await api.fetchApi("/mainodes/snap/progress")).json().catch(() => progress);
     pairs = (await T.pending()).map((p) => ({ id: `ab:${p.a}|${p.b}`, source: "blind_pair", kind: "blind_pair", title: `Blind pair: take ${T.get(p.a)?.number ?? "?"} or take ${T.get(p.b)?.number ?? "?"}?`, by: p.by, owner: p.by === "agent" ? "agents" : "you", state: "waiting", about: { take: p.a }, where: where({ take: p.a }), queued_at: Date.parse(p.at) || null, pair: [p.a, p.b] }));
     await C.settle();
@@ -111,11 +140,6 @@ export function reconcile() {
   return reading;
 }
 
-// a queue attempt the server or Snap refused: a failed row with the reason, until parked or retried
-export function refused(spec, error, retry) {
-  refusals.unshift({ id: `refused-${Date.now().toString(36)}`, source: "refusal", kind: spec.kind, title: spec.title, by: spec.by ?? "person", owner: spec.by === "agent" ? "agents" : "you", state: "failed", about: spec.about ?? {}, where: where(spec.about), error: `refused at queue: ${error}`, queued_at: Date.now(), retry });
-  build();
-}
 
 async function loadMarks() { const r = await api.getUserData(WORK); if (r.status === 200) marks = { parked: {}, opened: {}, ...await r.json() }; }
 const saveMarks = () => api.storeUserData(WORK, marks);
@@ -153,8 +177,10 @@ export async function list({ zone, state, kind, by, about, offset = 0, limit } =
 // store changes, and every 2 s while anything is live
 let remaining = null, timer = null;
 api.addEventListener("status", ({ detail }) => { const n = detail?.exec_info?.queue_remaining ?? null; if (n !== remaining) { remaining = n; reconcile(); } });
-for (const ev of ["execution_start", "execution_success", "execution_error", "execution_interrupted", "reconnected"]) api.addEventListener(ev, () => reconcile());
+for (const ev of ["execution_start", "execution_success", "execution_error", "execution_interrupted"]) api.addEventListener(ev, () => reconcile());
+api.addEventListener("reconnected", () => { restarted = true; reconcile(); });
 C.onChange(() => build());
+J.onRefuse(() => build());
 T.onChange(() => build());
 P.onChange(() => build());
 onChange(() => {

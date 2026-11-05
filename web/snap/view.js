@@ -548,7 +548,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   async function queue() {
     runBtn.disabled = true;
     try {
-      await J.queueRun({ kind: "run", title: `Run ${J.where()}`, about: J.here(), eta_s: (await T.eta((await T.hashes(await T.live())).hash)).eta_s }, () => app.queuePrompt(0, 1, { queueNodeIds: E.targets() }));
+      const job = { kind: "run", title: `Run ${J.where()}`, about: J.here(), eta_s: (await T.eta((await T.hashes(await T.live())).hash)).eta_s };
+      const id = await J.queueRun(job, () => app.queuePrompt(0, 1, { queueNodeIds: E.targets() }));
+      if (id) say(`Queued: ${job.title}${job.eta_s != null ? ` · about ${Math.round(job.eta_s)} s` : " · no estimate yet"}`, false, 2500, { label: "Work", run: () => openWork(root, { say, open: openJob, decide }) });
       const errors = Object.entries(app.lastNodeErrors ?? {}).map(([id, e]) => `${app.graph.getNodeById(id)?.title ?? e.class_type}: ${e.errors?.[0]?.message ?? "error"}${e.errors?.[0]?.details ? ` (${e.errors[0].details})` : ""}`);
       if (errors.length) say(`Can't run yet · ${errors[0]}${errors.length > 1 ? ` · +${errors.length - 1} more` : ""}`, true);
     } catch (err) { say(`Couldn't queue: ${err.message}`, true); }
@@ -564,18 +566,31 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   api.addEventListener("progress", ({ detail }) => { const key = brickOfNode(detail.node); if (key) { mark("running", key); brickNode(key)?.style.setProperty("--run-p", detail.value / detail.max); } });
   api.addEventListener("execution_error", ({ detail }) => { mark("running", null); const key = brickOfNode(detail?.node_id); if (key) { mark("failed", key); brickNode(key).dataset.error = `${detail.node_type}: ${detail.exception_message}`.slice(0, 300); } });
   for (const ev of ["execution_success", "execution_interrupted"]) api.addEventListener(ev, () => mark("running", null));
-  api.addEventListener("promptQueued", () => say("Queued"));
   // the label follows ComfyUI's own queue count (a fast run can finish before the "queued" event arrives)
   api.addEventListener("status", ({ detail }) => { const n = detail?.exec_info?.queue_remaining ?? 0; if (!n) idle(); else if (!/%/.test(runLabel.textContent)) runLabel.textContent = n > 1 ? `Queued · ${n}` : "Running"; });
   api.addEventListener("progress", ({ detail }) => { progress.style.setProperty("--p", detail.value / detail.max); progress.style.opacity = 1; runLabel.textContent = `Rendering ${Math.round((100 * detail.value) / detail.max)}%`; });
   const idle = () => { runLabel.textContent = "Run"; progress.style.opacity = 0; setTimeout(() => progress.style.setProperty("--p", 0), 300); };
-  api.addEventListener("execution_success", ({ detail }) => { if (J.own(detail?.prompt_id)?.takes !== false) say("Render finished · it's in Takes"); });
-  api.addEventListener("execution_error", ({ detail }) => { idle(); say(`Render failed · ${detail?.node_type ?? ""}: ${detail?.exception_message ?? ""}`.trim(), true); });
+  api.addEventListener("execution_error", idle);
+  // SNAP-R66: a job that started elsewhere, landed or failed is said with one press to its result; nothing moves until
+  // that press. No word when its home is already on screen (that take's viewer: it updates in place), except a failure.
+  // In the graph view Snap's toast is hidden, so ComfyUI's own toast says it (Open waits for Snap)
+  A.onArrive((what, r) => {
+    if (what === "lost") return say(`The server restarted: ${r.count} job${r.count === 1 ? " was" : "s were"} lost (the Work card lists them)`, true, 8000, { label: "Work", run: () => openWork(root, { say, open: openJob, decide }) });
+    const home = r.result?.take ?? r.about?.take, onScreen = home && document.getElementById(`snap-viewer-${home}`);
+    if (onScreen && what !== "failed") return;
+    const text = what === "start" ? `${r.by === "agent" ? "An agent queued" : "Queued elsewhere"}: ${r.title}${r.where ? ` · ${r.where}` : ""}`
+      : what === "failed" ? `${r.title} failed · ${r.error ?? ""}`
+      : r.state === "waiting" ? (r.source === "decision" ? `${r.candidates.ready} candidate${r.candidates.ready === 1 ? "" : "s"} ready to pick: ${r.title}` : `Waiting for you: ${r.title}`)
+      : `${r.title}: ${r.result?.take ? `take ${r.result.number} is in` : "done"}${r.where && r.where !== "a scratch tab" ? ` · ${r.where}` : ""}`;
+    if (root.style.display === "none") return app.extensionManager.toast.add({ severity: what === "failed" ? "error" : "info", summary: "Snap", detail: `${text}${what === "start" ? "" : " · open Snap to see it"}`, life: what === "failed" ? 8000 : 5000 });
+    say(text, what === "failed", what === "start" ? 3000 : 6000, what === "start" ? { label: "Work", run: () => openWork(root, { say, open: openJob, decide }) } : { label: "Open", run: () => openJob(r).catch((err) => say(err.message, true)) });
+  });
   api.addEventListener("execution_interrupted", idle);
 
   let toastTimer = 0;
-  function say(text, bad = false, ms = bad ? 6000 : 2500) {
-    toast.textContent = text;
+  // `action` {label, run}: one button on the toast (its only part that takes the pointer)
+  function say(text, bad = false, ms = bad ? 6000 : 2500, action) {
+    toast.replaceChildren(h("span", { textContent: text }), action ? h("button", { className: "snap-toast-act", textContent: action.label, onclick: () => { toast.classList.remove("show"); action.run(); } }) : null);
     toast.classList.toggle("bad", bad);
     toast.classList.add("show");
     clearTimeout(toastTimer);

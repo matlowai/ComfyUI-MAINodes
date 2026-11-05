@@ -65,8 +65,7 @@ export async function queue(mark, value, job) {
   try {
     const id = await J.queueRun({ kind: mark, about: { ...J.here(), take: value?.take }, ...job }, () => app.queuePrompt(0, 1, { queueNodeIds: E.targets() }));
     // a node's own refusal (the rating cap, SNAP-R33) is its reason, which core puts in details after "<input> - "
-    const errors = Object.values(app.lastNodeErrors ?? {}).map((e) => { const x = e.errors?.[0] ?? {};
-      return x.type === "custom_validation_failed" ? x.details.replace(/^[\w.]+ - /, "") : `${e.class_type}: ${x.message}${x.details ? ` (${x.details})` : ""}`; });
+    const errors = J.nodeErrors();
     if (errors.length) throw new Error(`Not queued: ${errors.join("; ")}`);
     return id;
   } finally { E.tag(mark, undefined); }

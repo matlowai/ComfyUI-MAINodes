@@ -573,6 +573,8 @@ export const STYLE = `
 .snap-root.inspecting .snap-toast { right: calc(var(--insp-w, clamp(380px, 33vw, 860px)) + 16px); }
 .snap-root:has(.snap-sheet) .snap-toast { top: 6px; right: 50%; transform: translate(50%, -8px); } .snap-root:has(.snap-sheet) .snap-toast.show { transform: translate(50%, 0); } /* over a sheet: its header row is clear in the middle */
 .snap-toast.bad { background: #f0b445; color: #1b1c20; }
+.snap-toast-act { all: unset; pointer-events: auto; cursor: pointer; margin-left: 10px; padding: 2px 10px; border-radius: 999px; font-weight: 600; background: #ffffff1f; } .snap-toast-act:hover { background: #ffffff33; }
+.snap-toast.bad .snap-toast-act { background: #0000001f; }
 /* the scene navigator above the chain (U59): breadcrumb, shots strip; a scratch tab gets one quiet line */
 .snap-scene { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 12px 40px 0; min-width: 0; }
 .snap-scene.scratch { flex-direction: row; align-items: center; gap: 8px; padding: 8px 40px 0; font-size: 12px; }
