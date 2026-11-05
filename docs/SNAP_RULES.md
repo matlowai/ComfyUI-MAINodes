@@ -223,7 +223,7 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
 
 ## Accounts and the gate (snap-gate)
 
-IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide).
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 went to the pack (claude/snap-scout), so the gate continues at R56.
 
 - **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
   use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and
@@ -261,9 +261,14 @@ IDs R40+ were reserved for the gate while R28-R39 were open for other work (renu
   that can't decide what a picture shows (VAEs, TAESD, text encoders, CLIP vision, upscalers, detectors, ControlNets)
   count as PG. *Why:* a fresh download is unknown. For a kid, seeing nothing new until the admin rates it is the safe
   failure, and one rating opens it for everyone at or above that level.
-- **SNAP-R45: No paths outside the library for non-admins.** A non-admin prompt whose string input is an absolute path
-  to an existing file or folder is refused. *Why:* nodes that load arbitrary paths (`MAILoadVideoPath` and many
-  custom packs) would read any file the server user can, including files no rating covers.
+- **SNAP-R45: Loading is decided by scope, not by the path's form.** A non-admin may load any library file within their
+  cap, by name or by absolute path, and nothing outside the library and their own folders. An absolute path in a
+  non-admin's prompt (or in a pack request) that names a file or folder on disk must be inside a model folder ComfyUI
+  lists (`/experiment/models`) and rated at or below the account's cap, or inside the account's own, shared or top-level
+  input, or its own or shared output within its cap (SNAP-R56, SNAP-R57); anything else is refused, naming why. Text
+  that names nothing on disk is left alone. *Why:* Dylan, 2026-11-04 20:41: "non-admins load models only in their scope
+  (their role + rating)"; scope, not path form, decides. Nodes that load arbitrary paths (`MAILoadVideoPath` and many
+  custom packs) would otherwise read any file the server user can. *More:* PLAN U83.
 - **SNAP-R46: Sessions persist, and an idle one locks.** Sessions live in the gate's `sessions.json` under the sha256
   of the cookie, never the cookie itself, with a server-side expiry (7 days), so a gate restart signs nobody out. A
   session with no request for the admin's idle limit (`gate.py settings --idle-minutes`, default 30) locks: API calls
@@ -290,3 +295,21 @@ IDs R40+ were reserved for the gate while R28-R39 were open for other work (renu
   `/userdata`, reading it fresh first, the same file and field the gate rates from (SNAP-R43), so it applies at once.
   Cross-site posts are 403. *Why:* rating by hand-editing JSON is how a kid ends up seeing an unrated file or nothing
   new at all. *More:* PLAN U65, U77 (6).
+- **SNAP-R56: An output keeps the rating of the prompt that wrote it, and nobody sees above their cap.** The pack rates
+  every prompt when it is queued (`extra_data.snap_marks.rating`, server-side; the pack's SNAP-R39). The gate learns
+  each run's rating and the files it wrote from ComfyUI's history (whenever it reads it, and when a run's
+  `execution_success` passes an open page) and keeps them in its own `outputs.json`, so a rating outlives ComfyUI's
+  history. A non-admin never gets a run or a file rated above their cap: `/view` is 404 (in output/shared/ and in their
+  own folder alike), and `/history`, `/history/<id>`, `/api/jobs` and `/api/jobs/<id>` leave the run out. A file in
+  output/shared/ that no run wrote (put there by hand) counts as Adult (SNAP-R44). Core's assets API (`/api/assets`,
+  `/api/tags`), which lists every account's files, is the admin's. The admin sees everything. *Why:* a member could
+  save into shared/ what a kid then opened; CONTENT_RATINGS_VAULT §2: caps are server-enforced, items above the cap are
+  omitted. *More:* PLAN U88 (2).
+- **SNAP-R57: input/ is per account.** An upload (`/upload/image`, `/upload/mask`) lands in `input/<account>/` (output
+  uploads in `output/<account>/`), the admin's too, since the admin is a person with a bucket; a subfolder the page
+  asks for goes inside it (`snap` → `input/<account>/snap/`). Only the admin puts files in `input/shared/`. A file name
+  can't carry a folder. Anyone reads their own input, `input/shared/` and top-level files (the admin's); another
+  account's input is 404 on `/view`, refused in a prompt or pack request (`kid/x.png`, `kid/x.png [input]`, or its
+  absolute path), left out of the loaders' lists in `/object_info` (an input folder named after another account and
+  anything in it), and a mask upload can't start from it. The admin sees all of it. *Why:* Dylan, 2026-11-04 20:41:
+  "input/ is per account; admin has access to all". *More:* PLAN U83.

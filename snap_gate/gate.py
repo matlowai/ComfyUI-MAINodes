@@ -5,7 +5,7 @@ WebSocket to it, so core and the pack keep updating untouched. Off (`--disabled`
 On, every request needs a session (the sign-in form, or an account token as `Authorization: Bearer`), and the gate:
 sets core's `comfy-user` header from the session (ComfyUI runs with --multi-user); owns prompt ids, history, queue,
 jobs, WebSocket events and the Snap bridge per account; puts outputs in output/<account>/ or output/shared/ and serves
-/view only from there or from the account's own runs; hides model files above the account's rating everywhere they
+/view only from there or from the account's own runs, never above the account's rating; puts uploads in input/<account>/; hides model files above the account's rating everywhere they
 are listed and refuses prompts that name them; keeps the pack's shared preset folders for the admin. The admin sees and
 can do everything, and rates files at /gate/admin.
 
@@ -14,8 +14,9 @@ can do everything, and rates files at /gate/admin.
     python snap_gate/gate.py serve --port 8197 --upstream http://127.0.0.1:8198 --comfy-dir <ComfyUI> --state <dir>
 
 SNAP-R40 a wrapper, never core · SNAP-R41 sessions set the user · SNAP-R42 work is owned · SNAP-R43 ratings cap files ·
-SNAP-R44 unrated content is Adult · SNAP-R45 no paths outside the library · SNAP-R46 sessions persist, idle locks ·
+SNAP-R44 unrated content is Adult · SNAP-R45 loading by scope, not the path's form · SNAP-R46 sessions persist, idle locks ·
 SNAP-R47 sign-in waits · SNAP-R48 shared pack files are the admin's · SNAP-R49 the admin rates on /gate/admin ·
+SNAP-R56 outputs keep their prompt's rating, nobody sees above their cap · SNAP-R57 input/ is per account ·
 see docs/SNAP_RULES.md
 """
 import argparse
@@ -116,7 +117,12 @@ class Gate:
         self.owners = json.loads(owners.read_text(encoding="utf-8")) if owners.exists() else {}  # prompt_id -> account
         self.clients = {}     # websocket client id -> account (SNAP-R42: an id is never handed to another account)
         self.produced = {}    # account -> {(type, subfolder, filename)} its runs wrote
+        self.input_dir, self.output_dir = Path(comfy_dir) / "input", Path(comfy_dir) / "output"
+        rated = self.state / "outputs.json"  # SNAP-R56: {"runs": prompt_id -> level, "files": "<type>/<subfolder>/<file>" -> level}
+        self.rated = json.loads(rated.read_text(encoding="utf-8")) if rated.exists() else {"runs": {}, "files": {}}
+        self.learned_at = 0
         self.lists = (0, {})  # (time, folder -> file names) from ComfyUI's /models
+        self.roots = (0, {})  # (time, folder -> its folders on disk) from ComfyUI's /experiment/models
         self.http = None
 
     # ---- accounts and sessions (SNAP-R41, SNAP-R46, SNAP-R47) ---------------------------------------------------------
@@ -350,6 +356,16 @@ class Gate:
         self.lists = (time.time(), dict(await asyncio.gather(*map(files, folders))))
         return self.lists[1]
 
+    async def model_roots(self):
+        if time.time() - self.roots[0] < 5:
+            return self.roots[1]
+        async with self.http.get(self.upstream + "/experiment/models") as r:
+            self.roots = (time.time(), {f["name"]: f["folders"] for f in await r.json()})
+        return self.roots[1]
+
+    def cap(self, name):
+        return LEVELS[self.accounts.load()[name]["max_rating"]]
+
     async def hidden(self, name):
         """Every name this account must not see or load: files as /models lists them, embeddings also without extension."""
         a = self.accounts.load()[name]
@@ -366,9 +382,9 @@ class Gate:
         return out
 
     # ---- relaying ---------------------------------------------------------------------------------------------------
-    async def send(self, request, name, body=None, path_qs=None, plain=False):
+    async def send(self, request, name, body=None, path_qs=None, plain=False, form=None):
         """The request as ComfyUI gets it: the account's comfy-user, no gate cookie or token. `plain` asks for an
-        uncompressed answer the gate can read."""
+        uncompressed answer the gate can read; `form` is a rewritten multipart body (an upload)."""
         headers = {k: v for k, v in request.headers.items() if k.lower() not in HOP}
         if name is not None:
             headers = {k: v for k, v in headers.items() if k.lower() not in ("comfy-user", "authorization", "cookie")}
@@ -379,6 +395,9 @@ class Gate:
             headers = {k: v for k, v in headers.items() if k.lower() != "content-length"}
             headers["Content-Type"] = "application/json"
             data = json.dumps(body).encode()
+        elif form is not None:
+            headers = {k: v for k, v in headers.items() if k.lower() not in ("content-length", "content-type")}
+            data = form
         else:
             data = request.content if request.body_exists else None
         try:
@@ -426,17 +445,90 @@ class Gate:
 
     def record(self, name, outputs):
         """Remember the files a run of this account wrote (history outputs or an `executed` event's output)."""
-        seen = self.produced.setdefault(name, set())
-        for v in (outputs or {}).values():
-            for item in v if isinstance(v, list) else []:
-                if isinstance(item, dict) and "filename" in item:
-                    seen.add((item.get("type", "output"), posixpath.normpath(item.get("subfolder") or "."), item["filename"]))
+        self.produced.setdefault(name, set()).update(outputs_of(outputs))
+
+    def learn(self, history):
+        """SNAP-R56: each run and the files it wrote keep the rating the pack gave its prompt when it was queued
+        (extra_data.snap_marks.rating, set server-side; the pack's SNAP-R39), in the gate's outputs.json, so a rating
+        outlives ComfyUI's history."""
+        runs, files = {}, {}
+        for pid, h in history.items():
+            p = h.get("prompt") or []
+            r = str(((p[3] if len(p) > 3 and isinstance(p[3], dict) else {}).get("snap_marks") or {}).get("rating")).lower()
+            if r in LEVELS:
+                runs[pid] = LEVELS[r]
+                files.update({"/".join(k): LEVELS[r] for k in outputs_of(h.get("outputs"))})
+        if any(self.rated["runs"].get(k) != v for k, v in runs.items()) or any(self.rated["files"].get(k) != v for k, v in files.items()):
+            self.rated["runs"].update(runs)
+            self.rated["files"].update(files)
+            write_json(self.state / "outputs.json", self.rated)
+
+    def within_cap(self, name, pid):
+        """Whether this account may see a run: the admin sees all; anyone else only runs rated at or below their cap."""
+        return self.is_admin(name) or self.rated["runs"].get(pid, LEVELS["pg"]) <= self.cap(name)
 
     def own_history(self, name, history):
-        mine = {pid: h for pid, h in history.items() if self.owns(name, pid)}
+        self.learn(history)
+        mine = {pid: h for pid, h in history.items() if self.owns(name, pid) and self.within_cap(name, pid)}
         for pid, h in mine.items():
             self.record(self.owners.get(pid), h.get("outputs"))
         return mine
+
+    async def in_scope(self, name, value):
+        """None when a non-admin may read what this string names, else why not (SNAP-R45, SNAP-R57). An absolute path may
+        name a library file within the account's cap, or its own, shared or top-level input, or its own or shared output
+        within its cap; nothing else on disk. A relative name (`kid/x.png`, `x.png [output]`) that is a file or folder in
+        another account's input or output folder is refused. Text that names nothing on disk is left alone."""
+        others = set(self.accounts.load()) - {name}
+        if len(value) > 4096:  # no path is this long (a picture in a bridge result)
+            return None
+        if os.path.isabs(value):
+            if not os.path.exists(value):
+                return None
+            path = os.path.normpath(value)
+            for folder, roots in (await self.model_roots()).items():
+                for root in roots:
+                    if is_within(root, path):
+                        rel = os.path.relpath(path, root).replace(os.sep, "/")
+                        return "loads a file this account can't use (above its rating). Ask the admin." if level(self.ratings(), folder, rel) > self.cap(name) else None
+            for kind, root in (("input", self.input_dir), ("output", self.output_dir)):
+                if is_within(str(root), path):
+                    rel = os.path.relpath(path, root).replace(os.sep, "/")
+                    if kind == "output" and rel.split("/")[0] not in (name, "shared"):
+                        return "reads another account's output folder."
+                    return self.may_read(name, kind, posixpath.dirname(rel) or ".", posixpath.basename(rel))
+            return "reads a path outside ComfyUI's library and this account's folders, which only the admin can do."
+        rel, kind = value.replace("\\", "/").strip(), "input"
+        for t, cut in (("output", 9), ("input", 8), ("temp", 7)):
+            if rel.endswith(f"[{t}]"):
+                rel, kind = rel[:-cut].strip(), t
+        rel = posixpath.normpath(rel)
+        root = self.input_dir if kind == "input" else self.output_dir if kind == "output" else None
+        if root is None or rel.startswith("/") or not os.path.exists(os.path.join(root, rel)):
+            return None
+        if rel.split("/")[0] in others:
+            return f"reads another account's {kind} folder."
+        return self.may_read(name, kind, posixpath.dirname(rel) or ".", posixpath.basename(rel))
+
+    def may_read(self, name, kind, sub, filename):
+        """None when this account may read this file of ComfyUI's input, output or temp folder, else why not. Input
+        (SNAP-R57): its own folder, input/shared/ and top-level files (the admin's), never another account's. Output and
+        temp (SNAP-R56): nothing rated above its cap; a file in output/shared/ nobody rated counts as Adult. Which output
+        folders it may read is SNAP-R42's (its own, shared/, files its own runs wrote)."""
+        if self.is_admin(name):
+            return None
+        top = sub.split("/")[0]
+        if kind == "input":
+            return None if sub == "." or top in (name, "shared") else "reads another account's input folder."
+        r = self.rated["files"].get(f"{kind}/{sub}/{base(filename)}")
+        r = LEVELS["adult"] if r is None and kind == "output" and top == "shared" else r
+        return "reads an output rated above this account's cap." if r is not None and r > self.cap(name) else None
+
+    async def learn_all(self):
+        """learn() from ComfyUI's whole history, at most every 5 s (lists poll /api/jobs often)."""
+        if time.time() - self.learned_at >= 5:
+            self.learned_at = time.time()
+            self.learn(await self.get("/history"))
 
     async def refuse(self, message, status=400):
         return web.json_response({"error": {"type": "snap_gate", "message": message, "details": message, "extra_info": {}}, "node_errors": {}}, status=status)
@@ -451,8 +543,9 @@ class Gate:
                     continue
                 if names_any([v], hidden):
                     return await self.refuse(f"Node {nid} loads a file this account can't use (above its rating). Ask the admin.", 403)
-                if not admin and os.path.isabs(v) and os.path.exists(v):  # SNAP-R45
-                    return await self.refuse(f"Node {nid} reads a path outside ComfyUI's folders, which only the admin can do.", 403)
+                why = None if admin else await self.in_scope(name, v)  # SNAP-R45, SNAP-R57: scope, not the path's form
+                if why:
+                    return await self.refuse(f"Node {nid} {why}", 403)
                 if key == "filename_prefix":
                     inputs[key] = bucket(name, v)
                     if inputs[key] is None:
@@ -503,16 +596,48 @@ class Gate:
         for t, cut in (("output", 9), ("input", 8), ("temp", 7)):
             if filename.endswith(f"[{t}]"):
                 filename, kind = filename[:-cut], t
-        if kind == "input":
-            return True  # uploads are shared until they get buckets (U65 notes)
         sub = posixpath.normpath((q.get("subfolder") or ".").replace("\\", "/"))
-        top = sub.split("/")[0]
-        if kind == "output" and top in (name, "shared"):
-            return True
         key = (kind, sub, base(filename))
-        if key not in self.produced.get(name, set()):
-            self.own_history(name, await self.get("/history"))
+        if kind != "input" and "/".join(key) not in self.rated["files"]:
+            await self.learn_all()
+            if key not in self.produced.get(name, set()):
+                self.own_history(name, await self.get("/history"))
+        why = self.may_read(name, kind, sub, filename)
+        if why or kind == "input" or (kind == "output" and sub.split("/")[0] in (name, "shared")):
+            return why is None
         return key in self.produced.get(name, set())
+
+    async def upload(self, request, name):
+        """SNAP-R57: an upload lands in input/<account>/ (or output/<account>/ for type output), the admin's too; only the
+        admin puts files in input/shared/. The file name can't carry a folder of its own."""
+        form = await request.post()
+        kind, image = form.get("type") or "input", form.get("image")
+        sub = posixpath.normpath(str(form.get("subfolder") or ".").replace("\\", "/")).lstrip("/")
+        if not isinstance(image, web.FileField) or re.search(r"[/\\]|\.\.", image.filename or "") or ".." in sub.split("/"):
+            return web.json_response({"error": "Upload one file with a plain file name and a subfolder inside your folder."}, status=400)
+        top = sub.split("/")[0]
+        if kind == "input" and top == "shared" and not self.is_admin(name):
+            return web.json_response({"error": "input/shared/ is filled by the admin; your uploads go to your own folder."}, status=403)
+        if kind in ("input", "output") and not (top == name or (top == "shared" and self.is_admin(name))):
+            sub = posixpath.normpath(posixpath.join(name, sub))
+        if request.path.endswith("/mask"):
+            ref = json.loads(form.get("original_ref") or "{}")
+            fn, k = str(ref.get("filename", "")), ref.get("type", "output")
+            for t, cut in (("output", 9), ("input", 8), ("temp", 7)):
+                if fn.endswith(f"[{t}]"):
+                    fn, k = fn[:-cut], t
+            if self.may_read(name, k, posixpath.normpath(str(ref.get("subfolder") or ".")), fn):
+                return web.json_response({"error": "That picture isn't one this account can read."}, status=404)
+        data = aiohttp.FormData()
+        for k, v in form.items():
+            if k == "subfolder":
+                continue
+            if isinstance(v, web.FileField):
+                data.add_field(k, v.file, filename=v.filename, content_type=v.content_type)
+            else:
+                data.add_field(k, v)
+        data.add_field("subfolder", "" if sub == "." else sub)
+        return await self.relay(request, name, form=data)
 
     async def ws(self, request, name):
         cid = request.query.get("clientId", "")
@@ -550,6 +675,8 @@ class Gate:
                         continue
                     if msg.get("type") == "executed" and pid:
                         self.record(self.owners.get(pid, name), data.get("output"))
+                    if msg.get("type") == "execution_success" and pid:
+                        self.learn(await self.get(f"/history/{quote(pid)}"))
                 await down.send_str(m.data)
 
         async def to_comfy():
@@ -593,6 +720,8 @@ class Gate:
             return web.json_response({"error": "Only the admin can open this."}, status=403)
         if m == "POST" and p == "/prompt":
             return await self.prompt(request, name)
+        if m == "POST" and p in ("/upload/image", "/upload/mask"):
+            return await self.upload(request, name)
         if m == "POST" and p == "/mainodes/snap/register":  # the pack keys pages by comfy-user (SNAP-R30): a page is the account's own socket
             body = await request.json()
             if self.clients.get(body.get("client")) != name:
@@ -603,6 +732,8 @@ class Gate:
 
         if m == "GET" and p == "/view":
             return await self.relay(request, name) if await self.view_ok(request, name) else web.Response(status=404)
+        if p.startswith("/assets") or p == "/tags" or p.startswith("/tags/"):  # core's assets API lists every account's files
+            return web.json_response({"error": "Core's assets API is the admin's on a signed-in install."}, status=403)
         if m == "GET" and (p.startswith("/view_metadata/") or p.startswith("/experiment/models/preview/")):
             fn, hidden = request.query.get("filename", "") if p.startswith("/view_metadata/") else p.split("/", 6)[-1], await self.hidden(name)
             if fn in hidden or base(fn) in {base(h) for h in hidden}:
@@ -611,7 +742,7 @@ class Gate:
         if p.startswith("/mainodes/"):  # pack routes take and list file names too (dials are LoRAs): same rule, generically
             hidden = await self.hidden(name)
             body = await request.json() if m == "POST" and request.content_type == "application/json" else None
-            if names_any([*request.query.values(), body], hidden):
+            if names_any([*request.query.values(), body], hidden) or [w for v in strings([*request.query.values(), body]) if (w := await self.in_scope(name, v))]:
                 return web.json_response({"error": "That file isn't available to this account."}, status=404)
             if p.startswith(tuple(PRESETS)):
                 answer = await self.own_presets(request, name, p, body)
@@ -625,7 +756,8 @@ class Gate:
             status, out = await self.fetch(request, name)
             if isinstance(out, str):
                 return web.Response(text=out, status=status)
-            return web.json_response(scrub(out, await self.hidden(name)) if status == 200 else out, status=status)
+            others = tuple(set(self.accounts.load()) - {name}) if p.startswith("/object_info") else ()  # SNAP-R57: loaders' lists never name another account's input folder
+            return web.json_response(scrub(out, await self.hidden(name), others) if status == 200 else out, status=status)
         if m == "GET" and p == "/history":  # core pages the whole history; page this account's own the same way
             items = list(self.own_history(name, await self.get("/history")).items())
             n, offset = request.query.get("max_items"), request.query.get("offset")
@@ -642,12 +774,15 @@ class Gate:
             status, out = await self.fetch(request, name, path_qs=request.path + ("?" + "&".join(f"{k}={quote(v)}" for k, v in q.items()) if q else ""))
             if status != 200:
                 return web.json_response(out, status=status)
-            jobs = [j for j in out["jobs"] if self.owns(name, j["id"])]
+            if any(j["id"] not in self.rated["runs"] for j in out["jobs"]):
+                await self.learn_all()
+            jobs = [j for j in out["jobs"] if self.owns(name, j["id"]) and self.within_cap(name, j["id"])]
             offset, limit = int(request.query.get("offset", 0) or 0), request.query.get("limit")
             page_ = jobs[offset:offset + int(limit)] if limit else jobs[offset:]
             return web.json_response({"jobs": page_, "pagination": {"offset": offset, "limit": int(limit) if limit else None, "total": len(jobs), "has_more": offset + len(page_) < len(jobs)}})
         if p.startswith("/jobs/") and not p.endswith("/cancel"):
-            return await self.relay(request, name) if self.owns(name, p.split("/")[2]) else web.json_response({"error": "Job not found"}, status=404)
+            ok = self.owns(name, p.split("/")[2]) and self.within_cap(name, p.split("/")[2])
+            return await self.relay(request, name) if ok else web.json_response({"error": "Job not found"}, status=404)
         if m == "POST" and p.startswith("/jobs/") and p.endswith("/cancel") and p != "/jobs/cancel":
             return await self.relay(request, name) if self.owns(name, p.split("/")[2]) else web.json_response({"cancelled": False})
         if m == "POST" and p == "/jobs/cancel":
@@ -684,13 +819,41 @@ def level(rated, folder, name):
     return r if r is not None else LEVELS["pg"] if folder in HELPER_FOLDERS else LEVELS["adult"]
 
 
-def scrub(o, hidden):
-    """Every list in a model listing (or /object_info's combos) without the hidden names, generically (SNAP-R43)."""
+def scrub(o, hidden, others=()):
+    """Every list in a model listing (or /object_info's combos) without the hidden names, generically (SNAP-R43), and
+    without another account's input folder or anything in it (`others`: their names, SNAP-R57)."""
+    def gone(x):
+        n = x if isinstance(x, str) else x.get("name") if isinstance(x, dict) else None
+        return n is not None and (n in hidden or n.replace("\\", "/").split("/")[0] in others)
     if isinstance(o, list):
-        return [scrub(x, hidden) for x in o if not ((isinstance(x, str) and x in hidden) or (isinstance(x, dict) and x.get("name") in hidden))]
+        return [scrub(x, hidden, others) for x in o if not gone(x)]
     if isinstance(o, dict):
-        return {k: scrub(v, hidden) for k, v in o.items()}
+        return {k: scrub(v, hidden, others) for k, v in o.items()}
     return o
+
+
+def strings(values):
+    """Every string in these values, nested JSON included."""
+    todo, out = list(values), []
+    while todo:
+        v = todo.pop()
+        if isinstance(v, str):
+            out.append(v)
+        todo += v.values() if isinstance(v, dict) else v if isinstance(v, list) else []
+    return out
+
+
+def outputs_of(outputs):
+    """(type, subfolder, filename) of every file in a run's outputs (history: node -> {"images": [...]}) or an `executed`
+    event's output ({"images": [...]})."""
+    lists = [x for v in (outputs or {}).values() for x in (v.values() if isinstance(v, dict) else [v])]
+    return {(item.get("type", "output"), posixpath.normpath(item.get("subfolder") or "."), item["filename"])
+            for v in lists for item in (v if isinstance(v, list) else []) if isinstance(item, dict) and "filename" in item}
+
+
+def is_within(root, path):
+    root = os.path.normpath(root)
+    return os.path.commonpath([root, path]) == root if os.path.isabs(root) else False
 
 
 def names_any(values, hidden):
