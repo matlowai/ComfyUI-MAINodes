@@ -382,9 +382,17 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // workflow the way core does (a new tab named after it); when that workflow pins records, the opened-file sheet offers
   // Run as it was / Run with today's world / Edit then run, with what differs
   let fileOpened = null;
-  document.addEventListener("drop", (e) => { const f = e.dataTransfer?.files?.[0]; if (f) fileOpened = { name: f.name, at: Date.now() }; }, true);
+  // a file that loads no workflow (saved with metadata off, SNAP-R38) re-runs from the take it is, when it is one here (U89)
+  const opening = (name) => { fileOpened = { name, at: Date.now() }; setTimeout(() => { if (fileOpened?.name !== name) return; fileOpened = null; noRecipe(name); }, 2500); };
+  function noRecipe(name) {
+    const t = T.all().find((x) => x.media.some((m) => m.filename === name));
+    if (!t) return say(`${name} carries no recipe (saved with metadata off), and it isn't a take here`, true);
+    say(`${name} carries no recipe (saved with metadata off); it is take ${t.number} here: re-run it from the take`);
+    openRerunSheet(root, { take: t, say, edit: editPinned }).catch((err) => say(err.message, true));
+  }
+  document.addEventListener("drop", (e) => { const f = e.dataTransfer?.files?.[0]; if (f) opening(f.name); }, true);
   async function openSaved(file, how) {
-    fileOpened = { name: file.name, at: Date.now() };
+    opening(file.name);
     try { await app.handleFile(file, how); } catch (err) { say(err.message, true); }
   }
   const editPinned = (ref, n) => { const { kind, id } = W.parse(ref); if (kind === "cast") return editCast({ id, n }); const v = W.get(W.refOf(kind, id, n))?.version.body; if (v) editSet(v); };

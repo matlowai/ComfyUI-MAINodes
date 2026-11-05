@@ -6,6 +6,8 @@
 // through the record's own apply (library.swapPin, updatePin, applySet, useSetup), keeps the take's seed unless asked for
 // a new one, and queues it marked extra.snap.rerun, so the new take nests under the original as "Re-run · Kon → Mara".
 // A swap that changes nothing the prompt holds is said before the run: core would serve the take's own file.
+// The plan says the rating the re-run would have before it runs (SNAP-R39: the take's, raised to each swapped-in record's
+// rating or its LoRA's), and on a signed-in install whether that is above the account's cap (the server refuses it).
 // Reuse the motion keeps the take itself as the motion source: a Cast swap is a recast (Viggle Remake, painted from the
 // new Cast's details line and, when it has one, its picture), a set, a scene's set or a card's words are a "Change
 // something" (Remake edit); a Setup or a shot card can't be done on the take's own motion, and it says so (Re-generate
@@ -16,6 +18,7 @@
 // SNAP-R63 re-run with swaps · SNAP-R61 as it was / today's world · SNAP-R60 pins · SNAP-R24 where it lands · SNAP-R11
 // warn, never block · SNAP-R58 every choice listed in full · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
+import * as ACC from "./account.js";
 import * as C from "./candidates.js";
 import * as E from "./engine.js";
 import * as ED from "./edits.js";
@@ -96,6 +99,20 @@ function one(take, s, to) {
   const warning = kind !== "cast" ? null : same ? L.lookWarning(was, body) : was?.refs?.length && !body.refs?.length ? `${name} has no pictures: the render draws them from words only` : null;
   return { slot: s.slot, to, ref: same ? ref : W.refOf(kind, x.id, now.version.n), text: same ? `${s.name} v${s.n} → v${now.version.n}` : `${s.name} → ${name}`, fields, ...(warning ? { warning } : {}),
     into_run: kind === "cast" ? (!same || fields.some((f) => INTO_RUN.includes(f.split(/[ .]/)[0]))) : fields.length > 0, latest: to === "latest" };
+}
+
+// the rating a re-run would carry: the take's, raised by each swapped-in record's own rating or its LoRA's (SNAP-R39)
+export function ratingFor(take, asked) {
+  let rating = T.ratingOf(take) ?? "pg";
+  const why = [`take ${take.number} is ${T.RATING_SHOWN[rating]}`];
+  for (const s of asked.filter((x) => x.ref)) {
+    const b = W.get(s.ref).version.body, r = b.rating ?? (b.lora?.file && M.entry(b.lora.file)?.rating);
+    if (!r) continue;
+    if (T.RATINGS.indexOf(r) > T.RATINGS.indexOf(rating)) rating = r;
+    why.push(`${T.RATING_SHOWN[r]}: ${b.name ?? L.nameOf(b)}'s ${b.rating ? "rating" : "LoRA"}`);
+  }
+  const cap = ACC.account()?.max_rating, above = cap && T.RATINGS.indexOf(rating) > T.RATINGS.indexOf(cap);
+  return { would_be: rating, why, ...(above ? { above_cap: `${T.RATING_SHOWN[rating]} is above your cap (${ACC.capShown()}): the server will refuse this run` } : {}) };
 }
 
 // a swaps map whose slots may hold lists, as the single re-runs it stands for: every combination, in slot order

@@ -50,6 +50,8 @@ export async function openRerunSheet(host, { take, name, say, edit }) {
     regen.textContent = file ? "Run with these swaps" : many ? `Re-generate × ${all.length}` : "Re-generate";
     if (reuse) reuse.textContent = many ? `Reuse the motion × ${all.length}` : "Reuse the motion";
     cache.textContent = !file && !many && seed.value === "same" && !asked.some((s) => s.into_run) ? `Nothing the prompt holds changes: ComfyUI would serve take ${take.number}'s own file from its cache. Pick a new seed for a fresh render.` : "";
+    const above = !file && RR.ratingFor(take, each.flat()).above_cap; // a signed-in install's cap: said before the press, the server enforces it
+    if (above) cache.textContent = [cache.textContent, above].filter(Boolean).join(" ");
     cache.hidden = !cache.textContent;
     if (file) { regen.disabled = !go.length; return; }
     const ways = await Promise.all(go.map((s) => RR.motionOf(take, s).catch((err) => ({ text: s.text, not_possible: err.message })))), first = ways.find((w) => !w.not_possible);

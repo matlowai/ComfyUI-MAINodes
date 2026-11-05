@@ -75,6 +75,16 @@ async function defaultPrompt() {
 // what a full run of the open recipe took before
 const recipeEta = async () => T.eta((await T.hashes(await T.live())).hash);
 const takeOf = async (id) => { await T.load(); const t = T.get(id); if (!t) throw new Error(`No take ${id}`); return t; };
+// rerun's subject: a take, or the take a saved file is (by its name and folder, so metadata off doesn't matter)
+async function takeOrFile(take, file) {
+  if (take) return takeOf(take);
+  if (!file) throw new Error("rerun needs take (list_takes) or file (output/<subfolder>/<name>)");
+  await T.load();
+  const parts = file.replace(/^output\//, "").split("/"), name = parts.pop(), sub = parts.join("/");
+  const t = T.all().find((x) => x.media.some((m) => m.filename === name && (!parts.length || m.subfolder === sub)));
+  if (!t) throw new Error(`${file} isn't a take's file here (takes are matched by output/<subfolder>/<name>); open it in Snap to run its own recipe`);
+  return t;
+}
 // the method registry's slots, read whenever the schema is (snap_view registers the tools once the registry is in)
 const slotEnum = { type: "string", get enum() { return S.slots(); } };
 const brickEnum = { type: "string", description: `a recipe brick (${PACK_BRICKS.join(", ")}; a title such as render, save or models names that brick in any family) or any installed node as node:<NodeType> (a new one) / node:<NodeType>#<n> (one in the recipe)` };
@@ -491,12 +501,12 @@ export const TOOLS = [
   {
     name: "rerun",
     description: "Re-run a take with swaps (U89, SNAP-R63, the 'Disney' model: the same recipe with other characters, sets or versions). Every record the take pinned is a slot (get_take world; rerun_slots lists each slot with every choice): swaps maps a slot to {to}: \"pinned\" (as it was), \"latest\" (its newest version), \"@n\" (that version), or another record of its kind (\"cast:<id>\" or \"cast:<id>@n\"). Two slots are not records: \"scene\" ({to: \"scene:<id>\"}: that scene's set comes into the recipe) and \"setup\" ({to: \"<setup name>\"} from list_setups, same family; read from the take's setup pin or its prompt). route: regenerate (the recipe rebuilt with the swaps: similar motion, not the same) or reuse_motion (the take's own video is the motion: a Cast swap becomes a recast, Viggle Remake painted from the new Cast's details line and its first picture, `who` = who it replaces when the old Cast has no details line, in words or as find_people numbers them; a set, scene or card swap becomes a Change something (Remake edit); a Setup or shot-card swap can't use the take's motion and comes back under not_possible; MOSS paints `count` candidates (1-3, default 2) and the render waits for apply_candidate; one swap per call, the others listed under waiting). seed: same (default: the closest motion) or new (regenerate only). land: where the new take goes: by default where the take belongs, \"tab\" for a scratch tab, or {scene, shot}. swaps {} re-runs it as it was. A list for a slot's `to` ([\"cast:a\", \"cast:b\", \"cast:c\"]) is a batch, one re-run per choice (several lists: every combination): regenerate queues them one after another and returns one candidates decision (kind rerun) whose candidates are those takes, to pick with apply_candidate (it becomes the shot's active take; reject_candidate marks the take rejected); reuse_motion opens one decision per choice. The new take nests under the original as 'Re-run · Kon → Mara'. plan says per swap what changes (fields), a look warning, and cache_hit when nothing the prompt holds changes (ComfyUI would serve the take's own file: pick seed new). Uses GPU time: unless the person lets agents run, this waits as a proposal.",
-    inputSchema: { type: "object", properties: { take: { type: "string" }, swaps: { type: "object", description: "slot → {to}; slots from rerun_slots" }, route: { type: "string", enum: RR.ROUTES }, seed: { type: "string", enum: ["same", "new"] },
-      land: { description: "\"tab\", or {scene, shot}" }, count: { type: "integer", minimum: 1, maximum: 3 }, who: { type: "string" } }, required: ["take"] },
+    inputSchema: { type: "object", properties: { take: { type: "string" }, file: { type: "string", description: "instead of take: a saved file of a take here, output/<subfolder>/<name> or its name (works with metadata off: the take holds the recipe)" }, swaps: { type: "object", description: "slot → {to}; slots from rerun_slots" }, route: { type: "string", enum: RR.ROUTES }, seed: { type: "string", enum: ["same", "new"] },
+      land: { description: "\"tab\", or {scene, shot}" }, count: { type: "integer", minimum: 1, maximum: 3 }, who: { type: "string" } } },
     annotations: { consequentialHint: true },
     consequential: true,
-    plan: async ({ take, swaps = {}, route = "regenerate", seed = "same", count = 2, who }) => {
-      const t = await takeOf(take), all = RR.combos(swaps);
+    plan: async ({ take, file, swaps = {}, route = "regenerate", seed = "same", count = 2, who }) => {
+      const t = await takeOrFile(take, file), all = RR.combos(swaps);
       if (all.length > 1) {
         const each = await Promise.all(all.map(async (m) => (await RR.resolve(t, m)).filter((s) => !s.keep))), one = T.measured([t], "of the take re-made");
         return { runs: `${all.length} re-runs of take ${t.number} (${route}), one after another`, route, candidates: all.length,
@@ -512,9 +522,10 @@ export const TOOLS = [
       }
       return { runs: `take ${t.number}'s recipe again ${go.length ? `with ${go.map((s) => s.text).join(", ")}` : "as it was"}, seed ${seed}`, route,
         swaps: asked.map(({ slot, to, text, fields, warning, keep }) => ({ slot, to, text, ...(fields ? { fields } : {}), ...(warning ? { warning } : {}), ...(keep ? { kept: true } : {}) })),
+        rating: RR.ratingFor(t, asked),
         ...(seed === "same" && !asked.some((s) => s.into_run) ? { cache_hit: `nothing the prompt holds changes: ComfyUI serves take ${t.number}'s own file from its cache; pick seed new for a fresh render` } : {}), ...T.measured([t], "of the take re-made") };
     },
-    run: async ({ take, swaps, route, seed, land, count, who }) => { const t = await takeOf(take), r = await RR.rerun(t, { swaps, route, seed, land, count, who, by: "agent" }); return route === "reuse_motion" ? r : { ...r, next: "run_status {run, wait_s: 25} until state is done" }; },
+    run: async ({ take, file, swaps, route, seed, land, count, who }) => { const t = await takeOrFile(take, file), r = await RR.rerun(t, { swaps, route, seed, land, count, who, by: "agent" }); return route === "reuse_motion" ? r : { ...r, next: "run_status {run, wait_s: 25} until state is done" }; },
   },
   {
     name: "rerun_slots",

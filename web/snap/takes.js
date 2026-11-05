@@ -94,6 +94,12 @@ function rated(marks, graph, parent) {
   if (!marks?.rating) return {}; // a server from before SNAP-R39 rates nothing
   let rating = marks.rating;
   const why = [...(marks.rating_why ?? [])];
+  for (const [ref, p] of Object.entries(graph?.extra?.snap?.world ?? {})) { // a pinned record rated by the person (a Cast swapped in by a re-run) raises it too
+    const b = p.n ? W.get(W.refOf(W.parse(ref).kind, W.parse(ref).id, p.n))?.version.body : null;
+    if (!b?.rating) continue;
+    if (RATINGS.indexOf(b.rating) > RATINGS.indexOf(rating)) rating = b.rating;
+    if (b.rating !== "pg") why.push(`${p.name ?? ref} is rated ${RATING_SHOWN[b.rating]}`);
+  }
   for (const from of sources(graph, parent)) {
     const r = ratingOf(from);
     if (RATINGS.indexOf(r) > RATINGS.indexOf(rating)) rating = r;
@@ -217,7 +223,7 @@ async function capture(id, status, error, failedNode) {
   try { await captureRun(id, started, status, error, failedNode); } finally { saving.delete(id); }
 }
 async function captureRun(id, started, status, error, failedNode) {
-  await load();
+  await Promise.all([load(), W.load()]);
   const h = (await (await api.fetchApi(`/history/${id}`)).json())[id];
   if (!h) return;
   const [, , prompt, extra] = h.prompt;
