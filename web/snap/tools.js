@@ -7,6 +7,7 @@
 // MCP, data URLs over WebMCP.
 // SNAP-R11 same warnings as the UI · SNAP-R15 one table, MCP + WebMCP · SNAP-R16 GPU tools wait as proposals ·
 // SNAP-R30 the agent front door: errors name the accepted arguments, runs report their state, lengths in seconds ·
+// SNAP-R52 a value outside an enum is refused naming the accepted values ·
 // SNAP-R31 a brick title names it in every family (render = the stills recipe's image) ·
 // SNAP-R17 by: agent · SNAP-R19 the tool table is the API · SNAP-R21 camera plates · SNAP-R23 candidates: the person's
 // pick waits as a proposal for agents · SNAP-R24 scenes own the work (the scene tools call scenes.js, as the navigator
@@ -242,7 +243,7 @@ export const TOOLS = [
     name: "set_profile",
     description: "Save onboarding answers, as the person gives them: intents, sfw_only (hides files, dials and cards the model graph tags nsfw from pickers and from these tools: a preference filter, not a safety guarantee), api_tasks (from list_kits' tasks: prompt, caption, judge, render, edit; API models show only for these), metadata (true / false sets the Save metadata switch), code_review (always / unknown / never: read new code before bringing it in; also a row in ComfyUI's Settings), answered (step ids: intent, scan, metadata, sfw, local, code, kit). Ask the person first; never decide these for them.",
     inputSchema: { type: "object", properties: { intents: { type: "array", items: { type: "string", enum: ["video", "stills", "anime", "edit", "long", "characters"] } }, sfw_only: { type: "boolean" },
-      api_tasks: { type: "array", items: { type: "string", enum: ["prompt", "caption", "judge", "render", "edit"] } }, metadata: { type: "boolean" }, code_review: { type: "string", enum: ["always", "unknown", "never"] }, answered: { type: "array", items: { type: "string" } }, done: { type: "boolean" } } },
+      api_tasks: { type: "array", items: { type: "string", enum: ["prompt", "caption", "judge", "render", "edit"] } }, metadata: { type: "boolean" }, code_review: { type: "string", enum: ["always", "unknown", "never"] }, answered: { type: "array", items: { type: "string", enum: PF.STEPS } }, done: { type: "boolean" } } },
     run: async ({ metadata, ...patch }) => {
       if (metadata != null) { await MD.set(metadata); patch.answered = [...(patch.answered ?? []), "metadata"]; }
       await PF.set(patch);
@@ -976,6 +977,12 @@ export function checkArgs(name, args = {}) {
   // propose / reason / for_note / if_revision are understood by every tool (a read-only one just ignores them)
   const unknown = Object.keys(args).filter((k) => !(k in (t.properties ?? {})) && !(k in PROPOSE) && !(k in IF_REVISION)), absent = (t.required ?? []).filter((k) => args[k] === undefined);
   if (unknown.length || absent.length) throw new Error(`${name} ${unknown.length ? `doesn't take ${unknown.join(", ")}` : `needs ${absent.join(", ")}`}`);
+  // SNAP-R52: a value outside an argument's enum (or its items' enum) is refused naming the accepted ones (U72 F16)
+  for (const [k, v] of Object.entries(args)) {
+    const p = t.properties?.[k], allowed = p?.enum ?? p?.items?.enum;
+    const bad = allowed && v != null ? (Array.isArray(v) ? v : [v]).filter((x) => !allowed.includes(x)) : [];
+    if (bad.length) throw new Error(`${name}: ${k} ${bad.map((x) => JSON.stringify(x)).join(", ")} isn't one of ${allowed.map((x) => JSON.stringify(x)).join(", ")}`);
+  }
 }
 
 // `propose: true` on any tool that changes the recipe parks the call as a proposal for the person to accept or reject

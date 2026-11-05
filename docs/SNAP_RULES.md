@@ -229,6 +229,13 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   recipe is refused with the recipe's brick ids. `run` warns, and still runs, while a prompt holds its blueprint's
   default text. *Why:* U72 run 2 (Sonnet at low effort): AGENT_START's `render` failed on the stills recipe, the agent
   pressed run anyway and got the example picture. *More:* u72/FINDINGS.md F11, `web/snap/tools.js`.
+- **SNAP-R52: A value outside an argument's choices is refused, naming them.** Every tool argument with an `enum`
+  (and every array whose items have one) takes only those values: anything else fails the whole call before it runs,
+  saying which value and listing the accepted ones (`set_profile: intents "video_with_sound" isn't one of "video",
+  "stills", ...`), and nothing is saved. `set_profile`'s `answered` takes the onboarding step ids. The check sits beside
+  the unknown-argument check (SNAP-R30), so it covers every tool, MCP and WebMCP alike. *Why:* U72 run 5 (Sonnet at low
+  effort): `set_profile {intents: ["video_with_sound"]}` was saved silently, and the agent only noticed on a re-read.
+  *More:* u72/FINDINGS.md F16, `web/snap/tools.js` (`checkArgs`).
 - **SNAP-R36: Quiet sound is a note with two ways out, never a silent fix.** A video take's sound is read once at
   capture (ffmpeg volumedetect through `/mainodes/snap/loudness`; no ffmpeg, no note) and kept as `sound` (mean and max
   dB). Below -45 dB mean, the card says "sound is quiet" and the viewer offers two actions. "Make it louder" queues
