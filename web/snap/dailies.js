@@ -26,6 +26,7 @@ import * as SC from "./scenes.js";
 import { candidatesEl } from "./candidateview.js";
 import { url as mediaUrl } from "./checks.js";
 import * as A from "./activity.js";
+import * as WV from "./workview.js";
 
 // SNAP-R39: a take's rating, from how it was made (its prompt's text, the files and takes it used); the person's pick wins
 function ratingRow(t) {
@@ -65,6 +66,10 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
     strip);
   T.onChange(() => render());
   SC.onChange(() => render());
+  // SNAP-R65: jobs about a take show on its card, and a job that will become a take shows as a ghost card where the take
+  // will land; the strip is rebuilt only when a ghost comes or goes, the chips and rings are written in place
+  let ghostSig = "";
+  A.onChange(() => { const g = JSON.stringify(ghosts().map((r) => r.id)); if (g !== ghostSig) render(); else paintJobs(); });
   T.load().then(render, () => {});
   // the blind pairs waiting in this workflow (a pair set up in another workflow waits there)
   const waitingHere = async () => (await T.pending()).filter((p) => T.get(p.a)?.group === T.groupOf() && T.get(p.b)?.group === T.groupOf());
@@ -77,6 +82,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
   let shownGroup = null;
   async function render() {
     shownGroup = shownNow();
+    ghostSig = JSON.stringify(ghosts().map((r) => r.id));
     const here = SC.current(), all = here ? SC.takesOf(here.shot).map((e) => T.get(e.take)).filter(Boolean) : T.inGroup(), order = await T.ranking();
     const group = all.filter((t) => !T.aboveCap(t)), capped = all.length - group.length;
     const ranked = order.map(T.get).filter((t) => t && group.includes(t));
@@ -90,20 +96,22 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
     el.classList.toggle("empty", !group.length);
     heading.textContent = here ? `${SC.shotTitle(here.scene, here.shot)} · takes` : "Takes";
     refresh();
+    queueMicrotask(paintJobs);
     // in a scene the versions follow the take they came from, in a bracket (nested again for a version of a version)
     const tree = here ? SC.tree(here.shot) : [], kids = new Map(), walk = (list) => { for (const e of list) { kids.set(e.take, e.children); walk(e.children); } };
     walk(tree);
-    const family = (t) => { const v = (kids.get(t.id) ?? []).map((e) => T.get(e.take)).filter(Boolean);
-      return v.length ? h("div", { className: "snap-take-family" }, card(t, ranked.indexOf(t), here), h("div", { className: "snap-take-versions" }, v.map(family))) : card(t, ranked.indexOf(t), here); };
-    const roots = [...ranked, ...rest].filter((t) => !here || tree.some((e) => e.take === t.id));
-    strip.replaceChildren(...(group.length ? roots.map(family) : [h("div", { className: "snap-quiet", textContent: here ? `Each run of ${SC.shotTitle(here.scene, here.shot)} lands here as a take; versions of a take (a night version, a continue) nest under it.` : "Each run lands here as a take: rank it, keep or reject it, and note where it went wrong or right." })]));
+    const coming = ghosts(), under = (id) => coming.filter((r) => r.about.take === id && group.some((t) => t.id === id)).map(ghost);
+    const family = (t) => { const v = [...(kids.get(t.id) ?? []).map((e) => T.get(e.take)).filter(Boolean).map(family), ...under(t.id)];
+      return v.length ? h("div", { className: "snap-take-family" }, card(t, ranked.indexOf(t), here), h("div", { className: "snap-take-versions" }, v)) : card(t, ranked.indexOf(t), here); };
+    const roots = [...ranked, ...rest].filter((t) => !here || tree.some((e) => e.take === t.id)), loose = coming.filter((r) => !group.some((t) => t.id === r.about.take)).map(ghost);
+    strip.replaceChildren(...(group.length || loose.length ? [...loose, ...roots.map(family)] : [h("div", { className: "snap-quiet", textContent: here ? `Each run of ${SC.shotTitle(here.scene, here.shot)} lands here as a take; versions of a take (a night version, a continue) nest under it.` : "Each run lands here as a take: rank it, keep or reject it, and note where it went wrong or right." })]));
   }
 
   // stale chips: one live prompt per check, compared with every take in the strip; a newer check wins
   let checking = 0, timer = null;
   const refresh = () => { if (shownGroup !== null && shownGroup !== shownNow()) return render(); clearTimeout(timer); timer = setTimeout(markStale, 250); };
   async function markStale() {
-    const mine = ++checking, cards = [...strip.querySelectorAll(".snap-take")];
+    const mine = ++checking, cards = [...strip.querySelectorAll(".snap-take:not(.ghost)")];
     if (!cards.length) return;
     const now = await T.live(), found = await Promise.all(cards.map((c) => T.stale(T.get(c.dataset.take), now)));
     if (mine !== checking) return;
@@ -141,6 +149,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
           title: t.rating_set ? "rated by you" : `rated from how it was made: ${(t.rating_why ?? []).join("; ")}` }) : null,
         T.locked(t) ? h("span", { className: "snap-take-lock", textContent: "🔒 private", title: `Private take (it loads a private file or has a Cast LoRA row on): exports leave it out${t.metadata === false ? "; its files were saved without the recipe inside" : ""}` }) : null,
         h("span", { className: "snap-quiet", textContent: `${t.notes.length ? `✎ ${t.notes.length} · ` : ""}${ago(t.created)}` })));
+    c.querySelector("figcaption").append(h("span", { className: "snap-take-job", hidden: true }));
     c.dataset.take = t.id;
     const v = c.querySelector("video");
     c.addEventListener("pointerenter", () => { v?.play().catch(() => {}); onHover?.(t); });
@@ -160,6 +169,46 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
       await T.rank(id, order.includes(t.id) ? order.indexOf(t.id) : order.length);
     });
     return c;
+  }
+
+  // the jobs that will land in this strip as takes and haven't yet: a run of this workflow or shot, or a version of one
+  // of its takes (a re-take, a re-run, an extend, a louder version, an edit's render)
+  function ghosts() {
+    const here = SC.current(), mine = new Set(here ? SC.takesOf(here.shot).map((e) => e.take) : T.inGroup().map((t) => t.id));
+    return A.all().filter((r) => r.source === "prompt" && r.takes && ["queued", "running"].includes(r.state) && !T.get(`take-${r.id}`)
+      && (mine.has(r.about.take) || r.about.group === T.groupOf() || (here && r.about.shot === here.shot.id)));
+  }
+  function ghost(r) {
+    const g = h("figure", { className: "snap-take ghost", tabIndex: 0, title: r.title },
+      h("div", { className: "snap-take-media" }, h("div", { className: "snap-take-ring" })),
+      h("figcaption", {}, h("b", { textContent: r.title }), h("span", { className: "snap-take-job" })));
+    g.dataset.job = r.id;
+    g.dataset.take = `take-${r.id}`; // the card that replaces it has the same key
+    return paintGhost(g, r);
+  }
+  function paintGhost(g, r) {
+    const p = r.progress, f = p?.max ? (p.finished + p.value / p.max) / Math.max(1, p.nodes) : p?.nodes ? p.finished / p.nodes : 0;
+    g.style.setProperty("--run-p", r.state === "running" ? Math.min(1, f) : 0);
+    g.querySelector(".snap-take-job").textContent = WV.stateText(r);
+    return g;
+  }
+  // what is happening to a take, on its card: its edit painting or waiting for a pick, a version rendering, a failure
+  const chipOf = (rows) => {
+    const r = rows.find((x) => x.state === "failed") ?? rows.find((x) => x.state === "waiting") ?? rows.find((x) => x.state === "running" || x.state === "checking") ?? rows[0];
+    if (!r) return null;
+    const what = r.kind === "paint" ? "edit" : r.kind === "check" ? "check" : r.source === "decision" ? r.kind : "version";
+    return { state: r.state, text: r.state === "failed" ? `${what} failed` : r.state === "waiting" ? `${r.candidates?.ready ?? ""} candidate${r.candidates?.ready === 1 ? "" : "s"} to pick` : r.state === "checking" ? "checking candidates"
+      : r.state === "queued" ? `${what} queued` : `${what === "edit" ? "painting" : `${what} rendering`}${r.eta_s != null ? ` · ${r.eta}` : ""}`, more: rows.length - 1,
+      title: rows.map((x) => [x.title, WV.stateText(x), x.error].filter(Boolean).join(" · ")).join("\n") };
+  };
+  function paintJobs() {
+    const open = A.all().filter((r) => r.about?.take && (r.zone === "in_flight" || (r.zone === "landed" && r.state === "waiting")));
+    for (const el of strip.querySelectorAll(".snap-take:not(.ghost) .snap-take-job")) {
+      const c = chipOf(open.filter((r) => r.about.take === el.closest(".snap-take").dataset.take && !(r.result?.take === r.about.take)));
+      el.hidden = !c;
+      if (c) { el.textContent = `${c.text}${c.more ? ` +${c.more}` : ""}`; el.title = c.title; el.dataset.state = c.state; }
+    }
+    for (const g of strip.querySelectorAll(".snap-take.ghost")) { const r = A.get(g.dataset.job); if (r) paintGhost(g, r); }
   }
 
   // ---- the take viewer -------------------------------------------------------------------------------------------

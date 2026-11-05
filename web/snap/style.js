@@ -625,6 +625,15 @@ export const STYLE = `
 /* a shot's takes as a tree: versions in a bracket after the take they came from; the active take wears a star */
 .snap-take-family { flex: none; display: flex; gap: 8px; align-items: stretch; }
 .snap-take-versions { display: flex; gap: 8px; padding-left: 10px; border-left: 2px solid #6aa8ff66; }
+/* SNAP-R65: a job on its take's card, and a ghost card where a take will land */
+.snap-take-job { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: #6aa8ff22; color: #9cc5ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.snap-take-job[data-state=waiting] { background: #f0b44533; color: #f7cd7a; } .snap-take-job[data-state=failed] { background: #ff6b6b26; color: #ffb3b3; }
+.snap-take.ghost { cursor: default; opacity: .9; }
+.snap-take.ghost .snap-take-media { border: 1px dashed #6aa8ff88; background: color-mix(in srgb, var(--s-card) 50%, transparent); display: grid; place-items: center; }
+.snap-take-ring { width: 44px; height: 44px; border-radius: 50%; background: conic-gradient(var(--s-accent) calc(var(--run-p, 0) * 360deg), #ffffff14 0); -webkit-mask: radial-gradient(circle, transparent 52%, #000 54%); mask: radial-gradient(circle, transparent 52%, #000 54%); }
+.snap-take.ghost figcaption b { font-weight: 600; font-size: 12px; overflow-wrap: anywhere; }
+.snap-shot-jobs { position: absolute; bottom: 6px; right: 6px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--s-accent); color: #0b1220; font: 600 11px/18px system-ui; text-align: center; }
+.snap-shot-jobs.waiting { background: #f0b445; } .snap-shot-jobs.failed { background: #ff6b6b; }
 .snap-take.version { width: 188px; }
 .snap-take.active .snap-take-media { border-color: #f5d76e; box-shadow: 0 0 0 1px #f5d76e; }
 .snap-take-star { all: unset; cursor: pointer; font-size: 11px; padding: 0 5px; border-radius: 6px; color: var(--s-dim); }

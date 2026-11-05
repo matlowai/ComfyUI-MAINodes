@@ -92,7 +92,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   const workPill = h("span", { className: "snap-work-pill", hidden: true }, workBtn, proposalsPill);
   function renderWork() {
     const p = WV.pillText(A.all());
-    workBtn.replaceChildren(h("i", { className: `snap-work-dot${p.flying ? " live" : ""}` }), h("span", { textContent: `Work · ${p.text.replace(/ · \d+ failed$/, "")}` }), p.failed ? h("b", { className: "snap-work-failed", textContent: ` · ${p.failed} failed` }) : null);
+    workBtn.replaceChildren(h("i", { className: `snap-work-dot${p.flying ? " live" : ""}` }), h("span", { textContent: ["Work", p.flying ? `${p.flying} in flight` : null, p.landed ? `${p.landed} landed` : null].filter(Boolean).join(" · ") }), p.failed ? h("b", { className: "snap-work-failed", textContent: ` · ${p.failed} failed` }) : null);
     workPill.hidden = !p.flying && !p.landed && !p.failed && proposalsPill.hidden;
   }
   A.onChange(renderWork);

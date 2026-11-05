@@ -11,6 +11,7 @@ import { app } from "../../../scripts/app.js";
 import * as SC from "./scenes.js";
 import * as T from "./takes.js";
 import * as L from "./library.js";
+import * as A from "./activity.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const shown = (t) => t?.media.find((x) => x.kind === "video") ?? t?.media[0];
@@ -28,6 +29,7 @@ export function createSceneBar({ host, say, onOpened, openTake, run, rerun }) {
   el.addEventListener("pointerdown", () => { pressed = true; });
   for (const ev of ["pointerup", "pointercancel", "dragend"]) addEventListener(ev, () => { if (pressed) { pressed = false; setTimeout(render, 0); } });
   SC.onChange(() => render());
+  A.onChange(() => render()); // SNAP-R65: a shot's open jobs as a count on its tile (render's signature skips the rest)
   T.onChange(() => render());
   SC.load().then(() => render(), () => {});
 
@@ -48,9 +50,9 @@ export function createSceneBar({ host, say, onOpened, openTake, run, rerun }) {
   function render() {
     if (pressed) return;
     const here = SC.current();
-    const shots = here ? here.scene.shots.map((x) => ({ x, active: T.get(x.active), n: SC.takesOf(x).length })) : [];
+    const shots = here ? here.scene.shots.map((x) => ({ x, active: T.get(x.active), n: SC.takesOf(x).length, jobs: jobsOf(x) })) : [];
     const trail = here?.shot.active ? SC.path(here.shot, here.shot.active).map(T.get) : [];
-    const now = JSON.stringify(here ? [here.scene.id, here.scene.name, here.scene.set, here.shot.id, shots.map(({ x, active, n }) => [x.id, x.name, x.card, n, active?.id, shown(active)?.filename]), trail.map((t) => t?.id)]
+    const now = JSON.stringify(here ? [here.scene.id, here.scene.name, here.scene.set, here.shot.id, shots.map(({ x, active, n, jobs }) => [x.id, x.name, x.card, n, active?.id, shown(active)?.filename, jobs]), trail.map((t) => t?.id)]
       : ["scratch", app.graph.nodes.length > 0, SC.all().length]);
     if (now === sig) return;
     sig = now;
@@ -73,14 +75,21 @@ export function createSceneBar({ host, say, onOpened, openTake, run, rerun }) {
         set ? h("span", { className: "snap-scene-set", textContent: `set: ${set.title.replace(/^Set snapshot:\s*/, "")}` }) : null,
         h("button", { className: "snap-link snap-quiet-btn", textContent: "+ Shot", title: "add a shot to this scene and open it", onclick: (e) => addMenu(e.currentTarget, scene) }),
         h("button", { className: "snap-link snap-quiet-btn", textContent: "Scenes", onclick: () => openScenes() })),
-      h("div", { className: "snap-shots", role: "list" }, shots.map(({ x, active, n }, i) => tile(scene, x, active, n, i, x.id === shot.id))));
+      h("div", { className: "snap-shots", role: "list" }, shots.map(({ x, active, n, jobs }, i) => tile(scene, x, active, n, i, x.id === shot.id, jobs))));
   }
 
-  function tile(scene, shot, active, n, i, on) {
+  // the shot's open jobs (in flight, or waiting for a pick): how many, and the most pressing state
+  function jobsOf(shot) {
+    const mine = new Set(SC.takesOf(shot).map((e) => e.take)), rows = A.all().filter((r) => (r.zone === "in_flight" || r.state === "waiting") && r.source !== "proposal"
+      && (r.about.shot === shot.id || mine.has(r.about.take) || shot.groups.includes(r.about.group)));
+    return rows.length ? { n: rows.length, state: rows.some((r) => r.state === "failed") ? "failed" : rows.some((r) => r.state === "waiting") ? "waiting" : "live", titles: rows.map((r) => r.title) } : null;
+  }
+  function tile(scene, shot, active, n, i, on, jobs) {
     const card = shot.card && L.get(shot.card);
     const t = h("figure", { className: `snap-shot-tile${on ? " on" : ""}`, role: "listitem", tabIndex: 0, draggable: true,
       title: on ? "the open shot" : `open ${SC.shotTitle(scene, shot)} here (this shot is saved first)`, onclick: () => on || open(scene.id, shot.id) },
-      h("div", { className: "snap-shot-media" }, thumb(active, card ? "shot card, not rendered yet" : "no takes yet"), h("b", { textContent: String(i + 1) })),
+      h("div", { className: "snap-shot-media" }, thumb(active, card ? "shot card, not rendered yet" : "no takes yet"), h("b", { textContent: String(i + 1) }),
+        jobs ? h("span", { className: `snap-shot-jobs ${jobs.state}`, textContent: String(jobs.n), title: `${jobs.n} open job${jobs.n === 1 ? "" : "s"} (the Work card has them):\n${jobs.titles.join("\n")}` }) : null),
       h("button", { className: "snap-shot-more", textContent: "⋯", title: "rename, re-run its take with swaps, or take it out of the scene", ariaLabel: `${SC.shotTitle(scene, shot)}: more`,
         onclick: (e) => { e.stopPropagation(); shotMenu(e.currentTarget, scene, shot); } }),
       h("figcaption", {}, h("strong", { textContent: shot.name || `Shot ${i + 1}` }),

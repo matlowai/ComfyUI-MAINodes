@@ -34,7 +34,7 @@ export function stateText(r) {
 // what the pill says: in flight, landed (proposals have their own part), failures in red
 export function pillText(rows) {
   const n = (f) => rows.filter(f).length, flying = n((r) => r.zone === "in_flight" && r.state !== "failed" && r.state !== "gone"), landed = n((r) => r.zone === "landed" && r.source !== "proposal"), failed = n((r) => r.zone === "in_flight" && (r.state === "failed" || r.state === "gone"));
-  return { flying, landed, failed, text: [`${flying} in flight`, `${landed} landed`, failed ? `${failed} failed` : null].filter(Boolean).join(" · ") };
+  return { flying, landed, failed, text: [flying ? `${flying} in flight` : null, landed ? `${landed} landed` : null, failed ? `${failed} failed` : null].filter(Boolean).join(" · ") };
 }
 
 // the actions every surface shares (the sheet, agents' tools go through the same queue routes)
