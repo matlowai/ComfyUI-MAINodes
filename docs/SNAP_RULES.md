@@ -223,7 +223,7 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
 
 ## Accounts and the gate (snap-gate)
 
-IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 went to the pack (claude/snap-scout), so the gate continues at R56.
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58 went to the pack (claude/snap-scout); the gate has R56 and R57 and continues at R59.
 
 - **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
   use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and
