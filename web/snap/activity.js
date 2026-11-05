@@ -115,6 +115,7 @@ function announce() {
   for (const r of rows) {
     const before = was.get(r.id), fresh = !before && (r.queued_at ?? 0) > loadedAt;
     if (before === r.state || r.zone === "parked" || r.source === "refusal" || (!before && !fresh && !LIVE.has(r.state))) continue;
+    if (r.result?.note) continue; // a run whose take nobody wrote (its page closed) only stopped waiting for it: nothing landed
     const what = r.state === "failed" ? "failed" : r.state === "done" || r.state === "waiting" ? "landed" : !before && LIVE.has(r.state) && (r.by === "agent" || !J.own(r.id)) ? "start" : null;
     if (what) for (const fn of arrivals) fn(what, r);
   }
