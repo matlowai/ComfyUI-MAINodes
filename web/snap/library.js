@@ -144,6 +144,26 @@ function addToPrompt(phrases) {
   return true;
 }
 
+// ---- pins (SNAP-R60): the recipe remembers which version of each record it holds, in extra.snap.world
+// the pin a recipe keeps for one record: which version it holds, and where that version's pieces went
+export const pinOf = (ref) => E.state().world?.[ref] ?? null;
+function pin(ref, entry) { E.tag("world", { ...E.state().world, [ref]: { follow: pinOf(ref)?.follow ?? true, ...entry } }); }
+// a record as a person names it: a Cast's name, a set's name and moment, else the card's title
+export const nameOf = (body) => body?.name ?? (body?.brick?.snapshot ? `${body.brick.snapshot.name}, end of ${body.brick.snapshot.shot}` : body?.title ?? "?");
+// the version a card stands for, saved first when it is a set's working copy (a take never pins a draft; the same
+// state saved before is reused): {ref, n, hash}; a pack card is version 0 with its own hash
+async function versionOf(card) {
+  const o = originOf(card.id);
+  if (o?.kind === "set_snapshot" && o.n == null) {
+    const { plates, ...body } = card, out = await W.save("set_snapshot", o.id, body, { note: "used in References", listed: false, if_absent: true });
+    rebuild();
+    return { ref: W.refOf("set_snapshot", o.id), n: out.n, hash: W.short(W.get(out.ref).version.hash) };
+  }
+  if (o) return { ref: W.refOf(o.kind, o.id), n: o.n, hash: W.short(W.get(W.refOf(o.kind, o.id, o.n)).version.hash) };
+  return { ref: `${card.kind === "set_snapshot" ? "set_snapshot" : card.kind === "cast" ? "cast" : "card"}:${card.lineage ?? card.id}`, n: 0, hash: W.short(await W.sha(card)) };
+}
+async function pinCard(card) { const v = await versionOf(card); pin(v.ref, { n: v.n, hash: v.hash, name: nameOf(card) }); return v; }
+
 // local upload into ComfyUI's input/snap folder; returns the LoadImage value ("snap/<name>")
 async function upload(canvas, name) {
   const form = new FormData();
@@ -159,7 +179,8 @@ const digest = (text) => [...text].reduce((h, c) => (h * 33 + c.charCodeAt(0)) >
 
 // a set snapshot: plan + elevation compiled from the set data go into References (replacing this card's earlier
 // pictures), the set block and blocking into the prompt, so the next shot starts from where this one ended
-export async function applySet(card, s = card.brick.snapshot, { prompt = true } = {}) {
+export async function applySet(card, s = card.brick.snapshot, { prompt = true, version } = {}) {
+  const v = version ?? await versionOf(card);
   const stem = `${card.id.replace(/[^a-z0-9-]/gi, "_")}_${digest(JSON.stringify(s))}`;
   const plan = await upload(drawPlan(s), `${stem}_plan.png`);
   const elevation = await upload(drawElevation(s), `${stem}_elevation.png`);
@@ -173,6 +194,7 @@ export async function applySet(card, s = card.brick.snapshot, { prompt = true } 
       addToPrompt(text);
       E.remember("refs", "setText", { ...refs.setText, [source]: text });
     }
+    pin(v.ref, { n: v.n, hash: v.hash, name: nameOf(card) });
   });
   return `${card.title}: plan and elevation in References, set block in the prompt`;
 }
@@ -250,6 +272,9 @@ async function applyShot(card) {
     const [, ...rest] = (E.getValue("render", "render", "prompt") ?? "").split("\n");
     E.setValues("render", "render", { prompt: [line, ...rest].join("\n"), ...(card.brick.length ? { length: card.brick.length } : {}) });
     E.remember("render", "shot", { card: card.id, parts: parts.map(({ field, from, text }) => ({ field, from, text })), ...(picture ? { picture } : {}) });
+    await pinCard(card);
+    if (picture) await pinCard(set); // without a picture applySet pinned it
+    for (const c of (card.brick.characters ?? []).map(get).filter(Boolean)) await pinCard(c);
   } finally { app.canvas.emitAfterChange(); }
   const where = !picture ? "set in References" : picture.use === "first_frame" ? `its plate as the first frame` : `${picture.why} in References`;
   return `${card.title}: compiled into the prompt (${parts.length} parts), ${where}${preset ? `; Render Preset now ${preset} (the picture needs it)` : ""}`;
@@ -283,10 +308,6 @@ export async function uploadCastPicture(file, id) {
   const r = await (await api.fetchApi("/upload/image", { method: "POST", body: form })).json();
   return `${r.subfolder}/${r.name}`;
 }
-// the pin a recipe keeps for one record: which version it holds, and where that version's pieces went
-export const pinOf = (ref) => E.state().world?.[ref] ?? null;
-function pin(ref, entry) { E.tag("world", { ...E.state().world, [ref]: entry }); }
-
 // put one Cast version into the open recipe, replacing what an earlier apply of the same record put there: its LoRA row
 // on the Cast brick (snapped in when missing), its sentence in the prompt's first line, its pictures in References.
 // `strength` overrides the record's for this recipe (the pin says so). Returns what happened
@@ -322,10 +343,21 @@ export async function applyCast(ref, { strength } = {}) {
       b.refs.forEach((r, i) => E.addPicture(r.file, { role: roles[i], reason: `${b.name}, cast v${got.version.n}`, source: key, card: W.refOf("cast", id, got.version.n) }));
       placed.roles = roles;
     }
-    pin(key, { n: got.version.n, hash: W.short(got.version.hash), follow: pinOf(key)?.follow ?? true, placed, ...(strength != null ? { strength } : {}) });
+    pin(key, { n: got.version.n, hash: W.short(got.version.hash), name: b.name, placed, ...(strength != null ? { strength } : {}) });
   } finally { app.canvas.emitAfterChange(); }
   app.canvas.setDirty(true, true);
   return `${b.name} v${got.version.n}: ${[b.lora && `${b.lora.file.split("/").pop().replace(/\.safetensors$/, "")} at ${strength ?? b.lora.strength} on Cast`, line && "the details in the prompt", b.refs.length && `${b.refs.length} picture${b.refs.length === 1 ? "" : "s"} in References`].filter(Boolean).join(", ") || "nothing to put in (no LoRA, words or pictures)"}`;
+}
+
+// "update" on a pin's chip (SNAP-R60: never by itself): the record's newest version replaces what the recipe holds
+export async function updatePin(ref) {
+  await ready();
+  const { kind, id } = W.parse(ref), r = W.record(kind, id);
+  if (!r) throw new Error(`${ref} isn't in your records (archived records stay listed; a missing one can't be updated)`);
+  if (kind === "cast") return applyCast(W.refOf(kind, id));
+  const card = W.headOf(r)?.body;
+  if (kind === "set_snapshot") return applySet(card, card.brick.snapshot, { version: { ref: W.refOf(kind, id), n: r.head, hash: W.short(W.headOf(r).hash) } });
+  return apply(card, { keep: false });
 }
 
 // the stack as a card keeps a Cast brick but never its rows: identity LoRAs are private (SNAP-R12)
@@ -378,5 +410,7 @@ export async function apply(card, { keep = true } = {}) {
   if (card.kind === "pose" || card.kind === "motion_guide") throw new Error(`${card.title} has no media on this machine yet (example card)`);
   const words = cues(card);
   if (!words.length) throw new Error(`${card.title} has no prompt words: ${card.text.split(". ").at(-1)}`);
-  return addToPrompt(words) ? `${card.title} added to the prompt` : `${card.title} is already in the prompt`;
+  const added = addToPrompt(words);
+  await pinCard(card);
+  return added ? `${card.title} added to the prompt` : `${card.title} is already in the prompt`;
 }

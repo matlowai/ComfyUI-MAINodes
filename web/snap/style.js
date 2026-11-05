@@ -678,4 +678,8 @@ export const STYLE = `
 .snap-cast-version.on { box-shadow: inset 0 0 0 2px var(--s-accent); } .snap-cast-version:focus-visible { outline: 2px solid var(--s-accent); outline-offset: 2px; }
 .snap-new-cast { align-self: flex-start; margin: 2px 0 4px; }
 @container (max-width: 760px) { .snap-sheet.snap-cast-sheet { inset: 56px 8px auto; } .snap-cast-body { grid-template-columns: minmax(0, 1fr); padding: 12px; } }
+.snap-pins { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.snap-pin { font-size: 11px; padding: 2px 7px; border-radius: 999px; background: var(--s-card); color: var(--s-dim); box-shadow: inset 0 0 0 1px var(--s-line); }
+.snap-pin.moved { all: unset; cursor: pointer; font-size: 11px; padding: 2px 8px; border-radius: 999px; color: #f0b445; background: #f0b44514; box-shadow: inset 0 0 0 1px #f0b44555; }
+.snap-pin.moved:hover { background: #f0b44526; } .snap-pin.moved:focus-visible { outline: 2px solid var(--s-accent); outline-offset: 2px; } .snap-pin.missing { color: #f08a7a; }
 `;

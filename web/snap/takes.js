@@ -18,12 +18,14 @@
 // A take is rated as what made it (SNAP-R39): the rating the server gave its prompt (its text and the files it loads), raised
 // to the rating of any take it came from (a version, an edit, a run from a take's frame); the person's own rating wins.
 // SNAP-R27 locks follow the current rules · SNAP-R36 quiet sound is a note · SNAP-R39 ratings from how a thing was made ·
-// SNAP-R54 takes above the account's cap are left out · see docs/SNAP_RULES.md
+// SNAP-R54 takes above the account's cap are left out · SNAP-R60 a take keeps the world pins it ran with (`world`) and its
+// stale flag names the records that moved on · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
 import { BRICKS } from "./bricks.js";
 import * as ACC from "./account.js";
+import * as W from "./world.js";
 
 // U78: an ambience-only H3 soundscape renders about -57 dB mean, one naming the action's sounds -27..-41 dB
 export const QUIET_DB = -45;
@@ -218,7 +220,7 @@ async function captureRun(id, started, status, error, failedNode) {
     ...(extra?.snap_marks?.private ? { private: true } : {}), ...(extra?.snap_marks?.nsfw ? { nsfw: true } : {}),
     ...rated(extra?.snap_marks, graph, parent), ...madeFrom(graph, parent),
     ...(extra?.snap_marks?.metadata === false ? { metadata: false } : {}), ...(extra?.snap_marks?.kept ? { metadata_kept: extra.snap_marks.kept } : {}), ...(Object.keys(swapped).length ? { swapped } : {}), ...(parent ? { parent } : {}), ...await hashes(canonical(prompt, swapped)),
-    verdict: null, prior: false, notes: [], graph, prompt,
+    ...(graph?.extra?.snap?.world ? { world: graph.extra.snap.world } : {}), verdict: null, prior: false, notes: [], graph, prompt,
   });
 }
 
@@ -267,14 +269,32 @@ export function changes(was, now) {
   }
   return [...new Set(out)];
 }
-// null when the live chain still makes this take (seeds aside), else what changed; takes from before hashes were kept
-// are hashed from their prompt. An edit's take was never made by the chain, so it is never stale (a continued one was)
+// the records a take (or a recipe) pins that moved on since (SNAP-R60): [{ref, name, was, now}] for a newer version,
+// with archived: true or missing: true when the record was archived or isn't here; a pack card (version 0) never moves
+export function moves(world) {
+  const out = [];
+  for (const [ref, p] of Object.entries(world ?? {})) {
+    if (!p.n) continue;
+    const { kind, id } = W.parse(ref), r = W.record(kind, id);
+    if (!r) { out.push({ ref, name: p.name ?? id, was: p.n, now: null, missing: true }); continue; }
+    const name = r.kind === "cast" ? W.headOf(r).body.name : p.name ?? id;
+    if (r.head !== p.n || r.archived) out.push({ ref, name, was: p.n, now: r.head, ...(r.archived ? { archived: true } : {}) });
+  }
+  return out;
+}
+// how a move reads: "Kon v1 → v3", "Kon v2 (record archived)", "Kon v2 (record missing)"
+export const moveText = (m) => `${m.name} v${m.was}${m.missing ? " (record missing)" : m.now !== m.was ? ` → v${m.now}` : ""}${m.archived ? " (record archived)" : ""}`;
+// null when the live chain still makes this take and nothing it pinned moved on, else {changed, world}: what changed in
+// the chain (seeds aside) and which pinned records have newer versions. Takes from before hashes were kept are hashed
+// from their prompt. An edit's take was never made by the chain, so it is never stale (a continued or re-taken one was)
 export async function stale(take, now) {
-  if (!take.prompt || (take.parent && take.parent.method !== "continue")) return null;
+  if (!take.prompt || (take.parent && !["continue", "retake"].includes(take.parent.method))) return null;
+  await W.load();
+  const world = moves(take.world);
   now ??= await live();
-  if ((take.hash ?? (await hashes(canonical(take.prompt, take.swapped))).hash) === (await hashes(now)).hash) return null;
-  const list = changes(canonical(take.prompt, take.swapped), now);
-  return list.length ? { changed: list } : null;
+  const same = (take.hash ?? (await hashes(canonical(take.prompt, take.swapped))).hash) === (await hashes(now)).hash;
+  const list = same ? [] : changes(canonical(take.prompt, take.swapped), now);
+  return list.length || world.length ? { changed: list, world } : null;
 }
 
 // ranking: one ordered list of take ids per group and author (SNAP-R17: the person's order drives the strip; an agent's

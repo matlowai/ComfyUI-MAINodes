@@ -193,6 +193,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   M.onCheck(() => render(null));
   S.load().then(() => { render(null); if (S.registryProblem()) say(S.registryProblem(), true); }, () => {});
   L.ready().then(renderLibrary, () => libResults.replaceChildren(h("div", { className: "snap-quiet", textContent: "Library not available on this server" })));
+  W.onChange(() => { render(null); renderLibrary(); }); // a record saved here or by an agent: pin chips and cast cards follow
 
   function renderLibrary() {
     libSfw.hidden = !PF.sfwOnly();
@@ -946,6 +947,21 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     say(`Take ${t.number}'s settings are in a new tab, ready to run · nothing is queued`);
   }
 
+  // SNAP-R60: the record versions a brick holds, on that brick: "Kon v1", and when the record moved on, one press to
+  // update ("v2 available · update"); a recipe never changes by itself because a record did
+  const pinHome = (ref, p) => (ref.startsWith("cast:") ? (p.placed?.row != null ? "cast" : "render") : ref.startsWith("set_snapshot:") ? "refs" : "render");
+  function pinChips(key) {
+    const world = E.state().world ?? {}, moved = new Map(T.moves(world).map((m) => [m.ref, m]));
+    const here = Object.entries(world).filter(([ref, p]) => pinHome(ref, p) === key && (ref.startsWith("cast:") || ref.startsWith("set_snapshot:") || moved.has(ref)));
+    if (!here.length) return [];
+    return [h("div", { className: "snap-pins" }, here.map(([ref, p]) => {
+      const m = moved.get(ref), name = m?.name ?? p.name ?? ref;
+      if (!m || m.missing) return h("span", { className: `snap-pin${m ? " missing" : ""}`, textContent: m ? T.moveText(m) : p.n ? `${name} v${p.n}` : name, title: m ? `${ref}: this record isn't in your library; the recipe still holds what it put there` : `${ref}@${p.n}: the version this recipe holds` });
+      return h("button", { className: "snap-pin moved", title: `${ref}: the recipe holds v${p.n}; the record is at v${m.now}${m.archived ? " (archived)" : ""}. Update puts v${m.now} in, replacing what v${p.n} put there`,
+        onclick: async (e) => { e.stopPropagation(); try { say(await L.updatePin(ref)); } catch (err) { say(err.message, true); } render(null); } }, `${name} v${p.n} · v${m.now} available · update`);
+    }))];
+  }
+
   function brickEl(info) {
     const def = info.members ? SETUP : BRICKS[info.brick];
     const faces = info.members ? setupFace(info) : [presetChip(info.brick), turboChip(info.brick), ...slotFace(info.brick), def.off ? startFace(info.brick) : null, ...(def.off && !S.on(info.brick) ? [] : def.face.map((f) => fact(info.brick, f)))].filter(Boolean);
@@ -957,6 +973,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     if (info.brick === "rack") body.push(D.face({ onChange: () => render(null), onPick: () => D.openPicker(root, { say, onChange: () => render(null), onMake: openMaker, move: (f) => moveControl(f, moved) }), onMake: openMaker }));
     if (info.brick === "refs") body.push(...picturesFace());
     if (def.stack) body.push(stackFace(info.brick));
+    body.push(...pinChips(info.brick));
     body.push(...group(info.brick).flatMap(warnLines));
     if (def.check && isOn(info.brick)) body.push(checkLine(info.brick, true)); // Off runs nothing, so nothing can be wrong
     const from = info.brick === "first_frame" && takenFrom();
@@ -1147,6 +1164,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     if (info.brick === "rack") values.push(E.getValue("rack", "rack", "rack"), D.all().length, D.family()); // the face redraws once the catalog arrives
     values.push(presetNode(info.brick)?.presets.current(), BRICKS[info.brick].check && M.check(info.brick), M.known()); // chips get their sizes once the model lists arrive
     if (info.brick === "refs") values.push(E.state().bricks.find((b) => b.key === "refs")?.pictures);
+    values.push(E.state().world, T.moves(E.state().world)); // the pin chips follow the pins and the records' newest versions
     if (info.brick === "render") values.push(E.state().bricks.find((b) => b.key === "render")?.shot);
     if (info.brick === "first_frame") values.push(takenFrom());
     const notes = openNotes(info.brick).map((n) => [n.id, n.status, n.reply, P.all().filter((p) => p.note === n.id && p.status === "waiting").length]);

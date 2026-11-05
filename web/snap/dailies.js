@@ -106,10 +106,11 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onRepr
     const now = await T.live(), found = await Promise.all(cards.map((c) => T.stale(T.get(c.dataset.take), now)));
     if (mine !== checking) return;
     cards.forEach((c, i) => {
-      const chip = c.querySelector(".snap-take-stale"), list = found[i]?.changed ?? [];
+      // SNAP-R60: a pinned record that moved on reads first ("Kon v1 → v2"): it is the one a re-take can act on
+      const chip = c.querySelector(".snap-take-stale"), world = (found[i]?.world ?? []).map(T.moveText), list = [...world, ...(found[i]?.changed ?? []).map((x) => `${x}${x.endsWith(" rewired") || / (added|removed|swapped)$/.test(x) ? "" : " changed"}`)];
       chip.hidden = !list.length;
-      chip.textContent = list.length ? `stale: ${list[0]}${list[0].endsWith(" rewired") || / (added|removed|swapped)$/.test(list[0]) ? "" : " changed"}${list.length > 1 ? ` +${list.length - 1}` : ""}` : "";
-      chip.title = list.length ? `The chain no longer makes this take:\n${list.join("\n")}` : "";
+      chip.textContent = list.length ? `stale: ${list[0]}${list.length > 1 ? ` +${list.length - 1}` : ""}` : "";
+      chip.title = list.length ? [world.length ? `Newer versions of what this take used:\n${world.join("\n")}` : null, found[i]?.changed?.length ? `The chain no longer makes this take:\n${found[i].changed.join("\n")}` : null].filter(Boolean).join("\n\n") : "";
     });
   }
 

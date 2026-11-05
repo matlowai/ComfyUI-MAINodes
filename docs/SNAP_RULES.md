@@ -193,7 +193,12 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   version. A set keeps its editor's working copy (`draft`, shown as the `<set>-mine` card) and its camera plates outside
   the versions. A reference is `kind:id@n`, or `kind:id` for the newest; a pack card is version 0. Model and LoRA files
   are pinned by name only. Every version is kept forever; archiving (`snap/_archived/`) keeps it resolvable. Cards from
-  before records (`snap/cards/`) are wrapped once on load and the originals parked in `snap/_migrated/cards/`. *Why:*
+  before records (`snap/cards/`) are wrapped once on load and the originals parked in `snap/_migrated/cards/`. Every
+  apply path pins what it put in, in `extra.snap.world` (`{n, hash, name, follow, placed}`): applyCast, a set (its working
+  copy saved first as an unlisted version, so a take never pins a draft), a shot card with its set and characters, a
+  card's words. A take keeps the pins it ran with (`world`), and its stale flag names a record that moved on first
+  ("Kon v1 → v2"), before the chain's own changes. A pinned reference never updates by itself: the brick that holds it
+  shows "v2 available · update", one press. *Why:*
   Dylan 2026-11-04 20:49: "versioning so you can properly recall the state of what it was when it was generated and
   regenerate with updated world state, or with the old world state"; 20:51: keep every version, files by name. *More:*
   `web/snap/world.js`, `snap_world.py`; DESIGN_U86_U87_CAST_VERSIONS_2026-11-04.md §4.3; PLAN U87.

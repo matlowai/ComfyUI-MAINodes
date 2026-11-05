@@ -118,7 +118,7 @@ export const TOOLS = [
   },
   {
     name: "describe_recipe",
-    description: "The current workflow, starting with `revision` (a content hash of what Run would queue; pass it as if_revision to a change so it is refused when the person or another agent edited in between) and `about` (how the current setup card's models fit together: read it before changing anything), then `prompt_help` (how this recipe's model reads a prompt: H3's sections, what makes its sound audible), then as bricks in reading order, each with its `id` (exactly what set_setting's and every other tool's `brick` takes: the stills recipe's Render is `image`) next to its `title` and `kit` (a brick that is off says on: false and why: its values are not used), with each brick's bindings (what feeds it and which rule made the link), its settings, wiring the user changed in the graph, settings that point at nothing installed, nodes outside the recipe (Run leaves them out), and `models`: the family, the setup, the turbo, every model file the recipe loads (size, installed, and the model graph's kind / turbo / role), the LoRA rows, and warnings (a turbo LoRA on a turbo merge, stacked turbos, SFT without a deband fix, another family's file, a schedule the turbo wasn't distilled for, an encoder type that doesn't fit). Warnings never block; say them to the person.",
+    description: "The current workflow, starting with `revision` (a content hash of what Run would queue; pass it as if_revision to a change so it is refused when the person or another agent edited in between) and `about` (how the current setup card's models fit together: read it before changing anything), then `prompt_help` (how this recipe's model reads a prompt: H3's sections, what makes its sound audible), then as bricks in reading order, each with its `id` (exactly what set_setting's and every other tool's `brick` takes: the stills recipe's Render is `image`) next to its `title` and `kit` (a brick that is off says on: false and why: its values are not used), with each brick's bindings (what feeds it and which rule made the link), its settings, wiring the user changed in the graph, settings that point at nothing installed, nodes outside the recipe (Run leaves them out), `world` (the record versions this recipe holds: ref, name, n, head, moved, follow, placed = where their pieces went; a moved one is updated only by apply_cast / apply_card or the person's update chip), and `models`: the family, the setup, the turbo, every model file the recipe loads (size, installed, and the model graph's kind / turbo / role), the LoRA rows, and warnings (a turbo LoRA on a turbo merge, stacked turbos, SFT without a deband fix, another family's file, a schedule the turbo wasn't distilled for, an encoder type that doesn't fit). Warnings never block; say them to the person.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
     run: async () => ({
@@ -130,6 +130,7 @@ export const TOOLS = [
       overridden_in_graph: E.overrides().map((o) => ({ brick: o.to, role: o.role, change: o.change })),
       missing: [...E.missing(), ...M.unreadable()],
       outside_recipe: E.outside().map((n) => ({ id: n.id, type: n.type, title: n.title })),
+      world: await worldOf(E.state().world),
       ...(E.legacy() ? { older_render: { upscale: E.legacy().upscale, about: "the older H3 Render blueprint: it saves the video itself and holds the RelayVSR switch (its `upscale` setting); it runs as saved. upgrade_render gives Upscale and Save as bricks" } } : {}),
     }),
   },
@@ -509,7 +510,7 @@ export const TOOLS = [
   },
   {
     name: "list_takes",
-    description: "The takes (finished runs) of the open workflow, ranked ones first in the person's order: number, seed, status, verdict (keep/reject), whether it's a prior, how many notes, the media files, the prompt's start, and `stale` ({changed: [\"Render.steps\", …]} when the chain no longer makes the take, seeds aside; null when it does), `sound` (mean dB of a video's sound and `quiet_below_db`, the level where Snap's quiet note starts; quiet: true below it: tell the person, and offer make_louder or a prompt that names the sounds the action makes; never fix it unasked. With quiet false the level is normal, our good takes are about -25 to -45 dB: don't re-render for it), `metadata_kept` (Save metadata was off and these nodes wrote it anyway: tell the person), `rating` (PG / Mature / Adult, from how the take was made or as the person set it; on a signed-in snap-gate install, takes rated above the account's cap are left out). Private takes say so: don't name their LoRAs to anyone but the person. For dailies: read takes, then get_take for one take's notes and settings.",
+    description: "The takes (finished runs) of the open workflow, ranked ones first in the person's order: number, seed, status, verdict (keep/reject), whether it's a prior, how many notes, the media files, the prompt's start, and `stale` ({changed: [\"Render.steps\", …], world: [{ref, name, was, now}]}: changed when the chain no longer makes the take, seeds aside; world when a record the take pinned has a newer version, e.g. Kon v1 → v2; null when neither), `sound` (mean dB of a video's sound and `quiet_below_db`, the level where Snap's quiet note starts; quiet: true below it: tell the person, and offer make_louder or a prompt that names the sounds the action makes; never fix it unasked. With quiet false the level is normal, our good takes are about -25 to -45 dB: don't re-render for it), `metadata_kept` (Save metadata was off and these nodes wrote it anyway: tell the person), `rating` (PG / Mature / Adult, from how the take was made or as the person set it; on a signed-in snap-gate install, takes rated above the account's cap are left out). Private takes say so: don't name their LoRAs to anyone but the person. For dailies: read takes, then get_take for one take's notes and settings.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
     run: async () => {
@@ -524,7 +525,7 @@ export const TOOLS = [
   },
   {
     name: "get_take",
-    description: "One take in full: its rating and why (from how it was made, or the person's own), its notes (moment in seconds, optional region [x, y, w, h] as fractions of the frame, went wrong/right, tags, words, who wrote it), what changed since the take before it, the prompt and the error if it failed.",
+    description: "One take in full: its rating and why (from how it was made, or the person's own), its notes (moment in seconds, optional region [x, y, w, h] as fractions of the frame, went wrong/right, tags, words, who wrote it), what changed since the take before it, the prompt and the error if it failed, and `world`: the record versions it ran with (ref kind:id, name, n = the version it used, head = the newest, moved, archived/missing; version 0 is a pack card).",
     inputSchema: { type: "object", properties: { take: { type: "string" } }, required: ["take"] },
     annotations: { readOnlyHint: true },
     run: async ({ take }) => {
@@ -533,7 +534,8 @@ export const TOOLS = [
       const t = T.get(take);
       if (!t || T.aboveCap(t)) throw new Error(`No take ${take}`);
       const prev = T.inGroup(t.group).filter((x) => x.created < t.created).at(-1);
-      return { id: t.id, number: t.number, seed: t.seed, status: t.status, error: t.error, verdict: t.verdict, prior: t.prior, seconds: t.seconds, prompt: t.text, notes: t.notes, media: t.media, copy: t.copy ?? null, rating: T.ratingOf(t), rating_why: t.rating_set ? ["rated by the person"] : t.rating_why ?? [], changed_since_previous: prev ? T.delta(prev, t) : [] };
+      return { id: t.id, number: t.number, seed: t.seed, status: t.status, error: t.error, verdict: t.verdict, prior: t.prior, seconds: t.seconds, prompt: t.text, notes: t.notes, media: t.media, copy: t.copy ?? null, rating: T.ratingOf(t), rating_why: t.rating_set ? ["rated by the person"] : t.rating_why ?? [], changed_since_previous: prev ? T.delta(prev, t) : [],
+        world: await worldOf(t.world) };
     },
   },
   {
@@ -995,6 +997,15 @@ async function offerPlates(sceneId, shotId) {
   const args = { set: need.set, cameras: [need.camera] }, same = P.pending().find((p) => p.tool === "make_set_plates" && p.args.set === need.set && p.args.cameras?.join() === need.camera);
   const p = same ?? P.add("make_set_plates", args, `${SC.shotTitle(scene, shot)}: ${need.camera} has no camera plate yet; make candidates to pick from`, null, await byName.get("make_set_plates").plan(args));
   return { ...need, proposed: p.id, plan: p.plan };
+}
+
+// pinned world records with their newest versions beside them (SNAP-R60): what describe_recipe and get_take say
+async function worldOf(world) {
+  await W.load();
+  const moved = new Map(T.moves(world).map((m) => [m.ref, m]));
+  return Object.entries(world ?? {}).map(([ref, p]) => { const { kind, id } = W.parse(ref), r = W.record(kind, id), m = moved.get(ref);
+    return { ref, name: m?.name ?? p.name ?? id, n: p.n, head: p.n === 0 ? 0 : r?.head ?? null, moved: !!m && !m.missing && m.now !== p.n, ...(m?.archived ? { archived: true } : {}), ...(p.n && !r ? { missing: true } : {}),
+      follow: p.follow !== false, ...(p.placed ? { placed: p.placed } : {}), ...(p.strength != null ? { strength: p.strength } : {}) }; });
 }
 
 // the revision an agent read (describe_recipe) and the recipe it stood for, so a refused change can say what moved
