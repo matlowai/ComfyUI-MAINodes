@@ -286,6 +286,13 @@ async function applyShot(card) {
 export const castLine = (b) => [b.trigger, b.details].map((x) => x?.trim()).filter(Boolean).join(", ");
 const castCard = (id, b) => ({ id, kind: "cast", title: `Cast: ${b.name}`, text: [b.details, b.lore].filter(Boolean).join(" ") || b.name,
   brick: { cast: `cast:${id}`, ...(castLine(b) ? { prompt_fragment: castLine(b) } : {}) }, ...(b.rating ? { rating: b.rating } : {}) });
+// SNAP-R59 + R11: a version whose words change while its pictures stay the same rarely changes the look (H3 copies a
+// reference picture over the words): one line that says so, never a refusal
+export function lookWarning(was, now) {
+  if (!was || !now?.refs?.length) return null;
+  const words = (b) => `${b.trigger ?? ""}|${b.details ?? ""}`, pics = (b) => JSON.stringify((b.refs ?? []).map((r) => r.file));
+  return words(was) !== words(now) && pics(was) === pics(now) ? `${now.name}'s pictures still show the old look; pictures usually win over the details line. Change the pictures too.` : null;
+}
 const castStamp = () => `cast-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 // a new version of a Cast record (a new record when id is null): {id, ref, n, made}
 export async function saveCast(id, body, { note = "", by = "person" } = {}) {
@@ -295,9 +302,10 @@ export async function saveCast(id, body, { note = "", by = "person" } = {}) {
     lora: body.lora?.file ? { file: body.lora.file, strength: +(body.lora.strength ?? 1) } : null, refs: (body.refs ?? []).map((r) => ({ file: r.file, role: r.role || "identity" })),
     lore: body.lore?.trim() ?? "", rating: body.rating ?? null };
   id ??= castStamp();
-  const out = await W.save("cast", id, clean, { note, by });
+  const was = W.headOf(W.record("cast", id))?.body, out = await W.save("cast", id, clean, { note, by });
   rebuild();
-  return { id, ref: out.ref, n: out.n, made: out.made };
+  const warning = out.made ? lookWarning(was, clean) : null;
+  return { id, ref: out.ref, n: out.n, made: out.made, ...(warning ? { warning } : {}) };
 }
 // a reference picture for a Cast record, into input/snap/cast/<id>/; returns the LoadImage value
 export async function uploadCastPicture(file, id) {

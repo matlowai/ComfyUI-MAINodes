@@ -31,6 +31,7 @@ export async function openWorldSheet(host, { name, say, edit }) {
     return h("div", { className: `snap-world-row${m ? (m.missing ? " missing" : " moved") : ""}` },
       h("strong", { textContent: `${m?.name ?? p.name ?? ref}${p.n ? ` v${p.n}` : ""}` }), h("span", { className: "snap-quiet", textContent: state }),
       m?.fields?.length ? h("ul", { className: "snap-world-fields" }, m.fields.map((f) => h("li", { textContent: f }))) : null,
+      m?.warning ? h("div", { className: "snap-world-warn", textContent: m.warning }) : null,
       editing && editable(ref) && r ? h("button", { className: "snap-link", textContent: `Edit v${p.n}`, title: "open this version: saving makes a new version, and Save and use puts it into this recipe", onclick: () => edit(ref, p.n) }) : null);
   }));
   const anyMoved = [...moved.values()].some((m) => !m.missing);

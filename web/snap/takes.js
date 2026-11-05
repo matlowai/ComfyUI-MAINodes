@@ -213,6 +213,8 @@ async function captureRun(id, started, status, error, failedNode) {
   const group = graph?.id ?? groupOf(), n = takes.filter((t) => t.group === group).length + 1;
   const { text, seed } = summary(prompt), swapped = extra?.snap_marks?.swapped ?? {}, parent = extra?.snap_parent ?? retaken(graph) ?? continued(graph, prompt);
   const files = media(h.outputs), video = files.find((m) => m.kind === "video");
+  // an identical recipe (seed included) is served from core's cache: the same files as an earlier take, not a new render
+  const twin = files.length ? takes.find((t) => t.status === "success" && t.media.length === files.length && t.media.every((m, i) => m.filename === files[i].filename && m.subfolder === files[i].subfolder && m.type === files[i].type)) : null;
   const read = video && await api.fetchApi(`/mainodes/snap/loudness?filename=${encodeURIComponent(video.filename)}&subfolder=${encodeURIComponent(video.subfolder)}&type=${video.type}`);
   const sound = read?.ok ? await read.json() : null; // no ffmpeg here: no note, the take is saved all the same
   await save({
@@ -222,7 +224,7 @@ async function captureRun(id, started, status, error, failedNode) {
     ...(extra?.snap_marks?.private ? { private: true } : {}), ...(extra?.snap_marks?.nsfw ? { nsfw: true } : {}),
     ...rated(extra?.snap_marks, graph, parent), ...madeFrom(graph, parent),
     ...(extra?.snap_marks?.metadata === false ? { metadata: false } : {}), ...(extra?.snap_marks?.kept ? { metadata_kept: extra.snap_marks.kept } : {}), ...(Object.keys(swapped).length ? { swapped } : {}), ...(parent ? { parent } : {}), ...await hashes(canonical(prompt, swapped)),
-    ...(graph?.extra?.snap?.world ? { world: graph.extra.snap.world } : {}), verdict: null, prior: false, notes: [], graph, prompt,
+    ...(graph?.extra?.snap?.world ? { world: graph.extra.snap.world } : {}), ...(twin ? { cached_from: twin.id } : {}), verdict: null, prior: false, notes: [], graph, prompt,
   });
 }
 

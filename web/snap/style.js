@@ -700,4 +700,5 @@ export const STYLE = `
 .snap-world-fields { margin: 2px 0 0; padding-left: 18px; font-size: 12px; color: var(--s-dim); overflow-wrap: anywhere; }
 @container (max-width: 760px) { .snap-sheet.snap-world-sheet, .snap-sheet.snap-opened-sheet { inset: 56px 8px auto; } .snap-world-line .snap-spacer { flex-basis: 100%; height: 0; } }
 .snap-rail-actions { display: flex; flex-wrap: wrap; gap: 0 12px; }
+.snap-world-warn { flex-basis: 100%; font-size: 12px; line-height: 1.4; color: #f0b445; }
 `;

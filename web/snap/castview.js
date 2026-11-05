@@ -52,12 +52,13 @@ export async function openCast(host, { id = null, n = null, lora = null, say, on
     upload.value = ""; drawRefs();
   } });
   const note = h("input", { placeholder: "what changed (optional, shown in the version list)", ariaLabel: "version note" });
-  const status = h("div", { className: "snap-quiet", role: "status" });
+  const status = h("div", { className: "snap-quiet", role: "status" }), warn = h("div", { className: "snap-world-warn", hidden: true });
+  let shown = from?.n ?? null; // the version the sheet shows; a save moves it to the new one
   const versions = h("div", { className: "snap-cast-versions" });
   const drawVersions = () => {
     const r = recId && W.record("cast", recId);
     versions.replaceChildren(...(r ? [h("div", { className: "snap-rail-title", textContent: `Versions (${r.versions.length})` }), ...[...r.versions].reverse().map((v) => h("button", {
-      className: `snap-cast-version${v.n === (from?.n ?? r.head) ? " on" : ""}`, title: `${v.note || "no note"} · ${v.by} · ${v.hash.slice(0, 12)}`, onclick: () => openCast(host, { id: recId, n: v.n, say, onApplied }) },
+      className: `snap-cast-version${v.n === (shown ?? r.head) ? " on" : ""}`, title: `${v.note || "no note"} · ${v.by} · ${v.hash.slice(0, 12)}`, onclick: () => openCast(host, { id: recId, n: v.n, say, onApplied }) },
       h("strong", { textContent: `v${v.n}${v.n === r.head ? " · newest" : ""}` }), h("span", { className: "snap-quiet", textContent: `${when(v.at)}${v.note ? ` · ${v.note}` : ""}` })))] : [h("div", { className: "snap-quiet", textContent: "Not saved yet: Save makes version 1" })]));
   };
   const saveIt = async () => {
@@ -65,14 +66,18 @@ export async function openCast(host, { id = null, n = null, lora = null, say, on
     const out = await L.saveCast(recId, b, { note: note.value.trim(), by: "person" });
     recId = out.id;
     status.textContent = out.made ? `Saved ${b.name} v${out.n}` : `Nothing changed: ${b.name} stays v${out.n}`;
+    warn.textContent = out.warning ?? ""; warn.hidden = !out.warning; // SNAP-R59: new words, the same pictures
+    shown = out.n; title.textContent = `Cast: ${b.name} · v${out.n}`; olderNote?.remove();
     drawVersions();
     return out;
   };
   const act = (fn) => async () => { try { await fn(); } catch (err) { status.textContent = err.message; say?.(err.message, true); } };
   const close = () => { sheet.remove(); host.focus({ preventScroll: true }); };
   const older = from && rec && from.n !== rec.head;
+  const title = h("strong", { textContent: rec ? `Cast: ${b.name} · v${from.n}${older ? ` (newest is v${rec.head})` : ""}` : "New cast member" });
+  const olderNote = older ? h("div", { className: "snap-quiet", textContent: `You are editing from v${from.n}. Saving makes v${rec.head + 1}; v${from.n} and every other version stay.` }) : null;
   const sheet = h("div", { className: "snap-sheet snap-setup-sheet snap-cast-sheet", role: "dialog", ariaLabel: "Cast" },
-    h("header", {}, h("strong", { textContent: rec ? `Cast: ${b.name} · v${from.n}${older ? ` (newest is v${rec.head})` : ""}` : "New cast member" }), h("span", { className: "snap-spacer" }), h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: close })),
+    h("header", {}, title, h("span", { className: "snap-spacer" }), h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: close })),
     h("div", { className: "snap-cast-body" },
       h("div", { className: "snap-cast-fields" },
         field("name", text("name", "Kon")), field("alias", text("alias", "kon (the short handle)")),
@@ -82,14 +87,14 @@ export async function openCast(host, { id = null, n = null, lora = null, say, on
         h("div", { className: "snap-rail-title", textContent: "Reference pictures" }), refsBox,
         field("lore (searched, never sent to a model)", text("lore", "who they are", 2)), field("rating", rating)),
       h("aside", {}, versions,
-        older ? h("div", { className: "snap-quiet", textContent: `You are editing from v${from.n}. Saving makes v${rec.head + 1}; v${from.n} and every other version stay.` }) : null,
+        olderNote,
         note, h("div", { className: "snap-set-actions" },
           h("button", { className: "snap-primary", textContent: "Save and use", title: "save a version and put it into the open recipe: the Cast row, the details in the prompt, the pictures in References", onclick: act(async () => {
             const out = await saveIt(), said = await L.applyCast(out.ref);
             status.textContent = said; say?.(said); onApplied?.(); close();
           }) }),
           h("button", { className: "snap-link", textContent: "Save", onclick: act(saveIt) })),
-        status)));
+        status, warn)));
   sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
   drawRefs(); drawVersions();
   host.append(sheet);

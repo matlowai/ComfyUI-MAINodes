@@ -15,6 +15,7 @@
 // SNAP-R36 quiet sound: a note and two actions, never applied by itself · SNAP-R54 takes above the account's cap are
 // left out · see docs/SNAP_RULES.md
 import * as T from "./takes.js";
+import * as RT from "./retake.js";
 import * as PL from "./plates.js";
 import * as C from "./candidates.js";
 import * as ED from "./edits.js";
@@ -131,6 +132,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
         t.copy?.copied ? h("span", { className: "snap-take-copy", textContent: `copied its reference view ${Math.max(...t.copy.against.map((a) => a.last)).toFixed(2)}`,
           title: `This take ends on the view of its reference picture (last frame's copy score at or above ${t.copy.threshold}): right when that picture is this camera's own plate, wrong when it shows another camera's view.\n${t.copy.against.map((a) => `${a.image}: ${a.frames.join(" → ")}`).join("\n")}` }) : null,
         t.parent && !version ? h("span", { className: "snap-take-parent", textContent: `↳ ${T.versionOf(t.parent.options) ?? t.parent.method.split("/").pop()} of take ${T.get(t.parent.take)?.number ?? "?"}`, title: `made from ${t.parent.take} by ${t.parent.method}` }) : null,
+        t.cached_from ? h("span", { className: "snap-take-parent snap-take-cached", textContent: `= same result as take ${T.get(t.cached_from)?.number ?? "?"}`, title: "identical recipe, seed included: ComfyUI served the earlier result from its cache, so this take is that same file (an exact reproduction, not a new render)" }) : null,
         t.metadata_kept ? h("span", { className: "snap-take-kept", textContent: "metadata kept", title: `Save metadata was off, but ${t.metadata_kept.join("; ")}: those files hold the prompt and workflow` }) : null,
         T.quiet(t) ? h("span", { className: "snap-take-quiet", textContent: "🔈 sound is quiet", title: `The sound averages ${t.sound.mean_db} dB (a take usually sits between -27 and -41 dB). Open the take to make it louder or re-prompt` }) : null,
         ["mature", "adult"].includes(T.ratingOf(t)) ? h("span", { className: "snap-take-rating", textContent: T.RATING_SHOWN[T.ratingOf(t)],
@@ -417,7 +419,9 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
   // the two re-take buttons, with what today's world would change in their titles
   function retakeRow(t) {
     const moved = T.moves(t.world), go = (world) => () => { document.querySelector(".snap-take-sheet")?.remove(); onRetake?.(t, world); };
-    return h("div", { className: "snap-set-actions snap-retake" },
+    const warn = h("div", { className: "snap-world-warn", hidden: true });
+    RT.differs(t.world).then((list) => { const w = list.map((m) => m.warning).filter(Boolean); warn.textContent = w.join(" "); warn.hidden = !w.length; });
+    return h("div", { className: "snap-set-actions snap-retake" }, warn,
       h("button", { className: "snap-link", textContent: "Re-take as it was", title: `the versions this take used, seed included${moved.length ? ` (${moved.map(T.moveText).join(", ")} kept as they were)` : ""}`, onclick: go("pinned") }),
       h("button", { className: "snap-link", textContent: moved.length ? `Re-take with today's world (${moved.map(T.moveText).join(", ")})` : "Re-take with today's world", disabled: !moved.some((m) => !m.missing),
         title: moved.length ? `each record with a newer version is updated first: ${moved.map(T.moveText).join(", ")}` : "nothing this take used has a newer version", onclick: go("latest") }));

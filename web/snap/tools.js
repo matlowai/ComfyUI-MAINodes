@@ -461,7 +461,7 @@ export const TOOLS = [
       if (id && !W.record("cast", id)) throw new Error(`No Cast record ${cast}; list_cast shows them`);
       if (lora?.file && !M.loraChoices().some(([f]) => f === lora.file)) throw new Error(`No LoRA file "${lora.file}" here; list_loras shows them (a file is pinned by its name)`);
       const out = await L.saveCast(id, { ...body, lora: lora ?? null }, { note, by: "agent" });
-      return { cast: `cast:${out.id}`, ref: out.ref, version: out.n, made: out.made, said: out.made ? `${body.name} v${out.n} saved` : `nothing changed: ${body.name} stays v${out.n}`, next: "apply_cast {cast} puts it in the open recipe" };
+      return { cast: `cast:${out.id}`, ref: out.ref, version: out.n, made: out.made, said: out.made ? `${body.name} v${out.n} saved` : `nothing changed: ${body.name} stays v${out.n}`, ...(out.warning ? { warning: out.warning } : {}), next: "apply_cast {cast} puts it in the open recipe" };
     },
   },
   {
@@ -477,7 +477,7 @@ export const TOOLS = [
     annotations: { consequentialHint: true },
     consequential: true,
     plan: async ({ take, world = "pinned", refs }) => { const t = await takeOf(take), moved = await RT.differs(t.world), used = world === "latest" ? moved.filter((m) => !m.missing && (!refs?.length || refs.includes(m.ref))) : [];
-      return { runs: `take ${t.number}'s workflow again, ${RT.worldShown(world)}`, updates: used.map((m) => ({ ref: m.ref, text: m.text, fields: m.fields })), ...(world === "pinned" && moved.length ? { kept_as_it_was: moved.map((m) => m.text) } : {}), ...T.measured([t], "of the take re-made") }; },
+      return { runs: `take ${t.number}'s workflow again, ${RT.worldShown(world)}`, updates: used.map((m) => ({ ref: m.ref, text: m.text, fields: m.fields, ...(m.warning ? { warning: m.warning } : {}) })), ...(world === "pinned" && moved.length ? { kept_as_it_was: moved.map((m) => m.text) } : {}), ...T.measured([t], "of the take re-made") }; },
     run: async ({ take, world, seed, refs }) => { const t = await takeOf(take); return { ...await RT.retake(t, { world, seed, refs }), next: "run_status {run, wait_s: 25} until state is done" }; },
   },
   {
@@ -596,7 +596,7 @@ export const TOOLS = [
   },
   {
     name: "list_takes",
-    description: "The takes (finished runs) of the open workflow, ranked ones first in the person's order: number, seed, status, verdict (keep/reject), whether it's a prior, how many notes, the media files, the prompt's start, and `stale` ({changed: [\"Render.steps\", …], world: [{ref, name, was, now}]}: changed when the chain no longer makes the take, seeds aside; world when a record the take pinned has a newer version, e.g. Kon v1 → v2; null when neither), `sound` (mean dB of a video's sound and `quiet_below_db`, the level where Snap's quiet note starts; quiet: true below it: tell the person, and offer make_louder or a prompt that names the sounds the action makes; never fix it unasked. With quiet false the level is normal, our good takes are about -25 to -45 dB: don't re-render for it), `metadata_kept` (Save metadata was off and these nodes wrote it anyway: tell the person), `rating` (PG / Mature / Adult, from how the take was made or as the person set it; on a signed-in snap-gate install, takes rated above the account's cap are left out). Private takes say so: don't name their LoRAs to anyone but the person. For dailies: read takes, then get_take for one take's notes and settings.",
+    description: "The takes (finished runs) of the open workflow, ranked ones first in the person's order: number, seed, status, verdict (keep/reject), whether it's a prior, how many notes, the media files, the prompt's start, and `stale` ({changed: [\"Render.steps\", …], world: [{ref, name, was, now}]}: changed when the chain no longer makes the take, seeds aside; world when a record the take pinned has a newer version, e.g. Kon v1 → v2; null when neither), `sound` (mean dB of a video's sound and `quiet_below_db`, the level where Snap's quiet note starts; quiet: true below it: tell the person, and offer make_louder or a prompt that names the sounds the action makes; never fix it unasked. With quiet false the level is normal, our good takes are about -25 to -45 dB: don't re-render for it), `metadata_kept` (Save metadata was off and these nodes wrote it anyway: tell the person), `cached_from` (an identical recipe, seed included: ComfyUI served that earlier take's files from its cache, so this take is the same result, not a new render), `rating` (PG / Mature / Adult, from how the take was made or as the person set it; on a signed-in snap-gate install, takes rated above the account's cap are left out). Private takes say so: don't name their LoRAs to anyone but the person. For dailies: read takes, then get_take for one take's notes and settings.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
     run: async () => {
@@ -606,7 +606,7 @@ export const TOOLS = [
       const now = await T.live();
       return Promise.all(T.inGroup().filter((t) => !T.aboveCap(t)).sort((a, b) => (order.includes(a.id) ? order.indexOf(a.id) : 1e9 + a.created) - (order.includes(b.id) ? order.indexOf(b.id) : 1e9 + b.created))
         .map(async (t) => ({ id: t.id, number: t.number, rank: order.includes(t.id) ? order.indexOf(t.id) + 1 : null, seed: t.seed, status: t.status, verdict: t.verdict, prior: t.prior, notes: t.notes.length, media: t.media.map((m) => `${m.type}/${m.subfolder ? `${m.subfolder}/` : ""}${m.filename}`), prompt: t.text,
-          stale: await T.stale(t, now), copy: t.copy ?? null, ...(t.sound ? { sound: { mean_db: t.sound.mean_db, quiet: T.quiet(t), quiet_below_db: T.QUIET_DB } } : {}), ...(t.metadata_kept ? { metadata_kept: t.metadata_kept } : {}), rating: T.ratingOf(t), ...(T.locked(t) ? { private: true } : {}) })));
+          stale: await T.stale(t, now), copy: t.copy ?? null, ...(t.cached_from ? { cached_from: t.cached_from } : {}), ...(t.sound ? { sound: { mean_db: t.sound.mean_db, quiet: T.quiet(t), quiet_below_db: T.QUIET_DB } } : {}), ...(t.metadata_kept ? { metadata_kept: t.metadata_kept } : {}), rating: T.ratingOf(t), ...(T.locked(t) ? { private: true } : {}) })));
     },
   },
   {

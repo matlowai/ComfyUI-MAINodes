@@ -24,7 +24,8 @@ export async function differs(world) {
   await W.load();
   return T.moves(world).map((m) => {
     const { kind, id } = W.parse(m.ref), was = W.get(W.refOf(kind, id, m.was))?.version.body, now = m.now != null ? W.get(W.refOf(kind, id, m.now))?.version.body : null;
-    return { ...m, text: T.moveText(m), fields: was && now ? W.diff(was, now) : [] };
+    const warning = kind === "cast" ? L.lookWarning(was, now) : null;
+    return { ...m, text: T.moveText(m), fields: was && now ? W.diff(was, now) : [], ...(warning ? { warning } : {}) };
   });
 }
 
