@@ -305,6 +305,19 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   are dial files, which keep their own sentence pairs. *Why:* Dylan, 2026-11-04: "Save metadata off should stop metadata
   from writing. If there's anything that doesn't have a toggle for that in the flow, let them know." *More:* PLAN U81,
   `snap_bridge.py`, proto/test_metadata_off.py, test_metadata_flows.js.
+- **SNAP-R51: Change something, recast anyone, pin what was painted.** The edit slot is "Change something": the person
+  writes what changes, or picks an example (night, dusk, dawn, rain, snow), and no example is a feature of its own.
+  relight (Ripple) paints frames 0 and middle and is fastest, and it was tested on light. remake_edit (Viggle Remake)
+  paints the middle frame, or the frames asked for: a moving object needs one where it enters and one where it leaves (up
+  to 4, Remake's limit). The recast slot puts someone else in a take: "X → Y" is its face and its version's name, the
+  identity notes give way to a "new person" note, and nothing is refused, private takes included (a version of a private
+  take is private too, SNAP-R27). A pinning method's candidates carry "📌 pin at frame N", on by default: on, the take
+  passes through the painted frame at that moment; off, it only sets the look. The lighter rank-128 LoRA is offered as
+  "the same picture, half the disk, no speed gain", and is used by itself when it is the only one installed. A method's
+  `credit` is the tooltip of the controls that run it while it is picked, and of its card: "Powered by Viggle Remake
+  (https://huggingface.co/Viggle/Viggle-Remake) · MiniMax H3". *Why:* Dylan, 2026-11-04 16:45: Recast is a Snap slot, no
+  artificial limits, night is only an example; U69: one pin holds an object only near its frame, a recast scores ArcFace
+  about 0 by design. *More:* PLAN U73, U69_VIGGLE_REMAKE_2026-11-04.md, `web/snap/edits.js`.
 - **SNAP-R50: A longer take carries the sampler's latent.** The extend slot makes a take longer by whole clips and lands
   the joined clip as a version of the take. Standard encodes the take's last 39 frames and their sound once, then every
   new clip starts from the clip before it as sampled (Geiru Context, protection off, head 39, drop_last 17): nothing is

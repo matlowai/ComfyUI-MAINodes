@@ -5,6 +5,7 @@
 // SNAP-R7 lists keep their elements while a pointer is down · SNAP-R17 by · SNAP-R23 candidates · see docs/SNAP_RULES.md
 import * as C from "./candidates.js";
 import * as P from "./proposals.js";
+import * as ED from "./edits.js";
 import { url } from "./checks.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
@@ -20,7 +21,8 @@ export function noteChips(c) {
       title: `where ${n.layout.detector} finds each thing against the plan:\n${n.layout.rows.map((r) => `${r.ok === false ? "✗" : r.ok ? "✓" : "·"} ${r.name}: plan ${r.plan}, found ${r.found}`).join("\n")}` }));
   // identity (U61): a chip per flag, else the two numbers quietly; the head crops on the tile decide
   const id = n.identity, sign = (x) => `${x > 0 ? "+" : ""}${x}`;
-  if (id?.error) out.push(h("span", { className: "snap-cand-note", textContent: "identity: not checked", title: id.error }));
+  if (id?.new_person) out.push(h("span", { className: "snap-cand-note", textContent: "new person", title: "A recast puts someone else in on purpose, so there is no face or hair check: look at the painted frame" }));
+  else if (id?.error) out.push(h("span", { className: "snap-cand-note", textContent: "identity: not checked", title: id.error }));
   else if (id && !("face_low" in id)) out.push(h("span", { className: "snap-cand-note", textContent: "identity: older check", title: "a note from the DINOv3 head-crop check, which couldn't tell grey hair from kept hair; check again for the face and hair notes" }));
   else if (id) {
     const faces = `ArcFace on the face, the take's frame against the edit: ${id.scores.map((s) => s.face ?? "no face").join(", ")}`, hair = `lit hair (L* p90) against the take's frames (median ${id.hair_base ?? "?"}): ${id.scores.map((s) => (s.hair == null ? "not read" : sign(s.hair))).join(", ")}`;
@@ -56,6 +58,9 @@ export function candidatesEl(d, { say, crops } = {}) {
       h("figcaption", {},
         h("div", { className: "snap-cand-line" }, h("b", { textContent: c.id }), h("span", { className: "snap-quiet", textContent: [c.seed != null ? `seed ${c.seed}` : null, c.made?.lora ? c.made.lora.replace(/\.safetensors$/, "").replace(/_/g, " ").slice(0, 28) : null, c.by !== "person" ? `by ${c.by}` : null].filter(Boolean).join(" · ") })),
         h("div", { className: "snap-cand-notes" }, noteChips(c)),
+        // SNAP-R51: a pinning method's painted frames sit at the frames they came from until the person unpins them
+        "pin" in c && c.state === "ready" ? h("label", { className: "snap-cand-pin", title: "on: the take passes through these painted frames at those moments; off: they only set the look (fine on one shot, worse at cuts)" },
+          h("input", { type: "checkbox", checked: c.pin, onchange: (e) => act(() => ED.pin(d, c, e.target.checked)) }), ` 📌 pin at frame${c.frame.length > 1 ? "s" : ""} ${c.frame.join(", ")}`) : null,
         rec ? h("div", { className: "snap-cand-rec" }, h("span", { className: "snap-agent", textContent: "agent" }), ` ${TOOL[rec.tool]}: ${rec.reason}`) : null,
         h("div", { className: "snap-cand-actions" }, buttons)));
     tile.addEventListener("pointerenter", () => C.preview(d, c));

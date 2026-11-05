@@ -16,9 +16,9 @@
     {
       "id": "edit",
       "kind": "take",
-      "title": "Edit a take",
+      "title": "Change something",
       "off": "the take stays as it is",
-      "about": "a method that makes a new take from an existing one (relight now; recast or cleanup later): its anchor frames are edited as candidates the person picks, then the edit is propagated over the take"
+      "about": "change something in a take (the light, the weather, an object, the setting; night is one example): its painted frames are candidates the person picks, then the change is carried over the whole take"
     },
     {
       "id": "extend",
@@ -55,6 +55,13 @@
       "title": "Edit a region",
       "off": "the whole frame stays as rendered",
       "about": "a method that re-renders only a masked region of a take (a face at distance, one person among several) and pastes it back; the rest of the frame is untouched (scout/h3_edit_tools §1)"
+    },
+    {
+      "id": "recast",
+      "kind": "take",
+      "title": "Recast a person",
+      "off": "everyone stays who they are",
+      "about": "a method that puts a different person in a take in place of one who is there, with the take's camera, motion, timing and sound; the painted frames are candidates the person picks (U69, U73)"
     }
   ],
   "methods": [
@@ -157,37 +164,131 @@
       "id": "relight",
       "slot": "edit",
       "kind": "take",
-      "title": "Night version",
+      "title": "Change something · Ripple",
+      "face": "same shot, changed; fastest, tested on light",
       "does": "relight",
       "options": {
-        "time": {
-          "night": { "edit": "a dark night sky, dim cool moonlight and the place's artificial lamps switched on", "avoid": "daylight, bright sky" },
-          "dusk": { "edit": "a deep orange and violet dusk sky, low warm sunlight and the first lamps coming on", "avoid": "midday light, blue sky" },
-          "dawn": { "edit": "a pale pink and gold dawn sky with soft low light and long shadows", "avoid": "midday light, night sky" }
+        "examples": {
+          "night": { "change": "the time of day to night: a dark night sky, dim cool moonlight and the place's artificial lamps switched on", "avoid": "daylight, bright sky" },
+          "dusk": { "change": "the time of day to dusk: a deep orange and violet dusk sky, low warm sunlight and the first lamps coming on", "avoid": "midday light, blue sky" },
+          "dawn": { "change": "the time of day to dawn: a pale pink and gold dawn sky with soft low light and long shadows", "avoid": "midday light, night sky" }
         }
       },
       "anchors": {
-        "prompt": "Change only the time of day to {time}: {edit}. Keep every person exactly as they are: the same face, the same hair colour and hairstyle, the same clothes and pose. Keep the place, every object and the composition unchanged.",
+        "prompt": "Change only {change}. Keep every person exactly as they are: the same face, the same hair colour and hairstyle, the same clothes and pose. Keep the place, every object and the composition unchanged.",
         "negative": "nsfw, worst quality, bad anatomy, watermark, jpeg artifact, changed hair colour, grey hair, {avoid}",
-        "unet": "moss_image_sft_int8_convrot.safetensors", "clip": "qwen3.5_9b_int8_convrot.safetensors", "vae": "flux2-vae.safetensors",
-        "steps": 30, "sampler": "euler", "scheduler": "normal", "slg_single": "22",
+        "unet": "moss_image_sft_int8_convrot.safetensors",
+        "clip": "qwen3.5_9b_int8_convrot.safetensors",
+        "vae": "flux2-vae.safetensors",
+        "steps": 30,
+        "sampler": "euler",
+        "scheduler": "normal",
+        "slg_single": "22",
         "recipes": [
           { "lora": "akhaliq_moss_edit_hq_armV5.safetensors", "format": "ai-toolkit", "cfg": 3.0 },
           { "lora": "chinoll_moss_image_edit_adapter.safetensors", "format": "ai-toolkit", "cfg": 5.0 }
-        ]
+        ],
+        "frames": "ends"
       },
       "propagate": {
         "prompt": "Edit propagation: each edited frame shows exactly how that moment of the video should look after the edit. Apply the same changes to every frame of the clip, before, between and after the edited frames, so the edit stays consistent through the whole video. Keep the guide video's motion, timing, camera movement, composition and all unedited content unchanged.",
-        "unet": "h3/minimax_h3_fl2va_pruned_int8_convrot.safetensors", "lora": "h3/minimax_H3_Ripple-v1.safetensors",
+        "unet": "h3/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+        "lora": "h3/minimax_H3_Ripple-v1.safetensors",
         "turbo": "h3/minimax_h3_fl2v_lightx2v_turbo_4step_v1.0_768p_resized_avg_rank_31_bf16.safetensors",
-        "clip": "h3/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors", "vae": "h3/minimax_h3_video_vae_fp16.safetensors", "audio_vae": "h3/minimax_h3_audio_vae_fp32.safetensors",
-        "steps": 4, "sampler": "euler", "scheduler": "simple", "shift": [12.0, 3.0]
+        "clip": "h3/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "vae": "h3/minimax_h3_video_vae_fp16.safetensors",
+        "audio_vae": "h3/minimax_h3_audio_vae_fp32.safetensors",
+        "steps": 4,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "shift": [12.0, 3.0]
       },
-      "needs": [{ "folder": "diffusion_models", "match": "moss_image_sft_int8" }, { "folder": "loras", "match": "moss_edit" }, { "folder": "loras", "match": "h3_ripple" }, { "folder": "diffusion_models", "match": "minimax_h3_fl2va" }],
+      "needs": [
+        { "folder": "diffusion_models", "match": "moss_image_sft_int8" },
+        { "folder": "loras", "match": "moss_edit" },
+        { "folder": "loras", "match": "h3_ripple" },
+        { "folder": "diffusion_models", "match": "minimax_h3_fl2va" }
+      ],
       "local_or_api": "local",
-      "constraints": ["the MOSS edit is not a pure relight: it can reframe, swap objects and change hair colour (U53b), so check the anchors before the render"],
-      "guidance": { "line": "MOSS edit of frames 0 and mid, then H3 Ripple with the take as its guide: night in the same shot, the best layout and motion tracking of three routes (patch to the day take 0.87 / 0.81 vs 0.73 / 0.69 for FL2V first frame)", "evidence": "measured", "source": "U53b (U40_DIAL_ENVELOPES, U53b section)", "n": 2, "hardware": "5090" },
+      "constraints": [
+        "the MOSS edit can reframe, swap objects and change hair colour (U53b), so check the painted frames before the render",
+        "measured on light (night): an object that moves through the frame is Viggle Remake's job"
+      ],
+      "guidance": {
+        "line": "MOSS edit of frames 0 and mid, then H3 Ripple with the take as its guide: night in the same shot, the best layout and motion tracking of three routes (patch to the day take 0.87 / 0.81 vs 0.73 / 0.69 for FL2V first frame)",
+        "evidence": "measured",
+        "source": "U53b (U40_DIAL_ENVELOPES, U53b section)",
+        "n": 2,
+        "hardware": "5090"
+      },
       "cost": { "community_s": null, "local_s": [100, 140], "per": "two anchor edits (12-19 s each) plus the Ripple render (89-103 s for 90 frames)", "vram_gb": null }
+    },
+    {
+      "id": "remake_edit",
+      "slot": "edit",
+      "kind": "take",
+      "title": "Change something · Viggle Remake",
+      "face": "same shot, changed: objects, weather, light, setting",
+      "does": "edit",
+      "options": {
+        "examples": {
+          "night": { "change": "the time of day to night: a dark night sky, dim cool moonlight and the place's artificial lamps switched on", "avoid": "daylight, bright sky" },
+          "rain": { "change": "the weather to heavy rain: wet glistening ground, rain streaks falling through the light, a grey overcast sky", "avoid": "dry ground, sunshine" },
+          "snow": { "change": "the season to winter: snow lying on every surface and falling softly, a pale white sky", "avoid": "green leaves, summer light" }
+        },
+        "lighter": { "swap_lora": "viggle_remake_edit_r128_comfyui.safetensors", "line": "the lighter LoRA (rank 128): the same picture, half the disk (1.9 vs 3.8 GB), no speed gain" }
+      },
+      "anchors": {
+        "negative": "nsfw, worst quality, bad anatomy, watermark, jpeg artifact, changed hair colour, grey hair, {avoid}",
+        "unet": "moss_image_sft_int8_convrot.safetensors",
+        "clip": "qwen3.5_9b_int8_convrot.safetensors",
+        "vae": "flux2-vae.safetensors",
+        "steps": 30,
+        "sampler": "euler",
+        "scheduler": "normal",
+        "slg_single": "22",
+        "recipes": [
+          { "lora": "akhaliq_moss_edit_hq_armV5.safetensors", "format": "ai-toolkit", "cfg": 3.0 },
+          { "lora": "chinoll_moss_image_edit_adapter.safetensors", "format": "ai-toolkit", "cfg": 5.0 }
+        ],
+        "prompt": "Change only {change}. Keep every person exactly as they are: the same face, the same hair colour and hairstyle, the same clothes and pose. Keep the place, every object and the composition unchanged.",
+        "frames": "mid",
+        "pin": true
+      },
+      "propagate": {
+        "kind": "remake",
+        "prompt": "subject_definitions:\n<Video 1> is the source video for the target video edit.\n{pictures}\n<Subject 1> is what changes: {change}.\n\nsummary:\n[video editing] The target video is an edited version of <Video 1>: {change}. It is the same shot, with exactly the same framing, camera movement and timing as <Video 1>, from the first frame to the last.\n\nretention_analysis:\n<Video 1> (source video editing): fully_preserved - the camera framing and movement, every person with their face, hair, clothes and pose, the place and the timing are copied frame for frame, apart from what <Subject 1> changes.\n{kept}\n<Subject 1> (appears in [Shot 1]): changed - {change}, in every frame where it shows, as in the painted frames.\n\ndetailed_description:\n[Shot 1] From 00:00.000 to {end} the camera moves exactly as in <Video 1>, with {change}. {moments}\n\noverall_soundscape:\nThe sound of <Video 1>, unchanged.\n\nnon_diegetic_music:\nN/A",
+        "lora": "viggle_remake_edit_comfyui.safetensors",
+        "sigmas": "1.0, 0.983607, 0.96, 0.923077, 0.857143, 0.705882, 0.0",
+        "keyframe_until": 0.9,
+        "sampler": "euler",
+        "unet": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+        "clip": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "vae": "minimax_h3_video_vae_fp16.safetensors",
+        "audio_vae": "minimax_h3_audio_vae_fp32.safetensors"
+      },
+      "packs": ["RemakeConditioning", "RemakeKeyframeUntil", "RemakeNoise"],
+      "needs": [
+        { "folder": "diffusion_models", "match": "moss_image_sft_int8" },
+        { "folder": "loras", "match": "moss_edit" },
+        { "folder": "loras", "match": "viggle_remake_edit" },
+        { "folder": "diffusion_models", "match": "minimax_h3_fl2va" }
+      ],
+      "local_or_api": "local",
+      "constraints": [
+        "a moving object needs a painted frame and a pin where it enters and where it leaves: one pin holds it only near its frame (U69: the booth was gone by frame 80, or jumped in size)",
+        "paint it at its real place and size: a pinned frame's composition is copied into the take",
+        "whole-frame changes (light, weather) hold with one pin"
+      ],
+      "guidance": {
+        "line": "night: a tie with Ripple (luminance 0.19, layout 0.86 vs 0.87) that keeps more background, 30-50 % slower; an object edit works near its pins only",
+        "evidence": "measured",
+        "source": "U69 (7 takes on :8193), U74 for the lighter LoRA",
+        "n": 2,
+        "hardware": "5090"
+      },
+      "cost": { "community_s": null, "local_s": [154, 193], "per": "107 frames at 1280×704 on a 5090, after the painted frames (12-19 s each)", "vram_gb": null },
+      "credit": "Viggle Remake (https://huggingface.co/Viggle/Viggle-Remake) · MiniMax H3"
     },
     {
       "id": "chain",
@@ -251,6 +352,63 @@
       },
       "cost": { "local_s_per_clip": 45, "per": "141-frame clip at 832×480 on a 5090", "vram_gb": null },
       "credit": "Geiru context suite by roycho87 (https://github.com/roycho87/geiru_context_suite)"
+    },
+    {
+      "id": "remake_swap",
+      "slot": "recast",
+      "kind": "take",
+      "title": "Recast · Viggle Remake",
+      "face": "{who} → {becomes}",
+      "does": "recast",
+      "identity": "new person",
+      "options": { "lighter": { "swap_lora": "viggle_remake_swap_r128_comfyui.safetensors", "line": "the lighter LoRA (rank 128): the same picture, half the disk (1.9 vs 3.8 GB), no speed gain" } },
+      "anchors": {
+        "unet": "moss_image_sft_int8_convrot.safetensors",
+        "clip": "qwen3.5_9b_int8_convrot.safetensors",
+        "vae": "flux2-vae.safetensors",
+        "steps": 30,
+        "sampler": "euler",
+        "scheduler": "normal",
+        "slg_single": "22",
+        "recipes": [
+          { "lora": "akhaliq_moss_edit_hq_armV5.safetensors", "format": "ai-toolkit", "cfg": 3.0 },
+          { "lora": "chinoll_moss_image_edit_adapter.safetensors", "format": "ai-toolkit", "cfg": 5.0 }
+        ],
+        "prompt": "Replace {who} with a different person: {becomes}, standing in the same place and pose. Keep the place, everyone else, every object, the light and the composition unchanged.",
+        "negative": "worst quality, bad anatomy, watermark, jpeg artifact, two people in one place",
+        "frames": "mid",
+        "pin": true
+      },
+      "propagate": {
+        "kind": "remake",
+        "prompt": "subject_definitions:\n<Video 1> is the source video for the editing task.\n{pictures}\n<Subject 1> is {becomes}, as in <Picture 1>. This person replaces {who} in <Video 1>.\n\nsummary:\n[video editing + character replacement] The target video is an edited version of <Video 1> in which {who} becomes <Subject 1>, looking exactly as in <Picture 1>. The shot, the camera, the motion, the timing, the place and the light are kept.\n\nretention_analysis:\n<Video 1> (source video editing): fully_preserved - the camera framing and movement, the place, everyone else, the motion and the timing are copied frame for frame.\n{kept}\n<Subject 1> (appears in [Shot 1]): fully_preserved - {becomes}, identical in every frame.\n\ndetailed_description:\n[Shot 1] From 00:00.000 to {end} the camera moves exactly as in <Video 1>. <Subject 1>, {becomes}, is where {who} is in <Video 1> and moves exactly as they move. {moments} In every frame it is this same person; {who} never appears.\n\noverall_soundscape:\nThe sound of <Video 1>, unchanged.\n\nnon_diegetic_music:\nN/A",
+        "lora": "viggle_remake_swap_comfyui.safetensors",
+        "sigmas": "1.0, 0.990476, 0.965243, 0.923077, 0.8, 0.631579, 0.0",
+        "keyframe_until": 0.9,
+        "sampler": "euler",
+        "unet": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+        "clip": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "vae": "minimax_h3_video_vae_fp16.safetensors",
+        "audio_vae": "minimax_h3_audio_vae_fp32.safetensors"
+      },
+      "packs": ["RemakeConditioning", "RemakeKeyframeUntil", "RemakeNoise"],
+      "needs": [
+        { "folder": "diffusion_models", "match": "moss_image_sft_int8" },
+        { "folder": "loras", "match": "moss_edit" },
+        { "folder": "loras", "match": "viggle_remake_swap" },
+        { "folder": "diffusion_models", "match": "minimax_h3_fl2va" }
+      ],
+      "local_or_api": "local",
+      "constraints": ["the new person's size follows the painted frame", "a head turn shows only what the painted frame shows: add a frame where they turn"],
+      "guidance": {
+        "line": "one painted frame gave the same new person in every frame of both seeds, with the take's camera, motion, timing, sound and background",
+        "evidence": "measured",
+        "source": "U69 arm c, U74 (r128 0.997-0.998 patch likeness to r256)",
+        "n": 2,
+        "hardware": "5090"
+      },
+      "cost": { "community_s": null, "local_s": [154, 181], "per": "107 frames at 1280×704 on a 5090, after the painted frame", "vram_gb": null },
+      "credit": "Viggle Remake (https://huggingface.co/Viggle/Viggle-Remake) · MiniMax H3"
     },
     {
       "id": "crop_inpaint",

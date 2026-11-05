@@ -430,6 +430,10 @@ export const STYLE = `
 .snap-dice:hover { background: #ffffff14; color: inherit; }
 .snap-take-stale { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: #f0b44526; color: #f0b445; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .snap-face-line { font-size: 12.5px; font-weight: 600; }
+.snap-take-paint input[type=text], .snap-take-clips { font: inherit; font-size: 13px; color: var(--s-fg); background: #0000002e; border: 1px solid #ffffff14; border-radius: 9px; padding: 7px 9px; }
+.snap-take-paint input[type=text] { flex: 1 1 100%; min-width: 0; }
+.snap-take-paint input[type=text]:focus, .snap-take-clips:focus { outline: none; border-color: hsl(215 75% 64% / .9); }
+.snap-cand-pin { display: block; font-size: 12px; margin: 2px 0; }
 .snap-take-clips { width: 52px; }
 .snap-take-burn { display: flex; gap: 8px; align-items: center; font-size: 12.5px; }
 .snap-take-burn input { flex: 1; }

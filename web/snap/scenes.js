@@ -107,7 +107,7 @@ export function label(t) {
   const p = t.parent;
   if (!p) return `Take ${t.number}`;
   if (p.method === "continue") return `Continued from frame ${p.frame}`;
-  return `${cap(p.options?.time ?? p.method.split("/").pop())} version`;
+  return `${cap(T.versionOf(p.options) ?? p.method.split("/").pop())} version`;
 }
 
 // ---- where the open tab is -----------------------------------------------------------------------------------------

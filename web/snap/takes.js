@@ -68,6 +68,8 @@ export const locked = (t) => privacy && !!(t.private || marks[t.id]?.private || 
 export const get = (id) => takes.find((t) => t.id === id);
 export const RATINGS = ["pg", "mature", "adult"], RATING_SHOWN = { pg: "PG", mature: "Mature", adult: "Adult" };
 export const ratingOf = (t) => t.rating_set ?? t.rating ?? null;
+// what a version is called on its card and in the scene: an example's name, the change in short, or "X → Y"
+export const versionOf = (o = {}) => o.label ?? o.time ?? null;
 export async function setRating(take, rating) {
   if (!RATINGS.includes(rating)) throw new Error(`A rating is one of ${RATINGS.join(", ")}`);
   take.rating_set = rating;

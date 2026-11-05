@@ -127,7 +127,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onRepr
         h("span", { className: "snap-take-stale", hidden: true }),
         t.copy?.copied ? h("span", { className: "snap-take-copy", textContent: `copied its reference view ${Math.max(...t.copy.against.map((a) => a.last)).toFixed(2)}`,
           title: `This take ends on the view of its reference picture (last frame's copy score at or above ${t.copy.threshold}): right when that picture is this camera's own plate, wrong when it shows another camera's view.\n${t.copy.against.map((a) => `${a.image}: ${a.frames.join(" → ")}`).join("\n")}` }) : null,
-        t.parent && !version ? h("span", { className: "snap-take-parent", textContent: `↳ ${t.parent.options?.time ?? t.parent.method.split("/").pop()} of take ${T.get(t.parent.take)?.number ?? "?"}`, title: `made from ${t.parent.take} by ${t.parent.method}` }) : null,
+        t.parent && !version ? h("span", { className: "snap-take-parent", textContent: `↳ ${T.versionOf(t.parent.options) ?? t.parent.method.split("/").pop()} of take ${T.get(t.parent.take)?.number ?? "?"}`, title: `made from ${t.parent.take} by ${t.parent.method}` }) : null,
         t.metadata_kept ? h("span", { className: "snap-take-kept", textContent: "metadata kept", title: `Save metadata was off, but ${t.metadata_kept.join("; ")}: those files hold the prompt and workflow` }) : null,
         T.quiet(t) ? h("span", { className: "snap-take-quiet", textContent: "🔈 sound is quiet", title: `The sound averages ${t.sound.mean_db} dB (a take usually sits between -27 and -41 dB). Open the take to make it louder or re-prompt` }) : null,
         ["mature", "adult"].includes(T.ratingOf(t)) ? h("span", { className: "snap-take-rating", textContent: T.RATING_SHOWN[T.ratingOf(t)],
@@ -276,21 +276,43 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onRepr
       h("button", { className: "snap-link", textContent: "First frame", title: "the frame at the playhead becomes FL2V's start picture", onclick: use("first_frame") }),
       h("button", { className: "snap-link", textContent: "Reference", title: "the frame at the playhead goes into References as a picture", onclick: use("reference") }));
 
-    // Edit this take (U54): a method of the edit slot makes anchor candidates; the person applies one to render it
+    // Change something, or recast a person (U54, U73, SNAP-R51): a method of the edit or recast slot paints candidates; the
+    // person applies one to carry it over the take. Examples (night, rain) fill the words; any change can be written. A
+    // method's `credit` is the tooltip of its controls while it is picked
     const editBox = h("div", { className: "snap-take-edits" }), editNote = h("div", { className: "snap-quiet", role: "status" });
-    const methodPick = h("select", { ariaLabel: "edit method" }), timePick = h("select", { ariaLabel: "time of day" });
-    const editBtn = h("button", { className: "snap-primary", textContent: "Make 2 candidates", onclick: async () => {
-      editBtn.disabled = true;
-      try { const r = await ED.start(t, methodPick.value, { time: timePick.value }); editNote.textContent = `Editing frames 0 and ${ED.clip(t).mid}: ${r.candidates.length} candidates (about ${r.seconds_each} s each). Apply one to render it over the take`; } catch (err) { editNote.textContent = err.message; }
-      editBtn.disabled = false;
-    } });
-    S.load().then(() => {
-      const list = S.list("edit");
-      methodPick.replaceChildren(...list.map((m) => h("option", { value: m.id, textContent: m.title })));
-      const times = () => { const m = list.find((x) => x.id === methodPick.value); timePick.replaceChildren(...Object.keys(m?.options?.time ?? {}).map((k) => h("option", { value: k, textContent: k }))); timePick.hidden = !timePick.options.length;
-        editBtn.disabled = m?.install_state !== "ready"; editBtn.title = m?.install_state === "ready" ? m.guidance?.line ?? "" : m?.install_state ?? ""; };
-      methodPick.onchange = times; times();
-    }, (err) => { editNote.textContent = `Edit methods unavailable: ${err.message}`; });
+    const paintRow = (slot) => {
+      const pick = h("select", { ariaLabel: `${slot} method` }), example = h("select", { ariaLabel: "example" }), lighter = h("label", { className: "snap-quiet" }, h("input", { type: "checkbox" }), " lighter LoRA");
+      const words = slot === "recast" ? [h("input", { type: "text", placeholder: "who is in it now, e.g. the woman in the red coat", ariaLabel: "who" }), h("input", { type: "text", placeholder: "who they become, e.g. a bald man in his sixties, grey beard", ariaLabel: "becomes" })]
+        : [h("input", { type: "text", placeholder: "what changes, e.g. the benches into a yellow phone booth", ariaLabel: "change" })];
+      const frames = h("input", { type: "text", placeholder: `paint at frames (default ${ED.clip(t).mid})`, ariaLabel: "paint at frames", title: "a moving object: the frame where it enters and the one where it leaves, e.g. 20, 90" });
+      const btn = h("button", { className: "snap-primary", textContent: "Make 2 candidates", onclick: async () => {
+        btn.disabled = true;
+        const at = frames.value.split(/[\s,]+/).filter(Boolean).map(Number);
+        try {
+          const r = await ED.start(t, pick.value, slot === "recast" ? { who: words[0].value, becomes: words[1].value, frames: at, lighter: lighter.firstChild.checked }
+            : { change: words[0].value || undefined, example: words[0].value ? undefined : example.value || undefined, frames: at, lighter: lighter.firstChild.checked });
+          editNote.textContent = `Painting frame${r.candidates[0].frames.length > 1 ? "s" : ""} ${r.candidates[0].frames.join(" and ")}: ${r.candidates.length} candidates (about ${r.seconds_each} s each). Apply one to carry it over the take`;
+        } catch (err) { editNote.textContent = err.message; }
+        btn.disabled = false;
+      } });
+      const controls = [pick, example, ...words, frames, lighter];
+      S.load().then(() => {
+        const list = S.list(slot);
+        pick.replaceChildren(...list.map((m) => h("option", { value: m.id, textContent: m.title })));
+        const shown = () => {
+          const m = list.find((x) => x.id === pick.value), ex = Object.keys(m?.options?.examples ?? {});
+          example.replaceChildren(h("option", { value: "", textContent: "your own words" }), ...ex.map((k) => h("option", { value: k, textContent: `e.g. ${k}` })));
+          example.hidden = !ex.length; frames.hidden = !m?.anchors?.pin; lighter.hidden = !m?.options?.lighter; lighter.title = m?.options?.lighter?.line ?? "";
+          btn.disabled = m?.install_state !== "ready";
+          const credit = m?.credit ? `Powered by ${m.credit}` : "";
+          btn.title = [m?.install_state === "ready" ? m.guidance?.line : m?.install_state, ...(m?.constraints ?? []), credit].filter(Boolean).join("\n");
+          pick.title = credit;
+        };
+        example.onchange = () => { const m = list.find((x) => x.id === pick.value); if (example.value) words[0].value = ""; words[0].placeholder = example.value ? m.options.examples[example.value].change : "what changes, e.g. the benches into a yellow phone booth"; };
+        pick.onchange = shown; shown();
+      }).catch((err) => { editNote.textContent = `Methods unavailable: ${err.message}`; });
+      return [h("div", { className: "snap-set-actions snap-take-paint" }, controls), h("div", { className: "snap-set-actions" }, btn)];
+    };
     // Make it longer (U46c, SNAP-R50): the extend slot's methods; the button says the length it makes (SNAP-R4)
     const longPick = h("select", { ariaLabel: "how to make it longer" }), clipsIn = h("input", { type: "number", min: 1, step: 1, value: 1, ariaLabel: "clips to add", className: "snap-take-clips" });
     const burnIn = h("input", { type: "range", min: 0, max: 1, step: 0.05, value: 0, ariaLabel: "Anti-Burn" }), burnOut = h("span", { className: "snap-quiet" });
@@ -373,7 +395,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onRepr
           copyLine,
           t.text ? h("details", {}, h("summary", { textContent: "Prompt" }), h("p", { className: "snap-take-text", textContent: t.text })) : null,
           useRow,
-          isVideo ? [h("div", { className: "snap-rail-title", textContent: "Edit this take" }), h("div", { className: "snap-set-actions" }, methodPick, timePick, editBtn), editNote,
+          isVideo ? [h("div", { className: "snap-rail-title", textContent: "Change something" }), ...paintRow("edit"), h("div", { className: "snap-rail-title", textContent: "Recast a person" }), ...paintRow("recast"), editNote,
           T.locked(t) ? h("p", { className: "snap-quiet", textContent: "🔒 Private take: its edits are private too (locked, left out of exports)." }) : null, editBox,
           h("div", { className: "snap-rail-title", textContent: "Make it longer" }), h("div", { className: "snap-set-actions" }, longPick, h("label", { className: "snap-quiet" }, "+ ", clipsIn, " clips")), burnRow,
           h("div", { className: "snap-set-actions" }, longBtn), longNote] : null,

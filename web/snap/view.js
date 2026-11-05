@@ -671,7 +671,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const slot = S.slotOf(key);
     if (!slot) return [];
     const m = S.list(slot).find((x) => x.current), f = BRICKS[key].slot ? S.factor(key) : null, isOn = S.on(key);
-    const chip = h("button", { className: "snap-preset snap-method", title: "swap the method: every one takes and gives the same picture or clip", onclick: (e) => { e.stopPropagation(); openMethods(slot); } }, `${m?.title ?? "Custom"} ▾`);
+    const chip = h("button", { className: "snap-preset snap-method", title: ["swap the method: every one takes and gives the same picture or clip", m?.credit && `Powered by ${m.credit}`].filter(Boolean).join("\n"), onclick: (e) => { e.stopPropagation(); openMethods(slot); } }, `${m?.title ?? "Custom"} ▾`);
     chip.addEventListener("pointerdown", (e) => e.stopPropagation());
     if (!BRICKS[key].slot) return [chip]; // hand-wired: its own widgets say the rest
     const pick = (o) => { try { if (o === "off") S.setOn(key, false); else S.setFactor(key, o); } catch (err) { say(err.message, true); } render(null); };
@@ -1165,7 +1165,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const label = p.tool === "snap" ? `Add ${BRICKS[p.args.brick]?.title ?? p.args.brick}` : p.tool === "set_setting" ? `${p.args.name} → ${JSON.stringify(p.args.value)}`
       : p.tool === "apply_card" ? `Apply ${L.get(p.args.card)?.title ?? p.args.card}`
       : /^(apply|reject|undo)_candidate$/.test(p.tool) ? `${p.tool.split("_")[0][0].toUpperCase()}${p.tool.split("_")[0].slice(1)} ${p.args.candidate ?? ""} · ${C.get(p.args.decision)?.title ?? p.args.decision}`
-      : p.tool === "edit_take" ? `${p.args.time ?? "night"} version of take ${T.get(p.args.take)?.number ?? p.args.take}` : `${p.tool.replaceAll("_", " ")} ${p.args.brick ?? ""}`;
+      : p.tool === "edit_take" ? `${p.args.clips ? `${p.args.clips} more clip${p.args.clips > 1 ? "s" : ""} on` : p.args.becomes ? `${p.args.who} → ${p.args.becomes} in` : `${p.args.example ?? p.args.change ?? "a change"} version of`} take ${T.get(p.args.take)?.number ?? p.args.take}` : `${p.tool.replaceAll("_", " ")} ${p.args.brick ?? ""}`;
     const el = h(ghost ? "section" : "div", { className: ghost ? "snap-brick snap-ghost-brick" : "snap-proposal", tabIndex: 0, title: "Enter accepts · Backspace rejects" },
       h("span", { className: "snap-agent", textContent: "agent" }), h("span", { className: "snap-proposal-what", textContent: label }),
       p.reason ? h("span", { className: "snap-blurb", textContent: p.reason }) : null,

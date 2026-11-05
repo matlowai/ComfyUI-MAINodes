@@ -772,16 +772,20 @@ export const TOOLS = [
   },
   {
     name: "apply_candidate",
-    description: "Apply one candidate of a decision: a plate candidate becomes the camera's plate (a shot compiled from that camera on the open chain compiles again with it); an edit candidate's anchors are propagated over the take with H3 Ripple (GPU, about 90-110 s) and land as a new take whose parent is the original. Applying another candidate of the same decision first undoes the earlier one. The pick is the person's: unless they let agents run, this waits as a proposal, which is how an agent recommends one (give the reason: which notes made it the best).",
-    inputSchema: { type: "object", properties: { decision: { type: "string" }, candidate: { type: "string" } }, required: ["decision", "candidate"] },
+    description: "Apply one candidate of a decision: a plate candidate becomes the camera's plate (a shot compiled from that camera on the open chain compiles again with it); an edit or recast candidate's painted frames are carried over the take (H3 Ripple about 90-110 s, Viggle Remake 150-190 s on a 5090) and land as a new take whose parent is the original. `pin` (Remake methods only) places the painted frames at the frames they were painted from (on by default) or, false, uses them only as references. Applying another candidate of the same decision first undoes the earlier one. The pick is the person's: unless they let agents run, this waits as a proposal, which is how an agent recommends one (give the reason: which notes made it the best).",
+    inputSchema: { type: "object", properties: { decision: { type: "string" }, candidate: { type: "string" }, pin: { type: "boolean" } }, required: ["decision", "candidate"] },
     annotations: { consequentialHint: true },
     decides: true,
     plan: async ({ decision }) => {
       await C.load();
       if (C.get(decision)?.kind !== "edit") return { runs: "no render: the candidate becomes the camera's plate", eta_s: 0, from: "nothing runs" };
-      return { runs: "H3 Ripple carries the picked anchors over the take, as a new take", ...(T.measured(T.all().filter((t) => t.parent?.method.startsWith("edit/") && t.status === "success"), "of edits here") ?? { eta_s: 100, from: "U54: Ripple 89-103 s for 90 frames on a 5090" }) };
+      return { runs: "the picked painted frames carried over the take, as a new take", ...(T.measured(T.all().filter((t) => /^(edit|recast)\//.test(t.parent?.method ?? "") && t.status === "success"), "of edits here") ?? { eta_s: 100, from: "U54: Ripple 89-103 s for 90 frames on a 5090; U69: Remake 154-193 s for 107 frames" }) };
     },
-    run: async ({ decision, candidate }) => { await C.load(); return C.apply(decision, candidate, "agent"); },
+    run: async ({ decision, candidate, pin }) => {
+      await C.load();
+      if (pin != null) { const d = C.get(decision); await ED.pin(d, C.candidate(d, candidate), pin); }
+      return C.apply(decision, candidate, "agent");
+    },
   },
   {
     name: "reject_candidate",
@@ -806,17 +810,18 @@ export const TOOLS = [
   },
   {
     name: "edit_take",
-    description: "Edit a take with a method of the edit slot (list_methods slot: edit). relight ('Night version'; time: night, dusk or dawn): MOSS edits the take's frame 0 and mid frame, `count` candidates (default 2; the edit LoRAs take turns, seeds vary), each with identity notes against the take's own frames (\"probably a different person\" from ArcFace on the faces, \"hair lighter than original\" from SAM 3.1's hair mask: U53b's edits turned hair grey; head crops of both). Returns at once with the decision id; follow with list_candidates, then apply_candidate runs the Ripple render. Also makes a take longer with a method of the extend slot: chain (Standard: carries the latent clip to clip, colour holds; antiburn 0-1, off by default) or geiru (Strong: keeps the look, may reset the action); `clips` new clips (1 or more, no limit), each adding about 4.25 s; the longer take lands as a version at once, no candidates. Uses GPU time: unless the person lets agents run, this waits as a proposal they accept.",
-    inputSchema: { type: "object", properties: { take: { type: "string" }, method: { type: "string" }, time: { type: "string", enum: ["night", "dusk", "dawn"] }, count: { type: "integer", minimum: 1, maximum: 3 },
+    description: "Change something in a take (list_methods slot: edit) or recast a person in it (slot: recast). Nothing is refused, private takes included. `change` says what changes in your own words (\"the benches into a yellow phone booth\", \"the weather to heavy snow\"), or `example` picks one of the method's (night, dusk, dawn; rain, snow). relight (Ripple: fastest, tested on light) paints frames 0 and middle; remake_edit (Viggle Remake: objects, weather, light, setting) paints the middle frame, or `frames` (a moving object: where it enters and where it leaves, up to 4) and pins them there; remake_swap (recast) needs `who` (the person now, e.g. \"the woman in the red coat\") and `becomes` (who they become), and gets a \"new person\" note instead of the identity notes. `lighter`: the Remake LoRA at rank 128 (same picture, half the disk, no speed gain). MOSS paints `count` candidates (default 2; the edit LoRAs take turns, seeds vary), each with identity notes against the take's own frames (\"probably a different person\" from ArcFace on the faces, \"hair lighter than original\" from SAM 3.1's hair mask: U53b's edits turned hair grey; head crops of both). Returns at once with the decision id; follow with list_candidates, then apply_candidate carries the picked one over the take (Ripple or Remake). Also makes a take longer with a method of the extend slot: chain (Standard: carries the latent clip to clip, colour holds; antiburn 0-1, off by default) or geiru (Strong: keeps the look, may reset the action); `clips` new clips (1 or more, no limit), each adding about 4.25 s; the longer take lands as a version at once, no candidates. Uses GPU time: unless the person lets agents run, this waits as a proposal they accept.",
+    inputSchema: { type: "object", properties: { take: { type: "string" }, method: { type: "string" }, change: { type: "string" }, example: { type: "string" }, who: { type: "string" }, becomes: { type: "string" },
+      frames: { type: "array", items: { type: "integer", minimum: 0 } }, lighter: { type: "boolean" }, count: { type: "integer", minimum: 1, maximum: 3 },
       clips: { type: "integer", minimum: 1 }, antiburn: { type: "number", minimum: 0, maximum: 1 }, prompt: { type: "string", description: "extend only: the new clips' prompt (default: the take's own, said to continue without a cut)" } }, required: ["take"] },
     annotations: { consequentialHint: true },
     consequential: true,
-    plan: async ({ method = "relight", count = 2, clips = 1 }) => (await S.load(), S.list("extend").some((m) => m.id === method)
+    plan: async ({ method = "relight", count = 2, clips = 1, frames }) => (await S.load(), S.list("extend").some((m) => m.id === method)
       ? { runs: `${clips} new clip${clips > 1 ? "s" : ""} after the take, joined to it as a version`, eta_s: clips * ((await EX.method(method)).cost?.local_s_per_clip ?? 60), from: "U46b: 28-40 s per 141-frame clip at 832×480 on a 5090" }
-      : { runs: `${count} MOSS edit candidates of frame 0 and the middle frame, each with identity notes; the Ripple render waits for the pick`, eta_s: count * 2 * 16, from: "U54: 12-19 s per anchor edit on a 5090" }),
-    run: async ({ take, method = "relight", time = "night", count = 2, clips = 1, antiburn = 0, prompt }) => {
+      : { runs: `${count} candidate${count > 1 ? "s" : ""} of MOSS-painted frames (${frames?.length ? `frames ${frames.join(", ")}` : method === "relight" ? "frames 0 and middle" : "the middle frame"}); rendering over the take waits for the pick`, eta_s: count * (frames?.length || (method === "relight" ? 2 : 1)) * 16, from: "U54: 12-19 s per painted frame on a 5090" }),
+    run: async ({ take, method = "relight", example, change, who, becomes, frames, lighter, count = 2, clips = 1, antiburn = 0, prompt }) => {
       await Promise.all([T.load(), S.load()]); const t = T.get(take); if (!t) throw new Error(`No take ${take}`);
-      return S.list("extend").some((m) => m.id === method) ? EX.start(t, method, { clips, antiburn, prompt, by: "agent" }) : ED.start(t, method, { time, count, by: "agent" });
+      return S.list("extend").some((m) => m.id === method) ? EX.start(t, method, { clips, antiburn, prompt, by: "agent" }) : ED.start(t, method, { example, change, who, becomes, frames, lighter, count, by: "agent" });
     },
   },
   {

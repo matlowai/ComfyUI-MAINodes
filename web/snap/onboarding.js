@@ -111,7 +111,7 @@ function packRow(pack) {
   if (!p) return { repo: pack, known: false, license: null, safety: "not read: Snap's kits don't know this pack", review: PF.review(false),
     ...(/^https?:\/\//.test(pack) ? { command: `git clone ${pack} "${data.folders.custom_nodes}/${key(pack).split("/").pop()}"`, then: "restart ComfyUI" } : {}) };
   return { id: p.id, title: p.title, author: p.author, repo: p.repo, known: true, license: p.license, unlocks: p.unlocks, safety: p.safety, checked: p.checked, review: PF.review(true),
-    command: `git clone ${p.repo} "${data.folders.custom_nodes}/${p.folder}"`, then: "restart ComfyUI" };
+    command: p.command ? p.command.replace("{custom_nodes}", data.folders.custom_nodes) : `git clone ${p.repo} "${data.folders.custom_nodes}/${p.folder}"`, then: "restart ComfyUI" }; // a pack that isn't a git repo of its own says how
 }
 
 // what to fetch for the kits' recommended and fast setups (or one setup): exact files with size, source, link and target

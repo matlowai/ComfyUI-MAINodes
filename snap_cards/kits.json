@@ -42,6 +42,19 @@
       "nodes": ["MVEx_SubjectCrop", "MVEx_SubjectUncrop", "MVEx_MaskCleanup", "MVEx_MaskToLatentSpace"],
       "safety": { "network_at_import": false, "pickles": false, "auto_downloads": null, "other": "no requirements file, no subprocess or pip" },
       "checked": { "date": "2026-11-04", "commit": "c32ed8c", "how": "code read (U60)" }
+    },
+    {
+      "id": "viggle_remake",
+      "title": "Viggle Remake nodes",
+      "author": "Viggle",
+      "repo": "https://huggingface.co/Viggle/Viggle-Remake",
+      "folder": "ComfyUI-Viggle-Remake",
+      "license": "Apache-2.0 (code); the LoRAs are a Model Derivative under the MiniMax H3 Community License",
+      "unlocks": "Change something · Viggle Remake and Recast: painted frames pinned at their moments, carried over the whole take",
+      "nodes": ["RemakeConditioning", "RemakeKeyframeUntil", "RemakeNoise"],
+      "command": "hf download Viggle/Viggle-Remake --include \"comfyui/ComfyUI-Viggle-Remake/*\" --local-dir <a new empty folder> && cp -r <that folder>/comfyui/ComfyUI-Viggle-Remake \"{custom_nodes}/ComfyUI-Viggle-Remake\"",
+      "safety": { "network_at_import": false, "pickles": false, "auto_downloads": null, "other": "3 nodes, core imports only, the standard patcher wrapper API; no routes, file I/O, subprocess or requirements. The pack is the comfyui/ComfyUI-Viggle-Remake folder of the Hugging Face repo, not a git repo of its own: hf download it, then copy that folder" },
+      "checked": { "date": "2026-11-04", "commit": "nodes.py sha256 e4dc1b97", "how": "code read (U69)" }
     }
   ],
   "extras": [{"id": "relayvsr", "recipe": "simple", "method": "relayvsr", "title": "RelayVSR upscale (the Upscale brick: 2x or 4x)", "size_gb": 22, "smaller": "quantized X4 weights from 3.0 GB (MATLOWAI/RelayVSR-X4-Quants)", "source": "https://huggingface.co/kopper/RelayVSR", "how": "a folder of checkpoints in models/relayvsr/ plus a LightX2V checkout in its own venv: follow custom_nodes/ComfyUI-MAINodes/relayvsr/README.md", "without": "the recipe runs with Upscale off"}],
@@ -132,13 +145,18 @@
     {
       "intent": "edit",
       "title": "Edit your footage",
-      "blurb": "relight a take you made: night, dusk or dawn",
+      "blurb": "change something in a take you made (the light, the weather, an object) or recast a person",
       "task": "edit",
       "setups": [
         {
-          "id": "edit-night", "tier": "recommended", "title": "Night version", "recipe": "simple", "preset": "Pika H3 Flex", "method": "relight",
-          "good_at": "the same shot at night, dusk or dawn", "vram_gb": 32,
+          "id": "edit-night", "tier": "recommended", "title": "Change something · Ripple", "recipe": "simple", "preset": "Pika H3 Flex", "method": "relight",
+          "good_at": "the same shot with the light changed: night, dusk, dawn", "vram_gb": 32,
           "evidence": { "grade": "measured", "on": "an RTX 5090 (32 GB)", "date": "2026-11-04", "line": "100-140 s per edit; kept layout and motion best of three routes", "source": "U53b, U54" }
+        },
+        {
+          "id": "edit-remake", "tier": "also", "title": "Change something · Viggle Remake", "recipe": "simple", "preset": "Pika H3 Flex", "method": "remake_edit",
+          "good_at": "objects, weather, setting and light; the same nodes and a second LoRA recast a person", "vram_gb": 32,
+          "evidence": { "grade": "measured", "on": "an RTX 5090 (32 GB)", "date": "2026-11-04", "line": "154-193 s per take; night a tie with Ripple, a recast held one new person over the whole take", "source": "U69, U74" }
         },
         {
           "id": "edit-region", "tier": "also", "title": "Cropped inpaint", "method": "crop_inpaint",
@@ -146,7 +164,7 @@
           "evidence": { "grade": "community", "date": "2026-11-04", "on": "an RTX 3060 (12 GB)", "line": "13 min for an 8 s clip", "source": "scout/h3_edit_tools §1" }
         }
       ],
-      "try_first": "Render a take, open it from the Takes strip and pick Edit › Night version. You pick the frame you like before anything renders."
+      "try_first": "Render a take, open it from the Takes strip and write what changes under Change something (or pick an example such as night). You pick the painted frame you like before anything renders."
     },
     {
       "intent": "long",
