@@ -120,6 +120,7 @@ export function label(t) {
   if (!p) return `Take ${t.number}`;
   if (p.method === "continue") return `Continued from frame ${p.frame}`;
   if (p.method === "retake") return `Retake · ${p.options?.world === "latest" ? "today's world" : "as it was"}`; // SNAP-R61
+  if (p.options?.rerun) return `${p.method.startsWith("recast/") ? "Recast" : "Changed"} · ${p.options.rerun.text} (take ${T.get(p.take)?.number ?? "?"}'s motion)`; // SNAP-R63 Reuse the motion
   if (p.method.startsWith("rerun/")) { const s = Object.values(p.options?.swaps ?? {}).filter((x) => !x.kept).map((x) => x.text); return `Re-run · ${s.length ? s.join(", ") : "as it was"}`; } // SNAP-R63
   return `${cap(T.versionOf(p.options) ?? p.method.split("/").pop())} version`;
 }

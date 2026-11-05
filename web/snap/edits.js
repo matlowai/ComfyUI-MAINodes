@@ -48,14 +48,17 @@ async function anchorsGraph(take, a, recipe, frames, values, seed) {
     6: { class_type: "LoadVideo", inputs: { file: c.video } },
     7: { class_type: "GetVideoComponents", inputs: { video: ["6", 0] } },
   };
+  // a recast from a Cast with a picture: its picture is the paint's Picture 2, and the prompt says who it shows (U89 3b)
+  const who = values.picture && a.identity_picture ? { 8: { class_type: "LoadImage", inputs: { image: values.picture } } } : null;
+  if (who) g[8] = who[8];
   frames.forEach((frame, i) => {
-    const k = (x) => `a${i}${x}`, enc = (text) => ({ class_type: "TextEncodeMOSSImageEdit", inputs: { clip: ["2", 0], prompt: text, vae: ["3", 0], edit_format: recipe.format, "images.image_0": [k("s"), 0], image_strength: 1.0 } });
+    const k = (x) => `a${i}${x}`, enc = (text) => ({ class_type: "TextEncodeMOSSImageEdit", inputs: { clip: ["2", 0], prompt: text, vae: ["3", 0], edit_format: recipe.format, "images.image_0": [k("s"), 0], ...(who ? { "images.image_1": ["8", 0] } : {}), image_strength: 1.0 } });
     Object.assign(g, {
       [k("f")]: { class_type: "ImageFromBatch", inputs: { image: ["7", 0], batch_index: frame, length: 1 } },
       [k("s")]: { class_type: "ImageScaleToTotalPixels", inputs: { image: [k("f"), 0], upscale_method: "lanczos", megapixels: 1.0, resolution_steps: 16 } },
       [k("z")]: { class_type: "GetImageSize", inputs: { image: [k("s"), 0] } },
       [k("l")]: { class_type: "EmptyFlux2LatentImage", inputs: { width: [k("z"), 0], height: [k("z"), 1], batch_size: 1 } },
-      [k("p")]: enc(fill(a.prompt, values)), [k("n")]: enc(fill(a.negative, values)),
+      [k("p")]: enc(fill(who ? `${a.prompt} ${a.identity_picture}` : a.prompt, values)), [k("n")]: enc(fill(a.negative, values)),
       [k("k")]: { class_type: "KSampler", inputs: { model: ["5", 0], seed, steps: a.steps, cfg: recipe.cfg, sampler_name: a.sampler, scheduler: a.scheduler, positive: [k("p"), 0], negative: [k("n"), 0], latent_image: [k("l"), 0], denoise: 1.0 } },
       [k("d")]: { class_type: "VAEDecode", inputs: { samples: [k("k"), 0], vae: ["3", 0] } },
       [k("o")]: { class_type: "SaveImage", inputs: { images: [k("d"), 0], filename_prefix: `snap_edits/${take.id}_f${frame}` }, _meta: { title: `frame ${frame}` } },
@@ -91,10 +94,12 @@ function paintAt(m, c, frames) {
 // each edit LoRA won on one seed), seeds vary. Returns at once; the candidates fill in as their paints finish (12-19 s a
 // frame on a 5090). A method that pins (Remake) pins each candidate at the frames it was painted from until the person
 // turns that off (SNAP-R51)
-export async function start(take, id = "relight", { example, change, who, becomes, frames, lighter = false, by = "person", count = 2 } = {}) {
+// A re-run (rerun.js, SNAP-R63) passes `rerun` (its swap, kept on the decision and the take's parent), `label` (the
+// swap's names for the title), `picture` (the new Cast's picture for the paint) and `world` (the pin the take carries)
+export async function start(take, id = "relight", { example, change, who, becomes, frames, lighter = false, by = "person", count = 2, rerun, label, picture, world } = {}) {
   const m = await method(id), c = clip(take);
   if (m.install_state !== "ready") throw new Error(`${m.title} ${m.install_state}`);
-  const values = asked(m, { example, change, who, becomes }), at = paintAt(m, c, frames), list = [];
+  const values = { ...asked(m, { example, change, who, becomes }), ...(label ? { label } : {}), ...(picture ? { picture } : {}) }, at = paintAt(m, c, frames), list = [];
   if (m.propagate.kind === "remake" && at.length > 4) throw new Error(`${m.title} takes up to 4 painted frames (Viggle Remake's ref_1..ref_4); ${at.length} asked`);
   for (let i = 0; i < count; i++) {
     const recipe = m.anchors.recipes[i % m.anchors.recipes.length], seed = Math.floor(Math.random() * 2 ** 32);
@@ -104,7 +109,7 @@ export async function start(take, id = "relight", { example, change, who, become
   }
   const { avoid, ...options } = values;
   const d = await C.create({ kind: "edit", target: take.id, title: `${m.title} (${values.label}) of take ${take.number}`, by, take: take.id, method: id,
-    options: { ...options, ...(lighter ? { lighter: true } : {}) }, clip: c }, list);
+    options: { ...options, ...(lighter ? { lighter: true } : {}), ...(rerun ? { rerun } : {}) }, clip: c, ...(world ? { world } : {}) }, list);
   return { decision: d.id, candidates: d.candidates.map((x) => ({ id: x.id, prompt_id: x.prompt_id, seed: x.seed, lora: x.made.lora, frames: x.frame, ...(x.pin ? { pin: true } : {}) })), seconds_each: 20 * at.length };
 }
 // "pin at frame N" on a candidate of a pinning method: on, its painted frames are placed at the frames they came from;
@@ -146,7 +151,7 @@ async function propagate(d, c) {
   const take = T.get(d.take), m = await method(d.method);
   if (!take) throw new Error(`The take ${d.take} isn't here any more`);
   const g = m.propagate.kind === "remake" ? await remakeGraph(d, c, m, take) : await rippleGraph(d, c, m, take);
-  const id = await K.queue(g, { group: take.group, extra: { snap_parent: { take: take.id, method: `${m.slot}/${d.method}`, options: d.options, decision: d.id, candidate: c.id } } });
+  const id = await K.queue(g, { group: take.group, world: d.world, extra: { snap_parent: { take: take.id, method: `${m.slot}/${d.method}`, options: d.options, decision: d.id, candidate: c.id } } });
   return { prompt_id: id, take: `take-${id}` };
 }
 // H3 Ripple (U53b graph: FL2VA + Ripple + 4-step turbo, the take as guide from frame 0, the painted frames at theirs)

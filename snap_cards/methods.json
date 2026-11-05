@@ -404,6 +404,7 @@
           { "lora": "chinoll_moss_image_edit_adapter.safetensors", "format": "ai-toolkit", "cfg": 5.0 }
         ],
         "prompt": "Replace {who} with a different person: {becomes}, standing in the same place and pose. Keep the place, everyone else, every object, the light and the composition unchanged.",
+        "identity_picture": "Picture 2 shows the new person: paint them with exactly the face, hair and clothes of Picture 2.",
         "negative": "worst quality, bad anatomy, watermark, jpeg artifact, two people in one place",
         "frames": "mid",
         "pin": true

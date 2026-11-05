@@ -29,9 +29,10 @@ export async function needs() {
 
 // an API prompt this page builds. A take is made only from a run queued under this page's client id (takes.js), into
 // the take group `group` names (the workflow id it carries); any other client id keeps a run out of the takes. `extra`
-// goes into extra_data (takes.js reads snap_parent from there)
-export async function queue(prompt, { group, client = api.clientId, extra } = {}) {
-  const workflow = group || !MD.on() ? MD.mark({ ...(group ? { id: group } : {}), nodes: [], links: [], extra: {} }) : null; // SNAP-R20: metadata off reaches these saves too
+// goes into extra_data (takes.js reads snap_parent from there); `world` is the record pins the take will carry (a re-run's
+// recast pins the Cast it painted in, SNAP-R63)
+export async function queue(prompt, { group, client = api.clientId, extra, world } = {}) {
+  const workflow = group || !MD.on() ? MD.mark({ ...(group ? { id: group } : {}), nodes: [], links: [], extra: world ? { snap: { world } } : {} }) : null; // SNAP-R20: metadata off reaches these saves too
   const r = await api.fetchApi("/prompt", { method: "POST", body: JSON.stringify({ client_id: client, prompt,
     extra_data: { ...extra, ...(workflow ? { extra_pnginfo: { workflow } } : {}) } }) });
   const out = await r.json();

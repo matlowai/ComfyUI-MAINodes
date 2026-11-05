@@ -6,18 +6,24 @@
 // through the record's own apply (library.swapPin, updatePin, applySet, useSetup), keeps the take's seed unless asked for
 // a new one, and queues it marked extra.snap.rerun, so the new take nests under the original as "Re-run · Kon → Mara".
 // A swap that changes nothing the prompt holds is said before the run: core would serve the take's own file.
+// Reuse the motion keeps the take itself as the motion source: a Cast swap is a recast (Viggle Remake, painted from the
+// new Cast's details line and, when it has one, its picture), a set, a scene's set or a card's words are a "Change
+// something" (Remake edit); a Setup or a shot card can't be done on the take's own motion, and it says so (Re-generate
+// does those). One swap starts one candidates decision; the others wait for the person's pick and are listed.
 // SNAP-R63 re-run with swaps · SNAP-R61 as it was / today's world · SNAP-R60 pins · SNAP-R24 where it lands · SNAP-R11
 // warn, never block · SNAP-R58 every choice listed in full · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
+import * as ED from "./edits.js";
 import * as L from "./library.js";
 import * as M from "./models.js";
 import * as RT from "./retake.js";
 import * as SC from "./scenes.js";
 import * as T from "./takes.js";
 import * as W from "./world.js";
+import { setBlock } from "./setsnap.js";
 
-export const ROUTES = ["regenerate"], SEEDS = RT.SEEDS;
+export const ROUTES = ["regenerate", "reuse_motion"], SEEDS = RT.SEEDS;
 // what a Cast version puts into a run: its lore, alias, rating and name don't reach the prompt
 const INTO_RUN = ["trigger", "details", "lora", "refs"];
 const recordName = (r) => (r.kind === "cast" ? W.headOf(r).body.name : L.nameOf(W.headOf(r).body));
@@ -119,11 +125,42 @@ async function put(s) {
   return s.latest ? L.updatePin(s.slot) : L.swapPin(s.slot, s.ref);
 }
 
+// how Reuse the motion does one swap on the take: {method, args, label, picture, world, rerun}, or {not_possible: why}
+export async function motionOf(take, s, who) {
+  const no = (why) => ({ slot: s.slot, text: s.text, not_possible: why, instead: "regenerate" });
+  if (s.slot === "setup") return no("Viggle Remake and Ripple run their own H3 model on the take, so another Setup can't apply: Re-generate does that");
+  const rerun = { slot: s.slot, to: s.ref ?? s.to, text: s.text }, base = { slot: s.slot, text: s.text, rerun, label: s.text };
+  if (s.slot === "scene") return { ...base, method: "remake_edit", args: { change: `the place to: ${setBlock(L.get(s.set).brick.snapshot)}` } };
+  const { kind, id } = W.parse(s.slot), was = W.get(W.refOf(kind, id, take.world[s.slot].n))?.version.body, now = W.get(s.ref).version.body;
+  if (kind === "set_snapshot") return { ...base, method: "remake_edit", args: { change: `the place to: ${setBlock(now.brick.snapshot)}` } };
+  if (kind === "card") return now.kind === "shot" ? no("a different shot is different motion: Re-generate does that") : { ...base, method: "remake_edit", args: { change: now.brick?.prompt_fragment ?? now.text } };
+  const pics = (b) => JSON.stringify((b?.refs ?? []).map((r) => r.file)), x = W.parse(s.ref);
+  if (x.id === id && pics(was) === pics(now)) return { ...base, method: "remake_edit", args: { change: `${now.name}'s look: ${now.details}` } }; // the same person in other words: a change, not a recast
+  const asWho = who?.trim() || was?.details;
+  if (!asWho) throw new Error(`who: say who in take ${take.number} ${now.name} replaces, in words ("the woman in the red coat") or as find_people numbers them ("person 2"): ${was?.name ?? s.slot} has no details line`);
+  const becomes = now.details || now.name, v = W.get(s.ref).version;
+  return { ...base, method: "remake_swap", args: { who: asWho, becomes }, ...(now.refs?.[0] ? { picture: now.refs[0].file } : {}),
+    world: { [W.refOf("cast", x.id)]: { follow: true, n: v.n, hash: W.short(v.hash), name: now.name, placed: { recast: true, text: becomes } } } };
+}
+
+// Reuse the motion: the first swap the take's own motion can do starts its candidates decision; the rest are listed
+async function reuse(take, asked, { count = 2, who, by = "person" }) {
+  const go = asked.filter((s) => !s.keep);
+  if (!go.length) throw new Error(`Reuse the motion needs a swap: name a Cast, set, scene or card for take ${take.number} (rerun_slots lists them)`);
+  const plan = await Promise.all(go.map((s) => motionOf(take, s, who))), can = plan.filter((p) => !p.not_possible), not_possible = plan.filter((p) => p.not_possible);
+  if (!can.length) return { take: take.id, route: "reuse_motion", decisions: [], not_possible, said: `Nothing here can reuse take ${take.number}'s motion: ${not_possible.map((p) => `${p.text}: ${p.not_possible}`).join("; ")}` };
+  const [first, ...waiting] = can, out = await ED.start(take, first.method, { ...first.args, count, by, rerun: first.rerun, label: first.label, picture: first.picture, world: first.world });
+  return { take: take.id, route: "reuse_motion", decisions: [{ decision: out.decision, method: first.method, ...first.args, ...(first.picture ? { picture: first.picture } : {}), candidates: out.candidates }],
+    ...(waiting.length ? { waiting: waiting.map((p) => ({ slot: p.slot, text: p.text, method: p.method, after: "apply a candidate, then re-run the new take with this swap" })) } : {}), ...(not_possible.length ? { not_possible } : {}),
+    next: "list_candidates (look at each painted frame), then apply_candidate", said: `Take ${take.number}'s motion with ${first.text}: ${count} painted candidate${count === 1 ? "" : "s"} to pick from${waiting.length ? `; then ${waiting.map((p) => p.text).join(", ")}` : ""}${not_possible.length ? `; not on its own motion: ${not_possible.map((p) => p.text).join(", ")} (Re-generate)` : ""}` };
+}
+
 // Re-generate: the take's recipe again with the swaps, the same seed unless `seed` is new; queue: false only opens it.
 // An opened file (opened()) runs in place, unmarked
-export async function rerun(take, { swaps = {}, route = "regenerate", seed = "same", land, queue: go = true } = {}) {
+export async function rerun(take, { swaps = {}, route = "regenerate", seed = "same", land, queue: go = true, count, who, by } = {}) {
   if (!ROUTES.includes(route)) throw new Error(`route is one of ${ROUTES.join(", ")}`);
   if (!SEEDS.includes(seed)) throw new Error(`seed is one of ${SEEDS.join(", ")}`);
+  if (route === "reuse_motion") { if (!take.id) throw new Error("Reuse the motion needs a take (its video is the motion): this file isn't one here"); return reuse(take, await resolve(take, swaps), { count, who, by }); }
   if (!take.graph) throw new Error(`${named(take)} has no workflow saved with it`);
   const asked = await resolve(take, swaps), home = landing(land), where = take.id ? await RT.openTake(take, home) : "this tab", done = [];
   for (const s of asked.filter((x) => !x.keep)) done.push(await put(s));

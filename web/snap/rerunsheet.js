@@ -4,6 +4,8 @@
 // another record of its kind; the scene and the Setup say they are not records), and what the pick changes, field by
 // field, with the look warning. Re-generate runs exactly what the rerun tool runs (the same function); the seed stays the
 // take's unless the person picks a new one, and a pick that changes nothing the prompt holds says so before the press.
+// Reuse the motion (a take only) says per swap what it becomes on the take's own video (a recast painted from the new
+// Cast's details line and picture, a Change something) or why it can't (a Setup, a shot card: Re-generate does those).
 // An opened file keeps Run as it was / Run with today's world / Edit then run (each pinned version opens in its editor).
 // SNAP-R63 re-run swaps any reference · SNAP-R61 as it was, today's world, edited · SNAP-R60 pins · SNAP-R5 nothing changes
 // until a press · SNAP-R11 warn, never block · see docs/SNAP_RULES.md
@@ -31,20 +33,25 @@ export async function openRerunSheet(host, { take, name, say, edit }) {
   await W.load();
   const subject = take ?? RR.opened(name), file = !take, slots = await RR.slots(subject);
   const moved = new Map((await R.differs(subject.world)).map((m) => [m.ref, m])), chosen = {};
-  const status = h("div", { className: "snap-quiet", role: "status" }), route = h("p", { className: "snap-quiet snap-rerun-route" }), cache = h("div", { className: "snap-world-warn", hidden: true });
+  const status = h("div", { className: "snap-quiet", role: "status" }), route = h("p", { className: "snap-quiet snap-rerun-route" }), motion = h("p", { className: "snap-quiet snap-rerun-route", hidden: file }), cache = h("div", { className: "snap-world-warn", hidden: true });
   const close = () => { sheet.remove(); host.focus({ preventScroll: true }); };
   const seed = h("select", { className: "snap-rerun-seed", ariaLabel: "seed" }, option(["same", "same seed (closest motion)"]), option(["new", "new seed"]));
   const home = take && R.shotOf(take);
   const land = take ? h("select", { className: "snap-rerun-land", ariaLabel: "where the new take lands" }, [["", home ? `lands in ${SC.shotTitle(home.scene, home.shot)} of ${home.scene.name}` : "lands in a new tab"], ["tab", "lands in a new scratch tab"],
     ...SC.all().flatMap((sc) => sc.shots.filter((x) => x !== home?.shot).map((x) => [JSON.stringify({ scene: sc.id, shot: x.id }), `lands in ${SC.shotTitle(sc, x)} of ${sc.name}`]))].map(option)) : null;
-  let editing = false, regen = null;
+  let editing = false, regen = null, reuse = null;
   const rows = h("div", { className: "snap-world-rows" });
   async function update() {
     const asked = await RR.resolve(subject, chosen).catch((err) => { status.textContent = err.message; return []; }), go = asked.filter((s) => !s.keep);
     route.textContent = `Re-generate: the same recipe${seed.value === "same" ? " and seed" : " with a new seed"}${go.length ? `, with ${go.map((s) => s.text).join(", ")}` : ", as it was"}. Similar motion, not the same.`;
     cache.textContent = !file && seed.value === "same" && !asked.some((s) => s.into_run) ? `Nothing the prompt holds changes: ComfyUI would serve take ${take.number}'s own file from its cache. Pick a new seed for a fresh render.` : "";
     cache.hidden = !cache.textContent;
-    if (file) regen.disabled = !go.length;
+    if (file) { regen.disabled = !go.length; return; }
+    const ways = await Promise.all(go.map((s) => RR.motionOf(take, s).catch((err) => ({ text: s.text, not_possible: err.message })))), first = ways.find((w) => !w.not_possible);
+    const named = (w) => (w.method === "remake_swap" ? `${w.text}: a recast (Viggle Remake), painted from the new Cast's details line${w.picture ? " and picture" : " (it has no picture)"}; its LoRA doesn't reach Remake` : `${w.text}: Change something (Viggle Remake edit)`);
+    motion.textContent = !go.length ? "Reuse the motion: pick a swap first; the take's own video stays the motion." : `Reuse the motion: take ${take.number}'s own video, ${[...ways.filter((w) => !w.not_possible).map(named), ...ways.filter((w) => w.not_possible).map((w) => `${w.text}: not on its own motion (${w.not_possible})`)].join("; ")}.${first ? " 2 painted candidates to pick from, then about 3 min." : ""}`;
+    reuse.disabled = !first;
+    reuse.title = first ? "paint the swap into the take's frames as candidates; the render waits for your pick" : "none of these swaps can use the take's own motion: Re-generate does them";
   }
   const row = (s) => {
     const m = moved.get(s.slot), pick = h("select", { className: "snap-rerun-pick", ariaLabel: `${s.name ?? s.slot}: re-run with` }, picks(s).map(option)), what = h("div", { className: "snap-rerun-what" });
@@ -71,6 +78,7 @@ export async function openRerunSheet(host, { take, name, say, edit }) {
   const today = Object.fromEntries([...moved.values()].filter((m) => !m.missing).map((m) => [m.ref, "latest"]));
   const runFile = (swaps) => async () => { try { const r = await RR.rerun(subject, { swaps }); say?.(r.said); close(); } catch (err) { status.textContent = err.message; } };
   const anyMoved = Object.keys(today).length > 0, anyMissing = [...moved.values()].some((m) => m.missing), pins = Object.keys(subject.world).length;
+  reuse = take ? h("button", { className: "snap-link", textContent: "Reuse the motion", disabled: true, onclick: async () => { try { const r = await RR.rerun(take, { swaps: chosen, route: "reuse_motion" }); say?.(r.said); close(); } catch (err) { status.textContent = err.message; } } }) : null;
   regen = h("button", { className: file ? "snap-link" : "snap-primary", textContent: file ? "Run with these swaps" : "Re-generate", title: "the recipe again with the picks above (the rerun tool does the same)", onclick: go({}) });
   const sheet = h("div", { className: `snap-sheet snap-setup-sheet snap-rerun-sheet${file ? " snap-opened-sheet" : ""}`, role: "dialog", ariaLabel: file ? "Opened file" : `Re-run take ${take.number}` },
     h("header", {}, h("strong", { textContent: file ? `${name}: made with ${pins} record${pins === 1 ? "" : "s"}` : `Re-run take ${take.number} with swaps` }), h("span", { className: "snap-spacer" }),
@@ -78,12 +86,12 @@ export async function openRerunSheet(host, { take, name, say, edit }) {
     h("div", { className: "snap-opened-body" },
       h("p", { className: "snap-quiet", textContent: file ? (anyMoved ? "Some of what this file used has newer versions. Run it exactly as it was, with today's versions, or open the old ones to change first." : anyMissing ? "Some of what this file used isn't in your records any more; it still runs as the file holds it." : "Everything this file used is still at the same version: it runs as it was.")
         : "Swap any of what this take used: another version, another character or set, another scene's set, another setup. Re-generate rebuilds the recipe with your picks." }),
-      rows, route, cache,
+      rows, route, cache, motion,
       file ? h("div", { className: "snap-set-actions" },
         h("button", { className: "snap-primary", textContent: "Run as it was", title: "the workflow as the file holds it, seed included", onclick: runFile({}) }),
         h("button", { className: "snap-link", textContent: "Run with today's world", disabled: !anyMoved, title: anyMoved ? "each record with a newer version is updated in the recipe first" : "nothing has a newer version", onclick: runFile(today) }),
         h("button", { className: "snap-link", textContent: "Edit then run", title: "open the versions this file used, change them, then run", onclick: () => { editing = !editing; draw(); } })) : null,
-      h("div", { className: "snap-rerun-actions" }, land, seed, regen,
+      h("div", { className: "snap-rerun-actions" }, land, seed, regen, reuse,
         h("button", { className: "snap-link", textContent: "Preview the recipe", title: "open the recipe with the picks applied; nothing is queued", onclick: go({ queue: false }) })),
       status));
   seed.onchange = update;
