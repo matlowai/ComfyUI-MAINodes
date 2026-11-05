@@ -2,7 +2,7 @@
 // resumes where it stopped; reopened later it asks only what's new ("add a capability"). It ends on the kit: one
 // recommended setup and a fast option per intent with their evidence, what's missing with exact downloads to run, and
 // "Open in new tabs". It calls onboarding.js, as the agent tools do (SNAP-R19).
-// SNAP-R5 new tabs · SNAP-R18 Snap never downloads · SNAP-R20 the metadata switch · SNAP-R25 onboarding ·
+// SNAP-R5 new tabs · SNAP-R18 Snap never downloads · SNAP-R20 the metadata switch · SNAP-R25 onboarding · SNAP-R53 no link, bring your own ·
 // SNAP-R28 agents read new code per the person's setting · SNAP-R34 no SFW question under a cap below Adult ·
 // see docs/SNAP_RULES.md
 import * as OB from "./onboarding.js";
@@ -129,14 +129,17 @@ export async function openOnboarding(host, { say, onOpened, start }) {
       r.cost ? h("span", { className: "snap-quiet", textContent: r.cost }) : null);
   }
   function downloads(w) {
-    if (!w.files.length && !w.packs.length) return h("p", { className: "snap-quiet", textContent: "Everything these setups need is here." });
+    const own = (w.optional ?? []).filter((x) => x.file); // SNAP-R53: files with no public download, to bring yourself
+    if (!w.files.length && !w.packs.length && !own.length) return h("p", { className: "snap-quiet", textContent: "Everything these setups need is here." });
     return h("section", { className: "snap-ob-downloads" },
       h("button", { className: "snap-link", textContent: `${showDownloads ? "▾" : "▸"} To finish: ${[w.files.length && `${w.files.length} file${w.files.length > 1 ? "s" : ""} · ${w.total_gb} GB`, w.packs.length && `${w.packs.length} node pack${w.packs.length > 1 ? "s" : ""}`].filter(Boolean).join(" · ")}`, onclick: () => { showDownloads = !showDownloads; draw(); } }),
       h("p", { className: "snap-quiet", textContent: "Snap never downloads. Run these yourself, or ask your agent (propose_downloads)." }),
       showDownloads ? h("div", { className: "snap-ob-dl" },
         w.files.map((f) => h("div", { className: "snap-ob-dl-row" }, h("strong", { textContent: f.file }),
-          h("span", { className: "snap-quiet", textContent: [f.size_gb != null && `${f.size_gb} GB`, !f.command && f.target && `goes in ${f.target}`, `license: ${f.license ?? "see the source"}`].filter(Boolean).join(" · ") }),
-          f.command ? h("code", { textContent: f.command }) : h("span", { className: "snap-quiet", textContent: `${f.why}${f.source ? `: ${f.source}` : ""}` }))),
+          h("span", { className: "snap-quiet", textContent: [f.size_gb != null && `${f.size_gb} GB`, `license: ${f.license ?? "see the source"}`].filter(Boolean).join(" · ") }),
+          h("code", { textContent: f.command }))),
+        own.map((f) => h("div", { className: "snap-ob-dl-row" }, h("strong", { textContent: f.file }),
+          h("span", { className: "snap-quiet", textContent: `optional · ${f.why} · for ${f.for.join(", ")}` }))),
         w.packs.map((x) => h("div", { className: "snap-ob-dl-row" }, h("strong", { textContent: `${x.title} (${x.author}, ${x.license})` }),
           h("span", { className: "snap-quiet", textContent: `${x.unlocks} · checked ${x.checked.date}: ${[x.safety.network_at_import ? "network at import" : "no network at import", x.safety.pickles ? "loads pickles" : "no pickles", x.safety.auto_downloads ? `auto-download: ${x.safety.auto_downloads}` : "no auto-downloads"].join(" · ")} · ${x.review === "required" ? "your agent reads its code first" : "code read skipped (your setting)"}` }),
           h("code", { textContent: `${x.command}   # then ${x.then}` })))) : null);
