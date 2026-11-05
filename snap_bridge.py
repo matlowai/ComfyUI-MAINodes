@@ -11,6 +11,7 @@ SNAP-R37 privacy per install · SNAP-R38 metadata off writes none, the rest is n
 was made · see docs/SNAP_RULES.md"""
 import asyncio
 import hashlib
+import itertools
 import json
 import logging
 import os
@@ -33,6 +34,7 @@ from comfy.cli_args import args
 import folder_paths
 import nodes
 from comfy_api.latest import InputImpl, io
+from comfy_execution.progress import get_progress_state
 from comfy_execution.utils import get_executing_context
 from comfy_extras.nodes_video import SaveVideo
 from server import PromptServer
@@ -185,6 +187,112 @@ async def result(request):
         pages.get(client, {})["answered"] = time.time()
         future.set_result({k: body[k] for k in ("result", "error") if k in body})
     return web.json_response({})
+
+
+# The Work card's sources (SNAP-R65): every job on the queue and in the history, each with its Snap job stamp, read in one
+# pass without copying prompts or workflows; and the running prompt's per-node progress, so a page that didn't queue it
+# (another tab, an agent's page) shows a percentage too. Read-only: core's routing is not patched.
+def job_row(prompt_id, extra, state, history=None):
+    row = {"id": prompt_id, "state": state, "job": extra.get("snap_job"), "client": extra.get("client_id"), "user": extra.get("snap_user")}
+    if history is None:
+        return row
+    status = history.get("status") or {}
+    for name, data in status.get("messages") or []:
+        if name == "execution_start":
+            row["started"] = data.get("timestamp")
+        elif name in ("execution_success", "execution_error", "execution_interrupted"):
+            row["finished"] = data.get("timestamp")
+            if name == "execution_error":
+                row["error"] = {k: data.get(k) for k in ("node_id", "node_type", "exception_type", "exception_message", "traceback")}
+            if name == "execution_interrupted":
+                row["state"] = "interrupted"
+    row["state"] = row["state"] if row["state"] == "interrupted" else ("success" if status.get("status_str") == "success" else "error" if status.get("status_str") == "error" else "done")
+    row["outputs"] = [{"node": node, "filename": f["filename"], "subfolder": f.get("subfolder", ""), "type": f.get("type", "output")}
+                      for node, out in (history.get("outputs") or {}).items() for v in out.values() if isinstance(v, list) for f in v if isinstance(f, dict) and f.get("filename")]
+    return row
+
+
+@routes.get("/mainodes/snap/jobs")
+async def jobs(request):
+    """The queue (running, then pending in order) and every history entry that finished at or after `since` (ms since
+    the epoch; default the last 24 hours), as rows {id, state, job, client, user, started, finished, error, outputs}.
+    Nothing is left out by count (SNAP-R58); `since` is the only window and the answer names it."""
+    since = float(request.query.get("since", time.time() * 1000 - 86400000))
+    q = PromptServer.instance.prompt_queue
+    running, pending = q.get_current_queue_volatile()
+    done = q.get_history(map_function=lambda h: job_row(h["prompt"][1], h["prompt"][3], "done", h))
+    rows = [job_row(i[1], i[3], "running") for i in running] + [job_row(i[1], i[3], "queued") for i in sorted(pending, key=lambda i: i[0])]
+    rows += [r for r in done.values() if (r.get("finished") or r.get("started") or 0) >= since]
+    return web.json_response({"since": since, "rows": rows, "count": len(rows)})
+
+
+@routes.get("/mainodes/snap/progress")
+async def progress(request):
+    """The running prompt's nodes as core tracks them: {prompt_id, nodes: {id: {state, value, max}}}; empty when idle."""
+    reg, running = get_progress_state(), PromptServer.instance.prompt_queue.get_current_queue_volatile()[0]
+    if not running or reg.prompt_id not in [i[1] for i in running]:
+        return web.json_response({"prompt_id": None, "nodes": {}})
+    return web.json_response({"prompt_id": reg.prompt_id, "nodes": {k: {"state": v["state"].value, "value": v["value"], "max": v["max"]} for k, v in reg.nodes.items()}})
+
+
+# An agent's own headless page (tools/snap_agent_page.sh) has nobody to press "Let agents see", so its screenshot comes
+# from Chrome's DevTools on this machine: the launcher tells the bridge its page's debugging port, and the page asks for
+# a picture of itself, found among that Chrome's pages by its own client id (anime dogfood F-A01). Local only (SNAP-R18):
+# 127.0.0.1 ports the launcher started; a person's tab is never captured this way.
+cdp_ports = set()
+
+
+@routes.post("/mainodes/snap/agent_page")
+async def agent_page(request):
+    body = await request.json()
+    port = body.get("cdp")
+    if not isinstance(port, int) or not 0 < port < 65536:
+        return error(f"cdp must be the page's Chrome debugging port (a number), not {port!r}")
+    cdp_ports.add(port)
+    return web.json_response({"cdp": sorted(cdp_ports)})
+
+
+cdp_ids = itertools.count(1)
+
+
+async def cdp(ws, method, params=None):
+    n = next(cdp_ids)
+    await ws.send_json({"id": n, "method": method, "params": params or {}})
+    async for msg in ws:
+        out = json.loads(msg.data)
+        if out.get("id") == n:
+            if "error" in out:
+                raise RuntimeError(f"{method}: {out['error'].get('message')}")
+            return out["result"]
+    raise RuntimeError(f"{method}: Chrome closed the connection")
+
+
+@routes.post("/mainodes/snap/page_shot")
+async def page_shot(request):
+    """A picture of the calling agent page as Chrome renders it: {mimeType, data (base64 JPEG), width, height}."""
+    body = await request.json()
+    client, width = body.get("client"), int(body.get("max_width") or 1600)
+    if client not in pages or not pages[client]["headless"]:
+        return error("Only an agent's own headless page can be captured this way; a person's tab shares itself with 'Let agents see'.", 403)
+    tried = []
+    async with aiohttp.ClientSession() as session:
+        for port in sorted(cdp_ports):
+            try:
+                targets = await (await session.get(f"http://127.0.0.1:{port}/json/list", timeout=aiohttp.ClientTimeout(total=5))).json()
+            except (aiohttp.ClientError, TimeoutError) as e:
+                tried.append(f"{port}: {e.__class__.__name__}")
+                continue
+            for t in [t for t in targets if t.get("type") == "page"]:
+                async with session.ws_connect(t["webSocketDebuggerUrl"], max_msg_size=0) as ws:
+                    found = await cdp(ws, "Runtime.evaluate", {"expression": "sessionStorage.getItem('clientId')", "returnByValue": True})
+                    if found.get("result", {}).get("value") != client:
+                        continue
+                    size = (await cdp(ws, "Page.getLayoutMetrics"))["cssVisualViewport"]
+                    k = min(1.0, width / size["clientWidth"])
+                    shot = await cdp(ws, "Page.captureScreenshot", {"format": "jpeg", "quality": 85, "clip": {"x": 0, "y": 0, "width": size["clientWidth"], "height": size["clientHeight"], "scale": k}})
+                    return web.json_response({"mimeType": "image/jpeg", "data": shot["data"], "width": round(size["clientWidth"] * k), "height": round(size["clientHeight"] * k)})
+    return error("This page's Chrome isn't one snap_agent_page.sh started on this machine (no DevTools port knows it"
+                 + (f"; ports tried: {', '.join(tried)}" if tried else "") + "). Start your page with tools/snap_agent_page.sh, or use take_frames and read_ui.", 404)
 
 
 CARDS = Path(__file__).parent / "snap_cards"

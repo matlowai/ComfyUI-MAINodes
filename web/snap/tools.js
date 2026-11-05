@@ -41,6 +41,7 @@ import * as W from "./world.js";
 import * as RT from "./retake.js";
 import * as RR from "./rerun.js";
 import * as J from "./jobs.js";
+import * as A from "./activity.js";
 import { api } from "../../../scripts/api.js";
 
 // a widget as an agent reads it: value, kind, every choice, limits, and whether a wire drives it
@@ -56,7 +57,7 @@ const brickOf = (id) => E.state().bricks.find((b) => Object.values(b.nodes).some
 // runs (GPU time) wait for the person unless they let agents run in ComfyUI's settings
 export const AGENTS_RUN = "MAINodes.Snap.AgentsMayRun";
 const mayRun = () => app.extensionManager.setting.get(AGENTS_RUN) === true;
-const agents = () => ({ run: mayRun(), see: sight.sharing(), ...(sight.HEADLESS ? { page: "headless (an agent's own): screenshot can't see it, take_frames can" } : {}) });
+const agents = () => ({ run: mayRun(), see: sight.HEADLESS || sight.sharing(), ...(sight.HEADLESS ? { page: "headless (an agent's own): screenshot shows it (Chrome renders it for the bridge)" } : {}) });
 const WAIT_S = 25; // run_status waits at most this long: a bridge call ends after 30 s
 
 const has = (key) => E.state().bricks.some((b) => b.key === key);
@@ -241,7 +242,7 @@ export const TOOLS = [
   },
   {
     name: "set_agent_permissions",
-    description: "Set what the person told you about agents here, live (no reload): run true lets your run, preview and make_dial start right away instead of waiting as proposals (ComfyUI's setting Settings › MAINodes › Snap › Agents run); see true shares their tab with screenshot ('Let agents see' in Snap's top bar), false stops it. The browser shares a tab only after a person's press, so when see can't start it says what to ask them; a headless agent page has no tab to share (use take_frames). Set only what the person said; get_profile shows both.",
+    description: "Set what the person told you about agents here, live (no reload): run true lets your run, preview and make_dial start right away instead of waiting as proposals (ComfyUI's setting Settings › MAINodes › Snap › Agents run); see true shares their tab with screenshot ('Let agents see' in Snap's top bar), false stops it. The browser shares a tab only after a person's press, so when see can't start it says what to ask them; a headless agent page needs no share: its screenshot works at once. Set only what the person said; get_profile shows both.",
     inputSchema: { type: "object", properties: { run: { type: "boolean" }, see: { type: "boolean" } } },
     direct: true, // the person's own switches, set as they said: not an edit of the recipe
     run: async ({ run, see }) => {
@@ -750,11 +751,11 @@ export const TOOLS = [
   },
   {
     name: "run_status",
-    description: "Where runs stand: per run (the one given, else this page's last three, newest first) state queued | running | done | failed, and when done its take id and output files (path on this machine, url) and metadata_kept (nodes that wrote metadata while Save metadata was off: tell the person); when failed, the error. wait_s (up to 25 s; a call ends after 30 s) waits for that run, or the newest, to finish first, so call it again until done. Also the queue counts, the brick running now and its progress, and the newest take of this workflow.",
+    description: "Where runs stand: per run (the one given, else every run this page queued, newest first) state queued | running | done | failed, and when done its take id and output files (path on this machine, url) and metadata_kept (nodes that wrote metadata while Save metadata was off: tell the person); when failed, the error. wait_s (up to 25 s; a call ends after 30 s) waits for that run, or the newest, to finish first, so call it again until done. Also the queue counts, the brick running now and its progress, and the newest take of this workflow.",
     inputSchema: { type: "object", properties: { run: { type: "string", description: "a run id from run" }, wait_s: { type: "number", minimum: 0, description: "wait up to this many seconds (at most 25) for the run to finish" } } },
     annotations: { readOnlyHint: true },
     run: async ({ run, wait_s = 0 } = {}) => {
-      const ids = run ? [run] : T.runs().slice(-3).map((r) => r.id).reverse(), until = Date.now() + Math.min(wait_s, WAIT_S) * 1000;
+      const ids = run ? [run] : T.runs().map((r) => r.id).reverse(), until = Date.now() + Math.min(wait_s, WAIT_S) * 1000;
       let runs = await Promise.all(ids.map(T.runState));
       while (runs.length && !["done", "failed", "unknown"].includes(runs[0].state) && Date.now() < until) {
         await new Promise((r) => setTimeout(r, 1000));
@@ -875,10 +876,10 @@ export const TOOLS = [
   },
   {
     name: "screenshot",
-    description: "What the person sees in this tab right now, as an image (the Snap view or the graph, videos and all). Works once they have pressed 'Let agents see' in Snap's top bar (it shares only this tab); otherwise it says so.",
+    description: "What this page shows right now, as an image (the Snap view or the graph, videos and all). On a person's tab it works once they have pressed 'Let agents see' in Snap's top bar (it shares only this tab); otherwise it says so. On an agent's own headless page (tools/snap_agent_page.sh) it works at once: Chrome renders it for the bridge, no gesture needed.",
     inputSchema: { type: "object", properties: { max_width: { type: "integer", minimum: 320, maximum: 3840 } } },
     annotations: { readOnlyHint: true },
-    run: ({ max_width } = {}) => ({ image: sight.frame(max_width) }),
+    run: async ({ max_width } = {}) => ({ image: sight.HEADLESS ? await sight.self(max_width) : sight.frame(max_width) }),
   },
   {
     name: "start_recipe",
@@ -1138,6 +1139,40 @@ export const TOOLS = [
     description: "Move a shot to another place in its scene's order (to: 0 = first).",
     inputSchema: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" }, to: { type: "integer", minimum: 0 } }, required: ["scene", "shot", "to"] },
     run: async ({ scene, shot, to }) => SC.moveShot(scene, shot, to),
+  },
+  {
+    name: "list_activity",
+    description: "The Work card: every job Snap or an agent started on this server, read back from the server's own queue and history (so it survives reloads and covers other tabs and agent pages), whole: renders, re-takes, re-runs and batches, edits/recasts and their candidates, plates, extends, louder versions, checks, Make a dial, proposals and blind pairs waiting for the person, refusals at queue. Each row: id (a prompt id, d:<decision>, p:<proposal>), kind, title (the job's question), by (person | agent), owner (you | agents | others), state (queued | running | checking | waiting | done | failed | gone), zone (in_flight | landed | parked | closed: In flight = queued, running, checking, failed, gone; Landed, unjudged = waiting for the person, or done and not opened yet; Parked = the person parked it; closed = done and opened), where, about (take, group, scene, shot, decision, candidate, set, camera, slot), progress (running: nodes, finished, node, value, max), ahead (queued: prompts before it), eta_s and eta (\"no estimate yet\" when nothing was measured), started_at / finished_at (ms), error (the server's own text, whole), result (take, applied candidate). Filters (all optional): zone, state, kind, by, about (any id it is about); offset and limit page explicitly, nothing is cut otherwise. Wait for one job with wait_for instead of polling this or reading JSON files.",
+    inputSchema: { type: "object", properties: { zone: { type: "string", enum: A.ZONES }, state: { type: "string", enum: A.STATES }, kind: { type: "string" }, by: { type: "string", enum: ["person", "agent"] }, about: { type: "string", description: "a take, decision, set, scene or shot id the job is about" },
+      offset: { type: "integer", minimum: 0 }, limit: { type: "integer", minimum: 1 } } },
+    annotations: { readOnlyHint: true },
+    run: (args) => A.list(args),
+  },
+  {
+    name: "list_docket",
+    description: "The docket: the jobs waiting for the person (candidates to pick, proposals to accept, blind pairs to judge). The same rows as list_activity {state: \"waiting\"}.",
+    inputSchema: { type: "object", properties: { offset: { type: "integer", minimum: 0 }, limit: { type: "integer", minimum: 1 } } },
+    annotations: { readOnlyHint: true },
+    run: (args) => A.list({ ...args, state: "waiting" }),
+  },
+  {
+    name: "wait_for",
+    description: "Wait (up to wait_s, at most 25 s: a call ends after 30 s) until one job reaches `until`, then return its Work card row. job: a run id (from run, retake, rerun, make_louder, edit_take's Apply), a decision id (edit_take, make_set_plates, rerun batches) or a row id from list_activity. until: settled (default: no longer queued, running or checking), done, waiting (candidates ready for a pick), failed. The answer says reached: true or false; when false, call it again.",
+    inputSchema: { type: "object", properties: { job: { type: "string" }, until: { type: "string", enum: ["settled", "done", "waiting", "failed"] }, wait_s: { type: "number", minimum: 0 } }, required: ["job"] },
+    annotations: { readOnlyHint: true },
+    run: async ({ job, until = "settled", wait_s = WAIT_S }) => {
+      const end = Date.now() + Math.min(wait_s, WAIT_S) * 1000, hit = (r) => r && (until === "settled" ? !["queued", "running", "checking"].includes(r.state) : r.state === until);
+      let r;
+      for (;;) {
+        await A.reconcile();
+        r = A.get(job);
+        if (hit(r) || Date.now() >= end) break;
+        await new Promise((ok) => setTimeout(ok, 1000));
+      }
+      if (!r) throw new Error(`No job ${job} on the Work card (list_activity lists them; a run's id comes from run)`);
+      const { retry, client, ...row } = r;
+      return { reached: !!hit(r), until, row, ...(wait_s > WAIT_S ? { wait_s: `waited ${WAIT_S} s at most (a call ends after 30 s): call again` } : {}) };
+    },
   },
   {
     name: "list_proposals",

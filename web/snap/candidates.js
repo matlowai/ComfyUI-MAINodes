@@ -31,6 +31,21 @@ export function load() {
   return loading;
 }
 export const all = () => decisions;
+// read the folder again: a decision another tab or page wrote joins the list, one it changed since is updated in place
+export async function reload() {
+  await load();
+  const files = (await api.listUserDataFullInfo(DIR)).filter((f) => f.path.endsWith(".json"));
+  let moved = false;
+  for (const f of files) {
+    const mine = get(f.path.replace(/\.json$/, ""));
+    if (mine && f.modified <= (mine.updated ?? 0)) continue;
+    const r = await api.getUserData(`${DIR}/${f.path}`), read = r.ok ? await r.json() : null;
+    if (!read || (mine && (read.updated ?? 0) <= (mine.updated ?? 0))) continue;
+    if (mine) Object.assign(mine, read); else decisions.push(read);
+    moved = true;
+  }
+  if (moved) { decisions.sort((a, b) => a.created - b.created); changed(); }
+}
 export const get = (id) => decisions.find((d) => d.id === id);
 // the newest decision about one thing (a set's camera, a take): open ones first
 export const about = (kind, target) => decisions.filter((d) => d.kind === kind && d.target === target).sort((a, b) => (a.status === "open") - (b.status === "open") || a.created - b.created).at(-1) ?? null;
@@ -122,9 +137,8 @@ export async function settle() {
     } catch (e) { console.warn(`candidate ${d.id}/${c.id}: ${e.message}`); } finally { finishing.delete(c.prompt_id); }
   }
 }
-// this page's own renders send events; renders queued under another client id don't, so poll while any is rendering
+// this page's own renders send events; another page's are read when the Work card reconciles (activity.js, SNAP-R65)
 for (const ev of ["execution_success", "execution_error", "execution_interrupted"]) api.addEventListener(ev, () => { settle().catch(() => {}); });
-setInterval(() => { if (decisions.some(rendering)) settle().catch(() => {}); }, 3000);
 load().catch(() => {}); // a reload picks up decisions still rendering
 
 // a picture's file as an agent names it: output/<subfolder>/<name> (U72 F28)

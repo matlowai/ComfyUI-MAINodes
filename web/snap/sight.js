@@ -1,10 +1,11 @@
 // "Let agents see this tab": one click shares the tab (screen capture of the current tab only), and the `screenshot`
 // tool then returns what the person sees, pixels and all (the graph canvas, videos, the Snap view). Nothing is recorded
 // or sent anywhere: a frame is taken only when a tool asks, and stopping the share (or closing the tab) ends it.
+import { api } from "../../../scripts/api.js";
 let stream = null, video = null;
 // an agent's own headless page: nobody is there to press the button, so it never shares
 export const HEADLESS = /HeadlessChrome/.test(navigator.userAgent);
-export const HEADLESS_NOTE = "This is a headless page (an agent's own): nobody can press 'Let agents see' here. Use take_frames to look at takes, and read_ui / describe_recipe for the view";
+export const HEADLESS_NOTE = "This is a headless page (an agent's own): nobody presses 'Let agents see' here, and none is needed: screenshot shows this page as Chrome renders it";
 const listeners = new Set();
 export const onChange = (fn) => listeners.add(fn);
 export const sharing = () => !!stream;
@@ -21,6 +22,15 @@ export function stop() {
   stream?.getTracks().forEach((t) => t.stop());
   stream = video = null;
   for (const fn of listeners) fn();
+}
+
+// an agent's own headless page, as its Chrome renders it: the bridge asks that Chrome's DevTools (snap_agent_page.sh
+// opened it on this machine) for a picture of this page, found by its client id (anime dogfood F-A01)
+export async function self(maxWidth = 1600) {
+  const r = await api.fetchApi("/mainodes/snap/page_shot", { method: "POST", body: JSON.stringify({ client: api.clientId, max_width: maxWidth }) });
+  const out = await r.json();
+  if (!r.ok) throw new Error(out.error);
+  return out;
 }
 
 // the current frame as a JPEG, at most `maxWidth` wide

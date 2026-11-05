@@ -69,6 +69,22 @@ function remark() {
 api.addEventListener("reconnected", () => { if (loading) remark(); });
 
 export const all = () => takes;
+// read the folder again: a take another tab or page wrote joins the list, one it changed since is updated in place (the
+// objects open views hold stay the same)
+export async function reload() {
+  await load();
+  const files = (await api.listUserDataFullInfo(DIR)).filter((f) => f.path.endsWith(".json"));
+  let moved = false;
+  for (const f of files) {
+    const mine = get(f.path.replace(/\.json$/, ""));
+    if (mine && f.modified <= (mine.updated ?? 0)) continue;
+    const read = await readJson(`${DIR}/${f.path}`, null);
+    if (!read || (mine && (read.updated ?? 0) <= (mine.updated ?? 0))) continue;
+    if (mine) Object.assign(mine, read); else takes.push(read);
+    moved = true;
+  }
+  if (moved) { takes.sort((a, b) => a.created - b.created); changed(); }
+}
 // private by its saved mark, by the rules now, or as a version of a private take (SNAP-R27): what the lock shows and the
 // export leaves out
 // SNAP-R37: no lock at all on an install with privacy off, whatever a take recorded when it ran
@@ -213,6 +229,17 @@ const retaken = (graph) => { const r = graph?.extra?.snap?.retake, x = graph?.ex
   return r?.take ? { take: r.take, method: "retake", options: { world: r.world, seed: r.seed } } : null; };
 
 const saving = new Set(); // runs whose take is being written
+// this page's runs that finished while it was reloading (the Work card's rows from the server, SNAP-R65): their events
+// went to the page before the reload, so their takes are written now, once
+export async function catchUp(rows) {
+  await load();
+  for (const r of rows) {
+    if (get(`take-${r.id}`) || running.has(r.id) || saving.has(r.id)) continue;
+    saving.add(r.id);
+    const status = r.state === "error" ? "error" : r.state === "interrupted" ? "interrupted" : "success";
+    try { await captureRun(r.id, r.started ?? Date.now(), status, r.error ? `${r.error.node_type ?? ""}: ${r.error.exception_message ?? ""}`.trim() : undefined, r.error?.node_id); } finally { saving.delete(r.id); }
+  }
+}
 async function capture(id, status, error, failedNode) {
   if (!id || !running.has(id)) return; // a run this page didn't start
   const started = running.get(id);

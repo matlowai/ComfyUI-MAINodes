@@ -6,6 +6,8 @@
 # When a Snap page of yours running the server's current code is already open, it says so and starts nothing (calls
 # already go there); a page running older code doesn't count; --new starts another anyway. The page reaches only this machine and the ComfyUI host: other host names don't resolve.
 # The page gets no pointer or key input, so it never uses the person's one-time onboarding (SNAP-R29).
+# Its Chrome listens for DevTools on a free 127.0.0.1 port, which it tells the bridge, so `screenshot` on this page
+# returns a picture of it with no gesture (anime dogfood F-A01); nothing outside this machine can reach that port.
 # usage: snap_agent_page.sh [port or base URL, default 8188] [page URL, default <base>/?snap] [--new]
 #        snap_agent_page.sh [port or base URL] --stop
 #   e.g. snap_agent_page.sh 8188
@@ -55,8 +57,9 @@ fi
 chrome=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)
 [ -n "$chrome" ] || { echo "No Chrome or Chromium found on PATH." >&2; exit 1; }
 profile=$(mktemp -d "${TMPDIR:-/tmp}/snap-agent-chrome.XXXXXX")
+cdp=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')
 setsid "$chrome" --headless=new --no-first-run --no-default-browser-check \
-  --user-data-dir="$profile" --window-size=1600,1000 \
+  --user-data-dir="$profile" --window-size=1600,1000 --remote-debugging-port="$cdp" \
   --host-resolver-rules="MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE localhost, EXCLUDE $host" \
   --auto-accept-this-tab-capture --enable-features=WebMCP \
   "$url" >"$profile/chrome.log" 2>&1 </dev/null &
@@ -67,6 +70,7 @@ for _ in $(seq 90); do
   kill -0 $pid 2>/dev/null || { echo "Chrome exited before the page registered; its log: $profile/chrome.log" >&2; tail -5 "$profile/chrome.log" >&2; exit 1; }
   read -r now _ <<<"$(pages)"
   if [ "$now" -gt "$before" ]; then
+    curl -s --max-time 10 -o /dev/null "${auth[@]}" -X POST "$base/mainodes/snap/agent_page" -H 'Content-Type: application/json' -d "{\"cdp\": $cdp}"
     echo "Snap agent page is open on $base and registered (pid $pid, profile $profile). Calls go to it. Stop it with: $0 $where --stop"
     exit 0
   fi
