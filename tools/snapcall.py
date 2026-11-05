@@ -29,7 +29,7 @@ except urllib.error.HTTPError as e:  # the bridge answers errors as JSON too: pr
     try:
         out = json.loads(text)
     except ValueError:
-        out = {"error": f"ComfyUI answered {e.code}: {text[:300]}"}
+        out = {"error": f"ComfyUI answered {e.code}: {text}"}
 except urllib.error.URLError as e:
     sys.exit(json.dumps({"error": f"ComfyUI is not reachable at {base} ({e.reason})"}))
 result = out.get("result")

@@ -150,7 +150,8 @@ async def model_graph(request):
 
 # what a LoRA file says about itself, for an agent judging its kind (U84, SNAP-R55): Snap makes no LLM call, the agent is
 # the LLM. Header only: training tags (ss_*), base model, network dim / alpha and the rank its tensors have, trigger
-# words, modelspec and other text fields (each cut to 400 characters), the tags it was trained on (top 30), size, folder
+# words, modelspec and other text fields, the tags it was trained on (most frequent first), size, folder; nothing is cut
+# (SNAP-R58)
 BIG = {"ss_tag_frequency", "ss_dataset_dirs", "ss_bucket_info", "ss_datasets", "ss_reg_dataset_dirs"}
 
 
@@ -163,7 +164,7 @@ async def lora_info(request):
     found = snap_privacy.header(path)
     if found is None:
         return error(f"{name} has no safetensors header Snap can read")
-    meta = {k: str(v)[:400] for k, v in (found.get("__metadata__") or {}).items() if k not in BIG}
+    meta = {k: str(v) for k, v in (found.get("__metadata__") or {}).items() if k not in BIG}
     tags = {}
     try:
         for folder in json.loads(found.get("__metadata__", {}).get("ss_tag_frequency") or "{}").values():
@@ -176,7 +177,7 @@ async def lora_info(request):
     return web.json_response({
         "file": name, "folder": os.path.dirname(name.replace("\\", "/")) or None, "size_mb": round(os.path.getsize(path) / 1e6, 1),
         "training": {k: v for k, v in meta.items() if k.startswith("ss_")},
-        "trained_tags": [t for t, _ in sorted(tags.items(), key=lambda x: -x[1])[:30]],
+        "trained_tags": [t for t, _ in sorted(tags.items(), key=lambda x: -x[1])],
         "triggers": [v for k, v in meta.items() if k.lower().rsplit(".", 1)[-1] in snap_privacy.TRIGGER_KEYS],
         "modelspec": {k: v for k, v in meta.items() if k.startswith("modelspec.")},
         "other": {k: v for k, v in meta.items() if not k.startswith(("ss_", "modelspec."))},

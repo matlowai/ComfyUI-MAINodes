@@ -263,6 +263,14 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   the unknown-argument check (SNAP-R30), so it covers every tool, MCP and WebMCP alike. *Why:* U72 run 5 (Sonnet at low
   effort): `set_profile {intents: ["video_with_sound"]}` was saved silently, and the agent only noticed on a re-read.
   *More:* u72/FINDINGS.md F16, `web/snap/tools.js` (`checkArgs`).
+- **SNAP-R58: Results are never trimmed.** Every tool, route and client gives the whole answer: every LoRA and model
+  file in a list (with its count), every choice of a setting, every Library match, a take's whole prompt, a LoRA's full
+  metadata values and all the tags it was trained on, and error texts in full (`snap_mcp.py`, `snapcall.py`). A tool
+  that pages takes explicit arguments that default to all and says the full count; nothing is shortened silently. If a
+  result is too big for an agent's context, the agent saves it to a file and hands it to a subagent to break down and
+  report back (AGENT_START, Limits). Purely visual cuts in the page (a tooltip, a slug, a label on a brick) are not
+  results. *Why:* Dylan, 2026-11-04: "no limit ever"; "if a result exceeds context limits it needs to be passed to a
+  subagent to break down, analyze and report back". *More:* `web/snap/tools.js`, `snap_bridge.py`, `tools/`.
 - **SNAP-R36: Quiet sound is a note with two ways out, never a silent fix.** A video take's sound is read once at
   capture (ffmpeg volumedetect through `/mainodes/snap/loudness`; no ffmpeg, no note) and kept as `sound` (mean and max
   dB). Below -45 dB mean, the card says "sound is quiet" and the viewer offers two actions. "Make it louder" queues

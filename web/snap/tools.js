@@ -7,7 +7,7 @@
 // MCP, data URLs over WebMCP.
 // SNAP-R11 same warnings as the UI · SNAP-R15 one table, MCP + WebMCP · SNAP-R16 GPU tools wait as proposals ·
 // SNAP-R30 the agent front door: errors name the accepted arguments, runs report their state, lengths in seconds ·
-// SNAP-R52 a value outside an enum is refused naming the accepted values ·
+// SNAP-R52 a value outside an enum is refused naming the accepted values · SNAP-R58 results are never trimmed ·
 // SNAP-R31 a brick title names it in every family (render = the stills recipe's image) ·
 // SNAP-R17 by: agent · SNAP-R19 the tool table is the API · SNAP-R21 camera plates · SNAP-R23 candidates: the person's
 // pick waits as a proposal for agents · SNAP-R24 scenes own the work (the scene tools call scenes.js, as the navigator
@@ -38,12 +38,12 @@ import * as MD from "./metadata.js";
 import * as ACC from "./account.js";
 import { api } from "../../../scripts/api.js";
 
-// a widget as an agent reads it: value, kind, choices (cut to 50), limits, and whether a wire drives it
+// a widget as an agent reads it: value, kind, every choice, limits, and whether a wire drives it
 function widgetInfo(n, w) {
   const wired = n.inputs?.find((i) => i.widget?.name === w.name && i.link != null);
   const values = typeof w.options?.values === "function" ? w.options.values(w, n) : w.options?.values;
   return { name: w.name, label: w.label ?? w.name, kind: w.element ? "panel" : w.type, value: w.element || typeof w.value === "object" ? undefined : w.value,
-    ...(Array.isArray(values) ? { choices: values.length > 50 ? [...values.slice(0, 50), `… ${values.length - 50} more`] : values } : {}),
+    ...(Array.isArray(values) ? { choices: values } : {}),
     ...(w.options?.min != null ? { min: w.options.min } : {}), ...(w.options?.max != null ? { max: w.options.max } : {}),
     ...(wired ? { wired_from: app.graph.getNodeById(app.graph.links[wired.link]?.origin_id)?.title ?? "another node" } : {}) };
 }
@@ -104,9 +104,6 @@ async function models() {
     total_gb: +(M.total(list) / 1e9).toFixed(1), checks };
 }
 
-// what an agent reads back: long choice lists (model folders) are cut to the first 50
-const shown = (settings) => settings.map((x) => (x.choices?.length > 50 ? { ...x, choices: [...x.choices.slice(0, 50), `… ${x.choices.length - 50} more`] } : x));
-
 export const TOOLS = [
   {
     name: "list_bricks",
@@ -128,7 +125,7 @@ export const TOOLS = [
       about: M.setups().find((x) => x.current && x.about)?.about ?? null,
       prompt_help: E.state().bricks.map((b) => BRICKS[b.key]?.prompt_help).find(Boolean) ?? null,
       models: await models(),
-      bricks: E.describe().map((b) => ({ id: b.brick, brick: b.brick, title: b.title, kit: BRICKS[b.brick]?.kit ?? null, ...offNote(b.brick), bindings: b.bindings, settings: shown(settingsOf(b.brick)) })), // U72 F19: a plain id
+      bricks: E.describe().map((b) => ({ id: b.brick, brick: b.brick, title: b.title, kit: BRICKS[b.brick]?.kit ?? null, ...offNote(b.brick), bindings: b.bindings, settings: settingsOf(b.brick) })), // U72 F19: a plain id
       overridden_in_graph: E.overrides().map((o) => ({ brick: o.to, role: o.role, change: o.change })),
       missing: [...E.missing(), ...M.unreadable()],
       outside_recipe: E.outside().map((n) => ({ id: n.id, type: n.type, title: n.title })),
@@ -170,7 +167,7 @@ export const TOOLS = [
       inRecipe(brick);
       const s = settingsOf(brick).find((x) => x.name === name);
       if (!s) throw new Error(`${brick} has no setting "${name}"; it has ${settingsOf(brick).map((x) => x.name).join(", ")}`);
-      if (s.choices && E.resolveChoice(s.choices, value) === undefined) throw new Error(`"${value}" is not a choice for ${brick}.${name}; choices: ${s.choices.slice(0, 50).join(", ")}${s.choices.length > 50 ? ", …" : ""}`);
+      if (s.choices && E.resolveChoice(s.choices, value) === undefined) throw new Error(`"${value}" is not a choice for ${brick}.${name}; choices: ${s.choices.join(", ")}`);
       const t = s.seconds != null && E.timing(brick), asked = value;
       if (t && typeof value === "string") {
         value = E.framesFor(t, value);
@@ -313,7 +310,7 @@ export const TOOLS = [
       await M.load();
       const words = filter.toLowerCase().split(/\s+/).filter(Boolean);
       const found = M.loraFiles().filter((r) => (category ? M.inCategory(r, category) : r.entry.role !== "dial") && (!role || r.entry.role === role) && (!family || r.entry.family === family) && words.every((w) => r.file.toLowerCase().includes(w)));
-      return { count: found.length, categories: M.categories(), loras: found.slice(0, 200).map((r) => ({ name: r.file, category: r.category, tags: r.tags, ...(M.isLocked(r.file) ? { private: true } : {}), ...related(r.file) })), in_recipe: M.loras().map((r) => ({ brick: r.brick, row: r.row, file: r.file, strength: r.strength, on: r.on, role: r.entry?.role })) };
+      return { count: found.length, categories: M.categories(), loras: found.map((r) => ({ name: r.file, category: r.category, tags: r.tags, ...(M.isLocked(r.file) ? { private: true } : {}), ...related(r.file) })), in_recipe: M.loras().map((r) => ({ brick: r.brick, row: r.row, file: r.file, strength: r.strength, on: r.on, role: r.entry?.role })) };
     },
   },
   {
@@ -334,7 +331,7 @@ export const TOOLS = [
   },
   {
     name: "describe_lora",
-    description: "What one LoRA file says about itself, to judge its kind (turbo / fix / task / hires / edit / control, style, identity) from the file rather than its name: its training metadata (ss_*: base model, network dim / alpha, steps, epochs, output name, comment), the tags it was trained on (top 30), trigger words, modelspec fields (title, description, architecture), other text fields, the rank its tensors have, size and folder, plus how Snap files it now (category, filed: by agent or person and why; inferred: true when nobody filed it). Snap makes no LLM call: you judge, then file it with set_lora_category {by: 'agent', reason}. Private ones (private: true) are named only to the person.",
+    description: "What one LoRA file says about itself, to judge its kind (turbo / fix / task / hires / edit / control, style, identity) from the file rather than its name: its training metadata (ss_*: base model, network dim / alpha, steps, epochs, output name, comment), the tags it was trained on (all of them, most frequent first), trigger words, modelspec fields (title, description, architecture), other text fields, the rank its tensors have, size and folder, plus how Snap files it now (category, filed: by agent or person and why; inferred: true when nobody filed it). Snap makes no LLM call: you judge, then file it with set_lora_category {by: 'agent', reason}. Private ones (private: true) are named only to the person.",
     inputSchema: { type: "object", properties: { file: { type: "string", description: "a LoRA as list_loras names it" } }, required: ["file"] },
     annotations: { readOnlyHint: true },
     run: async ({ file }) => {
@@ -386,7 +383,7 @@ export const TOOLS = [
       if (!folder) return Object.entries(Object.groupBy(all, ([, f]) => f.folder)).map(([name, list]) => ({ folder: name, files: list.length }));
       const words = filter.toLowerCase().split(/\s+/).filter(Boolean);
       const found = all.filter(([name, f]) => f.folder === folder && !M.hidden(name) && words.every((w) => name.toLowerCase().includes(w)));
-      return { folder, count: found.length, files: found.slice(0, 200).map(([name, f]) => ({ name, size_gb: +(f.size / 1e9).toFixed(2), ...related(name) })) };
+      return { folder, count: found.length, files: found.map(([name, f]) => ({ name, size_gb: +(f.size / 1e9).toFixed(2), ...related(name) })) };
     },
   },
   {
@@ -422,7 +419,7 @@ export const TOOLS = [
     annotations: { readOnlyHint: true, untrustedContentHint: true },
     run: async ({ query = "", brick }) => {
       await L.ready();
-      return L.search(query, brick).slice(0, 20).map((c) => ({ card: c.id, kind: c.kind, title: c.title, goes_on: L.TARGET[c.kind], text: c.text, ...(c.example ? { example: true } : {}) }));
+      return L.search(query, brick).map((c) => ({ card: c.id, kind: c.kind, title: c.title, goes_on: L.TARGET[c.kind], text: c.text, ...(c.example ? { example: true } : {}) }));
     },
   },
   {
@@ -457,7 +454,7 @@ export const TOOLS = [
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
     run: () => E.notes().filter((n) => n.status === "open" || n.status === "answered").map((n) => ({
-      ...n, brick_now: n.brick ? E.describe().find((b) => b.brick === n.brick) ?? null : null, settings: n.brick ? shown(settingsOf(n.brick)) : undefined,
+      ...n, brick_now: n.brick ? E.describe().find((b) => b.brick === n.brick) ?? null : null, settings: n.brick ? settingsOf(n.brick) : undefined,
       proposals: P.all().filter((p) => p.note === n.id).map(({ id, tool, status }) => ({ id, tool, status })),
     })),
   },
@@ -490,7 +487,7 @@ export const TOOLS = [
       const order = await T.ranking();
       const now = await T.live();
       return Promise.all(T.inGroup().filter((t) => !T.aboveCap(t)).sort((a, b) => (order.includes(a.id) ? order.indexOf(a.id) : 1e9 + a.created) - (order.includes(b.id) ? order.indexOf(b.id) : 1e9 + b.created))
-        .map(async (t) => ({ id: t.id, number: t.number, rank: order.includes(t.id) ? order.indexOf(t.id) + 1 : null, seed: t.seed, status: t.status, verdict: t.verdict, prior: t.prior, notes: t.notes.length, media: t.media.map((m) => `${m.type}/${m.subfolder ? `${m.subfolder}/` : ""}${m.filename}`), prompt: t.text.slice(0, 200),
+        .map(async (t) => ({ id: t.id, number: t.number, rank: order.includes(t.id) ? order.indexOf(t.id) + 1 : null, seed: t.seed, status: t.status, verdict: t.verdict, prior: t.prior, notes: t.notes.length, media: t.media.map((m) => `${m.type}/${m.subfolder ? `${m.subfolder}/` : ""}${m.filename}`), prompt: t.text,
           stale: await T.stale(t, now), copy: t.copy ?? null, ...(t.sound ? { sound: { mean_db: t.sound.mean_db, quiet: T.quiet(t), quiet_below_db: T.QUIET_DB } } : {}), ...(t.metadata_kept ? { metadata_kept: t.metadata_kept } : {}), rating: T.ratingOf(t), ...(T.locked(t) ? { private: true } : {}) })));
     },
   },
@@ -683,7 +680,7 @@ export const TOOLS = [
         if ((await api.fetchApi(`/view?filename=${encodeURIComponent(file)}&subfolder=${encodeURIComponent(sub)}&type=input`, { method: "HEAD" })).ok) values.push(value);
       }
       if (Array.isArray(values)) value = E.resolveChoice(values, value);
-      if (value === undefined) throw new Error(`${name} takes one of: ${values.slice(0, 30).join(", ")}${values.length > 30 ? " …" : ""}`);
+      if (value === undefined) throw new Error(`${name} takes one of: ${values.join(", ")}`);
       if (typeof value === "number" && ((info.min != null && value < info.min) || (info.max != null && value > info.max))) throw new Error(`${name} must be within ${info.min}..${info.max}`);
       app.canvas.emitBeforeChange();
       try { w.value = value; w.callback?.(value, app.canvas, n); } finally { app.canvas.emitAfterChange(); }

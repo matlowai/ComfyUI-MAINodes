@@ -50,7 +50,7 @@ def http(base, path, body=None):
         try:
             return json.loads(text)
         except ValueError:
-            return {"error": f"ComfyUI answered {e.code}: {text[:200]}"}
+            return {"error": f"ComfyUI answered {e.code}: {text}"}
     except (urllib.error.URLError, TimeoutError) as e:
         return {"error": f"ComfyUI is not reachable at {base} ({getattr(e, 'reason', e)})."}
 

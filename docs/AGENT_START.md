@@ -106,6 +106,8 @@ You can also run the tools as an MCP server (Claude Code):
 ## Limits
 
 - A call times out after 30 s. `run_status` waits at most 25 s per call.
+- Results are never trimmed. If one is too big for your context, save it to a file and hand it to a subagent to break
+  down and report back.
 - `screenshot` needs a person's press on "Let agents see" in a visible page.
 - Snap proposes and you act, always with the person's yes for downloads, installs and anything that spends their GPU
   without "Let agents run".
