@@ -99,19 +99,23 @@ function build() {
     const zone = parked ? "parked" : LIVE.has(r.state) || r.state === "failed" || r.state === "gone" ? "in_flight" : r.state === "waiting" || (r.state === "done" && !opened) ? "landed" : "closed";
     return { ...r, zone, eta: eta(r), ...(parked ? { parked } : {}), ...(opened ? { opened } : {}) };
   }).sort((a, b) => (b.queued_at ?? b.started_at ?? 0) - (a.queued_at ?? a.started_at ?? 0));
-  if (server.length || !problem) announce();
+  if (readOnce) announce();
   for (const fn of listeners) fn();
 }
-// what changed since the last build, said once: the first build after a load only remembers
+// what changed since the last build, said once. The first build after the server was read only remembers; after that a
+// row is said when it moves out of a live state, or when it is new and was queued after this page loaded (a job can run
+// whole between two reads), never for the history a page finds when it loads
+const loadedAt = Date.now();
+let readOnce = false;
 function announce() {
   const was = seen;
   seen = new Map(rows.map((r) => [r.id, r.state]));
   if (!was) return;
   const lost = rows.filter((r) => r.state === "gone" && was.get(r.id) && was.get(r.id) !== "gone");
   for (const r of rows) {
-    const before = was.get(r.id);
-    if (before === r.state || r.zone === "parked") continue;
-    const what = r.state === "failed" ? "failed" : r.state === "done" || r.state === "waiting" ? "landed" : !before && LIVE.has(r.state) && (r.by === "agent" || !J.own(r.id)) && r.source !== "refusal" ? "start" : null;
+    const before = was.get(r.id), fresh = !before && (r.queued_at ?? 0) > loadedAt;
+    if (before === r.state || r.zone === "parked" || r.source === "refusal" || (!before && !fresh && !LIVE.has(r.state))) continue;
+    const what = r.state === "failed" ? "failed" : r.state === "done" || r.state === "waiting" ? "landed" : !before && LIVE.has(r.state) && (r.by === "agent" || !J.own(r.id)) ? "start" : null;
     if (what) for (const fn of arrivals) fn(what, r);
   }
   if (lost.length) for (const fn of arrivals) fn("lost", { count: lost.length });
@@ -135,6 +139,7 @@ export function reconcile() {
     pairs = (await T.pending()).map((p) => ({ id: `ab:${p.a}|${p.b}`, source: "blind_pair", kind: "blind_pair", title: `Blind pair: take ${T.get(p.a)?.number ?? "?"} or take ${T.get(p.b)?.number ?? "?"}?`, by: p.by, owner: p.by === "agent" ? "agents" : "you", state: "waiting", about: { take: p.a }, where: where({ take: p.a }), queued_at: Date.parse(p.at) || null, pair: [p.a, p.b] }));
     await C.settle();
     await T.catchUp(server.filter((p) => p.client === api.clientId && p.job?.takes !== false && ["success", "error", "interrupted"].includes(p.state)));
+    readOnce = r.ok;
     build();
   })().catch((e) => { problem = `The Work card couldn't read the server: ${e.message}`; build(); }).finally(() => { reading = null; if (again) { again = false; reconcile(); } });
   return reading;
