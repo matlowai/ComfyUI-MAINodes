@@ -251,10 +251,11 @@ def text_level(text, graph):
     return (LEVELS["adult"], hit) if hit else (LEVELS["pg"], None)
 
 
-def rating(prompt, graph, folders_of, gated):
-    """(level, reasons) of what an API prompt makes (SNAP-R39): the highest of its text (every string input that names no
-    model file; text that only feeds a negative input doesn't count) and the files it loads. A file nothing rates
-    counts only on a gated install (`gated`), as the gate counts it; ungated, ratings are labels and it adds nothing."""
+def rating(prompt, graph, folders_of, gated, words):
+    """(level, reasons) of what an API prompt makes (SNAP-R39): the highest of the files it loads and, with `words`, its
+    text (every string input that names no model file; text that only feeds a negative input doesn't count). A file
+    nothing rates counts only on a gated install (`gated`), as the gate counts it; ungated, ratings are labels and it adds
+    nothing."""
     negative = {str(v[0]) for n in prompt.values() for k, v in (n.get("inputs") or {}).items() if "negative" in k.lower() and isinstance(v, list) and len(v) == 2}
     feeds = {str(v[0]) for n in prompt.values() for k, v in (n.get("inputs") or {}).items() if "negative" not in k.lower() and isinstance(v, list) and len(v) == 2}
     top, why = LEVELS["pg"], []
@@ -271,7 +272,7 @@ def rating(prompt, graph, folders_of, gated):
                     if lvl:
                         why.append(f"node {nid} loads a file rated {NAMES[lvl]}")
                         top = max(top, lvl)
-            if quiet or "negative" in k.lower() or not isinstance(v, str) or v in files:
+            if not words or quiet or "negative" in k.lower() or not isinstance(v, str) or v in files:
                 continue
             lvl, term = text_level(v, graph)
             if lvl:

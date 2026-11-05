@@ -330,7 +330,10 @@ def metadata_gate(json_data):
         found = snap_privacy.marks(prompt, workflow, graph, loaded)
         if graph["broken"] and graph["private"]:
             logging.error("Snap: privacy rules unreadable (%s); this prompt is marked private until they are fixed", ", ".join(graph["broken"]))
-        rated, rated_why = snap_privacy.rating(prompt, graph, folders_of, gated="snap_max_rating" in extra)
+        cap = snap_privacy.LEVELS.get(str(extra.get("snap_max_rating")).lower())
+        # an account capped below Adult always has its prompt's words rated; anyone else only with their setting on
+        words = (cap is not None and cap < snap_privacy.LEVELS["adult"]) or ((workflow or {}).get("extra") or {}).get("snap_rate_words") is True
+        rated, rated_why = snap_privacy.rating(prompt, graph, folders_of, gated=cap is not None, words=words)
     except Exception:
         on = snap_privacy.switched_on(folder_paths.get_user_directory())
         logging.exception("Snap: privacy rules unreadable" + ("; this prompt is marked private" if on else ""))

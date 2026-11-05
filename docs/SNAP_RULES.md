@@ -329,10 +329,12 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   0.59 vs 1.41); a 100 % crop of the carry's rising detail shows crisper faces, no grain (proto/ui/262). *More:* PLAN
   U46c, U46_EXTEND_AB_2026-11-04.md, `web/snap/extend.js`.
 - **SNAP-R39: A rating comes from how a thing was made.** Nothing Snap makes or proposes is unrated. A prompt is rated
-  when it is queued, from its text and the files it loads, and the highest wins: Adult when a string input holds one of
+  when it is queued, from the files it loads and its words, and the highest wins. Its words count for an account capped
+  below Adult; anyone else (an Adult cap, or no gate) counts them only with their setting "Rate takes from their prompt's
+  words too" on, off by default and remembered. A prompt's words make it Adult when a string input holds one of
   the terms in `snap_cards/nsfw_terms.json` (parts anywhere, words as whole words, camelCase split; a person's own
   `snap/nsfw_terms.json` adds to them; borderline words never rate; text that only feeds a `negative` input doesn't
-  count), else the highest rating of its files. A file nobody rated adds nothing on an ungated install, where ratings are
+  count). A file nobody rated adds nothing on an ungated install, where ratings are
   labels only, and counts as the gate counts it (SNAP-R44) on a gated one. The take keeps that rating (`snap_marks.rating`
   and why), raised to the rating of any take it came from: a version, an edit, a louder version, a run from a take's
   frame. The pack's model graph rates every kit file, so downloads arrive rated, and propose_downloads says each one's

@@ -104,6 +104,8 @@ app.registerExtension({
     { id: MD.SETTING, category: ["MAINodes", "Snap", "Metadata"], name: "Save the prompt and workflow (metadata) in every saved picture and video", type: "boolean", defaultValue: true,
       tooltip: "On: files keep their recipe, LoRA names included, so you can reproduce them. Off: this browser's runs save without it. Also the switch next to Run in Snap.",
       onChange: () => view?.metadataChanged() },
+    { id: MD.RATE_WORDS, category: ["MAINodes", "Snap", "Ratings"], name: "Rate takes from their prompt's words too (an account capped below Adult always is)", type: "boolean", defaultValue: false,
+      tooltip: "Off: a take is rated from the files and takes it used. On: a prompt with a clearly sexual word also rates it Adult (SNAP-R39)." },
     // the profile's code_review (SNAP-R28) is the truth; this row and the profile follow each other (startup's call has no old value)
     { id: PF.REVIEW_SETTING, category: ["MAINodes", "Snap", "Code review"], name: "When an agent wants to add code that isn't part of your setup yet, it reads the code first", type: "combo",
       options: Object.entries(PF.REVIEWS).map(([value, text]) => ({ value, text })), defaultValue: "unknown",
