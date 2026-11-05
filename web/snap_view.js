@@ -9,6 +9,7 @@ import { createSwitch } from "./snap/switch.js";
 import { STYLE } from "./snap/style.js";
 import { callTool, schema, readOnly, registerWebMCP, ui, AGENTS_RUN, accepts, checkArgs } from "./snap/tools.js";
 import * as T from "./snap/takes.js";
+import * as J from "./snap/jobs.js";
 import * as rules from "./snap/rules.js";
 import * as S from "./snap/slots.js";
 import * as MD from "./snap/metadata.js";
@@ -117,9 +118,24 @@ app.registerExtension({
   actionBarButtons: [{ icon: "icon-[lucide--blocks]", label: "Snap", tooltip: "Snap view (Alt+S)", onClick: () => toggle() }],
   setup() {
     document.head.append(Object.assign(document.createElement("style"), { textContent: STYLE }));
-    // SNAP-R20: every prompt this page queues (Snap's Run, the graph's, an agent's) says whether its files keep metadata
-    const queuePrompt = api.queuePrompt.bind(api);
-    api.queuePrompt = (number, data, options) => queuePrompt(number, { ...data, workflow: MD.mark(data.workflow) }, options).then((r) => { T.queuedRun(r?.prompt_id); return r; });
+    // SNAP-R20: every prompt this page queues (Snap's Run, the graph's, an agent's) says whether its files keep metadata;
+    // SNAP-R65: and carries its job stamp, put into the POST that api.queuePrompt sends at once (its first await)
+    const queuePrompt = api.queuePrompt.bind(api), fetchApi = api.fetchApi.bind(api);
+    let stamp = null;
+    api.fetchApi = (route, options) => {
+      if (!stamp || route !== "/prompt" || options?.method !== "POST") return fetchApi(route, options);
+      const body = JSON.parse(options.body);
+      body.extra_data = { ...body.extra_data, snap_job: stamp };
+      stamp = null;
+      return fetchApi(route, { ...options, body: JSON.stringify(body) });
+    };
+    api.queuePrompt = (number, data, options) => {
+      const job = J.sending();
+      stamp = job;
+      const sent = queuePrompt(number, { ...data, workflow: MD.mark(data.workflow) }, options);
+      stamp = null;
+      return sent.then((r) => { T.queuedRun(r?.prompt_id); J.sent(job, r?.prompt_id ?? null); return r; }, (e) => { J.sent(job, null); throw e; });
+    };
     view = createView({ onSwitch: (key) => toGraph(key), onMakeApp: makeApp, run: (name, args) => callTool(name, args, { confirmed: true }), openIn, setOpenIn });
     // agents read and drive the view through the read_ui / ui tools; switching views lives here with the switch
     ui.read = () => ({ ...view.uiRead(), view: sw.showing ? (sw.docked ? "snap (docked)" : "snap") : "graph" });

@@ -1,5 +1,6 @@
-// Pre-screen checks (U55, U54): small local prompts that leave a note on a candidate, never a decision. They run under a
-// throwaway client id, so they never become takes, and the page polls /history for them.
+// Pre-screen checks (U55, U54): small local prompts that leave a note on a candidate, never a decision. They run under the
+// page's own client id with a job stamp that says `takes: false` (SNAP-R65), so they never become takes and the page that
+// started them gets their events; the page polls /history for them.
 // - layout: where the plan puts each door, window and prop for this camera against where SAM 3.1 finds it by name
 //   (core SAM3_Detect, mask centroid left to right). It answers "is each opening on the expected side, are the props in
 //   order", which the copy score can't (U52: push-ins 0.56-0.68 overlap new views 0.50-0.66). Openings out of view count
@@ -12,11 +13,13 @@
 //   SAM 3.1 head crops of both and the person decides.
 // - people: each person SAM 3.1 finds in a frame, boxed and numbered left to right, so a person and an agent can name
 //   "person 2" (U35 agent eyes, UX_GEMS #5).
-// SNAP-R18 local only · SNAP-R21 plates · SNAP-R23 checks are notes, never rejections · see docs/SNAP_RULES.md
+// SNAP-R18 local only · SNAP-R21 plates · SNAP-R23 checks are notes, never rejections · SNAP-R65 every queued prompt
+// carries its job stamp · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as M from "./models.js";
 import * as MD from "./metadata.js";
 import { layout as planned } from "./setsnap.js";
+import * as J from "./jobs.js";
 
 // the files the checks need, from the model graph: the encoder with copy_check, the face model with identity_check, the
 // text detector (with the hair check's threshold)
@@ -27,22 +30,26 @@ export async function needs() {
   return { encoder, face, detector, copy: encoder && M.entry(encoder).copy_check, identity: face && M.entry(face).identity_check, hair: detector && M.entry(detector).hair_check };
 }
 
-// an API prompt this page builds. A take is made only from a run queued under this page's client id (takes.js), into
-// the take group `group` names (the workflow id it carries); any other client id keeps a run out of the takes. `extra`
-// goes into extra_data (takes.js reads snap_parent from there); `world` is the record pins the take will carry (a re-run's
-// recast pins the Cast it painted in, SNAP-R63)
-export async function queue(prompt, { group, client = api.clientId, extra, world } = {}) {
+// an API prompt this page builds, under this page's client id with its job stamp (jobs.js: the question is required). A
+// take is made from it into the take group `group` names (the workflow id it carries) unless the job says `takes: false`
+// (takes.js). `extra` goes into extra_data (takes.js reads snap_parent from there); `world` is the record pins the take
+// will carry (a re-run's recast pins the Cast it painted in, SNAP-R63)
+export async function queue(prompt, { group, extra, world, job } = {}) {
+  const snap_job = J.job(job);
   const workflow = group || !MD.on() ? MD.mark({ ...(group ? { id: group } : {}), nodes: [], links: [], extra: world ? { snap: { world } } : {} }) : null; // SNAP-R20: metadata off reaches these saves too
-  const r = await api.fetchApi("/prompt", { method: "POST", body: JSON.stringify({ client_id: client, prompt,
-    extra_data: { ...extra, ...(workflow ? { extra_pnginfo: { workflow } } : {}) } }) });
+  const r = await api.fetchApi("/prompt", { method: "POST", body: JSON.stringify({ client_id: api.clientId, prompt,
+    extra_data: { ...extra, snap_job, ...(workflow ? { extra_pnginfo: { workflow } } : {}) } }) });
   const out = await r.json();
   if (r.status !== 200) throw new Error(`Not queued: ${out.error?.message ?? ""} ${JSON.stringify(out.node_errors ?? {})}`.trim());
+  J.sent(snap_job, out.prompt_id);
   return out.prompt_id;
 }
 
-// queue a check and wait for it (10 minutes at most: the first DINOv3 load on CPU is 60-90 s)
-export async function screen(prompt) {
-  const id = await queue(prompt, { client: `snap-check-${Date.now().toString(36)}` });
+// queue a check (`job`: its question and what it is about) and wait for it
+export const screen = async (prompt, job) => checked(await queue(prompt, { job: { ...job, kind: "check", takes: false } }));
+// a queued check's result (10 minutes at most: the first DINOv3 load on CPU is 60-90 s); a page reloaded meanwhile asks
+// again with the id it kept
+export async function checked(id) {
   for (let i = 0; i < 600; i++) {
     const h = (await (await api.fetchApi(`/history/${id}`)).json())[id];
     if (h?.status?.completed || h?.status?.status_str === "error") {
@@ -88,7 +95,7 @@ async function centroid(m) {
 const side = (k) => (k == null ? "out of view" : Math.abs(k) <= 0.15 ? "in the centre" : Math.abs(k) > 0.5 ? `on the ${k < 0 ? "left" : "right"}` : `${k < 0 ? "left" : "right"} of centre`);
 
 // the layout check: `image` is the candidate picture (LoadImage path), `view` the set as its camera sees it
-export async function layoutCheck(image, view) {
+export async function layoutCheck(image, view, about = {}) {
   const { detector: name } = await needs();
   if (!name) return { error: "no text detector in the model graph (SAM 3.1: models/checkpoints/sam3.1_multiplex_fp16.safetensors)" };
   const things = planned(view).filter((x) => x.k != null || x.kind !== "prop"), g = { ...detector(name) }, img = source(g, "i", { image });
@@ -97,7 +104,7 @@ export async function layoutCheck(image, view) {
     g[`m${i}`] = { class_type: "MaskToImage", inputs: { mask: [`f${i}`, 0] } };
     g[`p${i}`] = { class_type: "PreviewImage", inputs: { images: [`m${i}`, 0] } };
   });
-  const h = await screen(g), found = await Promise.all(things.map((_, i) => centroid(first(h, `p${i}`))));
+  const h = await screen(g, { title: `Layout check: is each door, window and prop where the plan puts it for ${view.name ?? "this camera"}?`, about }), found = await Promise.all(things.map((_, i) => centroid(first(h, `p${i}`))));
   const rows = things.map((x, i) => {
     const at = found[i], ok = x.k == null ? at == null : at == null ? null : Math.abs(at - x.k) <= 0.5;
     return { name: x.name, kind: x.kind, plan: x.k == null ? "out of view" : x.where, found: at == null ? "not found" : side(at), at, ok };
@@ -114,7 +121,7 @@ export async function layoutCheck(image, view) {
 // crop is for the person: one that isn't the crop size means no head was found), the face and the hair; per pair the
 // faces' cosine, per edit its hair's rise over the originals' median. `does`: what the edit's method does (methods.json);
 // one the model graph lists in identity_check.unreliable_for (relighting) keeps the cosine but never the different-person flag
-export async function identityCheck(pairs, baseline = [], { does } = {}) {
+export async function identityCheck(pairs, baseline = [], { does, about = {}, title = "Identity check: did the edit keep the person?" } = {}) {
   const { detector: name, face, identity, hair } = await needs();
   if (!name || !face || !hair) return { error: `the identity notes need ${!name ? "SAM 3.1 (models/checkpoints)" : !face ? "a face model with identity_check in the model graph (models/face_recognition/cvlface_arcface_ir101_webface4m.safetensors)" : "hair_check on SAM 3.1 in the model graph"}` };
   const g = { ...detector(name), fm: { class_type: "MAISnapFaceModelLoader", inputs: { model_name: face } } };
@@ -127,7 +134,7 @@ export async function identityCheck(pairs, baseline = [], { does } = {}) {
   };
   pairs.forEach((pair, i) => pair.forEach((src, j) => measure(`${i}${j}`, src, true)));
   baseline.forEach((src, i) => measure(`b${i}`, src, false));
-  const h = await screen(g), look = (k) => ({ face: h.outputs[`x${k}`]?.face?.[0] ?? null, hair: h.outputs[`x${k}`]?.hair_l90?.[0] ?? null });
+  const h = await screen(g, { title, about }), look = (k) => ({ face: h.outputs[`x${k}`]?.face?.[0] ?? null, hair: h.outputs[`x${k}`]?.hair_l90?.[0] ?? null });
   const lit = [...pairs.map((_, i) => look(`${i}0`).hair), ...baseline.map((_, i) => look(`b${i}`).hair)].filter((x) => x != null).sort((a, b) => a - b);
   const base = lit.length ? (lit[(lit.length - 1) >> 1] + lit[lit.length >> 1]) / 2 : null;
   const size = async (m) => { const img = new Image(); img.src = url(m); await img.decode(); return [img.naturalWidth, img.naturalHeight]; };
@@ -157,14 +164,14 @@ async function box(m) {
 
 // the people check: `src` as source() takes it; each person SAM 3.1 finds, numbered left to right by the middle of
 // their box ({n, box: [x, y, w, h] as fractions of the frame})
-export async function peopleCheck(src) {
+export async function peopleCheck(src, about = {}) {
   const { detector: name } = await needs();
   if (!name) throw new Error("Finding people needs SAM 3.1 (models/checkpoints/sam3.1_multiplex_fp16.safetensors)");
   const g = { ...detector(name) }, img = source(g, "i", src);
   find(g, "f", img, "person", 0.4, true);
   g.m = { class_type: "MaskToImage", inputs: { mask: ["f", 0] } };
   g.p = { class_type: "PreviewImage", inputs: { images: ["m", 0] } };
-  const boxes = (await Promise.all(((await screen(g)).outputs?.p?.images ?? []).map(box))).filter(Boolean);
+  const boxes = (await Promise.all(((await screen(g, { title: "Find the people in this frame", about })).outputs?.p?.images ?? []).map(box))).filter(Boolean);
   return boxes.sort((a, b) => a[0] + a[2] / 2 - (b[0] + b[2] / 2)).map((b, i) => ({ n: i + 1, box: b }));
 }
 

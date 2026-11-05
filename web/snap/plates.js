@@ -168,7 +168,8 @@ export async function make(lineage, { cameras, by = "person", s, count = 2 } = {
     const text = orbitText(s, cam), view = { at: cam.at, facing: cam.facing, lens: cam.lens, height: cam.height }, list = [];
     for (let i = 0; i < count; i++) {
       const seed = Math.floor(Math.random() * 2 ** 32);
-      list.push({ prompt_id: await K.queue(orbitGraph({ text, seed, wide: p.wide.image, prefix: `${slug(lineage)}_${slug(cam.name)}`, models, encoder }), { group: `snap-plates-${lineage}` }), seed, frame: "last" });
+      const job = { kind: "plate", title: `${cam.name}: a camera plate for ${card.title.replace(/^Set snapshot:\s*/, "")} (candidate ${i + 1} of ${count})`, about: { set: lineage, camera: cam.name, group: `snap-plates-${lineage}` }, by, eta_s: 64 };
+      list.push({ prompt_id: await K.queue(orbitGraph({ text, seed, wide: p.wide.image, prefix: `${slug(lineage)}_${slug(cam.name)}`, models, encoder }), { group: `snap-plates-${lineage}`, job }), seed, frame: "last" });
     }
     const d = await C.create({ kind: "plate", target: `${lineage}/${cam.name}`, title: `${cam.name}: camera plate`, by, set: lineage, camera: cam.name, view, threshold }, list);
     queued.push(...d.candidates.map((c) => ({ camera: cam.name, prompt_id: c.prompt_id, seed: c.seed, decision: d.id, candidate: c.id })));
@@ -186,7 +187,7 @@ async function finish(d, c, h) {
   c.pictures = [{ label: "last frame", media: { filename: frame.filename, subfolder: frame.subfolder ?? "", type: frame.type ?? "output" } }];
   c.notes.copy = { score: scores.at(-1), threshold: d.threshold, likely_copy: scores.at(-1) >= d.threshold };
   const card = working(d.set); // the camera it was rendered for, in the set as it is now
-  if (card) K.layoutCheck(K.annotated(c.pictures[0].media), atCamera(card.brick.snapshot, { ...d.view, name: d.camera })).catch((e) => ({ error: e.message })).then((r) => C.note(d, c, "layout", r));
+  if (card) K.layoutCheck(K.annotated(c.pictures[0].media), atCamera(card.brick.snapshot, { ...d.view, name: d.camera }), { set: d.set, camera: d.camera, decision: d.id, candidate: c.id }).catch((e) => ({ error: e.message })).then((r) => C.note(d, c, "layout", r));
 }
 
 // Apply: the candidate's frame becomes the camera's plate (in the input folder, with its provenance and who picked it);
@@ -242,7 +243,8 @@ const annotated = K.annotated;
 
 // score five frames of a take against each of its reference pictures; the take is flagged when its last frame reaches
 // the threshold for any of them: a Ref2V take often starts on its reference's view (0.98 at frame 0 in U52's orbit
-// takes) and is judged by where its camera ended up. The check runs under its own client id, so it never becomes a take
+// takes) and is judged by where its camera ended up. The check's job says `takes: false`, so it never becomes a take; the
+// take keeps the check's prompt id while it runs, so a page reloaded meanwhile finishes it (resume)
 export async function checkTake(take, by = "person") {
   const refs = referencePictures(take.prompt);
   if (!refs.length) throw new Error(`Take ${take.number} had no reference pictures to compare with`);
@@ -256,11 +258,26 @@ export async function checkTake(take, by = "person") {
     g[3] = { class_type: "BatchImagesNode", inputs: Object.fromEntries(FRAMES.map((_, i) => [`images.image${i}`, [String(5 + i), 0]])) };
   } else g[3] = { class_type: "LoadImage", inputs: { image: annotated(m) } };
   refs.forEach((image, i) => { g[20 + 2 * i] = { class_type: "LoadImage", inputs: { image } }; g[21 + 2 * i] = { class_type: "MAISnapCopyScore", inputs: { clip_vision: ["1", 0], reference: [String(20 + 2 * i), 0], images: ["3", 0] } }; });
-  take.copy = { pending: true, by };
+  const id = await K.queue(g, { job: { kind: "check", title: `Copy check: did take ${take.number} re-render its reference picture's view?`, about: { take: take.id, group: take.group }, by, takes: false } });
+  take.copy = { pending: true, by, prompt_id: id, refs, threshold };
   await T.save(take);
-  K.screen(g).then((h) => {
+  copied(take);
+  return { queued: true, references: refs.length, threshold };
+}
+// a copy check's scores onto its take, once its prompt is done
+function copied(take) {
+  const { by, prompt_id, refs, threshold } = take.copy;
+  K.checked(prompt_id).then((h) => {
     const against = refs.map((image, i) => { const s = h.outputs?.[String(21 + 2 * i)]?.copy_scores ?? []; return { image, last: s.at(-1) ?? null, frames: s.map((x) => +x.toFixed(3)) }; });
     return { against, threshold, copied: against.some((a) => a.last >= threshold), by, at: new Date().toISOString() };
   }, (e) => ({ error: e.message, by, at: new Date().toISOString() })).then((copy) => { take.copy = copy; return T.save(take); }).catch((e) => console.warn(`copy check: ${e.message}`));
-  return { queued: true, references: refs.length, threshold };
 }
+// copy checks still pending when the page loaded (a reload while one ran): finish them from the server's history; one
+// from before checks kept their prompt id can't be found again and says so
+export async function resume() {
+  for (const t of (await T.load()).filter((x) => x.copy?.pending)) {
+    if (t.copy.prompt_id) copied(t);
+    else { t.copy = { error: "this check ran before checks kept their run's id; check again", by: t.copy.by, at: new Date().toISOString() }; await T.save(t); }
+  }
+}
+resume().catch(() => {}); // a reload while a copy check ran finishes it

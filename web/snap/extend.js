@@ -145,6 +145,8 @@ export async function start(take, id, { clips = 1, antiburn = 0, prompt, by = "p
     save: { class_type: "SaveVideo", inputs: { video: ["out", 0], filename_prefix: `video/snap_extend/${take.id}`, format: "auto", "format.codec": "auto", codec: "auto" } },
   });
   const options = { clips, ...(m.options?.antiburn ? { antiburn } : {}), ...(prompt ? { prompt } : {}) };
-  const runId = await K.queue(g, { group: take.group, extra: { snap_parent: { take: take.id, method: `extend/${id}`, options, by } } });
-  return { prompt_id: runId, take: `take-${runId}`, ...length(take, clips), eta_s: clips * (m.cost?.local_s_per_clip ?? 60) };
+  const made = length(take, clips), eta_s = clips * (m.cost?.local_s_per_clip ?? 60);
+  const job = { kind: "extend", title: `Make take ${take.number} ${made.seconds} s long (${m.title}, +${clips} clip${clips === 1 ? "" : "s"})`, about: { take: take.id, group: take.group }, by, eta_s };
+  const runId = await K.queue(g, { group: take.group, job, extra: { snap_parent: { take: take.id, method: `extend/${id}`, options, by } } });
+  return { prompt_id: runId, take: `take-${runId}`, ...made, eta_s };
 }

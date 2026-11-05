@@ -8,6 +8,7 @@ import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
 import * as PF from "./profile.js";
+import * as J from "./jobs.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 
@@ -153,7 +154,7 @@ const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g
 
 // fill the pack's Make Dial node from the spec, wire it to the recipe's text encoder and H3 model, run only that node,
 // put the new dial on the rack, and take the node away again. Resolves with { dial, report }.
-export async function make({ name, negative, positive, pairs, subjects, description }, onStatus = () => {}) {
+export async function make({ name, negative, positive, pairs, subjects, description, by = "person" }, onStatus = () => {}) {
   const clip = E.nodeFor("models", "clip"), model = E.nodeFor("preset", "preset");
   if (!clip || !model) throw new Error("Making a dial needs the Models and Render Preset bricks (its text encoder and H3 model)");
   const lines = pairs.filter(([a, b]) => a.trim() && b.trim()).map(([a, b]) => `${a.trim()} ||| ${b.trim()}`);
@@ -179,7 +180,7 @@ export async function make({ name, negative, positive, pairs, subjects, descript
     let queued = false;
     const mark = () => { queued = true; };
     api.addEventListener("promptQueued", mark, { once: true });
-    await app.queuePrompt(0, 1, { queueNodeIds: [n.id] });
+    await J.queueRun({ kind: "make_dial", title: `Make the dial ${file}: ${negative || "A"} ↔ ${positive || "B"}`, by, eta_s: null }, () => app.queuePrompt(0, 1, { queueNodeIds: [n.id] }));
     api.removeEventListener("promptQueued", mark);
     const errors = Object.values(app.lastNodeErrors ?? {}).map((e) => `${e.class_type}: ${e.errors?.[0]?.message ?? "error"}${e.errors?.[0]?.details ? ` (${e.errors[0].details})` : ""}`);
     if (errors.length) throw new Error(`Can't make it yet · ${errors[0]}`);

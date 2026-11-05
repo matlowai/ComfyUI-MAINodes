@@ -40,6 +40,7 @@ import * as ACC from "./account.js";
 import * as W from "./world.js";
 import * as RT from "./retake.js";
 import * as RR from "./rerun.js";
+import * as J from "./jobs.js";
 import { api } from "../../../scripts/api.js";
 
 // a widget as an agent reads it: value, kind, every choice, limits, and whether a wire drives it
@@ -312,10 +313,10 @@ export const TOOLS = [
     run: async ({ slot }) => {
       await S.load();
       const targets = S.previewTargets(slot);
-      await app.queuePrompt(0, 1, { queueNodeIds: targets });
+      const id = await J.queueRun({ kind: "preview", title: `Preview the ${slot}: what it needs and feeds, not the rest`, about: { group: T.groupOf(), slot }, by: "agent", eta_s: (await recipeEta()).eta_s }, () => app.queuePrompt(0, 1, { queueNodeIds: targets }));
       const errors = Object.entries(app.lastNodeErrors ?? {}).map(([id, e]) => ({ node: id, brick: brickOf(id), error: e.errors?.[0]?.message, details: e.errors?.[0]?.details }));
       if (errors.length) throw new Error(`Not queued: ${JSON.stringify(errors)}`);
-      return { queued: true, targets };
+      return { queued: true, run: id, targets, next: "run_status {run, wait_s: 25} until state is done" };
     },
   },
   {
@@ -496,7 +497,7 @@ export const TOOLS = [
     consequential: true,
     plan: async ({ take, world = "pinned", refs }) => { const t = await takeOf(take), moved = await RT.differs(t.world), used = world === "latest" ? moved.filter((m) => !m.missing && (!refs?.length || refs.includes(m.ref))) : [];
       return { runs: `take ${t.number}'s workflow again, ${RT.worldShown(world)}`, updates: used.map((m) => ({ ref: m.ref, text: m.text, fields: m.fields, ...(m.warning ? { warning: m.warning } : {}) })), ...(world === "pinned" && moved.length ? { kept_as_it_was: moved.map((m) => m.text) } : {}), ...T.measured([t], "of the take re-made") }; },
-    run: async ({ take, world, seed, refs }) => { const t = await takeOf(take); return { ...await RT.retake(t, { world, seed, refs }), next: "run_status {run, wait_s: 25} until state is done" }; },
+    run: async ({ take, world, seed, refs }) => { const t = await takeOf(take); return { ...await RT.retake(t, { world, seed, refs, by: "agent" }), next: "run_status {run, wait_s: 25} until state is done" }; },
   },
   {
     name: "rerun",
@@ -730,21 +731,21 @@ export const TOOLS = [
     annotations: { consequentialHint: true },
     consequential: true,
     plan: async ({ pairs = [] }) => ({ runs: `the Make Dial node only: ${pairs.length} prompt pairs through the text encoder, no render`, eta_s: null, from: "not measured here yet" }),
-    run: async (spec) => D.make({ ...spec, subjects: spec.subjects ?? "A young woman\nAn old man\nA golden dog\nA horse" }),
+    run: async (spec) => D.make({ ...spec, subjects: spec.subjects ?? "A young woman\nAn old man\nA golden dog\nA horse", by: "agent" }),
   },
   {
     name: "run",
-    description: "Queue the recipe (as the Run button does; nodes outside the recipe are left out). Returns at once with the run's id; follow it with run_status {run, wait_s: 25} until its state is done (it then names the take and the output files), and the finished run appears in list_takes. Uses GPU time: unless the person lets agents run (set_agent_permissions, as they say), this waits as a proposal they accept.",
-    inputSchema: { type: "object", properties: {} },
+    description: "Queue the recipe (as the Run button does; nodes outside the recipe are left out). Returns at once with the run's id (always: when ComfyUI refuses it, the error says why); follow it with run_status {run, wait_s: 25} or wait_for {job: run} until its state is done (it then names the take and the output files), and the finished run appears in list_takes. `question` is what the run answers, in the person's words (\"does the jacket hold through the turn?\"): the Work card names the job by it (default: Run <where>). Uses GPU time: unless the person lets agents run (set_agent_permissions, as they say), this waits as a proposal they accept.",
+    inputSchema: { type: "object", properties: { question: { type: "string", description: "what this run answers, in the person's words; the Work card shows it" } } },
     annotations: { consequentialHint: true },
     consequential: true,
     plan: async () => { const warning = await defaultPrompt(); return { runs: E.state().bricks.map((b) => BRICKS[b.key].title).join(" → ") || "the open workflow", ...await recipeEta(), ...(warning ? { warning } : {}) }; },
-    run: async () => {
-      const before = T.runs().length;
-      await app.queuePrompt(0, 1, { queueNodeIds: E.targets() });
+    run: async ({ question } = {}) => {
+      const job = { kind: "run", title: question?.trim() || `Run ${J.where()}`, about: J.here(), by: "agent", eta_s: (await recipeEta()).eta_s };
+      const id = await J.queueRun(job, () => app.queuePrompt(0, 1, { queueNodeIds: E.targets() }));
       const errors = Object.entries(app.lastNodeErrors ?? {}).map(([id, e]) => ({ node: id, brick: brickOf(id), error: e.errors?.[0]?.message, details: e.errors?.[0]?.details }));
-      if (errors.length) throw new Error(`Not queued: ${JSON.stringify(errors)}`);
-      return { queued: true, run: T.runs()[before]?.id ?? null, next: "run_status {run, wait_s: 25} until state is done" };
+      if (errors.length || !id) throw new Error(`Not queued: ${JSON.stringify(errors)}`);
+      return { queued: true, run: id, title: job.title, state: "queued", next: "run_status {run, wait_s: 25} (or wait_for {job: run}) until state is done" };
     },
   },
   {
@@ -771,7 +772,7 @@ export const TOOLS = [
     name: "make_louder",
     description: "A new version of a take with its sound normalised to -23 LUFS (EBU R128, true peak -2 dB) and the picture copied as it is, as the take's 'Make it louder' does: for a take list_takes says is quiet, when the person wants it. It lands in Takes as a version of that take: follow `run` with run_status. A quiet take usually comes from a soundscape of only soft ambience: naming the sounds the action makes in the prompt and rendering again fixes the cause.",
     inputSchema: { type: "object", properties: { take: { type: "string" } }, required: ["take"] },
-    run: async ({ take }) => { const r = await ED.louder(await takeOf(take)); return { run: r.prompt_id, take: r.take, next: "run_status {run, wait_s: 25} until state is done" }; },
+    run: async ({ take }) => { const r = await ED.louder(await takeOf(take), "agent"); return { run: r.prompt_id, take: r.take, next: "run_status {run, wait_s: 25} until state is done" }; },
   },
   {
     name: "rank_takes",

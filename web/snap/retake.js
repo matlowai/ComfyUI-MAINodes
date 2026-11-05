@@ -15,6 +15,7 @@ import * as L from "./library.js";
 import * as SC from "./scenes.js";
 import * as T from "./takes.js";
 import * as W from "./world.js";
+import * as J from "./jobs.js";
 
 export const WORLDS = ["pinned", "latest"], SEEDS = ["same", "new"];
 const shown = { pinned: "as it was", latest: "today's world" };
@@ -58,28 +59,27 @@ export async function toToday(refs) {
 }
 
 // mark the next queued run (extra.snap[mark]: a re-take or a re-run of a take, read from the queued workflow at capture),
-// then queue it as Run does
-export async function queue(mark, value) {
+// then queue it as Run does, with its job stamp (`job`: its question, SNAP-R65); the mark stays on until the run is sent
+export async function queue(mark, value, job) {
   E.tag(mark, value);
   try {
-    const before = T.runs().length;
-    await app.queuePrompt(0, 1, { queueNodeIds: E.targets() });
+    const id = await J.queueRun({ kind: mark, about: J.here(), ...job }, () => app.queuePrompt(0, 1, { queueNodeIds: E.targets() }));
     // a node's own refusal (the rating cap, SNAP-R33) is its reason, which core puts in details after "<input> - "
     const errors = Object.values(app.lastNodeErrors ?? {}).map((e) => { const x = e.errors?.[0] ?? {};
       return x.type === "custom_validation_failed" ? x.details.replace(/^[\w.]+ - /, "") : `${e.class_type}: ${x.message}${x.details ? ` (${x.details})` : ""}`; });
     if (errors.length) throw new Error(`Not queued: ${errors.join("; ")}`);
-    return T.runs()[before]?.id ?? null;
+    return id;
   } finally { E.tag(mark, undefined); }
 }
 
 // re-take a take: open its chain, today's world when asked, the same seed or a new one, then run (queue: false only opens)
-export async function retake(take, { world = "pinned", seed = "same", refs, queue: go = true } = {}) {
+export async function retake(take, { world = "pinned", seed = "same", refs, queue: go = true, by = "person" } = {}) {
   if (!WORLDS.includes(world)) throw new Error(`world is one of ${WORLDS.join(", ")}`);
   if (!SEEDS.includes(seed)) throw new Error(`seed is one of ${SEEDS.join(", ")}`);
   if (!take.graph) throw new Error(`Take ${take.number} has no workflow saved with it`);
   const where = await openTake(take), updated = world === "latest" ? await toToday(refs) : [];
   const seedKey = E.state().bricks.find((b) => E.seedMode(b.key))?.key, newSeed = seed === "new" && seedKey ? E.newSeed(seedKey) : null;
-  const run = go ? await queue("retake", { take: take.id, world, seed }) : null;
+  const run = go ? await queue("retake", { take: take.id, world, seed }, { title: `Re-take take ${take.number} ${worldShown(world)}${seed === "new" ? ", new seed" : ""}`, by, eta_s: take.seconds ?? null }) : null;
   await SC.saveOpen(); // the shot's workflow as it ran, so a next re-take from this tab finds nothing unsaved
   return { take: take.id, world, seed, opened: where, updated, ...(newSeed != null ? { new_seed: newSeed } : {}), run,
     said: `Take ${take.number} ${go ? "re-taken" : "opened"} ${worldShown(world)} in ${where}${updated.length ? ` · ${updated.join(" · ")}` : ""}${go ? "" : " · nothing is queued"}` };

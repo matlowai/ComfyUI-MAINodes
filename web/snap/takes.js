@@ -165,9 +165,7 @@ api.addEventListener("execution_interrupted", ({ detail }) => capture(detail.pro
 const queued = [];
 export const runs = () => queued;
 export function queuedRun(id) {
-  if (!id) return;
-  queued.push({ id, at: Date.now() });
-  if (queued.length > 50) queued.shift();
+  if (id) queued.push({ id, at: Date.now() });
 }
 // where ComfyUI saves, as a path on the server's machine (an agent with a shell reads the files there)
 let outputDir = null;
@@ -227,6 +225,7 @@ async function captureRun(id, started, status, error, failedNode) {
   const h = (await (await api.fetchApi(`/history/${id}`)).json())[id];
   if (!h) return;
   const [, , prompt, extra] = h.prompt;
+  if (extra?.snap_job?.takes === false) return; // a paint or a check (SNAP-R65): its result is a note or a candidate, not a take
   const graph = extra?.extra_pnginfo?.workflow ?? null;
   const group = graph?.id ?? groupOf(), n = takes.filter((t) => t.group === group).length + 1;
   const { text, seed } = summary(prompt), swapped = extra?.snap_marks?.swapped ?? {}, parent = extra?.snap_parent ?? retaken(graph) ?? continued(graph, prompt);

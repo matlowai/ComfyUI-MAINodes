@@ -104,7 +104,8 @@ export async function start(take, id = "relight", { example, change, who, become
   for (let i = 0; i < count; i++) {
     const recipe = m.anchors.recipes[i % m.anchors.recipes.length], seed = Math.floor(Math.random() * 2 ** 32);
     const g = await anchorsGraph(take, m.anchors, recipe, at, values, seed);
-    list.push({ prompt_id: await K.queue(g, { client: `snap-edit-${Date.now().toString(36)}` }), seed, take: take.id, frame: at, made: { lora: recipe.lora, cfg: recipe.cfg },
+    const job = { kind: "paint", title: `${m.title}: ${values.change ?? `${values.who} becomes ${values.becomes}`} (take ${take.number}, candidate ${i + 1} of ${count})`, about: { take: take.id, group: take.group }, by, eta_s: 20 * at.length, takes: false };
+    list.push({ prompt_id: await K.queue(g, { job }), seed, take: take.id, frame: at, made: { lora: recipe.lora, cfg: recipe.cfg },
       ...(m.anchors.pin ? { pin: true } : {}) });
   }
   const { avoid, ...options } = values;
@@ -139,7 +140,7 @@ async function identity(d, c) {
   const m = await method(d.method);
   if (m.identity === "new person") return { new_person: m.does, ...(d.options?.picture ? { cast: await castFace(d, c) } : {}) }; // a recast's point is someone else (U69: ArcFace ~0, "hair" on a bald head +65)
   const v = d.clip.video, more = [Math.round(d.clip.frames / 4), Math.round((3 * d.clip.frames) / 4)].map((frame) => ({ video: v, frame }));
-  try { return await K.identityCheck(c.pictures.map((p) => [{ video: v, frame: p.frame }, { image: K.annotated(p.media) }]), more, { does: await does(d) }); } catch (e) { return { error: e.message }; }
+  try { return await K.identityCheck(c.pictures.map((p) => [{ video: v, frame: p.frame }, { image: K.annotated(p.media) }]), more, { does: await does(d), about: { take: d.take, decision: d.id, candidate: c.id }, title: `Identity check: did ${d.title} keep the person (${c.id})?` }); } catch (e) { return { error: e.message }; }
 }
 // a recast painted from a Cast's picture (U89 Reuse the motion): each painted face against that picture, so a person sees
 // which candidate kept the Cast's face (run 7: c1 matched, c2 was another woman). The same check as an edit's, the
@@ -147,7 +148,7 @@ async function identity(d, c) {
 async function castFace(d, c) {
   const name = Object.values(d.world ?? {})[0]?.name ?? "the Cast";
   try {
-    const n = await K.identityCheck(c.pictures.map((p) => [{ image: d.options.picture }, { image: K.annotated(p.media) }]));
+    const n = await K.identityCheck(c.pictures.map((p) => [{ image: d.options.picture }, { image: K.annotated(p.media) }]), [], { about: { take: d.take, decision: d.id, candidate: c.id }, title: `Face check: does ${c.id} of ${d.title} look like ${name}'s picture?` });
     return n.error ? { name, picture: d.options.picture, error: n.error } : { name, picture: d.options.picture, face_low: n.face_low, different: n.face_low != null && n.face_low < n.different_person, different_person: n.different_person, scores: n.scores.map(({ face, crops, no_head }) => ({ face, crops, ...(no_head ? { no_head } : {}) })) };
   } catch (e) { return { name, picture: d.options.picture, error: e.message }; }
 }
@@ -164,11 +165,12 @@ export async function recheck(id) {
 
 // Apply: the change carried over the whole take, queued under this page's id so it lands as a take in the original's
 // group, with its parent
-async function propagate(d, c) {
+async function propagate(d, c, by = "person") {
   const take = T.get(d.take), m = await method(d.method);
   if (!take) throw new Error(`The take ${d.take} isn't here any more`);
   const g = m.propagate.kind === "remake" ? await remakeGraph(d, c, m, take) : await rippleGraph(d, c, m, take);
-  const id = await K.queue(g, { group: take.group, world: d.world, extra: { snap_parent: { take: take.id, method: `${m.slot}/${d.method}`, options: d.options, decision: d.id, candidate: c.id } } });
+  const job = { kind: "propagate", title: `${d.title}: ${c.id} carried over the whole take`, about: { take: take.id, group: take.group, decision: d.id, candidate: c.id }, by, eta_s: m.cost?.local_s ?? null };
+  const id = await K.queue(g, { group: take.group, world: d.world, job, extra: { snap_parent: { take: take.id, method: `${m.slot}/${d.method}`, options: d.options, decision: d.id, candidate: c.id } } });
   return { prompt_id: id, take: `take-${id}` };
 }
 // H3 Ripple (U53b graph: FL2VA + Ripple + 4-step turbo, the take as guide from frame 0, the painted frames at theirs)
@@ -269,11 +271,11 @@ export const result = (d) => (d?.applied?.undo?.take ? T.get(d.applied.undo.take
 
 // "Make it louder" on a quiet take (SNAP-R36): its video through MAISnapLouder (EBU R128 loudnorm, I=-23, TP=-2; the
 // picture copied) into a new version of the take, queued under this page's id so it lands in the take's group
-export async function louder(take) {
+export async function louder(take, by = "person") {
   const v = take.media.find((m) => m.kind === "video");
   if (!v) throw new Error(`Take ${take.number} has no video`);
   const g = { 1: { class_type: "LoadVideo", inputs: { file: K.annotated(v) } }, 2: { class_type: "MAISnapLouder", inputs: { video: ["1", 0] } },
     3: { class_type: "SaveVideo", inputs: { filename_prefix: `video/snap_louder/${take.id}`, format: "auto", "format.codec": "auto", codec: "auto", video: ["2", 0] } } };
-  const id = await K.queue(g, { group: take.group, extra: { snap_parent: { take: take.id, method: "louder", options: { loudnorm: "I=-23:TP=-2" } } } });
+  const id = await K.queue(g, { group: take.group, job: { kind: "louder", title: `Make take ${take.number} louder`, about: { take: take.id, group: take.group }, by }, extra: { snap_parent: { take: take.id, method: "louder", options: { loudnorm: "I=-23:TP=-2" } } } });
   return { prompt_id: id, take: `take-${id}` };
 }

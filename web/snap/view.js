@@ -37,6 +37,7 @@ import { openCast } from "./castview.js";
 import * as RT from "./retake.js";
 import { openWorld } from "./worldview.js";
 import { openRerunSheet } from "./rerunsheet.js";
+import * as J from "./jobs.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -517,13 +518,16 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   async function queue() {
     runBtn.disabled = true;
     try {
-      await app.queuePrompt(0, 1, { queueNodeIds: E.targets() });
+      await J.queueRun({ kind: "run", title: `Run ${J.where()}`, about: J.here(), eta_s: (await T.eta((await T.hashes(await T.live())).hash)).eta_s }, () => app.queuePrompt(0, 1, { queueNodeIds: E.targets() }));
       const errors = Object.entries(app.lastNodeErrors ?? {}).map(([id, e]) => `${app.graph.getNodeById(id)?.title ?? e.class_type}: ${e.errors?.[0]?.message ?? "error"}${e.errors?.[0]?.details ? ` (${e.errors[0].details})` : ""}`);
       if (errors.length) say(`Can't run yet · ${errors[0]}${errors.length > 1 ? ` · +${errors.length - 1} more` : ""}`, true);
     } catch (err) { say(`Couldn't queue: ${err.message}`, true); }
     runBtn.disabled = false;
   }
-  const brickOfNode = (id) => { const outer = String(id ?? "").split(":")[0], key = E.state().bricks.find((b) => Object.values(b.nodes).some((n) => String(n) === outer))?.key; return key && shown(key); };
+  // only a run of the chain lights its bricks: a paint, a check or an edit's render is an API prompt whose node ids are its own
+  let chainRun = true;
+  api.addEventListener("execution_start", ({ detail }) => { chainRun = ["run", "retake", "rerun", "preview"].includes(J.own(detail?.prompt_id)?.kind ?? "run"); });
+  const brickOfNode = (id) => { if (!chainRun) return null; const outer = String(id ?? "").split(":")[0], key = E.state().bricks.find((b) => Object.values(b.nodes).some((n) => String(n) === outer))?.key; return key && shown(key); };
   const mark = (cls, key) => { for (const el of stack.querySelectorAll(`.snap-brick.${cls}`)) if (el.dataset.brick !== key) el.classList.remove(cls); if (key) brickNode(key)?.classList.add(cls); };
   api.addEventListener("executing", ({ detail }) => { const key = detail == null || typeof detail === "object" && detail.node == null ? null : brickOfNode(detail?.node ?? detail); mark("running", key); if (key) brickNode(key)?.style.setProperty("--run-p", 0); });
   api.addEventListener("execution_start", () => { mark("failed", null); for (const el of stack.querySelectorAll(".snap-brick")) el.removeAttribute("data-error"); });
@@ -535,7 +539,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   api.addEventListener("status", ({ detail }) => { const n = detail?.exec_info?.queue_remaining ?? 0; if (!n) idle(); else if (!/%/.test(runLabel.textContent)) runLabel.textContent = n > 1 ? `Queued · ${n}` : "Running"; });
   api.addEventListener("progress", ({ detail }) => { progress.style.setProperty("--p", detail.value / detail.max); progress.style.opacity = 1; runLabel.textContent = `Rendering ${Math.round((100 * detail.value) / detail.max)}%`; });
   const idle = () => { runLabel.textContent = "Run"; progress.style.opacity = 0; setTimeout(() => progress.style.setProperty("--p", 0), 300); };
-  api.addEventListener("execution_success", () => say("Render finished · it's in Takes"));
+  api.addEventListener("execution_success", ({ detail }) => { if (J.own(detail?.prompt_id)?.takes !== false) say("Render finished · it's in Takes"); });
   api.addEventListener("execution_error", ({ detail }) => { idle(); say(`Render failed · ${detail?.node_type ?? ""}: ${detail?.exception_message ?? ""}`.trim(), true); });
   api.addEventListener("execution_interrupted", idle);
 
