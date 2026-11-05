@@ -284,7 +284,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onRepr
       const pick = h("select", { ariaLabel: `${slot} method` }), example = h("select", { ariaLabel: "example" }), lighter = h("label", { className: "snap-quiet" }, h("input", { type: "checkbox" }), " lighter LoRA");
       const words = slot === "recast" ? [h("input", { type: "text", placeholder: "who is in it now, e.g. the woman in the red coat", ariaLabel: "who" }), h("input", { type: "text", placeholder: "who they become, e.g. a bald man in his sixties, grey beard", ariaLabel: "becomes" })]
         : [h("input", { type: "text", placeholder: "what changes, e.g. the benches into a yellow phone booth", ariaLabel: "change" })];
-      const frames = h("input", { type: "text", placeholder: `paint at frames (default ${ED.clip(t).mid})`, ariaLabel: "paint at frames", title: "a moving object: the frame where it enters and the one where it leaves, e.g. 20, 90" });
+      const frames = h("input", { type: "text", placeholder: "paint at frames (default: the middle one)", ariaLabel: "paint at frames", title: "a moving object: the frame where it enters and the one where it leaves, e.g. 20, 90" });
       const btn = h("button", { className: "snap-primary", textContent: "Make 2 candidates", onclick: async () => {
         btn.disabled = true;
         const at = frames.value.split(/[\s,]+/).filter(Boolean).map(Number);
