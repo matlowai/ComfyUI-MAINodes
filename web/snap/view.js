@@ -442,7 +442,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // the first brick is never left clipped (it was after the inspector closed on a Render picked at the start)
   function reveal(key) {
     const el = brickNode(key);
-    if (el && el.getBoundingClientRect().right - stack.getBoundingClientRect().left + stack.scrollLeft > stack.clientWidth) el.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" });
+    if (!el) return; // a brick just removed moves nothing
+    if (el.getBoundingClientRect().right - stack.getBoundingClientRect().left + stack.scrollLeft > stack.clientWidth) el.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" });
     else stack.scrollTo({ left: 0, behavior: reducedMotion() ? "auto" : "smooth" });
   }
   // the setting changed (here or in ComfyUI's Settings): carry the current selection over to the other place
