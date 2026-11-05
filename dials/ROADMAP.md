@@ -182,7 +182,7 @@ Keep every node, but give most people a clean front door. ComfyUI loads subgraph
   inputs for picture dials, re-saved dials picked up; code-review fixes (MOSS/Krea post dials per-call module lookup, NaN
   guard, encode-before-load, caches removed, routes in `dials/routes.py`).
 - Open: DMAD preset default (0.8 x 6 shipped vs authors' 1.0 x 4); cfg > 1 untested; rack `hold_map` input vs Dial Hold Map;
-  Autogrow caps; editor/profile 500 for non-H3 dials; a turbo/speed-up study (delta-surgery `studies/2026-11-02-dmad-genres`)
+  Autogrow caps; editor/profile 500 for non-H3 dials; a turbo/speed-up study (the 2026-11-02 DMAD genres study)
   will inform preset defaults and attention options (Sol/SLA on int8 or w6a8).
 
 ## Status at the end of 2026-11-01
