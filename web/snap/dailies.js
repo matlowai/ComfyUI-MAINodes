@@ -13,7 +13,7 @@
 // SNAP-R7 pointer-down lists · SNAP-R17 blind pairs from agents are judged by the person · SNAP-R20 the lock on private
 // takes (SNAP-R27: by the current rules) · SNAP-R21 copies flagged · SNAP-R23 candidates · SNAP-R24 scenes own the work ·
 // SNAP-R36 quiet sound: a note and two actions, never applied by itself · SNAP-R54 takes above the account's cap are
-// left out · see docs/SNAP_RULES.md
+// left out · SNAP-R65 a job shows on its take's card and as a ghost card · see docs/SNAP_RULES.md
 import * as T from "./takes.js";
 import * as RT from "./retake.js";
 import * as PL from "./plates.js";

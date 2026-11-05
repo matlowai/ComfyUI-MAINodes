@@ -63,7 +63,8 @@ You can also run the tools as an MCP server (Claude Code):
 3. If the person says agents may run renders without asking, call `set_agent_permissions {"run": true}`. It applies
    right away, with no reload. Otherwise `run`, `preview` and `make_dial` wait as proposals the person accepts.
    `{"see": true}` shares their tab with `screenshot`, but only after they press "Let agents see" in Snap's top bar.
-   A headless page has no screen to share: use `take_frames` to look at takes.
+   On your own headless page (`snap_agent_page.sh`) `screenshot` works at once, no press needed: use it to check what
+   the person would see (the Work card, a take's chip).
 4. `scan_models` and `list_kits` show what is ready and what is missing.
 5. `propose_downloads` gives exact files, sizes, target folders and commands.
    - Add-ons the recipe runs without are listed apart under `optional`, with their size and how to install them.
@@ -100,10 +101,12 @@ You can also run the tools as an MCP server (Claude Code):
    round to the nearest frame count the model takes (H3 at 24 fps: 17n + 5 frames), and the answer says what the
    length became. `describe_recipe` shows the seconds next to the frames.
 4. `new_seed` draws a new seed for the Render. You can name another brick with `brick`.
-5. `run` returns `run`, the run's id. A `warning` says when the prompt is still the recipe's default text: the run
-   still goes, so set the prompt first.
-6. Call `run_status {"run": "<id>", "wait_s": 25}` again until `state` is `done` or `failed`. The state goes
-   `queued` → `running` → `done` / `failed`. When the run is done, `run_status` gives the take id and the output files
+5. `run {"question": "does the jacket hold through the turn?"}` returns `run`, the run's id (always; a refusal is an
+   error that says why). The question is what the person reads on the Work card; leave it out and it reads "Run <tab>".
+   A `warning` says when the prompt is still the recipe's default text: the run still goes, so set the prompt first.
+6. Call `wait_for {"job": "<id>", "until": "done"}` (or `run_status {"run": "<id>", "wait_s": 25}`) again until it is
+   done or failed: each call waits up to 25 s, and `reached` says whether it got there. The state goes `queued` →
+   `running` → `done` / `failed`. When the run is done, `run_status` gives the take id and the output files
    (`path` on the ComfyUI machine, and `url`). `metadata_kept` names nodes that wrote the prompt into their files
    although Save metadata was off: tell the person.
 7. `list_takes`, `take_frames` (look at a take) and `rank_takes` / `judge_takes` (your own judgments, kept apart from
@@ -176,6 +179,16 @@ needs a new picture, not only new words. `list_world` shows every record with it
 - A call times out after 30 s. `run_status` waits at most 25 s per call.
 - Results are never trimmed. If one is too big for your context, save it to a file and hand it to a subagent to break
   down and report back.
-- `screenshot` needs a person's press on "Let agents see" in a visible page.
+- `screenshot` needs a person's press on "Let agents see" in a visible page; your own headless page needs none.
+
+## Your work and the person's: the Work card
+
+Everything you or the person started (renders, re-takes, re-runs, edits and their candidates, plates, extends, checks,
+Make a dial, proposals and blind pairs waiting for the person, refusals) is one list, read from the server, so it
+survives reloads and covers every page: `list_activity` (filters `zone`, `state`, `kind`, `by`, `about`; the whole list
+unless you page it with `offset`/`limit`). `zone` is `in_flight` (queued, running, checking, failed), `landed` (waiting
+for the person, or done and not opened yet), `parked` or `closed`. `list_docket` is what waits for the person.
+`wait_for {"job": "<run id or decision id>", "until": "done" | "waiting" | "failed" | "settled"}` waits for one job:
+an edit's candidates are `waiting` once their identity notes are in. Never poll JSON files or sleep: wait_for answers.
 - Snap proposes and you act, always with the person's yes for downloads, installs and anything that spends their GPU
   without "Let agents run".

@@ -6,7 +6,7 @@
 // apply / reject waits for the person as a proposal unless "Let agents run" is on (tools.js).
 // What applying means belongs to the decision's kind (plates.js: the camera's plate; edits.js: the edit's render):
 // kind(name, { finish, apply, undo }) registers it. Decisions are local JSON in the user's snap/candidates folder.
-// SNAP-R16 the person's pick · SNAP-R17 by: person|agent · SNAP-R18 local only · SNAP-R23 candidates · see docs/SNAP_RULES.md
+// SNAP-R16 the person's pick · SNAP-R17 by: person|agent · SNAP-R18 local only · SNAP-R23 candidates · SNAP-R65 the Work card reads decisions (reload merges another page's) · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 
 const DIR = "snap/candidates";

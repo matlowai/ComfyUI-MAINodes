@@ -19,7 +19,7 @@
 // to the rating of any take it came from (a version, an edit, a run from a take's frame); the person's own rating wins.
 // SNAP-R27 locks follow the current rules · SNAP-R36 quiet sound is a note · SNAP-R39 ratings from how a thing was made ·
 // SNAP-R54 takes above the account's cap are left out · SNAP-R60 a take keeps the world pins it ran with (`world`) and its
-// stale flag names the records that moved on · see docs/SNAP_RULES.md
+// stale flag names the records that moved on · SNAP-R65 a paint or check (takes: false) is no take; catchUp writes the takes of runs that finished during a reload · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";

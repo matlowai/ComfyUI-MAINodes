@@ -487,6 +487,31 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   (detail 1.07x, ArcFace 0.75-0.89), and Late Lock makes it decay; U46g: the H3 audio drone rides on Context's audio
   carry, and cutting it on the anchor clips gave 0 of 24 drone segments with the picture unchanged. *More:* PLAN U46e,
   U46g, U46_EXTEND_AB_2026-11-04.md, U46g_LONG_AUDIO_2026-11-05.md, `web/snap/extend.js`.
+- **SNAP-R65: Every asynchronous job is visible on the Work card and where it belongs, from the server's own records.**
+  Every prompt Snap queues carries `extra_data.snap_job`: `kind` (run, retake, rerun, paint, propagate, extend, louder,
+  plate, check, preview, make_dial; settei, board, compile, prose kept for the Book), `title` = the job's question in the
+  person's words (refused when empty), `about` (take, group, scene, shot, decision, candidate, set, camera, slot; book,
+  beat, unit, entity, state kept for the Book), `by` (person | agent; on a gated install the gate adds the session's
+  `account`), `eta_s` (null reads "no estimate yet") and `takes: false` for paints and checks, which run under the page's
+  own client id and never become takes. The Work card derives every row from the server's queue and history
+  (`/mainodes/snap/jobs`), the candidates store, waiting proposals and blind pairs, and refusals at queue: states queued |
+  running | checking | waiting | done | failed | gone, and zones that are queries over them, never stored: **In flight**
+  (queued, running, checking, failed, gone), **Landed, unjudged** (waiting for the person, or done and not opened yet),
+  **Parked** (the person's Park: kept, never counted) and closed. The **docket** is the waiting rows (`list_docket`). A
+  failure stays In flight with the server's own text, whole, until parked or retried; a refusal at queue is a failed row,
+  never only a toast. A job shows on its take's card (a chip), as a ghost card where its take will land, and as a count
+  on its shot's tile. Rows survive a reload, a closed viewer and another tab, and agent-started work shows to the person.
+  Agents read the same rows (`list_activity`, `wait_for`), whole, with explicit paging (SNAP-R58). *Why:* Dylan
+  2026-11-05 08:04, after his first edit's candidates arrived with nothing on screen: "if we dont have good visibility to
+  what is going on with the right screen context the ux fails... consider this for all possible paths"; names from the
+  box1 Production Book (DECISIONS 09:08). *More:* DESIGN_REACTIVE_UX_2026-11-05.md, CONCEPT_PRODUCTION_2026-11-05.md
+  §11.3, `web/snap/jobs.js`, `web/snap/activity.js`, `web/snap/workview.js`.
+- **SNAP-R66: An arrival announces; only a press moves the person.** A job that lands, fails, or starts elsewhere (an
+  agent, another tab) is said once, with one press to its result in context (Open: the take's viewer after its shot,
+  the decision's candidates, the set editor, the blind compare); nothing navigates, opens or switches by itself. Nothing
+  is said when the result's home is already on screen (it updates in place), except a failure. In the graph view
+  ComfyUI's own toast says it. *Why:* SNAP-R5 (open work is never touched by itself) applied to every async path.
+  *More:* DESIGN_REACTIVE_UX_2026-11-05.md §10, `web/snap/view.js` (`openJob`, `A.onArrive`).
 - **SNAP-R39: A rating comes from how a thing was made.** Nothing Snap makes or proposes is unrated. A prompt is rated
   when it is queued, from the files it loads and its words, and the highest wins. Its words count for an account capped
   below Adult; anyone else (an Adult cap, or no gate) counts them only with their setting "Rate takes from their prompt's

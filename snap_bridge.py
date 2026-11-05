@@ -8,7 +8,7 @@ SNAP-R12 identity LoRAs are private · SNAP-R18 local only · SNAP-R20 metadata 
 proposes, never downloads · SNAP-R27 locks follow the current rules · SNAP-R30 the agent front door: pages per user, a
 health listing, errors that say what to do · SNAP-R33 the rating cap's second line · SNAP-R36 quiet sound ·
 SNAP-R37 privacy per install · SNAP-R38 metadata off writes none, the rest is named · SNAP-R39 ratings from how a thing
-was made · see docs/SNAP_RULES.md"""
+was made · SNAP-R65 the Work card's jobs and progress, an agent page's own screenshot · see docs/SNAP_RULES.md"""
 import asyncio
 import hashlib
 import itertools

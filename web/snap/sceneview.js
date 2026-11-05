@@ -6,7 +6,7 @@
 // scene, or add this workflow and its takes to one. The Scenes sheet lists the scenes, makes new ones, renames and
 // deletes them (a deleted scene is parked, never lost). Every action here is the function an agent tool calls too.
 // SNAP-R7 lists hold while a pointer is down · SNAP-R19 one function per action · SNAP-R24 scenes own the work, tabs are
-// scratch · see docs/SNAP_RULES.md
+// scratch · SNAP-R65 a shot's open jobs on its tile · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as SC from "./scenes.js";
 import * as T from "./takes.js";

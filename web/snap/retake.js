@@ -8,7 +8,7 @@
 // world". Saved files: core writes the queued prompt and workflow (extra.snap.world inside) as it always does; with
 // Save metadata off they hold nothing (SNAP-R38).
 // SNAP-R5 open work untouched · SNAP-R16 GPU tools wait as proposals · SNAP-R24 scenes own the work · SNAP-R60 pins ·
-// SNAP-R61 re-run as it was, with today's world, or edited · see docs/SNAP_RULES.md
+// SNAP-R61 re-run as it was, with today's world, or edited · SNAP-R65 the run carries its job stamp · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import * as L from "./library.js";
