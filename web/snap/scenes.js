@@ -158,10 +158,15 @@ async function switchTo(w) {
   const step = ahead <= n - ahead ? "Workspace.NextOpenedWorkflow" : "Workspace.PreviousOpenedWorkflow";
   for (let i = Math.min(ahead, n - ahead); i > 0 && tabs.activeWorkflow !== w; i--) await app.extensionManager.command.execute(step);
 }
-// a scene tab reads "<scene> · <shot>"; only a tab never saved as a file is renamed, which writes nothing
-async function retitle(scene, shot) {
+// a scene tab reads "<scene> · <shot>"; a re-take's own tab of the shot reads "From take 2 · <scene> · <shot>" (the take
+// first, so a narrow tab still tells the two apart; numbered when that is open already). Only a tab never saved as a
+// file is renamed, which writes nothing
+async function retitle(scene, shot, from = null) {
   const tabs = app.extensionManager.workflow, tab = tabs.activeWorkflow;
-  const file = `workflows/${`${scene.name} · ${shotTitle(scene, shot)}`.replace(/[\\/:*?"<>|]+/g, "-")}.json`;
+  const path = (i) => `workflows/${`${from ? `From ${from}${i > 1 ? ` (${i})` : ""} · ` : ""}${scene.name} · ${shotTitle(scene, shot)}`.replace(/[\\/:*?"<>|]+/g, "-")}.json`;
+  let i = 1;
+  while (from && tabs.getWorkflowByPath(path(i))) i++;
+  const file = path(i);
   if (tab?.isTemporary && tab.path !== file && !tabs.getWorkflowByPath(file)) await tabs.renameWorkflow(tab, file);
 }
 
@@ -211,6 +216,28 @@ export async function openShot(sceneId, shotId) {
   const where = inPlace ? (switched ? " in the scene's tab" : "") : " in a new tab (the open one is scratch work, left as it was)";
   return { scene: scene.id, shot: shot.id, tab: inPlace ? (switched ? "scene tab" : "same") : "new", built, ...(card ? { card } : {}),
     said: `${title} of ${scene.name}${where}${shot.workflow ? "" : `: ${built}`}${card ? ` · ${card}` : ""}` };
+}
+
+// a shot's tab and its saved file are compared as JSON (as the file holds it), without the shot mark or node sizes:
+// drawing the graph resizes nodes, which the frontend's own undo comparison also allows for
+function comparable(graph) {
+  const g = JSON.parse(JSON.stringify(graph));
+  delete g.extra?.snap_scene;
+  for (const n of [...g.nodes, ...(g.definitions?.subgraphs ?? []).flatMap((s) => s.nodes ?? [])]) n.size = [0, 0];
+  return g;
+}
+// a graph (a take's, for a re-take or re-run) as the shot's workflow. It replaces the shot's tab only while that tab
+// holds the shot's saved workflow (the load is an Undo step there); a tab with unsaved changes is left as it is and the
+// graph opens in a new tab of the same shot (SNAP-R5), so runs from it still land under the shot. Saved either way
+export async function loadIntoShot(sceneId, shotId, graph, from) {
+  await openShot(sceneId, shotId);
+  const tabs = app.extensionManager.workflow, here = current(), saved = await read(here.shot.workflow);
+  const clean = !!saved && tabs.activeWorkflow.changeTracker.constructor.graphEqual(comparable(saved), comparable(app.graph.serialize()));
+  if (!clean) await newTab();
+  await app.loadGraphData({ ...structuredClone(graph), extra: { ...structuredClone(graph.extra ?? {}), snap_scene: { scene: sceneId, shot: shotId } } }, true, true, tabs.activeWorkflow);
+  if (!clean) await retitle(here.scene, here.shot, from);
+  await saveOpen();
+  return `${shotTitle(here.scene, here.shot)} of ${here.scene.name}${clean ? "" : ` in a new tab (the shot's tab has unsaved changes, left as they are)`}`;
 }
 
 // ---- the document --------------------------------------------------------------------------------------------------

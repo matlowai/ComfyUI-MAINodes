@@ -30,8 +30,11 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   and a scale number, and Render says nothing about upscaling. Implementation details (model variant, tiers, knobs)
   live in the inspector. *More:* MODEL_GRAPH_ONBOARDING §7.
 - **SNAP-R5: Start/new never touches open work.** Starting a recipe on a non-empty graph, or switching model family,
-  opens a new tab. In a scene tab, opening another shot saves the open one into its scene first (SNAP-R24). *More:*
-  LESSONS "Start/new".
+  opens a new tab. In a scene tab, opening another shot saves the open one into its scene first (SNAP-R24). A re-take or
+  re-run loads the take's graph into the shot's tab only while that tab holds the shot's saved workflow (the load is an
+  Undo step); a tab with unsaved changes keeps them, and the take's graph opens in a new tab of the same shot ("From take
+  2 · …"), so the new take still lands under the shot. The comparison is the frontend's own (`graphEqual`), on JSON,
+  without the shot mark or node sizes (drawing resizes nodes). *More:* LESSONS "Start/new", "Batch E".
 - **SNAP-R6: Panels close only when the person asks.** The side panel collapses from its header button (the brick's
   icon + ›) or Esc, never from presses on the chain, empty space or a scrollbar. *Why:* a pointerdown on a scroll
   container also fires for its scrollbar. *More:* LESSONS.

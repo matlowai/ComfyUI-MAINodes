@@ -237,6 +237,7 @@ export async function rerun(take, { swaps = {}, route = "regenerate", seed = "sa
   const cached = seed === "same" && (await T.hashes(await T.live())).hash === take.hash;
   const marks = Object.fromEntries(asked.map((s) => [s.slot, { to: s.ref ?? s.to, text: s.text, ...(s.keep ? { kept: true } : {}) }]));
   const run = go ? await RT.queue("rerun", take.id ? { take: take.id, route, swaps: marks, seed, ...(land != null ? { land } : {}) } : undefined) : null;
+  if (take.id) await SC.saveOpen(); // the shot's workflow as it ran: the next re-run of a batch finds nothing unsaved (SNAP-R5)
   const what = asked.filter((s) => !s.keep).map((s) => s.text);
   return { take: take.id, route, seed, opened: where, swapped: done, ...(newSeed != null ? { new_seed: newSeed } : {}), run,
     ...(cached ? { cache_hit: `nothing the prompt holds changed: ComfyUI serves take ${take.number}'s own file from its cache. Re-run with seed new for a fresh render` } : {}),

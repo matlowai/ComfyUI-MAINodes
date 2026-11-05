@@ -2,7 +2,8 @@
 // versions it pinned: the graph already holds what they put in, seed included) or "with today's world" (each pinned
 // record that moved on is updated to its newest version first). "Edit then run" opens the pinned versions to change.
 // A re-take opens where SNAP-R24 says: the shot's own scene tab when the take belongs to a shot, else a new scratch
-// tab with the take's workflow; it never lands on an unrelated open graph (SNAP-R5). The run carries
+// tab with the take's workflow; it never lands on an unrelated open graph, nor on a shot tab with unsaved changes (a
+// new tab of the shot then, SNAP-R5); after the run the shot's workflow is saved as it ran. The run carries
 // `extra.snap.retake` in its workflow, so the new take nests under the original as "Retake · as it was" / "· today's
 // world". Saved files: core writes the queued prompt and workflow (extra.snap.world inside) as it always does; with
 // Save metadata off they hold nothing (SNAP-R38).
@@ -40,15 +41,9 @@ export function shotOf(take) {
 export async function openTake(take, home) {
   await SC.load();
   if (home === undefined) home = shotOf(take);
-  if (home) {
-    await SC.openShot(home.scene.id, home.shot.id);
-    // the take's whole graph into the shot's own tab (a scene tab is never a saved file, SNAP-R24): widget-by-widget restore
-    // misplaces dynamic rows (a LoRA stack's), so "as it was" would not be exact
-    const tabs = app.extensionManager.workflow, mark = app.graph.extra.snap_scene;
-    await app.loadGraphData({ ...structuredClone(take.graph), extra: { ...structuredClone(take.graph.extra ?? {}), snap_scene: mark } }, true, true, tabs.activeWorkflow);
-    await SC.saveOpen();
-    return `${SC.shotTitle(home.scene, home.shot)} of ${home.scene.name}`;
-  }
+  // the take's whole graph as the shot's workflow (widget-by-widget restore misplaces dynamic rows, a LoRA stack's, so
+  // "as it was" would not be exact); a shot tab with unsaved changes keeps them and the graph opens in a new tab (SNAP-R5)
+  if (home) return SC.loadIntoShot(home.scene.id, home.shot.id, take.graph, `take ${take.number}`);
   const { snap_scene, ...extra } = take.graph.extra ?? {};
   await app.loadGraphData({ ...structuredClone(take.graph), extra: structuredClone(extra) }, true, true, `${take.workflow || "take"} #${take.number} · retake`);
   return "a new tab";
@@ -82,6 +77,7 @@ export async function retake(take, { world = "pinned", seed = "same", refs, queu
   const where = await openTake(take), updated = world === "latest" ? await toToday(refs) : [];
   const seedKey = E.state().bricks.find((b) => E.seedMode(b.key))?.key, newSeed = seed === "new" && seedKey ? E.newSeed(seedKey) : null;
   const run = go ? await queue("retake", { take: take.id, world, seed }) : null;
+  await SC.saveOpen(); // the shot's workflow as it ran, so a next re-take from this tab finds nothing unsaved
   return { take: take.id, world, seed, opened: where, updated, ...(newSeed != null ? { new_seed: newSeed } : {}), run,
     said: `Take ${take.number} ${go ? "re-taken" : "opened"} ${worldShown(world)} in ${where}${updated.length ? ` · ${updated.join(" · ")}` : ""}${go ? "" : " · nothing is queued"}` };
 }
