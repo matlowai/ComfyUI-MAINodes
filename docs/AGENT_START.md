@@ -39,7 +39,7 @@ says how to start one.
 ## 2. Call tools
 
     curl -s $BASE/mainodes/snap/tools                       # names, descriptions, argument schemas, your open pages
-    python3 $PACK/tools/snapcall.py $BASE get_profile        # one call; pictures are saved as files, paths printed
+    python3 $PACK/tools/snapcall.py $BASE get_profile        # one call; pictures go to <temp>/snapcall-pictures/<time>-<tool>/, paths printed
     python3 $PACK/tools/snapcall.py $BASE run_status '{"wait_s": 25}'
 
 You can also run the tools as an MCP server (Claude Code):
