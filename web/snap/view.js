@@ -92,7 +92,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   const workPill = h("span", { className: "snap-work-pill", hidden: true }, workBtn, proposalsPill);
   function renderWork() {
     const p = WV.pillText(A.all());
-    workBtn.replaceChildren(h("i", { className: `snap-work-dot${p.flying ? " live" : ""}` }), h("span", { textContent: ["Work", p.flying ? `${p.flying} in flight` : null, p.landed ? `${p.landed} landed` : null].filter(Boolean).join(" · ") }), p.failed ? h("b", { className: "snap-work-failed", textContent: ` · ${p.failed} failed` }) : null);
+    workBtn.replaceChildren(...[h("i", { className: `snap-work-dot${p.flying ? " live" : ""}` }), h("span", { textContent: ["Work", p.flying ? `${p.flying} in flight` : null, p.landed ? `${p.landed} landed` : null].filter(Boolean).join(" · ") }), p.failed ? h("b", { className: "snap-work-failed", textContent: ` · ${p.failed} failed` }) : null].filter(Boolean)); // replaceChildren(null) prints "null"
     workPill.hidden = !p.flying && !p.landed && !p.failed && proposalsPill.hidden;
   }
   A.onChange(renderWork);
@@ -598,7 +598,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   let toastTimer = 0;
   // `action` {label, run}: one button on the toast (its only part that takes the pointer)
   function say(text, bad = false, ms = bad ? 6000 : 2500, action) {
-    toast.replaceChildren(h("span", { textContent: text }), action ? h("button", { className: "snap-toast-act", textContent: action.label, onclick: () => { toast.classList.remove("show"); action.run(); } }) : null);
+    toast.replaceChildren(...[h("span", { textContent: text }), action ? h("button", { className: "snap-toast-act", textContent: action.label, onclick: () => { toast.classList.remove("show"); action.run(); } }) : null].filter(Boolean));
     toast.classList.toggle("bad", bad);
     toast.classList.add("show");
     clearTimeout(toastTimer);
