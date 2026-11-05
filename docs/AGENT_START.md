@@ -246,6 +246,11 @@ thumbnail in Snap opens the same viewer on a click; nothing changes by viewing.
   separates Krea's identity locks).
 - One candidate per seed, each a still take: `candidate_frames {decision}` shows the sheet first, then each view the
   method draws apart (the contact sheet's five). `apply_candidate` keeps the one that holds the design.
+- Which one (U101 round 2, Maren v1/v2 and Brann): `contact_sheet` for the turnaround itself (Picture 1 is padded
+  square, which makes it orbit: front to back 9/9, about 39 s a sheet), `h3_ref_sheet` for an 8-panel reference sheet
+  with close-ups once you have views to give it (it kept v2's scabbard on her back in profile 5/6). `krea2_quadview`
+  looks cleanest but drops carried props; `krea2_dynamic` is a pitch sheet with garbled labels; `moss_charref` drifts
+  off-model. None reliably draws "from above".
 
 ### Voices and audio references
 

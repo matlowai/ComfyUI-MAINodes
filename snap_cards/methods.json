@@ -564,13 +564,7 @@
         "Picture 1 is padded to a square with its own corner colour: from the portrait Cast picture the camera rolled in 4 of 6 sheets, padded square it orbited in 6 of 6 (front to profile to back, the turn arriving in the last views; U101 round 2)",
         "the rotation follows the subject's pose and some subjects under-rotate (the LoRA's notes)"
       ],
-      "guidance": {
-        "line": "not measured yet",
-        "evidence": "untested",
-        "source": "U101 turnaround round 2",
-        "n": 0,
-        "hardware": "5090"
-      },
+      "guidance": {"line": "U101 round 2 (Maren v1/v2, Brann; seeds 901-903): padded square, a real orbit 9/9 (front, front, 3/4, profile, back: the turn arrives late), design and the v2 scabbard held in profile 3/3; from the portrait Cast picture unpadded the camera rolled in 4/6; no 'from above'", "evidence": "measured", "source": "U101 turnaround round 2 (proto/ui/u101/bakeoff/round2_scorecard.md)", "n": 9, "hardware": "5090"},
       "cost": {
         "community_s": [
           10,
@@ -627,13 +621,7 @@
         "the rotation follows the subject's pose and some subjects under-rotate (the LoRA's notes)",
         "the step-400 checkpoint: the background words are honoured, the arc is shallower than the default's"
       ],
-      "guidance": {
-        "line": "not measured yet",
-        "evidence": "untested",
-        "source": "U101 turnaround round 2",
-        "n": 0,
-        "hardware": "5090"
-      },
+      "guidance": {"line": "U101 round 2: padded square it turns less than the default (Maren reached the back 1/3); unpadded it rolled in 4/6", "evidence": "measured", "source": "U101 turnaround round 2 (proto/ui/u101/bakeoff/round2_scorecard.md)", "n": 9, "hardware": "5090"},
       "cost": {
         "community_s": [
           10,
@@ -685,13 +673,7 @@
         "stock MiniMax H3 Reference to Video (Ref2VA), a frozen 5-frame clip (H3's minimum), references at their max size; the sheet is frame 0",
         "JahJedi's prompt for armour, with the mannequin block dropped for a character as the author says; 20 steps res_multistep, no negative (BasicGuider)"
       ],
-      "guidance": {
-        "line": "not measured yet",
-        "evidence": "untested",
-        "source": "U101 turnaround round 2",
-        "n": 0,
-        "hardware": "5090"
-      },
+      "guidance": {"line": "U101 round 2: clean 8-panel sheets 9/9 (front, 3/4, side, back + head, chest, arm, leg close-ups); with Maren v2's own profile crops among the pictures it kept the scabbard on her back under the strap in 5/6 profiles; it lays out the views it is given, so feed it the views you have", "evidence": "measured", "source": "U101 turnaround round 2 (proto/ui/u101/bakeoff/round2_scorecard.md)", "n": 9, "hardware": "5090"},
       "cost": {
         "community_s": null,
         "local_s": null,
@@ -749,13 +731,7 @@
       "constraints": [
         "the New view's Fizgig still with a sheet prompt: the design words come from the Cast (or `design`)"
       ],
-      "guidance": {
-        "line": "U101 round 1 (C1): legible sheets 6/6, four distinct views, 'seen from above' 0/6 (a second back view), the profiles drop the greatsword 3/3",
-        "evidence": "measured",
-        "source": "U101 bake-off C (PROGRESS 2026-11-05 16:01)",
-        "n": 6,
-        "hardware": "5090"
-      },
+      "guidance": {"line": "U101 rounds 1-2: legible sheets 9/9, 'from above' 0/9 (a second back view), the v1 sword stands detached in every profile and v2's scabbard stands vertically to the floor (never on the diagonal straps)", "evidence": "measured", "source": "U101 turnaround round 2 (proto/ui/u101/bakeoff/round2_scorecard.md)", "n": 9, "hardware": "5090"},
       "cost": {
         "community_s": null,
         "local_s": [
@@ -820,13 +796,7 @@
         "one picture; the LoRA's own trigger caption, the design is read from the picture",
         "Krea 2 Turbo, 10 steps cfg 1 euler/simple, the reference grounded in the text encoder and as source tokens (comfyui-krea2edit, the LoRA's workflow)"
       ],
-      "guidance": {
-        "line": "not measured yet",
-        "evidence": "untested",
-        "source": "U101 turnaround round 2",
-        "n": 0,
-        "hardware": "5090"
-      },
+      "guidance": {"line": "U101 round 2: the cleanest set (face + front, side, back) 9/9 and the best braid, but Maren's greatsword (v1) and scabbard (v2) dropped 6/6", "evidence": "measured", "source": "U101 turnaround round 2 (proto/ui/u101/bakeoff/round2_scorecard.md)", "n": 9, "hardware": "5090"},
       "cost": {
         "community_s": null,
         "local_s": null,
@@ -889,13 +859,7 @@
         "Krea 2 Turbo, 10 steps cfg 1, LCM/simple (the author's best)",
         "text on the sheet is imperfect (the author's note)"
       ],
-      "guidance": {
-        "line": "not measured yet",
-        "evidence": "untested",
-        "source": "U101 turnaround round 2",
-        "n": 0,
-        "hardware": "5090"
-      },
+      "guidance": {"line": "U101 round 2: rich pitch sheets 9/9 (hero, turnaround, actions incl. a high angle, silhouettes, expressions, details) with garbled labels; the side view puts v2's scabbard in her hand", "evidence": "measured", "source": "U101 turnaround round 2 (proto/ui/u101/bakeoff/round2_scorecard.md)", "n": 9, "hardware": "5090"},
       "cost": {
         "community_s": null,
         "local_s": null,
@@ -952,13 +916,7 @@
         "50 steps cfg 3 euler/sgm_uniform, SLG on single layer 22 (the author's full mode)",
         "anime and illustrated characters; one reference per image (the author's notes)"
       ],
-      "guidance": {
-        "line": "not measured yet",
-        "evidence": "untested",
-        "source": "U101 turnaround round 2",
-        "n": 0,
-        "hardware": "5090"
-      },
+      "guidance": {"line": "U101 round 2: off-model 9/9 (a 3D look, hair turns green-white, outfit and beard redesigned, the sword lost in 1/3); the only arm that draws a top-down view (4/6)", "evidence": "measured", "source": "U101 turnaround round 2 (proto/ui/u101/bakeoff/round2_scorecard.md)", "n": 9, "hardware": "5090"},
       "cost": {
         "community_s": null,
         "local_s": null,
