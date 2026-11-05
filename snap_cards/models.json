@@ -720,7 +720,9 @@
     "steps": 6,
     "cfg": 1,
     "sampler": "lcm",
-    "scheduler": "simple"
+    "scheduler": "simple",
+    "shift_video": 12,
+    "shift_audio": 2
    },
    "deband": "none",
    "recommended": null,
@@ -800,7 +802,9 @@
     "steps": 6,
     "cfg": 1,
     "sampler": "lcm",
-    "scheduler": "simple"
+    "scheduler": "simple",
+    "shift_video": 12,
+    "shift_audio": 2
    },
    "deband": "none",
    "recommended": null,
@@ -1389,7 +1393,7 @@
    "kind": "lora",
    "rating": "pg",
    "trained_on": "base",
-   "turbo": {"how": "lora", "steps": 6, "cfg": 1, "sampler": "lcm", "scheduler": "manual", "sigmas": "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"},
+   "turbo": {"how": "lora", "steps": 6, "cfg": 1, "sampler": "lcm", "scheduler": "manual", "sigmas": "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0", "shift_video": 12, "shift_audio": 3},
    "deband": "none",
    "recommended": {
     "strength": 1.0,
@@ -1418,7 +1422,7 @@
    "kind": "lora",
    "rating": "pg",
    "trained_on": "base",
-   "turbo": {"how": "lora", "steps": 6, "cfg": 1, "sampler": "lcm", "scheduler": "manual", "sigmas": "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"},
+   "turbo": {"how": "lora", "steps": 6, "cfg": 1, "sampler": "lcm", "scheduler": "manual", "sigmas": "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0", "shift_video": 12, "shift_audio": 3},
    "deband": "none",
    "recommended": {
     "strength": 1.0,
@@ -1452,7 +1456,9 @@
     "steps": 6,
     "cfg": 1,
     "sampler": "lcm",
-    "scheduler": "simple"
+    "scheduler": "simple",
+    "shift_video": 12,
+    "shift_audio": 2
    },
    "deband": "none",
    "recommended": null,

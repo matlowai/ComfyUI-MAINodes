@@ -390,6 +390,13 @@ const single = () => {
   }
   return null;
 };
+// the rest of what a turbo was made for, by the setting's own name (Pika's knots `sigmas`, H3's `shift_video` / `shift_audio`)
+const exact = (t) => Object.fromEntries(Object.entries(t).filter(([k, v]) => v != null && k !== "how" && !(k in SAMPLING)));
+// that setting on the turbo's host, unless a wire drives it
+const hostSetting = (name) => {
+  for (const [node, n] of nodesOf(turboHost())) if (n.widgets?.some((w) => w.name === name) && !n.inputs?.some((i) => i.widget?.name === name && i.link != null)) return [turboHost(), node, name];
+  return null;
+};
 export function turbos() {
   const fam = family(), me = diffusion() && entry(diffusion().file), mine = diffusion() && variantOf(diffusion().file);
   if (!fam || (!coreStack() && !single())) return [];
@@ -402,7 +409,7 @@ export function turbos() {
   const dir = (n) => n.replace(/\\/g, "/").replace(/[^/]*$/, ""), home = me && dir(diffusion().file);
   const once = [...merges, ...rows].filter(([name], i, list) => { const twins = list.filter(([n]) => short(n) === short(name)); return (twins.find(([n]) => dir(n) === home) ?? twins[0])[0] === name; });
   return once.map(([name, e]) => ({ file: name, name: short(name), how: e.turbo.how, steps: e.turbo.steps, cfg: e.turbo.cfg, sampler: e.turbo.sampler, scheduler: e.turbo.scheduler,
-    ...(e.turbo.sigmas ? { sigmas: e.turbo.sigmas } : {}), strength: e.recommended?.strength ?? 1, fits: fit([name, e]),
+    ...exact(e.turbo), strength: e.recommended?.strength ?? 1, fits: fit([name, e]),
     ...(fit([name, e]) ? {} : { mismatch: variantOf(name) && variantOf(name) !== mine ? `made for ${variantOf(name)}; this model is ${mine}` : `trained on ${lineage(e) === "sft" ? "SFT" : "Base"}; this model is ${lineage(me) === "sft" ? "SFT" : "Base"}-built` }),
     notes: e.notes ?? "" }));
 }
@@ -432,6 +439,7 @@ function quality(was) {
   const out = [], at = sampling(), d = diffusion();
   if (was.how === "merged") out.push([[d.brick, d.node, d.setting], model(card)]);
   for (const [k, names] of Object.entries(SAMPLING)) { const v = flat(card).find(([n]) => names.includes(n))?.[1]; if (v != null && at[k]) out.push([[at[k].brick, at[k].node, at[k].name], v]); }
+  for (const k of Object.keys(exact(entry(was.file).turbo ?? {}))) { const v = flat(card).find(([n]) => n === k)?.[1], where = hostSetting(k); if (v != null && where) out.push([where, v]); }
   return out;
 }
 
@@ -454,8 +462,7 @@ export function setTurbo(name) {
     else if (stack) addRow(stack, t.file, t.strength);
     else { set([one.brick, one.node, one.setting], t.file); set([one.brick, one.node, `${one.setting}_strength`], t.strength); }
     for (const k of ["steps", "cfg", "sampler", "scheduler"]) if (t[k] != null && now[k] && (!now[k].choices || now[k].choices.includes(t[k]))) set([now[k].brick, now[k].node, now[k].name], t[k]);
-    const sig = t.sigmas != null && nodesOf(key).map(([k, n]) => [k, n.widgets?.find((w) => w.name === "sigmas")]).find(([, w]) => w); // a manual schedule's knots (Pika's)
-    if (sig) set([key, sig[0], "sigmas"], t.sigmas);
+    for (const [k, v] of Object.entries(exact(entry(t.file).turbo))) { const at = hostSetting(k); if (at) set(at, v); } // U90(2): the shifts too, not only the knots
     E.remember(key, "turbo", { file: t.file, how: t.how, quality: kept });
   });
   app.canvas.setDirty(true, true);

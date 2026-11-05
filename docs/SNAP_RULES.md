@@ -52,8 +52,9 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   the person asks. Stacking N LoRAs, including 2-3 turbo LoRAs at lower strengths, is normal. Swapping turbos is one
   chip. A turbo can live in a core stack or in a recipe's one LoRA setting: H3's Render Preset `lora` holds its turbo
   (the Pika H3 Flex LoRAs are turbos: 6 steps, lcm, cfg 1 on Pika's manual knots; Dylan, 2026-11-04: "pika is turbo"),
-  so the Setup card and `describe_recipe` name it, and the Turbo slot swaps that setting with the turbo's sampling (and
-  knots). The slot lists the family's turbos with the ones for this model first: same Base / SFT lineage and the same
+  so the Setup card and `describe_recipe` name it, and the Turbo slot swaps that setting with every sampling setting the
+  turbo's model graph entry records, by the setting's own name: steps, cfg, sampler, scheduler, Pika's knots and H3's
+  shifts (Pika 12 / 3, DMAD 12 / 2; U90). The slot lists the family's turbos with the ones for this model first: same Base / SFT lineage and the same
   base variant, which the model graph's family names (H3: ref2v, fl2v); the others stay listed, labelled ("made for
   ref2v; this model is fl2v"). *More:* MODEL_GRAPH_ONBOARDING §2, `web/snap/models.js` (`turbos`, `setTurbo`).
 - **SNAP-R11: Warn and explain, never block.** Mismatches, odd stacks and degraded settings get a warning; the
