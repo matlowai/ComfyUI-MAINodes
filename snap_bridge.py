@@ -6,7 +6,8 @@ and private takes are marked for the lock badge and the export (SNAP-R20); and t
 take checks run in the queue (SNAP-R21); and onboarding's kits (SNAP-R25).
 SNAP-R12 identity LoRAs are private · SNAP-R18 local only · SNAP-R20 metadata switch, private takes marked · SNAP-R25 onboarding
 proposes, never downloads · SNAP-R27 locks follow the current rules · SNAP-R30 the agent front door: pages per user, a
-health listing, errors that say what to do · see docs/SNAP_RULES.md"""
+health listing, errors that say what to do · SNAP-R33 the rating cap's second line · SNAP-R36 quiet sound ·
+SNAP-R37 privacy per install · SNAP-R38 metadata off writes none, the rest is named · see docs/SNAP_RULES.md"""
 import asyncio
 import hashlib
 import json
@@ -35,6 +36,7 @@ from comfy_extras.nodes_video import SaveVideo
 from server import PromptServer
 
 from . import snap_privacy
+from .video_out import MAIVideoOut
 
 TIMEOUT = 30
 tools = []         # the tool table the open Snap page registered
@@ -239,9 +241,10 @@ async def search(request):
 # The metadata switch (SNAP-R20). Core's savers write the executed prompt and the workflow, LoRA file names included, into
 # every file, and only the global --disable-metadata turns that off; the prompt they write is the one queued, so a page
 # can't leave the names out. A Snap page with metadata off marks its queued workflow (extra.snap_metadata false): that
-# prompt has core's savers swapped for these twins, which save the same file without the two, and any other node that
-# reads them is refused before anything runs. Every prompt is also checked for private and NSFW files, for the take's
-# lock badge and the export filter; with metadata on, a private take saves as core saves it.
+# prompt has core's savers and the pack's MAIVideoOut swapped for these twins, which save the same file without the two
+# (and without MAIVideoOut's meta.json), and a node with a `save_metadata` switch (VHS Video Combine) gets it off. Any
+# other node that asks for them still runs, and the take names it: "writes metadata anyway" (SNAP-R38). Every prompt is
+# also checked for private and NSFW files, for the take's lock badge and the export filter (SNAP-R37).
 class MAISaveImagePrivate(nodes.SaveImage):
     DESCRIPTION = "Saves the images to your ComfyUI output directory without the prompt and workflow in the file (Snap saves with it while metadata is off)."
 
@@ -265,33 +268,32 @@ class MAISaveVideoPrivate(SaveVideo):
         return schema
 
     @classmethod
-    def execute(cls, **kwargs):
+    def execute(cls, video, **kwargs):
         cls.hidden.prompt = cls.hidden.extra_pnginfo = None  # cls is this run's own clone
-        return super().execute(**kwargs)
+        if isinstance(video, InputImpl.VideoFromFile):  # a stream copy keeps the source file's tags (a take's own prompt)
+            src = video.get_stream_source()
+            ext = os.path.splitext(src)[1] if isinstance(src, str) else ".mp4"
+            if not isinstance(src, str):
+                src = os.path.join(folder_paths.get_temp_directory(), f"snap_nometa_in_{uuid.uuid4().hex}{ext}")
+                video.save_to(src)
+            out = os.path.join(folder_paths.get_temp_directory(), f"snap_nometa_{uuid.uuid4().hex}{ext}")
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", src, "-map", "0", "-map_metadata", "-1", "-c", "copy", out], check=True, timeout=600)
+            video = InputImpl.VideoFromFile(out)
+        return super().execute(video=video, **kwargs)
 
 
-class MAIPrivateSaveRefused:
-    """Stands in for a node that would write the prompt into its file while metadata is off: it fails validation, so nothing runs."""
-    DEV_ONLY = True
-    CATEGORY = "MAINodes/snap"
-    RETURN_TYPES = ()
-    OUTPUT_NODE = True
-    FUNCTION = "refuse"
+class MAIVideoOutPrivate(MAIVideoOut):
+    DESCRIPTION = "MAI Video Out without the prompt and workflow in the file and without meta.json (Snap saves with it while metadata is off)."
 
     @classmethod
     def INPUT_TYPES(cls):
-        return {"required": {"node": ("STRING", {})}}
+        return {k: v for k, v in MAIVideoOut.INPUT_TYPES().items() if k != "hidden"}
 
-    @classmethod
-    def VALIDATE_INPUTS(cls, node):
-        return (f"metadata is off (Snap's top bar), and {node} writes the prompt and workflow, LoRA names included, into its file. "
-                "Save it with Save Image or Save Video, which Snap saves without them, or turn metadata on.")
-
-    def refuse(self, node):
-        raise RuntimeError(self.VALIDATE_INPUTS(node))
+    def save(self, *args, **kwargs):
+        return super().save(*args, **{**kwargs, "write_meta": False})
 
 
-PRIVATE_SAVES = {"SaveImage": "MAISaveImagePrivate", "PreviewImage": "MAIPreviewImagePrivate", "SaveVideo": "MAISaveVideoPrivate"}
+PRIVATE_SAVES = {"SaveImage": "MAISaveImagePrivate", "PreviewImage": "MAIPreviewImagePrivate", "SaveVideo": "MAISaveVideoPrivate", "MAIVideoOut": "MAIVideoOutPrivate"}
 
 
 def writes_metadata(class_type):
@@ -331,15 +333,22 @@ def metadata_gate(json_data):
         found = {"private": ["privacy rules unreadable"] if on else [], "nsfw": []}
     if not (off or found["private"] or found["nsfw"]):
         return json_data
-    swapped = {}
+    swapped, kept = {}, []
     for nid, node in list(prompt.items()) if off else []:
+        inputs = node.get("inputs") or {}
         if node.get("class_type") in PRIVATE_SAVES:
             swapped[nid] = node["class_type"]
             node["class_type"] = PRIVATE_SAVES[node["class_type"]]
+        elif inputs.get("save_metadata") is True:  # the node's own switch (VHS Video Combine)
+            inputs["save_metadata"] = False
         elif writes_metadata(node.get("class_type")):
-            prompt[nid] = {"class_type": "MAIPrivateSaveRefused", "inputs": {"node": node.get("_meta", {}).get("title") or node["class_type"]}, "_meta": node.get("_meta", {})}
-    # the page's take reads these from /history: the lock badge, the export filter, and the saver each node really is
-    extra["snap_marks"] = {"private": bool(found["private"]), "nsfw": bool(found["nsfw"]), "why": found["private"] + found["nsfw"], "metadata": not off, "swapped": swapped}
+            kept.append(f"node {nid} ({node.get('_meta', {}).get('title') or node['class_type']}) writes metadata anyway")
+    if kept:
+        logging.warning("Snap: metadata is off, but %s", "; ".join(kept))
+    # the page's take reads these from /history: the lock badge, the export filter, the saver each node really is, and
+    # the nodes that kept their metadata
+    extra["snap_marks"] = {"private": bool(found["private"]), "nsfw": bool(found["nsfw"]), "why": found["private"] + found["nsfw"], "metadata": not off, "swapped": swapped,
+                           **({"kept": kept} if kept else {})}
     return json_data
 
 
@@ -505,6 +514,6 @@ class MAISnapCopyScore(io.ComfyNode):
         scores = [s for chunk in images.split(16) for s in (patches(chunk) * ref).sum(-1).mean(-1).tolist()]
         return io.NodeOutput(ui={"copy_scores": [round(s, 4) for s in scores]})
 NODE_CLASS_MAPPINGS = {"MAISaveImagePrivate": MAISaveImagePrivate, "MAIPreviewImagePrivate": MAIPreviewImagePrivate,
-                       "MAISaveVideoPrivate": MAISaveVideoPrivate, "MAIPrivateSaveRefused": MAIPrivateSaveRefused, "MAIRatingRefused": MAIRatingRefused, "MAISnapLouder": MAISnapLouder, "MAISnapCopyScore": MAISnapCopyScore}
+                       "MAISaveVideoPrivate": MAISaveVideoPrivate, "MAIVideoOutPrivate": MAIVideoOutPrivate, "MAIRatingRefused": MAIRatingRefused, "MAISnapLouder": MAISnapLouder, "MAISnapCopyScore": MAISnapCopyScore}
 NODE_DISPLAY_NAME_MAPPINGS = {"MAISaveImagePrivate": "Save Image (no metadata)", "MAIPreviewImagePrivate": "Preview Image (no metadata)",
-                              "MAIPrivateSaveRefused": "Metadata off: save refused", "MAIRatingRefused": "Above the rating cap: refused", "MAISnapLouder": "Make the sound louder (Snap)", "MAISnapCopyScore": "Copy score (Snap)"}
+                              "MAIVideoOutPrivate": "MAI Video Out (no metadata)", "MAIRatingRefused": "Above the rating cap: refused", "MAISnapLouder": "Make the sound louder (Snap)", "MAISnapCopyScore": "Copy score (Snap)"}

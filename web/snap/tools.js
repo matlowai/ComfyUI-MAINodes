@@ -465,7 +465,7 @@ export const TOOLS = [
   },
   {
     name: "list_takes",
-    description: "The takes (finished runs) of the open workflow, ranked ones first in the person's order: number, seed, status, verdict (keep/reject), whether it's a prior, how many notes, the media files, the prompt's start, and `stale` ({changed: [\"Render.steps\", …]} when the chain no longer makes the take, seeds aside; null when it does), `sound` (mean dB of a video's sound; quiet: true below -45 dB: tell the person, and offer make_louder or a prompt that names the sounds the action makes; never fix it unasked). Private takes say so: don't name their LoRAs to anyone but the person. For dailies: read takes, then get_take for one take's notes and settings.",
+    description: "The takes (finished runs) of the open workflow, ranked ones first in the person's order: number, seed, status, verdict (keep/reject), whether it's a prior, how many notes, the media files, the prompt's start, and `stale` ({changed: [\"Render.steps\", …]} when the chain no longer makes the take, seeds aside; null when it does), `sound` (mean dB of a video's sound; quiet: true below -45 dB: tell the person, and offer make_louder or a prompt that names the sounds the action makes; never fix it unasked), `metadata_kept` (Save metadata was off and these nodes wrote it anyway: tell the person). Private takes say so: don't name their LoRAs to anyone but the person. For dailies: read takes, then get_take for one take's notes and settings.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
     run: async () => {
@@ -474,7 +474,7 @@ export const TOOLS = [
       const now = await T.live();
       return Promise.all(T.inGroup().sort((a, b) => (order.includes(a.id) ? order.indexOf(a.id) : 1e9 + a.created) - (order.includes(b.id) ? order.indexOf(b.id) : 1e9 + b.created))
         .map(async (t) => ({ id: t.id, number: t.number, rank: order.includes(t.id) ? order.indexOf(t.id) + 1 : null, seed: t.seed, status: t.status, verdict: t.verdict, prior: t.prior, notes: t.notes.length, media: t.media.map((m) => `${m.type}/${m.subfolder ? `${m.subfolder}/` : ""}${m.filename}`), prompt: t.text.slice(0, 200),
-          stale: await T.stale(t, now), copy: t.copy ?? null, ...(t.sound ? { sound: { mean_db: t.sound.mean_db, quiet: T.quiet(t) } } : {}), ...(T.locked(t) ? { private: true } : {}) })));
+          stale: await T.stale(t, now), copy: t.copy ?? null, ...(t.sound ? { sound: { mean_db: t.sound.mean_db, quiet: T.quiet(t) } } : {}), ...(t.metadata_kept ? { metadata_kept: t.metadata_kept } : {}), ...(T.locked(t) ? { private: true } : {}) })));
     },
   },
   {
@@ -561,7 +561,7 @@ export const TOOLS = [
   },
   {
     name: "run_status",
-    description: "Where runs stand: per run (the one given, else this page's last three, newest first) state queued | running | done | failed, and when done its take id and output files (path on this machine, url); when failed, the error. wait_s (up to 25 s; a call ends after 30 s) waits for that run, or the newest, to finish first, so call it again until done. Also the queue counts, the brick running now and its progress, and the newest take of this workflow.",
+    description: "Where runs stand: per run (the one given, else this page's last three, newest first) state queued | running | done | failed, and when done its take id and output files (path on this machine, url) and metadata_kept (nodes that wrote metadata while Save metadata was off: tell the person); when failed, the error. wait_s (up to 25 s; a call ends after 30 s) waits for that run, or the newest, to finish first, so call it again until done. Also the queue counts, the brick running now and its progress, and the newest take of this workflow.",
     inputSchema: { type: "object", properties: { run: { type: "string", description: "a run id from run" }, wait_s: { type: "number", minimum: 0, description: "wait up to this many seconds (at most 25) for the run to finish" } } },
     annotations: { readOnlyHint: true },
     run: async ({ run, wait_s = 0 } = {}) => {

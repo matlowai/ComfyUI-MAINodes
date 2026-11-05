@@ -282,8 +282,8 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   keep their prompt and workflow by default, as core saves them. "Save metadata", the switch right before Run (a ComfyUI
   user setting, `MAINodes.Snap.SaveMetadata`, remembered per user), turns that off: every prompt the page queues then
   carries `extra.snap_metadata: false` in its workflow, and the server swaps core's Save Image / Preview Image / Save
-  Video for twins that write no prompt or workflow, and refuses, before anything runs, any other node that would write
-  them. No warning chip. A take is private when any node of its prompt loads a file the model graph gives role
+  Video (and the pack's MAIVideoOut) for twins that write no prompt or workflow; a node it can't switch runs and is
+  named (SNAP-R38). No warning chip. A take is private when any node of its prompt loads a file the model graph gives role
   `identity` or tags `private`, whose real path (symlinks followed) is under one of the person's private paths or
   matches one of their private patterns (user `snap/private.json`, local, never in the pack and never read by the
   page), or when Snap's Cast brick has a LoRA row on; it is NSFW when it loads a file tagged `nsfw`. Reasons name nodes,
@@ -292,6 +292,18 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   private. *Why:* core writes the executed prompt and workflow, LoRA file names included, into every PNG and mp4, and
   `--disable-metadata` is global; Dylan chose metadata on for everything with one clean switch (2026-11-04) over
   stripping private takes automatically. *More:* `snap_privacy.py`, `snap_bridge.py`, `web/snap/metadata.js`; PLAN U22, U58.
+- **SNAP-R38: Save metadata off writes no metadata, and anything that still does is named.** With the switch off, the
+  server swaps every saver it can switch for a twin: Save Image, Preview Image, Save Video and MAIVideoOut (MAIVideoOut's
+  twin also writes no meta.json). A node with its own `save_metadata` input (VHS Video Combine) gets it set false. Save
+  Video of a file (LoadVideo, the louder version) is remuxed without the source's tags first, because core's stream copy
+  carries them over. Any other node that asks for the prompt or workflow is no longer refused: it runs, and the run and
+  its take say "node N (title) writes metadata anyway" (`snap_marks.kept`, `metadata_kept` in run_status and
+  list_takes, a chip on the card). Every default flow's saver is one the server switches: both recipes' Save bricks,
+  the blueprints (no saver inside), Upscale (no saver), and Snap's own graphs (edits, plates, candidates, louder). The
+  person's own data in user/snap (take records, which hold the prompt) is not a saved file and isn't affected. Neither
+  are dial files, which keep their own sentence pairs. *Why:* Dylan, 2026-11-04: "Save metadata off should stop metadata
+  from writing. If there's anything that doesn't have a toggle for that in the flow, let them know." *More:* PLAN U81,
+  `snap_bridge.py`, proto/test_metadata_off.py, test_metadata_flows.js.
 - **SNAP-R37: Privacy is a per-install opt-in, off by default.** Everything private in SNAP-R12, R20, R27 and R32 holds
   only where `user/snap_privacy.json` says `{"on": true}`. That file sits outside every user's folder, so no page can
   write it; the install's admin puts it there (snapbox does). Off, nothing is private from any source: private.json

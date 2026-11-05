@@ -142,7 +142,8 @@ export async function runState(id) {
   await load();
   if (running.has(id) || saving.has(id)) return { run: id, state: "running", saving: "the take" };
   const dir = await outputs(), files = media(h.outputs).filter((m) => m.type === "output");
-  return { run: id, state: "done", take: get(`take-${id}`)?.id ?? null,
+  const kept = h.prompt?.[3]?.snap_marks?.kept; // SNAP-R38: metadata was off, and these nodes wrote it anyway
+  return { run: id, state: "done", take: get(`take-${id}`)?.id ?? null, ...(kept ? { metadata_kept: kept } : {}),
     outputs: files.map((m) => ({ kind: m.kind, ...(dir ? { path: [dir, m.subfolder, m.filename].filter(Boolean).join("/") } : {}), url: new URL(url(m), location.href).href })) };
 }
 
@@ -177,7 +178,7 @@ async function captureRun(id, started, status, error, failedNode) {
     group, workflow: app.extensionManager.workflow.activeWorkflow?.filename ?? "", number: n,
     status, ...(error ? { error, failed_node: failedNode } : {}), text, seed, media: files, ...(sound?.sound ? { sound: { mean_db: sound.mean_db, max_db: sound.max_db } } : {}),
     ...(extra?.snap_marks?.private ? { private: true } : {}), ...(extra?.snap_marks?.nsfw ? { nsfw: true } : {}),
-    ...(extra?.snap_marks?.metadata === false ? { metadata: false } : {}), ...(Object.keys(swapped).length ? { swapped } : {}), ...(parent ? { parent } : {}), ...await hashes(canonical(prompt, swapped)),
+    ...(extra?.snap_marks?.metadata === false ? { metadata: false } : {}), ...(extra?.snap_marks?.kept ? { metadata_kept: extra.snap_marks.kept } : {}), ...(Object.keys(swapped).length ? { swapped } : {}), ...(parent ? { parent } : {}), ...await hashes(canonical(prompt, swapped)),
     verdict: null, prior: false, notes: [], graph, prompt,
   });
 }

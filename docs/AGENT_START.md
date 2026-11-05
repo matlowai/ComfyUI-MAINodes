@@ -88,7 +88,8 @@ You can also run the tools as an MCP server (Claude Code):
    still goes, so set the prompt first.
 6. Call `run_status {"run": "<id>", "wait_s": 25}` again until `state` is `done` or `failed`. The state goes
    `queued` → `running` → `done` / `failed`. When the run is done, `run_status` gives the take id and the output files
-   (`path` on the ComfyUI machine, and `url`).
+   (`path` on the ComfyUI machine, and `url`). `metadata_kept` names nodes that wrote the prompt into their files
+   although Save metadata was off: tell the person.
 7. `list_takes`, `take_frames` (look at a take) and `rank_takes` / `judge_takes` (your own judgments, kept apart from
    the person's) come after that. A video take whose `sound.quiet` is true is near-silent: tell the person. Offer
    `make_louder` (a louder version of the take) or a prompt that names the sounds the action makes.
