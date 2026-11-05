@@ -507,11 +507,44 @@
       "constraints": [
         "an edit of Picture 1 with the others as references: the prompt names them <Picture 1>, <Picture 2>, …; a short instruction gets \"Edit <Picture 1>.\" in front (core PH3ImageConditioning)",
         "up to 9 pictures; no negative prompt and no CFG (BasicGuider), 8 steps on Pruna's ManualSigmas grid with ModelSamplingMiniMaxH3 at 1.0/1.0",
-        "the still is Picture 1's own size unless a size is given (pictures are only scaled down)"
+        "the still is Picture 1's own size unless a size is given (pictures are only scaled down)",
+        "the words move the camera: Picture 1 need not have the camera you want (U101: the road board or the aerial master first both gave eye height in the square); a frame donor with people plus a crop of the set gave a collage, and 'no people' with the master kept the aerial view"
+      ],
+      "guidance": { "line": "short03 C2 (the gate seen from inside the square): with the road board or the master first, then the other and the Cast pictures, 6/6 stills were inside the square at eye height with the master's own gatehouse, palisade, well and houses, both people on-model and the beat as written (a wide shot rather than a medium one)", "evidence": "measured", "source": "U101 (proto/ui/u101, PROGRESS 2026-11-05 14:16)", "n": 15, "hardware": "5090" },
+      "cost": { "community_s": null, "local_s": [7, 10], "per": "one 1280x704 still with 2-4 pictures on a 5090 (the first after a load 22 s)", "vram_gb": null },
+      "credit": "P-H3-Image by PrunaAI (https://huggingface.co/PrunaAI/P-H3-Image-Comfy) · MiniMax H3"
+    },
+    {
+      "id": "fizgig_still",
+      "slot": "view",
+      "kind": "take",
+      "title": "New view · H3 still (Fizgig)",
+      "face": "a new still from the pictures you give, in your words (stock H3 Ref2V on a one-frame latent)",
+      "does": "edit",
+      "anchors": {
+        "kind": "fizgig",
+        "prompt": "{prompt}",
+        "unet": "h3/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+        "clip": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "vae": "h3/minimax_h3_video_vae_fp16.safetensors",
+        "turbo": { "lora": "h3/minimax_h3_turbo_v4_step600_ema.safetensors", "strength": 0.38 },
+        "steps": 20,
+        "sampler": "er_sde",
+        "scheduler": "simple",
+        "megapixels": 1.0,
+        "max_pictures": 9
+      },
+      "packs": ["FizgigH3StillLatent", "FizgigH3StillDecode"],
+      "needs": [{ "folder": "diffusion_models", "match": "minimax_h3_fl2va_pruned" }, { "folder": "loras", "match": "minimax_h3_turbo_v4" }, { "folder": "vae", "match": "minimax_h3_video_vae" }],
+      "local_or_api": "local",
+      "constraints": [
+        "core MiniMax H3 Reference to Video reads the pictures as <Picture 1>, <Picture 2>, … (up to 9); the Fizgig pack's one-frame latent and decode make the still (the stock VAE Decode bands a lone frame)",
+        "the pack's recommended edit setup: stock FL2VA pruned int8, the larryvrh turbo LoRA v4 at 0.38, er_sde 20 steps, no negative",
+        "H3 stills are soft below about 2-3 MP (community: 'shit under 8 MP'; SmallKino: not below 2 MP): give a size, or refine with an upscale"
       ],
       "guidance": { "line": "not measured yet", "evidence": "untested", "source": "U101", "n": 0, "hardware": "5090" },
       "cost": { "community_s": null, "local_s": null, "per": "one still", "vram_gb": null },
-      "credit": "P-H3-Image by PrunaAI (https://huggingface.co/PrunaAI/P-H3-Image-Comfy) · MiniMax H3"
+      "credit": "Fizgig H3 Still by shootthesound (https://github.com/shootthesound/ComfyUI-Fizgig-H3-Still, MIT) · turbo LoRA larryvrh/MiniMax-H3-Turbo-Lora · MiniMax H3"
     },
     {
       "id": "crop_inpaint",

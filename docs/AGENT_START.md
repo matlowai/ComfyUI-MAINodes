@@ -210,7 +210,8 @@ them). It works on stills: masters, plates, boards.
   `apply_candidate` makes the one that holds the set the shot's take.
 - `method` picks the model (`list_methods {"slot": "view"}`): `moss_view` (MOSS Image Edit, the default) or `ph3_view`
   (P-H3-Image: an edit of Picture 1 with the others as references; write `<Picture 1>`, `<Picture 2>`, …; 8 steps, no
-  negative, up to 9 pictures). For MOSS, `lora` keeps every candidate on one edit LoRA, else they take turns: akhaliq
+  negative, up to 9 pictures) or `fizgig_still` (stock H3 on the Fizgig H3 Still pack: Reference to Video with
+  `<Picture n>`, a one-frame latent; soft below 2-3 MP, so give `width`/`height`). For MOSS, `lora` keeps every candidate on one edit LoRA, else they take turns: akhaliq
   keeps Picture 1 almost as it is (change one thing), chinoll follows the words and can move the camera.
 - In the take viewer the same route is "New view from these pictures": add this picture, a marked region of it, or a
   Cast's picture, and move them up or down.

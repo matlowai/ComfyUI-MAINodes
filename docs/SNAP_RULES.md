@@ -625,7 +625,8 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   U101.
 - **SNAP-R75: The new view's model is the person's pick.** The view slot holds more than one model as registry data
   (`moss_view`: MOSS Image Edit with its edit LoRAs; `ph3_view`: PrunaAI's P-H3-Image on core `PH3ImageConditioning`,
-  an edit of Picture 1 with the rest as references, 8 steps, no negative). The tray's model menu and the tool's
+  an edit of Picture 1 with the rest as references, 8 steps, no negative; `fizgig_still`: stock H3 Reference to Video on
+  the Fizgig H3 Still pack's one-frame latent, which says it needs that pack when it isn't installed). The tray's model menu and the tool's
   `method` choose; each model's own choices show only with it (MOSS's LoRA menu). Snap does not pick a default for the
   person between them from one test: the comparison is shown and the person calls it. *Why:* Dylan 2026-11-05 14:0x,
   after the MOSS C2 results: P-H3-Image is the strong H3-based edit he meant. *More:* PLAN U101, U17.

@@ -10,7 +10,7 @@
 // pictures and free words, each seed a candidate take in a shot (fromContext, below).
 // SNAP-R13 data, not code branches · SNAP-R14 method slots · SNAP-R16 GPU work waits for the person · SNAP-R17 by ·
 // SNAP-R23 candidates · SNAP-R51 change something, recast, pins · SNAP-R71 a new view from context, in the asker's words ·
-// SNAP-R72 Picture 1 sets the camera · SNAP-R75 the view slot's models are data (MOSS, P-H3-Image) · see docs/SNAP_RULES.md
+// SNAP-R72 Picture 1 sets the camera · SNAP-R75 the view slot's models are data (MOSS, P-H3-Image, H3 still) · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as C from "./candidates.js";
 import * as K from "./checks.js";
@@ -396,8 +396,35 @@ async function ph3Graph(a, pics, values, seed, size, prefix) {
   });
   return g;
 }
+// one H3 still (the Fizgig H3 Still pack's edit graph): core MiniMax H3 Reference to Video with the pictures as
+// <Picture n>, the pack's one-frame latent and its decode, the turbo LoRA at the pack's strength, er_sde. The still is
+// Picture 1's size at the method's megapixels unless a size is given
+async function fizgigGraph(a, pics, values, seed, size, prefix) {
+  const files = { unet: await M.choice("UNETLoader", "unet_name", a.unet), clip: await M.choice("CLIPLoader", "clip_name", a.clip), vae: await M.choice("VAELoader", "vae_name", a.vae), turbo: await M.choice("LoraLoaderModelOnly", "lora_name", a.turbo.lora) };
+  const g = {
+    1: { class_type: "UNETLoader", inputs: { unet_name: files.unet, weight_dtype: "default" } },
+    2: { class_type: "CLIPLoader", inputs: { clip_name: files.clip, type: "minimax", device: "default" } },
+    3: { class_type: "VAELoader", inputs: { vae_name: files.vae } },
+    4: { class_type: "LoraLoaderModelOnly", inputs: { model: ["1", 0], lora_name: files.turbo, strength_model: a.turbo.strength } },
+  };
+  pics.forEach((p) => Object.assign(g, p.nodes));
+  if (!size) Object.assign(g, { s0: { class_type: "ImageScaleToTotalPixels", inputs: { image: pics[0].out, upscale_method: "lanczos", megapixels: a.megapixels, resolution_steps: 32 } }, z: { class_type: "GetImageSize", inputs: { image: ["s0", 0] } } });
+  const w = size?.width ?? ["z", 0], hgt = size?.height ?? ["z", 1];
+  Object.assign(g, {
+    p: { class_type: "MiniMaxH3ReferenceToVideo", inputs: { clip: ["2", 0], vae: ["3", 0], prompt: fill(a.prompt, values), width: w, height: hgt, length: 5, ref_image_size: "match", ...Object.fromEntries(pics.map((x, i) => [`ref_images.ref_image_${i}`, x.out])) } },
+    g: { class_type: "BasicGuider", inputs: { model: ["4", 0], conditioning: ["p", 0] } },
+    r: { class_type: "RandomNoise", inputs: { noise_seed: seed } },
+    s: { class_type: "KSamplerSelect", inputs: { sampler_name: a.sampler } },
+    m: { class_type: "BasicScheduler", inputs: { model: ["4", 0], scheduler: a.scheduler, steps: a.steps, denoise: 1.0 } },
+    l: { class_type: "FizgigH3StillLatent", inputs: { width: w, height: hgt, batch_size: 1 } },
+    k: { class_type: "SamplerCustomAdvanced", inputs: { noise: ["r", 0], guider: ["g", 0], sampler: ["s", 0], sigmas: ["m", 0], latent_image: ["l", 0] } },
+    d: { class_type: "FizgigH3StillDecode", inputs: { samples: ["k", 0], vae: ["3", 0] } },
+    o: { class_type: "SaveImage", inputs: { images: ["d", 0], filename_prefix: prefix } },
+  });
+  return g;
+}
 // make a new view: `pictures` in order (Picture 1 sets the camera), `prompt` the person's or agent's words, one candidate
-// per seed (`seeds`, else `count` new ones), on the view slot's `method` (moss_view, ph3_view); `lora` keeps every MOSS
+// per seed (`seeds`, else `count` new ones), on the view slot's `method` (moss_view, ph3_view, fizgig_still); `lora` keeps every MOSS
 // candidate on one edit LoRA, else the method's take turns.
 // Returns at once; each candidate is a take in the shot it lands in once its paint finishes
 export async function fromContext(pictures, prompt, { method: id = "moss_view", lora, seeds, count = 2, width, height, avoid = "", land, by = "person" } = {}) {
@@ -420,7 +447,8 @@ export async function fromContext(pictures, prompt, { method: id = "moss_view", 
   for (const [i, seed] of list.entries()) {
     const recipe = recipes[i % recipes.length], size = width != null ? { width, height } : null, prefix = `snap_views/${where.group.slice(0, 8)}`;
     if (recipe && !models.has(recipe.lora)) models.set(recipe.lora, await mossNodes(m.anchors, recipe));
-    const g = m.anchors.kind === "ph3" ? await ph3Graph(m.anchors, pics, { prompt: prompt.trim() }, seed, size, prefix) : viewGraph(m.anchors, models.get(recipe.lora), recipe, pics, { prompt: prompt.trim(), avoid }, seed, size, prefix);
+    const g = m.anchors.kind === "ph3" ? await ph3Graph(m.anchors, pics, { prompt: prompt.trim() }, seed, size, prefix)
+      : m.anchors.kind === "fizgig" ? await fizgigGraph(m.anchors, pics, { prompt: prompt.trim() }, seed, size, prefix) : viewGraph(m.anchors, models.get(recipe.lora), recipe, pics, { prompt: prompt.trim(), avoid }, seed, size, prefix);
     const job = { kind: "paint", title: `New view (${label}), candidate ${i + 1} of ${list.length}`, about: { take: first, group: where.group, scene: where.scene, shot: where.shot }, by, eta_s: [m.cost?.local_s].flat().at(-1) ?? null };
     made.push({ prompt_id: await K.queue(g, { group: where.group, world, job, extra: { snap_parent: { take: first, method: `view/${id}`, options: { label, prompt: prompt.trim(), context: said, ...(avoid ? { avoid } : {}) } } } }),
       seed, made: recipe ? { lora: recipe.lora, cfg: recipe.cfg } : { model: m.anchors.unet.split("/").pop() }, label: "new view" }); // a take, no check to wait for (its tile's chips)
