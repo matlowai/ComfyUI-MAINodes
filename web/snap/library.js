@@ -18,7 +18,7 @@ import { setBlock, blocking, drawPlan, drawElevation, toBlob, coverage, atCamera
 
 // the brick each kind of card goes on; a recipe goes on the whole stack (null)
 export const TARGET = { recipe: null, shot: "render", set_snapshot: "refs", dial: "rack", lora: "preset", cast: "render", setting: "render", scene: "render", principle: "render", pose: "first_frame", motion_guide: "refs", run: "render" };
-export const KIND_LABEL = { recipe: "Recipes", shot: "Shots", set_snapshot: "Set snapshots", cast: "Characters", setting: "Settings", scene: "Scenes", principle: "Principles", motion_guide: "Motion", pose: "Poses", dial: "Dials", lora: "LoRAs", run: "Runs" };
+export const KIND_LABEL = { recipe: "Recipes", shot: "Shots", set_snapshot: "Set snapshots", cast: "Cast", setting: "Settings", scene: "Scenes", principle: "Principles", motion_guide: "Motion", pose: "Poses", dial: "Dials", lora: "LoRAs", run: "Runs" };
 
 let cards = [], pack = [], loading;
 // cards load once per page; the view and the agent tools both wait on the same request. The person's own cards are

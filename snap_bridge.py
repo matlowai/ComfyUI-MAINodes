@@ -83,9 +83,11 @@ def chosen(user, code=None):
 
 def stale_note(client, base):
     p = pages[client]
-    loaded = f"loaded {time.strftime('%H:%M', time.localtime(p['registered_first']))}" + ("" if p["code"] else ", before pages reported their code")
+    # registered_first is when this server first heard from the tab (a tab open across a restart re-registers then), not
+    # when its code was loaded
+    since = f"connected to this server since {time.strftime('%H:%M', time.localtime(p['registered_first']))}" + ("" if p["code"] else ", from before pages reported their code")
     who = "an agent's page" if p["headless"] else "a person's visible tab"
-    return (f"This Snap page ({who}, {loaded}) runs older Snap code than the server serves now, so tools added since are missing. "
+    return (f"This Snap page ({who}, {since}) runs older Snap code than the server serves now, so tools added since are missing. "
             f"Reload it, or start your own agent page: bash {PAGE_SH} {base} --new (calls then go to it).")
 
 

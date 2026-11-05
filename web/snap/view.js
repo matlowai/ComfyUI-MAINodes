@@ -241,7 +241,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
           h("button", { className: "snap-edit", textContent: "▦", title: "plan-board: every saved state of this set side by side", onclick: (e) => { e.stopPropagation(); openBoard(root, L.lineage(c), { onOpen: editSet }); } }),
           h("button", { className: "snap-edit", textContent: "✎", title: "open the set plan to block it", onclick: (e) => { e.stopPropagation(); editSet(c); } }))
         : c.kind === "cast" && c.brick?.cast ? h("span", { className: "snap-card-tools" }, // SNAP-R59: the record is where a character changes
-          h("button", { className: "snap-edit", textContent: "✎", title: "edit this character's Cast record (saving makes a new version)", onclick: (e) => { e.stopPropagation(); editCast({ id: c.id }); } })) : null);
+          h("button", { className: "snap-edit", textContent: "✎", title: "edit this Cast record (saving makes a new version)", onclick: (e) => { e.stopPropagation(); editCast({ id: c.id }); } })) : null);
       if (c.kind === "dial" && c.brick?.dial) tile.append(moveControl(c.brick.dial, moved));
       tile.dataset.card = c.id;
       tile.style.setProperty("--hue", goes ? BRICKS[goes].hue : 45);
@@ -861,12 +861,12 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const pics = E.state().bricks.find((b) => b.key === "refs")?.pictures ?? [];
     const meter = h("div", { className: "snap-meter", title: "H3 References takes 9 pictures; put identity references first" },
       ...Array.from({ length: E.PICTURE_SLOTS }, (_, i) => h("span", { className: i < pics.length ? "on" : "" })), h("em", { textContent: `${pics.length} of ${E.PICTURE_SLOTS} pictures` }));
-    if (!pics.length) return [meter, h("div", { className: "snap-quiet", textContent: "Drop pictures here", title: "a set snapshot or character card from the Library" })];
+    if (!pics.length) return [meter, h("div", { className: "snap-quiet", textContent: "Drop pictures here", title: "a set snapshot or Cast card from the Library" })];
     return [meter, h("div", { className: "snap-pics" }, pics.map((p) => {
       const cut = p.file.lastIndexOf("/"), sub = p.file.slice(0, Math.max(cut, 0)), name = p.file.slice(cut + 1); // plates sit two folders down (snap/plates)
       const cast = p.source?.startsWith("cast:") && p.card ? W.parse(p.card) : null; // SNAP-R59: a Cast picture opens its record at the version it came from
       const from = !cast && p.source && (L.get(p.card) ?? L.get(`${p.source}-mine`) ?? L.get(p.source)); // the exact version in References
-      return h("figure", { title: `${p.reason}${from ? "\nclick to edit the set" : cast ? "\nclick to edit the character" : ""}`, className: from || cast ? "editable" : "", onclick: from ? () => editSet(from) : cast ? () => editCast({ id: cast.id, n: cast.n }) : null }, h("img", { src: api.apiURL(`/view?filename=${encodeURIComponent(name)}&subfolder=${encodeURIComponent(sub)}&type=input`), alt: p.role, loading: "lazy" }), h("figcaption", { textContent: p.role }));
+      return h("figure", { title: `${p.reason}${from ? "\nclick to edit the set" : cast ? "\nclick to edit the Cast record" : ""}`, className: from || cast ? "editable" : "", onclick: from ? () => editSet(from) : cast ? () => editCast({ id: cast.id, n: cast.n }) : null }, h("img", { src: api.apiURL(`/view?filename=${encodeURIComponent(name)}&subfolder=${encodeURIComponent(sub)}&type=input`), alt: p.role, loading: "lazy" }), h("figcaption", { textContent: p.role }));
     }))];
   }
 

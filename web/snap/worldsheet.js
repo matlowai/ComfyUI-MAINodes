@@ -13,7 +13,7 @@ const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.crea
 
 // `edit(ref, n)` opens a pinned version in its editor (the view knows the Cast sheet and the set editor)
 export async function openWorldSheet(host, { name, say, edit }) {
-  host.querySelector(".snap-opened-sheet")?.remove();
+  for (const s of host.querySelectorAll(".snap-opened-sheet, .snap-world-sheet")) s.remove(); // one of the two at a time: they sit in the same place
   await W.load();
   const world = E.state().world ?? {}, moved = new Map((await R.differs(world)).map((m) => [m.ref, m]));
   const pins = Object.entries(world);
@@ -35,10 +35,11 @@ export async function openWorldSheet(host, { name, say, edit }) {
       editing && editable(ref) && r ? h("button", { className: "snap-link", textContent: `Edit v${p.n}`, title: "open this version: saving makes a new version, and Save and use puts it into this recipe", onclick: () => edit(ref, p.n) }) : null);
   }));
   const anyMoved = [...moved.values()].some((m) => !m.missing);
+  const anyMissing = [...moved.values()].some((m) => m.missing);
   const sheet = h("div", { className: "snap-sheet snap-setup-sheet snap-opened-sheet", role: "dialog", ariaLabel: "Opened file" },
     h("header", {}, h("strong", { textContent: `${name}: made with ${pins.length} record${pins.length === 1 ? "" : "s"}` }), h("span", { className: "snap-spacer" }), h("button", { className: "snap-x", textContent: "×", title: "close (Esc): the workflow stays open as it is", onclick: close })),
     h("div", { className: "snap-opened-body" },
-      h("p", { className: "snap-quiet", textContent: anyMoved ? "Some of what this file used has newer versions. Run it exactly as it was, with today's versions, or open the old ones to change first." : "Everything this file used is still at the same version: it runs as it was." }),
+      h("p", { className: "snap-quiet", textContent: anyMoved ? "Some of what this file used has newer versions. Run it exactly as it was, with today's versions, or open the old ones to change first." : anyMissing ? "Some of what this file used isn't in your records any more; it still runs as the file holds it." : "Everything this file used is still at the same version: it runs as it was." }),
       rows,
       h("div", { className: "snap-set-actions" },
         h("button", { className: "snap-primary", textContent: "Run as it was", title: "the workflow as the file holds it, seed included", onclick: run("pinned") }),

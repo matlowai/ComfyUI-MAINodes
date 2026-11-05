@@ -12,7 +12,7 @@ const mb = (b) => (b >= 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.max(1, Math
 const when = (at) => (at ? new Date(at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
 
 export async function openWorld(host, { say, onChange }) {
-  host.querySelector(".snap-world-sheet")?.remove();
+  for (const s of host.querySelectorAll(".snap-world-sheet, .snap-opened-sheet")) s.remove(); // one of the two at a time: they sit in the same place
   const status = h("div", { className: "snap-quiet", role: "status" }), list = h("div", { className: "snap-world-list" }), totals = h("span", { className: "snap-quiet" });
   const exportsBox = h("div", { className: "snap-world-exports" });
   let data = null, open = new Set(), asking = null;
