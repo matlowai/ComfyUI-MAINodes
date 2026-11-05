@@ -127,9 +127,11 @@ for (const ev of ["execution_success", "execution_error", "execution_interrupted
 setInterval(() => { if (decisions.some(rendering)) settle().catch(() => {}); }, 3000);
 load().catch(() => {}); // a reload picks up decisions still rendering
 
+// a picture's file as an agent names it: output/<subfolder>/<name> (U72 F28)
+export const path = (m) => [m.type, m.subfolder, m.filename].filter(Boolean).join("/");
 // what an agent reads: the decision, each candidate's state, provenance and notes, what is applied, and how to undo
 export const describe = (d) => ({ id: d.id, kind: d.kind, target: d.target, title: d.title, by: d.by, status: d.status, applied: d.applied && { candidate: d.applied.candidate, by: d.applied.by, at: d.applied.at },
-  candidates: d.candidates.map(({ id, state, by, prompt_id, take, frame, seed, pictures, notes, error, rejected, made }) => ({ id, state, by, take: take ?? (prompt_id ? `take-${prompt_id}` : null), frame, seed, pictures: pictures.map((p) => p.label), notes, ...(made ? { made } : {}), ...(error ? { error } : {}), ...(rejected ? { rejected } : {}) })) });
+  candidates: d.candidates.map(({ id, state, by, prompt_id, take, frame, seed, pictures, notes, error, rejected, made }) => ({ id, state, by, take: take ?? (prompt_id ? `take-${prompt_id}` : null), frame, seed, pictures: pictures.map((p) => ({ label: p.label, ...(p.media ? { path: path(p.media) } : {}) })), notes, ...(made ? { made } : {}), ...(error ? { error } : {}), ...(rejected ? { rejected } : {}) })) });
 
 // the candidate shown in place right now (hover or press): page state only, never saved and never an edit
 let shown = null;

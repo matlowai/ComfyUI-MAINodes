@@ -1,6 +1,6 @@
 """Call one Snap tool from a shell, through the bridge to the newest Snap page of your user (a person's tab or an agent's
 headless page from snap_agent_page.sh). Pictures (screenshot, take_frames) are saved as files in a folder of their own
-under the system temp folder (snapcall-pictures/<time>/, never where you run it: U72 F27) and their paths printed. SNAP_TOKEN in the environment goes out as a Bearer header (a snap-gate account token).
+under the system temp folder (snapcall-pictures/<time>-<tool>-<unique>/ per call, never where you run it: U72 F27, F29) and their paths and folder (saved_in) printed. SNAP_TOKEN in the environment goes out as a Bearer header (a snap-gate account token).
 usage: python3 snapcall.py <port or base URL> <tool> ['<json args>']
   e.g. python3 snapcall.py 8188 get_profile
        python3 snapcall.py 8188 run_status '{"wait_s": 25}'
@@ -36,14 +36,14 @@ except urllib.error.URLError as e:
 result = out.get("result")
 pictures = (result.get("images") or ([result["image"]] if isinstance(result.get("image"), dict) else [])) if isinstance(result, dict) else []
 if pictures:
-    stamp, saved = time.strftime("%Y%m%d-%H%M%S"), []
-    folder = os.path.join(tempfile.gettempdir(), "snapcall-pictures", f"{stamp}-{tool}")
-    os.makedirs(folder, exist_ok=True)
+    stamp, saved, root = time.strftime("%Y%m%d-%H%M%S"), [], os.path.join(tempfile.gettempdir(), "snapcall-pictures")
+    os.makedirs(root, exist_ok=True)
+    folder = tempfile.mkdtemp(prefix=f"{stamp}-{tool}-", dir=root)  # U72 F29: one folder per call, even two in one second
     for i, p in enumerate(pictures):
         path = os.path.join(folder, f"{tool}_{i}.{p.get('mimeType', 'image/jpeg').split('/')[-1]}")
         with open(path, "wb") as f:
             f.write(base64.b64decode(p["data"]))
         saved.append(path)
-    out = {**out, "result": {**{k: v for k, v in result.items() if k not in ("image", "images")}, "saved": saved}}
+    out = {**out, "result": {**{k: v for k, v in result.items() if k not in ("image", "images")}, "saved": saved, "saved_in": folder}}
 print(json.dumps(out, indent=1))
 sys.exit(1 if "error" in out else 0)

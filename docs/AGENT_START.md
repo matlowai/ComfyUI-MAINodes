@@ -39,7 +39,7 @@ says how to start one.
 ## 2. Call tools
 
     curl -s $BASE/mainodes/snap/tools                       # names, descriptions, argument schemas, your open pages
-    python3 $PACK/tools/snapcall.py $BASE get_profile        # one call; pictures go to <temp>/snapcall-pictures/<time>-<tool>/, paths printed
+    python3 $PACK/tools/snapcall.py $BASE get_profile        # one call; pictures go to a new folder under <temp>/snapcall-pictures/ (saved_in), paths printed
     python3 $PACK/tools/snapcall.py $BASE run_status '{"wait_s": 25}'
 
 You can also run the tools as an MCP server (Claude Code):
@@ -156,13 +156,15 @@ scene's set comes in: `scene:<id>`) and `setup` (a setup name from `list_setups`
   `"seed": "new"`). The new take is "Re-run · Kon → Mara" under the old one.
 - **Reuse the motion** keeps the take's own video: a Cast swap is a recast (Viggle Remake, painted from the new Cast's
   details line and its first picture; its LoRA doesn't reach Remake), a set or card swap is a Change something. It
-  returns a candidates decision: `list_candidates`, look at the painted frames, then `apply_candidate` (about 3 min).
+  returns a candidates decision: look at the painted frames with `candidate_frames {"decision": ...}` (beside the
+  Cast's own picture), then `apply_candidate` (about 3 min).
   A Setup or shot swap can't use the take's own motion and comes back under `not_possible`.
 - **Several at once:** give a list, `{"to": ["cast:<a>", "cast:<b>", "cast:<c>"]}`. Re-generate returns one decision
   whose candidates are the new takes; `apply_candidate` makes one the shot's active take.
 
 Both spend GPU time and wait as proposals unless agents may run. Look at every new take with `take_frames` before you
-say who is in it. A saved file works too: `rerun {"file": "output/<subfolder>/<name>", ...}` finds the take it is.
+say who is in it: it gives start, quarter, middle, three quarters and end; compare them across the clip before you say
+the motion matches or not (one frame doesn't show motion). A saved file works too: `rerun {"file": "output/<subfolder>/<name>", ...}` finds the take it is.
 
 `get_record {"ref": "cast:<id>@1"}` reads one version and the takes that pinned it; `diff_record {"a": "cast:<id>@1",
 "b": "cast:<id>"}` lists what changed. Note: H3 copies a reference picture closely, so a new look (clothes, hair)

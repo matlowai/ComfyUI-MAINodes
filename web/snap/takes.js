@@ -425,7 +425,7 @@ export function measured(list, what) {
 
 // a take's frames as JPEG pictures for an agent to look at (U23 agent eyes): the frames asked for, or `count` of them
 // spread over the take (its first and last included), at most `maxWidth` wide; the screenshot tool's image shape
-export async function frames(take, { frames: want, count = 4, maxWidth = 768 } = {}) {
+export async function frames(take, { frames: want, count = 5, maxWidth = 768 } = {}) {
   const m = take.media.find((x) => x.kind === "video") ?? take.media.find((x) => x.kind === "image");
   if (!m) throw new Error("This take has no picture or video");
   const grab = (src, w, h) => { const k = Math.min(1, maxWidth / w), c = Object.assign(document.createElement("canvas"), { width: Math.round(w * k), height: Math.round(h * k) });

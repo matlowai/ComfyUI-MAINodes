@@ -952,10 +952,29 @@ export const TOOLS = [
   },
   {
     name: "list_candidates",
-    description: "Decisions that hold candidates (SNAP-R23): camera plates (kind plate, target <set>/<camera>), edits of a take (kind edit, target the take id) and re-run batches (kind rerun, target the take re-run: each candidate is a take). Each candidate has its state (rendering, ready, applied, rejected, failed), provenance (take, frame, seed, by) and pre-screen notes: copy (score vs threshold, likely_copy), layout (each door, window and prop: where the plan puts it and where SAM 3.1 found it; as_planned of checked, prop order), identity (face_low: the lowest ArcFace face cosine of the take's frame against the edit, different: true below different_person, \"probably a different person\"; hair_up: how far the edit's lit hair (L* p90) rises over the take's frames, lighter: true above hair_lighter, \"hair lighter than original\"; head crops of both for the person). Notes inform; they never decide: the face score is low on dark frames and profiles too, the hair one misses blonder drift. Filter by kind, target, or open: true for those still waiting for a pick.",
-    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["plate", "edit", "rerun"] }, target: { type: "string" }, open: { type: "boolean" } } },
+    description: "Decisions that hold candidates (SNAP-R23): camera plates (kind plate, target <set>/<camera>), edits of a take (kind edit, target the take id) and re-run batches (kind rerun, target the take re-run: each candidate is a take). Each candidate has its state (rendering, ready, applied, rejected, failed), provenance (take, frame, seed, by) and pre-screen notes: copy (score vs threshold, likely_copy), layout (each door, window and prop: where the plan puts it and where SAM 3.1 found it; as_planned of checked, prop order), identity (face_low: the lowest ArcFace face cosine of the take's frame against the edit, different: true below different_person, \"probably a different person\"; hair_up: how far the edit's lit hair (L* p90) rises over the take's frames, lighter: true above hair_lighter, \"hair lighter than original\"; head crops of both for the person). Notes inform; they never decide: the face score is low on dark frames and profiles too, the hair one misses blonder drift. Each candidate's pictures come with their label and path (output/…); to look at them, candidate_frames. Filter by decision (its id), kind, target, or open: true for those still waiting for a pick.",
+    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["plate", "edit", "rerun"] }, target: { type: "string" }, open: { type: "boolean" }, decision: { type: "string", description: "one decision's id" } } },
     annotations: { readOnlyHint: true },
-    run: async ({ kind, target, open } = {}) => { await C.load(); await C.settle(); return C.all().filter((d) => (!kind || d.kind === kind) && (!target || d.target === target) && (!open || d.status === "open")).map(C.describe); },
+    run: async ({ kind, target, open, decision } = {}) => { await C.load(); await C.settle(); return C.all().filter((d) => (!decision || d.id === decision) && (!kind || d.kind === kind) && (!target || d.target === target) && (!open || d.status === "open")).map(C.describe); },
+  },
+  {
+    name: "candidate_frames",
+    description: "Look at a decision's candidates (U72 F28): every candidate's pictures (painted frames of an edit or recast, a plate, a re-run's take) as pictures, the take_frames shape, each labelled \"c1 · frame 36\" with its path (output/…); `candidate` limits it to one. Look before you pick one with apply_candidate, and compare it with the Cast's own picture when it is a recast.",
+    inputSchema: { type: "object", properties: { decision: { type: "string" }, candidate: { type: "string" }, max_width: { type: "integer", minimum: 256, maximum: 1600 } }, required: ["decision"] },
+    annotations: { readOnlyHint: true },
+    run: async ({ decision, candidate, max_width }) => {
+      await C.load();
+      const d = C.get(decision);
+      if (!d) throw new Error(`No decision ${decision}; list_candidates lists them (${C.all().map((x) => x.id).join(", ") || "none yet"})`);
+      const list = d.candidates.filter((c) => !candidate || c.id === candidate);
+      if (!list.length) throw new Error(`${d.title} has no candidate ${candidate}; it has ${d.candidates.map((c) => c.id).join(", ")}`);
+      const images = [];
+      for (const c of list) for (const p of c.pictures) {
+        const video = /\.(mp4|webm|mov)$/i.test(p.media.filename), shot = await T.frames({ media: [{ kind: video ? "video" : "image", ...p.media }] }, { count: video ? 3 : 1, maxWidth: max_width });
+        for (const s of shot) images.push({ ...s, label: `${c.id} · ${video ? `${p.label}, frame ${s.frame}` : p.label}`, path: C.path(p.media) });
+      }
+      return { decision: d.id, title: d.title, candidates: list.map((c) => ({ id: c.id, state: c.state, pictures: c.pictures.map((p) => ({ label: p.label, path: C.path(p.media) })) })), images };
+    },
   },
   {
     name: "apply_candidate",
@@ -1026,12 +1045,12 @@ export const TOOLS = [
   },
   {
     name: "take_frames",
-    description: "Look at a take (agent eyes, U23): its frames as pictures, either the frame numbers asked for (24 per second, from 0) or `count` of them spread over the take, first and last included (default 4). Use it before judging, noting or editing a take; say which frame you mean by its number.",
+    description: "Look at a take (agent eyes, U23): its frames as pictures, either the frame numbers asked for (24 per second, from 0) or `count` of them spread over the take, first and last included (default 5: start, quarter, middle, three quarters, end). Compare them across the clip before you judge motion or who is in it; use it before judging, noting or editing a take; say which frame you mean by its number.",
     inputSchema: { type: "object", properties: { take: { type: "string" }, frames: { type: "array", items: { type: "integer", minimum: 0 } }, count: { type: "integer", minimum: 1, maximum: 12 }, max_width: { type: "integer", minimum: 256, maximum: 1600 } }, required: ["take"] },
     annotations: { readOnlyHint: true },
     run: async ({ take, frames, count, max_width }) => {
       const t = await takeOf(take), shot = await T.frames(t, { frames, count, maxWidth: max_width });
-      return { take: t.id, number: t.number, frames: shot.map(({ frame, t: at }) => ({ frame, t: at })), images: shot.map(({ frame, t: at, ...image }) => image) };
+      return { take: t.id, number: t.number, frames: shot.map(({ frame, t: at }) => ({ frame, t: at })), look: "the pictures are in clip order: compare them across the clip (start, middle, end) before you judge motion or who is in it; one frame doesn't show motion", images: shot.map(({ frame, t: at, ...image }) => image) };
     },
   },
   {
@@ -1180,7 +1199,7 @@ export function checkArgs(name, args = {}) {
   if (!t) throw new Error(`Unknown Snap tool ${name}`);
   // propose / reason / for_note / if_revision are understood by every tool (a read-only one just ignores them)
   const unknown = Object.keys(args).filter((k) => !(k in (t.properties ?? {})) && !(k in PROPOSE) && !(k in IF_REVISION)), absent = (t.required ?? []).filter((k) => args[k] === undefined);
-  if (unknown.length || absent.length) throw new Error(`${name} ${unknown.length ? `doesn't take ${unknown.join(", ")}` : `needs ${absent.join(", ")}`}`);
+  if (unknown.length || absent.length) throw new Error(`${name} ${unknown.length ? `doesn't take ${unknown.join(", ")}` : `needs ${absent.join(", ")}`}; it takes ${accepts(name)}`); // U72 F31: name what it takes
   // SNAP-R52: a value outside an argument's enum (or its items' enum) is refused naming the accepted ones (U72 F16)
   for (const [k, v] of Object.entries(args)) {
     const p = t.properties?.[k], allowed = p?.enum ?? p?.items?.enum;
