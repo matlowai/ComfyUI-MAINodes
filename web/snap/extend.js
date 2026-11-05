@@ -71,19 +71,22 @@ export async function start(take, id, { clips = 1, antiburn = 0, prompt, by = "p
     rp: { class_type: "MAIRenderPreset", inputs: { ...p, model: f.model, lora: f.lora } },
     src: { class_type: "LoadVideo", inputs: { file: c.video } },
     srcp: { class_type: "GetVideoComponents", inputs: { video: ["src", 0] } },
+    // the take's frames at the size it rendered at: an upscaled take's file is bigger than the clips H3 makes, and the
+    // carry, the keystone and the join all need one size (the longer take comes out at the render size)
+    srcs: { class_type: "ImageScale", inputs: { image: ["srcp", 0], upscale_method: "area", width: c.width, height: c.height, crop: "disabled" } },
     // the take's last 39 frames and their sound, encoded once: the first new clip continues from them
-    tail: { class_type: "ImageFromBatch", inputs: { image: ["srcp", 0], batch_index: F - HEAD, length: HEAD } },
+    tail: { class_type: "ImageFromBatch", inputs: { image: ["srcs", 0], batch_index: F - HEAD, length: HEAD } },
     taila: { class_type: "TrimAudioDuration", inputs: { audio: ["srcp", 1], start_index: (F - HEAD) / FPS, duration: HEAD / FPS } },
     tailv: { class_type: "VAEEncode", inputs: { pixels: ["tail", 0], vae: ["vae", 0] } },
     tailau: { class_type: "VAEEncodeAudio", inputs: { audio: ["taila", 0], vae: ["avae", 0] } },
     tailav: { class_type: "LTXVConcatAVLatent", inputs: { video_latent: ["tailv", 0], audio_latent: ["tailau", 0] } },
-    keep0: { class_type: "ImageFromBatch", inputs: { image: ["srcp", 0], batch_index: 0, length: F - DROP } },
+    keep0: { class_type: "ImageFromBatch", inputs: { image: ["srcs", 0], batch_index: 0, length: F - DROP } },
     keep0a: { class_type: "TrimAudioDuration", inputs: { audio: ["srcp", 1], start_index: 0, duration: (F - DROP) / FPS } },
-    held0: { class_type: "ImageFromBatch", inputs: { image: ["srcp", 0], batch_index: F - HEAD, length: HELD } },
+    held0: { class_type: "ImageFromBatch", inputs: { image: ["srcs", 0], batch_index: F - HEAD, length: HELD } },
     // Long's anchor: the take's first clip (its first 141 frames), encoded once; its first and last single-frame latents are
     // the keystone and the capstone (U46e anchors to clip 1)
     ...(every && clips + 1 >= every ? {
-      anc: { class_type: "ImageFromBatch", inputs: { image: ["srcp", 0], batch_index: 0, length: Math.min(F, L) } },
+      anc: { class_type: "ImageFromBatch", inputs: { image: ["srcs", 0], batch_index: 0, length: Math.min(F, L) } },
       ancv: { class_type: "VAEEncode", inputs: { pixels: ["anc", 0], vae: ["vae", 0] } },
     } : {}),
     ...(ab && !strong ? { abm: { class_type: "LoraLoaderModelOnly", inputs: { model: ["rp", 0], lora_name: ab, strength_model: burn } } } : {}),
