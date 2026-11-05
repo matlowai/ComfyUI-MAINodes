@@ -429,7 +429,18 @@ export async function fromContext(pictures, prompt, { method, seeds, count = 2, 
   return { decision: d.id, pictures: said.map((x) => `Picture ${x.n}${x.n === 1 && m.picture_one ? ` (${m.picture_one.label})` : ""}: ${x.label}`), lands: where.where,
     candidates: d.candidates.map((c) => ({ id: c.id, prompt_id: c.prompt_id, take: `take-${c.prompt_id}`, seed: c.seed, ...c.made })), seconds_each: [m.cost?.local_s].flat().at(-1) ?? null };
 }
-C.kind("view", RT.takeCandidate);
+// each Cast picture a new view was made from, against the face in the still matched to it (all Casts at once, so two
+// people in a two-shot are each scored against their own Cast, SNAP-R76): a note per Cast, never a gate (SNAP-R23)
+async function castFaces(d, c) {
+  const casts = d.options.context.filter((x) => x.cast && x.file), still = c.pictures[0]?.media;
+  if (!casts.length || !still) return null;
+  try {
+    const n = await K.identityCheck(casts.map((x) => [{ image: x.file }, { image: K.annotated(still) }]), [], { about: { decision: d.id, candidate: c.id }, title: `Face check: is each Cast in ${c.id} of ${d.title} themselves?` });
+    if (n.error) return { error: n.error };
+    return { different_person: n.different_person, casts: casts.map((x, i) => ({ name: x.label.split(",")[0], cast: x.cast, face: n.scores[i].face, different: n.scores[i].face != null && n.scores[i].face < n.different_person, crops: n.scores[i].crops })) };
+  } catch (e) { return { error: e.message }; }
+}
+C.kind("view", { ...RT.takeCandidate, finish: (d, c, h) => { RT.takeCandidate.finish(d, c, h); castFaces(d, c).then((r) => r && C.note(d, c, "identity", r)); } });
 
 // "Make it louder" on a quiet take (SNAP-R36): its video through MAISnapLouder (EBU R128 loudnorm, I=-23, TP=-2; the
 // picture copied) into a new version of the take, queued under this page's id so it lands in the take's group

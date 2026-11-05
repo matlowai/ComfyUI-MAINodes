@@ -1380,9 +1380,8 @@
    "identity_check": {
     "different_person": 0.35,
     "unreliable_for": ["relight"],
-    "region": "head",
     "evidence": "measured",
-    "source": "U56 on SCRFD face boxes, 1.5x: a different woman 0.25-0.34 by day, 0.34-0.45 at night; the same woman 0.58-0.80 by day, 0.34-0.60 at night with a moving head. Snap's crop (1.5x the SAM 3.1 face mask's box) on the same frames: different woman 0.18-0.24 day, 0.38-0.41 night; same take 0.49-0.79 day, 0.34-0.58 night; U54's kept night anchor c1 0.29-0.30 (a false alarm: night anchors against a day frame), its blonder c2 0.13, U53b's silver edit 0.31. It can't see hair colour; the hair check can (proto/test_identity_notes.py). unreliable_for: edits whose method does one of these (methods.json `does`) get the cosine but never the note: under relighting the same woman scores 0.34-0.60 (U56), and on :8193 the kept U54 night anchor c1 0.29/0.32. A note, never a verdict; the head crops (region) decide. n = 2 seeds, 1 scene"
+    "source": "U56 on SCRFD face boxes, 1.5x: a different woman 0.25-0.34 by day, 0.34-0.45 at night; the same woman 0.58-0.80 by day, 0.34-0.60 at night with a moving head. Snap's crop (1.5x the SAM 3.1 face mask's box) on the same frames: different woman 0.18-0.24 day, 0.38-0.41 night; same take 0.49-0.79 day, 0.34-0.58 night; U54's kept night anchor c1 0.29-0.30 (a false alarm: night anchors against a day frame), its blonder c2 0.13, U53b's silver edit 0.31. It can't see hair colour; the hair check can (proto/test_identity_notes.py). unreliable_for: edits whose method does one of these (methods.json `does`) get the cosine but never the note: under relighting the same woman scores 0.34-0.60 (U56), and on :8193 the kept U54 night anchor c1 0.29/0.32. A note, never a verdict; the head crops (2.4x around each face) decide. n = 2 seeds, 1 scene"
    },
    "notes": "Snap's identity notes on edit candidates (MAISnapFaceModelLoader + MAISnapIdentity, snap_faces.py): ArcFace IResNet-101 trained on WebFace4M (research-use dataset licence). Profiles and dark frames lower every score"
   },

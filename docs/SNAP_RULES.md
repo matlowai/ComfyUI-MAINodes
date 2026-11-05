@@ -630,10 +630,19 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   it copied Picture 1 or redesigned the set and the people across views (Dylan 2026-11-05: "Not any moss edit those were
   bad"); Change something on video takes still uses it. *Why:* Dylan 2026-11-05 14:0x-15:0x after the C2 sheets.
   *More:* PLAN U101, U17, PROGRESS 2026-11-05 13:57-14:55.
+- **SNAP-R76: Every face is its own measurement, matched one to one.** The identity check asks SAM 3.1 for every face
+  ("face:9": SAM keeps one detection per text unless told how many) as separate masks; MAISnapIdentity gives each face
+  its own embedding, box and head crop and drops a second detection of the same face. The faces of every picture
+  compared with one picture (the take's frame against an edit, or each Cast picture against a new view) are matched to
+  that picture's faces one to one, best total cosine first, so a two-shot scores each person against their own face and
+  shows the crops that belong to each score; a person with no face matched says so. The people check asks for
+  "person:20" the same way. *Why:* the U101 bake-off: a Maren-and-Brann board scored Maren and showed Brann's head,
+  and Brann was never measured. ArcFace still scores profiles and bowed heads low (Brann's bow: 0.06), so the crops
+  decide. *More:* PLAN U101, proto/test_u101_faces.js, proto/ui/u101/faces_twoshot_after*.
 
 ## Accounts and the gate (snap-gate)
 
-IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; R76 on).
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; R77 on).
 
 - **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
   use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and

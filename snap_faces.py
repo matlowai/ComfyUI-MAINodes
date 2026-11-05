@@ -5,10 +5,13 @@ page compares them against the take's own frames with thresholds from the model 
   low score says "probably a different person" and nothing more; hair colour is invisible to it.
 - the hair: the lightness of the lit part of SAM 3.1's hair mask (L* 90th percentile). U56b: grey and silver edits
   rise +14 to +41 over the original take's frames, kept ones stay at or below +9; blonder drift doesn't show.
-Notes only: the head crops on the candidate decide (SNAP-R23).
+Every face SAM 3.1 finds gets its own embedding, box and head crop, so a page can match faces to people across pictures
+(a two-shot has two; U101: one union crop scored one person and showed the other). Notes only: the head crops on the
+candidate decide (SNAP-R23).
 IRBlock and IResNet101 follow the IResNet of insightface's arcface_torch (github.com/deepinsight/insightface, code MIT),
 in the key layout CVLface (github.com/mk-minchul/CVLface, MIT) saves; no weights ship here (docs/snap/README.md, Notices).
-SNAP-R18 local only · SNAP-R23 checks are notes, never rejections · see docs/SNAP_RULES.md"""
+SNAP-R18 local only · SNAP-R23 checks are notes, never rejections · SNAP-R76 every face is its own measurement · see
+docs/SNAP_RULES.md"""
 import os
 
 import torch
@@ -19,7 +22,7 @@ import comfy.ops
 import comfy.storage
 import comfy.utils
 import folder_paths
-from comfy_api.latest import io
+from comfy_api.latest import io, ui
 
 folder_paths.add_model_folder_path("face_recognition", os.path.join(folder_paths.models_dir, "face_recognition"), is_default=True)
 folder_paths.folder_names_and_paths["face_recognition"][1].add(".safetensors")  # safetensors only
@@ -95,16 +98,26 @@ def lightness(rgb):
     return torch.where(y > 0.008856, 116 * y.pow(1 / 3) - 16, 903.3 * y)
 
 
-def face_crop(image, mask, scale=1.5):
-    """A square crop scale x the face mask's box, centred on it, edges repeated, at ArcFace's 112 px; None with no face."""
+def face_box(mask):
+    """The face mask's box (y0, y1, x0, x1) in pixels; None with no face."""
     ys, xs = torch.nonzero(mask > 0.5, as_tuple=True)
-    if len(ys) == 0:
-        return None
-    y0, y1, x0, x1 = ys.min().item(), ys.max().item() + 1, xs.min().item(), xs.max().item() + 1
+    return None if len(ys) == 0 else (ys.min().item(), ys.max().item() + 1, xs.min().item(), xs.max().item() + 1)
+
+
+def overlap(a, b):
+    """Intersection over union of two (y0, y1, x0, x1) boxes."""
+    h, w = min(a[1], b[1]) - max(a[0], b[0]), min(a[3], b[3]) - max(a[2], b[2])
+    inter = max(h, 0) * max(w, 0)
+    return inter / ((a[1] - a[0]) * (a[3] - a[2]) + (b[1] - b[0]) * (b[3] - b[2]) - inter)
+
+
+def face_crop(image, box, scale=1.5, size=112):
+    """A square crop scale x the face's box, centred on it, edges repeated, at `size` px (ArcFace's 112 by default)."""
+    y0, y1, x0, x1 = box
     half = int(max(x1 - x0, y1 - y0) * scale / 2)
     cy, cx = (y0 + y1) // 2, (x0 + x1) // 2
     padded = torch.nn.functional.pad(image.movedim(-1, 0)[None], (half, half, half, half), mode="replicate")
-    return comfy.utils.common_upscale(padded[:, :, cy:cy + 2 * half, cx:cx + 2 * half], 112, 112, "area", "disabled")
+    return comfy.utils.common_upscale(padded[:, :, cy:cy + 2 * half, cx:cx + 2 * half], size, size, "area", "disabled")
 
 
 def hair_l90(image, mask, min_pixels=2000):
@@ -123,29 +136,34 @@ class MAISnapIdentity(io.ComfyNode):
             node_id="MAISnapIdentity",
             display_name="Face and Hair (Snap)",
             category="MAINodes/snap",
-            description="Per picture: an ArcFace embedding of the face (a square crop around the face mask) and the lit hair's "
-                        "lightness (L* 90th percentile of the hair mask), for Snap's identity notes on edits. Masks from SAM3 Detect.",
-            inputs=[FaceModel.Input("face_model"), io.Image.Input("image"), io.Mask.Input("face"), io.Mask.Input("hair")],
+            description="One picture: every face's ArcFace embedding (a square crop around each face mask), its box and a head crop, "
+                        "and the lit hair's lightness (L* 90th percentile of the hair mask), for Snap's identity notes. Masks from "
+                        "SAM3 Detect: the faces one mask each (individual_masks), the hair as one.",
+            inputs=[FaceModel.Input("face_model"), io.Image.Input("image"), io.Mask.Input("faces", tooltip="one mask per face found in the picture"), io.Mask.Input("hair")],
             outputs=[],
             is_output_node=True,
         )
 
     @classmethod
-    def execute(cls, face_model, image, face, hair) -> io.NodeOutput:
+    def execute(cls, face_model, image, faces, hair) -> io.NodeOutput:
         comfy.model_management.load_model_gpu(face_model)
-        faces, hairs = [], []
-        for i in range(image.shape[0]):
-            img = image[i, ..., :3].float()
-            crop = face_crop(img, face[min(i, face.shape[0] - 1)])
-            if crop is None:
-                faces.append(None)
-            else:
-                x = (crop.to(face_model.load_device) - 0.5) / 0.5
-                e = face_model.model(x) + face_model.model(x.flip(3))  # flip-averaged, as U56 measured it
-                faces.append([round(v, 5) for v in torch.nn.functional.normalize(e, dim=-1)[0].tolist()])
-            l90 = hair_l90(img, hair[min(i, hair.shape[0] - 1)])
-            hairs.append(None if l90 is None else round(l90, 2))
-        return io.NodeOutput(ui={"face": faces, "hair_l90": hairs})
+        img = image[0, ..., :3].float()
+        found, boxes, heads = [], [], []
+        kept = []
+        for mask in faces:  # SAM 3.1's best first; it can find one face twice (U101: Brann three times), the first box stands
+            box = face_box(mask)
+            if box is None or any(overlap(box, k) > 0.3 for k in kept):
+                continue
+            kept.append(box)
+            x = (face_crop(img, box).to(face_model.load_device) - 0.5) / 0.5
+            e = face_model.model(x) + face_model.model(x.flip(3))  # flip-averaged, as U56 measured it
+            found.append([round(v, 5) for v in torch.nn.functional.normalize(e, dim=-1)[0].tolist()])
+            y0, y1, x0, x1 = box
+            boxes.append([round(x0 / img.shape[1], 4), round(y0 / img.shape[0], 4), round((x1 - x0) / img.shape[1], 4), round((y1 - y0) / img.shape[0], 4)])
+            heads.append(face_crop(img, box, scale=2.4, size=256).movedim(1, -1))  # the head around this face, for the person to look at
+        l90 = hair_l90(img, (hair > 0.5).any(dim=0) if hair.ndim == 3 else hair > 0.5)
+        out = {"faces": [found], "boxes": [boxes], "hair_l90": [None if l90 is None else round(l90, 2)]}
+        return io.NodeOutput(ui={**(ui.PreviewImage(torch.cat(heads), cls=cls).as_dict() if heads else {}), **out})
 
 
 NODE_CLASS_MAPPINGS = {"MAISnapFaceModelLoader": MAISnapFaceModelLoader, "MAISnapIdentity": MAISnapIdentity}
