@@ -5,7 +5,8 @@
 // for the person or their agent to fetch. Nothing here makes a request off this machine. The sheet (onboardview.js) and
 // the agent tools call the same functions (SNAP-R19).
 // SNAP-R3 missing stays visible · SNAP-R5 setups open in new tabs · SNAP-R11 warn, never block · SNAP-R18 local only ·
-// SNAP-R19 one table · SNAP-R25 onboarding · SNAP-R28 agents read new code per the person's setting · see docs/SNAP_RULES.md
+// SNAP-R19 one table · SNAP-R25 onboarding · SNAP-R28 agents read new code per the person's setting · SNAP-R39 kit files
+// arrive rated · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
 import * as M from "./models.js";
@@ -51,12 +52,13 @@ async function filesOf(s, hw) {
   for (const { swap: [from, to] } of swaps(s, hw)) if (out.includes(from)) out.splice(out.indexOf(from), 1, to);
   return out;
 }
-// one file as the scan sees it: installed (one match by name in any sub-folder, SNAP-R3), or what it takes to get it
+// one file as the scan sees it: installed (one match by name in any sub-folder, SNAP-R3), or what it takes to get it, with
+// the rating it arrives with (the model graph rates every kit file, SNAP-R39)
 function fileInfo(name, installed) {
   const here = E.resolveChoice(installed, name), e = M.entry(name), folder = e.folder ?? null;
   const top = folder?.split("/")[0], target = top && data.folders[top] ? `${data.folders[top]}${folder.slice(top.length)}` : null;
   return { file: name, folder, size_gb: here ? +(M.file(here).size / 1e9).toFixed(2) : e.size_gb ?? null, installed: !!here && M.readable(here),
-    ...(e.loads_in_core === false ? { cant_load: true } : {}), source: e.source_url ?? null, download: e.download ?? null, license: e.license ?? null, target, ...(e.inferred ? { unknown: true } : {}) };
+    ...(e.loads_in_core === false ? { cant_load: true } : {}), source: e.source_url ?? null, download: e.download ?? null, license: e.license ?? null, rating: e.rating ?? null, target, ...(e.inferred ? { unknown: true } : {}) };
 }
 const packsOf = (s) => {
   const nodes = method(s.method)?.packs ?? [];

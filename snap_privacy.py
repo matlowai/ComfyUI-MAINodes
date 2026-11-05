@@ -17,24 +17,33 @@ All of this is off unless the install turns it on (SNAP-R37): with no user/snap_
 private, from any source, and only the NSFW tags count.
 On a snap-gate install, only the admins' snap/ files count (SNAP-R32), and a file's rating level backs up the gate's cap
 (SNAP-R33).
+Ratings come from how a thing was made (SNAP-R39): a prompt is rated from its text (the terms list) and the files it
+loads, highest wins; a file made here (a dial) is rated when it is saved, in user/snap_ratings.json, a file the server
+writes outside every user's folder; the pack's model graph rates what the kits download.
 SNAP-R12 identity LoRAs are private · SNAP-R20 private takes marked · SNAP-R27 a file stamped private · SNAP-R32 the
 admins' files decide on a gated install · SNAP-R33 the rating cap's second line · SNAP-R37 privacy is per install, off
-by default · see docs/SNAP_RULES.md
+by default · SNAP-R39 ratings from how a thing was made · see docs/SNAP_RULES.md
 """
 import json
 import os
 import re
 import struct
+import threading
+import time
 from fnmatch import fnmatch
 from pathlib import Path
 
 PACK = Path(__file__).parent / "snap_cards" / "models.json"
+TERMS = Path(__file__).parent / "snap_cards" / "nsfw_terms.json"
+MADE = "snap_ratings.json"  # user/snap_ratings.json: "<folder>/<name>" -> {"rating", "why", "at"} for files made here (SNAP-R39)
+made_lock = threading.Lock()
 MODEL_FILE = (".safetensors", ".sft", ".gguf", ".ckpt", ".pt", ".pth", ".bin")
 STAMPED = (".safetensors", ".sft")  # formats whose header is plain JSON
 HEADER_CAP = 16 << 20  # a LoRA's header is ~65 KB; a header past this is skipped, never read whole
 TRIGGER_KEYS = ("trigger", "trigger_word", "trigger_phrase", "triggers")
 LORA_TAG = re.compile(r"<lora:([^:>]+)")  # A1111 / LoRA Manager text: <lora:name:weight>
 LEVELS = {"pg": 0, "general": 0, "mature": 1, "sensitive": 1, "questionable": 1, "adult": 2, "explicit": 2}  # shown as PG / Mature / Adult
+NAMES = ["pg", "mature", "adult"]  # level -> the name ratings are saved as
 # SNAP-R33 mirrors the gate's SNAP-R44: files here don't decide what a picture shows, so an unrated one counts as PG
 HELPER_FOLDERS = {"vae", "vae_approx", "text_encoders", "clip", "clip_vision", "upscale_models", "latent_upscale_models", "configs", "custom_nodes",
                   "audio_encoders", "background_removal", "detection", "frame_interpolation", "geometry_estimation", "optical_flow", "classifiers",
@@ -88,7 +97,9 @@ def model_graph(user_dir):
     snap/models.json, the person winning field by field, a null keeping the pack's value), their private paths, patterns
     and triggers, and the files that don't parse or have the wrong shape (a rules file that can't be read whole counts as
     broken, never as fewer rules; a model graph entry with no file name is skipped)."""
-    graph = {"entries": {base(e["file"]): e for e in json.loads(PACK.read_text(encoding="utf-8"))["files"]}, "paths": [], "patterns": [], "triggers": [], "broken": []}
+    terms = json.loads(TERMS.read_text(encoding="utf-8"))
+    graph = {"entries": {base(e["file"]): e for e in json.loads(PACK.read_text(encoding="utf-8"))["files"]}, "paths": [], "patterns": [], "triggers": [], "broken": [],
+             "parts": list(terms["parts"]), "words": list(terms["words"]), "made": made(user_dir)}
     graph["private"] = switched_on(user_dir, graph["broken"])
     who = owners(user_dir, graph["broken"])
     counted = lambda name: sorted(f for f in Path(user_dir).glob(f"*/snap/{name}") if who is None or f.parent.parent.name in who)
@@ -96,6 +107,10 @@ def model_graph(user_dir):
         for e in read(f, graph["broken"], list) or []:
             if isinstance(e, dict) and isinstance(e.get("file"), str):
                 graph["entries"][base(e["file"])] = {**graph["entries"].get(base(e["file"]), {}), **{k: v for k, v in e.items() if v is not None}}
+    for f in counted("nsfw_terms.json"):
+        own = read(f, graph["broken"], dict) or {}
+        graph["parts"] += [t.lower() for t in own.get("parts", []) if isinstance(t, str)]
+        graph["words"] += [t.lower() for t in own.get("words", []) if isinstance(t, str)]
     for f in counted("private.json") if graph["private"] else []:
         rules = read(f, graph["broken"], dict)
         if rules is None:
@@ -201,15 +216,89 @@ def marks(prompt, workflow, graph, resolve):
     return {"private": private, "nsfw": nsfw}
 
 
-def level(graph, value, folders):
-    """A file's rating level: its `rating` in the model graph, else Adult when tagged nsfw, else what the gate gives an
-    unrated file (SNAP-R44): PG in helper folders only, Adult anywhere else. `folders` are the model folders that hold it."""
+def rated(graph, value, folders):
+    """A file's rating level from what rates it, or None when nothing does: its `rating` in the model graph (the pack's
+    entries, which rate every kit file, under the person's or the admins' own), else Adult when tagged nsfw, else the
+    rating it was made with here (user/snap_ratings.json, by folder and name). `folders` are the model folders that hold it."""
     e = graph["entries"].get(base(value), {})
     if str(e.get("rating")).lower() in LEVELS:
         return LEVELS[str(e["rating"]).lower()]
     if "nsfw" in (e.get("tags") or []):
         return LEVELS["adult"]
+    found = [LEVELS[r] for f in folders if (r := str((graph["made"].get(f"{f}/{value}".replace("\\", "/")) or {}).get("rating")).lower()) in LEVELS]
+    return max(found) if found else None
+
+
+def level(graph, value, folders):
+    """A file's rating level: what rates it, else what the gate gives a file nobody rated, one dropped in by hand
+    (SNAP-R44): PG in helper folders only, Adult anywhere else."""
+    r = rated(graph, value, folders)
+    if r is not None:
+        return r
     return LEVELS["pg"] if set(folders) <= HELPER_FOLDERS else LEVELS["adult"]
+
+
+def words(text):
+    """Lowercase whole words of a text, camelCase split ("NudeLoRA" -> nude, lora)."""
+    return set(re.findall(r"[a-z0-9]+", re.sub(r"([a-z])([A-Z])", r"\1 \2", text).lower()))
+
+
+def text_level(text, graph):
+    """(level, the term) for a text: Adult when it holds one of the terms (parts anywhere, words as whole words), else PG.
+    Borderline words never rate anything (they are the person's call)."""
+    low = text.lower()
+    hit = next((p for p in graph["parts"] if p in low), None) or next((w for w in graph["words"] if w in words(text)), None)
+    return (LEVELS["adult"], hit) if hit else (LEVELS["pg"], None)
+
+
+def rating(prompt, graph, folders_of, gated):
+    """(level, reasons) of what an API prompt makes (SNAP-R39): the highest of its text (every string input that names no
+    model file; text that only feeds a negative input doesn't count) and the files it loads. A file nothing rates
+    counts only on a gated install (`gated`), as the gate counts it; ungated, ratings are labels and it adds nothing."""
+    negative = {str(v[0]) for n in prompt.values() for k, v in (n.get("inputs") or {}).items() if "negative" in k.lower() and isinstance(v, list) and len(v) == 2}
+    feeds = {str(v[0]) for n in prompt.values() for k, v in (n.get("inputs") or {}).items() if "negative" not in k.lower() and isinstance(v, list) and len(v) == 2}
+    top, why = LEVELS["pg"], []
+    for nid, node in prompt.items():
+        quiet = str(nid) in negative and str(nid) not in feeds
+        for k, v in (node.get("inputs") or {}).items():
+            files = set()
+            for n in dict.fromkeys(names(v)):
+                folders = folders_of(n)
+                if folders:
+                    files.add(n)
+                    lvl = rated(graph, n, folders)
+                    lvl = level(graph, n, folders) if lvl is None and gated else lvl
+                    if lvl:
+                        why.append(f"node {nid} loads a file rated {NAMES[lvl]}")
+                        top = max(top, lvl)
+            if quiet or "negative" in k.lower() or not isinstance(v, str) or v in files:
+                continue
+            lvl, term = text_level(v, graph)
+            if lvl:
+                why.append(f"node {nid}'s {k} says \"{term}\"")
+                top = max(top, lvl)
+    return top, list(dict.fromkeys(why))
+
+
+def made(user_dir):
+    """The ratings files made here were saved with (SNAP-R39), from user/snap_ratings.json; one that doesn't parse rates nothing."""
+    try:
+        data = json.loads((Path(user_dir) / MADE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def record(user_dir, folder, name, lvl, why):
+    """Rate a file made here as what made it (a dial from its sentences and its parents): user/snap_ratings.json, a
+    file the server writes outside every user's folder, so no page can lower a rating there. The person's or the admin's
+    own rating still wins (SNAP-R35)."""
+    with made_lock:
+        data = made(user_dir)
+        data[f"{folder}/{name}".replace("\\", "/")] = {"rating": NAMES[lvl], "why": why, "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+        f = Path(user_dir) / MADE
+        f.with_suffix(".tmp").write_text(json.dumps(data, indent=1), encoding="utf-8")
+        os.replace(f.with_suffix(".tmp"), f)
 
 
 def above(prompt, graph, cap, folders_of):

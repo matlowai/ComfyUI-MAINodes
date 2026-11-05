@@ -23,6 +23,17 @@ import * as SC from "./scenes.js";
 import { candidatesEl } from "./candidateview.js";
 import { url as mediaUrl } from "./checks.js";
 
+// SNAP-R39: a take's rating, from how it was made (its prompt's text, the files and takes it used); the person's pick wins
+function ratingRow(t) {
+  const why = t.rating_set ? "You rated it." : t.rating_why?.length ? `From how it was made: ${t.rating_why.join("; ")}.` : t.rating ? "From how it was made: nothing in its prompt or files rates it higher." : "Made before takes were rated.";
+  const pick = h("select", { ariaLabel: "rating", title: "Change it: your rating wins over the one it was made with",
+    onchange: async (e) => { await T.setRating(t, e.target.value); note.textContent = "You rated it."; } },
+    T.ratingOf(t) ? null : h("option", { value: "", textContent: "unrated", selected: true, disabled: true }),
+    T.RATINGS.map((r) => h("option", { value: r, textContent: T.RATING_SHOWN[r], selected: T.ratingOf(t) === r })));
+  const note = h("span", { className: "snap-quiet", textContent: why });
+  return h("div", { className: "snap-take-ratingrow" }, h("label", {}, h("span", { textContent: "Rated " }), pick), note);
+}
+
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const clock = (t) => `${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, "0")}`;
 const ago = (ms) => { const s = (Date.now() - ms) / 1000; return s < 90 ? "just now" : s < 5400 ? `${Math.round(s / 60)} min ago` : s < 129600 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} d ago`; };
@@ -118,6 +129,8 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onRepr
         t.parent && !version ? h("span", { className: "snap-take-parent", textContent: `↳ ${t.parent.options?.time ?? t.parent.method.split("/").pop()} of take ${T.get(t.parent.take)?.number ?? "?"}`, title: `made from ${t.parent.take} by ${t.parent.method}` }) : null,
         t.metadata_kept ? h("span", { className: "snap-take-kept", textContent: "metadata kept", title: `Save metadata was off, but ${t.metadata_kept.join("; ")}: those files hold the prompt and workflow` }) : null,
         T.quiet(t) ? h("span", { className: "snap-take-quiet", textContent: "🔈 sound is quiet", title: `The sound averages ${t.sound.mean_db} dB (a take usually sits between -27 and -41 dB). Open the take to make it louder or re-prompt` }) : null,
+        ["mature", "adult"].includes(T.ratingOf(t)) ? h("span", { className: "snap-take-rating", textContent: T.RATING_SHOWN[T.ratingOf(t)],
+          title: t.rating_set ? "rated by you" : `rated from how it was made: ${(t.rating_why ?? []).join("; ")}` }) : null,
         T.locked(t) ? h("span", { className: "snap-take-lock", textContent: "🔒 private", title: `Private take (it loads a private file or has a Cast LoRA row on): exports leave it out${t.metadata === false ? "; its files were saved without the recipe inside" : ""}` }) : null,
         h("span", { className: "snap-quiet", textContent: `${t.notes.length ? `✎ ${t.notes.length} · ` : ""}${ago(t.created)}` })));
     c.dataset.take = t.id;
@@ -327,7 +340,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onRepr
       h("div", { className: "snap-take-body" },
         h("div", { className: "snap-take-left" }, stage, markers, isVideo ? h("div", { className: "snap-quiet", textContent: "Space plays · , and . step one frame" }) : null),
         h("aside", {},
-          verdicts, rankLine, quietRow,
+          verdicts, rankLine, ratingRow(t), quietRow,
           t.metadata_kept ? h("p", { className: "snap-take-keptline", textContent: `Save metadata was off, but ${t.metadata_kept.join("; ")}: those files still hold the prompt and workflow. Save with Save Image or Save Video to leave them out.` }) : null,
           h("div", { className: "snap-rail-title", textContent: "Note a moment" }), sentimentSeg, tagBox, words,
           h("div", { className: "snap-take-noteline" }, at, markBtn, regionText, h("span", { className: "snap-spacer" }), h("button", { className: "snap-primary", textContent: "Add note", onclick: add })),

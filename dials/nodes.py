@@ -236,6 +236,7 @@ class MakeDial(io.ComfyNode):
         dial, report = core.make_dial(clip, model, pairs, subjects, name or "unsaved", mode, debias=debias, nuisance_dims=nuisance_dims)
         if name:
             report += f"\nsaved {core.save_dial(dial, name, info)}"
+            core.saved(name, [pairs, subjects, info["description"], info["negative"], info["positive"]])
         return io.NodeOutput(dial, ui=ui.PreviewText(report))
 
 

@@ -15,7 +15,10 @@
 // SNAP-R17 person and agent kept apart (notes, judgments, rankings) · SNAP-R18 local only · SNAP-R20 private takes, metadata
 // A video take keeps its sound's loudness (`sound`, read once at capture); below QUIET_DB it carries a "sound is quiet" note
 // with two actions the person picks from (SNAP-R36): nothing is applied by itself.
-// SNAP-R27 locks follow the current rules · SNAP-R36 quiet sound is a note · see docs/SNAP_RULES.md
+// A take is rated as what made it (SNAP-R39): the rating the server gave its prompt (its text and the files it loads), raised
+// to the rating of any take it came from (a version, an edit, a run from a take's frame); the person's own rating wins.
+// SNAP-R27 locks follow the current rules · SNAP-R36 quiet sound is a note · SNAP-R39 ratings from how a thing was made ·
+// see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -63,6 +66,26 @@ export const all = () => takes;
 export const privacyOn = async () => { await load(); await marked; return privacy; };
 export const locked = (t) => privacy && !!(t.private || marks[t.id]?.private || (t.parent && get(t.parent.take) && locked(get(t.parent.take))));
 export const get = (id) => takes.find((t) => t.id === id);
+export const RATINGS = ["pg", "mature", "adult"], RATING_SHOWN = { pg: "PG", mature: "Mature", adult: "Adult" };
+export const ratingOf = (t) => t.rating_set ?? t.rating ?? null;
+export async function setRating(take, rating) {
+  if (!RATINGS.includes(rating)) throw new Error(`A rating is one of ${RATINGS.join(", ")}`);
+  take.rating_set = rating;
+  await save(take);
+}
+// the takes a run came from: the one it versions or continues, and every take a picture of its bricks was taken from
+const sources = (graph, parent) => [...new Set([parent?.take, ...(JSON.stringify(graph?.extra?.snap ?? {}).match(/"(?:source|take)":"take-[^"]+"/g) ?? []).map((x) => x.split('":"')[1].slice(0, -1))])].map(get).filter(Boolean);
+function rated(marks, graph, parent) {
+  if (!marks?.rating) return {}; // a server from before SNAP-R39 rates nothing
+  let rating = marks.rating;
+  const why = [...(marks.rating_why ?? [])];
+  for (const from of sources(graph, parent)) {
+    const r = ratingOf(from);
+    if (RATINGS.indexOf(r) > RATINGS.indexOf(rating)) rating = r;
+    if (r && r !== "pg") why.push(`made from take ${from.number}, rated ${RATING_SHOWN[r]}`);
+  }
+  return { rating, rating_why: why };
+}
 // takes of one workflow rank together; the workflow's own id is saved in its JSON, so renames and tab switches don't split it
 export const groupOf = () => app.graph.id ?? "unsaved";
 export const inGroup = (group = groupOf()) => takes.filter((t) => t.group === group);
@@ -178,6 +201,7 @@ async function captureRun(id, started, status, error, failedNode) {
     group, workflow: app.extensionManager.workflow.activeWorkflow?.filename ?? "", number: n,
     status, ...(error ? { error, failed_node: failedNode } : {}), text, seed, media: files, ...(sound?.sound ? { sound: { mean_db: sound.mean_db, max_db: sound.max_db } } : {}),
     ...(extra?.snap_marks?.private ? { private: true } : {}), ...(extra?.snap_marks?.nsfw ? { nsfw: true } : {}),
+    ...rated(extra?.snap_marks, graph, parent),
     ...(extra?.snap_marks?.metadata === false ? { metadata: false } : {}), ...(extra?.snap_marks?.kept ? { metadata_kept: extra.snap_marks.kept } : {}), ...(Object.keys(swapped).length ? { swapped } : {}), ...(parent ? { parent } : {}), ...await hashes(canonical(prompt, swapped)),
     verdict: null, prior: false, notes: [], graph, prompt,
   });

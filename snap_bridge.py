@@ -7,7 +7,8 @@ take checks run in the queue (SNAP-R21); and onboarding's kits (SNAP-R25).
 SNAP-R12 identity LoRAs are private · SNAP-R18 local only · SNAP-R20 metadata switch, private takes marked · SNAP-R25 onboarding
 proposes, never downloads · SNAP-R27 locks follow the current rules · SNAP-R30 the agent front door: pages per user, a
 health listing, errors that say what to do · SNAP-R33 the rating cap's second line · SNAP-R36 quiet sound ·
-SNAP-R37 privacy per install · SNAP-R38 metadata off writes none, the rest is named · see docs/SNAP_RULES.md"""
+SNAP-R37 privacy per install · SNAP-R38 metadata off writes none, the rest is named · SNAP-R39 ratings from how a thing
+was made · see docs/SNAP_RULES.md"""
 import asyncio
 import hashlib
 import json
@@ -36,6 +37,7 @@ from comfy_extras.nodes_video import SaveVideo
 from server import PromptServer
 
 from . import snap_privacy
+from .dials import core as dial_core
 from .video_out import MAIVideoOut
 
 TIMEOUT = 30
@@ -123,7 +125,7 @@ async def result(request):
 
 
 CARDS = Path(__file__).parent / "snap_cards"
-GRAPHS = {"models.json", "methods.json", "kits.json"}  # data with their own routes, not Library cards
+GRAPHS = {"models.json", "methods.json", "kits.json", "nsfw_terms.json"}  # data with their own routes, not Library cards
 
 
 @routes.get("/mainodes/snap/cards")
@@ -244,7 +246,8 @@ async def search(request):
 # prompt has core's savers and the pack's MAIVideoOut swapped for these twins, which save the same file without the two
 # (and without MAIVideoOut's meta.json), and a node with a `save_metadata` switch (VHS Video Combine) gets it off. Any
 # other node that asks for them still runs, and the take names it: "writes metadata anyway" (SNAP-R38). Every prompt is
-# also checked for private and NSFW files, for the take's lock badge and the export filter (SNAP-R37).
+# also checked for private and NSFW files, for the take's lock badge and the export filter (SNAP-R37), and rated from its
+# text and the files it loads, for the take's rating (SNAP-R39).
 class MAISaveImagePrivate(nodes.SaveImage):
     DESCRIPTION = "Saves the images to your ComfyUI output directory without the prompt and workflow in the file (Snap saves with it while metadata is off)."
 
@@ -327,12 +330,12 @@ def metadata_gate(json_data):
         found = snap_privacy.marks(prompt, workflow, graph, loaded)
         if graph["broken"] and graph["private"]:
             logging.error("Snap: privacy rules unreadable (%s); this prompt is marked private until they are fixed", ", ".join(graph["broken"]))
+        rated, rated_why = snap_privacy.rating(prompt, graph, folders_of, gated="snap_max_rating" in extra)
     except Exception:
         on = snap_privacy.switched_on(folder_paths.get_user_directory())
         logging.exception("Snap: privacy rules unreadable" + ("; this prompt is marked private" if on else ""))
         found = {"private": ["privacy rules unreadable"] if on else [], "nsfw": []}
-    if not (off or found["private"] or found["nsfw"]):
-        return json_data
+        rated, rated_why = snap_privacy.LEVELS["adult"], ["rating rules unreadable"]
     swapped, kept = {}, []
     for nid, node in list(prompt.items()) if off else []:
         inputs = node.get("inputs") or {}
@@ -348,7 +351,7 @@ def metadata_gate(json_data):
     # the page's take reads these from /history: the lock badge, the export filter, the saver each node really is, and
     # the nodes that kept their metadata
     extra["snap_marks"] = {"private": bool(found["private"]), "nsfw": bool(found["nsfw"]), "why": found["private"] + found["nsfw"], "metadata": not off, "swapped": swapped,
-                           **({"kept": kept} if kept else {})}
+                           "rating": snap_privacy.NAMES[rated], "rating_why": rated_why, **({"kept": kept} if kept else {})}
     return json_data
 
 
@@ -410,6 +413,21 @@ def rating_cap(json_data):
     return json_data
 
 
+def rate_dial(file, texts, parents):
+    """A dial saved here is rated as what made it (SNAP-R39): Adult when its sentences hold one of the terms, else the
+    highest of its parent dials' ratings, else PG. A parent nobody rated leaves the new dial unrated too, so it counts as
+    the gate counts its parent."""
+    user = folder_paths.get_user_directory()
+    graph = snap_privacy.model_graph(user)
+    lvl, term = snap_privacy.text_level("\n".join(t for t in texts if t), graph)
+    found = [snap_privacy.rated(graph, p, ["loras"]) for p in parents]
+    if None in found:
+        return
+    why = [f'its sentences say "{term}"'] if term else []
+    snap_privacy.record(user, "loras", file, max([lvl, *found]), why + [f"made from {p}, rated {snap_privacy.NAMES[r]}" for p, r in zip(parents, found)])
+
+
+dial_core.on_saved.append(rate_dial)
 # before metadata_gate: it sees the prompt as queued, not the twins and refusals metadata_gate swaps in
 PromptServer.instance.add_on_prompt_handler(rating_cap)
 PromptServer.instance.add_on_prompt_handler(metadata_gate)

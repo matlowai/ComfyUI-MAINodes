@@ -204,6 +204,7 @@ def export_edit(dial_name, edits, name, info=None):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "xb") as f:  # "x": an existing dial is never replaced
         f.write(payload)
+    core.saved(name, [info["description"], info["negative"], info["positive"]], [dial_name])
     saved = dial["vec"].to(torch.bfloat16).double()
     return {"file": f"dials/{name}.safetensors", "path": path, "vector_sha256": dial["meta"]["composition"]["result_sha256"],
             "composition": dial["meta"]["composition"], "info": info, **readouts(ctx, saved)}

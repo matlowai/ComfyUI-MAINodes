@@ -285,6 +285,16 @@ def save_dial(dial, name, info=None):
     return path
 
 
+# called with (file under loras, the texts that made it, the parent dial files) after a dial file is written: Snap rates it
+# from those (snap_bridge.py, SNAP-R39)
+on_saved = []
+
+
+def saved(name, texts, parents=()):
+    for fn in on_saved:
+        fn(f"{DIAL_SUBDIR}/{name}.safetensors", texts, parents)
+
+
 def tensors_sha256(tensors):
     """Hash of a dial file's tensors (keys and bytes in key order, never the metadata), so editing info keeps it."""
     h = hashlib.sha256()
