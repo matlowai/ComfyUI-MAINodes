@@ -38,6 +38,9 @@ import * as RT from "./retake.js";
 import { openWorld } from "./worldview.js";
 import { openRerunSheet } from "./rerunsheet.js";
 import * as J from "./jobs.js";
+import * as A from "./activity.js";
+import * as WV from "./workview.js";
+import { openWork } from "./workview.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -83,7 +86,34 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   const setupPill = h("button", { className: "snap-setup", hidden: true, onclick: () => openSetups() });
   const outsideBtn = h("button", { className: "snap-outside", hidden: true, title: "nodes in this workflow that no brick owns; Run leaves them out. Click to see them in the graph",
     onclick: () => onSwitch(E.outside()) });
+  // SNAP-R65: the Work card's pill above the chain (the top bar is full at 1280 px); the agents' proposals are its last part
   const proposalsPill = h("span", { className: "snap-proposals", hidden: true });
+  const workBtn = h("button", { className: "snap-work-btn", title: "Work: everything running, waiting for you, or just landed (also agents' jobs)", onclick: () => openWork(root, { say, open: openJob, decide }) });
+  const workPill = h("span", { className: "snap-work-pill", hidden: true }, workBtn, proposalsPill);
+  function renderWork() {
+    const p = WV.pillText(A.all());
+    workBtn.replaceChildren(h("i", { className: `snap-work-dot${p.flying ? " live" : ""}` }), h("span", { textContent: `Work · ${p.text.replace(/ · \d+ failed$/, "")}` }), p.failed ? h("b", { className: "snap-work-failed", textContent: ` · ${p.failed} failed` }) : null);
+    workPill.hidden = !p.flying && !p.landed && !p.failed && proposalsPill.hidden;
+  }
+  A.onChange(renderWork);
+  // Open on a Work card row (or an arrival's toast): the result where it belongs, only on this press (SNAP-R5, SNAP-R66).
+  // A take opens in its viewer, after its shot when it belongs to another shot of a scene (the open shot is saved
+  // first, SNAP-R24); a decision opens its take's viewer at the candidates, or the set editor at its camera; a blind pair
+  // opens the blind compare; a proposal scrolls to its chip
+  async function openJob(r) {
+    await A.opened(r.id);
+    if (r.source === "blind_pair") return dailies.compare(r.pair, { forced: true });
+    if (r.source === "proposal") { for (const s of root.querySelectorAll(".snap-work-sheet")) s.remove(); return root.querySelector(".snap-proposal, .snap-ghost-brick")?.scrollIntoView({ block: "center" }); }
+    if (r.kind === "plate" && r.about.set) { const card = L.get(r.about.set); if (!card) throw new Error(`The set ${r.about.set} isn't in the Library any more`); for (const s of root.querySelectorAll(".snap-work-sheet")) s.remove(); return editSet(card); }
+    await T.load();
+    const t = T.get(r.result?.take) ?? T.get(r.about.take);
+    if (!t) throw new Error(r.result?.saving ? `${r.title}: the take is being written, open it in a moment` : r.kind === "make_dial" ? `${r.title}: done, it's on the rack` : `${r.title}: its take isn't here`);
+    const home = RT.shotOf(t), here = SC.current();
+    for (const s of root.querySelectorAll(".snap-work-sheet, .snap-take-sheet")) s.remove();
+    if (home && here?.shot.id !== home.shot.id) { await SC.openShot(home.scene.id, home.shot.id); say(`Opened ${home.scene.name} › ${SC.shotTitle(home.scene, home.shot)} (the shot you were on is saved)`); }
+    dailies.view(t);
+    if (r.decision) document.getElementById(`snap-decision-${r.decision}`)?.scrollIntoView({ block: "center" });
+  }
   const title = h("strong", { className: "snap-title" });
   const runLabel = h("span", { textContent: "Run" }), progress = h("div", { className: "snap-progress" });
   // one click lets agents see this tab (the screenshot tool); click again to stop sharing
@@ -1263,7 +1293,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("button", { textContent: "Accept all", onclick: async () => { for (const p of P.pending()) await decide(p.id, true); } }),
       h("button", { textContent: "Reject all", onclick: async () => { for (const p of P.pending()) await decide(p.id, false); } }));
     for (const el of [...stack.querySelectorAll(".snap-ghost-brick, .snap-proposal"), ...notesStrip.querySelectorAll(".snap-proposal")]) el.remove();
-    notesStrip.append(proposalsPill); // above the chain after the person's notes, with the proposals about the whole recipe: the top bar has no room for it
+    notesStrip.append(workPill); // above the chain after the person's notes, with the proposals about the whole recipe: the top bar has no room for it
+    renderWork();
     for (const p of waiting) {
       if (p.tool === "snap") {
         const after = p.args.after && brickNode(p.args.after);

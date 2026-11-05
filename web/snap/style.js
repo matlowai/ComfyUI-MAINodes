@@ -307,6 +307,35 @@ export const STYLE = `
 .snap-proposals { display: inline-flex; flex: none; align-items: center; gap: 6px; font-size: 12px; white-space: nowrap; padding: 2px 4px 2px 10px; border-radius: 999px; background: #a78bfa22; color: #c4b5fd; }
 .snap-proposals button { all: unset; cursor: pointer; padding: 2px 8px; border-radius: 999px; }
 .snap-proposals button:hover { background: #ffffff14; }
+/* SNAP-R65 the Work card: the pill above the chain, the sheet's zones and rows */
+.snap-notes > .snap-work-pill { align-self: center; }
+.snap-work-pill { display: inline-flex; flex: none; align-items: center; gap: 6px; flex-wrap: wrap; }
+.snap-work-btn { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; font-size: 12px; white-space: nowrap; padding: 3px 11px; border-radius: 999px; background: var(--s-card); color: var(--s-fg); }
+.snap-work-btn:hover { background: color-mix(in srgb, var(--s-card) 80%, #fff); }
+.snap-work-btn:focus-visible { outline: 2px solid var(--s-accent); }
+.snap-work-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--s-dim); flex: none; }
+.snap-work-dot.live, .snap-work-row.running .snap-work-dot, .snap-work-row.checking .snap-work-dot { background: var(--s-accent); animation: snap-pulse 1.4s ease-in-out infinite; }
+.snap-work-row.queued .snap-work-dot { background: #9cc5ff88; } .snap-work-row.waiting .snap-work-dot, .snap-work-row.done .snap-work-dot { background: #f0b445; }
+.snap-work-row.failed .snap-work-dot, .snap-work-row.gone .snap-work-dot { background: #ff6b6b; }
+.snap-work-failed { color: #ff8f8f; font-weight: 600; }
+.snap-sheet.snap-work-sheet { inset: 64px max(24px, calc(50% - 480px)) auto; max-height: calc(100% - 100px); display: flex; flex-direction: column; }
+.snap-work-body { overflow: auto; padding: 4px 16px 12px; display: flex; flex-direction: column; gap: 14px; }
+.snap-work-sheet > .snap-quiet[role=status] { padding: 0 16px 10px; }
+.snap-work-zone .snap-rail-title { margin: 10px 0 6px; }
+.snap-work-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.snap-work-owner { display: flex; align-items: center; gap: 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--s-dim); }
+.snap-work-row { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border: 1px solid var(--s-line); border-radius: 10px; background: color-mix(in srgb, var(--s-card) 60%, transparent); }
+.snap-work-row:focus-visible { outline: 2px solid var(--s-accent); }
+.snap-work-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.snap-work-title { font-size: 13px; min-width: 0; overflow-wrap: anywhere; }
+.snap-work-meta { font-size: 12px; overflow-wrap: anywhere; }
+.snap-work-error { margin: 2px 0 0; padding: 6px 8px; border-radius: 6px; background: #ff6b6b14; color: #ffb3b3; font: 11px/1.4 ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 40vh; overflow: auto; }
+.snap-work-rest summary { cursor: pointer; font-size: 11px; color: var(--s-dim); }
+.snap-work-why { flex: 1 1 180px; min-width: 0; }
+.snap-work-line .snap-quiet-btn, .snap-work-verdict button { align-self: center; padding: 3px 9px; font-size: 12px; }
+.snap-work-row:not(:focus-within):not(:hover) .snap-work-verdict { display: none; } /* one key works on a focused row; the buttons show where the pointer or focus is */
+@media (prefers-reduced-motion: reduce) { .snap-work-dot { animation: none !important; } }
+@container (max-width: 760px) { .snap-work-sheet > header .snap-quiet { display: none; } .snap-sheet.snap-work-sheet { inset: 56px 8px auto; } .snap-work-body { padding: 4px 10px 10px; } }
 .snap-ghost-brick { display: flex; align-items: center; gap: 8px; border-style: dashed; border-color: hsl(var(--hue) 70% 60% / .6); background: color-mix(in srgb, var(--s-card) 45%, transparent); opacity: .85; }
 .snap-ghost-brick::before { opacity: .4; }
 .snap-proposal { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; padding: 6px 8px; border: 1px dashed #a78bfa88; border-radius: 10px; font-size: 12px; }

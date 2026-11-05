@@ -25,6 +25,7 @@ import * as P from "./proposals.js";
 import * as SC from "./scenes.js";
 import { candidatesEl } from "./candidateview.js";
 import { url as mediaUrl } from "./checks.js";
+import * as A from "./activity.js";
 
 // SNAP-R39: a take's rating, from how it was made (its prompt's text, the files and takes it used); the person's pick wins
 function ratingRow(t) {
@@ -125,7 +126,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
     const c = h("figure", { className: `snap-take ${t.status}${t.verdict ? ` ${t.verdict}` : ""}${active ? " active" : ""}${version ? " version" : ""}`, draggable: true, tabIndex: 0, title: t.text.slice(0, 300), onclick: () => view(t) },
       h("div", { className: "snap-take-media" }, mediaEl(m), tick,
         h("span", { className: "snap-take-rank", textContent: r >= 0 ? `#${r + 1}` : "" }),
-        t.verdict ? h("span", { className: "snap-take-verdict", textContent: t.verdict === "keep" ? "✓" : "✗" }) : null,
+        t.verdict ? h("span", { className: "snap-take-verdict", textContent: { keep: "✓", reject: "✗", neither: "neither" }[t.verdict] ?? t.verdict, title: t.verdict_note ?? "" }) : null,
         t.prior ? h("span", { className: "snap-take-prior", textContent: "prior", title: "in the Library as a prior" }) : null),
       h("figcaption", {}, star, h("b", { textContent: version ? SC.label(t) : `Take ${t.number}` }), version ? h("span", { className: "snap-quiet snap-take-of", textContent: `⟵ take ${T.get(t.parent.take)?.number ?? "?"}` }) : t.seed != null ? ` · seed ${t.seed}` : "", t.status !== "success" ? h("em", { textContent: ` · ${t.status}` }) : "",
         h("span", { className: "snap-take-stale", hidden: true }),
@@ -163,6 +164,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
 
   // ---- the take viewer -------------------------------------------------------------------------------------------
   function view(t) {
+    A.opened(t.id).catch(() => {}); // the Work card's landed row for this take is now seen (SNAP-R65)
     const close = () => { sheet.remove(); document.removeEventListener("keydown", keys, true); host.focus({ preventScroll: true }); };
     const m = t.media.find((x) => x.kind === "video") ?? t.media[0];
     const player = mediaEl(m, { big: true, muted: false });
@@ -363,8 +365,8 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
         const older = d.candidates.some((c) => c.notes.identity && !c.notes.identity.error && !("face_low" in c.notes.identity));
         const again = older ? h("button", { className: "snap-link snap-quiet-btn", textContent: "Check identity again", title: "face and hair notes for these candidates: a few seconds of detection, nothing renders",
           onclick: (e) => { e.currentTarget.disabled = true; e.currentTarget.textContent = "checking…"; ED.recheck(d.id).then(() => say(`${d.title}: identity notes updated`), (err) => say(err.message, true)); } }) : null;
-        return h("div", { className: "snap-set-candrow" }, h("div", { className: "snap-rail-title" }, d.title, again), candidatesEl(d, { say, crops: true }),
-          d.applied ? h("div", { className: "snap-quiet" }, made ? h("button", { className: "snap-link", textContent: `→ Take ${made.number} (${made.status})`, onclick: () => { close(); view(made); } }) : d.kind === "rerun" ? "" : "rendering the take with H3 Ripple…") : null);
+        return Object.assign(h("div", { className: "snap-set-candrow" }, h("div", { className: "snap-rail-title" }, d.title, again), candidatesEl(d, { say, crops: true }),
+          d.applied ? h("div", { className: "snap-quiet" }, made ? h("button", { className: "snap-link", textContent: `→ Take ${made.number} (${made.status})`, onclick: () => { close(); view(made); } }) : d.kind === "rerun" ? "" : "rendering the take with H3 Ripple…") : null), { id: `snap-decision-${d.id}` });
       }));
     }
     // hovering a candidate shows it over the take at its frame; hovering one of its pictures shows that one
