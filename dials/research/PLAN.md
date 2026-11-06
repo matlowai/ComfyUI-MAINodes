@@ -44,11 +44,15 @@ Status: **ready** (can start), **blocked** (waits on another node), **running**,
 | T5d | Does a Ref2V reference pin a look dial less than a first frame? | the same picture as a Ref2V reference, sinister +1 vs control, 2 seeds | ~4 renders + graph work | If darkening returns with a reference, recommend references over first frames for look dials | T5c | **done**: [a reference pins as hard as a first frame](experiments/T5d-T5e-reference-and-weak-pin.md) |
 | T5e | Weak first-frame conditioning: how far can the pin be loosened? (Dylan's suggestion) | (a) guide noise-aug strength 0.3 and 0.1 with own controls, 2 seeds: where does darkening return, and when does frame 0 stop matching the picture? (b) a soft pin in the latent instead of condition rows: the picture in frame 0 of the latent with a fractional denoise mask | (a) 8 renders; (b) a small init-latent graph | A strength where the dial's look returns while frame 0 still matches → a recipe | T5c | (a) **done**: [0.3 gives ~¼ of the look with mild drift](experiments/T5d-T5e-reference-and-weak-pin.md); (b) open, lower priority |
 | T5f | At a loose pin (guide 0.3), does more strength reach the look? | sinister +2, +3 at guide 0.3, 1 seed | 2 renders | A strength that adds darkening without moving frame 0 | T5e | **done**: [+2 doubles darkening to ~half of text-to-video, sky stays warm](experiments/T5f-strength-at-weak-pin.md) |
+| T5g | Can a pin that changes over time let the look through? | loose (guide 0.3) for the first 2 of 6 steps, then the default pin; and the reverse; sinister +2, 1 seed | 2 renders + a two-sampler graph | better darkening-for-drift than T5f | T5f | ready |
+| T5h | Is the Qwen-side copy of the first frame part of the pin? | first frame only on the DiT path (hidden from Qwen), sinister +1 vs its control, 1 seed | 2 renders + graph check | darkening returns → the pin is partly in Qwen's reading of the picture | – | ready (check the graph can split the two paths) |
+| T5i | Does a weak-reference prompt role pin less? | T5d with the prompt guide's weak-reference role, sinister +1 vs control, 1 seed | 2 renders | darkening > T5d's | – | ready |
 | T6 | Is a dial made on one H3 family valid on another? | Make the same dial on FL2VA and Ref2VA weights; compare cosine and size | offline | If cos < 0.9, dials need a family/recipe tag check (and that may explain weaker image-to-video) | – | **done**: [cos ≈ 0.99, same size](experiments/T6-family-fl2va-ref2va.md); no family check needed |
+| T6b | Does a dial act the same on both families, and with refiner-patching LoRAs? | sinister +1 text-to-video on Ref2VA vs FL2VA weights, own controls (AdaLN tensors are opposite across families); offline: dial cosine with vs without a refiner-patching turbo LoRA | 4 renders + offline | effects differ → dials need a family tag | – | ready |
 | T7 | Can covariance whitening act as an automatic hold? | v_white = (XᵀX + εI)⁻¹v using A-side token activations (DeTangle / CCS idea) on dials with known leaks (evil cold → colour temperature; expressive face → loudness) | offline + ~16 renders | Leak reduced at matched target effect vs today's hold | T1 | blocked |
 | T8 | Compensator ("functional hold") | Fit a small blend of probe directions from measured render responses to keep the target and cancel a side effect | ~60-100 renders | ≤ +1 dB loudness at the plain face dial's effect (today's hold: +1.7 dB) | T7, face panel | blocked |
 | P1 | Face-visible preservation panel | 4 scenes with visible faces + dialogue; ArcFace identity (weights on disk), WER, loudness | setup | needed for identity claims | – | ready |
-| X1 | Audio-only pushes | A dial on the audio stream only (inverse of `audio: protect`) | needs an A/V split | – | – | parked |
+| X1 | Audio-only pushes | the dial's time curve with the video weight at 0 (the reverse of `audio: protect`; the per-modality split already exists) | small code change + 2 renders | audio changes, picture within placebo | – | ready (unparked by the synthesis) |
 | X2 | Lexical readout of a dial (jacobian-lens) | What words a vector boosts | – | – | – | **moved to the J track (J4)** |
 
 
@@ -60,15 +64,21 @@ arms per test until something is worth confirming.
 
 | id | question | method | cost | gate | depends on | status |
 |---|---|---|---|---|---|---|
-| J0 | How did the collaborator do it? | the 7 questions on the ideas page | – | answers decide J2 vs J3 order | Dylan posts | awaiting Dylan |
+| J0 | ~~Ask the collaborator how they did it~~ | – | – | – | – | **dropped** (Dylan, 2026-11-06): we reimplement our own way and compare afterwards |
 | J1 | Are H3's 50 encoder layers upstream Qwen3-VL-32B's? | download upstream shards 11-14 (~17 GB: layers 48-63, final norm, output head); hash layers 48-49, which both files hold | download + offline | identical → route A; different → route B/C only | – | ready |
-| J2 | Does a logit-lens keyword dial work (no Jacobian)? | output-head rows for a word list → layer-50 space → condition_proj + refiner; medieval and blizzard vs pair dials made from matching pairs | offline + 4 renders (1 seed) | cosine to the pair dial ≥ 0.5 and a visible effect at matched push vs placebo | J1 | blocked |
+| J2 | Does a logit-lens keyword dial work (no Jacobian)? | output-head rows for a word list → layer-50 space → condition_proj + refiner; our own word lists (not the collaborator's), each vs a pair dial made for the same idea | offline + 4 renders (1 seed) | cosine to the pair dial ≥ 0.5 and a visible effect at matched push vs placebo | J1 | blocked |
 | J3 | True J-lens keyword dials | fit J_50 on the upstream tail (layers 50-63 in bf16, ~100 H3-style prompts), v = Σ J_50ᵀu_w | ~1 GPU-hour fit + 4 renders | beats J2 at matched push, or J2 already enough | J1 | blocked |
 | J4 | What do our dials say? (verbalize) | map 10 shipped dials back to layer-50 space, read top words with J2's or J3's decoder; compare with measured wheel leaks | offline | words predict ≥ half of the measured leaks | J2 or J3 | blocked |
 | J5 | Do combos say new words? | read the 6 T4 pairs: a+b vs a, b | offline | new words rank the 3 emergent pairs above the 3 others | J4 | blocked |
-| J6 | Is the first-frame pin an attention effect? | forward hooks: DiT cross-attention mass on text vs vision rows, per block/step, t2v vs i2v | 2 renders with hooks | text-row mass drops in i2v → test text-row key rescaling | – | ready |
+| J6 | Is the first-frame pin an attention effect? | forward hooks (H3 has no cross-attention; one joint self-attention): attention from video rows to text keys, Qwen-vision keys and latent first-frame keys, per block/step, t2v vs i2v | 2 renders with hooks | text-row mass drops in i2v → test text-row key rescaling | – | ready |
 | J7 | DiT impulse pictures | one low-resolution step, dial on vs off, decode the x0 difference (video and audio) | ~5 forwards | the pictures predict the rendered look of 3 known dials | – | ready |
 | J8 | Weird word dials | emoji, onomatopoeia, abstract words, away-from dials (M6, M7 on the ideas page) | 1 render each | anything surprising goes to the Lab | J2 or J3 | blocked |
+| J6′ | (J6 rebuilt) | use the existing block tap: text-row state at blocks 0/5/10/20, steps 1-2, dial on/off, t2v vs i2v; attention mass by hand on sampled queries | 4 renders with taps | text-row effect decays faster in i2v, or attention to text keys drops | – | ready |
+| J9 | How does a dial propagate through the blocks? | dial on/off, one forward at 2 noise levels: per block, size of the change on video and audio rows | ~4 forwards | blocks that carry the dial into picture vs sound | – | ready |
+| J10 | Which block range does the restaging? | sinister +1 on blocks 0-9 only vs 10-24 only, 1 seed | 2 renders | one range keeps the look without restaging | – | ready |
+| A1 | Audio dials from the soundscape field | pairs that differ only in the prompt's soundscape field (hush vs thunder), vs J2's word dials of the same words; loudness, picture distance vs placebo | 4 renders | an audio dial with picture change within placebo | – | ready |
+| M-soft | Soft debias | coverage of nuisance energy by today's 3-direction debias; a soft wall instead (shrink by λ/(λ+ε)) | offline + 2 renders | more effect per collateral at matched push | – | ready |
+| G1 | Real-contrast gate for pairs | pair difference vs the difference between two neutral prompts, on shipped and rejected dials | offline | separates good from rejected dials better than pair agreement | – | ready |
 
 Budget without the operator: up to ~6 GPU-hours a day across the two cards. Anything that needs a new public node, a
 release, or more budget waits for a decision.
@@ -110,3 +120,7 @@ release, or more budget waits for a decision.
   unchanged; +3 adds cold, not dark; the sky stays warm. Added the **J track** (Jacobian lens) after a collaborator's keyword-dial
   report; checked that H3's encoder lacks the layers a lens decodes through, so J1 (upstream tail check) comes first.
   X2 folded into J4. Per Dylan: fewer variants, one seed for exploratory renders.
+- **2026-11-06** Synthesis across our other H3 notes ([page](2026-11-06-synthesis.md)): H3 has no cross-attention (J6
+  reworded, rebuilt on the existing block tap as J6′); T5c-T5f loosened only the latent path of the first frame (T5h, T5i
+  added) and T5g schedules the pin; AdaLN differs across families (T6b); X1 unparked; J9, J10, A1, M-soft, G1 added. J0
+  dropped: Dylan wants our own reimplementation and our own words.

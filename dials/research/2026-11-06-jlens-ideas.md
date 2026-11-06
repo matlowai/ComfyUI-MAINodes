@@ -66,11 +66,11 @@ So a standard lens cannot be fitted or read on H3's copy alone. The ways around 
 | R4 | **Read the sink token:** what the 15k-norm first token says, and whether its J rows are degenerate | settles fredbliss's sink exclusion in lens terms | offline |
 | R5 | **Slice view of an H3 prompt:** which rows carry the concept, which the scene; shift only concept rows | a row-masked dial chosen by readout | offline + 2 renders |
 | R6 | **What the first frame says:** read the vision rows (image-to-video) through the text lens | choose dials the picture does not contradict; explains the pin | offline |
-| R7 | **The first-frame pin as attention:** per block and step, the DiT's cross-attention mass on vision vs text rows, with and without a first frame | if text rows stop being listened to, the fix is attention-side (rescale text-row keys), not a bigger dial: nothing in T5-T5f tried that | forward hooks, 2 renders |
+| R7 | **The first-frame pin as attention:** per block and step, how much attention the video rows pay to three groups of keys (text rows, the Qwen vision rows inside the text span, and the DiT's latent first-frame rows), with and without a first frame. H3 has no cross-attention: it is one joint self-attention over the packed sequence | if text rows stop being listened to, the fix is attention-side (rescale text-row keys), not a bigger dial: nothing in T5-T5f tried that | forward hooks, 2 renders |
 | R8 | **DiT impulse pictures:** one denoising step at low resolution, dial on vs off at small strength; decode the x0 difference | a picture of what a dial does before anyone renders; the DiT's own "lens" | 1 forward per dial |
 | R9 | **Audio impulse:** the same into the audio latent | does a dial touch loudness or speech before rendering? | 1 forward per dial |
 | R10 | **Timestep readout:** R8 at several steps | is a look dial heard only early (matches the step-envelope finding)? | few forwards |
-| R11 | **Words from DiT activations** (speculative): a linear map from cross-attention activations back to context space, then the word lens | the only way to get words out of the DiT; expect early blocks only | activation capture + offline |
+| R11 | **Words from DiT activations** (speculative): a linear map from the text rows' activations inside the DiT blocks back to context space, then the word lens | the only way to get words out of the DiT; expect early blocks only | activation capture + offline |
 
 ## Variations on the lens
 
