@@ -841,4 +841,16 @@ export const STYLE = `
 .snap-shot-truth { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 6px 0 0; padding: 6px 10px; border-radius: 9px; background: #f0b44514; border: 1px solid #f0b44555; color: #f6cf86; font-size: 12.5px; } /* UI-09 */
 .snap-shot-truth[hidden] { display: none; }
 .snap-pics-menu { z-index: 120; gap: 4px; padding: 10px; } .snap-pics-menu label { font-size: 13px; display: flex; gap: 6px; align-items: center; } .snap-pin-pics { font-size: 11px; } /* UI-04 */
+/* UI-07 v0: ▶ Play scene */
+.snap-player { width: min(1100px, calc(100vw - 32px)); }
+.snap-player header .snap-quiet { margin-left: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.snap-player-stage { background: #000; border-radius: 10px; aspect-ratio: 16 / 9; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.snap-player-stage video, .snap-player-stage img { max-width: 100%; max-height: 100%; }
+.snap-player-strip { display: flex; gap: 6px; overflow-x: auto; padding-top: 8px; }
+.snap-player-tile { all: unset; cursor: pointer; display: flex; gap: 6px; align-items: center; padding: 4px 10px; border-radius: 8px; background: #ffffff0d; font-size: 12px; white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.snap-player-tile.on { background: hsl(215 75% 64% / .35); color: #fff; }
+.snap-size-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; align-items: center; } .snap-size-chips .snap-chip { all: unset; cursor: pointer; font-size: 11px; padding: 2px 8px; border-radius: 7px; background: #ffffff10; } .snap-size-chips .snap-chip.on { background: hsl(330 60% 55% / .45); color: #fff; } /* UI-10 */
+/* UI-18 (phone): a scene row stacks its name over its actions; the take viewer's header wraps the date under where it is */
+@container (max-width: 480px) { .snap-scene-row { grid-template-columns: minmax(0, 1fr); } .snap-scene-row > * { grid-column: 1; grid-row: auto; }
+  .snap-take-sheet > header { flex-wrap: wrap; row-gap: 2px; } .snap-take-sheet > header .snap-crumbs { flex: 1 1 calc(100% - 40px); min-width: 0; white-space: normal; } }
 `;

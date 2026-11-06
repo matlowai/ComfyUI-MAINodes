@@ -1053,6 +1053,13 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   (`{to: "out"}`, the sheet's "— take X out"); the Scene row lists only scenes with a set. *Why:* UX walkthrough UI-04 /
   UI-15, dogfood F-A20: "v4 available · update" would have turned a state-A cut into state D, and a Granny-only cut
   carried a Suna row nobody could remove. *More:* proto/test_g2_send.js.
+- **SNAP-R125: A scene plays in order, and the design lane has its own door.** "▶ Play scene" plays each shot's ★ take
+  (its newest when none is active) in order, a still held 2 s, with a strip of the shots (the current one lit, a press
+  jumps; Space, arrows, Esc). The empty state offers "Start a picture" (the stills kit) beside the video start, and the
+  stills Render shows size chips (1024², 16:9, the video size, portrait). get_take gives `prompts {positive, negative}`
+  (a negative that is the positive zeroed out is null); set_widget takes a brick's node key. On a phone a scene row
+  stacks and the take viewer's date wraps under where it is. *Why:* UX walkthrough UI-07 (v0; trims, sound across cuts
+  and export wait for the Cut), UI-10, UI-18, dogfood F-A33, F-A34. *More:* proto/test_g2_polish.js.
 
 ## Accounts and the gate (snap-gate)
 

@@ -131,6 +131,28 @@ async function models() {
     total_gb: +(M.total(list) / 1e9).toFixed(1), checks };
 }
 
+// F-A33: a take's prompts by role: the text feeding a sampler's positive and negative (followed up the links), else a
+// negative_prompt input; `prompt` stays the longest prompt-like text, as before
+function promptsOf(p) {
+  const from = (id, seen = new Set()) => { // the node whose text feeds this input, followed up the links: [node id, text]
+    const n = p?.[id];
+    if (!n || seen.has(id)) return null;
+    seen.add(id);
+    const own = Object.entries(n.inputs ?? {}).filter(([k, v]) => typeof v === "string" && /prompt|text/i.test(k)).sort((x, y) => y[1].length - x[1].length)[0]?.[1];
+    if (own != null) return [id, own];
+    for (const v of Object.values(n.inputs ?? {})) if (Array.isArray(v)) { const t = from(String(v[0]), seen); if (t) return t; }
+    return null;
+  };
+  let pos = null, neg = null, typed = null;
+  for (const n of Object.values(p ?? {})) {
+    if (!pos && Array.isArray(n.inputs?.positive)) pos = from(String(n.inputs.positive[0]));
+    if (!neg && Array.isArray(n.inputs?.negative)) neg = from(String(n.inputs.negative[0]));
+    if (typed == null && typeof n.inputs?.negative_prompt === "string") typed = n.inputs.negative_prompt;
+  }
+  // a negative that traces back to the positive's own text is that text zeroed out (H3), not a negative prompt
+  return { positive: pos?.[1] ?? null, negative: typed ?? (neg && neg[0] !== pos?.[0] ? neg[1] : null) };
+}
+
 // UI-09 (SNAP-R122): whether the open shot's recipe still makes its ★ take (seeds aside), and what differs when it doesn't
 async function activeTruth() {
   const here = SC.current(), t = here?.shot.active && T.get(here.shot.active);
@@ -845,7 +867,7 @@ export const TOOLS = [
   },
   {
     name: "get_take",
-    description: "One take in full: its sound (mean and max dB, quiet when below -45 dB) when it has one, its rating and why (from how it was made, or the person's own), its notes (moment in seconds, optional region [x, y, w, h] as fractions of the frame, went wrong/right, tags, words, who wrote it), what changed since the take before it, the prompt and the error if it failed, `world`: the record versions it ran with (ref kind:id, name, n = the version it used, head = the newest, moved, archived/missing; version 0 is a pack card), `instructions`: the agent instructions it ran under, what applies now and what changed (ran, now, same, diff: added, removed, changed with both texts, turned_off, turned_on), and `parent`: the take it was made from and how ({take, method: retake, rerun/regenerate, continue, edit/<method>, recast/<method>, extend/<method>, options}; null for a first take).",
+    description: "One take in full: its sound (mean and max dB, quiet when below -45 dB) when it has one, its rating and why (from how it was made, or the person's own), its notes (moment in seconds, optional region [x, y, w, h] as fractions of the frame, went wrong/right, tags, words, who wrote it), what changed since the take before it, the prompt and the error if it failed, prompts {positive, negative} (the texts feeding the sampler's positive and negative; F-A33), `world`: the record versions it ran with (ref kind:id, name, n = the version it used, head = the newest, moved, archived/missing; version 0 is a pack card), `instructions`: the agent instructions it ran under, what applies now and what changed (ran, now, same, diff: added, removed, changed with both texts, turned_off, turned_on), and `parent`: the take it was made from and how ({take, method: retake, rerun/regenerate, continue, edit/<method>, recast/<method>, extend/<method>, options}; null for a first take).",
     inputSchema: { type: "object", properties: { take: { type: "string" } }, required: ["take"] },
     annotations: { readOnlyHint: true },
     run: async ({ take }) => {
@@ -854,7 +876,7 @@ export const TOOLS = [
       const t = T.get(take);
       if (!t || T.aboveCap(t)) throw new Error(`No take ${take}`);
       const prev = T.inGroup(t.group).filter((x) => x.created < t.created).at(-1);
-      return { id: t.id, number: t.number, seed: t.seed, status: t.status, error: t.error, verdict: t.verdict, prior: t.prior, seconds: t.seconds, prompt: t.text, notes: t.notes, media: t.media, copy: t.copy ?? null, ...(t.voice ? { voice: t.voice } : {}), ...(t.sound ? { sound: { mean_db: t.sound.mean_db, max_db: t.sound.max_db, quiet: T.quiet(t), quiet_below_db: T.QUIET_DB } } : {}), rating: T.ratingOf(t), rating_why: t.rating_set ? ["rated by the person"] : t.rating_why ?? [], changed_since_previous: prev ? T.delta(prev, t) : [],
+      return { id: t.id, number: t.number, seed: t.seed, status: t.status, error: t.error, verdict: t.verdict, prior: t.prior, seconds: t.seconds, prompt: t.text, prompts: promptsOf(t.prompt), notes: t.notes, media: t.media, copy: t.copy ?? null, ...(t.voice ? { voice: t.voice } : {}), ...(t.sound ? { sound: { mean_db: t.sound.mean_db, max_db: t.sound.max_db, quiet: T.quiet(t), quiet_below_db: T.QUIET_DB } } : {}), rating: T.ratingOf(t), rating_why: t.rating_set ? ["rated by the person"] : t.rating_why ?? [], changed_since_previous: prev ? T.delta(prev, t) : [],
         world: await worldOf(t.world), parent: t.parent ?? null, purpose: (await S.load(), await W.load(), ED.purposeOf(t)), instructions: await I.ofTake(t), ...(t.kept_encrypted ? { kept_encrypted: true, ...(t.locked ? { locked: true, said: "kept encrypted and the vault is locked: its prompt, notes and frames open once the person signs in" } : {}) } : {}) };
     },
   },
@@ -1022,6 +1044,9 @@ export const TOOLS = [
     description: "Set any widget on any node (list_nodes shows them): a combo takes one of its choices (e.g. a model file; its name without the sub-folder is enough when unique), a number stays within its limits. A node inside a blueprint is '<outer id>:<inner id>' as the prompt names it (e.g. a RandomNoise's control_after_generate: fixed keeps the same seed across runs). Widgets driven by a wire can't be set; change the source instead.",
     inputSchema: { type: "object", properties: { node: { type: ["integer", "string"] }, name: { type: "string" }, value: {} }, required: ["node", "name", "value"] },
     run: async ({ node, name, value }) => {
+      // F-A34: describe_recipe names a brick's node by its key (picture_204, render): that name works here too
+      const keyed = E.state().bricks.map((b) => b.nodes[String(node)]).find((x) => x != null);
+      if (keyed != null) node = keyed;
       const [outer, ...path] = String(node).split(":");
       let n = app.graph.getNodeById(outer);
       for (const id of path) n = n?.subgraph?.nodes.find((x) => String(x.id) === id);
@@ -1090,7 +1115,7 @@ export const TOOLS = [
   {
     name: "ui",
     description: "Drive the view: select a brick, open it (side panel or in place, by the person's setting), close, show snap or graph (focusing a brick), undo, redo, open the dial picker or maker, open the setups sheet or a slot's methods sheet (target: the slot, e.g. upscale or turbo; action turbo is the same as methods turbo), open a take, switch metadata in saved files (target on / off: the person's setting beside Run; read_ui says which), open the onboarding sheet (target: a step, e.g. intent to add a capability), or the LoRA sheet by category (target: a category, e.g. style).",
-    inputSchema: { type: "object", properties: { action: { type: "string", enum: ["select", "close", "snap", "graph", "undo", "redo", "dials", "make_dial", "setups", "turbo", "methods", "open_take", "metadata", "scenes", "onboarding", "loras", "location"] }, target: { type: "string", description: "a brick key, take id, slot, on / off for metadata, an onboarding step, or a location (location:<id>[@n])" } }, required: ["action"] },
+    inputSchema: { type: "object", properties: { action: { type: "string", enum: ["select", "close", "snap", "graph", "undo", "redo", "dials", "make_dial", "setups", "turbo", "methods", "open_take", "metadata", "scenes", "onboarding", "loras", "location", "library"] }, target: { type: "string", description: "a brick key, take id, slot, on / off for metadata, an onboarding step, a location (location:<id>[@n]), or for library a tab (here, notes, skills) and an optional |scope" } }, required: ["action"] },
     direct: true, // view changes are the agent's own navigation, not edits to accept
     run: ({ action, target }) => ui.act(action, target),
   },

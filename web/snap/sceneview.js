@@ -6,7 +6,7 @@
 // scene, or add this workflow and its takes to one. The Scenes sheet lists the scenes, makes new ones, renames and
 // deletes them (a deleted scene is parked, never lost). Every action here is the function an agent tool calls too.
 // SNAP-R7 lists hold while a pointer is down · SNAP-R19 one function per action · SNAP-R24 scenes own the work, tabs are
-// scratch · SNAP-R65 a shot's open jobs on its tile · SNAP-R93 Agent instructions on a scene and a shot · SNAP-R120 + Shot: new (the setup) or a copy · SNAP-R122 the shot says when its recipe isn't its ★ take's · see docs/snap/SNAP_RULES.md
+// scratch · SNAP-R65 a shot's open jobs on its tile · SNAP-R93 Agent instructions on a scene and a shot · SNAP-R120 + Shot: new (the setup) or a copy · SNAP-R122 the shot says when its recipe isn't its ★ take's · SNAP-R125 ▶ Play scene · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as SC from "./scenes.js";
 import * as T from "./takes.js";
@@ -79,6 +79,7 @@ export function createSceneBar({ host, say, onOpened, openTake, run, rerun }) {
         h("nav", { className: "snap-crumbs", ariaLabel: "where you are" }, path.flatMap((x, i) => [i ? h("i", { textContent: "›" }) : null, x])),
         h("span", { className: "snap-spacer" }),
         set ? h("span", { className: "snap-scene-set", textContent: `set: ${set.title.replace(/^Set snapshot:\s*/, "")}` }) : null,
+        shots.some(({ active, latest }) => active ?? latest) ? h("button", { className: "snap-link snap-quiet-btn snap-play-scene", textContent: "▶ Play scene", title: "each shot's ★ take in order (its newest when none is active)", onclick: () => playScene(scene) }) : null,
         h("button", { className: "snap-link snap-quiet-btn", textContent: "+ Shot", title: "add a shot to this scene and open it", onclick: (e) => addMenu(e.currentTarget, scene) }),
         h("button", { className: "snap-link snap-quiet-btn", textContent: "Scenes", onclick: () => openScenes() })),
       h("div", { className: "snap-shots", role: "list" }, shots.map(({ x, active, latest, n, jobs }, i) => tile(scene, x, active, latest, n, i, x.id === shot.id, jobs))), truth);
@@ -135,6 +136,37 @@ export function createSceneBar({ host, say, onOpened, openTake, run, rerun }) {
       act(async () => { await SC.moveShot(scene.id, id, scene.shots.findIndex((x) => x.id === shot.id)); return "Shot moved"; });
     });
     return t;
+  }
+
+  // ▶ Play scene (UI-07 v0, SNAP-R125): each shot's ★ take (its newest when none is active) in order, a still held 2 s; a
+  // strip of the shots under it, the current one lit, a press jumps; Space pauses, arrows step, Esc closes. Trims, sound
+  // across cuts and export wait for the Cut (the Book)
+  function playScene(scene) {
+    host.querySelector(".snap-player")?.remove();
+    const list = scene.shots.map((x) => ({ x, t: T.get(x.active) ?? SC.takesOf(x).map((e) => T.get(e.take)).filter(Boolean).sort((a, b) => a.created - b.created).at(-1) ?? null })).filter((e) => e.t && shown(e.t));
+    if (!list.length) return say("No shot has a take yet", true);
+    let at = 0, timer = 0;
+    const stage = h("div", { className: "snap-player-stage" }), time = h("span", { className: "snap-quiet" });
+    const strip = h("div", { className: "snap-player-strip" }, list.map((e, i) => h("button", { className: "snap-player-tile", title: `${SC.shotTitle(scene, e.x)} · ${SC.label(e.t)}`, onclick: () => show(i) }, h("b", { textContent: String(scene.shots.indexOf(e.x) + 1) }), h("span", { textContent: e.x.name || SC.shortLabel(e.t) }))));
+    function show(i) {
+      clearTimeout(timer);
+      at = i; const e = list[i], m = shown(e.t);
+      [...strip.children].forEach((b, k) => b.classList.toggle("on", k === i));
+      const next = () => (at + 1 < list.length ? show(at + 1) : (time.textContent = `end of ${scene.name} · ${list.length} shots`));
+      if (m.kind === "video") { const v = h("video", { src: T.url(m), autoplay: true, controls: true, playsInline: true }); v.addEventListener("ended", next); stage.replaceChildren(v); }
+      else { stage.replaceChildren(h("img", { src: T.url(m), alt: SC.shortLabel(e.t) })); timer = setTimeout(next, 2000); }
+      time.textContent = `${SC.shotTitle(scene, e.x)} · ${SC.shortLabel(e.t)} · ${i + 1} of ${list.length}`;
+    }
+    const close = () => { clearTimeout(timer); sheet.remove(); };
+    const sheet = h("div", { className: "snap-sheet snap-player", role: "dialog", ariaLabel: `Play ${scene.name}`, tabIndex: -1 },
+      h("header", {}, h("strong", { textContent: `▶ ${scene.name}` }), time, h("span", { className: "snap-spacer" }), h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: close })), stage, strip);
+    sheet.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") { e.stopPropagation(); close(); }
+      else if (e.key === "ArrowRight" && at + 1 < list.length) show(at + 1);
+      else if (e.key === "ArrowLeft" && at > 0) show(at - 1);
+      else if (e.key === " ") { e.preventDefault(); const v = stage.querySelector("video"); if (v) v.paused ? v.play() : v.pause(); }
+    });
+    host.append(sheet); sheet.focus(); show(0);
   }
 
   // + Shot (UI-02, SNAP-R120): a new shot with the open shot's setup and none of its content (the default), a copy of the

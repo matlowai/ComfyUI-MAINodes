@@ -45,6 +45,7 @@ import * as WV from "./workview.js";
 import { openWork } from "./workview.js";
 import { full } from "./lightbox.js";
 import { pickTake } from "./takepicker.js";
+import * as OB from "./onboarding.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -1059,6 +1060,16 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     })), h("div", { className: "snap-refs-actions" }, add), warn, ...audio];
   }
 
+  // UI-10: the stills Render's size as chips (a square, 16:9, the video size, or what it is now), one press sets both
+  const SIZES = [["1024²", 1024, 1024], ["16:9", 1536, 864], ["video size", 1280, 704], ["portrait", 864, 1536]];
+  function sizeChips() {
+    const w = E.getValue("image", "image", "width"), hh = E.getValue("image", "image", "height");
+    if (typeof w !== "number" || typeof hh !== "number") return null;
+    return h("div", { className: "snap-size-chips" }, SIZES.map(([label, x, y]) => h("button", { className: `snap-chip${x === w && y === hh ? " on" : ""}`, textContent: label, title: `${x}×${y}`,
+      onclick: (e) => { e.stopPropagation(); try { E.setValues("image", "image", { width: x, height: y }); say(`Size ${x}×${y}`); } catch (err) { say(err.message, true); } render(null); } })),
+      SIZES.some(([, x, y]) => x === w && y === hh) ? null : h("span", { className: "snap-quiet", textContent: `${w}×${hh}` }));
+  }
+
   // a pick is remembered for the same pair in any workflow
   function pickBinding(key, role, from, via) {
     const rule = E.choose(key, role, from, via);
@@ -1210,6 +1221,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     else if (pics.length && info.brick !== "refs" && !(def.off && !isOn(info.brick))) body.push(h("div", { className: "snap-thumbs" }, pics.slice(0, 2).map((src) => h("img", { src, alt: "", loading: "lazy" }))));
     if (info.brick === "rack") body.push(D.face({ onChange: () => render(null), onPick: () => D.openPicker(root, { say, onChange: () => render(null), onMake: openMaker, move: (f) => moveControl(f, moved) }), onMake: openMaker }));
     if (info.brick === "refs") body.push(...picturesFace());
+    if (info.brick === "image") body.push(sizeChips()); // UI-10
     if (def.stack) body.push(stackFace(info.brick));
     body.push(...pinChips(info.brick));
     body.push(...group(info.brick).flatMap(warnLines));
@@ -1552,6 +1564,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("div", { className: "snap-empty-title", textContent: "Build a recipe" }),
       h("div", { className: "snap-quiet", textContent: "Drag bricks in from the left and they snap into a working graph. Or start from the recommended recipe." }),
       h("button", { className: "snap-primary", textContent: "Start from Dials + Pika Simple", onclick: buildSimple }),
+      // UI-10: a picture (the design lane: settei, plates, sheets) is a door of its own, not a hunt through custom settings
+      h("button", { className: "snap-primary snap-start-still", textContent: "Start a picture", title: "the stills kit's recommended setup (MOSS-Image), as start_recipe {intent: stills} opens it",
+        onclick: async (e) => { e.currentTarget.disabled = true; try { const [o] = await OB.open(["stills"]); say(o ? `Opened ${o.title}` : "The stills kit's setup isn't one Snap opens here: Setups lists every one", !o); } catch (err) { say(err.message, true); } render(null); } }),
       // SNAP-R7: the empty state is rebuilt by the mouseup's change check, so a click on it can be lost; act on pointerup
       h("button", { className: "snap-link", textContent: "New here? Set up Snap", title: "a few questions, then a setup for what you want to make, in new tabs", onpointerup: () => onboard() }),
       app.graph.nodes.length ? h("button", { className: "snap-link", textContent: `Snap this workflow (${app.graph.nodes.length} nodes)`, title: "show the open graph as bricks; nothing in it changes", onclick: adoptGraph }) : null)]));
