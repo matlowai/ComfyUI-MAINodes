@@ -250,7 +250,9 @@ export const TOOLS = [
       E.setValue(brick, s.node, name, value);
       const kept = brick === "render" && name === "prompt" ? L.keepPinnedText() : []; // U72 F24: the Cast's sentence stays
       const now = E.getValue(brick, s.node, name);
-      return { brick, name, value: now, ...(kept.length ? { kept_cast: kept, note: `Kept in the prompt's first line: ${kept.join("; ")}. A Cast's words come from its record (save_cast changes them)` } : {}), ...(t ? { seconds: E.seconds(t, now), ...(typeof asked === "string" ? { note: `${asked} is ${now} frames at ${t.fps} fps (${E.seconds(t, now)} s): this model takes ${t.min} + n × ${t.step} frames` } : {}) } : {}) };
+      // SNAP-R137: a cite is plain <Picture n> (the operator, 2026-11-06); a name inside the tag reaches the model as words
+      const named = typeof now === "string" ? [...now.matchAll(/<(Picture|Video|Audio)\s+([^>]*)>/g)].filter((m) => !/^(\d+|\?)$/.test(m[2].trim())).map((m) => m[0]) : [];
+      return { brick, name, value: now, ...(named.length ? { cites: `${named.join(", ")}: a cite is <Picture n> with the number only; say who or what it is outside the tag ("<Picture 2> is Maren"). The model reads only <Picture n>` } : {}), ...(kept.length ? { kept_cast: kept, note: `Kept in the prompt's first line: ${kept.join("; ")}. A Cast's words come from its record (save_cast changes them)` } : {}), ...(t ? { seconds: E.seconds(t, now), ...(typeof asked === "string" ? { note: `${asked} is ${now} frames at ${t.fps} fps (${E.seconds(t, now)} s): this model takes ${t.min} + n × ${t.step} frames` } : {}) } : {}) };
     },
   },
   {
