@@ -72,3 +72,19 @@ placebo. No prompt pairs were written for any of them.
 effects beyond a size-matched placebo). Next: centering against a large neutral vocabulary instead of these 12 lists
 (so a new list does not change the others), more words and combos (running), a second seed for underwater and thunder,
 and J4 (reading our shipped dials as words) with the same lens.
+
+## J8, first round of our own words and combos (seed 42, +2 singles, +1.5 each in combos, same control)
+
+| dial | what the frames show | loudness vs control |
+|---|---|---|
+| stained glass | the platform becomes a grand station hall under a vaulted glass roof: the words arrive as architecture ("glass", "cathedral"), not as coloured glass | −14.4 dB |
+| origami | the scene moves to a Japanese station (signage, people): the dial carries the culture the word evokes, not folded paper | −10.4 dB |
+| static | a colder, overcast blue hour; no TV static | −6.1 dB |
+| bioluminescent | restaging only, no glow | −0.9 dB |
+| underwater + thunder | no water; a windswept woman, steam blowing off the train, a stormy mood | **+6.2 dB** |
+| bioluminescent + rust | restaging only | +0.8 dB |
+| stained glass + hush | the glass hall again | −14.5 dB (same as stained glass alone) |
+
+Placebo for comparison: restaging, −9.3 dB. So: **thunder survives a combo** (louder against a placebo that quiets),
+**underwater does not at 1.5**; words with a strong *place* association (stained glass, origami, underwater) change the
+setting rather than the surface; words for a *look* (bioluminescent, rust, static) mostly do not come through. One seed.

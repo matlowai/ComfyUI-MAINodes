@@ -128,3 +128,6 @@ release, or more budget waits for a decision.
   beyond a placebo. Jacobian-lens word dials (J3), centered against the mean of all lists, work on one seed: underwater
   turns the platform into a harbourside, thunder is ~21 dB louder than a size-matched placebo with twice the low end.
   Lesson: always render a word-dial placebo (bland words), because any +2 push restages and quiets the clip.
+- **2026-11-06** J8 round 1: place words change the setting (stained glass → glass-roofed hall; origami → a Japanese
+  station); look words (bioluminescent, rust, static) barely act; thunder survives a combo with underwater (+6 dB), underwater
+  does not at 1.5. Next for J3: center against a large neutral vocabulary; second seed for underwater and thunder.
