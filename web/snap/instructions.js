@@ -66,6 +66,8 @@ async function readMarks() {
   marks.off ??= {}; marks.seen ??= {};
 }
 const saveMarks = () => api.storeUserData(MARKS, marks);
+// what another tab or agent wrote meanwhile: the marks and the records again
+export async function refresh() { await Promise.all([readMarks(), W.reload()]); changed(); }
 const keyOf = (ref) => ref.split("@")[0];
 export const isOff = (ref) => !!marks.off[keyOf(ref)];
 export const offBy = (ref) => marks.off[keyOf(ref)] ?? null;
@@ -196,6 +198,7 @@ export async function save(id, fields, { note = "", by: who = caller } = {}) {
   await ready();
   const rid = id ? keyOf(id).replace(/^instruction:/, "") : `note-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   const was = id ? W.record("instruction", rid) : null;
+  if (was?.archived) await W.restore("instruction", rid); // a new version of an archived note brings it back
   if (id && !was) throw new Error(`No note ${id}; list_instructions shows them (a pack note is changed by a note that replaces it: supersedes [its ref], mode "replace")`);
   const body = bodyOf({ ...(was ? W.headOf(was).body : {}), ...fields });
   body.kind ??= "note";
@@ -243,6 +246,7 @@ export async function saveSkill(name, markdown, { note = "", by: who = caller } 
   if (!s) throw new Error(`No skill ${name}; a person's version sits over a pack skill: ${skills.map((x) => x.name).join(", ")}`);
   if (!String(markdown ?? "").trim()) throw new Error("markdown is the whole SKILL.md text, front matter included");
   const was = W.record("skill", name), base = was ? W.headOf(was).body : await packSkill(name).then((p) => ({ base_hash: p.hash, base_markdown: p.text }));
+  if (was?.archived) await W.restore("skill", name); // after Reset to pack, a new edit is the person's version again
   return W.save("skill", name, { name, markdown, base_hash: base.base_hash, base_markdown: base.base_markdown }, { note, by: who });
 }
 // a line diff of two texts, both sides whole: [{op: " " | "-" | "+", line}]

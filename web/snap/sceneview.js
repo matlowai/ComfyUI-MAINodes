@@ -6,12 +6,13 @@
 // scene, or add this workflow and its takes to one. The Scenes sheet lists the scenes, makes new ones, renames and
 // deletes them (a deleted scene is parked, never lost). Every action here is the function an agent tool calls too.
 // SNAP-R7 lists hold while a pointer is down · SNAP-R19 one function per action · SNAP-R24 scenes own the work, tabs are
-// scratch · SNAP-R65 a shot's open jobs on its tile · see docs/SNAP_RULES.md
+// scratch · SNAP-R65 a shot's open jobs on its tile · SNAP-R93 Agent instructions on a scene and a shot · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as SC from "./scenes.js";
 import * as T from "./takes.js";
 import * as L from "./library.js";
 import * as A from "./activity.js";
+import * as AL from "./agentlibrary.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const shown = (t) => t?.media.find((x) => x.kind === "video") ?? t?.media[0];
@@ -148,6 +149,7 @@ export function createSceneBar({ host, say, onOpened, openTake, run, rerun }) {
     const menu = h("div", { className: "snap-scene-menu", role: "menu" },
       h("div", { className: "snap-scene-rename" }, name, h("button", { className: "snap-primary", textContent: "Rename", onclick: rename })),
       take?.graph ? h("button", { textContent: `Re-run take ${take.number} with swaps…`, title: `${SC.label(take)}, the shot's ${shot.active === take.id ? "active" : "newest"} take, with another version, character, set, scene or setup (SNAP-R63)`, onclick: () => { close(); rerun?.(take); } }) : null,
+      AL.button(`shot:${scene.id}/${shot.id}`, { say, then: close }), // SNAP-R93 what agents get for this shot
       h("button", { textContent: "Remove from the scene…", onclick: (e) => { e.currentTarget.hidden = true; confirm.hidden = false; } }), confirm);
     const r = anchor.getBoundingClientRect(), box = host.getBoundingClientRect();
     Object.assign(menu.style, { top: `${r.bottom - box.top + 4}px`, left: `${Math.max(8, r.left - box.left - 200)}px` });
@@ -186,6 +188,7 @@ export function createSceneBar({ host, say, onOpened, openTake, run, rerun }) {
         title.replaceWith(field); field.focus(); field.select();
       };
       const acts = h("div", { className: "snap-scene-acts" },
+        AL.button(`scene:${s.id}`, { say }),
         h("button", { className: "snap-link snap-quiet-btn", textContent: "Rename", onclick: rename }),
         h("button", { className: "snap-link snap-quiet-btn", textContent: "Delete", onclick: () => acts.replaceChildren(
           h("span", { className: "snap-quiet", textContent: `Delete ${s.name}? Its document is parked in snap/scenes/_parked/; its takes and shot workflows are kept.` }),

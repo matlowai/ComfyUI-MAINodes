@@ -5,13 +5,14 @@
 // into the open recipe (L.applyCast): the Cast row, the details sentence in the prompt, the pictures in References,
 // and the voice reference (an audio file plus its casting words, U101) as an <Audio n>.
 // SNAP-R59 Cast by reference · SNAP-R60 versions · SNAP-R3 a file that isn't here shows as missing · SNAP-R11 warn,
-// never block · SNAP-R73 audio references · see docs/SNAP_RULES.md
+// never block · SNAP-R73 audio references · SNAP-R93 Agent instructions for this Cast · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
 import * as L from "./library.js";
 import * as M from "./models.js";
 import * as W from "./world.js";
 import { full } from "./lightbox.js";
+import * as AL from "./agentlibrary.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const short = (f) => String(f).split("/").pop().replace(/\.safetensors$/, "");
@@ -85,7 +86,7 @@ export async function openCast(host, { id = null, n = null, lora = null, say, on
   const title = h("strong", { textContent: rec ? `Cast: ${b.name} · v${from.n}${older ? ` (newest is v${rec.head})` : ""}` : "New cast member" });
   const olderNote = older ? h("div", { className: "snap-quiet", textContent: `You are editing from v${from.n}. Saving makes v${rec.head + 1}; v${from.n} and every other version stay.` }) : null;
   const sheet = h("div", { className: "snap-sheet snap-setup-sheet snap-cast-sheet", role: "dialog", ariaLabel: "Cast" },
-    h("header", {}, title, h("span", { className: "snap-spacer" }), h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: close })),
+    h("header", {}, title, h("span", { className: "snap-spacer" }), rec ? AL.button(`cast:${rec.id}`, { say }) : null, h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: close })),
     h("div", { className: "snap-cast-body" },
       h("div", { className: "snap-cast-fields" },
         field("name", text("name", "Kon")), field("alias", text("alias", "kon (the short handle)")),

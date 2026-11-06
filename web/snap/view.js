@@ -4,7 +4,7 @@
 // tabs for new work · SNAP-R7 pointer-down lists · SNAP-R19 actions call their tools' functions · SNAP-R20 the metadata
 // switch · SNAP-R9 the Setup brick · SNAP-R24 the scene navigator above the chain · SNAP-R25 onboarding, SFW only ·
 // SNAP-R29 onboarding opens by itself only for a person · SNAP-R30 a recipe opens runnable (seconds on the Render face) ·
-// SNAP-R34 the gate's account in the top bar, a lock that keeps the page · SNAP-R65 the Work pill · SNAP-R66 arrivals announce, Open moves · SNAP-R73 References shows each <Audio n> · see docs/SNAP_RULES.md
+// SNAP-R34 the gate's account in the top bar, a lock that keeps the page · SNAP-R65 the Work pill · SNAP-R66 arrivals announce, Open moves · SNAP-R73 References shows each <Audio n> · SNAP-R93/R94 the Agent library row and the Agent instructions button · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -36,6 +36,7 @@ import { openLoras, moveControl, label as catLabel } from "./loraview.js";
 import { openCast } from "./castview.js";
 import * as RT from "./retake.js";
 import { openWorld } from "./worldview.js";
+import * as AL from "./agentlibrary.js";
 import { openRerunSheet } from "./rerunsheet.js";
 import * as J from "./jobs.js";
 import * as A from "./activity.js";
@@ -254,7 +255,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   const newCast = h("button", { className: "snap-link snap-quiet-btn snap-new-cast", textContent: "+ New cast member", title: "a character kept once on a Cast record: name, trigger words, details, identity LoRA, reference pictures" , onclick: () => editCast() });
   const worldBtn = h("button", { className: "snap-link snap-quiet-btn snap-new-cast", textContent: "World: versions and sizes", title: "every record and version you keep, with sizes and the takes that pin them: archive, export or delete (your choice)",
     onclick: () => openWorld(root, { say, onChange: () => { render(null); renderLibrary(); } }).catch((err) => say(err.message, true)) });
-  rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libSfw, h("div", { className: "snap-rail-sub", textContent: "LoRAs by kind" }), libLoras, h("div", { className: "snap-rail-actions" }, newCast, worldBtn), libResults);
+  rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libSfw, h("div", { className: "snap-rail-sub", textContent: "LoRAs by kind" }), libLoras, h("div", { className: "snap-rail-actions" }, newCast, worldBtn, AL.railButton({ say })), libResults);
   T.onChange(() => renderLibrary());
   PF.onChange(() => { render(null); renderLibrary(); }); // SFW only changes what the pickers and the Library list
   PF.load().then(() => { render(null); renderLibrary(); });
@@ -1198,7 +1199,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
           crewLine.textContent = n ? `Crew: ${a} of ${n} proposals accepted · ${Object.entries(kinds).map(([k, [x, y]]) => `${k} ${x}/${y}`).join(" · ")}` : "";
         }, () => {});
       }
-      inspector.replaceChildren(h("div", { className: "snap-insp-title" }, collapse("✎", () => { noting = false; select(null); }), "Recipe"),
+      inspector.replaceChildren(h("div", { className: "snap-insp-title" }, collapse("✎", () => { noting = false; select(null); }), "Recipe", AL.button(null, { say })),
         h("div", { className: "snap-quiet", textContent: "Notes here are for the whole recipe; select a brick to note on it." }), noteComposer(), crewLine);
       return;
     }
@@ -1206,7 +1207,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const def = info.members ? SETUP : BRICKS[info.brick];
     inspector.replaceChildren(...h("div", {},
       h("div", { className: "snap-insp-title", style: `--hue:${def.hue}` }, collapse(def.icon, () => select(null)), def.title,
-        h("button", { className: "snap-mode", textContent: "⤢", title: "open bricks in place instead (remembered; also in Settings › MAINodes)", onclick: () => setOpenIn("brick") })),
+        h("button", { className: "snap-mode", textContent: "⤢", title: "open bricks in place instead (remembered; also in Settings › MAINodes)", onclick: () => setOpenIn("brick") }), AL.button(`brick:${info.brick}`, { say })),
       details(info), noteComposer()).childNodes); // h() drops the nulls
   }
 

@@ -18,6 +18,7 @@ import * as sight from "./snap/sight.js";
 import * as ACC from "./snap/account.js";
 import * as SC from "./snap/scenes.js";
 import * as I from "./snap/instructions.js";
+import { STYLE as AL_STYLE } from "./snap/agentlibrary.js";
 
 let view, sw;
 const seen = new Set(), pending = [];
@@ -129,7 +130,7 @@ app.registerExtension({
     list.push(...mine.filter((f) => !list.includes(f)));
   },
   setup() {
-    document.head.append(Object.assign(document.createElement("style"), { textContent: STYLE }));
+    document.head.append(Object.assign(document.createElement("style"), { textContent: STYLE + AL_STYLE })); // the Agent library keeps its own rules beside its sheet
     // SNAP-R20: every prompt this page queues (Snap's Run, the graph's, an agent's) says whether its files keep metadata;
     // SNAP-R65: and carries its job stamp, put into the POST that api.queuePrompt sends at once (its first await)
     const queuePrompt = api.queuePrompt.bind(api), fetchApi = api.fetchApi.bind(api);

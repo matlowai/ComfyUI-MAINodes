@@ -14,7 +14,7 @@
 // takes (SNAP-R27: by the current rules) · SNAP-R21 copies flagged · SNAP-R23 candidates · SNAP-R24 scenes own the work ·
 // SNAP-R36 quiet sound: a note and two actions, never applied by itself · SNAP-R54 takes above the account's cap are
 // left out · SNAP-R65 a job shows on its take's card and as a ghost card · SNAP-R71/R72 New view from these pictures (its
-// tray: contextview.js) · SNAP-R81/R82 Make it bigger (upscale.js) · see docs/SNAP_RULES.md
+// tray: contextview.js) · SNAP-R81/R82 Make it bigger (upscale.js) · SNAP-R93 the instructions a take ran under · see docs/SNAP_RULES.md
 import * as T from "./takes.js";
 import * as LB from "./lightbox.js";
 import * as RT from "./retake.js";
@@ -31,6 +31,7 @@ import { contextPanel } from "./contextview.js";
 import { url as mediaUrl } from "./checks.js";
 import * as A from "./activity.js";
 import * as WV from "./workview.js";
+import * as AL from "./agentlibrary.js";
 
 // SNAP-R39: a take's rating, from how it was made (its prompt's text, the files and takes it used); the person's pick wins
 function ratingRow(t) {
@@ -507,7 +508,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
       h("div", { className: "snap-take-body" },
         h("div", { className: "snap-take-left" }, stage, markers, isVideo ? h("div", { className: "snap-quiet", textContent: "Space plays · , and . step one frame" }) : null),
         h("aside", {},
-          verdicts, rankLine, ratingRow(t), quietRow,
+          verdicts, rankLine, ratingRow(t), quietRow, AL.takeLine(t, { say }),
           t.metadata_kept ? h("p", { className: "snap-take-keptline", textContent: `Save metadata was off, but ${t.metadata_kept.join("; ")}: those files still hold the prompt and workflow. Save with Save Image or Save Video to leave them out.` }) : null,
           h("div", { className: "snap-rail-title", textContent: "Note a moment" }), sentimentSeg, tagBox, words,
           h("div", { className: "snap-take-noteline" }, at, markBtn, regionText, h("span", { className: "snap-spacer" }), h("button", { className: "snap-primary", textContent: "Add note", onclick: add })),
