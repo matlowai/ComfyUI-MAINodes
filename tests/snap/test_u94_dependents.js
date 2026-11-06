@@ -91,7 +91,7 @@ const park = (d) => { const p = path.join(snap, d); if (fs.existsSync(p)) { fs.m
   const checks = [
     R.deps.stale?.length === 5 && !!R.deps.rerun_dependents,
     !!R.proposal.proposed && p?.stages?.map((s) => s.takes.length).join() === "2,2,1" && p.stages.map((s) => s.eta_s).join() === "21,25,14" && /chain stops before cuts/.test(p.stages[2].runs) && /plate's new file/.test(p.stages[1].runs),
-    R.stale.rows?.some((r) => /moved to v4/.test(r.stale ?? "")),
+    R.stale.rows?.some((r) => /→ v4: /.test(r.stale ?? "")), // G3 F-E15: "v1 → v4: its master changed",
     st(R.run, "plates")?.state === "running" && st(R.run, "plates").decisions.length === 2 && st(R.run, "boards").state === "waiting" && R.platesReady,
     st(R.mid?.[0], "boards")?.decisions.length === 0,
     st(R.afterPlates, "plates")?.state === "picked" && st(R.afterPlates, "plates").records?.length === 2,

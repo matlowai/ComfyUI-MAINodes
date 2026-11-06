@@ -19,6 +19,7 @@ const fileHas = (m, s) => { const f = path.join(base, m.type === "output" ? "out
   fs.mkdirSync(out, { recursive: true });
   const snap = path.join(base, "user", "default", "snap");
   for (const d of ["instruction", "skill", "instructions.json", "_archived/instruction", "_archived/skill"]) if (fs.existsSync(path.join(snap, d))) { fs.mkdirSync(path.join(snap, "_parked"), { recursive: true }); fs.renameSync(path.join(snap, d), path.join(snap, "_parked", `${d.replace("/", "-")}-${Date.now()}`)); }
+  await fetch(`http://127.0.0.1:${port}/settings/MAINodes.Snap.SaveMetadata`, { method: "POST", body: "true" }); // G3: an earlier suite in the gate can leave metadata off (park keeps settings), and the page reads it as it loads
   const b = await chromium.launch({ executablePath: CFG.chrome, headless: true });
   try {
     const { page, errors } = await F.open(b, port, { viewport: { width: 1280, height: 860 } });
