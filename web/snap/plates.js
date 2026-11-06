@@ -95,12 +95,13 @@ export function setPlate(lineage, camera, image, by = "person") {
   });
 }
 
-// the copy check's encoder and threshold come from the model graph: the clip_vision file whose entry has `copy_check`
+// the copy check's encoder and thresholds come from the model graph: the clip_vision file whose entry has `copy_check`
+// (`threshold` for the same-cell score, `soft` for the soft score, G1b)
 export async function copyCheck() {
   await M.load();
   const name = (M.folders().get("clip_vision") ?? []).find((n) => M.entry(n)?.copy_check);
   if (!name) throw new Error("The copy check needs an encoder the model graph gives a copy_check (DINOv3 ViT-H, models/clip_vision/dino_v3_vit_h_bf16.safetensors)");
-  return { encoder: name, threshold: M.entry(name).copy_check.threshold };
+  return { encoder: name, threshold: M.entry(name).copy_check.threshold, soft: M.entry(name).copy_check.soft_threshold };
 }
 
 // the orbit's models: the first Render Preset that conditions on reference pictures (Pika + reference pictures), with

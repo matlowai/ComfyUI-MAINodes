@@ -5,17 +5,22 @@ page compares them against the take's own frames with thresholds from the model 
   low score says "probably a different person" and nothing more; hair colour is invisible to it.
 - the hair: the lightness of the lit part of SAM 3.1's hair mask (L* 90th percentile). U56b: grey and silver edits
   rise +14 to +41 over the original take's frames, kept ones stay at or below +9; blonder drift doesn't show.
+- the character (G1b): DINOv3 ViT-H's CLS token of a square crop 1.5x the face's box (the copy check's encoder). On our
+  anime fixtures it reads the character where ArcFace can't: same character 0.55-0.94 (a bowed profile 0.55-0.60, which
+  ArcFace scores 0.03), another character 0.07-0.52; "probably a different person" from it raised 0 false alarms in 21
+  same-character pairs where ArcFace below 0.35 raised 7. ArcFace stays as a number to look at.
 Every face SAM 3.1 finds gets its own embedding, box and head crop, so a page can match faces to people across pictures
 (a two-shot has two; U101: one union crop scored one person and showed the other). Notes only: the head crops on the
 candidate decide (SNAP-R23).
 IRBlock and IResNet101 follow the IResNet of insightface's arcface_torch (github.com/deepinsight/insightface, code MIT),
 in the key layout CVLface (github.com/mk-minchul/CVLface, MIT) saves; no weights ship here (docs/snap/README.md, Notices).
-SNAP-R18 local only · SNAP-R23 checks are notes, never rejections · SNAP-R76 every face is its own measurement · see
-docs/SNAP_RULES.md"""
+SNAP-R18 local only · SNAP-R23 checks are notes, never rejections · SNAP-R76 every face is its own measurement ·
+SNAP-R111 the character score raises the identity note · see docs/SNAP_RULES.md"""
 import os
 
 import torch
 
+import comfy.clip_model
 import comfy.model_management
 import comfy.model_patcher
 import comfy.ops
@@ -112,12 +117,23 @@ def overlap(a, b):
 
 
 def face_crop(image, box, scale=1.5, size=112):
-    """A square crop scale x the face's box, centred on it, edges repeated, at `size` px (ArcFace's 112 by default)."""
+    """A square crop scale x the face's box, centred on it, edges repeated, at `size` px (ArcFace's 112 by default; None
+    keeps the picture's own pixels)."""
     y0, y1, x0, x1 = box
     half = int(max(x1 - x0, y1 - y0) * scale / 2)
     cy, cx = (y0 + y1) // 2, (x0 + x1) // 2
     padded = torch.nn.functional.pad(image.movedim(-1, 0)[None], (half, half, half, half), mode="replicate")
-    return comfy.utils.common_upscale(padded[:, :, cy:cy + 2 * half, cx:cx + 2 * half], size, size, "area", "disabled")
+    crop = padded[:, :, cy:cy + 2 * half, cx:cx + 2 * half]
+    return crop if size is None else comfy.utils.common_upscale(crop, size, size, "area", "disabled")
+
+
+def encoder_tokens(clip_vision, x):
+    """Every token of a DINOv3 (Load CLIP Vision) pass over pictures `x` (B, H, W, C), each resized whole to the encoder's
+    square input, no crop: a set's landmarks sit at the edges, a head crop is already square. CLS first, patches after
+    the model's prefix tokens."""
+    comfy.model_management.load_model_gpu(clip_vision.patcher)
+    px = comfy.clip_model.clip_preprocess(x.to(clip_vision.load_device), size=clip_vision.image_size, mean=clip_vision.image_mean, std=clip_vision.image_std, crop=False).float()
+    return clip_vision.model(pixel_values=px)[0].float()
 
 
 def hair_l90(image, mask, min_pixels=2000):
@@ -138,17 +154,19 @@ class MAISnapIdentity(io.ComfyNode):
             category="MAINodes/snap",
             description="One picture: every face's ArcFace embedding (a square crop around each face mask), its box and a head crop, "
                         "and the lit hair's lightness (L* 90th percentile of the hair mask), for Snap's identity notes. Masks from "
-                        "SAM3 Detect: the faces one mask each (individual_masks), the hair as one.",
-            inputs=[FaceModel.Input("face_model"), io.Image.Input("image"), io.Mask.Input("faces", tooltip="one mask per face found in the picture"), io.Mask.Input("hair")],
+                        "SAM3 Detect: the faces one mask each (individual_masks), the hair as one. With an encoder (DINOv3 ViT-H from "
+                        "Load CLIP Vision), each face's character embedding too: the CLS token of a crop 1.5x the face's box.",
+            inputs=[FaceModel.Input("face_model"), io.Image.Input("image"), io.Mask.Input("faces", tooltip="one mask per face found in the picture"), io.Mask.Input("hair"),
+                    io.ClipVision.Input("encoder", optional=True, tooltip="DINOv3 ViT-H: the character score, which reads anime profiles and bowed heads ArcFace can't")],
             outputs=[],
             is_output_node=True,
         )
 
     @classmethod
-    def execute(cls, face_model, image, faces, hair) -> io.NodeOutput:
+    def execute(cls, face_model, image, faces, hair, encoder=None) -> io.NodeOutput:
         comfy.model_management.load_model_gpu(face_model)
         img = image[0, ..., :3].float()
-        found, boxes, heads = [], [], []
+        found, boxes, heads, characters = [], [], [], []
         kept = []
         for mask in faces:  # SAM 3.1's best first; it can find one face twice (U101: Brann three times), the first box stands
             box = face_box(mask)
@@ -158,11 +176,14 @@ class MAISnapIdentity(io.ComfyNode):
             x = (face_crop(img, box).to(face_model.load_device) - 0.5) / 0.5
             e = face_model.model(x) + face_model.model(x.flip(3))  # flip-averaged, as U56 measured it
             found.append([round(v, 5) for v in torch.nn.functional.normalize(e, dim=-1)[0].tolist()])
+            if encoder is not None:
+                cls_token = encoder_tokens(encoder, face_crop(img, box, size=None).movedim(1, -1))[:, 0]
+                characters.append([round(v, 5) for v in torch.nn.functional.normalize(cls_token, dim=-1)[0].tolist()])
             y0, y1, x0, x1 = box
             boxes.append([round(x0 / img.shape[1], 4), round(y0 / img.shape[0], 4), round((x1 - x0) / img.shape[1], 4), round((y1 - y0) / img.shape[0], 4)])
             heads.append(face_crop(img, box, scale=2.4, size=256).movedim(1, -1))  # the head around this face, for the person to look at
         l90 = hair_l90(img, (hair > 0.5).any(dim=0) if hair.ndim == 3 else hair > 0.5)
-        out = {"faces": [found], "boxes": [boxes], "hair_l90": [None if l90 is None else round(l90, 2)]}
+        out = {"faces": [found], "boxes": [boxes], "hair_l90": [None if l90 is None else round(l90, 2)], **({"characters": [characters]} if encoder is not None else {})}
         return io.NodeOutput(ui={**(ui.PreviewImage(torch.cat(heads), cls=cls).as_dict() if heads else {}), **out})
 
 

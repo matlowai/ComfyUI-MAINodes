@@ -30,8 +30,10 @@ causes: pictures judged one at a time, crops before frames, consistency checked 
    same side of the road). Boards judged one by one passed with three different gates.
 5. **Cut pairs:** the previous cut's last frame beside this cut's first: position, facing, eyeline, light, props
    (goggles on/off and a noon-to-sunset jump are invisible within one take).
-6. **The right Cast only, in its state.** State the baseline before reading a face score: ArcFace reads a bowed
-   profile at 0.06 and the same person relit at 0.34-0.60, so the head crops decide (SNAP-R23, R76).
+6. **The right Cast only, in its state.** State the baseline before reading a face score: the identity notes' character
+   score (SNAP-R111) reads the same character 0.55-0.94 and others 0.07-0.52 on our anime fixtures, below 0.45 it says
+   "probably a different person"; ArcFace, shown beside it, reads a bowed profile at 0.06 and the same person relit at
+   0.34-0.60. Neither decides: the head crops do (SNAP-R23, R76).
 7. **Sound:** a drone needs a spectral look, not loudness.
 
 Write each finding as a note with a severity, as a mask on the region when marks support it (SNAP-R91), and say which

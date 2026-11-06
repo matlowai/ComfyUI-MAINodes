@@ -259,8 +259,9 @@ reference pictures); a take card that says "not all of it ran" names what didn't
 
 - Is the person in a take still the Cast? `check_identity {"take": "<id>", "cast": "cast:<id>"}` scores any take or
   still against the Cast's picture (a video's first, middle and last frame by default, `frames` for others; a list of
-  Casts for a two-shot, each face matched to one Cast). It returns the lowest score per Cast and each frame's face
-  crops: look at the crops, the score only informs.
+  Casts for a two-shot, each face matched to one Cast). It returns the lowest character score per Cast (DINOv3 on a
+  head crop: the same character 0.55-0.94, below 0.45 "probably someone else"; ArcFace beside it, which drops near 0 on
+  a profile or a bowed head) and each frame's face crops: look at the crops, the score only informs.
 - What still uses an old version: `dependents {"ref": "cast:<id>"}` (or a location, `location:<id>`, or one version
   `@n`) lists the takes, stills and boards pinned to each version, with their scene and shot, and under `stale` the
   `rerun` arguments that re-make each on the newest version.
@@ -361,8 +362,9 @@ them). It works on stills: masters, plates, boards.
   Picture 1, name only the change, describe its shape and say what it is not: "Change only her eyes: gold irises, each
   with a single thin black vertical slit pupil like a cat's, no round pupil. Everything else stays." drew true slits
   3/3 (short03 F-C16); "slit pupils" alone gave round ones, and an unpinned head turns to show the eyes.
-- Each candidate gets notes: each Cast's face against its picture, and "copied Picture n" when its copy score against
-  a context picture reaches the threshold (it re-rendered that view, e.g. the master's aerial). Notes inform, never block.
+- Each candidate gets notes: each Cast's character score against its picture, and "copied Picture n" when its soft
+  copy score against a context picture reaches 0.82, "· same framing" (it re-rendered that view) or "· same
+  composition" (the picture drawn again from another viewpoint, e.g. the master's aerial turned). Notes inform, never block.
 - Land each cut's board in that cut's shot (`land`), so each shot holds its own take; the answer's `land_hint` says
   when a context board sits in another shot.
 

@@ -34,8 +34,6 @@ import numpy as np
 import torch
 from aiohttp import web
 
-import comfy.clip_model
-import comfy.model_management
 from comfy.cli_args import args
 import folder_paths
 import nodes
@@ -45,7 +43,7 @@ from comfy_execution.utils import get_executing_context
 from comfy_extras.nodes_video import SaveVideo
 from server import PromptServer
 
-from . import snap_instructions, snap_privacy
+from . import snap_faces, snap_instructions, snap_privacy
 from .dials import core as dial_core
 try:
     from . import snap_vault_server
@@ -1039,7 +1037,10 @@ class MAISnapLouder(io.ComfyNode):
 class MAISnapCopyScore(io.ComfyNode):
     """How much each picture re-renders the reference's view (U48 section 3): the mean cosine of DINOv3 patch tokens taken
     at the same grid position, so it follows what sits where in the frame, which DINOv3's CLS (room identity) can't
-    see. Validated as a copy detector against a known picture: copies 0.93-0.94, new views of the same room 0.52-0.65."""
+    see. Validated as a copy detector against a known picture: copies 0.93-0.94, new views of the same room 0.52-0.65.
+    A copy drawn again from another viewpoint (short03's aerials of the master, a mirrored master) keeps its parts but
+    not their places, 0.52-0.58 there; the soft score (G1b) finds each patch's best match anywhere in the other picture,
+    both ways, averaged: those copies 0.84-0.87, new views 0.69-0.81 (SNAP-R112)."""
 
     @classmethod
     def define_schema(cls):
@@ -1048,8 +1049,9 @@ class MAISnapCopyScore(io.ComfyNode):
             display_name="Copy score (Snap)",
             category="MAINodes/snap",
             description="Scores each image against a reference picture by DINOv3 patch tokens at the same grid position: "
-                        "about 0.93 for a re-render of the reference's view, about 0.6 for another view of the same place. "
-                        "Load DINOv3 with Load CLIP Vision.",
+                        "about 0.93 for a re-render of the reference's view, about 0.6 for another view of the same place; and "
+                        "a soft score that matches each patch anywhere in the other picture: about 0.84 for a copy drawn from "
+                        "another viewpoint, 0.7-0.8 for a new view. Load DINOv3 with Load CLIP Vision.",
             inputs=[io.ClipVision.Input("clip_vision"), io.Image.Input("reference"), io.Image.Input("images")],
             outputs=[],
             is_output_node=True,
@@ -1057,15 +1059,17 @@ class MAISnapCopyScore(io.ComfyNode):
 
     @classmethod
     def execute(cls, clip_vision, reference, images) -> io.NodeOutput:
-        def patches(x):  # whole frame resized to the encoder's square input, no crop: a set's landmarks sit at the edges
-            comfy.model_management.load_model_gpu(clip_vision.patcher)
-            px = comfy.clip_model.clip_preprocess(x.to(clip_vision.load_device), size=clip_vision.image_size, mean=clip_vision.image_mean, std=clip_vision.image_std, crop=False).float()
-            seq = clip_vision.model(pixel_values=px)[0]
-            return torch.nn.functional.normalize(seq[:, clip_vision.model.num_prefix_tokens:].float(), dim=-1)
+        def patches(x):
+            return torch.nn.functional.normalize(snap_faces.encoder_tokens(clip_vision, x)[:, clip_vision.model.num_prefix_tokens:], dim=-1)
 
         ref = patches(reference[:1])
-        scores = [s for chunk in images.split(16) for s in (patches(chunk) * ref).sum(-1).mean(-1).tolist()]
-        return io.NodeOutput(ui={"copy_scores": [round(s, 4) for s in scores]})
+        scores, soft = [], []
+        for chunk in images.split(16):
+            p = patches(chunk)
+            scores += (p * ref).sum(-1).mean(-1).tolist()
+            sim = p @ ref[0].T  # every patch against every reference patch
+            soft += ((sim.amax(-1).mean(-1) + sim.amax(-2).mean(-1)) / 2).tolist()
+        return io.NodeOutput(ui={"copy_scores": [round(s, 4) for s in scores], "soft_scores": [round(s, 4) for s in soft]})
 NODE_CLASS_MAPPINGS = {"MAISaveImagePrivate": MAISaveImagePrivate, "MAIPreviewImagePrivate": MAIPreviewImagePrivate,
                        "MAISaveVideoPrivate": MAISaveVideoPrivate, "MAIVideoOutPrivate": MAIVideoOutPrivate, "MAIRatingRefused": MAIRatingRefused, "MAISnapLouder": MAISnapLouder, "MAISnapCopyScore": MAISnapCopyScore}
 NODE_DISPLAY_NAME_MAPPINGS = {"MAISaveImagePrivate": "Save Image (no metadata)", "MAIPreviewImagePrivate": "Preview Image (no metadata)",

@@ -3,7 +3,8 @@
 // Hovering or pressing a tile previews it in place (C.preview: the plate slot or the take viewer shows it, nothing is
 // edited). The buttons call the same functions as the apply_candidate / reject_candidate / undo_candidate tools.
 // SNAP-R7 lists keep their elements while a pointer is down · SNAP-R17 by · SNAP-R23 candidates · SNAP-R76 a score per
-// person, with that person's crops · SNAP-R79 copied Picture n · see docs/SNAP_RULES.md
+// person, with that person's crops · SNAP-R79 copied Picture n · SNAP-R111 the character score flags, ArcFace is shown ·
+// SNAP-R112 same composition · see docs/SNAP_RULES.md
 import * as C from "./candidates.js";
 import * as P from "./proposals.js";
 import * as ED from "./edits.js";
@@ -18,38 +19,44 @@ export function noteChips(c) {
   const n = c.notes, out = [];
   if (n.copy) out.push(h("span", { className: `snap-cand-note${n.copy.likely_copy ? " warn" : ""}`, textContent: `${n.copy.likely_copy ? "likely copy" : "copy"} ${n.copy.score.toFixed(2)}`,
     title: `last frame against the wide plate: ${n.copy.score} (a copy of its view at or above ${n.copy.threshold}); push-ins score like new views, so look` }));
-  // a new view (F-C14): "copied Picture n" when its copy score against a context picture reaches the threshold
+  // a new view (F-C14, G1b): "copied Picture n" when its soft score against a context picture reaches the soft threshold,
+  // with the same-cell score saying whether it kept that picture's framing or drew the same composition from elsewhere
+  const both = (a) => `soft ${a.soft ?? "not read"}, same-cell ${a.score ?? "not read"}`;
   if (n.copied) out.push(...(n.copied.error ? [h("span", { className: "snap-cand-note", textContent: "copy: not checked", title: n.copied.error })]
-    : n.copied.copied.length ? n.copied.against.filter((a) => n.copied.copied.includes(a.n)).map((a) => h("span", { className: "snap-cand-note warn", textContent: `copied Picture ${a.n} ${a.score.toFixed(2)}`,
-      title: `copy score against Picture ${a.n} (${a.label}): ${a.score}, at or above ${n.copied.threshold}: it likely re-renders that picture's view; look before you apply it` }))
-    : (() => { const top = n.copied.against.filter((a) => a.score != null).sort((a, b) => b.score - a.score)[0]; // the nearest picture, said quietly: a re-drawn
-      // view of a picture (P01's turned aerials of the master, 0.52-0.54) scores under the threshold, above new views (0.42-0.45)
-      return [h("span", { className: "snap-cand-note", textContent: top ? `no copy · nearest Picture ${top.n} ${top.score.toFixed(2)}` : "copy: not read",
-        title: `copy score against each picture, below ${n.copied.threshold} for all: ${n.copied.against.map((a) => `Picture ${a.n} ${a.score ?? "not read"}`).join(", ")}. It catches a re-render of a picture's framing; a view re-drawn from the same viewpoint but turned scores lower (short03 P01's aerials 0.52-0.54 against the master, new views 0.42-0.45), so look` })]; })()));
+    : n.copied.copied.length ? n.copied.against.filter((a) => n.copied.copied.includes(a.n)).map((a) => { const framing = n.copied.framing?.includes(a.n) ?? true;
+      return h("span", { className: "snap-cand-note warn", textContent: `copied Picture ${a.n} ${(a.soft ?? a.score).toFixed(2)} · ${framing ? "same framing" : "same composition"}`,
+        title: `copy scores against Picture ${a.n} (${a.label}): ${both(a)}. ${framing ? `Same-cell at or above ${n.copied.threshold}: it re-renders that picture's framing` : `The soft score is at or above ${n.copied.soft_threshold} with the parts in other places: the same composition drawn from another viewpoint (short03's aerials of the master 0.84, new views 0.69-0.81)`}; look before you apply it` }); })
+    : (() => { const top = n.copied.against.filter((a) => (a.soft ?? a.score) != null).sort((a, b) => (b.soft ?? b.score) - (a.soft ?? a.score))[0]; // the nearest picture, said quietly
+      return [h("span", { className: "snap-cand-note", textContent: top ? `no copy · nearest Picture ${top.n} ${(top.soft ?? top.score).toFixed(2)}` : "copy: not read",
+        title: `copy scores against each picture, below ${n.copied.soft_threshold ?? n.copied.threshold} for all: ${n.copied.against.map((a) => `Picture ${a.n} ${both(a)}`).join("; ")}. The soft score catches a copy drawn again from another viewpoint (short03's aerials of the master 0.84) as well as a re-render (0.9+); new views of the same set scored 0.69-0.81` })]; })()));
   if (n.layout) out.push(n.layout.error ? h("span", { className: "snap-cand-note", textContent: "layout: not checked", title: n.layout.error })
     : h("span", { className: `snap-cand-note${n.layout.as_planned < n.layout.checked ? " warn" : ""}`, textContent: `layout ${n.layout.as_planned}/${n.layout.checked}${n.layout.order ? ` · order ${n.layout.order}` : ""}`,
       title: `where ${n.layout.detector} finds each thing against the plan:\n${n.layout.rows.map((r) => `${r.ok === false ? "✗" : r.ok ? "✓" : "·"} ${r.name}: plan ${r.plan}, found ${r.found}`).join("\n")}` }));
-  // identity (U61): a chip per flag, else the two numbers quietly; the head crops on the tile decide
-  const id = n.identity, sign = (x) => `${x > 0 ? "+" : ""}${x}`;
+  // identity (U61, G1b): a chip per flag, else the numbers quietly; the head crops on the tile decide. The character score
+  // (DINOv3 on a head crop) raises "probably a different person"; ArcFace is only a number in the title (SNAP-R111)
+  const id = n.identity, sign = (x) => `${x > 0 ? "+" : ""}${x}`, two = (x) => (x == null ? "–" : x.toFixed(2));
+  const arc = (x) => `ArcFace ${x ?? "no face"} (a number to look at: on anime faces it scores a profile or a bowed head of the same character near 0)`;
+  const cast = id?.cast, each = (s) => (s.people ? s.people.map((x) => x.character ?? "no face").join(" / ") : s.character ?? "no face");
+  const older = id && !id.error && (id.casts ? !id.casts.some((x) => "character" in x) : id.new_person ? id.cast && !id.cast.error && !("character_low" in id.cast) : !("character_low" in id));
+  if (older) out.push(h("span", { className: "snap-cand-note", textContent: "identity: older check", title: "a note from before the character score (G1b): ArcFace alone, which flagged anime profiles and bowed heads as someone else; check again for the character, face and hair notes" }));
   // a new view (U101): one chip per Cast picture it was made from, its face matched to that Cast's (SNAP-R76)
-  for (const x of id?.casts ?? []) out.push(x.face == null ? h("span", { className: "snap-cand-note", textContent: `${x.name}: no face matched`, title: "no face in the new still was matched to this Cast's picture (out of frame, from behind, or too small)" })
-    : h("span", { className: `snap-cand-note${x.different ? " warn" : ""}`, textContent: x.different ? `probably not ${x.name}` : `${x.name} ${x.face.toFixed(2)}`,
-      title: `ArcFace, ${x.name}'s Cast picture against the face matched to it (each face to one Cast, best total): ${x.face}; below ${id.different_person} it reads "probably not". Above that it doesn't rank likeness well: compare the head crops` }));
-  const cast = id?.cast, faces = cast?.scores?.map((s) => s.face ?? "no face").join(", "), each = (s) => (s.people ? s.people.map((x) => x.face ?? "no face").join(" / ") : s.face ?? "no face");
-  if (id?.new_person && cast && !cast.error && cast.face_low != null) out.push(cast.different
-    ? h("span", { className: "snap-cand-note warn", textContent: `probably not ${cast.name}`, title: `ArcFace, ${cast.name}'s picture against the painted face: ${faces}; below ${cast.different_person} it is likely someone else (a profile or a small face scores low too): compare the head crops` })
-    : h("span", { className: "snap-cand-note", textContent: `face vs ${cast.name}'s picture ${cast.face_low.toFixed(2)}`, title: `ArcFace, ${cast.name}'s picture against the painted face: ${faces} (below ${cast.different_person} it reads "probably not ${cast.name}"). Above that it doesn't rank likeness well: a painted face that looks like someone else can score higher than one that looks like ${cast.name}, so compare the head crops` }));
-  else if (id?.new_person) out.push(h("span", { className: "snap-cand-note", textContent: "new person", title: cast?.error ? `A recast puts someone else in on purpose; the face against the Cast's picture wasn't checked: ${cast.error}` : "A recast puts someone else in on purpose, so there is no face or hair check: look at the painted frame" }));
+  else if (id?.casts) out.push(...id.casts.map((x) => (x.character == null ? h("span", { className: "snap-cand-note", textContent: `${x.name}: no face matched`, title: "no face in the new still was matched to this Cast's picture (out of frame, from behind, or too small)" })
+    : h("span", { className: `snap-cand-note${x.different ? " warn" : ""}`, textContent: x.different ? `probably not ${x.name}` : `${x.name} ${two(x.character)}`,
+      title: `character score (DINOv3 on the head crop), ${x.name}'s Cast picture against the face matched to it (each face to one Cast, best total): ${x.character}; below ${id.different_below} it reads "probably not ${x.name}". ${arc(x.face)}. Compare the head crops` }))));
+  else if (id?.new_person && cast && !cast.error && cast.character_low != null) {
+    const scores = `character score (DINOv3 on the head crop), ${cast.name}'s picture against the painted face: ${cast.scores.map(each).join(", ")}; ${arc(cast.face_low)}`;
+    out.push(cast.different ? h("span", { className: "snap-cand-note warn", textContent: `probably not ${cast.name}`, title: `${scores}. Below ${cast.different_below} it is likely someone else: compare the head crops` })
+      : h("span", { className: "snap-cand-note", textContent: `character vs ${cast.name}'s picture ${two(cast.character_low)}`, title: `${scores}. Below ${cast.different_below} it would read "probably not ${cast.name}"; compare the head crops` }));
+  } else if (id?.new_person) out.push(h("span", { className: "snap-cand-note", textContent: "new person", title: cast?.error ? `A recast puts someone else in on purpose; the face against the Cast's picture wasn't checked: ${cast.error}` : "A recast puts someone else in on purpose, so there is no face or hair check: look at the painted frame" }));
   else if (id?.error) out.push(h("span", { className: "snap-cand-note", textContent: "identity: not checked", title: id.error }));
-  else if (id && !id.casts && !("face_low" in id)) out.push(h("span", { className: "snap-cand-note", textContent: "identity: older check", title: "a note from the DINOv3 head-crop check, which couldn't tell grey hair from kept hair; check again for the face and hair notes" }));
-  else if (id && !id.casts) {
-    const faces = `ArcFace on the faces, the take's frame against the edit (each person matched to their own face): ${id.scores.map(each).join(", ")}`, hair = `lit hair (L* p90) against the take's frames (median ${id.hair_base ?? "?"}): ${id.scores.map((s) => (s.hair == null ? "not read" : sign(s.hair))).join(", ")}`;
+  else if (id) {
+    const scores = `character score (DINOv3 on the head crop), the take's frame against the edit (each person matched to their own face): ${id.scores.map(each).join(", ")}; ${arc(id.face_low)}`, hair = `lit hair (L* p90) against the take's frames (median ${id.hair_base ?? "?"}): ${id.scores.map((s) => (s.hair == null ? "not read" : sign(s.hair))).join(", ")}`;
     const missed = `${id.scores.some((s) => s.no_head) ? "; no head found in one of the crops" : ""}${id.unread ? `; not read: ${id.unread.faces} face(s), ${id.unread.hair} hair` : ""}`;
-    if (id.face_unreliable) out.push(h("span", { className: "snap-cand-note", textContent: "face check unreliable under relighting", title: `${faces}; under a ${id.face_unreliable} the same person scores as low as another (U56: 0.34-0.60 at night), so no face flag here: the head crops and the hair note decide${missed}` }));
-    if (id.different) out.push(h("span", { className: "snap-cand-note warn", textContent: "probably a different person", title: `${faces}; below ${id.different_person} it is likely someone else, but dark frames and profiles score low too: compare the head crops${missed}` }));
+    if (id.face_unreliable) out.push(h("span", { className: "snap-cand-note", textContent: "identity unreliable under relighting", title: `${scores}; under a ${id.face_unreliable} the same person scores as low as another (U56: 0.34-0.60 at night), so no identity flag here: the head crops and the hair note decide${missed}` }));
+    if (id.different) out.push(h("span", { className: "snap-cand-note warn", textContent: "probably a different person", title: `${scores}. Below ${id.different_below} it is likely someone else (0 false alarms on 21 same-character pairs, profiles included): compare the head crops${missed}` }));
     if (id.lighter) out.push(h("span", { className: "snap-cand-note warn", textContent: "hair lighter than original", title: `${hair}; above ${sign(id.hair_lighter)} the edit lightened her hair (it catches grey and silver, not blonder): compare the head crops${missed}` }));
-    if (!id.different && !id.lighter) out.push(h("span", { className: "snap-cand-note", textContent: `${id.face_unreliable ? "" : `face ${id.face_low?.toFixed(2) ?? "–"} · `}hair ${id.hair_up == null ? "–" : sign(id.hair_up)}`,
-      title: `no identity flag. ${faces}; ${hair}. These miss blonder hair and drift on profiles: the head crops decide${missed}` }));
+    if (!id.different && !id.lighter) out.push(h("span", { className: "snap-cand-note", textContent: `${id.face_unreliable ? "" : `${id.character_low >= id.same_from ? "same character" : "character"} ${two(id.character_low)} · `}hair ${id.hair_up == null ? "–" : sign(id.hair_up)}`,
+      title: `no identity flag. ${scores}; ${hair}. From ${id.same_from} the character score reads the same character; the hair note misses blonder hair: the head crops decide${missed}` }));
   }
   if (!out.length && c.state === "ready" && !c.label) out.push(h("span", { className: "snap-cand-note", textContent: "checking…" })); // a re-run's candidate (a labelled take) has no checks to wait for
   return out;

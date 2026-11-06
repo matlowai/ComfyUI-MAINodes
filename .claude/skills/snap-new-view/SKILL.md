@@ -46,6 +46,9 @@ P-H3); P-H3's floor for "regenerated, nothing changed" is SSIM 0.94-0.96.
 
 ## Reading the notes
 
-Each candidate carries identity notes per Cast and a copy note per context picture (SNAP-R76, R79). The copy note
-catches a re-render of a picture's framing (0.77-0.94), but a re-drawn, turned aerial scores only 0.52-0.54 against
-the master: look at the candidates beside the master yourself. Notes inform, never block.
+Each candidate carries identity notes per Cast and a copy note per context picture (SNAP-R76, R79, R111, R112). The
+identity note reads the character score (DINOv3 on a head crop): "probably not <name>" below 0.45, and it holds on
+profiles and bowed heads, where ArcFace (shown beside it) drops near 0. The copy note reads the soft score: at 0.82 or
+more it says "copied Picture n", "· same framing" when the view itself was re-rendered, "· same composition" when the
+picture was drawn again from another viewpoint (the turned aerials of the master, 0.84). Look at the candidates beside
+the master yourself as well. Notes inform, never block.

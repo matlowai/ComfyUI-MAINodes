@@ -159,7 +159,7 @@ async function castFace(d, c) {
   const name = Object.values(d.world ?? {})[0]?.name ?? "the Cast";
   try {
     const n = await K.identityCheck(c.pictures.map((p) => [{ image: d.options.picture }, { image: K.annotated(p.media) }]), [], { about: { take: d.take, decision: d.id, candidate: c.id }, title: `Face check: does ${c.id} of ${d.title} look like ${name}'s picture?` });
-    return n.error ? { name, picture: d.options.picture, error: n.error } : { name, picture: d.options.picture, face_low: n.face_low, different: n.face_low != null && n.face_low < n.different_person, different_person: n.different_person, scores: n.scores.map(({ face, crops, no_head }) => ({ face, crops, ...(no_head ? { no_head } : {}) })) };
+    return n.error ? { name, picture: d.options.picture, error: n.error } : { name, picture: d.options.picture, character_low: n.character_low, face_low: n.face_low, different: n.different, different_below: n.different_below, scores: n.scores.map(({ character, face, crops, no_head }) => ({ character, face, crops, ...(no_head ? { no_head } : {}) })) };
   } catch (e) { return { name, picture: d.options.picture, error: e.message }; }
 }
 // G1 (short03 F-C19): any take or still against Cast pictures, one to one (SNAP-R76): the frames asked for (a video's
@@ -186,10 +186,11 @@ export async function castIdentity(take, casts, { frames, ref = 0 } = {}) {
   const n = await K.identityCheck(srcs.flatMap((src) => who.map((w) => [{ image: w.file }, src])), [], { about: { take: take.id }, title: `Face check: is each Cast in take ${take.number} themselves?` });
   if (n.error) throw new Error(n.error);
   const rows = list.map((frame, i) => ({ frame, casts: who.map((w, j) => { const x = n.scores[i * who.length + j];
-    return { name: w.name, cast: w.cast, face: x.face, different: x.face != null && x.face < n.different_person, crops: x.crops, ...(x.no_head ? { no_face: x.no_head[1] ? "no face found in the take's frame" : "no face found in the Cast picture" } : {}) }; }) }));
-  const low = who.map((w, j) => { const got = rows.map((r) => r.casts[j].face).filter((f) => f != null); return { name: w.name, cast: w.cast, picture: `${w.file} (${w.role})`, lowest: got.length ? Math.min(...got) : null, read: got.length, of: rows.length }; });
-  return { take: take.id, different_person: n.different_person, casts: low, frames: rows,
-    said: low.map((x) => (x.lowest == null ? `${x.name}: no face read` : `${x.name}: lowest ${x.lowest} over ${x.read} frame${x.read === 1 ? "" : "s"}${x.lowest < n.different_person ? ` (below ${n.different_person}: probably someone else in a frame; look at the crops)` : ""}`)).join("; ") };
+    return { name: w.name, cast: w.cast, character: x.character, face: x.face, different: x.different, crops: x.crops, ...(x.no_head ? { no_face: x.no_head[1] ? "no face found in the take's frame" : "no face found in the Cast picture" } : {}) }; }) }));
+  const low = who.map((w, j) => { const got = rows.map((r) => r.casts[j]).filter((c) => c.character != null), min = (k) => (got.length ? Math.min(...got.map((c) => c[k])) : null);
+    return { name: w.name, cast: w.cast, picture: `${w.file} (${w.role})`, lowest: min("character"), arcface_lowest: min("face"), read: got.length, of: rows.length }; });
+  return { take: take.id, different_below: n.different_below, measures: "character: DINOv3 on a head crop, the score the note reads (same character 0.55-0.94 on our fixtures, others 0.07-0.52); arcface: shown only, weak on anime faces", casts: low, frames: rows,
+    said: low.map((x) => (x.lowest == null ? `${x.name}: no face read` : `${x.name}: character lowest ${x.lowest} over ${x.read} frame${x.read === 1 ? "" : "s"} (ArcFace ${x.arcface_lowest})${x.lowest < n.different_below ? ` (below ${n.different_below}: probably someone else in a frame; look at the crops)` : ""}`)).join("; ") };
 }
 // the identity notes again, for every candidate of an edit that has its frames (a note from an older check, or after the
 // model graph's thresholds changed); a few seconds of detection, nothing renders
@@ -598,24 +599,27 @@ async function castFaces(d, c) {
   try {
     const n = await K.identityCheck(casts.map((x) => [{ image: x.file }, { image: K.annotated(still) }]), [], { about: { decision: d.id, candidate: c.id }, title: `Face check: is each Cast in ${c.id} of ${d.title} themselves?` });
     if (n.error) return { error: n.error };
-    return { different_person: n.different_person, casts: casts.map((x, i) => ({ name: x.label.split(",")[0], cast: x.cast, face: n.scores[i].face, different: n.scores[i].face != null && n.scores[i].face < n.different_person, crops: n.scores[i].crops })) };
+    return { different_below: n.different_below, casts: casts.map((x, i) => ({ name: x.label.split(",")[0], cast: x.cast, character: n.scores[i].character, face: n.scores[i].face, different: n.scores[i].different, crops: n.scores[i].crops })) };
   } catch (e) { return { error: e.message }; }
 }
-// F-C14: the new still against each context picture with the copy check's score (DINOv3 patch tokens at the same grid
-// position, plates.js): at or above the model graph's threshold it "copied Picture n" (P01's aerial views copied the
-// master). A note, never a gate (SNAP-R23)
+// F-C14, G1b: the new still against each context picture with the copy check's two scores (plates.js): the soft score
+// (each DINOv3 patch's best match anywhere in the other picture) at or above the model graph's soft threshold says it
+// "copied Picture n" (P01's aerial views copied the master from another viewpoint: soft 0.84, same-cell 0.52); the
+// same-cell score at or above its threshold says it kept that picture's framing too, else it is the same composition
+// from another viewpoint (SNAP-R112). A note, never a gate (SNAP-R23)
 async function contextCopies(d, c) {
   const still = c.pictures[0]?.media;
   if (!still || !d.options.context?.length) return null;
   try {
-    const { encoder, threshold } = await copyCheck(), g = { e: { class_type: "CLIPVisionLoader", inputs: { clip_name: encoder } }, s: { class_type: "LoadImage", inputs: { image: K.annotated(still) } } };
+    const { encoder, threshold, soft } = await copyCheck(), g = { e: { class_type: "CLIPVisionLoader", inputs: { clip_name: encoder } }, s: { class_type: "LoadImage", inputs: { image: K.annotated(still) } } };
     for (const [i, x] of d.options.context.entries()) {
       const p = await contextPicture(x.cast || x.location ? { file: x.file, crop: x.crop } : { take: x.take, frame: x.frame, file: x.file, crop: x.crop }, i);
       Object.assign(g, p.nodes, { [`q${i}`]: { class_type: "MAISnapCopyScore", inputs: { clip_vision: ["e", 0], reference: p.out, images: ["s", 0] } } });
     }
     const h = await K.screen(g, { title: `Copy check: did ${c.id} of ${d.title} copy one of its pictures?`, about: { decision: d.id, candidate: c.id } });
-    const against = d.options.context.map((x, i) => ({ n: x.n, label: x.label, score: h.outputs?.[`q${i}`]?.copy_scores?.[0] ?? null }));
-    return { threshold, against, copied: against.filter((a) => a.score != null && a.score >= threshold).map((a) => a.n) };
+    const against = d.options.context.map((x, i) => ({ n: x.n, label: x.label, score: h.outputs?.[`q${i}`]?.copy_scores?.[0] ?? null, soft: h.outputs?.[`q${i}`]?.soft_scores?.[0] ?? null }));
+    const framing = against.filter((a) => a.score != null && a.score >= threshold).map((a) => a.n);
+    return { threshold, soft_threshold: soft, against, copied: against.filter((a) => framing.includes(a.n) || (a.soft != null && a.soft >= soft)).map((a) => a.n), framing };
   } catch (e) { return { error: e.message }; }
 }
 C.kind("view", { ...RT.takeCandidate, finish: (d, c, h) => { RT.takeCandidate.finish(d, c, h);

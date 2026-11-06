@@ -141,17 +141,17 @@ in the Snap skills (`.claude/skills/`: `snap-core` first, then the task skills);
   candidate in place (the plate slot or the take viewer shows it; nothing is edited), applies one (one step Undo takes
   back) or rejects one. A check only leaves a note: it never rejects alone, because every score so far overlaps between
   right and wrong somewhere. An edit's identity notes are two flags with thresholds from the model graph: "probably a
-  different person" (ArcFace on a crop around SAM 3.1's face mask, cosine below `identity_check.different_person`, U56)
-  and "hair lighter than original" (SAM 3.1's hair mask, lit-hair L* p90 over the take's own frames above
+  different person" (the character score on a crop around SAM 3.1's face mask, below `character_check.different`,
+  SNAP-R111; ArcFace until G1b) and "hair lighter than original" (SAM 3.1's hair mask, lit-hair L* p90 over the take's own frames above
   `hair_check.lighter`, U56b). An edit that `does` something in `identity_check.unreliable_for` (relighting: the same
-  woman scores 0.34-0.60 at night) shows its cosine as "face check unreliable under relighting" and never the
+  woman scores 0.34-0.60 at night) shows its scores as "identity unreliable under relighting" and never the
   different-person flag. What an edit does is its example's `does` (night, dusk, dawn: relight), else its method's:
   Change something in the person's own words is an edit and keeps the face check, whichever method runs it (the operator's
   "make her jacket sparkle magic" on Ripple was muted as a relight and a different woman went unflagged, batch E). A
   recast has no face check against the take (someone else is the point), but one painted from a Cast's picture compares
-  each painted face with that picture: "probably not <name>" below the same threshold, else the number only ("face vs
-  Lio's picture 0.72"), since above it ArcFace doesn't rank likeness (batch E GPU check: run 7's other-looking c2 scored
-  0.72, the closer c1 0.53). Both miss things (dark frames and profiles score low, blonder hair doesn't show), so the
+  each painted face with that picture: "probably not <name>" below the same threshold, else the number only ("character
+  vs Lio's picture 0.72"), since above it no score ranks likeness (batch E GPU check: run 7's other-looking c2 scored
+  ArcFace 0.72, the closer c1 0.53). Both miss things (dark frames and profiles score low, blonder hair doesn't show), so the
   head crops sit beside them and decide. Agents list and pre-screen candidates and recommend one; their apply / reject / undo waits
   for the person as a proposal unless "Let agents run" is on (SNAP-R16), and every pick records who made it (SNAP-R17).
   Any take's frame can be used as an input (First frame or a reference picture), and the brick remembers which take
@@ -683,11 +683,11 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   ("face:9": SAM keeps one detection per text unless told how many) as separate masks; MAISnapIdentity gives each face
   its own embedding, box and head crop and drops a second detection of the same face. The faces of every picture
   compared with one picture (the take's frame against an edit, or each Cast picture against a new view) are matched to
-  that picture's faces one to one, best total cosine first, so a two-shot scores each person against their own face and
+  that picture's faces one to one, best total first (ArcFace plus the character score, SNAP-R111), so a two-shot scores each person against their own face and
   shows the crops that belong to each score; a person with no face matched says so. The people check asks for
   "person:20" the same way. *Why:* the U101 bake-off: a Maren-and-Brann board scored Maren and showed Brann's head,
-  and Brann was never measured. ArcFace still scores profiles and bowed heads low (Brann's bow: 0.06), so the crops
-  decide. *More:* PLAN U101, proto/test_u101_faces.js, proto/ui/u101/faces_twoshot_after*.
+  and Brann was never measured. ArcFace scores profiles and bowed heads low (Brann's bow: 0.06), which is why the
+  character score raises the note now (SNAP-R111); the crops still decide. *More:* PLAN U101, proto/test_u101_faces.js, proto/ui/u101/faces_twoshot_after*.
 - **SNAP-R77: A character sheet is a method of the sheet slot, and its candidates are takes.** "Make a character sheet"
   (`make_character_sheet`) draws a Cast's picture (and any more pictures, e.g. a turnaround's views) as a sheet with one
   method of the slot `sheet`: the H3 Turnaround LoRA through ComfyUI-H3-ContactSheet (five views jointly denoised, and
@@ -931,9 +931,34 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   never blocks (SNAP-R11). *Why:* short03 lost a finished render and two GPU minutes to an upscale it never asked for.
   *More:* dogfood FINDINGS F-C26, proto/test_g1_friction.js.
 
+## Batch G1b (2026-11-06)
+
+- **SNAP-R111: The character score raises "probably a different person"; ArcFace is a number to look at.** The
+  identity check (MAISnapIdentity with the copy check's encoder) gives every face SAM 3.1 finds a character embedding:
+  DINOv3 ViT-H's CLS token of a square crop 1.5x the face's box, the whole crop at the encoder's input. A pair whose
+  character score is below the encoder's `character_check.different` (0.45) gets "probably a different person" (a new
+  view's or a recast's "probably not <name>"); from `same` (0.55) the quiet chip says "same character". ArcFace stays in
+  the title and in every answer (`face`, `face_low`, `arcface_lowest`) and never flags. Faces are matched one to one by
+  the sum of both cosines (SNAP-R76). The hair check stays: the character score read a grey-haired edit as kept (U54),
+  and relighting still mutes the flag (SNAP-R23). A note written before this says "identity: older check". *Why:* on six
+  anime characters (27 pictures) ArcFace below 0.35 flagged 7 of 21 same-character pairs, both of Brann's bowed
+  profiles among them (0.03-0.06); the character score flagged none and caught 87 of 105 other-character pairs; on
+  U56b's photo frames it still flags the other woman (0.405) and no longer flags U54's kept night anchor (0.523, an
+  ArcFace false alarm at 0.29). *More:* scout/id_copy_measures_2026-11-06.md, proto/test_g1b_id_copy.py,
+  proto/test_identity_notes.py.
+- **SNAP-R112: "Copied Picture n" reads the soft score; the same-cell score tells framing from composition.**
+  MAISnapCopyScore gives a second score per picture: each DINOv3 patch's best match anywhere in the other picture, both
+  ways, averaged. A New view still at or above `copy_check.soft_threshold` (0.82) against a context picture gets
+  "copied Picture n · same framing" when its same-cell score also reaches `threshold` (it re-renders that view), else
+  "copied Picture n · same composition" (the same picture drawn from another viewpoint: short03's aerials of the master,
+  a mirror). Below it the tile names the nearest picture quietly. *Why:* the same-cell score put the U101 aerial re-draws
+  at 0.52-0.54, among new views (0.42-0.53), so the 0.72 note missed every one; the soft score separates all 20 pairs
+  (copies 0.839+, a mirror 0.874, new views at most 0.805). *More:* scout/id_copy_measures_2026-11-06.md,
+  proto/test_g1b_id_copy.py, proto/test_u101_fc.js.
+
 ## Accounts and the gate (snap-gate)
 
-IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; G1 took R83-R87, the docs migration R88-R92, the agent library R93-R95, the vault R96-R100; R101-R110 are reserved for U93/U94; R111 on).
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; G1 took R83-R87, the docs migration R88-R92, the agent library R93-R95, the vault R96-R100; R101-R110 are reserved for U93/U94; G1b took R111-R115; R116 on).
 
 - **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
   use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and

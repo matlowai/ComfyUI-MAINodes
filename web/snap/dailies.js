@@ -475,8 +475,8 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
       editSig = sig;
       editBox.replaceChildren(...mine.map((d) => {
         const made = ED.result(d);
-        const older = d.candidates.some((c) => c.notes.identity && !c.notes.identity.error && !("face_low" in c.notes.identity));
-        const again = older ? h("button", { className: "snap-link snap-quiet-btn", textContent: "Check identity again", title: "face and hair notes for these candidates: a few seconds of detection, nothing renders",
+        const older = d.kind === "edit" && d.candidates.some((c) => c.notes.identity && !c.notes.identity.error && !c.notes.identity.new_person && !("character_low" in c.notes.identity));
+        const again = older ? h("button", { className: "snap-link snap-quiet-btn", textContent: "Check identity again", title: "the character, face and hair notes for these candidates: a few seconds of detection, nothing renders",
           onclick: (e) => { e.currentTarget.disabled = true; e.currentTarget.textContent = "checking…"; ED.recheck(d.id).then(() => say(`${d.title}: identity notes updated`), (err) => say(err.message, true)); } }) : null;
         return Object.assign(h("div", { className: "snap-set-candrow" }, h("div", { className: "snap-rail-title" }, d.title, again), candidatesEl(d, { say, crops: true }),
           d.applied ? h("div", { className: "snap-quiet" }, made ? h("button", { className: "snap-link", textContent: `→ Take ${made.number} (${made.status})`, onclick: () => { close(); view(made); } }) : d.kind !== "edit" ? "" : "rendering the take with H3 Ripple…") : null), { id: `snap-decision-${d.id}` });
