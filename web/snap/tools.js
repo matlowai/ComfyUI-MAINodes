@@ -15,7 +15,7 @@
 // SNAP-R59 Cast by reference (list_cast, save_cast, apply_cast) · SNAP-R60/R61 records, pins, retake, update_pins ·
 // SNAP-R62 clean-up: delete_record waits for the person · SNAP-R63 rerun: any pinned reference swapped · SNAP-R65 list_activity, list_docket, wait_for read the Work card ·
 // SNAP-R71/R72 edit_from_context (a new view from ordered context pictures) · SNAP-R77 make_character_sheet · SNAP-R80 open_view (a picture full size) · SNAP-R81/R82/R113 upscale_take · SNAP-R114 check_voice · SNAP-R73 add_audio_ref, remove_audio_ref, a Cast's voice ·
-// SNAP-R84 list_locations, save_location, add_plate, apply_location, dependents; add_ref / remove_ref; check_identity on any take · SNAP-R83 screenshot of the agents' window · see docs/snap/SNAP_RULES.md
+// SNAP-R84 list_locations, save_location, add_plate, apply_location, dependents; add_ref / remove_ref; check_identity on any take · SNAP-R83 screenshot of the agents' window · SNAP-R118 move_ref, cites follow the pictures · see docs/snap/SNAP_RULES.md
 // SNAP-R93-R95 agent instructions and skills (instructions.js): describe_recipe, get_take and get_scene carry the stack, the pack's notes end each description · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
@@ -143,7 +143,7 @@ export const TOOLS = [
     description: "The current workflow, starting with `revision` (a content hash of what Run would queue; pass it as if_revision to a change so it is refused when the person or another agent edited in between) and `about` (how the current setup card's models fit together: read it before changing anything), then `prompt_help` (how this recipe's model reads a prompt: H3's sections, what makes its sound audible), then as bricks in reading order, each with its `id` (exactly what set_setting's and every other tool's `brick` takes: the stills recipe's Render is `image`) next to its `title` and `kit` (a brick that is off says on: false and why: its values are not used), with each brick's bindings (what feeds it and which rule made the link), its settings, wiring the user changed in the graph, settings that point at nothing installed, nodes outside the recipe (Run leaves them out), `world` (the record versions this recipe holds: ref, name, n, head, moved, follow, placed = where their pieces went; a moved one is updated only by apply_cast / apply_card or the person's update chip), `instructions` (the agent instructions in force for this recipe, whole: follow them; see the instructions tool), and `models`: the family, the setup, the turbo, every model file the recipe loads (size, installed, and the model graph's kind / turbo / role), the LoRA rows, and warnings (a turbo LoRA on a turbo merge, stacked turbos, SFT without a deband fix, another family's file, a schedule the turbo wasn't distilled for, an encoder type that doesn't fit). Warnings never block; say them to the person.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
-    run: async () => ({
+    run: async () => (await E.checkInputs(), { // UI-08: input files in subfolders count as there when the server has them
       revision: await revision(),
       about: M.setups().find((x) => x.current && x.about)?.about ?? null,
       prompt_help: E.state().bricks.map((b) => BRICKS[b.key]?.prompt_help).find(Boolean) ?? null,
@@ -609,19 +609,35 @@ export const TOOLS = [
       if (!E.state().bricks.some((b) => b.key === "refs")) await E.snap("refs");
       const had = E.references()?.pictures.find((x) => x.file === file);
       if (!had) E.addPicture(file, { role: role || `picture: ${file.split("/").pop()}`, reason: "added by an agent" });
+      else if (role && role !== had.role) E.setPictureRole(had.node, role); // UI-01: a role given for a picture already there renames what it shows
       const refs = E.references();
-      return { cite: refs.pictures.find((x) => x.file === file)?.cite, file, ...(had ? { said: `${file} was already in References as ${had.cite}` } : {}), references: refs, ...(L.picturesUnread() ? { references_unused: L.picturesUnread() } : {}) };
+      return { cite: refs.pictures.find((x) => x.file === file)?.cite, file, ...(had ? { said: `${file} was already in References as ${had.cite}${role && role !== had.role ? `; its role is now "${role}"` : ""}` } : {}), references: refs, ...(L.picturesUnread() ? { references_unused: L.picturesUnread() } : {}) };
     },
   },
   {
     name: "remove_ref",
-    description: "Take a picture out of References (its Load Image node goes, the file stays in input/): picture is its number n of <Picture n> (describe_recipe.references) or its file. The later ones move up a number: read references again before citing. One undo step.",
+    description: "Take a picture out of References (its Load Image node goes, the file stays in input/): picture is its number n of <Picture n> (describe_recipe.references) or its file. The later ones move up a number, and the Render prompt's <Picture n> follow them (SNAP-R118: each cite keeps naming the picture it meant); a cite of the picture taken out becomes <Picture ?>: `orphaned` says so, rewrite that part. One undo step.",
     inputSchema: { type: "object", properties: { picture: { type: ["integer", "string"] } }, required: ["picture"] },
     run: async ({ picture }) => {
       const list = E.references()?.pictures ?? [], x = typeof picture === "number" ? list[picture - 1] : list.find((p) => p.file === picture);
       if (!x) throw new Error(`No picture ${JSON.stringify(picture)} in References; it holds ${list.map((p) => `${p.cite} ${p.file}`).join(", ") || "none"}`);
-      E.removePicture(x.node);
-      return { removed: x.file, references: E.references() };
+      const k = list.indexOf(x) + 1, map = Object.fromEntries(list.map((_, i) => [i + 1, i + 1 > k ? i : i + 1]));
+      let out;
+      E.batch(() => { E.removePicture(x.node); out = E.recite(map, k); });
+      return { removed: x.file, ...(out.changed ? { prompt: "its <Picture n> follow the pictures" } : {}), ...(out.orphaned ? { orphaned: `the prompt cited ${x.cite} (${x.role ?? x.file}), now <Picture ?>: rewrite that part` } : {}), references: E.references() };
+    },
+  },
+  {
+    name: "move_ref",
+    description: "Move a picture in References (UI-01, SNAP-R118): picture is its number n of <Picture n> or its file, to the number it should have (1 = <Picture 1>; the others keep their order). The Render prompt's <Picture n> follow, so each cite still names the picture it meant. One undo step. Returns every reference.",
+    inputSchema: { type: "object", properties: { picture: { type: ["integer", "string"] }, to: { type: "integer", minimum: 1 } }, required: ["picture", "to"] },
+    run: async ({ picture, to }) => {
+      const list = E.references()?.pictures ?? [], x = typeof picture === "number" ? list[picture - 1] : list.find((p) => p.file === picture);
+      if (!x) throw new Error(`No picture ${JSON.stringify(picture)} in References; it holds ${list.map((p) => `${p.cite} ${p.file}`).join(", ") || "none"}`);
+      let out;
+      E.batch(() => { out = E.recite(E.movePicture(x.node, to - 1)); });
+      const refs = E.references();
+      return { moved: x.file, cite: refs.pictures.find((p) => p.node === x.node)?.cite, ...(out.changed ? { prompt: "its <Picture n> follow the pictures" } : {}), references: refs };
     },
   },
   {
@@ -1340,13 +1356,13 @@ export const TOOLS = [
   },
   {
     name: "add_shot",
-    description: "Add a shot to a scene, at `at` (0 = first; the end by default): empty, from a Library shot card (card: its id; its beat, set and camera compile into the prompt when the shot is opened), or adopting a workflow and its takes: adopt \"open\" copies the open workflow (same graph id, so its takes and later runs gather in the shot) and opens the copy in a scene tab, the open tab left as it was; adopt <group id> takes a take group (list_takes' group) and its newest take's workflow. Adopted takes keep their store; versions nest under their parent take. An empty or card shot gets its workflow when open_shot first opens it.",
-    inputSchema: { type: "object", properties: { scene: { type: "string" }, name: { type: "string" }, card: { type: "string" }, adopt: { type: "string", description: "\"open\", or a take group id" }, at: { type: "integer", minimum: 0 } }, required: ["scene"] },
-    run: async ({ scene, name, card, adopt, at }) => SC.addShot(scene, { name, card, adopt, at, by: "agent" }),
+    description: "Add a shot to a scene, at `at` (0 = first; the end by default): empty, from a Library shot card (card: its id; its beat, set and camera compile into the prompt when the shot is opened), or adopting a workflow and its takes: adopt \"open\" copies the open workflow (same graph id, so its takes and later runs gather in the shot) and opens the copy in a scene tab, the open tab left as it was; adopt <group id> takes a take group (list_takes' group) and its newest take's workflow. Adopted takes keep their store; versions nest under their parent take. An empty or card shot gets its workflow when open_shot first opens it: start \"clean\" (the default, SNAP-R120) keeps the open shot's setup (models, Render Preset, core/turbo LoRA, sampling, size, Upscale, Save) and nothing else: no Cast, location or set, no References, no first frame, no dials, no style or Cast LoRA rows, an empty prompt (open_shot's `built` lists what it left out); start \"copy\" copies the open shot's recipe as it is, characters and pictures too.",
+    inputSchema: { type: "object", properties: { scene: { type: "string" }, name: { type: "string" }, card: { type: "string" }, adopt: { type: "string", description: "\"open\", or a take group id" }, at: { type: "integer", minimum: 0 }, start: { type: "string", enum: ["clean", "copy"] } }, required: ["scene"] },
+    run: async ({ scene, name, card, adopt, at, start }) => SC.addShot(scene, { name, card, adopt, at, start, by: "agent" }),
   },
   {
     name: "open_shot",
-    description: "Open a shot of a scene, as a click on its tile in the scene navigator: the open shot is saved into its scene first (nothing is lost), then the scene tab shows this shot's workflow. A scratch tab or a saved workflow file's tab is never swapped: the shot opens in a new tab. A shot opened for the first time starts from the open shot's recipe (same scene) or the recommended one, with its shot card compiled in. Nothing is queued.",
+    description: "Open a shot of a scene, as a click on its tile in the scene navigator: the open shot is saved into its scene first (nothing is lost), then the scene tab shows this shot's workflow. A scratch tab or a saved workflow file's tab is never swapped: the shot opens in a new tab. A shot opened for the first time starts from the open shot's setup (same scene; its content left out, `built` says what, unless it was added with start: copy) or the recommended recipe, with its shot card compiled in. Nothing is queued.",
     inputSchema: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" } }, required: ["scene", "shot"] },
     run: async ({ scene, shot }) => { const r = await SC.openShot(scene, shot), plates = await offerPlates(scene, shot); return plates ? { ...r, plates } : r; },
   },

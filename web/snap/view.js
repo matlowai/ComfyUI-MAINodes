@@ -44,6 +44,7 @@ import * as A from "./activity.js";
 import * as WV from "./workview.js";
 import { openWork } from "./workview.js";
 import { full } from "./lightbox.js";
+import { pickTake } from "./takepicker.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -419,12 +420,13 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const flag = KINDS[type.split("/")[0]];
     const b = E.state().bricks.find((x) => x.key === brickKey);
     if (!b || !flag) return null;
+    if (brickKey === "refs" && flag === "image_upload") return { refs: true }; // a picture dropped on References is a new one, never a swap of its first (B1)
     for (const [nodeKey, id] of Object.entries(b.nodes)) {
       const n = app.graph.getNodeById(id), def = n?.constructor.nodeData?.input ?? {};
       const w = n?.widgets?.find((x) => (def.required?.[x.name] ?? def.optional?.[x.name])?.[1]?.[flag]);
       if (w) return { nodeKey, w };
     }
-    return brickKey === "refs" && flag === "image_upload" ? { refs: true } : null;
+    return null;
   }
   const fileType = (e) => e.dataTransfer?.items?.[0]?.type ?? "";
   root.addEventListener("dragover", (e) => {
@@ -446,16 +448,13 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     if (!t) return say(el ? `${BRICKS[el.dataset.brick]?.title ?? "This brick"} doesn't take ${file?.type.split("/")[0] || "that"} files` : "Drop the file on a brick that takes it (First frame, References)", true);
     const before = rects();
     try {
-      const form = new FormData();
-      form.append("image", file, file.name); // ComfyUI's upload route takes images, videos and audio under this field
-      const r = await (await api.fetchApi("/upload/image", { method: "POST", body: form })).json();
-      const path = r.subfolder ? `${r.subfolder}/${r.name}` : r.name;
+      const path = await uploadInput(file);
       if (t.refs) E.addPicture(path, { role: "picture", reason: file.name });
       else {
         if (Array.isArray(t.w.options?.values) && !t.w.options.values.includes(path)) t.w.options.values.push(path);
         E.setValue(el.dataset.brick, t.nodeKey, t.w.name, path);
       }
-      say(`${file.name} → ${BRICKS[el.dataset.brick].title}`);
+      say(`${file.name} → ${BRICKS[el.dataset.brick].title}${t.refs ? ` as ${E.references()?.pictures.find((x) => x.file === path)?.cite ?? "a new picture"}` : ""}`);
     } catch (err) { say(err.message, true); }
     render(before);
   });
@@ -472,7 +471,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     say(`${name} carries no recipe (saved with metadata off); it is take ${t.number} here: re-run it from the take`);
     openRerunSheet(root, { take: t, say, edit: editPinned }).catch((err) => say(err.message, true));
   }
-  document.addEventListener("drop", (e) => { const f = e.dataTransfer?.files?.[0]; if (f) opening(f.name); }, true);
+  document.addEventListener("drop", (e) => { const f = e.dataTransfer?.files?.[0]; if (f && !e.target.closest?.("[data-brick]")) opening(f.name); }, true); // a file a brick takes is an input, not a saved file (B12)
   async function openSaved(file, how) {
     opening(file.name);
     try { await app.handleFile(file, how); } catch (err) { say(err.message, true); }
@@ -483,6 +482,10 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const o = fileOpened; fileOpened = null;
     if (Object.keys(E.state().world ?? {}).length) openRerunSheet(root, { name: o.name, say, edit: editPinned }).catch((err) => say(err.message, true));
   }, 500));
+  // UI-08 (SNAP-R119): input files in subfolders are looked up once per graph, so "missing" means gone
+  const lookInputs = () => E.checkInputs().then((n) => { if (n) render(null); }, () => {});
+  app.graph.events?.addEventListener("configured", () => setTimeout(lookInputs, 0));
+  setTimeout(lookInputs, 0);
   const fileInput = h("input", { type: "file", hidden: true, accept: "image/png,image/webp,video/mp4,video/webm,application/json", onchange: () => { const f = fileInput.files[0]; fileInput.value = ""; if (f) openSaved(f, "file_button"); } });
   root.append(fileInput);
 
@@ -967,9 +970,47 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   const openMaker = () => D.openMaker(root, { say, onChange: () => render(null) });
 
-  // what References holds: each picture with its role, and the budget (H3 takes 9 pictures; identity refs come first)
+  // what References holds (UI-01, SNAP-R118): each picture as the <Picture n> the prompt cites, its role (click to rename),
+  // ✕ to take it out and ‹ › to move it (the prompt's cites follow), an amber tag when the prompt names it nowhere, and
+  // "+ Add" from a take, a file, a Cast or a location; the budget (H3 takes 9 pictures; identity refs come first). An
+  // amber line says when this render doesn't read References (UI-13), with the switch
+  const refsUpload = h("input", { type: "file", hidden: true, accept: "image/png,image/jpeg,image/webp", multiple: true, onchange: async () => {
+    const files = [...refsUpload.files]; refsUpload.value = "";
+    for (const f of files) { try { const path = await uploadInput(f); E.addPicture(path, { role: "picture", reason: f.name }); say(`${f.name} → References as ${E.references()?.pictures.find((x) => x.file === path)?.cite ?? "a picture"}`); } catch (err) { say(err.message, true); } }
+    render(null);
+  } });
+  root.append(refsUpload);
+  async function uploadInput(file) {
+    const form = new FormData();
+    form.append("image", file, file.name); // ComfyUI's upload route takes images, videos and audio under this field
+    const r = await (await api.fetchApi("/upload/image", { method: "POST", body: form })).json();
+    return r.subfolder ? `${r.subfolder}/${r.name}` : r.name;
+  }
+  const keepCites = (fn) => { let out; E.batch(() => { out = fn(); }); render(null); return out; };
+  function moveRef(node, to) { const r = keepCites(() => E.recite(E.movePicture(node, to))); say(`Moved to <Picture ${to + 1}>${r.changed ? "; the prompt's <Picture n> follow" : ""}`); }
+  function dropRef(x, list) {
+    const k = list.indexOf(x) + 1, map = Object.fromEntries(list.map((_, i) => [i + 1, i + 1 > k ? i : i + 1]));
+    const r = keepCites(() => { E.removePicture(x.node); return E.recite(map, k); });
+    say(`${x.cite} (${x.role ?? x.file}) is out of References; the file stays in input/${r.orphaned ? `. The prompt cited it: it now reads <Picture ?>, rewrite that part` : r.changed ? "; the prompt's <Picture n> follow" : ""} (Ctrl+Z puts it back)`, r.orphaned);
+  }
+  function addRefMenu(anchor) {
+    root.querySelector(".snap-refs-menu")?.remove();
+    const close = () => { menu.remove(); removeEventListener("pointerdown", outside, true); };
+    const outside = (e) => { if (!menu.contains(e.target)) close(); };
+    const pick = (fn) => async (e) => { e.stopPropagation(); close(); try { const said = await fn(); if (said) say(said); } catch (err) { say(err.message, true); } render(null); };
+    const casts = W.all("cast"), places = W.all("location");
+    const menu = h("div", { className: "snap-scene-menu snap-refs-menu", role: "menu" },
+      h("button", { textContent: "A take from any scene…", title: "a still, or a video's last frame", onclick: pick(() => pickTake(root, { title: "A take for References", pick: (t) => T.use(t, { as: "reference" }).then((r) => { say(r.said); render(null); }, (err) => say(err.message, true)) })) }),
+      h("button", { textContent: "A picture file…", onclick: pick(() => refsUpload.click()) }),
+      ...casts.map((r) => h("button", { textContent: `Cast: ${W.headOf(r).body.name}`, title: "its pictures, details line and LoRA (apply_cast)", onclick: pick(() => L.applyCast(W.refOf("cast", r.id))) })),
+      ...places.map((r) => h("button", { textContent: `Location: ${W.headOf(r).body.name}`, title: "its master and plan; plates from the Location sheet (apply_location)", onclick: pick(async () => (await L.applyLocation(W.refOf("location", r.id))).said) })));
+    const box = root.getBoundingClientRect(), at = anchor.getBoundingClientRect();
+    Object.assign(menu.style, { position: "fixed", top: `${at.bottom + 4}px`, left: `${Math.min(at.left, box.right - 280)}px` });
+    root.append(menu);
+    addEventListener("pointerdown", outside, true);
+  }
   function picturesFace() {
-    const pics = E.state().bricks.find((b) => b.key === "refs")?.pictures ?? [];
+    const pics = E.state().bricks.find((b) => b.key === "refs")?.pictures ?? [], cited = E.references()?.pictures ?? [];
     const meter = h("div", { className: "snap-meter", title: "H3 References takes 9 pictures; put identity references first" },
       ...Array.from({ length: E.PICTURE_SLOTS }, (_, i) => h("span", { className: i < pics.length ? "on" : "" })), h("em", { textContent: `${pics.length} of ${E.PICTURE_SLOTS} pictures` }));
     // SNAP-R73: audio references (a Cast's voice, add_audio_ref), each as the <Audio n> the prompt cites
@@ -979,19 +1020,42 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
         h("b", { textContent: x.cite }), h("span", { textContent: ` ${x.role ?? x.file}` }),
         x.file ? h("audio", { controls: true, preload: "none", src: api.apiURL(`/view?filename=${encodeURIComponent(x.file.slice(cut + 1))}&subfolder=${encodeURIComponent(x.file.slice(0, Math.max(cut, 0)))}&type=input`) }) : null,
         h("button", { className: "snap-x", textContent: "×", title: "take this audio reference out (the file stays in input/)", onclick: (e) => { e.stopPropagation(); E.removeAudio(x.node); render(null); } })); });
-    if (!pics.length) return [meter, h("div", { className: "snap-quiet", textContent: "Drop pictures here", title: "a set snapshot or Cast card from the Library" }), ...audio];
-    return [meter, h("div", { className: "snap-pics" }, pics.map((p, i) => {
+    const unread = L.picturesUnread(), ref2v = unread && M.setups().find((x) => x.source === "preset" && x.name === "Pika + reference pictures");
+    const warn = unread ? h("div", { className: "snap-dial-warn snap-warn snap-refs-unread" }, `⚠ ${M.setups().find((x) => x.current)?.name ?? "This setup"} doesn't read References: these pictures won't reach the render`,
+      ref2v ? h("button", { className: "snap-link snap-quiet-btn", textContent: "Switch to Pika + reference pictures", onclick: (e) => { e.stopPropagation(); try { M.apply(ref2v.name); say("Render Preset: Pika + reference pictures (it reads the pictures)"); } catch (err) { say(err.message, true); } render(null); } }) : null) : null;
+    const add = h("button", { className: "snap-link snap-quiet-btn snap-refs-add", textContent: "+ Add ▾", title: "a take from any scene, a picture file, a Cast or a location", onclick: (e) => { e.stopPropagation(); addRefMenu(e.currentTarget); } });
+    if (!pics.length) return [meter, h("div", { className: "snap-quiet", textContent: "Drop pictures here, or", title: "a set snapshot, Cast or location from the Library" }, " ", add), ...audio];
+    const prompted = /<Picture \d+>/.test(String(E.getValue("render", "render", "prompt") ?? ""));
+    return [meter, h("div", { className: "snap-pics" }, pics.map((p) => {
+      const at = cited.findIndex((x) => x.node === p.node), x = cited[at];
       const cut = p.file.lastIndexOf("/"), sub = p.file.slice(0, Math.max(cut, 0)), name = p.file.slice(cut + 1); // plates sit two folders down (snap/plates)
       const cast = p.source?.startsWith("cast:") && p.card ? W.parse(p.card) : null; // SNAP-R59: a Cast picture opens its record at the version it came from
       const place = p.source?.startsWith("location:") && p.card ? W.parse(p.card) : null; // SNAP-R84: a location's picture opens the location
       const from = !cast && !place && p.source && (L.get(p.card) ?? L.get(`${p.source}-mine`) ?? L.get(p.source)); // the exact version in References
-      return h("figure", { title: `${p.reason}${from ? "\nclick to edit the set" : cast ? "\nclick to edit the Cast record" : place ? "\nclick to open the location" : ""}`, className: from || cast || place ? "editable" : "", onclick: from ? () => editSet(from) : cast ? () => editCast({ id: cast.id, n: cast.n }) : place ? () => editLocation({ id: place.id, n: place.n }) : null },
+      const src = api.apiURL(`/view?filename=${encodeURIComponent(name)}&subfolder=${encodeURIComponent(sub)}&type=input`);
+      const caption = h("figcaption", { textContent: p.role, title: "click to say what this picture shows", onclick: (e) => {
+        e.stopPropagation();
+        const input = h("input", { value: p.role, ariaLabel: "what this picture shows" });
+        const done = (keep) => { if (keep && input.value.trim() && input.value.trim() !== p.role) { try { E.setPictureRole(p.node, input.value); } catch (err) { say(err.message, true); } } render(null); };
+        input.addEventListener("keydown", (k) => { k.stopPropagation(); if (k.key === "Enter") done(true); if (k.key === "Escape") done(false); });
+        input.addEventListener("blur", () => done(true));
+        input.addEventListener("pointerdown", (k) => k.stopPropagation());
+        caption.replaceWith(input); input.focus(); input.select();
+      } });
+      const tool = (text, title, fn, off) => h("button", { className: "snap-ref-tool", textContent: text, title, disabled: !!off, onclick: (e) => { e.stopPropagation(); fn(); } });
+      return h("figure", { title: `${p.reason}${from ? "\nclick to edit the set" : cast ? "\nclick to edit the Cast record" : place ? "\nclick to open the location" : ""}`, className: `${from || cast || place ? "editable" : ""}${x && prompted && !x.named ? " unnamed" : ""}`, onclick: from ? () => editSet(from) : cast ? () => editCast({ id: cast.id, n: cast.n }) : place ? () => editLocation({ id: place.id, n: place.n }) : null },
         // SNAP-R80: the picture opens full size; the row's own click (edit the set or the Cast) is a button there
-        full(h("img", { src: api.apiURL(`/view?filename=${encodeURIComponent(name)}&subfolder=${encodeURIComponent(sub)}&type=input`), alt: p.role, loading: "lazy" }),
-          { src: api.apiURL(`/view?filename=${encodeURIComponent(name)}&subfolder=${encodeURIComponent(sub)}&type=input`), name: `<Picture ${i + 1}> ${p.role}`, source: cast ? `Cast ${p.card}, input/${p.file}` : `input/${p.file}` },
+        full(h("img", { src, alt: p.role, loading: "lazy" }),
+          { src, name: `${x?.cite ?? ""} ${p.role}`.trim(), source: cast ? `Cast ${p.card}, input/${p.file}` : `input/${p.file}` },
           "refs", from ? { label: "Edit the set", run: () => editSet(from) } : cast ? { label: "Edit the Cast record", run: () => editCast({ id: cast.id, n: cast.n }) } : place ? { label: "Open the location", run: () => editLocation({ id: place.id, n: place.n }) } : null),
-        h("figcaption", { textContent: p.role }));
-    })), ...audio];
+        h("div", { className: "snap-ref-tools" },
+          x ? h("b", { className: "snap-ref-n", textContent: `P${at + 1}`, title: `${x.cite} in the prompt${prompted && !x.named ? ": the prompt names it nowhere" : ""}` }) : null, h("span", { className: "snap-spacer" }),
+          tool("‹", "move it one place earlier (the prompt's <Picture n> follow)", () => moveRef(p.node, at - 1), at <= 0),
+          tool("›", "move it one place later", () => moveRef(p.node, at + 1), at < 0 || at >= cited.length - 1),
+          tool("✕", cast ? `take this picture of ${W.headOf(W.record("cast", cast.id))?.body.name ?? "the Cast"} out (the rest of the Cast stays)` : "take this picture out (the file stays in input/)", () => dropRef(x ?? { node: p.node, role: p.role, file: p.file, cite: "" }, cited))),
+        caption,
+        x && prompted && !x.named ? h("em", { className: "snap-ref-unnamed", textContent: "not named in the prompt" }) : null);
+    })), h("div", { className: "snap-refs-actions" }, add), warn, ...audio];
   }
 
   // a pick is remembered for the same pair in any workflow
@@ -1123,7 +1187,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const body = [];
     const pics = Object.values(info.nodes).flatMap((id) => { const n = app.graph.getNodeById(id); return n ? previews(n) : []; });
     if (ends(info.brick)) body.push(outSlot());
-    else if (pics.length && info.brick !== "refs") body.push(h("div", { className: "snap-thumbs" }, pics.slice(0, 2).map((src) => h("img", { src, alt: "", loading: "lazy" }))));
+    // B11: an Off brick loads nothing, so it shows no picture
+    else if (pics.length && info.brick !== "refs" && !(def.off && !isOn(info.brick))) body.push(h("div", { className: "snap-thumbs" }, pics.slice(0, 2).map((src) => h("img", { src, alt: "", loading: "lazy" }))));
     if (info.brick === "rack") body.push(D.face({ onChange: () => render(null), onPick: () => D.openPicker(root, { say, onChange: () => render(null), onMake: openMaker, move: (f) => moveControl(f, moved) }), onMake: openMaker }));
     if (info.brick === "refs") body.push(...picturesFace());
     if (def.stack) body.push(stackFace(info.brick));
@@ -1317,7 +1382,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     values.push(M.warnings().filter((w) => w.brick === info.brick).map((w) => w.text));
     if (info.brick === "rack") values.push(E.getValue("rack", "rack", "rack"), D.all().length, D.family()); // the face redraws once the catalog arrives
     values.push(presetNode(info.brick)?.presets.current(), BRICKS[info.brick].check && M.check(info.brick), M.known()); // chips get their sizes once the model lists arrive
-    if (info.brick === "refs") values.push(E.state().bricks.find((b) => b.key === "refs")?.pictures, E.references()?.audio);
+    if (info.brick === "refs") values.push(E.state().bricks.find((b) => b.key === "refs")?.pictures, E.references()?.audio, E.references()?.pictures.map((p) => p.named), L.picturesUnread()); // UI-01/UI-13: the prompt's cites and the setup redraw it
     values.push(E.state().world, T.moves(E.state().world)); // the pin chips follow the pins and the records' newest versions
     if (info.brick === "render") values.push(E.state().bricks.find((b) => b.key === "render")?.shot);
     if (info.brick === "first_frame") values.push(takenFrom());

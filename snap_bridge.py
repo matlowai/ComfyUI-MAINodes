@@ -287,6 +287,20 @@ async def input_audio(request):
     return web.json_response(sorted(folder_paths.filter_files_content_types(found, ["audio"])))
 
 
+@routes.post("/mainodes/snap/input_exists")
+async def input_exists(request):
+    """Which of these input/ paths are files on this server (UI-08, SNAP-R119): core lists only the input folder's top
+    level, so a picture in a subfolder read "missing" though it renders. {files: [path, ...]} -> {files: {path: bool}};
+    a path outside input/ is false"""
+    files = (await request.json()).get("files") or []
+    root = os.path.abspath(folder_paths.get_input_directory())
+
+    def there(f):
+        p = os.path.abspath(os.path.join(root, f))
+        return os.path.commonpath((root, p)) == root and os.path.isfile(p)
+    return web.json_response({"files": {f: there(f) for f in files if isinstance(f, str)}})
+
+
 @routes.post("/mainodes/snap/call")
 async def call(request):
     body = await request.json()

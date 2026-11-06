@@ -998,9 +998,35 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   (short04): a New view candidate queued behind five runs was failed for good while its render succeeded, so it could
   be neither seen nor applied. *More:* dogfood FINDINGS F-D03, proto/test_g1b_lost.js (2/6 on the code before).
 
+## Batch G2 (2026-11-06)
+
+- **SNAP-R118: References are edited where they show, and the prompt's cites follow the pictures.** Each picture on the
+  References brick shows its `<Picture n>` (P1, P2 …), its role (click to rename), ‹ › to move it and ✕ to take it out,
+  plus "+ Add ▾" (a take from any scene through the take picker, a picture file, a Cast, a location). A file dropped on
+  References is a new picture, never a swap of one already there. Moving or removing a picture rewrites the Render
+  prompt's `<Picture n>` so each cite keeps naming the picture it meant; a cite of a picture taken out becomes
+  `<Picture ?>` and the toast (or remove_ref's `orphaned`) says to rewrite it. A picture the prompt names nowhere shows
+  "not named in the prompt" (`describe_recipe.references[].named`). Agent twins: add_ref (a role for a picture already
+  there renames it), remove_ref, move_ref, use_take. *Why:* UX walkthrough UI-01 / B1 / B12: a plate dropped on References
+  replaced the Cast's turnaround silently, and nothing could be removed, reordered or numbered from the UI.
+  *More:* UX_WALKTHROUGH_2026-11-05.md UI-01, proto/test_g2_refs.js.
+- **SNAP-R119: "Missing" means the file is gone, not that core's list doesn't show it.** Core's Load Image and Load Audio
+  list only input/'s top level, so the page asks `/mainodes/snap/input_exists` once per graph for input files its lists
+  lack (a take's frame in snap/, a Cast's picture in snap/cast/<id>/); a file the server has joins its widget's list,
+  and the status pill, the inspector and describe_recipe.missing count only what is really gone. *Why:* UX walkthrough B2
+  and dogfood F-A29: every Ref2V shot built from take frames or Cast pictures read "N missing" though it rendered.
+  *More:* UX_WALKTHROUGH_2026-11-05.md UI-08, proto/test_g2_refs.js.
+- **SNAP-R120: A new shot keeps the open shot's setup and none of its content; copying is asked for.** "+ Shot ›
+  New shot" (add_shot's default `start: "clean"`) keeps the models, Render Preset, core and turbo LoRAs, sampling, size,
+  Upscale and Save, and leaves out the Casts, locations and sets (pins and pieces), References, the First frame, dials,
+  style and Cast LoRA rows and the prompt; open_shot's `built` lists what was left out. "Copy Shot n as it is"
+  (`start: "copy"`) copies everything. *Why:* dogfood F-A17, F-C27, F-C31, F-D07, F-D12: each later shot inherited the
+  earlier one's characters, hand-added pictures, a night-rain dial and its prompt, and rendered them unseen.
+  *More:* G2_TRIAGE.md, proto/test_g2_shots.js.
+
 ## Accounts and the gate (snap-gate)
 
-IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; G1 took R83-R87, the docs migration R88-R92, the agent library R93-R95, the vault R96-R100; R101-R110 are reserved for U93/U94; G1b took R111-R117; R118 on).
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; G1 took R83-R87, the docs migration R88-R92, the agent library R93-R95, the vault R96-R100; R101-R110 are reserved for U93/U94; G1b took R111-R117; G2 R118 on).
 
 - **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
   use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and

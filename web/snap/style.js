@@ -819,4 +819,22 @@ export const STYLE = `
 .snap-lb-stage > .fit { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; } /* small pictures (head crops) are enlarged to fit too */
 .snap-lb-prev, .snap-lb-next { all: unset; position: fixed; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 34px; padding: 12px 16px; border-radius: 12px; background: #0008; color: #fff; }
 .snap-lb-prev { left: 12px; } .snap-lb-next { right: 12px; } .snap-lb-prev:disabled, .snap-lb-next:disabled { display: none; }
+/* UI-01 (SNAP-R118): References as an editor */
+.snap-pics figure { position: relative; }
+.snap-ref-tools { display: flex; align-items: center; gap: 2px; margin-top: 3px; }
+.snap-ref-n { font-size: 11px; font-weight: 700; padding: 0 5px; border-radius: 6px; background: #0b1220d9; color: #cfe1ff; line-height: 18px; }
+.snap-ref-tool { all: unset; cursor: pointer; width: 18px; height: 18px; line-height: 18px; text-align: center; font-size: 12px; border-radius: 6px; background: #ffffff10; color: var(--s-fg); }
+.snap-ref-tool:hover { background: #2a3550; } .snap-ref-tool:disabled { opacity: .3; cursor: default; }
+.snap-pics figcaption { cursor: text; } .snap-pics figure input { width: 100%; box-sizing: border-box; font: inherit; font-size: 11px; color: var(--s-fg); background: #0000003a; border: 1px solid #ffffff22; border-radius: 6px; padding: 2px 5px; margin-top: 3px; }
+.snap-pics figure.unnamed img { border-color: #f0b44599; }
+.snap-ref-unnamed { display: block; font-style: normal; font-size: 10px; color: #f0b445; }
+.snap-refs-actions { margin-top: 6px; } .snap-refs-unread { margin-top: 6px; } .snap-refs-unread button { margin-left: 6px; }
+.snap-refs-menu { z-index: 120; }
+/* the take picker (UI-01, UI-03) */
+.snap-take-picker { width: min(920px, calc(100vw - 32px)); }
+.snap-picker-body { display: flex; flex-direction: column; gap: 12px; max-height: 70vh; overflow: auto; }
+.snap-picker-tiles { display: flex; flex-wrap: wrap; gap: 8px; }
+.snap-picker-take { margin: 0; width: 132px; display: flex; flex-direction: column; gap: 3px; }
+.snap-picker-take img, .snap-picker-take video { width: 132px; height: 88px; object-fit: contain; background: #0005; border-radius: 8px; border: 1px solid #ffffff14; }
+.snap-picker-take button { font-size: 11px; white-space: normal; text-align: left; }
 `;

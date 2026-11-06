@@ -6,7 +6,7 @@
 // scene, or add this workflow and its takes to one. The Scenes sheet lists the scenes, makes new ones, renames and
 // deletes them (a deleted scene is parked, never lost). Every action here is the function an agent tool calls too.
 // SNAP-R7 lists hold while a pointer is down · SNAP-R19 one function per action · SNAP-R24 scenes own the work, tabs are
-// scratch · SNAP-R65 a shot's open jobs on its tile · SNAP-R93 Agent instructions on a scene and a shot · see docs/snap/SNAP_RULES.md
+// scratch · SNAP-R65 a shot's open jobs on its tile · SNAP-R93 Agent instructions on a scene and a shot · SNAP-R120 + Shot: new (the setup) or a copy · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as SC from "./scenes.js";
 import * as T from "./takes.js";
@@ -118,15 +118,18 @@ export function createSceneBar({ host, say, onOpened, openTake, run, rerun }) {
     return t;
   }
 
-  // + Shot: an empty one (it starts from the open shot's recipe) or one from a Library shot card
+  // + Shot (UI-02, SNAP-R120): a new shot with the open shot's setup and none of its content (the default), a copy of the
+  // open shot as it is, or one from a Library shot card
   async function addMenu(anchor, scene) {
     host.querySelector(".snap-scene-menu")?.remove();
     await L.ready();
     const close = () => { menu.remove(); removeEventListener("pointerdown", outside, true); };
     const outside = (e) => { if (!menu.contains(e.target)) close(); };
-    const add = (card) => () => { close(); act(async () => opened(scene.id, (await SC.addShot(scene.id, { card })).shot.id)); };
+    const add = (card, start) => () => { close(); act(async () => opened(scene.id, (await SC.addShot(scene.id, { card, start })).shot.id)); };
+    const here = SC.current(), same = here?.scene.id === scene.id ? SC.shotTitle(here.scene, here.shot) : null;
     const menu = h("div", { className: "snap-scene-menu", role: "menu" },
-      h("button", { textContent: "Empty shot", title: "starts from the open shot's recipe", onclick: add(null) }),
+      h("button", { textContent: same ? "New shot: same setup, no characters or pictures" : "New shot", title: same ? `${same}'s model, preset, sampling and size; no Cast, location, references, first frame, dials or style LoRAs, and an empty prompt` : "starts from the recommended recipe", onclick: add(null, "clean") }),
+      same ? h("button", { textContent: `Copy ${same} as it is`, title: "characters, references, prompt and all", onclick: add(null, "copy") }) : null,
       L.search("shot").filter((c) => c.kind === "shot").map((c) => h("button", { textContent: c.title, title: c.text, onclick: add(c.id) })));
     const r = anchor.getBoundingClientRect(), box = host.getBoundingClientRect();
     Object.assign(menu.style, { top: `${r.bottom - box.top + 4}px`, right: `${box.right - r.right}px` });

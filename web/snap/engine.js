@@ -2,7 +2,7 @@
 // graph.extra.snap, and finds user overrides by diffing the live links against that record.
 // Only node ids are kept: undo/redo reloads the graph and replaces every node object (frontend 1.57.1).
 // SNAP-R2 graph round-trip · SNAP-R3 unresolved stays missing · SNAP-R19 no view DOM here · SNAP-R30 a recipe opens runnable ·
-// SNAP-R73 audio references, cited <Audio n> · see docs/snap/SNAP_RULES.md
+// SNAP-R73 audio references, cited <Audio n> · SNAP-R118 pictures move and cites follow · SNAP-R119 missing = gone · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import { BRICKS, RENDER_BLUEPRINT, SIMPLE_RECIPE } from "./bricks.js";
@@ -420,6 +420,31 @@ export function removePicture(nodeId) {
   });
 }
 
+// a picture to place `to` (0 = <Picture 1>) among References' wired pictures, the others keeping their order: every
+// picture is connected again into the slots in the new order (each connect replaces that slot's link, so nothing is left
+// unwired). One undo step; returns old → new picture numbers, for the prompt's <Picture n> (UI-01, SNAP-R118)
+export function movePicture(nodeId, to) {
+  const b = brick("refs"), refs = node(b?.nodes.refs), order = references()?.pictures.map((p) => p.node) ?? [];
+  const from = order.indexOf(nodeId);
+  if (from < 0) throw new Error(`That picture isn't wired into References; it holds ${order.length}`);
+  const moved = order.filter((id) => id !== nodeId);
+  moved.splice(Math.max(0, Math.min(order.length - 1, to)), 0, nodeId);
+  transaction(() => {
+    const slots = refs.inputs.map((x, i) => [x, i]).filter(([x]) => x.name.startsWith("ref_images.")).map(([, i]) => i);
+    moved.forEach((id, k) => node(id).connect(0, refs, slots[k]));
+    b.pictures = [...moved.map((id) => b.pictures.find((p) => p.node === id)).filter(Boolean), ...b.pictures.filter((p) => !moved.includes(p.node))];
+  });
+  return Object.fromEntries(order.map((id, k) => [k + 1, moved.indexOf(id) + 1]));
+}
+// what a picture shows: its caption and its Load Image's title (one undo step)
+export function setPictureRole(nodeId, role) {
+  const p = brick("refs")?.pictures?.find((x) => x.node === nodeId);
+  if (!p) throw new Error("That picture isn't one of References' pictures");
+  if (!role?.trim()) throw new Error('A picture\'s role says what it shows (e.g. "plate", "Suna, back view")');
+  transaction(() => { p.role = role.trim(); if (node(nodeId)) node(nodeId).title = p.role; });
+  return p;
+}
+
 // an audio reference (U101, SNAP-R73): a LoadAudio node owned by the References brick, wired into the next free
 // ref_audios slot (H3 takes 3), recorded like a picture. The prompt cites it as <Audio n>, n its place among the wired
 // ref_audios slots, which audioNumber() reads back
@@ -437,7 +462,19 @@ export function references() {
     const from = app.graph.getLink(i.link)?.origin_id, x = list.find((p) => p.node === from);
     return { cite: `<${tag} ${k + 1}>`, node: from, file: x?.file ?? widget(node(from), tag === "Audio" ? "audio" : "image")?.value ?? null, role: x?.role ?? null };
   });
-  return { pictures: of("ref_images.", b.pictures ?? [], "Picture"), audio: of("ref_audios.", b.audios ?? [], "Audio") };
+  // UI-01: named says whether the Render prompt cites it (a picture no <Picture n> names still reaches the model, unexplained)
+  const prompt = String(getValue("render", "render", "prompt") ?? ""), named = (x) => ({ ...x, named: prompt.includes(x.cite) });
+  return { pictures: of("ref_images.", b.pictures ?? [], "Picture").map(named), audio: of("ref_audios.", b.audios ?? [], "Audio").map(named) };
+}
+// the Render prompt's <Picture n> after References changed order (map: old n → new n) or lost a picture (gone: its old
+// n), so each cite still names the picture it meant; a cite of a picture taken out becomes <Picture ?> and is returned,
+// for the person or agent to rewrite (SNAP-R118). Nothing happens when the prompt cites no picture
+export function recite(map, gone = null) {
+  const prompt = getValue("render", "render", "prompt");
+  if (typeof prompt !== "string" || !/<Picture \d+>/.test(prompt)) return { changed: false, orphaned: false };
+  const next = prompt.replace(/<Picture (\d+)>/g, (m, n) => (+n === gone ? "<Picture ?>" : map[n] ? `<Picture ${map[n]}>` : m));
+  if (next !== prompt) setValue("render", "render", "prompt", next);
+  return { changed: next !== prompt, orphaned: gone != null && next.includes("<Picture ?>") };
 }
 export function addAudio(file, { role, reason, source, card }) {
   const b = brick("refs");
@@ -607,6 +644,25 @@ export function targets() {
   if (!outside().length) return undefined;
   const ids = (n, at = "") => [`${at}${n.id}`, ...(n.subgraph?.nodes ?? []).flatMap((x) => ids(x, `${at}${n.id}:`))];
   return state().bricks.flatMap((b) => Object.values(b.nodes)).map(node).filter(Boolean).flatMap((n) => ids(n));
+}
+
+// UI-08 (B2, F-A29): core's Load Image and Load Audio list only input/'s top level, so a picture in a subfolder (a take's
+// frame in snap/, a Cast's in snap/cast/<id>/) read "missing" though it renders. One batched check of the open graph's
+// input files that the lists lack; a file the server has goes into its widget's list (the dropdown shows it, missing()
+// passes it). A file really gone stays missing. Returns how many were found
+const UPLOADS = ["image_upload", "video_upload", "audio_upload"], present = new Set();
+export async function checkInputs() {
+  const ws = (app.graph?.nodes ?? []).flatMap((n) => { const def = n.constructor?.nodeData?.input ?? {};
+    return (n.widgets ?? []).filter((w) => { const spec = (def.required?.[w.name] ?? def.optional?.[w.name])?.[1];
+      return spec && UPLOADS.some((k) => spec[k]) && typeof w.value === "string" && w.value && Array.isArray(w.options?.values) && !w.options.values.includes(w.value); }); });
+  const ask = [...new Set(ws.map((w) => w.value))].filter((f) => !present.has(f));
+  if (ask.length) {
+    const r = await (await api.fetchApi("/mainodes/snap/input_exists", { method: "POST", body: JSON.stringify({ files: ask }) })).json();
+    for (const [f, ok] of Object.entries(r.files ?? {})) if (ok) present.add(f);
+  }
+  const found = ws.filter((w) => present.has(w.value));
+  for (const w of found) if (!w.options.values.includes(w.value)) w.options.values.push(w.value);
+  return found.length;
 }
 
 // settings that point at nothing installed (a model file, an image), on brick nodes and on nodes outside the recipe

@@ -13,11 +13,14 @@
 // Plain data with stable ids, so a sequence editor can sit on it later: shots in order now, lanes and in/out on shots
 // and takes later (scout/editor_layer §5.6-5.7).
 // SNAP-R5 open work is never lost · SNAP-R60 authored fields versioned · SNAP-R17 by · SNAP-R18 local only · SNAP-R19 the tools call these · SNAP-R24 scenes
-// own the work, tabs are scratch · see docs/snap/SNAP_RULES.md
+// own the work, tabs are scratch · SNAP-R120 a new shot keeps the setup, not the content · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
 import * as L from "./library.js";
+import * as M from "./models.js";
+import * as D from "./dials.js";
+import * as S from "./slots.js";
 import * as P from "./proposals.js";
 import * as T from "./takes.js";
 import * as W from "./world.js";
@@ -62,7 +65,7 @@ export function shotOf(scene, id) {
   return shot;
 }
 // how a shot reads: its place in the scene, then its name when it has one
-export const shotTitle = (scene, shot) => `Shot ${scene.shots.indexOf(shot) + 1}${shot.name ? ` · ${shot.name}` : ""}`;
+export const shotTitle = (scene, shot) => `Shot ${scene.shots.findIndex((x) => x.id === shot.id) + 1}${shot.name ? ` · ${shot.name}` : ""}`; // by id: a scene read again holds new shot objects (F-D05 "Shot 0")
 
 // a scene versions its authored fields only (SNAP-R60): its name, set, and shots in order with their names and cards. A
 // write that changes them appends {n, hash, at, by, note, body}; bookkeeping (take lists, the active take, workflow
@@ -193,11 +196,12 @@ export async function openShot(sceneId, shotId) {
   if (here && switched) await saveOpen();
   let graph = shot.workflow ? await read(shot.workflow) : null, built = "its saved workflow";
   if (shot.workflow && !graph) throw new Error(`${title}'s workflow ${shot.workflow} is gone`);
+  const copy = shot.start === "copy";
   if (!graph && here?.scene.id === scene.id) {
     graph = app.graph.serialize();
     graph.id = crypto.randomUUID();
     delete graph.extra?.snap?.notes; // notes were about that shot
-    built = `a copy of ${shotTitle(scene, here.shot)}'s recipe`;
+    built = copy ? `a copy of ${shotTitle(scene, here.shot)}'s recipe as it is` : `${shotTitle(scene, here.shot)}'s setup`;
   }
   if (!inPlace) await newTab();
   const mark = { scene: scene.id, shot: shot.id };
@@ -211,18 +215,37 @@ export async function openShot(sceneId, shotId) {
       const c = L.get(shot.card);
       try { card = c ? await L.apply(c) : `its shot card ${shot.card} isn't in the Library`; } catch (e) { card = e.message; }
     }
-    // F-C31: a copy of another shot's recipe leaves its Casts and locations out (pieces and pins): never inherited silently
-    if (built.startsWith("a copy of")) {
-      const left = Object.entries(E.state().world ?? {}).filter(([ref]) => ref.startsWith("cast:") || ref.startsWith("location:"));
-      for (const [ref] of left) await L.removePin(ref);
-      if (left.length) built += `, without ${left.map(([, p]) => p.name ?? "a record").join(", ")} (apply_cast / apply_location what this shot uses)`;
-    }
+    // F-C31, F-D12 (SNAP-R120): a new shot takes the open shot's setup and none of its content, unless it was added as
+    // a copy ("Copy Shot n as it is", add_shot start: copy)
+    if (graph && !copy && built.endsWith("'s setup")) built += await cleanCopy();
+
     await saveOpen();
   }
   await retitle(get(scene.id), get(scene.id).shots.find((x) => x.id === shot.id));
   const where = inPlace ? (switched ? " in the scene's tab" : "") : " in a new tab (the open one is scratch work, left as it was)";
   return { scene: scene.id, shot: shot.id, tab: inPlace ? (switched ? "scene tab" : "same") : "new", built, ...(card ? { card } : {}),
     said: `${title} of ${scene.name}${where}${shot.workflow ? "" : `: ${built}`}${card ? ` · ${card}` : ""}` };
+}
+
+// F-D12 / UI-02 (SNAP-R120): what a new shot keeps of the open shot it was made from is the setup (models, Render Preset,
+// core and turbo LoRAs, sampling, size, Upscale, Save); its Casts, locations and sets (pins and pieces), References,
+// First frame, dials, style and Cast LoRA rows and the prompt go. Returns what was left out, for the answer and toast
+async function cleanCopy() {
+  const has = (key) => E.state().bricks.some((b) => b.key === key), names = [], gone = [];
+  for (const [ref, p] of Object.entries(E.state().world ?? {})) if (/^(cast|location|set_snapshot):/.test(ref)) { await L.removePin(ref); names.push(p.name ?? ref); }
+  const refs = E.state().bricks.find((b) => b.key === "refs"), pics = refs?.pictures?.length ?? 0, sounds = refs?.audios?.length ?? 0;
+  E.batch(() => {
+    for (const p of [...(refs?.pictures ?? [])]) E.removePicture(p.node);
+    for (const a of [...(refs?.audios ?? [])]) E.removeAudio(a.node);
+    for (const key of ["style", "cast"]) if (has(key)) for (let i = M.rows(key).length - 1; i >= 0; i--) { M.removeRow(key, i); gone.push(`${key === "cast" ? "Cast" : "style"} LoRA row`); }
+    if (has("rack")) for (const r of D.rows()) { D.remove(r.dial); gone.push("dial"); }
+    if (has("first_frame") && S.on("first_frame")) { S.setOn("first_frame", false); E.remember("first_frame", "from", null); gone.push("first frame"); }
+    for (const [key, node] of [["render", "render"], ["image", "image"]]) if (has(key) && E.getValue(key, node, "prompt")) { E.setValue(key, node, "prompt", ""); gone.push("prompt"); }
+  });
+  if (pics) gone.unshift(`${pics} reference picture${pics === 1 ? "" : "s"}`);
+  if (sounds) gone.unshift(`${sounds} audio reference${sounds === 1 ? "" : "s"}`);
+  const counted = [...new Set(gone)].map((g) => { const n = gone.filter((x) => x === g).length; return n > 1 && !/^\d/.test(g) ? `${n} ${g}s` : g; });
+  return `${names.length ? `, without ${names.join(", ")} (apply_cast / apply_location what this shot uses)` : ""}; left out: ${counted.length ? counted.join(", ") : "nothing else was there"} (the prompt starts empty; "Copy as it is" keeps everything)`;
 }
 
 // a shot's tab and its saved file are compared as JSON (as the file holds it), without the shot mark or node sizes:
@@ -271,12 +294,13 @@ async function first(list, group) {
 // graph id, so runs from either join the shot). adopt <group id> is a take group: its newest take's workflow is the
 // copy. Either way the takes keep their store; the shot lists them (versions under the take they came from) and starts
 // on first() above
-export async function addShot(sceneId, { name, card = null, adopt = null, at, by = "person" } = {}) {
+export async function addShot(sceneId, { name, card = null, adopt = null, at, start = "clean", by = "person" } = {}) {
+  if (!["clean", "copy"].includes(start)) throw new Error(`start is "clean" (the open shot's setup, nothing else; the default) or "copy" (the open shot's recipe as it is); not ${JSON.stringify(start)}`);
   await Promise.all([load(), T.load()]);
   const scene = need(sceneId), here = current();
   if (card) { await L.ready(); if (L.get(card)?.kind !== "shot") throw new Error(`No shot card ${card}`); }
   if (adopt === "open" && here) throw new Error(`This workflow is already ${shotTitle(here.scene, here.shot)} of ${here.scene.name}`);
-  const shot = { id: `shot-${stamp()}`, name: name?.trim() || (card ? L.get(card).title.replace(/^Shot \d+:\s*/, "") : ""), card, workflow: null, groups: [], takes: [], active: null, by, created: Date.now() };
+  const shot = { id: `shot-${stamp()}`, name: name?.trim() || (card ? L.get(card).title.replace(/^Shot \d+:\s*/, "") : ""), card, workflow: null, groups: [], takes: [], active: null, by, created: Date.now(), ...(start === "copy" ? { start } : {}) };
   const tab = app.extensionManager.workflow.activeWorkflow;
   if (adopt) {
     const group = adopt === "open" ? app.graph.id : adopt, list = T.all().filter((t) => t.group === group).sort((a, b) => a.created - b.created);
