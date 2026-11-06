@@ -454,6 +454,14 @@
    "more": "AGENT_START.md Making a take bigger"
   },
   {
+   "id": "check_voice/check-means-listen",
+   "scope": "tool:check_voice",
+   "kind": "note",
+   "text": "A voice note of check means listen: two similar voices overlap in WavLM (two young women 0.81-0.95, the same speaker 0.89-1.00). Read the margin and the F0 against the reference before recasting.",
+   "rule": "SNAP-R114",
+   "more": "skill snap-voice"
+  },
+  {
    "id": "add_audio_ref/voice-reference-12-steps",
    "scope": "tool:add_audio_ref",
    "kind": "note",

@@ -412,6 +412,10 @@ thumbnail in Snap opens the same viewer on a click; nothing changes by viewing.
 - H3 reads audio references only with a reference setup (Ref2V). A voice reference itself is made at 12 steps or more
   (low resolution is fine; SNAP-R88); normal video takes stay at the setup's steps. Text alone doesn't cast a voice:
   H3 ignores pitch, age and sex words, so anchor the voice with a talking take and measure it (skill `snap-voice`).
+- A take that cites a Cast voice gets the voice note once it lands (SNAP-R114): `get_take` / `list_takes` give
+  `voice` with `status` ok, check (with `why`) or no voice, and per voice its line ("voice matches Maren 0.98, next
+  closest Liesl 0.91 (+0.07), F0 184 Hz vs ref 184 Hz"). `check_voice {"take": "<id>"}` runs it again. It needs
+  `models/audio_encoders/wavlm_base_plus_sv.safetensors`; a note without it says so. It never blocks: check = listen.
 
 ## When Snap can't do it
 

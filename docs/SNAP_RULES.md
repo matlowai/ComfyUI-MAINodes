@@ -962,6 +962,17 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   v4 orbit at 2K: 10.4 min instead of 17.9, same VRAM, flicker 3.71 vs 4.07, slightly softer eyes and line weight, the
   same scabbard, straps and face; one orbit and one seed, so the operator decides whether it ever becomes the default.
   *More:* u102b/STAGE2_CFG_AB_2026-11-06.md, proto/test_g1b_fast.js.
+- **SNAP-R114: A take that cites a Cast voice gets a voice note, and the note never blocks.** When a take whose
+  recipe has a Cast's voice reference in References (`<Audio n>`, SNAP-R73) lands, the page that captured it queues a
+  check (MAISnapVoice: WavLM-SV speaker embedding and the median F0 of the loud voiced frames) of its soundtrack, the
+  cited reference and every other Cast's newest voice, and keeps the result on the take as `voice`: per cited voice
+  "voice matches <Cast> 0.98, next closest <other> 0.91 (+0.07), F0 186 Hz vs ref 184 Hz", status ok (own at least
+  `voice_check.ok`, ahead of every other Cast by `margin`, F0 within `f0_semitones`), check (with why; worded "voice
+  vs <Cast>") or no voice. The card and the take viewer show it, amber unless ok; `check_voice` runs it again. The
+  numbers come with the margin, never "the same person". *Why:* the operator, 2026-11-05: every cut where a character
+  speaks cites the reference and "timbre consistency across cuts is checked"; the voice scout found cuts citing the
+  reference keep it (own 0.97-0.99) while two young women overlap (0.81-0.95), so a margin and F0 say more than a
+  score. *More:* scout/voice_timbre_2026-11-06.md, proto/test_g1b_voice.py, proto/test_g1b_notes.js.
 
 ## Accounts and the gate (snap-gate)
 

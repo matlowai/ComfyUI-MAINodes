@@ -292,7 +292,7 @@ export const STYLE = `
 .snap-cand-line { display: flex; gap: 6px; align-items: baseline; min-width: 0; }
 .snap-cand-line span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .snap-cand-notes { display: flex; flex-wrap: wrap; gap: 3px; }
-.snap-cand-note { padding: 0 5px; border-radius: 5px; background: #ffffff10; color: var(--s-dim); white-space: nowrap; }
+.snap-cand-note { padding: 0 5px; border-radius: 5px; background: #ffffff10; color: var(--s-dim); max-width: 100%; overflow-wrap: anywhere; } /* a long note wraps inside its tile (G1b: "copied Picture 2 0.95 · same framing" ran into the next tile) */
 .snap-cand-note.warn { background: #f0b44526; color: #f0b445; }
 .snap-cand-rec { color: #c4b5fd; }
 .snap-cand-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
@@ -489,6 +489,7 @@ export const STYLE = `
 .snap-take-quietrow .snap-set-actions { margin: 0; }
 .snap-take-copy { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: #f0b445; color: #1b1c20; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .snap-take-copyline > div { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
+.snap-take-copyline .snap-take-copy { white-space: normal; } /* the viewer's copy and voice lines say it all (G1b: the voice line was cut off) */
 .snap-take-lock { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: hsl(15 70% 55% / .22); color: #f4a988; }
 .snap-take-lock[role=button] { cursor: pointer; }
 .snap-vault-sheet { inset: 18% 0 auto 0; margin: 0 auto; width: min(440px, calc(100% - 32px)); }

@@ -5,8 +5,8 @@ description: >
   voice reference made at 12 or more steps, saved on the Cast and cited as <Audio n> in every cut where the character
   speaks, then measured. Use it whenever a character speaks, a short has dialogue, voices sound alike or change
   between cuts, or you make voice settei.
-scope: [tool:add_audio_ref, tool:save_cast]
-rules: [SNAP-R73, SNAP-R74, SNAP-R88]
+scope: [tool:add_audio_ref, tool:save_cast, tool:check_voice]
+rules: [SNAP-R73, SNAP-R74, SNAP-R88, SNAP-R114]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-voice"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -33,8 +33,13 @@ actress" came out at 97-138 Hz, "clearly a woman's voice" at 112-145 Hz, and the
 4. **Save it on the Cast** (`save_cast` `voice {file, casting}`); `apply_cast` puts it in References and answers its
    `<Audio n>`. Cite it in every cut where the character speaks ("her voice is the voice of <Audio 1>: the same
    speaker and timbre, not repeating its words").
-5. **Measure** before calling a voice cast, and again across cuts: Whisper text against the line, F0 median and range
-   (pyin), and speaker similarity against the reference. Watch pairs of characters that score close (0.86 between two
-   characters was a confusion risk).
+5. **Measure** before calling a voice cast, and again across cuts. Every take that cites a Cast voice gets the voice
+   note by itself once it lands (SNAP-R114; `get_take`'s `voice`, `check_voice` runs it again): WavLM-SV against the
+   cited reference and every other Cast's voice, the margin to the closest other, and F0 against the reference.
+   `ok` = own at least 0.90, ahead of every other Cast by 0.05, F0 within 3 semitones; `check` says why; `no voice`
+   when nothing is voiced. Two similar voices overlap (short03's two young women 0.81-0.95, same speaker 0.89-1.00),
+   so `check` means listen, not "wrong person". Casting words add nothing once the reference is cited (scout: cuts
+   with and without them matched within 0.01 and 2 Hz): cite the reference alone. Whisper text against the line is
+   still yours to run.
 
 H3 reads audio references only with a reference setup (Ref2V).

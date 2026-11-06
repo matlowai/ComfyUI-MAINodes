@@ -45,9 +45,11 @@ let takes = [], loading = null, marks = {}, privacy = false, marked = null;
 const listeners = new Set();
 export const onChange = (fn) => listeners.add(fn);
 const changed = () => { for (const fn of listeners) fn(); };
-// a run that failed, once its take is written (upscale.js keeps the render of a run whose upscale failed, F-C26)
-const failures = new Set();
+// a run that failed, once its take is written (upscale.js keeps the render of a run whose upscale failed, F-C26); one that
+// ran, once its take is written by the page that captured it (voices.js checks a take that cites a Cast voice, G1b)
+const failures = new Set(), arrivals = new Set();
 export const onFailed = (fn) => failures.add(fn);
+export const onLanded = (fn) => arrivals.add(fn);
 
 async function readJson(path, missing) {
   const r = await api.getUserData(path);
@@ -292,7 +294,7 @@ async function captureRun(id, started, status, error, failedNode) {
     ...(extra?.snap_marks?.metadata === false ? { metadata: false } : {}), ...(extra?.snap_marks?.kept ? { metadata_kept: extra.snap_marks.kept } : {}), ...(Object.keys(swapped).length ? { swapped } : {}), ...(parent ? { parent } : {}), ...await hashes(canonical(prompt, swapped)),
     ...(graph?.extra?.snap?.world ? { world: placedCheck(graph.extra.snap.world, prompt) } : {}), ...(twin ? { cached_from: twin.id } : {}), verdict: null, prior: false, notes: [], graph, prompt,
   });
-  if (status === "error") for (const fn of failures) fn(get(`take-${id}`));
+  for (const fn of status === "error" ? failures : status === "success" ? arrivals : []) fn(get(`take-${id}`));
 }
 
 // what a prompt does, in a form that compares: per node its type (a save gate twin counts as the saver it stands in

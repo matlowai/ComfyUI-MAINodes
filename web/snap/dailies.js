@@ -14,7 +14,7 @@
 // takes (SNAP-R27: by the current rules) · SNAP-R21 copies flagged · SNAP-R23 candidates · SNAP-R24 scenes own the work ·
 // SNAP-R36 quiet sound: a note and two actions, never applied by itself · SNAP-R54 takes above the account's cap are
 // left out · SNAP-R65 a job shows on its take's card and as a ghost card · SNAP-R71/R72 New view from these pictures (its
-// tray: contextview.js) · SNAP-R81/R82/R113 Make it bigger (upscale.js) · SNAP-R93 the instructions a take ran under · see docs/SNAP_RULES.md
+// tray: contextview.js) · SNAP-R81/R82/R113 Make it bigger (upscale.js) · SNAP-R114 the voice note (voices.js) · SNAP-R93 the instructions a take ran under · see docs/SNAP_RULES.md
 import * as T from "./takes.js";
 import * as V from "./vault.js";
 import * as LB from "./lightbox.js";
@@ -24,6 +24,7 @@ import * as C from "./candidates.js";
 import * as ED from "./edits.js";
 import * as EX from "./extend.js";
 import * as UP from "./upscale.js";
+import * as VO from "./voices.js";
 import * as S from "./slots.js";
 import * as W from "./world.js";
 import * as P from "./proposals.js";
@@ -163,6 +164,8 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
         h("span", { className: "snap-take-stale", hidden: true }),
         t.copy?.copied ? h("span", { className: "snap-take-copy", textContent: `copied its reference view ${Math.max(...t.copy.against.map((a) => a.last)).toFixed(2)}`,
           title: `This take ends on the view of its reference picture (last frame's copy score at or above ${t.copy.threshold}): right when that picture is this camera's own plate, wrong when it shows another camera's view.\n${t.copy.against.map((a) => `${a.image}: ${a.frames.join(" → ")}`).join("\n")}` }) : null,
+        t.voice?.status ? h("span", { className: t.voice.status === "ok" ? "snap-take-parent" : "snap-take-copy", textContent: t.voice.status === "no voice" ? "no voice found" : `voice ${t.voice.status} · ${t.voice.voices.map((x) => `${x.name} ${x.own.toFixed(2)}`).join(", ")}`,
+          title: t.voice.voices.map((x) => `${x.said}${x.why ? ` (${x.why.join("; ")})` : ""}`).join("\n") }) : null, // SNAP-R114
         t.parent && !version ? h("span", { className: "snap-take-parent", textContent: `↳ ${T.versionOf(t.parent.options) ?? t.parent.method.split("/").pop()} of take ${T.get(t.parent.take)?.number ?? "?"}`, title: `made from ${t.parent.take} by ${t.parent.method}` }) : null,
         ...Object.entries(t.world ?? {}).map(([ref, p]) => [p, unplaced(p, ref)]).filter(([, m]) => m.length).map(([p, m]) => h("span", { className: "snap-take-unplaced", textContent: `${p.name} v${p.n}: ${m[0]}${m.length > 1 ? ` +${m.length - 1}` : ""}`,
           title: `Parts of ${p.name} v${p.n} (Cast) that didn't reach this take:\n${m.join("\n")}` })), // U72 F25, in plain words (the operator, 2026-11-05)
@@ -341,6 +344,17 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
           onclick: async () => { try { await PL.checkTake(t, "person"); copyRow(); } catch (err) { say(err.message, true); } } })).childNodes);
     };
     if (refs.length) { copyRow(); T.onChange(() => { if (copyLine.isConnected) copyRow(); }); }
+    // SNAP-R114: the voice note (a take that cites a Cast voice): one line per cited voice, amber when it says check
+    const voiceLine = h("div", { className: "snap-take-copyline" });
+    const voiceRow = () => {
+      const v = t.voice, lines = !v ? [["not checked yet", false, ""]] : v.pending ? [["checking…", false, ""]] : v.error ? [[`not checked: ${v.error}`, false, ""]]
+        : v.voices.map((x) => [`${x.status === "ok" ? "ok" : x.status === "check" ? "check" : "no voice"} · ${x.said}${x.why ? ` (${x.why.join("; ")})` : ""}`, x.status !== "ok",
+          `${x.name}'s reference ${x.cite}: WavLM-SV ${x.own}; ${x.others.map((o) => `${o.name} ${o.score}`).join(", ") || "no other Cast voice"}; F0 ${x.f0 ?? "–"} Hz vs ${x.ref_f0 ?? "–"} Hz${x.semitones != null ? ` (${x.semitones} st)` : ""}. ok = at least ${v.thresholds.ok}, ahead of every other Cast by ${v.thresholds.margin}, F0 within ${v.thresholds.f0_semitones} semitones. Similar voices overlap (two young women 0.81-0.95): listen before you recast`]);
+      voiceLine.replaceChildren(...h("div", {}, ...lines.map(([text, warn, title]) => h("span", { className: warn ? "snap-take-copy" : "snap-quiet", textContent: `Voice: ${text}`, title })),
+        h("button", { className: "snap-link snap-quiet-btn", textContent: v && !v.pending ? "Check again" : "Check voice", disabled: !!v?.pending, title: "the take's voice against its Cast voice reference and every other Cast's voice (a few seconds on the queue)",
+          onclick: async () => { try { await VO.check(t, "person"); voiceRow(); } catch (err) { say(err.message, true); } } })).childNodes);
+    };
+    if (isVideo && VO.referenceAudios(t.prompt).length) { voiceRow(); T.onChange(() => { if (voiceLine.isConnected) voiceRow(); }); }
 
     // SNAP-R36: a quiet take says so and offers two ways out; neither runs unless the person presses it
     const quietRow = T.quiet(t) ? h("div", { className: "snap-take-quietrow" },
@@ -530,7 +544,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
           list,
           h("div", { className: "snap-rail-title", textContent: prev ? `Changed since take ${prev.number}` : "First take of this workflow" }),
           changes.length ? h("ul", { className: "snap-take-delta" }, changes.slice(0, 10).map((c) => h("li", {}, h("b", { textContent: `${c.node} · ${c.input}` }), ` ${String(c.from).slice(0, 40)} → ${String(c.to).slice(0, 60)}`))) : prev ? h("div", { className: "snap-quiet", textContent: "same settings" }) : null,
-          copyLine,
+          copyLine, voiceLine,
           t.text ? h("details", {}, h("summary", { textContent: "Prompt" }), h("p", { className: "snap-take-text", textContent: t.text })) : null,
           useRow,
           isVideo ? [h("div", { className: "snap-rail-title", textContent: "Change something" }), ...paintRow("edit"), h("div", { className: "snap-rail-title", textContent: "Recast a person" }), ...paintRow("recast"), editNote,

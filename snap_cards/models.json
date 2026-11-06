@@ -1394,6 +1394,32 @@
    "notes": "Snap's identity notes on edit candidates (MAISnapFaceModelLoader + MAISnapIdentity, snap_faces.py): ArcFace IResNet-101 trained on WebFace4M (research-use dataset licence). Profiles and dark frames lower every score"
   },
   {
+   "file": "wavlm_base_plus_sv.safetensors",
+   "folder": "audio_encoders",
+   "family": null,
+   "kind": "encoder",
+   "rating": "pg",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/microsoft/wavlm-base-plus-sv",
+   "download": "the safetensors of refs/pr/4 (model.safetensors), saved as audio_encoders/wavlm_base_plus_sv.safetensors",
+   "size_gb": 0.4,
+   "quant_format": null,
+   "loads_in_core": true,
+   "voice_check": {
+    "ok": 0.9,
+    "margin": 0.05,
+    "f0_semitones": 3,
+    "evidence": "measured",
+    "source": "G1b, scout/voice_timbre_2026-11-06.md on short03's voices: the same speaker 0.89-1.00 across 15 talking anchors, Maren against Liesl 0.81-0.95 (two young women), against Brann 0.39-0.65. Cuts citing a reference: own 0.97-0.99, the other woman 0.86-0.93, F0 within 1-8 Hz of the reference. ok = own at least `ok` and ahead of every other Cast by `margin`, F0 within `f0_semitones`; the next closest Cast is named with the margin. WavLM can't separate two similar voices alone, so the note gives numbers and the margin, never 'the same person'. n = 3 voices, 12 cuts, one production"
+   },
+   "notes": "Snap's voice note on takes (MAISnapVoiceModelLoader + MAISnapVoice, snap_voice.py): WavLM-SV speaker embedding and YIN F0 of a take's sound against the Cast voice reference it cited"
+  },
+  {
    "file": "pika_h3_flex_fl2va_v1_bf16.safetensors",
    "folder": "loras",
    "family": "MiniMax H3",

@@ -14,7 +14,7 @@
 // does) · SNAP-R25 onboarding: the sheet's functions; propose_downloads never downloads; SFW only filters the lists ·
 // SNAP-R59 Cast by reference (list_cast, save_cast, apply_cast) · SNAP-R60/R61 records, pins, retake, update_pins ·
 // SNAP-R62 clean-up: delete_record waits for the person · SNAP-R63 rerun: any pinned reference swapped · SNAP-R65 list_activity, list_docket, wait_for read the Work card ·
-// SNAP-R71/R72 edit_from_context (a new view from ordered context pictures) · SNAP-R77 make_character_sheet · SNAP-R80 open_view (a picture full size) · SNAP-R81/R82 upscale_take · SNAP-R73 add_audio_ref, remove_audio_ref, a Cast's voice ·
+// SNAP-R71/R72 edit_from_context (a new view from ordered context pictures) · SNAP-R77 make_character_sheet · SNAP-R80 open_view (a picture full size) · SNAP-R81/R82/R113 upscale_take · SNAP-R114 check_voice · SNAP-R73 add_audio_ref, remove_audio_ref, a Cast's voice ·
 // SNAP-R84 list_locations, save_location, add_plate, apply_location, dependents; add_ref / remove_ref; check_identity on any take · SNAP-R83 screenshot of the agents' window · see docs/SNAP_RULES.md
 // SNAP-R93-R95 agent instructions and skills (instructions.js): describe_recipe, get_take and get_scene carry the stack, the pack's notes end each description · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
@@ -35,6 +35,7 @@ import * as C from "./candidates.js";
 import * as ED from "./edits.js";
 import * as EX from "./extend.js";
 import * as UP from "./upscale.js";
+import * as VO from "./voices.js";
 import * as K from "./checks.js";
 import * as SC from "./scenes.js";
 import * as OB from "./onboarding.js";
@@ -795,7 +796,7 @@ export const TOOLS = [
       const now = await T.live();
       return Promise.all(T.inGroup().filter((t) => !T.aboveCap(t)).sort((a, b) => (order.includes(a.id) ? order.indexOf(a.id) : 1e9 + a.created) - (order.includes(b.id) ? order.indexOf(b.id) : 1e9 + b.created))
         .map(async (t) => ({ id: t.id, number: t.number, rank: order.includes(t.id) ? order.indexOf(t.id) + 1 : null, seed: t.seed, status: t.status, verdict: t.verdict, prior: t.prior, notes: t.notes.length, media: t.media.map((m) => `${m.type}/${m.subfolder ? `${m.subfolder}/` : ""}${m.filename}`), prompt: t.text,
-          stale: await T.stale(t, now), copy: t.copy ?? null, ...(t.cached_from ? { cached_from: t.cached_from } : {}), ...(t.sound ? { sound: { mean_db: t.sound.mean_db, quiet: T.quiet(t), quiet_below_db: T.QUIET_DB } } : {}), ...(t.metadata_kept ? { metadata_kept: t.metadata_kept } : {}), rating: T.ratingOf(t), ...(T.locked(t) ? { private: true } : {}), ...(t.kept_encrypted ? { kept_encrypted: true, ...(t.locked ? { locked: true } : {}) } : {}) })));
+          stale: await T.stale(t, now), copy: t.copy ?? null, ...(t.voice ? { voice: t.voice } : {}), ...(t.cached_from ? { cached_from: t.cached_from } : {}), ...(t.sound ? { sound: { mean_db: t.sound.mean_db, quiet: T.quiet(t), quiet_below_db: T.QUIET_DB } } : {}), ...(t.metadata_kept ? { metadata_kept: t.metadata_kept } : {}), rating: T.ratingOf(t), ...(T.locked(t) ? { private: true } : {}), ...(t.kept_encrypted ? { kept_encrypted: true, ...(t.locked ? { locked: true } : {}) } : {}) })));
     },
   },
   {
@@ -809,7 +810,7 @@ export const TOOLS = [
       const t = T.get(take);
       if (!t || T.aboveCap(t)) throw new Error(`No take ${take}`);
       const prev = T.inGroup(t.group).filter((x) => x.created < t.created).at(-1);
-      return { id: t.id, number: t.number, seed: t.seed, status: t.status, error: t.error, verdict: t.verdict, prior: t.prior, seconds: t.seconds, prompt: t.text, notes: t.notes, media: t.media, copy: t.copy ?? null, rating: T.ratingOf(t), rating_why: t.rating_set ? ["rated by the person"] : t.rating_why ?? [], changed_since_previous: prev ? T.delta(prev, t) : [],
+      return { id: t.id, number: t.number, seed: t.seed, status: t.status, error: t.error, verdict: t.verdict, prior: t.prior, seconds: t.seconds, prompt: t.text, notes: t.notes, media: t.media, copy: t.copy ?? null, ...(t.voice ? { voice: t.voice } : {}), rating: T.ratingOf(t), rating_why: t.rating_set ? ["rated by the person"] : t.rating_why ?? [], changed_since_previous: prev ? T.delta(prev, t) : [],
         world: await worldOf(t.world), parent: t.parent ?? null, purpose: (await S.load(), await W.load(), ED.purposeOf(t)), instructions: await I.ofTake(t), ...(t.kept_encrypted ? { kept_encrypted: true, ...(t.locked ? { locked: true, said: "kept encrypted and the vault is locked: its prompt, notes and frames open once the person signs in" } : {}) } : {}) };
     },
   },
@@ -1155,6 +1156,13 @@ export const TOOLS = [
       await T.load(); const t = T.get(take); if (!t) throw new Error(`No take ${take} (list_takes lists them)`);
       return ED.castIdentity(t, [cast].flat(), { frames, ref });
     },
+  },
+  {
+    name: "check_voice",
+    description: "The voice note again on a take (G1b, SNAP-R114; a check, nothing is rendered: a few seconds on the server's queue). A take whose recipe cites a Cast's voice reference (<Audio n> in References, apply_cast puts it there) gets it by itself once it lands; this runs it again (a Cast's voice changed, or the note said what it needs). Its soundtrack is compared with the cited reference and every other Cast's newest voice: WavLM-SV speaker similarity and the median F0 of the voiced frames. get_take / list_takes then give `voice`: status ok (own at least 0.9, ahead of every other Cast by 0.05, F0 within 3 semitones), check (with why) or no voice, and per cited voice its line (\"voice matches Maren 0.98, next closest Liesl 0.91 (+0.07), F0 184 Hz vs ref 184 Hz\"). Two similar voices overlap (two young women 0.81-0.95), so a check means listen, never 'wrong person'; it never blocks anything. Answers at once; follow with wait_for or get_take.",
+    inputSchema: { type: "object", properties: { take: { type: "string" } }, required: ["take"] },
+    direct: true, // a check, nothing rendered: the note only informs
+    run: async ({ take }) => { await T.load(); const t = T.get(take); if (!t) throw new Error(`No take ${take} (list_takes lists them)`); return VO.check(t, "agent"); },
   },
   {
     name: "edit_take",
