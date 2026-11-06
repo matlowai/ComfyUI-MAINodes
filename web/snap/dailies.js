@@ -159,7 +159,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
       onclick: async (e) => { e.stopPropagation(); if (active) return; try { await SC.setActive(here.scene.id, here.shot.id, t.id); say(`${crumbs(t).slice(2).join(" › ")} is now ${SC.shotTitle(here.scene, here.shot)}'s take`); } catch (err) { say(err.message, true); } } }) : null;
     const tick = h("input", { type: "checkbox", className: "snap-take-pick", checked: picked.has(t.id), title: "tick two to compare",
       onclick: (e) => { e.stopPropagation(); e.target.checked ? picked.add(t.id) : picked.delete(t.id); if (picked.size > 2) picked.delete([...picked][0]); render(); } });
-    const c = h("figure", { className: `snap-take ${t.status}${t.verdict ? ` ${t.verdict}` : ""}${active ? " active" : ""}${version ? " version" : ""}`, draggable: true, tabIndex: 0, title: t.text.slice(0, 300), onclick: () => view(t) },
+    const c = h("figure", { className: `snap-take ${t.status}${t.verdict ? ` ${t.verdict}` : ""}${active ? " active" : ""}${version ? " version" : ""}`, draggable: true, tabIndex: 0, title: (t.text ?? "").slice(0, 300), onclick: () => view(t) },
       h("div", { className: "snap-take-media" }, mediaEl(m), tick, m ? fullBtn(t) : null,
         h("span", { className: "snap-take-rank", textContent: r >= 0 ? `#${r + 1}` : "" }),
         t.verdict ? h("span", { className: "snap-take-verdict", textContent: { keep: "✓", reject: "✗", neither: "neither" }[t.verdict] ?? t.verdict, title: t.verdict_note ?? "" }) : null,

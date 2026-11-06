@@ -363,7 +363,7 @@ def record(path, asker):
     try:
         return {**json.loads(plain(path, asker)), "kept_encrypted": True}
     except snap_vault.Locked:
-        return {**(snap_vault.Container(path).header.get("stub") or {}), "text": "", "notes": [], "prompt": None, "graph": None, "kept_encrypted": True, "locked": True}
+        return {**(snap_vault.Container(path).header.get("stub") or {}), "notes": [], "prompt": None, "graph": None, "kept_encrypted": True, "locked": True}
 
 
 def tile():
