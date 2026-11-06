@@ -21,7 +21,7 @@ let records = new Map(), loading = null, rev = null;
 const listeners = new Set(), written = new Set();
 export const onChange = (fn) => listeners.add(fn);
 const changed = () => { for (const fn of listeners) fn(); };
-// another writer's write, once the records are read again: {ref, by}
+// another writer's write, once the records are read again: {ref, by, count} (count: writes heard in that read)
 export const onWritten = (fn) => written.add(fn);
 const revNow = () => api.fetchApi("/mainodes/snap/world/rev").then((r) => r.json()).then((r) => r.rev);
 
@@ -123,9 +123,19 @@ async function call(route, q) {
 export const reload = async () => { loading = null; await load(); }; // the Agent library re-reads on focus (SNAP-R95)
 // did anything write the record files since this page read them? (a tool asks before it reads, tools.js callTool)
 export const stale = async () => (await load(), (await revNow()) !== rev);
+// a burst of writes (a script saving 300 notes) is one read in flight and at most one more after it, and one "updated by"
+// naming the last write and how many there were
+let rereading = null, heard = [];
 api.addEventListener("snap_world", ({ detail }) => {
   if (detail?.client === api.clientId) return; // this page's own write: it holds the record already
-  reload().then(() => { for (const fn of written) fn(detail); }, (e) => console.warn(`Snap couldn't read the records again: ${e.message}`));
+  heard.push(detail);
+  rereading ??= (async () => {
+    while (heard.length) {
+      const got = heard; heard = [];
+      await reload();
+      for (const fn of written) fn({ ...got.at(-1), count: got.length });
+    }
+  })().catch((e) => console.warn(`Snap couldn't read the records again: ${e.message}`)).finally(() => { rereading = null; });
 });
 export const sizes = () => call("/mainodes/snap/sizes");
 export const exportRecords = (refs, { with_takes = false, decrypt_private = false } = {}) => call("/mainodes/snap/world/export", { refs, with_takes, decrypt_private });

@@ -281,7 +281,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   L.ready().then(renderLibrary, () => libResults.replaceChildren(h("div", { className: "snap-quiet", textContent: "Library not available on this server" })));
   W.onChange(() => { render(null); renderLibrary(); }); // a record saved here or by an agent: pin chips and cast cards follow
   // SNAP-R116 (F-D01): a record another writer saved is read again at once, and the page says whose it is
-  W.onWritten(({ ref, by }) => { const b = W.get(ref)?.version.body; say(`${b?.name ?? b?.title ?? (b?.text ? `Note "${b.text}"` : ref)} updated by ${by}`); });
+  W.onWritten(({ ref, by, count }) => { const b = W.get(ref)?.version.body; say(`${b?.name ?? b?.title ?? (b?.text ? `Note "${b.text}"` : ref)} updated by ${by}${count > 1 ? ` (and ${count - 1} more records)` : ""}`); });
 
   function renderLibrary() {
     libSfw.hidden = !PF.sfwOnly();
