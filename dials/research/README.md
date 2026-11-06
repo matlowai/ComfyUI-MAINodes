@@ -13,6 +13,10 @@ they hold up.
 | [2026-11-06-synthesis.md](2026-11-06-synthesis.md) | what our other H3 research (conditioning, timing, AdaLN, taps, audio) says about Dials, contradictions fixed, new plan nodes |
 | [2026-11-06-jlens-ideas.md](2026-11-06-jlens-ideas.md) | the Jacobian lens: ways to make dials from word lists, read dials and activations, and the encoder constraint (proposed) |
 | [experiments/](experiments/) | one page per experiment as results come in |
+| [word_dials/](word_dials/README.md) | **try it**: 12 dials made from four words each (Jacobian lens), with a placebo, and how to make your own |
+| [code/](code/README.md) | the scripts behind every experiment (word dials, token audit, metrics, render graphs, a masked-dial test node) |
+| [pairs/new1106/](pairs/new1106/) | the prompt pairs of the experimental `h3_x_*` dials |
+| [logs/](logs/README.md) | raw working logs and measurement JSONs, chronology included |
 
 Clips: [Dials Lab](https://matlowai.github.io/ComfyUI-Dials/lab.html). Dials: [H3-Dials on Hugging Face](https://huggingface.co/MATLOWAI/H3-Dials).
 

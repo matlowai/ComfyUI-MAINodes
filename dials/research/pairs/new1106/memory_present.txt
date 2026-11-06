@@ -1,0 +1,4 @@
+# abstract: A = the vivid present moment, B = a half-remembered memory; three framings
+{subject} stands in the room, seen sharply and clearly, right here in the present moment. ||| {subject} stands in the room, seen as a half-remembered memory, hazy, faded and dreamlike.
+{subject} looks up at the camera in vivid, immediate, true-to-life colour. ||| {subject} looks up at the camera in soft, washed-out colour, like an old remembered photograph.
+{subject} walks slowly toward the viewer, every sound and detail present and distinct. ||| {subject} walks slowly toward the viewer, sounds muffled and details slipping away like a fading memory.

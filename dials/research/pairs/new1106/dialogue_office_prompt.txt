@@ -1,0 +1,5 @@
+integrated_multimodal_description: [Shot 1] Cinematic, natural light. An office in the late afternoon. A man in a dark suit (S1) walks up to his coworker's desk, leans on it and says: <d>[English] I think we need to talk about what happened last night.</d> The woman at the desk (S2) looks up from her computer and answers: <d>[English] I honestly have no idea what you mean.</d> The camera holds a medium shot of both of them.
+
+overall_soundscape: Quiet office ambience, the hum of computers, a phone ringing once in the background, the soft creak of the desk as he leans on it.
+
+non_diegetic_music: N/A

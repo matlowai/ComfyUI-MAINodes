@@ -1,0 +1,4 @@
+# opposites (look): A = clean modern digital image, B = worn analog VHS tape; action and framing identical
+{subject} stands in the room, filmed on a clean, sharp modern digital camera with true colour. ||| {subject} stands in the room, filmed on a worn VHS tape with tracking lines, colour bleed and static.
+{subject} looks up at the camera, a crisp, noise-free high-definition image. ||| {subject} looks up at the camera, a fuzzy, warped analog videotape image with scan lines.
+{subject} walks slowly toward the viewer, the picture stable, clean and perfectly sharp. ||| {subject} walks slowly toward the viewer, the picture wobbling, smeared and crackling like old VHS.
