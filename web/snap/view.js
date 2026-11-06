@@ -1577,6 +1577,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     else if (action === "run_from") { const t = T.get(target); if (!t) throw new Error(`No take ${target}`); return runFrom(t); }
     else if (action === "setups") openSetups();
     else if (action === "location") { const { id, n } = W.parse(String(target ?? "").includes(":") ? target : `location:${target}`); await openLocation(root, { id, n, say, onApplied: () => { render(null); renderLibrary(); } }); }
+    else if (action === "library") { const [tab, scope] = String(target ?? "here").split("|"); await AL.openLibrary(root, { say, view: ["skills", "notes", "here"].includes(tab) ? tab : "here", scope: scope || null }); } // F-D09
     else if (action === "onboarding") await onboard(target || undefined);
     else if (action === "scenes") sceneBar.openScenes();
     else if (action === "metadata") { if (!["on", "off"].includes(target)) throw new Error('metadata takes target "on" or "off"'); await MD.set(target === "on"); }

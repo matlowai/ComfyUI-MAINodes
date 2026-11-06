@@ -7,7 +7,7 @@
 // scene → shot → take, general targets before specific, oldest first; a note adds unless its `supersedes` names an
 // outer one; same-job model_choice notes: the inner wins, the same level is a conflict; both are shown. Off and seen are
 // the person's marks (snap/instructions.json), never versions. Every queued run pins {refs, off, context} in
-// extra.snap.instructions; the hash is of the sorted refs and off list. Skills are the pack's .claude/skills files; a
+// extra.snap.instructions; the hash is of the sorted refs (the live notes). Skills are the pack's .claude/skills files; a
 // person's version is a `skill` record over one, its body keeping the pack text it started from.
 // SNAP-R93 layered instructions resolved per scope and pinned per run · SNAP-R94 skills: pack files with a person's
 // version over them · SNAP-R95 an agent's note applies at once, marked, one click off; an agent turning off a person's
@@ -152,7 +152,9 @@ export function resolve(c) {
     ...(r.mode === "replace" ? { replaces: r.supersedes } : {}), ...(newFrom(r) ? { new_from: newFrom(r) } : {}) });
   return { context: c, stack: live.map(view), overridden, conflicts, off: off.map((r) => r.ref), offRows: off.map(view), refs: live.map((r) => r.ref) };
 }
-export const hashOf = async ({ refs, off }) => W.short(await W.sha({ refs: [...refs].sort(), off: [...off].sort() }));
+// the hash is of what an agent reads: the live notes. A note that is off is out of refs already (and one it replaced is
+// back in), so the off list isn't hashed: turning your own tweak off gives back the hash from before it (dogfood F-D09)
+export const hashOf = async ({ refs }) => W.short(await W.sha({ refs: [...refs].sort() }));
 
 // what an agent reads: the stack with its hash, the skills meant for this context, and pack notes whose tool isn't in
 // the tool table (said, never dropped)

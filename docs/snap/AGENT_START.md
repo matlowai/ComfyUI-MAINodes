@@ -168,7 +168,10 @@ nested pack → install → person → book → scene → shot → take. Read th
 3. Set the length in frames or seconds: `set_setting {"brick": "render", "name": "length", "value": "5s"}`. Seconds
    round to the nearest frame count the model takes (H3 at 24 fps: 17n + 5 frames), and the answer says what the
    length became. `describe_recipe` shows the seconds next to the frames.
-4. `new_seed` draws a new seed for the Render. You can name another brick with `brick`.
+4. `new_seed` draws a new seed for the Render. You can name another brick with `brick`. The seed's setting is
+   `noise_seed` on the video Render (`render`) and on the stills Render (`image`); `describe_recipe` lists each brick's
+   settings by name. A run with the same recipe and seed as an earlier take answers `cache_hit`: ComfyUI hands back that
+   take's file, not a new render.
 5. `run {"question": "does the jacket hold through the turn?"}` returns `run`, the run's id (always; a refusal is an
    error that says why). The question is what the person reads on the Work card; leave it out and it reads "Run <tab>".
    A `warning` says when the prompt is still the recipe's default text: the run still goes, so set the prompt first.

@@ -420,9 +420,14 @@ export const TOOLS = [
   },
   {
     name: "remove_lora",
-    description: "Take a LoRA row off its stack (the file stays). Rows below it move up one.",
-    inputSchema: { type: "object", properties: { brick: { type: "string" }, row: { type: "integer" } }, required: ["brick", "row"] },
-    run: ({ brick, row }) => {
+    description: "Take a LoRA row off its stack (the file stays): brick and row (describe_recipe.models.loras), or file (the name add_lora took; F-D12). Rows below it move up one.",
+    inputSchema: { type: "object", properties: { brick: { type: "string" }, row: { type: "integer" }, file: { type: "string" } } },
+    run: ({ brick, row, file }) => {
+      if (file != null && row == null) { // by the file, on whichever stack holds it
+        const at = Object.keys(BRICKS).filter((k) => BRICKS[k].stack && has(k)).flatMap((k) => M.rows(k).map((r) => ({ k, r }))).filter(({ r }) => r.file === file || r.file?.split("/").pop() === file.split("/").pop());
+        if (at.length !== 1) throw new Error(at.length ? `${file} is on ${at.length} rows (${at.map(({ k, r }) => `${k} row ${r.row}`).join(", ")}): give brick and row` : `No LoRA row holds ${file}; the rows: ${Object.keys(BRICKS).filter((k) => BRICKS[k].stack && has(k)).flatMap((k) => M.rows(k).map((r) => `${k} row ${r.row}: ${r.file}`)).join("; ") || "none"}`);
+        ({ k: brick, r: { row } } = at[0]);
+      }
       if (!BRICKS[brick]?.stack || !M.rows(brick).some((r) => r.row === row)) throw new Error(`${brick} has no LoRA row ${row}`);
       M.removeRow(brick, row);
       return { brick, rows: M.rows(brick).map(({ row, file, strength, on }) => ({ row, file, strength, on })) };
@@ -909,10 +914,13 @@ export const TOOLS = [
     plan: async () => { const warning = await defaultPrompt(); return { runs: E.state().bricks.map((b) => BRICKS[b.key].title).join(" → ") || "the open workflow", ...await recipeEta(), ...(warning ? { warning } : {}) }; },
     run: async ({ question } = {}) => {
       const job = { kind: "run", title: question?.trim() || `Run ${J.where()}`, about: J.here(), by: "agent", eta_s: (await recipeEta()).eta_s };
+      // dogfood F-D13: the same recipe and seed as an earlier take come back from ComfyUI's cache, the same file; say so
+      const h = await T.hashes(await T.live()), twin = T.all().find((t) => t.status === "success" && t.hash === h.hash && t.seed_hash === h.seed_hash);
       const id = await J.queueRun(job, () => app.queuePrompt(0, 1, { queueNodeIds: E.targets() }));
       const errors = Object.entries(app.lastNodeErrors ?? {}).map(([id, e]) => ({ node: id, brick: brickOf(id), error: e.errors?.[0]?.message, details: e.errors?.[0]?.details }));
       if (errors.length || !id) throw new Error(`Not queued: ${JSON.stringify(errors)}`);
-      return { queued: true, run: id, title: job.title, state: "queued", next: "run_status {run, wait_s: 25} (or wait_for {job: run}) until state is done" };
+      return { queued: true, run: id, title: job.title, state: "queued", next: "run_status {run, wait_s: 25} (or wait_for {job: run}) until state is done",
+        ...(twin ? { cache_hit: `the same recipe and seed as take ${twin.number} (${twin.id}): ComfyUI serves that take's file from its cache, not a new render; new_seed (or a change) makes a fresh one` } : {}) };
     },
   },
   {
@@ -1275,10 +1283,11 @@ export const TOOLS = [
   },
   {
     name: "open_view",
-    description: "Open a view on this page for its person (SNAP-R80; F-A27's twin). view \"location\" with location (location:<id> or @n) opens the Location sheet (its master, the plan with camera marks, the plates). view \"picture\": a picture full size in Snap's viewer (fit / 100 %, zoom, pan, arrows through its row, Esc closes), on the tab your calls go to, so an agent driving the person's tab can show them a picture. Name it by one of: take (a take id: its pictures and videos, a sheet's views too; index picks one), cast (cast:<id>, ref its picture's number from 0: steps through the Cast's pictures), decision (a candidate decision; candidate picks where it starts: steps through every candidate's pictures), file (a picture in input/), path (output/… or input/…, as candidate_frames and list_candidates give). Nothing changes and the page doesn't navigate; the person closes it. Returns what is showing.",
-    inputSchema: { type: "object", properties: { view: { type: "string", enum: ["picture", "location"] }, take: { type: "string" }, index: { type: "integer", minimum: 0 }, cast: { type: "string" }, ref: { type: "integer", minimum: 0 },
+    description: "Open a view on this page for its person (SNAP-R80; F-A27's twin). view \"library\" opens the Agent library (tab: here = Applies here (default), notes = Instructions, skills; scope: e.g. tool:save_location) (F-D09). view \"location\" with location (location:<id> or @n) opens the Location sheet (its master, the plan with camera marks, the plates). view \"picture\": a picture full size in Snap's viewer (fit / 100 %, zoom, pan, arrows through its row, Esc closes), on the tab your calls go to, so an agent driving the person's tab can show them a picture. Name it by one of: take (a take id: its pictures and videos, a sheet's views too; index picks one), cast (cast:<id>, ref its picture's number from 0: steps through the Cast's pictures), decision (a candidate decision; candidate picks where it starts: steps through every candidate's pictures), file (a picture in input/), path (output/… or input/…, as candidate_frames and list_candidates give). Nothing changes and the page doesn't navigate; the person closes it. Returns what is showing.",
+    inputSchema: { type: "object", properties: { view: { type: "string", enum: ["picture", "location", "library"] }, tab: { type: "string", enum: ["skills", "notes", "here"] }, scope: { type: "string" }, take: { type: "string" }, index: { type: "integer", minimum: 0 }, cast: { type: "string" }, ref: { type: "integer", minimum: 0 },
       decision: { type: "string" }, candidate: { type: "string" }, file: { type: "string" }, path: { type: "string" }, location: { type: "string" }, plate: { type: "string", description: "view picture: a plate of location (by name), or master / plan" } }, required: ["view"] },
-    run: async ({ view, take, index = 0, cast, ref = 0, decision, candidate, file, path, location: place, plate }) => {
+    run: async ({ view, take, index = 0, cast, ref = 0, decision, candidate, file, path, location: place, plate, tab = "here", scope }) => {
+      if (view === "library") return { showing: await ui.act("library", `${tab}${scope ? `|${scope}` : ""}`), said: `the Agent library is open on the person's page (${tab === "notes" ? "Instructions" : tab === "skills" ? "Skills" : "Applies here"}${scope ? `, ${scope}` : ""})` }; // F-D09
       if (view === "location") { if (!place) throw new Error("open_view location: give location (location:<id>, list_locations lists them)"); await W.load(); L.locationOf(place); return { showing: (await ui.act("location", place)), said: "the Location sheet is open on the person's page" }; }
       if (place) { // a location's pictures, starting at the plate named (or its master / plan)
         await W.load(); const { body: b, n } = L.locationOf(place), pics = [...L.LOCATION_PICTURES.filter((k) => b[k]).map((k) => [k, b[k]]), ...(b.plates ?? []).map((p) => [`plate ${p.name}`, p])];

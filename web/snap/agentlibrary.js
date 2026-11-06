@@ -97,11 +97,13 @@ export async function openLibrary(host, { say, view = "here", scope = null, focu
     const search = h("input", { className: "snap-note-input snap-al-search", type: "search", value: query, placeholder: "Search notes: words, scope, author, rule (SNAP-R86), tag", ariaLabel: "search notes", oninput: (e) => { query = e.target.value; const at = e.target.selectionStart; draw(); const s = body.querySelector(".snap-al-search"); s.focus(); s.setSelectionRange(at, at); } });
     const unseen = I.unseen();
     const groups = ["person", "install", "pack"].map((layer) => [layer, all.filter((r) => r.layer === layer)]).filter(([, l]) => l.length);
+    // dogfood F-D09: a note an active "replace" note supersedes reads as replaced here too, not as a plain "on"
+    const replaced = new Map(I.rows().filter((x) => x.mode === "replace" && !I.isOff(x.ref)).flatMap((x) => (x.supersedes ?? []).map((k) => [k.split("@")[0], `${x.layer === "person" ? "yours" : who(x.by)}: “${line(x)}” (${x.ref})`])));
     return [h("div", { className: "snap-al-toolbar" }, search, h("span", { className: "snap-quiet", textContent: `${plural(all.length, "note")}${q ? " match" : ""}` }), h("span", { className: "snap-spacer" }),
       unseen.length ? h("button", { className: "snap-link snap-al-btn", textContent: `Mark ${unseen.length} seen`, onclick: act(async () => { await I.seen(unseen.map((r) => r.ref)); return "All seen"; }) }) : null,
       h("button", { className: "snap-link snap-al-btn", textContent: "+ Add a note", onclick: () => { adding = true; draw(); } })),
       adding ? adder(here ?? "global") : null,
-      ...groups.flatMap(([layer, list]) => [h("div", { className: "snap-rail-title", textContent: `${layer === "person" ? "Yours (and what agents wrote for you)" : layer === "install" ? "Shared on this install" : "The pack's"} · ${list.length}` }), ...list.map((r) => noteRow(r))]),
+      ...groups.flatMap(([layer, list]) => [h("div", { className: "snap-rail-title", textContent: `${layer === "person" ? "Yours (and what agents wrote for you)" : layer === "install" ? "Shared on this install" : "The pack's"} · ${list.length}` }), ...list.map((r) => noteRow(r, { struck: replaced.get(r.key) ?? null }))]),
       all.length ? null : h("div", { className: "snap-quiet", textContent: "No note matches." })];
   }
   function drawHere() {
@@ -126,6 +128,9 @@ export async function openLibrary(host, { say, view = "here", scope = null, focu
         ...[...a.stack.map((s) => byRef.get(s.ref)).filter((x) => x && !inConflict.has(x.ref)), ...rows.filter((x) => struck.has(x.ref)), ...r.offRows.map((s) => byRef.get(s.ref)).filter(Boolean)]
           .filter((x) => !exact || x.scope === here)
           .map((x) => noteRow(x, { struck: struck.has(x.ref) ? struck.get(x.ref).split(", ").map((ref) => { const w = byRef.get(ref); return w ? `${w.layer === "person" ? "yours" : who(w.by)}: “${line(w)}” (${ref})` : ref; }).join("; ") : null })),
+        // dogfood F-D09: tool notes ride on a tool call, not on the recipe, so "this recipe" listed none; show them apart
+        ...(!here ? (() => { const tools = I.rows().filter((x) => x.scope.startsWith("tool:") && !I.isOff(x.ref)), gone = new Map(tools.filter((x) => x.mode === "replace").flatMap((x) => (x.supersedes ?? []).map((k) => [k.split("@")[0], `yours: “${line(x)}” (${x.ref})`])));
+          return tools.length ? [h("details", { className: "snap-al-tools" }, h("summary", { className: "snap-rail-title", textContent: `When an agent calls a tool · ${tools.length} notes${gone.size ? ` · ${gone.size} replaced by yours` : ""}` }), ...tools.map((x) => noteRow(x, { struck: gone.get(x.key) ?? null })))] : []; })() : []),
         a.skills.length ? h("div", { className: "snap-rail-title", textContent: "Skills for this" }) : null,
         ...a.skills.map((s) => h("button", { className: "snap-link snap-al-btn", textContent: `${s.name}${s.yours ? ` (yours v${s.yours})` : ""}`, title: s.description, onclick: () => { tab = "skills"; openSkill = s.name; skillMode = "read"; draw(); } })));
     })().catch((err) => fill(box, h("div", { className: "snap-world-warn", textContent: err.message })));

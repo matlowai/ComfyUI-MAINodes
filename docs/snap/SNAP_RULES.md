@@ -824,7 +824,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   general targets before specific, oldest first. A note adds unless it `replace`s outer ones it names in `supersedes`;
   same-job `model_choice` notes: the inner level wins (the outer is listed `overridden`), at one level they are a
   `conflict`; both cases are shown, never hidden. Off and seen are the person's marks (`snap/instructions.json`), never
-  versions. The stack has a hash of its refs and off list; `instructions`, `describe_recipe`, `get_take` and
+  versions. The stack has a hash of its live refs (an off note is out of them; G2, dogfood F-D09: turning a tweak off gives back the old hash); `instructions`, `describe_recipe`, `get_take` and
   `get_scene` return it whole (SNAP-R58), the pack's `tool:` notes end that tool's description, and every queued Snap
   run pins `{refs, off, context}` in `extra.snap.instructions`, so a take says what it ran under, what applies now and
   what changed (texts at both versions). Instructions stay off the take's stale chip: a note edit doesn't change what a
