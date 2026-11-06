@@ -209,15 +209,15 @@ export const BOOK_TOOLS = [
   {
     name: "compile_unit",
     description: "The compiled state sheet of a cut (SNAP-R68), what it would put into its recipe: at (the beat it compiles at), every entity in frame with each state field (value, the beat and change that set it, its provenance story:<id>@n bN change cN, the sentence it becomes, and its backing: a state picture or 'words only'), the place (location version, plate, pose), the reference package (pictures with roles and why, the 9-picture budget and what would go over), the prompt (the production style paragraph first, then the sentences with their sources), the still prompt (style, blank line, subject: for boards), the lint (palette colour words, missing beats) and from (a hash per field used). Nothing changes; apply_unit puts it into the cut's recipe.",
-    inputSchema: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" } }, required: ["scene", "shot"] },
+    inputSchema: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" }, beats: { type: "array", items: { type: "string" }, description: "compile at these beats instead of the cut's own (the Beat slot)" } }, required: ["scene", "shot"] },
     annotations: { readOnlyHint: true },
-    run: async ({ scene, shot }) => { await ready(); return B.compile(scene, shot); },
+    run: async ({ scene, shot, beats }) => { await ready(); return B.compile(scene, shot, { beats: beats ?? null }); },
   },
   {
     name: "apply_unit",
-    description: "Put a cut's compile into its recipe (opens its shot first): length from its timing; the prompt's three lines (the production style paragraph first in the description, the state sentences, dialogue citing each speaker's <Audio n>, the soundscape); each Cast in frame (apply_cast: LoRA, line, pictures, voice); state pictures; its location with the plate as the camera; an approved board as the opening picture. Pins the style (world) and the story version, beat and field hashes the take will carry (story_stale reads them). Start a recipe first on an empty shot (start_recipe).",
-    inputSchema: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" } }, required: ["scene", "shot"] },
-    run: async ({ scene, shot }) => { await ready(); const out = await B.apply(scene, shot, { by: "agent" }); return { said: out.said, prompt: out.sheet.prompt, package: out.sheet.package, lint: out.sheet.lint, next: "run {question} renders it" }; },
+    description: "Put a cut's compile into its recipe (opens its shot first); beats (optional, the Beat slot) compiles it at other beats than its own, the same shot at another story moment (\"Kon after the fall\"), and its takes remember them: length from its timing; the prompt's three lines (the production style paragraph first in the description, the state sentences, dialogue citing each speaker's <Audio n>, the soundscape); each Cast in frame (apply_cast: LoRA, line, pictures, voice); state pictures; its location with the plate as the camera; an approved board as the opening picture. Pins the style (world) and the story version, beat and field hashes the take will carry (story_stale reads them). Start a recipe first on an empty shot (start_recipe).",
+    inputSchema: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" }, beats: { type: "array", items: { type: "string" } } }, required: ["scene", "shot"] },
+    run: async ({ scene, shot, beats }) => { await ready(); const out = await B.apply(scene, shot, { by: "agent", beats: beats ?? null }); return { said: out.said, prompt: out.sheet.prompt, package: out.sheet.package, lint: out.sheet.lint, next: "run {question} renders it" }; },
   },
   {
     name: "story_stale",

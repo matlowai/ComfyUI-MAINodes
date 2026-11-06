@@ -449,7 +449,8 @@ it on the Library rail's **Book** row (lenses Beat sheet, Settei, Boards, Cut ba
 - **Compile, then apply**: `compile_unit {"scene", "shot"}` is the compiled state sheet (each field with the beat and
   change that set it, its sentence, "words only" or its state picture; the place; the reference package; the prompt
   with the style paragraph first; palette notes). `apply_unit` puts it into the cut's recipe (open the shot and
-  `start_recipe` first on an empty one) and pins what the take will carry; then `run`. `story_stale {"book"}` names
+  `start_recipe` first on an empty one) and pins what the take will carry; then `run`. Both take `beats` (the Beat
+  slot): the same cut at another story moment, and its takes remember it. `story_stale {"book"}` names
   the takes whose used fields moved.
 - **Style**: `save_style {"book", "name", "paragraph", "palette": "monochrome" | "limited" | "full", "still": {"take"} or
   {"file"}, "voice", "sound", "genre"}`. Under monochrome or limited keep colour words out of Cast lines (the compile

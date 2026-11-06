@@ -337,10 +337,11 @@ export function unitOf(sceneId, shotId) {
 // the compiled state sheet of a unit: every entity's state at the unit's beat with provenance, the place, the reference
 // package with roles, the prompt sentences with their sources, palette notes, and `from` (a hash per field the compile
 // used, which takes pin to read story staleness). `story` overrides the head's body (reversal cost, a draft)
-export async function compile(sceneId, shotId, { story: draft = null } = {}) {
+// `beats` compiles the unit at other beats than its own (the Beat slot: the same shot at another story moment)
+export async function compile(sceneId, shotId, { story: draft = null, beats: at_ = null } = {}) {
   await Promise.all([W.load(), SC.load(), T.load(), L.ready()]);
   const { scene, shot, book, unit } = unitOf(sceneId, shotId), st = book.body.story ? storyOf(book.body) : null, story = draft ?? st?.body ?? cleanStory({});
-  const beats = (unit.beats ?? []).map((id) => story.beats.find((b) => b.id === id) ?? { id, missing: true }), present = beats.filter((b) => !b.missing);
+  const beats = (at_ ?? unit.beats ?? []).map((id) => story.beats.find((b) => b.id === id) ?? { id, missing: true }), present = beats.filter((b) => !b.missing);
   const at = present.length ? present.reduce((a, b) => (b.order > a.order ? b : a)) : null; // the unit's moment: its latest beat in story order
   const style = styleOf(book.body), sentences = [], package_ = [], lint = [], from = {}, words = [];
   const say = (text, src) => { if (text) sentences.push({ text: cap(text.replace(/\.?$/, ".")), from: src }); };
@@ -453,8 +454,8 @@ export async function setUnit(sceneId, shotId, u, { by = "person" } = {}) {
 }
 
 // ---- apply a compile to the open recipe (the Snap chain of the unit's shot) ------------------------------------------
-export async function apply(sceneId, shotId, { by = "agent" } = {}) {
-  const sheet = await compile(sceneId, shotId), { unit } = unitOf(sceneId, shotId);
+export async function apply(sceneId, shotId, { by = "agent", beats = null } = {}) {
+  const sheet = await compile(sceneId, shotId, { beats }), { unit } = unitOf(sceneId, shotId);
   if (SC.current()?.shot.id !== shotId) await SC.openShot(sceneId, shotId);
   if (!E.state().bricks.some((b) => b.key === "render")) throw new Error(`${unit.cut ?? "This cut"} has no recipe yet: start_recipe first (it opens on the shot), then apply_unit again`);
   const said = [], number = units(bookOfScene(sceneId)).findIndex((x) => x.shot.id === shotId) + 1;
@@ -489,7 +490,7 @@ export async function apply(sceneId, shotId, { by = "agent" } = {}) {
   if (hint) first = `${first.replace(/\s*$/, "")} ${hint}`;
   E.setValue("render", "render", "prompt", [first, ...others].join("\n"));
   if (sheet.style) L.pin(sheet.style.ref.replace(/@\d+$/, ""), { n: +sheet.style.ref.split("@")[1], hash: W.short(W.get(sheet.style.ref).version.hash), name: sheet.style.name });
-  E.tag("story", { book: sheet.book, ...(sheet.story ? { ref: sheet.story.ref } : {}), beat: sheet.at?.beat ?? null, unit: { scene: sceneId, shot: shotId, cut: unit.cut ?? null }, from: sheet.from });
+  E.tag("story", { book: sheet.book, ...(sheet.story ? { ref: sheet.story.ref } : {}), beat: sheet.at?.beat ?? null, ...(beats ? { beats } : {}), unit: { scene: sceneId, shot: shotId, cut: unit.cut ?? null }, from: sheet.from });
   return { said: said.filter(Boolean), sheet };
 }
 
@@ -499,8 +500,8 @@ export async function apply(sceneId, shotId, { by = "agent" } = {}) {
 export async function storyStale(take, { story = null, compiled = new Map() } = {}) {
   const s = take?.story ?? take?.graph?.extra?.snap?.story;
   if (!s?.unit || !s.from) return null;
-  const key = `${s.unit.scene}/${s.unit.shot}`;
-  if (!compiled.has(key)) compiled.set(key, compile(s.unit.scene, s.unit.shot, { story }).catch((e) => ({ error: e.message })));
+  const key = `${s.unit.scene}/${s.unit.shot}/${s.beats?.join() ?? ""}`; // a take made at another beat compiles at that beat
+  if (!compiled.has(key)) compiled.set(key, compile(s.unit.scene, s.unit.shot, { story, beats: s.beats ?? null }).catch((e) => ({ error: e.message })));
   const now = await compiled.get(key);
   if (now.error) return { reasons: [`its unit can't compile now: ${now.error}`] };
   // a field now, by its key (cast:kon.carried.right_hand), with the beat that set it
