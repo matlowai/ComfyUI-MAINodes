@@ -3,8 +3,11 @@
 // pan, ← → through the pictures of the same row or tray (its group), Esc closes; it names the picture, its source and
 // size, and "Open in a new tab" leaves this tab as it is. Viewing never changes anything; a thumbnail whose click did
 // something else (the References row opened its Cast or set) keeps that as a button in the viewer.
-// The agent twin is open_view {view: "picture"} (tools.js), which opens it on the person's tab.
-// SNAP-R5 never navigate away from the work · SNAP-R80 every picture one click from full size · see docs/snap/SNAP_RULES.md
+// The agent twin is open_view {view: "picture"} (tools.js), which opens it on the person's tab. An item may carry the
+// critic's masks ({k, region, severity, text}): drawn over the picture at any zoom, a box and its number each, with the
+// notes listed in the bar's title (F-E21: the viewer showed none of the critic's regions).
+// SNAP-R5 never navigate away from the work · SNAP-R80 every picture one click from full size · SNAP-R136 masks numbered,
+// never words over the picture · see docs/snap/SNAP_RULES.md
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const actions = new WeakMap(); // a thumbnail's own action, offered in the viewer
@@ -17,6 +20,7 @@ export function full(el, item, group, action) {
   if (action) actions.set(el, action);
   return el;
 }
+const SEV = { high: "#e5484d", medium: "#f0b445", low: "#6aa8ff" };
 const itemOf = (el) => ({ src: el.dataset.fullSrc, name: el.dataset.fullName, source: el.dataset.fullSource, kind: el.dataset.fullKind, action: actions.get(el) ?? null });
 
 // one capture-phase listener: a marked thumbnail's click opens the viewer and stops there (the row's own click doesn't run)
@@ -35,7 +39,7 @@ export const showing = () => open && { index: open.at, count: open.items.length,
 export function show(items, at = 0) {
   close();
   let fit = true, scale = 1, x = 0, y = 0, drag = null;
-  const media = h("div", { className: "snap-lb-stage" }), head = h("div", { className: "snap-lb-what" });
+  const media = h("div", { className: "snap-lb-stage" }), head = h("div", { className: "snap-lb-what" }), masks = h("div", { className: "snap-lb-masks" });
   const fitBtn = h("button", { onclick: () => { fit = !fit; scale = 1; x = y = 0; place(); } });
   // the scale fit shows it at: the whole picture in the stage, small ones enlarged too
   const fitScale = () => { const n = natural(), r = media.getBoundingClientRect(); return n.w && n.h ? Math.min(r.width / n.w, r.height / n.h) : 1; };
@@ -45,7 +49,7 @@ export function show(items, at = 0) {
     h("div", { className: "snap-lb-bar" }, head, h("span", { className: "snap-spacer" }), act, fitBtn,
       h("button", { textContent: "−", title: "zoom out", onclick: () => zoom(1 / 1.25) }), h("button", { textContent: "+", title: "zoom in", onclick: () => zoom(1.25) }), tab,
       h("button", { textContent: "✕", title: "close (Esc)", onclick: () => close() })),
-    media,
+    media, masks,
     h("button", { className: "snap-lb-prev", textContent: "‹", title: "previous (←)", onclick: () => step(-1) }), h("button", { className: "snap-lb-next", textContent: "›", title: "next (→)", onclick: () => step(1) }));
   const current = () => media.firstElementChild;
   const natural = () => { const m = current(); return m ? { w: m.naturalWidth ?? m.videoWidth ?? 0, h: m.naturalHeight ?? m.videoHeight ?? 0 } : { w: 0, h: 0 }; };
@@ -56,12 +60,27 @@ export function show(items, at = 0) {
     m.style.transform = fit ? "" : `translate(${x}px, ${y}px) scale(${scale})`;
     fitBtn.textContent = fit ? "100 %" : "Fit";
     fitBtn.title = fit ? "show it at its own size (pixel for pixel)" : "fit it to the window";
+    paintMasks();
+  }
+  // the picture's own rectangle on screen (fit letterboxes it inside the element), then each mask inside it
+  function paintMasks() {
+    const it = open?.items[open.at], m = current(), n = natural();
+    masks.replaceChildren();
+    if (!it?.masks?.length || !m || !n.w) return;
+    const r = m.getBoundingClientRect(), k = fit ? Math.min(r.width / n.w, r.height / n.h) : r.width / n.w, w = n.w * k, hh = n.h * k, left = r.left + (r.width - w) / 2, top = r.top + (r.height - hh) / 2;
+    for (const x of it.masks) {
+      const box = h("div", { className: "snap-lb-mask", title: `${x.k} · ${x.severity} · ${x.text ?? ""}` }, h("i", { textContent: String(x.k) }));
+      Object.assign(box.style, { left: `${left + x.region[0] * w}px`, top: `${top + x.region[1] * hh}px`, width: `${x.region[2] * w}px`, height: `${x.region[3] * hh}px` });
+      box.style.setProperty("--sev", SEV[x.severity] ?? SEV.low);
+      masks.append(box);
+    }
   }
   function load() {
     const it = open.items[open.at];
     fit = true; scale = 1; x = y = 0;
     const m = it.kind === "video" ? h("video", { src: it.src, controls: true, autoplay: true, loop: true, playsInline: true }) : h("img", { src: it.src, alt: it.name || "picture", draggable: false });
     const what = () => { const n = natural(); head.replaceChildren(...[h("b", { textContent: it.name || "picture" }), it.source ? h("span", { textContent: ` · ${it.source}` }) : null,
+      it.masks?.length ? h("span", { className: "snap-quiet", title: it.masks.map((x) => `${x.k} · ${x.severity} · ${x.text ?? ""}`).join("\n"), textContent: ` · ${it.masks.length} critic mask${it.masks.length === 1 ? "" : "s"}` }) : null,
       n.w ? h("span", { textContent: ` · ${n.w}×${n.h}` }) : null, open.items.length > 1 ? h("span", { className: "snap-quiet", textContent: ` · ${open.at + 1} of ${open.items.length}` }) : null].filter(Boolean)); };
     m.addEventListener(it.kind === "video" ? "loadedmetadata" : "load", () => { what(); place(); });
     media.replaceChildren(m); what(); place();
@@ -89,8 +108,9 @@ export function show(items, at = 0) {
     else if (e.key === "0" || e.key === "f") { fit = !fit; scale = 1; x = y = 0; place(); } else return;
     e.preventDefault(); e.stopImmediatePropagation(); // the take viewer under it keeps its own Esc and arrows
   };
-  open = { items, at: Math.min(Math.max(0, at), items.length - 1), root, keys };
+  open = { items, at: Math.min(Math.max(0, at), items.length - 1), root, keys, resize: () => paintMasks() };
   window.addEventListener("keydown", keys, true); // before the document's capture listeners (the take viewer's)
+  window.addEventListener("resize", open.resize);
   document.body.append(root);
   load();
   root.focus();
@@ -99,6 +119,7 @@ export function show(items, at = 0) {
 export function close() {
   if (!open) return;
   window.removeEventListener("keydown", open.keys, true);
+  window.removeEventListener("resize", open.resize);
   open.root.remove();
   open = null;
 }

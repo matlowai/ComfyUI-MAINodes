@@ -818,6 +818,9 @@ export const STYLE = `
 .snap-lb-stage > img, .snap-lb-stage > video { max-width: none; max-height: none; transform-origin: center; user-select: none; }
 .snap-lb-stage > .fit { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; } /* small pictures (head crops) are enlarged to fit too */
 .snap-lb-prev, .snap-lb-next { all: unset; position: fixed; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 34px; padding: 12px 16px; border-radius: 12px; background: #0008; color: #fff; }
+.snap-lb-masks { position: fixed; inset: 0; pointer-events: none; }
+.snap-lb-mask { position: fixed; border: 2px solid var(--sev); background: color-mix(in srgb, var(--sev) 18%, transparent); border-radius: 3px; box-sizing: border-box; }
+.snap-lb-mask i { position: absolute; left: 2px; top: 2px; min-width: 18px; height: 18px; padding: 0 4px; box-sizing: border-box; border-radius: 9px; background: var(--sev); color: #0b1220; font: 700 12px/18px system-ui, sans-serif; font-style: normal; text-align: center; }
 .snap-lb-prev { left: 12px; } .snap-lb-next { right: 12px; } .snap-lb-prev:disabled, .snap-lb-next:disabled { display: none; }
 /* UI-01 (SNAP-R118): References as an editor */
 .snap-pics figure { position: relative; }
@@ -837,7 +840,7 @@ export const STYLE = `
 .snap-picker-take { margin: 0; width: 132px; display: flex; flex-direction: column; gap: 3px; }
 .snap-picker-take img, .snap-picker-take video { width: 132px; height: 88px; object-fit: contain; background: #0005; border-radius: 8px; border: 1px solid #ffffff14; }
 .snap-picker-take button { font-size: 11px; white-space: normal; text-align: left; }
-.snap-loc-gap { color: #f0b445; font-size: 12px; line-height: 1.35; } /* F-D10 */
+.snap-loc-gap { color: #c9b48a; font-size: 11px; line-height: 1.35; } /* F-D10, F-E18: typed numbers, a quiet line with the whole why on hover */
 .snap-shot-truth { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 6px 0 0; padding: 6px 10px; border-radius: 9px; background: #f0b44514; border: 1px solid #f0b44555; color: #f6cf86; font-size: 12.5px; } /* UI-09 */
 .snap-shot-truth[hidden] { display: none; }
 .snap-pics-menu { z-index: 120; gap: 4px; padding: 10px; } .snap-pics-menu label { font-size: 13px; display: flex; gap: 6px; align-items: center; } .snap-pin-pics { font-size: 11px; } /* UI-04 */

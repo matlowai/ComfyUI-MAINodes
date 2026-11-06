@@ -5,10 +5,14 @@
 // with the mask drawn and a New view of it whose prompt is the fix line, so the fix lands as candidates beside the old
 // one; a location or Cast owner also opens its sheet) and Add as fixture (the note becomes a critic fixture). A due
 // critique nobody claimed says "no critic on duty" with "Critique it yourself": the same packet, as a sheet. The Location
-// sheet shows the critic per picture with its masks, "Critique this location", and "Re-run dependents" with its plan.
+// sheet shows the critic per picture, "Critique this location", and "Re-run dependents" with its plan; "Show masks" draws
+// every note of every row that holds for this version on its picture at once (the master, the plan, each plate; "every
+// view" notes on the picture they name), each mask a box with a small numbered badge and nothing written over the
+// picture, and the notes listed below by number with their pass, owner and fix (F-E03..F-E06, F-E21).
 // Candidate tiles carry the critic's chip beside the other notes. Nothing here is hidden, rejected or held by a note.
 // SNAP-R103 notes as masks, they inform · SNAP-R105 fix at the source · SNAP-R106 re-run dependents · SNAP-R108 a miss
-// is one press from a fixture · SNAP-R110 a stale critique says why · SNAP-R5 only a press moves · see docs/snap/SNAP_RULES.md
+// is one press from a fixture · SNAP-R110 a stale critique says why · SNAP-R5 only a press moves · SNAP-R136 masks:
+// all at once, numbered, never words over the picture · see docs/snap/SNAP_RULES.md
 import * as CR from "./critiques.js";
 import * as DP from "./dependents.js";
 import * as T from "./takes.js";
@@ -38,6 +42,18 @@ const STYLE_TEXT = `
 .snap-critic-sheet .snap-critic-prompt { width: 100%; min-height: 70px; }
 .snap-critic-packet { display: grid; gap: 10px; padding: 4px 16px 16px; overflow: auto; } .snap-critic-sheet select { color: var(--s-fg); } .snap-critic-packet figure { margin: 0; } .snap-critic-packet img { max-width: 100%; border-radius: 6px; }
 .snap-critic-loc { display: grid; gap: 4px; }
+.snap-critic-loc-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.snap-critic-loc-row { display: flex; gap: 6px; flex-wrap: wrap; font-size: 12px; }
+.snap-loc-pic { position: relative; display: block; overflow: hidden; border-radius: 8px; line-height: 0; }
+.snap-loc-pic > img { aspect-ratio: auto !important; height: auto !important; object-fit: fill !important; }
+.snap-mask { position: absolute; border: 2px solid var(--sev); background: color-mix(in srgb, var(--sev) 18%, transparent); border-radius: 3px; pointer-events: none; box-sizing: border-box; }
+.snap-mask.lit { border-width: 3px; background: color-mix(in srgb, var(--sev) 34%, transparent); box-shadow: 0 0 0 2px #0b1220; }
+.snap-mask i { position: absolute; left: 1px; top: 1px; min-width: 15px; height: 15px; padding: 0 3px; box-sizing: border-box; border-radius: 8px; background: var(--sev); color: #0b1220; font: 700 10px/15px Inter, system-ui, sans-serif; font-style: normal; text-align: center; }
+.snap-critic-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 340px; overflow: auto; }
+.snap-critic-list li { display: grid; grid-template-columns: auto 1fr; gap: 1px 6px; padding: 4px 6px; border-radius: 6px; border-left: 3px solid var(--sev); background: #ffffff08; cursor: pointer; font-size: 12px; line-height: 1.35; }
+.snap-critic-list li.on { background: #ffffff1c; }
+.snap-critic-list li > b { grid-row: span 3; min-width: 18px; height: 18px; border-radius: 9px; background: var(--sev); color: #0b1220; font-size: 11px; text-align: center; line-height: 18px; }
+.snap-critic-list li > span { overflow-wrap: anywhere; } .snap-critic-list .snap-quiet { font-size: 11px; }
 `;
 let styled = false;
 const style = () => { if (styled) return; styled = true; document.head.append(h("style", { textContent: STYLE_TEXT })); };
@@ -208,34 +224,66 @@ export async function packetSheet(host, r, { say }) {
 }
 
 // ---- the Location sheet's critic block (SNAP-R103, R106) --------------------------------------------------------------
+// the picture of a location a note's mask lands on: the row's own part, or for "every view" the packet picture it named
+export function notePart(r, x) {
+  if (r.subject.part !== "views") return r.subject.part;
+  const what = r.packet?.pictures?.[x.picture ?? 0]?.what ?? "";
+  return what.match(/, (master|plan|map|plate .+)$/)?.[1] ?? null;
+}
+// every note of the rows that hold for location ref (SNAP-R136), numbered high first: [{k, row, note, part}]
+export function locationNotes(ref) {
+  const order = (a, b) => ORDER[a.note.severity] - ORDER[b.note.severity];
+  return CR.holding(ref).filter((r) => r.done).flatMap((r) => r.notes.map((x) => ({ row: r, note: x, part: notePart(r, x) }))).sort(order).map((x, i) => ({ ...x, k: i + 1 }));
+}
+// the masks on a sheet (or any root holding .snap-loc-pic[data-part] wrappers): all notes at once, a numbered badge each
+export function paintMasks(root, list, { on = true, lit = null } = {}) {
+  for (const x of root.querySelectorAll(".snap-mask")) x.remove();
+  if (!on) return;
+  for (const { k, note, part } of list) {
+    const holder = note.region && part && root.querySelector(`.snap-loc-pic[data-part="${CSS.escape(part)}"]`);
+    if (!holder) continue;
+    const [x, y, w, hh] = note.region;
+    const m = h("div", { className: `snap-mask${lit === k ? " lit" : ""}`, title: `${k} · ${note.severity} · ${note.text ?? note.words ?? ""}`, style: `--sev:${COLOR[note.severity] ?? COLOR.low};left:${x * 100}%;top:${y * 100}%;width:${w * 100}%;height:${hh * 100}%` }, h("i", { textContent: String(k) }));
+    m.dataset.k = k;
+    holder.append(m);
+  }
+}
+const sheetMasks = new WeakMap(); // a sheet's mask switch survives the block redrawing
+export function showMasks(sheet, on) { sheetMasks.set(sheet, on); sheet.dispatchEvent(new Event("snap-masks")); }
+export const masksOn = (sheet) => sheetMasks.get(sheet) ?? false;
 export function locationBlock({ id, n, say }) {
   style();
   const box = h("section", { className: "snap-critic-loc" }), ref = W.refOf("location", id, n);
-  const masks = (sheet, part, notes) => {
-    for (const x of sheet.querySelectorAll(".snap-critic-box")) x.remove();
-    const img = part === "master" ? sheet.querySelector(".snap-loc-master img") : sheet.querySelector(`.snap-loc-plate img[alt="${CSS.escape(part.replace(/^plate /, ""))}"]`);
-    const holder = img?.parentElement;
-    if (!holder) return;
-    holder.style.position = "relative";
-    for (const x of notes.filter((q) => q.region)) holder.append(h("div", { className: "snap-critic-box", title: x.text ?? "", style: `--sev:${COLOR[x.severity]};left:${x.region[0] * 100}%;top:${x.region[1] * 100}%;width:${x.region[2] * 100}%;height:${x.region[3] * 100}%` }, h("b", { textContent: `${x.severity} · ${(x.text ?? "").slice(0, 32)}` })));
-  };
+  let lit = null;
+  const sheetOf = () => box.closest(".snap-loc-sheet");
   const draw = () => {
-    const rows = CR.ofRecord(ref).filter((r) => W.parse(r.subject.ref).n === n), plan = (() => { try { return DP.plan(W.refOf("location", id)); } catch { return null; } })();
-    const line = (r) => { const st = CR.stateOf(r);
-      return h("div", {}, h("span", { textContent: `${r.subject.part === "views" ? "every view" : r.subject.part}: ` }),
-        h("span", { className: CR.counts(r).high ? "snap-critic-late" : "snap-quiet", textContent: st === "done" ? CR.countText(r) : st === "due" ? "critique due" : st === "claimed" ? "critic reading…" : "skipped" }),
-        st === "done" && r.notes.some((x) => x.region) && r.subject.part !== "views" ? h("button", { className: "snap-link snap-quiet-btn", textContent: "show masks", onclick: (e) => masks(e.target.closest(".snap-loc-sheet"), r.subject.part, r.notes) }) : null); };
+    const rows = CR.holding(ref), list = locationNotes(ref), plan = (() => { try { return DP.plan(W.refOf("location", id)); } catch { return null; } })(), sheet = sheetOf(), on = sheet ? masksOn(sheet) : false;
+    const line = (r) => { const st = CR.stateOf(r), was = W.parse(r.subject.ref).n;
+      return h("div", { className: "snap-critic-loc-row" }, h("span", {}, `${r.subject.part === "views" ? "every view" : r.subject.part}: `,
+        h("span", { className: CR.counts(r).high ? "snap-critic-late" : "snap-quiet", textContent: st === "done" ? CR.countText(r) : st === "due" ? "critique due" : st === "claimed" ? "critic reading…" : st }),
+        was !== n ? h("span", { className: "snap-quiet", title: `this row was made for v${was}; its picture is the same in v${n}, so it still holds`, textContent: ` · read on v${was}` }) : null)); // F-E16
+    };
+    const masked = list.filter((x) => x.note.region && x.part).length;
     const stages = plan?.stages.filter((s) => s.takes.length) ?? [];
-    box.replaceChildren(...[h("div", { className: "snap-rail-title", textContent: `Critic (v${n})` }), ...(rows.length ? rows.map(line) : [h("div", { className: "snap-quiet", textContent: "No critique for this version yet" })]),
+    box.replaceChildren(...[h("div", { className: "snap-critic-loc-head" }, h("div", { className: "snap-rail-title", textContent: `Critic (v${n})` }),
+        masked ? h("button", { className: "snap-link", textContent: on ? `Hide masks` : `Show masks (${masked})`, title: "every note's region on its picture at once, numbered as in the list", onclick: () => { if (sheet) showMasks(sheet, !on); } }) : null),
+      ...(rows.length ? rows.map(line) : [h("div", { className: "snap-quiet", textContent: "No critique for this version yet" })]),
+      list.length ? h("ol", { className: "snap-critic-list" }, list.map((x) => h("li", { className: lit === x.k ? "on" : "", style: `--sev:${COLOR[x.note.severity]}`, onclick: () => { lit = lit === x.k ? null : x.k; if (sheet && lit && !masksOn(sheet)) showMasks(sheet, true); else draw(); sheet?.querySelector(`.snap-mask[data-k="${x.k}"]`)?.scrollIntoView({ block: "nearest" }); } },
+        h("b", { textContent: String(x.k) }), h("span", {}, h("strong", { textContent: `${x.note.severity} · ${x.part ?? "the record"} · ` }), x.note.text ?? x.note.words ?? ""),
+        h("span", { className: "snap-quiet", textContent: `owner: ${ownerText(x.note.owner)}${x.note.region && x.part ? "" : " · no mask"}` }), x.note.fix ? h("span", { className: "snap-critic-fix", textContent: `fix: ${x.note.fix}` }) : null))) : null,
       h("div", { className: "snap-set-actions" }, h("button", { className: "snap-link", textContent: "Critique this location", title: "every view of this version side by side, as one critique row for a critic", onclick: async () => {
         try { const { TOOLS } = CR; const out = await TOOLS.find((x) => x.name === "critique").run({ location: ref, part: "views", again: true }); say?.(`${out.title}: on the docket`); } catch (err) { say?.(err.message, true); } } })),
       stages.length ? h("div", { className: "snap-set-actions" }, h("button", { className: "snap-primary", textContent: `Re-run dependents (${stages.map((s) => `${s.takes.length} ${s.takes.length === 1 ? s.stage.replace(/s$/, "") : s.stage}`).join(", ")}${plan.eta_s != null ? ` · about ${Math.max(1, Math.round(plan.eta_s / 60))} min` : ""})`,
         title: plan.stages.map((s) => `${s.stage}: ${s.takes.length} · ${s.runs}${s.eta_s != null ? ` · about ${s.eta_s} s` : ` · ${s.from}`}`).join("\n"),
         onclick: async () => { try { say?.((await DP.start(W.refOf("location", id), { by: "person" })).said); draw(); } catch (err) { say?.(err.message, true); } } })) : null].filter(Boolean));
   };
-  CR.onChange(() => { if (box.isConnected) draw(); });
-  DP.onChange(() => { if (box.isConnected) draw(); });
-  CR.load().then(draw, () => draw());
+  // the masks live on the sheet's pictures, drawn after the block (the sheet is there once the block is in it)
+  const paint = () => { const sheet = sheetOf(); if (sheet) paintMasks(sheet, locationNotes(ref), { on: masksOn(sheet), lit }); };
+  const redraw = () => { if (!box.isConnected) return; const sheet = sheetOf(); if (sheet && !sheet.dataset.masksHooked) { sheet.dataset.masksHooked = "1"; sheet.addEventListener("snap-masks", redraw); } draw(); paint(); };
+  CR.onChange(redraw);
+  DP.onChange(redraw);
+  CR.load().then(redraw, () => draw());
   draw();
+  queueMicrotask(redraw);
   return box;
 }

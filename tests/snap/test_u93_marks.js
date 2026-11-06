@@ -75,15 +75,14 @@ const park = (d) => { const p = path.join(snap, d); if (fs.existsSync(p)) { fs.m
     R.v2 = await call("add_plate", { location: "location:location-village", name: "Pe east wall", file: "snap/location/village/Pd_houses.png" });
     await page.evaluate(async () => { const { ui } = await import("/extensions/ComfyUI-MAINodes/snap/tools.js"); await ui.act("location", "location:location-village@1"); }); await page.waitForTimeout(1500);
     R.loc = await page.evaluate(() => { const s = document.querySelector(".snap-loc-sheet"), b = s?.querySelector(".snap-critic-loc"); return b && { text: b.textContent, rerun: [...b.querySelectorAll("button")].map((x) => x.textContent) }; });
-    await page.evaluate(() => [...document.querySelectorAll(".snap-loc-sheet .snap-critic-loc button")].find((x) => x.textContent === "show masks")?.click()); await page.waitForTimeout(300);
-    R.locMasks = await page.evaluate(() => document.querySelectorAll(".snap-loc-sheet .snap-critic-box").length);
+    R.locMasks = await page.evaluate(() => document.querySelectorAll(".snap-loc-sheet .snap-mask").length);
     // the location's own master row: write it so its line and masks show too
     const mrow = await page.evaluate(() => window.__CR.all().find((r) => r.subject.kind === "record" && r.subject.part === "master" && r.subject.ref.endsWith("@1"))?.id);
     await call("claim_critique", { critique: mrow });
     await call("write_critique", { critique: mrow, verdict: "flaws", passes: { map: "the palisade crosses the front only" }, notes: [{ severity: "high", pass: "map", text: "the palisade runs across the front only; no wall behind the far rows", picture: 0, region: [0.05, 0.05, 0.9, 0.35], owner: "location master", fix: "ring the village" }] });
     await page.waitForTimeout(800);
-    await page.evaluate(() => [...document.querySelectorAll(".snap-loc-sheet .snap-critic-loc button")].find((x) => x.textContent === "show masks")?.click()); await page.waitForTimeout(400);
-    R.locMasks2 = await page.evaluate(() => document.querySelectorAll(".snap-loc-sheet .snap-loc-master .snap-critic-box").length);
+    await page.evaluate(() => [...document.querySelectorAll(".snap-loc-sheet .snap-critic-loc button")].find((x) => /^Show masks/.test(x.textContent))?.click()); await page.waitForTimeout(400); // G3: one switch for every picture
+    R.locMasks2 = await page.evaluate(() => document.querySelectorAll(".snap-loc-sheet .snap-loc-master .snap-mask").length);
     await page.screenshot({ path: path.join(out, "u93_location_sheet.png") });
     await page.evaluate(async () => app.extensionManager.setting.set("MAINodes.Snap.AgentsMayRun", true));
     const n1 = await page.evaluate(() => window.__T.all().length);

@@ -459,17 +459,26 @@ export function picturesUnread() {
 // the version, so every take made there says which version of the place it used.
 const POSE = ["x", "y", "heading", "eye_height", "lens"];
 // F-D10: a plate whose eye height differs from its camera mark's by more than 0.2 m: the walk came out lower or higher
-// than planned, and figures placed on it stand at the wrong scale. Snap doesn't measure a picture; it compares the two
-// numbers the record holds and says which is which. Returns {plate: line}
-export function eyeGaps(b) {
-  const out = {};
+// than planned, and figures placed on it stand at the wrong scale. Snap doesn't measure a picture: it compares the two
+// typed numbers the record holds, says so, and asks for a look at the horizon instead of stating a fact (F-E18: a plate
+// typed 2 m read at eye height in the picture). A plate with no mark is compared with the eye height every mark of the
+// place shares, named as such (F-E18: the highest plate had no mark and no line). {plate: {pose, plan, mark, by}}
+export function eyeGapsOf(b) {
+  const out = {}, heights = [...new Set((b.cameras ?? []).map((c) => c.eye_height).filter((x) => x != null))], shared = heights.length === 1 ? heights[0] : null;
   for (const p of b.plates ?? []) {
-    const c = p.camera && (b.cameras ?? []).find((x) => x.name === p.camera), got = p.pose?.eye_height, plan = c?.eye_height;
-    if (got != null && plan != null && Math.abs(got - plan) > 0.2) out[p.name] = `eye ${got} m on the plate, ${plan} m on camera mark ${c.name}: the walk ran ${got < plan ? "lower" : "higher"} than planned by ${Math.abs(got - plan).toFixed(1)} m (figures on it stand ${got < plan ? "too tall" : "too small"})`;
+    const c = p.camera && (b.cameras ?? []).find((x) => x.name === p.camera), got = p.pose?.eye_height, plan = c ? c.eye_height : shared;
+    if (got != null && plan != null && Math.abs(got - plan) > 0.2) out[p.name] = { pose: got, plan, mark: c?.name ?? null, by: +(got - plan).toFixed(1) };
   }
   return out;
 }
-export const LOCATION_PICTURES = ["master", "plan"];
+// the same as lines for agents: which numbers, where each came from, and what to check
+export function eyeGaps(b, only = null) {
+  return Object.fromEntries(Object.entries(eyeGapsOf(b)).filter(([name]) => !only || only.includes(name)).map(([name, g]) => [name,
+    `pose says eye ${g.pose} m, ${g.mark ? `camera mark ${g.mark} says ${g.plan} m` : `no camera mark (every mark of this place is at ${g.plan} m)`}: ${Math.abs(g.by)} m ${g.by < 0 ? "lower" : "higher"} than planned by the typed numbers. Snap compares what was typed, not the picture: check the horizon against the doors; if the pose is right, figures on it stand ${g.by < 0 ? "too tall" : "too small"}`]));
+}
+// SNAP-R84: master, plan, and the camera map (F-E11: the walks' wedges drawn over the plan, kept as its own picture so the
+// plan stays bare); the map is for people and critics, never a render's reference (SNAP-R133: marks leak into renders)
+export const LOCATION_PICTURES = ["master", "plan", "map"];
 const locationStamp = () => `location-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const locationCard = (id, b) => ({ id, kind: "location", title: `Location: ${b.name}`, text: [b.notes, ...(b.plates ?? []).map((p) => `plate ${p.name}${p.use ? `: ${p.use}` : ""}`)].filter(Boolean).join(" ") || b.name,
   brick: { location: `location:${id}` }, ...(b.master ? { media: [{ kind: "image", ...inputMedia(b.master.file) }] } : {}), ...(b.rating ? { rating: b.rating } : {}) });
@@ -488,7 +497,7 @@ async function locationPicture(p, what) {
   if (p == null) return null;
   if (p.take) {
     await T.load();
-    const t = T.get(p.take);
+    const t = T.find(p.take);
     if (!t) throw new Error(`${what}: no take ${p.take} (list_takes lists them)`);
     const { file, frame } = await T.frameAt(t, "last", { frame: p.frame ?? (t.media.some((m) => m.kind === "video") ? undefined : 0) });
     return { file, from: { take: t.id, frame } };
@@ -520,7 +529,8 @@ export async function saveLocation(id, body, { note = "", by = "person" } = {}) 
   }
   const master = await locationPicture(body.master, "master");
   const plan = await locationPicture(body.plan, "plan"), shapes = body.plan?.shapes; // SNAP-R133: a plan drawn in Snap keeps its shapes beside its picture
-  const clean = { name: body.name.trim(), notes: body.notes?.trim() ?? "", master: master && { ...master, ...roleIn(body.master.role, "master") }, plan: plan && shapes ? { ...plan, shapes } : plan, cameras, plates, rating: body.rating ?? null,
+  const map = await locationPicture(body.map, "map");
+  const clean = { name: body.name.trim(), notes: body.notes?.trim() ?? "", master: master && { ...master, ...roleIn(body.master.role, "master") }, plan: plan && shapes ? { ...plan, shapes } : plan, ...(map ? { map } : {}), cameras, plates, rating: body.rating ?? null,
     ...(body.from_cast ? { from_cast: body.from_cast } : {}) };
   id ??= locationStamp();
   const out = await W.save("location", id, clean, { note, by });

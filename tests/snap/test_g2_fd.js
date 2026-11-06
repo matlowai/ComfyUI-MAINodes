@@ -74,8 +74,8 @@ const port = process.argv[2] || CFG.port, base = process.argv[3] || CFG.base, R 
   const titles = JSON.stringify(R.cands ?? {});
   const checks = {
     "F-D06: the camera plate is <Picture 1>, the master and plan after it": /Pc square \+ well \(camera\)/.test(R.locRefs?.[0]?.[1] ?? "") && R.locRefs?.[0]?.[0] === "<Picture 1>" && /master/.test(R.locRefs?.[1]?.[1] ?? "") && R.loc?.cite?.plates?.["Pc square + well"] === "<Picture 1>",
-    "F-D10: add_plate saves two plates as one version and answers the eye gap": R.plate?.made && Object.keys(R.plate?.eye_gaps ?? {}).length === 1 && /eye 1 m on the plate, 1.6 m on camera mark P01\/C1/.test(R.plate.eye_gaps["Pa road outside"] ?? ""),
-    "F-D10: list_locations and the Location sheet flag it": /lower than planned by 0.6 m/.test(R.list?.eye_gaps?.["Pa road outside"] ?? "") && R.sheetGap?.length === 1 && /too tall/.test(R.sheetGap[0]),
+    "F-D10: add_plate saves two plates as one version and answers the eye gap": R.plate?.made && Object.keys(R.plate?.eye_gaps ?? {}).length === 1 && /pose says eye 1 m, camera mark P01\/C1 says 1.6 m/.test(R.plate.eye_gaps["Pa road outside"] ?? ""), // G3 F-E18: typed numbers, said so
+    "F-D10: list_locations and the Location sheet flag it": /0.6 m lower than planned by the typed numbers/.test(R.list?.eye_gaps?.["Pa road outside"] ?? "") && R.sheetGap?.length === 1 && /eye 1 m on the pose vs 1.6 m on mark P01\/C1 · typed/.test(R.sheetGap[0]),
     "F-D08: the Cast's details go on the line under a bare header": /^subject_definitions:\n<Subject 1> is the character in <Picture 1>\. a shrine maiden in a red hakama\.\n/.test(R.captionPrompt ?? ""),
     "F-D08: describe_lora lists the caption beside the LoRA, whole": R.describeLora?.beside?.some((x) => x.file === "prompts/orbit_caption.txt" && /\[orbit\] the camera circles the character once\./.test(x.text)),
     "F-D08: add_lora role motion goes on Style LoRAs": R.motion?.brick === "style",

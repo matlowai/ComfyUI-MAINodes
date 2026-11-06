@@ -110,6 +110,15 @@ export const privacyOn = async () => { await load(); await marked; return privac
 // ... or one made from a private take's frame (a reference picture, U76 M2); `seen` stops a hand-edited loop
 export const locked = (t, seen = new Set()) => privacy && !seen.has(t.id) && (seen.add(t.id), !!(t.private || marks[t.id]?.private || [t.parent?.take, ...(t.made_from ?? [])].some((id) => get(id) && locked(get(id), seen))));
 export const get = (id) => takes.find((t) => t.id === id);
+// a take as an agent names it (F-E12): its whole id, or a unique start of it with or without "take-" (the 8 characters
+// notes quote); an ambiguous start names every match. Internal reads use get(), which never guesses
+export function find(ref) {
+  const r = String(ref ?? "").trim(), whole = get(r) ?? get(`take-${r}`);
+  if (whole || r.length < 4) return whole ?? null;
+  const hits = takes.filter((t) => t.id.startsWith(r) || t.id.startsWith(`take-${r}`));
+  if (hits.length > 1) throw new Error(`"${r}" starts ${hits.length} takes: ${hits.map((t) => `${t.id} (take ${t.number})`).join(", ")}; give more of the id`);
+  return hits[0] ?? null;
+}
 export const RATINGS = ["pg", "mature", "adult"], RATING_SHOWN = { pg: "PG", mature: "Mature", adult: "Adult" };
 export const ratingOf = (t) => t.rating_set ?? t.rating ?? null;
 // SNAP-R54: on a signed-in install a take rated above the account's cap is left out of list_takes, get_take and Dailies

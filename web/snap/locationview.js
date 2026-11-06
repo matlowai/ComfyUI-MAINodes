@@ -3,9 +3,11 @@
 // looks, how wide its lens sees), and the plates, each a tile with its name, its pose and the take and frame it came
 // from. Every picture opens full size. Ticking plates and "Use in this shot" puts the master, the plan and those plates
 // into References (L.applyLocation, pinned); saving is a new version (an unchanged body makes none), and opening an
-// older version edits from it. Clicking the plan while a plate is picked places that plate there.
+// older version edits from it. Clicking the plan while a plate is picked places that plate there. The camera map (the
+// walks' wedges over the plan, F-E11) shows beside the plan when the place has one. Each picture sits in a wrapper the
+// critic's masks are drawn into (critiqueview.paintMasks); an eye gap is a quiet line that says the numbers are typed.
 // SNAP-R84 locations by reference · SNAP-R60 versions · SNAP-R80 every picture full size · SNAP-R3 a missing file shows as
-// missing · see docs/snap/SNAP_RULES.md
+// missing · SNAP-R136 masks all at once, numbered · see docs/snap/SNAP_RULES.md
 import * as L from "./library.js";
 import * as W from "./world.js";
 import { full } from "./lightbox.js";
@@ -16,6 +18,8 @@ import { openPlanEditor } from "./planview.js";
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const s = (tag, attrs = {}, ...kids) => { const el = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v); el.append(...kids); return el; };
 const when = (at) => new Date(at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+// a picture's wrapper: the critic's masks for `part` are drawn into it (critiqueview.paintMasks)
+const picBox = (part, ...kids) => { const el = h("span", { className: "snap-loc-pic" }, ...kids); el.dataset.part = part; return el; };
 // a pose in words: "38° · 24 mm · eye 1.6 m"
 export const poseText = (p) => (p ? [p.heading != null && `${Math.round(p.heading)}°`, p.lens && `${p.lens} mm`, p.eye_height != null && `eye ${p.eye_height} m`].filter(Boolean).join(" · ") || "placed, no heading" : "no pose yet");
 // how wide a lens sees across (a 36 mm frame), in degrees
@@ -24,7 +28,8 @@ const fov = (lens) => (2 * Math.atan(18 / lens) * 180) / Math.PI;
 // the plan with every camera mark and plate pose drawn over it, in the picture's own pixels
 function planView(b, { picked, onPlace, group }) {
   const img = h("img", { alt: "set plan", loading: "lazy" }), svg = s("svg", { class: "snap-loc-marks", preserveAspectRatio: "none" });
-  const box = h("div", { className: `snap-loc-plan${picked ? " placing" : ""}` }, img, svg);
+  const box = h("div", { className: `snap-loc-plan snap-loc-pic${picked ? " placing" : ""}` }, img, svg);
+  box.dataset.part = "plan";
   const draw = () => {
     const W_ = img.naturalWidth || 1000, H = img.naturalHeight || 700, r = W_ * 0.01, len = W_ * 0.075;
     svg.setAttribute("viewBox", `0 0 ${W_} ${H}`);
@@ -63,25 +68,27 @@ export async function openLocation(host, { id, n = null, say, onApplied }) {
   const status = h("div", { className: "snap-quiet", role: "status" });
   const title = h("strong");
   const head = () => { const r = W.record("location", id); title.textContent = `Location: ${b.name} · v${shown}${shown !== r.head ? ` (newest is v${r.head})` : ""}`; };
-  const pictureFig = (pic, label, cls) => (pic ? h("figure", { className: cls },
-    full(h("img", { src: view(pic.file), alt: label, loading: "lazy", onerror: (e) => { e.target.replaceWith(h("div", { className: "snap-cast-missing", textContent: `✕ ${pic.file} isn't in input/` })); } }), { src: view(pic.file), name: `${b.name}, ${label}`, source: `input/${pic.file}${pic.from ? ` · take ${pic.from.take}${pic.from.frame != null ? `, frame ${pic.from.frame}` : ""}` : ""}` }, group),
+  const pictureFig = (pic, label, cls, part) => (pic ? h("figure", { className: cls },
+    picBox(part, full(h("img", { src: view(pic.file), alt: label, loading: "lazy", onerror: (e) => { e.target.replaceWith(h("div", { className: "snap-cast-missing", textContent: `✕ ${pic.file} isn't in input/` })); } }), { src: view(pic.file), name: `${b.name}, ${label}`, source: `input/${pic.file}${pic.from ? ` · take ${pic.from.take}${pic.from.frame != null ? `, frame ${pic.from.frame}` : ""}` : ""}` }, group)),
     h("figcaption", {}, h("strong", { textContent: label }), pic.from ? h("span", { className: "snap-quiet", textContent: ` from ${pic.from.take.replace(/^take-/, "").slice(0, 8)}${pic.from.frame != null ? ` f${pic.from.frame}` : ""}` }) : null))
     : h("figure", { className: `${cls} empty` }, h("div", { className: "snap-cast-missing", textContent: `no ${label} yet` })));
   const top = h("div", { className: "snap-loc-top" }), plates = h("div", { className: "snap-loc-plates" }), cams = h("div", { className: "snap-quiet snap-loc-cams" });
   const draw = () => {
-    top.replaceChildren(pictureFig(b.master, "master", "snap-loc-master"),
+    top.replaceChildren(...[pictureFig(b.master, "master", "snap-loc-master", "master"),
       b.plan ? h("figure", { className: "snap-loc-planfig" }, planView(b, { picked, group, onPlace: (x, y) => { const p = b.plates.find((q) => q.name === picked); p.pose = { ...(p.pose ?? {}), x, y }; status.textContent = `${picked} placed at ${x}, ${y}: Save keeps it`; picked = null; draw(); } }),
         h("figcaption", {}, h("strong", { textContent: "set plan" }), h("span", { className: "snap-quiet", textContent: picked ? ` · click where ${picked} stands` : " · dots and wedges: where each camera stands and looks" })))
-        : pictureFig(null, "set plan", "snap-loc-planfig"));
+        : pictureFig(null, "set plan", "snap-loc-planfig"),
+      b.map ? pictureFig(b.map, "camera map", "snap-loc-master snap-loc-map", "map") : null].filter(Boolean)); // a null child prints "null"
     cams.textContent = b.cameras.length ? `Camera marks: ${b.cameras.map((c) => `${c.name} (${poseText(c)})`).join("; ")}` : "No camera marks yet";
+    const gaps = L.eyeGapsOf(b);
     const lit = (name, on) => top.querySelector(`.snap-loc-mark.plate[data-name="${CSS.escape(name)}"]`)?.classList.toggle("lit", on);
     plates.replaceChildren(...b.plates.map((p, i) => h("figure", { className: `snap-loc-plate${chosen.has(p.name) ? " on" : ""}`, onmouseenter: () => lit(p.name, true), onmouseleave: () => lit(p.name, false) },
-      full(h("img", { src: view(p.file), alt: p.name, loading: "lazy", onerror: (e) => { e.target.replaceWith(h("div", { className: "snap-cast-missing", textContent: `✕ ${p.file} isn't in input/` })); } }),
-        { src: view(p.file), name: `${b.name}, plate ${p.name}`, source: `input/${p.file}${p.from ? ` · take ${p.from.take}${p.from.frame != null ? `, frame ${p.from.frame}` : ""}` : ""}` }, group),
+      picBox(`plate ${p.name}`, full(h("img", { src: view(p.file), alt: p.name, loading: "lazy", onerror: (e) => { e.target.replaceWith(h("div", { className: "snap-cast-missing", textContent: `✕ ${p.file} isn't in input/` })); } }),
+        { src: view(p.file), name: `${b.name}, plate ${p.name}`, source: `input/${p.file}${p.from ? ` · take ${p.from.take}${p.from.frame != null ? `, frame ${p.from.frame}` : ""}` : ""}` }, group)),
       h("label", { className: "snap-loc-pick", title: "put this plate into References with Use in this shot" }, h("input", { type: "checkbox", checked: chosen.has(p.name), onchange: (e) => { e.target.checked ? chosen.add(p.name) : chosen.delete(p.name); e.target.closest("figure").classList.toggle("on", e.target.checked); } }),
         h("input", { value: p.name, ariaLabel: "plate name", onchange: (e) => { const was = p.name; p.name = e.target.value.trim() || was; if (chosen.delete(was)) chosen.add(p.name); draw(); } })),
       h("div", { className: "snap-quiet", textContent: poseText(p.pose) }),
-      L.eyeGaps(b)[p.name] ? h("div", { className: "snap-warn snap-loc-gap", textContent: `⚠ ${L.eyeGaps(b)[p.name]}` }) : null, // F-D10
+      gaps[p.name] ? h("div", { className: "snap-loc-gap", title: L.eyeGaps(b)[p.name], textContent: `eye ${gaps[p.name].pose} m on the pose vs ${gaps[p.name].plan} m ${gaps[p.name].mark ? `on mark ${gaps[p.name].mark}` : "on the marks (no mark)"} · typed, check the horizon` }) : null, // F-D10, F-E18: a typed gap, said calmly
       p.from ? h("div", { className: "snap-quiet", textContent: `take ${p.from.take.replace(/^take-/, "").slice(0, 8)}${p.from.frame != null ? `, frame ${p.from.frame}` : ""}` }) : null,
       h("input", { value: p.use ?? "", placeholder: "use for (which cuts)", ariaLabel: "use for", oninput: (e) => { p.use = e.target.value; } }),
       h("div", { className: "snap-set-actions" },
@@ -89,6 +96,7 @@ export async function openLocation(host, { id, n = null, say, onApplied }) {
         h("button", { className: "snap-x", textContent: "×", title: "take this plate out of the location (the file stays; Save makes it a version)", onclick: () => { b.plates.splice(i, 1); chosen.delete(p.name); draw(); } })))));
     if (!b.plates.length) plates.append(h("div", { className: "snap-quiet", textContent: "No plates yet: add_plate saves a take's frame with its pose" }));
     head();
+    sheet?.dispatchEvent(new Event("snap-masks")); // the critic's masks go back on the redrawn pictures
   };
   const versions = h("div", { className: "snap-cast-versions" });
   const drawVersions = () => { const r = W.record("location", id);
