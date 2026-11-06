@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The agents' window (SNAP-R83): ONE visible Chrome on this machine that agents drive, reload and restart, never headless
-# (Dylan 2026-11-06), with the profile ~/.config/snap-agent-chrome and DevTools on 127.0.0.1:9222. It tells the ComfyUI
+# (the operator, 2026-11-06), with the profile ~/.config/snap-agent-chrome and DevTools on 127.0.0.1:9222. It tells the ComfyUI
 # it serves where it listens, so the bridge finds its Snap tab (a tab that sees: calls go there by default, beside a
 # person's tab with "Let agents see" on), captures it for screenshot and reloads it after an update (the chrome tool). It
 # can be the person's main tab. Whatever answers on 9222 is that window: it is attached to, never started a second time.
@@ -11,7 +11,7 @@
 #   restart  close every process of its profile, then start it again
 #   stop     close it
 #   new      another Snap tab in the same window: only when the person said yes (pass --asked)
-# --extra "<purpose>": the same actions on an extra window for this ComfyUI only (Dylan 2026-11-06: fine "if you are doing
+# --extra "<purpose>": the same actions on an extra window for this ComfyUI only (the operator, 2026-11-06: fine "if you are doing
 # some things on one gpu and some things on another or doing non gpu contention things"), e.g. GPU checks on a second
 # server while 9222 serves the person's: its own profile (~/.config/snap-agent-chrome-<server port>) and DevTools port, the
 # purpose as its window name. Never a duplicate: refused while 9222 already has a tab on this ComfyUI. Close it (stop

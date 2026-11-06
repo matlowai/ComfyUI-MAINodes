@@ -8,6 +8,10 @@
 // the same with the take's latent made bigger by a latent model. Tessera (`tessera`, hashu786/ComfyUI-Tessera) refines
 // the upscaled take tile by tile with the take as <Video 1>, a hero tile on the face (SAM 3.1) and a first-frame still as
 // <Picture 1>. What each runs (files, words, sigmas, tiling) is registry data, the method's `run` and `options`.
+// Stage 2 runs on stills too (G1): a New view or sheet still's own graph at the bigger size, its sampler starting from the
+// still itself (VAE-encoded, the empty AV latent's audio kept) at `denoise`. A take whose purpose is a reference (a Cast
+// picture, a turnaround, a location's master or plate, settei) is redrawn this way by default, and the answer says why.
+// SNAP-R85 a reference is redrawn, never only sharpened ·
 // SNAP-R81 a take's upscale is a second pass of its own recipe · SNAP-R82 Tessera tiles a take · SNAP-R13 data, not code
 // branches · SNAP-R14 method slots · SNAP-R16 GPU work waits for the person · SNAP-R60 pins · see docs/SNAP_RULES.md
 import * as ED from "./edits.js";
@@ -25,10 +29,18 @@ export async function method(id) {
   return m;
 }
 
+// a still take's picture size (a video take's render size is ED.clip's)
+export const still = (take) => !take.media.some((x) => x.kind === "video") && take.media.find((x) => x.kind === "image");
+export async function dims(take) {
+  const m = still(take);
+  if (!m) return ED.clip(take);
+  const img = new Image(); img.src = K.url(m); await img.decode();
+  return { width: img.naturalWidth, height: img.naturalHeight };
+}
 // the size it comes out: `width` and/or `height` (the other keeps the take's shape), else `factor` (the method's when not
-// given) times the size the take rendered at; snapped down to the method's grid (H3: 32)
-export function size(take, m, { factor, width, height } = {}) {
-  const c = ED.clip(take), q = m.run.grid, f = factor ?? m.run.factor;
+// given) times the size the take rendered at (a still's own size: `from`, from dims); snapped down to the method's grid (H3: 32)
+export function size(take, m, { factor, width, height } = {}, from = null) {
+  const c = from ?? ED.clip(take), q = m.run.grid, f = factor ?? m.run.factor;
   const w = width ?? (height ? (height * c.width) / c.height : c.width * f), hh = height ?? (width ? (width * c.height) / c.width : c.height * f);
   return { from: [c.width, c.height], width: Math.floor(w / q) * q, height: Math.floor(hh / q) * q };
 }
@@ -70,6 +82,29 @@ function secondPass(take, m, t, denoise, plate) {
     ...plate(["u2c", 0], decode.inputs.vae),
   });
   for (const k of empty) g[k] = { class_type: "H3V2VInit", inputs: { samples: ["u2p", 0], audio_latent: ["u2a", 0], audio_mode: run.audio_mode } };
+  return g;
+}
+
+// stage 2 of a still (a New view or sheet still: P-H3-Image or the Fizgig H3 still): its own graph at the target size, the
+// sampler starting from the still itself, upscaled and VAE-encoded with the graph's own VAE as the video half of the
+// empty AV latent (its audio half kept), at `denoise` on its own sigmas; saved as a new still
+function stillPass(take, m, t, denoise, upscaler) {
+  const g = sendable(take.prompt), samplers = Object.keys(g).filter((k) => g[k].class_type === "SamplerCustomAdvanced");
+  const decode = Object.values(g).find((n) => ["VAEDecode", "FizgigH3StillDecode"].includes(n.class_type) && samplers.includes(n.inputs.samples?.[0]));
+  if (samplers.length !== 1 || !decode) throw new Error(`Take ${take.number}: its prompt has no one sampler decoded to a still (${m.title} runs on H3 stills made in Snap)`);
+  for (const n of Object.values(g)) if ("width" in (n.inputs ?? {}) && "height" in n.inputs && n.class_type !== "ImageScale") Object.assign(n.inputs, { width: t.width, height: t.height });
+  const s = g[samplers[0]].inputs;
+  g.u2s = { class_type: "H3DeropeSigmas", inputs: { model: g[s.guider[0]].inputs.model, sigmas: s.sigmas, inject: denoise, steps: 0 } };
+  Object.assign(g, {
+    u2i: { class_type: "LoadImage", inputs: { image: K.annotated(still(take)) } },
+    ...(upscaler ? { u2ml: { class_type: "UpscaleModelLoader", inputs: { model_name: upscaler } }, u2mu: { class_type: "ImageUpscaleWithModel", inputs: { upscale_model: ["u2ml", 0], image: ["u2i", 0] } } } : {}),
+    u2up: { class_type: "ImageScale", inputs: { image: upscaler ? ["u2mu", 0] : ["u2i", 0], upscale_method: "lanczos", width: t.width, height: t.height, crop: "disabled" } },
+    u2e: { class_type: "VAEEncode", inputs: { pixels: ["u2up", 0], vae: decode.inputs.vae } },
+    u2sep: { class_type: "LTXVSeparateAVLatent", inputs: { av_latent: s.latent_image } },
+    u2l: { class_type: "LTXVConcatAVLatent", inputs: { video_latent: ["u2e", 0], audio_latent: ["u2sep", 1] } },
+  });
+  s.sigmas = ["u2s", 0]; s.latent_image = ["u2l", 0];
+  for (const n of Object.values(g)) if (n.class_type === "SaveImage") n.inputs.filename_prefix = `snap_upscale/${take.id}`;
   return g;
 }
 
@@ -156,12 +191,24 @@ async function tessera(take, m, t, { hero, anchor, seed }) {
 // queue the bigger take: a new take in the take's group, parent the take (`upscale/<method>`), carrying the take's world
 // pins (SNAP-R60); its rating follows the parent (SNAP-R39). `anchor` is a take (Tessera only; null = the take's own frame 0,
 // undefined = the take's newest stage 2)
+// why a take's upscale redraws: its purpose, when that is a reference (SNAP-R85); null otherwise
+export function reason(take) {
+  const p = ED.purposeOf(take);
+  return p?.reference ? `take ${take.number} is a reference (${p.label}: ${p.from}): a reference is redrawn at the new size (stage 2, light denoise), so a face too small to read is drawn again as a face, not only sharpened` : null;
+}
 export async function start(take, id, { factor, width, height, denoise, upscaler, hero, anchor, by = "person" } = {}) {
-  const m = await method(id);
+  const m = await method(id), pic = still(take);
+  if (pic && m.run.plate !== "pixels") throw new Error(`Take ${take.number} is a still: ${m.title} runs on video takes; stage2 redraws a still`);
   if (m.install_state !== "ready") throw new Error(`${m.title}: ${m.install_state}`);
-  const t = size(take, m, { factor, width, height }), o = m.options;
+  const t = size(take, m, { factor, width, height }, pic ? await dims(take) : null), o = m.options;
   let g, options;
-  if (m.run.plate) {
+  if (pic) {
+    denoise ??= o.denoise.default;
+    if (!(denoise >= o.denoise.min && denoise <= o.denoise.max)) throw new Error(`denoise: how much of the still is made again, ${o.denoise.min} to ${o.denoise.max} (${o.denoise.default} is light)`);
+    const pick = upscaler === undefined ? o.upscaler.default : upscaler, file = pick && pick !== "none" ? await M.choice(o.upscaler.loader, "model_name", pick) : null;
+    g = stillPass(take, m, t, denoise, file);
+    options = { width: t.width, height: t.height, denoise, still: true, ...(file ? { upscaler: file } : {}) };
+  } else if (m.run.plate) {
     denoise ??= o.denoise.default;
     if (!(denoise >= o.denoise.min && denoise <= o.denoise.max)) throw new Error(`denoise: how much of the take is made again, ${o.denoise.min} to ${o.denoise.max} (${o.denoise.default} is light)`);
     const pick = upscaler === undefined ? o.upscaler.default : upscaler; // null or "none": Lanczos only
@@ -175,8 +222,9 @@ export async function start(take, id, { factor, width, height, denoise, upscaler
     g = made.g; t.height = made.height;
     options = { width: t.width, height: t.height, hero: hero ?? o.hero.default, anchor: made.anchor, ...(anchor ? { anchor_take: anchor.id } : {}) };
   }
-  const per = m.cost?.local_s_per_mp_frame, eta_s = per ? Math.round(per * ((t.width * t.height) / 1e6) * ED.clip(take).frames) : null;
+  const per = m.cost?.local_s_per_mp_frame, eta_s = per && !pic ? Math.round(per * ((t.width * t.height) / 1e6) * ED.clip(take).frames) : null; // measured on video only
   const job = { kind: "upscale", title: `Make take ${take.number} ${t.width}×${t.height}: ${m.title}${options.denoise != null ? ` at denoise ${options.denoise}` : ""}`, about: { take: take.id, group: take.group }, by, eta_s };
   const runId = await K.queue(g, { group: take.group, world: take.graph?.extra?.snap?.world, job, extra: { snap_parent: { take: take.id, method: `upscale/${id}`, options, by } } });
-  return { prompt_id: runId, take: `take-${runId}`, ...options, eta_s, eta: eta_s ? `about ${Math.round(eta_s / 60)} min of GPU` : "no estimate yet" };
+  const why = reason(take);
+  return { prompt_id: runId, take: `take-${runId}`, ...options, eta_s, eta: eta_s ? (eta_s < 90 ? `about ${eta_s} s of GPU` : `about ${Math.round(eta_s / 60)} min of GPU`) : "no estimate yet", ...(why ? { why } : {}) };
 }

@@ -72,7 +72,18 @@
       "kind": "take",
       "title": "New view from these pictures",
       "off": "nothing new is made",
-      "about": "a new still made by an H3 model from 1 or more context pictures in order (a location's master or plate, the nearest earlier still or board, a Cast picture, a crop of any of them) and words the person or agent writes, never a fixed keep-the-composition text; each seed is a candidate take in the shot it lands in, with every context picture in its provenance (U101; MOSS Image Edit was tested and left out: it copied Picture 1 or redesigned the set and the people)"
+      "about": "a new still made by an H3 model from 1 or more context pictures in order (a location's master or plate, the nearest earlier still or board, a Cast picture, a crop of any of them) and words the person or agent writes, never a fixed keep-the-composition text; each seed is a candidate take in the shot it lands in, with every context picture in its provenance (U101; MOSS Image Edit was tested and left out: it copied Picture 1 or redesigned the set and the people)",
+      "purposes": {
+        "character": { "label": "a character shot: people in frame (a two-shot, a board with people)", "method": "fizgig_still", "reference": false },
+        "turnaround": { "label": "a character sheet or turnaround", "method": "fizgig_still", "reference": true },
+        "cast_picture": { "label": "a Cast's reference picture", "method": "fizgig_still", "reference": true },
+        "set": { "label": "a set or wide shot, no one close to camera", "method": "ph3_view", "reference": false },
+        "master": { "label": "a location's master (the establishing picture)", "method": "ph3_view", "reference": true },
+        "plate": { "label": "a location plate", "method": "ph3_view", "reference": true },
+        "settei": { "label": "settei: a design reference of a place or prop", "method": "ph3_view", "reference": true },
+        "edit": { "label": "a targeted edit of Picture 1 (one detail changes)", "method": "ph3_view", "reference": false }
+      },
+      "purposes_why": "the operator, 2026-11-06: the Fizgig H3 still for character shots and turnarounds (bake-off B: characters 25/33 vs P-H3 22/33, keeps the braid in back views), P-H3-Image for sets, wide shots and targeted edits (it held the master's gatehouse, and it is the fastest); a picture made to be a reference is redrawn when made bigger (stage 2), never only sharpened"
     },
     {
       "id": "sheet",

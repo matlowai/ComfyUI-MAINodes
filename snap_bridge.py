@@ -394,7 +394,7 @@ async def progress(request):
     return web.json_response({"prompt_id": reg.prompt_id, "nodes": {k: {"state": v["state"].value, "value": v["value"], "max": v["max"]} for k, v in reg.nodes.items()}})
 
 
-# The agents' window (SNAP-R83, Dylan 2026-11-06: "an open chrome window you can control and hook into and restart and
+# The agents' window (SNAP-R83, the operator, 2026-11-06: "an open chrome window you can control and hook into and restart and
 # make it non headless always"): one visible Chrome that tools/snap_agent_page.sh starts with its own profile and a
 # 127.0.0.1 DevTools port, which it tells this server (kept in the user folder, so a restarted server still knows it).
 # The bridge finds a tab in it by the client id in the tab's sessionStorage, treats it as a tab that sees, captures it for

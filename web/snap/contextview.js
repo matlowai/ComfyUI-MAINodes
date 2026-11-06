@@ -4,6 +4,10 @@
 // edited; the Fizgig H3 still: the first reference; the words move the camera), so each row moves up or down and goes with ✕; the
 // tray stays while the person opens other takes (page state only, never saved). The words are the person's, and Make
 // runs the same ED.fromContext as the edit_from_context tool.
+// "What it is for" (G1, SNAP-R86) picks the model by job: a character shot or turnaround → the Fizgig H3 still; a set,
+// plate or edit → P-H3-Image; it follows the tray (a Cast picture in it reads as a character shot) until the person picks
+// a purpose or a model by hand, and the line under it says which model and why.
+// SNAP-R86 the New view model follows the job · SNAP-R85 a picture's purpose is a known field ·
 // SNAP-R71 a new view is an edit from context, in the person's words · SNAP-R72 what Picture 1 is, per model; the order is
 // the person's · SNAP-R75 the model is the person's pick (P-H3-Image, the Fizgig H3 still) · SNAP-R19 the tool table is the
 // API · SNAP-R23 candidates · see docs/SNAP_RULES.md
@@ -26,6 +30,8 @@ export function contextPanel(t, { say, frame, region }) {
   const rows = h("ol", { className: "snap-ctx" }), note = h("div", { className: "snap-quiet", role: "status" });
   const words = h("textarea", { className: "snap-note-input", rows: 3, ariaLabel: "what the new still shows",
     placeholder: "what the new still shows, e.g. the same gatehouse from inside the square at eye height; the woman in Picture 3 on the left" });
+  const purpose = h("select", { ariaLabel: "what it is for" }), why = h("div", { className: "snap-quiet" });
+  let purposeTouched = false, modelTouched = false;
   const model = h("select", { ariaLabel: "model" }), count = h("input", { type: "number", min: 1, step: 1, value: 2, ariaLabel: "candidates", className: "snap-take-clips" });
   const cast = h("select", { ariaLabel: "add a Cast picture" }), intro = h("div", { className: "snap-quiet" });
   let methods = [];
@@ -41,6 +47,11 @@ export function contextPanel(t, { say, frame, region }) {
       h("button", { className: "snap-link snap-quiet-btn", textContent: "✕", title: "take it out of the pictures", onclick: () => { tray.splice(i, 1); changed(); } }))));
     if (!tray.length) rows.append(h("li", { className: "snap-quiet", textContent: `No pictures yet: add this one, a marked region of it, or a Cast's picture.${one() ? ` Picture 1 ${one().label}.` : ""}` }));
     intro.textContent = `A new still from the pictures below, in your words: the same place from another camera, a person put in.${one() ? ` ${one().tip}.` : ""}`;
+    const P = ED.purposes(), m = methods.find((x) => x.id === model.value);
+    if (!purposeTouched && purpose.options.length) purpose.value = ED.inferPurpose(tray);
+    if (!modelTouched && P[purpose.value] && methods.some((x) => x.id === P[purpose.value].method)) model.value = P[purpose.value].method;
+    const chosen = methods.find((x) => x.id === model.value);
+    why.textContent = chosen ? `${chosen.title.replace(/^New view · /, "")}: ${modelTouched ? "your pick" : `the model for ${P[purpose.value]?.label ?? purpose.value}${purposeTouched ? "" : tray.some((x) => x.cast) ? " (a Cast picture is in the tray)" : " (no Cast picture in the tray)"}`}${P[purpose.value]?.reference ? "; a reference: made bigger, it is redrawn (stage 2)" : ""}` : "";
     make.disabled = !tray.length;
     make.textContent = `Make ${Math.max(1, Number(count.value) || 1)} candidate${Number(count.value) === 1 ? "" : "s"}`;
   }
@@ -53,7 +64,7 @@ export function contextPanel(t, { say, frame, region }) {
   const make = h("button", { className: "snap-primary", onclick: async () => {
     make.disabled = true;
     try {
-      const r = await ED.fromContext(tray.map(({ label, ...p }) => ({ ...p, label })), words.value, { method: model.value || undefined, count: Math.max(1, Number(count.value) || 1) });
+      const r = await ED.fromContext(tray.map(({ label, ...p }) => ({ ...p, label })), words.value, { method: model.value || undefined, purpose: purpose.value || undefined, count: Math.max(1, Number(count.value) || 1) });
       note.textContent = `Painting ${r.candidates.length} candidate${r.candidates.length > 1 ? "s" : ""} into ${r.lands}${r.seconds_each ? ` (about ${r.seconds_each} s each)` : ""}: ${r.pictures.join(" · ")}. They show under ${tray[0].take ? "Picture 1's take" : "the Work card"}; Apply one to make it the shot's take`;
     } catch (err) { note.textContent = err.message; say?.(err.message, true); }
     paint();
@@ -68,7 +79,9 @@ export function contextPanel(t, { say, frame, region }) {
       const m = list.find((x) => x.id === model.value);
       make.title = model.title = [m?.install_state === "ready" ? m.guidance?.line : m?.install_state, ...(m?.constraints ?? []), m?.credit && `Powered by ${m.credit}`].filter(Boolean).join("\n");
     };
-    model.onchange = () => { picked(); paint(); }; picked(); paint();
+    purpose.replaceChildren(...Object.entries(ED.purposes()).map(([k, x]) => h("option", { value: k, textContent: x.label })));
+    purpose.onchange = () => { purposeTouched = true; modelTouched = false; paint(); picked(); };
+    model.onchange = () => { modelTouched = true; picked(); paint(); }; paint(); picked();
     cast.replaceChildren(h("option", { value: "", textContent: "＋ a Cast's picture…" }), ...W.all("cast").flatMap((r) => { const b = W.headOf(r).body; return b.refs.map((x, i) => h("option", { value: `cast:${r.id}#${i}`, textContent: `${b.name}, ${x.role}` })); }));
   }, (err) => { note.textContent = `New view unavailable: ${err.message}`; });
   const redraw = () => { if (rows.isConnected) paint(); };
@@ -76,5 +89,5 @@ export function contextPanel(t, { say, frame, region }) {
   paint();
   return [h("div", { className: "snap-rail-title", textContent: "New view from these pictures" }),
     intro,
-    rows, h("div", { className: "snap-set-actions" }, addBtn, cast), words, h("div", { className: "snap-set-actions" }, model, h("label", { className: "snap-quiet" }, count, " candidates"), make), note];
+    rows, h("div", { className: "snap-set-actions" }, addBtn, cast), words, h("label", { className: "snap-field" }, h("span", { textContent: "what it is for" }), purpose), why, h("div", { className: "snap-set-actions" }, model, h("label", { className: "snap-quiet" }, count, " candidates"), make), note];
 }

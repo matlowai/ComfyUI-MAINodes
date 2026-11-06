@@ -128,7 +128,7 @@ export function headline(key) {
 // list_methods' answer: the slot, what fills it now, and its methods
 export function describe(id) {
   if (slot(id).kind === "delta") return { slot: id, kind: "delta", family: M.family(), current: M.turbo()?.file ?? null, on: !!M.turbo(), methods: list(id) };
-  if (slot(id).kind === "take") return { slot: id, kind: "take", runs_on: "a take (edit_take runs the wired ones)", about: slot(id).about, defaults: slot(id).defaults ?? null, methods: list(id) };
+  if (slot(id).kind === "take") return { slot: id, kind: "take", runs_on: "a take (edit_take runs the wired ones)", about: slot(id).about, defaults: slot(id).defaults ?? null, ...(slot(id).purposes ? { purposes: slot(id).purposes, purposes_why: slot(id).purposes_why } : {}), methods: list(id) };
   const now = holder(id), ours = now && methodOf(now);
   return { slot: id, kind: "media", current: method(now), on: now ? on(now) : false, factor: ours ? factor(now) : null, headline: ours ? headline(now) : null, methods: list(id) };
 }

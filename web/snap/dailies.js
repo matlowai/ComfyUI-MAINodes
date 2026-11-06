@@ -24,6 +24,7 @@ import * as ED from "./edits.js";
 import * as EX from "./extend.js";
 import * as UP from "./upscale.js";
 import * as S from "./slots.js";
+import * as W from "./world.js";
 import * as P from "./proposals.js";
 import * as SC from "./scenes.js";
 import { candidatesEl } from "./candidateview.js";
@@ -435,8 +436,9 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
       try { const r = await UP.start(t, m.id, { factor: Number(bigBy.value), ...(m.run.plate ? { denoise: Number(bigDen.value) } : { hero: bigHero.value.trim() }) }); bigNote.textContent = `Making it ${r.width}×${r.height} (${r.eta}): the bigger take lands in Takes, made from take ${t.number}`; } catch (err) { bigNote.textContent = err.message; }
       bigBtn.disabled = false;
     } });
-    S.load().then(() => {
-      const list = UP.methods();
+    // SNAP-R85: a still is redrawn by stage 2 only; a reference (its purpose) says why it is redrawn, not sharpened
+    Promise.all([S.load(), W.load(), UP.still(t) ? UP.dims(t) : null]).then(([, , from]) => {
+      const list = UP.methods().filter((m) => !UP.still(t) || m.run.plate === "pixels"), why = UP.reason(t);
       bigPick.replaceChildren(...list.map((m) => h("option", { value: m.id, textContent: m.title })));
       const face = () => {
         const m = list.find((x) => x.id === bigPick.value);
@@ -444,10 +446,10 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
         bigDenRow.hidden = !m.run.plate; bigHeroRow.hidden = !!m.run.plate;
         if (!m.run.plate && !bigHero.dataset.touched) bigHero.value = m.options.hero.default;
         bigDenOut.textContent = Number(bigDen.value).toFixed(2); bigDenRow.title = m.options.denoise?.why ?? "";
-        bigWhy.textContent = m.guidance?.line ?? ""; bigWhy.title = (m.constraints ?? []).join("\n");
+        bigWhy.textContent = why ? `${why[0].toUpperCase()}${why.slice(1)}.` : m.guidance?.line ?? ""; bigWhy.title = [why && m.guidance?.line, ...(m.constraints ?? [])].filter(Boolean).join("\n");
         try {
-          const z = UP.size(t, m, { factor: Number(bigBy.value) }), per = m.cost?.local_s_per_mp_frame;
-          bigBtn.textContent = `Upscale to ${z.width}×${z.height}${per ? ` · about ${Math.round((per * z.width * z.height * ED.clip(t).frames) / 6e7)} min` : ""}`;
+          const z = UP.size(t, m, { factor: Number(bigBy.value) }, from), per = !from && m.cost?.local_s_per_mp_frame;
+          bigBtn.textContent = `${from ? "Redraw" : "Upscale"} to ${z.width}×${z.height}${per ? ` · about ${Math.round((per * z.width * z.height * ED.clip(t).frames) / 6e7)} min` : ""}`;
         } catch (err) { bigBtn.textContent = "Make it bigger"; bigNote.textContent = err.message; }
         bigBtn.disabled = m.install_state !== "ready";
         bigBtn.title = [m.install_state === "ready" ? m.guidance?.line : m.install_state, m.credit && `Powered by ${m.credit}`].filter(Boolean).join("\n");
@@ -524,6 +526,8 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
           h("div", { className: "snap-rail-title", textContent: "Make it bigger" }), h("div", { className: "snap-set-actions" }, bigPick, bigBy), bigWhy, bigDenRow, bigHeroRow,
           h("div", { className: "snap-set-actions" }, bigBtn), bigNote] : null,
           isVideo ? null : editBox, // a picture's re-run batches (SNAP-R63) and new views (U101) show here too
+          isVideo ? null : [h("div", { className: "snap-rail-title", textContent: "Make it bigger" }), h("div", { className: "snap-set-actions" }, bigPick, bigBy), bigWhy, bigDenRow, // a still: stage 2 redraws it (SNAP-R85)
+            h("div", { className: "snap-set-actions" }, bigBtn), bigNote],
           contextPanel(t, { say, frame: () => (isVideo ? Math.round(player.currentTime * FPS) : null), region: () => region }),
           h("div", { className: "snap-set-actions" },
             activeBtn, priorBtn,

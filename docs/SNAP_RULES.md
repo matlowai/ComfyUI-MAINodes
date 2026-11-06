@@ -330,7 +330,7 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   tool table, its errors or the pack's `docs/AGENT_START.md`, never only in code. Pages are keyed by the ComfyUI user
   (the comfy-user header snap-gate sets per account): a call goes to a connected page of the caller's own user, and only
   that page may answer it: the newest tab that sees, the agents' window or a tab whose person turned "Let agents see" on
-  (that control is how a person lets agents drive their tab, Dylan 2026-11-05); a person's tab with it off is never
+  (that control is how a person lets agents drive their tab, the operator, 2026-11-05); a person's tab with it off is never
   driven, and while one is open a call never goes to another page instead (SNAP-R83). An agent picks its page: `list_pages` names each one (whose, the id's start, the tab or shot it shows) and
   `use_page` binds the agent (named by `X-Snap-Agent`: SNAP_AGENT for snapcall.py, one name per snap_mcp.py connection)
   to one page for its session; one agent drives a page at a time, the page shows "Driven by: <agent>" with Release, and
@@ -722,7 +722,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   restart) reloads it after an update, so an agent never waits on the person for a stale tab (F-C24). It opens no
   other tab by itself: another tab needs the person's yes (`new --asked`); an extra window (its own profile and port,
   its purpose as its window name) serves only parallel work on another server and is closed when that work ends.
-  *Why:* Dylan 2026-11-05: "the default behavior should always be my main tab and you should need permission to open
+  *Why:* the operator, 2026-11-05: "the default behavior should always be my main tab and you should need permission to open
   another tab and if you do it should NEVER be headless"; 2026-11-06: "we need to make sure you have an open chrome
   window you can control and hook into and restart and make it non headless always", and on extra windows: fine "if you
   are doing some things on one gpu and some things on another or doing non gpu contention things". *More:* DECISIONS
@@ -739,10 +739,28 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   to it in 3 takes of 8; `rerun` swaps a location like a
   Cast and `dependents` lists what each version of any record still feeds. The Location sheet shows the master, the plan
   with each camera mark and plate drawn as a dot and a wedge (where it stands, where it looks, how wide its lens sees)
-  and the plate tiles; every picture opens full size (SNAP-R80). *Why:* Dylan 2026-11-05: "getting the topology of the
+  and the plate tiles; every picture opens full size (SNAP-R80). *Why:* the operator, 2026-11-05: "getting the topology of the
   town ... is what you need to do in order to get a consistent setting", and on the walkthrough plates: "yep this is the
   right shape"; short03 kept its village as a Cast for want of a record (F-C17). *More:* DECISIONS 2026-11-05 13:1x and
   16:5x, PLAN U99, dogfood FINDINGS F-C17/F-C19/F-C22, proto/test_g1_location.js.
+
+- **SNAP-R85: What a picture is for is a known field, and a reference is redrawn when made bigger.** The view slot's
+  registry names the purposes (character, turnaround, cast_picture, set, master, plate, settei, edit), each with its
+  New view model and whether it is a reference. A take knows its purpose from the word set on it (`set_purpose`), from
+  what made it (a New view keeps the purpose it was made for, a character sheet is a turnaround), else from the records
+  that use it (a location's master or plate, a Cast picture made from its frame); an upscaled take is for what its parent
+  is for. Made bigger, a reference is redrawn by stage 2 at a light denoise, stills included (the still's own graph at
+  the new size, starting from the still), never only sharpened, and `upscale_take` and the take viewer say why.
+  *Why:* the operator, 2026-11-06, on Maren v4: "redraw a bit is good because we are trying to make the REFERENCE :)
+  this should be obvious and that it is not means we need to tweak our harness / app a bit". *More:* DECISIONS
+  2026-11-06, proto/test_g1_purpose.js.
+- **SNAP-R86: The New view model follows the job, and says so.** With no method given, the purpose picks it: character
+  shots, turnarounds and Cast pictures on the Fizgig H3 still, sets, wide shots, masters, plates, settei and targeted
+  edits on P-H3-Image; with no purpose either, a Cast picture among the pictures reads as a character shot, else a set
+  view. The answer's `chosen` and the tray's line under "what it is for" name the model and why; a method or a purpose
+  picked by hand wins. *Why:* the operator, 2026-11-06: Fizgig for character shots and turnarounds, P-H3-Image for
+  sets, wide shots and targeted edits, chosen from the job and overridable (bake-off B: characters 25/33 vs 22/33; P-H3
+  held the master's gatehouse and is the fastest). *More:* DECISIONS 2026-11-06, PROGRESS 2026-11-05 15:45.
 
 ## Accounts and the gate (snap-gate)
 

@@ -149,6 +149,11 @@ You can also run the tools as an MCP server (Claude Code):
 
 ### Making a take bigger (stage 2, Tessera)
 
+A reference is redrawn, never only sharpened (SNAP-R85): a Cast picture, a turnaround, a location's master or plate,
+settei. `get_take` says a take's `purpose` and how it is known (set with `set_purpose`, from what made it, or from the
+Cast or location that uses its frame); `upscale_take` on a reference answers `why` it redraws. Stage 2 redraws stills
+too (a New view or sheet still: its own graph at the new size, starting from the still at `denoise`).
+
 H3 renders at about 0.85 MP, and the VAE's compression smears small faces. `upscale_take` makes an existing take
 bigger and lands the result as a new take whose parent is the take (SNAP-R81, R82; `list_methods {"slot": "upscale"}`
 lists them as `kind: take`):
@@ -279,7 +284,11 @@ them). It works on stills: masters, plates, boards.
 
 - A picture is `{take}` (a still; a video take with `frame`), `{file}` (in input/), `{cast, ref}` (a Cast's
   picture) or `{location, plate}` (a location's plate by name, its master or its plan). `crop` is `[x, y, width, height]` in fractions of the picture.
-- `method` picks the model (`list_methods {"slot": "view"}`): `ph3_view` (P-H3-Image, listed first: an edit of
+- Say what the still is for with `purpose` (SNAP-R86): `character` (people in frame), `turnaround` and `cast_picture`
+  run on the Fizgig still; `set`, `master`, `plate`, `settei` and `edit` (a targeted edit of Picture 1) on P-H3-Image.
+  With no purpose, a Cast picture among the pictures reads as a character shot, else a set view. The answer's `chosen`
+  names the model and why; the stills keep their purpose (`get_take.purpose`). `method` overrides it.
+- `method` picks the model (`list_methods {"slot": "view"}`, which also lists the purposes): `ph3_view` (P-H3-Image, listed first: an edit of
   Picture 1 with the others as references, 8 steps, about 8 s at 1280x704, up to 9 pictures) or `fizgig_still`
   (stock H3 Reference to Video on the FL2VA model and the Fizgig H3 Still pack's one-frame latent, as the pack's own
   edit example runs it: every picture a reference, 20 steps,

@@ -308,6 +308,40 @@ C.kind("edit", { finish, apply: propagate, undo: cancel });
 // the take an edit's Apply made, once it is in (takes.js captures it from this page's run)
 export const result = (d) => (d?.applied?.undo?.take ? T.get(d.applied.undo.take) ?? null : null);
 
+// ---- What a picture is for (G1, SNAP-R85/R86) ----------------------------------------------------------------------------
+// The view slot's registry names the purposes a picture can have, the New view model each one calls for, and which are
+// references (a Cast picture, a turnaround, a location's master or plate, settei): made bigger, a reference is redrawn
+// (stage 2), never only sharpened.
+export const purposes = () => S.slot("view").purposes ?? {};
+// a tray or a call that names no purpose: a Cast picture among the pictures reads as a character shot, else a set view
+export const inferPurpose = (pictures) => (pictures.some((p) => p.cast) ? "character" : "set");
+// what a take is for and how that is known: the word set on it (set_purpose), what made it (a New view's purpose, a
+// character sheet), else the records that use it (a location's master or plate, a Cast's picture made from its frame);
+// an upscaled take is for what its parent is for. Null when nothing says
+export function purposeOf(t, seen = new Set()) {
+  if (!t || seen.has(t.id)) return null;
+  seen.add(t.id);
+  const P = purposes(), is = (purpose, from) => ({ purpose, ...(P[purpose] ?? {}), from });
+  if (t.purpose) return is(t.purpose, "set on the take");
+  if (t.parent?.options?.purpose) return is(t.parent.options.purpose, `what it was made for (${t.parent.method})`);
+  if (t.parent?.method?.startsWith("sheet/")) return is("turnaround", `a character sheet method made it (${t.parent.method})`);
+  for (const r of W.all("location")) {
+    const b = W.headOf(r).body, plate = b.plates?.find((x) => x.from?.take === t.id);
+    if (b.master?.from?.take === t.id) return is("master", `the master of ${b.name} (location:${r.id})`);
+    if (plate) return is("plate", `plate ${plate.name} of ${b.name} (location:${r.id})`);
+  }
+  for (const r of W.all("cast")) { const b = W.headOf(r).body; if (b.refs?.some((x) => x.file.startsWith(`snap/${t.id}_f`))) return is("cast_picture", `a picture of ${b.name} (cast:${r.id}) is a frame of it`); }
+  if (t.parent?.method?.startsWith("upscale/")) { const up = purposeOf(T.get(t.parent.take), seen); return up && { ...up, from: `its parent take: ${up.from}` }; }
+  return null;
+}
+// set a take's purpose by hand (null clears it): {take, purpose}
+export async function setPurpose(t, purpose) {
+  if (purpose != null && !purposes()[purpose]) throw new Error(`purpose is one of ${Object.keys(purposes()).join(", ")}, or null; not ${JSON.stringify(purpose)}`);
+  if (purpose == null) delete t.purpose; else t.purpose = purpose;
+  await T.save(t);
+  return { take: t.id, purpose: purposeOf(t) };
+}
+
 // ---- New view from these pictures (U101, SNAP-R71/R72) --------------------------------------------------------------
 // A new still from context pictures in order and words the person or agent writes, on an H3 model of the view slot
 // (P-H3-Image, the Fizgig H3 still; MOSS Image Edit was tested on short03's C2 and left out by Dylan: it copied Picture 1
@@ -523,9 +557,14 @@ const GRAPHS = { ph3: ph3Graph, fizgig: fizgigGraph, h3: fizgigGraph, contact: c
 // words, one candidate per seed (`seeds`, else `count` new ones), on the view slot's `method` (ph3_view, fizgig_still; by
 // default the first the registry lists).
 // Returns at once; each candidate is a take in the shot it lands in once its paint finishes
-export async function fromContext(pictures, prompt, { method, seeds, count = 2, width, height, land, by = "person" } = {}) {
+export async function fromContext(pictures, prompt, { method, purpose, seeds, count = 2, width, height, land, by = "person" } = {}) {
   await Promise.all([S.load(), M.load(), T.load(), W.load()]);
-  const id = method ?? S.list("view")[0]?.id, m = S.list("view").find((x) => x.id === id);
+  const P = purposes();
+  if (purpose != null && !P[purpose]) throw new Error(`purpose is one of ${Object.keys(P).join(", ")}; not ${JSON.stringify(purpose)}`);
+  const aim = purpose ?? inferPurpose(pictures ?? []);
+  // SNAP-R86: the model follows the job unless one is asked for
+  const id = method ?? P[aim]?.method ?? S.list("view")[0]?.id, m = S.list("view").find((x) => x.id === id);
+  const chosen = { method: id, purpose: aim, why: method ? "the method asked for" : `${P[aim]?.label ?? aim}${purpose ? "" : pictures?.some((p) => p.cast) ? " (no purpose given; a Cast picture is among the pictures)" : " (no purpose given; no Cast picture among them)"} → ${m?.title ?? id}; give purpose or method to choose another` };
   if (!m) throw new Error(`No method "${id}" for a new view; there are: ${S.list("view").map((x) => x.id).join(", ")}`);
   if (m.install_state !== "ready") throw new Error(`${m.title} ${m.install_state}`);
   if (!pictures?.length) throw new Error(`${m.title}: give at least one picture (Picture 1 ${m.picture_one?.label ?? "comes first"})`);
@@ -540,14 +579,14 @@ export async function fromContext(pictures, prompt, { method, seeds, count = 2, 
   for (const [i, seed] of list.entries()) {
     const g = await build(m.anchors, pics, { prompt: prompt.trim() }, seed, size, prefix);
     const job = { kind: "paint", title: `New view (${label}), candidate ${i + 1} of ${list.length}`, about: { take: first, group: where.group, scene: where.scene, shot: where.shot }, by, eta_s: [m.cost?.local_s].flat().at(-1) ?? null };
-    made.push({ prompt_id: await K.queue(g, { group: where.group, world, job, extra: { snap_parent: { take: first, method: `view/${id}`, options: { label, prompt: prompt.trim(), context: said } } } }),
+    made.push({ prompt_id: await K.queue(g, { group: where.group, world, job, extra: { snap_parent: { take: first, method: `view/${id}`, options: { label, prompt: prompt.trim(), context: said, purpose: aim } } } }),
       seed, made: { model: m.anchors.unet.split("/").pop() }, label: "new view" }); // a take, no check to wait for (its tile's chips)
   }
   const d = await C.create({ kind: "view", target: first ?? where.group, title: `New view (${label}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: first, method: id,
-    options: { prompt: prompt.trim(), context: said, ...(size ?? {}) }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}) }, made);
+    options: { prompt: prompt.trim(), context: said, purpose: aim, ...(size ?? {}) }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}) }, made);
   // F-C15: landed away from the shot a context board belongs to: say where it would sit beside that board
   const board = land && land !== "tab" ? said.map((x) => x.take && T.get(x.take)).map((t) => t && { t, home: RT.shotOf(t) }).find((x) => x?.home && x.home.shot.id !== where.shot) : null;
-  return { decision: d.id, pictures: said.map((x) => `Picture ${x.n}${x.n === 1 && m.picture_one ? ` (${m.picture_one.label})` : ""}: ${x.label}`), lands: where.where,
+  return { decision: d.id, chosen, pictures: said.map((x) => `Picture ${x.n}${x.n === 1 && m.picture_one ? ` (${m.picture_one.label})` : ""}: ${x.label}`), lands: where.where,
     ...(board ? { land_hint: `take ${board.t.number} among the pictures is in ${SC.shotTitle(board.home.scene, board.home.shot)} of ${board.home.scene.name}: to put this view beside it (each cut's shot holds its own board), land {scene: "${board.home.scene.id}", shot: "${board.home.shot.id}"}, or leave land out` } : {}),
     candidates: d.candidates.map((c) => ({ id: c.id, prompt_id: c.prompt_id, take: `take-${c.prompt_id}`, seed: c.seed, ...c.made })), seconds_each: [m.cost?.local_s].flat().at(-1) ?? null };
 }
@@ -607,7 +646,7 @@ export async function sheet(cast, { method, ref = 0, pictures = [], design, seed
   for (const [i, seed] of list.entries()) {
     const g = await GRAPHS[m.anchors.kind](m.anchors, pics, values, seed, size, prefix);
     const job = { kind: "paint", title: `Character sheet of ${b.name} (${m.title}), candidate ${i + 1} of ${list.length}`, about: { entity: cast, group: where.group, scene: where.scene, shot: where.shot }, by, eta_s: [m.cost?.local_s].flat().at(-1) ?? null };
-    made.push({ prompt_id: await K.queue(g, { group: where.group, world, job, extra: { snap_parent: { take: null, method: `sheet/${id}`, options: { cast, prompt, context: said } } } }),
+    made.push({ prompt_id: await K.queue(g, { group: where.group, world, job, extra: { snap_parent: { take: null, method: `sheet/${id}`, options: { cast, prompt, context: said, purpose: "turnaround" } } } }),
       seed, made: { model: m.anchors.unet.split("/").pop(), lora: m.anchors.lora?.split("/").pop() ?? m.anchors.turbo?.lora.split("/").pop() ?? null }, label: "sheet" });
   }
   const d = await C.create({ kind: "sheet", target: cast, title: `Character sheet of ${b.name} (${m.title}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: null, method: id,
