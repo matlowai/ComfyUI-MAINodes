@@ -1,4 +1,4 @@
-// The Re-run sheet (U89, Dylan 22:44 + 22:45): one sheet for a take (the viewer's re-take row, a shot's ⋯ in the
+// The Re-run sheet (U89, the operator, 22:44 + 22:45): one sheet for a take (the viewer's re-take row, a shot's ⋯ in the
 // navigator) and for a saved picture or video opened or dropped in Snap (its recipe and the record versions it pinned).
 // Each slot rerun.js finds is a row: the record and its version against today's, a pick (as it was, latest, a version,
 // another record of its kind; the scene and the Setup say they are not records), and what the pick changes, field by

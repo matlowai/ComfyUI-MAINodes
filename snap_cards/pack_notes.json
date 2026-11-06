@@ -1,0 +1,567 @@
+{
+ "about": "The pack's agent instructions (SNAP-R93): the pack layer of every resolved stack, version 0 of each note. A note has one scope (global, tool:<name>, brick:<key>, method:<id>) and a kind: note (a line an agent reads whole) or model_choice (which model does a job, and why; the person can replace it with their own). tool: notes also ride on that tool's description. rule names the SNAP rule behind it, more where to read further (a skill, AGENT_START, SNAP_RULES); planned names the build that will add its code.",
+ "notes": [
+  {
+   "id": "global/consistency-data-prompting-carry",
+   "scope": "global",
+   "kind": "note",
+   "text": "Consistency is data, not prompting: carry pictures and state (location master + plates, Cast records with turnarounds, positions cut to cut); words alone make a new place and a new design every render.",
+   "rule": "SNAP-R71",
+   "more": "skill snap-core"
+  },
+  {
+   "id": "global/results-never-trimmed",
+   "scope": "global",
+   "kind": "note",
+   "text": "Results are never trimmed; if one is too big for your context, save it to a file and hand it to a subagent.",
+   "rule": "SNAP-R58",
+   "more": "AGENT_START.md Limits"
+  },
+  {
+   "id": "global/snap-gap-report",
+   "scope": "global",
+   "kind": "note",
+   "text": "When Snap can't do a job, it is a Snap gap: report what you tried and the tool's answer; a take queued outside Snap never shows in its shot or the Work card.",
+   "rule": "SNAP-R30",
+   "more": "skill snap-core"
+  },
+  {
+   "id": "global/warn-never-block",
+   "scope": "global",
+   "kind": "note",
+   "text": "Warn and explain, never block; marks inform.",
+   "rule": "SNAP-R11",
+   "more": "SNAP_RULES.md"
+  },
+  {
+   "id": "global/storyboard-before-video-boards",
+   "scope": "global",
+   "kind": "note",
+   "text": "Storyboard before video: boards per cut (camera, lens, positions, facing, scale, transition) and an animatic, with cut-pair checks on boards.",
+   "rule": "SNAP-R89",
+   "more": "skill snap-boards"
+  },
+  {
+   "id": "global/when-gpu-idle-main",
+   "scope": "global",
+   "kind": "note",
+   "text": "When the GPU is idle and the main job waits, start the next useful GPU work toward the goal (the known parts of a fix first), else a cheap experiment that teaches something; record it; never decide what is the person's; run it on the visible page.",
+   "rule": "SNAP-R16",
+   "more": "skill snap-core"
+  },
+  {
+   "id": "use_page/drive-main-tab-or-window",
+   "scope": "tool:use_page",
+   "kind": "note",
+   "text": "Drive the person's main tab or the agents' window; attach to the running window, open it only when nothing answers; never headless.",
+   "rule": "SNAP-R83",
+   "more": "AGENT_START.md §1"
+  },
+  {
+   "id": "use_page/another-tab-needs-person",
+   "scope": "tool:use_page",
+   "kind": "note",
+   "text": "Another tab needs the person's yes; an extra visible window only for parallel work on another server or GPU, named for its purpose, closed after; never a duplicate of the same page.",
+   "rule": "SNAP-R83",
+   "more": "AGENT_START.md §1"
+  },
+  {
+   "id": "chrome/after-server-restart-reload",
+   "scope": "tool:chrome",
+   "kind": "note",
+   "text": "After a server restart, reload the agents' window yourself (chrome reload); ask the person with request_reload for their tab.",
+   "rule": "SNAP-R78",
+   "more": "AGENT_START.md §1"
+  },
+  {
+   "id": "run/lead-overall-soundscape-discrete",
+   "scope": "tool:run",
+   "kind": "note",
+   "text": "Lead overall_soundscape with the discrete sounds the action makes, ambience last; an ambience-only soundscape renders near-silent (~-57 dB).",
+   "rule": "SNAP-R36",
+   "more": "AGENT_START.md §4.2"
+  },
+  {
+   "id": "run/tonal-words-horn-buzz",
+   "scope": "tool:run",
+   "kind": "note",
+   "text": "Tonal words (horn, buzz, hum) become drones; use percussive events unless the tone is the point, and confirm a drone with a spectrum, not loudness.",
+   "rule": "SNAP-R36",
+   "more": "skill snap-boards"
+  },
+  {
+   "id": "run/palette-words-style-line",
+   "scope": "tool:run",
+   "kind": "note",
+   "text": "Palette words in the style line get painted onto props; keep them out of shots where a light stays off, and state off states literally.",
+   "rule": "SNAP-R13",
+   "more": "skill snap-boards"
+  },
+  {
+   "id": "run/never-cite-next-place",
+   "scope": "tool:run",
+   "kind": "note",
+   "text": "Never cite the next place on a path as a reference: H3 hard-cut to it in 3 of 8 takes. Cite the cut's own plate, the master and the Cast.",
+   "rule": "SNAP-R84",
+   "more": "skill snap-location"
+  },
+  {
+   "id": "apply_setup/cut-whose-first-frame",
+   "scope": "tool:apply_setup",
+   "kind": "model_choice",
+   "job": "a cut whose first frame is the point (a wide, a light igniting in place)",
+   "choice": "FL2V from the key still",
+   "why": "copies the still exactly (identity, framing) but invents the set as the camera moves",
+   "rule": "SNAP-R9",
+   "more": "skill snap-model-choice"
+  },
+  {
+   "id": "apply_setup/acting-known-set",
+   "scope": "tool:apply_setup",
+   "kind": "model_choice",
+   "job": "acting in a known set",
+   "choice": "Ref2V with the plate and Cast pictures",
+   "why": "holds the plate's set and draws the character from the sheets; ignores a First frame left over from FL2V",
+   "rule": "SNAP-R9",
+   "more": "skill snap-model-choice"
+  },
+  {
+   "id": "edit_from_context/known-place-from-context",
+   "scope": "tool:edit_from_context",
+   "kind": "note",
+   "text": "A known place's new view is made from context pictures (master, nearest prior view, Cast), never words alone.",
+   "rule": "SNAP-R71",
+   "more": "AGENT_START.md New view"
+  },
+  {
+   "id": "edit_from_context/what-picture-1-depends",
+   "scope": "tool:edit_from_context",
+   "kind": "note",
+   "text": "What Picture 1 is depends on the model (picture_one); for both H3 models the words set the camera.",
+   "rule": "SNAP-R72",
+   "more": "AGENT_START.md New view"
+  },
+  {
+   "id": "edit_from_context/pass-width-height-ph3",
+   "scope": "tool:edit_from_context",
+   "kind": "note",
+   "text": "Pass width and height: ph3_view with 0 makes Picture 1's own size, so a crop gives a small odd still. Board frames at 2-4 MP.",
+   "rule": "SNAP-R75",
+   "more": "skill snap-new-view"
+  },
+  {
+   "id": "edit_from_context/targeted-edit-names-change",
+   "scope": "tool:edit_from_context",
+   "kind": "note",
+   "text": "A targeted edit names only the change, its shape, what it is not, and what holds ('her head stays in profile'); without the last part 5/6 turned the head.",
+   "rule": "SNAP-R75",
+   "more": "skill snap-new-view"
+  },
+  {
+   "id": "edit_from_context/wide-inside-place-pulls",
+   "scope": "tool:edit_from_context",
+   "kind": "note",
+   "text": "A wide from inside a place pulls back to the master's aerial (6/6) unless something at head height anchors the foreground.",
+   "rule": "SNAP-R84",
+   "more": "skill snap-location"
+  },
+  {
+   "id": "edit_from_context/callouts-come-crop-cast",
+   "scope": "tool:edit_from_context",
+   "kind": "note",
+   "text": "Callouts come from a crop ({cast, crop}: 29/30), not from words (0/24).",
+   "rule": "SNAP-R72",
+   "more": "skill snap-turnaround"
+  },
+  {
+   "id": "edit_from_context/land-cut-s-board",
+   "scope": "tool:edit_from_context",
+   "kind": "note",
+   "text": "Land each cut's board in that cut's shot (land).",
+   "rule": "SNAP-R71",
+   "more": "AGENT_START.md New view"
+  },
+  {
+   "id": "edit_from_context/sets-wide-shots-targeted",
+   "scope": "tool:edit_from_context",
+   "kind": "model_choice",
+   "job": "sets, wide shots and targeted edits",
+   "choice": "ph3_view (P-H3-Image)",
+   "why": "moves the camera from words (6/6 into the square with the master's own gate), ~7 s a still at 8 steps; its no-change floor is SSIM 0.94-0.96",
+   "rule": "SNAP-R86",
+   "more": "skill snap-model-choice"
+  },
+  {
+   "id": "edit_from_context/character-shots-two-shots",
+   "scope": "tool:edit_from_context",
+   "kind": "model_choice",
+   "job": "character shots, two-shots and finished board frames",
+   "choice": "fizgig_still",
+   "why": "closest two-shots; every picture is a reference, so it draws back views (6/6); soft under 2-3 MP; an edit with it re-renders the whole picture",
+   "rule": "SNAP-R86",
+   "more": "skill snap-model-choice"
+  },
+  {
+   "id": "edit_from_context/new-view-place",
+   "scope": "tool:edit_from_context",
+   "kind": "model_choice",
+   "job": "a new view of a place",
+   "choice": "an H3 still model, not MOSS Image Edit",
+   "why": "MOSS edit copied Picture 1 or redesigned the set and the people across views",
+   "rule": "SNAP-R75",
+   "more": "SNAP_RULES.md R75"
+  },
+  {
+   "id": "edit_from_context/board-still-bigger-than",
+   "scope": "tool:edit_from_context",
+   "kind": "model_choice",
+   "job": "a board still bigger than 4 MP",
+   "choice": "SeedVR2 after the still",
+   "why": "~5 s; the H3 latent refine is softer and 7x slower",
+   "rule": "SNAP-R14",
+   "more": "skill snap-model-choice"
+  },
+  {
+   "id": "save_location/build-location-set-plan",
+   "scope": "tool:save_location",
+   "kind": "note",
+   "text": "Build a location as set plan + master + one people-free forward-dolly walkthrough; pull plates from its frames with their camera pose.",
+   "rule": "SNAP-R84",
+   "more": "skill snap-location"
+  },
+  {
+   "id": "save_location/forward-dollies-hold-set",
+   "scope": "tool:save_location",
+   "kind": "note",
+   "text": "Forward dollies hold a set; turns snap back to the master's pose (4/4).",
+   "rule": "SNAP-R84",
+   "more": "skill snap-location"
+  },
+  {
+   "id": "save_location/plate-prompts-describe-place",
+   "scope": "tool:save_location",
+   "kind": "note",
+   "text": "Plate prompts describe the place only ('no figures'); say what is not there; keep establishing plates people-free; put seats and anchors in the plate.",
+   "rule": "SNAP-R21",
+   "more": "skill snap-location"
+  },
+  {
+   "id": "use_take/cite-plates-take-frame",
+   "scope": "tool:use_take",
+   "kind": "note",
+   "text": "Cite plates by take frame (use_take {take, as: reference, at}) instead of exporting files.",
+   "rule": "SNAP-R23",
+   "more": "skill snap-location"
+  },
+  {
+   "id": "make_character_sheet/back-view-needs-back",
+   "scope": "tool:make_character_sheet",
+   "kind": "note",
+   "text": "A back view needs a back reference: from a front picture alone back views mirrored the carried prop 6/6.",
+   "rule": "SNAP-R77",
+   "more": "skill snap-turnaround"
+  },
+  {
+   "id": "make_character_sheet/measure-reference-s-shape",
+   "scope": "tool:make_character_sheet",
+   "kind": "note",
+   "text": "Measure the reference's shape first: a portrait picture rolls the five-view LoRA's camera (4/6); padded square it orbits 9/9.",
+   "rule": "SNAP-R77",
+   "more": "AGENT_START.md Character sheets"
+  },
+  {
+   "id": "make_character_sheet/check-what-holds-carried",
+   "scope": "tool:make_character_sheet",
+   "kind": "note",
+   "text": "Check what holds every carried object (strap, sheath, belt, hand) in every view before the sheet becomes a Cast picture.",
+   "rule": "SNAP-R89",
+   "more": "skill snap-turnaround"
+  },
+  {
+   "id": "make_character_sheet/seen-from-above-never",
+   "scope": "tool:make_character_sheet",
+   "kind": "note",
+   "text": "'Seen from above' never appears in a one-sheet turnaround (0/6).",
+   "rule": "SNAP-R77",
+   "more": "AGENT_START.md Character sheets"
+  },
+  {
+   "id": "make_character_sheet/sheets-neutral-acting-goggles",
+   "scope": "tool:make_character_sheet",
+   "kind": "note",
+   "text": "Keep sheets neutral; acting (goggles down, eyes opening) goes in the video prompt.",
+   "rule": "SNAP-R77",
+   "more": "skill snap-turnaround"
+  },
+  {
+   "id": "make_character_sheet/turnaround",
+   "scope": "tool:make_character_sheet",
+   "kind": "model_choice",
+   "job": "a turnaround",
+   "choice": "one continuous H3 orbit (an orbit LoRA such as ORB360 on Ref2VA, front + back pictures, 20 steps), frames at 90/180/270",
+   "why": "one video keeps carried objects consistent by construction; passed every per-view check where stills guessed each side",
+   "rule": "SNAP-R77",
+   "more": "skill snap-turnaround"
+  },
+  {
+   "id": "make_character_sheet/turnaround-without-orbit-lora",
+   "scope": "tool:make_character_sheet",
+   "kind": "model_choice",
+   "job": "a turnaround without an orbit LoRA",
+   "choice": "contact_sheet",
+   "why": "Picture 1 padded square orbits front to back 9/9, ~39 s a sheet",
+   "rule": "SNAP-R77",
+   "more": "AGENT_START.md Character sheets"
+  },
+  {
+   "id": "make_character_sheet/8-panel-reference-sheet",
+   "scope": "tool:make_character_sheet",
+   "kind": "model_choice",
+   "job": "an 8-panel reference sheet with close-ups",
+   "choice": "h3_ref_sheet, given views or crops",
+   "why": "kept a scabbard on the back in profile 5/6",
+   "rule": "SNAP-R77",
+   "more": "AGENT_START.md Character sheets"
+  },
+  {
+   "id": "make_character_sheet/sheet-must-carried-props",
+   "scope": "tool:make_character_sheet",
+   "kind": "model_choice",
+   "job": "a sheet that must keep carried props",
+   "choice": "not krea2_quadview (drops props) or moss_charref (off-model); krea2_dynamic only for pitch sheets (garbled labels)",
+   "why": "U101 round 2 bake-off",
+   "rule": "SNAP-R77",
+   "more": "AGENT_START.md Character sheets"
+  },
+  {
+   "id": "save_cast/single-figure-front-view",
+   "scope": "tool:save_cast",
+   "kind": "note",
+   "text": "Keep a single-figure front view as the Cast's first picture: a three-view sheet made a recast paint three people.",
+   "rule": "SNAP-R59",
+   "more": "skill snap-turnaround"
+  },
+  {
+   "id": "save_cast/cast-state-s-picture",
+   "scope": "tool:save_cast",
+   "kind": "note",
+   "text": "A Cast state's picture decides expression; a new look needs a new picture, not only words.",
+   "rule": "SNAP-R59",
+   "more": "skill snap-turnaround"
+  },
+  {
+   "id": "save_cast/before-saying-look-changed",
+   "scope": "tool:save_cast",
+   "kind": "note",
+   "text": "Before saying a look changed, look at the take (take_frames): a version number says what Snap put in, not what the model drew.",
+   "rule": "SNAP-R60",
+   "more": "AGENT_START.md §5"
+  },
+  {
+   "id": "edit_take/recast-give-who-short",
+   "scope": "tool:edit_take",
+   "kind": "note",
+   "text": "Recast: give who a short description of the person to replace, not the old Cast's details line (that added the new person beside the old).",
+   "rule": "SNAP-R51",
+   "more": "skill snap-turnaround"
+  },
+  {
+   "id": "edit_take/ripple-relight-change-something",
+   "scope": "tool:edit_take",
+   "kind": "note",
+   "text": "Ripple (relight, Change something) re-renders the sound; Remake keeps it.",
+   "rule": "SNAP-R51",
+   "more": "skill snap-boards"
+  },
+  {
+   "id": "edit_take/change-something-video-take",
+   "scope": "tool:edit_take",
+   "kind": "model_choice",
+   "job": "Change something on a video take",
+   "choice": "MOSS Image Edit paints the frames, then H3 Ripple / Viggle Remake",
+   "why": "the in-place video edit route; MOSS left only New view",
+   "rule": "SNAP-R75",
+   "more": "SNAP_RULES.md R51, R75"
+  },
+  {
+   "id": "edit_take/making-take-longer",
+   "scope": "tool:edit_take",
+   "kind": "model_choice",
+   "job": "making a take longer",
+   "choice": "Standard up to ~40 s, Long beyond; Strong only as a pick",
+   "why": "Standard grows a mosaic past ~40 s; Long's re-anchor holds 2 minutes, face and sound",
+   "rule": "SNAP-R64",
+   "more": "SNAP_RULES.md R64"
+  },
+  {
+   "id": "edit_take/drone-extended-take-usually",
+   "scope": "tool:edit_take",
+   "kind": "note",
+   "text": "A drone in an extended take is usually the prompt's tonal words, not the carry: Long stayed clean for 34 s once they left.",
+   "rule": "SNAP-R64",
+   "more": "skill snap-boards"
+  },
+  {
+   "id": "edit_take/measure-long-clip-drift",
+   "scope": "tool:edit_take",
+   "kind": "note",
+   "text": "Measure long-clip drift with a looping prompt so same-phase segments compare like for like.",
+   "rule": "SNAP-R64",
+   "more": "skill snap-critic"
+  },
+  {
+   "id": "upscale_take/look-whole-frames-several",
+   "scope": "tool:upscale_take",
+   "kind": "note",
+   "text": "Look at whole frames at several angles before face crops: a tiled upscale grew ghost figures in its backdrop while the face looked great.",
+   "rule": "SNAP-R82",
+   "more": "AGENT_START.md Making a take bigger"
+  },
+  {
+   "id": "upscale_take/2k-stage-2-pass",
+   "scope": "tool:upscale_take",
+   "kind": "note",
+   "text": "A 2K stage 2 pass at cfg 5 fills a 32 GB card (~2.5 min a step); Tessera's 4K decode writes ~10 GB to TESSERA_SCRATCH.",
+   "rule": "SNAP-R81",
+   "more": "AGENT_START.md Making a take bigger"
+  },
+  {
+   "id": "upscale_take/making-reference-bigger-cast",
+   "scope": "tool:upscale_take",
+   "kind": "model_choice",
+   "job": "making a reference bigger (Cast picture, turnaround, plate, settei)",
+   "choice": "stage2 at denoise 0.3",
+   "why": "redraws the smeared face: ArcFace vs the Cast front 0.91/0.86/0.89 vs 0.79/0.68/0.80 for sharpen-only RelayVSR",
+   "rule": "SNAP-R85",
+   "more": "skill snap-reference-upscale"
+  },
+  {
+   "id": "upscale_take/4k",
+   "scope": "tool:upscale_take",
+   "kind": "model_choice",
+   "job": "4K",
+   "choice": "tessera after stage2 (anchored on its frame 0, flat_skip 8)",
+   "why": "carries the redrawn face up; on its own its backdrop tiles grew ghost copies",
+   "rule": "SNAP-R82",
+   "more": "AGENT_START.md Making a take bigger"
+  },
+  {
+   "id": "add_audio_ref/voice-reference-12-steps",
+   "scope": "tool:add_audio_ref",
+   "kind": "note",
+   "text": "Make a voice reference at 12 steps or more, low resolution is fine; ordinary takes stay at the setup's steps.",
+   "rule": "SNAP-R88",
+   "more": "AGENT_START.md Voices"
+  },
+  {
+   "id": "add_audio_ref/text-alone-doesnt-cast",
+   "scope": "tool:add_audio_ref",
+   "kind": "note",
+   "text": "Text alone doesn't cast a voice (pitch, age and sex words are ignored): anchor it with a talking take and cite <Audio n> in every cut where the character speaks.",
+   "rule": "SNAP-R73",
+   "more": "skill snap-voice"
+  },
+  {
+   "id": "add_audio_ref/measure-voice-before-calling",
+   "scope": "tool:add_audio_ref",
+   "kind": "note",
+   "text": "Measure a voice before calling it cast: Whisper text, F0 median and range, speaker similarity against the reference.",
+   "rule": "SNAP-R88",
+   "more": "skill snap-voice"
+  },
+  {
+   "id": "add_audio_ref/audio-uploads-subfolder-snap",
+   "scope": "tool:add_audio_ref",
+   "kind": "note",
+   "text": "Audio uploads with subfolder=snap; Load Audio lists input/snap/.",
+   "rule": "SNAP-R74",
+   "more": "AGENT_START.md Voices"
+  },
+  {
+   "id": "judge_takes/whole-frame-full-resolution",
+   "scope": "tool:judge_takes",
+   "kind": "note",
+   "text": "Whole frame at full resolution first, crops second.",
+   "rule": "SNAP-R89",
+   "more": "skill snap-critic",
+   "planned": "U93"
+  },
+  {
+   "id": "judge_takes/check-logic-consistency-enclosures",
+   "scope": "tool:judge_takes",
+   "kind": "note",
+   "text": "Check logic, not only consistency: enclosures close, roads reach gates, what holds each carried object; contact, attachments, intersections.",
+   "rule": "SNAP-R89",
+   "more": "skill snap-critic",
+   "planned": "U93"
+  },
+  {
+   "id": "judge_takes/judge-masters-sheets-plates",
+   "scope": "tool:judge_takes",
+   "kind": "note",
+   "text": "Judge masters, sheets and plates too; compare every view of a location side by side and against its master; put the previous cut's last frame beside each cut.",
+   "rule": "SNAP-R89",
+   "more": "skill snap-critic",
+   "planned": "U93"
+  },
+  {
+   "id": "judge_takes/fix-flaw-source-record",
+   "scope": "tool:judge_takes",
+   "kind": "note",
+   "text": "Fix a flaw at its source record and re-run its dependents; a new seed keeps a plate's flaw.",
+   "rule": "SNAP-R90",
+   "more": "skill snap-critic",
+   "planned": "U93"
+  },
+  {
+   "id": "judge_takes/state-baseline-before-reading",
+   "scope": "tool:judge_takes",
+   "kind": "note",
+   "text": "State the baseline before reading a face score: a bowed profile scores 0.06 and relighting 0.34-0.60; the head crops decide.",
+   "rule": "SNAP-R23",
+   "more": "skill snap-critic",
+   "planned": "U93"
+  },
+  {
+   "id": "note_take/mark-visible-mask-note",
+   "scope": "tool:note_take",
+   "kind": "note",
+   "text": "A mark is a visible mask with its note; 'Fix this' uses the mask as the edit region or routes to the source record.",
+   "rule": "SNAP-R91",
+   "more": "SNAP_RULES.md R91",
+   "planned": "U95"
+  },
+  {
+   "id": "propose_downloads/each-file-person-yes",
+   "scope": "tool:propose_downloads",
+   "kind": "note",
+   "text": "Each file needs the person's yes; safetensors only.",
+   "rule": "SNAP-R25",
+   "more": "AGENT_START.md §3"
+  },
+  {
+   "id": "propose_downloads/read-pack-s-code",
+   "scope": "tool:propose_downloads",
+   "kind": "note",
+   "text": "Read a pack's code per the person's code-review setting, and grep installed packs for its node ids first.",
+   "rule": "SNAP-R28",
+   "more": "skill snap-core"
+  },
+  {
+   "id": "save_cast/third-party-character-catalog",
+   "scope": "tool:save_cast",
+   "kind": "note",
+   "text": "A third-party character catalog is linked, never shipped or offered as Cast sources.",
+   "rule": "SNAP-R92",
+   "more": "SNAP_RULES.md R92"
+  },
+  {
+   "id": "list_activity/never-poll-wait-for",
+   "scope": "tool:list_activity",
+   "kind": "note",
+   "text": "Never poll JSON files or sleep: wait_for answers; quote times as first seed / each more seed, from /history.",
+   "rule": "SNAP-R65",
+   "more": "AGENT_START.md Work card; skill snap-critic"
+  }
+ ]
+}

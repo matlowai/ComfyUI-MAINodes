@@ -16,6 +16,7 @@
 // SNAP-R62 clean-up: delete_record waits for the person · SNAP-R63 rerun: any pinned reference swapped · SNAP-R65 list_activity, list_docket, wait_for read the Work card ·
 // SNAP-R71/R72 edit_from_context (a new view from ordered context pictures) · SNAP-R77 make_character_sheet · SNAP-R80 open_view (a picture full size) · SNAP-R81/R82 upscale_take · SNAP-R73 add_audio_ref, remove_audio_ref, a Cast's voice ·
 // SNAP-R84 list_locations, save_location, add_plate, apply_location, dependents; add_ref / remove_ref; check_identity on any take · SNAP-R83 screenshot of the agents' window · see docs/SNAP_RULES.md
+// SNAP-R93-R95 agent instructions and skills (instructions.js): describe_recipe, get_take and get_scene carry the stack, the pack's notes end each description · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import { BRICKS, PACK_BRICKS } from "./bricks.js";
@@ -46,6 +47,7 @@ import * as RR from "./rerun.js";
 import * as J from "./jobs.js";
 import * as A from "./activity.js";
 import * as LB from "./lightbox.js";
+import * as I from "./instructions.js";
 import { api } from "../../../scripts/api.js";
 
 // a widget as an agent reads it: value, kind, every choice, limits, and whether a wire drives it
@@ -137,7 +139,7 @@ export const TOOLS = [
   },
   {
     name: "describe_recipe",
-    description: "The current workflow, starting with `revision` (a content hash of what Run would queue; pass it as if_revision to a change so it is refused when the person or another agent edited in between) and `about` (how the current setup card's models fit together: read it before changing anything), then `prompt_help` (how this recipe's model reads a prompt: H3's sections, what makes its sound audible), then as bricks in reading order, each with its `id` (exactly what set_setting's and every other tool's `brick` takes: the stills recipe's Render is `image`) next to its `title` and `kit` (a brick that is off says on: false and why: its values are not used), with each brick's bindings (what feeds it and which rule made the link), its settings, wiring the user changed in the graph, settings that point at nothing installed, nodes outside the recipe (Run leaves them out), `world` (the record versions this recipe holds: ref, name, n, head, moved, follow, placed = where their pieces went; a moved one is updated only by apply_cast / apply_card or the person's update chip), and `models`: the family, the setup, the turbo, every model file the recipe loads (size, installed, and the model graph's kind / turbo / role), the LoRA rows, and warnings (a turbo LoRA on a turbo merge, stacked turbos, SFT without a deband fix, another family's file, a schedule the turbo wasn't distilled for, an encoder type that doesn't fit). Warnings never block; say them to the person.",
+    description: "The current workflow, starting with `revision` (a content hash of what Run would queue; pass it as if_revision to a change so it is refused when the person or another agent edited in between) and `about` (how the current setup card's models fit together: read it before changing anything), then `prompt_help` (how this recipe's model reads a prompt: H3's sections, what makes its sound audible), then as bricks in reading order, each with its `id` (exactly what set_setting's and every other tool's `brick` takes: the stills recipe's Render is `image`) next to its `title` and `kit` (a brick that is off says on: false and why: its values are not used), with each brick's bindings (what feeds it and which rule made the link), its settings, wiring the user changed in the graph, settings that point at nothing installed, nodes outside the recipe (Run leaves them out), `world` (the record versions this recipe holds: ref, name, n, head, moved, follow, placed = where their pieces went; a moved one is updated only by apply_cast / apply_card or the person's update chip), `instructions` (the agent instructions in force for this recipe, whole: follow them; see the instructions tool), and `models`: the family, the setup, the turbo, every model file the recipe loads (size, installed, and the model graph's kind / turbo / role), the LoRA rows, and warnings (a turbo LoRA on a turbo merge, stacked turbos, SFT without a deband fix, another family's file, a schedule the turbo wasn't distilled for, an encoder type that doesn't fit). Warnings never block; say them to the person.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
     run: async () => ({
@@ -152,6 +154,7 @@ export const TOOLS = [
       ...(L.picturesUnread() ? { references_unused: L.picturesUnread() } : {}),
       ...(E.references() ? { references: E.references() } : {}), // U101: the <Picture n> / <Audio n> each reference is cited as
       world: await worldOf(E.state().world),
+      instructions: await I.forRecipe(), // SNAP-R93
       ...(E.legacy() ? { older_render: { upscale: E.legacy().upscale, about: "the older H3 Render blueprint: it saves the video itself and holds the RelayVSR switch (its `upscale` setting); it runs as saved. upgrade_render gives Upscale and Save as bricks" } } : {}),
     }),
   },
@@ -797,7 +800,7 @@ export const TOOLS = [
   },
   {
     name: "get_take",
-    description: "One take in full: its rating and why (from how it was made, or the person's own), its notes (moment in seconds, optional region [x, y, w, h] as fractions of the frame, went wrong/right, tags, words, who wrote it), what changed since the take before it, the prompt and the error if it failed, `world`: the record versions it ran with (ref kind:id, name, n = the version it used, head = the newest, moved, archived/missing; version 0 is a pack card), and `parent`: the take it was made from and how ({take, method: retake, rerun/regenerate, continue, edit/<method>, recast/<method>, extend/<method>, options}; null for a first take).",
+    description: "One take in full: its rating and why (from how it was made, or the person's own), its notes (moment in seconds, optional region [x, y, w, h] as fractions of the frame, went wrong/right, tags, words, who wrote it), what changed since the take before it, the prompt and the error if it failed, `world`: the record versions it ran with (ref kind:id, name, n = the version it used, head = the newest, moved, archived/missing; version 0 is a pack card), `instructions`: the agent instructions it ran under, what applies now and what changed (ran, now, same, diff: added, removed, changed with both texts, turned_off, turned_on), and `parent`: the take it was made from and how ({take, method: retake, rerun/regenerate, continue, edit/<method>, recast/<method>, extend/<method>, options}; null for a first take).",
     inputSchema: { type: "object", properties: { take: { type: "string" } }, required: ["take"] },
     annotations: { readOnlyHint: true },
     run: async ({ take }) => {
@@ -807,7 +810,7 @@ export const TOOLS = [
       if (!t || T.aboveCap(t)) throw new Error(`No take ${take}`);
       const prev = T.inGroup(t.group).filter((x) => x.created < t.created).at(-1);
       return { id: t.id, number: t.number, seed: t.seed, status: t.status, error: t.error, verdict: t.verdict, prior: t.prior, seconds: t.seconds, prompt: t.text, notes: t.notes, media: t.media, copy: t.copy ?? null, rating: T.ratingOf(t), rating_why: t.rating_set ? ["rated by the person"] : t.rating_why ?? [], changed_since_previous: prev ? T.delta(prev, t) : [],
-        world: await worldOf(t.world), parent: t.parent ?? null, purpose: (await S.load(), await W.load(), ED.purposeOf(t)), ...(t.kept_encrypted ? { kept_encrypted: true, ...(t.locked ? { locked: true, said: "kept encrypted and the vault is locked: its prompt, notes and frames open once the person signs in" } : {}) } : {}) };
+        world: await worldOf(t.world), parent: t.parent ?? null, purpose: (await S.load(), await W.load(), ED.purposeOf(t)), instructions: await I.ofTake(t), ...(t.kept_encrypted ? { kept_encrypted: true, ...(t.locked ? { locked: true, said: "kept encrypted and the vault is locked: its prompt, notes and frames open once the person signs in" } : {}) } : {}) };
     },
   },
   {
@@ -1318,7 +1321,7 @@ export const TOOLS = [
     description: "One scene as a document: its shots in order (id, number, title, shot card, the workflow Snap keeps for it, the take groups it gathers), and each shot's takes as a tree: label (Take 2, Night version), status, verdict, versions nested under the take they came from, active: true on the shot's active take, and active_path (Take 2 › Night version). open is the shot the open tab shows.",
     inputSchema: { type: "object", properties: { scene: { type: "string" } }, required: ["scene"] },
     annotations: { readOnlyHint: true },
-    run: async ({ scene }) => { await Promise.all([SC.load(), T.load(), L.ready()]); const s = SC.get(scene); if (!s) throw new Error(`No scene ${scene}`); return SC.describe(s); },
+    run: async ({ scene }) => { await Promise.all([SC.load(), T.load(), L.ready()]); const s = SC.get(scene); if (!s) throw new Error(`No scene ${scene}`); return { ...SC.describe(s), instructions: await I.answer(await I.contextOf(`scene:${s.id}`)) }; },
   },
   {
     name: "create_scene",
@@ -1418,6 +1421,7 @@ export const TOOLS = [
     annotations: { readOnlyHint: true },
     run: () => P.all(),
   },
+  ...I.TOOLS, // SNAP-R93-R95 instructions, list_instructions, save_instruction, set_instruction_status, list_skills, read_skill, save_skill
 ];
 
 // a card shot opened with no plate for its camera offers that camera's plate candidates (U55): GPU time nobody asked for
@@ -1502,7 +1506,7 @@ export async function callTool(name, args = {}, { confirmed } = {}) {
     const p = P.add(name, rest, reason, for_note, plan);
     return { proposed: p.id, ...warning, ...(plan ? { plan } : {}), status: "waiting for the person to accept or reject; see list_proposals" };
   }
-  const out = await tool.run(rest);
+  const out = await tool.run(rest, { confirmed });
   return plan && out && typeof out === "object" && !Array.isArray(out) ? { ...out, ...warning, plan } : out;
 }
 
@@ -1515,7 +1519,7 @@ const IF_REVISION = { if_revision: { type: "string", description: "the revision 
 // a tool's own argument of the same name (set_lora_category's reason) keeps its description
 const own = (props, extra) => Object.fromEntries(Object.entries(extra).filter(([k]) => !(k in props)));
 export const schema = () => TOOLS.map(({ name, description, inputSchema, annotations = {} }) => ({
-  name, description, annotations,
+  name, description: description + I.tail(name), annotations,
   inputSchema: readOnly(name) ? inputSchema : { ...inputSchema, properties: { ...inputSchema.properties, ...(proposable(name) ? own(inputSchema.properties, PROPOSE) : {}), ...IF_REVISION } },
 }));
 

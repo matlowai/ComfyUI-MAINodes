@@ -2,7 +2,7 @@
 // page queues carries extra.snap_metadata false in its workflow, and the server's save gate (snap_bridge.py) swaps core's
 // savers for twins that write no prompt or workflow. On, the mark is taken off again (a take's workflow run again).
 // The same mark says whether the server rates a take from its prompt's words too (SNAP-R39): a user setting, off by
-// default, for an account with no cap below Adult (Dylan, 2026-11-04); a capped account's prompts are always rated so.
+// default, for an account with no cap below Adult (the operator, 2026-11-04); a capped account's prompts are always rated so.
 // SNAP-R20 metadata switch · SNAP-R39 ratings from how a thing was made · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 

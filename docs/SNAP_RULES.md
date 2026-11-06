@@ -2,10 +2,13 @@
 
 Code cites these by ID, e.g. `// SNAP-R3: faces show outcomes`. Each rule has a one-line statement, why it exists,
 and where the full story lives. Study docs are in the research folder
-the Snap study notes (local to Dylan's machine): LESSONS.md, MODEL_SWITCHING.md,
+the Snap study notes (local to the operator's machine): LESSONS.md, MODEL_SWITCHING.md,
 MODEL_GRAPH_ONBOARDING.md, UX_SPEC.md, CONCEPT.md.
 
 When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "retired", so old comments still resolve.
+
+How to use Snap well (how the pieces link, the order of work, which model for which job, traps and quality bars) is
+in the Snap skills (`.claude/skills/`: `snap-core` first, then the task skills); these rules say how Snap must behave.
 
 ## Graph and generic behaviour
 
@@ -54,7 +57,7 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
 - **SNAP-R10: Turbos are either merged into a checkpoint or are LoRAs.** Don't add a turbo LoRA on a turbo merge unless
   the person asks. Stacking N LoRAs, including 2-3 turbo LoRAs at lower strengths, is normal. Swapping turbos is one
   chip. A turbo can live in a core stack or in a recipe's one LoRA setting: H3's Render Preset `lora` holds its turbo
-  (the Pika H3 Flex LoRAs are turbos: 6 steps, lcm, cfg 1 on Pika's manual knots; Dylan, 2026-11-04: "pika is turbo"),
+  (the Pika H3 Flex LoRAs are turbos: 6 steps, lcm, cfg 1 on Pika's manual knots; the operator, 2026-11-04: "pika is turbo"),
   so the Setup card and `describe_recipe` name it, and the Turbo slot swaps that setting with every sampling setting the
   turbo's model graph entry records, by the setting's own name: steps, cfg, sampler, scheduler, Pika's knots and H3's
   shifts (Pika 12 / 3, DMAD 12 / 2; U90). The slot lists the family's turbos with the ones for this model first: same Base / SFT lineage and the same
@@ -84,7 +87,7 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   (dmd, dmad, lightx2v, lcm, causvid), "turbo" inside a name, "deband" and training step counts (`step1500`,
   `5000steps`) are not signals; such a LoRA is unsorted until an agent reads the file or the person files it
   (SNAP-R55). *Why:* concept LoRAs trained on a turbo model (`<concept>-krea-turbo`, an ai-toolkit run of 2500 steps)
-  and training checkpoints (`..._v01_step1500`) showed as core·turbo on the live server (PLAN U67); Dylan, 2026-11-04
+  and training checkpoints (`..._v01_step1500`) showed as core·turbo on the live server (PLAN U67); the operator, 2026-11-04
   20:41: the kind is "checked by an LLM reading the LoRA itself (metadata, source), regardless of name, unless the
   name says something unambiguous like '4step'" (PLAN U84).
 - **SNAP-R55: A LoRA's kind is judged by an agent reading the file; the person's filing wins.** Snap makes no LLM
@@ -94,7 +97,7 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   person when the person said it) and a short `reason`, kept in the person's `snap/models.json` as `filed: {by, reason,
   at}`; the LoRA sheet shows an agent's filing as "agent: <reason>" on the row. An agent filing a LoRA the person filed
   (move to…, or an entry of theirs from before `filed` existed) is refused, naming their filing: ask them or propose
-  it. AGENT_START asks agents to work through the unsorted LoRAs that way. Never blocks a run. *Why:* Dylan, 2026-11-04
+  it. AGENT_START asks agents to work through the unsorted LoRAs that way. Never blocks a run. *Why:* the operator, 2026-11-04
   20:41 (PLAN U84). *More:* `snap_bridge.py` (`/mainodes/snap/lora_info`), `web/snap/models.js` (`moveTo`),
   `web/snap/tools.js`, `web/snap/loraview.js`.
 - **SNAP-R13: Family rules come from the model graph, not code branches.** These include: MOSS SFT always carries a
@@ -143,7 +146,7 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   `hair_check.lighter`, U56b). An edit that `does` something in `identity_check.unreliable_for` (relighting: the same
   woman scores 0.34-0.60 at night) shows its cosine as "face check unreliable under relighting" and never the
   different-person flag. What an edit does is its example's `does` (night, dusk, dawn: relight), else its method's:
-  Change something in the person's own words is an edit and keeps the face check, whichever method runs it (Dylan's
+  Change something in the person's own words is an edit and keeps the face check, whichever method runs it (the operator's
   "make her jacket sparkle magic" on Ripple was muted as a relight and a different woman went unflagged, batch E). A
   recast has no face check against the take (someone else is the point), but one painted from a Cast's picture compares
   each painted face with that picture: "probably not <name>" below the same threshold, else the number only ("face vs
@@ -173,10 +176,10 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   its workflow file kept), and a deleted scene's document is parked in `snap/scenes/_parked/<id>.json` with its shot
   workflows and takes where they were; an agent's remove waits for the person. Switching model family inside a shot
   opens a scratch tab outside the scene, and the setups sheet says so (whether it should stay as a version of the shot
-  is Dylan's open question). Ids are
+  is an open question for the operator). Ids are
   stable and the shots ordered; lanes and in/out on shots and takes come with the sequence editor (layer 3).
   *Why:* takes grouped by the workflow's own id, so a scene's shots and their variants scattered over tabs
-  (NEXT_DESIGN_REVIEW §10 Q2); Dylan (2026-11-04): "a scene should have the related work navigable and nested".
+  (NEXT_DESIGN_REVIEW §10 Q2); the operator (2026-11-04): "a scene should have the related work navigable and nested".
   *More:* `web/snap/scenes.js`, `web/snap/sceneview.js`; PLAN U59, scout/editor_layer §5.6-5.7.
 
 ## World state
@@ -190,7 +193,7 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   hand edit) replaces its own pieces in place. So every check that reads the queued prompt (the gate's cap, the pack's
   second line, privacy marks, metadata twins, the take hash, core's cache) still sees what runs, and the file runs in
   plain ComfyUI. Editing a character means editing the record (the Cast sheet, `save_cast`); a recipe changes only when
-  the person applies it. The `character` card kind is `cast`. *Why:* Dylan 2026-11-04 20:48: "metadata for the cast rows
+  the person applies it. The `character` card kind is `cast`. *Why:* the operator, 2026-11-04 20:48: "metadata for the cast rows
   should live with that cast record. the cast id would live on the image, not everything about the character itself";
   22:44: files carry what ran plus the pins (design Option C). *More:* `web/snap/library.js` (applyCast),
   `web/snap/castview.js`; DESIGN_U86_U87_CAST_VERSIONS_2026-11-04.md §4.1-4.2; PLAN U86.
@@ -218,7 +221,7 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   with names and cards) inside their own document; take lists, the active take and workflow files make no version. The
   set editor's "Save as version" takes a note. `get_record` and `diff_record` read any version and what changed, values
   whole. *Why:*
-  Dylan 2026-11-04 20:49: "versioning so you can properly recall the state of what it was when it was generated and
+  the operator, 2026-11-04 20:49: "versioning so you can properly recall the state of what it was when it was generated and
   regenerate with updated world state, or with the old world state"; 20:51: keep every version, files by name. *More:*
   `web/snap/world.js`, `snap_world.py`; DESIGN_U86_U87_CAST_VERSIONS_2026-11-04.md §4.3; PLAN U87.
 
@@ -231,7 +234,7 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   tab, never on unrelated open work; its run carries `extra.snap.retake`, so the new take nests under the original as
   "Retake · as it was" / "Retake · today's world". An agent's retake spends GPU time, so it waits as a proposal with its
   plan (SNAP-R16). Saved files carry core's prompt and workflow (with `extra.snap.world`); with Save metadata off they
-  carry nothing (SNAP-R38). *Why:* Dylan 2026-11-04 22:44: "open/drop a file in Snap → 'Run as it was' / 'Run with
+  carry nothing (SNAP-R38). *Why:* the operator, 2026-11-04 22:44: "open/drop a file in Snap → 'Run as it was' / 'Run with
   today's world' / 'Edit then run' … showing what differs". *More:* `web/snap/retake.js`, `web/snap/worldsheet.js`;
   DESIGN_U86_U87 §4.4; PLAN U87, U89 (swap any reference builds on it).
 
@@ -243,7 +246,7 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   the takes that pin them and their files); import adds what isn't there and never renumbers a version (a clash is
   reported). Delete (a version or a record) first says how many takes pin it and that they still run as they were,
   and offers Export first; its pictures stay in input/. An agent's `delete_record` waits as a proposal (SNAP-R16's
-  shape: it is the one step that can't be undone). *Why:* Dylan 2026-11-04 20:51: "keep every world-state version
+  shape: it is the one step that can't be undone). *Why:* the operator, 2026-11-04 20:51: "keep every world-state version
   forever; when it grows, a clean-up UX offers archive / export (zip) / delete, always the person's choice".
   *More:* `web/snap/worldview.js`, `snap_world.py`; DESIGN_U86_U87 §4.5.
 - **SNAP-R63: Re-run swaps any reference.** Every record a take (or a saved file) pinned is a slot that stays pinned, or
@@ -263,7 +266,7 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   rating the run would have, and on a signed-in install that the server will refuse one above the cap. A file saved
   without metadata re-runs from the take it is. Errors name the take's slots and every choice of a slot. A changed
   reference picture reads "front picture changed" with both pictures and their file names on the sheets; the tools keep
-  the whole refs line in `fields` and add `pictures` [{role, was, now}] (SNAP-R58). *Why:* Dylan, 2026-11-04 22:45: "run as it was, run with today's world,
+  the whole refs line in `fields` and add `pictures` [{role, was, now}] (SNAP-R58). *Why:* the operator, 2026-11-04 22:45: "run as it was, run with today's world,
   run with a version or a different scene, run scene with different characters... think Disney re-running the same
   animations with different movies and characters but same motions"; coordinator calls 2026-11-05 03:34. *More:* PLAN
   U89, DESIGN_U89_RERUN_SWAPS_2026-11-05.md, `web/snap/rerun.js`.
@@ -286,7 +289,7 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   setups appear only for tasks the person allowed; the intent step holds Next until one is picked. SFW only hides files,
   dials, LoRAs, turbos (the Turbo slot) and Library cards the model graph tags `nsfw` from pickers and agent tools
   (list_models' counts too); takes and the graph view's own lists still show them; it's a preference filter on the person's own tags, and the UI says so.
-  *Why:* AGENTS.md "No Internet Requests"; Dylan (2026-11-04): intent first, light touch, metadata asked here.
+  *Why:* AGENTS.md "No Internet Requests"; the operator (2026-11-04): intent first, light touch, metadata asked here.
   *More:* MODEL_GRAPH_ONBOARDING §4 and §8, `web/snap/onboarding.js`, `onboardview.js`, `profile.js`.
 
 - **SNAP-R28: Whether an agent reads code before bringing it in is the person's setting.** `code_review` in user
@@ -296,8 +299,8 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   `propose_downloads` gives every pack (a kit's, or any repo an agent names with `pack`) a `review` of `required` or
   `skipped (your setting)` beside its license and safety read, and the tool descriptions tell agents to follow it. It
   only decides the reading: every install still waits for the person's yes, and Snap itself never installs or
-  downloads (SNAP-R25). *Why:* Dylan approved the Viggle Remake pack "so long as you look at everything", then made it
-  a preference (2026-11-04 16:14): reading costs tokens, and the choice is his. *More:* DECISIONS "Onboarding", PLAN U70.
+  downloads (SNAP-R25). *Why:* the operator approved the Viggle Remake pack "so long as you look at everything", then made it
+  a preference (2026-11-04 16:14): reading costs tokens, and the choice is theirs. *More:* DECISIONS "Onboarding", PLAN U70.
 
 - **SNAP-R29: Onboarding opens by itself only for a person.** The one-time auto-open on the first Snap visit with no
   profile, and the empty profile it writes, wait for a real (trusted) pointer move, press, key or wheel on the visible
@@ -338,7 +341,7 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   driven, and while one is open a call never goes to another page instead (SNAP-R83). An agent picks its page: `list_pages` names each one (whose, the id's start, the tab or shot it shows) and
   `use_page` binds the agent (named by `X-Snap-Agent`: SNAP_AGENT for snapcall.py, one name per snap_mcp.py connection)
   to one page for its session; one agent drives a page at a time, the page shows "Driven by: <agent>" with Release, and
-  another agent reaching it is refused with the driver's name, never switched silently (Dylan 2026-11-05: "easily
+  another agent reaching it is refused with the driver's name, never switched silently (the operator, 2026-11-05: "easily
   select which web ui instance you want to interact with and not collide"). `SNAP_PAGE` or the `X-Snap-Page` header
   sends one call to a page; every answer names the page that answered (`page.id`, `page.name`). `GET /mainodes/snap/tools`
   lists the caller's open pages, when each registered and last answered; with none open, a call says it may have been
@@ -359,7 +362,7 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   action makes). The agents' window screenshots itself through its Chrome's DevTools port (no press; SNAP-R83). The embedder sidecar's port follows ComfyUI's
   (port + 230; 8188 keeps 8418). *Why:* U72 run 1 (Sonnet at low effort): grepping JS for a setting id, a stale Chrome
   lock, a "ready" kit whose recipe wasn't, polling a run that never said done, guessing fps, `undefined has no seed`;
-  Dylan: "once sonnet low is smooth I'll call it good". *More:* u72/FINDINGS.md F1-F10, PLAN U75, `snap_bridge.py`,
+  the operator: "once sonnet low is smooth I'll call it good". *More:* u72/FINDINGS.md F1-F10, PLAN U75, `snap_bridge.py`,
   `web/snap/tools.js`, `tools/`.
 - **SNAP-R31: A brick's title names it in every family.** Tools take a brick's id or the title it shows: `render`
   is the stills recipe's `image` brick, `models` its `image_models`, `save` its `save_image`. A brick that isn't in the
@@ -379,7 +382,7 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   that pages takes explicit arguments that default to all and says the full count; nothing is shortened silently. If a
   result is too big for an agent's context, the agent saves it to a file and hands it to a subagent to break down and
   report back (AGENT_START, Limits). Purely visual cuts in the page (a tooltip, a slug, a label on a brick) are not
-  results. *Why:* Dylan, 2026-11-04: "no limit ever"; "if a result exceeds context limits it needs to be passed to a
+  results. *Why:* the operator, 2026-11-04: "no limit ever"; "if a result exceeds context limits it needs to be passed to a
   subagent to break down, analyze and report back". *More:* `web/snap/tools.js`, `snap_bridge.py`, `tools/`.
 - **SNAP-R36: Quiet sound is a note with two ways out, never a silent fix.** A video take's sound is read once at
   capture (ffmpeg volumedetect through `/mainodes/snap/loudness`; no ffmpeg, no note) and kept as `sound` (mean and max
@@ -394,7 +397,7 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
 ## Signed-in installs (the pack's side of snap-gate)
 
 These hold only where snap-gate runs in front of ComfyUI (a separate install whose admin sets them). On an ungated
-ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS "No artificial limits").
+ComfyUI, the operator's included, nothing here restricts anything (SNAP-R11, DECISIONS "No artificial limits").
 
 - **SNAP-R32: On a gated install, only the admins' snap/ files decide ratings and marks.** snap-gate writes
   `user/snap_admins.json` (`{"admins": [ComfyUI user ids]}`) when it starts and at every sign-in, outside every user's
@@ -450,7 +453,7 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   never files. The take card shows a lock, and the export leaves private and NSFW takes out unless asked
   (`--include-private`, `--include-nsfw`). A person's model graph or private.json that doesn't parse makes every prompt
   private. *Why:* core writes the executed prompt and workflow, LoRA file names included, into every PNG and mp4, and
-  `--disable-metadata` is global; Dylan chose metadata on for everything with one clean switch (2026-11-04) over
+  `--disable-metadata` is global; the operator chose metadata on for everything with one clean switch (2026-11-04) over
   stripping private takes automatically. *More:* `snap_privacy.py`, `snap_bridge.py`, `web/snap/metadata.js`; PLAN U22, U58.
 - **SNAP-R38: Save metadata off writes no metadata, and anything that still does is named.** With the switch off, the
   server swaps every saver it can switch for a twin: Save Image, Preview Image, Save Video and MAIVideoOut (MAIVideoOut's
@@ -461,7 +464,7 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   list_takes, a chip on the card). Every default flow's saver is one the server switches: both recipes' Save bricks,
   the blueprints (no saver inside), Upscale (no saver), and Snap's own graphs (edits, plates, candidates, louder). The
   person's own data in user/snap (take records, which hold the prompt) is not a saved file and isn't affected. Neither
-  are dial files, which keep their own sentence pairs. *Why:* Dylan, 2026-11-04: "Save metadata off should stop metadata
+  are dial files, which keep their own sentence pairs. *Why:* the operator, 2026-11-04: "Save metadata off should stop metadata
   from writing. If there's anything that doesn't have a toggle for that in the flow, let them know." *More:* PLAN U81,
   `snap_bridge.py`, proto/test_metadata_off.py, test_metadata_flows.js.
 - **SNAP-R51: Change something, recast anyone, pin what was painted.** The edit slot is "Change something": the person
@@ -474,7 +477,7 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   passes through the painted frame at that moment; off, it only sets the look. The lighter rank-128 LoRA is offered as
   "the same picture, half the disk, no speed gain", and is used by itself when it is the only one installed. A method's
   `credit` is the tooltip of the controls that run it while it is picked, and of its card: "Powered by Viggle Remake
-  (https://huggingface.co/Viggle/Viggle-Remake) · MiniMax H3". *Why:* Dylan, 2026-11-04 16:45: Recast is a Snap slot, no
+  (https://huggingface.co/Viggle/Viggle-Remake) · MiniMax H3". *Why:* the operator, 2026-11-04 16:45: Recast is a Snap slot, no
   artificial limits, night is only an example; U69: one pin holds an object only near its frame, a recast scores ArcFace
   about 0 by design. *More:* PLAN U73, U69_VIGGLE_REMAKE_2026-11-04.md, `web/snap/edits.js`.
 - **SNAP-R50: A longer take carries the sampler's latent.** The extend slot makes a take longer by whole clips and lands
@@ -516,8 +519,8 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   A finished job whose queuing page closed before it landed still becomes its take: the first live page to claim it
   (`POST /mainodes/snap/adopt`, one claim per prompt) writes it, so two open pages never write it twice (short03 F-C25:
   an 18-minute stage 2 vanished when its tab closed).
-  Agents read the same rows (`list_activity`, `wait_for`), whole, with explicit paging (SNAP-R58). *Why:* Dylan
-  2026-11-05 08:04, after his first edit's candidates arrived with nothing on screen: "if we dont have good visibility to
+  Agents read the same rows (`list_activity`, `wait_for`), whole, with explicit paging (SNAP-R58). *Why:* the operator,
+  2026-11-05 08:04, after his first edit's candidates arrived with nothing on screen: "if we don't have good visibility to
   what is going on with the right screen context the ux fails... consider this for all possible paths"; names from the
   box1 Production Book (DECISIONS 09:08). *More:* DESIGN_REACTIVE_UX_2026-11-05.md, CONCEPT_PRODUCTION_2026-11-05.md
   §11.3, `web/snap/jobs.js`, `web/snap/activity.js`, `web/snap/workview.js`.
@@ -542,7 +545,7 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   new dial unrated too. The gate reads that file and the pack's model graph, so its unrated-is-Adult fallback is left for
   files someone drops in by hand. The person's own rating always wins: the take viewer's "Rated" pick for a take, move
   to… for a file (the admin's on a gated install). There is no picture tagger: none is installed here, and Snap never
-  downloads one. *Why:* Dylan, 2026-11-04: "that wouldn't happen since the file would have been generated by them or
+  downloads one. *Why:* the operator, 2026-11-04: "that wouldn't happen since the file would have been generated by them or
   someone and their prompt would be nsfw or not". *More:* PLAN U82, `snap_privacy.py` (`rating`, `record`),
   `snap_bridge.py` (`rate_dial`), `web/snap/takes.js`.
 - **SNAP-R54: Dials are rated from how they were made, and takes above a cap are left out.** A dial file in
@@ -566,7 +569,7 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   lock badges (`take_marks` says `privacy: false`, `private_loras` is empty), the export leaves nothing out for privacy,
   recipe cards keep their Cast rows, and rules that can't be read don't fail closed. Saves are exactly as core makes them,
   and the Save metadata switch stays the person's own (SNAP-R20). NSFW tags for SFW-only filtering are a separate feature
-  and stay. A switch file that doesn't parse counts as on and as broken. *Why:* Dylan, 2026-11-04 19:00: "Private
+  and stay. A switch file that doesn't parse counts as on and as broken. *Why:* the operator, 2026-11-04 19:00: "Private
   should only be on our new comfyui instance; my main instance isn't Private." *More:* PLAN U80, `snap_privacy.py`
   (`switched_on`).
 - **SNAP-R27: A file stamped private in its own header is private, and locks follow the current rules.** Besides the
@@ -587,7 +590,7 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   reference picture's `source`, kept as `made_from`), is private too, in the lock and the export, so a private take can
   be edited like any other (U76 M2). A take file that doesn't parse is named under `unreadable` in take_marks, never a
   500 that hides every lock; moving a LoRA out of identity says it may no longer be private. Marking only: nothing is hidden, gated or re-run, and the row still works
-  (Dylan, 2026-11-04: "my machine isn't going to be the private one"; "dont artificially limit anything please thats
+  (the operator, 2026-11-04: "my machine isn't going to be the private one"; "don't artificially limit anything please thats
   for the end user to do what they decide"). *Why:* derived LoRAs with neutral names in a neutral folder were caught
   only by their stamp (U68). *More:* U68_PRIVACY_AUDIT_2026-11-04.md "Matcher gaps", PLAN U71, `snap_privacy.py`,
   `snap_bridge.py`.
@@ -608,7 +611,7 @@ byte for byte (proto/snapbox/test_vault_off.py).
   that names one is noted (`snap_marks.vault_notes`), and a saver Snap can't seal is noted too ("saves this private
   take in plain"). The take's record is sealed the same way through `/userdata`, and a frame lifted from it is uploaded
   sealed (`snap_vault=1`). The lock reads "🔒 kept encrypted". The world export keeps containers as they are unless the
-  person includes them decrypted (`decrypt_private`, vault unlocked). *Why:* Dylan 2026-11-04 18:56: "Private still
+  person includes them decrypted (`decrypt_private`, vault unlocked). *Why:* the operator, 2026-11-04 18:56: "Private still
   has metadata, it just lives encrypted along the path." *More:* DESIGN_U79_VAULT_2026-11-05.md §4 Option A,
   `snap_vault.py`, `snap_vault_server.py`.
 - **SNAP-R97: Writing a private take needs no passphrase; reading one does, and lock forgets.** Every file has its own
@@ -644,8 +647,8 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   Picture 1's take's shot); Apply makes it the shot's active take, Reject marks the take. The take's parent and the
   decision name every context picture (`options.context`: number, take and frame, file, Cast version, crop, label), the
   lock and the rating follow every context take (SNAP-R27, R39), and a Cast picture pins its version (SNAP-R60). What it
-  runs is registry data (slot `view`, methods `ph3_view` and `fizgig_still`, SNAP-R13/R14). *Why:* Dylan 2026-11-05: "a location is one
-  topology… every view of it is an edit from prior context", "moss is WAY better than klein", "when snap cant do the job
+  runs is registry data (slot `view`, methods `ph3_view` and `fizgig_still`, SNAP-R13/R14). *Why:* the operator, 2026-11-05: "a location is one
+  topology… every view of it is an edit from prior context", "moss is WAY better than klein", "when snap can't do the job
   that means you need to update snap"; short03's three different gates (F-C09). *More:* PLAN U101, LESSONS "U101".
 - **SNAP-R72: The order is the person's, and what Picture 1 is depends on the model.** The tray and the tool keep the
   pictures in the order given, name beside Picture 1 what it is for the picked model, and let the person move each
@@ -661,7 +664,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   reference (`voice {file, casting}`: a clean 3-6 s line and the casting words it was made from); `apply_cast` puts it
   in with the Cast's pictures and says its `<Audio n>`, and a version without one takes the last apply's out. Agents
   add or remove audio by tool (`add_audio_ref`, `remove_audio_ref`). *Why:* F-C07: a cut could not cite a voice through
-  Snap at all; Dylan 2026-11-05: characters get voice references for timbre, cited in every cut where they speak.
+  Snap at all; the operator, 2026-11-05: characters get voice references for timbre, cited in every cut where they speak.
   *More:* PLAN U101, the dogfood study's F-C07.
 - **SNAP-R74: Load Audio lists Snap's audio under input/snap/.** Core Load Audio lists only input/'s top level, so a file
   uploaded with `subfolder=snap` (as AGENT_START says) never showed. The pack's `/mainodes/snap/input_audio` lists the
@@ -673,8 +676,8 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   references, 8 steps, no negative) and `fizgig_still` (stock H3 Reference to Video on the Fizgig H3 Still pack's
   one-frame latent, which says it needs that pack when it isn't installed). The tray's model menu and the tool's
   `method` choose; the first listed is used when none is named. MOSS Image Edit is not a New view model: on short03's C2
-  it copied Picture 1 or redesigned the set and the people across views (Dylan 2026-11-05: "Not any moss edit those were
-  bad"); Change something on video takes still uses it. *Why:* Dylan 2026-11-05 14:0x-15:0x after the C2 sheets.
+  it copied Picture 1 or redesigned the set and the people across views (the operator, 2026-11-05: "Not any moss edit those were
+  bad"); Change something on video takes still uses it. *Why:* the operator, 2026-11-05 14:0x-15:0x after the C2 sheets.
   *More:* PLAN U101, U17, PROGRESS 2026-11-05 13:57-14:55.
 - **SNAP-R76: Every face is its own measurement, matched one to one.** The identity check asks SAM 3.1 for every face
   ("face:9": SAM keeps one detection per text unless told how many) as separate masks; MAISnapIdentity gives each face
@@ -694,7 +697,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   of the edits.js graphs, SNAP-R13/R14). Each seed is one candidate still take (SNAP-R23) in the shot it lands in, its
   pictures the sheet first and then each view the method draws apart; its parent names the Cast and every picture, and
   the Cast's version is pinned (SNAP-R60). A five-view LoRA is only ever used through its node, never in a video graph
-  (it breaks motion). *Why:* Dylan 2026-11-05: "even fizgig had a hard time" on turnarounds; "an early prototype, feel
+  (it breaks motion). *Why:* the operator, 2026-11-05: "even fizgig had a hard time" on turnarounds; "an early prototype, feel
   free to try it out tho with the others". *More:* PLAN U101, PROGRESS 2026-11-05 (turnaround round 2),
   proto/ui/u101/bakeoff/round2_*.
 - **SNAP-R78: A stale tab says so; agents ask, the person reloads.** A tab whose Snap code is older than the code the
@@ -719,7 +722,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   own click opens the take and marks regions). A thumbnail whose click did something else keeps it as a button in the
   viewer (References: Edit the Cast record / the set); an audio reference row plays on a click. Viewing never
   navigates away or changes anything (SNAP-R5). The agent twin is `open_view {view: "picture"}` on the page the agent
-  drives. *Why:* Dylan 2026-11-05: "it would sure be nice to click on the references, click on a picture and it brings
+  drives. *Why:* the operator, 2026-11-05: "it would sure be nice to click on the references, click on a picture and it brings
   it up full size in the web ui". *More:* DECISIONS 2026-11-05, proto/test_u101_full.js.
 
 ## Making a take bigger (U102b)
@@ -736,7 +739,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   world pins (SNAP-R60) and its rating (SNAP-R39). Size is a factor of the render size or a width/height, snapped to
   multiples of 32. The media methods (RelayVSR, ESRGAN, resize) stay bricks in the chain; `set_method` refuses a take
   method and names `upscale_take`. A folder ComfyUI doesn't list (RelayVSR's models/relayvsr) is said as checked when it
-  runs, not as missing weights. *Why:* Dylan 2026-11-05: "spatial compression has wacked the face. 2k resolution is
+  runs, not as missing weights. *Why:* the operator, 2026-11-05: "spatial compression has whacked the face. 2k resolution is
   wise", "a full pixels through vae like a stage 2 upscale with a light denoise type deal"; short03's F-C23 (no route
   started from a take at a denoise). *More:* PLAN U102b, LESSONS "U102b", proto/test_u102b.js.
 - **SNAP-R82: Tessera tiles a take with the take as its reference.** `tessera` runs hashu786's ComfyUI-Tessera (MIT, its
@@ -748,8 +751,118 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   The still is the take's newest stage 2's frame 0 by default (else its own frame 0), cropped to each tile with the take
   (`image_ref_crop: per_tile`): given whole, it painted small copies of the person into the backdrop tiles. Tessera's
   laws say a pixel splice is a 2x tool, so at 4x the still goes in as the attention reference. Files, words, sigmas and tiling are the
-  method's `run` (SNAP-R13). *Why:* Dylan 2026-11-05: "you can even try the tessera tiled upscaling process if we wanna
+  method's `run` (SNAP-R13). *Why:* the operator, 2026-11-05: "you can even try the tessera tiled upscaling process if we wanna
   try out 4k". *More:* PLAN U102b, the pack's docs/LAWS.md, proto/test_u102b.js.
+
+## Voices, reflection and sources (U93-U95, 2026-11-06)
+
+- **SNAP-R88: A voice reference renders at 12 steps or more; ordinary takes keep their setup's steps.** A take made to
+  be a voice reference (a Cast's voice, a casting round) runs at 12 or more sampling steps at a low resolution (256x160
+  is enough: only the sound is kept), and its plan says so; every other take stays at its setup's steps (6 on the Pika
+  turbo). The reference carries the timbre, because H3 ignores pitch, age and sex words in text (a boy "voiced by an
+  actress" came out at 97-138 Hz, and two different castings read as one speaker, WavLM 0.78-0.94); every cut where the
+  character speaks cites it (SNAP-R73). Until a voice route exists, an agent sets the steps by hand (AGENT_START,
+  Voices). *Why:* the operator, 2026-11-05: "if you generate audio with H3 you can do it at pretty low resolution but you
+  need at least 12 steps to get good audio quality … for a reference voice"; "normal video is fine at the specified 6".
+  *More:* DECISIONS 2026-11-05, the dogfood study's LESSONS (voice lane) and FINDINGS F-C11.
+
+- **SNAP-R89: The critic reads whole frames, a place's logic and cut pairs, and only leaves notes.** *(planned, U93)*
+  A critic job runs on every landed take and on every master, sheet, plate and board, since a flaw in a plate flaws
+  every cut that cites it. It looks at the whole frame at full resolution before any crop (a tiled upscale tile by
+  tile), and checks: logic, not only consistency (an enclosure closes, walls, roads and gates connect, a structure makes
+  sense from every view); contact (bodies meet what they rest on); attachments (every wire, string, strap and sheath is
+  held at both ends, per view on a character sheet); intersections (nothing clips); every view of a location side by
+  side and against its master; cut pairs (the previous cut's last frame against this cut's first: position, facing,
+  eyeline, light, props); the right Cast only, in its state; sound (a drone needs a spectral look, not loudness). Its
+  findings are notes with a severity, drawn as masks (SNAP-R91), routed to the record they trace to (SNAP-R90); they
+  never reject (SNAP-R23). Each flaw the person catches that the critic missed becomes a fixture; the critic is
+  measured by its catch rate on fixtures and its false alarms on clean pictures. It is an agent role over the tool
+  table (no model call from Snap, SNAP-R18). *Why:* every visible flaw in the 2026-11-05/06 shorts was caught by the
+  person, not by agents: three different gates, a palisade that doesn't enclose the village, a floating sword, a
+  double wall, ghost figures in an upscale's backdrop; causes: pictures judged one at a time, crops before frames,
+  consistency checked but not logic. The person: "we need some kind of reflection process to catch obvious things like
+  this"; "there is a wall and not surrounding the village … our reflection should be good enough I would have thought
+  to catch this but it might need the right prompt iteration". *More:* DECISIONS 2026-11-05 10:12 and 2026-11-06,
+  LESSONS "Synthesis 2026-11-06", the study's critic/ fixtures.
+
+- **SNAP-R90: A flaw is fixed at its source record, then its dependents re-run upstream first.** *(planned, U94)* A
+  note that traces to an upstream record (a location's plan, master or plates; a Cast version; the look) becomes a fix
+  proposal on that record. Once applied (a new version, SNAP-R60), Snap lists what pinned the old version (takes,
+  stills, boards, plates) and offers "re-run dependents" in DAG order (plates → boards → cuts → the cut), each stage
+  with its plan and time (SNAP-R16), through re-run with swaps to the new version (SNAP-R63); new takes land as
+  candidate versions beside the old ones (SNAP-R23), so no pick is lost. A canon change stays a proposal. *Why:* a
+  re-rolled take keeps a flaw that lives in its plate (the double wall came back with a new seed and went with a new
+  plate); after a Cast version, the boards that used the old one were found by hand (F-C22). The person: "if they came
+  from a prior setting that needs changed up and re-ran any DAG things that depended on them?" *More:* DECISIONS
+  2026-11-05 10:12, the dogfood study's FINDINGS F-C22.
+
+- **SNAP-R91: A mark on a picture is a visible mask, and the mask feeds the fix.** *(planned, U95)* Marking a region
+  draws a translucent highlight with an outline and a label; it stays on the picture and shows as a badge on the take's
+  tile. Finishing a mark opens its note in place (tags such as architecture, physics, "object to nowhere"; words;
+  Reject in the same step); a draft saves itself, and closing with an unsaved mark asks first. "Fix this" on a note
+  opens Change something with the mask as the edit region, or routes to the source record (SNAP-R90). `note_take` takes
+  a mask, and the critic writes its notes as masks (SNAP-R89). *Why:* the person, after a first "Mark region" on a
+  rooftop take with a string going nowhere: "wanted to mark it as a fail and why … was hoping to see some masking
+  transparency outline or something where I marked on what went wrong". *More:* DECISIONS 2026-11-05 10:22.
+
+- **SNAP-R92: A third-party character catalog is a linked resource; its characters are never shipped.** Snap and its
+  docs may link a catalog of styles and characters (such as the MOSS-Image Character & Style Catalog) for people to
+  browse. Its existing characters are never embedded in the pack, offered as Cast sources, kits or Library cards. A
+  later style list may take the catalog's styles with the character details permuted, so no entry is an existing
+  character. *Why:* the operator, 2026-11-05: "You are free to link that as a resource for people, there's plenty of fair
+  use, but I'm not embedding those direct characters into this app." *More:* DECISIONS 2026-11-05 14:4x.
+
+## Agent instructions and skills (U103/U104, 2026-11-06)
+
+- **SNAP-R93: Agent instructions are layered records, resolved per scope, pinned by every run.** An instruction is a
+  world record (kind `instruction`, SNAP-R60) with one scope (`global`, `tool:<name>`, `brick:<key>`, `method:<id>`,
+  a pinned record's ref such as `cast:<id>` or `location:<id>`, `scene:<id>`, `shot:<scene>/<shot>`, `take:<id>`;
+  `book:<id>` is kept for the Book) and a kind (`note`, a line read whole, or `model_choice`: job → choice, why). The
+  pack ships its own in `snap_cards/pack_notes.json` (each version 0 with a hash, `/mainodes/snap/pack_notes`); an
+  admin's notes with `shared: true` form the install layer on a gated install; the rest are the person's. For any call
+  the stack is the fold pack → install → person → book → scene → shot → take, plus notes on records the recipe pins,
+  general targets before specific, oldest first. A note adds unless it `replace`s outer ones it names in `supersedes`;
+  same-job `model_choice` notes: the inner level wins (the outer is listed `overridden`), at one level they are a
+  `conflict`; both cases are shown, never hidden. Off and seen are the person's marks (`snap/instructions.json`), never
+  versions. The stack has a hash of its refs and off list; `instructions`, `describe_recipe`, `get_take` and
+  `get_scene` return it whole (SNAP-R58), the pack's `tool:` notes end that tool's description, and every queued Snap
+  run pins `{refs, off, context}` in `extra.snap.instructions`, so a take says what it ran under, what applies now and
+  what changed (texts at both versions). Instructions stay off the take's stale chip: a note edit doesn't change what a
+  chain renders. *Why:* the operator, 2026-11-06: "learned things for the agents using a particular set of tools should
+  have instructions attached in that Snap block's WebMCP, but then each person will have their own memory instructions
+  that get bound to particular projects or particular scoped workflows … a button that you can view all the agentic
+  instructions that would have been applied to a particular block or a particular workflow or a particular project …
+  if things aren't going well you can inspect the instruction set and troubleshoot easier". *More:*
+  DESIGN_U103_U104_AGENT_LIBRARY_2026-11-06.md, PLAN U103, `web/snap/instructions.js`, `snap_instructions.py`,
+  proto/test_instructions_resolve.js, test_instructions_pins.js.
+
+- **SNAP-R94: Skills are pack files a person's version sits over.** A skill is `.claude/skills/<name>/SKILL.md` in the
+  pack (the format Claude Code loads; front matter `name`, `description`, `scope`, `rules`), served whole by
+  `/mainodes/snap/skills`, `list_skills` and `read_skill` and named by `/mainodes/snap/info` (no page needed). A
+  person's version is a `skill` record whose body keeps the pack text it began from; it is what agents read, with a
+  diff against the pack and one press back to it, and when the pack file changes under it the record says so and shows
+  pack then, pack now and theirs, never reverting by itself. `snap-core` says how Snap links together and how
+  instructions nest; task skills say how to do one job with exact calls and measured numbers. This extends SNAP-R30's
+  front door: what agents learn about using Snap is written into a skill (`save_skill`) or an instruction, with its
+  numbers and its reason, not into one agent's private memory. The Agent library (Library rail; an "Agent instructions"
+  button on bricks, the recipe, scenes, shots, takes and Cast records) shows skills, every note and what applies to
+  one object. *Why:* the operator, 2026-11-06: "we need to make sure we have a proper skill on how things link together
+  in Snap and how things get their instructions nested, and good other skills that show you how to do certain things
+  easier, and we have a good way to view these skills in the web UI too, as an agent library kind of thing … that way
+  all the dogfooding we are doing is using the app, and we keep optimizing a nice package we can hand people, but then
+  they can tweak it if there are things they want to change"; on the docs: what we are learning as we go "should apply
+  substantially to using it too". *More:* PLAN U104, `web/snap/agentlibrary.js`, `tools/snap_skills.sh`,
+  proto/test_agent_library.js.
+
+- **SNAP-R95: An agent's instruction applies at once and stays marked until the person looks.** `save_instruction` and
+  `save_skill` write a version `by: agent:<name>` (the bridge names the calling agent) that is in force at once; the
+  Agent library shows it "new from <agent>" and the rail row counts it until the person opens it, a quiet toast says
+  it arrived, and one click turns it off. An agent turns its own notes off directly; turning off a person's or the
+  pack's note waits as a proposal (SNAP-R23), and the agent can write a replacing note meanwhile. Imported notes and
+  skill versions land off until the person turns them on. A member of a gated install may turn an admin-shared note
+  off for themselves ("off by you"; marks inform, SNAP-R11). *Why:* the operator, 2026-11-06, on apply-now with a mark
+  and one-click off: "that sounds wise to me … it's a clear set of instructions that you can tell the agent to tweak".
+  *More:* DECISIONS 2026-11-06 04:19 and 04:38 (Q1-Q5), proto/test_instructions_store.js.
 
 ## Batch G1 (2026-11-06)
 
@@ -820,13 +933,13 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
 
 ## Accounts and the gate (snap-gate)
 
-IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; G1 took R83-R87; R93-R95 are U103/U104's; U79 took R96-R100; R101 on).
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; G1 took R83-R87, the docs migration R88-R92, the agent library R93-R95, the vault R96-R100; R101-R110 are reserved for U93/U94; R111 on).
 
 - **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
   use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and
   WebSocket to it. Off (`--disabled`) it relays every byte unchanged: no sign-in, no filtering, ComfyUI as it is.
   Limits (ratings, buckets, admin-only routes) exist only when an install turns the gate on; Snap itself never limits
-  the person (Dylan, 2026-11-04 16:46: no artificial limits in Snap). *Why:* core and the pack keep updating; product
+  the person (the operator, 2026-11-04 16:46: no artificial limits in Snap). *Why:* core and the pack keep updating; product
   logic stays out of `comfy/` (ComfyUI AGENTS.md). *More:* CONTENT_RATINGS_VAULT §5, PLAN U65/U66.
 - **SNAP-R41: A session decides the user; the client never does.** Every request needs a session (the sign-in form,
   or an account token as `Authorization: Bearer`, or a one-time `/gate/login?token=` link for a headless agent page).
@@ -863,7 +976,7 @@ IDs R40+ were reserved for the gate while R28-R39 were open for other work (renu
   non-admin's prompt (or in a pack request) that names a file or folder on disk must be inside a model folder ComfyUI
   lists (`/experiment/models`) and rated at or below the account's cap, or inside the account's own, shared or top-level
   input, or its own or shared output within its cap (SNAP-R56, SNAP-R57); anything else is refused, naming why. Text
-  that names nothing on disk is left alone. *Why:* Dylan, 2026-11-04 20:41: "non-admins load models only in their scope
+  that names nothing on disk is left alone. *Why:* the operator, 2026-11-04 20:41: "non-admins load models only in their scope
   (their role + rating)"; scope, not path form, decides. Nodes that load arbitrary paths (`MAILoadVideoPath` and many
   custom packs) would otherwise read any file the server user can. *More:* PLAN U83.
 - **SNAP-R46: Sessions persist, and an idle one locks.** Sessions live in the gate's `sessions.json` under the sha256
@@ -914,7 +1027,7 @@ IDs R40+ were reserved for the gate while R28-R39 were open for other work (renu
   can't carry a folder. Anyone reads their own input, `input/shared/` and top-level files (the admin's); another
   account's input is 404 on `/view`, refused in a prompt or pack request (`kid/x.png`, `kid/x.png [input]`, or its
   absolute path), left out of the loaders' lists in `/object_info` (an input folder named after another account and
-  anything in it), and a mask upload can't start from it. The admin sees all of it. *Why:* Dylan, 2026-11-04 20:41:
+  anything in it), and a mask upload can't start from it. The admin sees all of it. *Why:* the operator, 2026-11-04 20:41:
   "input/ is per account; admin has access to all". *More:* PLAN U83.
 - **SNAP-R100: Sign-in unlocks the account's vault; the last person's session locking or signing out locks it.**
   After the password checks, snap-gate unlocks the pack's vault for the account with the same password (an account

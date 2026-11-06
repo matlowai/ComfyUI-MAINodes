@@ -7,10 +7,10 @@
 // still resolves, so a take that pins it can still be re-made as it was. Model and LoRA files are pinned by name only.
 // The server (snap_world.py) does every write and hashes the bodies; `sha` here only hashes pack cards (version 0).
 // migrate() wraps the cards of snap/cards/ (from before records) once, and parks the originals in snap/_migrated/cards/.
-// SNAP-R60 world versions and pins · SNAP-R17 by · SNAP-R18 local only · see docs/SNAP_RULES.md
+// SNAP-R60 world versions and pins · SNAP-R17 by · SNAP-R18 local only · SNAP-R93/R94 instruction and skill records · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 
-export const KINDS = ["cast", "card", "set_snapshot", "location"]; // scenes version their authored fields in their own documents (scenes.js)
+export const KINDS = ["cast", "card", "set_snapshot", "location", "instruction", "skill"]; // scenes version their authored fields in their own documents (scenes.js)
 const fileOf = (kind, id) => `snap/${kind}/${id}.json`, archivedOf = (kind, id) => `snap/_archived/${kind}/${id}.json`;
 const key = (kind, id) => `${kind}:${id}`;
 let records = new Map(), loading = null;
@@ -112,7 +112,7 @@ async function call(route, q) {
   if (!r.ok) throw new Error(out.error ?? `${route} failed (${r.status})`);
   return out;
 }
-const reload = async () => { loading = null; await load(); };
+export const reload = async () => { loading = null; await load(); }; // the Agent library re-reads on focus (SNAP-R95)
 export const sizes = () => call("/mainodes/snap/sizes");
 export const exportRecords = (refs, { with_takes = false, decrypt_private = false } = {}) => call("/mainodes/snap/world/export", { refs, with_takes, decrypt_private });
 export async function importExport(where) { const out = await call("/mainodes/snap/world/import", where); await reload(); return out; }

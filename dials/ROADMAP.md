@@ -23,7 +23,7 @@ Designs: `dials/docs/INTERACTION_ATLAS.md` (atlas), `dials/docs/TIME_AND_AUDIO.m
   content, look, bare, all averaged).
 
 ## Release blockers (before pushing to matlowai)
-- [ ] Dylan's hands-on pass in the real UI (restart ComfyUI to load the info routes).
+- [ ] The operator's hands-on pass in the real UI (restart ComfyUI to load the info routes).
 - [x] Rebuild the three de-rope examples so their Make Dial nodes carry info (re-runs otherwise save default info).
 - [x] Row order (B6): reversing four rows changed a render (MAD 38/255) although post rows add commutatively; isolate
       pre vs post rows and bf16 rounding; consider summing post rows once in float32.
@@ -52,10 +52,10 @@ Qwen or DiT passes during sampling; the user's strengths are never changed silen
 - [x] **Influence wheel:** fixed sectors, one coloured layer per dial, signed in/out around a zero ring, hover = per-dial
       contributions; grey until a sector has calibration evidence.
 - [ ] **Wheel vs renders:** check that a dial's top probe axes show up in its renders (e.g. "toward night" looks darker); fold it into the next batch that renders anyway. Until then the wheel stays grey.
-- [ ] **Drop a point on the frontier and move it (Dylan):** probes are dials, so a manual offset in one direction is a
+- [ ] **Drop a point on the frontier and move it (the operator):** probes are dials, so a manual offset in one direction is a
       probe row with a strength; drag a wheel sector to add/remove that probe, or ask for rack strengths that best
       reach a target shape (least squares over the active rows, shown as a suggestion).
-- [x] **Dial editor (Dylan; render check pending):** open a dial and see it in the vector space: its probe profile as bars, and a 2D view of
+- [x] **Dial editor (the operator; render check pending):** open a dial and see it in the vector space: its probe profile as bars, and a 2D view of
       the dial library (two probe axes, or the library's top principal components) with the dial as a point. Drag bars
       to add or remove probe components (`v' = v + Σ Δβ_k·p_k`; dragging an axis to 0 removes that flavour), or drag
       the point; live readouts (size, cosine to the original and to neighbours). Export as a new dial file with
@@ -90,7 +90,7 @@ live inside the generation; a V2V pass is too slow to be the main route.
       source option; per-row curve editor over the clip timeline with the waveform.
 - [ ] **Audio-reactive from the user's music (main case):** the track goes into H3 as reference audio and the same file
       drives M(t): loudness, onsets, beat grid, low / mid / high bands; gain, offset, threshold, attack / release.
-- [x] **Hold map -> dial envelope link (Dylan):** the rack's optional `hold_map` input (Time Smear's `hold_map_used`)
+- [x] **Hold map -> dial envelope link (the operator):** the rack's optional `hold_map` input (Time Smear's `hold_map_used`)
       evaluates clip-time curves in real time in stage 2's stretched clip; held copies of a frame get its value. Drift
       without it on charge2: the ramp landed 0.32-0.47 s early (exact, from the map). The rack that takes the map can only
       feed stage 2 (Time Smear runs after stage 1); Dial Hold Map now hands the stage-1 rack's model the map, so one rack
@@ -139,7 +139,7 @@ effect size. Single-seed results say so.
       clear message. Text dials, rack, Combine and envelopes first; picture dials stay H3-only.
 - [ ] Per-family probe banks for the wheel; Krea 2 picture dials if its vision encoder allows.
 
-## Workstream 6: simple by default (Dylan 2026-11-01: "all this is getting super complicated for most folks")
+## Workstream 6: simple by default (the operator, 2026-11-01: "all this is getting super complicated for most folks")
 Keep every node, but give most people a clean front door. ComfyUI loads subgraph blueprints shipped in a custom node at
 `<custom_node>/subgraphs/<name>.json` (`app/subgraph_manager.py`); they appear in the node library.
 - [ ] **Three tiers of start-here workflows:** Simple (one subgraph, a handful of controls), Pro (today's full graphs), Lab
@@ -186,18 +186,18 @@ Keep every node, but give most people a clean front door. ComfyUI loads subgraph
   will inform preset defaults and attention options (Sol/SLA on int8 or w6a8).
 
 ## Status at the end of 2026-11-01
-- `main` and `dials-rack` are at the same commit (merged at Dylan's request; version 1.2.0). Done since the first push: atlas,
+- `main` and `dials-rack` are at the same commit (merged at the operator's request; version 1.2.0). Done since the first push: atlas,
   picture groups and framing, MOSS-Image (Krea 2 partial), per-block strengths, time curves with a mouse-editable editor
   (negative levels, scaling, multi-select, zoom), hold-map link, dial editor, help guides, README capability section.
 - Staged, not published: a demo-page update (Dials GitHub Pages lives in ComfyUI-Dials `docs/`); it needs a replacement for
-  the psychedelic video (Dylan: not great for work): the punch hit-pause clip.
+  the psychedelic video (the operator: not great for work): the punch hit-pause clip.
 - Open, in order: scene anchoring for the punch demo (first/last frame or reference image); the single-rack hold-map node;
   Workstream 6 (Simple subgraphs, calmer rack rows, de-rope switch); true strength curves; MOSS v2 pairs; Krea 2 seam before
-  its RMSNorm; style review of the Codex-written parts; dial pack 2 on Hugging Face (needs Dylan's go).
-- Dropped by Dylan: a base-H3 20-step retest (20 steps isn't right for de-rope anyway).
+  its RMSNorm; style review of the Codex-written parts; dial pack 2 on Hugging Face (needs the operator's go).
+- Dropped by the operator: a base-H3 20-step retest (20 steps isn't right for de-rope anyway).
 
 ## Later / research
-- **Dial Doctor (back burner, Dylan 2026-11-01):** help people make better dials. Tiers: (0) a pair linter in Make Dial
+- **Dial Doctor (back burner, the operator, 2026-11-01):** help people make better dials. Tiers: (0) a pair linter in Make Dial
   from the LESSONS rules (actions on one side, objects on one side, time words in non-time dials, every A side sharing
   one "pleasant sunny" pole, length mismatch, subjects that clash with the pairs); (1) a Dial Check workflow: Make Dial
   -> sweep contact sheet -> core Generate Text with a VLM and a knowledge pack (`DIAL_DOCTOR.md`: how dials work, the

@@ -14,7 +14,7 @@
 // takes (SNAP-R27: by the current rules) · SNAP-R21 copies flagged · SNAP-R23 candidates · SNAP-R24 scenes own the work ·
 // SNAP-R36 quiet sound: a note and two actions, never applied by itself · SNAP-R54 takes above the account's cap are
 // left out · SNAP-R65 a job shows on its take's card and as a ghost card · SNAP-R71/R72 New view from these pictures (its
-// tray: contextview.js) · SNAP-R81/R82 Make it bigger (upscale.js) · see docs/SNAP_RULES.md
+// tray: contextview.js) · SNAP-R81/R82 Make it bigger (upscale.js) · SNAP-R93 the instructions a take ran under · see docs/SNAP_RULES.md
 import * as T from "./takes.js";
 import * as V from "./vault.js";
 import * as LB from "./lightbox.js";
@@ -33,6 +33,7 @@ import { contextPanel } from "./contextview.js";
 import { url as mediaUrl } from "./checks.js";
 import * as A from "./activity.js";
 import * as WV from "./workview.js";
+import * as AL from "./agentlibrary.js";
 
 // SNAP-R39: a take's rating, from how it was made (its prompt's text, the files and takes it used); the person's pick wins
 function ratingRow(t) {
@@ -164,7 +165,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
           title: `This take ends on the view of its reference picture (last frame's copy score at or above ${t.copy.threshold}): right when that picture is this camera's own plate, wrong when it shows another camera's view.\n${t.copy.against.map((a) => `${a.image}: ${a.frames.join(" → ")}`).join("\n")}` }) : null,
         t.parent && !version ? h("span", { className: "snap-take-parent", textContent: `↳ ${T.versionOf(t.parent.options) ?? t.parent.method.split("/").pop()} of take ${T.get(t.parent.take)?.number ?? "?"}`, title: `made from ${t.parent.take} by ${t.parent.method}` }) : null,
         ...Object.entries(t.world ?? {}).map(([ref, p]) => [p, unplaced(p, ref)]).filter(([, m]) => m.length).map(([p, m]) => h("span", { className: "snap-take-unplaced", textContent: `${p.name} v${p.n}: ${m[0]}${m.length > 1 ? ` +${m.length - 1}` : ""}`,
-          title: `Parts of ${p.name} v${p.n} (Cast) that didn't reach this take:\n${m.join("\n")}` })), // U72 F25, in plain words (Dylan 2026-11-05)
+          title: `Parts of ${p.name} v${p.n} (Cast) that didn't reach this take:\n${m.join("\n")}` })), // U72 F25, in plain words (the operator, 2026-11-05)
         t.cached_from ? h("span", { className: "snap-take-parent snap-take-cached", textContent: `= same result as take ${T.get(t.cached_from)?.number ?? "?"}`, title: "identical recipe, seed included: ComfyUI served the earlier result from its cache, so this take is that same file (an exact reproduction, not a new render)" }) : null,
         t.metadata_kept ? h("span", { className: "snap-take-kept", textContent: "metadata kept", title: `Save metadata was off, but ${t.metadata_kept.join("; ")}: those files hold the prompt and workflow` }) : null,
         T.quiet(t) ? h("span", { className: "snap-take-quiet", textContent: "🔈 sound is quiet", title: `The sound averages ${t.sound.mean_db} dB (a take usually sits between -27 and -41 dB). Open the take to make it louder or re-prompt` }) : null,
@@ -514,7 +515,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
       h("div", { className: "snap-take-body" },
         h("div", { className: "snap-take-left" }, stage, markers, isVideo ? h("div", { className: "snap-quiet", textContent: "Space plays · , and . step one frame" }) : null),
         h("aside", {},
-          verdicts, rankLine, ratingRow(t), quietRow,
+          verdicts, rankLine, ratingRow(t), quietRow, AL.takeLine(t, { say }),
           t.metadata_kept ? h("p", { className: "snap-take-keptline", textContent: `Save metadata was off, but ${t.metadata_kept.join("; ")}: those files still hold the prompt and workflow. Save with Save Image or Save Video to leave them out.` }) : null,
           h("div", { className: "snap-rail-title", textContent: "Note a moment" }), sentimentSeg, tagBox, words,
           h("div", { className: "snap-take-noteline" }, at, markBtn, regionText, h("span", { className: "snap-spacer" }), h("button", { className: "snap-primary", textContent: "Add note", onclick: add })),

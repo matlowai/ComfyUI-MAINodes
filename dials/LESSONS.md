@@ -241,5 +241,5 @@ one seed; treat them as starting points.
   which servers are its own. Two GPU lanes (study servers on :8288 and :8289) roughly halve wall-clock for render batches.
 - **Review before pushing:** run the full test suite, scan the diff for private paths and names, and look at the
   screenshots yourself; several agents' own checks missed layout and wording problems.
-- **Private material stays local:** Dylan's music tracks drive local tests only; public pages use clips whose soundtrack
+- **Private material stays local:** the operator's music tracks drive local tests only; public pages use clips whose soundtrack
   comes from the prompt.

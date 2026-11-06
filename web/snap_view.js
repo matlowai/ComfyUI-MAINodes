@@ -17,6 +17,8 @@ import * as PF from "./snap/profile.js";
 import * as sight from "./snap/sight.js";
 import * as ACC from "./snap/account.js";
 import * as SC from "./snap/scenes.js";
+import * as I from "./snap/instructions.js";
+import { STYLE as AL_STYLE } from "./snap/agentlibrary.js";
 
 let view, sw;
 const seen = new Set(), pending = [];
@@ -128,7 +130,7 @@ app.registerExtension({
     list.push(...mine.filter((f) => !list.includes(f)));
   },
   setup() {
-    document.head.append(Object.assign(document.createElement("style"), { textContent: STYLE }));
+    document.head.append(Object.assign(document.createElement("style"), { textContent: STYLE + AL_STYLE })); // the Agent library keeps its own rules beside its sheet
     // SNAP-R20: every prompt this page queues (Snap's Run, the graph's, an agent's) says whether its files keep metadata;
     // SNAP-R65: and carries its job stamp, put into the POST that api.queuePrompt sends at once (its first await)
     const queuePrompt = api.queuePrompt.bind(api), fetchApi = api.fetchApi.bind(api);
@@ -143,7 +145,7 @@ app.registerExtension({
     api.queuePrompt = (number, data, options) => {
       const job = J.sending();
       stamp = job;
-      const sent = queuePrompt(number, { ...data, workflow: MD.mark(data.workflow) }, options);
+      const sent = queuePrompt(number, { ...data, workflow: I.pin(MD.mark(data.workflow)) }, options); // SNAP-R93: the stack it ran under
       stamp = null;
       return sent.then((r) => { T.queuedRun(r?.prompt_id); J.sent(job, r?.prompt_id ?? null); return r; }, (e) => { J.sent(job, null); throw e; });
     };
@@ -162,7 +164,7 @@ app.registerExtension({
     app.extensionManager.registerSidebarTab({ id: TAB, icon: "icon-[lucide--blocks]", title: "Snap", tooltip: "Snap beside the graph", type: "custom",
       render: (el) => { sw.dock(el); announce(); }, destroy: () => setTimeout(() => sw.undock(), 0) });
     // the tools go out once the method registry is in: their slot enum is its slots
-    S.load().catch(() => {}).then(() => registerWebMCP(agentCall));
+    Promise.all([S.load().catch(() => {}), I.load().catch(() => {})]).then(() => registerWebMCP(agentCall)); // the pack's notes end the descriptions (SNAP-R93)
     // the bridge sends agent calls to one tab: the one registered last (this tab registers when it loads, regains
     // focus, or reconnects after a server restart)
     // U72 F20: the page says which Snap code it loaded (the server's hash of its web files when this page started), and
@@ -173,7 +175,7 @@ app.registerExtension({
     // sees (calls go to the newest tab that sees; a tab with it off is never driven)
     // `title` and `who` name the page for agents choosing one (list_pages); the answer says which agent drives it (use_page)
     const title = () => { const here = SC.current(); return here ? `${here.scene.name} › ${SC.shotTitle(here.scene, here.shot)}` : activeTab()?.filename ?? "Snap"; };
-    const register = () => Promise.all([S.load().catch(() => {}), loaded]).then(([, code]) => api.fetchApi("/mainodes/snap/register", { method: "POST", body: JSON.stringify({ client: api.clientId, tools: schema(), code, headless: sight.HEADLESS, sees: sight.sharing(), title: title(), who: ACC.account()?.name ?? null, banner: true }) }))
+    const register = () => Promise.all([S.load().catch(() => {}), loaded, I.load().catch(() => {})]).then(([, code]) => api.fetchApi("/mainodes/snap/register", { method: "POST", body: JSON.stringify({ client: api.clientId, tools: schema(), code, headless: sight.HEADLESS, sees: sight.sharing(), title: title(), who: ACC.account()?.name ?? null, banner: true }) }))
       .then((r) => r.json()).then((r) => { sight.setManaged(!!r.managed); view.driver(r.driven_by ?? null); if (r.code_current === false) view.stale(); }, () => {});
     api.addEventListener("mainodes-snap-driver", ({ detail }) => view.driver(detail.agent));
     // F-C12: an agent's request_reload shows the "Snap was updated" bar with its name; the page never reloads itself
@@ -186,7 +188,8 @@ app.registerExtension({
     api.addEventListener("reconnected", register);
     api.addEventListener("mainodes-snap-call", async ({ detail }) => {
       let reply;
-      try { reply = { id: detail.id, result: await agentCall(detail.tool, detail.args) }; } catch (e) { reply = { id: detail.id, error: e.message }; }
+      I.setCaller(detail.agent); // what an agent writes is marked with its name (SNAP-R95); one agent drives a page at a time
+      try { reply = { id: detail.id, result: await agentCall(detail.tool, detail.args) }; } catch (e) { reply = { id: detail.id, error: e.message }; } finally { I.setCaller(null); }
       api.fetchApi("/mainodes/snap/result", { method: "POST", body: JSON.stringify({ client: api.clientId, ...reply }) });
     });
     // http://host/?snap opens straight into Snap once the first workflow has loaded

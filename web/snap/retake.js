@@ -1,4 +1,4 @@
-// Re-take and re-run (U87 §4.4, Dylan 22:44): a take, or a saved file opened in Snap, re-runs "as it was" (the
+// Re-take and re-run (U87 §4.4, the operator, 22:44): a take, or a saved file opened in Snap, re-runs "as it was" (the
 // versions it pinned: the graph already holds what they put in, seed included) or "with today's world" (each pinned
 // record that moved on is updated to its newest version first). "Edit then run" opens the pinned versions to change.
 // A re-take opens where SNAP-R24 says: the shot's own scene tab when the take belongs to a shot, else a new scratch

@@ -344,7 +344,7 @@ export async function setPurpose(t, purpose) {
 
 // ---- New view from these pictures (U101, SNAP-R71/R72) --------------------------------------------------------------
 // A new still from context pictures in order and words the person or agent writes, on an H3 model of the view slot
-// (P-H3-Image, the Fizgig H3 still; MOSS Image Edit was tested on short03's C2 and left out by Dylan: it copied Picture 1
+// (P-H3-Image, the Fizgig H3 still; MOSS Image Edit was tested on short03's C2 and left out by the operator: it copied Picture 1
 // or redesigned the set and the people). What Picture 1 is depends on the model (its registry `picture_one`), and the
 // order is the person's to choose.
 // A picture is a still take, a video take's frame, an input/ file or a Cast's picture, whole or cropped. Each seed is a
