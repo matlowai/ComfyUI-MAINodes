@@ -10,6 +10,7 @@ they hold up.
 | [PLAN.md](PLAN.md) | the goal, the experiment queue with gates, and the revision log. Start here |
 | [2026-11-06-overnight-findings.md](2026-11-06-overnight-findings.md) | villainy pack on Pika, size-matched placebos, speech survival, experimental dials, a two-dial painting, probe profiles vs renders |
 | [2026-11-06-external-ideas.md](2026-11-06-external-ideas.md) | ideas from control-vector / steering work elsewhere, checked against our measurements, with sources |
+| [2026-11-06-jlens-ideas.md](2026-11-06-jlens-ideas.md) | the Jacobian lens: ways to make dials from word lists, read dials and activations, and the encoder constraint (proposed) |
 | [experiments/](experiments/) | one page per experiment as results come in |
 
 Clips: [Dials Lab](https://matlowai.github.io/ComfyUI-Dials/lab.html). Dials: [H3-Dials on Hugging Face](https://huggingface.co/MATLOWAI/H3-Dials).

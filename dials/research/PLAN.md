@@ -43,12 +43,32 @@ Status: **ready** (can start), **blocked** (waits on another node), **running**,
 | T5c | Does loosening the first frame let a look dial act in image-to-video? | H3 Cond Strength guide strength 0.8 and 0.5 (noisier first-frame conditioning), with and without sinister +1, 2 seeds | 8 renders | Darkening returns while the first frames still match the picture → a practical recipe | T5b | **done**: [barely (+1.4 darkening at 0.5)](experiments/T5c-loose-first-frame.md); advice: apply look dials when making the first frame |
 | T5d | Does a Ref2V reference pin a look dial less than a first frame? | the same picture as a Ref2V reference, sinister +1 vs control, 2 seeds | ~4 renders + graph work | If darkening returns with a reference, recommend references over first frames for look dials | T5c | **done**: [a reference pins as hard as a first frame](experiments/T5d-T5e-reference-and-weak-pin.md) |
 | T5e | Weak first-frame conditioning: how far can the pin be loosened? (Dylan's suggestion) | (a) guide noise-aug strength 0.3 and 0.1 with own controls, 2 seeds: where does darkening return, and when does frame 0 stop matching the picture? (b) a soft pin in the latent instead of condition rows: the picture in frame 0 of the latent with a fractional denoise mask | (a) 8 renders; (b) a small init-latent graph | A strength where the dial's look returns while frame 0 still matches → a recipe | T5c | (a) **done**: [0.3 gives ~¼ of the look with mild drift](experiments/T5d-T5e-reference-and-weak-pin.md); (b) open, lower priority |
+| T5f | At a loose pin (guide 0.3), does more strength reach the look? | sinister +2, +3 at guide 0.3, 1 seed | 2 renders | A strength that adds darkening without moving frame 0 | T5e | **done**: [+2 doubles darkening to ~half of text-to-video, sky stays warm](experiments/T5f-strength-at-weak-pin.md) |
 | T6 | Is a dial made on one H3 family valid on another? | Make the same dial on FL2VA and Ref2VA weights; compare cosine and size | offline | If cos < 0.9, dials need a family/recipe tag check (and that may explain weaker image-to-video) | – | **done**: [cos ≈ 0.99, same size](experiments/T6-family-fl2va-ref2va.md); no family check needed |
 | T7 | Can covariance whitening act as an automatic hold? | v_white = (XᵀX + εI)⁻¹v using A-side token activations (DeTangle / CCS idea) on dials with known leaks (evil cold → colour temperature; expressive face → loudness) | offline + ~16 renders | Leak reduced at matched target effect vs today's hold | T1 | blocked |
 | T8 | Compensator ("functional hold") | Fit a small blend of probe directions from measured render responses to keep the target and cancel a side effect | ~60-100 renders | ≤ +1 dB loudness at the plain face dial's effect (today's hold: +1.7 dB) | T7, face panel | blocked |
 | P1 | Face-visible preservation panel | 4 scenes with visible faces + dialogue; ArcFace identity (weights on disk), WER, loudness | setup | needed for identity claims | – | ready |
 | X1 | Audio-only pushes | A dial on the audio stream only (inverse of `audio: protect`) | needs an A/V split | – | – | parked |
-| X2 | Lexical readout of a dial (jacobian-lens) | What words a vector boosts | – | fredbliss is exploring this; borrow when it lands | – | parked |
+| X2 | Lexical readout of a dial (jacobian-lens) | What words a vector boosts | – | – | – | **moved to the J track (J4)** |
+
+
+### J track: the Jacobian lens (proposed 2026-11-06)
+
+Ideas, constraints and sources: [2026-11-06-jlens-ideas.md](2026-11-06-jlens-ideas.md). The blocker: H3's text encoder is
+Qwen3-VL-32B cut after layer 50 of 64 (no final norm, no output head), so a lens needs the upstream tail. One seed and few
+arms per test until something is worth confirming.
+
+| id | question | method | cost | gate | depends on | status |
+|---|---|---|---|---|---|---|
+| J0 | How did the collaborator do it? | the 7 questions on the ideas page | – | answers decide J2 vs J3 order | Dylan posts | awaiting Dylan |
+| J1 | Are H3's 50 encoder layers upstream Qwen3-VL-32B's? | download upstream shards 11-14 (~17 GB: layers 48-63, final norm, output head); hash layers 48-49, which both files hold | download + offline | identical → route A; different → route B/C only | – | ready |
+| J2 | Does a logit-lens keyword dial work (no Jacobian)? | output-head rows for a word list → layer-50 space → condition_proj + refiner; medieval and blizzard vs pair dials made from matching pairs | offline + 4 renders (1 seed) | cosine to the pair dial ≥ 0.5 and a visible effect at matched push vs placebo | J1 | blocked |
+| J3 | True J-lens keyword dials | fit J_50 on the upstream tail (layers 50-63 in bf16, ~100 H3-style prompts), v = Σ J_50ᵀu_w | ~1 GPU-hour fit + 4 renders | beats J2 at matched push, or J2 already enough | J1 | blocked |
+| J4 | What do our dials say? (verbalize) | map 10 shipped dials back to layer-50 space, read top words with J2's or J3's decoder; compare with measured wheel leaks | offline | words predict ≥ half of the measured leaks | J2 or J3 | blocked |
+| J5 | Do combos say new words? | read the 6 T4 pairs: a+b vs a, b | offline | new words rank the 3 emergent pairs above the 3 others | J4 | blocked |
+| J6 | Is the first-frame pin an attention effect? | forward hooks: DiT cross-attention mass on text vs vision rows, per block/step, t2v vs i2v | 2 renders with hooks | text-row mass drops in i2v → test text-row key rescaling | – | ready |
+| J7 | DiT impulse pictures | one low-resolution step, dial on vs off, decode the x0 difference (video and audio) | ~5 forwards | the pictures predict the rendered look of 3 known dials | – | ready |
+| J8 | Weird word dials | emoji, onomatopoeia, abstract words, away-from dials (M6, M7 on the ideas page) | 1 render each | anything surprising goes to the Lab | J2 or J3 | blocked |
 
 Budget without the operator: up to ~6 GPU-hours a day across the two cards. Anything that needs a new public node, a
 release, or more budget waits for a decision.
@@ -86,3 +106,7 @@ release, or more budget waits for a decision.
 - **2026-11-06** T5d/T5e(a) done: a Ref2V reference pins the look as hard as a first frame. Weak first-frame conditioning
   trades fidelity for effect: guide 0.3 → darkening +4.4 (text-to-video +18), frame-0 drift 12 (default 4); subtle on the
   sheets. Recommendation: apply look dials when making the first frame; ~0.3 as a fallback.
+- **2026-11-06** T5f done (1 seed): at guide 0.3, sinister +2 doubles darkening to +8.4 (text-to-video +18) with frame 0
+  unchanged; +3 adds cold, not dark; the sky stays warm. Added the **J track** (Jacobian lens) after a collaborator's keyword-dial
+  report; checked that H3's encoder lacks the layers a lens decodes through, so J1 (upstream tail check) comes first.
+  X2 folded into J4. Per Dylan: fewer variants, one seed for exploratory renders.
