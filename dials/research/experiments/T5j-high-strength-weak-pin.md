@@ -36,8 +36,8 @@ so T5f's cross-card comparison holds.
   content (a creature, a skull figure): the dial's meaning, not its lighting, wins once the picture's hold is weak enough.
   The darkness metric misses this (Δdark can even go negative); the frames do not.
 
-**What it changes.** For a *look* on a given first frame: guide 0.1-0.2 with sinister +4 is the strongest look that keeps
-the opening (two thirds of the text-to-video darkening). At +6 the dial turns into content, which may be the more
+**What it changes.** For a *look* on a given first frame: guide 0.1 with sinister +4 is the strongest look that keeps
+the opening (two thirds of the text-to-video darkening); 0.2 and 0.3 keep the opening closer and give about half. At +6 the dial turns into content, which may be the more
 interesting creative use: the clip starts exactly on the picture and *becomes* something sinister. One seed: a hint.
 Next: a second seed for guide 0.1 at +4 and +6, and the same grid with a content dial (underwater) to see whether content
 dials pass a weak pin more easily than look dials.
