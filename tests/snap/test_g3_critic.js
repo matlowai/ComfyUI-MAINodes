@@ -26,7 +26,7 @@ const park = (d) => { const p = path.join(snap, d); if (fs.existsSync(p)) { fs.m
 const upload = async (file, name) => { const fd = new FormData(); fd.append("image", new Blob([fs.readFileSync(file)]), name); fd.append("subfolder", "snap/location/village"); fd.append("overwrite", "true"); return (await fetch(`http://127.0.0.1:${port}/upload/image`, { method: "POST", body: fd })).json(); };
 (async () => {
   fs.mkdirSync(out, { recursive: true });
-  ["critiques", "takes", "candidates", "scenes", "location", "dependents"].forEach(park);
+  ["critiques", "takes", "candidates", "scenes", "location", "cast", "dependents"].forEach(park); // a Cast left by another suite would get its own "existing" rows
   await fetch(`http://127.0.0.1:${port}/history`, { method: "POST", body: JSON.stringify({ clear: true }) });
   // F-E01: the village is saved before any page reads the docket (the critic's start is set on the first read)
   R.import = JSON.parse(execFileSync("python3", ["-I", path.join(__dirname, "import_village_location.py"), "--port", port]).toString());
