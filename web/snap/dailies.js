@@ -16,6 +16,7 @@
 // left out · SNAP-R65 a job shows on its take's card and as a ghost card · SNAP-R71/R72 New view from these pictures (its
 // tray: contextview.js) · SNAP-R81/R82 Make it bigger (upscale.js) · see docs/SNAP_RULES.md
 import * as T from "./takes.js";
+import * as V from "./vault.js";
 import * as LB from "./lightbox.js";
 import * as RT from "./retake.js";
 import * as PL from "./plates.js";
@@ -169,11 +170,12 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
         T.quiet(t) ? h("span", { className: "snap-take-quiet", textContent: "🔈 sound is quiet", title: `The sound averages ${t.sound.mean_db} dB (a take usually sits between -27 and -41 dB). Open the take to make it louder or re-prompt` }) : null,
         ["mature", "adult"].includes(T.ratingOf(t)) ? h("span", { className: "snap-take-rating", textContent: T.RATING_SHOWN[T.ratingOf(t)],
           title: t.rating_set ? "rated by you" : `rated from how it was made: ${(t.rating_why ?? []).join("; ")}` }) : null,
-        T.locked(t) ? h("span", { className: "snap-take-lock", textContent: "🔒 private", title: `Private take (it loads a private file or has a Cast LoRA row on): exports leave it out${t.metadata === false ? "; its files were saved without the recipe inside" : ""}` }) : null,
+        T.locked(t) ? V.badge(t) : null, // U79: "kept encrypted", "(locked)"; a click opens the vault
         h("span", { className: "snap-quiet", textContent: `${t.notes.length ? `✎ ${t.notes.length} · ` : ""}${ago(t.created)}` })));
     c.querySelector("figcaption").append(h("span", { className: "snap-take-job", hidden: true }));
     c.dataset.take = t.id;
     const v = c.querySelector("video");
+    if (v && t.locked) v.poster = T.url(m); // U79: the server answers a picture with the lock tile while the vault is locked
     c.addEventListener("pointerenter", () => { v?.play().catch(() => {}); onHover?.(t); });
     c.addEventListener("pointerleave", () => { if (v) { v.pause(); v.currentTime = 0; } onHover?.(null); });
     c.addEventListener("keydown", (e) => { if (e.key === "Enter") view(t); });

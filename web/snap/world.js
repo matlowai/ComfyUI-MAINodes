@@ -114,7 +114,7 @@ async function call(route, q) {
 }
 const reload = async () => { loading = null; await load(); };
 export const sizes = () => call("/mainodes/snap/sizes");
-export const exportRecords = (refs, { with_takes = false } = {}) => call("/mainodes/snap/world/export", { refs, with_takes });
+export const exportRecords = (refs, { with_takes = false, decrypt_private = false } = {}) => call("/mainodes/snap/world/export", { refs, with_takes, decrypt_private });
 export async function importExport(where) { const out = await call("/mainodes/snap/world/import", where); await reload(); return out; }
 // n: one version; none: the whole record file. Pins on takes keep what the record put in, so they still run as they were
 export async function remove(kind, id, n) { const out = await call("/mainodes/snap/world/delete", { kind, id, ...(n != null ? { n } : {}) }); if (!out.record) records.delete(key(kind, id)); else records.set(key(kind, id), out.record); changed(); return out; }
