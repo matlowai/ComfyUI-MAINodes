@@ -131,5 +131,5 @@ release, or more budget waits for a decision.
 - **2026-11-06** J8 round 1: place words change the setting (stained glass → glass-roofed hall; origami → a Japanese
   station); look words (bioluminescent, rust, static) barely act; thunder survives a combo with underwater (+6 dB), underwater
   does not at 1.5. Next for J3: center against a large neutral vocabulary; second seed for underwater and thunder.
-- **2026-11-06** Credit made explicit: the J track is joint work with fredbliss (he brought the Jacobian lens to H3 and made
-  the first keyword dials); our J2/J3 are an independent reimplementation.
+- **2026-11-06** Credit made explicit: the J track is joint work with fredbliss (he brought the Jacobian lens to H3 and is
+  trying keyword dials with it); our J2/J3 are an independent reimplementation.

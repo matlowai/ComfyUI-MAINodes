@@ -97,4 +97,4 @@ So a standard lens cannot be fitted or read on H3's copy alone. The ways around 
 ## Credits
 
 Brainstorm merged from two independent lists written for this page (one by Claude Opus, one by Claude Fable), checked
-against the jlens README, the paper and H3's weight files. The Jacobian lens on H3 and the first keyword dials are fredbliss's; our versions are an independent reimplementation so we can compare notes.
+against the jlens README, the paper and H3's weight files. Bringing the Jacobian lens to H3 is fredbliss's work; our versions are an independent reimplementation so we can compare notes.
