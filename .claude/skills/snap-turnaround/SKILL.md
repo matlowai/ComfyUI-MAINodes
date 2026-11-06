@@ -29,6 +29,11 @@ records: AGENT_START §5 (SNAP-R59, R60).
    Ref2VA setup: the front as Picture 1, the back as the 180° keyframe, the LoRA's trained caption, 20 steps
    euler/simple (cfg 5 worked; the LoRA doesn't document one), the turbo off. About 5.8 min at 832x1024, 124 frames.
    One continuous video keeps carried objects consistent by construction; per-view stills guessed each side.
+   The trained caption and the keyframe wording come with the LoRA: `describe_lora` lists the text files beside it
+   (`beside`, e.g. prompts/*.txt), whole. Write the prompt in that caption's shape; the back picture is cited as a keyframe
+   the way the caption does (`<Picture 2> ([Shot 1] keyframe at <seconds> seconds)`). `add_lora {role: "motion"}` puts an
+   orbit LoRA on Style LoRAs, and `apply_cast` puts a Cast's words under a bare section header, so the caption keeps its
+   shape (dogfood F-D08, F-D13).
 5. **Pull frames** at 90 / 180 / 270 (clockwise seen from above, 90° is the subject's right side) and check each view:
    the prop's side and length, the hair's side, the straps.
 6. **Make them references:** redraw with `stage2` (`snap-reference-upscale`), then save a Cast version with the views.
