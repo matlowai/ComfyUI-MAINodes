@@ -303,7 +303,7 @@ function sentence(story, who, path, value) {
   const v = Array.isArray(value) ? value.map(thing).join(", ") : thing(value);
   if (path === "wardrobe" || path === "carried.worn") return `${who} wears ${v}`;
   if (path === "mood") return `${who} looks ${v}`;
-  if (path === "position") return `${who} stands ${v}`;
+  if (path === "position") return `${who} is ${v}`; // "on the path between the lanterns", "bursting out of the pile"
   if (path === "facing") return `${who} faces ${v}`;
   if (path === "hair") return `${who}'s hair is ${v}`;
   if (path === "injuries") return `${who} has ${v}`;

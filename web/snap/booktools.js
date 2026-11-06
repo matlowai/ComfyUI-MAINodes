@@ -256,7 +256,10 @@ export const BOOK_TOOLS = [
       const pictures = [...(unit.location && unit.plate ? [{ location: unit.location, plate: unit.plate, label: `${unit.cut}'s camera` }] : unit.location ? [{ location: unit.location, plate: "master", label: "the place" }] : []),
         ...(prev ? [{ file: prev, label: "the previous cut's board" }] : []), ...sheet.package.filter((p) => p.role.startsWith("state: ") || p.role.startsWith("cast: ")).map((p) => ({ file: p.file, label: p.role }))];
       if (!pictures.length) throw new Error(`${unit.cut}: no context pictures (no location, no Cast pictures): give it a location (set_unit) or Cast with pictures first`);
-      const prompt = [sheet.still_prompt, unit.camera && `Camera: ${unit.camera}.`, unit.blocking && `Blocking: ${unit.blocking}.`, extra].filter(Boolean).join(" ");
+      // name each picture by its number, as the video prompts do: the plate is the camera, each Cast is their picture(s)
+      const cites = [unit.location ? `<Picture 1> is ${unit.plate ? "this cut's camera on the place: keep its framing" : "the place"}.` : null, prev ? `<Picture ${unit.location ? 2 : 1}> is the previous cut's board: the same place and light.` : null,
+        ...sheet.entities.filter((e) => e.ref.startsWith("cast:")).map((e) => { const n = pictures.map((p, i) => (sheet.package.some((x) => x.file === p.file && x.from === e.ref) ? `<Picture ${i + 1}>` : null)).filter(Boolean); return n.length ? `${e.name} is ${n.join(" and ")}.` : null; })].filter(Boolean).join(" ");
+      const prompt = [sheet.still_prompt, unit.camera && `Camera: ${unit.camera}.`, unit.blocking && `Blocking: ${unit.blocking}.`, cites, extra].filter(Boolean).join(" ");
       const out = await ED.fromContext(pictures, prompt, { method, purpose: method ? undefined : unit.cast?.length ? "character" : "set", seeds, count, width, height, land: { scene, shot }, by: "agent" });
       return { ...out, cut: unit.cut, prompt, next: "wait_for {job: decision, until: waiting}, look at the candidates, then set_board {scene, shot, take}" };
     },
