@@ -6,6 +6,7 @@
 // person, with that person's crops · SNAP-R79 copied Picture n · SNAP-R111 the character score flags, ArcFace is shown ·
 // SNAP-R112 same composition · see docs/snap/SNAP_RULES.md
 import * as C from "./candidates.js";
+import * as CV from "./critiqueview.js";
 import * as P from "./proposals.js";
 import * as ED from "./edits.js";
 import { url } from "./checks.js";
@@ -59,6 +60,7 @@ export function noteChips(c) {
       title: `no identity flag. ${scores}; ${hair}. From ${id.same_from} the character score reads the same character; the hair note misses blonder hair: the head crops decide${missed}` }));
   }
   if (!out.length && c.state === "ready" && !c.label) out.push(h("span", { className: "snap-cand-note", textContent: "checking…" })); // a re-run's candidate (a labelled take) has no checks to wait for
+  out.push(...CV.candidateChips(c)); // SNAP-R103 the critic beside the other notes
   return out;
 }
 

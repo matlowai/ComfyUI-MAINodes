@@ -17,6 +17,7 @@
 // SNAP-R71/R72 edit_from_context (a new view from ordered context pictures) · SNAP-R77 make_character_sheet · SNAP-R80 open_view (a picture full size) · SNAP-R81/R82/R113 upscale_take · SNAP-R114 check_voice · SNAP-R73 add_audio_ref, remove_audio_ref, a Cast's voice ·
 // SNAP-R84 list_locations, save_location, add_plate, apply_location, dependents; add_ref / remove_ref; check_identity on any take · SNAP-R83 screenshot of the agents' window · SNAP-R118 move_ref, cites follow the pictures · see docs/snap/SNAP_RULES.md
 // SNAP-R93-R95 agent instructions and skills (instructions.js): describe_recipe, get_take and get_scene carry the stack, the pack's notes end each description · see docs/snap/SNAP_RULES.md
+// SNAP-R101-R110 the critic's docket and fix at the source (critiques.js, dependents.js); note_take takes severity, owner and fix · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import { BRICKS, PACK_BRICKS } from "./bricks.js";
@@ -49,6 +50,8 @@ import * as J from "./jobs.js";
 import * as A from "./activity.js";
 import * as LB from "./lightbox.js";
 import * as I from "./instructions.js";
+import * as CR from "./critiques.js";
+import * as DP from "./dependents.js";
 import { api } from "../../../scripts/api.js";
 
 // a widget as an agent reads it: value, kind, every choice, limits, and whether a wire drives it
@@ -574,7 +577,7 @@ export const TOOLS = [
   },
   {
     name: "dependents",
-    description: "What uses a record's versions (G1, F-C22): ref is kind:id (every version) or kind:id@n (one), for a Cast, a location, a set or a card. For each version: the takes pinned to it (stills, boards, New view candidates and video takes alike): take, number, still or video, its scene and shot, whether it is the shot's active take, what made it (parent method) and when. stale lists the takes on a version older than the newest, with the rerun call that re-makes each on the newest version. Nothing changes.",
+    description: "What uses a record's versions (G1, F-C22): ref is kind:id (every version) or kind:id@n (one), for a Cast, a location, a set or a card. For each version: the takes pinned to it (stills, boards, New view candidates and video takes alike): take, number, still or video, its scene and shot, whether it is the shot's active take, what made it (parent method) and when. stale lists the takes on a version older than the newest, with the rerun call that re-makes each on the newest version; rerun_dependents (SNAP-R106) re-makes them all upstream first, in stages. Nothing changes.",
     inputSchema: { type: "object", properties: { ref: { type: "string" } }, required: ["ref"] },
     annotations: { readOnlyHint: true },
     run: async ({ ref }) => {
@@ -584,7 +587,7 @@ export const TOOLS = [
       const used = T.all().filter((t) => t.world?.[key]).map((t) => ({ take: t.id, number: t.number, n: t.world[key].n, kind: t.media.some((m) => m.kind === "video") ? "video" : "still", ...(where(t) ?? {}), made_by: t.parent?.method ?? "a run", at: new Date(t.created).toISOString() }));
       const versions = r.versions.filter((v) => n == null || v.n === n).map((v) => ({ n: v.n, newest: v.n === r.head, note: v.note, takes: used.filter((u) => u.n === v.n) }));
       const stale = used.filter((u) => u.n < r.head && (n == null || u.n === n)).map((u) => ({ ...u, rerun: { take: u.take, swaps: { [key]: { to: "latest" } } } }));
-      return { ref: key, head: r.head, versions, stale, said: stale.length ? `${stale.length} take${stale.length === 1 ? "" : "s"} still use${stale.length === 1 ? "s" : ""} an older version than v${r.head}: rerun each with its rerun arguments to make it on v${r.head}` : `nothing uses an older version than v${r.head}` };
+      return { ref: key, head: r.head, versions, stale, ...(stale.length ? { rerun_dependents: { ref: key, chain: "ask", through: "boards" } } : {}), said: stale.length ? `${stale.length} take${stale.length === 1 ? "" : "s"} still use${stale.length === 1 ? "s" : ""} an older version than v${r.head}: rerun each with its rerun arguments to make it on v${r.head}` : `nothing uses an older version than v${r.head}` };
     },
   },
   {
@@ -832,14 +835,15 @@ export const TOOLS = [
   },
   {
     name: "note_take",
-    description: "Pin a reviewer's note on a take: the moment (seconds), optionally a region [x, y, w, h] as fractions of the frame, whether it went wrong or right, tags (wrong: " + T.TAGS.wrong.join(", ") + "; right: " + T.TAGS.right.join(", ") + ") and a sentence. Notes from agents are kept apart from the person's (by: agent).",
+    description: "Pin a reviewer's note on a take: the moment (seconds), optionally a region [x, y, w, h] as fractions of the frame, whether it went wrong or right, tags (wrong: " + T.TAGS.wrong.join(", ") + "; right: " + T.TAGS.right.join(", ") + ") and a sentence; severity (high, medium, low), owner (where the flaw was born) and fix (one line) as the critic writes them (SNAP-R103). Notes from agents are kept apart from the person's (by: agent).",
     inputSchema: { type: "object", properties: { take: { type: "string" }, t: { type: "number" }, region: { type: "array", items: { type: "number" }, minItems: 4, maxItems: 4 },
-      sentiment: { type: "string", enum: ["wrong", "right"] }, tags: { type: "array", items: { type: "string" } }, text: { type: "string" } }, required: ["take", "t", "sentiment", "text"] },
-    run: async ({ take, t, region, sentiment, tags = [], text }) => {
+      sentiment: { type: "string", enum: ["wrong", "right"] }, tags: { type: "array", items: { type: "string" } }, text: { type: "string" },
+      severity: { type: "string", enum: ["high", "medium", "low"] }, owner: { type: "string", description: "where the flaw was born (SNAP-R105): location master, plan, plate <name>, Cast record, board, take, prompt, or kind:id[@n]" }, fix: { type: "string" } }, required: ["take", "t", "sentiment", "text"] },
+    run: async ({ take, t, region, sentiment, tags = [], text, severity, owner, fix }) => {
       await T.load();
       const x = T.get(take);
       if (!x) throw new Error(`No take ${take}`);
-      await T.note(x, { t, region, sentiment, tags, text, by: "agent" });
+      await T.note(x, { t, region, sentiment, tags, text, by: "agent", severity, owner, fix });
       return { take, notes: x.notes.length };
     },
   },
@@ -1447,6 +1451,8 @@ export const TOOLS = [
     run: () => P.all(),
   },
   ...I.TOOLS, // SNAP-R93-R95 instructions, list_instructions, save_instruction, set_instruction_status, list_skills, read_skill, save_skill
+  ...CR.TOOLS, // SNAP-R101-R110 list_critiques, claim_critique, critique_packet, write_critique, skip_critique, critique, critic_report, add_fixture
+  ...DP.TOOLS, // SNAP-R106 rerun_dependents, list_dependents
 ];
 
 // a card shot opened with no plate for its camera offers that camera's plate candidates (U55): GPU time nobody asked for

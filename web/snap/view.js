@@ -631,12 +631,13 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // In the graph view Snap's toast is hidden, so ComfyUI's own toast says it (Open waits for Snap)
   A.onArrive((what, r) => {
     if (what === "lost") return say(`The server restarted: ${r.count} job${r.count === 1 ? " was" : "s were"} lost (the Work card lists them)`, true, 8000, { label: "Work", run: () => openWork(root, { say, open: openJob, decide }) });
+    if (r.source === "critique" && (what !== "landed" || !r.result?.high)) return; // SNAP-R103: only a critique with a high note is said; the rest update their tiles
     const home = r.result?.take ?? r.about?.take, onScreen = home && document.getElementById(`snap-viewer-${home}`);
     if (onScreen && what !== "failed") return;
     const text = what === "start" ? `${r.by === "agent" ? "An agent queued" : "Queued elsewhere"}: ${r.title}${r.where ? ` · ${r.where}` : ""}`
       : what === "failed" ? `${r.title} failed · ${r.error ?? ""}`
       : r.state === "waiting" ? (r.source === "decision" ? `${r.candidates.ready} candidate${r.candidates.ready === 1 ? "" : "s"} ready to pick: ${r.title}` : `Waiting for you: ${r.title}`)
-      : `${r.title}: ${r.result?.take ? `take ${r.result.number} is in` : "done"}${r.where && r.where !== "a scratch tab" ? ` · ${r.where}` : ""}`;
+      : `${r.title}: ${r.source === "critique" ? r.result.said : r.result?.take ? `take ${r.result.number} is in` : "done"}${r.where && r.where !== "a scratch tab" ? ` · ${r.where}` : ""}`;
     if (root.style.display === "none") return app.extensionManager.toast.add({ severity: what === "failed" ? "error" : "info", summary: "Snap", detail: `${text}${what === "start" ? "" : " · open Snap to see it"}`, life: what === "failed" ? 8000 : 5000 });
     say(text, what === "failed", what === "start" ? 3000 : 6000, what === "start" ? { label: "Work", run: () => openWork(root, { say, open: openJob, decide }) } : { label: "Open", run: () => openJob(r).catch((err) => say(err.message, true)) });
   });

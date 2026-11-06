@@ -422,6 +422,21 @@ thumbnail in Snap opens the same viewer on a click; nothing changes by viewing.
   closest Liesl 0.91 (+0.07), F0 184 Hz vs ref 184 Hz"). `check_voice {"take": "<id>"}` runs it again. It needs
   `models/audio_encoders/wavlm_base_plus_sv.safetensors`; a note without it says so. It never blocks: check = listen.
 
+### The critic (SNAP-R101..R110)
+
+Snap puts a critique row on the docket for every landed take, board, sheet, candidate, location version and cut pair,
+and waits for an agent; it never judges a picture itself. When you are on duty (between your own renders too), work
+it with the `snap-critic` skill: `list_critiques {"state": "due"}` (add `"compact": true` to scan a long docket),
+`claim_critique {"critique": "<id>"}`, `critique_packet {"critique": "<id>"}` (the subject whole at native size, then
+100 % tiles, then the context pictures and the words; pictures saved by snapcall in the order its `pictures[].image`
+says), then `write_critique {"critique", "verdict": "clean" | "flaws", "passes": {...}, "notes": [{"severity",
+"pass", "text", "picture", "region": [x, y, w, h], "owner", "fix"}]}`. The notes land on the take with masks; nothing
+is blocked by them. `critique {"location": "location:<id>", "part": "views"}` asks for one (every view of a place side
+by side); `critic_report` says how the critic agreed with the person. After a fix at the source (a new master or plate
+version), `rerun_dependents {"ref": "location:<id>"}` re-makes what used the old one, plates before boards before
+cuts, as candidates; it stops before video unless `"through": "cuts"`. The fixtures that measure the critic:
+`tests/snap/critic/README.md` in the pack.
+
 ## When Snap can't do it
 
 A missing route is a gap in Snap, not a reason to leave it: a take queued outside Snap (raw API, a side graph) never

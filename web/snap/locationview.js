@@ -10,6 +10,7 @@ import * as L from "./library.js";
 import * as W from "./world.js";
 import { full } from "./lightbox.js";
 import { view } from "./castview.js";
+import * as CV from "./critiqueview.js"; // SNAP-R103/R106 the critic per picture, Re-run dependents
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const s = (tag, attrs = {}, ...kids) => { const el = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v); el.append(...kids); return el; };
@@ -101,7 +102,7 @@ export async function openLocation(host, { id, n = null, say, onApplied }) {
     h("header", {}, title, h("span", { className: "snap-spacer" }), h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: close })),
     h("div", { className: "snap-cast-body" },
       h("div", { className: "snap-cast-fields" }, top, cams, h("div", { className: "snap-rail-title", textContent: `Plates (${b.plates.length}): tick the ones this shot cites` }), plates),
-      h("aside", {}, versions, h("label", { className: "snap-field" }, h("span", { textContent: "name" }), h("input", { value: b.name, ariaLabel: "name", oninput: (e) => { b.name = e.target.value; } })),
+      h("aside", {}, versions, CV.locationBlock({ id, n: shown, say }), h("label", { className: "snap-field" }, h("span", { textContent: "name" }), h("input", { value: b.name, ariaLabel: "name", oninput: (e) => { b.name = e.target.value; } })),
         h("div", { className: "snap-rail-title", textContent: "Notes" }), notes, note,
         h("div", { className: "snap-set-actions" },
           h("button", { className: "snap-primary", textContent: "Use in this shot", title: "the master, the plan and the ticked plates into References, each as a <Picture n>; the shot pins this version", onclick: act(async () => {

@@ -18,6 +18,7 @@ import * as P from "./proposals.js";
 import * as SC from "./scenes.js";
 import * as ACC from "./account.js";
 import * as J from "./jobs.js";
+import * as CR from "./critiques.js"; // SNAP-R101 the critic's docket is a source too
 
 export const STATES = ["queued", "running", "checking", "waiting", "done", "failed", "gone"];
 export const ZONES = ["in_flight", "landed", "parked", "closed"];
@@ -95,7 +96,7 @@ function build() {
     about: { take: p.args?.take, slot: p.args?.slot }, where: where({ take: p.args?.take }), tool: p.tool, eta_s: p.plan?.eta_s ?? null, plan: p.plan ?? null, queued_at: null }));
   const refusals = J.refusals().map((x) => ({ id: x.id, source: "refusal", kind: x.spec.kind, title: x.spec.title, by: x.spec.by ?? "person", owner: x.spec.by === "agent" ? "agents" : "you", state: "failed",
     about: x.spec.about ?? {}, where: where(x.spec.about), error: `refused at queue: ${x.error}`, queued_at: x.at, retry: x.retry }));
-  rows = [...prompts, ...decisions, ...asked, ...pairs, ...refusals, ...lost.values()].map((r) => {
+  rows = [...prompts, ...decisions, ...asked, ...pairs, ...refusals, ...lost.values(), ...CR.rowsFor(where)].map((r) => {
     const parked = marks.parked[r.id] ?? null, opened = marks.opened[r.id] ?? null;
     const zone = parked ? "parked" : LIVE.has(r.state) || r.state === "failed" || r.state === "gone" ? "in_flight" : r.state === "waiting" || (r.state === "done" && !opened) ? "landed" : "closed";
     return { ...r, zone, eta: eta(r), ...(parked ? { parked } : {}), ...(opened ? { opened } : {}) };
@@ -204,8 +205,9 @@ C.onChange(() => build());
 J.onRefuse(() => build());
 T.onChange(() => build());
 P.onChange(() => build());
+CR.onChange(() => build());
 onChange(() => {
-  const live = rows.some((r) => LIVE.has(r.state));
+  const live = rows.some((r) => LIVE.has(r.state) && r.source !== "critique"); // a due critique waits for an agent: the store says when it moves
   if (live && !timer) timer = setInterval(() => reconcile(), 2000);
   if (!live && timer) { clearInterval(timer); timer = null; }
 });

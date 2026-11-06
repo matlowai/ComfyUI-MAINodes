@@ -17,6 +17,7 @@
 // tray: contextview.js) · SNAP-R81/R82/R113 Make it bigger (upscale.js) · SNAP-R114 the voice note (voices.js) · SNAP-R93 the instructions a take ran under · see docs/snap/SNAP_RULES.md
 import * as T from "./takes.js";
 import * as V from "./vault.js";
+import * as CV from "./critiqueview.js"; // SNAP-R103 the critic on the take: its chip, masks and notes
 import * as LB from "./lightbox.js";
 import * as RT from "./retake.js";
 import * as PL from "./plates.js";
@@ -94,6 +95,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
   // will land; the strip is rebuilt only when a ghost comes or goes, the chips and rings are written in place
   let ghostSig = "";
   A.onChange(() => { const g = JSON.stringify(ghosts().map((r) => r.id)); if (g !== ghostSig) render(); else paintJobs(); });
+  CV.watch(strip);
   T.load().then(render, () => {});
   // the blind pairs waiting in this workflow (a pair set up in another workflow waits there)
   const waitingHere = async () => (await T.pending()).filter((p) => T.get(p.a)?.group === T.groupOf() && T.get(p.b)?.group === T.groupOf());
@@ -175,6 +177,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
         ["mature", "adult"].includes(T.ratingOf(t)) ? h("span", { className: "snap-take-rating", textContent: T.RATING_SHOWN[T.ratingOf(t)],
           title: t.rating_set ? "rated by you" : `rated from how it was made: ${(t.rating_why ?? []).join("; ")}` }) : null,
         T.locked(t) ? V.badge(t) : null, // U79: "kept encrypted", "(locked)"; a click opens the vault
+        CV.chip(t),
         h("span", { className: "snap-quiet", textContent: `${t.notes.length ? `✎ ${t.notes.length} · ` : ""}${ago(t.created)}` })));
     c.querySelector("figcaption").append(h("span", { className: "snap-take-job", hidden: true }));
     c.dataset.take = t.id;
@@ -537,7 +540,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
       h("div", { className: "snap-take-body" },
         h("div", { className: "snap-take-left" }, stage, markers, isVideo ? h("div", { className: "snap-quiet", textContent: "Space plays · , and . step one frame" }) : null),
         h("aside", {},
-          verdicts, rankLine, ratingRow(t), quietRow, AL.takeLine(t, { say }),
+          verdicts, rankLine, ratingRow(t), quietRow, AL.takeLine(t, { say }), CV.panel(t, { stage, fit, player, isVideo, say, host }),
           t.metadata_kept ? h("p", { className: "snap-take-keptline", textContent: `Save metadata was off, but ${t.metadata_kept.join("; ")}: those files still hold the prompt and workflow. Save with Save Image or Save Video to leave them out.` }) : null,
           h("div", { className: "snap-rail-title", textContent: "Note a moment" }), sentimentSeg, tagBox, words,
           h("div", { className: "snap-take-noteline" }, at, markBtn, regionText, h("span", { className: "snap-spacer" }), h("button", { className: "snap-primary", textContent: "Add note", onclick: add })),
