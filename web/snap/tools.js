@@ -20,6 +20,7 @@
 // SNAP-R101-R110 the critic's docket and fix at the source (critiques.js, dependents.js); note_take takes severity, owner and fix · see docs/snap/SNAP_RULES.md
 // SNAP-R121 answers say what the work is: whole titles, what a setup switch carried, eye gaps, caption files · SNAP-R122 recipe_matches_active · SNAP-R123 use_take as cast / plate · SNAP-R124 apply_cast pictures, rerun out
 // SNAP-R67-R69, R130-R133 the Book's tools (booktools.js), joined at the end of the table; open_view book · see docs/snap/SNAP_RULES.md
+// SNAP-R134 keep_eye_colour and the redraw's eye line · SNAP-R136 open_view masks, find_take, add_plate's facts · SNAP-R137 cites stay plain · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import { BRICKS, PACK_BRICKS } from "./bricks.js";
@@ -38,6 +39,7 @@ import * as C from "./candidates.js";
 import * as ED from "./edits.js";
 import * as EX from "./extend.js";
 import * as UP from "./upscale.js";
+import * as EY from "./eyes.js";
 import * as VO from "./voices.js";
 import * as K from "./checks.js";
 import * as SC from "./scenes.js";
@@ -892,7 +894,7 @@ export const TOOLS = [
       if (!t || T.aboveCap(t)) throw new Error(`No take ${take} (find_take finds any take by file, seed or the start of its id)`);
       const prev = T.inGroup(t.group).filter((x) => x.created < t.created).at(-1);
       return { id: t.id, number: t.number, seed: t.seed, status: t.status, error: t.error, verdict: t.verdict, prior: t.prior, seconds: t.seconds, prompt: t.text, prompts: promptsOf(t.prompt), notes: t.notes, media: t.media, copy: t.copy ?? null, ...(t.voice ? { voice: t.voice } : {}), ...(t.sound ? { sound: { mean_db: t.sound.mean_db, max_db: t.sound.max_db, quiet: T.quiet(t), quiet_below_db: T.QUIET_DB } } : {}), rating: T.ratingOf(t), rating_why: t.rating_set ? ["rated by the person"] : t.rating_why ?? [], changed_since_previous: prev ? T.delta(prev, t) : [],
-        world: await worldOf(t.world), parent: t.parent ?? null, purpose: (await S.load(), await W.load(), ED.purposeOf(t)), instructions: await I.ofTake(t), ...(t.kept_encrypted ? { kept_encrypted: true, ...(t.locked ? { locked: true, said: "kept encrypted and the vault is locked: its prompt, notes and frames open once the person signs in" } : {}) } : {}) };
+        world: await worldOf(t.world), parent: t.parent ?? null, purpose: (await S.load(), await W.load(), ED.purposeOf(t)), ...(EY.note(t) ? { eyes: EY.note(t) } : {}), instructions: await I.ofTake(t), ...(t.kept_encrypted ? { kept_encrypted: true, ...(t.locked ? { locked: true, said: "kept encrypted and the vault is locked: its prompt, notes and frames open once the person signs in" } : {}) } : {}) };
     },
   },
   {
@@ -1313,6 +1315,16 @@ export const TOOLS = [
       const a = anchor === undefined ? undefined : anchor === "none" ? null : T.get(anchor); if (a === undefined && anchor !== undefined) throw new Error(`No take ${anchor} to anchor on`);
       return UP.start(t, method, { factor, width, height, denoise, upscaler, hero, anchor: a, speed, by: "agent" });
     },
+  },
+  {
+    name: "keep_eye_colour",
+    description: "Keep eye colour (SNAP-R134, optional, never run by itself): after a stage 2 redraw (upscale_take stage2), re-tint the irises of the redrawn take toward the Cast front's iris colour. SAM 3.1 finds the eyes on every frame and on the Cast picture (no seeding); only the iris pixels' colour moves (Lab a/b; lightness, pupils, outlines and skin stay); a frame where no iris is found (a profile, the back) passes through untouched. take: the stage 2 take; cast (cast:<id>; default the one Cast the take pins); ref (the Cast picture's number from 0; default the one whose role says front, else its first); strength (0 to 1, default 1: all the way; 0.6 is subtler). Lands as a new take beside the redraw (parent method eyecolour); the redraw stays. GPU work: a proposal unless the person lets agents run. Look at the eyes at 100 % against the Cast picture before keeping it.",
+    inputSchema: { type: "object", properties: { take: { type: "string" }, cast: { type: "string" }, ref: { type: "integer", minimum: 0 }, strength: { type: "number", minimum: 0, maximum: 1 } }, required: ["take"] },
+    annotations: { consequentialHint: true },
+    consequential: true,
+    plan: async ({ take, cast, strength = 1 }) => { await Promise.all([T.load(), W.load()]); const t = await takeOf(take); EY.need(t); const c = EY.castsOf(t).find((x) => !cast || W.parse(x.ref).id === W.parse(cast).id);
+      return { runs: `SAM 3.1 on every frame of take ${t?.number ?? take} and on ${c?.name ?? "the Cast"}'s picture, then the iris re-tint${strength < 1 ? ` at strength ${strength}` : ""}, as a new take`, eta_s: null, from: "u102b/IRIS_SAM (no estimate kept yet)" }; },
+    run: async ({ take, cast, ref, strength }) => { await Promise.all([T.load(), W.load()]); return EY.start(await takeOf(take), { cast, ref, strength, by: "agent" }); },
   },
   {
     name: "set_purpose",

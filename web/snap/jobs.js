@@ -9,7 +9,7 @@
 // SNAP-R52 values outside the choices are refused naming them · SNAP-R65 the Work card · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 
-export const KINDS = ["run", "retake", "rerun", "paint", "propagate", "extend", "upscale", "louder", "plate", "check", "preview", "make_dial", "settei", "board", "compile", "prose", "cut", "critique"]; // critique: a critic row (critiques.js, SNAP-R101), never a queued prompt
+export const KINDS = ["run", "retake", "rerun", "paint", "propagate", "extend", "upscale", "louder", "eyes", "plate", "check", "preview", "make_dial", "settei", "board", "compile", "prose", "cut", "critique"]; // critique: a critic row (critiques.js, SNAP-R101), never a queued prompt; eyes: keep eye colour after a redraw (SNAP-R134)
 export const ABOUT = ["take", "group", "scene", "shot", "decision", "candidate", "set", "camera", "slot", "book", "beat", "unit", "entity", "state"];
 export const BY = ["person", "agent"];
 

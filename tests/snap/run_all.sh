@@ -53,7 +53,7 @@ checks = {
  "ui": lambda r: [r["drag"]["move"]["long"] <= 1 and r["drag"]["move"]["worstMs"] <= 34, r["drag"]["lift"]["long"] <= 1 and r["drag"]["lift"]["worstMs"] <= 34, r["upscaleAfterRemove"]["from"] == "Dials - H3 + De-rope" and "upscale" not in r["upscaleAfterRemove"]["bricks"], r["upscaleAfterInsert"]["from"] == "RelayVSR", r["drawsWhileSnap"]["draws"] == 0, r["graphUnchanged"], r["reverse"]["stuck"] == 0, r["overrideChip"] == 1, r["vue"]["bricks"] == 7, not r["errors"]],
  "ui2": lambda r: [r["paletteOpenMs"] < 50, len(r["appMode"]) == 11, 290 - 30 <= r["switchMsNormal"]["looksDone"] <= 350, r["switchMsReduced"]["looksDone"] <= 150, r["touchOrder"][0] == "refs", r["touchScroll"]["before"] == r["touchScroll"]["after"], all(v <= 0 for v in r["phone"].values()), not r["errorsA"], not r["errorsT"],
    r["groupMidDrag"], r["groupOrder"][:2] == ["render", "models"] and r["groupOrder"][-2:] == ["upscale", "save_video"], r["groupDom"] == [k for k in r["groupOrder"] if k != "preset"], not r["errorsG"]],
- "agent": lambda r: [len(r["mcpTools"]) == 170, [c["isError"] for c in r["calls"]] == [False] * 6 + [True] + [False] * 6 + [True], r["lengthInGraph"] == 97, r["unknownTool"]["isError"], not r["errors"]],
+ "agent": lambda r: [len(r["mcpTools"]) == 172, [c["isError"] for c in r["calls"]] == [False] * 6 + [True] + [False] * 6 + [True], r["lengthInGraph"] == 97, r["unknownTool"]["isError"], not r["errors"]],
  "seteditor": lambda r: [len(r["applied"]) == 2, r["editorOpen"] == 1, "line between Ferro and Kon" in r["warn"], "Bare walls only" in r["blockAfter"],
    len(r["afterApply"]) == 2 and all("-mine_" in x for x in r["afterApply"]) and [x.split("|")[0] for x in r["afterApply"]] == [x.split("|")[0] for x in r["applied"]],
    r["editorClosed"], r["myEdit"][0] == "set-lamp-room-end-s3-mine", r["reopenedShot"] == "shot 4", "screen direction flips" in r["reopenedWarn"], len([t for t in r["savedCards"] if "bridge" not in t]) == 1, r["escClosed"], not r["errors"],
@@ -107,10 +107,10 @@ checks = {
    r["row"]["ends"] == ["frozen", "zoomies"] and r["row"]["bands"], [s for _, s in r["afterSlide"]["widget"]] == [1.25] and r["afterSlide"]["panel"] == [1.25], r["libraryDials"]["n"] >= 1,
    r["make"]["posted"] == 1 and len(r["make"]["targets"]) == 1 and r["make"]["name"] == "calm_sea_stormy_sea" and r["make"]["labels"] == ["calm sea", "stormy sea"] and r["make"]["useful"] == 0,
    r["make"]["pairs"].count("|||") == 2, r["make"]["nodeRemoved"], "didn't take" in r["make"]["status"], not r["errors"]],
- "agentfull": lambda r: [r["mcpTools"]["n"] == 170 and not r["mcpTools"]["has"], r["setSeed"] == 1234, "wired from Render Preset" in r["setWired"], "takes one of" in r["badChoice"] and bool(r["goodChoice"]),
+ "agentfull": lambda r: [r["mcpTools"]["n"] == 172 and not r["mcpTools"]["has"], r["setSeed"] == 1234, "wired from Render Preset" in r["setWired"], "takes one of" in r["badChoice"] and bool(r["goodChoice"]),
    "dials/h3_motion_hook.safetensors" in r["dialsFound"], r["setDial"]["strength"] == 1.5, r["uiSelect"]["selected"] == "rack", r["uiDials"] == "Dials" and r["uiClose"] is None,
    r["upload"]["set"]["value"] == r["upload"]["name"], bool(r["run"].get("proposed") and r["makeDial"].get("proposed")), [p["tool"] for p in r["proposals"]] == ["run", "make_dial"],
-   r["undo"]["after"] != r["undo"]["before"] and r["undo"]["redone"] == r["undo"]["before"], r["webmcp"].get("count") == 165 and r["webmcp"].get("strength") == -0.75 and r["webmcp"]["consequential"]["consequentialHint"], r["queue"] == 0, not r["errors"]],
+   r["undo"]["after"] != r["undo"]["before"] and r["undo"]["redone"] == r["undo"]["before"], r["webmcp"].get("count") == 167 and r["webmcp"].get("strength") == -0.75 and r["webmcp"]["consequential"]["consequentialHint"], r["queue"] == 0, not r["errors"]],
  "sight": lambda r: [r["before"]["isError"] and "Let agents see" in r["before"]["text"], r["button"].endswith("Agents can see"), not r["after"]["isError"] and r["after"]["types"] == ["image", "text"] and r["after"]["mime"] == "image/jpeg" and r["after"]["bytes"] > 10000,
    r["stopped"].endswith("Let agents see"), r["queue"] == 0, not r["errors"]],
  "models": lambda r: [r["created"]["model"].startswith("h3/") and r["created"]["lora"].startswith("h3/pika") and r["created"]["current"] == {"name": "Pika H3 Flex", "edited": False},
@@ -339,7 +339,7 @@ checks = {
    r["run"]["proposed"] and r["run"]["plan"]["eta_s"] == 70 and "same recipe" in r["run"]["plan"]["from"] and "about 70 s" in (r["chip"] or "") and r["listed"],
    r["runFrom"]["tabs"] == r["tabsBefore"] + 1 and r["runFrom"]["length"] == 73 and r["runFrom"]["selected"] == "render" and r["runFrom"]["showing"] and "nothing is queued" in r["runFrom"]["toast"] and not r["runFrom"]["sheet"],
    r["listsNotStale"], r["queue"] == 0 and r["sam"] == 1, not r["errors"]],
- "newcomer": lambda r: [len(r["tools"]) == 170 and "set_agent_permissions" in r["tools"], r["profile"]["agents"]["run"] is False,
+ "newcomer": lambda r: [len(r["tools"]) == 172 and "set_agent_permissions" in r["tools"], r["profile"]["agents"]["run"] is False,
    r["allowRun"]["value"]["run"] is True and r["afterRun"]["setting"] is True and r["afterRun"]["profile"]["run"] is True,
    not r["allowSee"]["error"] and "screenshot shows this page" in r["allowSee"]["value"].get("note", ""), r["screenshot"]["error"] and "take_frames" in r["screenshot"]["value"],
    r["firstFrame"]["on"] is False and "text to video" in r["firstFrame"]["off"], r["renderLength"]["fps"] == 24 and r["renderLength"]["seconds"] == round(r["renderLength"]["value"] / 24, 2),
@@ -551,8 +551,9 @@ for t in test_book_story.js test_book_compile.js test_book_cut.js test_book_page
 for t in test_u93_critique.js test_u93_packet.js test_u93_triggers.js test_u93_marks.js test_u93_agreement.js test_u94_dependents.js; do park; timeout 600 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
 # G3 (SNAP-R134..R138): critique rows per part, masks all at once, the location tools' friction, page holds, the pack's
 # prompt words, the eye colour step's math; each prints "g3<name> n/m" or "iris n/m" last
-for t in test_g3_critic.js test_g3_pages.js; do park; timeout 600 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
+for t in test_g3_critic.js test_g3_pages.js test_g3_eyes.js; do park; timeout 600 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
 nice -n 19 python3 -I "$T"/test_g3_cards.py >test_g3_cards.py.out 2>&1; tail -1 test_g3_cards.py.out
+nice -n 19 "$py" -I "$T"/test_iris.py >test_iris.py.out 2>&1; tail -1 test_iris.py.out
 # SNAP-R109: the last real critic run on the fixtures still holds the floor (a real-agent check; this only re-scores its saved notes)
 nice -n 19 python3 -I "$T/critic/run_fixtures.py" score --results "$T/critic/runs/2026-11-06-r4/results.jsonl" --confirm "$T/critic/runs/2026-11-06-r4/confirm.json" | tail -1 | sed 's/^/critic   /'
 # U79 (SNAP-R96, R97, R99): the vault container and keys, pure Python on the pack this server loads; prints "vaultfmt n/m" last

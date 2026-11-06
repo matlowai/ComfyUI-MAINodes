@@ -14,6 +14,7 @@
 // Stage 2's `speed` (G1b) is time against softness: "quality" keeps the take's own cfg, "fast" samples at cfg 1 (one model
 // pass per step: 1.7x faster, a touch softer); quality stays the default.
 // SNAP-R85 a reference is redrawn, never only sharpened · SNAP-R113 stage 2 fast is a choice, never the default ·
+// SNAP-R134 a reference's redraw says to compare the eyes with the Cast (keep eye colour is a separate, optional step) ·
 // SNAP-R81 a take's upscale is a second pass of its own recipe · SNAP-R82 Tessera tiles a take · SNAP-R13 data, not code
 // branches · SNAP-R14 method slots · SNAP-R16 GPU work waits for the person · SNAP-R60 pins · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
@@ -272,5 +273,6 @@ export async function start(take, id, { factor, width, height, denoise, upscaler
   const job = { kind: "upscale", title: `Make take ${take.number} ${t.width}×${t.height}: ${m.title}${options.denoise != null ? ` at denoise ${options.denoise}` : ""}${fast.speed ? `, fast (cfg ${fast.cfg})` : ""}`, about: { take: take.id, group: take.group }, by, eta_s };
   const runId = await K.queue(g, { group: take.group, world: take.graph?.extra?.snap?.world, job, extra: { snap_parent: { take: take.id, method: `upscale/${id}`, options, by } } });
   const why = reason(take);
-  return { prompt_id: runId, take: `take-${runId}`, ...options, eta_s, eta: eta_s ? (eta_s < 90 ? `about ${eta_s} s of GPU` : `about ${Math.round(eta_s / 60)} min of GPU`) : "no estimate yet", ...(why ? { why } : {}) };
+  const eyes = why && id === "stage2" ? "When it lands, compare the eyes with the Cast picture: the redraw can shift eye colour (Hiyori's brown came back grey at 0.30). keep_eye_colour {take} re-tints only the irises toward the Cast front, if you want it (optional, SNAP-R134)" : null;
+  return { prompt_id: runId, take: `take-${runId}`, ...options, eta_s, eta: eta_s ? (eta_s < 90 ? `about ${eta_s} s of GPU` : `about ${Math.round(eta_s / 60)} min of GPU`) : "no estimate yet", ...(why ? { why } : {}), ...(eyes ? { eyes } : {}) };
 }
