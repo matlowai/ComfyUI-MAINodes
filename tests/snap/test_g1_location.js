@@ -117,7 +117,7 @@ const unit = (i) => Array.from({ length: 8 }, (_, k) => (k === i ? 1 : 0));
     // tick two plates and Use in this shot
     const boxes = await page.$$(".snap-loc-sheet .snap-loc-pick input[type=checkbox]");
     await boxes[0].check(); await boxes[4].check();
-    await page.click(".snap-loc-sheet button.snap-primary"); await page.waitForTimeout(1500);
+    await page.click(".snap-loc-sheet button.snap-primary:has-text('Use in this shot')"); await page.waitForTimeout(1500); // the critic block's Re-run dependents is a primary press too
     R.used = await page.evaluate(() => window.__E.references().pictures.map((p) => p.role));
     R.status = await page.evaluate(() => document.querySelector(".snap-loc-sheet [role=status]")?.textContent ?? null);
     R.errors = [...A.errors];
@@ -136,7 +136,7 @@ const unit = (i) => Array.from({ length: 8 }, (_, k) => (k === i ? 1 : 0));
     "applying again replaces its pictures (plan left out, other plate)": R.refs2?.length === 2 && /master/.test(R.refs2[0][1]) && /plate Pd houses/.test(R.refs2[1][1]),
     "a plate it hasn't is refused, naming its plates": /no plate "Pz nowhere"/.test(R.badPlate?.error ?? "") && /Pa road outside/.test(R.badPlate.error),
     "F-C28: camera names the framing kept, the rest show the place, and prompt_hint words it": R.cam?.use?.["plate Pb gate inside, open"] === "camera" && R.cam.use["plate Pc square + well"] === "place" && R.cam.use.master === "place"
-      && R.camRoles?.some((r) => /plate Pb gate inside, open \(camera\)$/.test(r)) && /<Picture 3> is this shot's camera: keep its framing\. <Picture 1>, <Picture 4> show the place/.test(R.cam.prompt_hint ?? "") && /set plan from above/.test(R.cam.prompt_hint) && /camera names the picture/.test(R.badCam?.error ?? ""),
+      && R.camRoles?.some((r) => /plate Pb gate inside, open \(camera\)$/.test(r)) && /<Picture 1> is this shot's camera: keep its framing\. <Picture 2>, <Picture 4> show the place/.test(R.cam.prompt_hint ?? "") && /set plan from above/.test(R.cam.prompt_hint) && /camera names the picture/.test(R.badCam?.error ?? ""),
     "add_plate from a still with a pose makes v2": R.add?.version === 2 && R.v2?.head === 2 && R.v2.plates.length === 7 && R.v2.plates.find((p) => p.name === "Pe well close")?.from?.take === "take-g1-still" && R.v2.plates.find((p) => p.name === "Pe well close").pose.heading === 45,
     "save_location saves a take's frame as the master, with where it came from": R.frameRec?.master?.from?.frame === 30 && /take-g1-video_f30\.png$/.test(R.frameRec.master.file) && R.frameRec.plates[0].from.frame === 60,
     "a pose off the plan is refused saying the units": /fraction of the plan/.test(R.badPose?.error ?? ""),
