@@ -9,7 +9,7 @@ shows up in Snap and the other way round. The layers are:
 - **Agents:** the same actions as tools, over WebMCP in the page or MCP / HTTP from outside (see [Agent hooks](#agent-hooks)).
 
 This is the `snap` branch, for testers. It is not on `main` yet. The design rules are in
-[`../SNAP_RULES.md`](../SNAP_RULES.md) (SNAP-R1, R2, ...); code cites them by ID.
+[`SNAP_RULES.md`](SNAP_RULES.md) (SNAP-R1, R2, ...); code cites them by ID.
 
 ## Install the branch
 
@@ -51,7 +51,7 @@ The same toggle takes you back to the graph.
 
 ## Agent hooks
 
-- Start with [`../AGENT_START.md`](../AGENT_START.md): how an agent finds the server's Snap, opens a page, and calls tools.
+- Start with [`AGENT_START.md`](AGENT_START.md): how an agent finds the server's Snap, opens a page, and calls tools.
 - `tools/snapcall.py <base> <tool> '<json args>'`: one tool call from a shell.
 - `tools/snap_mcp.py`: the same tools as an MCP server, e.g. `claude mcp add comfy-snap -- python3 tools/snap_mcp.py --base-url http://127.0.0.1:8188`.
 - `tools/snap_agent_page.sh`: a headless Snap page of the agent's own.

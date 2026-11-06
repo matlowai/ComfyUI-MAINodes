@@ -2,7 +2,7 @@
 // A brick is one or more graph nodes with a clean face. `provides` maps port roles to output slot names, `needs` maps
 // port roles to input names; rules say which role feeds which, so binding never guesses for our own bricks.
 // SNAP-R1 pack bricks only choose which values show · SNAP-R4 outcome faces · SNAP-R12 LoRA roles · SNAP-R14 method
-// slots · see docs/SNAP_RULES.md
+// slots · see docs/snap/SNAP_RULES.md
 
 export const RENDER_BLUEPRINT = "Dials - H3 + De-rope";
 export const IMAGE_BLUEPRINT = "Dials - Image";

@@ -11,7 +11,7 @@ Example Claude Code config entry (not installed by the pack):
 
     {"mcpServers": {"comfy-snap": {"command": "python", "args": ["custom_nodes/ComfyUI-MAINodes/tools/snap_mcp.py", "--port", "8188"]}}}
 
-SNAP-R30 the agent front door · see docs/SNAP_RULES.md
+SNAP-R30 the agent front door · see docs/snap/SNAP_RULES.md
 """
 import argparse
 import json

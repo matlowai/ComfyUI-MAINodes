@@ -18,7 +18,7 @@ Plaintext of a private take touches disk only in the RAM-backed scratch an ffmpe
 (/dev/shm/snap-vault-<pid>/), unlinked when the step ends; loaders open containers in memory.
 SNAP-R37 privacy per install · SNAP-R96 a private take lives encrypted at its own path · SNAP-R97 writing needs no
 passphrase, reading does, lock forgets · SNAP-R98 no plaintext of a private take on disk · SNAP-R99 a lost passphrase:
-escrow or the recovery key, else lost · see docs/SNAP_RULES.md
+escrow or the recovery key, else lost · see docs/snap/SNAP_RULES.md
 """
 import asyncio
 import contextlib

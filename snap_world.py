@@ -4,7 +4,7 @@ inside; a version is appended, never edited. The hash is sha-256 of the body as 
 SNAP-R60 world versions and pins · SNAP-R62 clean-up is the person's choice · SNAP-R18 local only · SNAP-R58 results are
 never trimmed · SNAP-R96 a private take's record and media stay containers in the export unless the person
 includes them decrypted · SNAP-R93/R94 instruction and skill records · SNAP-R95 imported ones land off ·
-see docs/SNAP_RULES.md"""
+see docs/snap/SNAP_RULES.md"""
 import asyncio
 import hashlib
 import json

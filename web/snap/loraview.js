@@ -4,7 +4,7 @@
 // function set_lora_category calls, SNAP-R19), so the Library, the pickers, the Setup's stacks and the agent tools all see
 // it at once; Undo puts back what was there. SFW only leaves the nsfw files out, and so their chip.
 // SNAP-R12 LoRA roles · SNAP-R19 one function · SNAP-R25 SFW only · SNAP-R27 a lock on private ones, the row still works ·
-// SNAP-R35 a rating from move to… · SNAP-R55 an agent's filing shows its reason, the person's wins · see docs/SNAP_RULES.md
+// SNAP-R35 a rating from move to… · SNAP-R55 an agent's filing shows its reason, the person's wins · see docs/snap/SNAP_RULES.md
 import * as M from "./models.js";
 import * as PF from "./profile.js";
 

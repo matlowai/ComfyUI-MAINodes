@@ -19,7 +19,7 @@
 //   "person 2" (U35 agent eyes, UX_GEMS #5).
 // SNAP-R18 local only · SNAP-R21 plates · SNAP-R23 checks are notes, never rejections · SNAP-R65 every queued prompt
 // carries its job stamp · SNAP-R76 every face its own measurement, matched one to one · SNAP-R111 the character score
-// raises the identity note, ArcFace is shown · see docs/SNAP_RULES.md
+// raises the identity note, ArcFace is shown · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as M from "./models.js";
 import * as MD from "./metadata.js";

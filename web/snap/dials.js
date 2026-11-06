@@ -3,7 +3,7 @@
 // every installed dial (/mainodes/dials/catalog); "Make a dial" fills the pack's own Make Dial node and runs only that
 // node, then puts the new dial on the rack. Rows live in the rack's `rack` widget (the backend's source of truth).
 // SNAP-R2 the rack follows its widget · SNAP-R13 family from the setup, strength scale from the dials' own data ·
-// SNAP-R25 SFW only leaves out dials the model graph tags nsfw · see docs/SNAP_RULES.md
+// SNAP-R25 SFW only leaves out dials the model graph tags nsfw · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";

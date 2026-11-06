@@ -15,7 +15,7 @@
 // pass per step: 1.7x faster, a touch softer); quality stays the default.
 // SNAP-R85 a reference is redrawn, never only sharpened · SNAP-R113 stage 2 fast is a choice, never the default ·
 // SNAP-R81 a take's upscale is a second pass of its own recipe · SNAP-R82 Tessera tiles a take · SNAP-R13 data, not code
-// branches · SNAP-R14 method slots · SNAP-R16 GPU work waits for the person · SNAP-R60 pins · see docs/SNAP_RULES.md
+// branches · SNAP-R14 method slots · SNAP-R16 GPU work waits for the person · SNAP-R60 pins · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as ED from "./edits.js";
 import * as K from "./checks.js";

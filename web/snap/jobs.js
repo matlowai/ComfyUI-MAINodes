@@ -6,7 +6,7 @@
 // nothing is stored anywhere new. Runs go through ComfyUI's own app.queuePrompt (seed control, its errors, its queue
 // panel), which sends a run later when it is still sending another, so a run's stamp waits here and its id comes from
 // the send itself: a run always returns its id or says why not (anime dogfood F-A13).
-// SNAP-R52 values outside the choices are refused naming them · SNAP-R65 the Work card · see docs/SNAP_RULES.md
+// SNAP-R52 values outside the choices are refused naming them · SNAP-R65 the Work card · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 
 export const KINDS = ["run", "retake", "rerun", "paint", "propagate", "extend", "upscale", "louder", "plate", "check", "preview", "make_dial", "settei", "board", "compile", "prose"];

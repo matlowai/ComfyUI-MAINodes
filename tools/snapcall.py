@@ -9,7 +9,7 @@ usage: python3 snapcall.py <port or base URL> [--page <id|name>] <tool> ['<json 
   e.g. python3 snapcall.py 8188 get_profile
        SNAP_AGENT=my-studio python3 snapcall.py 8188 --page 3f9a2c run
        python3 snapcall.py 8188 run_status '{"wait_s": 25}'
-SNAP-R30 the agent front door · see docs/SNAP_RULES.md
+SNAP-R30 the agent front door · see docs/snap/SNAP_RULES.md
 """
 import base64
 import json

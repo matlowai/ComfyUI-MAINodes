@@ -7,7 +7,7 @@ The plaintext a sealed file replaces stays on an SSD until the drive trims those
 reach of other accounts, not of someone with the raw disk.
 
   comfyui_venv/bin/python tools/snap_vault_cli.py encrypt-existing --comfy <ComfyUI base> --user <ComfyUI user id> [--go]
-SNAP-R96 kept encrypted at its own path · see docs/SNAP_RULES.md
+SNAP-R96 kept encrypted at its own path · see docs/snap/SNAP_RULES.md
 """
 import argparse
 import json

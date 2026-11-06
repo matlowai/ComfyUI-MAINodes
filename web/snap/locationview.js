@@ -5,7 +5,7 @@
 // into References (L.applyLocation, pinned); saving is a new version (an unchanged body makes none), and opening an
 // older version edits from it. Clicking the plan while a plate is picked places that plate there.
 // SNAP-R84 locations by reference · SNAP-R60 versions · SNAP-R80 every picture full size · SNAP-R3 a missing file shows as
-// missing · see docs/SNAP_RULES.md
+// missing · see docs/snap/SNAP_RULES.md
 import * as L from "./library.js";
 import * as W from "./world.js";
 import { full } from "./lightbox.js";

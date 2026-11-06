@@ -13,7 +13,7 @@ If a Snap server is reachable, `read_skill {"name": "snap-turnaround"}` returns 
 
 # A turnaround from an orbit
 
-Sheet methods and their calls: `docs/AGENT_START.md` ("Character sheets"); ranking in `snap-model-choice`. Cast
+Sheet methods and their calls: `docs/snap/AGENT_START.md` ("Character sheets"); ranking in `snap-model-choice`. Cast
 records: AGENT_START §5 (SNAP-R59, R60).
 
 ## Steps

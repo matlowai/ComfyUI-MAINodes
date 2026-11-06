@@ -4,7 +4,7 @@
 // edited). The buttons call the same functions as the apply_candidate / reject_candidate / undo_candidate tools.
 // SNAP-R7 lists keep their elements while a pointer is down · SNAP-R17 by · SNAP-R23 candidates · SNAP-R76 a score per
 // person, with that person's crops · SNAP-R79 copied Picture n · SNAP-R111 the character score flags, ArcFace is shown ·
-// SNAP-R112 same composition · see docs/SNAP_RULES.md
+// SNAP-R112 same composition · see docs/snap/SNAP_RULES.md
 import * as C from "./candidates.js";
 import * as P from "./proposals.js";
 import * as ED from "./edits.js";

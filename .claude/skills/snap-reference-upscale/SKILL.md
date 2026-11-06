@@ -13,7 +13,7 @@ If a Snap server is reachable, `read_skill {"name": "snap-reference-upscale"}` r
 
 # A reference redraw upscale
 
-Calls and every option: `docs/AGENT_START.md` ("Making a take bigger"; SNAP-R81, R82).
+Calls and every option: `docs/snap/AGENT_START.md` ("Making a take bigger"; SNAP-R81, R82).
 
 ## Why redraw
 

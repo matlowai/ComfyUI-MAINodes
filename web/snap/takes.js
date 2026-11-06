@@ -21,7 +21,7 @@
 // A private take on an install with privacy on is kept encrypted (U79): the server reads its record to the page as is,
 // or as a stub (kept_encrypted, locked; no prompt, graph or notes) while the vault is locked; reopen() reads them again after an unlock.
 // SNAP-R96 kept encrypted · SNAP-R54 takes above the account's cap are left out · SNAP-R60 a take keeps the world pins it ran with (`world`) and its
-// stale flag names the records that moved on · SNAP-R65 a paint or check (takes: false) is no take; catchUp writes the takes of runs that finished during a reload · see docs/SNAP_RULES.md
+// stale flag names the records that moved on · SNAP-R65 a paint or check (takes: false) is no take; catchUp writes the takes of runs that finished during a reload · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";

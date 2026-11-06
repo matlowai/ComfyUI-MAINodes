@@ -3,7 +3,7 @@
 // refreshes the set pictures in References, Save keeps the edited state as a new card in the user's Library. The set's
 // camera plates are made and swapped here too (they live on the set's working copy, so they don't wait for Apply): each
 // camera's orbit renders come as candidates to pick from, and hovering one shows it in that camera's plate slot.
-// SNAP-R21 one plate per camera · SNAP-R22 doors and windows from the camera · SNAP-R23 candidates · see docs/SNAP_RULES.md
+// SNAP-R21 one plate per camera · SNAP-R22 doors and windows from the camera · SNAP-R23 candidates · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import { drawPlan, planFrame, setBlock, blocking, coverage, bridges, between, sideTrack, wallOf, plateCameras } from "./setsnap.js";
 import { diff, eyelines } from "./continuity.js";

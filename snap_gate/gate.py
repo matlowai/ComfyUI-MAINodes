@@ -17,7 +17,7 @@ SNAP-R40 a wrapper, never core · SNAP-R41 sessions set the user · SNAP-R42 wor
 SNAP-R44 unrated content is Adult · SNAP-R45 loading by scope, not the path's form · SNAP-R46 sessions persist, idle locks ·
 SNAP-R47 sign-in waits · SNAP-R48 shared pack files are the admin's · SNAP-R49 the admin rates on /gate/admin ·
 SNAP-R56 outputs keep their prompt's rating, nobody sees above their cap · SNAP-R57 input/ is per account ·
-see docs/SNAP_RULES.md
+see docs/snap/SNAP_RULES.md
 """
 import argparse
 import asyncio

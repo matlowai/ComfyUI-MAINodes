@@ -13,7 +13,7 @@ If a Snap server is reachable, `read_skill {"name": "snap-new-view"}` returns th
 
 # New views and targeted edits
 
-Tool shape and every argument: `docs/AGENT_START.md` ("A new view of a place"). Which model: `snap-model-choice`
+Tool shape and every argument: `docs/snap/AGENT_START.md` ("A new view of a place"). Which model: `snap-model-choice`
 (P-H3 for sets, wides and edits; Fizgig for characters; SNAP-R86).
 
 ## Making a view

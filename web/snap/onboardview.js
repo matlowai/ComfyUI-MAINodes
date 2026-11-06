@@ -4,7 +4,7 @@
 // "Open in new tabs". It calls onboarding.js, as the agent tools do (SNAP-R19).
 // SNAP-R5 new tabs · SNAP-R18 Snap never downloads · SNAP-R20 the metadata switch · SNAP-R25 onboarding · SNAP-R53 no link, bring your own ·
 // SNAP-R28 agents read new code per the person's setting · SNAP-R34 no SFW question under a cap below Adult ·
-// see docs/SNAP_RULES.md
+// see docs/snap/SNAP_RULES.md
 import * as OB from "./onboarding.js";
 import * as PF from "./profile.js";
 import * as MD from "./metadata.js";

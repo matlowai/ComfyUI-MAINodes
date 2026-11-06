@@ -3,7 +3,7 @@
 // itself: archive (out of pickers and search, still resolving, one press back), export (a zip in output/snap_exports
 // with a manifest, optionally with the takes that pin it) and delete (a version or the record, saying first what it
 // touches and offering to export) are the person's choice.
-// SNAP-R62 clean-up is the person's choice · SNAP-R60 versions kept · SNAP-R58 every row shown · see docs/SNAP_RULES.md
+// SNAP-R62 clean-up is the person's choice · SNAP-R60 versions kept · SNAP-R58 every row shown · see docs/snap/SNAP_RULES.md
 import * as W from "./world.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };

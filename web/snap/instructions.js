@@ -11,7 +11,7 @@
 // person's version is a `skill` record over one, its body keeping the pack text it started from.
 // SNAP-R93 layered instructions resolved per scope and pinned per run · SNAP-R94 skills: pack files with a person's
 // version over them · SNAP-R95 an agent's note applies at once, marked, one click off; an agent turning off a person's
-// or the pack's note is a proposal (SNAP-R23) · SNAP-R58 never trimmed · SNAP-R17 by person / agent · see docs/SNAP_RULES.md
+// or the pack's note is a proposal (SNAP-R23) · SNAP-R58 never trimmed · SNAP-R17 by person / agent · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as W from "./world.js";
 import * as E from "./engine.js";

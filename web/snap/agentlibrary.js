@@ -7,7 +7,7 @@
 // rail row counts what agents added; an agent's note arriving says so in a quiet toast with one press to it.
 // SNAP-R93 the stack shown per scope · SNAP-R94 skills with the person's version · SNAP-R95 new from <agent>, one click
 // off · SNAP-R58 every row and text whole, no cap · SNAP-R11 nothing blocks · SNAP-R66 an arrival announces, a press
-// moves · SNAP-R8 judged from screenshots · see docs/SNAP_RULES.md
+// moves · SNAP-R8 judged from screenshots · see docs/snap/SNAP_RULES.md
 import * as I from "./instructions.js";
 import * as W from "./world.js";
 import * as T from "./takes.js";

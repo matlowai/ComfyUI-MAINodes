@@ -14,10 +14,10 @@ If a Snap server is reachable, `read_skill {"name": "snap-core"}` returns the pe
 
 # Snap core: how the pieces link
 
-How to call each tool is in `docs/AGENT_START.md` (start there for setup, pages and the call shape). This skill is
+How to call each tool is in `docs/snap/AGENT_START.md` (start there for setup, pages and the call shape). This skill is
 the map; the task skills (`snap-location`, `snap-turnaround`, `snap-new-view`, `snap-reference-upscale`,
 `snap-boards`, `snap-voice`, `snap-critic`, `snap-model-choice`) say how to do each job well. Rules are
-`docs/SNAP_RULES.md` (SNAP-Rn).
+`docs/snap/SNAP_RULES.md` (SNAP-Rn).
 
 ## The layers
 

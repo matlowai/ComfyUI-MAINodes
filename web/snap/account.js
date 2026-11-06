@@ -2,7 +2,7 @@
 // (any other answer: no gate, and Snap shows nothing), with a sign-out link. When the gate locks an idle session it
 // answers 401 {locked: true}; Snap then shows a small "Locked: sign in again" card over the page, which keeps all its
 // work: signing in happens in a small window, and the card goes once the gate answers again.
-// SNAP-R34 the account in the top bar, the lock keeps the page · see docs/SNAP_RULES.md
+// SNAP-R34 the account in the top bar, the lock keeps the page · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 
 const SHOWN = { pg: "PG", mature: "Mature", adult: "Adult" };

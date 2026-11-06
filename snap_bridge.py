@@ -12,7 +12,7 @@ was made · SNAP-R65 the Work card's jobs and progress, an agent page's own scre
 SNAP-R78 a stale tab says so, agents ask (request_reload), the person reloads · SNAP-R83 the agents' window: one visible
 Chrome agents drive, reload and restart, the default with the person's tab; never headless · SNAP-R96 private takes saved
 encrypted (snap_vault_server.py) · SNAP-R98 their ffmpeg steps work in RAM scratch · SNAP-R93/R94 the pack's notes end
-the bridge tools' descriptions, /info names the docs and skills, a call names its agent · see docs/SNAP_RULES.md"""
+the bridge tools' descriptions, /info names the docs and skills, a call names its agent · see docs/snap/SNAP_RULES.md"""
 import asyncio
 import glob
 import hashlib

@@ -12,7 +12,7 @@
 // What runs (models, frame counts, prompts) is registry data, the slot's `run`.
 // SNAP-R4 outcome faces · SNAP-R13 data, not code branches · SNAP-R14 method slots · SNAP-R16 GPU work waits for the
 // person · SNAP-R50 a longer take carries the latent · SNAP-R64 Long re-anchors, the default follows the length ·
-// see docs/SNAP_RULES.md
+// see docs/snap/SNAP_RULES.md
 import * as ED from "./edits.js";
 import * as K from "./checks.js";
 import * as M from "./models.js";

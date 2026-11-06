@@ -6,7 +6,7 @@
 // the agent tools call the same functions (SNAP-R19).
 // SNAP-R3 missing stays visible · SNAP-R5 setups open in new tabs · SNAP-R11 warn, never block · SNAP-R18 local only ·
 // SNAP-R19 one table · SNAP-R25 onboarding · SNAP-R28 agents read new code per the person's setting · SNAP-R39 kit files
-// arrive rated · SNAP-R53 no link, not required · see docs/SNAP_RULES.md
+// arrive rated · SNAP-R53 no link, not required · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
 import * as M from "./models.js";

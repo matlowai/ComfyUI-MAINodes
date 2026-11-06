@@ -5,7 +5,7 @@
 // into the open recipe (L.applyCast): the Cast row, the details sentence in the prompt, the pictures in References,
 // and the voice reference (an audio file plus its casting words, U101) as an <Audio n>.
 // SNAP-R59 Cast by reference · SNAP-R60 versions · SNAP-R3 a file that isn't here shows as missing · SNAP-R11 warn,
-// never block · SNAP-R73 audio references · SNAP-R93 Agent instructions for this Cast · see docs/SNAP_RULES.md
+// never block · SNAP-R73 audio references · SNAP-R93 Agent instructions for this Cast · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
 import * as L from "./library.js";

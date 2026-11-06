@@ -15,7 +15,7 @@ If a Snap server is reachable, `read_skill {"name": "snap-location"}` returns th
 
 A location is one topology (SNAP-R71, R84). Build it once, then make every view of it from that context; a text-only
 render of a known place gives a new place each time (three cuts of one village gate came back as three different
-gates). Tool calls are in `docs/AGENT_START.md` ("A new view of a place").
+gates). Tool calls are in `docs/snap/AGENT_START.md` ("A new view of a place").
 
 ## Steps
 

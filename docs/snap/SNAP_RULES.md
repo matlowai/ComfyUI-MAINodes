@@ -334,7 +334,7 @@ in the Snap skills (`.claude/skills/`: `snap-core` first, then the task skills);
   drive the same operations through one table. Engine and tool logic stay free of Snap-view DOM concerns; a UI action
   calls the same function its tool calls, never a private path. *More:* CONCEPT.md "Layers".
 - **SNAP-R30: The agent front door works for a moderate agent on its first try.** Everything an agent needs is in the
-  tool table, its errors or the pack's `docs/AGENT_START.md`, never only in code. Pages are keyed by the ComfyUI user
+  tool table, its errors or the pack's `docs/snap/AGENT_START.md`, never only in code. Pages are keyed by the ComfyUI user
   (the comfy-user header snap-gate sets per account): a call goes to a connected page of the caller's own user, and only
   that page may answer it: the newest tab that sees, the agents' window or a tab whose person turned "Let agents see" on
   (that control is how a person lets agents drive their tab, the operator, 2026-11-05); a person's tab with it off is never

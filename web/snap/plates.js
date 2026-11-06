@@ -9,7 +9,7 @@
 // (`<set>-mine`), each with its provenance: take, frame, copy score, seed, the camera it was made for, who made it.
 // The same score flags takes that copied their own reference picture (U48 §3: DINOv3's room score can't see it).
 // SNAP-R16 GPU work waits as a proposal for agents · SNAP-R17 by: person|agent · SNAP-R18 local only ·
-// SNAP-R21 a reference shows the shot's own camera · SNAP-R23 candidates · see docs/SNAP_RULES.md
+// SNAP-R21 a reference shows the shot's own camera · SNAP-R23 candidates · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as L from "./library.js";
 import * as M from "./models.js";

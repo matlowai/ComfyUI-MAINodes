@@ -7,7 +7,7 @@
 // still resolves, so a take that pins it can still be re-made as it was. Model and LoRA files are pinned by name only.
 // The server (snap_world.py) does every write and hashes the bodies; `sha` here only hashes pack cards (version 0).
 // migrate() wraps the cards of snap/cards/ (from before records) once, and parks the originals in snap/_migrated/cards/.
-// SNAP-R60 world versions and pins · SNAP-R17 by · SNAP-R18 local only · SNAP-R93/R94 instruction and skill records · see docs/SNAP_RULES.md
+// SNAP-R60 world versions and pins · SNAP-R17 by · SNAP-R18 local only · SNAP-R93/R94 instruction and skill records · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 
 export const KINDS = ["cast", "card", "set_snapshot", "location", "instruction", "skill"]; // scenes version their authored fields in their own documents (scenes.js)

@@ -4,7 +4,7 @@ way ratings read their model graphs), and the pack's skills (.claude/skills/<nam
 loads), served whole. A person's own notes and their versions of skills are world records (snap_world.py); the page
 resolves the stack (web/snap/instructions.js).
 SNAP-R93 layered instructions · SNAP-R94 skills are pack files a person's version sits over · SNAP-R32 only the admins'
-files count install-wide · SNAP-R58 results are never trimmed · SNAP-R18 local only · see docs/SNAP_RULES.md"""
+files count install-wide · SNAP-R58 results are never trimmed · SNAP-R18 local only · see docs/snap/SNAP_RULES.md"""
 import hashlib
 import json
 import os
@@ -103,6 +103,6 @@ async def notes(request):
 
 def info():
     """what /mainodes/snap/info adds: where the docs are and every skill (U104), so an agent finds them with no page open"""
-    return {"docs": {"agent_start": str(PACK / "docs" / "AGENT_START.md"), "rules": str(PACK / "docs" / "SNAP_RULES.md"), "agents": str(PACK / "AGENTS.md"), "skills_folder": str(SKILLS)},
+    return {"docs": {"agent_start": str(PACK / "docs" / "snap" / "AGENT_START.md"), "rules": str(PACK / "docs" / "snap" / "SNAP_RULES.md"), "agents": str(PACK / "AGENTS.md"), "skills_folder": str(SKILLS)},
             "skills": [{k: s[k] for k in ("name", "description", "file", "bytes")} for s in skill_list()], "skills_url": "/mainodes/snap/skills",
             "skill_read": "GET /mainodes/snap/skills?name=<name> returns one skill whole (&file=<name> a file beside its SKILL.md); with a page open, read_skill {\"name\"} gives the person's version"}

@@ -4,7 +4,7 @@
 // solo install, make a recovery key (shown once, kept nowhere), and the honest limits. Nothing here works where privacy
 // is off: the server answers {vault: "off"} and the badge stays the plain private lock (SNAP-R37).
 // SNAP-R96 kept encrypted at its own path · SNAP-R97 reading needs the key, lock forgets · SNAP-R99 a lost passphrase:
-// an admin or the recovery key, else lost, said before asking · see docs/SNAP_RULES.md
+// an admin or the recovery key, else lost, said before asking · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as T from "./takes.js";
 

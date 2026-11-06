@@ -10,7 +10,7 @@
 // the `status` broadcast every tab gets wakes a reconcile, and while work is live a 2 s tick reads again.
 // SNAP-R5 an arrival never moves the person · SNAP-R17 by: person|agent · SNAP-R23 candidates wait for the person's pick ·
 // SNAP-R58 whole lists, explicit paging · SNAP-R65 the Work card · SNAP-R66 arrivals announce, a press moves · see
-// docs/SNAP_RULES.md
+// docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as T from "./takes.js";
 import * as C from "./candidates.js";

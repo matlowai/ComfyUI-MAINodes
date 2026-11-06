@@ -13,7 +13,7 @@ optional recovery key, so an admin opens anything and a lost passphrase is recov
 else it is lost. The header may carry a `stub`: the fields of a take record a locked page still lists.
 Unlocked private keys live only in `unlocked`, in memory; lock forgets them.
 SNAP-R96 a private take lives encrypted at its own path · SNAP-R97 writing needs no passphrase, reading does, lock
-forgets · SNAP-R99 a lost passphrase: escrow or the recovery key, else lost · see docs/SNAP_RULES.md
+forgets · SNAP-R99 a lost passphrase: escrow or the recovery key, else lost · see docs/snap/SNAP_RULES.md
 """
 import base64
 import hashlib

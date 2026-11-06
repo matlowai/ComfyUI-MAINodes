@@ -15,7 +15,7 @@ candidate decide (SNAP-R23).
 IRBlock and IResNet101 follow the IResNet of insightface's arcface_torch (github.com/deepinsight/insightface, code MIT),
 in the key layout CVLface (github.com/mk-minchul/CVLface, MIT) saves; no weights ship here (docs/snap/README.md, Notices).
 SNAP-R18 local only · SNAP-R23 checks are notes, never rejections · SNAP-R76 every face is its own measurement ·
-SNAP-R111 the character score raises the identity note · see docs/SNAP_RULES.md"""
+SNAP-R111 the character score raises the identity note · see docs/snap/SNAP_RULES.md"""
 import os
 
 import torch

@@ -10,7 +10,7 @@
 // SNAP-R86 the New view model follows the job · SNAP-R85 a picture's purpose is a known field ·
 // SNAP-R71 a new view is an edit from context, in the person's words · SNAP-R72 what Picture 1 is, per model; the order is
 // the person's · SNAP-R75 the model is the person's pick (P-H3-Image, the Fizgig H3 still) · SNAP-R19 the tool table is the
-// API · SNAP-R23 candidates · see docs/SNAP_RULES.md
+// API · SNAP-R23 candidates · see docs/snap/SNAP_RULES.md
 import * as ED from "./edits.js";
 import * as S from "./slots.js";
 import * as T from "./takes.js";

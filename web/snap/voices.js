@@ -9,7 +9,7 @@
 // a small prompt under this page's client id whose job says `takes: false` (SNAP-R65); the take keeps its prompt id
 // while it runs, so a page reloaded meanwhile finishes it.
 // SNAP-R18 local only · SNAP-R23 checks are notes, never rejections · SNAP-R65 job stamps · SNAP-R73 a Cast's voice is
-// an <Audio n> · SNAP-R114 the voice note · see docs/SNAP_RULES.md
+// an <Audio n> · SNAP-R114 the voice note · see docs/snap/SNAP_RULES.md
 import * as K from "./checks.js";
 import * as M from "./models.js";
 import * as T from "./takes.js";

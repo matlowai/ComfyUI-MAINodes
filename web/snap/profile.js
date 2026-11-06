@@ -3,7 +3,7 @@
 // (code_review, SNAP-R28; its Settings row mirrors it), and which questions they answered or skipped, so onboarding
 // resumes where it stopped. Metadata isn't kept here: its answer sets the Save metadata switch (SNAP-R20), which stays
 // the one truth.
-// SNAP-R18 local only · SNAP-R25 onboarding · SNAP-R28 code review is the person's setting · see docs/SNAP_RULES.md
+// SNAP-R18 local only · SNAP-R25 onboarding · SNAP-R28 code review is the person's setting · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 

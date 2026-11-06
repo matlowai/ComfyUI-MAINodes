@@ -7,19 +7,19 @@ ComfyUI graph with agent tools. People start at [`README.md`](README.md).
 
 | you want to | read |
 |---|---|
-| drive Snap with its tools | [`docs/AGENT_START.md`](docs/AGENT_START.md) |
+| drive Snap with its tools | [`docs/snap/AGENT_START.md`](docs/snap/AGENT_START.md) |
 | understand how Snap links together and how agent instructions nest | skill `snap-core` (`.claude/skills/snap-core/SKILL.md`) |
 | make something well with Snap (locations, turnarounds, new views, upscales, boards, voices, the critic, model per job) | the task skills beside it: `snap-location`, `snap-turnaround`, `snap-new-view`, `snap-reference-upscale`, `snap-boards`, `snap-voice`, `snap-critic`, `snap-model-choice` |
-| see or change what agents are told (the instruction stack, the person's versions of skills) | the Agent library in Snap (Library rail), or the `instructions` / `list_skills` tools (`docs/AGENT_START.md` §2) |
+| see or change what agents are told (the instruction stack, the person's versions of skills) | the Agent library in Snap (Library rail), or the `instructions` / `list_skills` tools (`docs/snap/AGENT_START.md` §2) |
 | use the Snap skills from a Claude Code session outside the pack | `bash tools/snap_skills.sh link` (symlinks into `~/.claude/skills/`; `unlink`, `status`) |
-| change Snap's code | [`docs/SNAP_RULES.md`](docs/SNAP_RULES.md) (rule IDs), then `docs/snap/` (DECISIONS, LESSONS, PLAN) |
+| change Snap's code | [`docs/snap/SNAP_RULES.md`](docs/snap/SNAP_RULES.md) (rule IDs), then `docs/snap/` (DECISIONS, LESSONS, PLAN) |
 | try the Snap branch as a tester | [`docs/snap/README.md`](docs/snap/README.md) |
 | Dials, Motion Lab, RelayVSR, low VRAM | `dials/README.md`, `docs/MOTION_LAB.md`, `relayvsr/README.md`, `LOWVRAM.md` |
 
 ## Rules for changes
 
 - Each Snap module starts with a short header naming the rules that govern it by ID
-  (`// SNAP-R1 generic pass-through · see docs/SNAP_RULES.md`). A line that would otherwise look wrong gets a one-line
+  (`// SNAP-R1 generic pass-through · see docs/snap/SNAP_RULES.md`). A line that would otherwise look wrong gets a one-line
   why citing its ID. A new rule takes the next free ID (the file says which); IDs are never renumbered.
 - No machine-specific absolute paths, usernames or personal names in code, docs or commit messages.
 - Never trim what an agent reads: tool and route results, CLI and MCP output, lists, metadata and error text come back

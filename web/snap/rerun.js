@@ -16,7 +16,7 @@
 // makes them one candidates decision whose candidates are the queued takes (Apply makes one the shot's active take,
 // Reject marks its take rejected by whoever pressed it); Reuse the motion makes one decision per combination.
 // SNAP-R63 re-run with swaps · SNAP-R61 as it was / today's world · SNAP-R60 pins · SNAP-R24 where it lands · SNAP-R11
-// warn, never block · SNAP-R58 every choice listed in full · see docs/SNAP_RULES.md
+// warn, never block · SNAP-R58 every choice listed in full · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as ACC from "./account.js";
 import * as C from "./candidates.js";

@@ -13,7 +13,7 @@ If a Snap server is reachable, `read_skill {"name": "snap-voice"}` returns the p
 
 # Voice settei
 
-Audio upload, `add_audio_ref`, `save_cast` voice and citing `<Audio n>`: `docs/AGENT_START.md` ("Voices and audio
+Audio upload, `add_audio_ref`, `save_cast` voice and citing `<Audio n>`: `docs/snap/AGENT_START.md` ("Voices and audio
 references"; SNAP-R73, R74).
 
 ## Why a reference

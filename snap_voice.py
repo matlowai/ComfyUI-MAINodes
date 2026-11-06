@@ -6,7 +6,7 @@ clip, the page compares them with thresholds from the model graph:
 - the pitch: the median F0 of the loud voiced frames (YIN), in Hz. A cut that cites a reference stays within 1-8 Hz of it.
 WavLM's TDNN head runs here as conv1d over the module's own weights: transformers' TDNNLayer imports peft lazily, and a
 peft that doesn't match the installed transformers breaks that import. Notes only, never a block (SNAP-R23).
-SNAP-R18 local only · SNAP-R23 checks are notes · SNAP-R114 the voice note · see docs/SNAP_RULES.md"""
+SNAP-R18 local only · SNAP-R23 checks are notes · SNAP-R114 the voice note · see docs/snap/SNAP_RULES.md"""
 import torch
 from transformers import WavLMConfig, WavLMForXVector
 

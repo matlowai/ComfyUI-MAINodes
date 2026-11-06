@@ -4,7 +4,7 @@
 // size, and "Open in a new tab" leaves this tab as it is. Viewing never changes anything; a thumbnail whose click did
 // something else (the References row opened its Cast or set) keeps that as a button in the viewer.
 // The agent twin is open_view {view: "picture"} (tools.js), which opens it on the person's tab.
-// SNAP-R5 never navigate away from the work · SNAP-R80 every picture one click from full size · see docs/SNAP_RULES.md
+// SNAP-R5 never navigate away from the work · SNAP-R80 every picture one click from full size · see docs/snap/SNAP_RULES.md
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const actions = new WeakMap(); // a thumbnail's own action, offered in the viewer

@@ -11,7 +11,7 @@
 // A changed reference picture reads "front picture changed" with both pictures and their file names; the tools keep the
 // full refs line (SNAP-R58).
 // SNAP-R63 re-run swaps any reference · SNAP-R61 as it was, today's world, edited · SNAP-R60 pins · SNAP-R5 nothing changes
-// until a press · SNAP-R11 warn, never block · SNAP-R58 agents get every field whole · see docs/SNAP_RULES.md
+// until a press · SNAP-R11 warn, never block · SNAP-R58 agents get every field whole · see docs/snap/SNAP_RULES.md
 import { view } from "./castview.js";
 import { full } from "./lightbox.js";
 import * as R from "./retake.js";

@@ -6,7 +6,7 @@
 // take`, the upscale slot's stage 2 and Tessera in upscale.js, SNAP-R81): they run on a take, never in the chain. The registry is snap_cards/methods.json under the person's userdata snap/methods.json (field by
 // field, the person wins, as the model graph). Readiness comes from the model folders and installed nodes at run time.
 // SNAP-R1 generic pass-through · SNAP-R4 outcome faces · SNAP-R11 warn, never block · SNAP-R13 data, not code branches ·
-// SNAP-R14 method slots · SNAP-R19 the tool table is the API · SNAP-R81 a take's upscale runs on the take · see docs/SNAP_RULES.md
+// SNAP-R14 method slots · SNAP-R19 the tool table is the API · SNAP-R81 a take's upscale runs on the take · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";

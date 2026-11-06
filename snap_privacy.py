@@ -23,7 +23,7 @@ writes outside every user's folder; the pack's model graph rates what the kits d
 released one) is rated from the sentences and parents its own metadata records (SNAP-R54).
 SNAP-R12 identity LoRAs are private · SNAP-R20 private takes marked · SNAP-R27 a file stamped private · SNAP-R32 the
 admins' files decide on a gated install · SNAP-R33 the rating cap's second line · SNAP-R37 privacy is per install, off
-by default · SNAP-R39 ratings from how a thing was made · SNAP-R54 dials rated from their own sentences · see docs/SNAP_RULES.md
+by default · SNAP-R39 ratings from how a thing was made · SNAP-R54 dials rated from their own sentences · see docs/snap/SNAP_RULES.md
 """
 import json
 import os

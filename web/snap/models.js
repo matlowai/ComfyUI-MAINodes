@@ -6,7 +6,7 @@
 // merge vs LoRA · SNAP-R11 warn, never block · SNAP-R12 LoRA roles · SNAP-R13 family rules from the model graph
 // SNAP-R25 SFW only hides what the graph tags nsfw · SNAP-R26 a name files a turbo LoRA only on strong signals ·
 // SNAP-R27 a lock on LoRAs the private rules match · SNAP-R35 a rating from move to…, the admin's on a gated install ·
-// see docs/SNAP_RULES.md
+// see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";

@@ -23,7 +23,7 @@
 # env: SNAP_TOKEN (a gate's account token). Tests only: SNAP_CHROME_PORT, SNAP_CHROME_PROFILE and SNAP_CHROME_BIN point
 # the start path at a fake launcher (never a second real window)
 # usage: snap_agent_page.sh [port or base URL, default 8188] [start|status|reload|restart|stop|new [--asked]] [--extra "<purpose>"] [page URL]
-# SNAP-R30 the agent front door · SNAP-R83 the agents' window · see docs/SNAP_RULES.md
+# SNAP-R30 the agent front door · SNAP-R83 the agents' window · see docs/snap/SNAP_RULES.md
 set -eu
 action=start; asked=0; extra=; rest=(); args=("$@")
 for ((i = 0; i < ${#args[@]}; i++)); do a=${args[i]}; case $a in start|status|reload|restart|stop|new) action=$a ;; --asked) asked=1 ;; --extra) i=$((i + 1)); extra=${args[i]:-} ;; *) rest+=("$a") ;; esac; done

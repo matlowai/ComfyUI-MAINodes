@@ -1,7 +1,7 @@
 // Set snapshots (LIBRARY.md): the set's state as data is the authority; the top-down plan, the side elevation and the
 // set block text are compiled from it exactly, so a later shot starts from how this one ended. Units are metres; the
 // plan's +y is north, angles are degrees clockwise from north. Diagrams carry marks, never people pictures.
-// SNAP-R22 doors and windows are said from the shot's camera · see docs/SNAP_RULES.md
+// SNAP-R22 doors and windows are said from the shot's camera · see docs/snap/SNAP_RULES.md
 
 const W = 1024, H = 768;
 const rad = (deg) => (deg * Math.PI) / 180;

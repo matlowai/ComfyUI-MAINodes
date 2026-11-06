@@ -7,7 +7,7 @@
 // stops only that prompt), Retry on a failure, Park / Unpark; a landed take takes a verdict with one key (p keep, x
 // reject, n neither) and an optional sentence, the same verdict the take viewer writes.
 // SNAP-R5 only a press moves the person · SNAP-R7 lists rebuilt only when their content changes, never under a pointer ·
-// SNAP-R17 by: person|agent · SNAP-R58 nothing cut · SNAP-R65 the Work card · see docs/SNAP_RULES.md
+// SNAP-R17 by: person|agent · SNAP-R58 nothing cut · SNAP-R65 the Work card · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as A from "./activity.js";
 import * as T from "./takes.js";
