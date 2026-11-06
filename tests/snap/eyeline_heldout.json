@@ -1,0 +1,470 @@
+[
+ {
+  "name": "no dialogue key, base set: Ferro bearing to Kon 213.69 vs facing 90 = 123.69 off -> silent",
+  "edits": [],
+  "expect": []
+ },
+ {
+  "name": "dialogue false, Ferro (0,0) faces 180 vs bearing 0 = 180 off, Kon (0,4) faces 0 vs bearing 180 = 180 off -> silent",
+  "edits": [
+   [
+    "/dialogue",
+    false
+   ],
+   [
+    "/actors/0/at",
+    [
+     0,
+     0
+    ]
+   ],
+   [
+    "/actors/1/at",
+    [
+     0,
+     4
+    ]
+   ],
+   [
+    "/actors/0/facing",
+    180
+   ],
+   [
+    "/actors/1/facing",
+    0
+   ]
+  ],
+  "expect": []
+ },
+ {
+  "name": "dialogue on, exactly facing: Ferro (0,0)->Kon (2,2) bearing 45 facing 45, Kon bearing 225 facing 225 -> 0 off both",
+  "edits": [
+   [
+    "/dialogue",
+    true
+   ],
+   [
+    "/actors/0/at",
+    [
+     0,
+     0
+    ]
+   ],
+   [
+    "/actors/1/at",
+    [
+     2,
+     2
+    ]
+   ],
+   [
+    "/actors/0/facing",
+    45
+   ],
+   [
+    "/actors/1/facing",
+    225
+   ]
+  ],
+  "expect": []
+ },
+ {
+  "name": "dialogue on, base positions: Ferro bearing 213.69 facing 184.69 = 29.00 off; Kon bearing 33.69 facing 20 = 13.69 off -> silent",
+  "edits": [
+   [
+    "/dialogue",
+    true
+   ],
+   [
+    "/actors/0/facing",
+    184.69
+   ]
+  ],
+  "expect": []
+ },
+ {
+  "name": "dialogue on, base positions: Ferro bearing 213.69 facing 182.69 = 31.00 off -> Ferro; Kon 13.69 off",
+  "edits": [
+   [
+    "/dialogue",
+    true
+   ],
+   [
+    "/actors/0/facing",
+    182.69
+   ]
+  ],
+  "expect": [
+   [
+    "check",
+    "Ferro"
+   ]
+  ]
+ },
+ {
+  "name": "boundary exactly 30 is not MORE than 30: Ferro (0,0)->Kon (0,3) bearing 0 facing 30 = 30.00 off; Kon bearing 180 facing 180 -> silent",
+  "edits": [
+   [
+    "/dialogue",
+    true
+   ],
+   [
+    "/actors/0/at",
+    [
+     0,
+     0
+    ]
+   ],
+   [
+    "/actors/1/at",
+    [
+     0,
+     3
+    ]
+   ],
+   [
+    "/actors/0/facing",
+    30
+   ],
+   [
+    "/actors/1/facing",
+    180
+   ]
+  ],
+  "expect": []
+ },
+ {
+  "name": "both off: Ferro (0,0)->Kon (2,2) bearing 45 facing 100 = 55 off; Kon bearing 225 facing 160 = 65 off -> both",
+  "edits": [
+   [
+    "/dialogue",
+    true
+   ],
+   [
+    "/actors/0/at",
+    [
+     0,
+     0
+    ]
+   ],
+   [
+    "/actors/1/at",
+    [
+     2,
+     2
+    ]
+   ],
+   [
+    "/actors/0/facing",
+    100
+   ],
+   [
+    "/actors/1/facing",
+    160
+   ]
+  ],
+  "expect": [
+   [
+    "check",
+    "Ferro"
+   ],
+   [
+    "check",
+    "Kon"
+   ]
+  ]
+ },
+ {
+  "name": "wrap: Kon due north of Ferro, bearing 0, Ferro facing 355 = 5 off (not 355); Kon bearing 180 facing 180 -> silent",
+  "edits": [
+   [
+    "/dialogue",
+    true
+   ],
+   [
+    "/actors/0/at",
+    [
+     0,
+     0
+    ]
+   ],
+   [
+    "/actors/1/at",
+    [
+     0,
+     4
+    ]
+   ],
+   [
+    "/actors/0/facing",
+    355
+   ],
+   [
+    "/actors/1/facing",
+    180
+   ]
+  ],
+  "expect": []
+ },
+ {
+  "name": "wrap: Kon (-0.1,4) from Ferro (0,0) bearing 358.57 (atan2 gives -1.43), Ferro facing 28 = 29.43 off; Kon bearing 178.57 facing 185 = 6.43 off -> silent",
+  "edits": [
+   [
+    "/dialogue",
+    true
+   ],
+   [
+    "/actors/0/at",
+    [
+     0,
+     0
+    ]
+   ],
+   [
+    "/actors/1/at",
+    [
+     -0.1,
+     4
+    ]
+   ],
+   [
+    "/actors/0/facing",
+    28
+   ],
+   [
+    "/actors/1/facing",
+    185
+   ]
+  ],
+  "expect": []
+ },
+ {
+  "name": "wrap: Kon (-0.1,4) from Ferro (0,0) bearing 358.57, Ferro facing 30 = 31.43 off -> Ferro; Kon bearing 178.57 facing 150 = 28.57 off",
+  "edits": [
+   [
+    "/dialogue",
+    true
+   ],
+   [
+    "/actors/0/at",
+    [
+     0,
+     0
+    ]
+   ],
+   [
+    "/actors/1/at",
+    [
+     -0.1,
+     4
+    ]
+   ],
+   [
+    "/actors/0/facing",
+    30
+   ],
+   [
+    "/actors/1/facing",
+    150
+   ]
+  ],
+  "expect": [
+   [
+    "check",
+    "Ferro"
+   ]
+  ]
+ },
+ {
+  "name": "wrap: Ferro due north of Kon, Kon bearing 0 facing 325 = 35 off -> Kon; Ferro bearing 180 facing 180",
+  "edits": [
+   [
+    "/dialogue",
+    true
+   ],
+   [
+    "/actors/0/at",
+    [
+     0,
+     4
+    ]
+   ],
+   [
+    "/actors/1/at",
+    [
+     0,
+     0
+    ]
+   ],
+   [
+    "/actors/0/facing",
+    180
+   ],
+   [
+    "/actors/1/facing",
+    325
+   ]
+  ],
+  "expect": [
+   [
+    "check",
+    "Kon"
+   ]
+  ]
+ },
+ {
+  "name": "exactly opposite: Ferro (0,0) bearing 0 facing 180 = 180 off; Kon (0,4) bearing 180 facing 0 = 180 off -> both",
+  "edits": [
+   [
+    "/dialogue",
+    true
+   ],
+   [
+    "/actors/0/at",
+    [
+     0,
+     0
+    ]
+   ],
+   [
+    "/actors/1/at",
+    [
+     0,
+     4
+    ]
+   ],
+   [
+    "/actors/0/facing",
+    180
+   ],
+   [
+    "/actors/1/facing",
+    0
+   ]
+  ],
+  "expect": [
+   [
+    "check",
+    "Ferro"
+   ],
+   [
+    "check",
+    "Kon"
+   ]
+  ]
+ },
+ {
+  "name": "three actors with dialogue on: base Ferro 123.69 off, plus Ines at (0,-2) -> silent (rule only for exactly two)",
+  "edits": [
+   [
+    "/dialogue",
+    true
+   ],
+   [
+    "/actors/-",
+    {
+     "name": "Ines",
+     "at": [
+      0,
+      -2
+     ],
+     "facing": 0,
+     "height": 1.7
+    }
+   ]
+  ],
+  "expect": []
+ },
+ {
+  "name": "one actor with dialogue on: Kon removed, Ferro facing 270 -> silent",
+  "edits": [
+   [
+    "/dialogue",
+    true
+   ],
+   [
+    "/actors/1",
+    null
+   ],
+   [
+    "/actors/0/facing",
+    270
+   ]
+  ],
+  "expect": []
+ },
+ {
+  "name": "same y (due east/west): Ferro (-2,1)->Kon (2,1) bearing 90 facing 90 = 0 off; Kon bearing 270 facing 239 = 31 off -> Kon",
+  "edits": [
+   [
+    "/dialogue",
+    true
+   ],
+   [
+    "/actors/0/at",
+    [
+     -2,
+     1
+    ]
+   ],
+   [
+    "/actors/1/at",
+    [
+     2,
+     1
+    ]
+   ],
+   [
+    "/actors/0/facing",
+    90
+   ],
+   [
+    "/actors/1/facing",
+    239
+   ]
+  ],
+  "expect": [
+   [
+    "check",
+    "Kon"
+   ]
+  ]
+ },
+ {
+  "name": "normalize facings (robust checker should mod 360): Ferro (0,0) bearing 0 facing 400 (=40) = 40 off -> Ferro; Kon (0,4) bearing 180 facing -175 (=185) = 5 off",
+  "edits": [
+   [
+    "/dialogue",
+    true
+   ],
+   [
+    "/actors/0/at",
+    [
+     0,
+     0
+    ]
+   ],
+   [
+    "/actors/1/at",
+    [
+     0,
+     4
+    ]
+   ],
+   [
+    "/actors/0/facing",
+    400
+   ],
+   [
+    "/actors/1/facing",
+    -175
+   ]
+  ],
+  "expect": [
+   [
+    "check",
+    "Ferro"
+   ]
+  ]
+ }
+]
