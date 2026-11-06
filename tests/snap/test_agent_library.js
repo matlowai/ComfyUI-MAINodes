@@ -143,7 +143,7 @@ const shut = (page) => page.locator(".snap-al-sheet .snap-x").click().catch(() =
     "Tweak makes a replacing note, Applies here shows the pack row struck": !!R.tweak && R.struck.some((s) => s.ref.startsWith("pack:edit_from_context/pass-width-height-ph3") && /overridden by yours: “Pass width and height every time/.test(s.why)),
     "the person's model_choice beats the pack's for the same job": R.struck.some((s) => s.ref.startsWith("pack:edit_from_context/character-shots-two-shots") && /pref-newview-characters/.test(s.why)),
     "Reset archives the tweak; the pack note applies again": R.afterReset.stack.some((r) => r.ref.startsWith("pack:edit_from_context/pass-width-height-ph3")),
-    "Skills: nine cards; an agent's version shows 'yours v1' and 'new from'": R.skillCards === 9 && /yours v1 over the pack/.test(R.voiceCard) && /new from short03/.test(R.voiceCard),
+    "Skills: ten cards (U97 snap-book); an agent's version shows 'yours v1' and 'new from'": R.skillCards === 10 && /yours v1 over the pack/.test(R.voiceCard) && /new from short03/.test(R.voiceCard),
     "Diff vs pack shows both sides whole": R.diff.add >= 1 && R.diff.lines >= R.voiceLines,
     "Reset to pack reads the pack's text again": R.afterSkillReset.yours === null && !/Measured on short03/.test(R.afterSkillReset.text),
     "300 notes show as 300 rows (no cap)": R.bulkRows === 300,

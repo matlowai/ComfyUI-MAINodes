@@ -68,7 +68,7 @@ const MOD = "/extensions/ComfyUI-MAINodes/snap/";
     "unlocked: listed, kept_encrypted, recipe there": out.unlocked.kept && !out.unlocked.locked && out.unlocked.prompt === "present",
     "badge says kept encrypted": out.unlocked.badge === "🔒 kept encrypted",
     "frames decode through /view": Array.isArray(out.unlocked.frames) && out.unlocked.frames.length === 3 && out.unlocked.frames.every((f) => f[2]),
-    "locked: stub without the recipe, badge (locked)": out.locked.locked && out.locked.prompt === null && out.locked.text === "" && out.locked.badge === "🔒 kept encrypted (locked)",
+    "locked: stub without the recipe, badge (locked)": out.locked.locked && out.locked.prompt === null && out.locked.text == null && out.locked.badge === "🔒 kept encrypted (locked)",
     "the card's lock follows (kept encrypted / locked)": out.cardBadge === "🔒 kept encrypted" && out.cardBadgeLocked === "🔒 kept encrypted (locked)",
     "locked: frames refuse clearly": typeof out.locked.frames === "string" && out.locked.frames.includes("vault is locked"),
     "reload keeps it listed (locked)": out.afterReload.listed && out.afterReload.locked,

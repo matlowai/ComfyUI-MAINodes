@@ -27,7 +27,7 @@ cards=$SNAP_TEST_BASE/user/default/snap/cards
 real=$SNAP_TEST_REAL_MODELS; stamp=_debug/run_all_start.stamp
 IFS=: read -ra extra_models <<< "${SNAP_TEST_MODEL_DIRS:-}"
 bash "$T/real_models_guard.sh" before "$stamp" "$real" "$SNAP_TEST_BASE/models" "$SNAP_TEST_FRESH_BASE/models" "${extra_models[@]}" ${SNAP_TEST_GATETEST_BASE:+"$SNAP_TEST_GATETEST_BASE/models"} || exit 1
-park() { for d in cards cast card set_snapshot location instruction skill instructions.json critiques dependents critic_fixtures critic_report _migrated _archived crew rules.json takes candidates scenes rankings judgments models.json ab_pending.json private.json profile.json ../workflows/snap\ fresh\ test.json ../workflows/snap\ fresh\ copy.json; do src="$(dirname "$cards")/$d"; [ -e "$src" ] && mkdir -p "$(dirname "$cards")/_parked" && mv "$src" "$(dirname "$cards")/_parked/$(basename "$d")-$(date +%H%M%S)-$RANDOM"; done; onboarded; curl -s -o /dev/null -X POST "http://127.0.0.1:$port/history" -H 'Content-Type: application/json' -d '{"clear": true}'; true; }  # G1: an earlier suite's finished jobs would be adopted as takes (F-C25) by the next page
+park() { for d in cards cast card set_snapshot location instruction skill book story look instructions.json critiques dependents critic_fixtures critic_report _migrated _archived crew rules.json takes candidates scenes rankings judgments models.json ab_pending.json private.json profile.json ../workflows/snap\ fresh\ test.json ../workflows/snap\ fresh\ copy.json; do src="$(dirname "$cards")/$d"; [ -e "$src" ] && mkdir -p "$(dirname "$cards")/_parked" && mv "$src" "$(dirname "$cards")/_parked/$(basename "$d")-$(date +%H%M%S)-$RANDOM"; done; onboarded; curl -s -o /dev/null -X POST "http://127.0.0.1:$port/history" -H 'Content-Type: application/json' -d '{"clear": true}'; true; }  # G1: an earlier suite's finished jobs would be adopted as takes (F-C25) by the next page
 # a parked profile would make Snap open onboarding by itself on the next suite's first visit: start from an answered one
 onboarded() { curl -s -o /dev/null -X POST "http://127.0.0.1:$port/userdata/snap%2Fprofile.json" -H 'Content-Type: application/json' -d '{"intents":[],"sfw_only":false,"api_tasks":[],"answered":["intent","scan","metadata","sfw","local","code","kit"],"done":true}'; }
 # U79 (SNAP-R96..R98): with privacy on, a private take is saved encrypted, and saving one needs the person's vault key.
@@ -53,7 +53,7 @@ checks = {
  "ui": lambda r: [r["drag"]["move"]["long"] <= 1 and r["drag"]["move"]["worstMs"] <= 34, r["drag"]["lift"]["long"] <= 1 and r["drag"]["lift"]["worstMs"] <= 34, r["upscaleAfterRemove"]["from"] == "Dials - H3 + De-rope" and "upscale" not in r["upscaleAfterRemove"]["bricks"], r["upscaleAfterInsert"]["from"] == "RelayVSR", r["drawsWhileSnap"]["draws"] == 0, r["graphUnchanged"], r["reverse"]["stuck"] == 0, r["overrideChip"] == 1, r["vue"]["bricks"] == 7, not r["errors"]],
  "ui2": lambda r: [r["paletteOpenMs"] < 50, len(r["appMode"]) == 11, 290 - 30 <= r["switchMsNormal"]["looksDone"] <= 350, r["switchMsReduced"]["looksDone"] <= 150, r["touchOrder"][0] == "refs", r["touchScroll"]["before"] == r["touchScroll"]["after"], all(v <= 0 for v in r["phone"].values()), not r["errorsA"], not r["errorsT"],
    r["groupMidDrag"], r["groupOrder"][:2] == ["render", "models"] and r["groupOrder"][-2:] == ["upscale", "save_video"], r["groupDom"] == [k for k in r["groupOrder"] if k != "preset"], not r["errorsG"]],
- "agent": lambda r: [len(r["mcpTools"]) == 142, [c["isError"] for c in r["calls"]] == [False] * 6 + [True] + [False] * 6 + [True], r["lengthInGraph"] == 97, r["unknownTool"]["isError"], not r["errors"]],
+ "agent": lambda r: [len(r["mcpTools"]) == 170, [c["isError"] for c in r["calls"]] == [False] * 6 + [True] + [False] * 6 + [True], r["lengthInGraph"] == 97, r["unknownTool"]["isError"], not r["errors"]],
  "seteditor": lambda r: [len(r["applied"]) == 2, r["editorOpen"] == 1, "line between Ferro and Kon" in r["warn"], "Bare walls only" in r["blockAfter"],
    len(r["afterApply"]) == 2 and all("-mine_" in x for x in r["afterApply"]) and [x.split("|")[0] for x in r["afterApply"]] == [x.split("|")[0] for x in r["applied"]],
    r["editorClosed"], r["myEdit"][0] == "set-lamp-room-end-s3-mine", r["reopenedShot"] == "shot 4", "screen direction flips" in r["reopenedWarn"], len([t for t in r["savedCards"] if "bridge" not in t]) == 1, r["escClosed"], not r["errors"],
@@ -107,10 +107,10 @@ checks = {
    r["row"]["ends"] == ["frozen", "zoomies"] and r["row"]["bands"], [s for _, s in r["afterSlide"]["widget"]] == [1.25] and r["afterSlide"]["panel"] == [1.25], r["libraryDials"]["n"] >= 1,
    r["make"]["posted"] == 1 and len(r["make"]["targets"]) == 1 and r["make"]["name"] == "calm_sea_stormy_sea" and r["make"]["labels"] == ["calm sea", "stormy sea"] and r["make"]["useful"] == 0,
    r["make"]["pairs"].count("|||") == 2, r["make"]["nodeRemoved"], "didn't take" in r["make"]["status"], not r["errors"]],
- "agentfull": lambda r: [r["mcpTools"]["n"] == 142 and not r["mcpTools"]["has"], r["setSeed"] == 1234, "wired from Render Preset" in r["setWired"], "takes one of" in r["badChoice"] and bool(r["goodChoice"]),
+ "agentfull": lambda r: [r["mcpTools"]["n"] == 170 and not r["mcpTools"]["has"], r["setSeed"] == 1234, "wired from Render Preset" in r["setWired"], "takes one of" in r["badChoice"] and bool(r["goodChoice"]),
    "dials/h3_motion_hook.safetensors" in r["dialsFound"], r["setDial"]["strength"] == 1.5, r["uiSelect"]["selected"] == "rack", r["uiDials"] == "Dials" and r["uiClose"] is None,
    r["upload"]["set"]["value"] == r["upload"]["name"], bool(r["run"].get("proposed") and r["makeDial"].get("proposed")), [p["tool"] for p in r["proposals"]] == ["run", "make_dial"],
-   r["undo"]["after"] != r["undo"]["before"] and r["undo"]["redone"] == r["undo"]["before"], r["webmcp"].get("count") == 137 and r["webmcp"].get("strength") == -0.75 and r["webmcp"]["consequential"]["consequentialHint"], r["queue"] == 0, not r["errors"]],
+   r["undo"]["after"] != r["undo"]["before"] and r["undo"]["redone"] == r["undo"]["before"], r["webmcp"].get("count") == 165 and r["webmcp"].get("strength") == -0.75 and r["webmcp"]["consequential"]["consequentialHint"], r["queue"] == 0, not r["errors"]],
  "sight": lambda r: [r["before"]["isError"] and "Let agents see" in r["before"]["text"], r["button"].endswith("Agents can see"), not r["after"]["isError"] and r["after"]["types"] == ["image", "text"] and r["after"]["mime"] == "image/jpeg" and r["after"]["bytes"] > 10000,
    r["stopped"].endswith("Let agents see"), r["queue"] == 0, not r["errors"]],
  "models": lambda r: [r["created"]["model"].startswith("h3/") and r["created"]["lora"].startswith("h3/pika") and r["created"]["current"] == {"name": "Pika H3 Flex", "edited": False},
@@ -339,7 +339,7 @@ checks = {
    r["run"]["proposed"] and r["run"]["plan"]["eta_s"] == 70 and "same recipe" in r["run"]["plan"]["from"] and "about 70 s" in (r["chip"] or "") and r["listed"],
    r["runFrom"]["tabs"] == r["tabsBefore"] + 1 and r["runFrom"]["length"] == 73 and r["runFrom"]["selected"] == "render" and r["runFrom"]["showing"] and "nothing is queued" in r["runFrom"]["toast"] and not r["runFrom"]["sheet"],
    r["listsNotStale"], r["queue"] == 0 and r["sam"] == 1, not r["errors"]],
- "newcomer": lambda r: [len(r["tools"]) == 142 and "set_agent_permissions" in r["tools"], r["profile"]["agents"]["run"] is False,
+ "newcomer": lambda r: [len(r["tools"]) == 170 and "set_agent_permissions" in r["tools"], r["profile"]["agents"]["run"] is False,
    r["allowRun"]["value"]["run"] is True and r["afterRun"]["setting"] is True and r["afterRun"]["profile"]["run"] is True,
    not r["allowSee"]["error"] and "screenshot shows this page" in r["allowSee"]["value"].get("note", ""), r["screenshot"]["error"] and "take_frames" in r["screenshot"]["value"],
    r["firstFrame"]["on"] is False and "text to video" in r["firstFrame"]["off"], r["renderLength"]["fps"] == 24 and r["renderLength"]["seconds"] == round(r["renderLength"]["value"] / 24, 2),
@@ -541,6 +541,10 @@ park; timeout 600 nice -n 19 node "$T"/test_instructions_resolve.js "$port" "$SN
 park; timeout 600 nice -n 19 node "$T"/test_instructions_pins.js "$port" "$SNAP_TEST_BASE" >test_instructions_pins.js.out 2>&1; tail -1 test_instructions_pins.js.out
 park; timeout 600 nice -n 19 node "$T"/test_agent_library.js "$port" "$SNAP_TEST_BASE" >test_agent_library.js.out 2>&1; tail -1 test_agent_library.js.out
 park; timeout 600 nice -n 19 python3 -I "$T"/test_gate_instructions.py "$port" "$SNAP_TEST_BASE" >test_gate_instructions.py.out 2>&1; tail -1 test_gate_instructions.py.out
+# U97 the Book (SNAP-R67-R69, R130-R133; +28 tools above): records, the story clock and the dial; compile, stale, settei
+# and the style; boards, the animatic, the Cut, the OTIO and the set plan on short04's pictures; Pages (Fountain); each prints
+# "book_<name> n/m" last; screens in ui/u97/
+for t in test_book_story.js test_book_compile.js test_book_cut.js test_book_pages.js; do park; timeout 600 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
 # U93/U94 (SNAP-R101..R110): the critic's docket, packets, triggers and approval, the critic on the object (screens in
 # ui/u93/), agreement, re-run dependents; each prints "<name> n/m" last; they take this server's port and base
 for t in test_u93_critique.js test_u93_packet.js test_u93_triggers.js test_u93_marks.js test_u93_agreement.js test_u94_dependents.js; do park; timeout 600 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done

@@ -1090,7 +1090,7 @@ the Room.
   and cut. Pages is the story as Fountain (`import_fountain`, `export_fountain`, the Pages lens): the script is telling
   order, and a beat keeps its id and changes when its text is unchanged or edited in its scene. *Why:* the operator's answers of 2026-11-05 (the Book, the Room, the Work card; canon changes are always
   proposals, even on automatic; the first anime's dial mix). *More:* CONCEPT_PRODUCTION §11.1-§11.5 steps 1-2;
-  proto/test_book_story.js.
+  tests/snap/test_book_story.js.
 - **SNAP-R68: A unit compiles from the state at its beat, with provenance; a render never writes state.** An entity's
   state at a beat is its base folded with every change on a beat at or before it in **story** order (a flashback compiles
   as the younger state). `compile_unit` shows the compiled state sheet: each field with the beat and change that set it
@@ -1100,13 +1100,13 @@ the Room.
   fields a unit used ("story: Ferro.carried.right_hand changed at b4"; a reworded intent flags nothing), and a story
   edit's proposal says what it would re-flag before it is saved (reversal cost). A take that shows something the story
   didn't say becomes canon only through `keep_as_canon`: a proposed change on that take's beat. *Why:* §4.1.2-§4.1.3 and
-  §6 risk 5 (hash only the fields used); "pictures beat words" is why the backing is shown. *More:* proto/test_book_compile.js.
+  §6 risk 5 (hash only the fields used); "pictures beat words" is why the backing is shown. *More:* tests/snap/test_book_compile.js.
 - **SNAP-R69: A state is held by its pictures.** A Cast's `states` [{name, covers {path: value}, pictures [{file, view,
   from}], words}] are its settei per state; wherever the fold gives a state's `covers`, the compile cites its pictures
   first (role "state: <name>"), and a state with none reads "words only" on the sheet and in the Settei lens.
   `save_cast_state` saves a new Cast version whose note names the take each picture came from, so takes made before read
   the version move. *Why:* three GPU runs where the picture won over the words (green coat, red scarf); DECISIONS
-  2026-11-05 08:38 (two lanes). *More:* CONCEPT_PRODUCTION §4.1.4b; proto/test_book_compile.js.
+  2026-11-05 08:38 (two lanes). *More:* CONCEPT_PRODUCTION §4.1.4b; tests/snap/test_book_compile.js.
 - **SNAP-R130: A production's style is one record every cut inherits: paragraph first, palette linted, a still, no
   negative.** The `look` record holds the style paragraph (2-3 sentences in the catalogue's register), placed first in
   every compiled prompt and still prompt (then a blank line, then the subject); `palette` (monochrome, limited, full):
@@ -1121,19 +1121,19 @@ the Room.
   before video, a default and never a block). The animatic lays each cut in telling order: its kept active take where
   there is one, else its board held for its seconds; `apply_unit` opens an approved board as the cut's first picture.
   *Why:* DECISIONS 2026-11-05 12:22 (blocking, framing, transitions solved in storyboarding first); short03 F-C06.
-  *More:* proto/test_book_cut.js.
+  *More:* tests/snap/test_book_cut.js.
 - **SNAP-R132: The Cut is assembled in a prompt, and exported as OpenTimelineIO.** The animatic and the Cut are one
   `MAISnapCut` prompt (Load Video of each take, Create Video of each board, trims, sound levels, one size and frame rate,
   sound at 48 kHz, silence where a clip has none) saved by the prompt's own saver as a take of the Book's group, so a
   take kept encrypted is opened by its loader and worked on in RAM scratch (SNAP-R98) and privacy fails closed.
   `export_cut` also writes an OTIO file (video and audio tracks, a marker per cut, `metadata.snap` with each take) under
   output/snap_book/. *Why:* short04 F-A23 and F-D15 (ordering, trims and loudness happened in ffmpeg outside Snap).
-  *More:* proto/test_book_cut.js.
+  *More:* tests/snap/test_book_cut.js.
 - **SNAP-R133: A set plan is drawn in Snap, and its picture holds shapes and labels only.** `draw_set_plan` and the
   "Draw the plan" editor keep `plan {file, shapes}` and the camera marks on the location record (a new version); the
   saved picture is black on white with shapes and labels, while camera marks stay on the record and the Location sheet
   draws them over it. *Why:* short04 had no drawing tool (the shrine's plan was drawn outside Snap), and marks drawn into
-  a plan picture leak into renders that cite it. *More:* proto/test_book_cut.js.
+  a plan picture leak into renders that cite it. *More:* tests/snap/test_book_cut.js.
 
 ## Accounts and the gate (snap-gate)
 

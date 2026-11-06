@@ -8,6 +8,7 @@
   "old_snap_workflow_u19.json": "a workflow an early Snap saved (U19), for the compat suite",
   "person_seed.json": "the operator's person-layer notes, seeded as instruction records by the agent library suite",
   "short03": "the anime dogfood short03 village: master, set plans, camera map, plates (settei_bg) and voice references",
+  "short04": "the anime dogfood short04 'Leaf Day': two Casts' fronts (and one back), the shrine's master and P1 plate, two picked boards and two picked cuts (the Book suites)",
   "u102b_orbit_prompt.json": "an orbit-turnaround prompt in API form, for the stage 2 suites",
   "u21": "a camera plate (U21)",
   "u32": "eyes fixtures: day/night frames, crops, masks and a day take (U32)",
@@ -1342,6 +1343,51 @@
    "path": "short03/voices/maren_voice_ref.wav",
    "bytes": 338604,
    "sha256": "7be5646819989a13720c5db59eaa46624a1cdb34b94e4c4621b439564321186a"
+  },
+  {
+   "path": "short04/bible/hiyori_back_v1.png",
+   "bytes": 1718633,
+   "sha256": "9109da5e9e3e7029474c3fd118c276931d2aa781dce47b520b9c48ebdb1bd0da"
+  },
+  {
+   "path": "short04/bible/hiyori_front_v1.png",
+   "bytes": 755429,
+   "sha256": "b74f9704221fe05345fe7253c19d003fa3db220b94222e5b16f143d44ed7e098"
+  },
+  {
+   "path": "short04/bible/tomoshi_front_v1.png",
+   "bytes": 589439,
+   "sha256": "d4cdad871ee6de22b2fa51e46050783ceb4e60d2b907921c7104c52690eaa264"
+  },
+  {
+   "path": "short04/boards/v1/30086b30_00001_.png",
+   "bytes": 2641182,
+   "sha256": "6194913688276524424fae129298f9236152fd30dcb7541beded9ed888dc2eb0"
+  },
+  {
+   "path": "short04/boards/v1/7b0b164a_00001_.png",
+   "bytes": 2712977,
+   "sha256": "4f0d397bd4231fb11aae575c102dc636b296bea1b9f7e40f4402988d44bec988"
+  },
+  {
+   "path": "short04/cuts/C1_pick.mp4",
+   "bytes": 1066711,
+   "sha256": "cd085ac491d7042e733826a2ac8b05741138088a57f3be99879c7d6eb1cdd859"
+  },
+  {
+   "path": "short04/cuts/C2_pick.mp4",
+   "bytes": 1288613,
+   "sha256": "0bd46271b617dce41f78317218171b1899819148f2d9658f21dd460ec295b65c"
+  },
+  {
+   "path": "short04/settei_bg/MASTER_shrine_v1.png",
+   "bytes": 3136880,
+   "sha256": "a1e471c3edf0fd88f365ca9357551fac69f509f2b3f64f86667d833c7e78f04d"
+  },
+  {
+   "path": "short04/settei_bg/P1_torii_eyelevel.png",
+   "bytes": 2947939,
+   "sha256": "1aec7081abcbde8c31170d0bd82167b6c2b35dae1c6c397afb9d6959d7fa474b"
   },
   {
    "path": "u102b_orbit_prompt.json",
