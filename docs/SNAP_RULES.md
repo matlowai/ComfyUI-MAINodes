@@ -509,6 +509,9 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   failure stays In flight with the server's own text, whole, until parked or retried; a refusal at queue is a failed row,
   never only a toast. A job shows on its take's card (a chip), as a ghost card where its take will land, and as a count
   on its shot's tile. Rows survive a reload, a closed viewer and another tab, and agent-started work shows to the person.
+  A finished job whose queuing page closed before it landed still becomes its take: the first live page to claim it
+  (`POST /mainodes/snap/adopt`, one claim per prompt) writes it, so two open pages never write it twice (short03 F-C25:
+  an 18-minute stage 2 vanished when its tab closed).
   Agents read the same rows (`list_activity`, `wait_for`), whole, with explicit paging (SNAP-R58). *Why:* Dylan
   2026-11-05 08:04, after his first edit's candidates arrived with nothing on screen: "if we dont have good visibility to
   what is going on with the right screen context the ux fails... consider this for all possible paths"; names from the

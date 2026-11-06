@@ -366,7 +366,23 @@ async def jobs(request):
     done = q.get_history(map_function=lambda h: job_row(h["prompt"][1], h["prompt"][3], "done", h))
     rows = [job_row(i[1], i[3], "running") for i in running] + [job_row(i[1], i[3], "queued") for i in sorted(pending, key=lambda i: i[0])]
     rows += [r for r in done.values() if (r.get("finished") or r.get("started") or 0) >= since]
+    for r in rows:  # F-C25: a finished job whose page closed is adopted by another page (POST /mainodes/snap/adopt)
+        r["client_open"] = r["client"] in PromptServer.instance.sockets
     return web.json_response({"since": since, "rows": rows, "count": len(rows)})
+
+
+adopted = set()  # prompt ids whose take a page has taken on writing (one page each)
+
+
+@routes.post("/mainodes/snap/adopt")
+async def adopt(request):
+    """F-C25: a finished job whose queuing page closed has no take yet; the first live page that asks writes it, every
+    later one hears it is taken, so two open pages never write it twice. {id} -> {mine}"""
+    body = await request.json()
+    pid = str(body.get("id"))
+    mine = pid not in adopted
+    adopted.add(pid)
+    return web.json_response({"id": pid, "mine": mine})
 
 
 @routes.get("/mainodes/snap/progress")

@@ -139,7 +139,11 @@ export function reconcile() {
     if (server.some((p) => p.state === "running")) progress = await (await api.fetchApi("/mainodes/snap/progress")).json().catch(() => progress);
     pairs = (await T.pending()).map((p) => ({ id: `ab:${p.a}|${p.b}`, source: "blind_pair", kind: "blind_pair", title: `Blind pair: take ${T.get(p.a)?.number ?? "?"} or take ${T.get(p.b)?.number ?? "?"}?`, by: p.by, owner: p.by === "agent" ? "agents" : "you", state: "waiting", about: { take: p.a }, where: where({ take: p.a }), queued_at: Date.parse(p.at) || null, pair: [p.a, p.b] }));
     await C.settle();
-    await T.catchUp(server.filter((p) => p.client === api.clientId && p.job?.takes !== false && ["success", "error", "interrupted"].includes(p.state)));
+    const finished = server.filter((p) => p.job?.takes !== false && p.job && ["success", "error", "interrupted"].includes(p.state));
+    await T.catchUp(finished.filter((p) => p.client === api.clientId));
+    // F-C25: a finished Snap job whose page closed before it landed: the first live page to claim it writes its take
+    const orphans = finished.filter((p) => p.client !== api.clientId && p.client_open === false && !T.get(`take-${p.id}`) && (!p.user || !ACC.account() || p.user === ACC.account().name));
+    for (const p of orphans) if ((await (await api.fetchApi("/mainodes/snap/adopt", { method: "POST", body: JSON.stringify({ id: p.id }) })).json()).mine) await T.catchUp([p]);
     readOnce = r.ok;
     build();
   })().catch((e) => { problem = `The Work card couldn't read the server: ${e.message}`; build(); }).finally(() => { reading = null; if (again) { again = false; reconcile(); } });
