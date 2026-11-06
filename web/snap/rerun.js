@@ -72,7 +72,7 @@ export async function slots(take) {
 // every choice a slot takes, written out in full for an error (SNAP-R58)
 const choices = (s) => (s.kind === "scene" ? `pinned (the scene it is in), or another scene: ${s.others.map((o) => `${o.ref} (${o.name})`).join(", ") || "there are no others"}`
   : s.kind === "setup" ? `pinned (${s.name}), or another setup of this family: ${s.others.map((o) => JSON.stringify(o.ref)).join(", ") || "there are no others"}`
-  : `pinned, latest${s.versions.length ? `, ${s.versions.map((v) => `@${v.n}`).join(", ")} (its versions)` : ""}${s.kind === "cast" ? ", out (take them out of the re-run)" : ""}, or another ${s.kind}: ${s.others.map((o) => `${o.ref} (${o.name})`).join(", ") || "there are no others"}`);
+  : `pinned, latest${s.versions.length ? `, ${s.versions.map((v) => `@${v.n}`).join(", ")} (its versions)` : ""}, or another ${s.kind}: ${s.others.map((o) => `${o.ref} (${o.name})`).join(", ") || "there are no others"}${s.kind === "cast" ? "; or out (take them out of the re-run)" : ""}`);
 
 // one asked swap as {slot, to, ref, text, fields, warning, into_run}; keep: true when it leaves the slot as it was
 function one(take, s, to) {

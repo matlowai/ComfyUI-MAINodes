@@ -981,7 +981,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     for (const f of files) { try { const path = await uploadInput(f); E.addPicture(path, { role: "picture", reason: f.name }); say(`${f.name} → References as ${E.references()?.pictures.find((x) => x.file === path)?.cite ?? "a picture"}`); } catch (err) { say(err.message, true); } }
     render(null);
   } });
-  root.append(refsUpload);
+  // kept out of the page (as the Cast sheet's is): the page's one hidden file input stays Open file's
   async function uploadInput(file) {
     const form = new FormData();
     form.append("image", file, file.name); // ComfyUI's upload route takes images, videos and audio under this field
@@ -1035,7 +1035,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       const place = p.source?.startsWith("location:") && p.card ? W.parse(p.card) : null; // SNAP-R84: a location's picture opens the location
       const from = !cast && !place && p.source && (L.get(p.card) ?? L.get(`${p.source}-mine`) ?? L.get(p.source)); // the exact version in References
       const src = api.apiURL(`/view?filename=${encodeURIComponent(name)}&subfolder=${encodeURIComponent(sub)}&type=input`);
-      const caption = h("figcaption", { textContent: p.role, title: "click to say what this picture shows", onclick: (e) => {
+      // a set's, Cast's or location's picture: the caption opens its record as before (its roles are the record's);
+      // any other picture's caption is renamed in place
+      const caption = h("figcaption", { textContent: p.role, title: from || cast || place ? "click to open where it comes from" : "click to say what this picture shows", onclick: from || cast || place ? null : (e) => {
         e.stopPropagation();
         const input = h("input", { value: p.role, ariaLabel: "what this picture shows" });
         const done = (keep) => { if (keep && input.value.trim() && input.value.trim() !== p.role) { try { E.setPictureRole(p.node, input.value); } catch (err) { say(err.message, true); } } render(null); };

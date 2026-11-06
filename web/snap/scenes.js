@@ -219,14 +219,14 @@ export async function openShot(sceneId, shotId) {
   let card = null;
   if (!shot.workflow) {
     if (!graph) { await E.simple(); built = "the recommended recipe"; }
+    // F-C31, F-D12 (SNAP-R120): a new shot takes the open shot's setup and none of its content, unless it was added as
+    // a copy ("Copy Shot n as it is", add_shot start: copy); before its shot card compiles in, so the card's words stay
+    if (graph && !copy && built.endsWith("'s setup")) built += await cleanCopy();
     if (shot.card) {
       await L.ready();
       const c = L.get(shot.card);
       try { card = c ? await L.apply(c) : `its shot card ${shot.card} isn't in the Library`; } catch (e) { card = e.message; }
     }
-    // F-C31, F-D12 (SNAP-R120): a new shot takes the open shot's setup and none of its content, unless it was added as
-    // a copy ("Copy Shot n as it is", add_shot start: copy)
-    if (graph && !copy && built.endsWith("'s setup")) built += await cleanCopy();
 
     await saveOpen();
   }
