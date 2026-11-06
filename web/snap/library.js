@@ -157,7 +157,7 @@ function addToPrompt(phrases) {
 // the pin a recipe keeps for one record: which version it holds, and where that version's pieces went
 export const pinOf = (ref) => E.state().world?.[ref] ?? null;
 // the pinned version's own rating rides on the pin, so the server rates and caps the run with it (SNAP-R39, SNAP-R33)
-function pin(ref, { rating: _, ...entry }) {
+export function pin(ref, { rating: _, ...entry }) {
   const { kind, id } = W.parse(ref), rating = W.get(W.refOf(kind, id, entry.n))?.version.body.rating;
   E.tag("world", { ...E.state().world, [ref]: { follow: pinOf(ref)?.follow ?? true, ...entry, ...(rating ? { rating } : {}) } });
 }
@@ -343,7 +343,8 @@ export async function saveCast(id, body, { note = "", by = "person" } = {}) {
   const clean = { name: body.name.trim(), alias: body.alias?.trim() ?? "", trigger: body.trigger?.trim() ?? "", details: body.details?.trim() ?? "",
     lora: body.lora?.file ? { file: body.lora.file, strength: +(body.lora.strength ?? 1) } : null, refs: (body.refs ?? []).map((r) => ({ file: r.file, role: r.role || "identity" })),
     lore: body.lore?.trim() ?? "", rating: body.rating ?? null,
-    ...(body.voice?.file ? { voice: { file: body.voice.file, casting: body.voice.casting?.trim() ?? "" } } : {}) }; // U101: a voice reference only when given, so older records save unchanged
+    ...(body.voice?.file ? { voice: { file: body.voice.file, casting: body.voice.casting?.trim() ?? "" } } : {}), // U101: a voice reference only when given, so older records save unchanged
+    ...(body.states?.length ? { states: body.states } : {}) }; // SNAP-R69: settei per state, only when there are some
   // F-C30: each file's hash goes on the record (the exact file it used), and a newer upload of the same name is said
   const newer = [];
   for (const r of [...clean.refs, ...(clean.voice ? [clean.voice] : [])]) {
@@ -482,7 +483,8 @@ export async function saveLocation(id, body, { note = "", by = "person" } = {}) 
     plates.push({ name, ...await locationPicture(p, `plate ${name}`), ...roleIn(p.role, `plate ${name}`), pose: poseOf(p.pose, `plate ${name}`), ...(p.camera ? { camera: p.camera } : {}), ...(p.use?.trim() ? { use: p.use.trim() } : {}), ...(p.note?.trim() ? { note: p.note.trim() } : {}) });
   }
   const master = await locationPicture(body.master, "master");
-  const clean = { name: body.name.trim(), notes: body.notes?.trim() ?? "", master: master && { ...master, ...roleIn(body.master.role, "master") }, plan: await locationPicture(body.plan, "plan"), cameras, plates, rating: body.rating ?? null,
+  const plan = await locationPicture(body.plan, "plan"), shapes = body.plan?.shapes; // SNAP-R133: a plan drawn in Snap keeps its shapes beside its picture
+  const clean = { name: body.name.trim(), notes: body.notes?.trim() ?? "", master: master && { ...master, ...roleIn(body.master.role, "master") }, plan: plan && shapes ? { ...plan, shapes } : plan, cameras, plates, rating: body.rating ?? null,
     ...(body.from_cast ? { from_cast: body.from_cast } : {}) };
   id ??= locationStamp();
   const out = await W.save("location", id, clean, { note, by });

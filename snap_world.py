@@ -27,7 +27,7 @@ def sealed(path):
     return snap_vault_server is not None and snap_vault_server.snap_vault.sealed(path)
 
 routes = PromptServer.instance.routes
-KINDS = ("cast", "card", "set_snapshot", "location", "instruction", "skill")  # SNAP-R84 locations · SNAP-R93/R94 agent instructions, a person's skill versions
+KINDS = ("cast", "card", "set_snapshot", "location", "instruction", "skill", "book", "story", "look")  # SNAP-R84 locations · SNAP-R93/R94 agent instructions, a person's skill versions · SNAP-R67 the Book
 FIELDS = ("draft", "plates")  # a set's working copy and its camera plates live beside the versions
 ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 lock = asyncio.Lock()

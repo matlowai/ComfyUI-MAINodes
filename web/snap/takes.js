@@ -292,7 +292,7 @@ async function captureRun(id, started, status, error, failedNode) {
     ...(extra?.snap_marks?.private ? { private: true } : {}), ...(extra?.snap_marks?.nsfw ? { nsfw: true } : {}), ...(extra?.snap_marks?.encrypted ? { kept_encrypted: true } : {}),
     ...rated(extra?.snap_marks, graph, parent), ...madeFrom(graph, parent),
     ...(extra?.snap_marks?.metadata === false ? { metadata: false } : {}), ...(extra?.snap_marks?.kept ? { metadata_kept: extra.snap_marks.kept } : {}), ...(Object.keys(swapped).length ? { swapped } : {}), ...(parent ? { parent } : {}), ...await hashes(canonical(prompt, swapped)),
-    ...(graph?.extra?.snap?.world ? { world: placedCheck(graph.extra.snap.world, prompt) } : {}), ...(twin ? { cached_from: twin.id } : {}), verdict: null, prior: false, notes: [], graph, prompt,
+    ...(graph?.extra?.snap?.world ? { world: placedCheck(graph.extra.snap.world, prompt) } : {}), ...(graph?.extra?.snap?.story ? { story: graph.extra.snap.story } : {}), ...(twin ? { cached_from: twin.id } : {}), verdict: null, prior: false, notes: [], graph, prompt,
   });
   for (const fn of status === "error" ? failures : status === "success" ? arrivals : []) fn(get(`take-${id}`));
 }
