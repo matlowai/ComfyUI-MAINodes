@@ -27,7 +27,7 @@ cards=$SNAP_TEST_BASE/user/default/snap/cards
 real=$SNAP_TEST_REAL_MODELS; stamp=_debug/run_all_start.stamp
 IFS=: read -ra extra_models <<< "${SNAP_TEST_MODEL_DIRS:-}"
 bash "$T/real_models_guard.sh" before "$stamp" "$real" "$SNAP_TEST_BASE/models" "$SNAP_TEST_FRESH_BASE/models" "${extra_models[@]}" ${SNAP_TEST_GATETEST_BASE:+"$SNAP_TEST_GATETEST_BASE/models"} || exit 1
-park() { for d in cards cast card set_snapshot location instruction skill book story look instructions.json critiques dependents critic_fixtures critic_report _migrated _archived crew rules.json takes candidates scenes rankings judgments models.json ab_pending.json private.json profile.json ../workflows/snap\ fresh\ test.json ../workflows/snap\ fresh\ copy.json; do src="$(dirname "$cards")/$d"; [ -e "$src" ] && mkdir -p "$(dirname "$cards")/_parked" && mv "$src" "$(dirname "$cards")/_parked/$(basename "$d")-$(date +%H%M%S)-$RANDOM"; done; onboarded; curl -s -o /dev/null -X POST "http://127.0.0.1:$port/history" -H 'Content-Type: application/json' -d '{"clear": true}'; true; }  # G1: an earlier suite's finished jobs would be adopted as takes (F-C25) by the next page
+park() { for d in cards cast card set_snapshot location instruction skill book story look instructions.json critiques dependents critic_fixtures critic_report _migrated _archived crew rules.json takes candidates scenes rankings judgments models.json ab_pending.json private.json profile.json ../workflows/snap\ fresh\ test.json ../workflows/snap\ fresh\ copy.json; do src="$(dirname "$cards")/$d"; [ -e "$src" ] && mkdir -p "$(dirname "$cards")/_parked" && mv "$src" "$(dirname "$cards")/_parked/$(basename "$d")-$(date +%H%M%S)-$RANDOM"; done; onboarded; curl -s -o /dev/null -X POST "http://127.0.0.1:$port/settings/MAINodes.Snap.AgentsMayRun" -d false; curl -s -o /dev/null -X POST "http://127.0.0.1:$port/history" -H 'Content-Type: application/json' -d '{"clear": true}'; true; }  # G1: an earlier suite's finished jobs would be adopted as takes (F-C25) by the next page; G3: Let agents run goes back off (a suite that turned it on would hand the next one runs instead of proposals)
 # a parked profile would make Snap open onboarding by itself on the next suite's first visit: start from an answered one
 onboarded() { curl -s -o /dev/null -X POST "http://127.0.0.1:$port/userdata/snap%2Fprofile.json" -H 'Content-Type: application/json' -d '{"intents":[],"sfw_only":false,"api_tasks":[],"answered":["intent","scan","metadata","sfw","local","code","kit"],"done":true}'; }
 # U79 (SNAP-R96..R98): with privacy on, a private take is saved encrypted, and saving one needs the person's vault key.
@@ -402,7 +402,8 @@ PY
 }
 # the gatetest pair (snap-gate in front of a --multi-user ComfyUI) and the GPU unit are optional: their suites say skipped
 gate_up() { [ -n "${SNAP_TEST_GATETEST_BASE:-}" ] && curl -s -o /dev/null "http://127.0.0.1:$gate_port/gate/login"; }
-gpu_up() { curl -s -o /dev/null "http://127.0.0.1:$gpu_port/system_stats"; }
+# the GPU slot is the gate's own server (README "the GPU slot"), never the person's main one (SNAP_TEST_MAIN_PORT)
+gpu_up() { [ "$gpu_port" != "${SNAP_TEST_MAIN_PORT:-}" ] || { echo "gpu      skipped: SNAP_TEST_GPU_PORT is the person's main ComfyUI (:$gpu_port); give the gate its own GPU slot (README)" >&2; return 1; }; curl -s -o /dev/null "http://127.0.0.1:$gpu_port/system_stats"; }
 vaultkey
 park; run test_engine.js "http://127.0.0.1:$port/";  summary engine test_engine_result.json
 run test_ui.js "http://127.0.0.1:$port/";      summary ui ui/test_ui_result.json

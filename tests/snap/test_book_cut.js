@@ -130,6 +130,7 @@ const probe = (f) => JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_e
     R.wall = (Date.now() - t0) / 1000;
     R.errors = A.errors;
   } catch (e) { R.crash = e.stack; } finally {
+    await fetch(`http://127.0.0.1:${port}/settings/MAINodes.Snap.AgentsMayRun`, { method: "POST", body: "false" }).catch(() => {}); // G3: never leave Let agents run on for the next suite (LESSONS G1b)
     await b.close();
     for (const f of made) { const to = path.join(base, "_parked_placeholders", `${path.basename(f)}-${Date.now()}`); fs.mkdirSync(path.dirname(to), { recursive: true }); fs.renameSync(f, to); } // moved, never deleted
   }

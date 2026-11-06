@@ -119,7 +119,10 @@ const park = (dir) => { const p = path.join(base, "user", "default", "snap", dir
     R.laneThumbs = await page.evaluate(() => document.querySelectorAll(".snap-book-lane-thumb").length);
     R.aligned = await page.evaluate(() => { const c = document.querySelectorAll(".snap-book-beat")[0]?.getBoundingClientRect(), l = document.querySelectorAll(".snap-book-lane-cell")[0]?.getBoundingClientRect(); return c && l ? Math.abs(c.left - l.left) : null; });
     R.errors = A.errors;
-  } catch (e) { R.crash = e.stack; } finally { await b.close(); }
+  } catch (e) { R.crash = e.stack; } finally {
+    await fetch(`http://127.0.0.1:${port}/settings/MAINodes.Snap.AgentsMayRun`, { method: "POST", body: "false" }).catch(() => {}); // G3: never leave Let agents run on for the next suite (LESSONS G1b)
+    await b.close();
+  }
   const S = R, fromOf = (list, re) => list?.find(([t]) => re.test(t))?.[1] ?? "";
   const checks = {
     flashbackToldFourth: JSON.stringify(S.cutsTelling) === JSON.stringify(["C1", "C3", "C2", "C4"]),

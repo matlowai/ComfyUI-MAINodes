@@ -119,6 +119,7 @@ const park = (dir) => { const p = path.join(base, "user", "default", "snap", dir
     R.nullText = await page.evaluate(() => document.querySelector(".snap-book-sheet")?.textContent.includes("null"));
     R.errors = A.errors;
   } catch (e) { R.crash = e.stack; } finally {
+    await fetch(`http://127.0.0.1:${port}/settings/MAINodes.Snap.AgentsMayRun`, { method: "POST", body: "false" }).catch(() => {}); // G3: never leave Let agents run on for the next suite (LESSONS G1b)
     await b.close();
     for (const f of made) { const to = path.join(base, "_parked_placeholders", `${path.basename(f)}-${Date.now()}`); fs.mkdirSync(path.dirname(to), { recursive: true }); fs.renameSync(f, to); } // moved, never deleted
   }

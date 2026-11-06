@@ -20,7 +20,15 @@ branch gates with its own copy of these files: change a test on the branch whose
   systemd-run --user --unit snap-fresh-cpu ... --base-directory <fresh base> --port 8196 ...
   ```
   Restart both after any change to the pack's Python.
-- **Optional:** the GPU unit (`SNAP_TEST_GPU_PORT`, the G1b measure suites) and the gatetest pair (snap-gate in front
+- **Optional: the GPU slot**, a ComfyUI of the gate's own on its own GPU, never the person's main server (their queue
+  would wait behind the measure suites). `SNAP_TEST_GPU_PORT` names it; `SNAP_TEST_MAIN_PORT` names the person's server,
+  and run_all skips the GPU suites, saying why, if the two are the same:
+
+  ```
+  systemd-run --user --unit snap-gate-gpu --working-directory <ComfyUI> -E CUDA_VISIBLE_DEVICES=0 <venv>/bin/python main.py \
+    --base-directory <gpu base> --port 8194 --listen 127.0.0.1 --disable-auto-launch
+  ```
+- **Optional:** the gatetest pair (snap-gate in front
   of a `--multi-user` ComfyUI with privacy on: vault, ratings and gate suites). Their lines say `skipped` when nothing
   answers. The gatetest suites restart its units and lock its sessions: one gate run at a time on a pair.
 - **Playwright** for node (`SNAP_TEST_NODE_PATH` = its `node_modules`), Chrome, the ComfyUI venv's python, ffmpeg.
