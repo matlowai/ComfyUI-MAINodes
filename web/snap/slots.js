@@ -59,8 +59,11 @@ function installState(m) {
   if (nodes.length) return `needs the nodes ${nodes.join(", ")}`;
   return missing.length ? `needs weights in ${missing.map((n) => `models/${n.folder}${n.match ? ` (${n.match})` : ""}`).join(", ")}` : "ready";
 }
-// every method of a slot in one shape (media and delta alike): id, title, install_state, wired, fits this recipe, current
+// every method of a slot in one shape (media and delta alike): id, title, install_state, wired, fits this recipe, current.
+// None before the registry has loaded: a tab reloaded straight into Snap draws its faces first, and draws them again
+// once the registry is in (G1: it threw 'No slot "upscale"')
 export function list(id) {
+  if (!registry.slots.length) return [];
   if (slot(id).kind === "delta") {
     const now = M.turbo()?.file;
     // a turbo built for another base variant or lineage is listed after the fitting ones and says why; it still runs (SNAP-R11)
