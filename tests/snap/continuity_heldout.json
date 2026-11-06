@@ -1,0 +1,124 @@
+[
+  {
+    "name": "identical states",
+    "edits": [],
+    "expect": []
+  },
+  {
+    "name": "everything nudged just under its threshold at once",
+    "edits": [
+      ["/props/2/at", [-1.6, 1.0]],
+      ["/actors/0/facing", 120],
+      ["/actors/1/at", [0.7, -1.6]],
+      ["/light/from", 110],
+      ["/camera/at", [-1.2, -2.3]]
+    ],
+    "expect": []
+  },
+  {
+    "name": "cast and first two props listed in swapped order",
+    "edits": [
+      ["/props/0", {"name": "radio", "at": [-1.2, 1.7], "size": [0.4, 0.3], "height": 1.05, "state": "on, dial lit"}],
+      ["/props/1", {"name": "writing desk", "at": [-1.6, 1.6], "size": [1.4, 0.7], "height": 0.75}],
+      ["/actors/0", {"name": "Kon", "card": "char-kon", "at": [0.6, -1.6], "facing": 20, "height": 1.55, "hands": "holding out a sealed letter", "wardrobe": 1}],
+      ["/actors/1", {"name": "Ferro", "card": "char-old-ferro", "at": [1.8, 0.2], "facing": 90, "height": 1.85, "hands": "spyglass raised", "wardrobe": 1}]
+    ],
+    "expect": []
+  },
+  {
+    "name": "chair slides 0.29 m diagonally (0.20, 0.21)",
+    "edits": [["/props/2/at", [-1.4, 1.01]]],
+    "expect": []
+  },
+  {
+    "name": "lantern slides 0.311 m diagonally (0.22, 0.22), each axis under 0.3",
+    "edits": [["/props/4/at", [0.62, -1.78]]],
+    "expect": [["check", "lantern"]]
+  },
+  {
+    "name": "Kon steps 0.29 m diagonally (-0.20, 0.21)",
+    "edits": [["/actors/1/at", [0.4, -1.39]]],
+    "expect": []
+  },
+  {
+    "name": "Ferro steps 0.31 m north",
+    "edits": [["/actors/0/at", [1.8, 0.51]]],
+    "expect": [["note", "Ferro"]]
+  },
+  {
+    "name": "Kon turns 44 degrees across north (20 -> 336)",
+    "edits": [["/actors/1/facing", 336]],
+    "expect": []
+  },
+  {
+    "name": "Ferro turns 46 degrees (90 -> 136)",
+    "edits": [["/actors/0/facing", 136]],
+    "expect": [["check", "Ferro"]]
+  },
+  {
+    "name": "key light swings 29 degrees across north (345 -> 14)",
+    "base": [["/light/from", 345]],
+    "edits": [["/light/from", 14]],
+    "expect": []
+  },
+  {
+    "name": "key light swings 31 degrees across north (345 -> 16)",
+    "base": [["/light/from", 345]],
+    "edits": [["/light/from", 16]],
+    "expect": [["check", "light"]]
+  },
+  {
+    "name": "camera travels 5.1 m round the north side, same side of the line",
+    "edits": [["/camera/at", [0.8, 2.3]]],
+    "expect": []
+  },
+  {
+    "name": "camera crosses the line to the south-east corner",
+    "edits": [["/camera/at", [2.2, -2.2]], ["/camera/facing", 320]],
+    "expect": [["break", "line"]]
+  },
+  {
+    "name": "camera lands 0.1 m east of Kon, just across the line",
+    "edits": [["/camera/at", [0.7, -1.6]]],
+    "expect": [["break", "line"]]
+  },
+  {
+    "name": "camera lands 0.1 m west of Kon, just short of the line",
+    "edits": [["/camera/at", [0.5, -1.6]]],
+    "expect": []
+  },
+  {
+    "name": "chair renamed to stool",
+    "edits": [["/props/2/name", "stool"]],
+    "expect": [["break", "chair"], ["break", "stool"]]
+  },
+  {
+    "name": "Ferro changes coat, radio off, Kon turns 60, light text and lens change",
+    "edits": [
+      ["/actors/0/wardrobe", 2],
+      ["/props/1/state", "off"],
+      ["/actors/1/facing", 80],
+      ["/light/description", "warm amber lamp sweep only, dusk gone dark"],
+      ["/camera/lens", 35]
+    ],
+    "expect": [["break", "wardrobe"], ["break", "Ferro"], ["break", "radio"], ["check", "Kon"], ["check", "light"], ["note", "lens"]]
+  },
+  {
+    "name": "Kon exits taking the lantern",
+    "edits": [["/actors/1", null], ["/props/4", null]],
+    "expect": [["check", "Kon"], ["break", "lantern"]]
+  },
+  {
+    "name": "Mira enters through the door and lens goes 24 -> 35",
+    "edits": [
+      ["/actors/-", {"name": "Mira", "card": "char-mira", "at": [-0.3, -2.1], "facing": 0, "height": 1.6, "hands": "carrying a tray", "wardrobe": 1}],
+      ["/camera/lens", 35]
+    ],
+    "expect": [["note", "Mira"], ["note", "lens"]]
+  },
+  {
+    "name": "Kon changes coat and lowers the letter",
+    "edits": [["/actors/1/wardrobe", 2], ["/actors/1/hands", "hands at sides"]],
+    "expect": [["break", "wardrobe"], ["check", "Kon"]]
+  }
+]

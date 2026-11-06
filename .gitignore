@@ -1,2 +1,5 @@
 __pycache__/
 *.pyc
+
+# Snap gate: the local env file (paths on this machine)
+tests/snap/.env
