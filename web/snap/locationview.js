@@ -11,6 +11,7 @@ import * as W from "./world.js";
 import { full } from "./lightbox.js";
 import { view } from "./castview.js";
 import * as CV from "./critiqueview.js"; // SNAP-R103/R106 the critic per picture, Re-run dependents
+import { openPlanEditor } from "./planview.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const s = (tag, attrs = {}, ...kids) => { const el = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v); el.append(...kids); return el; };
@@ -111,7 +112,8 @@ export async function openLocation(host, { id, n = null, say, onApplied }) {
             const out = await L.applyLocation(ref, { plates: b.plates.filter((p) => chosen.has(p.name)).map((p) => p.name) });
             status.textContent = out.said; say?.(out.said); onApplied?.();
           }) }),
-          h("button", { className: "snap-link", textContent: "Save", onclick: act(saveIt) })),
+          h("button", { className: "snap-link", textContent: "Save", onclick: act(saveIt) }),
+          h("button", { className: "snap-link", textContent: b.plan?.shapes ? "Edit the plan" : "Draw the plan", title: "shapes, labels and camera marks on a top view, saved as this place's plan (SNAP-R133)", onclick: act(() => openPlanEditor(host, { id, say, onSaved: () => openLocation(host, { id, say, onApplied }) })) })),
         status)));
   sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
   draw(); drawVersions();

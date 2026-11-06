@@ -5,8 +5,8 @@ description: >
   cut-pair checks, and only then video cuts rendered from approved boards, with the H3 prompt craft for style and
   sound. Use it whenever you make a short, a scene with several cuts, a trailer, or any multi-shot video in Snap, or
   when cuts don't connect (wrong positions, jumps in light, weak climax).
-scope: [tool:run, tool:compile_shot]
-rules: [SNAP-R36, SNAP-R67, SNAP-R70]
+scope: [tool:run, tool:compile_shot, tool:make_board, tool:set_board, tool:animatic]
+rules: [SNAP-R36, SNAP-R67, SNAP-R131, SNAP-R132]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-boards"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -15,8 +15,9 @@ If a Snap server is reachable, `read_skill {"name": "snap-boards"}` returns the 
 
 Order of work: design lane → boards → animatic → approval → video. Blocking, framing, transitions, scale and intensity
 are solved on boards, where a fix costs seconds. Agents left alone make cuts as islands: faces held, but transitions,
-framing and blocking didn't. The Book's Boards step will hold this (planned, R67-R70); until then boards are takes in
-each cut's shot.
+framing and blocking didn't. In a Book (`snap-book`) each cut holds its board: `make_board` makes candidates from the
+cut's context, `set_board` picks and approves one, `animatic` plays them in telling order, and `apply_unit` opens the
+cut's video on its approved board (SNAP-R131). Outside a Book, boards are takes in each cut's shot.
 
 ## 1. Design lane
 
@@ -34,7 +35,7 @@ One board per cut, made with New view on the cut's plate (`snap-new-view`) and l
 
 ## 3. Animatic and checks
 
-Time the boards in order with temp audio. Run the cut-pair checks on boards (`snap-critic`): the previous cut's last
+Time the boards in order (`animatic {book}`: each board held for its cut's seconds; a kept take replaces its board). Run the cut-pair checks on boards (`snap-critic`): the previous cut's last
 frame against this cut's first (position, facing, eyeline, light, props). Stop for the person's look before video.
 
 ## 4. Video cuts from boards

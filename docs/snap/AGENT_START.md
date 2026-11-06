@@ -6,8 +6,8 @@ open Snap page, and you reach them through that page. Snap never downloads anyth
 How Snap's pieces link and how to make things well with these tools (the order of work, which model for which job,
 traps and quality bars) is in the Snap skills, `.claude/skills/<name>/SKILL.md` in the pack (also `list_skills` /
 `read_skill`, which give the person's version when they have one): `snap-core` first, then `snap-location`,
-`snap-turnaround`, `snap-new-view`, `snap-reference-upscale`, `snap-boards`, `snap-voice`, `snap-critic` and
-`snap-model-choice`. The rules Snap follows are in [`SNAP_RULES.md`](SNAP_RULES.md).
+`snap-turnaround`, `snap-new-view`, `snap-reference-upscale`, `snap-boards`, `snap-voice`, `snap-critic`,
+`snap-model-choice` and `snap-book` (a production in the Book). The rules Snap follows are in [`SNAP_RULES.md`](SNAP_RULES.md).
 
 Below, `$BASE` is the ComfyUI address (for example `http://127.0.0.1:8188`) and `$PACK` is
 `<ComfyUI>/custom_nodes/ComfyUI-MAINodes`. On a signed-in install (snap-gate), `$BASE` is the gate's address. There you
@@ -463,6 +463,54 @@ cuts, as candidates; it stops before video unless `"through": "cuts"`. The fixtu
 - `open_view {view: "library", tab, scope}` opens the Agent library for the person.
 - A plan over 10 minutes says `holds_queue`. `list_locations` and `add_plate` answer `eye_gaps` when a plate's eye
   height is off its camera mark's (`add_plate {plates: [...]}` saves several as one version).
+
+### The Book (a production: beats, boards, the Cut)
+
+The Book is Snap's production layer (SNAP-R67-R69, R130-R133; skill `snap-book`). One Book holds a production: its
+story as beats, its production style, its Cast and places, and its cuts (each a shot of a Book scene). The person sees
+it on the Library rail's **Book** row (lenses Beat sheet, Settei, Boards, Cut bag, the Cut); `open_view {"view":
+"book", "book": "book:<id>", "lens": "boards"}` opens it for them.
+
+- `create_book {"name", "medium": "anime", "cast": [...], "locations": [...]}` makes the Book and an empty story;
+  `list_books` / `get_book {"book"}` read it whole (beats with ids, changes, plants; every cut with its unit and stale
+  takes).
+- **Canon waits for the person.** `add_beat`, `edit_beat`, `move_beat`, `add_change`, `remove_change`, `save_story`,
+  `keep_as_canon`, `set_autonomy` and a change to the Book's style (`save_style`) always answer `proposed`: the
+  person's Accept (the Book's "Waiting for you" row, or the Work card) makes the version. The answer says what the edit
+  would re-flag (`reversal_cost`). Don't ask them to turn anything on to skip this; it holds at every dial position.
+- **The dial** (`autonomy`): per stage (beat_sheet, pages, settei, boards, cut_bag, dailies, the_cut) assist (your GPU
+  work and picks wait), collaborate (as "Let agents run"), automatic (they go ahead, recorded as yours). It applies
+  while the open shot is a Book cut; elsewhere "Let agents run" decides as before.
+- **A change is state on the story clock**: `add_change {"book", "beat": "b4", "entity": "cast:<id>", "path":
+  "carried.right_hand", "op": "set", "value": "prop:letter", "why"}`. Paths the compile says in pictures: wardrobe,
+  carried.right_hand / left_hand / worn, holder (a prop's), mood, position, facing, hair, injuries; knows, wants and
+  relationships are prose only. `state_at {"book", "entity", "beat"}` folds them (story order, never telling order).
+- **Cuts**: `add_cut {"book", "scene_name" or "scene", "beats": ["b3"], "cast": [...], "props": ["prop:letter"],
+  "location": "location:<id>", "plate": "P1", "seconds": 4, "sound", "transition"}` makes a shot with its unit and
+  the next cut number (C1, C2…: an id). `set_unit` changes it (`trim {in_s, out_s, gain_db}` for the Cut).
+- **Compile, then apply**: `compile_unit {"scene", "shot"}` is the compiled state sheet (each field with the beat and
+  change that set it, its sentence, "words only" or its state picture; the place; the reference package; the prompt
+  with the style paragraph first; palette notes). `apply_unit` puts it into the cut's recipe (open the shot and
+  `start_recipe` first on an empty one) and pins what the take will carry; then `run`. Both take `beats` (the Beat
+  slot): the same cut at another story moment, and its takes remember it. `story_stale {"book"}` names
+  the takes whose used fields moved.
+- **Style**: `save_style {"book", "name", "paragraph", "palette": "monochrome" | "limited" | "full", "still": {"take"} or
+  {"file"}, "voice", "sound", "genre"}`. Under monochrome or limited keep colour words out of Cast lines (the compile
+  notes them). No negative.
+- **Settei**: `save_cast_state {"cast", "state": "oilskin", "covers": {"wardrobe": "the oilskin"}, "pictures": [{"take",
+  "view": "front"}]}`; a state with no picture compiles "words only".
+- **Boards → animatic → video → the Cut**: `make_board {"scene", "shot"}` (a New view from the cut's plate, the previous
+  board and its Cast; candidates land in the shot), `set_board {"scene", "shot", "take" or "file", "approved": true}`,
+  `animatic {"book"}` (boards timed in telling order, kept takes in place of their boards; one video lands as a take of
+  the Book: `wait_for` its run), then video per cut from its approved board (`apply_unit` opens it on the board), and
+  `export_cut {"book"}` (the active takes in telling order with their trims and levels: one mp4 plus an OTIO file
+  under output/snap_book/).
+- **Pages**: `export_fountain {"book"}` gives the story as a Fountain script (scene headings, action, `=` intents,
+  dialogue under each name); `import_fountain {"book", "text"}` proposes a story from one. A beat keeps its id (and its
+  changes) when its text is unchanged or edited in place in its scene; moving a scene changes telling order only.
+- **Set plan**: `draw_set_plan {"location", "shapes": [{"kind": "rect", "x": 0.5, "y": 0.1, "w": 0.3, "h": 0.14,
+  "label": "Hall"}, ...], "cameras": [{"name": "C1", "x": 0.5, "y": 0.86, "heading": 0, "lens": 35}]}` saves the
+  plan picture (shapes and labels only) and the marks on the location; the person draws the same in "Draw the plan".
 
 ## When Snap can't do it
 

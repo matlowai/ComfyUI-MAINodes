@@ -70,7 +70,7 @@ export const shotTitle = (scene, shot) => `Shot ${scene.shots.findIndex((x) => x
 // a scene versions its authored fields only (SNAP-R60): its name, set, and shots in order with their names and cards. A
 // write that changes them appends {n, hash, at, by, note, body}; bookkeeping (take lists, the active take, workflow
 // files) makes none
-const authored = (s) => ({ name: s.name, set: s.set ?? null, shots: s.shots.map((x) => ({ id: x.id, name: x.name ?? "", card: x.card ?? null })) });
+const authored = (s) => ({ name: s.name, set: s.set ?? null, ...(s.book ? { book: s.book } : {}), shots: s.shots.map((x) => ({ id: x.id, name: x.name ?? "", card: x.card ?? null, ...(x.unit ? { unit: x.unit } : {}) })) }); // SNAP-R67: a Book scene and its units
 async function versioned(s, by, note) {
   const body = authored(s), hash = await W.sha(body), head = s.versions?.find((v) => v.n === s.head);
   if (head?.hash === hash) return;
@@ -395,6 +395,9 @@ export async function setActive(sceneId, shotId, takeId, by = "person") {
   return { scene: sceneId, shot: shotId, active: takeId, by, path: [scene.name, shotTitle(scene, now), ...(takeId ? path(now, takeId).map((id) => label(T.get(id))) : [])] };
 }
 
+// SNAP-R67: a scene of a Book, and a shot's unit (its cut number, beats, Cast, place, timing, board, trim: book.js)
+export const setBook = (sceneId, book, by = "person") => update(sceneId, (s) => { s.book = book; }, { by, note: "joined a Book" });
+export const setUnit = (sceneId, shotId, unit, by = "person", note = "unit changed") => update(sceneId, (s) => { const x = s.shots.find((y) => y.id === shotId); if (!x) throw new Error(`${s.name} has no shot ${shotId}`); x.unit = unit; }, { by, note });
 // a take group joins a shot, so its takes are the shot's (U101: a new view lands in a shot whose workflow never ran)
 export const addGroup = (sceneId, shotId, group) => update(sceneId, (s) => { const x = s.shots.find((y) => y.id === shotId); if (x && !x.groups.includes(group)) x.groups.push(group); });
 

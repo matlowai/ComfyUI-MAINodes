@@ -19,6 +19,7 @@
 // SNAP-R93-R95 agent instructions and skills (instructions.js): describe_recipe, get_take and get_scene carry the stack, the pack's notes end each description · see docs/snap/SNAP_RULES.md
 // SNAP-R101-R110 the critic's docket and fix at the source (critiques.js, dependents.js); note_take takes severity, owner and fix · see docs/snap/SNAP_RULES.md
 // SNAP-R121 answers say what the work is: whole titles, what a setup switch carried, eye gaps, caption files · SNAP-R122 recipe_matches_active · SNAP-R123 use_take as cast / plate · SNAP-R124 apply_cast pictures, rerun out
+// SNAP-R67-R69, R130-R133 the Book's tools (booktools.js), joined at the end of the table; open_view book · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import { BRICKS, PACK_BRICKS } from "./bricks.js";
@@ -53,6 +54,8 @@ import * as LB from "./lightbox.js";
 import * as I from "./instructions.js";
 import * as CR from "./critiques.js";
 import * as DP from "./dependents.js";
+import * as B from "./book.js";
+import { BOOK_TOOLS } from "./booktools.js";
 import { api } from "../../../scripts/api.js";
 
 // a widget as an agent reads it: value, kind, every choice, limits, and whether a wire drives it
@@ -759,7 +762,7 @@ export const TOOLS = [
       if (x.kind !== y.kind || x.id !== y.id) throw new Error("a and b must be versions of the same record");
       const r = await recordOf(x.kind, x.id), at = (n) => (n == null ? r.versions.find((v) => v.n === r.head) : r.versions.find((v) => v.n === n)) ?? (() => { throw new Error(`${x.kind}:${x.id} has no version ${n}`); })();
       const va = at(x.n), vb = at(y.n);
-      return { a: W.refOf(x.kind, x.id, va.n), b: W.refOf(x.kind, x.id, vb.n), changes: W.diff(va.body, vb.body), pictures: W.pictures(va.body, vb.body) };
+      return { a: W.refOf(x.kind, x.id, va.n), b: W.refOf(x.kind, x.id, vb.n), changes: x.kind === "story" ? B.storyDiff(va.body, vb.body) : W.diff(va.body, vb.body), pictures: W.pictures(va.body, vb.body) }; // SNAP-R67: a story by beat
     },
   },
   {
@@ -1316,11 +1319,12 @@ export const TOOLS = [
   },
   {
     name: "open_view",
-    description: "Open a view on this page for its person (SNAP-R80; F-A27's twin). view \"library\" opens the Agent library (tab: here = Applies here (default), notes = Instructions, skills; scope: e.g. tool:save_location) (F-D09). view \"location\" with location (location:<id> or @n) opens the Location sheet (its master, the plan with camera marks, the plates). view \"picture\": a picture full size in Snap's viewer (fit / 100 %, zoom, pan, arrows through its row, Esc closes), on the tab your calls go to, so an agent driving the person's tab can show them a picture. Name it by one of: take (a take id: its pictures and videos, a sheet's views too; index picks one), cast (cast:<id>, ref its picture's number from 0: steps through the Cast's pictures), decision (a candidate decision; candidate picks where it starts: steps through every candidate's pictures), file (a picture in input/), path (output/… or input/…, as candidate_frames and list_candidates give). Nothing changes and the page doesn't navigate; the person closes it. Returns what is showing.",
-    inputSchema: { type: "object", properties: { view: { type: "string", enum: ["picture", "location", "library"] }, tab: { type: "string", enum: ["skills", "notes", "here"] }, scope: { type: "string" }, take: { type: "string" }, index: { type: "integer", minimum: 0 }, cast: { type: "string" }, ref: { type: "integer", minimum: 0 },
+    description: "Open a view on this page for its person (SNAP-R80; F-A27's twin). view \"library\" opens the Agent library (tab: here = Applies here (default), notes = Instructions, skills; scope: e.g. tool:save_location) (F-D09). view \"book\" with book (book:<id>) opens the Book; lens picks its lens (SNAP-R67). view \"location\" with location (location:<id> or @n) opens the Location sheet (its master, the plan with camera marks, the plates). view \"picture\": a picture full size in Snap's viewer (fit / 100 %, zoom, pan, arrows through its row, Esc closes), on the tab your calls go to, so an agent driving the person's tab can show them a picture. Name it by one of: take (a take id: its pictures and videos, a sheet's views too; index picks one), cast (cast:<id>, ref its picture's number from 0: steps through the Cast's pictures), decision (a candidate decision; candidate picks where it starts: steps through every candidate's pictures), file (a picture in input/), path (output/… or input/…, as candidate_frames and list_candidates give). Nothing changes and the page doesn't navigate; the person closes it. Returns what is showing.",
+    inputSchema: { type: "object", properties: { view: { type: "string", enum: ["picture", "location", "library", "book"] }, book: { type: "string", description: "view book: the Book (book:<id>); lens picks its lens (beat_sheet, settei, boards, cut_bag, the_cut)" }, lens: { type: "string" }, tab: { type: "string", enum: ["skills", "notes", "here"] }, scope: { type: "string" }, take: { type: "string" }, index: { type: "integer", minimum: 0 }, cast: { type: "string" }, ref: { type: "integer", minimum: 0 },
       decision: { type: "string" }, candidate: { type: "string" }, file: { type: "string" }, path: { type: "string" }, location: { type: "string" }, plate: { type: "string", description: "view picture: a plate of location (by name), or master / plan" } }, required: ["view"] },
-    run: async ({ view, take, index = 0, cast, ref = 0, decision, candidate, file, path, location: place, plate, tab = "here", scope }) => {
+    run: async ({ view, take, index = 0, cast, ref = 0, decision, candidate, file, path, location: place, plate, tab = "here", scope, book, lens }) => {
       if (view === "library") return { showing: await ui.act("library", `${tab}${scope ? `|${scope}` : ""}`), said: `the Agent library is open on the person's page (${tab === "notes" ? "Instructions" : tab === "skills" ? "Skills" : "Applies here"}${scope ? `, ${scope}` : ""})` }; // F-D09
+      if (view === "book") { if (!book) throw new Error("open_view book: give book (book:<id>, list_books lists them)"); await W.load(); B.bookOf(book); return { showing: await ui.act("book", { book, lens }), said: "the Book is open on the person's page" }; }
       if (view === "location") { if (!place) throw new Error("open_view location: give location (location:<id>, list_locations lists them)"); await W.load(); L.locationOf(place); return { showing: (await ui.act("location", place)), said: "the Location sheet is open on the person's page" }; }
       if (place) { // a location's pictures, starting at the plate named (or its master / plan)
         await W.load(); const { body: b, n } = L.locationOf(place), pics = [...L.LOCATION_PICTURES.filter((k) => b[k]).map((k) => [k, b[k]]), ...(b.plates ?? []).map((p) => [`plate ${p.name}`, p])];
@@ -1518,6 +1522,7 @@ export const TOOLS = [
   ...I.TOOLS, // SNAP-R93-R95 instructions, list_instructions, save_instruction, set_instruction_status, list_skills, read_skill, save_skill
   ...CR.TOOLS, // SNAP-R101-R110 list_critiques, claim_critique, critique_packet, write_critique, skip_critique, critique, critic_report, add_fixture
   ...DP.TOOLS, // SNAP-R106 rerun_dependents, list_dependents
+  ...BOOK_TOOLS, // U97 the Book (booktools.js)
 ];
 
 // a card shot opened with no plate for its camera offers that camera's plate candidates (U55): GPU time nobody asked for
@@ -1596,7 +1601,7 @@ export async function callTool(name, args = {}, { confirmed } = {}) {
   const plan = tool.plan ? await tool.plan(rest) : null, warning = plan?.warning ? { warning: plan.warning } : {}; // a plan's warning (run: a default prompt) is said at the top too
   // dogfood F-D14: a long job holds the GPU's queue (core runs one prompt at a time): the plan says so, never blocks
   if (plan?.eta_s > 600) plan.holds_queue = `about ${Math.round(plan.eta_s / 60)} min on this GPU: every prompt queued after it waits that long (queue it when the queue is empty, or say so to the person)`;
-  if ((tool.consequential || tool.decides) && !confirmed && !mayRun()) {
+  if ((tool.consequential || tool.decides) && !confirmed && !(B.allows(name, mayRun()) ?? mayRun())) { // SNAP-R67: inside a Book its dial decides per stage
     const why = tool.decides ? "the person's pick" : "uses the GPU";
     const p = P.add(name, rest, reason ?? `${name.replaceAll("_", " ")} (${why})`, for_note, plan);
     return { proposed: p.id, ...warning, ...(plan ? { plan } : {}), status: `${why}: waiting for the person to accept (or to allow agents to run in ComfyUI's settings)` };

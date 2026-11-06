@@ -636,7 +636,7 @@ byte for byte (proto/snapbox/test_vault_off.py).
 
 ## Context and references (U101)
 
-R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start at R71.
+R67-R69 are the Book's (see "The Book" below) and R70 stays reserved for the Room; U101's rules start at R71.
 
 - **SNAP-R71: A new view of a known place is an edit from context pictures, in the asker's words.** "New view from these
   pictures" (the take viewer's tray; `edit_from_context`) makes a still with an H3 model from 1 or more context
@@ -1061,9 +1061,77 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   stacks and the take viewer's date wraps under where it is. *Why:* UX walkthrough UI-07 (v0; trims, sound across cuts
   and export wait for the Cut), UI-10, UI-18, dogfood F-A33, F-A34. *More:* proto/test_g2_polish.js.
 
+## The Book (U97, 2026-11-06)
+
+Snap's production layer (layer 3 in the same app): `web/snap/book.js` (records, the story clock, compile, stale, the dial,
+assembly), `booktools.js` (the tools), `bookview.js` (the Book sheet), `planview.js` (a set plan drawn in Snap),
+`snap_book.py` (the assembly node and the OTIO route). R67-R69 and R130-R133 are the Book's; R70 stays reserved for
+the Room.
+
+- **SNAP-R67: The Book holds a production on two clocks, and its canon is the person's.** A `book` record (story,
+  production style, autonomy dial, Cast, locations, scenes in order) and one `story` record (beats in story order, each
+  with `order` and `told` ranks, text, intent, intensity, lines, `changes` {entity, path, op, value, why, source},
+  `plants` {what, window} and `pays_off`; `groups` over beat ids) version on the production clock like a Cast; a beat
+  is a moment on the story clock. Units are the Book scene's shots (`shot.unit`: cut number, beats, Cast, props,
+  location and plate, timing, board, trim, transition); a cut number is an id, never a position, and the Cut follows
+  telling order. Story, style and the dial are canon: an agent's write to them is always a proposal (`add_beat`,
+  `edit_beat`, `move_beat`, `add_change`, `save_story`, `keep_as_canon`, `save_style` on the Book's style,
+  `set_autonomy`), at every dial position, and the story version made by the person's Accept names the proposal in its
+  note; `saveStory` refuses an agent's write without one. Everything else follows the dial per stage (`beat_sheet`,
+  `pages`, `settei`, `boards`, `cut_bag`, `dailies`, `the_cut`: assist waits, collaborate follows Let agents run,
+  automatic goes ahead with `by: agent`), read where SNAP-R16's flag is read; outside a Book nothing changes. A take made
+  from a unit carries `story` {book, ref, beat, unit, from} beside `world`, and its job's `about` names the book, beat
+  and cut. Pages is the story as Fountain (`import_fountain`, `export_fountain`, the Pages lens): the script is telling
+  order, and a beat keeps its id and changes when its text is unchanged or edited in its scene. *Why:* the operator's answers of 2026-11-05 (the Book, the Room, the Work card; canon changes are always
+  proposals, even on automatic; the first anime's dial mix). *More:* CONCEPT_PRODUCTION §11.1-§11.5 steps 1-2;
+  proto/test_book_story.js.
+- **SNAP-R68: A unit compiles from the state at its beat, with provenance; a render never writes state.** An entity's
+  state at a beat is its base folded with every change on a beat at or before it in **story** order (a flashback compiles
+  as the younger state). `compile_unit` shows the compiled state sheet: each field with the beat and change that set it
+  (`story:<id>@n b4 change c2`), the sentence it becomes, and its backing (a state picture or "words only"); the place
+  and plate; the reference package with roles and the 9-picture budget; the prompt sentences with their sources. The
+  production style's paragraph goes first. Takes pin a hash per field the compile used, so `story_stale` names only the
+  fields a unit used ("story: Ferro.carried.right_hand changed at b4"; a reworded intent flags nothing), and a story
+  edit's proposal says what it would re-flag before it is saved (reversal cost). A take that shows something the story
+  didn't say becomes canon only through `keep_as_canon`: a proposed change on that take's beat. *Why:* §4.1.2-§4.1.3 and
+  §6 risk 5 (hash only the fields used); "pictures beat words" is why the backing is shown. *More:* proto/test_book_compile.js.
+- **SNAP-R69: A state is held by its pictures.** A Cast's `states` [{name, covers {path: value}, pictures [{file, view,
+  from}], words}] are its settei per state; wherever the fold gives a state's `covers`, the compile cites its pictures
+  first (role "state: <name>"), and a state with none reads "words only" on the sheet and in the Settei lens.
+  `save_cast_state` saves a new Cast version whose note names the take each picture came from, so takes made before read
+  the version move. *Why:* three GPU runs where the picture won over the words (green coat, red scarf); DECISIONS
+  2026-11-05 08:38 (two lanes). *More:* CONCEPT_PRODUCTION §4.1.4b; proto/test_book_compile.js.
+- **SNAP-R130: A production's style is one record every cut inherits: paragraph first, palette linted, a still, no
+  negative.** The `look` record holds the style paragraph (2-3 sentences in the catalogue's register), placed first in
+  every compiled prompt and still prompt (then a blank line, then the subject); `palette` (monochrome, limited, full):
+  under monochrome or limited the compile notes colour words in a Cast's line or state (a note, never a block); one
+  reference `still` (the Ref2V Picture 1 for video); an optional LoRA; the house voice direction, sound palette and
+  genre playbook. No negative (the H3 models run at cfg 1). The style is pinned on every take like a Cast, so a style
+  change marks them. *Why:* the style scout of 2026-11-06 (placement is a wash, a colour word in the subject beat the
+  palette 8/8, a colour-free subject held it); DECISIONS 2026-11-05 12:25. *More:* scout/style_record_2026-11-06.md.
+- **SNAP-R131: Boards first: one frame per cut, approved before video, played as an animatic.** `make_board` makes
+  candidates by New view from the cut's context (its plate as the camera, the previous cut's board as the nearest prior
+  view, its Cast's state and identity pictures) with the cut's still prompt; `set_board` picks one (`approved`: the gate
+  before video, a default and never a block). The animatic lays each cut in telling order: its kept active take where
+  there is one, else its board held for its seconds; `apply_unit` opens an approved board as the cut's first picture.
+  *Why:* DECISIONS 2026-11-05 12:22 (blocking, framing, transitions solved in storyboarding first); short03 F-C06.
+  *More:* proto/test_book_cut.js.
+- **SNAP-R132: The Cut is assembled in a prompt, and exported as OpenTimelineIO.** The animatic and the Cut are one
+  `MAISnapCut` prompt (Load Video of each take, Create Video of each board, trims, sound levels, one size and frame rate,
+  sound at 48 kHz, silence where a clip has none) saved by the prompt's own saver as a take of the Book's group, so a
+  take kept encrypted is opened by its loader and worked on in RAM scratch (SNAP-R98) and privacy fails closed.
+  `export_cut` also writes an OTIO file (video and audio tracks, a marker per cut, `metadata.snap` with each take) under
+  output/snap_book/. *Why:* short04 F-A23 and F-D15 (ordering, trims and loudness happened in ffmpeg outside Snap).
+  *More:* proto/test_book_cut.js.
+- **SNAP-R133: A set plan is drawn in Snap, and its picture holds shapes and labels only.** `draw_set_plan` and the
+  "Draw the plan" editor keep `plan {file, shapes}` and the camera marks on the location record (a new version); the
+  saved picture is black on white with shapes and labels, while camera marks stay on the record and the Location sheet
+  draws them over it. *Why:* short04 had no drawing tool (the shrine's plan was drawn outside Snap), and marks drawn into
+  a plan picture leak into renders that cite it. *More:* proto/test_book_cut.js.
+
 ## Accounts and the gate (snap-gate)
 
-IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; G1 took R83-R87, the docs migration R88-R92, the agent library R93-R95, the vault R96-R100; U93/U94 took R101-R110; G1b took R111-R117; G2 R118 on).
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (the Book took R67-R69 and R130-R133 and keeps R134-R139; R70 is reserved for the Room; G1 took R83-R87, the docs migration R88-R92, the agent library R93-R95, the vault R96-R100; U93/U94 took R101-R110; G1b took R111-R117; G2 took R118-R125; the next free ID is R126, then R140 after R129).
 
 - **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
   use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and

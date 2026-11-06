@@ -9,7 +9,7 @@
 // SNAP-R52 values outside the choices are refused naming them · SNAP-R65 the Work card · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 
-export const KINDS = ["run", "retake", "rerun", "paint", "propagate", "extend", "upscale", "louder", "plate", "check", "preview", "make_dial", "settei", "board", "compile", "prose", "critique"]; // critique: a critic row (critiques.js, SNAP-R101), never a queued prompt
+export const KINDS = ["run", "retake", "rerun", "paint", "propagate", "extend", "upscale", "louder", "plate", "check", "preview", "make_dial", "settei", "board", "compile", "prose", "cut", "critique"]; // critique: a critic row (critiques.js, SNAP-R101), never a queued prompt
 export const ABOUT = ["take", "group", "scene", "shot", "decision", "candidate", "set", "camera", "slot", "book", "beat", "unit", "entity", "state"];
 export const BY = ["person", "agent"];
 
@@ -24,7 +24,8 @@ export function job({ kind, title, about = {}, by = "person", eta_s = null, take
 
 // the open tab, as a run's title names it and as its `about` (a scene tab's shot mark, SNAP-R24)
 export const where = () => app.extensionManager?.workflow?.activeWorkflow?.filename ?? "the open workflow";
-export const here = () => { const m = app.graph?.extra?.snap_scene; return { group: app.graph?.id ?? "unsaved", scene: m?.scene, shot: m?.shot }; };
+// SNAP-R67: a recipe a Book unit compiled into (book.js apply) also names its Book, beat and cut
+export const here = () => { const m = app.graph?.extra?.snap_scene, s = app.graph?.extra?.snap?.story; return { group: app.graph?.id ?? "unsaved", scene: m?.scene, shot: m?.shot, ...(s && s.unit?.shot === m?.shot ? { book: s.book, beat: s.beat, unit: s.unit.cut } : {}) }; };
 // a run from the graph view, ComfyUI's Queue button or Ctrl+Enter: Snap didn't start it, the person did
 const plain = () => job({ kind: "run", title: `Run ${where()}`, about: here() });
 

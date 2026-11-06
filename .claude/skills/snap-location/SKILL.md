@@ -5,8 +5,8 @@ description: >
   people-free H3 walkthrough, plates pulled from its frames with their camera pose, then boards placed on plates. Use
   it whenever a short, scene or shot needs a place (a village, a room, a street), when views of one place disagree
   (a gate that changes between cuts), or before making plates or boards of a set.
-scope: [tool:save_location, tool:add_plate, tool:apply_location, tool:use_take]
-rules: [SNAP-R21, SNAP-R22, SNAP-R71, SNAP-R84, SNAP-R115]
+scope: [tool:save_location, tool:add_plate, tool:apply_location, tool:use_take, tool:draw_set_plan]
+rules: [SNAP-R21, SNAP-R22, SNAP-R71, SNAP-R84, SNAP-R115, SNAP-R133]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-location"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -19,7 +19,9 @@ gates). Tool calls are in `docs/snap/AGENT_START.md` ("A new view of a place").
 
 ## Steps
 
-1. **Set plan:** an overhead map with each camera as a wedge.
+1. **Set plan:** an overhead map. Draw it in Snap (`draw_set_plan {location, shapes, cameras}`, or "Draw the plan" on
+   the Location sheet, SNAP-R133): boxes, rounds, lines for roads and walls, labels; camera marks stay on the record and
+   the sheet draws them as wedges, never into the plan picture (marks in the picture leak into renders that cite it).
 2. **Master:** one establishing picture that shows how the parts connect (road → wall → gate → square). Run the
    critic's logic check on it now (`snap-critic`): does the wall enclose what it should, does the road reach the gate.
    A flaw here reaches every plate.
