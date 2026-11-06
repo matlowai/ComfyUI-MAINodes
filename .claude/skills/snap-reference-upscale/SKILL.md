@@ -6,7 +6,7 @@ description: >
   or board is too small or its face looks smeared, before a picture becomes a reference, or when the person asks for
   2K or 4K.
 scope: [tool:upscale_take]
-rules: [SNAP-R16, SNAP-R81, SNAP-R82, SNAP-R85, SNAP-R113]
+rules: [SNAP-R16, SNAP-R81, SNAP-R82, SNAP-R85, SNAP-R113, SNAP-R134]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-reference-upscale"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -43,7 +43,12 @@ The front was also the take's Picture 1, so a redraw toward it is expected: read
    props and hair against the original, the backdrop for anything new.
 3. For 4K, `tessera` after stage 2: it anchors on stage 2's newest frame 0 and carries the redrawn face up. Point
    `TESSERA_SCRATCH` at a big disk (~10 GB at 4K x 124 frames).
-4. Use the frames you keep as Cast pictures or plates (a new Cast version).
+4. **Compare the eyes with the Cast picture.** The redraw re-makes iris colour from the model's own prior: at d0.30
+   Hiyori's brown eyes came back grey and Liesl's amber olive, while the face otherwise improved. A lower denoise barely
+   helps (0.20 still grey). If they drifted, `keep_eye_colour {take: <the redraw>, cast}` (optional, never default,
+   SNAP-R134) re-tints only the irises toward the Cast front, found by SAM on every frame; profiles and backs pass
+   through. Look at it at 100 % before keeping it.
+5. Use the frames you keep as Cast pictures or plates (a new Cast version).
 
 ## Traps
 

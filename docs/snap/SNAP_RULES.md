@@ -1305,3 +1305,41 @@ IDs R40+ were reserved for the gate while R28-R39 were open for other work (renu
   subject was re-made (re-run, re-take, upscale) or a note's owner record moved past the version the critique named;
   it shows "stale: <why>" on the row, the card and the viewer, and `list_critiques {stale: true}` lists them. *Why:* a
   note about a plate that has since been remade is noise. *More:* SNAP-R60.
+
+## Batch G3 (2026-11-06)
+
+Next free ID after this batch: SNAP-R139.
+
+- **SNAP-R134: "Keep eye colour" is an optional step after a redraw, located by SAM, never the default.** A reference
+  redrawn by stage 2 says, in a static line, to compare the eyes with the Cast picture; `keep_eye_colour` (and the
+  take viewer's "Keep eye colour" press) re-tints the irises of the redrawn take toward the Cast front's iris colour: Snap's
+  SAM 3.1 path finds the eyes on every frame and on the Cast picture (no hand seeding), the a/b of Lab moves inside the
+  iris only, lightness never, and a frame where no iris is found (a profile, a back) passes through untouched. It makes a
+  new take beside the redrawn one; nothing is replaced, and it runs only when asked. *Why:* the operator, 2026-11-06,
+  decision 5 ("keep the redraw at d0.30, a static note, an optional iris re-tint, default off"); the redraw greyed
+  Hiyori's brown eyes and Liesl's amber (u102b/IRIS_COLOUR, IRIS_SAM). *More:* SNAP-R85, SNAP-R113.
+- **SNAP-R135: An agent's hold on a page ends with its job.** `use_page {page: null}` lets go; a snap_mcp.py connection
+  that bound a page lets go when it closes; a hold whose agent made no call for 10 minutes lapses by itself and its agent
+  hears so on its next call. The page's "Driven by" chip counts the idle minutes, `list_pages` gives `driver_idle_s`, and
+  an unnamed call on a driven page is refused saying it carries no agent name. *Why:* the blind critic finished and left
+  the agents' window "Driven by: critic-v10" until the coordinator released it (F-E24, F-E23). *More:* SNAP-R30, SNAP-R83.
+- **SNAP-R136: A critique row holds while the picture it read holds, and the sheet shows every note at once.** Only a
+  record's newest version gets rows; a row of an older version still holds while its part (master, plan, map, a plate's
+  file and pose, a Cast's pictures) is unchanged, and the Location sheet shows it "read on vN"; an unwritten row whose
+  part changed is `stale` (off the docket and the Work card) and says "vN → vM: its <part> changed"; a location or Cast
+  saved before the critic started gets one row set for its newest version. The sheet's "Show masks" (and `open_view
+  location {masks: true}`) draws every holding note on its picture at once as a numbered box, with no words over the
+  picture, and lists the notes by number with their owner and fix; the picture viewer draws a location picture's masks.
+  A packet carries what the sheet shows: stills as PNG (the label says the format), the plan with its marks drawn beside
+  the bare plan, the camera map, each plate's camera mark and eye gap, and the record's notes flagged as claims to check.
+  *Why:* the two blind village critics (F-E01..F-E22): 17 stale rows counted due, masks one row at a time with labels
+  cut mid-word, a critic checking poses from numbers. *More:* SNAP-R101..R103, SNAP-R110.
+- **SNAP-R137: A prompt cites a picture as plain `<Picture n>`.** No card, builder, tool, skill or doc writes a name or
+  role inside the tag; who or what a picture is goes outside it ("<Picture 2> is Maren"). `set_setting` on a prompt
+  answers `cites` when a tag holds anything but its number. *Why:* the operator, 2026-11-06 ("prompt placeholders are
+  plain <Picture n>"); G2_OPTIONS UI-14 option C (the graph stays the truth). *More:* SNAP-R118.
+- **SNAP-R138: A prompt the pack sends to an image model holds no words it would draw.** Capital headings, `[TAG]` lines
+  and "visible text" blocks in a sheet prompt are drawn onto the sheet as garbled labels; the pack's prompts are prose,
+  and a method that must not draw text says so in prose. *Why:* the Krea 2 DynamicCharacterSheet card drew labels on 4/4
+  sheets with the author's headings and on 0/4 with prose, same layout and identity (F-E25, scout
+  krea_pitch_sheet_2026-11-06). *More:* tests/snap/test_g3_cards.py.

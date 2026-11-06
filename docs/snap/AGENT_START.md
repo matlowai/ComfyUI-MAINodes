@@ -311,9 +311,23 @@ cameras → master → a people-free walkthrough → plates from its frames), th
   master and map become the location's master and plan; the Cast stays, and its takes stop showing "its description
   wasn't in the prompt". `remove_from_world {"ref": "cast:<id>"}` takes any record out of the open recipe (its
   pictures, its line in the prompt, its pin; the record stays), as the x on its chip does.
-- `open_view {"view": "location", "location": "location:<id>"}` opens the Location sheet for the person: the master,
-  the plan with every camera mark and plate drawn as a dot and a wedge, and the plate tiles; every picture opens full
-  size. The person ticks plates there and presses "Use in this shot".
+- `open_view {"view": "location", "location": "location:<id>"}` opens the Location sheet for the person (switching
+  their page to Snap if it shows the graph): the master, the plan with every camera mark and plate drawn as a dot and a
+  wedge, the camera map, and the plate tiles; every picture opens full size. The person ticks plates there and presses
+  "Use in this shot". `"masks": true` shows the critic's masks on every picture at once, numbered as in the sheet's list
+  of notes (owner and fix beside each); `open_view {"view": "picture", "location", "plate": "master"}` shows one picture
+  with its masks (SNAP-R136).
+- **Build a place from a list, one version:** `add_plate {"location", "plates": [{...}, {...}], "version_note": "what
+  changed"}`. One version per plate floods the critic's docket with rows that go stale at once (F-E14). The answer gives
+  each plate's `size`, `sha256` and the take and frame it came from: compare them with the picture you meant (F-E12).
+  `save_location` takes `map {file}`: the camera map (the walks' wedges over the plan), its own picture beside the bare
+  plan, shown to people and critics and never put into a render (F-E11).
+- **Eye gaps are typed numbers.** `eye_gaps` compares a plate's typed pose with its camera mark (or, with no mark, the
+  height every mark shares). It doesn't measure the picture: look at the horizon against the doors before you trust a
+  pose, and fix whichever number is wrong (F-E18).
+- **Find a take anywhere:** `find_take {"file": "output/…"}` (an `input/` picture a location or Cast keeps finds the
+  take its frame came from), `{"seed": n}` or `{"id": "<start of an id>"}`. Every tool that takes a take id takes a unique
+  start of one (the 8 characters notes quote).
 
 ### Re-run with swaps (the same shot with another character, set or version)
 
@@ -440,7 +454,10 @@ it with the `snap-critic` skill: `list_critiques {"state": "due"}` (add `"compac
 says), then `write_critique {"critique", "verdict": "clean" | "flaws", "passes": {...}, "notes": [{"severity",
 "pass", "text", "picture", "region": [x, y, w, h], "owner", "fix"}]}`. The notes land on the take with masks; nothing
 is blocked by them. `critique {"location": "location:<id>", "part": "views"}` asks for one (every view of a place side
-by side); `critic_report` says how the critic agreed with the person. After a fix at the source (a new master or plate
+by side); `critic_report` says how the critic agreed with the person. Only a record's newest version
+gets rows; a row of an older version holds while the picture it read is unchanged, and an unwritten row whose picture
+changed is `stale` (off the due list; `list_critiques {"state": "stale"}`). The packet's record notes are claims to
+check, never evidence. When your run ends, `use_page {"page": null}` (SNAP-R135). After a fix at the source (a new master or plate
 version), `rerun_dependents {"ref": "location:<id>"}` re-makes what used the old one, plates before boards before
 cuts, as candidates; it stops before video unless `"through": "cuts"`. The fixtures that measure the critic:
 `tests/snap/critic/README.md` in the pack.
@@ -452,7 +469,8 @@ cuts, as candidates; it stops before video unless `"through": "cuts"`. The fixtu
   the shot as it is.
 - **References:** `add_ref` (a role for a picture already there renames it), `remove_ref`, `move_ref {picture, to}`.
   Moving or removing a picture keeps the prompt's `<Picture n>` on the picture they meant. A cite of a picture taken out
-  becomes `<Picture ?>` (`orphaned` says so): rewrite it. `describe_recipe.references[].named` says whether the prompt
+  becomes `<Picture ?>` (`orphaned` says so): rewrite it. A cite is the number only: say who or what it is outside the
+  tag, "<Picture 2> is Maren" (SNAP-R137; `set_setting` answers `cites` when a tag holds more). `describe_recipe.references[].named` says whether the prompt
   cites each picture. "Missing" means the file is gone (subfolder files count as there).
 - **Where a picture goes:** `use_take {as: "cast", cast, role}` makes a frame a Cast's next picture (a new version);
   `{as: "plate", location, name}` makes it a location's plate.
