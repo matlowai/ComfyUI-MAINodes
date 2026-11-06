@@ -7,7 +7,7 @@ description: >
   setups, takes, scenes and shots, Cast and world versions, locations and plates, candidates, the Work card, the Book,
   pages and the agents' window, and the instruction stack (pack, install, person, Book, scene, shot, take).
 scope: [global]
-rules: [SNAP-R1, SNAP-R2, SNAP-R9, SNAP-R11, SNAP-R14, SNAP-R16, SNAP-R17, SNAP-R19, SNAP-R23, SNAP-R24, SNAP-R25, SNAP-R28, SNAP-R30, SNAP-R58, SNAP-R59, SNAP-R60, SNAP-R61, SNAP-R63, SNAP-R65, SNAP-R67, SNAP-R70, SNAP-R73, SNAP-R83, SNAP-R84, SNAP-R90]
+rules: [SNAP-R1, SNAP-R2, SNAP-R9, SNAP-R11, SNAP-R14, SNAP-R16, SNAP-R17, SNAP-R19, SNAP-R23, SNAP-R24, SNAP-R25, SNAP-R28, SNAP-R30, SNAP-R58, SNAP-R59, SNAP-R60, SNAP-R61, SNAP-R63, SNAP-R65, SNAP-R67, SNAP-R68, SNAP-R73, SNAP-R83, SNAP-R84, SNAP-R90]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-core"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -16,7 +16,7 @@ If a Snap server is reachable, `read_skill {"name": "snap-core"}` returns the pe
 
 How to call each tool is in `docs/snap/AGENT_START.md` (start there for setup, pages and the call shape). This skill is
 the map; the task skills (`snap-location`, `snap-turnaround`, `snap-new-view`, `snap-reference-upscale`,
-`snap-boards`, `snap-voice`, `snap-critic`, `snap-model-choice`) say how to do each job well. Rules are
+`snap-boards`, `snap-voice`, `snap-critic`, `snap-model-choice`, `snap-book`) say how to do each job well. Rules are
 `docs/snap/SNAP_RULES.md` (SNAP-Rn).
 
 ## The layers
@@ -26,8 +26,9 @@ the map; the task skills (`snap-location`, `snap-turnaround`, `snap-new-view`, `
 - **Snap.** Bricks over that graph: a recipe is a chain of bricks; a **setup** owns the whole model set (SNAP-R9);
   **method slots** (upscale, turbo, extend, edit, view, sheet) are chips over interchangeable methods from the
   registry (SNAP-R14).
-- **The Book** (planned, layer 3; rule IDs R67-R70 reserved): story → beats → boards → scenes → the Cut, on the same
-  tool table and record store.
+- **The Book** (layer 3, SNAP-R67-R69, R130-R133; skill `snap-book`): a production's story as beats on the story
+  clock, its production style, settei per state, cuts compiled at their beat, boards, the animatic and the Cut, on the
+  same tool table and record store. Story, style and the dial are the person's: your edits to them are proposals.
 - **One tool table** drives all of it: Snap's own UI, WebMCP in the page, and MCP / snapcall from outside call the
   same functions (SNAP-R19, R30).
 
@@ -41,6 +42,7 @@ the map; the task skills (`snap-location`, `snap-turnaround`, `snap-new-view`, `
 | **location** | plan, master, camera map, named plates with camera pose (SNAP-R84) | shots cite plates; plates come from takes' frames |
 | **decision** | N candidates of one "make N, keep one" step, each with provenance and notes (SNAP-R23) | `apply_candidate` makes one a shot's take; agents' picks wait as proposals unless agents may run (SNAP-R16) |
 | **job** | every asynchronous run, edit, check, proposal (SNAP-R65) | the Work card (`list_activity`, `wait_for`); its take's card; its shot |
+| **book → story, look** | a production: the story's beats with state changes (story and telling order), the production style, the dial per stage (SNAP-R67, R130) | its scenes' shots are its cuts (`shot.unit`); takes of a cut carry `story` {ref, beat, from} beside `world` (SNAP-R68) |
 
 Every save of a world record is a new version, kept forever; a take re-runs as it was, with today's world, or with
 swaps (SNAP-R60, R61, R63). A fix to an upstream record re-runs what pinned it (SNAP-R90, `snap-critic`).
