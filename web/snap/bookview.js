@@ -79,10 +79,11 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
   function beatSheet(b) {
     const st = B.storyOf(b.body), story = st.body, castRefs = b.body.cast ?? [], byTold = [...story.beats].sort((x, y) => x.told - y.told);
     const save = (next, note) => act(async () => { const out = await B.saveStory(st.id, next, { note }); return out.made ? `Story v${out.n}: ${note}` : null; });
-    const groupBands = h("div", { className: "snap-book-bands", style: `grid-template-columns: repeat(${Math.max(1, byTold.length)}, minmax(150px, 1fr))` }, ...story.groups.map((g) => { const idx = g.beats.map((id) => byTold.findIndex((x) => x.id === id)).filter((i) => i >= 0); if (!idx.length) return null;
-      return h("div", { className: `snap-book-band kind-${g.kind}`, style: `grid-column: ${Math.min(...idx) + 1} / ${Math.max(...idx) + 2}`, title: g.place ?? "", textContent: `${g.kind}: ${g.name || g.id}` }); }));
+    const cols = `grid-template-columns: 120px repeat(${Math.max(1, byTold.length)}, minmax(150px, 1fr))`; // the lanes' name column, then one column per beat
+    const groupBands = h("div", { className: "snap-book-bands", style: cols }, ...story.groups.map((g) => { const idx = g.beats.map((id) => byTold.findIndex((x) => x.id === id)).filter((i) => i >= 0); if (!idx.length) return null;
+      return h("div", { className: `snap-book-band kind-${g.kind}`, style: `grid-column: ${Math.min(...idx) + 2} / ${Math.max(...idx) + 3}`, title: g.place ?? "", textContent: `${g.kind}: ${g.name || g.id}` }); }));
     const moved = B.outOfOrder(story);
-    const cards = h("div", { className: "snap-book-spine", style: `grid-template-columns: repeat(${Math.max(1, byTold.length)}, minmax(150px, 1fr))` }, ...byTold.map((x) => h("button", { className: `snap-book-beat${picked === x.id ? " on" : ""}`, onclick: () => { picked = x.id; draw(); } },
+    const cards = h("div", { className: "snap-book-spine", style: cols }, h("div", { className: "snap-quiet snap-book-lane-name", textContent: "beats" }), ...byTold.map((x) => h("button", { className: `snap-book-beat${picked === x.id ? " on" : ""}`, onclick: () => { picked = x.id; draw(); } },
       h("div", { className: "snap-book-beat-id" }, h("strong", { textContent: x.id }), moved.has(x.id) ? h("span", { className: "snap-al-chip", title: "told out of story order (a flashback or a cold open): compile folds by story order", textContent: `happens #${x.order}` }) : null, x.intensity ? h("span", { className: "snap-al-chip", textContent: x.intensity }) : null),
       h("div", { className: "snap-book-beat-text", textContent: x.text || "(no text yet)" }),
       h("div", { className: "snap-book-beat-marks" }, x.changes.length ? h("span", { className: "snap-al-chip choice", textContent: `${x.changes.length} change${x.changes.length === 1 ? "" : "s"}` }) : null,
@@ -92,8 +93,11 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
     const flags = [...plants.filter((p) => !paid.has(p.id) && p.window && story.beats.length - p.at.order >= p.window).map((p) => `"${p.what}" was planted at ${p.at.id} and nothing pays it off within ${p.window} beats`),
       ...story.beats.flatMap((x) => x.pays_off.filter((id) => !plants.some((p) => p.id === id)).map((id) => `${x.id} pays off ${id}, which nothing plants`))];
     const lanes = h("div", { className: "snap-book-lanes" }, ...castRefs.map((ref) => { const name = W.get(ref)?.version.body.name ?? ref;
-      return h("div", { className: "snap-book-lane", style: `grid-template-columns: 120px repeat(${Math.max(1, byTold.length)}, minmax(150px, 1fr))` }, h("div", { className: "snap-book-lane-name", textContent: name }),
-        ...byTold.map((x) => { const cs = x.changes.filter((c) => c.entity === ref); return h("div", { className: `snap-book-lane-cell${cs.length ? " mark" : ""}`, title: cs.map((c) => `${c.path} ${c.op} ${shown(c.value)}${c.why ? ` (${c.why})` : ""}`).join("\n") }, cs.map((c) => h("span", { textContent: `${c.path} → ${shown(c.value)}` }))); })); }));
+      return h("div", { className: "snap-book-lane", style: cols }, h("div", { className: "snap-book-lane-name", textContent: name }),
+        ...byTold.map((x) => { const cs = x.changes.filter((c) => c.entity === ref);
+          // the state this beat puts the character in, when it has settei: its picture in the lane (a gap shows as words)
+          const st = cs.length ? B.stateFor(W.get(ref)?.version.body, B.stateAt(story, ref, x.id)) : null, thumb = st && cs.some((c) => c.path in (st.covers ?? {})) ? st.pictures?.[0] : null;
+          return h("div", { className: `snap-book-lane-cell${cs.length ? " mark" : ""}`, title: cs.map((c) => `${c.path} ${c.op} ${shown(c.value)}${c.why ? ` (${c.why})` : ""}`).join("\n") }, cs.map((c) => h("span", { textContent: `${c.path} → ${shown(c.value)}` })), thumb ? pic(thumb.file, `${name}, ${st.name}`, `state ${st.name}`, `book-lane-${ref}`, "snap-book-lane-thumb") : null); })); }));
     const sel = story.beats.find((x) => x.id === picked);
     const detail = sel ? beatDetail(b, st, sel, save) : h("div", { className: "snap-quiet", textContent: story.beats.length ? "Pick a beat to edit its text, changes, lines, plants and payoffs." : "No beats yet." });
     const add = h("button", { className: "snap-link snap-quiet-btn", textContent: "+ Beat", onclick: act(async () => { const out = B.withBeat(story, { text: "", after: picked ?? undefined }); const saved = await B.saveStory(st.id, out.story, { note: `beat ${out.beat} added` }); picked = out.beat; return `Story v${saved.n}: ${out.beat} added`; }) });
@@ -277,6 +281,7 @@ export const BOOK_STYLE = `
 .snap-book-lane-name { font-size: 12px; font-weight: 600; align-self: center; }
 .snap-book-lane-cell { min-height: 22px; border-top: 2px solid var(--s-line); font-size: 11px; color: var(--s-dim); display: flex; flex-direction: column; gap: 2px; padding-top: 3px; }
 .snap-book-lane-cell.mark { border-top-color: #f08fb8; color: var(--s-fg); }
+.snap-book-lane-thumb { width: 64px; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 4px; cursor: zoom-in; }
 .snap-book-flags { font-size: 12px; color: #f0b445; display: flex; flex-direction: column; gap: 2px; }
 .snap-book-detail { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 10px; border: 1px solid var(--s-line); }
 .snap-book-grid2 { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 12px; }

@@ -322,7 +322,7 @@ export function outOfOrder(story) {
   return new Set(seq.filter((b) => !keep.has(b.id)).map((b) => b.id));
 }
 // the Cast state whose `covers` the folded fields match ({wardrobe: "oilskin"}), most fields matched first
-function stateFor(cast, fields) {
+export function stateFor(cast, fields) {
   const states = cast?.states ?? [];
   return states.map((s) => ({ s, hit: Object.entries(s.covers ?? {}).every(([p, v]) => String(fields[p]?.value ?? "") === String(v)) ? Object.keys(s.covers ?? {}).length : -1 })).filter((x) => x.hit > 0).sort((a, b) => b.hit - a.hit)[0]?.s ?? null;
 }
