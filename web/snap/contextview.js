@@ -82,7 +82,7 @@ export function contextPanel(t, { say, frame, region }) {
     purpose.replaceChildren(...Object.entries(ED.purposes()).map(([k, x]) => h("option", { value: k, textContent: x.label })));
     purpose.onchange = () => { purposeTouched = true; modelTouched = false; paint(); picked(); };
     model.onchange = () => { modelTouched = true; picked(); paint(); }; paint(); picked();
-    cast.replaceChildren(h("option", { value: "", textContent: "＋ a Cast's picture…" }), ...W.all("cast").flatMap((r) => { const b = W.headOf(r).body; return b.refs.map((x, i) => h("option", { value: `cast:${r.id}#${i}`, textContent: `${b.name}, ${x.role}` })); }));
+    cast.replaceChildren(h("option", { value: "", textContent: "＋ a Cast's picture…" }), ...W.all("cast").flatMap((r) => { const b = W.headOf(r).body; return (b.refs ?? []).map((x, i) => h("option", { value: `cast:${r.id}#${i}`, textContent: `${b.name}, ${x.role}` })); }));
   }, (err) => { note.textContent = `New view unavailable: ${err.message}`; });
   const redraw = () => { if (rows.isConnected) paint(); };
   listeners.add(redraw);

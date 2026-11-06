@@ -1346,7 +1346,7 @@ export const TOOLS = [
         await W.load(); const got = W.get(cast);
         if (!got) throw new Error(`No Cast ${cast} (list_cast lists them)`);
         const b = got.version.body;
-        items = b.refs.map((r) => ({ src: at(r.file, "input"), name: `${b.name}, ${r.role}`, source: `Cast ${cast} v${got.version.n}, input/${r.file}` }));
+        items = (b.refs ?? []).map((r) => ({ src: at(r.file, "input"), name: `${b.name}, ${r.role}`, source: `Cast ${cast} v${got.version.n}, input/${r.file}` }));
         if (!items.length) throw new Error(`${b.name} has no pictures`);
         start = ref;
       } else if (decision) {
