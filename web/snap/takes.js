@@ -18,7 +18,9 @@
 // A take is rated as what made it (SNAP-R39): the rating the server gave its prompt (its text and the files it loads), raised
 // to the rating of any take it came from (a version, an edit, a run from a take's frame); the person's own rating wins.
 // SNAP-R27 locks follow the current rules · SNAP-R36 quiet sound is a note · SNAP-R39 ratings from how a thing was made ·
-// SNAP-R54 takes above the account's cap are left out · SNAP-R60 a take keeps the world pins it ran with (`world`) and its
+// A private take on an install with privacy on is kept encrypted (U79): the server reads its record to the page as is,
+// or as a stub (kept_encrypted, locked; no prompt, graph or notes) while the vault is locked; reopen() reads them again after an unlock.
+// SNAP-R96 kept encrypted · SNAP-R54 takes above the account's cap are left out · SNAP-R60 a take keeps the world pins it ran with (`world`) and its
 // stale flag names the records that moved on · SNAP-R65 a paint or check (takes: false) is no take; catchUp writes the takes of runs that finished during a reload · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
@@ -30,6 +32,7 @@ import * as W from "./world.js";
 // U78: an ambience-only H3 soundscape renders about -57 dB mean, one naming the action's sounds -27..-41 dB
 export const QUIET_DB = -45;
 export const quiet = (t) => t.sound?.mean_db != null && t.sound.mean_db < QUIET_DB;
+const LOCKED = "This take is kept encrypted and the vault is locked: the person signs in (or unlocks it from the take's lock) first";
 const DIR = "snap/takes", RANKS = "snap/rankings", JUDGED = "snap/judgments", FPS = 24;
 
 // what people tag a moment with; free text always goes alongside
@@ -84,6 +87,16 @@ export async function reload() {
     moved = true;
   }
   if (moved) { takes.sort((a, b) => a.created - b.created); changed(); }
+}
+// the takes read as locked stubs, read again (after the vault is unlocked, or locked)
+export async function reopen() {
+  for (const t of takes.filter((x) => x.kept_encrypted)) {
+    const read = await readJson(`${DIR}/${t.id}.json`, null);
+    if (!read) continue;
+    for (const k of Object.keys(t)) if (!(k in read)) delete t[k];
+    Object.assign(t, read);
+  }
+  changed();
 }
 // private by its saved mark, by the rules now, or as a version of a private take (SNAP-R27): what the lock shows and the
 // export leaves out
@@ -455,6 +468,7 @@ export function measured(list, what) {
 export async function frames(take, { frames: want, count = 5, maxWidth = 768 } = {}) {
   const m = take.media.find((x) => x.kind === "video") ?? take.media.find((x) => x.kind === "image");
   if (!m) throw new Error("This take has no picture or video");
+  if (take.locked) throw new Error(LOCKED);
   const grab = (src, w, h) => { const k = Math.min(1, maxWidth / w), c = Object.assign(document.createElement("canvas"), { width: Math.round(w * k), height: Math.round(h * k) });
     c.getContext("2d").drawImage(src, 0, 0, c.width, c.height); return { mimeType: "image/jpeg", data: c.toDataURL("image/jpeg", 0.85).split(",")[1], width: c.width, height: c.height }; };
   if (m.kind === "image") { const img = new Image(); img.src = url(m); await img.decode(); return [{ frame: 0, t: 0, ...grab(img, img.naturalWidth, img.naturalHeight) }]; }
@@ -474,6 +488,7 @@ export async function frames(take, { frames: want, count = 5, maxWidth = 768 } =
 export async function frameAt(take, t = "last") {
   const m = take.media.find((x) => x.kind === "video") ?? take.media.find((x) => x.kind === "image");
   if (!m) throw new Error("This take has no picture or video");
+  if (take.locked) throw new Error(LOCKED);
   let at = 0;
   const blob = m.kind === "image" ? await (await fetch(url(m))).blob() : await new Promise((resolve, reject) => {
     const v = Object.assign(document.createElement("video"), { src: url(m), muted: true, preload: "auto" });
@@ -485,6 +500,7 @@ export async function frameAt(take, t = "last") {
   form.append("image", blob, `${take.id}_f${frame}.png`);
   form.append("subfolder", "snap");
   form.append("overwrite", "true");
+  if (take.kept_encrypted) form.append("snap_vault", "1"); // the frame of a take kept encrypted is kept encrypted too
   const r = await (await api.fetchApi("/upload/image", { method: "POST", body: form })).json();
   return { file: `${r.subfolder}/${r.name}`, frame };
 }

@@ -490,6 +490,13 @@ export const STYLE = `
 .snap-take-copy { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: #f0b445; color: #1b1c20; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .snap-take-copyline > div { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
 .snap-take-lock { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: hsl(15 70% 55% / .22); color: #f4a988; }
+.snap-take-lock[role=button] { cursor: pointer; }
+.snap-vault-sheet { inset: 18% 0 auto 0; margin: 0 auto; width: min(440px, calc(100% - 32px)); }
+.snap-vault-body .snap-primary { align-self: flex-start; }
+.snap-vault-body, .snap-vault-sheet > p { display: flex; flex-direction: column; gap: 10px; padding: 12px 16px 0; margin: 0; }
+.snap-vault-body input[type=password] { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--s-line); background: var(--s-bg); color: inherit; }
+.snap-vault-key { user-select: all; font-size: 15px; padding: 10px; border-radius: 8px; background: hsl(15 70% 55% / .12); white-space: pre-wrap; word-break: break-all; }
+.snap-vault-limits { padding-bottom: 14px !important; font-size: 11px; }
 .snap-take-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 16px; padding: 16px; }
 .snap-take-left { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
 .snap-take-stage { position: relative; flex: 1; min-height: 0; background: #000; border-radius: 12px; overflow: hidden; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); }

@@ -617,9 +617,9 @@ export const TOOLS = [
   },
   {
     name: "export_records",
-    description: "Write a zip of records (refs: kind:id) to output/snap_exports/: manifest.json (refs, versions and hashes, files), the record files, the input/ pictures they name, and with with_takes the takes that pin them with their output files. import_records brings it back here or on another install.",
-    inputSchema: { type: "object", properties: { refs: { type: "array", items: { type: "string" } }, with_takes: { type: "boolean" } }, required: ["refs"] },
-    run: async ({ refs, with_takes }) => W.exportRecords(refs, { with_takes }),
+    description: "Write a zip of records (refs: kind:id) to output/snap_exports/: manifest.json (refs, versions and hashes, files), the record files, the input/ pictures they name, and with with_takes the takes that pin them with their output files. A take kept encrypted (U79) goes in as its encrypted files (manifest kept_encrypted lists them; they open only where its owner's key is) unless decrypt_private is true and the vault is unlocked: only when the person asks to include them. import_records brings it back here or on another install.",
+    inputSchema: { type: "object", properties: { refs: { type: "array", items: { type: "string" } }, with_takes: { type: "boolean" }, decrypt_private: { type: "boolean" } }, required: ["refs"] },
+    run: async ({ refs, with_takes, decrypt_private }) => W.exportRecords(refs, { with_takes, decrypt_private }),
   },
   {
     name: "import_records",
@@ -690,7 +690,7 @@ export const TOOLS = [
       const now = await T.live();
       return Promise.all(T.inGroup().filter((t) => !T.aboveCap(t)).sort((a, b) => (order.includes(a.id) ? order.indexOf(a.id) : 1e9 + a.created) - (order.includes(b.id) ? order.indexOf(b.id) : 1e9 + b.created))
         .map(async (t) => ({ id: t.id, number: t.number, rank: order.includes(t.id) ? order.indexOf(t.id) + 1 : null, seed: t.seed, status: t.status, verdict: t.verdict, prior: t.prior, notes: t.notes.length, media: t.media.map((m) => `${m.type}/${m.subfolder ? `${m.subfolder}/` : ""}${m.filename}`), prompt: t.text,
-          stale: await T.stale(t, now), copy: t.copy ?? null, ...(t.cached_from ? { cached_from: t.cached_from } : {}), ...(t.sound ? { sound: { mean_db: t.sound.mean_db, quiet: T.quiet(t), quiet_below_db: T.QUIET_DB } } : {}), ...(t.metadata_kept ? { metadata_kept: t.metadata_kept } : {}), rating: T.ratingOf(t), ...(T.locked(t) ? { private: true } : {}) })));
+          stale: await T.stale(t, now), copy: t.copy ?? null, ...(t.cached_from ? { cached_from: t.cached_from } : {}), ...(t.sound ? { sound: { mean_db: t.sound.mean_db, quiet: T.quiet(t), quiet_below_db: T.QUIET_DB } } : {}), ...(t.metadata_kept ? { metadata_kept: t.metadata_kept } : {}), rating: T.ratingOf(t), ...(T.locked(t) ? { private: true } : {}), ...(t.kept_encrypted ? { kept_encrypted: true, ...(t.locked ? { locked: true } : {}) } : {}) })));
     },
   },
   {
@@ -705,7 +705,7 @@ export const TOOLS = [
       if (!t || T.aboveCap(t)) throw new Error(`No take ${take}`);
       const prev = T.inGroup(t.group).filter((x) => x.created < t.created).at(-1);
       return { id: t.id, number: t.number, seed: t.seed, status: t.status, error: t.error, verdict: t.verdict, prior: t.prior, seconds: t.seconds, prompt: t.text, notes: t.notes, media: t.media, copy: t.copy ?? null, rating: T.ratingOf(t), rating_why: t.rating_set ? ["rated by the person"] : t.rating_why ?? [], changed_since_previous: prev ? T.delta(prev, t) : [],
-        world: await worldOf(t.world), parent: t.parent ?? null };
+        world: await worldOf(t.world), parent: t.parent ?? null, ...(t.kept_encrypted ? { kept_encrypted: true, ...(t.locked ? { locked: true, said: "kept encrypted and the vault is locked: its prompt, notes and frames open once the person signs in" } : {}) } : {}) };
     },
   },
   {
