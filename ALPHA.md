@@ -169,6 +169,24 @@ on (operator's call for that graph); the table with the numbers and what is
 still owed is in LOWVRAM.md. The int8_convrot video VAE now in the example graph is also an
 approximation (60 dB PSNR against the fp16 decoder on the same latent).
 
+**Current cores (issues #4 and #5, fixed 2026-11-06).** ComfyUI #15908 added
+`sigma` / `sample_sigmas` / `shifts` to `FinalLayer.forward`, which broke every
+Streamed Blocks render with `'Tensor' object has no attribute 'adaln_proj'` (#4);
+ComfyUI #15375 made a modulation row a per-token tensor under any non-uniform
+noise mask, which broke every masked render at step 0 (#5). Both are fixed:
+the final-layer patch takes core's new arguments, and a PDD head bank
+(more than one output head) falls back to core's own final layer. Rechecked
+2026-11-06 on ComfyUI 0.43 (one machine, seeds fixed in the graphs): a Temporal
+Insert render and an audio-ramp render through Streamed Blocks match stock
+bit for bit, with `q_chunk` at or above the token count. The PDD fallback has
+unit-level proof only (no core-form PDD checkpoint was available to render).
+
+**Known issue ([#10](https://github.com/matlowai/ComfyUI-MAINodes/issues/10)):** on current cores `trim_forward` is skipped with a warning
+(`installed _forward source hash ... != ...`): its copy of core's `_forward`
+predates the core in use. The node falls back to core's `_forward`, so output
+is unchanged; only that part of the VRAM saving is lost until the copy is
+refreshed.
+
 
 ## Time burst (examples/experimental/time_burst_api.json)
 
@@ -302,3 +320,74 @@ solo per row. The dial math is the released ComfyUI-Dials math (motion and villa
 the rack. CPU test `tests/test_dial_rack.py` proves rack = chain bit for bit and the off/zero/solo/all-off semantics on
 ComfyUI's own ModelPatcher; the UI was driven headless (rows, solo, a wired Make Dial). Owed: a same-seed H3 render of
 one rack vs the single-dial chain, and a human pass on the rack UI in both front ends. See `dials/README.md`.
+
+## Attention measure (experimental)
+
+`h3_measure.py`, node `H3 Attention Measure`. From the hold map a retime
+used, it adds `strength * log(1 / duplication)` to the pre-softmax logit of
+every target video key, so a temporal cell split into n near-identical
+children stops collecting n times the softmax mass it represents.
+
+Hypothesis under test, nothing measured yet: the uniform case is a no-op by
+construction (`tests/test_attention_measure.py`), and whether the correction
+changes a real render is exactly the open question.
+
+## Core compatibility (H3 Core Compatibility, H3 Mask Conversion)
+
+`h3_core_compat.py` and `h3_mask_conv.py`, nodes `H3 Core Compatibility
+(alpha)` and `H3 Mask Conversion (alpha)`, both MODEL -> MODEL. Since ComfyUI
+#15375 a masked H3 row is labelled at `m * sigma` inside the network, but the
+velocity it returns is converted to x0 at the full sigma. Every fractional
+mask value lands off target (endpoints 0 and 1 are unaffected). ComfyUI PR
+#15988 fixes it in core (merged upstream 2026-09-09); on cores without it, these
+nodes install the same correction as a keyed `DIFFUSION_MODEL` wrapper at the PR's
+insertion point. On a current core `auto` reads `native` and installs nothing.
+
+`H3 Core Compatibility` is the one to wire: `auto` installs the correction
+only when `H3 Capability Probe` reads the running core as `compat_needed`, and
+does nothing on a core that already carries #15988, on a core older than
+#15375, or on any core whose `forward` cannot be attributed (a second scaling
+would give mask^2 * v, worse than the bug). `H3 Streamed Blocks` calls the same
+helper, so low-VRAM graphs need no rewiring, and applying both is safe.
+`H3 Mask Conversion` is the instrument form: `off` / `on` / `scope`
+(video, audio, both) for A/Bs on one warm process.
+
+Measured 2026-09-04 on one machine: bit-exact against a core with #15988
+applied, on tensors, on real weights, and on same-seed renders (identical
+audio and video, with a mode-off control that differs in every frame).
+Alpha because the capability probe reads core source, and a core that
+rewrites `MiniMaxH3Model.forward` in a way the probe has not seen turns the
+node off with a warning rather than guessing.
+
+## Guide anchor (H3 Guide Anchor, pin / float)
+
+`h3_guide_anchor.py`, node `H3 Guide Anchor (pin / float)`. Since ComfyUI
+#15439 a guide's `frame_idx` is measured from the target's origin, so it names
+the same frame whatever references are attached (`pin`). `float` restores the
+older placement, where each reference slid every guide earlier by its own
+span: still a useful look on a strong plate, and what a render from that era
+must be reproduced against. No patch is installed; `float` shifts the index by
+exactly the reference span. The node asks `H3 Capability Probe` which
+placement the running core uses and refuses on a core it cannot classify,
+because a wrong guess silently moves every guide the wrong way.
+
+CPU tests only (`tests/test_h3_guide_anchor.py`); no render has used it yet.
+
+## Per-kind conditioning strength (H3 Cond Strength)
+
+`h3_cond_strength.py`, node `H3 Cond Strength (per kind)`. Core noises every
+visual condition row with one strength and every audio row with another, so
+"hold the opening frame exactly, treat the plate loosely" was not expressible.
+This node sets a strength per kind (guide video, guide audio, reference image,
+reference video, reference audio) and per source. It calls core's own row
+builder once per latent, so a uniform setting is bit-identical to stock
+(`torch.equal` on both streams at 1.0 / 0.999 / 0.8 / 0.25 / 0.0). A row
+count that does not add up is refused rather than given the wrong strength.
+
+Limit: core labels a stream's guide and reference rows with one timestep, so
+when kinds get different strengths the label matches only one of them
+(`label_follows` says which). The mismatch is bounded by the gap between the
+strengths and shrinks late in sampling. `tools/label_ab/` is the experiment
+meant to decide whether it matters; it has not been run.
+
+CPU tests only (`tests/test_h3_cond_strength.py`); no render has used it yet.
