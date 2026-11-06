@@ -329,18 +329,18 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
 - **SNAP-R30: The agent front door works for a moderate agent on its first try.** Everything an agent needs is in the
   tool table, its errors or the pack's `docs/AGENT_START.md`, never only in code. Pages are keyed by the ComfyUI user
   (the comfy-user header snap-gate sets per account): a call goes to a connected page of the caller's own user, and only
-  that page may answer it: the newest tab whose person turned "Let agents see" on (that control is how a person lets
-  agents drive their tab, Dylan 2026-11-05), else an agent's own headless page; a person's tab with it off is never
-  driven. An agent picks its page: `list_pages` names each one (whose, the id's start, the tab or shot it shows) and
+  that page may answer it: the newest tab that sees, the agents' window or a tab whose person turned "Let agents see" on
+  (that control is how a person lets agents drive their tab, Dylan 2026-11-05); a person's tab with it off is never
+  driven, and while one is open a call never goes to another page instead (SNAP-R83). An agent picks its page: `list_pages` names each one (whose, the id's start, the tab or shot it shows) and
   `use_page` binds the agent (named by `X-Snap-Agent`: SNAP_AGENT for snapcall.py, one name per snap_mcp.py connection)
   to one page for its session; one agent drives a page at a time, the page shows "Driven by: <agent>" with Release, and
   another agent reaching it is refused with the driver's name, never switched silently (Dylan 2026-11-05: "easily
   select which web ui instance you want to interact with and not collide"). `SNAP_PAGE` or the `X-Snap-Page` header
-  sends one call to a page; every answer names the page that answered (`page.id`, `page.name`). `snap_agent_page.sh`
-  never takes a person's tab for the agent's own page. `GET /mainodes/snap/tools` lists the caller's open pages, when each registered and
-  last answered; with none open, a call says it may have been locked or closed and how to open one (`tools/snap_agent_page.sh <port>`, which uses a new
-  Chrome profile per launch, returns once the page has registered, starts nothing when a page is already open, and
-  with `--stop` ends the pages it started, with no pid or kill from the caller). Every brick in `describe_recipe` has an `id`, exactly what
+  sends one call to a page; every answer names the page that answered (`page.id`, `page.name`). `GET /mainodes/snap/tools`
+  lists the caller's open pages, when each registered and last answered; with none open, a call says it may have been
+  locked or closed and how to open the agents' window (`tools/snap_agent_page.sh <port>`: it attaches to the one visible
+  agents' Chrome, opens it only when nothing answers, never headless, returns once its tab has registered; `status`,
+  `reload`, `restart` and `stop` need no pid or kill from the caller; SNAP-R83). Every brick in `describe_recipe` has an `id`, exactly what
   `set_setting`'s `brick` takes, next to its title and kit (U72 F19). `start_recipe` takes an onboarding
   kit's `intent` (stills opens MOSS-Image), and `set_profile {done: true}` answers every question (U72 run 3, F12-F14).
   `snap_mcp.py` and `snapcall.py` take a base URL and send `SNAP_TOKEN` as a Bearer header. An agent's call with an
@@ -352,7 +352,7 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   `describe_recipe`, and a kit lists add-ons the recipe runs without under `optional`, apart from its files. Video
   lengths read as frames and seconds at the recipe's fps, and `set_setting` takes `"5s"`, rounds to the model's frame
   grid and says what it became. `describe_recipe` carries the model's `prompt_help` (H3's sections; name the sounds the
-  action makes). A headless page from `snap_agent_page.sh` screenshots itself through its own Chrome's DevTools port (no press). The embedder sidecar's port follows ComfyUI's
+  action makes). The agents' window screenshots itself through its Chrome's DevTools port (no press; SNAP-R83). The embedder sidecar's port follows ComfyUI's
   (port + 230; 8188 keeps 8418). *Why:* U72 run 1 (Sonnet at low effort): grepping JS for a setting id, a stale Chrome
   lock, a "ready" kit whose recipe wasn't, polling a run that never said done, guessing fps, `undefined has no seed`;
   Dylan: "once sonnet low is smooth I'll call it good". *More:* u72/FINDINGS.md F1-F10, PLAN U75, `snap_bridge.py`,
@@ -734,7 +734,9 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   clockwise from its up, eye height in metres, lens in mm) and the take and frame it came from (a take's frame is saved
   into input/ when it is added). `apply_location` puts the master, the plan and the plates named into References as
   `<Picture n>` (the answer cites each) and pins the version; a New view takes `{location, plate}` as a picture and
-  pins it too, so every still, board and take says which version of the place made it; `rerun` swaps a location like a
+  pins it too, so every still, board and take says which version of the place made it. A cut cites its own place's
+  plates, never the next place's as a reference: in the walk test a plate of where she would walk next made H3 hard-cut
+  to it in 3 takes of 8; `rerun` swaps a location like a
   Cast and `dependents` lists what each version of any record still feeds. The Location sheet shows the master, the plan
   with each camera mark and plate drawn as a dot and a wedge (where it stands, where it looks, how wide its lens sees)
   and the plate tiles; every picture opens full size (SNAP-R80). *Why:* Dylan 2026-11-05: "getting the topology of the
