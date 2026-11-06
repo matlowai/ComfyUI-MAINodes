@@ -58,15 +58,15 @@ Status: **ready** (can start), **blocked** (waits on another node), **running**,
 
 ### J track: the Jacobian lens (proposed 2026-11-06)
 
-Ideas, constraints and sources: [2026-11-06-jlens-ideas.md](2026-11-06-jlens-ideas.md). The blocker: H3's text encoder is
+Joint work with [fredbliss](https://github.com/fblissjr), who brought the Jacobian lens to H3. Ideas, constraints and sources: [2026-11-06-jlens-ideas.md](2026-11-06-jlens-ideas.md). The blocker: H3's text encoder is
 Qwen3-VL-32B cut after layer 50 of 64 (no final norm, no output head), so a lens needs the upstream tail. One seed and few
 arms per test until something is worth confirming.
 
 | id | question | method | cost | gate | depends on | status |
 |---|---|---|---|---|---|---|
-| J0 | ~~Ask the collaborator how they did it~~ | – | – | – | – | **dropped** (Dylan, 2026-11-06): we reimplement our own way and compare afterwards |
+| J0 | ~~Ask fredbliss how he did it~~ | – | – | – | – | **dropped** (Dylan, 2026-11-06): we reimplement our own way and compare notes with fredbliss, whose project this is a joint part of |
 | J1 | Are H3's 50 encoder layers upstream Qwen3-VL-32B's? | download upstream shards 11-14 (~17 GB: layers 48-63, final norm, output head); hash layers 48-49, which both files hold | download + offline | identical → route A; different → route B/C only | – | **done**: [13/13 tensors bit-identical to upstream](experiments/J1-J3-word-dials.md); route A open |
-| J2 | Does a logit-lens keyword dial work (no Jacobian)? | output-head rows for a word list → layer-50 space → condition_proj + refiner; our own word lists (not the collaborator's), each vs a pair dial made for the same idea | offline + 4 renders (1 seed) | cosine to the pair dial ≥ 0.5 and a visible effect at matched push vs placebo | J1 | **rejected**: [logit-lens word dials act like the bland placebo](experiments/J1-J3-word-dials.md) |
+| J2 | Does a logit-lens keyword dial work (no Jacobian)? | output-head rows for a word list → layer-50 space → condition_proj + refiner; our own word lists (not fredbliss's), each vs a pair dial made for the same idea | offline + 4 renders (1 seed) | cosine to the pair dial ≥ 0.5 and a visible effect at matched push vs placebo | J1 | **rejected**: [logit-lens word dials act like the bland placebo](experiments/J1-J3-word-dials.md) |
 | J3 | True J-lens keyword dials | fit J_50 on the upstream tail (layers 50-63 in bf16, ~100 H3-style prompts), v = Σ J_50ᵀu_w | ~1 GPU-hour fit + 4 renders | beats J2 at matched push, or J2 already enough | J1 | **works (1 seed)**: [centered J-lens word dials: underwater adds water, thunder +21 dB vs placebo](experiments/J1-J3-word-dials.md); combos running |
 | J4 | What do our dials say? (verbalize) | map 10 shipped dials back to layer-50 space, read top words with J2's or J3's decoder; compare with measured wheel leaks | offline | words predict ≥ half of the measured leaks | J2 or J3 | ready (J3 lens) |
 | J5 | Do combos say new words? | read the 6 T4 pairs: a+b vs a, b | offline | new words rank the 3 emergent pairs above the 3 others | J4 | blocked |
@@ -131,3 +131,5 @@ release, or more budget waits for a decision.
 - **2026-11-06** J8 round 1: place words change the setting (stained glass → glass-roofed hall; origami → a Japanese
   station); look words (bioluminescent, rust, static) barely act; thunder survives a combo with underwater (+6 dB), underwater
   does not at 1.5. Next for J3: center against a large neutral vocabulary; second seed for underwater and thunder.
+- **2026-11-06** Credit made explicit: the J track is joint work with fredbliss (he brought the Jacobian lens to H3 and made
+  the first keyword dials); our J2/J3 are an independent reimplementation.

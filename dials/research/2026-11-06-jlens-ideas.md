@@ -6,10 +6,10 @@ the first experiments from it.
 
 ## Why now
 
-A collaborator reports keyword dials that work on the same H3 prompt and scene: instead of ~10 prompt pairs, a short word
+We are working on this together with [fredbliss](https://github.com/fblissjr). He reported keyword dials that work on the same H3 prompt and scene: instead of ~10 prompt pairs, a short word
 list (a medieval list, a blizzard list) turned into a direction with a Jacobian lens and
 added by a hook at render time. If that holds up, making a dial drops from writing careful pairs to listing a few words.
-fredbliss had earlier reported running the lens on an H3 prompt bank (it found the 15k-norm first token that T1 checked).
+He had earlier reported running the lens on an H3 prompt bank (it found the 15k-norm first token that T1 checked).
 
 ## What the lens is (source-confirmed)
 
@@ -81,7 +81,7 @@ So a standard lens cannot be fitted or read on H3's copy alone. The ways around 
 - **Whitened J:** whiten with the activation covariance so word dials avoid dominant nuisance directions (ties to T7).
 - **Refiner and DiT targets:** the J of the refiner output, of the DiT x0, of the audio latent: lenses in H3's own spaces.
 
-## Questions for the collaborator
+## Questions to compare notes on with fredbliss
 
 1. Full upstream Qwen3-VL-32B (64 layers, output head) or H3's 50-layer copy with a substitute decoder? Did you check that
    layers 0-49 match upstream?
@@ -97,4 +97,4 @@ So a standard lens cannot be fitted or read on H3's copy alone. The ways around 
 ## Credits
 
 Brainstorm merged from two independent lists written for this page (one by Claude Opus, one by Claude Fable), checked
-against the jlens README, the paper and H3's weight files. The keyword-dial result is the collaborator's.
+against the jlens README, the paper and H3's weight files. The Jacobian lens on H3 and the first keyword dials are fredbliss's; our versions are an independent reimplementation so we can compare notes.

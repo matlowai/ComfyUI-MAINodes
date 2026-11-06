@@ -1,7 +1,7 @@
 # J1-J3: dials from a list of words, with no prompt pairs (2026-11-06)
 
 **Question.** Can a dial be made from a few words instead of ~10 prompt pairs, using the Jacobian lens
-([ideas page](../2026-11-06-jlens-ideas.md))? Our own reimplementation and our own words.
+([ideas page](../2026-11-06-jlens-ideas.md))? Part of joint work with [fredbliss](https://github.com/fblissjr), who brought the Jacobian lens to H3 and made the first keyword dials; this is our own reimplementation with our own words, so the two can be compared.
 
 ## J1: is H3's text encoder the upstream model? (measured)
 
