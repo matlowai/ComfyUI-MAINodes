@@ -66,6 +66,7 @@ function chipText(id) {
   if (st === "due") return { text: Date.now() - r.created > 300000 ? "critique due · no critic on duty" : "critique due", cls: "late" };
   if (st === "claimed") return { text: "critic reading…", cls: "" };
   if (st === "skipped") return { text: "critic skipped", cls: "" };
+  if (st === "stale") return { text: "critique not read · stale", cls: "", title: `stale: ${stale}` }; // SNAP-R136: never written, its subject moved on
   return { text: `critic: ${CR.countText(r)}${stale ? " · stale" : ""}`, cls: c.high ? "high" : r.verdict === "clean" ? "clean" : "", title: stale ? `stale: ${stale}` : r.notes.map((n) => `[${n.severity}] ${n.text ?? n.words}`).join("\n") };
 }
 export function paintChip(el) { const x = chipText(el.dataset.take); el.hidden = !x; if (x) { el.textContent = x.text; el.className = `snap-critic-chip ${x.cls}`; el.title = x.title ?? ""; } }
@@ -123,6 +124,7 @@ export function panel(t, { stage, fit, player, isVideo, say, host }) {
       : st === "due" ? [h("span", { className: Date.now() - r.created > 300000 ? "snap-critic-late" : "snap-quiet", textContent: Date.now() - r.created > 300000 ? "Critique due · no critic on duty" : "Critique due · waiting for a critic" }), h("button", { className: "snap-link", textContent: "Critique it yourself", title: "the packet a critic would read: every picture whole, then tiles, then the context", onclick: () => packetSheet(host, r, { say }) })]
       : st === "claimed" ? h("span", { className: "snap-quiet", textContent: `${r.claimed.by} is reading it…` })
       : st === "skipped" ? h("span", { className: "snap-quiet", textContent: `Skipped by ${r.skipped.by}: ${r.skipped.why}` })
+      : st === "stale" ? h("span", { className: "snap-quiet", textContent: "Not read before its subject moved on (off the docket)" })
       : [h("strong", { textContent: `Critic: ${CR.countText(r)}` }), h("span", { className: "snap-quiet", textContent: `${r.done.by.replace(/^agent:?/, "") || "an agent"} · ${r.checklist}` }), r.verdict_set?.verdict ? h("span", { className: "snap-quiet", textContent: "✓ kept by the critic (approval: critic)" }) : null];
     box.replaceChildren(...[h("div", { className: "snap-rail-title", textContent: "Critic" }), h("div", { className: "snap-critic-head" }, head), stale ? h("div", { className: "snap-critic-stale", textContent: `stale: ${stale}` }) : null,
       list.length ? h("ol", { className: "snap-critic-notes" }, list.map((n) => {
