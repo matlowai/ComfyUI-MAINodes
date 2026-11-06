@@ -392,7 +392,10 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
   if (style) from.style = `${style.ref}`;
   const budget = 9, dropped = pictures.slice(budget).map((p) => p.role);
   const description = [style?.body.paragraph, ...sentences.map((s) => s.text)].filter(Boolean).join(" ");
-  const subject = sentences.map((s) => s.text).join(" ");
+  // a still has no Cast brick to add each Cast's line (apply_unit's applyCast does it for video): the subject says who each
+  // one is, so a board doesn't draw a lantern spirit with a girl's body (U97 GPU board, C2)
+  const who = entities.filter((e) => e.ref.startsWith("cast:") && !e.missing).map((e) => { const line = L.castLine(W.get(e.ref)?.version.body ?? {}); return line ? `${e.name} is ${line}.` : null; }).filter(Boolean);
+  const subject = [...sentences.map((s) => s.text), ...who].join(" ");
   return {
     book: book.ref ?? `book:${book.id}`, scene: scene.id, shot: shot.id, cut: unit.cut ?? null, unit_kind: unit.kind ?? "cut",
     story: st ? { ref: st.ref, n: st.n } : null, at: at ? { beat: at.id, order: at.order, told: at.told, text: at.text, ...(at.intent ? { intent: at.intent } : {}), ...(at.intensity ? { intensity: at.intensity } : {}) } : null,
