@@ -838,4 +838,6 @@ export const STYLE = `
 .snap-picker-take img, .snap-picker-take video { width: 132px; height: 88px; object-fit: contain; background: #0005; border-radius: 8px; border: 1px solid #ffffff14; }
 .snap-picker-take button { font-size: 11px; white-space: normal; text-align: left; }
 .snap-loc-gap { color: #f0b445; font-size: 12px; line-height: 1.35; } /* F-D10 */
+.snap-shot-truth { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 6px 0 0; padding: 6px 10px; border-radius: 9px; background: #f0b44514; border: 1px solid #f0b44555; color: #f6cf86; font-size: 12.5px; } /* UI-09 */
+.snap-shot-truth[hidden] { display: none; }
 `;

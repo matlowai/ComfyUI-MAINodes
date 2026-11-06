@@ -1033,6 +1033,13 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   puts its `camera` picture first. *Why:* dogfood F-D02, F-D04, F-D05, F-D06, F-D08, F-D10 (short04): two decisions read
   the same, a night-rain dial rode into a dusk shrine shot unseen, an agent thought it had left its scene, the walkthrough's
   camera plate came third, a caption's structure broke, a 0.6 m low walk passed unflagged. *More:* proto/test_g2_fd.js.
+- **SNAP-R122: A shot says when its recipe no longer makes its ★ take, and looking never writes.** When the open shot's
+  chain (seeds aside, as the stale chips read it) differs from its active take's, a line over the chain names what
+  differs, with "Load ★ take's recipe" (one undo step) and "Keep editing"; open_shot and run answer
+  `recipe_matches_active` and `recipe_differs`. Moving between shots saves the open one only when its graph differs from
+  its file (compared without node sizes, sockets by name), so browsing a scene, someone else's too, writes nothing.
+  *Why:* UX walkthrough UI-09 / B3 / B10 and dogfood F-A19, F-A30: C04's recipe was another cut's while its ★ take was
+  Granny, and every shot switch rewrote the shot and scene files. *More:* proto/test_g2_truth.js.
 
 ## Accounts and the gate (snap-gate)
 

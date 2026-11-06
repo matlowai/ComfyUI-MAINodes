@@ -13,7 +13,7 @@
 // Plain data with stable ids, so a sequence editor can sit on it later: shots in order now, lanes and in/out on shots
 // and takes later (scout/editor_layer §5.6-5.7).
 // SNAP-R5 open work is never lost · SNAP-R60 authored fields versioned · SNAP-R17 by · SNAP-R18 local only · SNAP-R19 the tools call these · SNAP-R24 scenes
-// own the work, tabs are scratch · SNAP-R120 a new shot keeps the setup, not the content · see docs/snap/SNAP_RULES.md
+// own the work, tabs are scratch · SNAP-R120 a new shot keeps the setup, not the content · SNAP-R122 browsing never writes · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -144,6 +144,12 @@ export async function saveOpen() {
   const here = current();
   if (!here) return null;
   const graph = app.graph.serialize(), file = here.shot.workflow ?? workflowFile(here.scene.id, here.shot.id);
+  // UI-09 (B3, SNAP-R122): browsing never writes: a shot whose graph is its file's (nodes sized aside) and whose graph id
+  // the scene lists is not written again, so opening another person's scene leaves its files as they were
+  if (here.shot.workflow && here.shot.groups.includes(graph.id)) {
+    const saved = await read(file);
+    if (saved && app.extensionManager.workflow.activeWorkflow.changeTracker.constructor.graphEqual(comparable(saved), comparable(graph))) return file;
+  }
   await api.storeUserData(file, graph);
   await update(here.scene.id, (s) => {
     const shot = s.shots.find((x) => x.id === here.shot.id);
@@ -256,7 +262,8 @@ async function cleanCopy() {
 function comparable(graph) {
   const g = JSON.parse(JSON.stringify(graph));
   delete g.extra?.snap_scene;
-  for (const n of [...g.nodes, ...(g.definitions?.subgraphs ?? []).flatMap((s) => s.nodes ?? [])]) n.size = [0, 0];
+  // a dynamic combo's sockets (Save Video's format / format.codec) come back in another order after a load: compared by name
+  for (const n of [...g.nodes, ...(g.definitions?.subgraphs ?? []).flatMap((s) => s.nodes ?? [])]) { n.size = [0, 0]; if (Array.isArray(n.inputs)) n.inputs = [...n.inputs].sort((a, b) => String(a.name).localeCompare(String(b.name))); }
   return g;
 }
 // a graph (a take's, for a re-take or re-run) as the shot's workflow. It replaces the shot's tab only while that tab

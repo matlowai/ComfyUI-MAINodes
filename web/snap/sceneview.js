@@ -6,7 +6,7 @@
 // scene, or add this workflow and its takes to one. The Scenes sheet lists the scenes, makes new ones, renames and
 // deletes them (a deleted scene is parked, never lost). Every action here is the function an agent tool calls too.
 // SNAP-R7 lists hold while a pointer is down · SNAP-R19 one function per action · SNAP-R24 scenes own the work, tabs are
-// scratch · SNAP-R65 a shot's open jobs on its tile · SNAP-R93 Agent instructions on a scene and a shot · SNAP-R120 + Shot: new (the setup) or a copy · see docs/snap/SNAP_RULES.md
+// scratch · SNAP-R65 a shot's open jobs on its tile · SNAP-R93 Agent instructions on a scene and a shot · SNAP-R120 + Shot: new (the setup) or a copy · SNAP-R122 the shot says when its recipe isn't its ★ take's · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as SC from "./scenes.js";
 import * as T from "./takes.js";
@@ -27,6 +27,8 @@ function thumb(t, empty) {
 export function createSceneBar({ host, say, onOpened, openTake, run, rerun }) {
   const el = h("section", { className: "snap-scene" });
   let sig = "", pressed = false, busy = false;
+  const truth = h("div", { className: "snap-shot-truth", role: "status", hidden: true }), kept = new Set();
+  let truthTimer = 0, truthSeq = 0;
   el.addEventListener("pointerdown", () => { pressed = true; });
   for (const ev of ["pointerup", "pointercancel", "dragend"]) addEventListener(ev, () => { if (pressed) { pressed = false; setTimeout(render, 0); } });
   SC.onChange(() => render());
@@ -50,6 +52,7 @@ export function createSceneBar({ host, say, onOpened, openTake, run, rerun }) {
 
   function render() {
     if (pressed) return;
+    checkTruth();
     const here = SC.current();
     // a shot with takes and none active shows its newest take (the operator, 2026-11-05: tiles said "no takes yet" over 78 takes)
     const newest = (x) => SC.takesOf(x).map((e) => T.get(e.take)).filter(Boolean).sort((a, b) => a.created - b.created).at(-1) ?? null;
@@ -78,7 +81,23 @@ export function createSceneBar({ host, say, onOpened, openTake, run, rerun }) {
         set ? h("span", { className: "snap-scene-set", textContent: `set: ${set.title.replace(/^Set snapshot:\s*/, "")}` }) : null,
         h("button", { className: "snap-link snap-quiet-btn", textContent: "+ Shot", title: "add a shot to this scene and open it", onclick: (e) => addMenu(e.currentTarget, scene) }),
         h("button", { className: "snap-link snap-quiet-btn", textContent: "Scenes", onclick: () => openScenes() })),
-      h("div", { className: "snap-shots", role: "list" }, shots.map(({ x, active, latest, n, jobs }, i) => tile(scene, x, active, latest, n, i, x.id === shot.id, jobs))));
+      h("div", { className: "snap-shots", role: "list" }, shots.map(({ x, active, latest, n, jobs }, i) => tile(scene, x, active, latest, n, i, x.id === shot.id, jobs))), truth);
+  }
+
+  // UI-09 (SNAP-R122): when the shot's working recipe no longer makes its ★ take, a line says what differs, with one
+  // press back to the take's recipe; checked a moment after each change (the chain, seeds aside, as the stale chips read it)
+  function checkTruth() {
+    clearTimeout(truthTimer);
+    truthTimer = setTimeout(async () => {
+      const seq = ++truthSeq, here = SC.current(), t = here?.shot.active && T.get(here.shot.active), key = t && `${here.shot.id}:${t.id}:${app.graph.id}`;
+      const s = t && !kept.has(key) ? await T.stale(t).catch(() => null) : null, changed = s?.changed ?? [];
+      if (seq !== truthSeq) return;
+      truth.hidden = !changed.length;
+      truth.replaceChildren(...(changed.length ? [h("span", { textContent: `This recipe isn't what made ★ ${SC.shortLabel(t)}: ${changed.join(", ")} differ${changed.length === 1 ? "s" : ""}` }),
+        h("button", { className: "snap-link snap-quiet-btn", textContent: "Load ★ take's recipe", title: "the take's own recipe into this shot (one undo step; a tab with unsaved changes is left as it is)",
+          onclick: () => act(async () => SC.loadIntoShot(here.scene.id, here.shot.id, t.graph, SC.shortLabel(t)).then((w) => `★ ${SC.shortLabel(t)}'s recipe: ${w}`)) }),
+        h("button", { className: "snap-link snap-quiet-btn", textContent: "Keep editing", title: "hide this line for this shot until its active take changes", onclick: () => { kept.add(key); truth.hidden = true; } })] : []));
+    }, 700);
   }
 
   // the shot's open jobs (in flight, or waiting for a pick): how many, and the most pressing state

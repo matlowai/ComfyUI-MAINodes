@@ -18,7 +18,7 @@
 // SNAP-R84 list_locations, save_location, add_plate, apply_location, dependents; add_ref / remove_ref; check_identity on any take · SNAP-R83 screenshot of the agents' window · SNAP-R118 move_ref, cites follow the pictures · see docs/snap/SNAP_RULES.md
 // SNAP-R93-R95 agent instructions and skills (instructions.js): describe_recipe, get_take and get_scene carry the stack, the pack's notes end each description · see docs/snap/SNAP_RULES.md
 // SNAP-R101-R110 the critic's docket and fix at the source (critiques.js, dependents.js); note_take takes severity, owner and fix · see docs/snap/SNAP_RULES.md
-// SNAP-R121 answers say what the work is: whole titles, what a setup switch carried, eye gaps, caption files
+// SNAP-R121 answers say what the work is: whole titles, what a setup switch carried, eye gaps, caption files · SNAP-R122 recipe_matches_active
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import { BRICKS, PACK_BRICKS } from "./bricks.js";
@@ -129,6 +129,14 @@ async function models() {
   return { family: M.family(), setup: now ? { name: now.name, edited: now.edited } : null, turbo: M.turbo()?.file ?? null, warnings: [M.graphProblem(), ...M.warnings().map((w) => `${w.brick}: ${w.text}`)].filter(Boolean),
     loras: M.loras().map((r) => ({ brick: r.brick, row: r.row, file: r.file, strength: r.strength, on: r.on, role: r.entry?.role, core: r.entry?.core })), files: list.map((m) => ({ ...sized(m), ...related(m.file) })), missing: list.filter((m) => !m.installed).map((m) => `${m.brick}.${m.setting}: ${m.file}${m.unreadable ? " (file not readable)" : ""}`),
     total_gb: +(M.total(list) / 1e9).toFixed(1), checks };
+}
+
+// UI-09 (SNAP-R122): whether the open shot's recipe still makes its ★ take (seeds aside), and what differs when it doesn't
+async function activeTruth() {
+  const here = SC.current(), t = here?.shot.active && T.get(here.shot.active);
+  if (!t) return {};
+  const changed = (await T.stale(t).catch(() => null))?.changed ?? [];
+  return { recipe_matches_active: !changed.length, ...(changed.length ? { recipe_differs: `this shot's recipe isn't what made its ★ take ${t.number} (${t.id}): ${changed.join(", ")}; retake {take: "${t.id}"} or the shot's "Load ★ take's recipe" puts that recipe back` } : {}) };
 }
 
 export const TOOLS = [
@@ -915,12 +923,12 @@ export const TOOLS = [
     run: async ({ question } = {}) => {
       const job = { kind: "run", title: question?.trim() || `Run ${J.where()}`, about: J.here(), by: "agent", eta_s: (await recipeEta()).eta_s };
       // dogfood F-D13: the same recipe and seed as an earlier take come back from ComfyUI's cache, the same file; say so
-      const h = await T.hashes(await T.live()), twin = T.all().find((t) => t.status === "success" && t.hash === h.hash && t.seed_hash === h.seed_hash);
+      const truth = await activeTruth(), h = await T.hashes(await T.live()), twin = T.all().find((t) => t.status === "success" && t.hash === h.hash && t.seed_hash === h.seed_hash);
       const id = await J.queueRun(job, () => app.queuePrompt(0, 1, { queueNodeIds: E.targets() }));
       const errors = Object.entries(app.lastNodeErrors ?? {}).map(([id, e]) => ({ node: id, brick: brickOf(id), error: e.errors?.[0]?.message, details: e.errors?.[0]?.details }));
       if (errors.length || !id) throw new Error(`Not queued: ${JSON.stringify(errors)}`);
       return { queued: true, run: id, title: job.title, state: "queued", next: "run_status {run, wait_s: 25} (or wait_for {job: run}) until state is done",
-        ...(twin ? { cache_hit: `the same recipe and seed as take ${twin.number} (${twin.id}): ComfyUI serves that take's file from its cache, not a new render; new_seed (or a change) makes a fresh one` } : {}) };
+        ...(twin ? { cache_hit: `the same recipe and seed as take ${twin.number} (${twin.id}): ComfyUI serves that take's file from its cache, not a new render; new_seed (or a change) makes a fresh one` } : {}), ...truth };
     },
   },
   {
@@ -1394,7 +1402,7 @@ export const TOOLS = [
     name: "open_shot",
     description: "Open a shot of a scene, as a click on its tile in the scene navigator: the open shot is saved into its scene first (nothing is lost), then the scene tab shows this shot's workflow. A scratch tab or a saved workflow file's tab is never swapped: the shot opens in a new tab. A shot opened for the first time starts from the open shot's setup (same scene; its content left out, `built` says what, unless it was added with start: copy) or the recommended recipe, with its shot card compiled in. Nothing is queued.",
     inputSchema: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" } }, required: ["scene", "shot"] },
-    run: async ({ scene, shot }) => { const r = await SC.openShot(scene, shot), plates = await offerPlates(scene, shot); return plates ? { ...r, plates } : r; },
+    run: async ({ scene, shot }) => { const r = await SC.openShot(scene, shot), plates = await offerPlates(scene, shot), truth = await activeTruth(); return { ...r, ...truth, ...(plates ? { plates } : {}) }; },
   },
   {
     name: "rename_scene",
