@@ -440,6 +440,30 @@ version), `rerun_dependents {"ref": "location:<id>"}` re-makes what used the old
 cuts, as candidates; it stops before video unless `"through": "cuts"`. The fixtures that measure the critic:
 `tests/snap/critic/README.md` in the pack.
 
+### Shots, references and pictures (SNAP-R118..R125)
+
+- **A new shot keeps the open shot's setup only** (models, preset, turbo, sampling, size): no Cast, location, References,
+  first frame, dials, style rows or prompt. `open_shot`'s `built` lists what it left out. `add_shot {start: "copy"}` copies
+  the shot as it is.
+- **References:** `add_ref` (a role for a picture already there renames it), `remove_ref`, `move_ref {picture, to}`.
+  Moving or removing a picture keeps the prompt's `<Picture n>` on the picture they meant. A cite of a picture taken out
+  becomes `<Picture ?>` (`orphaned` says so): rewrite it. `describe_recipe.references[].named` says whether the prompt
+  cites each picture. "Missing" means the file is gone (subfolder files count as there).
+- **Where a picture goes:** `use_take {as: "cast", cast, role}` makes a frame a Cast's next picture (a new version);
+  `{as: "plate", location, name}` makes it a location's plate.
+- **A Cast's pictures per shot:** `apply_cast {cast, pictures: ["state A"]}` (roles). The pin keeps the choice. An update
+  to a version without one of them is refused. A re-run can take a Cast out: `rerun {swaps: {"cast:<id>": {to: "out"}}}`.
+- **Is this shot's recipe what made its ★ take?** `open_shot` and `run` answer `recipe_matches_active` and, when it
+  doesn't, `recipe_differs`. `run` answers `cache_hit` when the recipe and seed match an earlier take.
+- **A family switch by preset name** (`apply_setup "Pika H3 Flex"` in a stills shot) starts from a pack card or the
+  recommended recipe. It answers `carried` (dials, LoRA rows, Upscale) and which shot the tab still is. `start_recipe`
+  from a shot answers `not_in_scene` with the `add_shot` call that puts the new tab there.
+- `get_take` gives `prompts {positive, negative}` and `sound`. `describe_lora` gives `beside`: the caption files that
+  came with the LoRA. `add_lora {role: "motion"}` takes an orbit/camera LoRA. `remove_lora {file}` works.
+- `open_view {view: "library", tab, scope}` opens the Agent library for the person.
+- A plan over 10 minutes says `holds_queue`. `list_locations` and `add_plate` answer `eye_gaps` when a plate's eye
+  height is off its camera mark's (`add_plate {plates: [...]}` saves several as one version).
+
 ## When Snap can't do it
 
 A missing route is a gap in Snap, not a reason to leave it: a take queued outside Snap (raw API, a side graph) never
