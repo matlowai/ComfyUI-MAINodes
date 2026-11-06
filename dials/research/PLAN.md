@@ -65,14 +65,14 @@ arms per test until something is worth confirming.
 | id | question | method | cost | gate | depends on | status |
 |---|---|---|---|---|---|---|
 | J0 | ~~Ask the collaborator how they did it~~ | – | – | – | – | **dropped** (Dylan, 2026-11-06): we reimplement our own way and compare afterwards |
-| J1 | Are H3's 50 encoder layers upstream Qwen3-VL-32B's? | download upstream shards 11-14 (~17 GB: layers 48-63, final norm, output head); hash layers 48-49, which both files hold | download + offline | identical → route A; different → route B/C only | – | ready |
-| J2 | Does a logit-lens keyword dial work (no Jacobian)? | output-head rows for a word list → layer-50 space → condition_proj + refiner; our own word lists (not the collaborator's), each vs a pair dial made for the same idea | offline + 4 renders (1 seed) | cosine to the pair dial ≥ 0.5 and a visible effect at matched push vs placebo | J1 | blocked |
-| J3 | True J-lens keyword dials | fit J_50 on the upstream tail (layers 50-63 in bf16, ~100 H3-style prompts), v = Σ J_50ᵀu_w | ~1 GPU-hour fit + 4 renders | beats J2 at matched push, or J2 already enough | J1 | blocked |
-| J4 | What do our dials say? (verbalize) | map 10 shipped dials back to layer-50 space, read top words with J2's or J3's decoder; compare with measured wheel leaks | offline | words predict ≥ half of the measured leaks | J2 or J3 | blocked |
+| J1 | Are H3's 50 encoder layers upstream Qwen3-VL-32B's? | download upstream shards 11-14 (~17 GB: layers 48-63, final norm, output head); hash layers 48-49, which both files hold | download + offline | identical → route A; different → route B/C only | – | **done**: [13/13 tensors bit-identical to upstream](experiments/J1-J3-word-dials.md); route A open |
+| J2 | Does a logit-lens keyword dial work (no Jacobian)? | output-head rows for a word list → layer-50 space → condition_proj + refiner; our own word lists (not the collaborator's), each vs a pair dial made for the same idea | offline + 4 renders (1 seed) | cosine to the pair dial ≥ 0.5 and a visible effect at matched push vs placebo | J1 | **rejected**: [logit-lens word dials act like the bland placebo](experiments/J1-J3-word-dials.md) |
+| J3 | True J-lens keyword dials | fit J_50 on the upstream tail (layers 50-63 in bf16, ~100 H3-style prompts), v = Σ J_50ᵀu_w | ~1 GPU-hour fit + 4 renders | beats J2 at matched push, or J2 already enough | J1 | **works (1 seed)**: [centered J-lens word dials: underwater adds water, thunder +21 dB vs placebo](experiments/J1-J3-word-dials.md); combos running |
+| J4 | What do our dials say? (verbalize) | map 10 shipped dials back to layer-50 space, read top words with J2's or J3's decoder; compare with measured wheel leaks | offline | words predict ≥ half of the measured leaks | J2 or J3 | ready (J3 lens) |
 | J5 | Do combos say new words? | read the 6 T4 pairs: a+b vs a, b | offline | new words rank the 3 emergent pairs above the 3 others | J4 | blocked |
 | J6 | Is the first-frame pin an attention effect? | forward hooks (H3 has no cross-attention; one joint self-attention): attention from video rows to text keys, Qwen-vision keys and latent first-frame keys, per block/step, t2v vs i2v | 2 renders with hooks | text-row mass drops in i2v → test text-row key rescaling | – | ready |
 | J7 | DiT impulse pictures | one low-resolution step, dial on vs off, decode the x0 difference (video and audio) | ~5 forwards | the pictures predict the rendered look of 3 known dials | – | ready |
-| J8 | Weird word dials | emoji, onomatopoeia, abstract words, away-from dials (M6, M7 on the ideas page) | 1 render each | anything surprising goes to the Lab | J2 or J3 | blocked |
+| J8 | Weird word dials | emoji, onomatopoeia, abstract words, away-from dials (M6, M7 on the ideas page) | 1 render each | anything surprising goes to the Lab | J2 or J3 | running (with J3) |
 | J6′ | (J6 rebuilt) | use the existing block tap: text-row state at blocks 0/5/10/20, steps 1-2, dial on/off, t2v vs i2v; attention mass by hand on sampled queries | 4 renders with taps | text-row effect decays faster in i2v, or attention to text keys drops | – | ready |
 | J9 | How does a dial propagate through the blocks? | dial on/off, one forward at 2 noise levels: per block, size of the change on video and audio rows | ~4 forwards | blocks that carry the dial into picture vs sound | – | ready |
 | J10 | Which block range does the restaging? | sinister +1 on blocks 0-9 only vs 10-24 only, 1 seed | 2 renders | one range keeps the look without restaging | – | ready |
@@ -124,3 +124,7 @@ release, or more budget waits for a decision.
   reworded, rebuilt on the existing block tap as J6′); T5c-T5f loosened only the latent path of the first frame (T5h, T5i
   added) and T5g schedules the pin; AdaLN differs across families (T6b); X1 unparked; J9, J10, A1, M-soft, G1 added. J0
   dropped: Dylan wants our own reimplementation and our own words.
+- **2026-11-06** J1-J3: H3's encoder layers are upstream's (13/13 identical). Logit-lens word dials (J2) do nothing
+  beyond a placebo. Jacobian-lens word dials (J3), centered against the mean of all lists, work on one seed: underwater
+  turns the platform into a harbourside, thunder is ~21 dB louder than a size-matched placebo with twice the low end.
+  Lesson: always render a word-dial placebo (bland words), because any +2 push restages and quiets the clip.
