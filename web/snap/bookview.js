@@ -312,6 +312,7 @@ export const BOOK_STYLE = `
 @container (max-width: 760px) {
   .snap-sheet.snap-book-sheet { inset: 48px 6px 8px; }
   .snap-book-grid2 { grid-template-columns: minmax(0, 1fr); }
+  .snap-book-table { display: block; overflow-x: auto; } .snap-book-table td, .snap-book-table th { white-space: nowrap; overflow-wrap: normal; }
   .snap-book-cutrow { grid-template-columns: 40px 1fr; } .snap-book-cutrow > :nth-child(n+3) { grid-column: span 1; }
 }
 `;
