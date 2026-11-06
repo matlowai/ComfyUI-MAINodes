@@ -1314,7 +1314,9 @@ Next free ID after this batch: SNAP-R139.
   redrawn by stage 2 says, in a static line, to compare the eyes with the Cast picture; `keep_eye_colour` (and the
   take viewer's "Keep eye colour" press) re-tints the irises of the redrawn take toward the Cast front's iris colour: Snap's
   SAM 3.1 path finds the eyes on every frame and on the Cast picture (no hand seeding), the a/b of Lab moves inside the
-  iris only, lightness never, and a frame where no iris is found (a profile, a back) passes through untouched. It makes a
+  iris only, lightness never ("eye:2" ANDed with "pupil:2, iris of the eye:2"); only a pair of irises side by side counts, so a
+  profile, a back or a lone eye-like thing (a gold hair bell) passes through untouched, and a Cast whose iris is grey
+  skips the step rather than invent a colour. It makes a
   new take beside the redrawn one; nothing is replaced, and it runs only when asked. *Why:* the operator, 2026-11-06,
   decision 5 ("keep the redraw at d0.30, a static note, an optional iris re-tint, default off"); the redraw greyed
   Hiyori's brown eyes and Liesl's amber (u102b/IRIS_COLOUR, IRIS_SAM). *More:* SNAP-R85, SNAP-R113.

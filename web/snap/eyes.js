@@ -12,8 +12,10 @@ import * as K from "./checks.js";
 import * as T from "./takes.js";
 import * as W from "./world.js";
 
-// what SAM is asked for, on the frames and on the Cast picture alike (measured on Hiyori and Liesl: u102b/IRIS_SAM)
-export const FIND = { text: "eyes:2", threshold: 0.3, refine: 0 };
+// what SAM is asked for, on the frames and on the Cast picture alike (measured on Hiyori and Liesl: u102b/IRIS_SAM):
+// "eye:2" says where the eyes are (it alone tells eyes from a gold hair bell by score), ANDed with the iris pixels ("pupil"
+// hugs one character's iris, "iris of the eye" fills another's)
+export const FIND = { eye: { text: "eye:2", threshold: 0.6 }, iris: { text: "pupil:2, iris of the eye:2", threshold: 0.3 }, refine: 0 };
 
 const redrawn = (t) => t?.parent?.method === "upscale/stage2";
 // the Casts the take pins that have a picture, each with its front (the picture whose role says front, else its first)
@@ -45,8 +47,10 @@ export async function start(t, { cast, ref, strength = 1, by = "person" } = {}) 
   if (!detector) throw new Error("Keep eye colour finds the eyes with SAM 3.1 (models/checkpoints/sam3.1_multiplex_fp16.safetensors), which isn't in the model graph here");
   const video = t.media.find((m) => m.kind === "video"), still = !video && t.media.find((m) => m.kind === "image");
   if (!video && !still) throw new Error(`Take ${t.number} has no picture or video`);
-  const sam = (key, image) => ({ [`${key}t`]: { class_type: "CLIPTextEncode", inputs: { clip: ["sam", 1], text: FIND.text } },
-    [key]: { class_type: "SAM3_Detect", inputs: { model: ["sam", 0], image, conditioning: [`${key}t`, 0], threshold: FIND.threshold, refine_iterations: FIND.refine, individual_masks: false } } });
+  const find = (key, image, { text, threshold }) => ({ [`${key}t`]: { class_type: "CLIPTextEncode", inputs: { clip: ["sam", 1], text } },
+    [key]: { class_type: "SAM3_Detect", inputs: { model: ["sam", 0], image, conditioning: [`${key}t`, 0], threshold, refine_iterations: FIND.refine, individual_masks: false } } });
+  const sam = (key, image) => ({ ...find(`${key}e`, image, FIND.eye), ...find(`${key}i`, image, FIND.iris),
+    [key]: { class_type: "MaskComposite", inputs: { destination: [`${key}e`, 0], source: [`${key}i`, 0], x: 0, y: 0, operation: "and" } } });
   const g = {
     sam: { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: detector } },
     cf: { class_type: "LoadImage", inputs: { image: front.file } },
@@ -60,7 +64,7 @@ export async function start(t, { cast, ref, strength = 1, by = "person" } = {}) 
     save: { class_type: "SaveVideo", inputs: { video: ["out", 0], filename_prefix: `video/snap_eyes/${t.id}`, format: "auto", "format.codec": "auto", codec: "auto" } },
   });
   else g.save = { class_type: "SaveImage", inputs: { images: ["e", 0], filename_prefix: `snap_eyes/${t.id}` } };
-  const options = { cast: pick.ref, picture: front.file, strength, find: FIND.text };
+  const options = { cast: pick.ref, picture: front.file, strength, find: `${FIND.eye.text} and ${FIND.iris.text}` };
   const job = { kind: "eyes", title: `Keep eye colour on take ${t.number}: its irises toward ${pick.name}'s (${front.role ?? "picture"})${strength < 1 ? `, strength ${strength}` : ""}`, about: { take: t.id, group: t.group }, by, eta_s: null };
   const id = await K.queue(g, { group: t.group, world: t.graph?.extra?.snap?.world, job, extra: { snap_parent: { take: t.id, method: "eyecolour", options: { ...options, label: "eye colour" }, by } } });
   return { prompt_id: id, take: `take-${id}`, ...options, said: `Keep eye colour is running on take ${t.number}: a new take beside it (the redraw stays); look at the eyes at 100 % against ${pick.name}'s picture before keeping it` };

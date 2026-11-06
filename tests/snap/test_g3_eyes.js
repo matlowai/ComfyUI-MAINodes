@@ -54,14 +54,15 @@ const park = (d) => { const p = path.join(snap, d); if (fs.existsSync(p)) { fs.m
     R.errors = A.errors;
   } finally { await fetch(`http://127.0.0.1:${port}/settings/MAINodes.Snap.AgentsMayRun`, { method: "POST", body: "false" }).catch(() => {}); await b.close(); }
   const g = R.graph?.prompt ?? {}, nodes = Object.values(g), sams = nodes.filter((x) => x.class_type === "SAM3_Detect"), e = nodes.find((x) => x.class_type === "MAISnapEyeColour");
-  const words = sams.map((s) => g[s.inputs.conditioning[0]].inputs.text);
+  const words = sams.map((s) => g[s.inputs.conditioning[0]].inputs.text).sort();
+  const masked = (k) => g[k]?.class_type === "MaskComposite" && g[k].inputs.operation === "and" && ["eye:2", "pupil:2, iris of the eye:2"].every((t) => [g[k].inputs.destination[0], g[k].inputs.source[0]].some((s) => g[g[s].inputs.conditioning[0]].inputs.text === t));
   const checks = {
     "get_take on a stage 2 redraw that pins a Cast says to compare the eyes with its picture": /^Eye colour can shift in the redraw: compare the eyes with G3 Hiyori's Cast picture\. Keep eye colour \(optional\)/.test(R.get?.eyes?.said ?? "") && R.get.eyes.casts?.[0]?.picture === "snaptest/g3_cast_front.png",
     "the orbit it came from and a plain take carry no eye line": !R.getOrbit?.eyes && !R.getPlain?.eyes,
     "the take viewer shows the line, the Cast picture press and Keep eye colour": /compare the eyes with G3 Hiyori's Cast picture/.test(R.viewer?.text ?? "") && JSON.stringify(R.viewer.buttons) === JSON.stringify(["G3 Hiyori's picture", "Keep eye colour"]),
     "keep_eye_colour on a take that isn't a stage 2 redraw is refused, saying so": /isn't a stage 2 redraw: keep eye colour runs after stage 2/.test(R.refused?.error ?? ""),
-    "SAM 3.1 runs on the redraw and on the Cast front with the same words": sams.length === 2 && words[0] === words[1] && nodes.some((x) => x.class_type === "LoadImage" && x.inputs.image === "snaptest/g3_cast_front.png") && nodes.some((x) => x.class_type === "CheckpointLoaderSimple" && /sam3/.test(x.inputs.ckpt_name)),
-    "the re-tint gets the frames' masks, the Cast front and its mask, at the strength asked": e?.inputs.strength === 0.6 && g[e.inputs.masks[0]]?.class_type === "SAM3_Detect" && g[e.inputs.reference_mask[0]]?.class_type === "SAM3_Detect" && g[e.inputs.reference[0]]?.inputs.image === "snaptest/g3_cast_front.png",
+    "SAM 3.1 runs on the redraw and on the Cast front with the same words (eye:2 AND the iris words)": sams.length === 4 && JSON.stringify(words) === JSON.stringify(["eye:2", "eye:2", "pupil:2, iris of the eye:2", "pupil:2, iris of the eye:2"]) && masked(e?.inputs.masks[0]) && masked(e?.inputs.reference_mask[0]) && nodes.some((x) => x.class_type === "LoadImage" && x.inputs.image === "snaptest/g3_cast_front.png") && nodes.some((x) => x.class_type === "CheckpointLoaderSimple" && /sam3/.test(x.inputs.ckpt_name)),
+    "the re-tint gets the frames' masks, the Cast front and its mask, at the strength asked": e?.inputs.strength === 0.6 && g[e.inputs.masks[0]]?.class_type === "MaskComposite" && g[e.inputs.reference_mask[0]]?.class_type === "MaskComposite" && g[e.inputs.reference[0]]?.inputs.image === "snaptest/g3_cast_front.png",
     "it saves a new take whose parent is the redraw (eyecolour), with the redraw's pins": R.graph?.extra_data?.snap_parent?.method === "eyecolour" && R.landed?.parent?.take === "take-g3eyes-redraw" && R.landed.parent.method === "eyecolour" && /keep eye colour is running on take/i.test(R.run?.said ?? ""),
     "no page errors": !R.errors?.length,
   };
