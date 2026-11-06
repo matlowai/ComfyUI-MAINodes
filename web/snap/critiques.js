@@ -109,10 +109,12 @@ export function ownerOf(r, owner) {
   const ref = words.match(/\b(cast|location|card|set_snapshot):[A-Za-z0-9][\w.-]*(@\d+)?/)?.[0];
   if (ref) { const p = W.parse(ref); return { ref: p.n != null ? ref : W.refOf(p.kind, p.id, pins[W.refOf(p.kind, p.id)]?.n ?? W.record(p.kind, p.id)?.head), words }; }
   const loc = pinned("location"), cast = pinned("cast");
-  const plate = words.match(/\bplate\s+([^|,;]+?)(\s+(master|plan|record))?$/i)?.[1]?.trim();
-  if (loc && /\b(master|plan|plate|location|set)\b/i.test(words)) return { ref: W.refOf("location", W.parse(loc[0]).id, loc[1].n), part: /\bplan\b/i.test(words) && !/\bmaster\b/i.test(words) ? "plan" : plate ? `plate ${plate}` : "master", words };
+  // the part a location owner names: a plate by its name (the longest the words hold), the plan, else the master
+  const partOf = (ref, fallback) => { const plates = (W.get(ref)?.version.body.plates ?? []).map((p) => p.name).filter((n) => words.toLowerCase().includes(n.toLowerCase())).sort((a, b) => b.length - a.length);
+    return plates.length ? `plate ${plates[0]}` : /\bplan\b/i.test(words) && !/\bmaster\b/i.test(words) ? "plan" : /\bmaster\b/i.test(words) ? "master" : fallback; };
+  if (loc && /\b(master|plan|plate|location|set)\b/i.test(words)) { const ref = W.refOf("location", W.parse(loc[0]).id, loc[1].n); return { ref, part: partOf(ref, "master"), words }; }
   if (cast && /\bcast\b/i.test(words)) return { ref: W.refOf("cast", W.parse(cast[0]).id, cast[1].n), words };
-  if (r.subject.kind === "record" && /\b(master|plan|plate|location|record)\b/i.test(words)) return { ref: r.subject.ref, part: r.subject.part === "views" ? "master" : r.subject.part, words };
+  if (r.subject.kind === "record" && /\b(master|plan|plate|location|record)\b/i.test(words)) return { ref: r.subject.ref, part: partOf(r.subject.ref, r.subject.part === "views" ? "master" : r.subject.part), words };
   return { what: /\bprompt\b/i.test(words) ? "prompt" : /\bboard\b/i.test(words) ? "board" : "take", words: words || "take" };
 }
 
