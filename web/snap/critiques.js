@@ -8,11 +8,14 @@
 // fix), so get_take and the take viewer read them where they read every note. Snap never calls a model (SNAP-R18).
 // The Work card shows each row (folded per decision); a due row nobody claimed for five minutes says "no critic on duty".
 // Where a scene's or Book's note says "approval: critic", a critique with no high note sets the take's verdict to keep,
-// by agent; the person's own verdict always wins. A critique goes stale when its subject was re-made or an owner record
-// moved past the version it named.
+// by agent; the person's own verdict always wins. A critique goes stale when its subject was re-made or the part it read
+// (a location's master, plan or plate, a Cast's pictures) changed in a later version; a row nobody wrote that went stale
+// leaves the due list (state "stale"). Only a record's newest version gets rows, and a location or Cast saved before the
+// critic started gets rows for its newest version once (F-E01).
 // SNAP-R101 the critic is a docket job · SNAP-R103 notes: severity, pass, region as a mask, owner, fix; they inform ·
 // SNAP-R104 checks by purpose · SNAP-R107 approval: the person's, or the critic's where a note says so · SNAP-R110 stale ·
-// SNAP-R17 by: person|agent · SNAP-R58 whole lists, explicit paging · SNAP-R65 the Work card · see docs/snap/SNAP_RULES.md
+// SNAP-R17 by: person|agent · SNAP-R58 whole lists, explicit paging · SNAP-R65 the Work card · SNAP-R136 a row holds
+// while its part's picture holds; stale rows leave the docket · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as T from "./takes.js";
 import * as C from "./candidates.js";
@@ -62,7 +65,8 @@ function wake() {
   }, () => {});
 }
 
-export const stateOf = (r) => (r.skipped ? "skipped" : r.done ? "done" : r.claimed && now() - r.claimed.touched < claimS * 1000 ? "claimed" : "due");
+// F-E14: a row nobody wrote whose subject moved on is "stale", not due: the docket and the Work card leave it out
+export const stateOf = (r) => (r.skipped ? "skipped" : r.done ? "done" : r.claimed && now() - r.claimed.touched < claimS * 1000 ? "claimed" : staleOf(r) ? "stale" : "due");
 export const counts = (r) => ({ high: r.notes.filter((n) => n.severity === "high").length, medium: r.notes.filter((n) => n.severity === "medium").length, low: r.notes.filter((n) => n.severity === "low").length });
 export const ofTake = (id) => rows.filter((r) => r.subject.take === id || r.subject.pair?.includes(id));
 export const latestOf = (id) => rows.filter((r) => r.subject.take === id).at(-1) ?? null;
@@ -78,19 +82,37 @@ export function subjectText(s) {
   if (s.kind === "pair") return `cut ${takeName(s.pair[0])} → ${takeName(s.pair[1])}`;
   return `${recordName(s.ref)}${s.part === "views" ? ", every view side by side" : s.part ? `, ${s.part}` : ""}`;
 }
+// the files a part of a record version is: a location's master, plan, map or "plate <name>" (its file and pose), every
+// view, or a Cast's pictures. A row holds while these are the same in the newest version (F-E16: v10 kept v4's master)
+export function partFiles(body, part) {
+  const plate = (p) => p && `${p.file}|${JSON.stringify(p.pose ?? null)}`;
+  if (part === "pictures") return JSON.stringify((body?.refs ?? []).map((x) => x.file));
+  if (part === "views") return JSON.stringify([body?.master?.file, body?.plan?.file, body?.map?.file, ...(body?.plates ?? []).map(plate)]);
+  if (["master", "plan", "map"].includes(part)) return body?.[part]?.file ?? null;
+  return plate(body?.plates?.find((x) => `plate ${x.name}` === part)) ?? null;
+}
+const moved = (ref, part) => { const { kind, id, n } = W.parse(ref), rec = W.record(kind, id), head = rec?.head; if (!head || !n || head <= n) return null;
+  const was = rec.versions.find((v) => v.n === n)?.body, now = W.headOf(rec).body;
+  return !part || part === "notes" || partFiles(was, part) !== partFiles(now, part) ? { name: was?.name ?? id, n, head } : null; };
 export function staleOf(r) {
   const why = [];
   if (r.subject.kind === "take") {
     const kid = T.all().find((x) => x.parent?.take === r.subject.take && /^(rerun|retake|upscale)/.test(x.parent.method ?? "") && x.created > r.created);
     if (kid) why.push(`its subject was re-made as take ${kid.number}`);
   }
-  if (r.subject.kind === "record") { const { kind, id, n } = W.parse(r.subject.ref), head = W.record(kind, id)?.head; if (head && n && head > n) why.push(`${recordName(W.refOf(kind, id))} moved to v${head}`); }
+  if (r.subject.kind === "record") { const m = moved(r.subject.ref, r.subject.part); if (m) why.push(`${m.name} v${m.n} → v${m.head}: ${r.subject.part === "views" ? "a view" : `its ${r.subject.part}`} changed`); } // F-E15: the version it read, then the head
   for (const x of r.notes) {
     if (!x.owner?.ref?.includes("@") || (r.subject.kind === "record" && W.parse(x.owner.ref).id === W.parse(r.subject.ref).id)) continue; // the subject's own record moving is said once, above
-    const { kind, id, n } = W.parse(x.owner.ref), head = W.record(kind, id)?.head;
-    if (head && head > n) why.push(`owner ${W.refOf(kind, id)} moved to v${head} (fixed at source?)`);
+    const m = moved(x.owner.ref, x.owner.part);
+    if (m) why.push(`owner ${m.name} v${m.n} → v${m.head}${x.owner.part ? `: its ${x.owner.part} changed` : ""} (fixed at source?)`);
   }
   return why.length ? [...new Set(why)].join("; ") : null;
+}
+// the rows that hold for a record version: its own, and earlier versions' rows whose part is unchanged since (F-E16)
+export function holding(ref) {
+  const { kind, id, n } = W.parse(ref), rec = W.record(kind, id), at = rec?.versions.find((v) => v.n === (n ?? rec.head))?.body;
+  return ofRecord(ref).filter((r) => { const { n: rn } = W.parse(r.subject.ref), was = rec?.versions.find((v) => v.n === rn)?.body; return rn === (n ?? rec?.head) || (rn < (n ?? rec?.head) && was && partFiles(was, r.subject.part) === partFiles(at, r.subject.part)); })
+    .filter((r, i, all) => !all.slice(i + 1).some((x) => x.subject.part === r.subject.part && (x.done || !r.done))); // the newest row per part, a written one over a due one
 }
 
 // ---- the owner of a flaw (SNAP-R105): where it was born, as a record and part when the words name one --------------
@@ -111,7 +133,7 @@ export function ownerOf(r, owner) {
   const loc = pinned("location"), cast = pinned("cast");
   // the part a location owner names: a plate by its name (the longest the words hold), the plan, else the master
   const partOf = (ref, fallback) => { const plates = (W.get(ref)?.version.body.plates ?? []).map((p) => p.name).filter((n) => words.toLowerCase().includes(n.toLowerCase())).sort((a, b) => b.length - a.length);
-    return plates.length ? `plate ${plates[0]}` : /\bplan\b/i.test(words) && !/\bmaster\b/i.test(words) ? "plan" : /\bmaster\b/i.test(words) ? "master" : fallback; };
+    return plates.length ? `plate ${plates[0]}` : /\bplan\b/i.test(words) && !/\bmaster\b/i.test(words) ? "plan" : /\bmaster\b/i.test(words) ? "master" : /\bnotes?\b/i.test(words) ? "notes" : fallback; }; // F-E19: "location notes" is the record's words, no picture
   if (loc && /\b(master|plan|plate|location|set)\b/i.test(words)) { const ref = W.refOf("location", W.parse(loc[0]).id, loc[1].n); return { ref, part: partOf(ref, "master"), words }; }
   if (cast && /\bcast\b/i.test(words)) return { ref: W.refOf("cast", W.parse(cast[0]).id, cast[1].n), words };
   if (r.subject.kind === "record" && /\b(master|plan|plate|location|record)\b/i.test(words)) return { ref: r.subject.ref, part: partOf(r.subject.ref, r.subject.part === "views" ? "master" : r.subject.part), words };
@@ -155,23 +177,28 @@ async function scanCandidates() {
 }
 // a location version: its master, its plan and each plate that changed or came new, and one row for every view side by
 // side when any did; a Cast version whose pictures changed: one sheet row
+// F-E14: only the newest version gets rows (a place built plate by plate made a row set per plate, all stale at once).
+// F-E01: a record whose newest version was saved before the critic started (an import, an older install) and has no
+// row at all gets one set for that version, said as such; a part a written row of an earlier version still holds for
+// (its picture unchanged, F-E16) gets none
 async function scanRecords() {
   if (since == null) return;
-  for (const r of W.all("location")) for (const v of r.versions) {
-    if (v.at < since) continue;
-    const was = r.versions.find((x) => x.n === v.n - 1)?.body, b = v.body, ref = W.refOf("location", r.id, v.n), parts = [];
-    if (b.master && b.master.file !== was?.master?.file) parts.push(["master", "master"]);
-    if (b.plan && b.plan.file !== was?.plan?.file) parts.push(["plan", "plan"]);
-    for (const p of b.plates ?? []) if (p.file !== was?.plates?.find((x) => x.name === p.name)?.file) parts.push([`plate ${p.name}`, "plate"]);
-    if (parts.length) parts.push(["views", "location"]);
-    for (const [part, checklist] of parts) await due(`record:${ref}:${part}`, { subject: { kind: "record", ref, part }, title: `Critic: ${b.name} v${v.n}${part === "views" ? ", every view side by side" : `, ${part}`}`, purpose: checklist === "location" ? null : checklist, checklist, trigger: "saved", about: {} }).catch((e) => console.warn(`critic: ${e.message}`));
+  const ask = (key, spec) => due(key, spec).catch((e) => console.warn(`critic: ${e.message}`));
+  for (const r of W.all("location")) {
+    const v = W.headOf(r), old = v.at < since;
+    if (old && rows.some((x) => x.subject.kind === "record" && W.parse(x.subject.ref).id === r.id)) continue;
+    const b = v.body, ref = W.refOf("location", r.id, v.n), held = new Set(holding(ref).map((x) => x.subject.part)), parts = [];
+    if (b.master) parts.push(["master", "master"]);
+    if (b.plan) parts.push(["plan", "plan"]);
+    for (const p of b.plates ?? []) parts.push([`plate ${p.name}`, "plate"]);
+    const todo = parts.filter(([part]) => !held.has(part));
+    if (todo.length && !held.has("views")) todo.push(["views", "location"]);
+    for (const [part, checklist] of todo) await ask(`record:${ref}:${part}`, { subject: { kind: "record", ref, part }, title: `Critic: ${b.name} v${v.n}${part === "views" ? ", every view side by side" : `, ${part}`}${old ? " (saved before the critic started)" : ""}`, purpose: checklist === "location" ? null : checklist, checklist, trigger: old ? "existing" : "saved", about: {} });
   }
-  for (const r of W.all("cast")) for (const v of r.versions) {
-    if (v.at < since) continue;
-    const was = r.versions.find((x) => x.n === v.n - 1)?.body, files = (b) => JSON.stringify((b?.refs ?? []).map((x) => x.file));
-    if (!(v.body.refs ?? []).length || files(was) === files(v.body)) continue;
-    const ref = W.refOf("cast", r.id, v.n);
-    await due(`record:${ref}:pictures`, { subject: { kind: "record", ref, part: "pictures" }, title: `Critic: ${v.body.name} v${v.n}, its pictures`, purpose: "cast_picture", checklist: "sheet", trigger: "saved", about: {} }).catch((e) => console.warn(`critic: ${e.message}`));
+  for (const r of W.all("cast")) {
+    const v = W.headOf(r), old = v.at < since, ref = W.refOf("cast", r.id, v.n);
+    if (!(v.body.refs ?? []).length || holding(ref).length || (old && rows.some((x) => x.subject.kind === "record" && W.parse(x.subject.ref).id === r.id))) continue;
+    await ask(`record:${ref}:pictures`, { subject: { kind: "record", ref, part: "pictures" }, title: `Critic: ${v.body.name} v${v.n}, its pictures${old ? " (saved before the critic started)" : ""}`, purpose: "cast_picture", checklist: "sheet", trigger: old ? "existing" : "saved", about: {} });
   }
 }
 // a cut pair: two shots in a row with active takes; made when the later one became active after the critic started
@@ -272,7 +299,8 @@ export function rowsFor(whereOf) {
       result: st === "done" ? { critique: r.id, verdict: c.high || c.medium || c.low ? "flaws" : "clean", ...c, ...(take ? { take: take.id, number: take.number } : {}), said: `${c.high ? `${c.high} high note${c.high > 1 ? "s" : ""}` : c.medium || c.low ? "no high notes" : "clean"}${stale ? ` · stale: ${stale}` : ""}` } : null };
   };
   const groups = new Map();
-  for (const r of rows) { if (Date.now() - (r.updated ?? r.created) > 86400000 && stateOf(r) !== "due") continue; const k = decisionKey(r) ?? (r.subject.kind === "record" ? `rec:${r.subject.ref}` : r.id); groups.set(k, [...(groups.get(k) ?? []), r]); } // a decision's candidates, a record version's pictures: one row each
+  // F-E14: a stale unwritten row is off the card (list_critiques {state: "stale"})
+  for (const r of rows) { if ((Date.now() - (r.updated ?? r.created) > 86400000 && stateOf(r) !== "due") || stateOf(r) === "stale") continue; const k = decisionKey(r) ?? (r.subject.kind === "record" ? `rec:${r.subject.ref}` : r.id); groups.set(k, [...(groups.get(k) ?? []), r]); } // a decision's candidates, a record version's pictures: one row each
   return [...groups.values()].map(one);
 }
 // the Work card's foot line: due rows nobody claims say so, with what the critic has agreed on
@@ -345,7 +373,7 @@ export async function addFixture({ take: id, note: nid, polarity, words = "", by
 const pathOf = (m) => [m.type, m.subfolder, m.filename].filter(Boolean).join("/");
 
 // ---- the tools (spread into tools.js TOOLS): one table, two transports (SNAP-R15) --------------------------------------
-const STATES = ["due", "claimed", "done", "skipped"];
+const STATES = ["due", "claimed", "done", "skipped", "stale"];
 const NOTE = { type: "object", properties: { severity: { type: "string", enum: ["high", "medium", "low"] }, pass: { type: "string", enum: ["scan", "map", "support", "cast", "beat", "cross_view", "cut_pair"] }, text: { type: "string" },
   picture: { type: "integer", minimum: 0, description: "the packet picture (#index) the region is drawn on: a whole frame, a tile or a context picture; default 0" }, region: { type: "array", items: { type: "number", minimum: 0, maximum: 1 }, minItems: 4, maxItems: 4, description: "[x, y, w, h] in fractions of that picture, from its top left" },
   owner: { description: "where the flaw was born (fix at the source): \"location master\", \"plan\", \"plate <name>\", \"Cast record\", \"board\", \"take\", \"prompt\", or a record kind:id[@n]" }, fix: { type: "string" }, tags: { type: "array", items: { type: "string" } } }, required: ["severity", "pass", "text"] };
@@ -353,7 +381,7 @@ const agentName = () => I.by();
 export const TOOLS = [
   {
     name: "list_critiques",
-    description: "The critic's docket (U93, SNAP-R101): one critique row per landed picture: a take (a still, a board, a New view candidate, a video cut, an upscale), an edit's painted candidate, a location version (its master, plan, each new plate, and every view side by side), a Cast version's pictures, a cut pair (two shots' active takes in a row). Each row: critique (its id), title, subject {kind: take | candidate | record | pair, …}, about, purpose, checklist (what is read and how: master, plate, location, plan, settei, sheet, board, cut, cut_pair, upscale, edit, still), state (due: nobody claimed it; claimed: an agent reads it; done; skipped), claimed/done {by, at}, verdict (clean | flaws), passes, notes (each: severity, pass, text, region [x, y, w, h] as fractions of the subject picture, picture, frame, owner {ref, part} or {what}, fix, by), counts, verdict_set (what the approval rule did), stale (why it no longer holds: its subject was re-made or an owner record moved on; null when it holds). Filter by state, take, checklist, stale; offset and limit page it (nothing is cut otherwise); compact: true lists each row as {critique, title, state, checklist, what} only, to scan a long docket (the whole row is one list_critiques {take} away). To work the docket: claim_critique, critique_packet, then write_critique.",
+    description: "The critic's docket (U93, SNAP-R101): one critique row per landed picture: a take (a still, a board, a New view candidate, a video cut, an upscale), an edit's painted candidate, a location version (its master, plan, each new plate, and every view side by side), a Cast version's pictures, a cut pair (two shots' active takes in a row). Each row: critique (its id), title, subject {kind: take | candidate | record | pair, …}, about, purpose, checklist (what is read and how: master, plate, location, plan, settei, sheet, board, cut, cut_pair, upscale, edit, still), state (due: nobody claimed it; claimed: an agent reads it; done; skipped; stale: nobody wrote it and the part it was to read changed since, so it is off the docket and the Work card (F-E14)), claimed/done {by, at}, verdict (clean | flaws), passes, notes (each: severity, pass, text, region [x, y, w, h] as fractions of the subject picture, picture, frame, owner {ref, part} or {what}, fix, by), counts, verdict_set (what the approval rule did), stale (why it no longer holds: its subject was re-made, or the part it read (a location's master, plan, map or plate, a Cast's pictures) changed in a later version (\"v2 → v10: its master changed\"); a row whose part is unchanged still holds for the newer version; null when it holds). A location or Cast saved before the critic started gets rows for its newest version once (trigger existing). Filter by state, take, checklist, stale; offset and limit page it (nothing is cut otherwise); compact: true lists each row as {critique, title, state, checklist, what} only, to scan a long docket (the whole row is one list_critiques {take} away). To work the docket: claim_critique, critique_packet, then write_critique.",
     inputSchema: { type: "object", properties: { state: { type: "string", enum: STATES }, take: { type: "string" }, checklist: { type: "string" }, stale: { type: "boolean" }, compact: { type: "boolean" }, offset: { type: "integer", minimum: 0 }, limit: { type: "integer", minimum: 1 } } },
     annotations: { readOnlyHint: true, untrustedContentHint: true },
     run: async ({ state, take, checklist, stale, compact, offset = 0, limit } = {}) => {

@@ -86,7 +86,7 @@ const park = (d) => { const p = path.join(snap, d); if (fs.existsSync(p)) { fs.m
     JSON.stringify(R.mapped) === JSON.stringify(R.expect),
     R.video.pictures?.filter((p) => p[0] === "subject").length === 5 && R.video.pictures.filter((p) => p[0] === "tile").length === 0, // a 64 px video needs no tiles
     R.locRows?.filter(([, c]) => c === "plate").length === 6 && R.locRows.some(([p, c]) => p === "master" && c === "master") && R.locRows.some(([p, c]) => p === "views" && c === "location"),
-    R.views.subjects?.length === 8 && R.views.context === 0 && R.views.record === 6,
+    R.views.subjects?.length === 8 && R.views.context === 1 && R.views.record === 6, // G3 F-E17: the plan with its marks drawn is the one context picture
     !R.errors.length,
   ];
   R.checks = checks;
