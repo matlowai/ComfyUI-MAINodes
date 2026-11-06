@@ -7,6 +7,9 @@ MODEL_GRAPH_ONBOARDING.md, UX_SPEC.md, CONCEPT.md.
 
 When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "retired", so old comments still resolve.
 
+How to use Snap well (how the pieces link, the order of work, which model for which job, traps and quality bars) is
+in the Snap skills (`.claude/skills/`: `snap-core` first, then the task skills); these rules say how Snap must behave.
+
 ## Graph and generic behaviour
 
 - **SNAP-R1: Generic pass-through, never per-node code.** Snap reads what a node exposes: widget types, options,
@@ -708,6 +711,116 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   method's `run` (SNAP-R13). *Why:* the operator, 2026-11-05: "you can even try the tessera tiled upscaling process if we wanna
   try out 4k". *More:* PLAN U102b, the pack's docs/LAWS.md, proto/test_u102b.js.
 
+## Voices, reflection and sources (U93-U95, 2026-11-06)
+
+- **SNAP-R88: A voice reference renders at 12 steps or more; ordinary takes keep their setup's steps.** A take made to
+  be a voice reference (a Cast's voice, a casting round) runs at 12 or more sampling steps at a low resolution (256x160
+  is enough: only the sound is kept), and its plan says so; every other take stays at its setup's steps (6 on the Pika
+  turbo). The reference carries the timbre, because H3 ignores pitch, age and sex words in text (a boy "voiced by an
+  actress" came out at 97-138 Hz, and two different castings read as one speaker, WavLM 0.78-0.94); every cut where the
+  character speaks cites it (SNAP-R73). Until a voice route exists, an agent sets the steps by hand (AGENT_START,
+  Voices). *Why:* the operator, 2026-11-05: "if you generate audio with H3 you can do it at pretty low resolution but you
+  need at least 12 steps to get good audio quality … for a reference voice"; "normal video is fine at the specified 6".
+  *More:* DECISIONS 2026-11-05, the dogfood study's LESSONS (voice lane) and FINDINGS F-C11.
+
+- **SNAP-R89: The critic reads whole frames, a place's logic and cut pairs, and only leaves notes.** *(planned, U93)*
+  A critic job runs on every landed take and on every master, sheet, plate and board, since a flaw in a plate flaws
+  every cut that cites it. It looks at the whole frame at full resolution before any crop (a tiled upscale tile by
+  tile), and checks: logic, not only consistency (an enclosure closes, walls, roads and gates connect, a structure makes
+  sense from every view); contact (bodies meet what they rest on); attachments (every wire, string, strap and sheath is
+  held at both ends, per view on a character sheet); intersections (nothing clips); every view of a location side by
+  side and against its master; cut pairs (the previous cut's last frame against this cut's first: position, facing,
+  eyeline, light, props); the right Cast only, in its state; sound (a drone needs a spectral look, not loudness). Its
+  findings are notes with a severity, drawn as masks (SNAP-R91), routed to the record they trace to (SNAP-R90); they
+  never reject (SNAP-R23). Each flaw the person catches that the critic missed becomes a fixture; the critic is
+  measured by its catch rate on fixtures and its false alarms on clean pictures. It is an agent role over the tool
+  table (no model call from Snap, SNAP-R18). *Why:* every visible flaw in the 2026-11-05/06 shorts was caught by the
+  person, not by agents: three different gates, a palisade that doesn't enclose the village, a floating sword, a
+  double wall, ghost figures in an upscale's backdrop; causes: pictures judged one at a time, crops before frames,
+  consistency checked but not logic. The person: "we need some kind of reflection process to catch obvious things like
+  this"; "there is a wall and not surrounding the village … our reflection should be good enough I would have thought
+  to catch this but it might need the right prompt iteration". *More:* DECISIONS 2026-11-05 10:12 and 2026-11-06,
+  LESSONS "Synthesis 2026-11-06", the study's critic/ fixtures.
+
+- **SNAP-R90: A flaw is fixed at its source record, then its dependents re-run upstream first.** *(planned, U94)* A
+  note that traces to an upstream record (a location's plan, master or plates; a Cast version; the look) becomes a fix
+  proposal on that record. Once applied (a new version, SNAP-R60), Snap lists what pinned the old version (takes,
+  stills, boards, plates) and offers "re-run dependents" in DAG order (plates → boards → cuts → the cut), each stage
+  with its plan and time (SNAP-R16), through re-run with swaps to the new version (SNAP-R63); new takes land as
+  candidate versions beside the old ones (SNAP-R23), so no pick is lost. A canon change stays a proposal. *Why:* a
+  re-rolled take keeps a flaw that lives in its plate (the double wall came back with a new seed and went with a new
+  plate); after a Cast version, the boards that used the old one were found by hand (F-C22). The person: "if they came
+  from a prior setting that needs changed up and re-ran any DAG things that depended on them?" *More:* DECISIONS
+  2026-11-05 10:12, the dogfood study's FINDINGS F-C22.
+
+- **SNAP-R91: A mark on a picture is a visible mask, and the mask feeds the fix.** *(planned, U95)* Marking a region
+  draws a translucent highlight with an outline and a label; it stays on the picture and shows as a badge on the take's
+  tile. Finishing a mark opens its note in place (tags such as architecture, physics, "object to nowhere"; words;
+  Reject in the same step); a draft saves itself, and closing with an unsaved mark asks first. "Fix this" on a note
+  opens Change something with the mask as the edit region, or routes to the source record (SNAP-R90). `note_take` takes
+  a mask, and the critic writes its notes as masks (SNAP-R89). *Why:* the person, after a first "Mark region" on a
+  rooftop take with a string going nowhere: "wanted to mark it as a fail and why … was hoping to see some masking
+  transparency outline or something where I marked on what went wrong". *More:* DECISIONS 2026-11-05 10:22.
+
+- **SNAP-R92: A third-party character catalog is a linked resource; its characters are never shipped.** Snap and its
+  docs may link a catalog of styles and characters (such as the MOSS-Image Character & Style Catalog) for people to
+  browse. Its existing characters are never embedded in the pack, offered as Cast sources, kits or Library cards. A
+  later style list may take the catalog's styles with the character details permuted, so no entry is an existing
+  character. *Why:* the operator, 2026-11-05: "You are free to link that as a resource for people, there's plenty of fair
+  use, but I'm not embedding those direct characters into this app." *More:* DECISIONS 2026-11-05 14:4x.
+
+## Agent instructions and skills (U103/U104, 2026-11-06)
+
+- **SNAP-R93: Agent instructions are layered records, resolved per scope, pinned by every run.** An instruction is a
+  world record (kind `instruction`, SNAP-R60) with one scope (`global`, `tool:<name>`, `brick:<key>`, `method:<id>`,
+  a pinned record's ref such as `cast:<id>` or `location:<id>`, `scene:<id>`, `shot:<scene>/<shot>`, `take:<id>`;
+  `book:<id>` is kept for the Book) and a kind (`note`, a line read whole, or `model_choice`: job → choice, why). The
+  pack ships its own in `snap_cards/pack_notes.json` (each version 0 with a hash, `/mainodes/snap/pack_notes`); an
+  admin's notes with `shared: true` form the install layer on a gated install; the rest are the person's. For any call
+  the stack is the fold pack → install → person → book → scene → shot → take, plus notes on records the recipe pins,
+  general targets before specific, oldest first. A note adds unless it `replace`s outer ones it names in `supersedes`;
+  same-job `model_choice` notes: the inner level wins (the outer is listed `overridden`), at one level they are a
+  `conflict`; both cases are shown, never hidden. Off and seen are the person's marks (`snap/instructions.json`), never
+  versions. The stack has a hash of its refs and off list; `instructions`, `describe_recipe`, `get_take` and
+  `get_scene` return it whole (SNAP-R58), the pack's `tool:` notes end that tool's description, and every queued Snap
+  run pins `{refs, off, context}` in `extra.snap.instructions`, so a take says what it ran under, what applies now and
+  what changed (texts at both versions). Instructions stay off the take's stale chip: a note edit doesn't change what a
+  chain renders. *Why:* the operator, 2026-11-06: "learned things for the agents using a particular set of tools should
+  have instructions attached in that Snap block's WebMCP, but then each person will have their own memory instructions
+  that get bound to particular projects or particular scoped workflows … a button that you can view all the agentic
+  instructions that would have been applied to a particular block or a particular workflow or a particular project …
+  if things aren't going well you can inspect the instruction set and troubleshoot easier". *More:*
+  DESIGN_U103_U104_AGENT_LIBRARY_2026-11-06.md, PLAN U103, `web/snap/instructions.js`, `snap_instructions.py`,
+  proto/test_instructions_resolve.js, test_instructions_pins.js.
+
+- **SNAP-R94: Skills are pack files a person's version sits over.** A skill is `.claude/skills/<name>/SKILL.md` in the
+  pack (the format Claude Code loads; front matter `name`, `description`, `scope`, `rules`), served whole by
+  `/mainodes/snap/skills`, `list_skills` and `read_skill` and named by `/mainodes/snap/info` (no page needed). A
+  person's version is a `skill` record whose body keeps the pack text it began from; it is what agents read, with a
+  diff against the pack and one press back to it, and when the pack file changes under it the record says so and shows
+  pack then, pack now and theirs, never reverting by itself. `snap-core` says how Snap links together and how
+  instructions nest; task skills say how to do one job with exact calls and measured numbers. This extends SNAP-R30's
+  front door: what agents learn about using Snap is written into a skill (`save_skill`) or an instruction, with its
+  numbers and its reason, not into one agent's private memory. The Agent library (Library rail; an "Agent instructions"
+  button on bricks, the recipe, scenes, shots, takes and Cast records) shows skills, every note and what applies to
+  one object. *Why:* the operator, 2026-11-06: "we need to make sure we have a proper skill on how things link together
+  in Snap and how things get their instructions nested, and good other skills that show you how to do certain things
+  easier, and we have a good way to view these skills in the web UI too, as an agent library kind of thing … that way
+  all the dogfooding we are doing is using the app, and we keep optimizing a nice package we can hand people, but then
+  they can tweak it if there are things they want to change"; on the docs: what we are learning as we go "should apply
+  substantially to using it too". *More:* PLAN U104, `web/snap/agentlibrary.js`, `tools/snap_skills.sh`,
+  proto/test_agent_library.js.
+
+- **SNAP-R95: An agent's instruction applies at once and stays marked until the person looks.** `save_instruction` and
+  `save_skill` write a version `by: agent:<name>` (the bridge names the calling agent) that is in force at once; the
+  Agent library shows it "new from <agent>" and the rail row counts it until the person opens it, a quiet toast says
+  it arrived, and one click turns it off. An agent turns its own notes off directly; turning off a person's or the
+  pack's note waits as a proposal (SNAP-R23), and the agent can write a replacing note meanwhile. Imported notes and
+  skill versions land off until the person turns them on. A member of a gated install may turn an admin-shared note
+  off for themselves ("off by you"; marks inform, SNAP-R11). *Why:* the operator, 2026-11-06, on apply-now with a mark
+  and one-click off: "that sounds wise to me … it's a clear set of instructions that you can tell the agent to tweak".
+  *More:* DECISIONS 2026-11-06 04:19 and 04:38 (Q1-Q5), proto/test_instructions_store.js.
+
 ## Batch G1 (2026-11-06)
 
 - **SNAP-R83: Agents drive the person's main tab; the agents' window is one visible Chrome they attach to, reload and
@@ -730,7 +843,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
 
 ## Accounts and the gate (snap-gate)
 
-IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; G1 took R83-R87; R88 on).
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; G1 took R83-R87, the docs migration R88-R92, the agent library R93-R95, the vault R96 on; R100-R109 spare).
 
 - **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
   use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and

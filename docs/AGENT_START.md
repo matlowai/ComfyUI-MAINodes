@@ -3,6 +3,12 @@
 Snap is the full-screen view of the MAINodes pack in ComfyUI. An agent drives it with tools. The tools run inside an
 open Snap page, and you reach them through that page. Snap never downloads anything by itself.
 
+How Snap's pieces link and how to make things well with these tools (the order of work, which model for which job,
+traps and quality bars) is in the Snap skills, `.claude/skills/<name>/SKILL.md` in the pack (also `list_skills` /
+`read_skill`, which give the person's version when they have one): `snap-core` first, then `snap-location`,
+`snap-turnaround`, `snap-new-view`, `snap-reference-upscale`, `snap-boards`, `snap-voice`, `snap-critic` and
+`snap-model-choice`. The rules Snap follows are in [`SNAP_RULES.md`](SNAP_RULES.md).
+
 Below, `$BASE` is the ComfyUI address (for example `http://127.0.0.1:8188`) and `$PACK` is
 `<ComfyUI>/custom_nodes/ComfyUI-MAINodes`. On a signed-in install (snap-gate), `$BASE` is the gate's address. There you
 `export SNAP_TOKEN=<your account token>`, which every tool below sends as a Bearer header.
@@ -14,6 +20,8 @@ Below, `$BASE` is the ComfyUI address (for example `http://127.0.0.1:8188`) and 
 It returns `pack` (use it as `$PACK` below: `tools/snap_agent_page.sh` and `tools/snapcall.py` are in it), `input`
 (this server's input folder: pictures you name must be there), `output`, `base`, and `code` (the Snap code the server
 serves). A machine can hold several ComfyUI installs: trust this answer, not a folder you found by searching.
+`docs` gives where this file, the rules and the skills folder are, and `skills` lists every Snap skill (name,
+description, file, bytes); `GET $BASE/mainodes/snap/skills?name=snap-core` returns one whole, with no page open.
 
 ## 1. Open a Snap page
 
@@ -80,6 +88,34 @@ You can also run the tools as an MCP server (Claude Code):
   again.
 - Call `describe_recipe` before you change a recipe, and read its `revision`, `about` and `prompt_help`. A brick with
   `on: false` is off, its values are not used, and `off` says why.
+
+### Agent instructions (read them, follow them, keep them current)
+
+Every call runs under a resolved stack of notes (SNAP-R93): the pack's, an install's shared ones, and the person's own,
+nested pack → install → person → book → scene → shot → take. Read the whole stack before you act:
+
+    instructions {}                                   # the open recipe: also describe_recipe.instructions
+    instructions {"scope": "tool:edit_from_context"}  # before a tool; or brick:render, shot:<scene>/<shot>, take:<id>, cast:<id>
+    list_instructions {}                              # every note, each layer, with status (active, off, overridden, archived)
+
+- Each row has `ref`, `layer`, `scope`, `kind` (`note` text, or `model_choice`: job, choice, why), `by`, `source` and
+  `rule`. `overridden` lists notes another replaced; `conflicts` are two model choices for one job at one level: ask
+  the person or take the newer. `off` notes are ones the person turned off: don't follow them, even when a tool's
+  description (which ends with the pack's notes for it) still says them.
+- When the person tells you a preference ("use Fizgig for characters here", "always side by side"), save it:
+  `save_instruction {"scope": "global", "text": "..."}`, or `{"scope": "tool:edit_from_context", "kind":
+  "model_choice", "job": "...", "choice": "...", "why": "..."}`, with `source {"quote": "<their words, typos fixed>"}`.
+  "Change that" means a new version of their note: `save_instruction {"id": "instruction:<id>", "text": "..."}`.
+  Change a pack note with a note that replaces it (`"mode": "replace", "supersedes": ["pack:<id>"]`).
+- What you write applies at once and shows as "new from <you>" in the person's Agent library (SNAP-R95). Your own
+  notes go off with `set_instruction_status {"ref", "status": "off"}`; turning off the person's or the pack's waits as
+  a proposal.
+- `get_take.instructions` says what a take ran under (`ran`), what applies now (`now`), `same`, and `diff` (added,
+  removed, changed with both texts, turned_off, turned_on): read it when a take went wrong.
+- Skills: `list_skills`, `read_skill {"name": "snap-core"}` (whole; `file` for a file beside it); fold what you learned
+  about using Snap into a skill with `save_skill {"name", "markdown"}` (the whole file), not into your own notes.
+- Outside a Snap session, `bash $PACK/tools/snap_skills.sh link` puts the pack's skills into `~/.claude/skills/` for
+  Claude Code (`unlink`, `status`); the files stay the pack's, the person's versions are served by `read_skill`.
 
 ## 3. Set up with the person
 
@@ -161,8 +197,10 @@ lists them as `kind: take`):
   VAE-encoded at the size and sampled from `denoise` on its own schedule; the sound is kept. H3 takes only. On the
   short03 orbit (832x1024, 5 s) the 2K pass took 15-19 min on a 5090 (d0.25 / 0.30 / 0.35) and drew the face again
   while hilt, scabbard, straps and braid held; 0.25-0.35 looked alike, so keep 0.3 unless the person asks.
+  A 2K pass at cfg 5 fills a 32 GB card.
 - `h3_latent`: the same from the take's latent made bigger by a latent model (`upscaler`, default the H3 3D-conv one).
-- `tessera` (needs the ComfyUI-Tessera pack): about 1 MP tiles on Ref2VA, the take as <Video 1>, a first-frame still
+- `tessera` (needs the ComfyUI-Tessera pack; its streamed decode writes ~10 GB of buffers at 4K x 124 frames to
+  `TESSERA_SCRATCH`, else the system temp, so point that at a big disk): about 1 MP tiles on Ref2VA, the take as <Video 1>, a first-frame still
   as <Picture 1> (default: the take's newest stage 2's frame 0, so run `stage2` first; `anchor: "none"` uses the take's
   own frame 0) and a hero tile on `hero` (default "face"). On the same orbit, 4K took 33 min and carried the stage 2
   face up to 4K without seams; it skips near-empty backdrop tiles (`flat_skip` 8: at Tessera's own 4 those tiles grew
@@ -292,6 +330,9 @@ thumbnail in Snap opens the same viewer on a click; nothing changes by viewing.
   with close-ups once you have views to give it (it kept v2's scabbard on her back in profile 5/6). `krea2_quadview`
   looks cleanest but drops carried props; `krea2_dynamic` is a pitch sheet with garbled labels; `moss_charref` drifts
   off-model. None reliably draws "from above".
+- A turnaround from one continuous orbit holds carried props best: an H3 orbit LoRA such as ORB360 on a Ref2VA setup
+  with the front and back pictures beat every stills method; pull frames at 90/180/270 (skill `snap-turnaround`).
+  From a front picture alone, back views mirror carried props: give a back reference.
 
 ### Voices and audio references
 
@@ -304,7 +345,14 @@ thumbnail in Snap opens the same viewer on a click; nothing changes by viewing.
 - A Cast can hold the voice: `save_cast {..., "voice": {"file": "snap/kon_voice.wav", "casting": "young woman, low
   cool alto, clipped"}}`. `apply_cast` then puts the voice in with the pictures and says its `<Audio n>`.
 - H3 reads audio references only with a reference setup (Ref2V). A voice reference itself is made at 12 steps or more
-  (low resolution is fine); normal video takes stay at the setup's steps.
+  (low resolution is fine; SNAP-R88); normal video takes stay at the setup's steps. Text alone doesn't cast a voice:
+  H3 ignores pitch, age and sex words, so anchor the voice with a talking take and measure it (skill `snap-voice`).
+
+## When Snap can't do it
+
+A missing route is a gap in Snap, not a reason to leave it: a take queued outside Snap (raw API, a side graph) never
+shows in its shot, its Cast pins or the Work card. Tell the person what you tried, which tool and what it answered, so
+the route gets built into Snap.
 
 ## Limits
 
