@@ -21,7 +21,7 @@ reproduce exactly. Nothing fabricated; three claims are only partly confirmed at
   what any push does.
 - A hold is exact geometry, not exact behaviour (our face dial's loudness hold: +4.8 → +1.7 dB, laughter remained).
 - Output interactions matter more than input cosine. We have one large positive example (oil −3 + datamosh → painting at
-  cos 0.30, placebo-controlled).
+  signed cosine of the two pushes −0.30, placebo-controlled).
 
 ## Ideas worth testing here
 

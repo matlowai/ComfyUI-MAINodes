@@ -79,7 +79,7 @@ oil_pixel −3 + datamosh +1.5 or +2.25 turned the photoreal period drama into a
 brushwork (2 seeds). Neither row alone does it. A meaningless placebo at datamosh's push (|push| ≈ 126) gives no
 painting; the probe bank's "photoreal ↔ stylized" direction at the same push gives a half-painted mural. Pushing two
 dials too far collapses the scene instead (oil +2.5 + memory +3 → a black frame with a few pixel glyphs). This is a large
-*useful* output interaction at input cosine 0.30.
+*useful* output interaction between two pushes that point partly against each other (signed cosine of the applied pushes −0.30; the dial files themselves have cosine +0.30).
 
 ## 6. Do probe profiles predict renders? ("wheel vs renders")
 
@@ -104,4 +104,4 @@ metric).
 - Judge against a **size-matched placebo**, not only the dial-off control.
 - A creature or object **continuum needs its subject in the scene**.
 - **Medium words → era first**; the medium itself needs ≥ +3 and usually costs the scene.
-- **Rows interact.** The rack's input-cosine readout does not predict the painting interaction (cos 0.30).
+- **Rows interact.** The rack's input-cosine readout does not predict the painting interaction (signed cosine of the two pushes −0.30).
