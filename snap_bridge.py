@@ -13,6 +13,7 @@ SNAP-R78 a stale tab says so, agents ask (request_reload), the person reloads ·
 Chrome agents drive, reload and restart, the default with the person's tab; never headless ·
 see docs/SNAP_RULES.md"""
 import asyncio
+import glob
 import hashlib
 import itertools
 import json
@@ -262,6 +263,12 @@ async def info(request):
         root = os.path.abspath(folder_paths.get_input_directory())
         path = os.path.abspath(os.path.join(root, request.query["input"]))
         q["input_exists"] = os.path.commonpath((root, path)) == root and os.path.isfile(path)
+        if q["input_exists"]:  # F-C30: what the file is, and same-named uploads that came later ("x (1).wav")
+            q["input_sha256"] = await asyncio.to_thread(lambda: hashlib.sha256(Path(path).read_bytes()).hexdigest())
+            stem, ext, when = *os.path.splitext(path), os.path.getmtime(path)
+            stem = re.sub(r" \(\d+\)$", "", stem)  # "x (1).wav" and "x.wav" are uploads of one name
+            same = glob.glob(f"{glob.escape(stem)}{glob.escape(ext)}") + glob.glob(f"{glob.escape(stem)} (*){glob.escape(ext)}")
+            q["input_newer"] = sorted(os.path.relpath(f, root).replace(os.sep, "/") for f in same if f != path and os.path.getmtime(f) > when)
     return web.json_response(q)
 
 
@@ -504,7 +511,7 @@ async def page_shot(request):
     body = await request.json()
     client, width = body.get("client"), int(body.get("max_width") or 1600)
     if client not in pages or not pages[client].get("managed"):
-        return error("Only a tab of the agents' window can be captured this way (SNAP-R83); a person's tab shares itself with 'Let agents see'.", 403)
+        return error("Only a tab of the agents' window can be captured this way (SNAP-R83); a person's tab shares itself with 'Let agents see'. Meanwhile take_frames shows a take's frames and read_ui what the page shows.", 403)
     async with aiohttp.ClientSession() as session:
         for t, c in await chrome_pages():
             if c != client:
@@ -514,7 +521,7 @@ async def page_shot(request):
                 k = min(1.0, width / size["clientWidth"])
                 shot = await cdp(ws, "Page.captureScreenshot", {"format": "jpeg", "quality": 85, "clip": {"x": 0, "y": 0, "width": size["clientWidth"], "height": size["clientHeight"], "scale": k}})
                 return web.json_response({"mimeType": "image/jpeg", "data": shot["data"], "width": round(size["clientWidth"] * k), "height": round(size["clientHeight"] * k)})
-    return error("This tab is no longer in the agents' window (its Chrome closed or restarted): chrome {\"action\": \"status\"} lists its tabs.", 404)
+    return error("This tab is no longer in the agents' window (its Chrome closed or restarted): chrome {\"action\": \"status\"} lists its tabs; take_frames and read_ui work meanwhile.", 404)
 
 
 CARDS = Path(__file__).parent / "snap_cards"

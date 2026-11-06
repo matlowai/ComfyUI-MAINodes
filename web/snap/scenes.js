@@ -211,6 +211,12 @@ export async function openShot(sceneId, shotId) {
       const c = L.get(shot.card);
       try { card = c ? await L.apply(c) : `its shot card ${shot.card} isn't in the Library`; } catch (e) { card = e.message; }
     }
+    // F-C31: a copy of another shot's recipe leaves its Casts and locations out (pieces and pins): never inherited silently
+    if (built.startsWith("a copy of")) {
+      const left = Object.entries(E.state().world ?? {}).filter(([ref]) => ref.startsWith("cast:") || ref.startsWith("location:"));
+      for (const [ref] of left) await L.removePin(ref);
+      if (left.length) built += `, without ${left.map(([, p]) => p.name ?? "a record").join(", ")} (apply_cast / apply_location what this shot uses)`;
+    }
     await saveOpen();
   }
   await retitle(get(scene.id), get(scene.id).shots.find((x) => x.id === shot.id));

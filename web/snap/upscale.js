@@ -14,6 +14,7 @@
 // SNAP-R85 a reference is redrawn, never only sharpened ·
 // SNAP-R81 a take's upscale is a second pass of its own recipe · SNAP-R82 Tessera tiles a take · SNAP-R13 data, not code
 // branches · SNAP-R14 method slots · SNAP-R16 GPU work waits for the person · SNAP-R60 pins · see docs/SNAP_RULES.md
+import { api } from "../../../scripts/api.js";
 import * as ED from "./edits.js";
 import * as K from "./checks.js";
 import * as M from "./models.js";
@@ -221,13 +222,19 @@ export async function start(take, id, { factor, width, height, denoise, upscaler
   if (pic && m.run.plate !== "pixels") throw new Error(`Take ${take.number} is a still: ${m.title} runs on video takes; stage2 redraws a still`);
   if (m.install_state !== "ready") throw new Error(`${m.title}: ${m.install_state}`);
   const t = size(take, m, { factor, width, height }, pic ? await dims(take) : null), o = m.options;
+  if (pic) { // a still's own nodes cap its size (the Fizgig still latent: 4096 a side): the long side comes down to it
+    const most = Math.min(...await Promise.all([...new Set(Object.values(take.prompt).filter((n) => "width" in (n.inputs ?? {}) && n.class_type !== "ImageScale").map((n) => n.class_type))].map(async (c) => {
+      const spec = (await (await api.fetchApi(`/object_info/${c}`)).json())[c]?.input; return [spec?.required?.width, spec?.optional?.width].find(Boolean)?.[1]?.max ?? Infinity; })));
+    const k = Math.min(1, most / Math.max(t.width, t.height));
+    if (k < 1) Object.assign(t, { width: Math.floor((t.width * k) / m.run.grid) * m.run.grid, height: Math.floor((t.height * k) / m.run.grid) * m.run.grid, capped: `${most} is the largest side its nodes take` });
+  }
   let g, options;
   if (pic) {
     denoise ??= o.denoise.default;
     if (!(denoise >= o.denoise.min && denoise <= o.denoise.max)) throw new Error(`denoise: how much of the still is made again, ${o.denoise.min} to ${o.denoise.max} (${o.denoise.default} is light)`);
     const pick = upscaler === undefined ? o.upscaler.default : upscaler, file = pick && pick !== "none" ? await M.choice(o.upscaler.loader, "model_name", pick) : null;
     g = stillPass(take, m, t, denoise, file);
-    options = { width: t.width, height: t.height, denoise, still: true, ...(file ? { upscaler: file } : {}) };
+    options = { width: t.width, height: t.height, denoise, still: true, ...(t.capped ? { capped: t.capped } : {}), ...(file ? { upscaler: file } : {}) };
   } else if (m.run.plate) {
     denoise ??= o.denoise.default;
     if (!(denoise >= o.denoise.min && denoise <= o.denoise.max)) throw new Error(`denoise: how much of the take is made again, ${o.denoise.min} to ${o.denoise.max} (${o.denoise.default} is light)`);

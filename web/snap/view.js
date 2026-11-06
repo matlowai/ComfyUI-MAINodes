@@ -1097,16 +1097,19 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
 
   // SNAP-R60: the record versions a brick holds, on that brick: "Kon v1", and when the record moved on, one press to
   // update ("v2 available · update"); a recipe never changes by itself because a record did
-  const pinHome = (ref, p) => (p.setup ? members()[0] : ref.startsWith("cast:") ? (p.placed?.row != null ? "cast" : "render") : ref.startsWith("set_snapshot:") ? "refs" : "render");
+  const pinHome = (ref, p) => (p.setup ? members()[0] : ref.startsWith("cast:") ? (p.placed?.row != null ? "cast" : "render") : ref.startsWith("set_snapshot:") || ref.startsWith("location:") ? "refs" : "render");
   function pinChips(key) {
     const world = E.state().world ?? {}, moved = new Map(T.moves(world).map((m) => [m.ref, m]));
-    const here = Object.entries(world).filter(([ref, p]) => pinHome(ref, p) === key && (ref.startsWith("cast:") || ref.startsWith("set_snapshot:") || moved.has(ref)));
+    const here = Object.entries(world).filter(([ref, p]) => pinHome(ref, p) === key && (ref.startsWith("cast:") || ref.startsWith("set_snapshot:") || ref.startsWith("location:") || moved.has(ref)));
+    // F-C27: x takes the record out of this recipe (its pieces and its pin; the record stays)
+    const out = (ref, name) => h("button", { className: "snap-x snap-pin-x", textContent: "×", title: `take ${name} out of this recipe: what it put here goes, the record stays`,
+      onclick: async (e) => { e.stopPropagation(); try { say(await L.removePin(ref)); } catch (err) { say(err.message, true); } render(null); } });
     if (!here.length) return [];
     return [h("div", { className: "snap-pins" }, here.map(([ref, p]) => {
       const m = moved.get(ref), name = m?.name ?? p.name ?? ref;
-      if (!m || m.missing) return h("span", { className: `snap-pin${m ? " missing" : ""}`, textContent: m ? T.moveText(m) : p.n ? `${name} v${p.n}` : name, title: m ? `${ref}: this record isn't in your library; the recipe still holds what it put there` : `${ref}@${p.n}: the version this recipe holds` });
-      return h("button", { className: "snap-pin moved", title: m.pack ? `${ref}: a pack card the pack has changed since the recipe took it. Update puts today's card in` : `${ref}: the recipe holds v${p.n}; the record is at v${m.now}${m.archived ? " (archived)" : ""}. Update puts v${m.now} in, replacing what v${p.n} put there`,
-        onclick: async (e) => { e.stopPropagation(); try { say(await L.updatePin(ref)); } catch (err) { say(err.message, true); } render(null); } }, m.pack ? `${name} · the pack updated it · update` : `${name} v${p.n} · v${m.now} available · update`);
+      if (!m || m.missing) return h("span", { className: "snap-pin-wrap" }, h("span", { className: `snap-pin${m ? " missing" : ""}`, textContent: m ? T.moveText(m) : p.n ? `${name} v${p.n}` : name, title: m ? `${ref}: this record isn't in your library; the recipe still holds what it put there` : `${ref}@${p.n}: the version this recipe holds` }), out(ref, name));
+      return h("span", { className: "snap-pin-wrap" }, h("button", { className: "snap-pin moved", title: m.pack ? `${ref}: a pack card the pack has changed since the recipe took it. Update puts today's card in` : `${ref}: the recipe holds v${p.n}; the record is at v${m.now}${m.archived ? " (archived)" : ""}. Update puts v${m.now} in, replacing what v${p.n} put there`,
+        onclick: async (e) => { e.stopPropagation(); try { say(await L.updatePin(ref)); } catch (err) { say(err.message, true); } render(null); } }, m.pack ? `${name} · the pack updated it · update` : `${name} v${p.n} · v${m.now} available · update`), out(ref, name));
     }))];
   }
 

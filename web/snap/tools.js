@@ -584,6 +584,18 @@ export const TOOLS = [
     },
   },
   {
+    name: "remove_from_world",
+    description: "Take a record out of the open recipe (short03 F-C27): ref is kind:id (a Cast, a location, a set or a card describe_recipe.world holds). What its last apply put here goes (a Cast's LoRA row, its line in the prompt, its pictures and voice; a location's or set's pictures and set text) and so does its pin, so the next takes don't cite or check it. The record stays (archive_record and delete_record are separate), and takes made before keep their pins. One undo step; the x on its chip does the same.",
+    inputSchema: { type: "object", properties: { ref: { type: "string" } }, required: ["ref"] },
+    run: async ({ ref }) => ({ said: await L.removePin(ref), world: E.state().world ?? {} }),
+  },
+  {
+    name: "cast_to_location",
+    description: "Make a location record from a place kept as a Cast (short03 F-C29: before location records a set was stored as a Cast, and every take of it showed 'its description wasn't in the prompt'): its first picture (or the one whose role says master) becomes the master, the one whose role says map or plan the plan, the others plates named by their roles, its details and lore the notes. The Cast stays; its takes stop showing the description miss. Returns the new location (location:<id>), or the one made from it before.",
+    inputSchema: { type: "object", properties: { cast: { type: "string" } }, required: ["cast"] },
+    run: async ({ cast }) => ({ ...await L.castToLocation(cast, { by: "agent" }), next: "apply_location {location, plates} cites it in a shot; open_view {view: \"location\", location} shows it" }),
+  },
+  {
     name: "add_ref",
     description: "Put a picture from this server's input folder into References (G1, short03 F-C21): file is its path in input/ (upload one with POST /upload/image, multipart image=<file>, subfolder=snap, then give \"snap/<its name>\"), role says what it shows (\"back view of Maren\"). Returns `cite`, its <Picture n> for the prompt, and every reference. A take's frame goes in with use_take, a Cast's pictures with apply_cast, a location's with apply_location. One undo step.",
     inputSchema: { type: "object", properties: { file: { type: "string" }, role: { type: "string" } }, required: ["file"] },
@@ -1165,7 +1177,7 @@ export const TOOLS = [
     annotations: { consequentialHint: true },
     consequential: true,
     plan: async ({ take, method = "stage2", factor, width, height, denoise }) => {
-      await T.load(); const t = T.get(take), m = await UP.method(method), z = t && UP.size(t, m, { factor, width, height }, UP.still(t) ? await UP.dims(t) : null);
+      await T.load(); const t = T.get(take), m = await UP.method(method), z = t && (!UP.still(t) || m.run.plate === "pixels") && UP.size(t, m, { factor, width, height }, UP.still(t) ? await UP.dims(t) : null);
       const why = t && UP.reason(t);
       return { runs: `${m.title}${denoise != null ? ` at denoise ${denoise}` : ""}: take ${t?.number ?? take} again at ${z ? `${z.width}×${z.height}` : "a bigger size"}, as a new take`, eta_s: m.cost?.local_s_per_mp_frame && z && !UP.still(t) ? Math.round(m.cost.local_s_per_mp_frame * (z.width * z.height / 1e6) * ED.clip(t).frames) : null, from: "PLAN U102b: measured on a 5090", ...(why ? { why } : {}) };
     },

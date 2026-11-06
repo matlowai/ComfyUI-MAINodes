@@ -103,7 +103,10 @@ export async function openCast(host, { id = null, n = null, lora = null, say, on
             const out = await saveIt(), said = await L.applyCast(out.ref);
             status.textContent = said; say?.(said); onApplied?.(); close();
           }) }),
-          h("button", { className: "snap-link", textContent: "Save", onclick: act(saveIt) })),
+          h("button", { className: "snap-link", textContent: "Save", onclick: act(saveIt) }),
+          // F-C29: a place kept as a Cast (no LoRA) moves to a location record; the Cast stays
+          rec && !b.lora ? h("button", { className: "snap-link", textContent: "Make it a location", title: "a place kept as a Cast becomes a location record: master, plan and plates; the Cast stays", onclick: act(async () => {
+            const out = await L.castToLocation(W.refOf("cast", recId)); status.textContent = out.said; say?.(out.said); onApplied?.(); }) }) : null),
         status, warn)));
   sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
   drawRefs(); drawVersions();

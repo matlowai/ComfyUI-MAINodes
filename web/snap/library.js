@@ -324,10 +324,17 @@ export async function saveCast(id, body, { note = "", by = "person" } = {}) {
     lora: body.lora?.file ? { file: body.lora.file, strength: +(body.lora.strength ?? 1) } : null, refs: (body.refs ?? []).map((r) => ({ file: r.file, role: r.role || "identity" })),
     lore: body.lore?.trim() ?? "", rating: body.rating ?? null,
     ...(body.voice?.file ? { voice: { file: body.voice.file, casting: body.voice.casting?.trim() ?? "" } } : {}) }; // U101: a voice reference only when given, so older records save unchanged
+  // F-C30: each file's hash goes on the record (the exact file it used), and a newer upload of the same name is said
+  const newer = [];
+  for (const r of [...clean.refs, ...(clean.voice ? [clean.voice] : [])]) {
+    const at = await (await api.fetchApi(`/mainodes/snap/info?input=${encodeURIComponent(r.file)}`)).json();
+    if (at.input_sha256) r.sha = at.input_sha256.slice(0, 16);
+    if (at.input_newer?.length) newer.push(`${r.file} is older than ${at.input_newer.join(", ")} in input/: an upload of a name already there is saved under a new name and never replaces it. Give that name if you meant the new file`);
+  }
   id ??= castStamp();
   const was = W.headOf(W.record("cast", id))?.body, out = await W.save("cast", id, clean, { note, by });
   rebuild();
-  const warning = out.made ? lookWarning(was, clean) : null;
+  const warning = [out.made ? lookWarning(was, clean) : null, ...newer].filter(Boolean).join("; ") || null;
   return { id, ref: out.ref, n: out.n, made: out.made, ...(warning ? { warning } : {}) };
 }
 // a reference picture for a Cast record, into input/snap/cast/<id>/; returns the LoadImage value
@@ -454,7 +461,8 @@ export async function saveLocation(id, body, { note = "", by = "person" } = {}) 
     plates.push({ name, ...await locationPicture(p, `plate ${name}`), ...roleIn(p.role, `plate ${name}`), pose: poseOf(p.pose, `plate ${name}`), ...(p.camera ? { camera: p.camera } : {}), ...(p.use?.trim() ? { use: p.use.trim() } : {}), ...(p.note?.trim() ? { note: p.note.trim() } : {}) });
   }
   const master = await locationPicture(body.master, "master");
-  const clean = { name: body.name.trim(), notes: body.notes?.trim() ?? "", master: master && { ...master, ...roleIn(body.master.role, "master") }, plan: await locationPicture(body.plan, "plan"), cameras, plates, rating: body.rating ?? null };
+  const clean = { name: body.name.trim(), notes: body.notes?.trim() ?? "", master: master && { ...master, ...roleIn(body.master.role, "master") }, plan: await locationPicture(body.plan, "plan"), cameras, plates, rating: body.rating ?? null,
+    ...(body.from_cast ? { from_cast: body.from_cast } : {}) };
   id ??= locationStamp();
   const out = await W.save("location", id, clean, { note, by });
   rebuild();
@@ -499,7 +507,7 @@ export async function applyLocation(ref, { plates = [], master = true, plan = tr
     for (const p of E.state().bricks.find((x) => x.key === "refs").pictures ?? []) if (p.source === key && !roles.includes(p.role)) E.removePicture(p.node);
     want.forEach(([what, file], i) => E.addPicture(file, { role: roles[i], reason: `${b.name}, location v${n}${what.startsWith("plate") ? `, ${what}` : ""}`, source: key, card: W.refOf("location", id, n) }));
     try { preset = conditionFor("Ref2V"); } catch (e) { unread = e.message; }
-    pin(key, { n, hash: W.short(version.hash), name: b.name, placed: { roles, plates, master: !!(master && b.master), plan: !!(plan && b.plan), ...(camera != null ? { camera } : {}) } });
+    pin(key, { n, hash: W.short(version.hash), name: b.name, placed: { roles, plates, master: !!(master && b.master), plan: !!(plan && b.plan), ...(camera != null ? { camera } : {}), ...(unread ? { unread } : {}) } });
   } finally { app.canvas.emitAfterChange(); }
   app.canvas.setDirty(true, true);
   const pics = E.references()?.pictures ?? [], citeOf = (what) => pics.find((p) => p.role?.startsWith(`location: ${b.name}, ${what}`) && (p.role.length === `location: ${b.name}, ${what}`.length || p.role[`location: ${b.name}, ${what}`.length] === " "))?.cite ?? null;
@@ -510,12 +518,31 @@ export async function applyLocation(ref, { plates = [], master = true, plan = tr
     plan && b.plan && `${citeOf("plan")} is the set plan from above, not a view.`].filter(Boolean).join(" ");
   return { said: `${b.name} v${n}: ${want.map(([what, , u]) => `${what}${u === "map" ? "" : ` (${u})`} as ${citeOf(what)}`).join(", ")} in References${preset ? `; Render Preset now ${preset} (the pictures need it)` : ""}${unread ? `; the pictures are not read by this render: ${unread}` : ""}`, cite, use: as, prompt_hint };
 }
+// short03 F-C29: a place kept as a Cast (the workaround before location records) becomes a location record: its first
+// picture the master (or the one whose role says master), the one whose role says map or plan the plan, the others plates
+// named by their roles; its details and lore the notes; from_cast names the version it came from. The Cast stays
+export async function castToLocation(ref, { by = "person" } = {}) {
+  await ready();
+  const { kind, id } = W.parse(ref), got = W.get(ref);
+  if (kind !== "cast" || !got) throw new Error(`No Cast ${ref} (list_cast lists them)`);
+  const b = got.version.body, refs = b.refs ?? [], from = W.refOf("cast", id, got.version.n);
+  const done = W.all("location").find((r) => W.headOf(r).body.from_cast?.startsWith(`cast:${id}@`));
+  if (done) return { location: `location:${done.id}`, id: done.id, ref: W.refOf("location", done.id, done.head), n: done.head, made: false, said: `${b.name} is already location:${done.id} (from ${W.headOf(done).body.from_cast})` };
+  const plan = refs.find((r) => /\b(map|plan)\b/i.test(r.role)), master = refs.find((r) => r !== plan && /master/i.test(r.role)) ?? refs.find((r) => r !== plan);
+  const plates = refs.filter((r) => r !== plan && r !== master).map((r, i) => ({ name: r.role || `plate ${i + 1}`, file: r.file }));
+  const out = await saveLocation(null, { name: b.name.replace(/\s*\(set\)/i, ""), notes: [b.details, b.lore].filter(Boolean).join(" "), master: master && { file: master.file }, plan: plan && { file: plan.file }, plates, from_cast: from },
+    { note: `made from the Cast ${from}`, by });
+  return { location: `location:${out.id}`, ...out, said: `${b.name} is now location:${out.id} v${out.n} (master, ${plan ? "plan, " : ""}${plates.length} plate${plates.length === 1 ? "" : "s"}); the Cast stays` };
+}
 // U72 F24: a prompt written over a Cast's sentence gets it back (the agent's words and the Cast both reach the render);
 // returns what was put back
 export function keepPinnedText() {
   const kept = [];
   for (const [ref, p] of Object.entries(E.state().world ?? {})) {
     if (!p.placed?.text || !ref.startsWith("cast:")) continue;
+    // F-C31: only a Cast still in use here (its pictures in References or its LoRA row on) gets its line back
+    const used = (E.state().bricks.find((x) => x.key === "refs")?.pictures ?? []).some((x) => x.source === ref) || (p.placed.row != null && M.rows("cast")[p.placed.row]?.on);
+    if (!used) continue;
     const first = (E.getValue("render", "render", "prompt") ?? "").split("\n")[0];
     if (!first.includes(p.placed.text) && addToPrompt([p.placed.text])) kept.push(`${p.name} v${p.n}'s details line (${ref})`);
   }
@@ -587,6 +614,30 @@ export async function swapPin(from, to) {
   const out = await apply(now, { keep: false }), v = W.get(to)?.version;
   if (v) pin(key, { ...pinOf(key), n: v.n, hash: W.short(v.hash), name: nameOf(now) }); // the version asked for, not the head apply pins
   return out;
+}
+
+// short03 F-C27: a record out of the open recipe: what its last apply put there goes (a Cast's row, sentence, pictures
+// and voice; a location's or set's pictures and set text) and the pin with it. The record stays, and takes made before
+// keep their pins. Returns what happened
+export async function removePin(ref) {
+  await ready();
+  const { kind, id } = W.parse(ref), key = W.refOf(kind, id), old = pinOf(key);
+  if (!old) throw new Error(`${key} isn't in this recipe's world; it holds ${Object.keys(E.state().world ?? {}).join(", ") || "no records"}`);
+  const p = old.placed ?? {}, refs = E.state().bricks.find((x) => x.key === "refs"), body = bodyOf(W.refOf(kind, id, old.n)), source = kind === "set_snapshot" ? body?.lineage ?? id : key;
+  app.canvas.emitBeforeChange();
+  try {
+    if (p.row != null && M.rows("cast")[p.row]) {
+      M.removeRow("cast", p.row);
+      for (const [r, q] of Object.entries(E.state().world ?? {})) if (r !== key && q.placed?.row > p.row) pin(r, { ...q, placed: { ...q.placed, row: q.placed.row - 1 } });
+    }
+    if (p.text) removeFromPrompt([p.text]);
+    for (const x of refs?.pictures ?? []) if (x.source === source) E.removePicture(x.node);
+    for (const x of refs?.audios ?? []) if (x.source === key) E.removeAudio(x.node);
+    if (refs?.setText?.[source]) { removeFromPrompt(refs.setText[source]); const { [source]: _, ...rest } = refs.setText; E.remember("refs", "setText", rest); }
+    unpin(key);
+  } finally { app.canvas.emitAfterChange(); }
+  app.canvas.setDirty(true, true);
+  return `${old.name ?? key} is out of this recipe: ${[p.row != null && "its LoRA row", p.text && "its line in the prompt", "its pictures"].filter(Boolean).join(", ")} and its pin; the record stays, and takes made before keep their pin`;
 }
 
 // "update" on a pin's chip (SNAP-R60: never by itself): the record's newest version replaces what the recipe holds

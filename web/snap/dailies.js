@@ -59,8 +59,10 @@ const WORDS = { text: "prompt", prompt: "prompt", value: "setting", noise_seed: 
   strength_model: "LoRA strength", unet_name: "model", ckpt_name: "model", clip_name: "text encoder", vae_name: "VAE", image: "picture", filename_prefix: "save name" };
 const settingWords = (x) => { const m = x.match(/^(.*)\.([^.\s]+)( rewired)?$/); return m ? `${m[1]} ${WORDS[m[2]] ?? m[2].replace(/_/g, " ")} ${m[3] ? "rewired" : "changed"}` : x; };
 // what of a pinned Cast didn't reach a take (takes.js placedCheck), in plain words; a reason it can't state isn't shown
-const UNPLACED = [[/^its details line isn't in the prompt that ran$/, () => "its description wasn't in the prompt"], [/^its pictures weren't read: (.+)$/, (x) => `its pictures weren't used (${x[1]})`]];
-const unplaced = (p) => (p.placed?.missing ?? []).map((m) => { const hit = UNPLACED.find(([re]) => re.test(m)); return hit && hit[1](m.match(hit[0])); }).filter(Boolean);
+const UNPLACED = [[/^its details line isn't in the prompt that ran$/, () => "its description wasn't in the prompt"], [/^its pictures weren't read: (.+)$/, (x) => `its pictures weren't used (${x[1]})`],
+  [/^its line is in the prompt but its pictures weren't in References$/, () => "in the prompt without its pictures"]];
+// F-C29: a place kept as a Cast and since made a location has no description to put in a prompt: no red line for it
+const unplaced = (p, ref) => (p.placed?.missing ?? []).filter((m) => !(/^its details line/.test(m) && ref?.startsWith("cast:") && W.all("location").some((r) => W.headOf(r)?.body.from_cast?.startsWith(`${ref}@`)))).map((m) => { const hit = UNPLACED.find(([re]) => re.test(m)); return hit && hit[1](m.match(hit[0])); }).filter(Boolean);
 
 function mediaEl(m, { big, muted = true } = {}) {
   if (!m) return h("div", { className: "snap-take-none", textContent: "no picture" });
@@ -84,6 +86,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
     strip);
   T.onChange(() => render());
   SC.onChange(() => render());
+  W.onChange(() => render()); // a record's change reads on the cards (F-C29: a Cast made a location stops showing its miss)
   // SNAP-R65: jobs about a take show on its card, and a job that will become a take shows as a ghost card where the take
   // will land; the strip is rebuilt only when a ghost comes or goes, the chips and rings are written in place
   let ghostSig = "";
@@ -159,7 +162,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
         t.copy?.copied ? h("span", { className: "snap-take-copy", textContent: `copied its reference view ${Math.max(...t.copy.against.map((a) => a.last)).toFixed(2)}`,
           title: `This take ends on the view of its reference picture (last frame's copy score at or above ${t.copy.threshold}): right when that picture is this camera's own plate, wrong when it shows another camera's view.\n${t.copy.against.map((a) => `${a.image}: ${a.frames.join(" → ")}`).join("\n")}` }) : null,
         t.parent && !version ? h("span", { className: "snap-take-parent", textContent: `↳ ${T.versionOf(t.parent.options) ?? t.parent.method.split("/").pop()} of take ${T.get(t.parent.take)?.number ?? "?"}`, title: `made from ${t.parent.take} by ${t.parent.method}` }) : null,
-        ...Object.values(t.world ?? {}).map((p) => [p, unplaced(p)]).filter(([, m]) => m.length).map(([p, m]) => h("span", { className: "snap-take-unplaced", textContent: `${p.name} v${p.n}: ${m[0]}${m.length > 1 ? ` +${m.length - 1}` : ""}`,
+        ...Object.entries(t.world ?? {}).map(([ref, p]) => [p, unplaced(p, ref)]).filter(([, m]) => m.length).map(([p, m]) => h("span", { className: "snap-take-unplaced", textContent: `${p.name} v${p.n}: ${m[0]}${m.length > 1 ? ` +${m.length - 1}` : ""}`,
           title: `Parts of ${p.name} v${p.n} (Cast) that didn't reach this take:\n${m.join("\n")}` })), // U72 F25, in plain words (Dylan 2026-11-05)
         t.cached_from ? h("span", { className: "snap-take-parent snap-take-cached", textContent: `= same result as take ${T.get(t.cached_from)?.number ?? "?"}`, title: "identical recipe, seed included: ComfyUI served the earlier result from its cache, so this take is that same file (an exact reproduction, not a new render)" }) : null,
         t.metadata_kept ? h("span", { className: "snap-take-kept", textContent: "metadata kept", title: `Save metadata was off, but ${t.metadata_kept.join("; ")}: those files hold the prompt and workflow` }) : null,

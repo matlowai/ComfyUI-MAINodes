@@ -244,6 +244,10 @@ cameras → master → a people-free walkthrough → plates from its frames), th
   References, each a `<Picture n>` (`cite`), and pins the version, so every take says which version of the place it
   used; `rerun` swaps it like a Cast. A New view cites a plate the same way: `{"location": "location:<id>", "plate":
   "Pb gate inside"}` (or `"master"`, `"plan"`) among its pictures.
+- A place kept as a Cast (before location records) moves over with `cast_to_location {"cast": "cast:<id>"}`: its
+  master and map become the location's master and plan; the Cast stays, and its takes stop showing "its description
+  wasn't in the prompt". `remove_from_world {"ref": "cast:<id>"}` takes any record out of the open recipe (its
+  pictures, its line in the prompt, its pin; the record stays), as the x on its chip does.
 - `open_view {"view": "location", "location": "location:<id>"}` opens the Location sheet for the person: the master,
   the plan with every camera mark and plate drawn as a dot and a wedge, and the plate tiles; every picture opens full
   size. The person ticks plates there and presses "Use in this shot".

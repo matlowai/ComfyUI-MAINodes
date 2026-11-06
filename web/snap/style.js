@@ -765,6 +765,7 @@ export const STYLE = `
 @container (max-width: 760px) { .snap-loc-top { grid-template-columns: minmax(0, 1fr); } .snap-sheet.snap-loc-sheet { inset: 48px 8px auto; } }
 @container (max-width: 760px) { .snap-sheet.snap-cast-sheet { inset: 56px 8px auto; } .snap-cast-body { grid-template-columns: minmax(0, 1fr); padding: 12px; } }
 .snap-pins { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.snap-pin-wrap { display: inline-flex; align-items: center; gap: 1px; } .snap-pin-x { font-size: 11px; padding: 0 4px; opacity: .55; } .snap-pin-wrap:hover .snap-pin-x { opacity: 1; }
 .snap-pin { font-size: 11px; padding: 2px 7px; border-radius: 999px; background: var(--s-card); color: var(--s-dim); box-shadow: inset 0 0 0 1px var(--s-line); }
 .snap-pin.moved { all: unset; cursor: pointer; font-size: 11px; padding: 2px 8px; border-radius: 999px; color: #f0b445; background: #f0b44514; box-shadow: inset 0 0 0 1px #f0b44555; }
 .snap-pin.moved:hover { background: #f0b44526; } .snap-pin.moved:focus-visible { outline: 2px solid var(--s-accent); outline-offset: 2px; } .snap-pin.missing { color: #f08a7a; }

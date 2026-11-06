@@ -194,6 +194,10 @@ When a rule changes, edit it here and keep its ID. Retired IDs stay listed as "r
   should live with that cast record. the cast id would live on the image, not everything about the character itself";
   22:44: files carry what ran plus the pins (design Option C). *More:* `web/snap/library.js` (applyCast),
   `web/snap/castview.js`; DESIGN_U86_U87_CAST_VERSIONS_2026-11-04.md §4.1-4.2; PLAN U86.
+  A Cast is in a recipe only while it is applied there (short03 F-C31: Maren walked into C5 and Liesl + Tam into C6):
+  a shot copied from another starts without its Casts and locations, a Cast's line comes back into the prompt only
+  while its pictures are in References or its LoRA row is on, and a take whose prompt has a Cast's line without its
+  pictures says so. A Cast keeps each picture's and voice's hash, and a newer upload of the same name is said (F-C30).
 - **SNAP-R60: World state is versioned, and a take pins the versions it used.** The records a take depends on (Cast
   records, set snapshots, the person's own Library cards) live one per file in user `snap/<kind>/<id>.json` with every
   version inside (`n`, a sha-256 `hash` of the body, `at`, `by`, `note`). Saving is versioning: a body equal to the head
@@ -742,7 +746,9 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   (short03 F-C28, 3/3); `rerun` swaps a location like a
   Cast and `dependents` lists what each version of any record still feeds. The Location sheet shows the master, the plan
   with each camera mark and plate drawn as a dot and a wedge (where it stands, where it looks, how wide its lens sees)
-  and the plate tiles; every picture opens full size (SNAP-R80). *Why:* the operator, 2026-11-05: "getting the topology of the
+  and the plate tiles; every picture opens full size (SNAP-R80). A place kept as a Cast moves over with
+  `cast_to_location` (the Cast stays; its takes stop showing the description miss, which a set never had: F-C29), and
+  `remove_from_world` (or the x on a pin chip) takes any record out of a recipe, the record kept (F-C27). *Why:* the operator, 2026-11-05: "getting the topology of the
   town ... is what you need to do in order to get a consistent setting", and on the walkthrough plates: "yep this is the
   right shape"; short03 kept its village as a Cast for want of a record (F-C17). *More:* DECISIONS 2026-11-05 13:1x and
   16:5x, PLAN U99, dogfood FINDINGS F-C17/F-C19/F-C22, proto/test_g1_location.js.

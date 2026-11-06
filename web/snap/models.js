@@ -543,7 +543,10 @@ export async function addLora(file, { role, strength, asked } = {}) {
   if (want === "unsorted") throw new Error(`The model graph doesn't say what ${short(name)} is; give its role (core, style or identity)`);
   // a recipe whose core LoRA rides on its Render Preset (H3) has no Core LoRAs stack: another core LoRA (a task LoRA such
   // as ORB360) goes on Style LoRAs, after the preset's, which runs it the same (short03 verified the wiring); add_lora says so
-  if (want === "core" && !coreStack() && single()) want = "style";
+  if (want === "core" && !coreStack() && single()) {
+    if (e.turbo) throw new Error(`${short(name)} is a turbo, and this recipe's turbo rides on its Render Preset with its schedule: swap it with set_method {slot: "turbo"}, pick a setup (list_setups, apply_setup) or set preset.lora`);
+    want = "style";
+  }
   if (e.turbo && turbo() && !asked) throw new Error(`A turbo is already on (${short(turbo().file)}); swap it with set_method {slot: "turbo"}, or pass person_asked: true when the person asked for a turbo stack`);
   const key = { core: "loras", style: "style", identity: "cast" }[want], keys = E.state().bricks.map((b) => b.key);
   if (!keys.includes(key)) await E.snap(key, { at: keys.includes("rack") ? keys.indexOf("rack") : undefined });
