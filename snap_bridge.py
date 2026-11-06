@@ -10,8 +10,8 @@ health listing, errors that say what to do · SNAP-R33 the rating cap's second l
 SNAP-R37 privacy per install · SNAP-R38 metadata off writes none, the rest is named · SNAP-R39 ratings from how a thing
 was made · SNAP-R65 the Work card's jobs and progress, an agent page's own screenshot · SNAP-R74 Load Audio lists input/snap/ ·
 SNAP-R78 a stale tab says so, agents ask (request_reload), the person reloads · SNAP-R83 the agents' window: one visible
-Chrome agents drive, reload and restart, the default with the person's tab; never headless ·
-see docs/SNAP_RULES.md"""
+Chrome agents drive, reload and restart, the default with the person's tab; never headless · SNAP-R96 private takes saved
+encrypted (snap_vault_server.py) · SNAP-R98 their ffmpeg steps work in RAM scratch · see docs/SNAP_RULES.md"""
 import asyncio
 import hashlib
 import itertools
@@ -22,6 +22,7 @@ import re
 import secrets
 import subprocess
 import uuid
+from io import BytesIO
 from pathlib import Path
 
 import time
@@ -44,6 +45,12 @@ from server import PromptServer
 
 from . import snap_privacy
 from .dials import core as dial_core
+try:
+    from . import snap_vault_server
+except ImportError as e:  # the vault needs the `cryptography` package (pyproject); private takes on a privacy-on install are then refused
+    snap_vault_server = None
+    vault_missing = f"{e}"
+
 from .video_out import MAIVideoOut
 
 TIMEOUT = 30
@@ -777,9 +784,21 @@ def metadata_gate(json_data):
         logging.exception("Snap: privacy rules unreadable" + ("; this prompt is marked private" if on else ""))
         found = {"private": ["privacy rules unreadable"] if on else [], "nsfw": []}
         rated, rated_why = snap_privacy.LEVELS["adult"], ["rating rules unreadable"]
-    swapped, kept = {}, []
+    # U79: where privacy is on, a private take is saved encrypted with its recipe (SNAP-R96); rules that can't be read
+    # still seal it (fail closed)
+    if snap_vault_server is not None:
+        vault = snap_vault_server.seal_prompt(json_data, found, writes_metadata)
+    elif found["private"] and snap_privacy.switched_on(folder_paths.get_user_directory()):
+        vault = {}
+        json_data["prompt"] = {"vault": {"class_type": "MAIRatingRefused", "inputs": {"why": f"This install keeps private takes encrypted, and the vault can't load ({vault_missing}): pip install cryptography in ComfyUI's Python."}}}
+    else:
+        vault = {}
+    prompt = json_data["prompt"]
+    swapped, kept = dict(vault.get("swapped", {})), []
     for nid, node in list(prompt.items()) if off else []:
         inputs = node.get("inputs") or {}
+        if nid in swapped:
+            continue
         if node.get("class_type") in PRIVATE_SAVES:
             swapped[nid] = node["class_type"]
             node["class_type"] = PRIVATE_SAVES[node["class_type"]]
@@ -792,7 +811,8 @@ def metadata_gate(json_data):
     # the page's take reads these from /history: the lock badge, the export filter, the saver each node really is, and
     # the nodes that kept their metadata
     extra["snap_marks"] = {"private": bool(found["private"]), "nsfw": bool(found["nsfw"]), "why": found["private"] + found["nsfw"], "metadata": not off, "swapped": swapped,
-                           "rating": snap_privacy.NAMES[rated], "rating_why": rated_why, **({"kept": kept} if kept else {})}
+                           "rating": snap_privacy.NAMES[rated], "rating_why": rated_why, **({"kept": kept} if kept else {}),
+                           **({"vault": vault["owner"], "encrypted": True} if vault.get("swapped") else {}), **({"vault_notes": vault["notes"]} if vault.get("notes") else {})}
     return json_data
 
 
@@ -972,7 +992,16 @@ async def loudness(request):
     path = os.path.abspath(os.path.join(root or "", q.get("subfolder", ""), q.get("filename", "")))
     if root is None or os.path.commonpath([path, os.path.abspath(root)]) != os.path.abspath(root) or not os.path.isfile(path):
         return error("No such file in output, input or temp", 404)
-    found = await asyncio.to_thread(volume, path)
+    if snap_vault_server is not None and snap_vault_server.on():
+        def measure():
+            with snap_vault_server.plain_copy(path, snap_vault_server.requester(request)) as p:
+                return volume(p)
+        try:
+            found = await asyncio.to_thread(measure)
+        except snap_vault_server.snap_vault.Locked as e:
+            return web.json_response({"error": str(e), "locked": True}, status=423)
+    else:
+        found = await asyncio.to_thread(volume, path)
     return web.json_response({"sound": False} if found is None else {"sound": True, "mean_db": found[0], "max_db": found[1]})
 
 
@@ -986,6 +1015,11 @@ class MAISnapLouder(io.ComfyNode):
     @classmethod
     def execute(cls, video) -> io.NodeOutput:
         src, temp = video.get_stream_source(), folder_paths.get_temp_directory()
+        if isinstance(src, BytesIO) and snap_vault_server is not None:  # a take kept encrypted, opened in memory: work in RAM scratch (SNAP-R98)
+            with snap_vault_server.scratch("in.mp4") as a, snap_vault_server.scratch("out.mp4") as b:
+                a.write_bytes(src.getbuffer())
+                subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(a), "-c:v", "copy", "-af", "loudnorm=I=-23:TP=-2", "-ar", "48000", "-c:a", "aac", "-b:a", "192k", str(b)], check=True, timeout=600)
+                return io.NodeOutput(InputImpl.VideoFromFile(BytesIO(b.read_bytes())))
         if not isinstance(src, str):  # a video made in this run (CreateVideo) has no file yet
             src = os.path.join(temp, f"snap_louder_in_{uuid.uuid4().hex}.mp4")
             video.save_to(src)
