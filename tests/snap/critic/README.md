@@ -29,6 +29,14 @@ beside that picture's allowed minors; rows marked `?` need a person's look, sett
 (`{"X03#1": "caught", "X12#cn2": "ok"}`). Re-check your own scoring before writing a rule: three fixtures changed
 polarity once checked by eye. `packets` writes the same blind packets to disk for a critic with no Snap server.
 
+## Runs
+
+- `runs/2026-11-06-r4/`: the pack skill (r3 verbatim + the checklists in reference.md) run by an Opus 5.5 critic agent
+  through Snap's own tools on a docket of the 30 fixtures (claim, packet, write; 16 min, ~30 s a picture): 25/29
+  caught, 0 false alarms on 9 clean, X30 caught; misses X13 (unheld Cast-front sword), X14 wire and kite, X21 LEFT
+  float. `results.jsonl` (every note), `confirm.json` (the hand-settled rows, scored the way the r3 rounds scored them:
+  the giants on X19/X29 and the beat items on X04/X27 are real, as scores_r3 found), `score.json`.
+
 ## The fixtures
 
 - X01 master v1: the palisade only across the front; the village is not enclosed.

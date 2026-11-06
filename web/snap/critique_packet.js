@@ -95,7 +95,7 @@ function words(r, tb) {
     const h = RT.shotOf(t); if (h) out.shot = { scene: h.scene.name, shot: SC.shotTitle(h.scene, h.shot), set: h.scene.set ?? null };
     if (t.sound?.mean_db != null) out.sound = { mean_db: t.sound.mean_db, quiet_below_db: T.QUIET_DB };
     out.pins = Object.entries(t.world ?? {}).map(([ref, p]) => { const b = W.get(W.refOf(W.parse(ref).kind, W.parse(ref).id, p.n))?.version.body ?? {};
-      return { ref: W.refOf(W.parse(ref).kind, W.parse(ref).id, p.n), name: b.name ?? p.name, ...(b.details ? { details: b.details } : {}), ...(b.notes ? { notes: b.notes } : {}), ...(p.placed?.plates ? { plates_cited: p.placed.plates } : {}), ...(p.placed?.missing ? { missing: p.placed.missing } : {}) }; });
+      return { ref: W.refOf(W.parse(ref).kind, W.parse(ref).id, p.n), name: b.name ?? p.name, ...(b.details ? { details: b.details } : {}), ...(b.notes ? { notes: b.notes } : {}), ...(p.placed?.plates ? { plates_cited: p.placed.plates, cameras: (b.plates ?? []).filter((x) => p.placed.plates.includes(x.name)).map((x) => ({ plate: x.name, ...(x.pose ?? {}), ...(x.camera ? { mark: x.camera } : {}) })) } : {}), ...(p.placed?.missing ? { missing: p.placed.missing } : {}) }; });
     out.who_should_be_here = out.pins.filter((p) => p.ref.startsWith("cast:")).map((p) => p.name);
   }
   if (s.kind === "record") { const b = W.get(s.ref)?.version.body ?? {}; out.record = { ref: s.ref, name: b.name, ...(b.notes ? { notes: b.notes } : {}), ...(b.details ? { details: b.details } : {}), ...(b.plates ? { plates: b.plates.map((p) => ({ name: p.name, pose: p.pose ?? null, use: p.use ?? null, note: p.note ?? null })) } : {}), ...(b.cameras ? { cameras: b.cameras } : {}) }; }
@@ -104,7 +104,8 @@ function words(r, tb) {
 
 // the packet: pictures (whole subject, tiles, context) as images with their labels, the words, and what each picture is
 export async function build(r, tb) {
-  const pics = [], images = [], tile = tb.tile, rule = (tb.checklists[r.checklist] ?? tb.checklists.still).tiles;
+  const pics = [], images = [], tile = tb.tile, rule = (tb.checklists[r.checklist] ?? tb.checklists.still).tiles, ctx = contextOf(r, tb), w = words(r, tb);
+  if (r.checklist !== "cut_pair" && !ctx.some((x) => /previous cut/.test(x.what))) w.passes = w.passes.filter((x) => x !== "cut_pair"); // no previous cut in the packet: nothing to pair
   const subs = subjects(r, tb);
   const wholes = [];
   for (const sub of subs) for (const f of await canvases(sub.media, sub.frames ?? [0])) wholes.push({ ...sub, ...f });
@@ -112,12 +113,12 @@ export async function build(r, tb) {
   const tiled = (i) => rule === "all" || rule === "views" || (rule === "ends" && (i === 0 || i === wholes.length - 1));
   wholes.forEach((w, i) => { if (!tiled(i) || Math.max(w.canvas.width, w.canvas.height) <= tile.size) return;
     for (const x of tiles(w.canvas, tile.size, tile.overlap)) { pics.push({ label: `${pics[i].label.split(" · ")[0]} · tile ${x.cell} · px ${x.box.join(",")} of ${w.canvas.width}x${w.canvas.height}`, role: "tile", what: w.what, path: pics[i].path, width: x.box[2], height: x.box[3], tile: { of: i, cell: x.cell, box: x.box } }); images.push(jpeg(x.canvas)); } });
-  for (const cx of contextOf(r, tb)) {
+  for (const cx of ctx) {
     try {
       const at = cx.media.at, [f] = await canvases(cx.media, at != null ? [at] : [0]);
       pics.push({ label: `context · ${cx.what} · ${f.canvas.width}x${f.canvas.height}`, role: "context", what: cx.what, path: pathOf(cx.media), width: f.canvas.width, height: f.canvas.height, ...(f.frame != null ? { frame: f.frame } : {}), ...(cx.take ? { take: cx.take } : {}) });
       images.push(jpeg(f.canvas));
     } catch (e) { pics.push({ label: `context · ${cx.what} · not readable: ${e.message}`, role: "context", what: cx.what, path: pathOf(cx.media), missing: e.message }); images.push(null); }
   }
-  return { pictures: pics, images, words: words(r, tb) };
+  return { pictures: pics, images, words: w };
 }

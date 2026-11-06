@@ -70,10 +70,13 @@ def upload(base, path, sub):
 def load(a):
     root, base = root_of(a), f"http://127.0.0.1:{a.port}"
     run = a.run or time.strftime("fx%m%d%H%M")
-    sub = f"snap/critic_fixtures/{run}"
+    sub = f"snap/inbox/{uuid.uuid4().hex[:8]}"  # a neutral folder and name: the critic must not read "fixture" in a path
     made = []
     for i, f in enumerate(manifest(root)["fixtures"]):
-        pic = upload(base, os.path.join(root, f["picture"]), sub)
+        blind = os.path.join(a.out or ".", f"{run}_{uuid.uuid4().hex[:10]}{os.path.splitext(f['picture'])[1]}")
+        shutil.copyfile(os.path.join(root, f["picture"]), blind)
+        pic = upload(base, blind, sub)
+        os.replace(blind, blind + ".uploaded")  # kept beside the run file, never deleted
         ctx = [upload(base, os.path.join(root, c), f"{sub}/ctx") for c in f["context_pictures"]]
         tid, cut = f"take-{run}-{f['id']}", pic.rfind("/")
         # the row first, with the fixture's words, so a page that sees the take land finds it already made
