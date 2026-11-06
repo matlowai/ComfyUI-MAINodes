@@ -110,3 +110,5 @@ Every call in Snap runs under one resolved stack of agent instructions. Read it 
   might be worth doing it both ways or several options"). Still ask first for anything outward or irreversible
   (publishing, deleting, downloads, installs). Run it on the visible page. (A short once drew plans on the CPU while both GPUs
   sat idle, waiting on a critic list it partly didn't need.)
+- **Due critiques are idle work too.** When your renders run, claim the critic's due rows (`list_critiques {"state":
+  "due"}`, skill `snap-critic`): the Work card says "no critic on duty" while nobody does (SNAP-R101).

@@ -766,7 +766,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   need at least 12 steps to get good audio quality … for a reference voice"; "normal video is fine at the specified 6".
   *More:* DECISIONS 2026-11-05, the dogfood study's LESSONS (voice lane) and FINDINGS F-C11.
 
-- **SNAP-R89: The critic reads whole frames, a place's logic and cut pairs, and only leaves notes.** *(planned, U93)*
+- **SNAP-R89: The critic reads whole frames, a place's logic and cut pairs, and only leaves notes.** *(built as SNAP-R101-R104, U93)*
   A critic job runs on every landed take and on every master, sheet, plate and board, since a flaw in a plate flaws
   every cut that cites it. It looks at the whole frame at full resolution before any crop (a tiled upscale tile by
   tile), and checks: logic, not only consistency (an enclosure closes, walls, roads and gates connect, a structure makes
@@ -785,7 +785,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   to catch this but it might need the right prompt iteration". *More:* DECISIONS 2026-11-05 10:12 and 2026-11-06,
   LESSONS "Synthesis 2026-11-06", the study's critic/ fixtures.
 
-- **SNAP-R90: A flaw is fixed at its source record, then its dependents re-run upstream first.** *(planned, U94)* A
+- **SNAP-R90: A flaw is fixed at its source record, then its dependents re-run upstream first.** *(built as SNAP-R105/R106, U94)* A
   note that traces to an upstream record (a location's plan, master or plates; a Cast version; the look) becomes a fix
   proposal on that record. Once applied (a new version, SNAP-R60), Snap lists what pinned the old version (takes,
   stills, boards, plates) and offers "re-run dependents" in DAG order (plates → boards → cuts → the cut), each stage
@@ -933,7 +933,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
 
 ## Accounts and the gate (snap-gate)
 
-IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; G1 took R83-R87, the docs migration R88-R92, the agent library R93-R95, the vault R96-R100; R101-R110 are reserved for U93/U94; R111 on).
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; G1 took R83-R87, the docs migration R88-R92, the agent library R93-R95, the vault R96-R100; U93/U94 took R101-R110; R111 on).
 
 - **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
   use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and
@@ -1036,3 +1036,68 @@ IDs R40+ were reserved for the gate while R28-R39 were open for other work (renu
   person is signed in, and never unlocks alone. Unlock and the sweep take turns, so a lock never lands after a sign-in's
   unlock. *Why:* DECISIONS 2026-11-05 04:08 Q4 ("per session on a shared one"). *More:* `snap_gate/gate.py` (snap-gate
   branch), proto/snapbox/test_vault_gate.py.
+
+## The critic and fix at the source (U93/U94, 2026-11-06)
+
+- **SNAP-R101: The critic is a docket job an agent claims; Snap makes the packet and keeps the notes, and never calls a
+  model itself.** Every landed picture (a take, a New view candidate, a sheet, a board, an edit's painted candidate, a
+  location version's master, plan and new plates, a Cast version's pictures, a cut pair) makes one critique row in the
+  person's critiques store (`snap/critiques/`, written by the server, one row per subject), due until an agent claims
+  it (`claim_critique`: one claim, server-side, lapsing after 30 minutes untouched) or the person reads its packet
+  themselves. The Work card shows the rows, folded per decision and per record version, and says "critique due · no
+  critic on duty" when nobody claims them. *Why:* the only measured critic is an agent reading full frames with the
+  iterated prompt (r3: 24/29 caught, 0 false alarms; the first docket run: 25/29, 0); the operator, 2026-11-05: "we
+  need some kind of reflection process to catch obvious things like this". *More:* DESIGN_U93_U94 §4.1, §4.5, SNAP-R89.
+- **SNAP-R102: A critique reads the whole frame first, and nothing it reads is shrunk.** `critique_packet` hands over
+  the subject whole at its native size, then 100% tiles (1536 px, 10% overlap, each labelled with its cell and pixel
+  box) of every subject picture bigger than that, then the context pictures whole, then the words; part, offset and
+  limit page it. A region named on a tile is stored in the subject's own fractions. *Why:* every miss of the first
+  shorts was a crop or a thumbnail read before the frame (bodies sunk into a roof at 420 px; a scabbard floating on a
+  sheet too small to read). *More:* SNAP-R58, §4.2.
+- **SNAP-R103: A critique note carries its severity, its pass, its region drawn as a mask, its owner and a one-line fix;
+  it informs and never blocks.** Notes land on the take they are about (`get_take` notes, by agent, with the critique
+  id) and are drawn as translucent masks with an outline and a label on the take viewer and the Location sheet; the
+  take card and candidate tiles say "critic: 2 high", and a clean verdict is shown too. Severity orders the list and
+  feeds the approval rule only; nothing is hidden, rejected or held back by a note. A critique of a private take keeps
+  its words on the take, which the vault seals. *Why:* checks are notes (SNAP-R23), marks are masks (SNAP-R91), no
+  artificial limits. *More:* §4.3.
+- **SNAP-R104: What is critiqued and how follows the picture's purpose and its place.** A checklist per kind of picture
+  (master, plate, location, plan, settei, sheet, board, cut, cut pair, upscale, edit, still) names the passes and the
+  context pictures (`snap_cards/critic.json`); the words for each live in the snap-critic skill's reference.md.
+  *Why:* the dogfood critics showed which checks earn their keep where (architecture and continuity on cuts, cross-view
+  on boards and plates, attachments on sheets), and a flaw in a reference spreads to every cut. *More:* SNAP-R85, §4.4.
+- **SNAP-R105: A note's owner is where the flaw was born, and "Fix at source" opens that record's picture with the fix.**
+  The owner is a record and part (a location's master, plan or plate by name, at the version the subject pinned; a
+  Cast) or the subject itself (take, board, prompt). Fix at source shows the owner's picture (with the mask when it was
+  drawn there) and a New view of it whose words are the fix line, so the fix lands as candidates beside the old picture;
+  a pick of a plate or master makes the record's next version. *Why:* a re-roll keeps a flaw that lives in the plate;
+  the operator: "if they came from a prior setting that needs changed up and re-ran any DAG things that depended on
+  them?". *More:* SNAP-R90, §4.7.
+- **SNAP-R106: Re-run dependents is a staged batch of candidates with its plan and time, stopping before video unless
+  told.** `rerun_dependents` re-makes a record's stale takes on its newest version in stages, plates, then boards, then
+  cuts; each re-made take is a candidate beside the old one, which stays active until a pick. A stage starts after the
+  previous stage's picks, and a picked plate or master is written into the location first, so boards cite its new file.
+  The plan says each stage's takes and time from their own runs ("no estimate yet" where none). chain ask waits for the
+  person; chain run applies a candidate by itself only where its critique has no high note and the scene's note says
+  approval: critic. through stops before cuts by default. A take the record holds as its own picture is stale only when
+  what it was made from moved. *Why:* DECISIONS 2026-11-05 10:12 (upstream first, per-stage plan, the dial decides
+  whether it chains); the coordinator's call 2026-11-06 05:12 (stop before video by default). *More:* SNAP-R16, SNAP-R63.
+- **SNAP-R107: Approval is the person's, or the critic's where a note says so, and never a block.** A scene's or Book's
+  instruction "approval: critic" (the innermost wins) lets a critique with no high note set the take's verdict to keep,
+  by agent, with the critique named; a high note sets nothing; the person's verdict is never overwritten; the pack
+  default is "approval: person". *Why:* "approval gate (person, or critic on automatic)" (DECISIONS 2026-11-05 12:22).
+  *More:* SNAP-R17, SNAP-R93.
+- **SNAP-R108: Every miss the person catches is one press from a fixture, and the critic's agreement is measured.** "Add
+  as fixture" (or `add_fixture`) on a note copies the picture into the install's fixtures folder and appends the
+  fixture with the note's words, region and severity; a private take's picture is refused. `critic_report` says verdict
+  agreement, pick agreement, the misses and the last fixtures score, kept once a day. *Why:* the operator, 2026-11-06:
+  "it might need the right prompt iteration to find things like this". *More:* §4.8-4.9.
+- **SNAP-R109: The critic skill is the prompt's one home, and a prompt change ships only after the fixtures run holds the
+  floor.** `.claude/skills/snap-critic/SKILL.md` carries the measured prompt verbatim; tool descriptions and pack notes
+  point at it. `tests/snap/critic/fixtures.json` carries the floor (24/29 caught, 0 false alarms); `run_fixtures.py
+  score` fails below it, and the fixture answers live beside it, never in what a critic reads. *Why:* the study's r2
+  round lost a fifth of its catches to one wrong rule. *More:* tests/snap/critic/README.md.
+- **SNAP-R110: A critique goes stale with its subject or its owners, and says why.** A critique is stale when its
+  subject was re-made (re-run, re-take, upscale) or a note's owner record moved past the version the critique named;
+  it shows "stale: <why>" on the row, the card and the viewer, and `list_critiques {stale: true}` lists them. *Why:* a
+  note about a plate that has since been remade is noise. *More:* SNAP-R60.

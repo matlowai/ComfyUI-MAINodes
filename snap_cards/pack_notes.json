@@ -483,8 +483,7 @@
    "kind": "note",
    "text": "Whole frame at full resolution first, crops second.",
    "rule": "SNAP-R89",
-   "more": "skill snap-critic",
-   "planned": "U93"
+   "more": "skill snap-critic"
   },
   {
    "id": "judge_takes/check-logic-consistency-enclosures",
@@ -492,8 +491,7 @@
    "kind": "note",
    "text": "Check logic, not only consistency: enclosures close, roads reach gates, what holds each carried object; contact, attachments, intersections.",
    "rule": "SNAP-R89",
-   "more": "skill snap-critic",
-   "planned": "U93"
+   "more": "skill snap-critic"
   },
   {
    "id": "judge_takes/judge-masters-sheets-plates",
@@ -501,8 +499,7 @@
    "kind": "note",
    "text": "Judge masters, sheets and plates too; compare every view of a location side by side and against its master; put the previous cut's last frame beside each cut.",
    "rule": "SNAP-R89",
-   "more": "skill snap-critic",
-   "planned": "U93"
+   "more": "skill snap-critic"
   },
   {
    "id": "judge_takes/fix-flaw-source-record",
@@ -510,8 +507,7 @@
    "kind": "note",
    "text": "Fix a flaw at its source record and re-run its dependents; a new seed keeps a plate's flaw.",
    "rule": "SNAP-R90",
-   "more": "skill snap-critic",
-   "planned": "U93"
+   "more": "skill snap-critic"
   },
   {
    "id": "judge_takes/state-baseline-before-reading",
@@ -519,8 +515,7 @@
    "kind": "note",
    "text": "State the baseline before reading a face score: a bowed profile scores 0.06 and relighting 0.34-0.60; the head crops decide.",
    "rule": "SNAP-R23",
-   "more": "skill snap-critic",
-   "planned": "U93"
+   "more": "skill snap-critic"
   },
   {
    "id": "note_take/mark-visible-mask-note",
@@ -562,6 +557,30 @@
    "text": "Never poll JSON files or sleep: wait_for answers; quote times as first seed / each more seed, from /history.",
    "rule": "SNAP-R65",
    "more": "AGENT_START.md Work card; skill snap-critic"
+  },
+  {
+   "id": "critique_packet/whole-frames-before-tiles",
+   "scope": "tool:critique_packet",
+   "kind": "note",
+   "text": "Read every whole frame before any tile, then the context pictures; read the checklist's section of the snap-critic skill's reference.md.",
+   "rule": "SNAP-R102",
+   "more": "skill snap-critic"
+  },
+  {
+   "id": "write_critique/owner-where-born",
+   "scope": "tool:write_critique",
+   "kind": "note",
+   "text": "The owner is where the flaw was born: a flaw already in the master or a plate is theirs even when you see it in a board. A clean verdict with no notes is a valid answer.",
+   "rule": "SNAP-R105",
+   "more": "skill snap-critic"
+  },
+  {
+   "id": "rerun_dependents/fix-source-first",
+   "scope": "tool:rerun_dependents",
+   "kind": "note",
+   "text": "Fix the source record first (a new master or plate version), then re-run its dependents; the chain stops before video unless through: cuts.",
+   "rule": "SNAP-R106",
+   "more": "skill snap-critic"
   }
  ]
 }
