@@ -549,6 +549,10 @@ for t in test_book_story.js test_book_compile.js test_book_cut.js test_book_page
 # U93/U94 (SNAP-R101..R110): the critic's docket, packets, triggers and approval, the critic on the object (screens in
 # ui/u93/), agreement, re-run dependents; each prints "<name> n/m" last; they take this server's port and base
 for t in test_u93_critique.js test_u93_packet.js test_u93_triggers.js test_u93_marks.js test_u93_agreement.js test_u94_dependents.js; do park; timeout 600 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
+# G3 (SNAP-R134..R138): critique rows per part, masks all at once, the location tools' friction, page holds, the pack's
+# prompt words, the eye colour step's math; each prints "g3<name> n/m" or "iris n/m" last
+for t in test_g3_critic.js test_g3_pages.js; do park; timeout 600 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
+nice -n 19 python3 -I "$T"/test_g3_cards.py >test_g3_cards.py.out 2>&1; tail -1 test_g3_cards.py.out
 # SNAP-R109: the last real critic run on the fixtures still holds the floor (a real-agent check; this only re-scores its saved notes)
 nice -n 19 python3 -I "$T/critic/run_fixtures.py" score --results "$T/critic/runs/2026-11-06-r4/results.jsonl" --confirm "$T/critic/runs/2026-11-06-r4/confirm.json" | tail -1 | sed 's/^/critic   /'
 # U79 (SNAP-R96, R97, R99): the vault container and keys, pure Python on the pack this server loads; prints "vaultfmt n/m" last
