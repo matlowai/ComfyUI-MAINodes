@@ -10,7 +10,7 @@
 // SNAP-R60 world versions and pins · SNAP-R17 by · SNAP-R18 local only · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 
-export const KINDS = ["cast", "card", "set_snapshot"]; // scenes version their authored fields in their own documents (scenes.js)
+export const KINDS = ["cast", "card", "set_snapshot", "instruction", "skill"]; // SNAP-R93/R94 agent instructions and a person's skill versions; // scenes version their authored fields in their own documents (scenes.js)
 const fileOf = (kind, id) => `snap/${kind}/${id}.json`, archivedOf = (kind, id) => `snap/_archived/${kind}/${id}.json`;
 const key = (kind, id) => `${kind}:${id}`;
 let records = new Map(), loading = null;

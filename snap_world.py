@@ -2,7 +2,7 @@
 other's version. One file per record, user snap/<kind>/<id>.json (snap/_archived/<kind>/ once archived), every version
 inside; a version is appended, never edited. The hash is sha-256 of the body as canonical JSON (keys sorted).
 SNAP-R60 world versions and pins · SNAP-R62 clean-up is the person's choice · SNAP-R18 local only · SNAP-R58 results are
-never trimmed · see docs/SNAP_RULES.md"""
+never trimmed · SNAP-R93/R94 instruction and skill records · SNAP-R95 imported ones land off · see docs/SNAP_RULES.md"""
 import asyncio
 import hashlib
 import json
@@ -16,7 +16,7 @@ from aiohttp import web
 from server import PromptServer
 
 routes = PromptServer.instance.routes
-KINDS = ("cast", "card", "set_snapshot")
+KINDS = ("cast", "card", "set_snapshot", "instruction", "skill")  # SNAP-R93/R94 agent instructions, a person's skill versions
 FIELDS = ("draft", "plates")  # a set's working copy and its camera plates live beside the versions
 ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 lock = asyncio.Lock()
@@ -266,6 +266,18 @@ async def export(request):
     return web.json_response(await asyncio.to_thread(make))
 
 
+def landed_off(snap, refs, zipname):
+    """SNAP-R95: an imported note or skill version is another person's text reaching this person's agents, so it lands
+    off (snap/instructions.json, the person's marks) until they turn it on in the Agent library"""
+    if not refs:
+        return
+    path = os.path.join(snap, "instructions.json")
+    marks = read(path) or {}
+    for r in refs:
+        marks.setdefault("off", {})[r.split("@")[0]] = {"at": int(time.time() * 1000), "by": "import", "from": zipname}
+    write(path, marks)
+
+
 @routes.post("/mainodes/snap/world/import")
 async def import_zip(request):
     """bring an export back (on this account or another install): records that aren't here are written whole; a record
@@ -326,6 +338,7 @@ async def import_zip(request):
                         with open(dest, "wb") as f:
                             f.write(z.read(name))
                         done["files"].append("/".join(parts[1:]))
+        landed_off(snap, [r for r in done["records"] + done["merged"] if r.split(":")[0] in ("instruction", "skill")], os.path.basename(zpath))
         return done
     async with lock:
         return web.json_response(await asyncio.to_thread(bring))

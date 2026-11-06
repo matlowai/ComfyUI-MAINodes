@@ -41,7 +41,7 @@ NODE_DISPLAY_NAME_MAPPINGS = dict(TIMESMEAR_DISPLAY_MAPPINGS)
 # measures face and hair for Snap's identity notes on edits.
 for _mod in ("window_loop", "window_expand", "timeline.nodes",
              "concept_lab.nodes", "vram_lab", "derope_any", "video_out", "video_compare",
-             "h3_capabilities", "h3_extend", "h3_repair", "h3_drift", "h3_color_carry", "dials.nodes", "render", "relayvsr.nodes", "relayvsr.routes", "h3_refs", "snap_bridge", "snap_world", "snap_faces"):
+             "h3_capabilities", "h3_extend", "h3_repair", "h3_drift", "h3_color_carry", "dials.nodes", "render", "relayvsr.nodes", "relayvsr.routes", "h3_refs", "snap_bridge", "snap_world", "snap_instructions", "snap_faces"):
     try:
         _m = __import__(f"{__name__}.{_mod}", fromlist=["*"])
     except Exception as _e:                       # an alpha module must never

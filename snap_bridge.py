@@ -10,7 +10,8 @@ health listing, errors that say what to do · SNAP-R33 the rating cap's second l
 SNAP-R37 privacy per install · SNAP-R38 metadata off writes none, the rest is named · SNAP-R39 ratings from how a thing
 was made · SNAP-R65 the Work card's jobs and progress, an agent page's own screenshot · SNAP-R74 Load Audio lists input/snap/ ·
 SNAP-R78 a stale tab says so, agents ask (request_reload), the person reloads · SNAP-R83 the agents' window: one visible
-Chrome agents drive, reload and restart, the default with the person's tab; never headless ·
+Chrome agents drive, reload and restart, the default with the person's tab; never headless · SNAP-R93/R94 the pack's
+notes end the bridge tools' descriptions, /info names the docs and skills, a call names its agent ·
 see docs/SNAP_RULES.md"""
 import asyncio
 import hashlib
@@ -42,7 +43,7 @@ from comfy_execution.utils import get_executing_context
 from comfy_extras.nodes_video import SaveVideo
 from server import PromptServer
 
-from . import snap_privacy
+from . import snap_instructions, snap_privacy
 from .dials import core as dial_core
 from .video_out import MAIVideoOut
 
@@ -245,7 +246,7 @@ async def listing(request):
     user, agent = user_of(request), agent_of(request)
     target = request.headers.get("X-Snap-Page")
     to = chosen(user, target=find_page(user, target) if target else bound.get((user, agent)))
-    out = {"tools": (pages[to]["tools"] if to else []) + BRIDGE_TOOLS, "pages": health(user, agent, find_page(user, target) if target else None), "code": served_code()}
+    out = {"tools": (pages[to]["tools"] if to else []) + [{**t, "description": t["description"] + snap_instructions.tail(t["name"])} for t in BRIDGE_TOOLS], "pages": health(user, agent, find_page(user, target) if target else None), "code": served_code()}
     if to and pages[to]["code"] != out["code"]:
         out["warning"] = stale_note(to, f"{request.scheme}://{request.host}")
     return web.json_response(out)
@@ -257,7 +258,7 @@ async def info(request):
     it), the code it serves, ComfyUI's base, input and output folders. ?input=<path> says whether that file is in input/."""
     q = {"pack": str(PACK), "code": served_code(), "agent_page": str(PAGE_SH), "snapcall": str(PACK / "tools" / "snapcall.py"), "mcp": str(PACK / "tools" / "snap_mcp.py"),
          "base": str(Path(folder_paths.base_path)), "input": folder_paths.get_input_directory(), "output": folder_paths.get_output_directory(),
-         "upload": "POST /upload/image (multipart: image=<file>, subfolder=snap) puts a picture into input/; its value is <subfolder>/<name>"}
+         "upload": "POST /upload/image (multipart: image=<file>, subfolder=snap) puts a picture into input/; its value is <subfolder>/<name>", **snap_instructions.info()}
     if "input" in request.query:
         root = os.path.abspath(folder_paths.get_input_directory())
         path = os.path.abspath(os.path.join(root, request.query["input"]))
@@ -302,7 +303,7 @@ async def call(request):
         return error(f"Unknown Snap tool {body.get('tool')!r}: GET /mainodes/snap/tools lists them." + (f" {stale_note(client, base)}" if stale else ""), 404)
     call_id = secrets.token_hex(8)
     pending[call_id] = (asyncio.get_running_loop().create_future(), client)
-    await PromptServer.instance.send("mainodes-snap-call", {"id": call_id, "tool": body["tool"], "args": body.get("args") or {}}, client)
+    await PromptServer.instance.send("mainodes-snap-call", {"id": call_id, "tool": body["tool"], "args": body.get("args") or {}, "agent": agent}, client)  # the agent names what it writes (SNAP-R95)
     page = {"id": client, "name": page_name(client), "headless": pages[client]["headless"], "sees": pages[client]["sees"], "driven_by": drivers.get(client), "code_current": not stale}
     try:
         out = await asyncio.wait_for(pending[call_id][0], TIMEOUT)
@@ -518,7 +519,7 @@ async def page_shot(request):
 
 
 CARDS = Path(__file__).parent / "snap_cards"
-GRAPHS = {"models.json", "methods.json", "kits.json", "nsfw_terms.json"}  # data with their own routes, not Library cards
+GRAPHS = {"models.json", "methods.json", "kits.json", "nsfw_terms.json", "pack_notes.json"}  # data with their own routes, not Library cards
 
 
 @routes.get("/mainodes/snap/cards")
