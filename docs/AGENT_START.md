@@ -21,7 +21,7 @@ It returns `pack` (use it as `$PACK` below: `tools/snap_agent_page.sh` and `tool
 (this server's input folder: pictures you name must be there), `output`, `base`, and `code` (the Snap code the server
 serves). A machine can hold several ComfyUI installs: trust this answer, not a folder you found by searching.
 `docs` gives where this file, the rules and the skills folder are, and `skills` lists every Snap skill (name,
-description, file, bytes); `GET $BASE/mainodes/snap/skills?name=snap-core` returns one whole, with no page open.
+description, file, bytes); `GET $BASE/mainodes/snap/skills?name=snap-core` returns one whole, with no page open (`skill_read` says so).
 
 ## 1. Open a Snap page
 

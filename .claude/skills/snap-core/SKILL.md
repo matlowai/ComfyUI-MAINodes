@@ -5,7 +5,7 @@ description: >
   first whenever you drive Snap's tools (WebMCP, MCP, snapcall), make anything in Snap (a take, a scene, a Cast, a
   location, a board, a short), or change Snap's code, and before any other snap-* skill. Covers graph, bricks and
   setups, takes, scenes and shots, Cast and world versions, locations and plates, candidates, the Work card, the Book,
-  pages and the agents' window, and the instruction stack (pack, person, project, workflow, block).
+  pages and the agents' window, and the instruction stack (pack, install, person, Book, scene, shot, take).
 scope: [global]
 rules: [SNAP-R1, SNAP-R2, SNAP-R9, SNAP-R11, SNAP-R14, SNAP-R16, SNAP-R17, SNAP-R19, SNAP-R23, SNAP-R24, SNAP-R25, SNAP-R28, SNAP-R30, SNAP-R58, SNAP-R59, SNAP-R60, SNAP-R61, SNAP-R63, SNAP-R65, SNAP-R67, SNAP-R70, SNAP-R73, SNAP-R83, SNAP-R84, SNAP-R90]
 ---
@@ -59,7 +59,9 @@ Every call in Snap runs under one resolved stack of agent instructions. Read it 
   admin shared, on a gated install) → person (their own notes, including which model does which job) → Book → scene →
   shot → take, plus notes on any record the recipe pins (a Cast, a location).
 - **Scope** is one target at one level: `global`, `tool:<name>`, `brick:<key>`, `method:<id>`, a record
-  (`cast:<id>`, `location:<id>`, `card:<id>`), `scene:<id>`, `shot:<scene>/<shot>`, `take:<id>`.
+  (`cast:<id>`, `location:<id>`, `card:<id>`), `scene:<id>`, `shot:<scene>/<shot>`, `take:<id>`. A rule for the
+  whole project (until the Book has its own scope) is `global`, or `scene:<id>` for one scene; a rule for one job
+  is `tool:<name>`.
 - **Kinds:** `note` (a line you read whole) and `model_choice` (job → choice, why). Inner notes add to outer ones; a
   note `replace`s an outer one only by naming it in `supersedes`. Two `model_choice` notes for the same job: the inner
   layer wins (the outer is listed under `overridden`); in the same layer they are a `conflict`: ask the person or take

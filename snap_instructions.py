@@ -104,4 +104,5 @@ async def notes(request):
 def info():
     """what /mainodes/snap/info adds: where the docs are and every skill (U104), so an agent finds them with no page open"""
     return {"docs": {"agent_start": str(PACK / "docs" / "AGENT_START.md"), "rules": str(PACK / "docs" / "SNAP_RULES.md"), "agents": str(PACK / "AGENTS.md"), "skills_folder": str(SKILLS)},
-            "skills": [{k: s[k] for k in ("name", "description", "file", "bytes")} for s in skill_list()], "skills_url": "/mainodes/snap/skills"}
+            "skills": [{k: s[k] for k in ("name", "description", "file", "bytes")} for s in skill_list()], "skills_url": "/mainodes/snap/skills",
+            "skill_read": "GET /mainodes/snap/skills?name=<name> returns one skill whole (&file=<name> a file beside its SKILL.md); with a page open, read_skill {\"name\"} gives the person's version"}

@@ -300,7 +300,7 @@ export const TOOLS = [
       rule: { type: "string" }, more: { type: "string" }, tags: { type: "array", items: { type: "string" } }, shared: { type: "boolean" }, note: { type: "string", description: "what changed, shown in the version list" } } },
     direct: true,
     run: async ({ id, note = "", ...fields }) => {
-      if (!id && !fields.scope) throw new Error("save_instruction needs scope for a new note (or id to change one)");
+      if (!id && !fields.scope) throw new Error('save_instruction needs scope for a new note, or id (instruction:<id>) to change one: e.g. {"scope": "global", "text": "Always show options side by side", "source": {"quote": "<the person\'s words>"}}, or {"scope": "tool:edit_from_context", "kind": "model_choice", "job": "character shots", "choice": "fizgig_still", "why": "..."}; a whole project before the Book exists is scope global, or scene:<id>');
       const out = await save(id, fields, { note });
       return { ref: out.ref, made: out.made, version: out.n, said: out.made ? `${out.ref} applies now; the person sees it as new from ${caller.replace(/^agent:?/, "") || "an agent"}` : `nothing changed: ${out.ref} stays`, stack_hash: (await answer(here())).hash };
     },
