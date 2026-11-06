@@ -68,6 +68,7 @@ async function readMarks() {
 const saveMarks = () => api.storeUserData(MARKS, marks);
 // what another tab or agent wrote meanwhile: the marks and the records again
 export async function refresh() { await Promise.all([readMarks(), W.reload()]); changed(); }
+W.onWritten(() => readMarks().then(changed, () => {})); // another writer's record: the marks may have moved with it (SNAP-R116)
 const keyOf = (ref) => ref.split("@")[0];
 export const isOff = (ref) => !!marks.off[keyOf(ref)];
 export const offBy = (ref) => marks.off[keyOf(ref)] ?? null;

@@ -7,16 +7,23 @@
 // still resolves, so a take that pins it can still be re-made as it was. Model and LoRA files are pinned by name only.
 // The server (snap_world.py) does every write and hashes the bodies; `sha` here only hashes pack cards (version 0).
 // migrate() wraps the cards of snap/cards/ (from before records) once, and parks the originals in snap/_migrated/cards/.
-// SNAP-R60 world versions and pins · SNAP-R17 by · SNAP-R18 local only · SNAP-R93/R94 instruction and skill records · see docs/snap/SNAP_RULES.md
+// Another writer (a page, an agent, a script) is heard two ways (F-D01): the server tells every open page of each write
+// it makes (`snap_world`: the page reads again and says who wrote), and before a tool reads anything the page asks the
+// server's fingerprint of the record files (`stale`), which catches a script or a hand edit too.
+// SNAP-R60 world versions and pins · SNAP-R17 by · SNAP-R18 local only · SNAP-R93/R94 instruction and skill records ·
+// SNAP-R116 a page never works from records another writer changed · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 
 export const KINDS = ["cast", "card", "set_snapshot", "location", "instruction", "skill"]; // scenes version their authored fields in their own documents (scenes.js)
 const fileOf = (kind, id) => `snap/${kind}/${id}.json`, archivedOf = (kind, id) => `snap/_archived/${kind}/${id}.json`;
 const key = (kind, id) => `${kind}:${id}`;
-let records = new Map(), loading = null;
-const listeners = new Set();
+let records = new Map(), loading = null, rev = null;
+const listeners = new Set(), written = new Set();
 export const onChange = (fn) => listeners.add(fn);
 const changed = () => { for (const fn of listeners) fn(); };
+// another writer's write, once the records are read again: {ref, by}
+export const onWritten = (fn) => written.add(fn);
+const revNow = () => api.fetchApi("/mainodes/snap/world/rev").then((r) => r.json()).then((r) => r.rev);
 
 // a body hashes the same however it was built: keys sorted at every depth
 const canonical = (x) => JSON.stringify(x, (k, v) => (v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.keys(v).sort().map((x) => [x, v[x]])) : v));
@@ -50,6 +57,7 @@ async function readDir(dir) {
 export function load() {
   loading ??= (async () => {
     await migrate();
+    rev = await revNow();
     const found = (await Promise.all(KINDS.flatMap((kind) => [readDir(`snap/${kind}`), readDir(`snap/_archived/${kind}`)]))).flat();
     records = new Map(found.map((r) => [key(r.kind, r.id), r]));
     changed();
@@ -89,7 +97,7 @@ export function pictures(a, b) {
 
 // writes go through the server (snap_world.py), one at a time there, so two pages saving one record keep both versions
 async function post(route, q) {
-  const r = await api.fetchApi(`/mainodes/snap/world/${route}`, { method: "POST", body: JSON.stringify(q) }), out = await r.json().catch(() => ({}));
+  const r = await api.fetchApi(`/mainodes/snap/world/${route}`, { method: "POST", body: JSON.stringify({ ...q, client: api.clientId }) }), out = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(out.error ?? `saving ${refOf(q.kind, q.id)} failed (${r.status})`);
   records.set(key(out.record.kind, out.record.id), out.record);
   changed();
@@ -113,11 +121,17 @@ async function call(route, q) {
   return out;
 }
 export const reload = async () => { loading = null; await load(); }; // the Agent library re-reads on focus (SNAP-R95)
+// did anything write the record files since this page read them? (a tool asks before it reads, tools.js callTool)
+export const stale = async () => (await load(), (await revNow()) !== rev);
+api.addEventListener("snap_world", ({ detail }) => {
+  if (detail?.client === api.clientId) return; // this page's own write: it holds the record already
+  reload().then(() => { for (const fn of written) fn(detail); }, (e) => console.warn(`Snap couldn't read the records again: ${e.message}`));
+});
 export const sizes = () => call("/mainodes/snap/sizes");
 export const exportRecords = (refs, { with_takes = false, decrypt_private = false } = {}) => call("/mainodes/snap/world/export", { refs, with_takes, decrypt_private });
 export async function importExport(where) { const out = await call("/mainodes/snap/world/import", where); await reload(); return out; }
 // n: one version; none: the whole record file. Pins on takes keep what the record put in, so they still run as they were
-export async function remove(kind, id, n) { const out = await call("/mainodes/snap/world/delete", { kind, id, ...(n != null ? { n } : {}) }); if (!out.record) records.delete(key(kind, id)); else records.set(key(kind, id), out.record); changed(); return out; }
+export async function remove(kind, id, n) { const out = await call("/mainodes/snap/world/delete", { kind, id, client: api.clientId, ...(n != null ? { n } : {}) }); if (!out.record) records.delete(key(kind, id)); else records.set(key(kind, id), out.record); changed(); return out; }
 
 // ---- migration: cards saved before records (one-element arrays in snap/cards/) ----------------------------------
 // Each card becomes v1 of a card record; a set's states become one set_snapshot record per lineage (the user's own root

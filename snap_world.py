@@ -3,8 +3,8 @@ other's version. One file per record, user snap/<kind>/<id>.json (snap/_archived
 inside; a version is appended, never edited. The hash is sha-256 of the body as canonical JSON (keys sorted).
 SNAP-R60 world versions and pins · SNAP-R62 clean-up is the person's choice · SNAP-R18 local only · SNAP-R58 results are
 never trimmed · SNAP-R96 a private take's record and media stay containers in the export unless the person
-includes them decrypted · SNAP-R93/R94 instruction and skill records · SNAP-R95 imported ones land off ·
-see docs/snap/SNAP_RULES.md"""
+includes them decrypted · SNAP-R93/R94 instruction and skill records · SNAP-R95 imported ones land off · SNAP-R116 every
+write is told to open pages, and /world/rev says when the files changed · see docs/snap/SNAP_RULES.md"""
 import asyncio
 import hashlib
 import json
@@ -63,6 +63,32 @@ def write(path, record):
     os.replace(tmp, path)
 
 
+def told(kind, rid, by, client):
+    """every open page hears of a write (F-D01: a page loaded before another writer saved a record never saw it): it reads
+    the records again and says who wrote; the writing page knows its own client id and stays quiet"""
+    PromptServer.instance.send_sync("snap_world", {"ref": f"{kind}:{rid}", "by": by, "client": client})
+
+
+@routes.get("/mainodes/snap/world/rev")
+async def rev(request):
+    """a fingerprint of this person's record files and instruction marks (names, sizes, times), so a page can tell before
+    a tool reads its records whether anything wrote them since it loaded, a script or a hand edit included"""
+    um = PromptServer.instance.user_manager
+    root = um.get_request_user_filepath(request, "snap", create_dir=False)
+    h = hashlib.sha256()
+    marks = os.path.join(root, "instructions.json")
+    if os.path.isfile(marks):
+        st = os.stat(marks)
+        h.update(f"instructions.json:{st.st_size}:{st.st_mtime_ns};".encode())
+    for d in [*KINDS, *(f"_archived/{k}" for k in KINDS)]:
+        folder = os.path.join(root, d)
+        for e in sorted(os.scandir(folder), key=lambda e: e.name) if os.path.isdir(folder) else []:
+            if e.name.endswith(".json"):
+                st = e.stat()
+                h.update(f"{d}/{e.name}:{st.st_size}:{st.st_mtime_ns};".encode())
+    return web.json_response({"rev": h.hexdigest()[:16]})
+
+
 def fresh(kind, rid, by):
     return {"id": rid, "kind": kind, "created": int(time.time() * 1000), "by": by, "head": 0, "archived": None, "versions": []}
 
@@ -90,6 +116,8 @@ async def save(request):
         r["updated"] = int(time.time() * 1000)
         if made:
             write(path, r)
+    if made:
+        told(kind, rid, by, q.get("client"))
     return web.json_response({"ref": f"{kind}:{rid}@{same['n']}", "made": made, "n": same["n"], "record": r})
 
 
@@ -111,6 +139,7 @@ async def fields(request):
                 r[k] = v
         r["updated"] = int(time.time() * 1000)
         write(path, r)
+    told(kind, rid, q.get("by", "person"), q.get("client"))
     return web.json_response({"record": r})
 
 
@@ -129,6 +158,7 @@ async def archive(request):
             os.makedirs(os.path.dirname(other), exist_ok=True)
             os.replace(path, other)  # a move: the record goes whole to the other place
             write(other, r)
+    told(kind, rid, q.get("by", "person"), q.get("client"))
     return web.json_response({"record": r})
 
 
@@ -380,15 +410,18 @@ async def delete(request):
             return web.json_response({"error": f"No {kind} record {rid}"}, status=404)
         if n is None:
             os.remove(path)
+            told(kind, rid, q.get("by", "person"), q.get("client"))
             return web.json_response({"deleted": f"{kind}:{rid}", "record": None})
         if not any(v["n"] == n for v in r["versions"]):
             return web.json_response({"error": f"{kind}:{rid} has no version {n}"}, status=404)
         r["versions"] = [v for v in r["versions"] if v["n"] != n]
         if not r["versions"] and not r.get("draft"):
             os.remove(path)
+            told(kind, rid, q.get("by", "person"), q.get("client"))
             return web.json_response({"deleted": f"{kind}:{rid}", "record": None})
         if r["head"] == n:
             r["head"] = max((v["n"] for v in r["versions"]), default=0)
         r["updated"] = int(time.time() * 1000)
         write(path, r)
+    told(kind, rid, q.get("by", "person"), q.get("client"))
     return web.json_response({"deleted": f"{kind}:{rid}@{n}", "record": r})

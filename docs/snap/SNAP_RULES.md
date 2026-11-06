@@ -983,10 +983,18 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   Ref2V and the frame dropped out; and the walk's camera height is set by its first frame, never by words (an eye-level
   still as Picture 1 of a Ref2V walk held eye height 2/2 with the set kept; words 0/2). *More:* dogfood FINDINGS F-C32
   and LESSONS 2026-11-06 05:50, proto/test_g1b_opening.js.
+- **SNAP-R116: A page never works from records another writer changed.** Every write the server makes to a record
+  (save, fields, archive, delete) is told to open pages (`snap_world`, with the writer); a page that didn't write it reads
+  the records again and says "<name> updated by <writer>". Before any tool runs, the page asks `/mainodes/snap/world/rev`
+  (a fingerprint of the person's record files and instruction marks) and reads again when it moved, so a script's or a
+  hand edit's change is in the next answer too: `instructions`, describe_recipe, list_cast and the run's pins see it
+  without a reload. *Why:* dogfood F-D01 (short04): the operator's 11 seeded person notes were missing from every
+  instruction answer and run pin until a reload, with no stale hint; the Agent library only re-read on focus.
+  *More:* dogfood FINDINGS F-D01, proto/test_g1b_fresh.js.
 
 ## Accounts and the gate (snap-gate)
 
-IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; G1 took R83-R87, the docs migration R88-R92, the agent library R93-R95, the vault R96-R100; R101-R110 are reserved for U93/U94; G1b took R111-R115; R116 on).
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; G1 took R83-R87, the docs migration R88-R92, the agent library R93-R95, the vault R96-R100; R101-R110 are reserved for U93/U94; G1b took R111-R117; R118 on).
 
 - **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
   use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and

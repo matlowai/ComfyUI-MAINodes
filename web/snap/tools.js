@@ -1498,6 +1498,7 @@ export function checkArgs(name, args = {}) {
 export async function callTool(name, args = {}, { confirmed } = {}) {
   const tool = byName.get(name);
   if (!tool) throw new Error(`Unknown Snap tool ${name}`);
+  if (await W.stale()) await I.refresh(); // SNAP-R116: another writer saved records or notes since this page read them (F-D01)
   const { propose, reason, for_note, if_revision, ...rest } = args;
   for (const k of ["brick", "after"]) if (k in rest) rest[k] = brickKey(rest[k]);
   if (if_revision != null && !readOnly(name)) {
