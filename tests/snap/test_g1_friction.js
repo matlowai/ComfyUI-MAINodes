@@ -84,7 +84,7 @@ const LATE = path.join(base, "models", "loras", "g1_late_task_lora.safetensors")
     "the Upscale brick warns past the GPU's memory, before the run": /RelayVSR at 4096×2048 needs about \d+ GiB/.test(R.warn ?? "") && /this GPU has 32 GiB/.test(R.warn ?? ""),
     "a failed Upscale: the render is queued again without it, as the failed take's child": R.rescueGraph && !R.rescueGraph.upscale && R.rescueGraph.fed.flat().includes(R.rescue.source.join(":")) && R.rescueGraph.parent?.take === "take-g1-failed" && /Keep the render of take 970: the Upscale failed/.test(R.rescueGraph.title ?? ""),
     "the kept render lands as a take": R.landed?.parent?.method === "rescue/upscale" && R.landed.status === "success",
-    "apply_setup Pika H3 Flex in a MOSS shot: H3 in a new tab that is the shot": !!R.moss && !R.moss.error && R.mossHere?.shot === R.ids.shid && !R.switch?.error && R.after?.family === "MiniMax H3" && R.after.current === "Pika H3 Flex" && R.after.mark?.shot === R.ids.shid && /is this tab now/.test(R.switch?.shot ?? ""),
+    "apply_setup Pika H3 Flex in a MOSS shot: H3 in a new tab that is the shot": !!R.moss && !R.moss.error && R.mossHere?.shot === R.ids.shid && !R.switch?.error && R.after?.family === "MiniMax H3" && R.after.current === "Pika H3 Flex" && R.after.mark?.shot === R.ids.shid && /this tab is that shot now/.test(R.switch?.shot ?? ""), // G2 F-D05 worded it "still Shot n of <scene>: this tab is that shot now"
     "no page errors": !R.errors?.length,
   };
   console.log(JSON.stringify(R, (k, v) => (k === "recipe" ? undefined : v), 1));
