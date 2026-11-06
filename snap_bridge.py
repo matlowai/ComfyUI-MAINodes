@@ -600,7 +600,25 @@ async def lora_info(request):
         "triggers": [v for k, v in meta.items() if k.lower().rsplit(".", 1)[-1] in snap_privacy.TRIGGER_KEYS],
         "modelspec": {k: v for k, v in meta.items() if k.startswith("modelspec.")},
         "other": {k: v for k, v in meta.items() if not k.startswith(("ss_", "modelspec."))},
-        "rank_from_tensors": down[0] if down else None, "tensors": len(keys), "key_prefix": os.path.commonprefix(keys).rsplit(".", 1)[0] if keys else None})
+        "rank_from_tensors": down[0] if down else None, "tensors": len(keys), "key_prefix": os.path.commonprefix(keys).rsplit(".", 1)[0] if keys else None,
+        "beside": beside(path)})
+
+
+def beside(path):
+    """Text files that came with a LoRA (dogfood F-D08: ORB360's trained caption is prompts/*.txt next to it): in its own
+    folder every .txt/.md/.json and its prompts/ folder; in a shared folder only files named after it. Whole, never cut"""
+    folder, stem = os.path.dirname(path), os.path.splitext(os.path.basename(path))[0]
+    own = os.path.abspath(folder) not in {os.path.abspath(p) for p in folder_paths.get_folder_paths("loras")}
+    found = []
+    for d in [folder, os.path.join(folder, "prompts")]:
+        if not os.path.isdir(d):
+            continue
+        for f in sorted(os.listdir(d)):
+            p = os.path.join(d, f)
+            if os.path.isfile(p) and f.lower().endswith((".txt", ".md", ".json")) and (own or f.startswith(stem)):
+                with open(p, encoding="utf-8", errors="replace") as fh:
+                    found.append({"file": os.path.relpath(p, folder).replace(os.sep, "/"), "text": fh.read()})
+    return found
 
 
 @routes.get("/mainodes/snap/methods")

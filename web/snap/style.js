@@ -837,4 +837,5 @@ export const STYLE = `
 .snap-picker-take { margin: 0; width: 132px; display: flex; flex-direction: column; gap: 3px; }
 .snap-picker-take img, .snap-picker-take video { width: 132px; height: 88px; object-fit: contain; background: #0005; border-radius: 8px; border: 1px solid #ffffff14; }
 .snap-picker-take button { font-size: 11px; white-space: normal; text-align: left; }
+.snap-loc-gap { color: #f0b445; font-size: 12px; line-height: 1.35; } /* F-D10 */
 `;

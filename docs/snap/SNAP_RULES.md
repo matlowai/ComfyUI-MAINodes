@@ -1023,6 +1023,16 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   (`start: "copy"`) copies everything. *Why:* dogfood F-A17, F-C27, F-C31, F-D07, F-D12: each later shot inherited the
   earlier one's characters, hand-added pictures, a night-rain dial and its prompt, and rendered them unseen.
   *More:* G2_TRIAGE.md, proto/test_g2_shots.js.
+- **SNAP-R121: An agent's answer carries what the work really is, never a shortened stand-in.** Decision titles and take
+  labels hold the whole prompt or change words, plus the method and count ("New view · P-H3-Image ×2 (…)"); only the
+  tiles shorten what they show (`shortLabel`). A family switch by preset name starts from a pack card or the recommended
+  recipe, never from a "Last used" stack, and says what the new recipe carries besides its setup (`carried`: dials, LoRA
+  rows, Upscale) and which shot the tab still is; a new tab opened from a shot says it isn't in the scene and how to add
+  it. A location plate's eye height is compared with its camera mark's (`eye_gaps`); a LoRA's caption files come with
+  describe_lora (`beside`); a Cast's words go under a bare section header, keeping a trained caption's shape; apply_location
+  puts its `camera` picture first. *Why:* dogfood F-D02, F-D04, F-D05, F-D06, F-D08, F-D10 (short04): two decisions read
+  the same, a night-rain dial rode into a dusk shrine shot unseen, an agent thought it had left its scene, the walkthrough's
+  camera plate came third, a caption's structure broke, a 0.6 m low walk passed unflagged. *More:* proto/test_g2_fd.js.
 
 ## Accounts and the gate (snap-gate)
 

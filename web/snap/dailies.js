@@ -101,7 +101,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
   const waitingHere = async () => (await T.pending()).filter((p) => T.get(p.a)?.group === T.groupOf() && T.get(p.b)?.group === T.groupOf());
 
   // where a take sits in the open shot's scene, or null outside one: [scene, shot, take, version...]
-  const crumbs = (t) => { const here = SC.current(), p = here && SC.path(here.shot, t.id); return p?.length ? [here.scene.name, SC.shotTitle(here.scene, here.shot), ...p.map((id) => SC.label(T.get(id)))] : null; };
+  const crumbs = (t) => { const here = SC.current(), p = here && SC.path(here.shot, t.id); return p?.length ? [here.scene.name, SC.shotTitle(here.scene, here.shot), ...p.map((id) => SC.shortLabel(T.get(id)))] : null; };
   // the strip follows the open workflow and the shot it is in: a tab or shot switch re-renders it (refresh runs on every
   // view render); a shot's copy of a workflow keeps the workflow's id, so the shot counts too
   const shownNow = () => `${T.groupOf()}|${SC.current()?.shot.id ?? ""}`;
@@ -162,7 +162,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
         h("span", { className: "snap-take-rank", textContent: r >= 0 ? `#${r + 1}` : "" }),
         t.verdict ? h("span", { className: "snap-take-verdict", textContent: { keep: "✓", reject: "✗", neither: "neither" }[t.verdict] ?? t.verdict, title: t.verdict_note ?? "" }) : null,
         t.prior ? h("span", { className: "snap-take-prior", textContent: "prior", title: "in the Library as a prior" }) : null),
-      h("figcaption", {}, star, h("b", { textContent: version ? SC.label(t) : `Take ${t.number}` }), version ? h("span", { className: "snap-quiet snap-take-of", textContent: `⟵ take ${T.get(t.parent.take)?.number ?? "?"}` }) : t.seed != null ? ` · seed ${t.seed}` : "", t.status !== "success" ? h("em", { textContent: ` · ${t.status}` }) : "",
+      h("figcaption", {}, star, h("b", { textContent: version ? SC.shortLabel(t) : `Take ${t.number}` }), version ? h("span", { className: "snap-quiet snap-take-of", textContent: `⟵ take ${T.get(t.parent.take)?.number ?? "?"}` }) : t.seed != null ? ` · seed ${t.seed}` : "", t.status !== "success" ? h("em", { textContent: ` · ${t.status}` }) : "",
         h("span", { className: "snap-take-stale", hidden: true }),
         t.copy?.copied ? h("span", { className: "snap-take-copy", textContent: `copied its reference view ${Math.max(...t.copy.against.map((a) => a.last)).toFixed(2)}`,
           title: `This take ends on the view of its reference picture (last frame's copy score at or above ${t.copy.threshold}): right when that picture is this camera's own plate, wrong when it shows another camera's view.\n${t.copy.against.map((a) => `${a.image}: ${a.frames.join(" → ")}`).join("\n")}` }) : null,

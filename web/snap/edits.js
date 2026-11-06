@@ -87,7 +87,8 @@ function asked(m, { example, change, who, becomes }) {
   if (example && !ex) throw new Error(`${m.title}: no example "${example}"; there are ${Object.keys(m.options?.examples ?? {}).join(", ")}, or write your own change`);
   const text = (change ?? ex?.change ?? "").trim();
   if (!text) throw new Error(`${m.title}: say what changes (change), e.g. "the benches into a yellow phone booth", or pick an example: ${Object.keys(m.options?.examples ?? {}).join(", ")}`);
-  return { change: text, avoid: ex && !change ? ex.avoid : "", label: ex && !change ? example : text.length > 40 ? `${text.slice(0, 38)}…` : text, ...(ex && !change ? { example } : {}) };
+  // F-D04: the label is whole (SNAP-R58); the UI shortens what it shows
+  return { change: text, avoid: ex && !change ? ex.avoid : "", label: ex && !change ? example : text, ...(ex && !change ? { example } : {}) };
 }
 // the frames painted: the take's first and middle (relight, U53b), or the frames asked for (a moving object: where it
 // enters and where it leaves, U69), else the middle one
@@ -575,7 +576,7 @@ export async function fromContext(pictures, prompt, { method, purpose, seeds, co
   const pics = []; for (const [i, p] of pictures.entries()) pics.push(await contextPicture(p, i));
   const said = pics.map((p) => p.said), where = await landing(land, said), world = Object.fromEntries(pics.map((p) => p.world).filter(Boolean));
   const list = seeds?.length ? seeds : Array.from({ length: count }, () => Math.floor(Math.random() * 2 ** 32));
-  const label = prompt.trim().length > 40 ? `${prompt.trim().slice(0, 38)}…` : prompt.trim(), first = said.find((x) => x.take)?.take ?? null;
+  const label = prompt.trim(), first = said.find((x) => x.take)?.take ?? null;
   const made = [], size = width != null ? { width, height } : null, prefix = `snap_views/${where.group.slice(0, 8)}`, build = GRAPHS[m.anchors.kind];
   for (const [i, seed] of list.entries()) {
     const g = await build(m.anchors, pics, { prompt: prompt.trim() }, seed, size, prefix);
@@ -583,7 +584,7 @@ export async function fromContext(pictures, prompt, { method, purpose, seeds, co
     made.push({ prompt_id: await K.queue(g, { group: where.group, world, job, extra: { snap_parent: { take: first, method: `view/${id}`, options: { label, prompt: prompt.trim(), context: said, purpose: aim } } } }),
       seed, made: { model: m.anchors.unet.split("/").pop() }, label: "new view" }); // a take, no check to wait for (its tile's chips)
   }
-  const d = await C.create({ kind: "view", target: first ?? where.group, title: `New view (${label}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: first, method: id,
+  const d = await C.create({ kind: "view", target: first ?? where.group, title: `New view · ${m.title} ×${list.length} (${label}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: first, method: id,
     options: { prompt: prompt.trim(), context: said, purpose: aim, ...(size ?? {}) }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}) }, made);
   // F-C15: landed away from the shot a context board belongs to: say where it would sit beside that board
   const board = land && land !== "tab" ? said.map((x) => x.take && T.get(x.take)).map((t) => t && { t, home: RT.shotOf(t) }).find((x) => x?.home && x.home.shot.id !== where.shot) : null;

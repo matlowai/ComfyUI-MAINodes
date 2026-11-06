@@ -76,10 +76,17 @@ export function drawMasks(canvas, fit, notes, { on } = {}) {
     g.globalAlpha = on && on !== n.id ? 0.35 : 1;
     g.fillStyle = `${col}38`; g.fillRect(x, y, w, hh);
     g.strokeStyle = col; g.lineWidth = on === n.id ? 3 : 2; g.setLineDash([]); g.strokeRect(x, y, w, hh);
-    const label = `${n.severity} · ${(n.text ?? n.words ?? "").slice(0, 48)}`;
+    // the label is a solid chip, never dimmed with its mask: a severity bar, then the note's words in white on near-black,
+    // as wide as fits in the picture (the whole note is in the list beside it)
+    g.globalAlpha = 1;
     g.font = "600 12px Inter, system-ui, sans-serif";
-    const tw = g.measureText(label).width + 10, ly = y > 20 ? y - 18 : y + hh + 2, lx = Math.max(0, Math.min(x, canvas.width - tw)); // the label stays inside the picture
-    g.fillStyle = col; g.fillRect(lx, ly, tw, 17); g.fillStyle = "#000"; g.fillText(label, lx + 5, ly + 13);
+    const room = Math.max(60, canvas.width - 16), words = `${n.severity} · ${n.text ?? n.words ?? ""}`;
+    let label = words;
+    while (label.length > 8 && g.measureText(label).width + 18 > room) label = `${label.slice(0, -2).trimEnd()}…`;
+    const tw = g.measureText(label).width + 18, ly = y > 22 ? y - 21 : y + hh + 3, lx = Math.max(0, Math.min(x, canvas.width - tw)); // the label stays inside the picture
+    g.fillStyle = on && on !== n.id ? "#0b1220c0" : "#0b1220ee"; g.fillRect(lx, ly, tw, 19);
+    g.fillStyle = col; g.fillRect(lx, ly, 4, 19);
+    g.fillStyle = on && on !== n.id ? "#ffffffb0" : "#fff"; g.fillText(label, lx + 10, ly + 14);
   }
   g.globalAlpha = 1;
 }

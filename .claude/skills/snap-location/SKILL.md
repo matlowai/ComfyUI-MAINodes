@@ -28,6 +28,8 @@ gates). Tool calls are in `docs/snap/AGENT_START.md` ("A new view of a place").
    Make an eye-level still first (New view, the horizon at a standing person's eyes), check the horizon against the
    door, then `use_take {take, as: first_frame}` and `apply_location` (master + plan): under Ref2V Snap puts the First
    frame in as `<Picture 1>`, the opening frame, ahead of the master and the map (SNAP-R115), and the hint says so.
+   A walk that starts from a plate instead: `apply_location {plates: [P], camera: P}` puts that plate first as
+   `<Picture 1>` (the camera), the master and the map after it (F-D06).
    Run one people-free H3 Ref2V video: "camera carried at head height, dollies forward …". With the still first it
    held ~2-2.5 m 2/2 and kept the set; the same still as a pure FL2V first frame (no references) kept the height but
    invented the set (half-timbered houses, no wall).

@@ -133,23 +133,27 @@ function cues(card) {
   return one ? [one] : [];
 }
 
+// the line a Cast's words go on: the first, or, when the prompt opens with a bare section header ("subject_definitions:"
+// alone on its line, a LoRA's trained caption), the first line of text under it, so the caption keeps its shape (F-D08)
+const lineFor = (lines) => (/^\s*[a-z_]+:\s*$/i.test(lines[0] ?? "") ? Math.max(1, lines.findIndex((l, i) => i > 0 && l.trim())) : 0);
 function removeFromPrompt(phrases) {
-  const prompt = E.getValue("render", "render", "prompt") ?? "";
-  let [first, ...rest] = prompt.split("\n");
-  const before = first;
-  for (const x of phrases) first = first.replace(x, "");
-  if (first === before) return; // nothing of ours was there: leave the person's text exactly as it is
-  first = first.replace(/\s*,\s*(?=[,.])/g, "").replace(/\s{2,}/g, " ").replace(/\s+\./g, ".").replace(/\.{2,}/g, ".").trimEnd();
-  E.setValue("render", "render", "prompt", [first, ...rest].join("\n"));
+  const lines = (E.getValue("render", "render", "prompt") ?? "").split("\n"), at = lineFor(lines);
+  const before = lines[at] ?? "";
+  let line = before;
+  for (const x of phrases) line = line.replace(x, "");
+  if (line === before) return; // nothing of ours was there: leave the person's text exactly as it is
+  lines[at] = line.replace(/\s*,\s*(?=[,.])/g, "").replace(/\s{2,}/g, " ").replace(/\s+\./g, ".").replace(/\.{2,}/g, ".").trimEnd();
+  E.setValue("render", "render", "prompt", lines.join("\n"));
 }
 
-// add the phrases not already there to the first line of the H3 prompt (the integrated description)
+// add the phrases not already there to the H3 prompt's integrated description (its first line, or the first line under
+// a bare section header)
 function addToPrompt(phrases) {
-  const prompt = E.getValue("render", "render", "prompt") ?? "";
-  const [first, ...rest] = prompt.split("\n");
-  const fresh = phrases.filter((x) => !first.includes(x));
+  const lines = (E.getValue("render", "render", "prompt") ?? "").split("\n"), at = lineFor(lines), line = lines[at] ?? "";
+  const fresh = phrases.filter((x) => !line.includes(x));
   if (!fresh.length) return false;
-  E.setValue("render", "render", "prompt", [`${first.replace(/\s*$/, "")} ${fresh.join(", ")}.`.trimStart(), ...rest].join("\n"));
+  lines[at] = `${line.replace(/\s*$/, "")} ${fresh.join(", ")}.`.trimStart();
+  E.setValue("render", "render", "prompt", lines.join("\n"));
   return true;
 }
 
@@ -432,6 +436,17 @@ export function picturesUnread() {
 // plate by name: applyLocation puts the master, the plan and the named plates into References as <Picture n> and pins
 // the version, so every take made there says which version of the place it used.
 const POSE = ["x", "y", "heading", "eye_height", "lens"];
+// F-D10: a plate whose eye height differs from its camera mark's by more than 0.2 m: the walk came out lower or higher
+// than planned, and figures placed on it stand at the wrong scale. Snap doesn't measure a picture; it compares the two
+// numbers the record holds and says which is which. Returns {plate: line}
+export function eyeGaps(b) {
+  const out = {};
+  for (const p of b.plates ?? []) {
+    const c = p.camera && (b.cameras ?? []).find((x) => x.name === p.camera), got = p.pose?.eye_height, plan = c?.eye_height;
+    if (got != null && plan != null && Math.abs(got - plan) > 0.2) out[p.name] = `eye ${got} m on the plate, ${plan} m on camera mark ${c.name}: the walk ran ${got < plan ? "lower" : "higher"} than planned by ${Math.abs(got - plan).toFixed(1)} m (figures on it stand ${got < plan ? "too tall" : "too small"})`;
+  }
+  return out;
+}
 export const LOCATION_PICTURES = ["master", "plan"];
 const locationStamp = () => `location-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const locationCard = (id, b) => ({ id, kind: "location", title: `Location: ${b.name}`, text: [b.notes, ...(b.plates ?? []).map((p) => `plate ${p.name}${p.use ? `: ${p.use}` : ""}`)].filter(Boolean).join(" ") || b.name,
@@ -498,17 +513,18 @@ export function locationOf(ref) {
   return { id, n: got.version.n, body: got.version.body, version: got.version };
 }
 // add or replace one plate (by name) as a new version of the location
+// (a list of plates is one version: F-D10, four corrections made four versions)
 export async function addPlate(ref, plate, { note, by = "person" } = {}) {
-  const { id, body } = locationOf(W.refOf("location", W.parse(ref).id));
-  const plates = [...(body.plates ?? []).filter((p) => p.name !== plate.name?.trim()), plate];
-  return saveLocation(id, { ...body, plates }, { note: note ?? `plate ${plate.name}`, by });
+  const { id, body } = locationOf(W.refOf("location", W.parse(ref).id)), list = [plate].flat(), names = new Set(list.map((p) => p.name?.trim()));
+  const plates = [...(body.plates ?? []).filter((p) => !names.has(p.name)), ...list];
+  return saveLocation(id, { ...body, plates }, { note: note ?? `plate${list.length > 1 ? "s" : ""} ${list.map((p) => p.name).join(", ")}`, by });
 }
 // put a location version into the open recipe's References, replacing what an earlier apply of it put there: its master
 // and plan (each unless false) and the plates named (in that order). Pins the version. Returns {said, cite}
 // short03 F-C28: Ref2V takes a reference picture as the shot's camera and copies its framing (3/3 in the pano test), so
 // each cited picture says what it is for: `camera` (this exact framing) or `place` (the same set; the words set the
 // camera). `camera` names the one picture used as the camera (a plate's name or "master"); else each keeps its record's
-// role (place by default). The answer's prompt_hint words it for the prompt
+// role (place by default); the camera picture goes in first (F-D06). The answer's prompt_hint words it for the prompt
 export async function applyLocation(ref, { plates = [], master = true, plan = true, camera } = {}) {
   await ready();
   const { id, n, body: b, version } = locationOf(ref), key = `location:${id}`;
@@ -527,6 +543,10 @@ export async function applyLocation(ref, { plates = [], master = true, plan = tr
     const roles = want.map(([what, , use]) => `location: ${b.name}, ${what}${use === "map" ? "" : ` (${use})`}`);
     for (const p of E.state().bricks.find((x) => x.key === "refs").pictures ?? []) if (p.source === key && !roles.includes(p.role)) E.removePicture(p.node);
     want.forEach(([what, file], i) => E.addPicture(file, { role: roles[i], reason: `${b.name}, location v${n}${what.startsWith("plate") ? `, ${what}` : ""}`, source: key, card: W.refOf("location", id, n) }));
+    // F-D06: the camera picture is <Picture 1> (after an opening frame only, which syncOpening puts first): H3 keeps the
+    // framing of the picture the walkthrough starts from
+    const cam = want.findIndex(([, , use]) => use === "camera"), camNode = cam >= 0 && E.state().bricks.find((x) => x.key === "refs").pictures.find((p) => p.role === roles[cam])?.node;
+    if (camNode) E.recite(E.movePicture(camNode, 0));
     try { preset = conditionFor("Ref2V"); } catch (e) { unread = e.message; }
     opening = syncOpening();
     pin(key, { n, hash: W.short(version.hash), name: b.name, placed: { roles, plates, master: !!(master && b.master), plan: !!(plan && b.plan), ...(camera != null ? { camera } : {}), ...(unread ? { unread } : {}) } });
@@ -567,7 +587,7 @@ export function keepPinnedText() {
     const pics = !!p.placed.roles?.length, row = p.placed.row != null;
     const used = (pics && (E.state().bricks.find((x) => x.key === "refs")?.pictures ?? []).some((x) => x.source === ref)) || (row && M.rows("cast")[p.placed.row]?.on);
     if ((pics || row) && !used) continue;
-    const first = (E.getValue("render", "render", "prompt") ?? "").split("\n")[0];
+    const lines = (E.getValue("render", "render", "prompt") ?? "").split("\n"), first = lines[lineFor(lines)] ?? "";
     if (!first.includes(p.placed.text) && addToPrompt([p.placed.text])) kept.push(`${p.name} v${p.n}'s details line (${ref})`);
   }
   return kept;

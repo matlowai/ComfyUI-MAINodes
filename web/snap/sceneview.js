@@ -69,7 +69,7 @@ export function createSceneBar({ host, say, onOpened, openTake, run, rerun }) {
     const { scene, shot } = here, set = scene.set && L.get(scene.set);
     const crumb = (text, onclick, title) => h("button", { className: "snap-crumb", textContent: text, title, onclick });
     const path = [crumb(`🎬 ${scene.name}`, () => openScenes(), "the scene: all scenes"), h("strong", { className: "snap-crumb-here", textContent: SC.shotTitle(scene, shot) })];
-    trail.forEach((t, i) => path.push(t ? crumb(`${SC.label(t)}${i === trail.length - 1 ? " ★" : ""}`, () => openTake(t), i === trail.length - 1 ? "the shot's active take: open it" : "the take this version came from: open it") : h("span", { className: "snap-quiet", textContent: "a take that isn't here" })));
+    trail.forEach((t, i) => path.push(t ? crumb(`${SC.shortLabel(t)}${i === trail.length - 1 ? " ★" : ""}`, () => openTake(t), i === trail.length - 1 ? "the shot's active take: open it" : "the take this version came from: open it") : h("span", { className: "snap-quiet", textContent: "a take that isn't here" })));
     if (!trail.length) path.push(h("span", { className: "snap-quiet", textContent: SC.takesOf(shot).length ? "no active take yet" : "no takes yet" }));
     el.replaceChildren(
       h("div", { className: "snap-scene-top" },
@@ -92,13 +92,13 @@ export function createSceneBar({ host, say, onOpened, openTake, run, rerun }) {
     const t = h("figure", { className: `snap-shot-tile${on ? " on" : ""}`, role: "listitem", tabIndex: 0, draggable: true,
       title: on ? "the open shot" : `open ${SC.shotTitle(scene, shot)} here (this shot is saved first)`, onclick: () => on || open(scene.id, shot.id) },
       h("div", { className: "snap-shot-media" }, thumb(active ?? latest, card ? "shot card, not rendered yet" : "no takes yet"), h("b", { textContent: String(i + 1) }),
-        latest ? h("button", { className: "snap-shot-star", textContent: "☆ make active", title: `make the newest take (${SC.label(latest)}) this shot's active take; the takes strip's ☆ picks another`,
-          onclick: (e) => { e.stopPropagation(); act(async () => (await run("set_active_take", { scene: scene.id, shot: shot.id, take: latest.id }), `${SC.label(latest)} is now ${SC.shotTitle(scene, shot)}'s take`)); } }) : null,
+        latest ? h("button", { className: "snap-shot-star", textContent: "☆ make active", title: `make the newest take (${SC.shortLabel(latest)}) this shot's active take; the takes strip's ☆ picks another`,
+          onclick: (e) => { e.stopPropagation(); act(async () => (await run("set_active_take", { scene: scene.id, shot: shot.id, take: latest.id }), `${SC.shortLabel(latest)} is now ${SC.shotTitle(scene, shot)}'s take`)); } }) : null,
         jobs ? h("span", { className: `snap-shot-jobs ${jobs.state}`, textContent: String(jobs.n), title: `${jobs.n} open job${jobs.n === 1 ? "" : "s"} (the Work card has them):\n${jobs.titles.join("\n")}` }) : null),
       h("button", { className: "snap-shot-more", textContent: "⋯", title: "rename, re-run its take with swaps, or take it out of the scene", ariaLabel: `${SC.shotTitle(scene, shot)}: more`,
         onclick: (e) => { e.stopPropagation(); shotMenu(e.currentTarget, scene, shot); } }),
       h("figcaption", {}, h("strong", { textContent: shot.name || `Shot ${i + 1}` }),
-        h("span", { className: "snap-quiet", textContent: n ? (active ? `${n} take${n === 1 ? "" : "s"} · ★ ${SC.label(active)}` : `no active take · ${n} take${n === 1 ? "" : "s"}`) : card ? "from its shot card" : "empty" })));
+        h("span", { className: "snap-quiet", textContent: n ? (active ? `${n} take${n === 1 ? "" : "s"} · ★ ${SC.shortLabel(active)}` : `no active take · ${n} take${n === 1 ? "" : "s"}`) : card ? "from its shot card" : "empty" })));
     t.dataset.shot = shot.id;
     t.addEventListener("keydown", (e) => { if (e.key === "Enter" && !on) open(scene.id, shot.id); });
     const v = t.querySelector("video");
@@ -151,7 +151,7 @@ export function createSceneBar({ host, say, onOpened, openTake, run, rerun }) {
       h("button", { className: "snap-danger", textContent: `Remove ${SC.shotTitle(scene, shot)}`, onclick: () => { close(); act(async () => (await SC.removeShot(scene.id, shot.id)).said); } }));
     const menu = h("div", { className: "snap-scene-menu", role: "menu" },
       h("div", { className: "snap-scene-rename" }, name, h("button", { className: "snap-primary", textContent: "Rename", onclick: rename })),
-      take?.graph ? h("button", { textContent: `Re-run take ${take.number} with swaps…`, title: `${SC.label(take)}, the shot's ${shot.active === take.id ? "active" : "newest"} take, with another version, character, set, scene or setup (SNAP-R63)`, onclick: () => { close(); rerun?.(take); } }) : null,
+      take?.graph ? h("button", { textContent: `Re-run take ${take.number} with swaps…`, title: `${SC.shortLabel(take)}, the shot's ${shot.active === take.id ? "active" : "newest"} take, with another version, character, set, scene or setup (SNAP-R63)`, onclick: () => { close(); rerun?.(take); } }) : null,
       AL.button(`shot:${scene.id}/${shot.id}`, { say, then: close }), // SNAP-R93 what agents get for this shot
       h("button", { textContent: "Remove from the scene…", onclick: (e) => { e.currentTarget.hidden = true; confirm.hidden = false; } }), confirm);
     const r = anchor.getBoundingClientRect(), box = host.getBoundingClientRect();

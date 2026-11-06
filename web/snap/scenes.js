@@ -129,6 +129,9 @@ export function label(t) {
   return `${cap(T.versionOf(p.options) ?? p.method.split("/").pop())} version`;
 }
 
+// the label as a narrow tile shows it; agents get label() whole (F-D04, SNAP-R58)
+export const shortLabel = (t) => { const s = label(t); return s.length > 60 ? `${s.slice(0, 58).trimEnd()}…` : s; };
+
 // ---- where the open tab is -----------------------------------------------------------------------------------------
 // the scene and shot the open tab shows (the mark Snap puts in its workflow), or null for scratch work
 export function current() {
@@ -321,7 +324,7 @@ export async function addShot(sceneId, { name, card = null, adopt = null, at, st
 
 // ---- rename and remove: nothing a scene owns is deleted -------------------------------------------------------------
 // the open tab's title follows ("<scene> · Shot n · name")
-async function retitleOpen() { const here = current(); if (here) await retitle(here.scene, here.shot); }
+export async function retitleOpen(from = null) { const here = current(); if (here) await retitle(here.scene, here.shot, from); }
 export async function renameScene(id, name) {
   await load();
   need(id);

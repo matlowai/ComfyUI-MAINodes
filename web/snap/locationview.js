@@ -80,6 +80,7 @@ export async function openLocation(host, { id, n = null, say, onApplied }) {
       h("label", { className: "snap-loc-pick", title: "put this plate into References with Use in this shot" }, h("input", { type: "checkbox", checked: chosen.has(p.name), onchange: (e) => { e.target.checked ? chosen.add(p.name) : chosen.delete(p.name); e.target.closest("figure").classList.toggle("on", e.target.checked); } }),
         h("input", { value: p.name, ariaLabel: "plate name", onchange: (e) => { const was = p.name; p.name = e.target.value.trim() || was; if (chosen.delete(was)) chosen.add(p.name); draw(); } })),
       h("div", { className: "snap-quiet", textContent: poseText(p.pose) }),
+      L.eyeGaps(b)[p.name] ? h("div", { className: "snap-warn snap-loc-gap", textContent: `⚠ ${L.eyeGaps(b)[p.name]}` }) : null, // F-D10
       p.from ? h("div", { className: "snap-quiet", textContent: `take ${p.from.take.replace(/^take-/, "").slice(0, 8)}${p.from.frame != null ? `, frame ${p.from.frame}` : ""}` }) : null,
       h("input", { value: p.use ?? "", placeholder: "use for (which cuts)", ariaLabel: "use for", oninput: (e) => { p.use = e.target.value; } }),
       h("div", { className: "snap-set-actions" },
