@@ -192,6 +192,8 @@ are not readable (`take_frames` says why), and a run that reads it is refused at
 tell the person to sign in (or click the take's lock to unlock). You never unlock it yourself, and you never ask for or
 hold the passphrase. `export_records` leaves such takes encrypted unless the person asks to include them
 (`decrypt_private: true`). Pictures `take_frames` gave you of such a take are yours to keep private or remove.
+A run refused with "no vault key yet" means the person has no vault key: ask them to open the lock sheet (the lock on
+a take, or sign in again behind snap-gate) and set one up; never work around it (no other saver, no privacy switch).
 
 ### Making a take bigger (stage 2, Tessera)
 
