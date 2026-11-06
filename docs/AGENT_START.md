@@ -147,6 +147,16 @@ You can also run the tools as an MCP server (Claude Code):
    lands as a version of the take.
 9. To make a take bigger, see "Making a take bigger" below (`upscale_take`).
 
+### Takes kept encrypted (installs with privacy on, SNAP-R96..R100)
+
+Where privacy is on, a private take is saved encrypted with its recipe inside. `list_takes` and `get_take` mark it
+`kept_encrypted: true`; you read it like any take (`take_frames`, `get_take`, reuse in `edit_take` / `use_take`) while
+its person is signed in. With `locked: true` the vault is locked: the take is listed, but its prompt, notes and frames
+are not readable (`take_frames` says why), and a run that reads it is refused at queue naming the vault. Don't retry:
+tell the person to sign in (or click the take's lock to unlock). You never unlock it yourself, and you never ask for or
+hold the passphrase. `export_records` leaves such takes encrypted unless the person asks to include them
+(`decrypt_private: true`). Pictures `take_frames` gave you of such a take are yours to keep private or remove.
+
 ### Making a take bigger (stage 2, Tessera)
 
 H3 renders at about 0.85 MP, and the VAE's compression smears small faces. `upscale_take` makes an existing take

@@ -588,6 +588,45 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   only by their stamp (U68). *More:* U68_PRIVACY_AUDIT_2026-11-04.md "Matcher gaps", PLAN U71, `snap_privacy.py`,
   `snap_bridge.py`.
 
+## Private takes kept encrypted (U79)
+
+These hold only where privacy is on (`user/snap_privacy.json` `{"on": true}`, SNAP-R37; `"vault": false` there turns
+the vault alone off). With privacy off nothing below runs: savers, loaders, `/view` and take records behave as before,
+byte for byte (proto/snapbox/test_vault_off.py).
+
+- **SNAP-R96: A private take lives encrypted at its own path, under its own name, with its recipe inside.** A private
+  prompt (SNAP-R20's marks, a prompt that reads a take kept encrypted, or rules that can't be read: fail closed) gets
+  Save Image, Preview Image, Save Video and MAI Video Out swapped for twins that render into memory and write one
+  container (`SNAPVLT1`: chunked AES-256-GCM, 4 MiB chunks, its header bound to every chunk) where core would have
+  written the file; Save metadata decides whether the recipe is inside, as everywhere (SNAP-R38). The container's magic,
+  never its name, says it is one, so history, take records, the gate's maps and every `/view` URL stay as they were.
+  Load Image, Load Image Mask, Load Video and Load Audio are swapped for twins that open it in memory; any other node
+  that names one is noted (`snap_marks.vault_notes`), and a saver Snap can't seal is noted too ("saves this private
+  take in plain"). The take's record is sealed the same way through `/userdata`, and a frame lifted from it is uploaded
+  sealed (`snap_vault=1`). The lock reads "🔒 kept encrypted". The world export keeps containers as they are unless the
+  person includes them decrypted (`decrypt_private`, vault unlocked). *Why:* Dylan 2026-11-04 18:56: "Private still
+  has metadata, it just lives encrypted along the path." *More:* DESIGN_U79_VAULT_2026-11-05.md §4 Option A,
+  `snap_vault.py`, `snap_vault_server.py`.
+- **SNAP-R97: Writing a private take needs no passphrase; reading one does, and lock forgets.** Every file has its own
+  key, wrapped to its owner's X25519 public key (the age construction), so a render that ends after the lock still
+  saves sealed. The owner's private key sits in `user/snap_vault.json` wrapped under Argon2id(passphrase) and lives
+  unlocked only in the server's memory: behind snap-gate the sign-in password unlocks it (SNAP-R100), without a gate the
+  person unlocks it once per server start from a take's lock. Locked, `/view` answers 423 ("kept encrypted: unlock the
+  vault (sign in) to open it") or a lock tile for a picture, a record reads as its stub (`kept_encrypted`, `locked`; no
+  prompt, graph or notes), and a prompt that reads a sealed take is refused at queue naming the vault. An account with no
+  key yet is refused at queue rather than saved plain. Admins open anyone's through escrow ("admin has all the power");
+  other accounts never. *More:* DECISIONS 2026-11-05 04:08 (Q1, Q4, Q5, Q8).
+- **SNAP-R98: No plaintext of a private take is written to disk by Snap.** Savers and loaders work in memory; `/view`
+  of a container is `Cache-Control: no-store`; the only plaintext stop is the RAM-backed scratch (`/dev/shm/snap-vault-<pid>/`)
+  an ffmpeg step needs (louder, loudness, the no-metadata remux), unlinked when the step ends and swept at the next start.
+  Limits said in the vault sheet: not against the machine's account or root while unlocked, swap or GPU memory; core
+  nodes that write their own temp previews (Trim/Crop Video) and savers Snap can't seal are named, not covered.
+- **SNAP-R99: A lost passphrase is recovered by an admin or the recovery key, else it is lost, and Snap says so before
+  asking.** Each account's key is escrowed to every admin with a key (refreshed at each unlock); an unlocked admin
+  resets a member's passphrase (`vault/rewrap`). A recovery key (made at setup or later from the vault sheet) is shown
+  once and kept nowhere. With neither, the private takes are gone, and the sheet says that sentence before the person
+  chooses. Changing a password with the gate's CLI prints that the vault still opens with the old one.
+
 ## Context and references (U101)
 
 R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start at R71.
@@ -730,7 +769,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
 
 ## Accounts and the gate (snap-gate)
 
-IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; G1 took R83-R87; R88 on).
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; G1 took R83-R87; R93-R95 are U103/U104's; U79 took R96-R100; R101 on).
 
 - **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
   use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and
@@ -826,3 +865,10 @@ IDs R40+ were reserved for the gate while R28-R39 were open for other work (renu
   absolute path), left out of the loaders' lists in `/object_info` (an input folder named after another account and
   anything in it), and a mask upload can't start from it. The admin sees all of it. *Why:* Dylan, 2026-11-04 20:41:
   "input/ is per account; admin has access to all". *More:* PLAN U83.
+- **SNAP-R100: Sign-in unlocks the account's vault; the last person's session locking or signing out locks it.**
+  After the password checks, snap-gate unlocks the pack's vault for the account with the same password (an account
+  with no vault is set up then), and a sweep every 15 s locks it once no person's session of the account is signed in
+  (idle, expired or signed out). Token sessions ride on the person's: an agent sees private takes exactly while its
+  person is signed in, and never unlocks alone. Unlock and the sweep take turns, so a lock never lands after a sign-in's
+  unlock. *Why:* DECISIONS 2026-11-05 04:08 Q4 ("per session on a shared one"). *More:* `snap_gate/gate.py` (snap-gate
+  branch), proto/snapbox/test_vault_gate.py.
