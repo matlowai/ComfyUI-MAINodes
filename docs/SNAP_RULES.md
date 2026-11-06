@@ -973,6 +973,16 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   speaks cites the reference and "timbre consistency across cuts is checked"; the voice scout found cuts citing the
   reference keep it (own 0.97-0.99) while two young women overlap (0.81-0.95), so a margin and F0 say more than a
   score. *More:* scout/voice_timbre_2026-11-06.md, proto/test_g1b_voice.py, proto/test_g1b_notes.js.
+- **SNAP-R115: A first frame combines with references: under Ref2V it opens the shot as <Picture 1>.** A Ref2V render
+  reads no first frame, so while the Render Preset conditions on Ref2V and the First frame brick holds a picture, that
+  picture is also in References as `<Picture 1>` (role "first frame: the shot opens on it"), wired into H3 References'
+  first slot ahead of every other picture. It follows the recipe: a setup change to Ref2V (apply_cast or apply_location
+  switching it, apply_setup, the setup sheet) puts it in, a change back to FL2V takes the copy out (the First frame is
+  read as it is), a new First frame replaces it; apply_cast, apply_location and use_take say so, and apply_location's
+  prompt_hint names it first. *Why:* short03 F-C32: use_take as the first frame, then apply_cast switched the preset to
+  Ref2V and the frame dropped out; and the walk's camera height is set by its first frame, never by words (an eye-level
+  still as Picture 1 of a Ref2V walk held eye height 2/2 with the set kept; words 0/2). *More:* dogfood FINDINGS F-C32
+  and LESSONS 2026-11-06 05:50, proto/test_g1b_opening.js.
 
 ## Accounts and the gate (snap-gate)
 

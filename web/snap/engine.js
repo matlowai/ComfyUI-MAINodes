@@ -365,9 +365,10 @@ export function adopt() {
 }
 
 // a picture reference: a LoadImage node owned by the References brick, wired into the next free ref_images slot
-// (H3 References takes 9), recorded with its role and reason so the brick can show what each picture is for
+// (H3 References takes 9), recorded with its role and reason so the brick can show what each picture is for. `first`
+// wires it into the first slot, every picture before it one slot down, so it is <Picture 1> (F-C32: the opening frame)
 export const PICTURE_SLOTS = 9;
-export function addPicture(file, { role, reason, source, card }) {
+export function addPicture(file, { role, reason, source, card, first = false }) {
   const b = brick("refs");
   if (!b) throw new Error("Add the References brick first");
   let pictures = b.pictures ?? [];
@@ -393,11 +394,15 @@ export function addPicture(file, { role, reason, source, card }) {
     const w = widget(n, "image");
     if (!w.options.values.includes(file)) w.options.values.push(file);
     w.value = file;
-    n.connect(0, refs, refs.inputs.findIndex((i) => i.name.startsWith("ref_images.") && i.link == null));
+    const slots = () => refs.inputs.map((x, i) => [x, i]).filter(([x]) => x.name.startsWith("ref_images.")).map(([, i]) => i);
+    if (first) { // each connect replaces the slot's link, so the pictures move down one by one behind it
+      const wired = slots().map((i) => refs.inputs[i].link).filter((l) => l != null).map((l) => app.graph.getLink(l).origin_id);
+      [n.id, ...wired].forEach((id, k) => node(id).connect(0, refs, slots()[k]));
+    } else n.connect(0, refs, refs.inputs.findIndex((i) => i.name.startsWith("ref_images.") && i.link == null));
     const picture = { node: n.id, file, role, reason, ...(source ? { source, card } : {}) };
     b.nodes[`picture_${n.id}`] = n.id;
     b.placed[n.id] = [...n.pos];
-    b.pictures = [...pictures, picture];
+    b.pictures = first ? [picture, ...pictures] : [...pictures, picture];
     return picture;
   });
 }

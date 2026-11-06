@@ -148,7 +148,10 @@ nested pack → install → person → book → scene → shot → take. Read th
    `apply_setup` (any setup from `list_setups`). They open a **new workflow tab** when the open one has work in it, and
    every later call acts on that new tab. So call them first, and then set the prompt and settings.
    - The video recipe starts as text to video: First frame stays off until it gets a picture (`use_take`, or
-     `set_setting` on `first_frame`).
+     `set_setting` on `first_frame`). A first frame and references combine: when the setup reads references (Ref2V,
+     which reads no first frame), the First frame's picture is also `<Picture 1>` in References, the opening frame,
+     ahead of the rest (SNAP-R115); the answers say so. A walkthrough's camera height comes from its first frame, never
+     from words: start it from an eye-level still (skill `snap-location`).
    - Upscale starts off when RelayVSR isn't installed.
 2. Set the prompt: `set_setting {"brick": "render", "name": "prompt", "value": "..."}`.
    - `render` names the recipe's Render in every family (the stills recipe's brick id is `image`). Titles such as

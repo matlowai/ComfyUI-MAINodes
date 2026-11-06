@@ -5,7 +5,8 @@
 // SNAP-R21 a shot's reference shows its own camera · SNAP-R25 SFW only leaves out cards tagged or loading nsfw ·
 // SNAP-R59 Cast by reference (applyCast) · SNAP-R60 the person's cards are world records (world.js) ·
 // SNAP-R73 a Cast's voice reference goes in as an <Audio n> · SNAP-R84 a location by reference: its master, plan and named
-// plates (applyLocation) · see docs/SNAP_RULES.md
+// plates (applyLocation) · SNAP-R115 under Ref2V the First frame opens the shot as <Picture 1> (syncOpening) ·
+// see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
@@ -269,6 +270,25 @@ export function compile(card) {
 
 // the Render Preset a picture needs: Ref2V for a reference, FL2V for a first frame. The first preset that conditions
 // that way (Pika + reference pictures / Pika H3 Flex) takes over when the current one doesn't; null when it already does
+// F-C32 (short03): a Ref2V render reads no first frame, so while the Render Preset conditions on Ref2V and the First
+// frame brick holds a picture, that picture opens the shot as <Picture 1> in References, ahead of the others: an
+// eye-level still as Picture 1 of a Ref2V walk set the walk's camera height (2/2), where words never did (0/2). Under any
+// other conditioning the First frame is read as it is, and the copy in References goes. Runs after every setup change
+// and every new First frame; answers {cite, said} while the copy is there, else null
+export const OPENING = "first frame: the shot opens on it";
+export function syncOpening() {
+  const keys = E.state().bricks.map((x) => x.key), refs = keys.includes("refs") && E.state().bricks.find((x) => x.key === "refs");
+  if (!refs) return null;
+  const ff = keys.includes("first_frame") && E.nodeFor("first_frame", "image"), file = ff && ff.mode === 0 ? E.getValue("first_frame", "image", "image") : null;
+  const ref2v = keys.includes("preset") && String(E.getValue("preset", "preset", "conditioning") ?? "").startsWith("Ref2V");
+  for (const p of refs.pictures ?? []) if (p.source === "first_frame" && (!ref2v || p.file !== file)) E.removePicture(p.node);
+  if (!ref2v || !file) return null;
+  E.addPicture(file, { role: OPENING, reason: "the First frame: Ref2V reads no first frame, so the shot opens on this picture", source: "first_frame", first: true });
+  const cite = E.references()?.pictures.find((p) => p.file === file)?.cite;
+  return { cite, said: `the First frame is ${cite} too, the opening frame (Ref2V reads no first frame): say the shot opens on ${cite}` };
+}
+T.onFirstFrame(syncOpening);
+
 function conditionFor(want) {
   if (!E.state().bricks.some((x) => x.key === "preset") || String(E.getValue("preset", "preset", "conditioning")).startsWith(want)) return null;
   const s = M.setups().find((x) => x.source === "preset" && String(x.values.conditioning).startsWith(want));
@@ -356,7 +376,7 @@ export async function applyCast(ref, { strength } = {}) {
   const got = W.get(ref);
   if (!got) throw new Error(W.record("cast", id) ? `Cast ${id} has no version ${n}; it has v1-v${W.record("cast", id).head}` : `No Cast record ${id}`);
   const b = got.version.body, key = `cast:${id}`, was = pinOf(key)?.placed ?? {}, placed = {}, line = castLine(b);
-  let preset = null;
+  let preset = null, opening = null;
   if (!E.state().bricks.some((x) => x.key === "render")) throw new Error(`${b.name} goes into the Render prompt: add the Render brick first`);
   const keys = () => E.state().bricks.map((x) => x.key);
   app.canvas.emitBeforeChange(); // the row, the sentence, the pictures and the pin are one undo step
@@ -393,10 +413,11 @@ export async function applyCast(ref, { strength } = {}) {
       const a = E.addAudio(b.voice.file, { role: `cast: ${b.name}, voice`, reason: `${b.name}, cast v${got.version.n}${b.voice.casting ? `: ${b.voice.casting}` : ""}`, source: key, card: W.refOf("cast", id, got.version.n) });
       placed.voice = `<Audio ${E.audioNumber(a.node)}>`;
     } else if (voiced) E.removeAudio(voiced.node);
+    opening = syncOpening();
     pin(key, { n: got.version.n, hash: W.short(got.version.hash), name: b.name, placed, ...(strength != null ? { strength } : {}) });
   } finally { app.canvas.emitAfterChange(); }
   app.canvas.setDirty(true, true);
-  return `${b.name} v${got.version.n}: ${[b.lora && `${b.lora.file.split("/").pop().replace(/\.safetensors$/, "")} at ${strength ?? b.lora.strength} on Cast`, line && "the details in the prompt", b.refs.length && `${b.refs.length} picture${b.refs.length === 1 ? "" : "s"} in References`, placed.voice && `the voice reference as ${placed.voice} (cite it in the prompt)`].filter(Boolean).join(", ") || "nothing to put in (no LoRA, words or pictures)"}${preset ? `; Render Preset now ${preset} (the pictures need it)` : ""}${placed.unread ? `; the pictures are not read by this render: ${placed.unread}` : ""}`;
+  return `${b.name} v${got.version.n}: ${[b.lora && `${b.lora.file.split("/").pop().replace(/\.safetensors$/, "")} at ${strength ?? b.lora.strength} on Cast`, line && "the details in the prompt", b.refs.length && `${b.refs.length} picture${b.refs.length === 1 ? "" : "s"} in References`, placed.voice && `the voice reference as ${placed.voice} (cite it in the prompt)`].filter(Boolean).join(", ") || "nothing to put in (no LoRA, words or pictures)"}${preset ? `; Render Preset now ${preset} (the pictures need it)` : ""}${opening ? `; ${opening.said}` : ""}${placed.unread ? `; the pictures are not read by this render: ${placed.unread}` : ""}`;
 }
 
 // U72 F23: References that this render won't read (H3 reads pictures only with a Ref2V conditioning), as one line, or null
@@ -499,7 +520,7 @@ export async function applyLocation(ref, { plates = [], master = true, plan = tr
     ...plates.map((x) => { const p = b.plates.find((q) => q.name === x); return [`plate ${x}`, p.file, roleOf(x, p)]; })];
   if (!want.length) throw new Error(`${b.name} v${n}: nothing to put in (no master, no plan, no plates named)`);
   const keys = () => E.state().bricks.map((x) => x.key);
-  let preset = null, unread = null;
+  let preset = null, unread = null, opening = null;
   app.canvas.emitBeforeChange(); // the pictures and the pin are one undo step
   try {
     if (!keys().includes("refs")) await E.snap("refs");
@@ -507,16 +528,17 @@ export async function applyLocation(ref, { plates = [], master = true, plan = tr
     for (const p of E.state().bricks.find((x) => x.key === "refs").pictures ?? []) if (p.source === key && !roles.includes(p.role)) E.removePicture(p.node);
     want.forEach(([what, file], i) => E.addPicture(file, { role: roles[i], reason: `${b.name}, location v${n}${what.startsWith("plate") ? `, ${what}` : ""}`, source: key, card: W.refOf("location", id, n) }));
     try { preset = conditionFor("Ref2V"); } catch (e) { unread = e.message; }
+    opening = syncOpening();
     pin(key, { n, hash: W.short(version.hash), name: b.name, placed: { roles, plates, master: !!(master && b.master), plan: !!(plan && b.plan), ...(camera != null ? { camera } : {}), ...(unread ? { unread } : {}) } });
   } finally { app.canvas.emitAfterChange(); }
   app.canvas.setDirty(true, true);
   const pics = E.references()?.pictures ?? [], citeOf = (what) => pics.find((p) => p.role?.startsWith(`location: ${b.name}, ${what}`) && (p.role.length === `location: ${b.name}, ${what}`.length || p.role[`location: ${b.name}, ${what}`.length] === " "))?.cite ?? null;
   const cite = { ...(master && b.master ? { master: citeOf("master") } : {}), ...(plan && b.plan ? { plan: citeOf("plan") } : {}), plates: Object.fromEntries(plates.map((x) => [x, citeOf(`plate ${x}`)])) };
   const as = Object.fromEntries(want.filter(([, , u]) => u !== "map").map(([what, , u]) => [what, u])), cams = Object.keys(as).filter((w) => as[w] === "camera"), places = Object.keys(as).filter((w) => as[w] === "place");
-  const prompt_hint = [cams.length && `${cams.map(citeOf).join(" and ")} ${cams.length > 1 ? "are" : "is"} this shot's camera: keep ${cams.length > 1 ? "their" : "its"} framing.`,
+  const prompt_hint = [opening && `${opening.cite} is this shot's opening frame: it starts exactly there, at that camera height.`, cams.length && `${cams.map(citeOf).join(" and ")} ${cams.length > 1 ? "are" : "is"} this shot's camera: keep ${cams.length > 1 ? "their" : "its"} framing.`,
     places.length && `${places.map(citeOf).join(", ")} show${places.length > 1 ? "" : "s"} the place (the same set, its buildings and layout), not this shot's framing: the camera is the one these words describe.`,
     plan && b.plan && `${citeOf("plan")} is the set plan from above, not a view.`].filter(Boolean).join(" ");
-  return { said: `${b.name} v${n}: ${want.map(([what, , u]) => `${what}${u === "map" ? "" : ` (${u})`} as ${citeOf(what)}`).join(", ")} in References${preset ? `; Render Preset now ${preset} (the pictures need it)` : ""}${unread ? `; the pictures are not read by this render: ${unread}` : ""}`, cite, use: as, prompt_hint };
+  return { said: `${b.name} v${n}: ${want.map(([what, , u]) => `${what}${u === "map" ? "" : ` (${u})`} as ${citeOf(what)}`).join(", ")} in References${preset ? `; Render Preset now ${preset} (the pictures need it)` : ""}${opening ? `; ${opening.said}` : ""}${unread ? `; the pictures are not read by this render: ${unread}` : ""}`, cite, use: as, prompt_hint, ...(opening ? { opening: opening.cite } : {}) };
 }
 // short03 F-C29: a place kept as a Cast (the workaround before location records) becomes a location record: its first
 // picture the master (or the one whose role says master), the one whose role says map or plan the plan, the others plates

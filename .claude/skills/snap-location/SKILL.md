@@ -6,7 +6,7 @@ description: >
   it whenever a short, scene or shot needs a place (a village, a room, a street), when views of one place disagree
   (a gate that changes between cuts), or before making plates or boards of a set.
 scope: [tool:save_location, tool:add_plate, tool:apply_location, tool:use_take]
-rules: [SNAP-R21, SNAP-R22, SNAP-R71, SNAP-R84]
+rules: [SNAP-R21, SNAP-R22, SNAP-R71, SNAP-R84, SNAP-R115]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-location"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -23,9 +23,14 @@ gates). Tool calls are in `docs/AGENT_START.md` ("A new view of a place").
 2. **Master:** one establishing picture that shows how the parts connect (road → wall → gate → square). Run the
    critic's logic check on it now (`snap-critic`): does the wall enclose what it should, does the road reach the gate.
    A flaw here reaches every plate.
-3. **Walkthrough:** one people-free H3 Ref2V video with the start view, the master and the camera map as references:
-   "camera carried at head height, dollies forward …". It holds one set across a 5 s move; without references (FL2V)
-   the set drifted.
+3. **Walkthrough: start it from an eye-level first frame.** The walk's camera height is set by its first frame, never
+   by words ("1.6 m, never rises, never flies": 0/2; one craned over the wall, one stayed at the master's aerial pose).
+   Make an eye-level still first (New view, the horizon at a standing person's eyes), check the horizon against the
+   door, then `use_take {take, as: first_frame}` and `apply_location` (master + plan): under Ref2V Snap puts the First
+   frame in as `<Picture 1>`, the opening frame, ahead of the master and the map (SNAP-R115), and the hint says so.
+   Run one people-free H3 Ref2V video: "camera carried at head height, dollies forward …". With the still first it
+   held ~2-2.5 m 2/2 and kept the set; the same still as a pure FL2V first frame (no references) kept the height but
+   invented the set (half-timbered houses, no wall).
 4. **Plates:** frames of the walkthrough, each kept with its camera pose in the location record. Cite a frame with
    `use_take {take, as: reference, at}` or `{take, frame}` instead of exporting a file.
 5. **Boards:** plate + people with New view (`snap-new-view`); land each cut's board in its shot.

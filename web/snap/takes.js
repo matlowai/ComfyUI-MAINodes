@@ -527,13 +527,17 @@ export async function frameAt(take, t = "last", { frame: want, crop } = {}) {
 }
 
 // "Use as input" (U32): a take's frame becomes the First frame (FL2V's start) or a reference picture, through the bricks'
-// own loaders, as one undo step; the brick remembers the take and frame it came from
+// own loaders, as one undo step; the brick remembers the take and frame it came from. A new First frame goes to whatever
+// follows it (library.js: under Ref2V it is also <Picture 1>, the opening frame, F-C32), which says what it did
+const firstFrames = new Set();
+export const onFirstFrame = (fn) => firstFrames.add(fn);
 export async function use(take, { as = "first_frame", t = "last", frame: want, crop, by = "person" } = {}) {
   if (!["first_frame", "reference"].includes(as)) throw new Error(`Use a take as first_frame or reference, not ${as}`);
   const key = as === "first_frame" ? "first_frame" : "refs";
   if (!E.state().bricks.some((b) => b.key === key)) throw new Error(`Add the ${BRICKS[key].title} brick to use a take ${as === "first_frame" ? "as its first frame" : "as a reference"}`);
   const { file, frame } = await frameAt(take, t, { frame: want, crop }), from = { take: take.id, number: take.number, frame, file, by };
   const part = crop ? ` (part ${crop.map((x) => +x.toFixed(2)).join(", ")})` : "", had = as === "reference" && E.references()?.pictures.some((p) => p.file === file);
+  let opening = null;
   app.canvas.emitBeforeChange();
   try {
     if (as === "reference") E.addPicture(file, { role: `take ${take.number}, frame ${frame}${part}`, reason: `frame ${frame} of take ${take.number} (${take.id})${part}`, source: take.id });
@@ -543,8 +547,9 @@ export async function use(take, { as = "first_frame", t = "last", frame: want, c
       E.setValue("first_frame", "image", "image", file);
       E.remember("first_frame", "from", from);
     }
+    if (as === "first_frame") opening = [...firstFrames].map((fn) => fn()).find(Boolean) ?? null;
   } finally { app.canvas.emitAfterChange(); }
   const cite = as === "reference" ? E.references()?.pictures.find((p) => p.file === file)?.cite : null;
-  return { as, file, ...from, ...(cite ? { cite } : {}), said: had ? `Frame ${frame}${part} of take ${take.number} is already in References as ${cite}: another frame (frame) or part (crop) is another picture`
-    : `Frame ${frame}${part} of take ${take.number} is now ${as === "first_frame" ? "the First frame" : `a reference picture, ${cite}`}` };
+  return { as, file, ...from, ...(cite ? { cite } : {}), ...(opening ? { opening: opening.cite } : {}), said: had ? `Frame ${frame}${part} of take ${take.number} is already in References as ${cite}: another frame (frame) or part (crop) is another picture`
+    : `Frame ${frame}${part} of take ${take.number} is now ${as === "first_frame" ? "the First frame" : `a reference picture, ${cite}`}${opening ? `; ${opening.said}` : ""}` };
 }

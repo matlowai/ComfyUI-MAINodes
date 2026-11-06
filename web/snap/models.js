@@ -284,7 +284,8 @@ function fits(w, fam) {
 }
 // a preset setup in place, as one undo step; it brings its family's encoder and VAEs (the Models brick's own pack values)
 // wherever the current one doesn't fit, so the setup never sits next to another family's encoder, and a lower-VRAM VAE
-// or encoder of the same family stays (SNAP-R9)
+// or encoder of the same family stays (SNAP-R9). Under Ref2V the First frame opens the shot as <Picture 1>, in the same
+// step (F-C32, library.js syncOpening)
 export function apply(name) {
   const s = setups().find((x) => x.name === name && x.source === "preset");
   if (!s) throw new Error(`No setup "${name}" on this recipe's bricks; there are: ${setups().map((x) => x.name).join(", ")}`);
@@ -296,6 +297,7 @@ export function apply(name) {
     }
     E.tag("family", s.family);
     if (turboHost()) E.remember(turboHost(), "turbo", null); // a new setup's quality settings are the ones "Turbo off" goes back to
+    L.syncOpening();
   });
   app.canvas.setDirty(true, true);
   return s;
