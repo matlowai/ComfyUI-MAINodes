@@ -6,9 +6,15 @@ let stream = null, video = null;
 // an agent's own headless page: nobody is there to press the button, so it never shares
 export const HEADLESS = /HeadlessChrome/.test(navigator.userAgent);
 export const HEADLESS_NOTE = "This is a headless page (an agent's own): nobody presses 'Let agents see' here, and none is needed: screenshot shows this page as Chrome renders it";
+// SNAP-R83: whether this tab is in the agents' window, the visible Chrome tools/snap_agent_page.sh manages: the bridge
+// finds the tab among that Chrome's DevTools pages when it registers and says so; agents see and drive such a tab
+let managedTab = false;
+export const managed = () => managedTab;
 const listeners = new Set();
 export const onChange = (fn) => listeners.add(fn);
 export const sharing = () => !!stream;
+// agents see this tab: its person shares it, or it is the agents' window (screenshot then comes from its Chrome, self())
+export const sees = () => managedTab || !!stream;
 
 export async function start() {
   stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: "browser", frameRate: 5 }, audio: false, preferCurrentTab: true, selfBrowserSurface: "include", surfaceSwitching: "exclude" });
@@ -18,14 +24,16 @@ export async function start() {
   for (const fn of listeners) fn();
 }
 
+export function setManaged(on) { if (on === managedTab) return; managedTab = on; for (const fn of listeners) fn(); }
+
 export function stop() {
   stream?.getTracks().forEach((t) => t.stop());
   stream = video = null;
   for (const fn of listeners) fn();
 }
 
-// an agent's own headless page, as its Chrome renders it: the bridge asks that Chrome's DevTools (snap_agent_page.sh
-// opened it on this machine) for a picture of this page, found by its client id (anime dogfood F-A01)
+// the agents' window as its Chrome renders it: the bridge asks that Chrome's DevTools (snap_agent_page.sh opened it on
+// this machine) for a picture of this page, found by its client id (anime dogfood F-A01)
 export async function self(maxWidth = 1600) {
   const r = await api.fetchApi("/mainodes/snap/page_shot", { method: "POST", body: JSON.stringify({ client: api.clientId, max_width: maxWidth }) });
   const out = await r.json();

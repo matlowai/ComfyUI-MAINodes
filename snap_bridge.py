@@ -9,7 +9,8 @@ proposes, never downloads · SNAP-R27 locks follow the current rules · SNAP-R30
 health listing, errors that say what to do · SNAP-R33 the rating cap's second line · SNAP-R36 quiet sound ·
 SNAP-R37 privacy per install · SNAP-R38 metadata off writes none, the rest is named · SNAP-R39 ratings from how a thing
 was made · SNAP-R65 the Work card's jobs and progress, an agent page's own screenshot · SNAP-R74 Load Audio lists input/snap/ ·
-SNAP-R78 a stale tab says so, agents ask (request_reload), the person reloads ·
+SNAP-R78 a stale tab says so, agents ask (request_reload), the person reloads · SNAP-R83 the agents' window: one visible
+Chrome agents drive, reload and restart, the default with the person's tab; never headless ·
 see docs/SNAP_RULES.md"""
 import asyncio
 import hashlib
@@ -80,15 +81,19 @@ def open_pages(user):
 
 
 def chosen(user, code=None, target=None):
-    """The page calls go to: the page `target` names (an agent that must stay on its own page); else the newest tab whose
-    person turned "Let agents see" on; else an agent's own headless page, one running the code the server serves now
-    first, newest first. A person's tab with the control off is never driven."""
+    """The page calls go to: the page `target` names (an agent bound with use_page); else the newest visible tab agents
+    see: the agents' window or a tab whose person turned "Let agents see" on (SNAP-R83: the person's main tab is the
+    default). While a person's tab is open nothing else is picked by default: a tab with the control off is never
+    driven, and calls never go to a hidden page instead. Only a server with no person's tab at all (a test server) falls
+    back to an agent's headless page, one running the code the server serves now first, newest first."""
     found, code = open_pages(user), code or served_code()
     if target:
         return target if target in found else None
     seeing = [c for c in found if pages[c]["sees"] and not pages[c]["headless"]]
     if seeing:
         return seeing[-1]
+    if any(not pages[c]["headless"] for c in found):
+        return None
     agents = [c for c in found if pages[c]["headless"]]
     return max(agents, key=lambda c: (pages[c]["code"] == code, agents.index(c))) if agents else None
 
@@ -101,14 +106,18 @@ def stale_note(client, base):
     who = "an agent's page" if p["headless"] else "a person's visible tab"
     ask = (" It shows its person a 'Snap was updated: reload' bar; request_reload shows it again with your name." if p["banner"] and not p["headless"]
            else " Its code is older than the reload bar, so ask its person to reload it." if not p["headless"] else "")
+    if p.get("managed"):
+        return (f"This Snap page (the agents' window, {since}) runs older Snap code than the server serves now, so tools added since are missing. "
+                f"Reload it yourself: the chrome tool {{\"action\": \"reload\"}} (or bash {PAGE_SH} {base} reload).")
     return (f"This Snap page ({who}, {since}) runs older Snap code than the server serves now, so tools added since are missing.{ask} "
-            f"Reload it, or start your own agent page: bash {PAGE_SH} {base} --new (calls then go to it).")
+            f"Or use the agents' window, which you reload yourself: bash {PAGE_SH} {base} (it starts the visible window if it isn't open; never headless).")
 
 
 def page_name(c):
     """How a page reads to agents and people: whose it is, its id's first six characters, and the tab it shows."""
     p = pages[c]
-    whose = f"agent page{f' ({drivers[c]})' if c in drivers else ''}" if p["headless"] else f"{p.get('who') or 'person'}'s tab"
+    whose = (f"agent page{f' ({drivers[c]})' if c in drivers else ''}" if p["headless"] else "agents' window" if p.get("managed")
+             else f"{p.get('who') or 'person'}'s tab")
     return f"{whose} {c[:6]} · {p.get('title') or 'Snap'}"
 
 
@@ -127,7 +136,7 @@ def health(user, agent=None, target=None):
     now, found, code = time.time(), open_pages(user), served_code()
     to = chosen(user, code, target or bound.get((user, agent)))
     return [{"id": c, "name": page_name(c), "title": pages[c].get("title"), "who": pages[c].get("who"), "driven_by": drivers.get(c), "yours": bound.get((user, agent)) == c, "registered_s_ago": round(now - pages[c]["registered"]), "last_answer_s_ago": None if pages[c]["answered"] is None else round(now - pages[c]["answered"]),
-             "code_current": pages[c]["code"] == code, "headless": pages[c]["headless"], "sees": pages[c]["sees"], "tools": len(pages[c]["tools"]), "calls_go_here": c == to} for c in found]
+             "code_current": pages[c]["code"] == code, "headless": pages[c]["headless"], "managed": pages[c].get("managed", False), "sees": pages[c]["sees"], "tools": len(pages[c]["tools"]), "calls_go_here": c == to} for c in found]
 pending = {}       # call id -> (future answered by /mainodes/snap/result, the page it was sent to)
 # Which agent drives which page (Dylan 2026-11-05: "easily select which web ui instance you want to interact with and
 # not collide"). An agent names itself with the X-Snap-Agent header (snapcall.py: SNAP_AGENT; snap_mcp.py: one name per
@@ -153,10 +162,12 @@ async def register(request):
         drivers.pop(c, None)
     was = pages.pop(body["client"], None)  # re-registering (focus, reconnect) makes it the newest
     now = time.time()
+    # SNAP-R83: a tab in the agents' window is found by its client id among that Chrome's pages; it counts as a tab that sees
+    managed = not body.get("headless") and body["client"] in {c for _, c in await chrome_pages()}
     pages[body["client"]] = {"user": user_of(request), "registered": now, "registered_first": was["registered_first"] if was else now, "answered": None,
-                             "code": body.get("code"), "headless": bool(body.get("headless")), "sees": bool(body.get("sees")), "tools": body["tools"],
+                             "code": body.get("code"), "headless": bool(body.get("headless")), "managed": managed, "sees": bool(body.get("sees")) or managed, "tools": body["tools"],
                              "title": body.get("title"), "who": body.get("who"), "banner": bool(body.get("banner"))}
-    return web.json_response({"tools": len(body["tools"]), "code_current": body.get("code") == served_code(), "driven_by": drivers.get(body["client"])})
+    return web.json_response({"tools": len(body["tools"]), "code_current": body.get("code") == served_code(), "driven_by": drivers.get(body["client"]), "managed": managed})
 
 
 @routes.post("/mainodes/snap/page")
@@ -186,12 +197,16 @@ BRIDGE_TOOLS = [
      "inputSchema": {"type": "object", "properties": {}}, "annotations": {"readOnlyHint": True}},
     {"name": "use_page", "description": "Bind yourself to one Snap page for this session: your calls go there until you pick another, pass null, or the person presses Release on it. One agent drives a page at a time: a page another agent holds is refused, naming it. page: an id, the start of one, or a name from list_pages. Name yourself with the X-Snap-Agent header (snapcall.py: SNAP_AGENT; snap_mcp.py names each connection), or every unnamed caller shares one binding.",
      "inputSchema": {"type": "object", "properties": {"page": {"type": ["string", "null"]}}, "required": ["page"]}},
+    {"name": "chrome", "description": "The agents' window (SNAP-R83): one visible Chrome on this machine, with its own profile and a localhost DevTools port, that agents drive, reload and restart; never headless. It counts as a tab that sees, so with no use_page your calls go to it (or to the person's newest tab with 'Let agents see' on). action status (default): whether it runs, its DevTools port, and each tab in it (url, title, the Snap page it is, its code_current, who drives it). reload: reload its Snap tabs (page: one of them, an id, the start of one or a name), e.g. after this ComfyUI restarted, and wait until each registers again with the code the server serves now. start: open it if it isn't running (and a Snap tab in it if it has none). restart: close it (every process of its profile) and open it again. Nothing here works headless: start and restart need a display.",
+     "inputSchema": {"type": "object", "properties": {"action": {"type": "string", "enum": ["status", "reload", "start", "restart"]}, "page": {"type": "string"}}}},
     {"name": "request_reload", "description": "Ask the person to reload a Snap tab that runs older Snap code than the server serves now (list_pages: code_current false): the tab shows a 'Snap was updated: reload to get the new tools' bar with your name (X-Snap-Agent) and a Reload button. It never reloads the tab itself; the person does (SNAP-R5). page: an id, the start of one, or a name from list_pages (default: the page your calls go to). Answers whether the bar was shown; a tab whose code predates the bar can't show it, so say it in words to the person.",
      "inputSchema": {"type": "object", "properties": {"page": {"type": "string"}}}},
 ]
 
 
 async def bridge_tool(request, user, agent, tool, args):
+    if tool == "chrome":
+        return await chrome_tool(request, user, args)
     if tool == "list_pages":
         return web.json_response({"result": {"pages": health(user, agent), "you": agent}})
     if tool == "request_reload":
@@ -215,7 +230,7 @@ async def bridge_tool(request, user, agent, tool, args):
     if not client:
         return error(f"No open Snap page {ref!r} of yours; your pages: {'; '.join(page_name(c) for c in open_pages(user)) or 'none'} (list_pages).", 404)
     if drivers.get(client, agent) != agent:
-        return error(f"{page_name(client)} is driven by {drivers[client]}: pick another page (list_pages), start your own (bash {PAGE_SH} {request.scheme}://{request.host} --new), or ask the person to press Release on it.", 409)
+        return error(f"{page_name(client)} is driven by {drivers[client]}: pick another page (list_pages), or ask the person to press Release on it.", 409)
     drivers[client], bound[(user, agent)] = agent, client
     released.pop((user, agent), None)
     await PromptServer.instance.send("mainodes-snap-driver", {"agent": agent}, client)
@@ -271,7 +286,7 @@ async def call(request):
     target = request.headers.get("X-Snap-Page") or body.get("page")
     client = chosen(user, code, (find_page(user, target) or target) if target else bound.get((user, agent)))
     if client and drivers.get(client, agent) != agent:
-        return error(f"{page_name(client)} is driven by {drivers[client]}: pick another page (list_pages, use_page), start your own (bash {PAGE_SH} {base} --new), or ask the person to press Release on it.", 409)
+        return error(f"{page_name(client)} is driven by {drivers[client]}: pick another page (list_pages, use_page), or ask the person to press Release on it.", 409)
     if not client:
         if (user, agent) in bound:
             bound.pop((user, agent))
@@ -279,9 +294,9 @@ async def call(request):
         if target:
             return error(f"No open Snap page {target!r} of yours (X-Snap-Page); your open pages: {', '.join(open_pages(user)) or 'none'} (GET /mainodes/snap/tools lists them).", 404)
         tabs = [c for c in open_pages(user) if not pages[c]["headless"]]
-        return error((f"Your Snap tab{'s have' if len(tabs) > 1 else ' has'} 'Let agents see' off, so agents don't drive {'them' if len(tabs) > 1 else 'it'}: ask the person to press it in Snap's top bar, or start "
-                      if tabs else f"No Snap page is open for you on this ComfyUI: it may have been locked or closed. Ask the person to open {base}/?snap and press 'Let agents see', or start ")
-                     + f"a headless page for yourself: bash {PAGE_SH} {base} (it returns once the page has registered).", 503)
+        return error((f"Your Snap tab{'s have' if len(tabs) > 1 else ' has'} 'Let agents see' off, so agents don't drive {'them' if len(tabs) > 1 else 'it'}, and calls never go to another page instead (SNAP-R83): ask the person to press it in Snap's top bar, or use "
+                      if tabs else f"No Snap page is open for you on this ComfyUI: it may have been locked or closed. Ask the person to open {base}/?snap and press 'Let agents see', or open ")
+                     + f"the agents' window: bash {PAGE_SH} {base} (or the chrome tool {{\"action\": \"start\"}}): a visible Chrome, never headless; it returns once the page has registered.", 503)
     stale = pages[client]["code"] != code
     if body.get("tool") not in {t["name"] for t in pages[client]["tools"]}:
         return error(f"Unknown Snap tool {body.get('tool')!r}: GET /mainodes/snap/tools lists them." + (f" {stale_note(client, base)}" if stale else ""), 404)
@@ -363,21 +378,27 @@ async def progress(request):
     return web.json_response({"prompt_id": reg.prompt_id, "nodes": {k: {"state": v["state"].value, "value": v["value"], "max": v["max"]} for k, v in reg.nodes.items()}})
 
 
-# An agent's own headless page (tools/snap_agent_page.sh) has nobody to press "Let agents see", so its screenshot comes
-# from Chrome's DevTools on this machine: the launcher tells the bridge its page's debugging port, and the page asks for
-# a picture of itself, found among that Chrome's pages by its own client id (anime dogfood F-A01). Local only (SNAP-R18):
-# 127.0.0.1 ports the launcher started; a person's tab is never captured this way.
-cdp_ports = set()
+# The agents' window (SNAP-R83, Dylan 2026-11-06: "an open chrome window you can control and hook into and restart and
+# make it non headless always"): one visible Chrome that tools/snap_agent_page.sh starts with its own profile and a
+# 127.0.0.1 DevTools port, which it tells this server (kept in the user folder, so a restarted server still knows it).
+# The bridge finds a tab in it by the client id in the tab's sessionStorage, treats it as a tab that sees, captures it for
+# screenshot, and reloads it after an update. Local only (SNAP-R18): a 127.0.0.1 port the launcher started.
+CHROME = Path(folder_paths.get_user_directory()) / "snap_chrome.json"
 
 
-@routes.post("/mainodes/snap/agent_page")
-async def agent_page(request):
+def chrome_state():
+    return json.loads(CHROME.read_text()) if CHROME.exists() else {}
+
+
+@routes.post("/mainodes/snap/chrome")
+async def chrome_attach(request):
+    """the launcher says where the agents' window listens: {cdp, profile}"""
     body = await request.json()
     port = body.get("cdp")
     if not isinstance(port, int) or not 0 < port < 65536:
-        return error(f"cdp must be the page's Chrome debugging port (a number), not {port!r}")
-    cdp_ports.add(port)
-    return web.json_response({"cdp": sorted(cdp_ports)})
+        return error(f"cdp must be the window's Chrome DevTools port (a number), not {port!r}")
+    CHROME.write_text(json.dumps({"cdp": port, "profile": body.get("profile")}))
+    return web.json_response(chrome_state())
 
 
 cdp_ids = itertools.count(1)
@@ -395,32 +416,89 @@ async def cdp(ws, method, params=None):
     raise RuntimeError(f"{method}: Chrome closed the connection")
 
 
+async def chrome_targets():
+    """the window's tabs as DevTools lists them, or [] when it isn't running"""
+    port = chrome_state().get("cdp")
+    if not port:
+        return []
+    try:
+        async with aiohttp.ClientSession() as session:
+            got = await (await session.get(f"http://127.0.0.1:{port}/json/list", timeout=aiohttp.ClientTimeout(total=3))).json()
+    except (aiohttp.ClientError, TimeoutError, ValueError):
+        return []
+    return [t for t in got if t.get("type") == "page"]
+
+
+async def chrome_pages():
+    """(DevTools target, Snap client id) for each tab of the window that runs ComfyUI (a tab of another site has no id)"""
+    out = []
+    async with aiohttp.ClientSession() as session:
+        for t in await chrome_targets():
+            try:
+                async with session.ws_connect(t["webSocketDebuggerUrl"], max_msg_size=0, timeout=aiohttp.ClientWSTimeout(ws_close=3)) as ws:
+                    found = await asyncio.wait_for(cdp(ws, "Runtime.evaluate", {"expression": "sessionStorage.getItem('clientId')", "returnByValue": True}), 3)
+            except (aiohttp.ClientError, TimeoutError, RuntimeError):
+                continue
+            if found.get("result", {}).get("value"):
+                out.append((t, found["result"]["value"]))
+    return out
+
+
+async def chrome_run(base, action):
+    """start or restart the window through the launcher, outside this server's process tree (systemd-run when there is one)"""
+    proc = await asyncio.create_subprocess_exec("bash", str(PAGE_SH), base, action, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+    out, _ = await proc.communicate()
+    return proc.returncode, out.decode(errors="replace").strip()
+
+
+async def chrome_tool(request, user, args):
+    base, action = f"{request.scheme}://{request.host}", args.get("action", "status")
+    if action not in ("status", "reload", "start", "restart"):
+        return error(f"action is one of status, reload, start, restart; not {action!r}")
+    if action in ("start", "restart"):
+        code, said = await chrome_run(base, action)
+        if code:
+            return error(said, 503)
+    tabs, code = await chrome_pages(), served_code()
+    if action == "reload":
+        want = (find_page(user, args["page"]) or args["page"]) if args.get("page") else None
+        hit = [(t, c) for t, c in tabs if c in pages and pages[c]["user"] == user and want in (None, c)]  # only this server's tabs
+        if not hit:
+            return error(f"No Snap tab {args.get('page') or ''} of this ComfyUI in the agents' window; its tabs: {', '.join(t['url'] for t, _ in tabs) or 'none'} (chrome {{\"action\": \"status\"}})"
+                         if tabs or args.get("page") else f"The agents' window isn't running on this machine: start it with the chrome tool {{\"action\": \"start\"}} or bash {PAGE_SH} {base}", 404)
+        async with aiohttp.ClientSession() as session:
+            for t, _ in hit:
+                async with session.ws_connect(t["webSocketDebuggerUrl"], max_msg_size=0) as ws:
+                    await cdp(ws, "Page.reload", {"ignoreCache": True})
+        for _ in range(100):  # each reloaded tab registers again (its client id stays: sessionStorage is the tab's)
+            if all(c in pages and pages[c]["code"] == code and pages[c]["registered"] > time.time() - 30 for _, c in hit):
+                break
+            await asyncio.sleep(0.25)
+    rows = [{"tab": t["id"], "url": t["url"], "title": t["title"], "page": c if c in pages else None, "name": page_name(c) if c in pages else None,
+             "code_current": pages[c]["code"] == code if c in pages else None, "driven_by": drivers.get(c)} for t, c in tabs]
+    running = bool(await chrome_targets()) or bool(tabs)
+    return web.json_response({"result": {"running": running, "cdp": chrome_state().get("cdp"), "tabs": rows,
+                                         **({"reloaded": [r for r in rows if r["page"] and (not args.get("page") or r["page"] == (find_page(user, args["page"]) or args["page"]))]} if action == "reload" else {}),
+                                         **({"said": said} if action in ("start", "restart") else {})}})
+
+
 @routes.post("/mainodes/snap/page_shot")
 async def page_shot(request):
-    """A picture of the calling agent page as Chrome renders it: {mimeType, data (base64 JPEG), width, height}."""
+    """A picture of the calling tab of the agents' window as Chrome renders it: {mimeType, data (base64 JPEG), width, height}."""
     body = await request.json()
     client, width = body.get("client"), int(body.get("max_width") or 1600)
-    if client not in pages or not pages[client]["headless"]:
-        return error("Only an agent's own headless page can be captured this way; a person's tab shares itself with 'Let agents see'.", 403)
-    tried = []
+    if client not in pages or not pages[client].get("managed"):
+        return error("Only a tab of the agents' window can be captured this way (SNAP-R83); a person's tab shares itself with 'Let agents see'.", 403)
     async with aiohttp.ClientSession() as session:
-        for port in sorted(cdp_ports):
-            try:
-                targets = await (await session.get(f"http://127.0.0.1:{port}/json/list", timeout=aiohttp.ClientTimeout(total=5))).json()
-            except (aiohttp.ClientError, TimeoutError) as e:
-                tried.append(f"{port}: {e.__class__.__name__}")
+        for t, c in await chrome_pages():
+            if c != client:
                 continue
-            for t in [t for t in targets if t.get("type") == "page"]:
-                async with session.ws_connect(t["webSocketDebuggerUrl"], max_msg_size=0) as ws:
-                    found = await cdp(ws, "Runtime.evaluate", {"expression": "sessionStorage.getItem('clientId')", "returnByValue": True})
-                    if found.get("result", {}).get("value") != client:
-                        continue
-                    size = (await cdp(ws, "Page.getLayoutMetrics"))["cssVisualViewport"]
-                    k = min(1.0, width / size["clientWidth"])
-                    shot = await cdp(ws, "Page.captureScreenshot", {"format": "jpeg", "quality": 85, "clip": {"x": 0, "y": 0, "width": size["clientWidth"], "height": size["clientHeight"], "scale": k}})
-                    return web.json_response({"mimeType": "image/jpeg", "data": shot["data"], "width": round(size["clientWidth"] * k), "height": round(size["clientHeight"] * k)})
-    return error("This page's Chrome isn't one snap_agent_page.sh started on this machine (no DevTools port knows it"
-                 + (f"; ports tried: {', '.join(tried)}" if tried else "") + "). Start your page with tools/snap_agent_page.sh, or use take_frames and read_ui; a person at this page can press 'Let agents see'.", 404)
+            async with session.ws_connect(t["webSocketDebuggerUrl"], max_msg_size=0) as ws:
+                size = (await cdp(ws, "Page.getLayoutMetrics"))["cssVisualViewport"]
+                k = min(1.0, width / size["clientWidth"])
+                shot = await cdp(ws, "Page.captureScreenshot", {"format": "jpeg", "quality": 85, "clip": {"x": 0, "y": 0, "width": size["clientWidth"], "height": size["clientHeight"], "scale": k}})
+                return web.json_response({"mimeType": "image/jpeg", "data": shot["data"], "width": round(size["clientWidth"] * k), "height": round(size["clientHeight"] * k)})
+    return error("This tab is no longer in the agents' window (its Chrome closed or restarted): chrome {\"action\": \"status\"} lists its tabs.", 404)
 
 
 CARDS = Path(__file__).parent / "snap_cards"

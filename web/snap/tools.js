@@ -60,7 +60,7 @@ const brickOf = (id) => E.state().bricks.find((b) => Object.values(b.nodes).some
 // runs (GPU time) wait for the person unless they let agents run in ComfyUI's settings
 export const AGENTS_RUN = "MAINodes.Snap.AgentsMayRun";
 const mayRun = () => app.extensionManager.setting.get(AGENTS_RUN) === true;
-const agents = () => ({ run: mayRun(), see: sight.HEADLESS || sight.sharing(), ...(sight.HEADLESS ? { page: "headless (an agent's own): screenshot shows it (Chrome renders it for the bridge)" } : {}) });
+const agents = () => ({ run: mayRun(), see: sight.HEADLESS || sight.sees(), ...(sight.HEADLESS ? { page: "headless (an agent's own): screenshot shows it (Chrome renders it for the bridge)" } : sight.managed() ? { page: "the agents' window (snap_agent_page.sh, SNAP-R83): agents see and drive it; screenshot comes from its Chrome" } : {}) });
 const WAIT_S = 25; // run_status waits at most this long: a bridge call ends after 30 s
 
 const has = (key) => E.state().bricks.some((b) => b.key === key);
@@ -254,7 +254,7 @@ export const TOOLS = [
       if (run != null) await app.extensionManager.setting.set(AGENTS_RUN, run);
       let note;
       if (see === false) sight.stop();
-      if (see === true && sight.HEADLESS) note = sight.HEADLESS_NOTE;
+      if (see === true && (sight.HEADLESS || sight.managed())) note = sight.HEADLESS ? sight.HEADLESS_NOTE : "This is the agents' window: agents see it already (SNAP-R83)";
       else if (see === true && !sight.sharing()) await sight.start().catch(() => { note = "The browser shares a tab only after a person's press: ask them to press 'Let agents see' in Snap's top bar"; });
       return { ...agents(), ...(note ? { note } : {}) };
     },
@@ -904,10 +904,10 @@ export const TOOLS = [
   },
   {
     name: "screenshot",
-    description: "What this page shows right now, as an image (the Snap view or the graph, videos and all). On a person's tab it works once they have pressed 'Let agents see' in Snap's top bar (it shares only this tab); otherwise it says so. On an agent's own headless page (tools/snap_agent_page.sh) it works at once: Chrome renders it for the bridge, no gesture needed.",
+    description: "What this page shows right now, as an image (the Snap view or the graph, videos and all). On a person's tab it works once they have pressed 'Let agents see' in Snap's top bar (it shares only this tab); otherwise it says so. On the agents' window (the visible Chrome tools/snap_agent_page.sh manages, SNAP-R83) it works at once: its Chrome renders it for the bridge, no gesture needed.",
     inputSchema: { type: "object", properties: { max_width: { type: "integer", minimum: 320, maximum: 3840 } } },
     annotations: { readOnlyHint: true },
-    run: async ({ max_width } = {}) => ({ image: sight.HEADLESS && !sight.sharing() ? await sight.self(max_width) : sight.frame(max_width) }),
+    run: async ({ max_width } = {}) => ({ image: (sight.HEADLESS || sight.managed()) && !sight.sharing() ? await sight.self(max_width) : sight.frame(max_width) }),
   },
   {
     name: "start_recipe",

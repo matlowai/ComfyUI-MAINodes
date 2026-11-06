@@ -1,82 +1,118 @@
 #!/usr/bin/env bash
-# Opens Snap in a headless Chrome page so an agent can drive it through the bridge (snap_mcp.py, snapcall.py or curl).
-# It returns once the page has registered with the bridge, and leaves the page running; --stop closes the pages it
-# started for that ComfyUI (no pid or kill needed, U72 F13: an agent's sandbox may refuse kill).
-# Each launch uses its own new Chrome profile, so a profile left locked by an earlier page that died never blocks it.
-# When an agent page of yours running the server's current code is already open, it says so and starts nothing; a
-# person's tab never counts as yours (it is driven only when its person turns "Let agents see" on), nor does a page
-# running older code; --new always starts a fresh page. It prints the new page's id: bind to it with
-# `SNAP_AGENT=<you> snapcall.py <port> --page <id> ...` or use_page. The page reaches only this machine and the ComfyUI host: other host names don't resolve.
-# The page gets no pointer or key input, so it never uses the person's one-time onboarding (SNAP-R29).
-# Its Chrome listens for DevTools on a free 127.0.0.1 port, which it tells the bridge, so `screenshot` on this page
-# returns a picture of it with no gesture (anime dogfood F-A01); nothing outside this machine can reach that port.
-# usage: snap_agent_page.sh [port or base URL, default 8188] [page URL, default <base>/?snap] [--new]
-#        snap_agent_page.sh [port or base URL] --stop
-#   e.g. snap_agent_page.sh 8188
-#        SNAP_TOKEN=... snap_agent_page.sh http://127.0.0.1:8197 "http://127.0.0.1:8197/gate/login?token=$SNAP_TOKEN&next=/%3Fsnap"
-# SNAP-R30 the agent front door · see docs/SNAP_RULES.md
+# The agents' window (SNAP-R83): ONE visible Chrome on this machine that agents drive, reload and restart, never headless
+# (Dylan 2026-11-06), with the profile ~/.config/snap-agent-chrome and DevTools on 127.0.0.1:9222. It tells the ComfyUI
+# it serves where it listens, so the bridge finds its Snap tab (a tab that sees: calls go there by default, beside a
+# person's tab with "Let agents see" on), captures it for screenshot and reloads it after an update (the chrome tool). It
+# can be the person's main tab. Whatever answers on 9222 is that window: it is attached to, never started a second time.
+#   start    (default) attach to it when it answers on 9222; open it on <base>/?snap only when nothing does; wait for its
+#            Snap tab. A window with no tab on this ComfyUI gets none by itself: another tab is the person's call (new)
+#   status   whether it runs, its port and its tabs
+#   reload   reload its Snap tabs through the bridge (after the ComfyUI restarted) and wait until they registered again
+#   restart  close every process of its profile, then start it again
+#   stop     close it
+#   new      another Snap tab in the same window: only when the person said yes (pass --asked)
+# --extra "<purpose>": the same actions on an extra window for this ComfyUI only (Dylan 2026-11-06: fine "if you are doing
+# some things on one gpu and some things on another or doing non gpu contention things"), e.g. GPU checks on a second
+# server while 9222 serves the person's: its own profile (~/.config/snap-agent-chrome-<server port>) and DevTools port, the
+# purpose as its window name. Never a duplicate: refused while 9222 already has a tab on this ComfyUI. Close it (stop
+# --extra) when that work ends.
+# It starts under systemd-run --user when there is one (outside the caller's process tree, so a ComfyUI restart never
+# takes the window with it; stopping the unit ends every process), else in its own session. The window resolves only
+# this machine and the ComfyUI host. "Let agents see" in it shares without a prompt (the tab-capture flags), though its
+# tab needs no press: the bridge already counts it as a tab that sees.
+# env: SNAP_TOKEN (a gate's account token). Tests only: SNAP_CHROME_PORT, SNAP_CHROME_PROFILE and SNAP_CHROME_BIN point
+# the start path at a fake launcher (never a second real window)
+# usage: snap_agent_page.sh [port or base URL, default 8188] [start|status|reload|restart|stop|new [--asked]] [--extra "<purpose>"] [page URL]
+# SNAP-R30 the agent front door · SNAP-R83 the agents' window · see docs/SNAP_RULES.md
 set -eu
-new=0; stop=0; rest=()
-for a in "$@"; do case $a in --new) new=1 ;; --stop) stop=1 ;; *) rest+=("$a") ;; esac; done
+action=start; asked=0; extra=; rest=(); args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do a=${args[i]}; case $a in start|status|reload|restart|stop|new) action=$a ;; --asked) asked=1 ;; --extra) i=$((i + 1)); extra=${args[i]:-} ;; *) rest+=("$a") ;; esac; done
 where=${rest[0]:-8188}
 case $where in *://*) base=${where%/} ;; *) base=http://127.0.0.1:$where ;; esac
 url=${rest[1]:-$base/?snap}
 host=${base#*://}; host=${host%%/*}; host=${host%:*}
+profile=${SNAP_CHROME_PROFILE:-$HOME/.config/snap-agent-chrome}
+port=${SNAP_CHROME_PORT:-9222}
+main=$port
+if [ -n "$extra" ]; then
+  serve=${base##*:}; serve=${serve%%/*}
+  profile=$profile-$serve; mkdir -p "$profile"
+  [ -s "$profile/snap_cdp_port" ] || python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])' >"$profile/snap_cdp_port"
+  port=$(cat "$profile/snap_cdp_port")
+fi
+unit=snap-chrome-$port
 auth=(); [ -n "${SNAP_TOKEN:-}" ] && auth=(-H "Authorization: Bearer $SNAP_TOKEN")
 
-# each page's profile folder keeps its Chrome's pid and the ComfyUI it opened; --stop ends those for this base
-if [ $stop = 1 ]; then
-  n=0
-  for d in "${TMPDIR:-/tmp}"/snap-agent-chrome.*/; do
-    [ -f "$d/pid" ] && [ "$(cat "$d/base" 2>/dev/null)" = "$base" ] || continue
-    pid=$(cat "$d/pid")
-    # only while that pid is still this profile's Chrome (a pid can be reused after it exits)
-    if ps -o args= -p "$pid" 2>/dev/null | grep -qF -- "--user-data-dir=${d%/}"; then kill -- "-$pid" 2>/dev/null || kill "$pid"; n=$((n + 1)); fi
-  done
-  echo "Stopped $n Snap agent page(s) on $base."
-  exit 0
-fi
+up() { curl -sf --max-time 2 "http://127.0.0.1:$port/json/version" >/dev/null; }
+mine="$profile(/| |\$)"  # this profile's processes, not those of a profile whose path merely starts the same
+alive() { pgrep -f -- "$mine" >/dev/null; }
+# the window's Snap tabs on this base: "<DevTools id> <url>" per line
+tabs() { curl -s --max-time 3 "http://127.0.0.1:$port/json/list" | python3 -c 'import json, sys
+for t in json.load(sys.stdin):
+    if t.get("type") == "page" and t.get("url", "").startswith(sys.argv[1]):
+        print(t["id"], t["url"])' "$base"; }
+attach() { curl -s --max-time 10 -o /dev/null "${auth[@]}" -X POST "$base/mainodes/snap/chrome" -H 'Content-Type: application/json' -d "{\"cdp\": $port, \"profile\": \"$profile\"}"; }
+call() { curl -s --max-time 60 "${auth[@]}" -X POST "$base/mainodes/snap/call" -H 'Content-Type: application/json' -d "{\"tool\": \"chrome\", \"args\": $1}"; }
+# the newest registered page in the window: "<id> <code_current>", or nothing yet
+managed() { curl -s --max-time 10 "${auth[@]}" "$base/mainodes/snap/tools" | python3 -c 'import json, sys
+p = [x for x in json.load(sys.stdin).get("pages") or [] if x.get("managed")]
+print(p[-1]["id"], p[-1]["code_current"]) if p else None'; }
 
-# the caller's open Snap pages, from the bridge's health listing: "<count> <seconds since the newest last answered or ->"
-pages() {
-  curl -s --max-time 10 "${auth[@]}" "$base/mainodes/snap/tools" | python3 -c '
-import json, sys
-try:
-    p = json.load(sys.stdin).get("pages") or []
-except ValueError:
-    p = []
-p = [x for x in p if x.get("code_current", True) and x.get("headless")]  # agent pages only (never a person'"'"'s tab), current code (U72 F20)
-last = [x["last_answer_s_ago"] for x in p[-1:]]
-print(len(p), last[0] if last and last[0] is not None else "-")'
+stop() {
+  if command -v systemctl >/dev/null && systemctl --user is-active --quiet "$unit" 2>/dev/null; then systemctl --user stop "$unit"; fi
+  pkill -f -- "--user-data-dir=$mine" 2>/dev/null || true
+  for _ in $(seq 40); do alive || return 0; sleep 0.25; done
+  pkill -9 -f -- "$mine" 2>/dev/null || true  # what didn't exit by itself (a helper of a window that hung)
+  sleep 0.5; ! alive || { echo "Chrome processes of $profile are still running: $(pgrep -f -- "$mine" | tr '\n' ' ')" >&2; return 1; }
 }
-curl -s --max-time 10 -o /dev/null "${auth[@]}" "$base/system_stats" || { echo "ComfyUI is not reachable at $base: start it first." >&2; exit 1; }
-read -r before answered <<<"$(pages)"
-if [ "$before" -gt 0 ] && [ $new = 0 ]; then
-  echo "An agent page of yours is already open on $base ($before open; the newest last answered ${answered} s ago, - = not yet): nothing started. Its id is under pages in curl -s $base/mainodes/snap/tools; pass --new to start another anyway."
-  exit 0
-fi
 
-chrome=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)
-[ -n "$chrome" ] || { echo "No Chrome or Chromium found on PATH." >&2; exit 1; }
-profile=$(mktemp -d "${TMPDIR:-/tmp}/snap-agent-chrome.XXXXXX")
-cdp=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')
-setsid "$chrome" --headless=new --no-first-run --no-default-browser-check \
-  --user-data-dir="$profile" --window-size=1600,1000 --remote-debugging-port="$cdp" \
-  --host-resolver-rules="MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE localhost, EXCLUDE $host" \
-  --auto-accept-this-tab-capture --enable-features=WebMCP \
-  "$url" >"$profile/chrome.log" 2>&1 </dev/null &
-pid=$!
-echo $pid >"$profile/pid"; echo "$base" >"$profile/base"
-for _ in $(seq 90); do
-  sleep 1
-  kill -0 $pid 2>/dev/null || { echo "Chrome exited before the page registered; its log: $profile/chrome.log" >&2; tail -5 "$profile/chrome.log" >&2; exit 1; }
-  read -r now _ <<<"$(pages)"
-  if [ "$now" -gt "$before" ]; then
-    curl -s --max-time 10 -o /dev/null "${auth[@]}" -X POST "$base/mainodes/snap/agent_page" -H 'Content-Type: application/json' -d "{\"cdp\": $cdp}"
-    id=$(curl -s --max-time 10 "${auth[@]}" "$base/mainodes/snap/tools" | python3 -c 'import json, sys; p = [x for x in json.load(sys.stdin).get("pages") or [] if x.get("headless")]; print(p[-1]["id"] if p else "")')
-    echo "Snap agent page is open on $base and registered (id $id, pid $pid, profile $profile). Bind to it: SNAP_AGENT=<your name> python3 $(dirname "$0")/snapcall.py $base --page $id <tool> (or use_page {\"page\": \"$id\"}). Stop it with: $0 $where --stop"
-    exit 0
+start() {
+  curl -s --max-time 10 -o /dev/null "${auth[@]}" "$base/system_stats" || { echo "ComfyUI is not reachable at $base: start it first." >&2; return 1; }
+  if [ -n "$extra" ] && [ -n "$(port=$main tabs 2>/dev/null)" ]; then
+    echo "The agents' window (127.0.0.1:$main) already has a tab on $base: use it; an extra window never duplicates a server." >&2; return 1
   fi
-done
-echo "The page didn't register within 90 s (pid $pid still running; its log: $profile/chrome.log). Is MAINodes installed on $base? Stop it with: $0 $where --stop" >&2
-exit 1
+  if up; then
+    [ -n "$(tabs)" ] || { attach; echo "The agents' window is open (DevTools 127.0.0.1:$port) but has no tab on $base, and opens none by itself: another tab needs the person's yes (then $0 $where new --asked)." >&2; return 1; }
+  else
+    [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] || { echo "No display here (DISPLAY and WAYLAND_DISPLAY are empty): the agents' window is a visible window and never runs headless. Run this from the person's desktop session." >&2; return 1; }
+    if alive; then echo "A Chrome of the agents' profile runs but nothing answers on 127.0.0.1:$port (it hung?): $0 $where restart closes it and opens it again." >&2; return 1; fi
+    chrome=${SNAP_CHROME_BIN:-$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)}
+    [ -n "$chrome" ] || { echo "No Chrome or Chromium found on PATH." >&2; return 1; }
+    mkdir -p "$profile"
+    flags=(--user-data-dir="$profile" --remote-debugging-port="$port" --remote-debugging-address=127.0.0.1 --no-first-run --no-default-browser-check --new-window
+      --host-resolver-rules="MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE localhost, EXCLUDE $host"
+      --auto-accept-this-tab-capture --auto-select-tab-capture-source-by-title=Snap --enable-features=WebMCP ${extra:+"--window-name=$extra"} "$url")
+    if command -v systemd-run >/dev/null && systemctl --user show-environment >/dev/null 2>&1; then
+      env=(); for v in DISPLAY WAYLAND_DISPLAY XAUTHORITY XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS; do [ -n "${!v:-}" ] && env+=(-E "$v=${!v}"); done
+      systemctl --user reset-failed "$unit" 2>/dev/null || true
+      systemd-run --user --quiet --collect --unit "$unit" "${env[@]}" "$chrome" "${flags[@]}"
+    else
+      setsid "$chrome" "${flags[@]}" >"$profile.log" 2>&1 </dev/null &
+    fi
+    for _ in $(seq 40); do up && break; sleep 0.5; done
+    up || { echo "Chrome started but its DevTools port $port doesn't answer (is the port taken?)" >&2; return 1; }
+  fi
+  attach
+  for _ in $(seq 90); do
+    read -r id current <<<"$(managed)" || true
+    if [ -n "${id:-}" ]; then
+      echo "The agents' window is open on $base (Snap page $id, code_current $current; DevTools 127.0.0.1:$port, profile $profile). Calls go to it by default; screenshot, reload and restart work on it (chrome tool, or $0 $where status|reload|restart)."
+      return 0
+    fi
+    sleep 1
+  done
+  echo "The window is open, but no Snap tab in it registered within 90 s. Is MAINodes installed on $base? $0 $where status lists its tabs." >&2
+  return 1
+}
+
+case $action in
+  start) start ;;
+  stop) stop && echo "Closed the agents' window ($profile)." ;;
+  restart) stop && start ;;
+  status) if up; then attach; echo "The agents' window runs (DevTools 127.0.0.1:$port, profile $profile). Its Snap tabs on $base:"; tabs; else echo "The agents' window isn't running (profile $profile). Start it: $0 $where"; fi ;;
+  reload) up || { echo "The agents' window isn't running: $0 $where" >&2; exit 1; }; attach; call '{"action": "reload"}'; echo ;;
+  new)
+    [ $asked = 1 ] || { echo "Agents drive the person's main tab by default (SNAP-R83). Another tab needs the person's yes: ask them, then run $0 $where new --asked. It opens visible in the agents' window, never headless." >&2; exit 1; }
+    up || { echo "The agents' window isn't running: start it first ($0 $where)." >&2; exit 1; }
+    curl -s --max-time 10 -X PUT "http://127.0.0.1:$port/json/new?$url" | python3 -c 'import json, sys; print("Opened another Snap tab in the agents\x27 window:", json.load(sys.stdin)["id"])' ;;
+esac

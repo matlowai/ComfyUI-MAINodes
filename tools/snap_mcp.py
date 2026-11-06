@@ -4,8 +4,8 @@ The open Snap page owns the graph; this server lists the tools the page register
 agent edits the same graph a person sees (each edit is one undo step, shown live). Standard library only; talks to
 127.0.0.1 by default (--port), or to --base-url (a snap-gate in front of ComfyUI). SNAP_TOKEN in the environment goes out
 as an Authorization: Bearer header (a snap-gate account token); SNAP_PAGE names one Snap page (an id from GET
-/mainodes/snap/tools `pages`) that every call goes to, e.g. the agent's own page when it must not drive the person's tab
-(calls otherwise go to the newest tab whose person turned "Let agents see" on, else the agent's headless page). Each
+/mainodes/snap/tools `pages`) that every call goes to (calls otherwise go to the newest tab that sees: the agents' window,
+snap_agent_page.sh, or a tab whose person turned "Let agents see" on; SNAP-R83). Each
 connection names itself to the bridge (SNAP_AGENT, else mcp-<random>), so use_page binds this connection to one page.
 Example Claude Code config entry (not installed by the pack):
 

@@ -168,12 +168,13 @@ app.registerExtension({
     // U72 F20: the page says which Snap code it loaded (the server's hash of its web files when this page started), and
     // whether it is an agent's headless page, so the bridge can prefer a current page and say when one runs older code
     const loaded = api.fetchApi("/mainodes/snap/info").then((r) => (r.ok ? r.json() : {}), () => ({})).then((x) => x.code ?? null);
-    // `sees`: the person turned "Let agents see" on, which is what lets agents drive this tab (the bridge sends calls to the
-    // newest such tab, then to an agent's own headless page; a tab with it off is never driven)
+    // `sees`: the person turned "Let agents see" on, which is what lets agents drive this tab; the answer says whether the
+    // tab is in the agents' window (SNAP-R83), which the bridge finds over that Chrome's DevTools and treats as a tab that
+    // sees (calls go to the newest tab that sees; a tab with it off is never driven)
     // `title` and `who` name the page for agents choosing one (list_pages); the answer says which agent drives it (use_page)
     const title = () => { const here = SC.current(); return here ? `${here.scene.name} › ${SC.shotTitle(here.scene, here.shot)}` : activeTab()?.filename ?? "Snap"; };
     const register = () => Promise.all([S.load().catch(() => {}), loaded]).then(([, code]) => api.fetchApi("/mainodes/snap/register", { method: "POST", body: JSON.stringify({ client: api.clientId, tools: schema(), code, headless: sight.HEADLESS, sees: sight.sharing(), title: title(), who: ACC.account()?.name ?? null, banner: true }) }))
-      .then((r) => r.json()).then((r) => { view.driver(r.driven_by ?? null); if (r.code_current === false) view.stale(); }, () => {});
+      .then((r) => r.json()).then((r) => { sight.setManaged(!!r.managed); view.driver(r.driven_by ?? null); if (r.code_current === false) view.stale(); }, () => {});
     api.addEventListener("mainodes-snap-driver", ({ detail }) => view.driver(detail.agent));
     // F-C12: an agent's request_reload shows the "Snap was updated" bar with its name; the page never reloads itself
     api.addEventListener("mainodes-snap-reload", ({ detail }) => view.stale(detail.agent));

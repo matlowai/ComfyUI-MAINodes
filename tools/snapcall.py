@@ -1,8 +1,8 @@
 """Call one Snap tool from a shell, through the bridge to a Snap page of your user. Name yourself with SNAP_AGENT (e.g.
 SNAP_AGENT=anime-studio): `--page <id|name>` then binds you to that page (use_page) and later calls without --page keep
 going there; one agent drives a page at a time. `pages` lists your pages (ids, names, who drives them). With nothing
-picked, calls go to the newest tab whose person turned "Let agents see" on, else an agent's headless page from
-snap_agent_page.sh. SNAP_PAGE names a page for one call without binding. Pictures (screenshot, take_frames) are saved as files in a folder of their own
+picked, calls go to the newest tab that sees: the agents' window (snap_agent_page.sh, SNAP-R83) or a tab whose person
+turned "Let agents see" on. SNAP_PAGE names a page for one call without binding. Pictures (screenshot, take_frames) are saved as files in a folder of their own
 under the system temp folder (snapcall-pictures/<time>-<tool>-<unique>/ per call, never where you run it: U72 F27, F29) and their paths and folder (saved_in) printed. SNAP_TOKEN in the environment goes out as a Bearer header (a snap-gate account token).
 usage: python3 snapcall.py <port or base URL> [--page <id|name>] <tool> ['<json args>']
        python3 snapcall.py <port or base URL> pages

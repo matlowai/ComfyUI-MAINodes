@@ -705,9 +705,29 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   method's `run` (SNAP-R13). *Why:* Dylan 2026-11-05: "you can even try the tessera tiled upscaling process if we wanna
   try out 4k". *More:* PLAN U102b, the pack's docs/LAWS.md, proto/test_u102b.js.
 
+## Batch G1 (2026-11-06)
+
+- **SNAP-R83: Agents drive the person's main tab; the agents' window is one visible Chrome they attach to, reload and
+  restart, never headless.** With no use_page, calls go to the newest tab that sees: the agents' window or a tab whose
+  person turned "Let agents see" on. While a person's tab is open with the control off a call is refused, never sent to
+  another page instead; only a server with no person's tab at all (a test server) falls back to an agent's headless page.
+  The agents' window is one Chrome (profile `~/.config/snap-agent-chrome`, DevTools on 127.0.0.1:9222) that
+  `tools/snap_agent_page.sh` attaches to whenever 9222 answers and opens only when nothing does, on a display, under
+  systemd-run so a ComfyUI restart never takes it down and stopping it ends every process of its profile. The launcher
+  tells the server its port (kept in the user folder); the bridge finds its tab by the client id in the tab's
+  sessionStorage, counts it as a tab that sees, captures it for screenshot, and the `chrome` tool (status, reload, start,
+  restart) reloads it after an update, so an agent never waits on the person for a stale tab (F-C24). It opens no
+  other tab by itself: another tab needs the person's yes (`new --asked`); an extra window (its own profile and port,
+  its purpose as its window name) serves only parallel work on another server and is closed when that work ends.
+  *Why:* Dylan 2026-11-05: "the default behavior should always be my main tab and you should need permission to open
+  another tab and if you do it should NEVER be headless"; 2026-11-06: "we need to make sure you have an open chrome
+  window you can control and hook into and restart and make it non headless always", and on extra windows: fine "if you
+  are doing some things on one gpu and some things on another or doing non gpu contention things". *More:* DECISIONS
+  2026-11-05 12:36 and 2026-11-06, PLAN U96, proto/test_agent_page.py, proto/test_g1_window.js.
+
 ## Accounts and the gate (snap-gate)
 
-IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; R83 on).
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; G1 took R83-R87; R88 on).
 
 - **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
   use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and

@@ -17,38 +17,51 @@ serves). A machine can hold several ComfyUI installs: trust this answer, not a f
 
 ## 1. Open a Snap page
 
-Either the person opens `$BASE/?snap` in their browser, or you start a headless page of your own:
+You drive the person's main tab (SNAP-R83): their own tab once they press "Let agents see" in Snap's top bar, or the
+agents' window, one visible Chrome on this machine that agents attach to, reload and restart. Never a headless page, and
+never another tab without the person's yes.
 
-    bash $PACK/tools/snap_agent_page.sh $BASE
+    bash $PACK/tools/snap_agent_page.sh $BASE            # start: attach to the agents' window, or open it if nothing runs
+    bash $PACK/tools/snap_agent_page.sh $BASE status     # whether it runs, its DevTools port, its tabs
+    bash $PACK/tools/snap_agent_page.sh $BASE reload     # reload its Snap tab, e.g. after the ComfyUI restarted
 
-- The script returns once the page has registered. `bash $PACK/tools/snap_agent_page.sh $BASE --stop` stops the
-  page(s) it started for that ComfyUI; you need no pid and no `kill`.
-- If a page of yours is already open, the script says so and starts nothing, because calls already go to that page.
-  Pass `--new` to start another one anyway.
-- Each launch uses a fresh Chrome profile, so a page that died earlier never blocks the next one.
+- The agents' window is ONE Chrome (profile `~/.config/snap-agent-chrome`, DevTools on 127.0.0.1:9222). Whatever
+  answers on 9222 is it: the script attaches and never starts a second one. It opens it only when nothing answers there,
+  and only on a display (it never runs headless). Its tab counts as a tab that sees: your calls go there by default,
+  `screenshot` works at once, and the page names it "agents' window".
+- The `chrome` tool does the same from any client, even when no Snap page answers: `{"action": "status"}`,
+  `{"action": "reload"}` (after a server restart or an update: it waits until the tab is current again), `{"action":
+  "start"}`, `{"action": "restart"}` (closes every process of its profile, then opens it again). Reload it yourself
+  when it runs older code; you don't wait on the person.
+- The window opens no tab by itself on a ComfyUI it has none on. Another tab is the person's call: ask, then
+  `snap_agent_page.sh $BASE new --asked`.
+- Parallel work that doesn't contend with the person's (e.g. GPU checks on a second server while 9222 serves theirs) may
+  use an extra window for that server only: `snap_agent_page.sh $BASE start --extra "<purpose>"` (its own profile and
+  port, the purpose as its window name; refused when 9222 already has a tab on that server). Close it with `stop --extra
+  "<purpose>"` when the work ends.
 - On a signed-in install, give the sign-in link as the page:
   `bash $PACK/tools/snap_agent_page.sh $BASE "$BASE/gate/login?token=$SNAP_TOKEN&next=/%3Fsnap"`
 
 **Pick your page, and name yourself.** Several people's tabs and agents' pages can be open on one ComfyUI; choose the
 one you work in so you never collide:
 - `list_pages` (or `python3 $PACK/tools/snapcall.py $BASE pages`) lists every page of yours: `id`, `name` (whose it
-  is, the id's first six characters, the tab or shot it shows), `headless` (an agent's page), `sees` (its person lets
-  agents see and drive it), `driven_by`, `yours`, and `calls_go_here`.
+  is, the id's first six characters, the tab or shot it shows), `managed` (the agents' window), `headless`, `sees` (its
+  person lets agents see and drive it), `driven_by`, `yours`, and `calls_go_here`.
 - `use_page {"page": "<id, the start of one, or a name>"}` binds you to that page for your session: every call goes
   there until you pick another or pass `null`. With snapcall, name yourself once and bind with `--page`:
   `SNAP_AGENT=my-studio python3 $PACK/tools/snapcall.py $BASE --page 3f9a2c get_profile`; later calls with the same
   SNAP_AGENT keep going there. snap_mcp.py names each connection itself (or SNAP_AGENT).
 - One agent drives a page at a time. The page shows "Driven by: <you>" with a Release button for its person. A page
-  another agent drives is refused with its name: pick another, start your own (`snap_agent_page.sh $BASE --new`), or
-  ask the person. If the person presses Release, your next call says so; pick a page again.
-- With nothing picked, calls go to the newest tab whose person turned "Let agents see" on (that control is how they let
-  agents drive their tab), else your own headless page. A person's tab with the control off is never driven, and
-  `snap_agent_page.sh` never takes a person's tab for yours. `SNAP_PAGE=<id>` (or the `X-Snap-Page` header) sends one
-  call to a page without binding. Every answer names its page under `page` (`id`, `name`, `driven_by`).
-If it says the page runs older Snap code (`page_warning`, or an "Unknown Snap tool" error that says so), start your own
-page with `snap_agent_page.sh $BASE --new`; never reload or close the person's tab yourself. To ask the person to
-reload their tab, `request_reload {page}` shows a "Snap was updated: reload to get the new tools" bar on it with your
-name (the tab shows it by itself after an update too); the person presses Reload. Run `curl -s $BASE/mainodes/snap/tools` to see
+  another agent drives is refused with its name: pick another, or ask the person. If the person presses Release, your
+  next call says so; pick a page again.
+- With nothing picked, calls go to the newest tab that sees: the agents' window, or a tab whose person turned "Let
+  agents see" on. While a person's tab is open with the control off, a call is refused (it says how to get a page); it
+  never goes to another page instead. `SNAP_PAGE=<id>` (or the `X-Snap-Page` header) sends one call to a page without
+  binding. Every answer names its page under `page` (`id`, `name`, `driven_by`).
+If it says the page runs older Snap code (`page_warning`, or an "Unknown Snap tool" error that says so): on the agents'
+window, reload it yourself (`chrome {"action": "reload"}`); on a person's own tab, never reload or close it yourself:
+`request_reload {page}` shows a "Snap was updated: reload to get the new tools" bar on it with your name (the tab shows
+it by itself after an update too), and the person presses Reload. Run `curl -s $BASE/mainodes/snap/tools` to see
 your open pages under `pages`, with when each registered and when it last answered. When no page is open, every call
 says how to start one.
 
@@ -79,8 +92,8 @@ You can also run the tools as an MCP server (Claude Code):
 3. If the person says agents may run renders without asking, call `set_agent_permissions {"run": true}`. It applies
    right away, with no reload. Otherwise `run`, `preview` and `make_dial` wait as proposals the person accepts.
    `{"see": true}` shares their tab with `screenshot`, but only after they press "Let agents see" in Snap's top bar.
-   On your own headless page (`snap_agent_page.sh`) `screenshot` works at once, no press needed: use it to check what
-   the person would see (the Work card, a take's chip).
+   In the agents' window (`snap_agent_page.sh`) `screenshot` works at once, no press needed: use it to check what the
+   person sees (the Work card, a take's chip).
 4. `scan_models` and `list_kits` show what is ready and what is missing.
 5. `propose_downloads` gives exact files, sizes, target folders and commands.
    - Add-ons the recipe runs without are listed apart under `optional`, with their size and how to install them.
@@ -298,7 +311,7 @@ thumbnail in Snap opens the same viewer on a click; nothing changes by viewing.
 - A call times out after 30 s. `run_status` waits at most 25 s per call.
 - Results are never trimmed. If one is too big for your context, save it to a file and hand it to a subagent to break
   down and report back.
-- `screenshot` needs a person's press on "Let agents see" in a visible page; your own headless page needs none.
+- `screenshot` needs a person's press on "Let agents see" in their own tab; the agents' window needs none.
 
 ## Your work and the person's: the Work card
 

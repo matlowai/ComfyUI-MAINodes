@@ -142,8 +142,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   const runLabel = h("span", { textContent: "Run" }), progress = h("div", { className: "snap-progress" });
   // one click lets agents see this tab (the screenshot tool); click again to stop sharing
   const seeBtn = h("button", { className: "snap-see", title: "let agents see this tab (screen share of this tab only; frames are taken only when a tool asks)",
-    onclick: async () => { try { sight.sharing() ? sight.stop() : await sight.start(); } catch (err) { say(err.name === "NotAllowedError" ? "Sharing was declined" : err.message, true); } } });
-  const seeLabel = () => { seeBtn.textContent = sight.sharing() ? "● Agents can see" : "👁 Let agents see"; seeBtn.classList.toggle("on", sight.sharing()); };
+    onclick: async () => { if (sight.managed()) return say("This is the agents' window: agents see and drive it (SNAP-R83). Release under 'Driven by' lets an agent go", false);
+      try { sight.sharing() ? sight.stop() : await sight.start(); } catch (err) { say(err.name === "NotAllowedError" ? "Sharing was declined" : err.message, true); } } });
+  const seeLabel = () => { seeBtn.textContent = sight.managed() ? "● Agents' window" : sight.sharing() ? "● Agents can see" : "👁 Let agents see"; seeBtn.classList.toggle("on", sight.sees()); };
   sight.onChange(seeLabel); seeLabel();
   // one agent drives this page at a time (use_page); the person sees which and can let it go
   const driverChip = h("span", { className: "snap-driver", hidden: true });
