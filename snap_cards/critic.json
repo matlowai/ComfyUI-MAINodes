@@ -5,7 +5,7 @@
   "checklists": {
     "master": { "label": "a location's master", "passes": ["scan", "map", "support", "cross_view"], "context": ["plan", "cameras"], "tiles": "all" },
     "plate": { "label": "a location plate", "passes": ["scan", "map", "support", "cross_view"], "context": ["master", "plan", "plates"], "tiles": "all" },
-    "location": { "label": "a location version, every view side by side", "passes": ["cross_view", "map"], "context": ["master", "plan", "plates"], "tiles": "none" },
+    "location": { "label": "a location version, every view side by side", "passes": ["cross_view", "map"], "context": ["master", "plan", "plates"], "tiles": "all" },
     "plan": { "label": "a location's set plan", "passes": ["map", "cross_view"], "context": ["master"], "tiles": "none" },
     "settei": { "label": "settei: a design reference of a place or prop", "passes": ["scan", "support", "cross_view"], "context": ["record"], "tiles": "all" },
     "sheet": { "label": "a Cast picture, sheet or turnaround", "passes": ["scan", "support", "cast", "cross_view"], "context": ["cast"], "tiles": "views" },

@@ -1,0 +1,1009 @@
+{
+ "about": "The critic's regression fixtures (SNAP-R108, R109): pictures the operator judged by eye, run blind through the snap-critic skill. Pictures live in a local fixtures folder (README.md); this manifest names them relative to it.",
+ "scoring": "Positive: an expected flaw counts as caught when the critique names the same flaw (same physical/logical problem) AND locates it (region words). Negative: a false alarm is any note at medium or high severity that is not real, or a real but minor item (allowed_true_minor) rated high. Notes on allowed_true_minor items at low/medium are fine; a must_not_flag item flagged at any severity is a false alarm. Auto-scoring matches each expected flaw's keys (every group must match a note's text, any severity) and lists every medium or high note on a clean picture for a hand check; --confirm settles the rows it marks '?'.",
+ "floor": {
+  "caught": 24,
+  "of": 29,
+  "fa": 0,
+  "clean": 9,
+  "round": "r3",
+  "model": "Opus 5.5",
+  "set": "2026-11-06"
+ },
+ "fixtures": [
+  {
+   "id": "X01",
+   "polarity": "positive",
+   "checklist": "master",
+   "counted": true,
+   "what": "the location's master establishing picture (root of every village view), high three-quarter view from outside",
+   "context": "Location 'village' (short03): one village in a snowy pine forest at deep blue dusk. Set plan: one road from the south-west to ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST palisade of sharpened logs (about 3x a person); inside, a snowy square with a round stone well; shuttered timber houses in rows on the north and east. The palisade protects the village.",
+   "picture": "blind/X01.png",
+   "context_pictures": [
+    "blind/ctx/village_setplan.png",
+    "blind/ctx/village_cameras.png"
+   ],
+   "expected": [
+    {
+     "flaw": "enclosure open: the palisade runs only across the front (one straight wall through the gatehouse); no wall behind the far row of houses or along the right-hand row: the village is not enclosed, houses back straight onto the forest",
+     "where": "whole frame: front wall vs far/back edge and right edge",
+     "severity": "high",
+     "owner": "location master + set plan (plans draw palisade W(+S) only)",
+     "keys": [
+      [
+       "enclos|surround|ring|open\\b|only (along|across|on|at) the front|one side|no (wall|palisade|fence)|not (closed|enclosed)|onto (the )?(open|forest|trees)|unprotected|unwalled|missing (wall|palisade)"
+      ],
+      [
+       "wall|palisade|fence|stockade"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [
+    "master shows houses on three sides (left, back, right) while the plan has north + east rows only",
+    "gatehouse window barred/grilled, plan says shuttered",
+    "two posts/chimneys on the gatehouse roof ridge"
+   ],
+   "must_not_flag": [],
+   "note": "the operator 2026-11-06: 'there is a wall and not surrounding the village'."
+  },
+  {
+   "id": "X02",
+   "polarity": "negative",
+   "checklist": "sheet",
+   "counted": true,
+   "what": "Cast turnaround sheet (front / left 270 / back 180 / right 90) for Maren v3",
+   "context": "Maren (Cast v2/v3): as v1, but the greatsword is in a long dark leather scabbard carried diagonally on her back, hilt above her RIGHT shoulder, tip by her LEFT calf, no blade showing; dark leather harness: a diagonal chest strap from her left shoulder to her right hip with a steel buckle, and a waist strap. Braid over her right shoulder.",
+   "picture": "blind/X02.png",
+   "context_pictures": [
+    "blind/ctx/maren_v2_cast_front.png"
+   ],
+   "expected": [],
+   "allowed_true_minor": [
+    "front panel grey background, other three beige",
+    "faint green tint on her neck in the LEFT view",
+    "RIGHT view reads as a rear three-quarter, face mostly hidden",
+    "LEFT view head turned slightly toward camera"
+   ],
+   "must_not_flag": [
+    "scabbard vertical in the profiles (correct: a diagonal across the back plane projects to a near-vertical line in profile)",
+    "lower scabbard hidden by her body in the RIGHT view (correct occlusion)"
+   ],
+   "note": "the operator accepted v3 as the fix for the v2 profiles."
+  },
+  {
+   "id": "X03",
+   "polarity": "positive",
+   "checklist": "board",
+   "counted": true,
+   "what": "C2 board candidate (MOSS edit, arm h seed 902)",
+   "context": "Location 'village' (short03): one village in a snowy pine forest at deep blue dusk. Set plan: one road from the south-west to ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST palisade of sharpened logs (about 3x a person); inside, a snowy square with a round stone well; shuttered timber houses in rows on the north and east. The palisade protects the village. Maren (Cast v1): young woman warrior, very pale, long white-silver hair in one low braid, pale grey eyes, expressionless, dark charcoal high-collared long coat over dark leather armour with steel pauldrons, red cord sash, dark gloves and boots, huge plain steel greatsword on her back (hilt over her left shoulder). Greatsword about her height. Brann (Cast): old man, short and hunched, bald with a long white beard, nervous fawning smile, heavy brown fur-trimmed coat with a leather belt, felt boots, small leather coin pouch. A hollow (demon) hides in his skin. Beat: C2 (the price): inside the gate; the headman Brann bows low and holds out a leather pouch in both hands; Maren (left) does not move, does NOT take it, her eyes on him. Line: 'The price, as agreed... please.' Two-shot. Gate closed.",
+   "picture": "blind/X03.png",
+   "context_pictures": [
+    "blind/ctx/village_master.png",
+    "blind/ctx/village_setplan.png",
+    "blind/ctx/maren_v1_cast_front.png",
+    "blind/ctx/brann_cast_front.png"
+   ],
+   "expected": [
+    {
+     "flaw": "second palisade inside the village: the gate is a gap between two wall runs in the foreground, and the square beyond has its own ring/second wall; the near palisade cuts across the square",
+     "where": "foreground left + right fence runs vs far wall",
+     "severity": "high",
+     "owner": "board (re-make from master + plan)",
+     "keys": [
+      [
+       "(inner|second|double|another|two|extra|interior|inside|parallel)\\b[^.]*\\b(palisade|wall|fence|ring|run)|(palisade|wall|fence)[^.]*\\b(inside|through|across|cuts|crosses|within|into)\\b[^.]*\\b(village|square)|corridor"
+      ]
+     ]
+    },
+    {
+     "flaw": "duplicate person: two Branns (one standing, one bowing)",
+     "where": "centre and centre-right",
+     "severity": "high",
+     "owner": "board",
+     "keys": [
+      [
+       "duplicat|two (branns?|men|older men|elders?|figures of|copies)|twice|clone|same (man|person|character)|appears twice|second brann"
+      ]
+     ]
+    },
+    {
+     "flaw": "second gatehouse/tower at the back of the square (master has one gatehouse)",
+     "where": "back left, tall tower with arch",
+     "severity": "high",
+     "owner": "board",
+     "keys": [
+      [
+       "(second|another|extra|two|additional|watch)\\b[^.]*\\b(gate ?house|tower)|(gate ?house|tower)s?\\b[^.]*\\b(two|second|extra)\\b"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [],
+   "must_not_flag": [],
+   "note": "the operator: MOSS edit tiles 7,8,9,13,15,16 drew a dual wall."
+  },
+  {
+   "id": "X04",
+   "polarity": "negative",
+   "checklist": "board",
+   "counted": true,
+   "what": "C4 board (New view, Fizgig H3)",
+   "context": "Location 'village' (short03): one village in a snowy pine forest at deep blue dusk. Set plan: one road from the south-west to ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST palisade of sharpened logs (about 3x a person); inside, a snowy square with a round stone well; shuttered timber houses in rows on the north and east. The palisade protects the village. Maren (Cast v1): young woman warrior, very pale, long white-silver hair in one low braid, pale grey eyes, expressionless, dark charcoal high-collared long coat over dark leather armour with steel pauldrons, red cord sash, dark gloves and boots, huge plain steel greatsword on her back (hilt over her left shoulder). Greatsword about her height. Brann (Cast): old man, short and hunched, bald with a long white beard, nervous fawning smile, heavy brown fur-trimmed coat with a leather belt, felt boots, small leather coin pouch. A hollow (demon) hides in his skin. Beat: C4 (the cut): one draw from her back, one cut; the headman splits along a bright line and a black hollow erupts upward from his body. Board = the aftermath: her follow-through left, the hollow right. Gate closed.",
+   "picture": "blind/X04.png",
+   "context_pictures": [
+    "blind/ctx/village_master.png",
+    "blind/ctx/maren_v1_cast_front.png",
+    "blind/ctx/brann_cast_front.png",
+    "blind/ctx/hollow_prop.png"
+   ],
+   "expected": [],
+   "allowed_true_minor": [
+    "no empty scabbard/harness on her back after the draw (v1 Cast had none; v2 needs one)",
+    "gatehouse door is a single arch door in the tower face rather than a clearly double gate"
+   ],
+   "must_not_flag": [
+    "the blade passing through Brann's coat (it is the cut, the beat)",
+    "the hollow erupting from his body (the beat)"
+   ],
+   "note": ""
+  },
+  {
+   "id": "X05",
+   "polarity": "positive",
+   "checklist": "plate",
+   "counted": true,
+   "what": "short01 location plate P17 (sunset rooftop) used as the background reference for C17",
+   "context": "short01 C17: sunset on the rooftop: Granny and Suna sit side by side on the parapet, seen from behind; a kite hangs still in the sky above them. Plate = people-free background for that shot.",
+   "picture": "blind/X05.png",
+   "context_pictures": [],
+   "expected": [
+    {
+     "flaw": "double parapet: two parallel low walls a metre apart in the foreground (plus the far parapet): there should be one roof-edge parapet to sit on",
+     "where": "foreground bottom-left wall and the full-width wall just behind it",
+     "severity": "high",
+     "owner": "location plate P17 (one parapet, plan line)",
+     "keys": [
+      [
+       "(double|two|twin|second|parallel|doubled)\\b[^.]*\\b(parapet|wall|ledge)|(parapet|wall|ledge)s?\\b[^.]*\\b(twin|double|doubled|parallel)"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [
+    "kite in the sky with its string ending in mid-air (no flyer in a people-free plate)"
+   ],
+   "must_not_flag": [],
+   "note": "short01 F-A32; the operator caught the double wall in the take, the cause was the plate."
+  },
+  {
+   "id": "X06",
+   "polarity": "positive",
+   "checklist": "board",
+   "counted": true,
+   "what": "frame from the village walk test, cut b (through the gate, inside looking back at the gate)",
+   "context": "Location 'village' (short03): one village in a snowy pine forest at deep blue dusk. Set plan: one road from the south-west to ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST palisade of sharpened logs (about 3x a person); inside, a snowy square with a round stone well; shuttered timber houses in rows on the north and east. The palisade protects the village. Maren (Cast v1): young woman warrior, very pale, long white-silver hair in one low braid, pale grey eyes, expressionless, dark charcoal high-collared long coat over dark leather armour with steel pauldrons, red cord sash, dark gloves and boots, huge plain steel greatsword on her back (hilt over her left shoulder). Greatsword about her height.",
+   "picture": "blind/X06.png",
+   "context_pictures": [
+    "blind/ctx/village_master.png",
+    "blind/ctx/plate_Pb_gate_inside_open.png"
+   ],
+   "expected": [
+    {
+     "flaw": "Maren far too big for the set: walk camera at 1.6 m eye height puts the horizon at about the far snow line through the arch (y~485), but her eyes are at y~330 with feet at y~600, so she is about 3.5 m tall; she is as tall as the palisade and taller than the gate arch she stands just in front of",
+     "where": "centre, Maren against the gate",
+     "severity": "medium",
+     "owner": "take (walk test placement/scale)",
+     "keys": [
+      [
+       "too (big|large|tall)|giant|oversiz|far above the horizon|taller than|as tall as|out of scale|wrong scale|scale"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [
+    "v1 greatsword: bare blade on her back, no scabbard/strap visible",
+    "only one gate leaf visible (left leaf open; right leaf missing)",
+    "well right beside the gate (master: mid-square)",
+    "no road visible through the arch"
+   ],
+   "must_not_flag": [],
+   "note": "Re-scored 2026-11-06 by the critic owner: negative -> positive. The critics' scale flags (r0/r1/r2) were first scored as depth false alarms; a horizon check (eye-height camera: a standing adult's eyes sit on the horizon at any depth) shows she is really too big."
+  },
+  {
+   "id": "X07",
+   "polarity": "positive",
+   "checklist": "sheet",
+   "counted": true,
+   "what": "Cast turnaround sheet (front / side / back) for Maren v1",
+   "context": "Maren (Cast v1): young woman warrior, very pale, long white-silver hair in one low braid, pale grey eyes, expressionless, dark charcoal high-collared long coat over dark leather armour with steel pauldrons, red cord sash, dark gloves and boots, huge plain steel greatsword on her back (hilt over her left shoulder). Greatsword about her height.",
+   "picture": "blind/X07.png",
+   "context_pictures": [
+    "blind/ctx/maren_v1_cast_front.png"
+   ],
+   "expected": [
+    {
+     "flaw": "side view: bare greatsword floats behind her with a gap; nothing (strap, scabbard, hand) holds it",
+     "where": "middle figure, behind her back",
+     "severity": "high",
+     "owner": "Cast record (Maren v1 turnaround)",
+     "keys": [
+      [
+       "float|unheld|nothing (hold|holds|holding|support)|no (visible )?(holder|strap|scabbard|attachment|support)|not (held|attached|connected|supported)|disconnect|hover|gap"
+      ],
+      [
+       "sword|blade|weapon"
+      ]
+     ]
+    },
+    {
+     "flaw": "views disagree: bare blade in front/side views, a brown scabbard on a strap only in the back view",
+     "where": "back figure vs side/front",
+     "severity": "medium",
+     "owner": "Cast record",
+     "keys": [
+      [
+       "scabbard|sheath"
+      ],
+      [
+       "back view|rear view|only (in|on)|views? (disagree|differ)|inconsistent|between (the )?views|appears only|changes|mismatch"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [],
+   "must_not_flag": [],
+   "note": "Fixture #5 (floating greatsword) 'through every sheet and board'."
+  },
+  {
+   "id": "X08",
+   "polarity": "positive",
+   "checklist": "board",
+   "counted": true,
+   "what": "C2 board candidate (MOSS edit, arm g seed 903)",
+   "context": "Location 'village' (short03): one village in a snowy pine forest at deep blue dusk. Set plan: one road from the south-west to ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST palisade of sharpened logs (about 3x a person); inside, a snowy square with a round stone well; shuttered timber houses in rows on the north and east. The palisade protects the village. Maren (Cast v1): young woman warrior, very pale, long white-silver hair in one low braid, pale grey eyes, expressionless, dark charcoal high-collared long coat over dark leather armour with steel pauldrons, red cord sash, dark gloves and boots, huge plain steel greatsword on her back (hilt over her left shoulder). Greatsword about her height. Brann (Cast): old man, short and hunched, bald with a long white beard, nervous fawning smile, heavy brown fur-trimmed coat with a leather belt, felt boots, small leather coin pouch. A hollow (demon) hides in his skin. Beat: C2 (the price): inside the gate; the headman Brann bows low and holds out a leather pouch in both hands; Maren (left) does not move, does NOT take it, her eyes on him. Line: 'The price, as agreed... please.' Two-shot. Gate closed.",
+   "picture": "blind/X08.png",
+   "context_pictures": [
+    "blind/ctx/village_master.png",
+    "blind/ctx/village_setplan.png",
+    "blind/ctx/maren_v1_cast_front.png",
+    "blind/ctx/brann_cast_front.png"
+   ],
+   "expected": [
+    {
+     "flaw": "beat contradicted: Maren reaches out with both hands to take the pouch (script: she does not move, does not take it)",
+     "where": "centre, her hands at the pouch",
+     "severity": "high",
+     "owner": "board (re-make; prompt: 'she does not take it')",
+     "keys": [
+      [
+       "tak(e|es|ing)|reach|grab|grip|accept|receiv|hold"
+      ],
+      [
+       "pouch|purse|bag|coin"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [
+    "gate is a door in a house-like building, not the master's gatehouse tower",
+    "palisade at bottom right (plausibly the near wall)",
+    "high camera, not eye height"
+   ],
+   "must_not_flag": [],
+   "note": ""
+  },
+  {
+   "id": "X09",
+   "polarity": "negative",
+   "checklist": "upscale",
+   "counted": true,
+   "what": "frame 62 of a 4K Tessera tiled upscale (flat_skip 8) of Maren's turntable video",
+   "context": "Maren (Cast v2/v3): as v1, but the greatsword is in a long dark leather scabbard carried diagonally on her back, hilt above her RIGHT shoulder, tip by her LEFT calf, no blade showing; dark leather harness: a diagonal chest strap from her left shoulder to her right hip with a steel buckle, and a waist strap. Braid over her right shoulder. The upscale must show exactly what the source frame shows, larger.",
+   "picture": "blind/X09.png",
+   "context_pictures": [
+    "blind/ctx/tessera_source_f62.png"
+   ],
+   "expected": [],
+   "allowed_true_minor": [
+    "faint tile-shaped tone step in the backdrop at the right edge"
+   ],
+   "must_not_flag": [],
+   "note": ""
+  },
+  {
+   "id": "X10",
+   "polarity": "positive",
+   "checklist": "location",
+   "counted": true,
+   "what": "six pictures of ONE location on one sheet: top row = village master | road plate P01 | board C1; bottom row = boards C2 | C4 | C6 (old text-only boards)",
+   "context": "Location 'village' (short03): one village in a snowy pine forest at deep blue dusk. Set plan: one road from the south-west to ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST palisade of sharpened logs (about 3x a person); inside, a snowy square with a round stone well; shuttered timber houses in rows on the north and east. The palisade protects the village. C1: outside on the road; C2, C4: inside the square with the gate behind/left; C6: inside, walking out through the open gate.",
+   "picture": "blind/X10.jpg",
+   "context_pictures": [
+    "blind/ctx/village_setplan.png"
+   ],
+   "expected": [
+    {
+     "flaw": "three different gates for one gatehouse: master/P01/C1 a timber tower over a double gate; C2/C4 a plain plank door in the palisade; C6 open posts with no tower",
+     "where": "top row vs bottom row",
+     "severity": "high",
+     "owner": "boards C2/C4/C6 (re-make from master as context)",
+     "keys": [
+      [
+       "gate"
+      ],
+      [
+       "differ|different|three|inconsistent|mismatch|change|not the same|varies|vary|disagree"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [
+    "C4 shows a church steeple and stone/half-timber houses: a different village style",
+    "P01 and C1 gatehouses differ in detail (P01 open lean-to roof gate, C1 a closed tower)",
+    "Maren's v1 greatsword floats (C2, C6)",
+    "C1 road runs along the inside of the wall"
+   ],
+   "must_not_flag": [],
+   "note": ""
+  },
+  {
+   "id": "X11",
+   "polarity": "positive",
+   "checklist": "board",
+   "counted": true,
+   "what": "C2 board candidate (MOSS edit, arm j seed 901)",
+   "context": "Location 'village' (short03): one village in a snowy pine forest at deep blue dusk. Set plan: one road from the south-west to ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST palisade of sharpened logs (about 3x a person); inside, a snowy square with a round stone well; shuttered timber houses in rows on the north and east. The palisade protects the village. Maren (Cast v1): young woman warrior, very pale, long white-silver hair in one low braid, pale grey eyes, expressionless, dark charcoal high-collared long coat over dark leather armour with steel pauldrons, red cord sash, dark gloves and boots, huge plain steel greatsword on her back (hilt over her left shoulder). Greatsword about her height. Brann (Cast): old man, short and hunched, bald with a long white beard, nervous fawning smile, heavy brown fur-trimmed coat with a leather belt, felt boots, small leather coin pouch. A hollow (demon) hides in his skin. Beat: C2 (the price): inside the gate; the headman Brann bows low and holds out a leather pouch in both hands; Maren (left) does not move, does NOT take it, her eyes on him. Line: 'The price, as agreed... please.' Two-shot. Gate closed.",
+   "picture": "blind/X11.png",
+   "context_pictures": [
+    "blind/ctx/village_master.png",
+    "blind/ctx/village_setplan.png",
+    "blind/ctx/maren_v1_cast_front.png",
+    "blind/ctx/brann_cast_front.png"
+   ],
+   "expected": [
+    {
+     "flaw": "inner palisade: a wall runs from the gate into the village with houses on both sides of it, and a second palisade stands in the right foreground inside the square",
+     "where": "left-middle wall run behind/among the houses, bottom-right fence",
+     "severity": "high",
+     "owner": "board",
+     "keys": [
+      [
+       "(inner|second|double|another|two|extra|interior|inside|parallel)\\b[^.]*\\b(palisade|wall|fence|ring|run)|(palisade|wall|fence)[^.]*\\b(inside|through|across|cuts|crosses|within|into)\\b[^.]*\\b(village|square)|corridor"
+      ]
+     ]
+    },
+    {
+     "flaw": "extra person not in the beat or Cast: an armoured knight stands by the gate",
+     "where": "far left",
+     "severity": "high",
+     "owner": "board",
+     "keys": [
+      [
+       "knight|armou?red|extra (person|figure|man|character)|soldier|guard|unexpected (person|figure)"
+      ]
+     ]
+    },
+    {
+     "flaw": "Maren takes/receives the pouch (beat: she does not)",
+     "where": "centre",
+     "severity": "high",
+     "owner": "board",
+     "keys": [
+      [
+       "tak(e|es|ing)|reach|grab|grip|accept|receiv|hold"
+      ],
+      [
+       "pouch|purse|bag|coin"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [
+    "Maren off-model (silver plate armour, cape) vs Cast"
+   ],
+   "must_not_flag": [],
+   "note": ""
+  },
+  {
+   "id": "X12",
+   "polarity": "negative",
+   "checklist": "board",
+   "counted": true,
+   "what": "C2 board (New view, Fizgig H3)",
+   "context": "Location 'village' (short03): one village in a snowy pine forest at deep blue dusk. Set plan: one road from the south-west to ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST palisade of sharpened logs (about 3x a person); inside, a snowy square with a round stone well; shuttered timber houses in rows on the north and east. The palisade protects the village. Maren (Cast v1): young woman warrior, very pale, long white-silver hair in one low braid, pale grey eyes, expressionless, dark charcoal high-collared long coat over dark leather armour with steel pauldrons, red cord sash, dark gloves and boots, huge plain steel greatsword on her back (hilt over her left shoulder). Greatsword about her height. Brann (Cast): old man, short and hunched, bald with a long white beard, nervous fawning smile, heavy brown fur-trimmed coat with a leather belt, felt boots, small leather coin pouch. A hollow (demon) hides in his skin. Beat: C2 (the price): inside the gate; the headman Brann bows low and holds out a leather pouch in both hands; Maren (left) does not move, does NOT take it, her eyes on him. Line: 'The price, as agreed... please.' Two-shot. Gate closed.",
+   "picture": "blind/X12.png",
+   "context_pictures": [
+    "blind/ctx/village_master.png",
+    "blind/ctx/maren_v1_cast_front.png",
+    "blind/ctx/brann_cast_front.png"
+   ],
+   "expected": [],
+   "allowed_true_minor": [
+    "v1 greatsword: bare blade behind her, no scabbard, no visible strap",
+    "gatehouse door off-centre / single door vs master's centred double gate"
+   ],
+   "must_not_flag": [],
+   "note": ""
+  },
+  {
+   "id": "X13",
+   "polarity": "positive",
+   "checklist": "sheet",
+   "counted": true,
+   "what": "Cast front picture (the Cast's first picture) for Maren v1",
+   "context": "Maren (Cast v1): young woman warrior, very pale, long white-silver hair in one low braid, pale grey eyes, expressionless, dark charcoal high-collared long coat over dark leather armour with steel pauldrons, red cord sash, dark gloves and boots, huge plain steel greatsword on her back (hilt over her left shoulder). Greatsword about her height.",
+   "picture": "blind/X13.png",
+   "context_pictures": [],
+   "expected": [
+    {
+     "flaw": "greatsword not held by anything: a bare blade behind her, no scabbard, the chest strap does not connect to the sword; tip pokes out below the coat between her legs",
+     "where": "behind her right side (viewer's right), blade tip at knee height",
+     "severity": "high",
+     "owner": "Cast record (Maren v1 front)",
+     "keys": [
+      [
+       "float|unheld|nothing (hold|holds|holding|support)|no (visible )?(holder|strap|scabbard|attachment|support)|not (held|attached|connected|supported)|disconnect|hover|gap|strap[^.]*(doesn|does not|isn|not)"
+      ],
+      [
+       "sword|blade"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [],
+   "must_not_flag": [],
+   "note": ""
+  },
+  {
+   "id": "X14",
+   "polarity": "positive",
+   "checklist": "board",
+   "counted": true,
+   "what": "short01 C17 video take (Take 5), one full-resolution frame",
+   "context": "short01 C17: sunset on the rooftop: Granny and Suna sit side by side on the parapet, seen from behind; a kite hangs still in the sky above them.",
+   "picture": "blind/X14.png",
+   "context_pictures": [
+    "blind/ctx/short01_c17_plate.png"
+   ],
+   "expected": [
+    {
+     "flaw": "contact: both sit with no seat; their bodies sink into the roof floor (no legs, no parapet under them)",
+     "where": "centre, the two figures",
+     "severity": "high",
+     "owner": "plate (put a seat/parapet) + staging",
+     "keys": [
+      [
+       "sink|sunk|sinking|no seat|nothing to sit|merg|fused|into the (roof|floor|ground|tiles)|no legs|legs (are )?(missing|hidden|gone)|cut off|embedded|half-buried|buried"
+      ]
+     ]
+    },
+    {
+     "flaw": "attachments: lantern strings come from nowhere at the top edge, floating lantern globes",
+     "where": "top centre/right",
+     "severity": "medium",
+     "owner": "plate",
+     "keys": [
+      [
+       "wire|string|cable|rope|cord|line"
+      ],
+      [
+       "nowhere|no anchor|unanchored|anchor|float|from (the )?top|frame edge|top edge|attached to nothing|not attached|out of frame|off-frame|leave the frame"
+      ]
+     ]
+    },
+    {
+     "flaw": "intersections: the sky kite crosses the lantern wire; the leaning kite cuts into the doorstep",
+     "where": "top centre; right by the door",
+     "severity": "low",
+     "owner": "take",
+     "keys": [
+      [
+       "kite"
+      ],
+      [
+       "cross|clip|intersect|cut(s|ting)? into|through|overlap|tangle"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [],
+   "must_not_flag": [],
+   "note": "the operator caught these at full resolution after the coordinator called the take clean from 420-px thumbs."
+  },
+  {
+   "id": "X15",
+   "polarity": "negative",
+   "checklist": "board",
+   "counted": true,
+   "what": "C2 board candidate (Fizgig H3 still, arm z2 seed 902)",
+   "context": "Location 'village' (short03): one village in a snowy pine forest at deep blue dusk. Set plan: one road from the south-west to ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST palisade of sharpened logs (about 3x a person); inside, a snowy square with a round stone well; shuttered timber houses in rows on the north and east. The palisade protects the village. Maren (Cast v1): young woman warrior, very pale, long white-silver hair in one low braid, pale grey eyes, expressionless, dark charcoal high-collared long coat over dark leather armour with steel pauldrons, red cord sash, dark gloves and boots, huge plain steel greatsword on her back (hilt over her left shoulder). Greatsword about her height. Brann (Cast): old man, short and hunched, bald with a long white beard, nervous fawning smile, heavy brown fur-trimmed coat with a leather belt, felt boots, small leather coin pouch. A hollow (demon) hides in his skin. Beat: C2 (the price): inside the gate; the headman Brann bows low and holds out a leather pouch in both hands; Maren (left) does not move, does NOT take it, her eyes on him. Line: 'The price, as agreed... please.' Two-shot. Gate closed.",
+   "picture": "blind/X15.png",
+   "context_pictures": [
+    "blind/ctx/village_master.png",
+    "blind/ctx/maren_v1_cast_front.png",
+    "blind/ctx/brann_cast_front.png"
+   ],
+   "expected": [],
+   "allowed_true_minor": [
+    "v1 greatsword: bare blade hanging behind her, no visible scabbard/strap",
+    "gatehouse door single, not double"
+   ],
+   "must_not_flag": [],
+   "note": ""
+  },
+  {
+   "id": "X16",
+   "polarity": "positive",
+   "checklist": "board",
+   "counted": true,
+   "what": "C2 board candidate (MOSS edit, arm h seed 901)",
+   "context": "Location 'village' (short03): one village in a snowy pine forest at deep blue dusk. Set plan: one road from the south-west to ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST palisade of sharpened logs (about 3x a person); inside, a snowy square with a round stone well; shuttered timber houses in rows on the north and east. The palisade protects the village. Maren (Cast v1): young woman warrior, very pale, long white-silver hair in one low braid, pale grey eyes, expressionless, dark charcoal high-collared long coat over dark leather armour with steel pauldrons, red cord sash, dark gloves and boots, huge plain steel greatsword on her back (hilt over her left shoulder). Greatsword about her height. Brann (Cast): old man, short and hunched, bald with a long white beard, nervous fawning smile, heavy brown fur-trimmed coat with a leather belt, felt boots, small leather coin pouch. A hollow (demon) hides in his skin. Beat: C2 (the price): inside the gate; the headman Brann bows low and holds out a leather pouch in both hands; Maren (left) does not move, does NOT take it, her eyes on him. Line: 'The price, as agreed... please.' Two-shot. Gate closed.",
+   "picture": "blind/X16.png",
+   "context_pictures": [
+    "blind/ctx/village_master.png",
+    "blind/ctx/village_setplan.png",
+    "blind/ctx/maren_v1_cast_front.png",
+    "blind/ctx/brann_cast_front.png"
+   ],
+   "expected": [
+    {
+     "flaw": "inner palisade crossing the square diagonally between Maren and the houses (a second wall inside the village)",
+     "where": "centre to right foreground",
+     "severity": "high",
+     "owner": "board",
+     "keys": [
+      [
+       "(inner|second|double|another|two|extra|interior|inside|parallel)\\b[^.]*\\b(palisade|wall|fence|ring|run)|(palisade|wall|fence)[^.]*\\b(inside|through|across|cuts|crosses|within|into)\\b[^.]*\\b(village|square)|corridor"
+      ]
+     ]
+    },
+    {
+     "flaw": "a second gatehouse tower (and a watch tower) across the square: the master has one gatehouse",
+     "where": "back centre, back right",
+     "severity": "high",
+     "owner": "board",
+     "keys": [
+      [
+       "(second|another|extra|two|additional|watch)\\b[^.]*\\b(gate ?house|tower)|(gate ?house|tower)s?\\b[^.]*\\b(two|second|extra)\\b"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [
+    "Maren's greatsword floats",
+    "high camera, not eye height"
+   ],
+   "must_not_flag": [],
+   "note": ""
+  },
+  {
+   "id": "X17",
+   "polarity": "positive",
+   "checklist": "upscale",
+   "counted": true,
+   "what": "frame 62 of a 4K Tessera tiled upscale (flat_skip 4, whole-picture reference) of Maren's turntable video",
+   "context": "Maren (Cast v2/v3): as v1, but the greatsword is in a long dark leather scabbard carried diagonally on her back, hilt above her RIGHT shoulder, tip by her LEFT calf, no blade showing; dark leather harness: a diagonal chest strap from her left shoulder to her right hip with a steel buckle, and a waist strap. Braid over her right shoulder. The upscale must show exactly what the source frame shows, larger.",
+   "picture": "blind/X17.png",
+   "context_pictures": [
+    "blind/ctx/tessera_source_f62.png"
+   ],
+   "expected": [
+    {
+     "flaw": "ghost copies of the subject painted into backdrop tiles: small full-figure Marens (top right, bottom left), a faded Maren (top left), a smudged figure (middle right)",
+     "where": "the four backdrop corners/edges",
+     "severity": "high",
+     "owner": "take (Tessera settings: flat_skip, per_tile crop)",
+     "keys": [
+      [
+       "ghost|cop(y|ies)|duplicat|small (figure|maren|version|person)|repeated|tiny (figure|person)|second (figure|maren)|faded (figure|maren)|figure in the (backdrop|background)"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [
+    "tile-shaped tone blocks in the backdrop"
+   ],
+   "must_not_flag": [],
+   "note": "Missed at first because only face crops were judged."
+  },
+  {
+   "id": "X18",
+   "polarity": "positive",
+   "checklist": "board",
+   "counted": true,
+   "what": "frame from the village walk test, cut d (past the houses)",
+   "context": "Location 'village' (short03): one village in a snowy pine forest at deep blue dusk. Set plan: one road from the south-west to ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST palisade of sharpened logs (about 3x a person); inside, a snowy square with a round stone well; shuttered timber houses in rows on the north and east. The palisade protects the village. Maren (Cast v1): young woman warrior, very pale, long white-silver hair in one low braid, pale grey eyes, expressionless, dark charcoal high-collared long coat over dark leather armour with steel pauldrons, red cord sash, dark gloves and boots, huge plain steel greatsword on her back (hilt over her left shoulder). Greatsword about her height.",
+   "picture": "blind/X18.png",
+   "context_pictures": [
+    "blind/ctx/village_master.png",
+    "blind/ctx/plate_Pd_houses.png"
+   ],
+   "expected": [
+    {
+     "flaw": "Maren far too big for the houses: she stands just behind the well near the house fronts, about 300 px tall against ~90 px doors; with the camera ~1 m up (we see into the well) her eyes at y~185 sit far above the horizon (~y 400)",
+     "where": "left-centre, Maren against the second house",
+     "severity": "medium",
+     "owner": "take (walk test placement/scale)",
+     "keys": [
+      [
+       "too (big|large|tall)|giant|oversiz|far above the horizon|taller than|as tall as|out of scale|wrong scale|scale"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [
+    "v1 greatsword: bare blade, no scabbard/strap"
+   ],
+   "must_not_flag": [],
+   "note": "Re-scored 2026-11-06 by the critic owner: negative -> positive. The critics' scale flags (r0/r1/r2) were first scored as depth false alarms; a horizon check (eye-height camera: a standing adult's eyes sit on the horizon at any depth) shows she is really too big."
+  },
+  {
+   "id": "X19",
+   "polarity": "negative",
+   "checklist": "board",
+   "counted": true,
+   "what": "C6 board (New view, P-H3-Image)",
+   "context": "Location 'village' (short03): one village in a snowy pine forest at deep blue dusk. Set plan: one road from the south-west to ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST palisade of sharpened logs (about 3x a person); inside, a snowy square with a round stone well; shuttered timber houses in rows on the north and east. The palisade protects the village. Maren (Cast v1): young woman warrior, very pale, long white-silver hair in one low braid, pale grey eyes, expressionless, dark charcoal high-collared long coat over dark leather armour with steel pauldrons, red cord sash, dark gloves and boots, huge plain steel greatsword on her back (hilt over her left shoulder). Greatsword about her height. Beat: C6 (the gate): Maren walks out through the gate, seen from behind; the gate is open for her (it slams shut behind her at the end of the cut).",
+   "picture": "blind/X19.png",
+   "context_pictures": [
+    "blind/ctx/village_master.png",
+    "blind/ctx/maren_v1_cast_front.png"
+   ],
+   "expected": [],
+   "allowed_true_minor": [
+    "v1 greatsword: bare blade on her back, no visible scabbard/strap",
+    "well right beside the gate (master: mid-square)",
+    "no road visible through the open arch (snowfield)"
+   ],
+   "must_not_flag": [],
+   "note": ""
+  },
+  {
+   "id": "X20",
+   "polarity": "positive",
+   "checklist": "board",
+   "counted": true,
+   "what": "Cast check still: Maren alone in the C2 square (MOSS edit 'cast' arm, seed 901)",
+   "context": "Location 'village' (short03): one village in a snowy pine forest at deep blue dusk. Set plan: one road from the south-west to ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST palisade of sharpened logs (about 3x a person); inside, a snowy square with a round stone well; shuttered timber houses in rows on the north and east. The palisade protects the village. Maren (Cast v1): young woman warrior, very pale, long white-silver hair in one low braid, pale grey eyes, expressionless, dark charcoal high-collared long coat over dark leather armour with steel pauldrons, red cord sash, dark gloves and boots, huge plain steel greatsword on her back (hilt over her left shoulder). Greatsword about her height. Intended content: only Maren, standing in the square, facing camera.",
+   "picture": "blind/X20.png",
+   "context_pictures": [
+    "blind/ctx/village_master.png",
+    "blind/ctx/village_setplan.png",
+    "blind/ctx/maren_v1_cast_front.png"
+   ],
+   "expected": [
+    {
+     "flaw": "inner palisade: a wall runs from the gate deep into the village with houses on both sides, plus a second palisade in the right foreground",
+     "where": "left-middle and bottom right",
+     "severity": "high",
+     "owner": "set (re-make)",
+     "keys": [
+      [
+       "(inner|second|double|another|two|extra|interior|inside|parallel)\\b[^.]*\\b(palisade|wall|fence|ring|run)|(palisade|wall|fence)[^.]*\\b(inside|through|across|cuts|crosses|within|into)\\b[^.]*\\b(village|square)|corridor"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [
+    "sword hangs vertically in front of her legs from the belt (odd attachment, differs from Cast)",
+    "red/brown eyes and a smile (Cast: pale grey, expressionless)"
+   ],
+   "must_not_flag": [],
+   "note": ""
+  },
+  {
+   "id": "X21",
+   "polarity": "positive",
+   "checklist": "sheet",
+   "counted": true,
+   "what": "Cast turnaround sheet (front / left / back / right) for Maren v2",
+   "context": "Maren (Cast v2/v3): as v1, but the greatsword is in a long dark leather scabbard carried diagonally on her back, hilt above her RIGHT shoulder, tip by her LEFT calf, no blade showing; dark leather harness: a diagonal chest strap from her left shoulder to her right hip with a steel buckle, and a waist strap. Braid over her right shoulder.",
+   "picture": "blind/X21.png",
+   "context_pictures": [
+    "blind/ctx/maren_v2_cast_front.png"
+   ],
+   "expected": [
+    {
+     "flaw": "LEFT view: scabbard hangs vertical with a gap behind her back: it floats, not against her back",
+     "where": "second figure, behind her",
+     "severity": "high",
+     "owner": "Cast record (v2 turnaround)",
+     "keys": [
+      [
+       "scabbard|sheath|sword"
+      ],
+      [
+       "float|gap|off (her|the) back|not against|away from (her|the) back|detached|hover|space between|strip of background"
+      ]
+     ]
+    },
+    {
+     "flaw": "profiles disagree with each other and with front/back: scabbard length and position change (LEFT to the hem, RIGHT shorter/different), crossguard pointing front-to-back",
+     "where": "LEFT vs RIGHT figures",
+     "severity": "medium",
+     "owner": "Cast record",
+     "keys": [
+      [
+       "scabbard|sheath|sword|crossguard|guard|hilt"
+      ],
+      [
+       "differ|disagree|inconsistent|length|changes|shorter|longer|mismatch|position|between (the )?views"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [
+    "braid side wanders between views"
+   ],
+   "must_not_flag": [],
+   "note": "the operator: 'looks fine from the front but the side profile when facing left or right its not right'."
+  },
+  {
+   "id": "X22",
+   "polarity": "positive",
+   "checklist": "board",
+   "counted": true,
+   "what": "short01 C17 video take (Take 1), frame 60",
+   "context": "short01 C17: sunset on the rooftop: Granny and Suna sit side by side on the parapet, seen from behind; a kite hangs still in the sky above them.",
+   "picture": "blind/X22.png",
+   "context_pictures": [
+    "blind/ctx/short01_c17_plate.png"
+   ],
+   "expected": [
+    {
+     "flaw": "double wall: they sit on one parapet with a second, parallel parapet a metre behind/in front of them",
+     "where": "foreground wall they sit on and the wall right behind them",
+     "severity": "high",
+     "owner": "location plate P17 (the plate already has two walls)",
+     "keys": [
+      [
+       "(double|two|twin|second|parallel|doubled)\\b[^.]*\\b(parapet|wall|ledge)|(parapet|wall|ledge)s?\\b[^.]*\\b(twin|double|doubled|parallel)"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [
+    "kite string ends in mid-air (nobody flies it)"
+   ],
+   "must_not_flag": [],
+   "note": ""
+  },
+  {
+   "id": "X23",
+   "polarity": "positive",
+   "checklist": "board",
+   "counted": true,
+   "what": "C2 board candidate (MOSS edit, arm j seed 902)",
+   "context": "Location 'village' (short03): one village in a snowy pine forest at deep blue dusk. Set plan: one road from the south-west to ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST palisade of sharpened logs (about 3x a person); inside, a snowy square with a round stone well; shuttered timber houses in rows on the north and east. The palisade protects the village. Maren (Cast v1): young woman warrior, very pale, long white-silver hair in one low braid, pale grey eyes, expressionless, dark charcoal high-collared long coat over dark leather armour with steel pauldrons, red cord sash, dark gloves and boots, huge plain steel greatsword on her back (hilt over her left shoulder). Greatsword about her height. Brann (Cast): old man, short and hunched, bald with a long white beard, nervous fawning smile, heavy brown fur-trimmed coat with a leather belt, felt boots, small leather coin pouch. A hollow (demon) hides in his skin. Beat: C2 (the price): inside the gate; the headman Brann bows low and holds out a leather pouch in both hands; Maren (left) does not move, does NOT take it, her eyes on him. Line: 'The price, as agreed... please.' Two-shot. Gate closed.",
+   "picture": "blind/X23.png",
+   "context_pictures": [
+    "blind/ctx/village_master.png",
+    "blind/ctx/village_setplan.png",
+    "blind/ctx/maren_v1_cast_front.png",
+    "blind/ctx/brann_cast_front.png"
+   ],
+   "expected": [
+    {
+     "flaw": "beat contradicted: Maren grips the pouch with her hand (taking it); script: she does not move, does not take it",
+     "where": "centre",
+     "severity": "high",
+     "owner": "board",
+     "keys": [
+      [
+       "tak(e|es|ing)|reach|grab|grip|accept|receiv|hold"
+      ],
+      [
+       "pouch|purse|bag|coin"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [
+    "Maren off-model: white plate armour and a blue cape, no greatsword visible",
+    "palisade runs between the well and the far houses (houses outside the wall)",
+    "well oversized"
+   ],
+   "must_not_flag": [],
+   "note": ""
+  },
+  {
+   "id": "X24",
+   "polarity": "negative",
+   "checklist": "board",
+   "counted": true,
+   "what": "C1 board (New view, P-H3-Image)",
+   "context": "Location 'village' (short03): one village in a snowy pine forest at deep blue dusk. Set plan: one road from the south-west to ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST palisade of sharpened logs (about 3x a person); inside, a snowy square with a round stone well; shuttered timber houses in rows on the north and east. The palisade protects the village. Maren (Cast v1): young woman warrior, very pale, long white-silver hair in one low braid, pale grey eyes, expressionless, dark charcoal high-collared long coat over dark leather armour with steel pauldrons, red cord sash, dark gloves and boots, huge plain steel greatsword on her back (hilt over her left shoulder). Greatsword about her height. Beat: C1 (arrival): dusk, snow; Maren walks up the road (L to R) to the palisade gate; shutters on the gatehouse and the houses above the wall clack shut, a face vanishes. Wide, she is small against the wall.",
+   "picture": "blind/X24.png",
+   "context_pictures": [
+    "blind/ctx/village_master.png",
+    "blind/ctx/maren_v1_cast_front.png"
+   ],
+   "expected": [],
+   "allowed_true_minor": [
+    "v1 greatsword: bare blade, no scabbard/strap",
+    "no house roofs/shutters above the wall for the shutter beat (one long roof only)"
+   ],
+   "must_not_flag": [],
+   "note": ""
+  },
+  {
+   "id": "X25",
+   "polarity": "positive",
+   "checklist": "board",
+   "counted": true,
+   "what": "C2 board candidate (MOSS edit, arm h seed 903)",
+   "context": "Location 'village' (short03): one village in a snowy pine forest at deep blue dusk. Set plan: one road from the south-west to ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST palisade of sharpened logs (about 3x a person); inside, a snowy square with a round stone well; shuttered timber houses in rows on the north and east. The palisade protects the village. Maren (Cast v1): young woman warrior, very pale, long white-silver hair in one low braid, pale grey eyes, expressionless, dark charcoal high-collared long coat over dark leather armour with steel pauldrons, red cord sash, dark gloves and boots, huge plain steel greatsword on her back (hilt over her left shoulder). Greatsword about her height. Brann (Cast): old man, short and hunched, bald with a long white beard, nervous fawning smile, heavy brown fur-trimmed coat with a leather belt, felt boots, small leather coin pouch. A hollow (demon) hides in his skin. Beat: C2 (the price): inside the gate; the headman Brann bows low and holds out a leather pouch in both hands; Maren (left) does not move, does NOT take it, her eyes on him. Line: 'The price, as agreed... please.' Two-shot. Gate closed.",
+   "picture": "blind/X25.png",
+   "context_pictures": [
+    "blind/ctx/village_master.png",
+    "blind/ctx/village_setplan.png",
+    "blind/ctx/maren_v1_cast_front.png",
+    "blind/ctx/brann_cast_front.png"
+   ],
+   "expected": [
+    {
+     "flaw": "inner palisade: the two figures stand in a corridor between two wall runs; a palisade runs inside the square in front of the right-hand houses",
+     "where": "centre and right foreground",
+     "severity": "high",
+     "owner": "board",
+     "keys": [
+      [
+       "(inner|second|double|another|two|extra|interior|inside|parallel)\\b[^.]*\\b(palisade|wall|fence|ring|run)|(palisade|wall|fence)[^.]*\\b(inside|through|across|cuts|crosses|within|into)\\b[^.]*\\b(village|square)|corridor"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [
+    "Maren's hand at the pouch (takes it)",
+    "a dark spire/tower cut off at the top edge",
+    "high camera"
+   ],
+   "must_not_flag": [],
+   "note": ""
+  },
+  {
+   "id": "X26",
+   "polarity": "positive",
+   "checklist": "board",
+   "counted": true,
+   "what": "frame from the village walk test, cut a (road to the gate)",
+   "context": "Location 'village' (short03): one village in a snowy pine forest at deep blue dusk. Set plan: one road from the south-west to ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST palisade of sharpened logs (about 3x a person); inside, a snowy square with a round stone well; shuttered timber houses in rows on the north and east. The palisade protects the village. Maren (Cast v1): young woman warrior, very pale, long white-silver hair in one low braid, pale grey eyes, expressionless, dark charcoal high-collared long coat over dark leather armour with steel pauldrons, red cord sash, dark gloves and boots, huge plain steel greatsword on her back (hilt over her left shoulder). Greatsword about her height.",
+   "picture": "blind/X26.png",
+   "context_pictures": [
+    "blind/ctx/village_master.png",
+    "blind/ctx/plate_Pa_road_outside.png"
+   ],
+   "expected": [
+    {
+     "flaw": "Maren too big for the set: with the plate's horizon at y~451 (Pa wall vanishing lines, 1.6 m eye height) her eyes are at y~320 and feet at y~640, about 2.7 m tall; taller than the gate arch she walks up to",
+     "where": "centre, Maren against the gate",
+     "severity": "medium",
+     "owner": "take (walk test placement/scale)",
+     "keys": [
+      [
+       "too (big|large|tall)|giant|oversiz|far above the horizon|taller than|as tall as|out of scale|wrong scale|scale"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [
+    "v1 greatsword: bare blade, no scabbard/strap"
+   ],
+   "must_not_flag": [],
+   "note": "Re-scored 2026-11-06 by the critic owner: negative -> positive. The critics' scale flags (r0/r1/r2) were first scored as depth false alarms; a horizon check (eye-height camera: a standing adult's eyes sit on the horizon at any depth) shows she is really too big."
+  },
+  {
+   "id": "X27",
+   "polarity": "negative",
+   "checklist": "board",
+   "counted": true,
+   "what": "C5 board (New view, Fizgig H3)",
+   "context": "Location 'village' (short03): one village in a snowy pine forest at deep blue dusk. Set plan: one road from the south-west to ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST palisade of sharpened logs (about 3x a person); inside, a snowy square with a round stone well; shuttered timber houses in rows on the north and east. The palisade protects the village. Liesl: young village woman, brown hair under a grey wool headscarf, dark green dress, cream apron, brown shawl; her small son Tam in a brown fur hat and padded coat. Beat: C5 (the cost): the villagers in the square recoil from her, not the hollow; Liesl pulls Tam behind her skirt, both look screen-LEFT toward Maren (off screen). 'Don't meet her eyes.' Smoke drifts in from the left.",
+   "picture": "blind/X27.png",
+   "context_pictures": [
+    "blind/ctx/village_master.png",
+    "blind/ctx/liesl_tam_cast.png"
+   ],
+   "expected": [],
+   "allowed_true_minor": [
+    "small fires burning at the foot of the house wall / at the doorway villagers' feet (the beat asked only for smoke)",
+    "well against the palisade (master: mid-square)"
+   ],
+   "must_not_flag": [],
+   "note": ""
+  },
+  {
+   "id": "X28",
+   "polarity": "positive",
+   "checklist": "board",
+   "counted": true,
+   "what": "C2 board candidate (MOSS edit, arm j seed 903)",
+   "context": "Location 'village' (short03): one village in a snowy pine forest at deep blue dusk. Set plan: one road from the south-west to ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST palisade of sharpened logs (about 3x a person); inside, a snowy square with a round stone well; shuttered timber houses in rows on the north and east. The palisade protects the village. Maren (Cast v1): young woman warrior, very pale, long white-silver hair in one low braid, pale grey eyes, expressionless, dark charcoal high-collared long coat over dark leather armour with steel pauldrons, red cord sash, dark gloves and boots, huge plain steel greatsword on her back (hilt over her left shoulder). Greatsword about her height. Brann (Cast): old man, short and hunched, bald with a long white beard, nervous fawning smile, heavy brown fur-trimmed coat with a leather belt, felt boots, small leather coin pouch. A hollow (demon) hides in his skin. Beat: C2 (the price): inside the gate; the headman Brann bows low and holds out a leather pouch in both hands; Maren (left) does not move, does NOT take it, her eyes on him. Line: 'The price, as agreed... please.' Two-shot. Gate closed.",
+   "picture": "blind/X28.png",
+   "context_pictures": [
+    "blind/ctx/village_master.png",
+    "blind/ctx/village_setplan.png",
+    "blind/ctx/maren_v1_cast_front.png",
+    "blind/ctx/brann_cast_front.png"
+   ],
+   "expected": [
+    {
+     "flaw": "inner palisade: a wall runs from the gate into the village with houses on both sides; a second palisade in the right foreground",
+     "where": "left-middle and bottom right",
+     "severity": "high",
+     "owner": "board",
+     "keys": [
+      [
+       "(inner|second|double|another|two|extra|interior|inside|parallel)\\b[^.]*\\b(palisade|wall|fence|ring|run)|(palisade|wall|fence)[^.]*\\b(inside|through|across|cuts|crosses|within|into)\\b[^.]*\\b(village|square)|corridor"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [
+    "Maren reaches for the pouch with both hands (beat)",
+    "Maren off-model (silver plate, blue tabard and cape)"
+   ],
+   "must_not_flag": [],
+   "note": ""
+  },
+  {
+   "id": "X29",
+   "polarity": "negative",
+   "checklist": "board",
+   "counted": true,
+   "what": "frame from the village walk test, cut c (across the square)",
+   "context": "Location 'village' (short03): one village in a snowy pine forest at deep blue dusk. Set plan: one road from the south-west to ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST palisade of sharpened logs (about 3x a person); inside, a snowy square with a round stone well; shuttered timber houses in rows on the north and east. The palisade protects the village. Maren (Cast v1): young woman warrior, very pale, long white-silver hair in one low braid, pale grey eyes, expressionless, dark charcoal high-collared long coat over dark leather armour with steel pauldrons, red cord sash, dark gloves and boots, huge plain steel greatsword on her back (hilt over her left shoulder). Greatsword about her height.",
+   "picture": "blind/X29.png",
+   "context_pictures": [
+    "blind/ctx/village_master.png",
+    "blind/ctx/plate_Pc_square_well.png"
+   ],
+   "expected": [],
+   "allowed_true_minor": [
+    "v1 greatsword: bare blade, no scabbard/strap"
+   ],
+   "must_not_flag": [],
+   "note": ""
+  },
+  {
+   "id": "X30",
+   "polarity": "positive",
+   "checklist": "master",
+   "counted": false,
+   "what": "the location's master establishing picture v2 (root of every village view), high three-quarter view from outside",
+   "context": "Location 'village' (short03), set plan v2: one village in a snowy pine forest at deep blue dusk. ONE closed palisade ring of sharpened logs (about 3x a person) around the whole village; its only opening is ONE gatehouse (square two-storey timber tower, steep snowy hipped roof, one shuttered window per face, double wooden gate in its arch) in the WEST side; the road arrives from the south-west at the gate. Inside: a square with a round stone well in the middle; shuttered timber house rows on the north, east and south, with a lane between the houses and the palisade. Rules: every house is inside the ring; the ring has exactly one opening, the gatehouse, where the road arrives; no wall ends in the open.",
+   "picture": "blind/X30.png",
+   "context_pictures": [
+    "blind/ctx/village_setplan_v2.png",
+    "blind/ctx/village_cameras_v2.png"
+   ],
+   "expected": [
+    {
+     "flaw": "house outside the ring: a snowy roof above the top of the far-right wall run near its right end, with pines behind it, i.e. beyond the wall",
+     "where": "top right, above the far wall's right end",
+     "severity": "high",
+     "owner": "location master v2",
+     "keys": [
+      [
+       "outside|beyond|behind the (far )?(wall|palisade|ring)|past the (wall|palisade)"
+      ],
+      [
+       "house|roof|building|hut|structure"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [
+    "ring drawn as a 4-sided rectangle, plan v2 is an octagon",
+    "gatehouse side face has no window (plan: one per face)",
+    "a partly hidden small structure in the far corner between the two back rows"
+   ],
+   "must_not_flag": [
+    "a missing house row (all three are present: the far wall is two runs meeting at a corner at x≈690; read from the SW: N 5, E 3, S 4)"
+   ],
+   "note": "Added 2026-11-06. short03 CRITIC.md flagged the outside house (real) and a missing row (not real). The master is read diagonally from the SW: corners SW near (x≈900,y≈600), NW far left, NE = the top-edge peak at x≈690, SE right; gate wall = W. Lesson for the prompt: on high three-quarter views find the corners from the wall's top edge before naming walls or rows."
+  }
+ ]
+}
