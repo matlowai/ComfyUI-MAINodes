@@ -195,7 +195,8 @@ checks["loudness reads a sealed take"] = st == 200 and "sound" in loud
 # ---- take records and uploads ---------------------------------------------------------------------------------------
 tid = f"take-u79-{T}"
 record = {"id": tid, "kind": "run", "created": 1, "number": 1, "status": "success", "private": True, "media": [{"kind": "image", **R["img"]["files"][0]}],
-          "text": "a recipe line", "prompt": img, "graph": {"nodes": [], "extra": {}}, "notes": [{"text": "a note"}], "rating": "pg"}
+          "text": "a recipe line", "prompt": img, "graph": {"nodes": [], "extra": {}}, "notes": [{"text": "a note"}], "rating": "pg",
+          "story": {"ref": "story:u79@1", "beat": "b1", "from": "compile"}}
 st, out = j(f"/userdata/snap%2Ftakes%2F{tid}.json?overwrite=true", raw=json.dumps(record).encode(), method="POST")
 disk = ROOT / "user" / MEMBER / "snap" / "takes" / f"{tid}.json"
 checks["private take record sealed on disk"] = st == 200 and out == f"snap/takes/{tid}.json" and magic(disk) and b"a recipe line" not in disk.read_bytes()
@@ -205,6 +206,7 @@ j("/mainodes/snap/vault/lock", {})
 st, stub = j(f"/userdata/snap%2Ftakes%2F{tid}.json")
 R["stub"] = stub
 checks["locked record = stub"] = st == 200 and stub.get("locked") and stub.get("kept_encrypted") and stub.get("prompt") is None and stub.get("graph") is None and stub.get("media") and "text" not in stub
+checks["a locked stub keeps the Book beat it was cut at (story)"] = stub.get("story") == record["story"]  # G3: a Book cut lists under its beat while locked
 st, out = j(f"/userdata/snap%2Ftakes%2F{tid}.json?overwrite=true", raw=json.dumps(stub).encode(), method="POST")
 checks["writing a stub back -> 423"] = st == 423 and magic(disk)
 rec2 = {**record, "id": tid + "b"}

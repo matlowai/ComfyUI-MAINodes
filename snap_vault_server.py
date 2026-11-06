@@ -355,7 +355,7 @@ def seal_prompt(json_data, found, saver):
 
 # ---- the middleware: /view, take records, uploads, who queued a prompt ------------------------------------------------
 STUB = ("id", "kind", "prompt_id", "created", "finished", "seconds", "group", "workflow", "number", "status", "media", "private", "nsfw",
-        "rating", "rating_set", "parent", "made_from", "verdict", "prior", "metadata", "cached_from", "sound", "updated", "world", "hash", "seed_hash")
+        "rating", "rating_set", "parent", "made_from", "verdict", "prior", "metadata", "cached_from", "sound", "updated", "world", "story", "hash", "seed_hash")  # `story`: a Book cut's beat pin, listed like `world` (SNAP-R68)
 
 
 def record(path, asker):
