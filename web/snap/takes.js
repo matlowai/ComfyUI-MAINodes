@@ -279,7 +279,7 @@ async function captureRun(id, started, status, error, failedNode) {
     id: `take-${id}`, kind: "run", prompt_id: id, created: started, finished: Date.now(), seconds: Math.round((Date.now() - started) / 100) / 10,
     group, workflow: app.extensionManager.workflow.activeWorkflow?.filename ?? "", number: n,
     status, ...(error ? { error, failed_node: failedNode } : {}), text, seed, media: files, ...(sound?.sound ? { sound: { mean_db: sound.mean_db, max_db: sound.max_db } } : {}),
-    ...(extra?.snap_marks?.private ? { private: true } : {}), ...(extra?.snap_marks?.nsfw ? { nsfw: true } : {}),
+    ...(extra?.snap_marks?.private ? { private: true } : {}), ...(extra?.snap_marks?.nsfw ? { nsfw: true } : {}), ...(extra?.snap_marks?.encrypted ? { kept_encrypted: true } : {}),
     ...rated(extra?.snap_marks, graph, parent), ...madeFrom(graph, parent),
     ...(extra?.snap_marks?.metadata === false ? { metadata: false } : {}), ...(extra?.snap_marks?.kept ? { metadata_kept: extra.snap_marks.kept } : {}), ...(Object.keys(swapped).length ? { swapped } : {}), ...(parent ? { parent } : {}), ...await hashes(canonical(prompt, swapped)),
     ...(graph?.extra?.snap?.world ? { world: placedCheck(graph.extra.snap.world, prompt) } : {}), ...(twin ? { cached_from: twin.id } : {}), verdict: null, prior: false, notes: [], graph, prompt,
