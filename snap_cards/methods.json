@@ -146,21 +146,77 @@
       "unwired": "not wired yet: core's template is nine nodes (resize, preprocess, tiled encode, conditioning, 1-step KSampler, tiled decode, post-process) and Off by bypass can't pass the picture through its encode/decode; needs its own Off and one real run first"
     },
     {
+      "id": "stage2",
+      "slot": "upscale",
+      "kind": "take",
+      "title": "Stage 2 (the take's own recipe, light denoise)",
+      "does": "pixels + second pass",
+      "media": { "in": "VIDEO", "out": "VIDEO" },
+      "kit": "video",
+      "needs": [],
+      "packs": ["H3V2VInit", "H3DeropeSigmas"],
+      "local_or_api": "local",
+      "constraints": ["H3 takes (Ref2V, FL2V, text): its prompt starts from H3's empty latent", "w, h multiples of 32"],
+      "options": {
+        "denoise": { "default": 0.3, "min": 0.05, "max": 1.0, "why": "how much of the take is made again, on its own schedule: 0.3 starts where 30 % of the denoise is left (H3DeropeSigmas, the jerk/oracle branch's start)" },
+        "upscaler": { "default": null, "loader": "UpscaleModelLoader", "folder": "upscale_models", "why": "a pixel model before the Lanczos resize (2x-AnimeSharpV4_RCAN for anime); none = Lanczos only" }
+      },
+      "run": { "plate": "pixels", "empty": ["EmptyMiniMaxH3LatentAV"], "grid": 32, "factor": 2, "audio_mode": "pin the original outright (0.0)" },
+      "guidance": { "line": "", "evidence": "measured", "source": "PLAN U102b", "n": 1, "hardware": "5090" },
+      "cost": { "community_s": null, "local_s": null, "local_s_per_mp_frame": null, "vram_gb": null }
+    },
+    {
       "id": "h3_latent",
       "slot": "upscale",
-      "kind": "media",
+      "kind": "take",
       "title": "H3 latent upscale (refine pass)",
       "does": "latent + second pass",
-      "media": { "in": "LATENT", "out": "LATENT" },
+      "media": { "in": "VIDEO", "out": "VIDEO" },
       "kit": "video",
-      "scale": { "type": "free" },
       "needs": [{ "folder": "latent_upscale_models", "match": "minimax_h3" }],
-      "packs": ["MiniMaxH3LatentUpscaleWithModel"],
+      "packs": ["MiniMaxH3LatentUpscaleWithModel", "H3V2VInit", "H3DeropeSigmas"],
       "local_or_api": "local",
-      "constraints": ["w, h multiples of 32"],
+      "constraints": ["H3 takes: its prompt starts from H3's empty latent", "w, h multiples of 32"],
+      "options": {
+        "denoise": { "default": 0.3, "min": 0.05, "max": 1.0, "why": "as Stage 2" },
+        "upscaler": { "default": "minimax_h3_latent_upscaler_3d_conv_v1_bf16.safetensors", "loader": "LatentUpscaleModelLoader", "folder": "latent_upscale_models", "why": "the latent model that makes the bigger latent from the take's own" }
+      },
+      "run": { "plate": "latent", "empty": ["EmptyMiniMaxH3LatentAV"], "grid": 32, "factor": 2, "audio_mode": "pin the original outright (0.0)" },
       "guidance": { "line": "Pika H3 recipe: latent 1.5×, then 2 refine steps (er_sde, sigmas 0.7 / 0.494 / 0) with the refiner LoRA", "evidence": "opinion", "source": "scout/upscalers §1 (NebSH)" },
-      "cost": { "community_s": null, "local_s": null, "vram_gb": null },
-      "unwired": "works before decode with a second sampling pass; the H3 Render has no such slot yet"
+      "cost": { "community_s": null, "local_s": null, "vram_gb": null }
+    },
+    {
+      "id": "tessera",
+      "slot": "upscale",
+      "kind": "take",
+      "title": "Tessera (tiled, 4K)",
+      "does": "tiled guided refine",
+      "media": { "in": "VIDEO", "out": "VIDEO" },
+      "kit": "video",
+      "needs": [{ "folder": "diffusion_models", "match": "ref2va" }],
+      "packs": ["TesseraEncode", "TesseraRefine", "TesseraArgs"],
+      "credit": "Tessera by hashu786 (github.com/hashu786/ComfyUI-Tessera, MIT)",
+      "local_or_api": "local",
+      "constraints": ["needs the ComfyUI-Tessera pack", "the take is <Video 1>: its motion is kept; its own style LoRAs are not applied again"],
+      "options": {
+        "hero": { "default": "face", "why": "words for SAM 3.1: the tracked region gets its own first tile and its own schedule; empty = no hero tile" },
+        "anchor": { "default": null, "why": "a take whose frame 0 is <Picture 1> (this take's stage 2 is best); else the take's own Picture 1, else its frame 0. Tessera's laws: at 4x the still goes in as the attention reference, never spliced" }
+      },
+      "run": {
+        "grid": 32, "factor": 4,
+        "clip": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors", "vae": "minimax_h3_video_vae_fp16.safetensors", "audio_vae": "minimax_h3_audio_vae_fp32.safetensors",
+        "model": "minimax_h3_ref2va_pruned_int8_convrot.safetensors", "turbo": "pika_h3_flex_ref2va_comfy_bf16.safetensors",
+        "detail": { "file": "minimax_h3_lms_v1.0_r64.safetensors", "head": 0.75, "tail": 1.0 },
+        "sampler": "er_sde", "sampler_fine": "euler", "sigmas": "1.0, 0.7, 0.4, 0.0", "segment_frames": 56,
+        "prompt": "subject_definitions:\n<Video 1>: the reference video. Its picture, motion, framing, timing and content are the target video's content.\n<Picture 1> is a high resolution reference of the first frame of the video.\n\nretention_analysis:\n<Video 1>: fully_preserved - <Video 1> is reproduced one to one as the target video. Every frame matches the source.\n\nEnhance this video with sharp, crisp details while keeping its own style, colours and line work exactly as in <Video 1>.",
+        "args": { "video_ref_crop": "per_tile", "image_ref_crop": "per_tile", "guide_noise": 0.0, "guide_noise_band": "full", "guide_noise_t": "per_frame", "guide_release": 0.8, "guide_inherit": true, "hero_guide_noise": -1.0,
+          "motion_adapt": true, "motion_release_floor": 0.0, "fine_below_sigma": 0.75, "tile_select": "", "tile_limit": 0, "flat_skip": 4.0, "composite": "pixel" },
+        "refine": { "spatial_tile": "high_vram", "tile_width": 1024, "tile_height": 1024, "temporal_tile": "high_vram", "temporal_size": 124, "temporal_overlap": 4, "context_border": 64,
+          "seam_overlap": 32, "hero_min": 896, "hero_fit": "median", "cfg": 1.0, "seed_mode": "global", "pixel_out": true, "console_progress": "overall" },
+        "hero": { "detector": "sam3.1_multiplex_fp16.safetensors", "threshold": 0.5, "sigmas": "1.0, 0.85, 0.7, 0.55, 0.4, 0.0" }
+      },
+      "guidance": { "line": "", "evidence": "measured", "source": "PLAN U102b; Tessera docs/LAWS.md", "n": 1, "hardware": "5090" },
+      "cost": { "community_s": null, "local_s": null, "local_s_per_mp_frame": null, "vram_gb": null }
     },
     {
       "id": "ltx_spatial",

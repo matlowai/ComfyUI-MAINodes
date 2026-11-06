@@ -14,7 +14,7 @@
 // does) · SNAP-R25 onboarding: the sheet's functions; propose_downloads never downloads; SFW only filters the lists ·
 // SNAP-R59 Cast by reference (list_cast, save_cast, apply_cast) · SNAP-R60/R61 records, pins, retake, update_pins ·
 // SNAP-R62 clean-up: delete_record waits for the person · SNAP-R63 rerun: any pinned reference swapped · SNAP-R65 list_activity, list_docket, wait_for read the Work card ·
-// SNAP-R71/R72 edit_from_context (a new view from ordered context pictures) · SNAP-R77 make_character_sheet · SNAP-R80 open_view (a picture full size) · SNAP-R73 add_audio_ref, remove_audio_ref, a Cast's voice · see docs/SNAP_RULES.md
+// SNAP-R71/R72 edit_from_context (a new view from ordered context pictures) · SNAP-R77 make_character_sheet · SNAP-R80 open_view (a picture full size) · SNAP-R81/R82 upscale_take · SNAP-R73 add_audio_ref, remove_audio_ref, a Cast's voice · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import { BRICKS, PACK_BRICKS } from "./bricks.js";
@@ -32,6 +32,7 @@ import * as PL from "./plates.js";
 import * as C from "./candidates.js";
 import * as ED from "./edits.js";
 import * as EX from "./extend.js";
+import * as UP from "./upscale.js";
 import * as K from "./checks.js";
 import * as SC from "./scenes.js";
 import * as OB from "./onboarding.js";
@@ -292,7 +293,7 @@ export const TOOLS = [
   },
   {
     name: "list_methods",
-    description: "The methods a slot can hold (SNAP-R14), from the method registry (snap_cards/methods.json under the person's snap/methods.json). Every method has id, title, does, install_state (from the model folders and installed nodes now: ready, or which weights or nodes are missing), wired, fits (this recipe), current, local_or_api, guidance (one line with its evidence: measured / claimed / opinion / none, and the source), cost and constraints. A media slot (upscale) also says its factor and the outcome headline; a hand-wired step between its sockets is listed as custom. The turbo slot's methods are this family's turbos from the model graph: merges (swap the diffusion model) and turbo LoRAs (add a core row), each with the steps / cfg / sampler / scheduler it was distilled for.",
+    description: "The methods a slot can hold (SNAP-R14), from the method registry (snap_cards/methods.json under the person's snap/methods.json). Every method has id, title, does, install_state (from the model folders and installed nodes now: ready, or which weights or nodes are missing), wired, fits (this recipe), current, local_or_api, guidance (one line with its evidence: measured / claimed / opinion / none, and the source), cost and constraints. A media slot (upscale) also says its factor and the outcome headline; a hand-wired step between its sockets is listed as custom. The upscale slot also lists take methods (kind take, runs_on: stage2, h3_latent, tessera): they make an existing take bigger with upscale_take, never in the chain. The turbo slot's methods are this family's turbos from the model graph: merges (swap the diffusion model) and turbo LoRAs (add a core row), each with the steps / cfg / sampler / scheduler it was distilled for.",
     inputSchema: { type: "object", properties: { slot: slotEnum }, required: ["slot"] },
     annotations: { readOnlyHint: true },
     run: async ({ slot }) => { await M.load(); await S.load(); return S.describe(slot); },
@@ -1058,6 +1059,23 @@ export const TOOLS = [
     run: async ({ take, method = "relight", example, change, who, becomes, frames, lighter, count = 2, clips = 1, antiburn = 0, prompt }) => {
       await Promise.all([T.load(), S.load()]); const t = T.get(take); if (!t) throw new Error(`No take ${take}`);
       return S.list("extend").some((m) => m.id === method) ? EX.start(t, method, { clips, antiburn, prompt, by: "agent" }) : ED.start(t, method, { example, change, who, becomes, frames, lighter, count, by: "agent" });
+    },
+  },
+  {
+    name: "upscale_take",
+    description: "Make a take bigger with a take method of the upscale slot (list_methods slot: upscale, kind take; SNAP-R81/R82): the result lands as a new take whose parent is the take, with its world pins. stage2 (default): the take's own recipe (model, LoRAs, words, references, seed) run again from its own frames, upscaled (Lanczos, or `upscaler`, a pixel model from upscale_models, first) and VAE-encoded at the size, sampled from `denoise` (default 0.3: light; the face and line work get redrawn, the geometry holds) with the take's sound kept; H3 takes only. h3_latent: the same from the take's latent made bigger by a latent model (`upscaler` from latent_upscale_models). tessera: the ComfyUI-Tessera pack's tiled refine (4K): the take as <Video 1>, `anchor` (a take id: its frame 0 is <Picture 1>; default the take's newest stage 2; \"none\": the take's own Picture 1), a hero tile on `hero` (SAM 3.1 words, default face; \"\" for none). Size: `width` and/or `height` (the other keeps the shape), else `factor` (stage2 / h3_latent 2, tessera 4), snapped to multiples of 32. Answers at once with the run id and the take it lands as; follow it with wait_for. Uses GPU time (a 2K stage 2 of a 5 s clip is about 18 min on a 5090): unless the person lets agents run, this waits as a proposal they accept.",
+    inputSchema: { type: "object", properties: { take: { type: "string" }, method: { type: "string" }, factor: { type: "number", minimum: 1 }, width: { type: "integer", minimum: 32 }, height: { type: "integer", minimum: 32 },
+      denoise: { type: "number", minimum: 0, maximum: 1 }, upscaler: { type: "string", description: "a model file, or none" }, hero: { type: "string" }, anchor: { type: "string", description: "tessera: a take id whose frame 0 is <Picture 1>, or none" } }, required: ["take"] },
+    annotations: { consequentialHint: true },
+    consequential: true,
+    plan: async ({ take, method = "stage2", factor, width, height, denoise }) => {
+      await T.load(); const t = T.get(take), m = await UP.method(method), z = t && UP.size(t, m, { factor, width, height });
+      return { runs: `${m.title}${denoise != null ? ` at denoise ${denoise}` : ""}: take ${t?.number ?? take} again at ${z ? `${z.width}×${z.height}` : "a bigger size"}, as a new take`, eta_s: m.cost?.local_s_per_mp_frame && z ? Math.round(m.cost.local_s_per_mp_frame * (z.width * z.height / 1e6) * ED.clip(t).frames) : null, from: "PLAN U102b: measured on a 5090" };
+    },
+    run: async ({ take, method = "stage2", factor, width, height, denoise, upscaler, hero, anchor }) => {
+      await T.load(); const t = T.get(take); if (!t) throw new Error(`No take ${take}`);
+      const a = anchor === undefined ? undefined : anchor === "none" ? null : T.get(anchor); if (a === undefined && anchor !== undefined) throw new Error(`No take ${anchor} to anchor on`);
+      return UP.start(t, method, { factor, width, height, denoise, upscaler, hero, anchor: a, by: "agent" });
     },
   },
   {

@@ -496,7 +496,7 @@ ComfyUI, Dylan's included, nothing here restricts anything (SNAP-R11, DECISIONS 
   carry, and cutting it on the anchor clips gave 0 of 24 drone segments with the picture unchanged. *More:* PLAN U46e,
   U46g, U46_EXTEND_AB_2026-11-04.md, U46g_LONG_AUDIO_2026-11-05.md, `web/snap/extend.js`.
 - **SNAP-R65: Every asynchronous job is visible on the Work card and where it belongs, from the server's own records.**
-  Every prompt Snap queues carries `extra_data.snap_job`: `kind` (run, retake, rerun, paint, propagate, extend, louder,
+  Every prompt Snap queues carries `extra_data.snap_job`: `kind` (run, retake, rerun, paint, propagate, extend, upscale, louder,
   plate, check, preview, make_dial; settei, board, compile, prose kept for the Book), `title` = the job's question in the
   person's words (refused when empty), `about` (take, group, scene, shot, decision, candidate, set, camera, slot; book,
   beat, unit, entity, state kept for the Book), `by` (person | agent; on a gated install the gate adds the session's
@@ -676,9 +676,36 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   drives. *Why:* Dylan 2026-11-05: "it would sure be nice to click on the references, click on a picture and it brings
   it up full size in the web ui". *More:* DECISIONS 2026-11-05, proto/test_u101_full.js.
 
+## Making a take bigger (U102b)
+
+- **SNAP-R81: A take's upscale is a second pass of its own recipe, and lands as a new take.** The upscale slot's take
+  methods (`kind: take` in `snap_cards/methods.json`; `upscale_take`, the take viewer's "Make it bigger") start from a
+  take that exists, never from the chain: `stage2` runs the take's own executed prompt again (model, LoRAs, words,
+  references, seed) with three changes only: its empty H3 latent becomes the take's own frames, upscaled (Lanczos, or a
+  pixel model first) and VAE-encoded at the target, through H3V2VInit with the sound pinned (the jerk/oracle branch's
+  video-to-video start); every sampler that started from that latent starts at `denoise` on its own sigmas
+  (H3DeropeSigmas, the same fraction-of-the-denoise as KSampler's); every size at the render size takes the target. The
+  saved video keeps the take's own sound. `h3_latent` is the same with the take's latent made bigger by a latent model.
+  The result is a take whose parent is the take (`upscale/<method>`, options: size, denoise, upscaler), with the take's
+  world pins (SNAP-R60) and its rating (SNAP-R39). Size is a factor of the render size or a width/height, snapped to
+  multiples of 32. The media methods (RelayVSR, ESRGAN, resize) stay bricks in the chain; `set_method` refuses a take
+  method and names `upscale_take`. A folder ComfyUI doesn't list (RelayVSR's models/relayvsr) is said as checked when it
+  runs, not as missing weights. *Why:* Dylan 2026-11-05: "spatial compression has wacked the face. 2k resolution is
+  wise", "a full pixels through vae like a stage 2 upscale with a light denoise type deal"; short03's F-C23 (no route
+  started from a take at a denoise). *More:* PLAN U102b, LESSONS "U102b", proto/test_u102b.js.
+- **SNAP-R82: Tessera tiles a take with the take as its reference.** `tessera` runs hashu786's ComfyUI-Tessera (MIT, its
+  own pack; Snap says "needs the nodes" without it): Streamed Encode makes the upscaled plate and its guide window by
+  window, Refine samples about 1 MP tiles (20 at 3328x4096) on Ref2VA with the take as <Video 1> and a first-frame still
+  as <Picture 1>, on its validated v4 recipe (turbo head, detail-LoRA euler tail, sigmas 1.0 / 0.7 / 0.4 / 0, guide
+  release 0.8, flat-tile skip, cfg 1), with a hero tile on `hero` (SAM 3.1 words, default "face") on its own schedule.
+  The still is the take's newest stage 2's frame 0 by default (else its own Picture 1): Tessera's laws say a pixel
+  splice is a 2x tool, so at 4x the still goes in as the attention reference. Files, words, sigmas and tiling are the
+  method's `run` (SNAP-R13). *Why:* Dylan 2026-11-05: "you can even try the tessera tiled upscaling process if we wanna
+  try out 4k". *More:* PLAN U102b, the pack's docs/LAWS.md, proto/test_u102b.js.
+
 ## Accounts and the gate (snap-gate)
 
-IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; R81 on).
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; R83 on).
 
 - **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
   use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and

@@ -2,10 +2,11 @@
 // between two media sockets (upscale: the Render's IMAGE or VIDEO and Save); a delta slot edits values on nodes that
 // exist (turbo: its methods are the model graph's turbos, in models.js); a take slot holds methods that make a new take
 // from an existing one (edit: relight, in edits.js; extend: Standard, Long and Strong, in extend.js; region: data-only entries
-// for installed packs, not wired yet), so nothing in the chain fills it. The registry is snap_cards/methods.json under the person's userdata snap/methods.json (field by
+// for installed packs, not wired yet), so nothing in the chain fills it. A media slot may also hold take methods (`kind:
+// take`, the upscale slot's stage 2 and Tessera in upscale.js, SNAP-R81): they run on a take, never in the chain. The registry is snap_cards/methods.json under the person's userdata snap/methods.json (field by
 // field, the person wins, as the model graph). Readiness comes from the model folders and installed nodes at run time.
 // SNAP-R1 generic pass-through · SNAP-R4 outcome faces · SNAP-R11 warn, never block · SNAP-R13 data, not code branches ·
-// SNAP-R14 method slots · SNAP-R19 the tool table is the API · see docs/SNAP_RULES.md
+// SNAP-R14 method slots · SNAP-R19 the tool table is the API · SNAP-R81 a take's upscale runs on the take · see docs/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -50,13 +51,17 @@ export function holder(id) {
 export const slotOf = (key) => methodOf(key)?.slot ?? registry.slots.find((s) => s.kind === "media" && holder(s.id) === key)?.id ?? null;
 export const method = (key) => methodOf(key)?.id ?? (key?.startsWith("node:") ? "custom" : null);
 
-// ready: every model folder the method needs has a file (matching its name pattern) and its nodes are installed
+// ready: every model folder the method needs has a file (matching its name pattern) and its nodes are installed. A folder
+// ComfyUI doesn't list (RelayVSR's models/relayvsr, read by its own node) can't be checked from here: its node says when it runs
 function installState(m) {
-  const lists = M.folders(), nodes = (m.packs ?? []).filter((t) => !LiteGraph.registered_node_types[t]);
-  const missing = (m.needs ?? []).filter((n) => !(lists.get(n.folder) ?? []).some((f) => !n.match || f.toLowerCase().includes(n.match)));
+  const lists = M.folders(), nodes = (m.packs ?? []).filter((t) => !LiteGraph.registered_node_types[t]), known = new Set(M.folderNames());
+  const missing = (m.needs ?? []).filter((n) => known.has(n.folder) && !(lists.get(n.folder) ?? []).some((f) => !n.match || f.toLowerCase().includes(n.match)));
   if (nodes.length) return `needs the nodes ${nodes.join(", ")}`;
   return missing.length ? `needs weights in ${missing.map((n) => `models/${n.folder}${n.match ? ` (${n.match})` : ""}`).join(", ")}` : "ready";
 }
+// the folders a method needs that ComfyUI doesn't list, said instead of a false "needs weights"
+const unchecked = (m) => { const known = new Set(M.folderNames()), out = (m.needs ?? []).filter((n) => !known.has(n.folder)).map((n) => `models/${n.folder}`);
+  return out.length ? { unchecked: `${out.join(", ")}: read by the method's own node, not a ComfyUI model folder, so its weights are checked when it runs (the brick's check says)` } : {}; };
 // every method of a slot in one shape (media and delta alike): id, title, install_state, wired, fits this recipe, current
 export function list(id) {
   if (slot(id).kind === "delta") {
@@ -66,7 +71,8 @@ export function list(id) {
   }
   if (slot(id).kind === "take") return methods(id).map((m) => ({ ...m, install_state: installState(m), wired: !m.unwired, fits: true, current: false }));
   const now = holder(id), k = kit(E.state().bricks.map((b) => b.key));
-  return methods(id).map((m) => ({ ...m, install_state: installState(m), wired: !!m.brick && !m.unwired, fits: !k || m.kit === k, current: !!now && method(now) === m.id }))
+  return methods(id).map((m) => (m.kind === "take" ? { ...m, install_state: installState(m), wired: true, fits: true, current: false, runs_on: "a take: upscale_take" }
+    : { ...m, install_state: installState(m), ...unchecked(m), wired: !!m.brick && !m.unwired, fits: !k || m.kit === k, current: !!now && method(now) === m.id }))
     .concat(now?.startsWith("node:") ? [{ id: "custom", title: `Custom: ${BRICKS[now].title}`, does: "hand-wired", scale: null, install_state: "ready", wired: true, fits: true, current: true }] : []);
 }
 
@@ -146,6 +152,7 @@ export async function set(id, choice, { factor: f } = {}) {
   if (choice === "off") { if (!now) throw new Error(`Nothing fills the ${id} slot`); setOn(now, false); return { method: method(now), on: false }; }
   const m = methods(id).find((x) => x.id === choice);
   if (!m) throw new Error(`No ${id} method "${choice}"; there are: off, ${methods(id).map((x) => x.id).join(", ")}`);
+  if (m.kind === "take") throw new Error(`${m.title} runs on a take, not in the chain: use upscale_take {take, method: "${m.id}"} (or Make it bigger in the take viewer)`);
   if (!m.brick || m.unwired) throw new Error(`${m.title}: ${m.unwired ?? "not wired yet"}`);
   const k = kit(E.state().bricks.map((b) => b.key));
   if (k && m.kit !== k) throw new Error(`${m.title} is for ${m.kit} recipes; this one makes ${k === "image" ? "pictures" : "video"}`);
