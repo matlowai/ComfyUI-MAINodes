@@ -2,7 +2,8 @@
 other's version. One file per record, user snap/<kind>/<id>.json (snap/_archived/<kind>/ once archived), every version
 inside; a version is appended, never edited. The hash is sha-256 of the body as canonical JSON (keys sorted).
 SNAP-R60 world versions and pins · SNAP-R62 clean-up is the person's choice · SNAP-R18 local only · SNAP-R58 results are
-never trimmed · see docs/SNAP_RULES.md"""
+never trimmed · SNAP-R96 a private take's record and media stay containers in the export unless the person
+includes them decrypted · see docs/SNAP_RULES.md"""
 import asyncio
 import hashlib
 import json
@@ -14,6 +15,15 @@ import zipfile
 import folder_paths
 from aiohttp import web
 from server import PromptServer
+
+try:
+    from . import snap_vault_server
+except ImportError:  # no `cryptography`: snap_bridge refuses private takes on a privacy-on install, so none is sealed here
+    snap_vault_server = None
+
+
+def sealed(path):
+    return snap_vault_server is not None and snap_vault_server.snap_vault.sealed(path)
 
 routes = PromptServer.instance.routes
 KINDS = ("cast", "card", "set_snapshot")
@@ -177,11 +187,12 @@ def records_of(snap):
 
 
 def takes_of(snap):
-    d = os.path.join(snap, "takes")
+    d, user = os.path.join(snap, "takes"), os.path.basename(os.path.dirname(snap))
     for f in sorted(os.listdir(d)) if os.path.isdir(d) else []:
         if f.endswith(".json"):
+            p = os.path.join(d, f)
             try:
-                yield os.path.join(d, f), read(os.path.join(d, f))
+                yield p, snap_vault_server.record(p, user) if sealed(p) else read(p)
             except (OSError, ValueError):
                 continue
 
@@ -221,7 +232,7 @@ async def sizes(request):
         for root, sub, typ in ((oroot, "snap_exports", "output"), (iroot, "snap_imports", "input")):
             d = os.path.join(root, sub)
             exports += [{"file": f, "subfolder": sub, "type": typ, "bytes": size(os.path.join(d, f))} for f in sorted(os.listdir(d)) if f.endswith(".zip")] if os.path.isdir(d) else []
-        return {"records": rows, "takes": {"count": len(takes), "bytes": sum(size(p) for p, _, _ in tm), "media_bytes": sum(size(os.path.join(oroot, m)) for _, _, ms in tm for m in ms)},
+        return {"records": rows, "takes": {"count": len(takes), "kept_encrypted": sum(1 for _, t in takes if (t or {}).get("kept_encrypted")), "bytes": sum(size(p) for p, _, _ in tm), "media_bytes": sum(size(os.path.join(oroot, m)) for _, _, ms in tm for m in ms)},
                 "total_bytes": sum(x["bytes"] + x["media_bytes"] for x in rows), "exports": exports}
     return web.json_response(await asyncio.to_thread(find))
 
@@ -231,7 +242,7 @@ async def export(request):
     """a zip in output/snap_exports/: manifest.json, the records' files, the input/ media they name, and with with_takes
     the takes that pin them with their output media"""
     q = await request.json()
-    refs, with_takes = q.get("refs") or [], bool(q.get("with_takes"))
+    refs, with_takes, decrypt = q.get("refs") or [], bool(q.get("with_takes")), bool(q.get("decrypt_private"))
     snap = user_snap(request)
     wanted = {tuple(r.split("@")[0].split(":", 1)) for r in refs}
     def make():
@@ -243,7 +254,18 @@ async def export(request):
         stamp = time.strftime("%Y%m%d-%H%M%S")
         out = os.path.join(oroot, "snap_exports", f"snap-world-{stamp}.zip")
         os.makedirs(os.path.dirname(out), exist_ok=True)
-        manifest = {"made": stamp, "records": [], "takes": [], "files": []}
+        manifest = {"made": stamp, "records": [], "takes": [], "files": [], "kept_encrypted": []}
+        user = os.path.basename(os.path.dirname(snap))
+
+        def put(z, path, name, take):
+            """A private take's files go in as their containers, or decrypted when the person asked and holds the key."""
+            if not sealed(path):
+                z.write(path, name)
+            elif decrypt and not take.get("locked"):
+                z.writestr(name, snap_vault_server.plain(path, user))
+            else:
+                z.write(path, name)
+                manifest["kept_encrypted"].append(name)
         with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
             for p, r in found:
                 z.write(p, f"records/{r['kind']}/{r['id']}.json")
@@ -256,10 +278,10 @@ async def export(request):
                 refs_here = {f"{r['kind']}:{r['id']}" for _, r in found}
                 for p, t in takes_of(snap):
                     if t and refs_here & set((t.get("world") or {}).keys()):
-                        z.write(p, f"takes/{t['id']}.json")
+                        put(z, p, f"takes/{t['id']}.json", t)
                         manifest["takes"].append(t["id"])
                         for m in take_media(t):
-                            z.write(os.path.join(oroot, m), f"media/output/{m}")
+                            put(z, os.path.join(oroot, m), f"media/output/{m}", t)
                             manifest["files"].append(f"output/{m}")
             z.writestr("manifest.json", json.dumps(manifest, indent=1))
         return {"file": os.path.basename(out), "subfolder": "snap_exports", "type": "output", "bytes": size(out), "manifest": manifest}

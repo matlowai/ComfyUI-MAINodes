@@ -13,7 +13,7 @@ alone off): with privacy off nothing here runs, and every saver, loader, /view a
   take's record and hands a locked page the record's listing stub (`kept_encrypted`, `locked`) without its prompt and
   graph; POST /upload/image with `snap_vault=1` writes the upload as a container (a frame of a private take); POST
   /prompt tells seal_prompt which ComfyUI user queued it.
-- /mainodes/snap/vault/{status,setup,unlock,lock,rewrap,recover}: keys per account; snap-gate unlocks at sign-in.
+- /mainodes/snap/vault/{status,setup,unlock,lock,rewrap,recover,recovery_key}: keys per account; snap-gate unlocks at sign-in.
 Plaintext of a private take touches disk only in the RAM-backed scratch an ffmpeg step or a file-only loader needs
 (/dev/shm/snap-vault-<pid>/), unlinked when the step ends; loaders open containers in memory.
 SNAP-R37 privacy per install · SNAP-R96 a private take lives encrypted at its own path · SNAP-R97 writing needs no
@@ -38,7 +38,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from aiohttp import web
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 from PIL.PngImagePlugin import PngInfo
 
 import comfy.model_management
@@ -60,6 +60,7 @@ SCRATCH = Path("/dev/shm" if os.path.isdir("/dev/shm") else folder_paths.get_tem
 LOCKED = "kept encrypted: unlock the vault (sign in) to open it"
 FREE_TRIES, WAIT_FIRST, WAIT_CAP = 3, 5, 900  # wrong passphrases before the waits, as snap-gate's sign-in (SNAP-R47)
 fails = {}  # ComfyUI user -> (wrong passphrases, wait until)
+RECOVERY_SAID = "Write this recovery key down now: it is shown once and kept nowhere. With it (or an admin) a lost passphrase can be reset; without both, your private takes are gone."
 
 
 def user_dir():
@@ -351,7 +352,15 @@ def seal_prompt(json_data, found, saver):
 
 # ---- the middleware: /view, take records, uploads, who queued a prompt ------------------------------------------------
 STUB = ("id", "kind", "prompt_id", "created", "finished", "seconds", "group", "workflow", "number", "status", "media", "private", "nsfw",
-        "rating", "rating_set", "parent", "made_from", "verdict", "prior", "metadata", "cached_from", "sound", "updated")
+        "rating", "rating_set", "parent", "made_from", "verdict", "prior", "metadata", "cached_from", "sound", "updated", "world", "hash", "seed_hash")
+
+
+def record(path, asker):
+    """A sealed take record as `asker` may see it: the record (kept_encrypted), or its listing stub while locked."""
+    try:
+        return {**json.loads(plain(path, asker)), "kept_encrypted": True}
+    except snap_vault.Locked:
+        return {**(snap_vault.Container(path).header.get("stub") or {}), "text": "", "notes": [], "prompt": None, "graph": None, "kept_encrypted": True, "locked": True}
 
 
 def tile():
@@ -360,7 +369,7 @@ def tile():
     d = ImageDraw.Draw(img)
     d.rectangle((140, 60, 180, 100), outline=(154, 156, 166), width=3)
     d.arc((146, 38, 174, 74), 180, 360, fill=(154, 156, 166), width=3)
-    d.text((160, 122), "kept encrypted (locked)", fill=(236, 236, 241), anchor="mm")
+    d.text((160, 132), "kept encrypted (locked)", fill=(236, 236, 241), anchor="mm", font=ImageFont.load_default(size=20))
     b = io.BytesIO()
     img.save(b, "PNG")
     return b.getvalue()
@@ -434,30 +443,25 @@ async def take_record(request, handler, path):
     if request.method == "GET":
         if not os.path.isfile(path) or not snap_vault.sealed(path):
             return await handler(request)
-        try:
-            record = json.loads(await asyncio.to_thread(plain, path, user))
-            return web.json_response({**record, "kept_encrypted": True}, headers={"Cache-Control": "no-store"})
-        except snap_vault.Locked:
-            stub = snap_vault.Container(path).header.get("stub") or {}
-            return web.json_response({**stub, "notes": [], "prompt": None, "graph": None, "kept_encrypted": True, "locked": True}, headers={"Cache-Control": "no-store"})
+        return web.json_response(await asyncio.to_thread(record, path, user), headers={"Cache-Control": "no-store"})
     body = await request.read()
     try:
-        record = json.loads(body)
+        rec = json.loads(body)
     except ValueError:
         return await handler(request)
-    if not isinstance(record, dict):
+    if not isinstance(rec, dict):
         return await handler(request)
     takes = os.path.dirname(path)
-    parents = [p for p in [(record.get("parent") or {}).get("take"), *(record.get("made_from") or [])] if isinstance(p, str)]
-    if not (record.get("private") or (os.path.isfile(path) and snap_vault.sealed(path)) or any(snap_vault.sealed(os.path.join(takes, f"{p}.json")) for p in parents)):
+    parents = [p for p in [(rec.get("parent") or {}).get("take"), *(rec.get("made_from") or [])] if isinstance(p, str)]
+    if not (rec.get("private") or (os.path.isfile(path) and snap_vault.sealed(path)) or any(snap_vault.sealed(os.path.join(takes, f"{p}.json")) for p in parents)):
         return await handler(request)
-    if record.get("locked") and record.get("kept_encrypted"):
+    if rec.get("locked") and rec.get("kept_encrypted"):
         return web.json_response({"error": "kept encrypted (locked): unlock the vault (sign in) to change this take", "locked": True}, status=423)
     if request.query.get("overwrite", "true") == "false" and os.path.exists(path):
         return web.Response(status=409, text="File already exists")
-    record.pop("kept_encrypted", None)
+    rec.pop("kept_encrypted", None)
     try:
-        await asyncio.to_thread(seal_out, path, json.dumps(record).encode(), {"vault": user}, {k: record[k] for k in STUB if k in record})
+        await asyncio.to_thread(seal_out, path, json.dumps(rec).encode(), {"vault": user}, {k: rec[k] for k in STUB if k in rec})
     except RuntimeError as e:
         return web.json_response({"error": str(e)}, status=423)
     user_root = PromptServer.instance.user_manager.get_request_user_filepath(request, None)
@@ -555,7 +559,7 @@ async def setup(request, user, body):
         words = await asyncio.to_thread(snap_vault.setup, user_dir(), user, body["passphrase"], admins(), bool(body.get("recovery")))
     except FileExistsError:
         return web.json_response({**status_of(user), "error": "this account already has a vault key; unlock it"}, status=409)
-    return web.json_response({**status_of(user), **({"recovery_key": words, "said": "Write this recovery key down now: it is shown once and kept nowhere. With it (or an admin) a lost passphrase can be reset; without both, your private takes are gone."} if words else {})})
+    return web.json_response({**status_of(user), **({"recovery_key": words, "said": RECOVERY_SAID} if words else {})})
 
 
 @routes.post("/mainodes/snap/vault/unlock")
@@ -600,6 +604,15 @@ async def rewrap(request, user, body):
         return web.json_response({"error": str(e)}, status=404)
     await asyncio.to_thread(snap_vault.reset, user_dir(), who, priv, new, admins())
     return web.json_response({"account": who, "reset": True})
+
+
+@routes.post("/mainodes/snap/vault/recovery_key")
+@vault_route
+async def recovery_key(request, user, body):
+    if user not in snap_vault.unlocked:
+        return web.json_response({**status_of(user), "error": "unlock the vault first"}, status=423)
+    words = await asyncio.to_thread(snap_vault.add_recovery, user_dir(), user, snap_vault.unlocked[user])
+    return web.json_response({**status_of(user), "recovery_key": words, "said": RECOVERY_SAID})
 
 
 @routes.post("/mainodes/snap/vault/recover")

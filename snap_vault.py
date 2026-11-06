@@ -218,6 +218,17 @@ def setup(user_dir, user, passphrase, admins, recovery=False):
     return words
 
 
+def add_recovery(user_dir, user, priv):
+    """A recovery key for an unlocked account (replacing any earlier one); its words are returned once and stored nowhere."""
+    with keys_lock:
+        data = load_keys(user_dir)
+        entry = data["accounts"][user]
+        rec = X25519PrivateKey.generate()
+        entry["escrow"] = [s for s in entry.get("escrow", []) if s["to"] != "recovery"] + [{"to": "recovery", **wrap(raw(priv), rec.public_key(), b"snap-vault/v1/escrow")}]
+        save_keys(user_dir, data)
+    return recovery_words(raw(rec))
+
+
 def unlock(user_dir, user, passphrase, admins):
     """Open the account's key with its passphrase and keep it in memory; escrow is brought up to the current admins."""
     with keys_lock:
