@@ -991,6 +991,12 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   without a reload. *Why:* dogfood F-D01 (short04): the operator's 11 seeded person notes were missing from every
   instruction answer and run pin until a reload, with no stale hint; the Agent library only re-read on focus.
   *More:* dogfood FINDINGS F-D01, proto/test_g1b_fresh.js.
+- **SNAP-R117: A render is lost only when the server has it neither queued nor in its history.** A candidate whose
+  /history read is empty is waiting while its prompt is in /queue; when it isn't, /history is read once more (it can
+  finish between the two reads) before the candidate is marked "the server has no record of this render", and a
+  candidate marked so whose prompt later shows in /history turns ready with its pictures. *Why:* dogfood F-D03
+  (short04): a New view candidate queued behind five runs was failed for good while its render succeeded, so it could
+  be neither seen nor applied. *More:* dogfood FINDINGS F-D03, proto/test_g1b_lost.js (2/6 on the code before).
 
 ## Accounts and the gate (snap-gate)
 

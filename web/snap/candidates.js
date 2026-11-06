@@ -6,7 +6,7 @@
 // apply / reject waits for the person as a proposal unless "Let agents run" is on (tools.js).
 // What applying means belongs to the decision's kind (plates.js: the camera's plate; edits.js: the edit's render):
 // kind(name, { finish, apply, undo }) registers it. Decisions are local JSON in the user's snap/candidates folder.
-// SNAP-R16 the person's pick · SNAP-R17 by: person|agent · SNAP-R18 local only · SNAP-R23 candidates · SNAP-R65 the Work card reads decisions (reload merges another page's) · see docs/snap/SNAP_RULES.md
+// SNAP-R16 the person's pick · SNAP-R17 by: person|agent · SNAP-R18 local only · SNAP-R23 candidates · SNAP-R117 lost only when neither queued nor done · SNAP-R65 the Work card reads decisions (reload merges another page's) · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 
 const DIR = "snap/candidates";
@@ -117,20 +117,27 @@ export async function note(d, c, name, value) {
 // finished once even when several events ask at the same time. One the server has no record of, in its history or its
 // queue, failed (a restart drops both)
 const finishing = new Set();
+// F-D03 (short04): a render read as lost while it waited behind five others had in fact run. A render is lost only when
+// it is neither in /queue nor in /history, asked in that order with the queue read fresh (a render can leave the queue
+// between a /history read and a /queue read); one marked lost that lands later turns ready with its pictures
+const LOST = "the server has no record of this render (restarted?)";
+const history = async (id) => (await (await api.fetchApi(`/history/${id}`)).json())[id];
+const inQueue = async (id) => { const q = await (await api.fetchApi("/queue")).json(); return [...q.queue_running, ...q.queue_pending].some((x) => x[1] === id); };
 export async function settle() {
   await load();
-  let queued = null;
   for (const d of decisions) for (const c of d.candidates) {
-    if (c.state !== "rendering" || finishing.has(c.prompt_id) || !kinds.has(d.kind)) continue;
+    const lost = c.state === "failed" && c.error === LOST;
+    if ((c.state !== "rendering" && !lost) || finishing.has(c.prompt_id) || !kinds.has(d.kind)) continue;
     finishing.add(c.prompt_id);
     try {
-      const h = (await (await api.fetchApi(`/history/${c.prompt_id}`)).json())[c.prompt_id];
+      let h = await history(c.prompt_id);
       if (!h) {
-        queued ??= await api.fetchApi("/queue").then((r) => r.json()).then((q) => new Set([...q.queue_running, ...q.queue_pending].map((x) => x[1])));
-        if (!queued.has(c.prompt_id)) { c.state = "failed"; c.error = "the server has no record of this render (restarted?)"; await save(d); }
-        continue;
+        if (lost || await inQueue(c.prompt_id)) continue; // still waiting its turn (or still lost: nothing new to say)
+        h = await history(c.prompt_id); // it may have finished between the two reads
+        if (!h) { c.state = "failed"; c.error = LOST; await save(d); continue; }
       }
       if (!h.status?.completed && h.status?.status_str !== "error") continue;
+      if (lost) { c.state = "rendering"; delete c.error; } // it ran after all: finished like any other
       if (h.status.status_str !== "success") { c.state = "failed"; c.error = h.status.messages?.find(([k]) => k === "execution_error")?.[1]?.exception_message ?? h.status.status_str; }
       else { await kinds.get(d.kind).finish(d, c, h); c.state = c.state === "rendering" ? "ready" : c.state; }
       await save(d);
