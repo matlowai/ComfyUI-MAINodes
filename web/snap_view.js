@@ -190,6 +190,7 @@ app.registerExtension({
     api.addEventListener("reconnected", register);
     api.addEventListener("mainodes-snap-call", async ({ detail }) => {
       let reply;
+      view.called(detail.agent); // SNAP-R135: the Driven by chip counts idle time from here
       I.setCaller(detail.agent); // what an agent writes is marked with its name (SNAP-R95); one agent drives a page at a time
       try { reply = { id: detail.id, result: await agentCall(detail.tool, detail.args) }; } catch (e) { reply = { id: detail.id, error: e.message }; } finally { I.setCaller(null); }
       api.fetchApi("/mainodes/snap/result", { method: "POST", body: JSON.stringify({ client: api.clientId, ...reply }) });

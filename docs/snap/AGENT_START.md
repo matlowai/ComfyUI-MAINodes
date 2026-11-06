@@ -62,6 +62,11 @@ one you work in so you never collide:
 - One agent drives a page at a time. The page shows "Driven by: <you>" with a Release button for its person. A page
   another agent drives is refused with its name: pick another, or ask the person. If the person presses Release, your
   next call says so; pick a page again.
+- **Let go when your job ends** (SNAP-R135): `use_page {"page": null}` (snapcall: `use_page '{"page": null}'`). A
+  finished agent that keeps its hold leaves the page "Driven by" it. snap_mcp.py lets go when its connection closes; a
+  hold with no call for 10 minutes lapses by itself, the chip shows "idle n min" before that, and your next call says
+  it lapsed. Every call must carry your name (SNAP_AGENT / X-Snap-Agent): an unnamed call on a driven page is refused
+  and says it carries no name.
 - With nothing picked, calls go to the newest tab that sees: the agents' window, or a tab whose person turned "Let
   agents see" on. While a person's tab is open with the control off, a call is refused (it says how to get a page); it
   never goes to another page instead. `SNAP_PAGE=<id>` (or the `X-Snap-Page` header) sends one call to a page without

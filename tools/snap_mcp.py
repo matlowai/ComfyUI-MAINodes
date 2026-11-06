@@ -11,7 +11,8 @@ Example Claude Code config entry (not installed by the pack):
 
     {"mcpServers": {"comfy-snap": {"command": "python", "args": ["custom_nodes/ComfyUI-MAINodes/tools/snap_mcp.py", "--port", "8188"]}}}
 
-SNAP-R30 the agent front door · see docs/snap/SNAP_RULES.md
+SNAP-R30 the agent front door · SNAP-R135 a page this connection bound is released when the connection closes ·
+see docs/snap/SNAP_RULES.md
 """
 import argparse
 import json
@@ -27,6 +28,7 @@ AUTH = {"Authorization": f"Bearer {os.environ['SNAP_TOKEN']}"} if os.environ.get
 AUTH.update({"X-Snap-Page": os.environ["SNAP_PAGE"]} if os.environ.get("SNAP_PAGE") else {})
 # this connection's name for the bridge (use_page binds it to one page; one agent drives a page at a time)
 AUTH["X-Snap-Agent"] = os.environ.get("SNAP_AGENT") or f"mcp-{secrets.token_hex(3)}"
+bound = False  # this connection called use_page: its hold ends with the connection (SNAP-R135)
 
 # answered here, not by the page: it reads a file on this machine, which the page can't
 UPLOAD = {"name": "upload_file", "description": "Upload a local picture, video or audio file into ComfyUI's input folder and return its name; then set_widget points a loader at it (e.g. the First frame's image).",
@@ -76,6 +78,8 @@ def handle(base, message):
         except (OSError, KeyError, urllib.error.URLError) as e:
             return {"content": [{"type": "text", "text": f"upload failed: {e}"}], "isError": True}
     if method == "tools/call":
+        global bound
+        bound = bound or (params.get("name") == "use_page" and (params.get("arguments") or {}).get("page") is not None)
         answer = http(base, "/mainodes/snap/call", {"tool": params.get("name"), "args": params.get("arguments") or {}})
         failed = "error" in answer
         result = answer.get("result")
@@ -118,6 +122,8 @@ def main():
             reply({"jsonrpc": "2.0", "id": message["id"], "error": {"code": -32601, "message": f"Method not found: {e}"}})
         except Exception as e:  # one bad request must not end the session
             reply({"jsonrpc": "2.0", "id": message["id"], "error": {"code": -32603, "message": f"{type(e).__name__}: {e}"}})
+    if bound:  # the agent's session ended: its page is no longer "Driven by" it
+        http(base, "/mainodes/snap/call", {"tool": "use_page", "args": {"page": None}})
 
 
 if __name__ == "__main__":

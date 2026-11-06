@@ -152,10 +152,16 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   const seeLabel = () => { seeBtn.textContent = sight.managed() ? "● Agents' window" : sight.sharing() ? "● Agents can see" : "👁 Let agents see"; seeBtn.classList.toggle("on", sight.sees()); };
   sight.onChange(seeLabel); seeLabel();
   // one agent drives this page at a time (use_page); the person sees which and can let it go
+  // SNAP-R135: the chip says how long since its agent's last call, so a hold left by a finished job shows as idle
   const driverChip = h("span", { className: "snap-driver", hidden: true });
+  let driverAt = 0, idleTimer = 0;
+  const idleText = () => { const m = Math.floor((Date.now() - driverAt) / 60000); return m < 1 ? "" : ` · idle ${m} min (lets go at 10)`; };
+  function called(agent) { if (agent && driverChip.dataset.agent === agent) { driverAt = Date.now(); const el = driverChip.querySelector(".snap-driver-idle"); if (el) el.textContent = ""; } }
   function driver(agent) {
     driverChip.hidden = !agent;
-    driverChip.replaceChildren(...(agent ? [h("span", { textContent: `Driven by: ${agent}` }), h("button", { textContent: "Release", title: "this agent stops driving this page; it is told so on its next call",
+    driverChip.dataset.agent = agent ?? ""; driverAt = Date.now(); clearInterval(idleTimer);
+    if (agent) idleTimer = setInterval(() => { const el = driverChip.querySelector(".snap-driver-idle"); if (el) el.textContent = idleText(); }, 30000);
+    driverChip.replaceChildren(...(agent ? [h("span", { textContent: `Driven by: ${agent}` }), h("span", { className: "snap-driver-idle snap-quiet" }), h("button", { textContent: "Release", title: "this agent stops driving this page; it is told so on its next call",
       onclick: () => api.fetchApi("/mainodes/snap/release", { method: "POST", body: JSON.stringify({ client: api.clientId }) }).then(() => say(`${agent} no longer drives this page`)) })] : []));
   }
   // F-C12: a tab that runs older Snap code than the server serves says so, with the agent that asked when one did
@@ -1623,5 +1629,5 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     return uiRead();
   }
 
-  return { root, stack, render, say, select, driver, stale, openInChanged, metadataChanged, uiRead, uiAct, firstVisit, release: () => { giveBack(); if (opened) { opened = null; render(null); } }, get opened() { return opened; }, get selected() { return selected; } };
+  return { root, stack, render, say, select, driver, called, stale, openInChanged, metadataChanged, uiRead, uiAct, firstVisit, release: () => { giveBack(); if (opened) { opened = null; render(null); } }, get opened() { return opened; }, get selected() { return selected; } };
 }

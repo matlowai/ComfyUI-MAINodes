@@ -7,7 +7,7 @@ description: >
   setups, takes, scenes and shots, Cast and world versions, locations and plates, candidates, the Work card, the Book,
   pages and the agents' window, and the instruction stack (pack, install, person, Book, scene, shot, take).
 scope: [global]
-rules: [SNAP-R1, SNAP-R2, SNAP-R9, SNAP-R11, SNAP-R14, SNAP-R16, SNAP-R17, SNAP-R19, SNAP-R23, SNAP-R24, SNAP-R25, SNAP-R28, SNAP-R30, SNAP-R58, SNAP-R59, SNAP-R60, SNAP-R61, SNAP-R63, SNAP-R65, SNAP-R67, SNAP-R68, SNAP-R73, SNAP-R83, SNAP-R84, SNAP-R90]
+rules: [SNAP-R1, SNAP-R2, SNAP-R9, SNAP-R11, SNAP-R14, SNAP-R16, SNAP-R17, SNAP-R19, SNAP-R23, SNAP-R24, SNAP-R25, SNAP-R28, SNAP-R30, SNAP-R58, SNAP-R59, SNAP-R60, SNAP-R61, SNAP-R63, SNAP-R65, SNAP-R67, SNAP-R68, SNAP-R73, SNAP-R83, SNAP-R84, SNAP-R90, SNAP-R135]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-core"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -85,7 +85,8 @@ Every call in Snap runs under one resolved stack of agent instructions. Read it 
 
 - Work in the person's main tab (they turned "Let agents see" on) or the agents' window: one visible Chrome that
   agents attach to and reload; never headless; another tab only with the person's yes (SNAP-R83, AGENT_START §1).
-- Bind your page with `use_page`; one agent drives a page at a time (SNAP-R30).
+- Bind your page with `use_page`; one agent drives a page at a time (SNAP-R30). Name every call (SNAP_AGENT). When your
+  job ends, let go: `use_page {"page": null}`; a hold with no call for 10 minutes lapses by itself (SNAP-R135).
 - GPU-spending tools wait as proposals unless the person lets agents run (SNAP-R16). Downloads and installs always
   wait for the person's yes; Snap itself never downloads (SNAP-R25).
 

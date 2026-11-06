@@ -8,7 +8,7 @@ description: >
   picture good or show results to the person, after a batch of candidates lands, and whenever a flaw comes back after a
   re-roll.
 scope: [tool:list_critiques, tool:claim_critique, tool:critique_packet, tool:write_critique, tool:critique, tool:critic_report, tool:rerun_dependents, tool:judge_takes, tool:take_frames]
-rules: [SNAP-R101, SNAP-R102, SNAP-R103, SNAP-R104, SNAP-R105, SNAP-R106, SNAP-R107, SNAP-R108, SNAP-R109, SNAP-R110, SNAP-R23, SNAP-R63]
+rules: [SNAP-R101, SNAP-R102, SNAP-R103, SNAP-R104, SNAP-R105, SNAP-R106, SNAP-R107, SNAP-R108, SNAP-R109, SNAP-R110, SNAP-R23, SNAP-R63, SNAP-R135]
 ---
 
 SNAP-R101 the critic is a docket job an agent claims · SNAP-R109 this file is the prompt's one home, and a change ships
@@ -44,6 +44,10 @@ loop, or between your own renders), work it:
 6. If you can't read it (a test pattern, a picture that won't open), `skip_critique` with why.
 
 Then the next row. A critique of a private take keeps its words on the take (sealed by the vault).
+
+When the docket is done (or your run ends), let go of your page: `use_page {"page": null}` (SNAP-R135). A critic that
+keeps its hold leaves the agents' window "Driven by" it for the next agent. Name every call (SNAP_AGENT), so the page
+knows the caller is you.
 
 # The critic prompt (r3, measured: 24/29 caught, 0 false alarms on 9 clean pictures)
 
