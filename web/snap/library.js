@@ -433,6 +433,8 @@ async function locationPicture(p, what) {
   if (!at.input_exists) throw new Error(`${what}: "${p.file}" isn't in this server's input folder (${at.input}); upload it with POST /upload/image (subfolder=snap) and give "snap/<its name>", or give take (and frame)`);
   return { file: p.file, ...(p.from ? { from: p.from } : {}) };
 }
+// F-C28: what a picture is for when a shot cites it: camera (this exact framing) or place (same set, new camera)
+const roleIn = (r, what) => { if (r != null && !["camera", "place"].includes(r)) throw new Error(`${what}: role is camera (this exact framing) or place (the same set, a new camera); not ${JSON.stringify(r)}`); return r ? { role: r } : {}; };
 // a new version of a location (a new record when id is null): {id, ref, n, made}. The whole place each time; a picture
 // given as a take's frame is saved into input/ first
 export async function saveLocation(id, body, { note = "", by = "person" } = {}) {
@@ -449,9 +451,10 @@ export async function saveLocation(id, body, { note = "", by = "person" } = {}) 
     if (names.has(name)) throw new Error(`Two plates are named "${name}": a plate is cited by its name, so each name once`);
     names.add(name);
     if (p.camera && !cameras.some((c) => c.name === p.camera)) throw new Error(`plate ${name}: no camera mark "${p.camera}"; the marks are ${cameras.map((c) => c.name).join(", ") || "none"}`);
-    plates.push({ name, ...await locationPicture(p, `plate ${name}`), pose: poseOf(p.pose, `plate ${name}`), ...(p.camera ? { camera: p.camera } : {}), ...(p.use?.trim() ? { use: p.use.trim() } : {}), ...(p.note?.trim() ? { note: p.note.trim() } : {}) });
+    plates.push({ name, ...await locationPicture(p, `plate ${name}`), ...roleIn(p.role, `plate ${name}`), pose: poseOf(p.pose, `plate ${name}`), ...(p.camera ? { camera: p.camera } : {}), ...(p.use?.trim() ? { use: p.use.trim() } : {}), ...(p.note?.trim() ? { note: p.note.trim() } : {}) });
   }
-  const clean = { name: body.name.trim(), notes: body.notes?.trim() ?? "", master: await locationPicture(body.master, "master"), plan: await locationPicture(body.plan, "plan"), cameras, plates, rating: body.rating ?? null };
+  const master = await locationPicture(body.master, "master");
+  const clean = { name: body.name.trim(), notes: body.notes?.trim() ?? "", master: master && { ...master, ...roleIn(body.master.role, "master") }, plan: await locationPicture(body.plan, "plan"), cameras, plates, rating: body.rating ?? null };
   id ??= locationStamp();
   const out = await W.save("location", id, clean, { note, by });
   rebuild();
@@ -473,28 +476,39 @@ export async function addPlate(ref, plate, { note, by = "person" } = {}) {
 }
 // put a location version into the open recipe's References, replacing what an earlier apply of it put there: its master
 // and plan (each unless false) and the plates named (in that order). Pins the version. Returns {said, cite}
-export async function applyLocation(ref, { plates = [], master = true, plan = true } = {}) {
+// short03 F-C28: Ref2V takes a reference picture as the shot's camera and copies its framing (3/3 in the pano test), so
+// each cited picture says what it is for: `camera` (this exact framing) or `place` (the same set; the words set the
+// camera). `camera` names the one picture used as the camera (a plate's name or "master"); else each keeps its record's
+// role (place by default). The answer's prompt_hint words it for the prompt
+export async function applyLocation(ref, { plates = [], master = true, plan = true, camera } = {}) {
   await ready();
   const { id, n, body: b, version } = locationOf(ref), key = `location:${id}`;
   const missing = plates.filter((x) => !(b.plates ?? []).some((p) => p.name === x));
   if (missing.length) throw new Error(`${b.name} v${n} has no plate ${missing.map((x) => `"${x}"`).join(", ")}; its plates: ${(b.plates ?? []).map((p) => p.name).join(", ") || "none"}`);
-  const want = [...(master && b.master ? [["master", b.master.file]] : []), ...(plan && b.plan ? [["plan", b.plan.file]] : []), ...plates.map((x) => [`plate ${x}`, b.plates.find((p) => p.name === x).file])];
+  if (camera != null && camera !== "master" && !plates.includes(camera)) throw new Error(`camera names the picture this shot keeps the framing of: "master" or one of the plates given (${plates.join(", ") || "none"}); not "${camera}"`);
+  const roleOf = (what, pic) => (camera != null ? (camera === what ? "camera" : "place") : pic.role ?? "place");
+  const want = [...(master && b.master ? [["master", b.master.file, roleOf("master", b.master)]] : []), ...(plan && b.plan ? [["plan", b.plan.file, "map"]] : []),
+    ...plates.map((x) => { const p = b.plates.find((q) => q.name === x); return [`plate ${x}`, p.file, roleOf(x, p)]; })];
   if (!want.length) throw new Error(`${b.name} v${n}: nothing to put in (no master, no plan, no plates named)`);
   const keys = () => E.state().bricks.map((x) => x.key);
   let preset = null, unread = null;
   app.canvas.emitBeforeChange(); // the pictures and the pin are one undo step
   try {
     if (!keys().includes("refs")) await E.snap("refs");
-    const roles = want.map(([what]) => `location: ${b.name}, ${what}`);
+    const roles = want.map(([what, , use]) => `location: ${b.name}, ${what}${use === "map" ? "" : ` (${use})`}`);
     for (const p of E.state().bricks.find((x) => x.key === "refs").pictures ?? []) if (p.source === key && !roles.includes(p.role)) E.removePicture(p.node);
     want.forEach(([what, file], i) => E.addPicture(file, { role: roles[i], reason: `${b.name}, location v${n}${what.startsWith("plate") ? `, ${what}` : ""}`, source: key, card: W.refOf("location", id, n) }));
     try { preset = conditionFor("Ref2V"); } catch (e) { unread = e.message; }
-    pin(key, { n, hash: W.short(version.hash), name: b.name, placed: { roles, plates, master: !!(master && b.master), plan: !!(plan && b.plan) } });
+    pin(key, { n, hash: W.short(version.hash), name: b.name, placed: { roles, plates, master: !!(master && b.master), plan: !!(plan && b.plan), ...(camera != null ? { camera } : {}) } });
   } finally { app.canvas.emitAfterChange(); }
   app.canvas.setDirty(true, true);
-  const pics = E.references()?.pictures ?? [], citeOf = (what) => pics.find((p) => p.role === `location: ${b.name}, ${what}`)?.cite ?? null;
+  const pics = E.references()?.pictures ?? [], citeOf = (what) => pics.find((p) => p.role?.startsWith(`location: ${b.name}, ${what}`) && (p.role.length === `location: ${b.name}, ${what}`.length || p.role[`location: ${b.name}, ${what}`.length] === " "))?.cite ?? null;
   const cite = { ...(master && b.master ? { master: citeOf("master") } : {}), ...(plan && b.plan ? { plan: citeOf("plan") } : {}), plates: Object.fromEntries(plates.map((x) => [x, citeOf(`plate ${x}`)])) };
-  return { said: `${b.name} v${n}: ${want.map(([what]) => `${what} as ${citeOf(what)}`).join(", ")} in References${preset ? `; Render Preset now ${preset} (the pictures need it)` : ""}${unread ? `; the pictures are not read by this render: ${unread}` : ""}`, cite };
+  const as = Object.fromEntries(want.filter(([, , u]) => u !== "map").map(([what, , u]) => [what, u])), cams = Object.keys(as).filter((w) => as[w] === "camera"), places = Object.keys(as).filter((w) => as[w] === "place");
+  const prompt_hint = [cams.length && `${cams.map(citeOf).join(" and ")} ${cams.length > 1 ? "are" : "is"} this shot's camera: keep ${cams.length > 1 ? "their" : "its"} framing.`,
+    places.length && `${places.map(citeOf).join(", ")} show${places.length > 1 ? "" : "s"} the place (the same set, its buildings and layout), not this shot's framing: the camera is the one these words describe.`,
+    plan && b.plan && `${citeOf("plan")} is the set plan from above, not a view.`].filter(Boolean).join(" ");
+  return { said: `${b.name} v${n}: ${want.map(([what, , u]) => `${what}${u === "map" ? "" : ` (${u})`} as ${citeOf(what)}`).join(", ")} in References${preset ? `; Render Preset now ${preset} (the pictures need it)` : ""}${unread ? `; the pictures are not read by this render: ${unread}` : ""}`, cite, use: as, prompt_hint };
 }
 // U72 F24: a prompt written over a Cast's sentence gets it back (the agent's words and the Cast both reach the render);
 // returns what was put back

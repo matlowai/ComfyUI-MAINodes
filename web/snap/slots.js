@@ -17,6 +17,7 @@ const MINE = "snap/methods.json";
 let registry = { slots: [], methods: [] }, loading = null, problem = null;
 const merged = (pack = [], own = [], id) => { const out = new Map(pack.map((x) => [id(x), x])); for (const x of own) out.set(id(x), M.overlay(out.get(id(x)), x)); return [...out.values()]; };
 export function load() {
+  api.fetchApi("/system_stats").then((r) => r.json()).then((x) => { const d = x.devices?.find((y) => y.type === "cuda"); gpu = d ? d.vram_total / 2 ** 30 : null; }, () => {});
   loading ??= Promise.all([api.fetchApi("/mainodes/snap/methods").then((r) => r.json()),
     api.getUserData(MINE).then((r) => (r.ok ? r.json() : {})).catch((e) => { problem = `Your snap/methods.json was skipped (${e.message})`; return {}; })])
     .then(([pack, own]) => (registry = { slots: merged(pack.slots, own.slots, (s) => s.id), methods: merged(pack.methods, own.methods, (m) => `${m.slot}/${m.id}`) }), (e) => { loading = null; throw e; });
@@ -117,6 +118,18 @@ export function quality(key) {
   const n = modelScale(key, s), f = factor(key);
   return n ? `${n}× model${Math.abs(f - n) > 1e-3 ? `, scaled to ${f}×` : ""}` : "unknown model factor: not resized";
 }
+// short03 F-C26: a media upscale whose output is past this GPU's memory says so on its brick, before the run (SNAP-R11:
+// a warning, never a block). The method's measured VRAM (cost.vram_gb at cost.vram_at_px output pixels) scaled by pixels
+let gpu = null; // GiB of the server's first CUDA card, read with the registry (load)
+M.addWarnings(() => E.state().bricks.flatMap((b) => {
+  const m = registry.methods.find((x) => x.brick === b.key && x.slot === "upscale"), c = m?.cost;
+  if (!gpu || !c?.vram_gb || !c.vram_at_px || !on(b.key)) return [];
+  const src = E.state().bricks.map((x) => x.key).find((k) => ["image", "render"].includes(k)), w = src && E.getValue(src, src, "width"), ht = src && E.getValue(src, src, "height"), f = factor(b.key);
+  if (!w || !f) return [];
+  const need = (c.vram_gb * (w * f) * (ht * f)) / c.vram_at_px;
+  return need > gpu * 0.9 ? [{ brick: b.key, text: `${m.title} at ${Math.round(w * f)}×${Math.round(ht * f)} needs about ${need.toFixed(0)} GiB (${c.vram_gb} GiB measured at ${(c.vram_at_px / 1e6).toFixed(1)} MP, scaled by pixels); this GPU has ${gpu.toFixed(0)} GiB, so it may run out of memory. Turn Upscale off or render smaller; if it fails, the render is kept as its own take` }] : [];
+}));
+
 // the size the picture or clip comes out: the Render's width × height, times the factor while the slot is on
 export function headline(key) {
   const src = E.state().bricks.map((b) => b.key).find((k) => ["image", "render"].includes(k)), w = src && E.getValue(src, src, "width"), ht = src && E.getValue(src, src, "height");

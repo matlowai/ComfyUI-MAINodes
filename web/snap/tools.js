@@ -184,7 +184,7 @@ export const TOOLS = [
   },
   {
     name: "set_setting",
-    description: "Change one setting on a brick (a widget on one of its nodes, e.g. render.prompt, render.length, preset.lora). Choice settings must use one of the listed choices; a model file's name without its sub-folder is enough when only one choice has that name. A video length takes frames or seconds (\"5s\"): seconds round to the nearest frame count the model takes at the recipe's fps, and the answer says what it became.",
+    description: "Change one setting on a brick (a widget on one of its nodes, e.g. render.prompt, render.length, preset.lora). Choice settings must use one of the listed choices; a model file's name without its sub-folder is enough when only one choice has that name. A number setting takes a number or its text (\"124\"); a video length takes frames or seconds (\"5s\"): seconds round to the nearest frame count the model takes at the recipe's fps, and the answer says what it became.",
     inputSchema: { type: "object", properties: { brick: brickEnum, name: { type: "string" }, value: {} }, required: ["brick", "name", "value"] },
     run: ({ brick, name, value }) => {
       inRecipe(brick);
@@ -192,6 +192,8 @@ export const TOOLS = [
       if (!s) throw new Error(`${brick} has no setting "${name}"; it has ${settingsOf(brick).map((x) => x.name).join(", ")}`);
       if (s.choices && E.resolveChoice(s.choices, value) === undefined) throw new Error(`"${value}" is not a choice for ${brick}.${name}; choices: ${s.choices.join(", ")}`);
       const t = s.seconds != null && E.timing(brick), asked = value;
+      // a number given as text ("124") is that number, for a number setting (short03 F-C21: length refused "124")
+      if (typeof value === "string" && /^\s*-?\d+(\.\d+)?\s*$/.test(value) && typeof E.getValue(brick, s.node, name) === "number") value = Number(value);
       if (t && typeof value === "string") {
         value = E.framesFor(t, value);
         if (value == null) throw new Error(`${brick}.${name} takes frames (a number) or seconds like "5s", not ${JSON.stringify(asked)}`);
@@ -223,14 +225,27 @@ export const TOOLS = [
   },
   {
     name: "apply_setup",
-    description: "Switch to a setup from list_setups as one undo step: a preset changes the model, LoRA, sampling and, where they don't fit its family, the encoder and VAEs in place; a recipe card of this recipe's family applies in place (prompt, negative, seed, size, the person's own bricks and Upscale stay; the core LoRA rows become the card's); another family's card opens in a new workflow tab (the open one is left as it is). save_current: true also keeps the current stack as its family's 'Last used' card (the person's sheet does that; an agent normally leaves it). Returns the model summary afterwards, with anything missing and the warnings.",
+    description: "Switch to a setup from list_setups as one undo step: a preset changes the model, LoRA, sampling and, where they don't fit its family, the encoder and VAEs in place; a recipe card of this recipe's family applies in place (prompt, negative, seed, size, the person's own bricks and Upscale stay; the core LoRA rows become the card's); another family's card opens in a new workflow tab (the open one is left as it is; when it was a scene's shot, the new tab becomes that shot). A Render Preset setup named from another family's recipe (e.g. Pika H3 Flex in a MOSS shot) switches to that family's recipe card first, then applies the preset. save_current: true also keeps the current stack as its family's 'Last used' card (the person's sheet does that; an agent normally leaves it). Returns the model summary afterwards, with anything missing and the warnings.",
     inputSchema: { type: "object", properties: { name: { type: "string" }, save_current: { type: "boolean" } }, required: ["name"] },
     run: async ({ name, save_current = false }) => {
-      await M.load(); await L.ready();
-      const s = M.setups().find((x) => x.name === name);
-      if (!s) throw new Error(`No setup "${name}"; there are: ${M.setups().map((x) => x.name).join(", ")}`);
-      const done = await M.useSetup(s, { keep: save_current });
-      return { done, ...(await models()) };
+      await M.load(); await L.ready(); await SC.load();
+      const here = SC.current(), mark = here && { scene: here.scene.id, shot: here.shot.id };
+      let s = M.setups().find((x) => x.name === name), via = null;
+      if (!s) { // G1 (short03 F-C18): a Render Preset setup of another family: that family's card first, then the preset
+        const list = await (await api.fetchApi("/mainodes/render/presets")).json(), presets = Array.isArray(list) ? list : [];
+        const values = presets.includes(name) ? await (await api.fetchApi(`/mainodes/render/presets/${encodeURIComponent(name)}`)).json() : null, fam = values && M.entry(values.model)?.family;
+        const card = fam && M.setups().find((x) => x.source === "recipe" && x.family === fam);
+        if (!fam) throw new Error(`No setup "${name}"; there are: ${M.setups().map((x) => x.name).join(", ")}${presets.length ? `; the Render Preset's (start_recipe opens its recipe): ${presets.join(", ")}` : ""}`);
+        if (card) via = await M.useSetup(card, { keep: save_current });
+        else { await ui.act("start"); via = "the recommended video recipe (Start)"; } // the Render Preset's family has no card yet: Start opens its recipe
+        if (M.family() !== fam) throw new Error(`${name} is a ${fam} setup, and ${via} isn't ${fam}: start_recipe, then apply_setup`);
+        s = M.setups().find((x) => x.name === name && x.source === "preset");
+      }
+      const done = [via, await M.useSetup(s, { keep: save_current })].filter(Boolean).join("; then ");
+      // a shot whose setup switched family into a new tab: the new tab is that shot now (its workflow and takes)
+      const moved = mark && !SC.current();
+      if (moved) { app.graph.extra = { ...app.graph.extra, snap_scene: mark }; await SC.saveOpen(); }
+      return { done, ...(moved ? { shot: `${here.scene.name} › ${SC.shotTitle(here.scene, here.shot)} is this tab now` } : {}), ...(await models()) };
     },
   },
   {
@@ -369,12 +384,12 @@ export const TOOLS = [
   },
   {
     name: "add_lora",
-    description: "Add a LoRA row to the stack its role belongs in: core (turbo / fix / task …) rows go to Core LoRAs and travel with the setup, style rows to Style LoRAs, identity rows to Cast LoRAs (the brick is added when missing). The role comes from the model graph unless given; a LoRA the graph doesn't know needs one. Dial files are refused (add_dial puts them on the Dial Rack), and so are core LoRAs on a recipe whose LoRA rides on its Render Preset (H3: pick a setup). A turbo LoRA while another turbo is on (a merge or a row) is refused unless person_asked is true: swap turbos with set_method {slot: 'turbo'} instead. Returns the rows and the warnings.",
+    description: "Add a LoRA row to the stack its role belongs in: core (turbo / fix / task …) rows go to Core LoRAs and travel with the setup, style rows to Style LoRAs, identity rows to Cast LoRAs (the brick is added when missing). The role comes from the model graph unless given; a LoRA the graph doesn't know needs one. Dial files are refused (add_dial puts them on the Dial Rack). On a recipe whose core LoRA rides on its Render Preset (H3), another core LoRA (a task LoRA such as ORB360) goes on Style LoRAs after the preset's, and the answer's note says so. A file put in models/loras after the page loaded is found: the folders are read again before a refusal. A turbo LoRA while another turbo is on (a merge or a row) is refused unless person_asked is true: swap turbos with set_method {slot: 'turbo'} instead. Returns the rows and the warnings.",
     inputSchema: { type: "object", properties: { file: { type: "string" }, strength: { type: "number" }, role: { type: "string", enum: ["core", "style", "identity"] }, person_asked: { type: "boolean", description: "true only when the person asked for this stack" } }, required: ["file"] },
     run: async ({ file, strength, role, person_asked }) => {
       await M.load();
-      const key = await M.addLora(file, { role, strength, asked: person_asked });
-      return { brick: key, rows: M.rows(key).map(({ row, file, strength, on }) => ({ row, file, strength, on })), warnings: M.warnings().map((w) => w.text),
+      const key = await M.addLora(file, { role, strength, asked: person_asked }), row = M.rows(key).at(-1);
+      return { brick: key, ...(key === "style" && (role ?? row?.entry?.role) === "core" ? { note: `${row.file.split("/").pop()} is a core LoRA; this recipe's core LoRA rides on its Render Preset (with its schedule), so it went on Style LoRAs, after the preset's LoRA, where it runs on the model the same way. To replace the preset's own LoRA instead, set_setting preset.lora or pick a setup` } : {}), rows: M.rows(key).map(({ row, file, strength, on }) => ({ row, file, strength, on })), warnings: M.warnings().map((w) => w.text),
         ...(key === "cast" ? { cast: "An identity LoRA is a character: save_cast {name, trigger, details, lora: {file, strength}} keeps its details once on a Cast record, and apply_cast puts it in any recipe (SNAP-R59)" } : {}) };
     },
   },
@@ -528,10 +543,10 @@ export const TOOLS = [
   },
   {
     name: "save_location",
-    description: "Make or change a location record (G1, U99 / F-C17, SNAP-R84), versioned like a Cast: leave out `location` for a new place, or give it (location:<id>) to save a new version (the old ones stay; a save that changes nothing makes none). Give the whole place each time (list_locations shows the newest): name (required), notes (its layout, what holds in every view), master (the establishing picture) and plan (the set plan or overhead map), each {file} (a picture in input/) or {take, frame} (a take's frame, saved into input/ with where it came from; a still needs no frame), cameras [{name, x, y, heading, eye_height, lens, note}] (camera marks drawn on the plan), plates [{name, file or take + frame, pose {x, y, heading, eye_height, lens}, camera (a mark's name), use (which cuts), note}], rating. x and y are fractions of the plan from its top left, heading degrees clockwise from the plan's up, eye_height metres, lens mm. One plate per name: shots cite plates by name. Returns the reference to pin (location:<id>@n). Nothing in the open recipe changes: apply_location does that; add_plate adds one plate.",
-    inputSchema: { type: "object", properties: { location: { type: "string" }, name: { type: "string" }, notes: { type: "string" }, master: { type: ["object", "null"], properties: { file: { type: "string" }, take: { type: "string" }, frame: { type: "integer", minimum: 0 } } }, plan: { type: ["object", "null"], properties: { file: { type: "string" }, take: { type: "string" }, frame: { type: "integer", minimum: 0 } } },
+    description: "Make or change a location record (G1, U99 / F-C17, SNAP-R84), versioned like a Cast: leave out `location` for a new place, or give it (location:<id>) to save a new version (the old ones stay; a save that changes nothing makes none). Give the whole place each time (list_locations shows the newest): name (required), notes (its layout, what holds in every view), master (the establishing picture) and plan (the set plan or overhead map), each {file} (a picture in input/) or {take, frame} (a take's frame, saved into input/ with where it came from; a still needs no frame), cameras [{name, x, y, heading, eye_height, lens, note}] (camera marks drawn on the plan), plates [{name, file or take + frame, role, pose {x, y, heading, eye_height, lens}, camera (a mark's name), use (which cuts), note}], rating; role (on the master and each plate) is what a shot citing it takes it for by default: camera (this exact framing) or place (the same set, a new camera; the default). x and y are fractions of the plan from its top left, heading degrees clockwise from the plan's up, eye_height metres, lens mm. One plate per name: shots cite plates by name. Returns the reference to pin (location:<id>@n). Nothing in the open recipe changes: apply_location does that; add_plate adds one plate.",
+    inputSchema: { type: "object", properties: { location: { type: "string" }, name: { type: "string" }, notes: { type: "string" }, master: { type: ["object", "null"], properties: { file: { type: "string" }, take: { type: "string" }, frame: { type: "integer", minimum: 0 }, role: { type: "string", enum: ["camera", "place"] } } }, plan: { type: ["object", "null"], properties: { file: { type: "string" }, take: { type: "string" }, frame: { type: "integer", minimum: 0 } } },
       cameras: { type: "array", items: { type: "object", properties: { name: { type: "string" }, x: { type: "number", minimum: 0, maximum: 1 }, y: { type: "number", minimum: 0, maximum: 1 }, heading: { type: "number" }, eye_height: { type: "number" }, lens: { type: "number" }, note: { type: "string" } }, required: ["name"] } },
-      plates: { type: "array", items: { type: "object", properties: { name: { type: "string" }, file: { type: "string" }, take: { type: "string" }, frame: { type: "integer", minimum: 0 }, pose: { type: ["object", "null"], properties: { x: { type: "number", minimum: 0, maximum: 1 }, y: { type: "number", minimum: 0, maximum: 1 }, heading: { type: "number" }, eye_height: { type: "number" }, lens: { type: "number" } } }, camera: { type: "string" }, use: { type: "string" }, note: { type: "string" } }, required: ["name"] } },
+      plates: { type: "array", items: { type: "object", properties: { name: { type: "string" }, file: { type: "string" }, take: { type: "string" }, frame: { type: "integer", minimum: 0 }, role: { type: "string", enum: ["camera", "place"] }, pose: { type: ["object", "null"], properties: { x: { type: "number", minimum: 0, maximum: 1 }, y: { type: "number", minimum: 0, maximum: 1 }, heading: { type: "number" }, eye_height: { type: "number" }, lens: { type: "number" } } }, camera: { type: "string" }, use: { type: "string" }, note: { type: "string" } }, required: ["name"] } },
       rating: { type: ["string", "null"], enum: ["pg", "mature", "adult", null] }, note: { type: "string", description: "what changed, shown in the version list" } }, required: ["name"] },
     run: async ({ location: place, note = "", ...body }) => {
       await L.ready();
@@ -544,14 +559,14 @@ export const TOOLS = [
   {
     name: "add_plate",
     description: "Add a plate to a location, or replace the plate of the same name, as a new version (G1, F-C17: 'save this frame as plate <name> at <pose>'): location (location:<id>), name, the picture as take + frame (a take's frame, e.g. a walkthrough's; a still needs no frame) or file (input/), pose {x, y, heading, eye_height, lens} (x, y fractions of the plan from its top left; heading degrees clockwise from its up; eye_height m; lens mm), camera (a camera mark's name), use (which cuts it serves), note. Returns the new version's reference.",
-    inputSchema: { type: "object", properties: { location: { type: "string" }, name: { type: "string" }, take: { type: "string" }, frame: { type: "integer", minimum: 0 }, file: { type: "string" }, pose: { type: ["object", "null"], properties: { x: { type: "number", minimum: 0, maximum: 1 }, y: { type: "number", minimum: 0, maximum: 1 }, heading: { type: "number" }, eye_height: { type: "number" }, lens: { type: "number" } } }, camera: { type: "string" }, use: { type: "string" }, note: { type: "string" } }, required: ["location", "name"] },
+    inputSchema: { type: "object", properties: { location: { type: "string" }, name: { type: "string" }, take: { type: "string" }, frame: { type: "integer", minimum: 0 }, file: { type: "string" }, role: { type: "string", enum: ["camera", "place"] }, pose: { type: ["object", "null"], properties: { x: { type: "number", minimum: 0, maximum: 1 }, y: { type: "number", minimum: 0, maximum: 1 }, heading: { type: "number" }, eye_height: { type: "number" }, lens: { type: "number" } } }, camera: { type: "string" }, use: { type: "string" }, note: { type: "string" } }, required: ["location", "name"] },
     run: async ({ location: place, ...plate }) => { await L.ready(); const out = await L.addPlate(place, plate, { by: "agent" }); return { location: `location:${out.id}`, ref: out.ref, version: out.n, made: out.made }; },
   },
   {
     name: "apply_location",
-    description: "Put a location into the open recipe (G1, SNAP-R84): location is location:<id> (the newest version) or location:<id>@n. Its master and plan (master: false / plan: false leave one out) and the plates named in plates (in that order) go into References, each a <Picture n>: the answer's cite says which is which (cite.master, cite.plan, cite.plates[name]) to write in the prompt. Applying it again (other plates, another version) replaces what the last apply put there. The recipe pins the version (describe_recipe.world), so takes say which version of the place made them; rerun swaps it like a Cast. A shot cites a plate by name this way.",
-    inputSchema: { type: "object", properties: { location: { type: "string" }, plates: { type: "array", items: { type: "string" } }, master: { type: "boolean" }, plan: { type: "boolean" } }, required: ["location"] },
-    run: async ({ location: place, plates = [], master = true, plan = true }) => ({ location: place, ...await L.applyLocation(place, { plates, master, plan }), references: E.references(), world: E.state().world ?? {} }),
+    description: "Put a location into the open recipe (G1, SNAP-R84): location is location:<id> (the newest version) or location:<id>@n. Its master and plan (master: false / plan: false leave one out) and the plates named in plates (in that order) go into References, each a <Picture n>: the answer's cite says which is which (cite.master, cite.plan, cite.plates[name]) to write in the prompt. Applying it again (other plates, another version) replaces what the last apply put there. The recipe pins the version (describe_recipe.world), so takes say which version of the place made them; rerun swaps it like a Cast. A shot cites a plate by name this way. Each cited picture is the shot's camera or the place (short03 F-C28: H3 takes a reference picture as the camera and copies its framing): camera names the one picture whose framing this shot keeps (master or a plate), the others are the place (the same set, a new camera); without camera each uses its record's role (place unless saved as camera). use says which, and prompt_hint words it for the prompt (\"<Picture 3> is this shot's camera: keep its framing. <Picture 1> shows the place …\"). Cite this cut's own place, never the next place's plate (it made H3 hard-cut to it).",
+    inputSchema: { type: "object", properties: { location: { type: "string" }, plates: { type: "array", items: { type: "string" } }, master: { type: "boolean" }, plan: { type: "boolean" }, camera: { type: "string", description: "the one picture this shot keeps the framing of: master or a plate's name; the others show the place" } }, required: ["location"] },
+    run: async ({ location: place, plates = [], master = true, plan = true, camera }) => ({ location: place, ...await L.applyLocation(place, { plates, master, plan, camera }), references: E.references(), world: E.state().world ?? {} }),
   },
   {
     name: "dependents",

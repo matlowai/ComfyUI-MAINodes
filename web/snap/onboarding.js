@@ -95,7 +95,7 @@ export async function kit(intent) {
 
 // what this machine can do now: each kit's setups with ✓ ready / missing / can't load, and the files Snap doesn't know
 export async function scan() {
-  await load();
+  await Promise.all([load(), M.reload()]); // the folders as they are now, not as the page found them
   const all = await Promise.all(kits().map((k) => kit(k.intent)));
   const unknown = [...(await M.load()).keys()].filter((n) => M.entry(n).inferred && !/^dials\//.test(n)).length;
   return { hardware: await hardware(), kits: all.map((k) => ({ intent: k.intent, title: k.title, ready: [k.recommended, k.fast, ...k.also].filter((r) => r?.state === "ready").map((r) => r.title),

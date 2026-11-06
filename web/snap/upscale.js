@@ -188,6 +188,26 @@ async function tessera(take, m, t, { hero, anchor, seed }) {
   return { g, anchor: from, height: H };
 }
 
+// F-C26: a run whose Upscale brick failed (RelayVSR out of memory at 4096x2048) lost its finished render, since Save
+// comes after Upscale. Snap runs the same prompt again with the upscale left out (its consumers take the upscale's own
+// input), so ComfyUI serves the render from its cache and saves it: the render lands as its own take, a child of the
+// failed one, whose job says what failed. Never for a rescue, and only when the failed node is the Upscale brick's
+const UPSCALE_BRICKS = () => S.list("upscale").map((m) => m.brick).filter(Boolean);
+export async function rescue(take) {
+  await S.load();
+  const nid = String(take?.failed_node ?? ""), bricks = take?.graph?.extra?.snap?.bricks ?? [], g = take?.prompt && sendable(take.prompt);
+  const b = bricks.find((x) => UPSCALE_BRICKS().includes(x.key) && Object.values(x.nodes ?? {}).map(String).includes(nid));
+  if (!b || !g?.[nid] || take.parent?.method === "rescue/upscale") return null;
+  const own = new Set(Object.values(b.nodes).map(String)), src = Object.values(g[nid].inputs).find((v) => link(v) && !own.has(v[0]));
+  if (!src) return null;
+  for (const n of Object.values(g)) for (const [k, v] of Object.entries(n.inputs ?? {})) if (link(v) && v[0] === nid) n.inputs[k] = src;
+  delete g[nid];
+  const what = `${LiteGraph.registered_node_types[take.prompt[nid].class_type]?.title ?? take.prompt[nid].class_type}: ${take.error ?? "failed"}`;
+  const job = { kind: "run", title: `Keep the render of take ${take.number}: the Upscale failed (${what})`, about: { take: take.id, group: take.group }, by: "person" };
+  return K.queue(g, { group: take.group, world: take.graph?.extra?.snap?.world, job, extra: { snap_parent: { take: take.id, method: "rescue/upscale", options: { failed: what } } } });
+}
+T.onFailed((t) => { rescue(t).catch((e) => console.warn(`Snap couldn't keep the render of take ${t?.number}: ${e.message}`)); });
+
 // queue the bigger take: a new take in the take's group, parent the take (`upscale/<method>`), carrying the take's world
 // pins (SNAP-R60); its rating follows the parent (SNAP-R39). `anchor` is a take (Tessera only; null = the take's own frame 0,
 // undefined = the take's newest stage 2)

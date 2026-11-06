@@ -736,7 +736,10 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   `<Picture n>` (the answer cites each) and pins the version; a New view takes `{location, plate}` as a picture and
   pins it too, so every still, board and take says which version of the place made it. A cut cites its own place's
   plates, never the next place's as a reference: in the walk test a plate of where she would walk next made H3 hard-cut
-  to it in 3 takes of 8; `rerun` swaps a location like a
+  to it in 3 takes of 8. Each cited picture is the shot's camera (this exact framing) or the place (the same set, the
+  camera the words describe), named per shot (`camera`) or by the picture's record role, and the References row and the
+  answer's `prompt_hint` say which: H3 takes a reference picture as the camera and copies its framing unless told
+  (short03 F-C28, 3/3); `rerun` swaps a location like a
   Cast and `dependents` lists what each version of any record still feeds. The Location sheet shows the master, the plan
   with each camera mark and plate drawn as a dot and a wedge (where it stands, where it looks, how wide its lens sees)
   and the plate tiles; every picture opens full size (SNAP-R80). *Why:* the operator, 2026-11-05: "getting the topology of the
@@ -761,6 +764,14 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   picked by hand wins. *Why:* the operator, 2026-11-06: Fizgig for character shots and turnarounds, P-H3-Image for
   sets, wide shots and targeted edits, chosen from the job and overridable (bake-off B: characters 25/33 vs 22/33; P-H3
   held the master's gatehouse and is the fastest). *More:* DECISIONS 2026-11-06, PROGRESS 2026-11-05 15:45.
+
+- **SNAP-R87: A finished render is never lost to the step after it.** When the Upscale brick fails (RelayVSR out of
+  memory at 4096x2048 in short03 F-C26), the same prompt runs again without the upscale, its consumers fed by the
+  upscale's own input, so ComfyUI serves the render from its cache and it lands as its own take, a child of the failed
+  one, whose job says what failed; a node out of GPU memory says so by its title on the Work card. Before the run, an
+  upscale whose output is past the GPU's memory (the method's measured VRAM scaled by output pixels) warns on its brick,
+  never blocks (SNAP-R11). *Why:* short03 lost a finished render and two GPU minutes to an upscale it never asked for.
+  *More:* dogfood FINDINGS F-C26, proto/test_g1_friction.js.
 
 ## Accounts and the gate (snap-gate)
 

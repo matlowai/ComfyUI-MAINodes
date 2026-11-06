@@ -46,7 +46,8 @@ function where(about = {}) {
   for (const s of SC.all()) for (const shot of s.shots) if (shot.id === about.shot || (group && shot.groups.includes(group))) return `${s.name} › ${SC.shotTitle(s, shot)}`;
   return about.set ? `set ${about.set}${about.camera ? ` · ${about.camera}` : ""}` : "a scratch tab";
 }
-const errorText = (e) => (e ? `${e.node_type ?? "node"}${e.node_id != null ? ` #${e.node_id}` : ""}: ${e.exception_message ?? e.exception_type ?? "failed"}` : null);
+// F-C26: a node out of GPU memory says so by its title, before the server's own text
+const errorText = (e) => (e ? `${/out of memory|OutOfMemory/i.test(`${e.exception_type} ${e.exception_message}`) ? `${LiteGraph.registered_node_types[e.node_type]?.title ?? e.node_type} ran out of GPU memory: ` : ""}${e.node_type ?? "node"}${e.node_id != null ? ` #${e.node_id}` : ""}: ${e.exception_message ?? e.exception_type ?? "failed"}` : null);
 const eta = (r) => { if (r.eta_s == null) return "no estimate yet"; if (!r.started_at) return `about ${Math.round(r.eta_s)} s`; const left = r.eta_s - (Date.now() - r.started_at) / 1000; return left > 0 ? `about ${Math.round(left)} s left` : "running past its estimate"; };
 // the running prompt's progress as core tracks it: the node working now and how many nodes are done
 function progressOf(id) {

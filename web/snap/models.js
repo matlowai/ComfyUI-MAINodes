@@ -32,6 +32,13 @@ export function load() {
     }).then(async (f) => { await loadGraph(); return f; });
   return loading;
 }
+// the folders read again (a file downloaded or copied after the page loaded), and the loaders' choices with them (G1:
+// short03's new ORB360 LoRA was refused as missing until a reload)
+export async function reload() {
+  loading = null;
+  await Promise.all([load(), app.refreshComboInNodes()]);
+  return files;
+}
 // LoRA files the person's private rules match now (the server checks; the page never reads private.json): a lock beside
 // them, marking only, so the row still works (SNAP-R27). Asked once per page and again after a move; a server before the
 // route has none, and a read that fails (a restart) is asked again next time instead of leaving the sheet dead (U76 L4)
@@ -375,8 +382,11 @@ export function sampling() {
 }
 
 // what doesn't fit, as one line each on the brick it concerns; never blocks anything (SNAP-R11)
+// warnings other modules add (slots.js: an upscale sized past this GPU's memory), each a function giving [{brick, text}]
+const sources = [];
+export const addWarnings = (fn) => sources.push(fn);
 export function warnings() {
-  const fam = family(), types = D.types(), out = [], say = (brick, text) => out.push({ brick, text });
+  const fam = family(), types = D.types(), out = sources.flatMap((fn) => fn()), say = (brick, text) => out.push({ brick, text });
   const want = Object.keys(types).find((t) => types[t] === fam);
   for (const b of E.state().bricks) for (const [, n] of nodesOf(b.key)) {
     const w = want && n.widgets?.find((x) => x.name === "type" && choices(x)?.includes(want));
@@ -467,9 +477,14 @@ function quality(was) {
   return out;
 }
 
+// the Render Preset's quality setup per conditioning: what "Turbo off" puts on when the turbo rides on the preset and no
+// setup card says what came before (render.py's "… quality (no turbo)" presets; short03 F-C11)
+const QUALITY = { "FL2V (first frame)": "First frame, quality (no turbo)", "Ref2V (reference pictures)": "Reference pictures, quality (no turbo)" };
 export function setTurbo(name) {
   const key = turboHost(), stack = coreStack(), one = !stack && single(), was = turbo();
   if (!key || (!stack && !one)) throw new Error("This recipe has no Render brick with a core LoRA stack or a Render Preset LoRA (the image and H3 recipes have one)");
+  const plain = (!name || name === "off") && one && was && setups().find((s) => s.source === "preset" && s.name === QUALITY[String(E.getValue(one.brick, one.node, "conditioning"))]);
+  if (plain) { apply(plain.name); return { turbo: null, setup: plain.name, sampling: Object.fromEntries(Object.entries(sampling()).map(([k, v]) => [k, v.value])), warnings: warnings().map((w) => w.text) }; }
   const t = name && name !== "off" ? turbos().find((x) => x.file === name || x.name === name || base(x.file) === base(name)) : null;
   if (name && name !== "off" && !t) throw new Error(`No turbo "${name}" for ${family() ?? "this recipe"}; there are: ${turbos().map((x) => x.name).join(", ") || "none installed"}`);
   // the Render Preset's one LoRA is swapped in place, so a swap needs no way back; "off" does (a setup card, else pick a setup)
@@ -518,12 +533,17 @@ export function addRow(brick, file, strength = entry(file)?.recommended?.strengt
 // schedule it was distilled for. A second turbo is refused unless the person asked for the stack (SNAP-R10)
 export async function addLora(file, { role, strength, asked } = {}) {
   if (hidden(file)) throw new Error(`${short(file)} is tagged nsfw and SFW only is on (the person's profile)`);
-  const names = loraChoices().map(([n]) => n), name = names.includes(file) ? file : E.resolveChoice(names, file);
-  if (!name) throw new Error(`No LoRA file "${file}"; list_loras shows them`);
-  const e = entry(name), want = role ?? e.role;
+  const find = () => { const names = loraChoices().map(([n]) => n); return names.includes(file) ? file : E.resolveChoice(names, file); };
+  let name = find();
+  if (!name) { await reload(); name = find(); } // put there after the page loaded
+  if (!name) throw new Error(`No LoRA file "${file}" in models/loras, read again just now; list_loras shows them (scan_models reads every folder again)`);
+  const e = entry(name);
+  let want = role ?? e.role;
   if (want === "dial") throw new Error(`${short(name)} is a dial: put it on the Dial Rack (add_dial)`);
   if (want === "unsorted") throw new Error(`The model graph doesn't say what ${short(name)} is; give its role (core, style or identity)`);
-  if (want === "core" && !coreStack() && single()) throw new Error(`${short(name)} is a core LoRA, and this recipe's core LoRA rides on its Render Preset with its schedule: pick a setup (list_setups, apply_setup) or set preset.lora`);
+  // a recipe whose core LoRA rides on its Render Preset (H3) has no Core LoRAs stack: another core LoRA (a task LoRA such
+  // as ORB360) goes on Style LoRAs, after the preset's, which runs it the same (short03 verified the wiring); add_lora says so
+  if (want === "core" && !coreStack() && single()) want = "style";
   if (e.turbo && turbo() && !asked) throw new Error(`A turbo is already on (${short(turbo().file)}); swap it with set_method {slot: "turbo"}, or pass person_asked: true when the person asked for a turbo stack`);
   const key = { core: "loras", style: "style", identity: "cast" }[want], keys = E.state().bricks.map((b) => b.key);
   if (!keys.includes(key)) await E.snap(key, { at: keys.includes("rack") ? keys.indexOf("rack") : undefined });

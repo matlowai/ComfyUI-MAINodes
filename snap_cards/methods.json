@@ -138,7 +138,7 @@
       "needs": [{ "folder": "relayvsr", "own_folder": true }],
       "local_or_api": "local",
       "guidance": { "line": "X4 about 50 s per clip; flickers less than FlashVSR+, can oversharpen on H3, medium-distance faces can fail", "evidence": "measured", "source": "scout/upscalers §1 (Elvaxorn; Kijai and JohnDopamine opinion)", "n": 1, "hardware": "5090" },
-      "cost": { "community_s": [20, 50], "per": "clip", "local_s": null, "vram_gb": 13.5 }
+      "cost": { "community_s": [20, 50], "per": "clip", "local_s": null, "vram_gb": 13.5, "vram_at_px": 3604480, "vram_why": "the 16 GB tier ran under 13.5 GiB at 1280x704 -> 2560x1408 (relayvsr/nodes.py); scaled by output pixels it says roughly what a bigger output needs (short03 F-C26: 4096x2048 ran out of memory at 29.7 GB on a 32 GB card)" }
     },
     {
       "id": "seedvr2",

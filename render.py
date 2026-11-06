@@ -39,6 +39,12 @@ BUILTIN = {
     "DMAD speed LoRA": dict(PIKA_PRESET, lora="minimax_h3_DMAD_4step_full_lora_avg_rank_39_bf16.safetensors", lora_strength=0.8,
                             sampler="lcm", schedule="simple", sigmas="", steps=6, shift_audio=2.0),
 }
+# the checkpoints without a turbo, what Snap's "Turbo off" goes back to (short03 F-C11: it had nothing to go back to): the
+# Pika LoRA at 0, 20 steps of euler + simple at cfg 5, as short03's ORB360 orbits and U102b's stage 2 ran them (H3 documents
+# no base sampling of its own)
+QUALITY = dict(lora_strength=0.0, sampler="euler", schedule="simple", sigmas="", steps=20, cfg=5.0)
+BUILTIN["First frame, quality (no turbo)"] = dict(BUILTIN["Pika H3 Flex"], **QUALITY)
+BUILTIN["Reference pictures, quality (no turbo)"] = dict(BUILTIN["Pika + reference pictures"], **QUALITY)
 
 
 def resample(points, steps):

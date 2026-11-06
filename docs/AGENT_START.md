@@ -231,11 +231,15 @@ cameras → master → a people-free walkthrough → plates from its frames), th
                    "cameras": [{"name": "C1", "x": 0.11, "y": 0.78, "heading": 38, "eye_height": 1.6, "lens": 24}]}
     add_plate {"location": "location:<id>", "name": "Pb gate inside", "take": "<walkthrough>", "frame": 100,
                "pose": {"x": 0.64, "y": 0.52, "heading": 280, "eye_height": 1.6, "lens": 28}, "use": "C2, C4"}
-    apply_location {"location": "location:<id>", "plates": ["Pb gate inside"]}     # answers cite: master, plan, plates
+    apply_location {"location": "location:<id>", "plates": ["Pb gate inside"], "camera": "Pb gate inside"}
+                                                       # answers cite (master, plan, plates), use and prompt_hint
 
 - A pose's `x`, `y` are fractions of the plan picture from its top left; `heading` is degrees clockwise from the
   plan's up (north); `eye_height` in metres; `lens` in mm. `list_locations` gives every place whole;
   `get_record {"ref": "location:<id>@n"}` one version.
+- H3 takes a reference picture as the shot's camera and copies its framing. Say which picture is the camera
+  (`camera`: master or a plate) and the rest show the place; put the answer's `prompt_hint` in the prompt. Cite this
+  cut's own place, never the next place's plate (it makes H3 hard-cut to it).
 - `apply_location` puts the master, the plan (`master: false` / `plan: false` leave them out) and the plates named into
   References, each a `<Picture n>` (`cite`), and pins the version, so every take says which version of the place it
   used; `rerun` swaps it like a Cast. A New view cites a plate the same way: `{"location": "location:<id>", "plate":
