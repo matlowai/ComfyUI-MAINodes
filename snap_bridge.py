@@ -51,7 +51,7 @@ TIMEOUT = 30
 # set by snap-gate per account), when it registered and when it last answered, the Snap code it loaded, whether it is a
 # headless (agent's) page, whether its person turned "Let agents see" on, and its tool table. A call goes to a page of the
 # caller's own user that is still connected, so one account's agent never drives another's page (U72 F20), and
-# "Let agents see" is what lets agents drive a person's tab (Dylan 2026-11-05: "this is the whole point of this control")
+# "Let agents see" is what lets agents drive a person's tab (the operator, 2026-11-05: "this is the whole point of this control")
 pages = {}
 PACK = Path(__file__).parent
 PAGE_SH = PACK / "tools" / "snap_agent_page.sh"
@@ -138,7 +138,7 @@ def health(user, agent=None, target=None):
     return [{"id": c, "name": page_name(c), "title": pages[c].get("title"), "who": pages[c].get("who"), "driven_by": drivers.get(c), "yours": bound.get((user, agent)) == c, "registered_s_ago": round(now - pages[c]["registered"]), "last_answer_s_ago": None if pages[c]["answered"] is None else round(now - pages[c]["answered"]),
              "code_current": pages[c]["code"] == code, "headless": pages[c]["headless"], "managed": pages[c].get("managed", False), "sees": pages[c]["sees"], "tools": len(pages[c]["tools"]), "calls_go_here": c == to} for c in found]
 pending = {}       # call id -> (future answered by /mainodes/snap/result, the page it was sent to)
-# Which agent drives which page (Dylan 2026-11-05: "easily select which web ui instance you want to interact with and
+# Which agent drives which page (the operator, 2026-11-05: "easily select which web ui instance you want to interact with and
 # not collide"). An agent names itself with the X-Snap-Agent header (snapcall.py: SNAP_AGENT; snap_mcp.py: one name per
 # connection); use_page binds it to a page for its session and makes it that page's one driver; the page shows "Driven
 # by" with a Release button. Another agent reaching a driven page gets an error naming the driver, never a silent switch.
@@ -394,7 +394,7 @@ async def progress(request):
     return web.json_response({"prompt_id": reg.prompt_id, "nodes": {k: {"state": v["state"].value, "value": v["value"], "max": v["max"]} for k, v in reg.nodes.items()}})
 
 
-# The agents' window (SNAP-R83, Dylan 2026-11-06: "an open chrome window you can control and hook into and restart and
+# The agents' window (SNAP-R83, the operator, 2026-11-06: "an open chrome window you can control and hook into and restart and
 # make it non headless always"): one visible Chrome that tools/snap_agent_page.sh starts with its own profile and a
 # 127.0.0.1 DevTools port, which it tells this server (kept in the user folder, so a restarted server still knows it).
 # The bridge finds a tab in it by the client id in the tab's sessionStorage, treats it as a tab that sees, captures it for

@@ -82,7 +82,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     handle.addEventListener("pointercancel", up, { once: true });
   });
   handle.addEventListener("dblclick", () => { setWidth(null); try { localStorage.removeItem(WIDTH_KEY); } catch { /* nothing kept */ } });
-  // the bricks rail's width the same way (Dylan 2026-11-05: "the bricks on the left area isnt quite wide enough"): drag
+  // the bricks rail's width the same way (the operator, 2026-11-05: "the bricks on the left area isn't quite wide enough"): drag
   // its right edge, double-click resets, kept per browser
   const RAIL_KEY = "mainodes.snap.railWidth";
   const railHandle = h("div", { className: "snap-rail-handle", title: "drag to resize the bricks · double-click resets" });
@@ -876,7 +876,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     root.querySelector(".snap-setup-sheet")?.remove();
     const list = M.setups(), close = () => { sheet.remove(); root.focus({ preventScroll: true }); }, fam = M.family();
     // in a scene's shot, another family opens in a scratch tab outside the scene (whether it should stay in the scene as a
-    // version of the shot is Dylan's open question, U59); the sheet says so where the choice is made
+    // version of the shot is an open question for the operator, U59); the sheet says so where the choice is made
     const here = SC.current(), away = here ? "opens a scratch tab, outside this scene" : "opens a new tab";
     const families = [...new Set([fam, ...list.map((s) => s.family ?? "This recipe")].filter(Boolean))];
     const keep = h("input", { type: "checkbox", checked: true });

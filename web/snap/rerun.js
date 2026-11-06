@@ -1,4 +1,4 @@
-// Re-run with swaps (U89, Dylan 22:45: "think Disney re-running the same animations with different movies and characters
+// Re-run with swaps (U89, the operator, 22:45: "think Disney re-running the same animations with different movies and characters
 // but same motions"). Every record a take pinned is a slot that stays pinned, or goes to the newest version, a chosen
 // version, or another record of its kind. Two slots are not records and say so: the scene (a different scene brings its
 // set into the recipe; where the new take lands is chosen apart) and the Setup (the take's setup pin, else read from its

@@ -1,6 +1,6 @@
 // Make a take bigger (U102b, the upscale slot's take methods, SNAP-R81/R82): a finished take goes through a second pass at
 // a bigger size and lands as a new take whose parent is the take. The slot's media methods (RelayVSR, ESRGAN, resize) run
-// inside a new render; these start from a take that exists. Stage 2 (`stage2`; Dylan 2026-11-05: "a full pixels through
+// inside a new render; these start from a take that exists. Stage 2 (`stage2`; the operator, 2026-11-05: "a full pixels through
 // vae like a stage 2 upscale with a light denoise") runs the take's own executed prompt again (its model, LoRAs, words,
 // references and seed) from its own frames: decoded, upscaled (Lanczos, or a pixel model first), VAE-encoded at the
 // target and given to H3V2VInit with the sound pinned, sampled from `denoise` on the take's own schedule (H3DeropeSigmas):

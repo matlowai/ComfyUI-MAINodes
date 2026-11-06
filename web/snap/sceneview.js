@@ -50,7 +50,7 @@ export function createSceneBar({ host, say, onOpened, openTake, run, rerun }) {
   function render() {
     if (pressed) return;
     const here = SC.current();
-    // a shot with takes and none active shows its newest take (Dylan 2026-11-05: tiles said "no takes yet" over 78 takes)
+    // a shot with takes and none active shows its newest take (the operator, 2026-11-05: tiles said "no takes yet" over 78 takes)
     const newest = (x) => SC.takesOf(x).map((e) => T.get(e.take)).filter(Boolean).sort((a, b) => a.created - b.created).at(-1) ?? null;
     const shots = here ? here.scene.shots.map((x) => ({ x, active: T.get(x.active), latest: x.active ? null : newest(x), n: SC.takesOf(x).length, jobs: jobsOf(x) })) : [];
     const trail = here?.shot.active ? SC.path(here.shot, here.shot.active).map(T.get) : [];

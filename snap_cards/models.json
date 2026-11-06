@@ -127,7 +127,7 @@
     "cfg": 3,
     "sampler": "er_sde",
     "scheduler": "simple",
-    "notes": "Dylan's moss_deband_int8 workflow; ComfyUI/Kromoss cards use euler, 50 steps, cfg 3, SLG layer 22 on negative"
+    "notes": "the moss_deband_int8 reference workflow; ComfyUI/Kromoss cards use euler, 50 steps, cfg 3, SLG layer 22 on negative"
    },
    "stacks_with": [
     "edit LoRAs",
@@ -141,7 +141,7 @@
    "size_gb": 5.41,
    "quant_format": "int8_tensorwise+convrot x168",
    "loads_in_core": true,
-   "notes": "Dylan's DeBand preset: SFT int8 with banding fix baked in (default per scout report). Recipe details unverified here; see workflows/moss HANDOFF."
+   "notes": "the DeBand preset: SFT int8 with banding fix baked in (default per scout report). Recipe details unverified here; see workflows/moss HANDOFF."
   },
   {
    "file": "moss_image_sft_deband_plus_int8_convrot.safetensors",
@@ -157,7 +157,7 @@
     "cfg": 3,
     "sampler": "er_sde",
     "scheduler": "simple",
-    "notes": "Dylan's moss_deband_int8 workflow; ComfyUI/Kromoss cards use euler, 50 steps, cfg 3, SLG layer 22 on negative"
+    "notes": "the moss_deband_int8 reference workflow; ComfyUI/Kromoss cards use euler, 50 steps, cfg 3, SLG layer 22 on negative"
    },
    "stacks_with": null,
    "do_not_stack_with": [
@@ -197,7 +197,7 @@
    "size_gb": 5.41,
    "quant_format": "int8_tensorwise+convrot x168",
    "loads_in_core": true,
-   "notes": "DeBand with lodestones 8-step DMD LoRA baked in at 0.35 (scout report; turbo cfg and sampler for this file unverified, steps from Dylan DeBand Fast preset)."
+   "notes": "DeBand with lodestones 8-step DMD LoRA baked in at 0.35 (scout report; turbo cfg and sampler for this file unverified, steps from the DeBand Fast preset)."
   },
   {
    "file": "kromoss_int8_convrot.safetensors",

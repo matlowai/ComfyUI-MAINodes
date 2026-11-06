@@ -1,4 +1,4 @@
-// Scenes (U59, Dylan's answer to Q2): a scene is a document that owns its related work, nested and navigable: the
+// Scenes (U59, the operator's answer to Q2): a scene is a document that owns its related work, nested and navigable: the
 // scene → its shots in order → each shot's takes, with versions (a night version, a take continued from another's last
 // frame) as children of the take they came from, and one active take per shot. Takes keep their own store (takes.js);
 // a shot lists them by id and names the workflows whose takes are its own (graph ids, as takes record them), so a run in

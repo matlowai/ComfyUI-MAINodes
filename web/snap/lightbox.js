@@ -1,4 +1,4 @@
-// Every picture is one click from full size (Dylan 2026-11-05: "click on a picture and it brings it up full size"): a
+// Every picture is one click from full size (the operator, 2026-11-05: "click on a picture and it brings it up full size"): a
 // thumbnail marked with full() opens this in-page viewer over Snap. Fit or 100 %, wheel zoom about the pointer, drag to
 // pan, ← → through the pictures of the same row or tray (its group), Esc closes; it names the picture, its source and
 // size, and "Open in a new tab" leaves this tab as it is. Viewing never changes anything; a thumbnail whose click did

@@ -27,7 +27,7 @@ writes the same fields through the same widget, so old workflows load as they we
   in-page copy as the fallback when the clipboard is blocked; Paste also works on a row without a curve and accepts a
   bare `[[t, M], ...]` list. This is how a curve gets to another row or to the stage-2 rack of a de-rope workflow.
 - **Fine control.** The JSON box stays and syncs both ways. **Taller** doubles the canvas.
-- **Envelopes that reverse the dial.** Dylan's punch freeze (a motion row at strength 1: 0.5, 1 into the punch, −2 for
+- **Envelopes that reverse the dial.** The operator's punch freeze (a motion row at strength 1: 0.5, 1 into the punch, −2 for
   0.7 s at the impact, back to 0.5) needs negative levels by mouse, a zoom to place the 0.7 s dip, and the strength the
   model gets (level × row strength) without arithmetic. **bottom** / **top** set the mouse range (both widen to fit typed
   or pasted points and stay widened while the editor is open, so the canvas does not rescale after a drag); 0 is a solid
@@ -83,7 +83,7 @@ to 0.1 s labels and the latent-frame ticks, hit tests, snapping and the box all 
   `tests/test_dial_timecurve.py`). The blue curve and the amber per-frame bars both show the smoothed curve.
 - **Live scale fields:** the scale tools apply on a button press with the number beside it, so a half-typed number
   never rewrites the curve; undo covers each press.
-- **Invert of the whole curve (1 − M):** flip (−M) covers the reversal Dylan needed.
+- **Invert of the whole curve (1 − M):** flip (−M) covers the reversal the operator needed.
 - **Zoom of the level axis:** bottom / top and Taller cover it.
 - **Per-modality curves (video vs audio):** the schema has one curve plus follow / protect.
 - **Undo across editor sessions:** the history lives while the editor is open on that row; Reset covers the rest.
