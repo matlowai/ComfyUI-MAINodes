@@ -840,4 +840,5 @@ export const STYLE = `
 .snap-loc-gap { color: #f0b445; font-size: 12px; line-height: 1.35; } /* F-D10 */
 .snap-shot-truth { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 6px 0 0; padding: 6px 10px; border-radius: 9px; background: #f0b44514; border: 1px solid #f0b44555; color: #f6cf86; font-size: 12.5px; } /* UI-09 */
 .snap-shot-truth[hidden] { display: none; }
+.snap-pics-menu { z-index: 120; gap: 4px; padding: 10px; } .snap-pics-menu label { font-size: 13px; display: flex; gap: 6px; align-items: center; } .snap-pin-pics { font-size: 11px; } /* UI-04 */
 `;

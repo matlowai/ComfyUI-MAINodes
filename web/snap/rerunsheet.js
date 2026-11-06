@@ -36,12 +36,14 @@ function changes({ fields = [], pictures = [] }) {
 
 // a slot's picks, as the person reads them
 function picks(s) {
-  if (s.kind === "scene") return [["pinned", s.name ? `stays in ${s.name}` : "no scene"], ...s.others.map((o) => [o.ref, `${o.name}'s set${o.set ? `: ${o.set}` : " (it has no set)"}`])];
+  // UI-15: the Scene row lists only scenes with a set (a scene without one changes nothing in the recipe)
+  if (s.kind === "scene") return [["pinned", s.name ? `stays in ${s.name}` : "no scene"], ...s.others.filter((o) => o.set).map((o) => [o.ref, `${o.name}'s set: ${o.set}`])];
   if (s.kind === "setup") return [["pinned", `${s.name} (as it ran)`], ...s.others.map((o) => [o.ref, o.name])];
   const n = s.n, head = s.head;
   return [["pinned", n ? `as it was (v${n})` : "as it was"], ["latest", head && head !== n ? `latest (v${head})` : "latest (the same version)", !head || head === n],
     ...s.versions.filter((v) => v.n !== n && v.n !== head).map((v) => [`@${v.n}`, `v${v.n}${v.note ? ` · ${v.note}` : ""}`]),
-    ...s.others.map((o) => [o.ref, `${o.name} (another ${s.kind === "set_snapshot" ? "set" : s.kind})`])];
+    ...s.others.map((o) => [o.ref, `${o.name} (another ${s.kind === "set_snapshot" ? "set" : s.kind})`]),
+    ...(s.kind === "cast" ? [["out", `— take ${s.name ?? "them"} out`]] : [])]; // UI-15 (SNAP-R124)
 }
 
 // `take` (a take record) or `name` (the opened file's name); `edit(ref, n)` opens a pinned version in its editor

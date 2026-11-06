@@ -1040,6 +1040,19 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   its file (compared without node sizes, sockets by name), so browsing a scene, someone else's too, writes nothing.
   *Why:* UX walkthrough UI-09 / B3 / B10 and dogfood F-A19, F-A30: C04's recipe was another cut's while its ★ take was
   Granny, and every shot switch rewrote the shot and scene files. *More:* proto/test_g2_truth.js.
+- **SNAP-R123: A picture goes where it is going from the take that made it.** The take viewer's "Send to ▾" sends the
+  frame at the playhead (or the still) to References, to a Cast as its next picture (a new version whose note names the
+  take and frame), to a new cast member, or to a location as a plate (a new version, the plate's `from` = the take); the
+  Cast sheet has "+ from a take" (the take picker); use_take `as: cast | plate` is the agents' twin. A new Cast's uploads
+  go to its own folder from the first picture. A still's viewer shows no video-only verbs. *Why:* UX walkthrough UI-03,
+  UI-12, B14: the design lane's pictures could only reach the video lane by a file hunt on disk.
+  *More:* proto/test_g2_send.js.
+- **SNAP-R124: A shot chooses which of a Cast's pictures it uses, and nothing swaps them silently.** apply_cast `pictures`
+  (roles: a state, a view) puts only those in and the pin keeps them; the Cast chip's picture button picks them; an update
+  to a version that lacks one is refused with what to do, never applied as another state. A re-run can take a Cast out
+  (`{to: "out"}`, the sheet's "— take X out"); the Scene row lists only scenes with a set. *Why:* UX walkthrough UI-04 /
+  UI-15, dogfood F-A20: "v4 available · update" would have turned a state-A cut into state D, and a Granny-only cut
+  carried a Suna row nobody could remove. *More:* proto/test_g2_send.js.
 
 ## Accounts and the gate (snap-gate)
 

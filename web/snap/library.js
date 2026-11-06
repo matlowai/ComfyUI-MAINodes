@@ -339,7 +339,7 @@ export function lookWarning(was, now) {
   const words = (b) => `${b.trigger ?? ""}|${b.details ?? ""}`, pics = (b) => JSON.stringify((b.refs ?? []).map((r) => r.file));
   return words(was) !== words(now) && pics(was) === pics(now) ? `${now.name}'s pictures still show the old look; pictures usually win over the details line. Change the pictures too.` : null;
 }
-const castStamp = () => `cast-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+export const castStamp = () => `cast-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 // a new version of a Cast record (a new record when id is null): {id, ref, n, made}
 export async function saveCast(id, body, { note = "", by = "person" } = {}) {
   await ready();
@@ -370,16 +370,37 @@ export async function uploadCastPicture(file, id) {
   const r = await (await api.fetchApi("/upload/image", { method: "POST", body: form })).json();
   return `${r.subfolder}/${r.name}`;
 }
+// UI-03 (SNAP-R123): a take's frame sent where it is going, from the take viewer's "Send to" and use_take: a Cast's next
+// picture (a new version saying which take and frame) or a location's plate (a new version, the plate's from = the take)
+export async function takeToCast(t, ref, { at = "last", frame, crop, role, by = "person" } = {}) {
+  await ready();
+  const { kind, id } = W.parse(ref), r = kind === "cast" && W.record("cast", id);
+  if (!r) throw new Error(`No Cast ${ref}; list_cast lists them`);
+  const got = await T.frameAt(t, at, { frame, crop }), b = W.headOf(r).body, what = role?.trim() || `from take ${t.number}${t.media.some((m) => m.kind === "video") ? `, frame ${got.frame}` : ""}`;
+  const out = await saveCast(id, { ...b, refs: [...b.refs, { file: got.file, role: what }] }, { note: `a picture from take ${t.number}, frame ${got.frame}`, by });
+  return { cast: `cast:${id}`, version: out.n, file: got.file, role: what, said: `${b.name} v${out.n}: frame ${got.frame} of take ${t.number} is picture ${b.refs.length + 1} ("${what}")${role ? "" : "; say what it shows in the Cast sheet"}` };
+}
+export async function takeToPlate(t, ref, { frame, name, by = "person" } = {}) {
+  await ready();
+  const video = t.media.some((m) => m.kind === "video"), plate = { name: name?.trim() || `take ${t.number}${video && frame != null ? ` f${frame}` : ""}`, take: t.id, ...(video && frame != null ? { frame } : {}) };
+  const out = await addPlate(ref, plate, { note: `plate ${plate.name} from take ${t.number}`, by });
+  return { location: `location:${out.id}`, version: out.n, plate: plate.name, said: `${locationOf(out.ref).body.name} v${out.n}: plate "${plate.name}" from take ${t.number}${plate.frame != null ? `, frame ${plate.frame}` : ""}; place it on the plan in the Location sheet` };
+}
 // put one Cast version into the open recipe, replacing what an earlier apply of the same record put there: its LoRA row
 // on the Cast brick (snapped in when missing), its sentence in the prompt's first line, its pictures in References.
 // `strength` overrides the record's for this recipe (the pin says so). Returns what happened
-export async function applyCast(ref, { strength } = {}) {
+export async function applyCast(ref, { strength, pictures } = {}) {
   await ready();
   const { kind, id, n } = W.parse(ref);
   if (kind !== "cast") throw new Error(`${ref} isn't a Cast reference (cast:<id> or cast:<id>@n)`);
   const got = W.get(ref);
   if (!got) throw new Error(W.record("cast", id) ? `Cast ${id} has no version ${n}; it has v1-v${W.record("cast", id).head}` : `No Cast record ${id}`);
-  const b = got.version.body, key = `cast:${id}`, was = pinOf(key)?.placed ?? {}, placed = {}, line = castLine(b);
+  // UI-04 (SNAP-R124): pictures picks which of the record's pictures this shot uses, by role (a state, a view); the pin keeps
+  // the choice, so an update or a re-apply puts the same ones in
+  const all = got.version.body, pick = pictures?.length ? pictures : pictures ? null : pinOf(`cast:${id}`)?.placed?.pictures ?? null; // [] = every picture again
+  const absent = (pick ?? []).filter((x) => !all.refs.some((r) => r.role === x));
+  if (absent.length) throw new Error(`${all.name} v${got.version.n} has no picture ${absent.map((x) => `"${x}"`).join(", ")}; its pictures: ${all.refs.map((r) => `"${r.role}"`).join(", ") || "none"}`);
+  const b = pick ? { ...all, refs: all.refs.filter((r) => pick.includes(r.role)) } : all, key = `cast:${id}`, was = pinOf(key)?.placed ?? {}, placed = pick ? { pictures: pick } : {}, line = castLine(b);
   let preset = null, opening = null;
   if (!E.state().bricks.some((x) => x.key === "render")) throw new Error(`${b.name} goes into the Render prompt: add the Render brick first`);
   const keys = () => E.state().bricks.map((x) => x.key);
@@ -694,7 +715,11 @@ export async function updatePin(ref) {
     return apply(get(now.id), { keep: false });
   }
   if (!r) throw new Error(`${ref} isn't in your records (archived records stay listed; a missing one can't be updated)`);
-  if (kind === "cast") return applyCast(W.refOf(kind, id));
+  if (kind === "cast") { // UI-04: a newer version keeps the shot's chosen pictures, or says it lacks them (never a silent state change)
+    const pick = pinOf(ref)?.placed?.pictures, roles = W.headOf(r).body.refs.map((x) => x.role), gone = (pick ?? []).filter((x) => !roles.includes(x));
+    if (gone.length) throw new Error(`${W.headOf(r).body.name} v${r.head} has no ${gone.map((x) => `"${x}"`).join(", ")} picture, which this shot uses: choose its pictures again (the Cast chip's "Which pictures…", or apply_cast with pictures)`);
+    return applyCast(W.refOf(kind, id));
+  }
   if (kind === "location") { const p = pinOf(ref)?.placed ?? {}; return (await applyLocation(W.refOf(kind, id), { plates: (p.plates ?? []).filter((x) => W.headOf(r).body.plates?.some((q) => q.name === x)), master: p.master ?? true, plan: p.plan ?? true })).said; }
   const card = W.headOf(r)?.body;
   if (kind === "set_snapshot") return applySet(card, card.brick.snapshot, { version: { ref: W.refOf(kind, id), n: r.head, hash: W.short(W.headOf(r).hash) } });

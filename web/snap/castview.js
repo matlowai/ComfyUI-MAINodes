@@ -13,6 +13,8 @@ import * as M from "./models.js";
 import * as W from "./world.js";
 import { full } from "./lightbox.js";
 import * as AL from "./agentlibrary.js";
+import * as T from "./takes.js";
+import { pickTake } from "./takepicker.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const short = (f) => String(f).split("/").pop().replace(/\.safetensors$/, "");
@@ -20,12 +22,14 @@ const when = (at) => new Date(at).toLocaleString([], { month: "short", day: "num
 export const view = (file) => { const cut = file.lastIndexOf("/"); return api.apiURL(`/view?filename=${encodeURIComponent(file.slice(cut + 1))}&subfolder=${encodeURIComponent(file.slice(0, Math.max(cut, 0)))}&type=input`); };
 
 // open the sheet on a record (id), a version of it (n), or a new one (id null; `lora` starts it from that LoRA file)
-export async function openCast(host, { id = null, n = null, lora = null, say, onApplied }) {
+export async function openCast(host, { id = null, n = null, lora = null, refs = null, say, onApplied }) {
   host.querySelector(".snap-cast-sheet")?.remove();
   await Promise.all([L.ready(), M.load()]);
   const rec = id && W.record("cast", id), from = rec && (n ? rec.versions.find((v) => v.n === n) : W.headOf(rec));
-  const b = structuredClone(from?.body ?? { name: lora ? short(lora).replace(/[_-]+/g, " ") : "", alias: "", trigger: "", details: "", lora: lora ? { file: lora, strength: M.entry(lora)?.recommended?.strength ?? 1 } : null, refs: [], lore: "", rating: null });
+  const b = structuredClone(from?.body ?? { name: lora ? short(lora).replace(/[_-]+/g, " ") : "", alias: "", trigger: "", details: "", lora: lora ? { file: lora, strength: M.entry(lora)?.recommended?.strength ?? 1 } : null, refs: refs ?? [], lore: "", rating: null });
+  // B14: a new record's id is chosen now, so pictures uploaded before its first Save go to its own folder, not a shared new/
   let recId = id;
+  const ownId = id ?? L.castStamp();
   const field = (label, el) => h("label", { className: "snap-field" }, h("span", { textContent: label }), el);
   const text = (k, ph, rows) => { const el = h(rows ? "textarea" : "input", { value: b[k] ?? "", placeholder: ph, ariaLabel: k, ...(rows ? { rows } : {}) }); el.addEventListener("input", () => { b[k] = el.value; }); return el; };
   // the LoRA: identity files first, then the rest; a name that isn't installed stays shown as missing (SNAP-R3)
@@ -46,12 +50,15 @@ export async function openCast(host, { id = null, n = null, lora = null, say, on
     h("button", { className: "snap-x", textContent: "×", title: "take this picture out of the record (the file stays)", onclick: () => { b.refs.splice(i, 1); drawRefs(); } }))),
   h("div", { className: "snap-set-actions" },
     h("button", { className: "snap-link", textContent: "+ picture", onclick: () => upload.click() }),
+    h("button", { className: "snap-link", textContent: "+ from a take", title: "a still, or a video's last frame, from any scene (UI-03)", onclick: () => pickTake(host, { title: `A picture for ${b.name || "this cast member"}`, pick: async (t) => {
+      try { const { file, frame } = await T.frameAt(t, "last"); b.refs.push({ file, role: `from take ${t.number}${t.media.some((m) => m.kind === "video") ? `, frame ${frame}` : ""}` }); drawRefs(); } catch (err) { say?.(err.message, true); }
+    } }) }),
     h("button", { className: "snap-link", textContent: "+ from References", title: "the pictures References holds now", onclick: () => {
       for (const p of E.state().bricks.find((x) => x.key === "refs")?.pictures ?? []) if (!b.refs.some((r) => r.file === p.file)) b.refs.push({ file: p.file, role: p.role.replace(/^cast: [^,]*, /, "") });
       drawRefs();
     } })));
   const upload = h("input", { type: "file", accept: "image/png,image/jpeg,image/webp", multiple: true, onchange: async () => {
-    for (const f of upload.files) b.refs.push({ file: await L.uploadCastPicture(f, recId ?? "new"), role: `identity: ${b.refs.length ? "picture " + (b.refs.length + 1) : "front"}` });
+    for (const f of upload.files) b.refs.push({ file: await L.uploadCastPicture(f, ownId), role: `identity: ${b.refs.length ? "picture " + (b.refs.length + 1) : "front"}` });
     upload.value = ""; drawRefs();
   } });
   // a voice reference (U101, SNAP-R73): one audio file in input/ (a clean 3-6 s line) and the casting words it was made from
@@ -59,7 +66,7 @@ export async function openCast(host, { id = null, n = null, lora = null, say, on
   const setVoice = () => { const f = voiceFile.value.trim(); b.voice = f ? { file: f, casting: casting.value } : undefined; player.hidden = !f; if (f) player.src = view(f); };
   const voiceFile = h("input", { value: b.voice?.file ?? "", placeholder: "an audio file in input/, e.g. snap/kon_voice.wav", ariaLabel: "voice reference file", oninput: () => setVoice() });
   const casting = h("textarea", { rows: 2, value: b.voice?.casting ?? "", placeholder: "how they sound: register, pitch, timbre, energy, cadence", ariaLabel: "casting", oninput: () => setVoice() });
-  const voiceUpload = h("input", { type: "file", accept: "audio/*", onchange: async () => { const f = voiceUpload.files[0]; if (!f) return; voiceFile.value = await L.uploadCastPicture(f, recId ?? "new"); voiceUpload.value = ""; setVoice(); } });
+  const voiceUpload = h("input", { type: "file", accept: "audio/*", onchange: async () => { const f = voiceUpload.files[0]; if (!f) return; voiceFile.value = await L.uploadCastPicture(f, ownId); voiceUpload.value = ""; setVoice(); } });
   const note = h("input", { placeholder: "what changed (optional, shown in the version list)", ariaLabel: "version note" });
   const status = h("div", { className: "snap-quiet", role: "status" }), warn = h("div", { className: "snap-world-warn", hidden: true });
   let shown = from?.n ?? null; // the version the sheet shows; a save moves it to the new one
@@ -72,7 +79,7 @@ export async function openCast(host, { id = null, n = null, lora = null, say, on
   };
   const saveIt = async () => {
     if (!b.name.trim()) throw new Error("A cast member needs a name");
-    const out = await L.saveCast(recId, b, { note: note.value.trim(), by: "person" });
+    const out = await L.saveCast(recId ?? ownId, b, { note: note.value.trim(), by: "person" });
     recId = out.id;
     status.textContent = out.made ? `Saved ${b.name} v${out.n}` : `Nothing changed: ${b.name} stays v${out.n}`;
     warn.textContent = out.warning ?? ""; warn.hidden = !out.warning; // SNAP-R59: new words, the same pictures

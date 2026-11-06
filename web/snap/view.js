@@ -1172,12 +1172,30 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     // F-C27: x takes the record out of this recipe (its pieces and its pin; the record stays)
     const out = (ref, name) => h("button", { className: "snap-x snap-pin-x", textContent: "×", title: `take ${name} out of this recipe: what it put here goes, the record stays`,
       onclick: async (e) => { e.stopPropagation(); try { say(await L.removePin(ref)); } catch (err) { say(err.message, true); } render(null); } });
+    // UI-04 (SNAP-R124): which of a Cast's pictures this shot uses (a state, a view), kept on its pin
+    const picks = (ref, p, name) => {
+      const body = ref.startsWith("cast:") && W.get(`${ref}@${p.n}`)?.version.body;
+      if (!body?.refs?.length) return null;
+      const chosen = p.placed?.pictures;
+      return h("button", { className: "snap-link snap-quiet-btn snap-pin-pics", textContent: chosen ? `${chosen.join(", ")} ▾` : `all ${body.refs.length} pictures ▾`, title: `which of ${name}'s pictures this shot uses`, onclick: (e) => {
+        e.stopPropagation();
+        root.querySelector(".snap-pics-menu")?.remove();
+        const boxes = body.refs.map((r) => h("label", {}, h("input", { type: "checkbox", value: r.role, checked: !chosen || chosen.includes(r.role) }), ` ${r.role}`));
+        const done = () => { menu.remove(); removeEventListener("pointerdown", outside, true); }, outside = (ev) => { if (!menu.contains(ev.target)) done(); };
+        const menu = h("div", { className: "snap-scene-menu snap-pics-menu", role: "dialog", ariaLabel: `${name}'s pictures` }, h("strong", { textContent: `${name} v${p.n}: the pictures this shot uses` }), ...boxes,
+          h("button", { className: "snap-primary", textContent: "Use these", onclick: async (ev) => { ev.stopPropagation(); const on = boxes.map((b) => b.querySelector("input")).filter((x) => x.checked).map((x) => x.value); done();
+            try { say(await L.applyCast(`${ref}@${p.n}`, { pictures: on.length === body.refs.length ? [] : on })); } catch (err) { say(err.message, true); } render(null); } }));
+        const at = e.currentTarget.getBoundingClientRect();
+        Object.assign(menu.style, { position: "fixed", top: `${at.bottom + 4}px`, left: `${Math.max(8, Math.min(at.left, innerWidth - 300))}px` });
+        root.append(menu); addEventListener("pointerdown", outside, true);
+      } });
+    };
     if (!here.length) return [];
     return [h("div", { className: "snap-pins" }, here.map(([ref, p]) => {
       const m = moved.get(ref), name = m?.name ?? p.name ?? ref;
-      if (!m || m.missing) return h("span", { className: "snap-pin-wrap" }, h("span", { className: `snap-pin${m ? " missing" : ""}`, textContent: m ? T.moveText(m) : p.n ? `${name} v${p.n}` : name, title: m ? `${ref}: this record isn't in your library; the recipe still holds what it put there` : `${ref}@${p.n}: the version this recipe holds` }), out(ref, name));
+      if (!m || m.missing) return h("span", { className: "snap-pin-wrap" }, h("span", { className: `snap-pin${m ? " missing" : ""}`, textContent: m ? T.moveText(m) : p.n ? `${name} v${p.n}` : name, title: m ? `${ref}: this record isn't in your library; the recipe still holds what it put there` : `${ref}@${p.n}: the version this recipe holds` }), m ? null : picks(ref, p, name), out(ref, name));
       return h("span", { className: "snap-pin-wrap" }, h("button", { className: "snap-pin moved", title: m.pack ? `${ref}: a pack card the pack has changed since the recipe took it. Update puts today's card in` : `${ref}: the recipe holds v${p.n}; the record is at v${m.now}${m.archived ? " (archived)" : ""}. Update puts v${m.now} in, replacing what v${p.n} put there`,
-        onclick: async (e) => { e.stopPropagation(); try { say(await L.updatePin(ref)); } catch (err) { say(err.message, true); } render(null); } }, m.pack ? `${name} · the pack updated it · update` : `${name} v${p.n} · v${m.now} available · update`), out(ref, name));
+        onclick: async (e) => { e.stopPropagation(); try { say(await L.updatePin(ref)); } catch (err) { say(err.message, true); } render(null); } }, m.pack ? `${name} · the pack updated it · update` : `${name} v${p.n} · v${m.now} available · update`), picks(ref, p, name), out(ref, name));
     }))];
   }
 

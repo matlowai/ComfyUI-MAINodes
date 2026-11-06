@@ -58,7 +58,8 @@ export async function slots(take) {
     const { kind, id } = W.parse(ref), r = W.record(kind, id), body = r && W.get(W.refOf(kind, id, p.n))?.version.body;
     const others = W.all(kind).filter((x) => x.id !== id && (kind !== "card" || W.headOf(x).body.kind === body?.kind));
     out.push({ slot: ref, kind, name: kind === "cast" && r ? recordName(r) : p.name ?? id, n: p.n, head: p.n === 0 ? 0 : r?.head ?? null, ...(p.n && !r ? { missing: true } : {}),
-      versions: r ? r.versions.map(({ n, at, note }) => ({ n, at: new Date(at).toISOString(), note })) : [], others: others.map((x) => ({ ref: W.refOf(kind, x.id), name: recordName(x), head: x.head })) });
+      versions: r ? r.versions.map(({ n, at, note }) => ({ n, at: new Date(at).toISOString(), note })) : [], others: others.map((x) => ({ ref: W.refOf(kind, x.id), name: recordName(x), head: x.head })),
+      ...(kind === "cast" ? { out: "{to: \"out\"} takes them out of the re-run (UI-15)" } : {}) });
   }
   const home = RT.shotOf(take);
   out.push({ slot: "scene", kind: "scene", name: home?.scene.name ?? null, n: null, not_a_record: "a different scene brings its set into the recipe; where the new take lands is chosen apart (land)",
@@ -71,12 +72,12 @@ export async function slots(take) {
 // every choice a slot takes, written out in full for an error (SNAP-R58)
 const choices = (s) => (s.kind === "scene" ? `pinned (the scene it is in), or another scene: ${s.others.map((o) => `${o.ref} (${o.name})`).join(", ") || "there are no others"}`
   : s.kind === "setup" ? `pinned (${s.name}), or another setup of this family: ${s.others.map((o) => JSON.stringify(o.ref)).join(", ") || "there are no others"}`
-  : `pinned, latest${s.versions.length ? `, ${s.versions.map((v) => `@${v.n}`).join(", ")} (its versions)` : ""}, or another ${s.kind}: ${s.others.map((o) => `${o.ref} (${o.name})`).join(", ") || "there are no others"}`);
+  : `pinned, latest${s.versions.length ? `, ${s.versions.map((v) => `@${v.n}`).join(", ")} (its versions)` : ""}${s.kind === "cast" ? ", out (take them out of the re-run)" : ""}, or another ${s.kind}: ${s.others.map((o) => `${o.ref} (${o.name})`).join(", ") || "there are no others"}`);
 
 // one asked swap as {slot, to, ref, text, fields, warning, into_run}; keep: true when it leaves the slot as it was
 function one(take, s, to) {
   const no = () => { throw new Error(`${named(take)}: swaps["${s.slot}"].to ${JSON.stringify(to)} isn't one of ${choices(s)}`); };
-  if (to === "pinned" || to == null) return { slot: s.slot, to: "pinned", keep: true, text: `${s.name}${s.n ? ` v${s.n}` : ""} as it was`, into_run: false };
+  if (to === "pinned" || to === undefined) return { slot: s.slot, to: "pinned", keep: true, text: `${s.name}${s.n ? ` v${s.n}` : ""} as it was`, into_run: false };
   if (s.kind === "scene") {
     const scene = typeof to === "string" && to.startsWith("scene:") ? SC.get(to.slice(6)) : null;
     if (!scene) no();
@@ -86,6 +87,8 @@ function one(take, s, to) {
   }
   if (s.kind === "setup") return s.others.some((o) => o.ref === to) ? { slot: s.slot, to, text: `Setup ${s.name} → ${to}`, into_run: true } : no();
   const { kind, id } = W.parse(s.slot);
+  // UI-15 (SNAP-R124): a Cast taken out of the re-run: its LoRA row, words, pictures and voice go (remove_from_world)
+  if (to === "out" || to === null) return kind === "cast" ? { slot: s.slot, to: "out", out: true, text: `${s.name} taken out`, into_run: true } : no();
   if (to === "latest" && s.n === 0) return { slot: s.slot, to, latest: true, text: `${s.name}: today's pack card`, into_run: true }; // a pack card moves with the pack
   let ref;
   if (to === "latest") ref = W.refOf(kind, id);
@@ -152,12 +155,14 @@ async function put(s) {
     const held = Object.keys(E.state().world ?? {}).find((r) => r.startsWith("set_snapshot:"));
     return held ? L.swapPin(held, ref) : L.applySet(card);
   }
+  if (s.out) return L.removePin(s.slot);
   return s.latest ? L.updatePin(s.slot) : L.swapPin(s.slot, s.ref);
 }
 
 // how Reuse the motion does one swap on the take: {method, args, label, picture, world, rerun}, or {not_possible: why}
 export async function motionOf(take, s, who) {
   const no = (why) => ({ slot: s.slot, text: s.text, not_possible: why, instead: "regenerate" });
+  if (s.out) return no(`taking ${s.text.replace(/ taken out$/, "")} out of the picture is a new render, not a repaint of this motion`);
   if (s.slot === "setup") return no("Viggle Remake and Ripple run their own H3 model on the take, so another Setup can't apply: Re-generate does that");
   const rerun = { slot: s.slot, to: s.ref ?? s.to, text: s.text }, base = { slot: s.slot, text: s.text, rerun, label: s.text };
   if (s.slot === "scene") return { ...base, method: "remake_edit", args: { change: `the place to: ${setBlock(L.get(s.set).brick.snapshot)}` } };

@@ -452,7 +452,8 @@ export function turbos() {
 // the brick whose sampling a turbo edits (the image Render; H3 carries its turbo in the Render Preset, whose LoRA is a turbo)
 export const turboHost = () => E.state().bricks.find((b) => BRICKS[b.key].turbo)?.key ?? null;
 // every LoRA file installed, with what the model graph says about it (for "+ LoRA")
-export const loraChoices = () => [...files].filter(([name, f]) => f.folder === "loras" && !hidden(name)).map(([name]) => [name, entry(name)]);
+// B6 (safetensors only): a training folder's optimizer.bin / random_states.pkl are not LoRAs
+export const loraChoices = () => [...files].filter(([name, f]) => f.folder === "loras" && name.endsWith(".safetensors") && !hidden(name)).map(([name]) => [name, entry(name)]);
 // the turbo the graph holds (SNAP-R2): the diffusion model when it is a turbo merge, else the first core row that is a turbo
 export function turbo() {
   const model = diffusion();

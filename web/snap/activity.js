@@ -49,11 +49,14 @@ function where(about = {}) {
 }
 // F-C26: a node out of GPU memory says so by its title, before the server's own text
 const errorText = (e) => (e ? `${/out of memory|OutOfMemory/i.test(`${e.exception_type} ${e.exception_message}`) ? `${LiteGraph.registered_node_types[e.node_type]?.title ?? e.node_type} ran out of GPU memory: ` : ""}${e.node_type ?? "node"}${e.node_id != null ? ` #${e.node_id}` : ""}: ${e.exception_message ?? e.exception_type ?? "failed"}` : null);
-const eta = (r) => { if (r.eta_s == null) return "no estimate yet"; if (!r.started_at) return `about ${Math.round(r.eta_s)} s`; const left = r.eta_s - (Date.now() - r.started_at) / 1000; return left > 0 ? `about ${Math.round(left)} s left` : "running past its estimate"; };
+const secs = (s) => (s >= 120 ? `${Math.round(s / 60)} min` : `${Math.round(s)} s`); // F-D14: an 18-minute stage 2 reads in minutes
+const eta = (r) => { if (r.eta_s == null) return "no estimate yet"; if (!r.started_at) return `about ${secs(r.eta_s)}`; const left = r.eta_s - (Date.now() - r.started_at) / 1000; return left > 0 ? `about ${secs(left)} left` : "running past its estimate"; };
 // the running prompt's progress as core tracks it: the node working now and how many nodes are done
 function progressOf(id) {
   if (progress.prompt_id !== id) return null;
-  const nodes = Object.entries(progress.nodes), now = nodes.find(([, n]) => n.state === "running");
+  // F-D14: a sampler inside a blueprint runs beside its outer node (0 of 1 for the whole run): the running node with the
+  // most steps is the one to show
+  const nodes = Object.entries(progress.nodes), now = nodes.filter(([, n]) => n.state === "running").sort((a, b) => (b[1].max ?? 0) - (a[1].max ?? 0))[0];
   return { nodes: nodes.length, finished: nodes.filter(([, n]) => n.state === "finished").length, ...(now ? { node: now[0], value: now[1].value, max: now[1].max } : {}) };
 }
 

@@ -14,7 +14,7 @@
 // takes (SNAP-R27: by the current rules) · SNAP-R21 copies flagged · SNAP-R23 candidates · SNAP-R24 scenes own the work ·
 // SNAP-R36 quiet sound: a note and two actions, never applied by itself · SNAP-R54 takes above the account's cap are
 // left out · SNAP-R65 a job shows on its take's card and as a ghost card · SNAP-R71/R72 New view from these pictures (its
-// tray: contextview.js) · SNAP-R81/R82/R113 Make it bigger (upscale.js) · SNAP-R114 the voice note (voices.js) · SNAP-R93 the instructions a take ran under · see docs/snap/SNAP_RULES.md
+// tray: contextview.js) · SNAP-R81/R82/R113 Make it bigger (upscale.js) · SNAP-R114 the voice note (voices.js) · SNAP-R93 the instructions a take ran under · SNAP-R123 Send to · see docs/snap/SNAP_RULES.md
 import * as T from "./takes.js";
 import * as V from "./vault.js";
 import * as CV from "./critiqueview.js"; // SNAP-R103 the critic on the take: its chip, masks and notes
@@ -36,6 +36,8 @@ import { url as mediaUrl } from "./checks.js";
 import * as A from "./activity.js";
 import * as WV from "./workview.js";
 import * as AL from "./agentlibrary.js";
+import * as L from "./library.js";
+import { openCast } from "./castview.js";
 
 // SNAP-R39: a take's rating, from how it was made (its prompt's text, the files and takes it used); the person's pick wins
 function ratingRow(t) {
@@ -371,9 +373,28 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
     // Use as input (U32): the frame at the playhead goes on the First frame or into References (one undo step)
     const frameNow = () => (isVideo ? player.currentTime : "last");
     const use = (as) => async () => { try { say((await T.use(t, { as, t: frameNow() })).said); onRestore?.(); } catch (err) { say(err.message, true); } };
+    // UI-03 (SNAP-R123): Send to: the frame (or the still) to a Cast as its next picture, a new cast member, a location's
+    // plate, or References here; each a record version that says which take and frame it came from
+    const sendMenu = (anchor) => {
+      sheet.querySelector(".snap-send-menu")?.remove();
+      const done = () => { menu.remove(); removeEventListener("pointerdown", outside, true); };
+      const outside = (e) => { if (!menu.contains(e.target)) done(); };
+      const go = (fn) => async (e) => { e.stopPropagation(); done(); try { const r = await fn(); if (r) say(r.said ?? r); onRestore?.(); } catch (err) { say(err.message, true); } };
+      const frame = isVideo ? Math.round(player.currentTime * FPS) : undefined, at = frameNow();
+      const menu = h("div", { className: "snap-scene-menu snap-send-menu", role: "menu" },
+        h("button", { textContent: "References in the open recipe", onclick: go(() => T.use(t, { as: "reference", t: at })) }),
+        ...W.all("cast").map((r) => h("button", { textContent: `Cast: ${W.headOf(r).body.name} (a new picture)`, title: "a new version of the Cast with this picture added; say what it shows in the Cast sheet", onclick: go(() => L.takeToCast(t, `cast:${r.id}`, { at, frame })) })),
+        h("button", { textContent: "New cast member from this picture…", onclick: go(async () => { const got = await T.frameAt(t, at, { frame }); await openCast(host, { refs: [{ file: got.file, role: "identity: front" }], say, onApplied: onRestore }); return null; }) }),
+        ...W.all("location").map((r) => h("button", { textContent: `Location: ${W.headOf(r).body.name} (a plate)`, title: "a new version of the location with this frame as a plate; place it on the plan in the Location sheet", onclick: go(() => L.takeToPlate(t, `location:${r.id}`, { frame })) })));
+      const at0 = anchor.getBoundingClientRect();
+      Object.assign(menu.style, { position: "fixed", top: `${at0.bottom + 4}px`, left: `${Math.max(8, Math.min(at0.left, innerWidth - 300))}px` });
+      sheet.append(menu);
+      addEventListener("pointerdown", outside, true);
+    };
     const useRow = h("div", { className: "snap-set-actions" }, h("span", { className: "snap-quiet", textContent: "Use this frame as" }),
       h("button", { className: "snap-link", textContent: "First frame", title: "the frame at the playhead becomes FL2V's start picture", onclick: use("first_frame") }),
-      h("button", { className: "snap-link", textContent: "Reference", title: "the frame at the playhead goes into References as a picture", onclick: use("reference") }));
+      h("button", { className: "snap-link", textContent: "Reference", title: "the frame at the playhead goes into References as a picture", onclick: use("reference") }),
+      h("button", { className: "snap-link snap-send", textContent: "Send to ▾", title: "a Cast's picture, a new cast member, a location's plate, or References", onclick: (e) => { e.stopPropagation(); sendMenu(e.currentTarget); } }));
 
     // Change something, or recast a person (U54, U73, SNAP-R51): a method of the edit or recast slot paints candidates; the
     // person applies one to carry it over the take. Examples (night, rain) fill the words; any change can be written. A
@@ -566,7 +587,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
             h("button", { className: "snap-link", textContent: "Run from here", title: "this take's workflow and settings, seed included, in a new tab, ready to run (nothing is queued)", onclick: () => { close(); onRunFrom?.(t); } }),
             // SNAP-R61: a take re-runs as it was (the versions it pinned) or with today's world (each moved record updated first)
             t.world && Object.keys(t.world).length ? retakeRow(t) : null,
-            h("button", { className: "snap-link", textContent: "Continue from its last frame", title: "the take's last frame becomes the First frame", onclick: async () => { try { say((await T.use(t, { as: "first_frame", t: "last" })).said); onRestore?.(); } catch (err) { say(err.message, true); } } })))));
+            !isVideo ? null : h("button", { className: "snap-link", textContent: "Continue from its last frame", title: "the take's last frame becomes the First frame", onclick: async () => { try { say((await T.use(t, { as: "first_frame", t: "last" })).said); onRestore?.(); } catch (err) { say(err.message, true); } } })))));
     tags(); refresh(); rankRow(); regionLine();
     host.append(sheet);
     if (isVideo) player.focus({ preventScroll: true });

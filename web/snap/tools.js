@@ -18,7 +18,7 @@
 // SNAP-R84 list_locations, save_location, add_plate, apply_location, dependents; add_ref / remove_ref; check_identity on any take · SNAP-R83 screenshot of the agents' window · SNAP-R118 move_ref, cites follow the pictures · see docs/snap/SNAP_RULES.md
 // SNAP-R93-R95 agent instructions and skills (instructions.js): describe_recipe, get_take and get_scene carry the stack, the pack's notes end each description · see docs/snap/SNAP_RULES.md
 // SNAP-R101-R110 the critic's docket and fix at the source (critiques.js, dependents.js); note_take takes severity, owner and fix · see docs/snap/SNAP_RULES.md
-// SNAP-R121 answers say what the work is: whole titles, what a setup switch carried, eye gaps, caption files · SNAP-R122 recipe_matches_active
+// SNAP-R121 answers say what the work is: whole titles, what a setup switch carried, eye gaps, caption files · SNAP-R122 recipe_matches_active · SNAP-R123 use_take as cast / plate · SNAP-R124 apply_cast pictures, rerun out
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import { BRICKS, PACK_BRICKS } from "./bricks.js";
@@ -534,9 +534,9 @@ export const TOOLS = [
   },
   {
     name: "apply_cast",
-    description: "Put a Cast record into the open recipe (U86): `cast` is cast:<id> (the newest version) or cast:<id>@n (that version). Its LoRA becomes a row on the Cast brick (added when missing), its trigger words and details go into the Render prompt's first line, its pictures into References, its voice reference (when it has one) into References as an audio reference: the answer says its <Audio n> to cite; applying it again (another version, or after a hand edit) replaces what the last apply put there. The recipe pins the version (describe_recipe.world), so takes say which version made them. strength overrides the record's for this recipe only.",
-    inputSchema: { type: "object", properties: { cast: { type: "string" }, strength: { type: "number" } }, required: ["cast"] },
-    run: async ({ cast, strength }) => ({ cast, done: await L.applyCast(cast, { strength }), world: E.state().world ?? {} }),
+    description: "Put a Cast record into the open recipe (U86): `cast` is cast:<id> (the newest version) or cast:<id>@n (that version). Its LoRA becomes a row on the Cast brick (added when missing), its trigger words and details go into the Render prompt's first line, its pictures into References, its voice reference (when it has one) into References as an audio reference: the answer says its <Audio n> to cite; applying it again (another version, or after a hand edit) replaces what the last apply put there. The recipe pins the version (describe_recipe.world), so takes say which version made them. strength overrides the record's for this recipe only. pictures (UI-04, SNAP-R124) picks which of its pictures by role (\"state A\", \"identity: front\"): the pin keeps the choice, an update keeps it, and a newer version without one of them is refused by update_pins / the update chip, never swapped silently.",
+    inputSchema: { type: "object", properties: { cast: { type: "string" }, strength: { type: "number" }, pictures: { type: "array", items: { type: "string" }, description: "the roles of the record's pictures this shot uses (a state, a view: list_cast gives each picture's role); kept on the pin; [] = all again" } }, required: ["cast"] },
+    run: async ({ cast, strength, pictures }) => ({ cast, done: await L.applyCast(cast, { strength, pictures }), world: E.state().world ?? {} }),
   },
   {
     name: "add_audio_ref",
@@ -845,7 +845,7 @@ export const TOOLS = [
   },
   {
     name: "get_take",
-    description: "One take in full: its rating and why (from how it was made, or the person's own), its notes (moment in seconds, optional region [x, y, w, h] as fractions of the frame, went wrong/right, tags, words, who wrote it), what changed since the take before it, the prompt and the error if it failed, `world`: the record versions it ran with (ref kind:id, name, n = the version it used, head = the newest, moved, archived/missing; version 0 is a pack card), `instructions`: the agent instructions it ran under, what applies now and what changed (ran, now, same, diff: added, removed, changed with both texts, turned_off, turned_on), and `parent`: the take it was made from and how ({take, method: retake, rerun/regenerate, continue, edit/<method>, recast/<method>, extend/<method>, options}; null for a first take).",
+    description: "One take in full: its sound (mean and max dB, quiet when below -45 dB) when it has one, its rating and why (from how it was made, or the person's own), its notes (moment in seconds, optional region [x, y, w, h] as fractions of the frame, went wrong/right, tags, words, who wrote it), what changed since the take before it, the prompt and the error if it failed, `world`: the record versions it ran with (ref kind:id, name, n = the version it used, head = the newest, moved, archived/missing; version 0 is a pack card), `instructions`: the agent instructions it ran under, what applies now and what changed (ran, now, same, diff: added, removed, changed with both texts, turned_off, turned_on), and `parent`: the take it was made from and how ({take, method: retake, rerun/regenerate, continue, edit/<method>, recast/<method>, extend/<method>, options}; null for a first take).",
     inputSchema: { type: "object", properties: { take: { type: "string" } }, required: ["take"] },
     annotations: { readOnlyHint: true },
     run: async ({ take }) => {
@@ -854,7 +854,7 @@ export const TOOLS = [
       const t = T.get(take);
       if (!t || T.aboveCap(t)) throw new Error(`No take ${take}`);
       const prev = T.inGroup(t.group).filter((x) => x.created < t.created).at(-1);
-      return { id: t.id, number: t.number, seed: t.seed, status: t.status, error: t.error, verdict: t.verdict, prior: t.prior, seconds: t.seconds, prompt: t.text, notes: t.notes, media: t.media, copy: t.copy ?? null, ...(t.voice ? { voice: t.voice } : {}), rating: T.ratingOf(t), rating_why: t.rating_set ? ["rated by the person"] : t.rating_why ?? [], changed_since_previous: prev ? T.delta(prev, t) : [],
+      return { id: t.id, number: t.number, seed: t.seed, status: t.status, error: t.error, verdict: t.verdict, prior: t.prior, seconds: t.seconds, prompt: t.text, notes: t.notes, media: t.media, copy: t.copy ?? null, ...(t.voice ? { voice: t.voice } : {}), ...(t.sound ? { sound: { mean_db: t.sound.mean_db, max_db: t.sound.max_db, quiet: T.quiet(t), quiet_below_db: T.QUIET_DB } } : {}), rating: T.ratingOf(t), rating_why: t.rating_set ? ["rated by the person"] : t.rating_why ?? [], changed_since_previous: prev ? T.delta(prev, t) : [],
         world: await worldOf(t.world), parent: t.parent ?? null, purpose: (await S.load(), await W.load(), ED.purposeOf(t)), instructions: await I.ofTake(t), ...(t.kept_encrypted ? { kept_encrypted: true, ...(t.locked ? { locked: true, said: "kept encrypted and the vault is locked: its prompt, notes and frames open once the person signs in" } : {}) } : {}) };
     },
   },
@@ -1337,10 +1337,16 @@ export const TOOLS = [
   },
   {
     name: "use_take",
-    description: "Use a frame of a take as an input (U32): as first_frame it goes on the First frame brick (FL2V's start picture), as reference into References as a picture (the answer gives its <Picture n> as cite). Which frame: frame (a frame number, as take_frames counts them), else at (the moment in seconds, or 'last', the default, for its end); a still has one. crop [x, y, width, height] in fractions keeps a part of it (the front and the back of one sheet are two pictures). Another frame or part of the same take is another picture; the same one again says it is already there. One undo step; the brick remembers the take and frame it came from. An input/ file goes in with add_ref.",
-    inputSchema: { type: "object", properties: { take: { type: "string" }, as: { type: "string", enum: ["first_frame", "reference"] }, frame: { type: "integer", minimum: 0 }, at: { type: ["number", "string"] },
-      crop: { type: "array", items: { type: "number", minimum: 0, maximum: 1 }, minItems: 4, maxItems: 4 } }, required: ["take", "as"] },
-    run: async ({ take, as, frame, at = "last", crop }) => { await T.load(); const t = T.get(take); if (!t) throw new Error(`No take ${take}`); return T.use(t, { as, t: at, frame, crop, by: "agent" }); },
+    description: "Use a frame of a take as an input (U32): as first_frame it goes on the First frame brick (FL2V's start picture), as reference into References as a picture (the answer gives its <Picture n> as cite). Which frame: frame (a frame number, as take_frames counts them), else at (the moment in seconds, or 'last', the default, for its end); a still has one. crop [x, y, width, height] in fractions keeps a part of it (the front and the back of one sheet are two pictures). Another frame or part of the same take is another picture; the same one again says it is already there. One undo step; the brick remembers the take and frame it came from. An input/ file goes in with add_ref. UI-03 (SNAP-R123): as cast (with cast, role) makes the frame that Cast's next picture (a new version); as plate (with location, name) makes it a plate of that location (a new version).",
+    inputSchema: { type: "object", properties: { take: { type: "string" }, as: { type: "string", enum: ["first_frame", "reference", "cast", "plate"] }, frame: { type: "integer", minimum: 0 }, at: { type: ["number", "string"] },
+      crop: { type: "array", items: { type: "number", minimum: 0, maximum: 1 }, minItems: 4, maxItems: 4 }, cast: { type: "string", description: "as cast: the Cast (cast:<id>) it becomes a picture of" }, role: { type: "string", description: "as cast: what the picture shows" },
+      location: { type: "string", description: "as plate: the location (location:<id>)" }, name: { type: "string", description: "as plate: the plate's name" } }, required: ["take", "as"] },
+    run: async ({ take, as, frame, at = "last", crop, cast, role, location: place, name }) => {
+      await T.load(); const t = T.get(take); if (!t) throw new Error(`No take ${take}`);
+      if (as === "cast") { if (!cast) throw new Error('as cast needs cast (cast:<id>, list_cast lists them) and, if you can, role: what the picture shows'); return L.takeToCast(t, cast, { at, frame, crop, role, by: "agent" }); }
+      if (as === "plate") { if (!place) throw new Error("as plate needs location (location:<id>, list_locations lists them) and, if you can, name"); return L.takeToPlate(t, place, { frame, name, by: "agent" }); }
+      return T.use(t, { as, t: at, frame, crop, by: "agent" });
+    },
   },
   {
     name: "run_from_take",
@@ -1563,6 +1569,8 @@ export async function callTool(name, args = {}, { confirmed } = {}) {
   }
   if ("reason" in (tool.inputSchema.properties ?? {})) rest.reason = reason; // the tool's own argument too (set_lora_category), kept when it waits as a proposal
   const plan = tool.plan ? await tool.plan(rest) : null, warning = plan?.warning ? { warning: plan.warning } : {}; // a plan's warning (run: a default prompt) is said at the top too
+  // dogfood F-D14: a long job holds the GPU's queue (core runs one prompt at a time): the plan says so, never blocks
+  if (plan?.eta_s > 600) plan.holds_queue = `about ${Math.round(plan.eta_s / 60)} min on this GPU: every prompt queued after it waits that long (queue it when the queue is empty, or say so to the person)`;
   if ((tool.consequential || tool.decides) && !confirmed && !mayRun()) {
     const why = tool.decides ? "the person's pick" : "uses the GPU";
     const p = P.add(name, rest, reason ?? `${name.replaceAll("_", " ")} (${why})`, for_note, plan);
