@@ -37,7 +37,7 @@ const DIR = "snap/takes", RANKS = "snap/rankings", JUDGED = "snap/judgments", FP
 
 // what people tag a moment with; free text always goes alongside
 export const TAGS = {
-  wrong: ["identity drift", "face", "hands", "anatomy", "too static", "janky motion", "physics", "flicker", "artifacts", "color", "prompt ignored", "framing", "continuity", "audio sync", "text"],
+  wrong: ["identity drift", "face", "hands", "anatomy", "too static", "janky motion", "physics", "flicker", "artifacts", "color", "prompt ignored", "framing", "continuity", "audio sync", "text", "set logic", "unheld"], // SNAP-R103: the critic's two biggest classes
   right: ["identity", "motion", "physics", "camera", "lighting", "composition", "acting", "prompt", "audio", "continuity", "texture"],
 };
 
@@ -419,8 +419,8 @@ export async function judge(a, b, winner, { blind, why, by = "person" }) {
   await store(file, rows);
 }
 
-export async function note(take, { t, region, sentiment, tags, text, by = "person" }) {
-  take.notes.push({ id: `n${Date.now().toString(36)}`, t, ...(region ? { region } : {}), sentiment, tags, text, by, at: new Date().toISOString() });
+export async function note(take, { t, region, sentiment, tags, text, by = "person", severity, owner, fix }) {
+  take.notes.push({ id: `n${Date.now().toString(36)}`, t, ...(region ? { region } : {}), sentiment, tags, text, by, at: new Date().toISOString(), ...(severity ? { severity } : {}), ...(owner ? { owner } : {}), ...(fix ? { fix } : {}) }); // SNAP-R103
   await save(take);
 }
 

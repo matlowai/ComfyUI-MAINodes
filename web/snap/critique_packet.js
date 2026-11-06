@@ -1,0 +1,123 @@
+// What a critic reads for one critique row (U93, DESIGN_U93_U94 §4.2): the subject whole at its native size first (no
+// cap), then 100% tiles of every subject picture bigger than the tile size, each labelled with its grid cell and pixel
+// box, then the context pictures whole (a location's master, plan and plates, the Cast pictures pinned, the previous
+// cut's last frame, an upscale's or edit's source, a cut pair's two frames), then the words: the purpose and checklist with
+// its passes, the prompt (the beat), the Cast lines, the location's notes, the pins, the sound. A region the critic names
+// on a tile maps back to the subject's own fractions through the tile's box (critiques.js). Frames of a take kept
+// encrypted open only through the vault, as the viewer reads them; a locked one says so instead.
+// SNAP-R102 whole frame first, nothing shrunk · SNAP-R104 what is read follows the checklist · SNAP-R58 nothing an agent
+// reads is cut: part, offset and limit page it · see docs/SNAP_RULES.md
+import * as T from "./takes.js";
+import * as C from "./candidates.js";
+import * as W from "./world.js";
+import * as SC from "./scenes.js";
+import * as RT from "./retake.js";
+
+const FPS = 24, Q = 0.9;
+export const PARTS = ["all", "whole", "tiles", "context"];
+const LOCKED = "kept encrypted and the vault is locked: the person signs in (or unlocks it) first, then ask for the packet again";
+const inputMedia = (file) => { const cut = file.lastIndexOf("/"); return { filename: file.slice(cut + 1), subfolder: file.slice(0, Math.max(cut, 0)), type: "input" }; };
+const pathOf = (m) => [m.type, m.subfolder, m.filename].filter(Boolean).join("/");
+const isVideo = (m) => /\.(mp4|webm|mov|mkv)$/i.test(m.filename);
+
+// a picture or a video's frames as canvases at their own size
+async function canvases(m, frames) {
+  const draw = (src, w, h) => { const c = Object.assign(document.createElement("canvas"), { width: w, height: h }); c.getContext("2d").drawImage(src, 0, 0, w, h); return c; };
+  if (!isVideo(m)) { const img = new Image(); img.src = T.url(m); await img.decode(); return [{ frame: null, canvas: draw(img, img.naturalWidth, img.naturalHeight) }]; }
+  const v = Object.assign(document.createElement("video"), { src: T.url(m), muted: true, preload: "auto" });
+  await new Promise((done, fail) => { v.onloadedmetadata = done; v.onerror = () => fail(new Error(`couldn't read ${pathOf(m)}`)); });
+  const last = Math.max(0, Math.floor(v.duration * FPS) - 1), want = typeof frames === "number" ? Array.from({ length: Math.max(1, frames) }, (_, i) => Math.round((last * i) / Math.max(1, frames - 1))) : frames.map((f) => (f === "last" ? last : Math.max(0, Math.min(last, f))));
+  const out = [];
+  for (const frame of [...new Set(want)]) {
+    await new Promise((done) => { v.onseeked = done; v.currentTime = Math.min(v.duration - 0.01, (frame + 0.5) / FPS); });
+    out.push({ frame, canvas: draw(v, v.videoWidth, v.videoHeight) });
+  }
+  return out;
+}
+const jpeg = (c) => ({ mimeType: "image/jpeg", data: c.toDataURL("image/jpeg", Q).split(",")[1], width: c.width, height: c.height });
+// 100% tiles with overlap over a picture bigger than the tile size, row by row
+export function grid(w, h, size, overlap) {
+  const axis = (n) => { if (n <= size) return [[0, n]]; const k = Math.ceil((n - size) / (size * (1 - overlap))) + 1, step = (n - size) / (k - 1); return Array.from({ length: k }, (_, i) => [Math.round(i * step), size]); };
+  return axis(h).flatMap(([y, th], r) => axis(w).map(([x, tw], c) => ({ cell: `r${r + 1}c${c + 1}`, box: [x, y, tw, th] })));
+}
+function tiles(c, size, overlap) {
+  return grid(c.width, c.height, size, overlap).map((t) => { const out = Object.assign(document.createElement("canvas"), { width: t.box[2], height: t.box[3] }); out.getContext("2d").drawImage(c, t.box[0], t.box[1], t.box[2], t.box[3], 0, 0, t.box[2], t.box[3]); return { ...t, canvas: out }; });
+}
+
+// what the subject's pictures are, by subject kind: [{media, frames, what, take?}]
+function takeMedia(t) { if (t.locked) throw new Error(`Take ${t.number} is ${LOCKED}`); const m = t.media.find((x) => x.kind === "video") ?? t.media.find((x) => x.kind === "image"); if (!m) throw new Error(`Take ${t.number} has no picture or video`); return m; }
+function subjects(r, tb) {
+  const s = r.subject, list = tb.checklists[r.checklist] ?? tb.checklists.still;
+  if (s.kind === "take") { const t = T.get(s.take); if (!t) throw new Error(`No take ${s.take} here`); const m = takeMedia(t); return [{ media: m, frames: isVideo(m) ? list.frames ?? 5 : null, what: `take ${t.number}`, take: t.id }]; }
+  if (s.kind === "pair") return s.pair.map((id, i) => { const t = T.get(id); if (!t) throw new Error(`No take ${id} here`); const m = takeMedia(t); return { media: m, frames: isVideo(m) ? [i === 0 ? "last" : 0] : null, what: `take ${t.number}, its ${i === 0 ? "last" : "first"} frame`, take: t.id }; });
+  if (s.kind === "candidate") { const d = C.get(s.decision), c = C.candidate(d, s.candidate); if (!c) throw new Error(`No candidate ${s.candidate} in ${s.decision}`); return c.pictures.filter((p) => p.media).map((p) => ({ media: p.media, frames: isVideo(p.media) ? 3 : null, what: `${c.id} · ${p.label}` })); }
+  const got = W.get(s.ref); if (!got) throw new Error(`No record ${s.ref}`);
+  const b = got.version.body;
+  if (s.ref.startsWith("cast:")) return (b.refs ?? []).map((x) => ({ media: inputMedia(x.file), frames: null, what: `${b.name}: ${x.role ?? "picture"}` }));
+  if (s.part === "views") return [b.master && ["master", b.master], b.plan && ["plan", b.plan], ...(b.plates ?? []).map((p) => [`plate ${p.name}`, p])].filter(Boolean).map(([w, p]) => ({ media: inputMedia(p.file), frames: null, what: `${b.name} v${got.version.n}, ${w}` }));
+  const p = s.part === "master" ? b.master : s.part === "plan" ? b.plan : b.plates?.find((x) => `plate ${x.name}` === s.part);
+  if (!p) throw new Error(`${b.name} v${got.version.n} has no ${s.part}`);
+  return [{ media: inputMedia(p.file), frames: null, what: `${b.name} v${got.version.n}, ${s.part}` }];
+}
+// the context pictures, whole: from the subject's pins and its place in the scene
+function contextOf(r, tb) {
+  const s = r.subject, want = new Set((tb.checklists[r.checklist] ?? tb.checklists.still).context), out = [];
+  const add = (media, what, take) => { if (!out.some((x) => pathOf(x.media) === pathOf(media))) out.push({ media, what, ...(take ? { take } : {}) }); };
+  const place = (ref, n, plates, skip) => { const got = W.get(W.refOf("location", W.parse(ref).id, n)); if (!got) return; const b = got.version.body;
+    if (b.master && skip !== "master") add(inputMedia(b.master.file), `${b.name} v${got.version.n}, master`);
+    if (b.plan && skip !== "plan") add(inputMedia(b.plan.file), `${b.name} v${got.version.n}, plan`);
+    for (const p of b.plates ?? []) if ((plates == null || plates.includes(p.name)) && `plate ${p.name}` !== skip) add(inputMedia(p.file), `${b.name} v${got.version.n}, plate ${p.name}`); };
+  const cast = (ref, n) => { const got = W.get(W.refOf("cast", W.parse(ref).id, n)); for (const x of got?.version.body.refs ?? []) add(inputMedia(x.file), `${got.version.body.name} (Cast v${got.version.n}): ${x.role ?? "picture"}`); };
+  const takeFrame = (t, frame, what) => { if (!t || t.locked) return; const m = t.media.find((x) => x.kind === "video") ?? t.media.find((x) => x.kind === "image"); if (m) add({ ...m, at: frame }, what, t.id); };
+  const t = s.kind === "take" ? T.get(s.take) : s.kind === "pair" ? T.get(s.pair[1]) : s.kind === "candidate" ? T.get(C.get(s.decision)?.take) : null;
+  if (t) {
+    for (const [ref, p] of Object.entries(t.world ?? {})) {
+      if (ref.startsWith("location:")) place(ref, p.n, want.has("plates") ? p.placed?.plates ?? null : []);
+      if (ref.startsWith("cast:") && want.has("cast")) cast(ref, p.n);
+    }
+    if (t.parent?.take && (want.has("source") || want.has("board"))) takeFrame(T.get(t.parent.take), t.parent.frame ?? "last", `the take it was made from (${t.parent.method})`);
+    const h = RT.shotOf(t), i = h ? h.scene.shots.indexOf(h.shot) : -1, before = i > 0 ? T.get(h.scene.shots[i - 1].active) : null;
+    if (before && want.has("previous")) takeFrame(before, "last", `the previous cut's last frame (take ${before.number}, ${SC.shotTitle(h.scene, h.scene.shots[i - 1])})`);
+    if (s.kind === "candidate") takeFrame(t, "last", `take ${t.number}, the take this edit paints over`);
+  }
+  if (s.kind === "record" && s.ref.startsWith("location:")) { const { n } = W.parse(s.ref); place(s.ref, n, null, s.part === "views" ? "all" : s.part); }
+  if (s.kind === "record" && s.part === "views") out.length = 0; // every view is a subject already
+  for (const f of r.context?.pictures ?? []) add(inputMedia(f.replace(/^input\//, "")), `context: ${f.split("/").pop()}`);
+  return out;
+}
+// the words: purpose, checklist and passes, the beat, who and where should be in it
+function words(r, tb) {
+  const s = r.subject, list = tb.checklists[r.checklist] ?? tb.checklists.still, t = s.kind === "take" ? T.get(s.take) : s.kind === "pair" ? T.get(s.pair[1]) : null, out = { checklist: r.checklist, label: list.label, passes: list.passes, purpose: r.purpose ?? null };
+  if (r.context?.text) out.context = r.context.text;
+  if (r.context?.what) out.what = r.context.what;
+  if (t) {
+    out.prompt = t.text ?? "";
+    const h = RT.shotOf(t); if (h) out.shot = { scene: h.scene.name, shot: SC.shotTitle(h.scene, h.shot), set: h.scene.set ?? null };
+    if (t.sound?.mean_db != null) out.sound = { mean_db: t.sound.mean_db, quiet_below_db: T.QUIET_DB };
+    out.pins = Object.entries(t.world ?? {}).map(([ref, p]) => { const b = W.get(W.refOf(W.parse(ref).kind, W.parse(ref).id, p.n))?.version.body ?? {};
+      return { ref: W.refOf(W.parse(ref).kind, W.parse(ref).id, p.n), name: b.name ?? p.name, ...(b.details ? { details: b.details } : {}), ...(b.notes ? { notes: b.notes } : {}), ...(p.placed?.plates ? { plates_cited: p.placed.plates } : {}), ...(p.placed?.missing ? { missing: p.placed.missing } : {}) }; });
+    out.who_should_be_here = out.pins.filter((p) => p.ref.startsWith("cast:")).map((p) => p.name);
+  }
+  if (s.kind === "record") { const b = W.get(s.ref)?.version.body ?? {}; out.record = { ref: s.ref, name: b.name, ...(b.notes ? { notes: b.notes } : {}), ...(b.details ? { details: b.details } : {}), ...(b.plates ? { plates: b.plates.map((p) => ({ name: p.name, pose: p.pose ?? null, use: p.use ?? null, note: p.note ?? null })) } : {}), ...(b.cameras ? { cameras: b.cameras } : {}) }; }
+  return out;
+}
+
+// the packet: pictures (whole subject, tiles, context) as images with their labels, the words, and what each picture is
+export async function build(r, tb) {
+  const pics = [], images = [], tile = tb.tile, rule = (tb.checklists[r.checklist] ?? tb.checklists.still).tiles;
+  const subs = subjects(r, tb);
+  const wholes = [];
+  for (const sub of subs) for (const f of await canvases(sub.media, sub.frames ?? [0])) wholes.push({ ...sub, ...f });
+  wholes.forEach((w, i) => { pics.push({ label: `${String.fromCharCode(65 + (i % 26))}${i >= 26 ? Math.floor(i / 26) : ""} · ${w.what}${w.frame != null ? `, frame ${w.frame}` : ""} · whole, ${w.canvas.width}x${w.canvas.height}`, role: "subject", what: w.what, path: pathOf(w.media), width: w.canvas.width, height: w.canvas.height, ...(w.frame != null ? { frame: w.frame } : {}), ...(w.take ? { take: w.take } : {}) }); images.push(jpeg(w.canvas)); });
+  const tiled = (i) => rule === "all" || rule === "views" || (rule === "ends" && (i === 0 || i === wholes.length - 1));
+  wholes.forEach((w, i) => { if (!tiled(i) || Math.max(w.canvas.width, w.canvas.height) <= tile.size) return;
+    for (const x of tiles(w.canvas, tile.size, tile.overlap)) { pics.push({ label: `${pics[i].label.split(" · ")[0]} · tile ${x.cell} · px ${x.box.join(",")} of ${w.canvas.width}x${w.canvas.height}`, role: "tile", what: w.what, path: pics[i].path, width: x.box[2], height: x.box[3], tile: { of: i, cell: x.cell, box: x.box } }); images.push(jpeg(x.canvas)); } });
+  for (const cx of contextOf(r, tb)) {
+    try {
+      const at = cx.media.at, [f] = await canvases(cx.media, at != null ? [at] : [0]);
+      pics.push({ label: `context · ${cx.what} · ${f.canvas.width}x${f.canvas.height}`, role: "context", what: cx.what, path: pathOf(cx.media), width: f.canvas.width, height: f.canvas.height, ...(f.frame != null ? { frame: f.frame } : {}), ...(cx.take ? { take: cx.take } : {}) });
+      images.push(jpeg(f.canvas));
+    } catch (e) { pics.push({ label: `context · ${cx.what} · not readable: ${e.message}`, role: "context", what: cx.what, path: pathOf(cx.media), missing: e.message }); images.push(null); }
+  }
+  return { pictures: pics, images, words: words(r, tb) };
+}

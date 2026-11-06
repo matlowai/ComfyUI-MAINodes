@@ -12,6 +12,7 @@ import { api } from "../../../scripts/api.js";
 import * as A from "./activity.js";
 import * as T from "./takes.js";
 import * as ACC from "./account.js";
+import * as CR from "./critiques.js"; // SNAP-R101 the critic's rows and its foot line
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const OWNERS = [["you", "You"], ["agents", "Agents"], ["others", "Others on this server"]];
@@ -19,6 +20,7 @@ export const VERDICT_KEYS = { p: "keep", x: "reject", n: "neither" };
 
 // a row's state in words
 export function stateText(r) {
+  if (r.source === "critique") return r.said;
   if (r.state === "queued") return r.ahead ? `queued · ${r.ahead} ahead` : "queued · next";
   if (r.state === "running") {
     const p = r.progress, node = p?.max > 1 ? ` · step ${p.value} of ${p.max}` : "";
@@ -110,7 +112,7 @@ export function openWork(host, { say, open, decide }) {
     const by = (z) => rows.filter((r) => r.zone === z), parked = by("parked");
     body.replaceChildren(...[A.routeProblem() ? h("p", { className: "snap-world-warn", textContent: A.routeProblem() }) : null, zone("in_flight", by("in_flight")), zone("landed", by("landed")),
       parked.length ? h("button", { className: "snap-link snap-quiet-btn", textContent: showParked ? "Hide parked" : "Parked", onclick: () => { showParked = !showParked; draw(); } }) : null,
-      showParked && parked.length ? zone("parked", parked) : null].filter(Boolean));
+      showParked && parked.length ? zone("parked", parked) : null, CR.footLine() ? h("p", { className: `snap-quiet snap-critic-foot${rows.some((r) => r.no_critic) ? " late" : ""}`, textContent: CR.footLine() }) : null].filter(Boolean));
   }
   body.addEventListener("pointerdown", () => { pressed = true; });
   addEventListener("pointerup", () => { if (pressed) { pressed = false; setTimeout(draw, 0); } });
