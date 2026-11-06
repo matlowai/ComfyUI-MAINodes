@@ -86,7 +86,7 @@ export function staleOf(r) {
   }
   if (r.subject.kind === "record") { const { kind, id, n } = W.parse(r.subject.ref), head = W.record(kind, id)?.head; if (head && n && head > n) why.push(`${recordName(W.refOf(kind, id))} moved to v${head}`); }
   for (const x of r.notes) {
-    if (!x.owner?.ref?.includes("@")) continue;
+    if (!x.owner?.ref?.includes("@") || (r.subject.kind === "record" && W.parse(x.owner.ref).id === W.parse(r.subject.ref).id)) continue; // the subject's own record moving is said once, above
     const { kind, id, n } = W.parse(x.owner.ref), head = W.record(kind, id)?.head;
     if (head && head > n) why.push(`owner ${W.refOf(kind, id)} moved to v${head} (fixed at source?)`);
   }
@@ -259,17 +259,18 @@ export function rowsFor(whereOf) {
     const r = list.at(-1), states = list.map(stateOf), c = list.filter((x) => x.done).map(counts).reduce((a, b) => ({ high: a.high + b.high, medium: a.medium + b.medium, low: a.low + b.low }), { high: 0, medium: 0, low: 0 });
     const st = states.includes("claimed") ? "claimed" : states.includes("due") ? "due" : states.every((s) => s === "skipped") ? "skipped" : "done";
     const late = st === "due" && list.some((x) => stateOf(x) === "due" && now() - x.created > dueAfterS * 1000);
-    const d = list.length > 1 ? C.get(decisionKey(r)) : null, take = r.subject.take ? T.get(r.subject.take) : null, stale = list.map(staleOf).find(Boolean);
+    const d = list.length > 1 ? C.get(decisionKey(r)) : null, rec = list.length > 1 && r.subject.kind === "record" ? r.subject.ref : null, take = r.subject.take ? T.get(r.subject.take) : null, stale = list.map(staleOf).find(Boolean);
     const said = st === "due" ? (late ? `critique due · no critic on duty${list.length > 1 ? ` (${states.filter((s) => s === "due").length} of ${list.length})` : ""}` : "critique due · waiting for a critic")
       : st === "claimed" ? `${list.find((x) => stateOf(x) === "claimed").claimed.by} is reading it`
       : st === "skipped" ? `skipped: ${r.skipped?.why ?? ""}` : `${list.length > 1 ? `${list.filter((x) => x.done).length} of ${list.length} read · ` : ""}${c.high || c.medium || c.low ? [c.high && `${c.high} high`, c.medium && `${c.medium} medium`, c.low && `${c.low} low`].filter(Boolean).join(" · ") : "clean"}${stale ? ` · stale: ${stale}` : ""}`;
-    return { id: d ? `crd:${d.id}` : `cr:${r.id}`, source: "critique", critiques: list.map((x) => x.id), kind: "critique", title: d ? `Critic: ${list.length} candidates of ${d.title}` : r.title, by: "agent", owner: "agents", state: STATE[st],
-      about: { ...r.about }, where: whereOf(r.about), queued_at: list[0].created, started_at: list.find((x) => x.claimed)?.claimed.at ?? null, eta_s: null, said, ...(late ? { no_critic: true } : {}),
+    return { id: d ? `crd:${d.id}` : rec ? `crr:${rec}` : `cr:${r.id}`, source: "critique", critiques: list.map((x) => x.id), kind: "critique", title: d ? `Critic: ${list.length} candidates of ${d.title}` : rec ? `Critic: ${recordName(rec)}, ${list.length} pictures (each, then every view side by side)` : r.title,
+      by: list.some((x) => x.claimed) ? "agent" : "snap", owner: "agents", state: STATE[st],
+      about: { ...r.about }, where: r.subject.kind === "record" ? `${W.parse(r.subject.ref).kind} ${recordName(r.subject.ref)}` : whereOf(r.about), queued_at: list[0].created, started_at: list.find((x) => x.claimed)?.claimed.at ?? null, eta_s: null, said, ...(late ? { no_critic: true } : {}),
       ...(st === "skipped" ? { error: `skipped by ${r.skipped?.by}: ${r.skipped?.why}` } : {}),
       result: st === "done" ? { critique: r.id, verdict: c.high || c.medium || c.low ? "flaws" : "clean", ...c, ...(take ? { take: take.id, number: take.number } : {}), said: `${c.high ? `${c.high} high note${c.high > 1 ? "s" : ""}` : c.medium || c.low ? "no high notes" : "clean"}${stale ? ` · stale: ${stale}` : ""}` } : null };
   };
   const groups = new Map();
-  for (const r of rows) { if (Date.now() - (r.updated ?? r.created) > 86400000 && stateOf(r) !== "due") continue; const k = decisionKey(r) ?? r.id; groups.set(k, [...(groups.get(k) ?? []), r]); }
+  for (const r of rows) { if (Date.now() - (r.updated ?? r.created) > 86400000 && stateOf(r) !== "due") continue; const k = decisionKey(r) ?? (r.subject.kind === "record" ? `rec:${r.subject.ref}` : r.id); groups.set(k, [...(groups.get(k) ?? []), r]); } // a decision's candidates, a record version's pictures: one row each
   return [...groups.values()].map(one);
 }
 // the Work card's foot line: due rows nobody claims say so, with what the critic has agreed on

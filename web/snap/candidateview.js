@@ -5,6 +5,7 @@
 // SNAP-R7 lists keep their elements while a pointer is down · SNAP-R17 by · SNAP-R23 candidates · SNAP-R76 a score per
 // person, with that person's crops · SNAP-R79 copied Picture n · see docs/SNAP_RULES.md
 import * as C from "./candidates.js";
+import * as CV from "./critiqueview.js";
 import * as P from "./proposals.js";
 import * as ED from "./edits.js";
 import { url } from "./checks.js";
@@ -52,6 +53,7 @@ export function noteChips(c) {
       title: `no identity flag. ${faces}; ${hair}. These miss blonder hair and drift on profiles: the head crops decide${missed}` }));
   }
   if (!out.length && c.state === "ready" && !c.label) out.push(h("span", { className: "snap-cand-note", textContent: "checking…" })); // a re-run's candidate (a labelled take) has no checks to wait for
+  out.push(...CV.candidateChips(c)); // SNAP-R103 the critic beside the other notes
   return out;
 }
 
