@@ -6,7 +6,7 @@ description: >
   or board is too small or its face looks smeared, before a picture becomes a reference, or when the person asks for
   2K or 4K.
 scope: [tool:upscale_take]
-rules: [SNAP-R16, SNAP-R81, SNAP-R82, SNAP-R85]
+rules: [SNAP-R16, SNAP-R81, SNAP-R82, SNAP-R85, SNAP-R113]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-reference-upscale"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -36,6 +36,9 @@ The front was also the take's Picture 1, so a redraw toward it is expected: read
 
 1. `upscale_take {"take": ..., "method": "stage2", "factor": 2, "denoise": 0.3}`. A 2K pass at cfg 5 fills a 32 GB card
    and takes ~2.5 min a step (15-19 min for a 5 s orbit); the plan says how long (SNAP-R16).
+   `speed` (SNAP-R113): `"quality"` (default, the take's own cfg) or `"fast"` (cfg 1): one orbit took 10.4 min instead of
+   17.9, same VRAM, no added flicker, a touch softer line weight and eye shading. Fast for drafts or when the person
+   asks; for a final reference with the GPU idle, make both and lay them side by side (the person picks).
 2. Look at the result at 100 % (`take_frames`): whole frames first, then the face against the Cast picture, the carried
    props and hair against the original, the backdrop for anything new.
 3. For 4K, `tessera` after stage 2: it anchors on stage 2's newest frame 0 and carries the redrawn face up. Point

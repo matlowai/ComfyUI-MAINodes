@@ -212,7 +212,8 @@ lists them as `kind: take`):
   VAE-encoded at the size and sampled from `denoise` on its own schedule; the sound is kept. H3 takes only. On the
   short03 orbit (832x1024, 5 s) the 2K pass took 15-19 min on a 5090 (d0.25 / 0.30 / 0.35) and drew the face again
   while hilt, scabbard, straps and braid held; 0.25-0.35 looked alike, so keep 0.3 unless the person asks.
-  A 2K pass at cfg 5 fills a 32 GB card.
+  A 2K pass at cfg 5 fills a 32 GB card. `"speed": "fast"` samples at cfg 1 (SNAP-R113): 10.4 min instead of 17.9 on
+  that orbit, a touch softer; quality (the take's own cfg) is the default, so use fast for drafts or when asked.
 - `h3_latent`: the same from the take's latent made bigger by a latent model (`upscaler`, default the H3 3D-conv one).
 - `tessera` (needs the ComfyUI-Tessera pack; its streamed decode writes ~10 GB of buffers at 4K x 124 frames to
   `TESSERA_SCRATCH`, else the system temp, so point that at a big disk): about 1 MP tiles on Ref2VA, the take as <Video 1>, a first-frame still

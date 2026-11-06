@@ -170,7 +170,12 @@
       "constraints": ["H3 takes (Ref2V, FL2V, text): its prompt starts from H3's empty latent", "w, h multiples of 32"],
       "options": {
         "denoise": { "default": 0.3, "min": 0.05, "max": 1.0, "why": "how much of the take is made again, on its own schedule: 0.3 starts where 30 % of the denoise is left (H3DeropeSigmas, the jerk/oracle branch's start)" },
-        "upscaler": { "default": null, "loader": "UpscaleModelLoader", "folder": "upscale_models", "why": "a pixel model before the Lanczos resize (2x-AnimeSharpV4_RCAN for anime); none = Lanczos only" }
+        "upscaler": { "default": null, "loader": "UpscaleModelLoader", "folder": "upscale_models", "why": "a pixel model before the Lanczos resize (2x-AnimeSharpV4_RCAN for anime); none = Lanczos only" },
+        "speed": { "default": "quality", "why": "time against softness: the take's own cfg, or cfg 1 (one model pass per step)",
+          "choices": {
+            "quality": { "label": "Quality (the take's own cfg)", "cfg": null, "speedup": 1, "why": "the take's own cfg (5 on the H3 presets): the crisper line weight; the default" },
+            "fast": { "label": "Fast (cfg 1): about 1.7x faster, a touch softer", "cfg": 1, "speedup": 1.73, "why": "cfg 1: a 2K stage 2 of a 5 s orbit took 10.4 min instead of 17.9 on a 5090, same VRAM, no added flicker (3.71 vs 4.07); slightly softer eye shading and line weight, armour a little flatter; scabbard, straps and face held (one orbit, one seed: u102b/STAGE2_CFG_AB_2026-11-06.md)" }
+          } }
       },
       "run": { "plate": "pixels", "empty": ["EmptyMiniMaxH3LatentAV"], "grid": 32, "factor": 2, "audio_mode": "pin the original outright (0.0)" },
       "guidance": { "line": "2K of a 5 s 832x1024 Ref2VA orbit at the take's own cfg 5: 15-19 min (d0.25 924 s, d0.30 1076 s, d0.35 1122 s), the 5090 full (~30 GB); the face is drawn again (eyes, the profile) while hilt, scabbard, straps and braid hold; 0.25-0.35 look alike, no added flicker", "evidence": "measured", "source": "PLAN U102b, proto/ui/u102b", "n": 3, "hardware": "5090" },

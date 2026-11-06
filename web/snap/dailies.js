@@ -14,7 +14,7 @@
 // takes (SNAP-R27: by the current rules) · SNAP-R21 copies flagged · SNAP-R23 candidates · SNAP-R24 scenes own the work ·
 // SNAP-R36 quiet sound: a note and two actions, never applied by itself · SNAP-R54 takes above the account's cap are
 // left out · SNAP-R65 a job shows on its take's card and as a ghost card · SNAP-R71/R72 New view from these pictures (its
-// tray: contextview.js) · SNAP-R81/R82 Make it bigger (upscale.js) · SNAP-R93 the instructions a take ran under · see docs/SNAP_RULES.md
+// tray: contextview.js) · SNAP-R81/R82/R113 Make it bigger (upscale.js) · SNAP-R93 the instructions a take ran under · see docs/SNAP_RULES.md
 import * as T from "./takes.js";
 import * as V from "./vault.js";
 import * as LB from "./lightbox.js";
@@ -434,12 +434,14 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
     const bigDenRow = h("label", { className: "snap-take-burn" }, h("span", { textContent: "Denoise" }), bigDen, bigDenOut);
     const bigHero = h("input", { type: "text", placeholder: "e.g. face (empty: no hero tile)", ariaLabel: "hero tile" });
     const bigHeroRow = h("label", { className: "snap-take-burn", title: "words for SAM 3.1: what it finds gets its own first tile and more steps" }, h("span", { textContent: "Hero tile" }), bigHero);
+    // SNAP-R113: stage 2's speed, time against softness; quality (the take's own cfg) stays the default
+    const bigSpeed = h("select", { ariaLabel: "speed" }), bigSpeedRow = h("label", { className: "snap-take-burn" }, h("span", { textContent: "Speed" }), bigSpeed);
     const bigNote = h("div", { className: "snap-quiet", role: "status" }), bigWhy = h("div", { className: "snap-quiet snap-take-why" });
     let bigChosen = false;
     const bigBtn = h("button", { className: "snap-primary", textContent: "Make it bigger", onclick: async () => {
       bigBtn.disabled = true;
       const m = UP.methods().find((x) => x.id === bigPick.value);
-      try { const r = await UP.start(t, m.id, { factor: Number(bigBy.value), ...(m.run.plate ? { denoise: Number(bigDen.value) } : { hero: bigHero.value.trim() }) }); bigNote.textContent = `Making it ${r.width}×${r.height} (${r.eta}): the bigger take lands in Takes, made from take ${t.number}`; } catch (err) { bigNote.textContent = err.message; }
+      try { const r = await UP.start(t, m.id, { factor: Number(bigBy.value), ...(m.run.plate ? { denoise: Number(bigDen.value) } : { hero: bigHero.value.trim() }), ...(m.options.speed ? { speed: bigSpeed.value } : {}) }); bigNote.textContent = `Making it ${r.width}×${r.height} (${r.eta}): the bigger take lands in Takes, made from take ${t.number}`; } catch (err) { bigNote.textContent = err.message; }
       bigBtn.disabled = false;
     } });
     // SNAP-R85: a still is redrawn by stage 2 only; a reference (its purpose) says why it is redrawn, not sharpened
@@ -449,20 +451,26 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
       const face = () => {
         const m = list.find((x) => x.id === bigPick.value);
         if (!bigChosen) bigBy.value = String(m.run.factor);
-        bigDenRow.hidden = !m.run.plate; bigHeroRow.hidden = !!m.run.plate;
+        bigDenRow.hidden = !m.run.plate; bigHeroRow.hidden = !!m.run.plate; bigSpeedRow.hidden = !m.options.speed;
+        if (m.options.speed && bigSpeed.dataset.method !== m.id) { // the method's own choices, its default picked
+          bigSpeed.replaceChildren(...Object.entries(m.options.speed.choices).map(([k, c]) => h("option", { value: k, textContent: c.label, title: c.why })));
+          bigSpeed.value = m.options.speed.default; bigSpeed.dataset.method = m.id;
+        }
+        const pace = m.options.speed ? UP.speedOf(m, bigSpeed.value) : null;
+        bigSpeedRow.title = pace ? m.options.speed.choices[pace.name].why : "";
         if (!m.run.plate && !bigHero.dataset.touched) bigHero.value = m.options.hero.default;
         bigDenOut.textContent = Number(bigDen.value).toFixed(2); bigDenRow.title = m.options.denoise?.why ?? "";
         bigWhy.textContent = why ? `${why[0].toUpperCase()}${why.slice(1)}.` : m.guidance?.line ?? ""; bigWhy.title = [why && m.guidance?.line, ...(m.constraints ?? [])].filter(Boolean).join("\n");
         try {
           const z = UP.size(t, m, { factor: Number(bigBy.value) }, from), per = !from && m.cost?.local_s_per_mp_frame;
-          bigBtn.textContent = `${from ? "Redraw" : "Upscale"} to ${z.width}×${z.height}${per ? ` · about ${Math.round((per * z.width * z.height * ED.clip(t).frames) / 6e7)} min` : ""}`;
+          bigBtn.textContent = `${from ? "Redraw" : "Upscale"} to ${z.width}×${z.height}${per ? ` · about ${Math.round((per * z.width * z.height * ED.clip(t).frames) / 6e7 / (pace?.speedup ?? 1))} min` : ""}`;
         } catch (err) { bigBtn.textContent = "Make it bigger"; bigNote.textContent = err.message; }
         bigBtn.disabled = m.install_state !== "ready";
         bigBtn.title = [m.install_state === "ready" ? m.guidance?.line : m.install_state, m.credit && `Powered by ${m.credit}`].filter(Boolean).join("\n");
       };
       bigPick.onchange = () => { bigChosen = false; face(); };
       bigBy.onchange = () => { bigChosen = true; face(); };
-      bigDen.oninput = face; bigHero.oninput = () => { bigHero.dataset.touched = "1"; };
+      bigDen.oninput = face; bigSpeed.onchange = face; bigHero.oninput = () => { bigHero.dataset.touched = "1"; };
       face();
     }, (err) => { bigNote.textContent = `Upscale methods unavailable: ${err.message}`; });
     let editSig = "", pressed = false;
@@ -529,10 +537,10 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
           T.locked(t) ? h("p", { className: "snap-quiet", textContent: "🔒 Private take: its edits are private too (locked, left out of exports)." }) : null, editBox,
           h("div", { className: "snap-rail-title", textContent: "Make it longer" }), h("div", { className: "snap-set-actions" }, longPick, h("label", { className: "snap-quiet" }, "+ ", clipsIn, " clips")), longWhy, burnRow,
           h("div", { className: "snap-set-actions" }, longBtn), longNote,
-          h("div", { className: "snap-rail-title", textContent: "Make it bigger" }), h("div", { className: "snap-set-actions" }, bigPick, bigBy), bigWhy, bigDenRow, bigHeroRow,
+          h("div", { className: "snap-rail-title", textContent: "Make it bigger" }), h("div", { className: "snap-set-actions" }, bigPick, bigBy), bigWhy, bigDenRow, bigSpeedRow, bigHeroRow,
           h("div", { className: "snap-set-actions" }, bigBtn), bigNote] : null,
           isVideo ? null : editBox, // a picture's re-run batches (SNAP-R63) and new views (U101) show here too
-          isVideo ? null : [h("div", { className: "snap-rail-title", textContent: "Make it bigger" }), h("div", { className: "snap-set-actions" }, bigPick, bigBy), bigWhy, bigDenRow, // a still: stage 2 redraws it (SNAP-R85)
+          isVideo ? null : [h("div", { className: "snap-rail-title", textContent: "Make it bigger" }), h("div", { className: "snap-set-actions" }, bigPick, bigBy), bigWhy, bigDenRow, bigSpeedRow, // a still: stage 2 redraws it (SNAP-R85)
             h("div", { className: "snap-set-actions" }, bigBtn), bigNote],
           contextPanel(t, { say, frame: () => (isVideo ? Math.round(player.currentTime * FPS) : null), region: () => region }),
           h("div", { className: "snap-set-actions" },

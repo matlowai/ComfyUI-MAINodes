@@ -11,7 +11,9 @@
 // Stage 2 runs on stills too (G1): a New view or sheet still's own graph at the bigger size, its sampler starting from the
 // still itself (VAE-encoded, the empty AV latent's audio kept) at `denoise`. A take whose purpose is a reference (a Cast
 // picture, a turnaround, a location's master or plate, settei) is redrawn this way by default, and the answer says why.
-// SNAP-R85 a reference is redrawn, never only sharpened ·
+// Stage 2's `speed` (G1b) is time against softness: "quality" keeps the take's own cfg, "fast" samples at cfg 1 (one model
+// pass per step: 1.7x faster, a touch softer); quality stays the default.
+// SNAP-R85 a reference is redrawn, never only sharpened · SNAP-R113 stage 2 fast is a choice, never the default ·
 // SNAP-R81 a take's upscale is a second pass of its own recipe · SNAP-R82 Tessera tiles a take · SNAP-R13 data, not code
 // branches · SNAP-R14 method slots · SNAP-R16 GPU work waits for the person · SNAP-R60 pins · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
@@ -54,11 +56,18 @@ function sendable(prompt) {
   return g;
 }
 
+// the speed's cfg on the guider of every sampler in the recipe, as the A/B set the Render Preset's cfg for both passes
+// (null: the take's own)
+function guide(g, cfg) {
+  if (cfg == null) return;
+  for (const n of Object.values(g)) if (n.class_type === "SamplerCustomAdvanced") { const gd = g[n.inputs.guider[0]]; if ("cfg" in gd.inputs) gd.inputs.cfg = cfg; }
+}
+
 // stage 2 and h3_latent: the take's own prompt, its empty H3 latent replaced by the take's frames at the target (`plate`
 // adds the nodes that make node "u2p", a video latent, from the take's frames and the take's video VAE); every sampler
 // that started from the empty latent starts at `denoise` on its own sigmas; every size input at the render size takes the
 // target; the saved video carries the take's own sound
-function secondPass(take, m, t, denoise, plate) {
+function secondPass(take, m, t, denoise, plate, cfg) {
   const c = ED.clip(take), g = sendable(take.prompt), run = m.run;
   const empty = Object.keys(g).filter((k) => run.empty.includes(g[k].class_type));
   if (!empty.length) throw new Error(`Take ${take.number}: its prompt has no ${run.empty.join(" / ")} to start from (${m.title} runs on H3 renders)`);
@@ -72,6 +81,7 @@ function secondPass(take, m, t, denoise, plate) {
     g[`u2s${k}`] = { class_type: "H3DeropeSigmas", inputs: { model: g[s.guider[0]].inputs.model, sigmas: s.sigmas, inject: denoise, steps: 0 } };
     s.sigmas = [`u2s${k}`, 0];
   }
+  guide(g, cfg);
   for (const n of Object.values(g)) {
     if (n.class_type === "CreateVideo" && n.inputs.audio?.[0] === sound) n.inputs.audio = ["u2c", 1];
     if (n.class_type === "SaveVideo") n.inputs.filename_prefix = `video/snap_upscale/${take.id}`;
@@ -89,7 +99,7 @@ function secondPass(take, m, t, denoise, plate) {
 // stage 2 of a still (a New view or sheet still: P-H3-Image or the Fizgig H3 still): its own graph at the target size, the
 // sampler starting from the still itself, upscaled and VAE-encoded with the graph's own VAE as the video half of the
 // empty AV latent (its audio half kept), at `denoise` on its own sigmas; saved as a new still
-function stillPass(take, m, t, denoise, upscaler) {
+function stillPass(take, m, t, denoise, upscaler, cfg) {
   const g = sendable(take.prompt), samplers = Object.keys(g).filter((k) => g[k].class_type === "SamplerCustomAdvanced");
   const decode = Object.values(g).find((n) => ["VAEDecode", "FizgigH3StillDecode"].includes(n.class_type) && samplers.includes(n.inputs.samples?.[0]));
   if (samplers.length !== 1 || !decode) throw new Error(`Take ${take.number}: its prompt has no one sampler decoded to a still (${m.title} runs on H3 stills made in Snap)`);
@@ -105,6 +115,7 @@ function stillPass(take, m, t, denoise, upscaler) {
     u2l: { class_type: "LTXVConcatAVLatent", inputs: { video_latent: ["u2e", 0], audio_latent: ["u2sep", 1] } },
   });
   s.sigmas = ["u2s", 0]; s.latent_image = ["u2l", 0];
+  guide(g, cfg);
   for (const n of Object.values(g)) if (n.class_type === "SaveImage") n.inputs.filename_prefix = `snap_upscale/${take.id}`;
   return g;
 }
@@ -217,8 +228,16 @@ export function reason(take) {
   const p = ED.purposeOf(take);
   return p?.reference ? `take ${take.number} is a reference (${p.label}: ${p.from}): a reference is redrawn at the new size (stage 2, light denoise), so a face too small to read is drawn again as a face, not only sharpened` : null;
 }
-export async function start(take, id, { factor, width, height, denoise, upscaler, hero, anchor, by = "person" } = {}) {
-  const m = await method(id), pic = still(take);
+// the speed asked for (the method's default when not given): {name, cfg, speedup}; a method without speeds has none
+export function speedOf(m, speed) {
+  const o = m.options?.speed;
+  if (!o) { if (speed != null) throw new Error(`${m.title} has no speed choice; stage2 has quality and fast`); return null; }
+  const name = speed ?? o.default, c = o.choices[name];
+  if (!c) throw new Error(`speed is one of ${Object.keys(o.choices).map((x) => `"${x}"`).join(", ")}: ${Object.entries(o.choices).map(([k, v]) => `${k} = ${v.label}`).join("; ")}`);
+  return { name, cfg: c.cfg, speedup: c.speedup };
+}
+export async function start(take, id, { factor, width, height, denoise, upscaler, hero, anchor, speed, by = "person" } = {}) {
+  const m = await method(id), pic = still(take), pace = speedOf(m, speed), fast = pace && pace.cfg != null ? { speed: pace.name, cfg: pace.cfg } : {};
   if (pic && m.run.plate !== "pixels") throw new Error(`Take ${take.number} is a still: ${m.title} runs on video takes; stage2 redraws a still`);
   if (m.install_state !== "ready") throw new Error(`${m.title}: ${m.install_state}`);
   const t = size(take, m, { factor, width, height }, pic ? await dims(take) : null), o = m.options;
@@ -233,15 +252,15 @@ export async function start(take, id, { factor, width, height, denoise, upscaler
     denoise ??= o.denoise.default;
     if (!(denoise >= o.denoise.min && denoise <= o.denoise.max)) throw new Error(`denoise: how much of the still is made again, ${o.denoise.min} to ${o.denoise.max} (${o.denoise.default} is light)`);
     const pick = upscaler === undefined ? o.upscaler.default : upscaler, file = pick && pick !== "none" ? await M.choice(o.upscaler.loader, "model_name", pick) : null;
-    g = stillPass(take, m, t, denoise, file);
-    options = { width: t.width, height: t.height, denoise, still: true, ...(t.capped ? { capped: t.capped } : {}), ...(file ? { upscaler: file } : {}) };
+    g = stillPass(take, m, t, denoise, file, pace?.cfg);
+    options = { width: t.width, height: t.height, denoise, still: true, ...fast, ...(t.capped ? { capped: t.capped } : {}), ...(file ? { upscaler: file } : {}) };
   } else if (m.run.plate) {
     denoise ??= o.denoise.default;
     if (!(denoise >= o.denoise.min && denoise <= o.denoise.max)) throw new Error(`denoise: how much of the take is made again, ${o.denoise.min} to ${o.denoise.max} (${o.denoise.default} is light)`);
     const pick = upscaler === undefined ? o.upscaler.default : upscaler; // null or "none": Lanczos only
     const file = pick && pick !== "none" ? await M.choice(o.upscaler.loader, "model_name", pick) : null;
-    g = secondPass(take, m, t, denoise, plates[m.run.plate](t, file));
-    options = { width: t.width, height: t.height, denoise, ...(file ? { upscaler: file } : {}) };
+    g = secondPass(take, m, t, denoise, plates[m.run.plate](t, file), pace?.cfg);
+    options = { width: t.width, height: t.height, denoise, ...fast, ...(file ? { upscaler: file } : {}) };
   } else {
     // the anchor: the take given, else this take's newest stage 2, else (null) the take's own frame 0
     if (anchor === undefined) anchor = T.all().filter((x) => x.parent?.take === take.id && x.parent.method === "upscale/stage2" && x.status === "success" && x.media.some((f) => f.kind === "video")).at(-1) ?? null;
@@ -249,8 +268,8 @@ export async function start(take, id, { factor, width, height, denoise, upscaler
     g = made.g; t.height = made.height;
     options = { width: t.width, height: t.height, hero: hero ?? o.hero.default, anchor: made.anchor, ...(anchor ? { anchor_take: anchor.id } : {}) };
   }
-  const per = m.cost?.local_s_per_mp_frame, eta_s = per && !pic ? Math.round(per * ((t.width * t.height) / 1e6) * ED.clip(take).frames) : null; // measured on video only
-  const job = { kind: "upscale", title: `Make take ${take.number} ${t.width}×${t.height}: ${m.title}${options.denoise != null ? ` at denoise ${options.denoise}` : ""}`, about: { take: take.id, group: take.group }, by, eta_s };
+  const per = m.cost?.local_s_per_mp_frame, eta_s = per && !pic ? Math.round((per * ((t.width * t.height) / 1e6) * ED.clip(take).frames) / (pace?.speedup ?? 1)) : null; // measured on video only
+  const job = { kind: "upscale", title: `Make take ${take.number} ${t.width}×${t.height}: ${m.title}${options.denoise != null ? ` at denoise ${options.denoise}` : ""}${fast.speed ? `, fast (cfg ${fast.cfg})` : ""}`, about: { take: take.id, group: take.group }, by, eta_s };
   const runId = await K.queue(g, { group: take.group, world: take.graph?.extra?.snap?.world, job, extra: { snap_parent: { take: take.id, method: `upscale/${id}`, options, by } } });
   const why = reason(take);
   return { prompt_id: runId, take: `take-${runId}`, ...options, eta_s, eta: eta_s ? (eta_s < 90 ? `about ${eta_s} s of GPU` : `about ${Math.round(eta_s / 60)} min of GPU`) : "no estimate yet", ...(why ? { why } : {}) };

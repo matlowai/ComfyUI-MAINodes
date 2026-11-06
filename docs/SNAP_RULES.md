@@ -955,6 +955,13 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   at 0.52-0.54, among new views (0.42-0.53), so the 0.72 note missed every one; the soft score separates all 20 pairs
   (copies 0.839+, a mirror 0.874, new views at most 0.805). *More:* scout/id_copy_measures_2026-11-06.md,
   proto/test_g1b_id_copy.py, proto/test_u101_fc.js.
+- **SNAP-R113: Stage 2 has a fast choice, and quality stays the default.** `stage2`'s `speed` is "quality" (the take's
+  own cfg) or "fast" (cfg 1 on every guider that samples again, one model pass per step); the take viewer's Speed row
+  and `upscale_take` name what each costs (about 1.7x faster, a touch softer), the estimate divides by it, and the new
+  take's options and job title say "fast (cfg 1)". Nothing picks fast by itself. *Why:* the stage 2 A/B on the Maren
+  v4 orbit at 2K: 10.4 min instead of 17.9, same VRAM, flicker 3.71 vs 4.07, slightly softer eyes and line weight, the
+  same scabbard, straps and face; one orbit and one seed, so the operator decides whether it ever becomes the default.
+  *More:* u102b/STAGE2_CFG_AB_2026-11-06.md, proto/test_g1b_fast.js.
 
 ## Accounts and the gate (snap-gate)
 

@@ -436,6 +436,14 @@
    "more": "skill snap-reference-upscale"
   },
   {
+   "id": "upscale_take/stage-2-fast",
+   "scope": "tool:upscale_take",
+   "kind": "note",
+   "text": "stage2 speed \"fast\" (cfg 1) is about 1.7x faster and a touch softer; quality stays the default. Offer fast for drafts or when the person asks; for a final reference pick, make both and let the person choose.",
+   "rule": "SNAP-R113",
+   "more": "skill snap-reference-upscale"
+  },
+  {
    "id": "upscale_take/4k",
    "scope": "tool:upscale_take",
    "kind": "model_choice",
