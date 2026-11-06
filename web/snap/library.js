@@ -540,9 +540,11 @@ export function keepPinnedText() {
   const kept = [];
   for (const [ref, p] of Object.entries(E.state().world ?? {})) {
     if (!p.placed?.text || !ref.startsWith("cast:")) continue;
-    // F-C31: only a Cast still in use here (its pictures in References or its LoRA row on) gets its line back
-    const used = (E.state().bricks.find((x) => x.key === "refs")?.pictures ?? []).some((x) => x.source === ref) || (p.placed.row != null && M.rows("cast")[p.placed.row]?.on);
-    if (!used) continue;
+    // F-C31: a Cast whose pictures and LoRA row were taken out of this recipe is no longer in it: its line stays out (a
+    // Cast of words only is in use while pinned)
+    const pics = !!p.placed.roles?.length, row = p.placed.row != null;
+    const used = (pics && (E.state().bricks.find((x) => x.key === "refs")?.pictures ?? []).some((x) => x.source === ref)) || (row && M.rows("cast")[p.placed.row]?.on);
+    if ((pics || row) && !used) continue;
     const first = (E.getValue("render", "render", "prompt") ?? "").split("\n")[0];
     if (!first.includes(p.placed.text) && addToPrompt([p.placed.text])) kept.push(`${p.name} v${p.n}'s details line (${ref})`);
   }

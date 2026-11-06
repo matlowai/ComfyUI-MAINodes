@@ -215,10 +215,11 @@ export async function runState(id) {
 // pictures the apply found no reading for, are listed under placed.missing (the card says so)
 function placedCheck(world, prompt) {
   const texts = Object.values(prompt ?? {}).flatMap((n) => Object.values(n.inputs ?? {})).filter((v) => typeof v === "string");
+  const loads = Object.values(prompt ?? {}).some((n) => n.class_type === "LoadImage"); // a prompt with references: another Cast's line ran without its own
   return Object.fromEntries(Object.entries(world).map(([ref, p]) => {
     // F-C31: its line ran but its pictures didn't (a Cast left in the prompt after its pictures went)
     const files = ref.startsWith("cast:") ? (W.get(`${ref}@${p.n}`)?.version.body.refs ?? []).map((r) => r.file) : [];
-    const pictureless = p.placed?.text && files.length && texts.some((t) => t.includes(p.placed.text)) && !files.some((f) => texts.includes(f));
+    const pictureless = p.placed?.text && files.length && loads && texts.some((t) => t.includes(p.placed.text)) && !files.some((f) => texts.includes(f));
     const missing = [...(p.placed?.text && !texts.some((t) => t.includes(p.placed.text)) ? ["its details line isn't in the prompt that ran"] : []), ...(p.placed?.unread ? [`its pictures weren't read: ${p.placed.unread}`] : []),
       ...(pictureless ? ["its line is in the prompt but its pictures weren't in References"] : [])];
     return [ref, missing.length ? { ...p, placed: { ...p.placed, missing } } : p];

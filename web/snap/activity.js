@@ -123,6 +123,18 @@ function announce() {
   if (dropped.length) for (const fn of arrivals) fn("lost", { count: dropped.length });
 }
 
+// F-C25: a finished Snap job whose page closed before it landed: the first live page to claim it writes its take (one
+// claim per prompt on the server, so two open pages never write it twice); one pass at a time, in the background
+let adopting = false;
+async function adopt(finished) {
+  if (adopting) return;
+  adopting = true;
+  try {
+    const orphans = finished.filter((p) => p.client !== api.clientId && p.client_open === false && !T.get(`take-${p.id}`) && (!p.user || !ACC.account() || p.user === ACC.account().name));
+    for (const p of orphans) if ((await (await api.fetchApi("/mainodes/snap/adopt", { method: "POST", body: JSON.stringify({ id: p.id }) })).json()).mine) await T.catchUp([p]);
+  } catch (e) { console.warn(`Snap couldn't land a finished job: ${e.message}`); } finally { adopting = false; }
+}
+
 let pairs = [];
 let reading = null, again = false;
 // read every source again; overlapping calls fold into one more read
@@ -142,11 +154,9 @@ export function reconcile() {
     await C.settle();
     const finished = server.filter((p) => p.job?.takes !== false && p.job && ["success", "error", "interrupted"].includes(p.state));
     await T.catchUp(finished.filter((p) => p.client === api.clientId));
-    // F-C25: a finished Snap job whose page closed before it landed: the first live page to claim it writes its take
-    const orphans = finished.filter((p) => p.client !== api.clientId && p.client_open === false && !T.get(`take-${p.id}`) && (!p.user || !ACC.account() || p.user === ACC.account().name));
-    for (const p of orphans) if ((await (await api.fetchApi("/mainodes/snap/adopt", { method: "POST", body: JSON.stringify({ id: p.id }) })).json()).mine) await T.catchUp([p]);
     readOnce = r.ok;
     build();
+    adopt(finished); // after the rows are drawn: writing takes for other pages' jobs never delays this page's own
   })().catch((e) => { problem = `The Work card couldn't read the server: ${e.message}`; build(); }).finally(() => { reading = null; if (again) { again = false; reconcile(); } });
   return reading;
 }
