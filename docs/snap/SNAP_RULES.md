@@ -466,7 +466,7 @@ ComfyUI, the operator's included, nothing here restricts anything (SNAP-R11, DEC
   person's own data in user/snap (take records, which hold the prompt) is not a saved file and isn't affected. Neither
   are dial files, which keep their own sentence pairs. *Why:* the operator, 2026-11-04: "Save metadata off should stop metadata
   from writing. If there's anything that doesn't have a toggle for that in the flow, let them know." *More:* PLAN U81,
-  `snap_bridge.py`, proto/test_metadata_off.py, test_metadata_flows.js.
+  `snap_bridge.py`, tests/snap/test_metadata_off.py, test_metadata_flows.js.
 - **SNAP-R51: Change something, recast anyone, pin what was painted.** The edit slot is "Change something": the person
   writes what changes, or picks an example (night, dusk, dawn, rain, snow), and no example is a feature of its own.
   relight (Ripple) paints frames 0 and middle and is fastest, and it was tested on light. remake_edit (Viggle Remake)
@@ -687,7 +687,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   shows the crops that belong to each score; a person with no face matched says so. The people check asks for
   "person:20" the same way. *Why:* the U101 bake-off: a Maren-and-Brann board scored Maren and showed Brann's head,
   and Brann was never measured. ArcFace scores profiles and bowed heads low (Brann's bow: 0.06), which is why the
-  character score raises the note now (SNAP-R111); the crops still decide. *More:* PLAN U101, proto/test_u101_faces.js, proto/ui/u101/faces_twoshot_after*.
+  character score raises the note now (SNAP-R111); the crops still decide. *More:* PLAN U101, tests/snap/test_u101_faces.js, proto/ui/u101/faces_twoshot_after*.
 - **SNAP-R77: A character sheet is a method of the sheet slot, and its candidates are takes.** "Make a character sheet"
   (`make_character_sheet`) draws a Cast's picture (and any more pictures, e.g. a turnaround's views) as a sheet with one
   method of the slot `sheet`: the H3 Turnaround LoRA through ComfyUI-H3-ContactSheet (five views jointly denoised, and
@@ -706,7 +706,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   An agent asks with the bridge tool `request_reload` (the server's, so a stale tab without the new page tools still
   gets it), and the bar names the agent. Nothing reloads by itself (SNAP-R5), and a tab whose code predates the bar is
   named as such so the agent asks in words. *Why:* F-C12: short03 waited 9 min for a reload only the coordinator could
-  ask for. *More:* the dogfood study's FINDINGS F-C12, proto/test_u101_fc.js.
+  ask for. *More:* the dogfood study's FINDINGS F-C12, tests/snap/test_u101_fc.js.
 - **SNAP-R79: A new view says which picture it copied.** Each New view candidate is scored against each of its context
   pictures with the copy check (DINOv3 patch tokens at the same grid position, MAISnapCopyScore, the model graph's
   threshold); at or above it the tile says "copied Picture n" (the note `copied`: threshold, each picture's score, the
@@ -714,7 +714,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   re-render of a picture's framing (plates' copies 0.77-0.94); P01's establishing candidates, the master's aerial re-drawn
   and turned, score only 0.52-0.54 against it (two-shots in the same village 0.42-0.45), under the threshold, so the
   nearest score is shown and the person looks. *Why:* F-C14: P01's establishing candidates re-drew the master's aerial
-  and nothing flagged it. *More:* the dogfood study's FINDINGS F-C14, proto/test_u101_fc.js.
+  and nothing flagged it. *More:* the dogfood study's FINDINGS F-C14, tests/snap/test_u101_fc.js.
 - **SNAP-R80: Every picture is one click from full size.** A thumbnail (References' `<Picture n>` rows, the New view
   tray, Cast pictures, camera plates, candidate tiles and their head crops, the Re-run sheet) opens Snap's viewer on a
   click: fit or 100 %, wheel zoom about the pointer, drag to pan, ← → through the same row or tray, Esc closes, with
@@ -723,7 +723,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   viewer (References: Edit the Cast record / the set); an audio reference row plays on a click. Viewing never
   navigates away or changes anything (SNAP-R5). The agent twin is `open_view {view: "picture"}` on the page the agent
   drives. *Why:* the operator, 2026-11-05: "it would sure be nice to click on the references, click on a picture and it brings
-  it up full size in the web ui". *More:* DECISIONS 2026-11-05, proto/test_u101_full.js.
+  it up full size in the web ui". *More:* DECISIONS 2026-11-05, tests/snap/test_u101_full.js.
 
 ## Making a take bigger (U102b)
 
@@ -741,7 +741,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   method and names `upscale_take`. A folder ComfyUI doesn't list (RelayVSR's models/relayvsr) is said as checked when it
   runs, not as missing weights. *Why:* the operator, 2026-11-05: "spatial compression has whacked the face. 2k resolution is
   wise", "a full pixels through vae like a stage 2 upscale with a light denoise type deal"; short03's F-C23 (no route
-  started from a take at a denoise). *More:* PLAN U102b, LESSONS "U102b", proto/test_u102b.js.
+  started from a take at a denoise). *More:* PLAN U102b, LESSONS "U102b", tests/snap/test_u102b.js.
 - **SNAP-R82: Tessera tiles a take with the take as its reference.** `tessera` runs hashu786's ComfyUI-Tessera (MIT, its
   own pack; Snap says "needs the nodes" without it): Streamed Encode makes the upscaled plate and its guide window by
   window, Refine samples about 1 MP tiles (20 at 3328x4096) on Ref2VA with the take as <Video 1> and a first-frame still
@@ -752,7 +752,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   (`image_ref_crop: per_tile`): given whole, it painted small copies of the person into the backdrop tiles. Tessera's
   laws say a pixel splice is a 2x tool, so at 4x the still goes in as the attention reference. Files, words, sigmas and tiling are the
   method's `run` (SNAP-R13). *Why:* the operator, 2026-11-05: "you can even try the tessera tiled upscaling process if we wanna
-  try out 4k". *More:* PLAN U102b, the pack's docs/LAWS.md, proto/test_u102b.js.
+  try out 4k". *More:* PLAN U102b, the pack's docs/LAWS.md, tests/snap/test_u102b.js.
 
 ## Voices, reflection and sources (U93-U95, 2026-11-06)
 
@@ -834,7 +834,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   instructions that would have been applied to a particular block or a particular workflow or a particular project …
   if things aren't going well you can inspect the instruction set and troubleshoot easier". *More:*
   DESIGN_U103_U104_AGENT_LIBRARY_2026-11-06.md, PLAN U103, `web/snap/instructions.js`, `snap_instructions.py`,
-  proto/test_instructions_resolve.js, test_instructions_pins.js.
+  tests/snap/test_instructions_resolve.js, test_instructions_pins.js.
 
 - **SNAP-R94: Skills are pack files a person's version sits over.** A skill is `.claude/skills/<name>/SKILL.md` in the
   pack (the format Claude Code loads; front matter `name`, `description`, `scope`, `rules`), served whole by
@@ -852,7 +852,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   all the dogfooding we are doing is using the app, and we keep optimizing a nice package we can hand people, but then
   they can tweak it if there are things they want to change"; on the docs: what we are learning as we go "should apply
   substantially to using it too". *More:* PLAN U104, `web/snap/agentlibrary.js`, `tools/snap_skills.sh`,
-  proto/test_agent_library.js.
+  tests/snap/test_agent_library.js.
 
 - **SNAP-R95: An agent's instruction applies at once and stays marked until the person looks.** `save_instruction` and
   `save_skill` write a version `by: agent:<name>` (the bridge names the calling agent) that is in force at once; the
@@ -862,7 +862,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   skill versions land off until the person turns them on. A member of a gated install may turn an admin-shared note
   off for themselves ("off by you"; marks inform, SNAP-R11). *Why:* the operator, 2026-11-06, on apply-now with a mark
   and one-click off: "that sounds wise to me … it's a clear set of instructions that you can tell the agent to tweak".
-  *More:* DECISIONS 2026-11-06 04:19 and 04:38 (Q1-Q5), proto/test_instructions_store.js.
+  *More:* DECISIONS 2026-11-06 04:19 and 04:38 (Q1-Q5), tests/snap/test_instructions_store.js.
 
 ## Batch G1 (2026-11-06)
 
@@ -882,7 +882,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   another tab and if you do it should NEVER be headless"; 2026-11-06: "we need to make sure you have an open chrome
   window you can control and hook into and restart and make it non headless always", and on extra windows: fine "if you
   are doing some things on one gpu and some things on another or doing non gpu contention things". *More:* DECISIONS
-  2026-11-05 12:36 and 2026-11-06, PLAN U96, proto/test_agent_page.py, proto/test_g1_window.js.
+  2026-11-05 12:36 and 2026-11-06, PLAN U96, tests/snap/test_agent_page.py, tests/snap/test_g1_window.js.
 
 - **SNAP-R84: A location is a record, and a shot cites its plates by name.** A location (`snap/location/<id>.json`,
   versioned like a Cast, SNAP-R60) holds a master picture, a set plan, camera marks on the plan and named plates, each
@@ -903,7 +903,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   `remove_from_world` (or the x on a pin chip) takes any record out of a recipe, the record kept (F-C27). *Why:* the operator, 2026-11-05: "getting the topology of the
   town ... is what you need to do in order to get a consistent setting", and on the walkthrough plates: "yep this is the
   right shape"; short03 kept its village as a Cast for want of a record (F-C17). *More:* DECISIONS 2026-11-05 13:1x and
-  16:5x, PLAN U99, dogfood FINDINGS F-C17/F-C19/F-C22, proto/test_g1_location.js.
+  16:5x, PLAN U99, dogfood FINDINGS F-C17/F-C19/F-C22, tests/snap/test_g1_location.js.
 
 - **SNAP-R85: What a picture is for is a known field, and a reference is redrawn when made bigger.** The view slot's
   registry names the purposes (character, turnaround, cast_picture, set, master, plate, settei, edit), each with its
@@ -914,7 +914,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   the new size, starting from the still), never only sharpened, and `upscale_take` and the take viewer say why.
   *Why:* the operator, 2026-11-06, on Maren v4: "redraw a bit is good because we are trying to make the REFERENCE :)
   this should be obvious and that it is not means we need to tweak our harness / app a bit". *More:* DECISIONS
-  2026-11-06, proto/test_g1_purpose.js.
+  2026-11-06, tests/snap/test_g1_purpose.js.
 - **SNAP-R86: The New view model follows the job, and says so.** With no method given, the purpose picks it: character
   shots, turnarounds and Cast pictures on the Fizgig H3 still, sets, wide shots, masters, plates, settei and targeted
   edits on P-H3-Image; with no purpose either, a Cast picture among the pictures reads as a character shot, else a set
@@ -929,7 +929,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   one, whose job says what failed; a node out of GPU memory says so by its title on the Work card. Before the run, an
   upscale whose output is past the GPU's memory (the method's measured VRAM scaled by output pixels) warns on its brick,
   never blocks (SNAP-R11). *Why:* short03 lost a finished render and two GPU minutes to an upscale it never asked for.
-  *More:* dogfood FINDINGS F-C26, proto/test_g1_friction.js.
+  *More:* dogfood FINDINGS F-C26, tests/snap/test_g1_friction.js.
 
 ## Batch G1b (2026-11-06)
 
@@ -944,8 +944,8 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   anime characters (27 pictures) ArcFace below 0.35 flagged 7 of 21 same-character pairs, both of Brann's bowed
   profiles among them (0.03-0.06); the character score flagged none and caught 87 of 105 other-character pairs; on
   U56b's photo frames it still flags the other woman (0.405) and no longer flags U54's kept night anchor (0.523, an
-  ArcFace false alarm at 0.29). *More:* scout/id_copy_measures_2026-11-06.md, proto/test_g1b_id_copy.py,
-  proto/test_identity_notes.py.
+  ArcFace false alarm at 0.29). *More:* scout/id_copy_measures_2026-11-06.md, tests/snap/test_g1b_id_copy.py,
+  tests/snap/test_identity_notes.py.
 - **SNAP-R112: "Copied Picture n" reads the soft score; the same-cell score tells framing from composition.**
   MAISnapCopyScore gives a second score per picture: each DINOv3 patch's best match anywhere in the other picture, both
   ways, averaged. A New view still at or above `copy_check.soft_threshold` (0.82) against a context picture gets
@@ -954,14 +954,14 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   a mirror). Below it the tile names the nearest picture quietly. *Why:* the same-cell score put the U101 aerial re-draws
   at 0.52-0.54, among new views (0.42-0.53), so the 0.72 note missed every one; the soft score separates all 20 pairs
   (copies 0.839+, a mirror 0.874, new views at most 0.805). *More:* scout/id_copy_measures_2026-11-06.md,
-  proto/test_g1b_id_copy.py, proto/test_u101_fc.js.
+  tests/snap/test_g1b_id_copy.py, tests/snap/test_u101_fc.js.
 - **SNAP-R113: Stage 2 has a fast choice, and quality stays the default.** `stage2`'s `speed` is "quality" (the take's
   own cfg) or "fast" (cfg 1 on every guider that samples again, one model pass per step); the take viewer's Speed row
   and `upscale_take` name what each costs (about 1.7x faster, a touch softer), the estimate divides by it, and the new
   take's options and job title say "fast (cfg 1)". Nothing picks fast by itself. *Why:* the stage 2 A/B on the Maren
   v4 orbit at 2K: 10.4 min instead of 17.9, same VRAM, flicker 3.71 vs 4.07, slightly softer eyes and line weight, the
   same scabbard, straps and face; one orbit and one seed, so the operator decides whether it ever becomes the default.
-  *More:* u102b/STAGE2_CFG_AB_2026-11-06.md, proto/test_g1b_fast.js.
+  *More:* u102b/STAGE2_CFG_AB_2026-11-06.md, tests/snap/test_g1b_fast.js.
 - **SNAP-R114: A take that cites a Cast voice gets a voice note, and the note never blocks.** When a take whose
   recipe has a Cast's voice reference in References (`<Audio n>`, SNAP-R73) lands, the page that captured it queues a
   check (MAISnapVoice: WavLM-SV speaker embedding and the median F0 of the loud voiced frames) of its soundtrack, the
@@ -972,7 +972,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   numbers come with the margin, never "the same person". *Why:* the operator, 2026-11-05: every cut where a character
   speaks cites the reference and "timbre consistency across cuts is checked"; the voice scout found cuts citing the
   reference keep it (own 0.97-0.99) while two young women overlap (0.81-0.95), so a margin and F0 say more than a
-  score. *More:* scout/voice_timbre_2026-11-06.md, proto/test_g1b_voice.py, proto/test_g1b_notes.js.
+  score. *More:* scout/voice_timbre_2026-11-06.md, tests/snap/test_g1b_voice.py, tests/snap/test_g1b_notes.js.
 - **SNAP-R115: A first frame combines with references: under Ref2V it opens the shot as <Picture 1>.** A Ref2V render
   reads no first frame, so while the Render Preset conditions on Ref2V and the First frame brick holds a picture, that
   picture is also in References as `<Picture 1>` (role "first frame: the shot opens on it"), wired into H3 References'
@@ -982,7 +982,7 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   prompt_hint names it first. *Why:* short03 F-C32: use_take as the first frame, then apply_cast switched the preset to
   Ref2V and the frame dropped out; and the walk's camera height is set by its first frame, never by words (an eye-level
   still as Picture 1 of a Ref2V walk held eye height 2/2 with the set kept; words 0/2). *More:* dogfood FINDINGS F-C32
-  and LESSONS 2026-11-06 05:50, proto/test_g1b_opening.js.
+  and LESSONS 2026-11-06 05:50, tests/snap/test_g1b_opening.js.
 - **SNAP-R116: A page never works from records another writer changed.** Every write the server makes to a record
   (save, fields, archive, delete) is told to open pages (`snap_world`, with the writer); a page that didn't write it reads
   the records again and says "<name> updated by <writer>". Before any tool runs, the page asks `/mainodes/snap/world/rev`
@@ -990,13 +990,13 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   hand edit's change is in the next answer too: `instructions`, describe_recipe, list_cast and the run's pins see it
   without a reload. *Why:* dogfood F-D01 (short04): the operator's 11 seeded person notes were missing from every
   instruction answer and run pin until a reload, with no stale hint; the Agent library only re-read on focus.
-  *More:* dogfood FINDINGS F-D01, proto/test_g1b_fresh.js.
+  *More:* dogfood FINDINGS F-D01, tests/snap/test_g1b_fresh.js.
 - **SNAP-R117: A render is lost only when the server has it neither queued nor in its history.** A candidate whose
   /history read is empty is waiting while its prompt is in /queue; when it isn't, /history is read once more (it can
   finish between the two reads) before the candidate is marked "the server has no record of this render", and a
   candidate marked so whose prompt later shows in /history turns ready with its pictures. *Why:* dogfood F-D03
   (short04): a New view candidate queued behind five runs was failed for good while its render succeeded, so it could
-  be neither seen nor applied. *More:* dogfood FINDINGS F-D03, proto/test_g1b_lost.js (2/6 on the code before).
+  be neither seen nor applied. *More:* dogfood FINDINGS F-D03, tests/snap/test_g1b_lost.js (2/6 on the code before).
 
 ## Batch G2 (2026-11-06)
 
@@ -1009,20 +1009,20 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   "not named in the prompt" (`describe_recipe.references[].named`). Agent twins: add_ref (a role for a picture already
   there renames it), remove_ref, move_ref, use_take. *Why:* UX walkthrough UI-01 / B1 / B12: a plate dropped on References
   replaced the Cast's turnaround silently, and nothing could be removed, reordered or numbered from the UI.
-  *More:* UX_WALKTHROUGH_2026-11-05.md UI-01, proto/test_g2_refs.js.
+  *More:* UX_WALKTHROUGH_2026-11-05.md UI-01, tests/snap/test_g2_refs.js.
 - **SNAP-R119: "Missing" means the file is gone, not that core's list doesn't show it.** Core's Load Image and Load Audio
   list only input/'s top level, so the page asks `/mainodes/snap/input_exists` once per graph for input files its lists
   lack (a take's frame in snap/, a Cast's picture in snap/cast/<id>/); a file the server has joins its widget's list,
   and the status pill, the inspector and describe_recipe.missing count only what is really gone. *Why:* UX walkthrough B2
   and dogfood F-A29: every Ref2V shot built from take frames or Cast pictures read "N missing" though it rendered.
-  *More:* UX_WALKTHROUGH_2026-11-05.md UI-08, proto/test_g2_refs.js.
+  *More:* UX_WALKTHROUGH_2026-11-05.md UI-08, tests/snap/test_g2_refs.js.
 - **SNAP-R120: A new shot keeps the open shot's setup and none of its content; copying is asked for.** "+ Shot ›
   New shot" (add_shot's default `start: "clean"`) keeps the models, Render Preset, core and turbo LoRAs, sampling, size,
   Upscale and Save, and leaves out the Casts, locations and sets (pins and pieces), References, the First frame, dials,
   style and Cast LoRA rows and the prompt; open_shot's `built` lists what was left out. "Copy Shot n as it is"
   (`start: "copy"`) copies everything. *Why:* dogfood F-A17, F-C27, F-C31, F-D07, F-D12: each later shot inherited the
   earlier one's characters, hand-added pictures, a night-rain dial and its prompt, and rendered them unseen.
-  *More:* G2_TRIAGE.md, proto/test_g2_shots.js.
+  *More:* G2_TRIAGE.md, tests/snap/test_g2_shots.js.
 - **SNAP-R121: An agent's answer carries what the work really is, never a shortened stand-in.** Decision titles and take
   labels hold the whole prompt or change words, plus the method and count ("New view · P-H3-Image ×2 (…)"); only the
   tiles shorten what they show (`shortLabel`). A family switch by preset name starts from a pack card or the recommended
@@ -1032,38 +1032,44 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   describe_lora (`beside`); a Cast's words go under a bare section header, keeping a trained caption's shape; apply_location
   puts its `camera` picture first. *Why:* dogfood F-D02, F-D04, F-D05, F-D06, F-D08, F-D10 (short04): two decisions read
   the same, a night-rain dial rode into a dusk shrine shot unseen, an agent thought it had left its scene, the walkthrough's
-  camera plate came third, a caption's structure broke, a 0.6 m low walk passed unflagged. *More:* proto/test_g2_fd.js.
+  camera plate came third, a caption's structure broke, a 0.6 m low walk passed unflagged. *More:* tests/snap/test_g2_fd.js.
 - **SNAP-R122: A shot says when its recipe no longer makes its ★ take, and looking never writes.** When the open shot's
   chain (seeds aside, as the stale chips read it) differs from its active take's, a line over the chain names what
   differs, with "Load ★ take's recipe" (one undo step) and "Keep editing"; open_shot and run answer
   `recipe_matches_active` and `recipe_differs`. Moving between shots saves the open one only when its graph differs from
   its file (compared without node sizes, sockets by name), so browsing a scene, someone else's too, writes nothing.
   *Why:* UX walkthrough UI-09 / B3 / B10 and dogfood F-A19, F-A30: C04's recipe was another cut's while its ★ take was
-  Granny, and every shot switch rewrote the shot and scene files. *More:* proto/test_g2_truth.js.
+  Granny, and every shot switch rewrote the shot and scene files. *More:* tests/snap/test_g2_truth.js.
 - **SNAP-R123: A picture goes where it is going from the take that made it.** The take viewer's "Send to ▾" sends the
   frame at the playhead (or the still) to References, to a Cast as its next picture (a new version whose note names the
   take and frame), to a new cast member, or to a location as a plate (a new version, the plate's `from` = the take); the
   Cast sheet has "+ from a take" (the take picker); use_take `as: cast | plate` is the agents' twin. A new Cast's uploads
   go to its own folder from the first picture. A still's viewer shows no video-only verbs. *Why:* UX walkthrough UI-03,
   UI-12, B14: the design lane's pictures could only reach the video lane by a file hunt on disk.
-  *More:* proto/test_g2_send.js.
+  *More:* tests/snap/test_g2_send.js.
 - **SNAP-R124: A shot chooses which of a Cast's pictures it uses, and nothing swaps them silently.** apply_cast `pictures`
   (roles: a state, a view) puts only those in and the pin keeps them; the Cast chip's picture button picks them; an update
   to a version that lacks one is refused with what to do, never applied as another state. A re-run can take a Cast out
   (`{to: "out"}`, the sheet's "— take X out"); the Scene row lists only scenes with a set. *Why:* UX walkthrough UI-04 /
   UI-15, dogfood F-A20: "v4 available · update" would have turned a state-A cut into state D, and a Granny-only cut
-  carried a Suna row nobody could remove. *More:* proto/test_g2_send.js.
+  carried a Suna row nobody could remove. *More:* tests/snap/test_g2_send.js.
 - **SNAP-R125: A scene plays in order, and the design lane has its own door.** "▶ Play scene" plays each shot's ★ take
   (its newest when none is active) in order, a still held 2 s, with a strip of the shots (the current one lit, a press
   jumps; Space, arrows, Esc). The empty state offers "Start a picture" (the stills kit) beside the video start, and the
   stills Render shows size chips (1024², 16:9, the video size, portrait). get_take gives `prompts {positive, negative}`
   (a negative that is the positive zeroed out is null); set_widget takes a brick's node key. On a phone a scene row
   stacks and the take viewer's date wraps under where it is. *Why:* UX walkthrough UI-07 (v0; trims, sound across cuts
-  and export wait for the Cut), UI-10, UI-18, dogfood F-A33, F-A34. *More:* proto/test_g2_polish.js.
+  and export wait for the Cut), UI-10, UI-18, dogfood F-A33, F-A34. *More:* tests/snap/test_g2_polish.js.
+- **SNAP-R126: The gate lives with the code, and nothing local lives in the gate.** Every suite `run_all.sh` calls is in
+  `tests/snap/` on the branch it tests; ports, bases, units and folders come from one config (`snaptest_config.js` /
+  `.py`, set by an env file), results and screenshots go to `SNAP_TEST_OUT`, and pictures from private work stay in
+  `SNAP_TEST_FIXTURES` with only their manifest (`fixtures.json`) in the repo. A missing folder fails the suite by name;
+  the CPU server's privacy suites never skip. *Why:* parallel builders broke each other's gates by editing one shared
+  copy of the tests outside the repo (2026-11-06), and a test path is a private path. *More:* tests/snap/README.md.
 
 ## Accounts and the gate (snap-gate)
 
-IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; G1 took R83-R87, the docs migration R88-R92, the agent library R93-R95, the vault R96-R100; U93/U94 took R101-R110; G1b took R111-R117; G2 R118 on).
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; G1 took R83-R87, the docs migration R88-R92, the agent library R93-R95, the vault R96-R100; U93/U94 took R101-R110; G1b took R111-R117; G2 R118-R125; the tests move R126).
 
 - **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
   use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and
@@ -1165,7 +1171,7 @@ IDs R40+ were reserved for the gate while R28-R39 were open for other work (renu
   (idle, expired or signed out). Token sessions ride on the person's: an agent sees private takes exactly while its
   person is signed in, and never unlocks alone. Unlock and the sweep take turns, so a lock never lands after a sign-in's
   unlock. *Why:* DECISIONS 2026-11-05 04:08 Q4 ("per session on a shared one"). *More:* `snap_gate/gate.py` (snap-gate
-  branch), proto/snapbox/test_vault_gate.py.
+  branch), tests/snap/snapbox/test_vault_gate.py.
 
 ## The critic and fix at the source (U93/U94, 2026-11-06)
 
