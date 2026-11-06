@@ -132,6 +132,34 @@ You can also run the tools as an MCP server (Claude Code):
 8. To make a take longer, call `edit_take {"take": "<id>", "method": "chain", "clips": 2}`. Standard (`chain`) holds the
    colour; `geiru` (Strong) keeps the look but may reset the action. Each clip adds about 4.25 s, and the longer take
    lands as a version of the take.
+9. To make a take bigger, see "Making a take bigger" below (`upscale_take`).
+
+### Making a take bigger (stage 2, Tessera)
+
+H3 renders at about 0.85 MP, and the VAE's compression smears small faces. `upscale_take` makes an existing take
+bigger and lands the result as a new take whose parent is the take (SNAP-R81, R82; `list_methods {"slot": "upscale"}`
+lists them as `kind: take`):
+
+    upscale_take {"take": "<id>", "method": "stage2", "factor": 2, "denoise": 0.3}
+    upscale_take {"take": "<id>", "method": "tessera", "factor": 4}
+
+- `stage2` (the default): the take's own recipe (model, LoRAs, words, references, seed) runs again from its own
+  frames, upscaled with Lanczos (or `upscaler`, a pixel model such as `2x-AnimeSharpV4_RCAN.safetensors`, first),
+  VAE-encoded at the size and sampled from `denoise` on its own schedule; the sound is kept. H3 takes only. On the
+  short03 orbit (832x1024, 5 s) the 2K pass took 15-19 min on a 5090 (d0.25 / 0.30 / 0.35) and drew the face again
+  while hilt, scabbard, straps and braid held; 0.25-0.35 looked alike, so keep 0.3 unless the person asks.
+- `h3_latent`: the same from the take's latent made bigger by a latent model (`upscaler`, default the H3 3D-conv one).
+- `tessera` (needs the ComfyUI-Tessera pack): about 1 MP tiles on Ref2VA, the take as <Video 1>, a first-frame still
+  as <Picture 1> (default: the take's newest stage 2's frame 0, so run `stage2` first; `anchor: "none"` uses the take's
+  own frame 0) and a hero tile on `hero` (default "face"). On the same orbit, 4K took 33 min and carried the stage 2
+  face up to 4K without seams; it skips near-empty backdrop tiles (`flat_skip` 8: at Tessera's own 4 those tiles grew
+  ghost figures). Look at whole frames at several angles for anything new in the backdrop.
+- Size: `factor`, or `width` and/or `height` (the other keeps the shape); multiples of 32.
+- It answers at once with the run id and the take it lands as; follow it with `wait_for {job: <prompt_id>}`. It uses
+  GPU time, so it waits as a proposal unless the person lets agents run.
+- Look at the result at 100 % (`take_frames`) before saying it is better: the face against the Cast's picture, the
+  carried props (hilt, scabbard, straps) and the braid against the original, the backdrop for anything new. RelayVSR
+  (`set_method upscale`, inside a new render) sharpens the same drawing; stage 2 draws the face again.
 
 ## 5. Characters, versions and re-takes
 

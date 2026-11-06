@@ -697,7 +697,8 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   own pack; Snap says "needs the nodes" without it): Streamed Encode makes the upscaled plate and its guide window by
   window, Refine samples about 1 MP tiles (20 at 3328x4096) on Ref2VA with the take as <Video 1> and a first-frame still
   as <Picture 1>, on its validated v4 recipe (turbo head, detail-LoRA euler tail, sigmas 1.0 / 0.7 / 0.4 / 0, guide
-  release 0.8, flat-tile skip, cfg 1), with a hero tile on `hero` (SAM 3.1 words, default "face") on its own schedule.
+  release 0.8, cfg 1) but its flat-tile skip at 8, not 4 (at 4 the near-empty backdrop tiles of the orbit grew ghost
+  figures and a face), with a hero tile on `hero` (SAM 3.1 words, default "face") on its own schedule.
   The still is the take's newest stage 2's frame 0 by default (else its own frame 0), cropped to each tile with the take
   (`image_ref_crop: per_tile`): given whole, it painted small copies of the person into the backdrop tiles. Tessera's
   laws say a pixel splice is a 2x tool, so at 4x the still goes in as the attention reference. Files, words, sigmas and tiling are the

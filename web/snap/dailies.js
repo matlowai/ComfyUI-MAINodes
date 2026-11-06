@@ -425,7 +425,8 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
     const bigPick = h("select", { ariaLabel: "how to make it bigger" }), bigBy = h("select", { ariaLabel: "how much bigger" }, [2, 3, 4].map((f) => h("option", { value: f, textContent: `${f}×` })));
     const bigDen = h("input", { type: "range", min: 0.05, max: 1, step: 0.05, value: 0.3, ariaLabel: "denoise" }), bigDenOut = h("span", { className: "snap-quiet" });
     const bigDenRow = h("label", { className: "snap-take-burn" }, h("span", { textContent: "Denoise" }), bigDen, bigDenOut);
-    const bigHero = h("input", { type: "text", placeholder: "hero tile, e.g. face (empty: none)", ariaLabel: "hero tile" });
+    const bigHero = h("input", { type: "text", placeholder: "e.g. face (empty: no hero tile)", ariaLabel: "hero tile" });
+    const bigHeroRow = h("label", { className: "snap-take-burn", title: "words for SAM 3.1: what it finds gets its own first tile and more steps" }, h("span", { textContent: "Hero tile" }), bigHero);
     const bigNote = h("div", { className: "snap-quiet", role: "status" }), bigWhy = h("div", { className: "snap-quiet snap-take-why" });
     let bigChosen = false;
     const bigBtn = h("button", { className: "snap-primary", textContent: "Make it bigger", onclick: async () => {
@@ -440,11 +441,14 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
       const face = () => {
         const m = list.find((x) => x.id === bigPick.value);
         if (!bigChosen) bigBy.value = String(m.run.factor);
-        bigDenRow.hidden = !m.run.plate; bigHero.hidden = !!m.run.plate;
+        bigDenRow.hidden = !m.run.plate; bigHeroRow.hidden = !!m.run.plate;
         if (!m.run.plate && !bigHero.dataset.touched) bigHero.value = m.options.hero.default;
         bigDenOut.textContent = Number(bigDen.value).toFixed(2); bigDenRow.title = m.options.denoise?.why ?? "";
-        bigWhy.textContent = [m.guidance?.line, ...(m.constraints ?? [])].filter(Boolean).join(" · ");
-        try { const z = UP.size(t, m, { factor: Number(bigBy.value) }); bigBtn.textContent = `Upscale to ${z.width}×${z.height}`; } catch (err) { bigBtn.textContent = "Make it bigger"; bigNote.textContent = err.message; }
+        bigWhy.textContent = m.guidance?.line ?? ""; bigWhy.title = (m.constraints ?? []).join("\n");
+        try {
+          const z = UP.size(t, m, { factor: Number(bigBy.value) }), per = m.cost?.local_s_per_mp_frame;
+          bigBtn.textContent = `Upscale to ${z.width}×${z.height}${per ? ` · about ${Math.round((per * z.width * z.height * ED.clip(t).frames) / 6e7)} min` : ""}`;
+        } catch (err) { bigBtn.textContent = "Make it bigger"; bigNote.textContent = err.message; }
         bigBtn.disabled = m.install_state !== "ready";
         bigBtn.title = [m.install_state === "ready" ? m.guidance?.line : m.install_state, m.credit && `Powered by ${m.credit}`].filter(Boolean).join("\n");
       };
@@ -517,7 +521,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
           T.locked(t) ? h("p", { className: "snap-quiet", textContent: "🔒 Private take: its edits are private too (locked, left out of exports)." }) : null, editBox,
           h("div", { className: "snap-rail-title", textContent: "Make it longer" }), h("div", { className: "snap-set-actions" }, longPick, h("label", { className: "snap-quiet" }, "+ ", clipsIn, " clips")), longWhy, burnRow,
           h("div", { className: "snap-set-actions" }, longBtn), longNote,
-          h("div", { className: "snap-rail-title", textContent: "Make it bigger" }), h("div", { className: "snap-set-actions" }, bigPick, bigBy), bigWhy, bigDenRow, bigHero,
+          h("div", { className: "snap-rail-title", textContent: "Make it bigger" }), h("div", { className: "snap-set-actions" }, bigPick, bigBy), bigWhy, bigDenRow, bigHeroRow,
           h("div", { className: "snap-set-actions" }, bigBtn), bigNote] : null,
           isVideo ? null : editBox, // a picture's re-run batches (SNAP-R63) and new views (U101) show here too
           contextPanel(t, { say, frame: () => (isVideo ? Math.round(player.currentTime * FPS) : null), region: () => region }),

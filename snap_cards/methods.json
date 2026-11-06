@@ -162,8 +162,8 @@
         "upscaler": { "default": null, "loader": "UpscaleModelLoader", "folder": "upscale_models", "why": "a pixel model before the Lanczos resize (2x-AnimeSharpV4_RCAN for anime); none = Lanczos only" }
       },
       "run": { "plate": "pixels", "empty": ["EmptyMiniMaxH3LatentAV"], "grid": 32, "factor": 2, "audio_mode": "pin the original outright (0.0)" },
-      "guidance": { "line": "", "evidence": "measured", "source": "PLAN U102b", "n": 1, "hardware": "5090" },
-      "cost": { "community_s": null, "local_s": null, "local_s_per_mp_frame": null, "vram_gb": null }
+      "guidance": { "line": "2K of a 5 s 832x1024 Ref2VA orbit at the take's own cfg 5: 15-19 min (d0.25 924 s, d0.30 1076 s, d0.35 1122 s), the 5090 full (~30 GB); the face is drawn again (eyes, the profile) while hilt, scabbard, straps and braid hold; 0.25-0.35 look alike, no added flicker", "evidence": "measured", "source": "PLAN U102b, proto/ui/u102b", "n": 3, "hardware": "5090" },
+      "cost": { "community_s": null, "local_s": 1076, "per": "5 s clip to 1664x2048 at denoise 0.3", "local_s_per_mp_frame": 2.55, "vram_gb": 30 }
     },
     {
       "id": "h3_latent",
@@ -210,13 +210,13 @@
         "sampler": "er_sde", "sampler_fine": "euler", "sigmas": "1.0, 0.7, 0.4, 0.0", "segment_frames": 56,
         "prompt": "subject_definitions:\n<Video 1>: the reference video. Its picture, motion, framing, timing and content are the target video's content.\n<Picture 1> is a high resolution reference of the first frame of the video.\n\nretention_analysis:\n<Video 1>: fully_preserved - <Video 1> is reproduced one to one as the target video. Every frame matches the source.\n\nEnhance this video with sharp, crisp details while keeping its own style, colours and line work exactly as in <Video 1>.",
         "args": { "video_ref_crop": "per_tile", "image_ref_crop": "per_tile", "guide_noise": 0.0, "guide_noise_band": "full", "guide_noise_t": "per_frame", "guide_release": 0.8, "guide_inherit": true, "hero_guide_noise": -1.0,
-          "motion_adapt": true, "motion_release_floor": 0.0, "fine_below_sigma": 0.75, "tile_select": "", "tile_limit": 0, "flat_skip": 4.0, "composite": "pixel" },
+          "motion_adapt": true, "motion_release_floor": 0.0, "fine_below_sigma": 0.75, "tile_select": "", "tile_limit": 0, "flat_skip": 8.0, "composite": "pixel" },
         "refine": { "spatial_tile": "high_vram", "tile_width": 1024, "tile_height": 1024, "temporal_tile": "high_vram", "temporal_size": 124, "temporal_overlap": 4, "context_border": 64,
           "seam_overlap": 32, "hero_min": 896, "hero_fit": "median", "cfg": 1.0, "seed_mode": "global", "pixel_out": true, "console_progress": "overall" },
         "hero": { "detector": "sam3.1_multiplex_fp16.safetensors", "threshold": 0.5, "sigmas": "1.0, 0.85, 0.7, 0.55, 0.4, 0.0" }
       },
-      "guidance": { "line": "", "evidence": "measured", "source": "PLAN U102b; Tessera docs/LAWS.md", "n": 1, "hardware": "5090" },
-      "cost": { "community_s": null, "local_s": null, "local_s_per_mp_frame": null, "vram_gb": null }
+      "guidance": { "line": "4K of a 5 s 832x1024 orbit: 33 min (17 of 20 tiles sampled, 6 min of it the streamed encode), the 5090 full (~30 GB); with the take's stage 2 as the still it carries the redrawn face to 4K, geometry held, no seams, a faint tile-tone step in flat backdrops. flat_skip is 8, not Tessera's 4: at 4 the backdrop tiles of this flat-backdrop orbit grew ghost figures and a face", "evidence": "measured", "source": "PLAN U102b, proto/ui/u102b", "n": 3, "hardware": "5090" },
+      "cost": { "community_s": null, "local_s": 1955, "per": "5 s clip to 3328x4096", "local_s_per_mp_frame": 1.16, "vram_gb": 30 }
     },
     {
       "id": "ltx_spatial",

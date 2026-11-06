@@ -176,7 +176,7 @@ export async function start(take, id, { factor, width, height, denoise, upscaler
     options = { width: t.width, height: t.height, hero: hero ?? o.hero.default, anchor: made.anchor, ...(anchor ? { anchor_take: anchor.id } : {}) };
   }
   const per = m.cost?.local_s_per_mp_frame, eta_s = per ? Math.round(per * ((t.width * t.height) / 1e6) * ED.clip(take).frames) : null;
-  const job = { kind: "upscale", title: `Make take ${take.number} ${t.width}×${t.height} (${m.title}${options.denoise != null ? `, denoise ${options.denoise}` : ""})`, about: { take: take.id, group: take.group }, by, eta_s };
+  const job = { kind: "upscale", title: `Make take ${take.number} ${t.width}×${t.height}: ${m.title}${options.denoise != null ? ` at denoise ${options.denoise}` : ""}`, about: { take: take.id, group: take.group }, by, eta_s };
   const runId = await K.queue(g, { group: take.group, world: take.graph?.extra?.snap?.world, job, extra: { snap_parent: { take: take.id, method: `upscale/${id}`, options, by } } });
   return { prompt_id: runId, take: `take-${runId}`, ...options, eta_s, eta: eta_s ? `about ${Math.round(eta_s / 60)} min of GPU` : "no estimate yet" };
 }
