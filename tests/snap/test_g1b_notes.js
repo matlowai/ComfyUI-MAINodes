@@ -30,7 +30,10 @@ const upload = async (file, name) => { const form = new FormData(); form.append(
     brann: await upload(path.join(VOICES, "brann_voice_ref.wav"), "g1b_brann_voice.wav"), face: await upload(CFG.fixture("id_copy", "images", "bible_maren_front.png"), "g1b_maren_front.png") };
   const b = await chromium.launch({ executablePath: CFG.chrome, headless: true });
   try {
-    const A = await F.open(b, port), page = A.page;
+    // WavLM-SV as a machine with the voice model lists it (G3: the gate's CPU base has none; the graphs are answered below)
+    const ctx = await b.newContext({ viewport: { width: 1600, height: 1000 } });
+    await ctx.route(/\/api\/experiment\/models\/audio_encoders$/, async (r) => { const res = await r.fetch(), list = await res.json(); r.fulfill({ response: res, json: list.some((x) => x.name === "wavlm_base_plus_sv.safetensors") ? list : [...list, { name: "wavlm_base_plus_sv.safetensors", pathIndex: 0, modified: 0, size: 4e8 }] }); });
+    const A = await F.open(b, port, { context: ctx }), page = A.page;
     const voiceGraphs = [];
     let n = 0;
     // the voice checks are answered with fixed embeddings: which take (its video's name) and which reference (its file)
