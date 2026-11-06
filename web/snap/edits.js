@@ -162,6 +162,35 @@ async function castFace(d, c) {
     return n.error ? { name, picture: d.options.picture, error: n.error } : { name, picture: d.options.picture, face_low: n.face_low, different: n.face_low != null && n.face_low < n.different_person, different_person: n.different_person, scores: n.scores.map(({ face, crops, no_head }) => ({ face, crops, ...(no_head ? { no_head } : {}) })) };
   } catch (e) { return { name, picture: d.options.picture, error: e.message }; }
 }
+// G1 (short03 F-C19): any take or still against Cast pictures, one to one (SNAP-R76): the frames asked for (a video's
+// first, middle and last by default; a still is one), each face in a frame matched to one Cast's picture `ref` (default
+// its first). A note, never a gate (SNAP-R23); a few seconds of detection on the server's queue, nothing renders
+export async function castIdentity(take, casts, { frames, ref = 0 } = {}) {
+  await W.load();
+  const video = take.media.find((m) => m.kind === "video"), still = take.media.find((m) => m.kind === "image");
+  if (!video && !still) throw new Error(`Take ${take.number} has no picture or video`);
+  const who = casts.map((c) => {
+    const got = W.get(c), { id } = W.parse(c), b = got?.version.body, r = b?.refs?.[ref];
+    if (!got) throw new Error(`No Cast ${c} (list_cast shows them)`);
+    if (!r) throw new Error(`${b.name} v${got.version.n} has no picture ${ref}; it has ${b.refs.length}`);
+    return { cast: W.refOf("cast", id, got.version.n), name: b.name, file: r.file, role: r.role };
+  });
+  let list, srcs;
+  if (video) {
+    const c = clip(take);
+    list = frames?.length ? frames : [0, c.mid, c.frames - 1];
+    const bad = list.filter((f) => !Number.isInteger(f) || f < 0 || f >= c.frames);
+    if (bad.length) throw new Error(`frames are whole frame numbers of take ${take.number}, from 0 to ${c.frames - 1}; not ${bad.join(", ")}`);
+    srcs = list.map((frame) => ({ video: c.video, frame }));
+  } else { list = [0]; srcs = [{ image: K.annotated(still) }]; }
+  const n = await K.identityCheck(srcs.flatMap((src) => who.map((w) => [{ image: w.file }, src])), [], { about: { take: take.id }, title: `Face check: is each Cast in take ${take.number} themselves?` });
+  if (n.error) throw new Error(n.error);
+  const rows = list.map((frame, i) => ({ frame, casts: who.map((w, j) => { const x = n.scores[i * who.length + j];
+    return { name: w.name, cast: w.cast, face: x.face, different: x.face != null && x.face < n.different_person, crops: x.crops, ...(x.no_head ? { no_face: x.no_head[1] ? "no face found in the take's frame" : "no face found in the Cast picture" } : {}) }; }) }));
+  const low = who.map((w, j) => { const got = rows.map((r) => r.casts[j].face).filter((f) => f != null); return { name: w.name, cast: w.cast, picture: `${w.file} (${w.role})`, lowest: got.length ? Math.min(...got) : null, read: got.length, of: rows.length }; });
+  return { take: take.id, different_person: n.different_person, casts: low, frames: rows,
+    said: low.map((x) => (x.lowest == null ? `${x.name}: no face read` : `${x.name}: lowest ${x.lowest} over ${x.read} frame${x.read === 1 ? "" : "s"}${x.lowest < n.different_person ? ` (below ${n.different_person}: probably someone else in a frame; look at the crops)` : ""}`)).join("; ") };
+}
 // the identity notes again, for every candidate of an edit that has its frames (a note from an older check, or after the
 // model graph's thresholds changed); a few seconds of detection, nothing renders
 export async function recheck(id) {
@@ -319,13 +348,22 @@ async function contextPicture(p, i) {
     out = [k("l"), 0]; size = p.crop && await sizeOf(inputUrl(r.file));
     Object.assign(said, { cast: W.refOf("cast", id, got.version.n), file: r.file, label: p.label ?? `${b.name}, ${r.role}` });
     world = [`cast:${id}`, { n: got.version.n, hash: W.short(got.version.hash), name: b.name }];
+  } else if (p.location) { // SNAP-R84: a location's master, plan or plate by name; the still pins the location's version
+    const got = W.get(p.location), { kind, id } = W.parse(p.location), b = got?.version.body, which = p.plate ?? "master";
+    if (kind !== "location" || !got) throw new Error(`Picture ${i + 1}: no location ${p.location} (list_locations lists them)`);
+    const pic = which === "master" || which === "plan" ? b[which] : b.plates?.find((x) => x.name === which);
+    if (!pic) throw new Error(`Picture ${i + 1}: ${b.name} v${got.version.n} has no ${which === "master" || which === "plan" ? which : `plate "${which}"`}; it has ${[...["master", "plan"].filter((k) => b[k]), ...(b.plates ?? []).map((x) => x.name)].join(", ") || "nothing yet"}`);
+    nodes[k("l")] = { class_type: "LoadImage", inputs: { image: pic.file } };
+    out = [k("l"), 0]; size = p.crop && await sizeOf(inputUrl(pic.file));
+    Object.assign(said, { location: W.refOf("location", id, got.version.n), plate: which, file: pic.file, label: p.label ?? `${b.name}, ${which === "master" || which === "plan" ? which : `plate ${which}`}` });
+    world = [`location:${id}`, { n: got.version.n, hash: W.short(got.version.hash), name: b.name }];
   } else if (p.file) {
     const at = await (await api.fetchApi(`/mainodes/snap/info?input=${encodeURIComponent(p.file)}`)).json();
     if (!at.input_exists) throw new Error(`Picture ${i + 1}: "${p.file}" isn't in this server's input folder (${at.input}); upload it with POST /upload/image (subfolder=snap) and give "snap/<its name>"`);
     nodes[k("l")] = { class_type: "LoadImage", inputs: { image: p.file } };
     out = [k("l"), 0]; size = p.crop && await sizeOf(inputUrl(p.file));
     Object.assign(said, { file: p.file, label: p.label ?? p.file.split("/").pop() });
-  } else throw new Error(`Picture ${i + 1}: give take (and frame for a video), file (in input/) or cast (cast:<id>, ref: its picture's number from 0)`);
+  } else throw new Error(`Picture ${i + 1}: give take (and frame for a video), file (in input/), cast (cast:<id>, ref: its picture's number from 0) or location (location:<id>, plate: a plate's name, master or plan)`);
   if (p.crop) { // fractions of the picture, as the take viewer's marked region holds them
     const [x, y, w, hgt] = p.crop;
     if (![x, y, w, hgt].every((v) => typeof v === "number" && v >= 0 && v <= 1) || w <= 0 || hgt <= 0) throw new Error(`Picture ${i + 1}: crop is [x, y, width, height] in fractions of the picture (0 to 1); not ${JSON.stringify(p.crop)}`);
@@ -533,7 +571,7 @@ async function contextCopies(d, c) {
   try {
     const { encoder, threshold } = await copyCheck(), g = { e: { class_type: "CLIPVisionLoader", inputs: { clip_name: encoder } }, s: { class_type: "LoadImage", inputs: { image: K.annotated(still) } } };
     for (const [i, x] of d.options.context.entries()) {
-      const p = await contextPicture(x.cast ? { file: x.file, crop: x.crop } : { take: x.take, frame: x.frame, file: x.file, crop: x.crop }, i);
+      const p = await contextPicture(x.cast || x.location ? { file: x.file, crop: x.crop } : { take: x.take, frame: x.frame, file: x.file, crop: x.crop }, i);
       Object.assign(g, p.nodes, { [`q${i}`]: { class_type: "MAISnapCopyScore", inputs: { clip_vision: ["e", 0], reference: p.out, images: ["s", 0] } } });
     }
     const h = await K.screen(g, { title: `Copy check: did ${c.id} of ${d.title} copy one of its pictures?`, about: { decision: d.id, candidate: c.id } });

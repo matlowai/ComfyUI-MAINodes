@@ -728,6 +728,20 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   are doing some things on one gpu and some things on another or doing non gpu contention things". *More:* DECISIONS
   2026-11-05 12:36 and 2026-11-06, PLAN U96, proto/test_agent_page.py, proto/test_g1_window.js.
 
+- **SNAP-R84: A location is a record, and a shot cites its plates by name.** A location (`snap/location/<id>.json`,
+  versioned like a Cast, SNAP-R60) holds a master picture, a set plan, camera marks on the plan and named plates, each
+  plate a picture in input/ with its camera pose ({x, y} in fractions of the plan from its top left, heading in degrees
+  clockwise from its up, eye height in metres, lens in mm) and the take and frame it came from (a take's frame is saved
+  into input/ when it is added). `apply_location` puts the master, the plan and the plates named into References as
+  `<Picture n>` (the answer cites each) and pins the version; a New view takes `{location, plate}` as a picture and
+  pins it too, so every still, board and take says which version of the place made it; `rerun` swaps a location like a
+  Cast and `dependents` lists what each version of any record still feeds. The Location sheet shows the master, the plan
+  with each camera mark and plate drawn as a dot and a wedge (where it stands, where it looks, how wide its lens sees)
+  and the plate tiles; every picture opens full size (SNAP-R80). *Why:* Dylan 2026-11-05: "getting the topology of the
+  town ... is what you need to do in order to get a consistent setting", and on the walkthrough plates: "yep this is the
+  right shape"; short03 kept its village as a Cast for want of a record (F-C17). *More:* DECISIONS 2026-11-05 13:1x and
+  16:5x, PLAN U99, dogfood FINDINGS F-C17/F-C19/F-C22, proto/test_g1_location.js.
+
 ## Accounts and the gate (snap-gate)
 
 IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (R67-R70 are reserved for the Book; G1 took R83-R87; R88 on).

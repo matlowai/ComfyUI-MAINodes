@@ -1,5 +1,5 @@
-// World state (U87, DESIGN_U86_U87_CAST_VERSIONS §4.3): the records a take depends on (Cast, set snapshots, the
-// person's own Library cards) each live in one file, snap/<kind>/<id>.json in ComfyUI's per-user data, with every
+// World state (U87, DESIGN_U86_U87_CAST_VERSIONS §4.3): the records a take depends on (Cast, set snapshots, locations
+// (SNAP-R84), the person's own Library cards) each live in one file, snap/<kind>/<id>.json in ComfyUI's per-user data, with every
 // version inside: {n, hash, at, by, note, body}. Saving is versioning: a body equal to the head makes no new version,
 // any other body is appended as n + 1 and becomes the head; no version is ever edited. A set keeps its editor's working
 // copy as `draft` and its camera plates as `plates`, outside the versions (a plate belongs to a camera, not a state).
@@ -10,7 +10,7 @@
 // SNAP-R60 world versions and pins · SNAP-R17 by · SNAP-R18 local only · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 
-export const KINDS = ["cast", "card", "set_snapshot"]; // scenes version their authored fields in their own documents (scenes.js)
+export const KINDS = ["cast", "card", "set_snapshot", "location"]; // scenes version their authored fields in their own documents (scenes.js)
 const fileOf = (kind, id) => `snap/${kind}/${id}.json`, archivedOf = (kind, id) => `snap/_archived/${kind}/${id}.json`;
 const key = (kind, id) => `${kind}:${id}`;
 let records = new Map(), loading = null;

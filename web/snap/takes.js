@@ -470,35 +470,46 @@ export async function frames(take, { frames: want, count = 5, maxWidth = 768 } =
   return out;
 }
 
-// a frame of a take as a picture in ComfyUI's input folder: `t` in seconds, "last" for its end ("continue from end of shot")
-export async function frameAt(take, t = "last") {
+// a frame of a take as a picture in ComfyUI's input folder: `t` in seconds, "last" for its end ("continue from end of
+// shot"), or `frame` (a frame number, as take_frames and edit_from_context count them); `crop` [x, y, width, height] in
+// fractions keeps a part of it (G1: the front and the back of one sheet still are two pictures). The file is named by the
+// take, the frame and the crop, so another frame or part of the same take is another picture
+export async function frameAt(take, t = "last", { frame: want, crop } = {}) {
   const m = take.media.find((x) => x.kind === "video") ?? take.media.find((x) => x.kind === "image");
   if (!m) throw new Error("This take has no picture or video");
+  if (crop && !(crop.length === 4 && crop.every((v) => typeof v === "number" && v >= 0 && v <= 1) && crop[2] > 0 && crop[3] > 0)) throw new Error(`crop is [x, y, width, height] in fractions of the picture (0 to 1); not ${JSON.stringify(crop)}`);
   let at = 0;
-  const blob = m.kind === "image" ? await (await fetch(url(m))).blob() : await new Promise((resolve, reject) => {
+  const cut = (src, w, h) => { const [x, y, cw, ch] = crop ?? [0, 0, 1, 1], c = Object.assign(document.createElement("canvas"), { width: Math.max(1, Math.round(cw * w)), height: Math.max(1, Math.round(ch * h)) });
+    c.getContext("2d").drawImage(src, Math.round(x * w), Math.round(y * h), c.width, c.height, 0, 0, c.width, c.height); return new Promise((done) => c.toBlob(done, "image/png")); };
+  const blob = m.kind === "image" ? await (async () => { const img = new Image(); img.src = url(m); await img.decode(); return cut(img, img.naturalWidth, img.naturalHeight); })() : await new Promise((resolve, reject) => {
     const v = Object.assign(document.createElement("video"), { src: url(m), muted: true, preload: "auto" });
-    v.onloadedmetadata = () => { at = t === "last" ? Math.max(0, v.duration - 0.05) : Math.min(Math.max(0, t), v.duration - 0.05); v.currentTime = at; };
-    v.onseeked = () => { const c = Object.assign(document.createElement("canvas"), { width: v.videoWidth, height: v.videoHeight }); c.getContext("2d").drawImage(v, 0, 0); c.toBlob(resolve, "image/png"); };
+    v.onloadedmetadata = () => {
+      const last = Math.max(0, Math.floor(v.duration * FPS) - 1);
+      if (want != null && !(Number.isInteger(want) && want >= 0 && want <= last)) return reject(new Error(`frame is a whole frame number of take ${take.number}, from 0 to ${last}; not ${want}`));
+      at = want != null ? (want + 0.5) / FPS : t === "last" ? Math.max(0, v.duration - 0.05) : Math.min(Math.max(0, t), v.duration - 0.05); v.currentTime = at;
+    };
+    v.onseeked = () => cut(v, v.videoWidth, v.videoHeight).then(resolve);
     v.onerror = () => reject(new Error("couldn't read the video's frame"));
   });
-  const frame = Math.round(at * FPS), form = new FormData();
-  form.append("image", blob, `${take.id}_f${frame}.png`);
+  const frame = m.kind === "image" ? 0 : want ?? Math.round(at * FPS), part = crop ? `_c${crop.map((x) => Math.round(x * 1000)).join("-")}` : "", form = new FormData();
+  form.append("image", blob, `${take.id}_f${frame}${part}.png`);
   form.append("subfolder", "snap");
   form.append("overwrite", "true");
   const r = await (await api.fetchApi("/upload/image", { method: "POST", body: form })).json();
-  return { file: `${r.subfolder}/${r.name}`, frame };
+  return { file: `${r.subfolder}/${r.name}`, frame, ...(crop ? { crop } : {}) };
 }
 
 // "Use as input" (U32): a take's frame becomes the First frame (FL2V's start) or a reference picture, through the bricks'
 // own loaders, as one undo step; the brick remembers the take and frame it came from
-export async function use(take, { as = "first_frame", t = "last", by = "person" } = {}) {
+export async function use(take, { as = "first_frame", t = "last", frame: want, crop, by = "person" } = {}) {
   if (!["first_frame", "reference"].includes(as)) throw new Error(`Use a take as first_frame or reference, not ${as}`);
   const key = as === "first_frame" ? "first_frame" : "refs";
   if (!E.state().bricks.some((b) => b.key === key)) throw new Error(`Add the ${BRICKS[key].title} brick to use a take ${as === "first_frame" ? "as its first frame" : "as a reference"}`);
-  const { file, frame } = await frameAt(take, t), from = { take: take.id, number: take.number, frame, file, by };
+  const { file, frame } = await frameAt(take, t, { frame: want, crop }), from = { take: take.id, number: take.number, frame, file, by };
+  const part = crop ? ` (part ${crop.map((x) => +x.toFixed(2)).join(", ")})` : "", had = as === "reference" && E.references()?.pictures.some((p) => p.file === file);
   app.canvas.emitBeforeChange();
   try {
-    if (as === "reference") E.addPicture(file, { role: `take ${take.number}, frame ${frame}`, reason: `frame ${frame} of take ${take.number} (${take.id})`, source: take.id });
+    if (as === "reference") E.addPicture(file, { role: `take ${take.number}, frame ${frame}${part}`, reason: `frame ${frame} of take ${take.number} (${take.id})${part}`, source: take.id });
     else {
       const w = E.nodeFor("first_frame", "image").widgets.find((x) => x.name === "image");
       if (!w.options.values.includes(file)) w.options.values.push(file); // uploaded after the page loaded
@@ -506,5 +517,7 @@ export async function use(take, { as = "first_frame", t = "last", by = "person" 
       E.remember("first_frame", "from", from);
     }
   } finally { app.canvas.emitAfterChange(); }
-  return { as, file, ...from, said: `Frame ${frame} of take ${take.number} is now ${as === "first_frame" ? "the First frame" : "a reference picture"}` };
+  const cite = as === "reference" ? E.references()?.pictures.find((p) => p.file === file)?.cite : null;
+  return { as, file, ...from, ...(cite ? { cite } : {}), said: had ? `Frame ${frame}${part} of take ${take.number} is already in References as ${cite}: another frame (frame) or part (crop) is another picture`
+    : `Frame ${frame}${part} of take ${take.number} is now ${as === "first_frame" ? "the First frame" : `a reference picture, ${cite}`}` };
 }

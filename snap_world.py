@@ -16,7 +16,7 @@ from aiohttp import web
 from server import PromptServer
 
 routes = PromptServer.instance.routes
-KINDS = ("cast", "card", "set_snapshot")
+KINDS = ("cast", "card", "set_snapshot", "location")  # SNAP-R84 locations
 FIELDS = ("draft", "plates")  # a set's working copy and its camera plates live beside the versions
 ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 lock = asyncio.Lock()

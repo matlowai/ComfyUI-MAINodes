@@ -740,6 +740,29 @@ export const STYLE = `
 .snap-cast-version { all: unset; cursor: pointer; display: flex; flex-direction: column; gap: 1px; padding: 6px 9px; border-radius: 8px; background: var(--s-card); box-shadow: inset 0 0 0 1px var(--s-line); font-size: 12px; }
 .snap-cast-version.on { box-shadow: inset 0 0 0 2px var(--s-accent); } .snap-cast-version:focus-visible { outline: 2px solid var(--s-accent); outline-offset: 2px; }
 .snap-new-cast { align-self: flex-start; margin: 2px 0 4px; }
+/* the Location sheet (G1, SNAP-R84): the master and the plan side by side, the camera marks over the plan, the plate tiles */
+.snap-sheet.snap-loc-sheet { inset: 48px max(16px, calc(50% - 700px)) auto; max-height: calc(100% - 72px); }
+.snap-loc-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.snap-loc-top figure { margin: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.snap-loc-top figcaption, .snap-loc-plate figcaption { font-size: 12px; }
+.snap-loc-master img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 10px; background: var(--s-card); cursor: zoom-in; }
+.snap-loc-plan { position: relative; border-radius: 10px; overflow: hidden; background: var(--s-card); cursor: zoom-in; }
+.snap-loc-plan.placing { cursor: crosshair; box-shadow: inset 0 0 0 2px var(--s-accent); }
+.snap-loc-plan img { display: block; width: 100%; height: auto; }
+.snap-loc-marks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.snap-loc-wedge { fill: #6aa8ff33; stroke: #6aa8ff; stroke-width: 2; } .snap-loc-wedge.plate { fill: #f0b44540; stroke: #f0b445; } .snap-loc-wedge.picked { stroke-width: 4; }
+.snap-loc-dot { fill: #6aa8ff; stroke: #0b0c0f; stroke-width: 2; } .snap-loc-dot.plate { fill: #f0b445; }
+.snap-loc-label { fill: #0b0c0f; paint-order: stroke; stroke: #ffffffd0; stroke-width: 4px; font-weight: 700; } .snap-loc-label.plate { fill: #6b4300; }
+.snap-loc-mark.lit .snap-loc-wedge { fill: #f0b44599; stroke-width: 4; } .snap-loc-mark.lit .snap-loc-dot { r: 14px; } .snap-loc-marks .snap-loc-mark { pointer-events: auto; }
+.snap-loc-cams { font-size: 11.5px; }
+.snap-loc-plates { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.snap-loc-plate { margin: 0; display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 10px; background: #0000001f; box-shadow: inset 0 0 0 1px var(--s-line); min-width: 0; }
+.snap-loc-plate.on { box-shadow: inset 0 0 0 2px var(--s-accent); }
+.snap-loc-plate img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 7px; background: var(--s-card); cursor: zoom-in; }
+.snap-loc-plate input:not([type]) { font: inherit; font-size: 11.5px; color: var(--s-fg); background: #0000002e; border: 1px solid #ffffff10; border-radius: 6px; padding: 3px 6px; min-width: 0; }
+.snap-loc-pick { display: flex; gap: 6px; align-items: center; } .snap-loc-pick input:not([type]) { flex: 1; font-weight: 600; font-size: 12.5px; }
+.snap-loc-plate .snap-quiet { font-size: 11px; }
+@container (max-width: 760px) { .snap-loc-top { grid-template-columns: minmax(0, 1fr); } .snap-sheet.snap-loc-sheet { inset: 48px 8px auto; } }
 @container (max-width: 760px) { .snap-sheet.snap-cast-sheet { inset: 56px 8px auto; } .snap-cast-body { grid-template-columns: minmax(0, 1fr); padding: 12px; } }
 .snap-pins { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .snap-pin { font-size: 11px; padding: 2px 7px; border-radius: 999px; background: var(--s-card); color: var(--s-dim); box-shadow: inset 0 0 0 1px var(--s-line); }

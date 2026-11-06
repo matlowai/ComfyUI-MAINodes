@@ -4,7 +4,8 @@
 // SNAP-R5 another family opens a new tab · SNAP-R12 identity rows never leave in a card · SNAP-R18 local only ·
 // SNAP-R21 a shot's reference shows its own camera · SNAP-R25 SFW only leaves out cards tagged or loading nsfw ·
 // SNAP-R59 Cast by reference (applyCast) · SNAP-R60 the person's cards are world records (world.js) ·
-// SNAP-R73 a Cast's voice reference goes in as an <Audio n> · see docs/SNAP_RULES.md
+// SNAP-R73 a Cast's voice reference goes in as an <Audio n> · SNAP-R84 a location by reference: its master, plan and named
+// plates (applyLocation) · see docs/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
@@ -17,8 +18,8 @@ import { BRICKS, kit } from "./bricks.js";
 import { setBlock, blocking, drawPlan, drawElevation, toBlob, coverage, atCamera, cameraAt, keeps, ownCamera, sameCamera } from "./setsnap.js";
 
 // the brick each kind of card goes on; a recipe goes on the whole stack (null)
-export const TARGET = { recipe: null, shot: "render", set_snapshot: "refs", dial: "rack", lora: "preset", cast: "render", setting: "render", scene: "render", principle: "render", pose: "first_frame", motion_guide: "refs", run: "render" };
-export const KIND_LABEL = { recipe: "Recipes", shot: "Shots", set_snapshot: "Set snapshots", cast: "Cast", setting: "Settings", scene: "Scenes", principle: "Principles", motion_guide: "Motion", pose: "Poses", dial: "Dials", lora: "LoRAs", run: "Runs" };
+export const TARGET = { recipe: null, shot: "render", set_snapshot: "refs", location: "refs", dial: "rack", lora: "preset", cast: "render", setting: "render", scene: "render", principle: "render", pose: "first_frame", motion_guide: "refs", run: "render" };
+export const KIND_LABEL = { recipe: "Recipes", shot: "Shots", set_snapshot: "Set snapshots", location: "Locations", cast: "Cast", setting: "Settings", scene: "Scenes", principle: "Principles", motion_guide: "Motion", pose: "Poses", dial: "Dials", lora: "LoRAs", run: "Runs" };
 
 let cards = [], pack = [], loading;
 // cards load once per page; the view and the agent tools both wait on the same request. The person's own cards are
@@ -35,6 +36,7 @@ function rebuild() {
     if (r.draft) { mine.push(withPlates(r.draft)); origins.set(r.draft.id, { kind: "set_snapshot", id: r.id, n: null }); }
   }
   for (const r of W.all("cast")) { const v = W.headOf(r); if (v) { mine.push(castCard(r.id, v.body)); origins.set(r.id, { kind: "cast", id: r.id, n: v.n }); } }
+  for (const r of W.all("location")) { const v = W.headOf(r); if (v) { mine.push(locationCard(r.id, v.body)); origins.set(r.id, { kind: "location", id: r.id, n: v.n }); } }
   cards = [...mine, ...pack].filter((c) => c.kind in TARGET); // kinds Snap doesn't know are dropped
   return cards;
 }
@@ -46,7 +48,7 @@ export const originOf = (id) => origins.get(id) ?? null;
 export const ready = () => (loading ??= Promise.all([loadPack(), W.load()]).then(rebuild).then(hashPack).catch((e) => { loading = null; throw e; }));
 // a pack card is version 0 of its reference, known by its hash: the world store keeps today's hash of each, so a pin on
 // one reads as moved when a pack update changes the card, and as missing when the pack drops it (SNAP-R60)
-const packRef = (card) => `${card.kind === "set_snapshot" ? "set_snapshot" : card.kind === "cast" ? "cast" : "card"}:${card.lineage ?? card.id}`;
+const packRef = (card) => `${["set_snapshot", "cast", "location"].includes(card.kind) ? card.kind : "card"}:${card.lineage ?? card.id}`;
 async function hashPack() {
   W.setPack(new Map(await Promise.all(pack.map(async (c) => [packRef(c), { hash: W.short(await W.sha(c)), name: nameOf(c), id: c.id }]))));
 }
@@ -395,6 +397,105 @@ export function picturesUnread() {
   const n = E.state().bricks.find((x) => x.key === "refs")?.pictures?.length ?? 0, c = E.state().bricks.some((x) => x.key === "preset") ? String(E.getValue("preset", "preset", "conditioning") ?? "") : null;
   return n && c && !c.startsWith("Ref2V") ? `References holds ${n} picture${n === 1 ? "" : "s"}, but the Render Preset conditions on ${c}: this render doesn't read them. Pick a reference-pictures setup (list_setups, apply_setup), or apply_cast again` : null;
 }
+// ---- Locations (G1, U99 / F-C17, SNAP-R84): a place kept once as a record, snap/location/<id>.json, versioned like a Cast:
+// its master picture, its set plan (an overhead map), camera marks on the plan and named plates, each a picture with
+// its camera pose and the take/frame it came from. A pose is {x, y} on the plan in fractions of the picture from its
+// top left, heading in degrees clockwise from the plan's up (north), eye_height in metres, lens in mm. A shot cites a
+// plate by name: applyLocation puts the master, the plan and the named plates into References as <Picture n> and pins
+// the version, so every take made there says which version of the place it used.
+const POSE = ["x", "y", "heading", "eye_height", "lens"];
+export const LOCATION_PICTURES = ["master", "plan"];
+const locationStamp = () => `location-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+const locationCard = (id, b) => ({ id, kind: "location", title: `Location: ${b.name}`, text: [b.notes, ...(b.plates ?? []).map((p) => `plate ${p.name}${p.use ? `: ${p.use}` : ""}`)].filter(Boolean).join(" ") || b.name,
+  brick: { location: `location:${id}` }, ...(b.master ? { media: [{ kind: "image", ...inputMedia(b.master.file) }] } : {}), ...(b.rating ? { rating: b.rating } : {}) });
+const inputMedia = (file) => { const cut = file.lastIndexOf("/"); return { filename: file.slice(cut + 1), subfolder: file.slice(0, Math.max(cut, 0)), type: "input" }; };
+function poseOf(p, what) {
+  if (p == null) return null;
+  if (typeof p !== "object") throw new Error(`${what}: a pose is {x, y, heading, eye_height, lens}; not ${JSON.stringify(p)}`);
+  const wrong = Object.keys(p).filter((k) => !POSE.includes(k) || (p[k] != null && typeof p[k] !== "number"));
+  if (wrong.length) throw new Error(`${what}: a pose takes numbers for ${POSE.join(", ")} (x and y in fractions of the plan from its top left, heading in degrees clockwise from its up, eye_height in metres, lens in mm); not ${wrong.map((k) => `${k} ${JSON.stringify(p[k])}`).join(", ")}`);
+  for (const k of ["x", "y"]) if (p[k] != null && !(p[k] >= 0 && p[k] <= 1)) throw new Error(`${what}: ${k} is a fraction of the plan, 0 to 1; not ${p[k]}`);
+  return Object.fromEntries(POSE.filter((k) => p[k] != null).map((k) => [k, k === "heading" ? ((p[k] % 360) + 360) % 360 : p[k]]));
+}
+// a picture of a location: an input/ file as it is, or a take's frame (frame; a still has one) saved into input/ with
+// where it came from; {file, from} as the record keeps it
+async function locationPicture(p, what) {
+  if (p == null) return null;
+  if (p.take) {
+    await T.load();
+    const t = T.get(p.take);
+    if (!t) throw new Error(`${what}: no take ${p.take} (list_takes lists them)`);
+    const { file, frame } = await T.frameAt(t, "last", { frame: p.frame ?? (t.media.some((m) => m.kind === "video") ? undefined : 0) });
+    return { file, from: { take: t.id, frame } };
+  }
+  if (!p.file) throw new Error(`${what}: give file (a picture in input/) or take (and frame for a video)`);
+  const at = await (await api.fetchApi(`/mainodes/snap/info?input=${encodeURIComponent(p.file)}`)).json();
+  if (!at.input_exists) throw new Error(`${what}: "${p.file}" isn't in this server's input folder (${at.input}); upload it with POST /upload/image (subfolder=snap) and give "snap/<its name>", or give take (and frame)`);
+  return { file: p.file, ...(p.from ? { from: p.from } : {}) };
+}
+// a new version of a location (a new record when id is null): {id, ref, n, made}. The whole place each time; a picture
+// given as a take's frame is saved into input/ first
+export async function saveLocation(id, body, { note = "", by = "person" } = {}) {
+  await ready();
+  if (!body?.name?.trim()) throw new Error("A location needs a name");
+  const names = new Set(), cameras = [], plates = [];
+  for (const [i, c] of (body.cameras ?? []).entries()) {
+    if (!c?.name?.trim()) throw new Error(`cameras[${i}]: a camera mark needs a name (C1, P01, …)`);
+    cameras.push({ name: c.name.trim(), ...poseOf(Object.fromEntries(POSE.filter((k) => c[k] != null).map((k) => [k, c[k]])), `camera ${c.name}`), ...(c.note?.trim() ? { note: c.note.trim() } : {}) });
+  }
+  for (const [i, p] of (body.plates ?? []).entries()) {
+    const name = p?.name?.trim();
+    if (!name) throw new Error(`plates[${i}]: a plate needs a name (it is cited by it)`);
+    if (names.has(name)) throw new Error(`Two plates are named "${name}": a plate is cited by its name, so each name once`);
+    names.add(name);
+    if (p.camera && !cameras.some((c) => c.name === p.camera)) throw new Error(`plate ${name}: no camera mark "${p.camera}"; the marks are ${cameras.map((c) => c.name).join(", ") || "none"}`);
+    plates.push({ name, ...await locationPicture(p, `plate ${name}`), pose: poseOf(p.pose, `plate ${name}`), ...(p.camera ? { camera: p.camera } : {}), ...(p.use?.trim() ? { use: p.use.trim() } : {}), ...(p.note?.trim() ? { note: p.note.trim() } : {}) });
+  }
+  const clean = { name: body.name.trim(), notes: body.notes?.trim() ?? "", master: await locationPicture(body.master, "master"), plan: await locationPicture(body.plan, "plan"), cameras, plates, rating: body.rating ?? null };
+  id ??= locationStamp();
+  const out = await W.save("location", id, clean, { note, by });
+  rebuild();
+  return { id, ref: out.ref, n: out.n, made: out.made };
+}
+// the location a reference names, at its version: {id, n, body, version}
+export function locationOf(ref) {
+  const { kind, id, n } = W.parse(ref);
+  if (kind !== "location") throw new Error(`${ref} isn't a location reference (location:<id> or location:<id>@n)`);
+  const got = W.get(ref);
+  if (!got) throw new Error(W.record("location", id) ? `Location ${id} has no version ${n}; it has v1-v${W.record("location", id).head}` : `No location ${id} (list_locations lists them)`);
+  return { id, n: got.version.n, body: got.version.body, version: got.version };
+}
+// add or replace one plate (by name) as a new version of the location
+export async function addPlate(ref, plate, { note, by = "person" } = {}) {
+  const { id, body } = locationOf(W.refOf("location", W.parse(ref).id));
+  const plates = [...(body.plates ?? []).filter((p) => p.name !== plate.name?.trim()), plate];
+  return saveLocation(id, { ...body, plates }, { note: note ?? `plate ${plate.name}`, by });
+}
+// put a location version into the open recipe's References, replacing what an earlier apply of it put there: its master
+// and plan (each unless false) and the plates named (in that order). Pins the version. Returns {said, cite}
+export async function applyLocation(ref, { plates = [], master = true, plan = true } = {}) {
+  await ready();
+  const { id, n, body: b, version } = locationOf(ref), key = `location:${id}`;
+  const missing = plates.filter((x) => !(b.plates ?? []).some((p) => p.name === x));
+  if (missing.length) throw new Error(`${b.name} v${n} has no plate ${missing.map((x) => `"${x}"`).join(", ")}; its plates: ${(b.plates ?? []).map((p) => p.name).join(", ") || "none"}`);
+  const want = [...(master && b.master ? [["master", b.master.file]] : []), ...(plan && b.plan ? [["plan", b.plan.file]] : []), ...plates.map((x) => [`plate ${x}`, b.plates.find((p) => p.name === x).file])];
+  if (!want.length) throw new Error(`${b.name} v${n}: nothing to put in (no master, no plan, no plates named)`);
+  const keys = () => E.state().bricks.map((x) => x.key);
+  let preset = null, unread = null;
+  app.canvas.emitBeforeChange(); // the pictures and the pin are one undo step
+  try {
+    if (!keys().includes("refs")) await E.snap("refs");
+    const roles = want.map(([what]) => `location: ${b.name}, ${what}`);
+    for (const p of E.state().bricks.find((x) => x.key === "refs").pictures ?? []) if (p.source === key && !roles.includes(p.role)) E.removePicture(p.node);
+    want.forEach(([what, file], i) => E.addPicture(file, { role: roles[i], reason: `${b.name}, location v${n}${what.startsWith("plate") ? `, ${what}` : ""}`, source: key, card: W.refOf("location", id, n) }));
+    try { preset = conditionFor("Ref2V"); } catch (e) { unread = e.message; }
+    pin(key, { n, hash: W.short(version.hash), name: b.name, placed: { roles, plates, master: !!(master && b.master), plan: !!(plan && b.plan) } });
+  } finally { app.canvas.emitAfterChange(); }
+  app.canvas.setDirty(true, true);
+  const pics = E.references()?.pictures ?? [], citeOf = (what) => pics.find((p) => p.role === `location: ${b.name}, ${what}`)?.cite ?? null;
+  const cite = { ...(master && b.master ? { master: citeOf("master") } : {}), ...(plan && b.plan ? { plan: citeOf("plan") } : {}), plates: Object.fromEntries(plates.map((x) => [x, citeOf(`plate ${x}`)])) };
+  return { said: `${b.name} v${n}: ${want.map(([what]) => `${what} as ${citeOf(what)}`).join(", ")} in References${preset ? `; Render Preset now ${preset} (the pictures need it)` : ""}${unread ? `; the pictures are not read by this render: ${unread}` : ""}`, cite };
+}
 // U72 F24: a prompt written over a Cast's sentence gets it back (the agent's words and the Cast both reach the render);
 // returns what was put back
 export function keepPinnedText() {
@@ -449,6 +550,15 @@ export async function swapPin(from, to) {
     }
     return [await applyCast(to), ...said].join("; ");
   }
+  if (b.kind === "location") { // the same pictures of the other place or version: master, plan and the plates of the same names
+    const p = old.placed ?? {};
+    if (other) {
+      for (const x of E.state().bricks.find((k) => k.key === "refs")?.pictures ?? []) if (x.source === from) E.removePicture(x.node);
+      unpin(from);
+    }
+    const names = (p.plates ?? []).filter((x) => (now.plates ?? []).some((q) => q.name === x)), lost = (p.plates ?? []).filter((x) => !names.includes(x));
+    return [(await applyLocation(to, { plates: names, master: p.master ?? true, plan: p.plan ?? true })).said, ...(lost.length ? [`${nameOf(now)} has no plate ${lost.join(", ")}: left out`] : [])].join("; ");
+  }
   if (b.kind === "set_snapshot") {
     if (other) {
       const refs = E.state().bricks.find((x) => x.key === "refs"), source = was?.lineage ?? a.id;
@@ -476,6 +586,7 @@ export async function updatePin(ref) {
   }
   if (!r) throw new Error(`${ref} isn't in your records (archived records stay listed; a missing one can't be updated)`);
   if (kind === "cast") return applyCast(W.refOf(kind, id));
+  if (kind === "location") { const p = pinOf(ref)?.placed ?? {}; return (await applyLocation(W.refOf(kind, id), { plates: (p.plates ?? []).filter((x) => W.headOf(r).body.plates?.some((q) => q.name === x)), master: p.master ?? true, plan: p.plan ?? true })).said; }
   const card = W.headOf(r)?.body;
   if (kind === "set_snapshot") return applySet(card, card.brick.snapshot, { version: { ref: W.refOf(kind, id), n: r.head, hash: W.short(W.headOf(r).hash) } });
   return apply(card, { keep: false });
@@ -511,6 +622,7 @@ export async function apply(card, { keep = true } = {}) {
     return `${card.title}: ${keys.length} bricks with their settings`;
   }
   if (card.kind === "run" && card.brick.take) return `${T.restore(T.get(card.brick.take))} settings from ${card.title}`; // a prior restores any workflow's own nodes
+  if (card.kind === "location" && card.brick.location) return (await applyLocation(card.brick.location)).said; // References comes with it
   const brick = TARGET[card.kind];
   if (!E.state().bricks.some((b) => b.key === brick)) throw new Error(`${card.title} goes on the ${brick} brick; add it first`);
   if (card.kind === "set_snapshot") return applySet(card);

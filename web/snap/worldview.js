@@ -7,7 +7,7 @@
 import * as W from "./world.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
-const KIND = { cast: "Cast", card: "Card", set_snapshot: "Set" };
+const KIND = { cast: "Cast", card: "Card", set_snapshot: "Set", location: "Location" };
 const mb = (b) => (b >= 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1e3))} KB`);
 const when = (at) => (at ? new Date(at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
 

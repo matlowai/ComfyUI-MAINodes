@@ -204,6 +204,41 @@ compare the frames with the character's picture. A version number says what Snap
 `apply_cast` says the pictures are not read, or `describe_recipe` has `references_unused`, fix that first (a setup with
 reference pictures); a take card that says "not all of it ran" names what didn't reach the render.
 
+- Is the person in a take still the Cast? `check_identity {"take": "<id>", "cast": "cast:<id>"}` scores any take or
+  still against the Cast's picture (a video's first, middle and last frame by default, `frames` for others; a list of
+  Casts for a two-shot, each face matched to one Cast). It returns the lowest score per Cast and each frame's face
+  crops: look at the crops, the score only informs.
+- What still uses an old version: `dependents {"ref": "cast:<id>"}` (or a location, `location:<id>`, or one version
+  `@n`) lists the takes, stills and boards pinned to each version, with their scene and shot, and under `stale` the
+  `rerun` arguments that re-make each on the newest version.
+- References by hand: `add_ref {"file": "snap/<name>", "role": "back view"}` puts an input/ picture in (it answers its
+  `<Picture n>`); `remove_ref {"picture": 3}` takes one out. `use_take` takes `frame` (a frame number) and `crop`: two
+  frames or two parts of one take are two pictures.
+
+### Locations (a place kept once)
+
+A location is a record like a Cast (`location:<id>@n`, SNAP-R84): its **master** (the establishing picture), its
+**plan** (the set plan or overhead map), **camera marks** on the plan and named **plates**, each a picture with its
+camera pose and the take and frame it came from. Build a place as a plate set from one walkthrough (set plan with
+cameras → master → a people-free walkthrough → plates from its frames), then cite plates by name in each shot.
+
+    save_location {"name": "Village", "notes": "...", "master": {"take": "<id>"}, "plan": {"file": "snap/plan.png"},
+                   "cameras": [{"name": "C1", "x": 0.11, "y": 0.78, "heading": 38, "eye_height": 1.6, "lens": 24}]}
+    add_plate {"location": "location:<id>", "name": "Pb gate inside", "take": "<walkthrough>", "frame": 100,
+               "pose": {"x": 0.64, "y": 0.52, "heading": 280, "eye_height": 1.6, "lens": 28}, "use": "C2, C4"}
+    apply_location {"location": "location:<id>", "plates": ["Pb gate inside"]}     # answers cite: master, plan, plates
+
+- A pose's `x`, `y` are fractions of the plan picture from its top left; `heading` is degrees clockwise from the
+  plan's up (north); `eye_height` in metres; `lens` in mm. `list_locations` gives every place whole;
+  `get_record {"ref": "location:<id>@n"}` one version.
+- `apply_location` puts the master, the plan (`master: false` / `plan: false` leave them out) and the plates named into
+  References, each a `<Picture n>` (`cite`), and pins the version, so every take says which version of the place it
+  used; `rerun` swaps it like a Cast. A New view cites a plate the same way: `{"location": "location:<id>", "plate":
+  "Pb gate inside"}` (or `"master"`, `"plan"`) among its pictures.
+- `open_view {"view": "location", "location": "location:<id>"}` opens the Location sheet for the person: the master,
+  the plan with every camera mark and plate drawn as a dot and a wedge, and the plate tiles; every picture opens full
+  size. The person ticks plates there and presses "Use in this shot".
+
 ### Re-run with swaps (the same shot with another character, set or version)
 
 Every record a take pinned is a slot you can swap (SNAP-R63). `rerun_slots {"take": ...}` lists each slot with every
@@ -242,8 +277,8 @@ them). It works on stills: masters, plates, boards.
                                     {"cast": "cast:<id>"}, {"cast": "cast:<id2>"}],
                        "prompt": "<Picture 1> shows the village ... Show the same gatehouse from inside the square at eye height ... the woman from <Picture 3> on the left ..."}
 
-- A picture is `{take}` (a still; a video take with `frame`), `{file}` (in input/) or `{cast, ref}` (a Cast's
-  picture). `crop` is `[x, y, width, height]` in fractions of the picture.
+- A picture is `{take}` (a still; a video take with `frame`), `{file}` (in input/), `{cast, ref}` (a Cast's
+  picture) or `{location, plate}` (a location's plate by name, its master or its plan). `crop` is `[x, y, width, height]` in fractions of the picture.
 - `method` picks the model (`list_methods {"slot": "view"}`): `ph3_view` (P-H3-Image, listed first: an edit of
   Picture 1 with the others as references, 8 steps, about 8 s at 1280x704, up to 9 pictures) or `fizgig_still`
   (stock H3 Reference to Video on the FL2VA model and the Fizgig H3 Still pack's one-frame latent, as the pack's own

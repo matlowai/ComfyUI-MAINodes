@@ -34,6 +34,7 @@ import * as W from "./world.js";
 import { openOnboarding } from "./onboardview.js";
 import { openLoras, moveControl, label as catLabel } from "./loraview.js";
 import { openCast } from "./castview.js";
+import { openLocation } from "./locationview.js";
 import * as RT from "./retake.js";
 import { openWorld } from "./worldview.js";
 import { openRerunSheet } from "./rerunsheet.js";
@@ -251,10 +252,13 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       moves.length ? h("button", { className: "snap-lora-chip undo", textContent: "↶ undo move", onclick: async () => { const u = moves.pop(); await M.restore(u); say(`${u.file.replace(/\.safetensors$/, "")} is back where it was`); render(null); renderLibrary(); } }) : null].filter(Boolean));
   }
   const editCast = (o = {}) => openCast(root, { ...o, say, onApplied: () => { render(null); renderLibrary(); } }).catch((err) => say(err.message, true));
+  const editLocation = (o) => openLocation(root, { ...o, say, onApplied: () => { render(null); renderLibrary(); } }).catch((err) => say(err.message, true));
+  const newLocation = h("button", { className: "snap-link snap-quiet-btn snap-new-cast", textContent: "+ New location", title: "a place kept once on a location record: its master picture, set plan with camera marks, and named plates (SNAP-R84)",
+    onclick: () => L.saveLocation(null, { name: "New location" }, { note: "made in the Library" }).then((out) => editLocation({ id: out.id }), (err) => say(err.message, true)) });
   const newCast = h("button", { className: "snap-link snap-quiet-btn snap-new-cast", textContent: "+ New cast member", title: "a character kept once on a Cast record: name, trigger words, details, identity LoRA, reference pictures" , onclick: () => editCast() });
   const worldBtn = h("button", { className: "snap-link snap-quiet-btn snap-new-cast", textContent: "World: versions and sizes", title: "every record and version you keep, with sizes and the takes that pin them: archive, export or delete (your choice)",
     onclick: () => openWorld(root, { say, onChange: () => { render(null); renderLibrary(); } }).catch((err) => say(err.message, true)) });
-  rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libSfw, h("div", { className: "snap-rail-sub", textContent: "LoRAs by kind" }), libLoras, h("div", { className: "snap-rail-actions" }, newCast, worldBtn), libResults);
+  rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libSfw, h("div", { className: "snap-rail-sub", textContent: "LoRAs by kind" }), libLoras, h("div", { className: "snap-rail-actions" }, newCast, newLocation, worldBtn), libResults);
   T.onChange(() => renderLibrary());
   PF.onChange(() => { render(null); renderLibrary(); }); // SFW only changes what the pickers and the Library list
   PF.load().then(() => { render(null); renderLibrary(); });
@@ -315,7 +319,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
           h("button", { className: "snap-edit", textContent: "▦", title: "plan-board: every saved state of this set side by side", onclick: (e) => { e.stopPropagation(); openBoard(root, L.lineage(c), { onOpen: editSet }); } }),
           h("button", { className: "snap-edit", textContent: "✎", title: "open the set plan to block it", onclick: (e) => { e.stopPropagation(); editSet(c); } }))
         : c.kind === "cast" && c.brick?.cast ? h("span", { className: "snap-card-tools" }, // SNAP-R59: the record is where a character changes
-          h("button", { className: "snap-edit", textContent: "✎", title: "edit this Cast record (saving makes a new version)", onclick: (e) => { e.stopPropagation(); editCast({ id: c.id }); } })) : null);
+          h("button", { className: "snap-edit", textContent: "✎", title: "edit this Cast record (saving makes a new version)", onclick: (e) => { e.stopPropagation(); editCast({ id: c.id }); } }))
+        : c.kind === "location" && c.brick?.location ? h("span", { className: "snap-card-tools" }, // SNAP-R84: the sheet shows the master, the plan and the plates
+          h("button", { className: "snap-edit", textContent: "✎", title: "open this location: master, plan with camera marks, plates (saving makes a new version)", onclick: (e) => { e.stopPropagation(); editLocation({ id: c.id }); } })) : null);
       if (c.kind === "dial" && c.brick?.dial) tile.append(moveControl(c.brick.dial, moved));
       tile.dataset.card = c.id;
       tile.style.setProperty("--hue", goes ? BRICKS[goes].hue : 45);
@@ -468,7 +474,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     opening(file.name);
     try { await app.handleFile(file, how); } catch (err) { say(err.message, true); }
   }
-  const editPinned = (ref, n) => { const { kind, id } = W.parse(ref); if (kind === "cast") return editCast({ id, n }); const v = W.get(W.refOf(kind, id, n))?.version.body; if (v) editSet(v); };
+  const editPinned = (ref, n) => { const { kind, id } = W.parse(ref); if (kind === "cast") return editCast({ id, n }); if (kind === "location") return editLocation({ id, n }); const v = W.get(W.refOf(kind, id, n))?.version.body; if (v) editSet(v); };
   app.graph.events?.addEventListener("configured", () => setTimeout(() => {
     if (!fileOpened || Date.now() - fileOpened.at > 15000) return;
     const o = fileOpened; fileOpened = null;
@@ -974,12 +980,13 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     return [meter, h("div", { className: "snap-pics" }, pics.map((p, i) => {
       const cut = p.file.lastIndexOf("/"), sub = p.file.slice(0, Math.max(cut, 0)), name = p.file.slice(cut + 1); // plates sit two folders down (snap/plates)
       const cast = p.source?.startsWith("cast:") && p.card ? W.parse(p.card) : null; // SNAP-R59: a Cast picture opens its record at the version it came from
-      const from = !cast && p.source && (L.get(p.card) ?? L.get(`${p.source}-mine`) ?? L.get(p.source)); // the exact version in References
-      return h("figure", { title: `${p.reason}${from ? "\nclick to edit the set" : cast ? "\nclick to edit the Cast record" : ""}`, className: from || cast ? "editable" : "", onclick: from ? () => editSet(from) : cast ? () => editCast({ id: cast.id, n: cast.n }) : null },
+      const place = p.source?.startsWith("location:") && p.card ? W.parse(p.card) : null; // SNAP-R84: a location's picture opens the location
+      const from = !cast && !place && p.source && (L.get(p.card) ?? L.get(`${p.source}-mine`) ?? L.get(p.source)); // the exact version in References
+      return h("figure", { title: `${p.reason}${from ? "\nclick to edit the set" : cast ? "\nclick to edit the Cast record" : place ? "\nclick to open the location" : ""}`, className: from || cast || place ? "editable" : "", onclick: from ? () => editSet(from) : cast ? () => editCast({ id: cast.id, n: cast.n }) : place ? () => editLocation({ id: place.id, n: place.n }) : null },
         // SNAP-R80: the picture opens full size; the row's own click (edit the set or the Cast) is a button there
         full(h("img", { src: api.apiURL(`/view?filename=${encodeURIComponent(name)}&subfolder=${encodeURIComponent(sub)}&type=input`), alt: p.role, loading: "lazy" }),
           { src: api.apiURL(`/view?filename=${encodeURIComponent(name)}&subfolder=${encodeURIComponent(sub)}&type=input`), name: `<Picture ${i + 1}> ${p.role}`, source: cast ? `Cast ${p.card}, input/${p.file}` : `input/${p.file}` },
-          "refs", from ? { label: "Edit the set", run: () => editSet(from) } : cast ? { label: "Edit the Cast record", run: () => editCast({ id: cast.id, n: cast.n }) } : null),
+          "refs", from ? { label: "Edit the set", run: () => editSet(from) } : cast ? { label: "Edit the Cast record", run: () => editCast({ id: cast.id, n: cast.n }) } : place ? { label: "Open the location", run: () => editLocation({ id: place.id, n: place.n }) } : null),
         h("figcaption", { textContent: p.role }));
     })), ...audio];
   }
@@ -1497,6 +1504,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     else if (action === "open_take") { const t = T.get(target); if (!t) throw new Error(`No take ${target}`); dailies.view(t); }
     else if (action === "run_from") { const t = T.get(target); if (!t) throw new Error(`No take ${target}`); return runFrom(t); }
     else if (action === "setups") openSetups();
+    else if (action === "location") { const { id, n } = W.parse(String(target ?? "").includes(":") ? target : `location:${target}`); await openLocation(root, { id, n, say, onApplied: () => { render(null); renderLibrary(); } }); }
     else if (action === "onboarding") await onboard(target || undefined);
     else if (action === "scenes") sceneBar.openScenes();
     else if (action === "metadata") { if (!["on", "off"].includes(target)) throw new Error('metadata takes target "on" or "off"'); await MD.set(target === "on"); }
