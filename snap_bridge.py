@@ -485,8 +485,13 @@ async def lora_info(request):
 @routes.get("/mainodes/snap/methods")
 async def method_registry(request):
     """The pack's method registry (snap_cards/methods.json): the slots and the methods that fill them; the person's own
-    (userdata snap/methods.json) are read and merged by the page."""
-    return web.json_response(json.loads((CARDS / "methods.json").read_text(encoding="utf-8")))
+    (userdata snap/methods.json) are read and merged by the page. A need with `own_folder` is a folder under models/ that
+    ComfyUI doesn't list (RelayVSR reads models/relayvsr itself): `present` says whether any .safetensors file is there."""
+    reg = json.loads((CARDS / "methods.json").read_text(encoding="utf-8"))
+    for need in (n for m in reg["methods"] for n in m.get("needs", []) if n.get("own_folder")):
+        root = Path(folder_paths.models_dir) / need["folder"]
+        need["present"] = any(root.glob("*.safetensors")) or any(root.glob("*/*.safetensors"))  # where RelayVSR looks: the folder or a variant folder in it
+    return web.json_response(reg)
 
 
 @routes.get("/mainodes/snap/kits")

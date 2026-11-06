@@ -52,16 +52,13 @@ export const slotOf = (key) => methodOf(key)?.slot ?? registry.slots.find((s) =>
 export const method = (key) => methodOf(key)?.id ?? (key?.startsWith("node:") ? "custom" : null);
 
 // ready: every model folder the method needs has a file (matching its name pattern) and its nodes are installed. A folder
-// ComfyUI doesn't list (RelayVSR's models/relayvsr, read by its own node) can't be checked from here: its node says when it runs
+// ComfyUI doesn't list (`own_folder`: RelayVSR reads models/relayvsr itself) is read by the server (`present`)
 function installState(m) {
-  const lists = M.folders(), nodes = (m.packs ?? []).filter((t) => !LiteGraph.registered_node_types[t]), known = new Set(M.folderNames());
-  const missing = (m.needs ?? []).filter((n) => known.has(n.folder) && !(lists.get(n.folder) ?? []).some((f) => !n.match || f.toLowerCase().includes(n.match)));
+  const lists = M.folders(), nodes = (m.packs ?? []).filter((t) => !LiteGraph.registered_node_types[t]);
+  const missing = (m.needs ?? []).filter((n) => (n.own_folder ? !n.present : !(lists.get(n.folder) ?? []).some((f) => !n.match || f.toLowerCase().includes(n.match))));
   if (nodes.length) return `needs the nodes ${nodes.join(", ")}`;
   return missing.length ? `needs weights in ${missing.map((n) => `models/${n.folder}${n.match ? ` (${n.match})` : ""}`).join(", ")}` : "ready";
 }
-// the folders a method needs that ComfyUI doesn't list, said instead of a false "needs weights"
-const unchecked = (m) => { const known = new Set(M.folderNames()), out = (m.needs ?? []).filter((n) => !known.has(n.folder)).map((n) => `models/${n.folder}`);
-  return out.length ? { unchecked: `${out.join(", ")}: read by the method's own node, not a ComfyUI model folder, so its weights are checked when it runs (the brick's check says)` } : {}; };
 // every method of a slot in one shape (media and delta alike): id, title, install_state, wired, fits this recipe, current
 export function list(id) {
   if (slot(id).kind === "delta") {
@@ -72,7 +69,7 @@ export function list(id) {
   if (slot(id).kind === "take") return methods(id).map((m) => ({ ...m, install_state: installState(m), wired: !m.unwired, fits: true, current: false }));
   const now = holder(id), k = kit(E.state().bricks.map((b) => b.key));
   return methods(id).map((m) => (m.kind === "take" ? { ...m, install_state: installState(m), wired: true, fits: true, current: false, runs_on: "a take: upscale_take" }
-    : { ...m, install_state: installState(m), ...unchecked(m), wired: !!m.brick && !m.unwired, fits: !k || m.kit === k, current: !!now && method(now) === m.id }))
+    : { ...m, install_state: installState(m), wired: !!m.brick && !m.unwired, fits: !k || m.kit === k, current: !!now && method(now) === m.id }))
     .concat(now?.startsWith("node:") ? [{ id: "custom", title: `Custom: ${BRICKS[now].title}`, does: "hand-wired", scale: null, install_state: "ready", wired: true, fits: true, current: true }] : []);
 }
 

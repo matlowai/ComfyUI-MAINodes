@@ -16,7 +16,7 @@ import { BRICKS } from "./bricks.js";
 import * as PF from "./profile.js";
 import * as ACC from "./account.js";
 
-let files = new Map(), exts = [], folderList = [], loading = null, notify = () => {};
+let files = new Map(), exts = [], loading = null, notify = () => {};
 // name -> { folder, size, modified } from core's folder lists (every model folder; the first folder wins a name in two),
 // with the model graph; read once per page, and again when a recipe names a file they don't have yet (readable)
 export function load() {
@@ -27,7 +27,6 @@ export function load() {
     .then((lists) => {
       files = new Map();
       exts = [...new Set(lists.flatMap(([, x]) => x))];
-      folderList = lists.map(([folder]) => folder);
       for (const [folder, , list] of lists) for (const f of list) if (!files.has(f.name)) files.set(f.name, { folder, size: f.size, modified: f.modified });
       return files;
     }).then(async (f) => { await loadGraph(); return f; });
@@ -61,8 +60,6 @@ export async function choice(type, input, value) {
   return hit;
 }
 // folder -> the file names in it (core's lists), for readiness checks that look at what is installed now
-// the model folders ComfyUI lists (an empty one too)
-export const folderNames = () => folderList;
 export const folders = () => { const m = new Map(); for (const [name, f] of files) m.set(f.folder, [...(m.get(f.folder) ?? []), name]); return m; };
 
 // The model graph (SNAP-R10, SNAP-R12, SNAP-R13): one entry per file saying how it fits with others (family, kind
