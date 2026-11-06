@@ -189,6 +189,82 @@ export function storyDiff(a, b) {
   return [...out, ...W.diff({ ...a, beats: undefined }, { ...b, beats: undefined })];
 }
 
+// ---- Pages: Fountain in and out (§11.5 step 12) -----------------------------------------------------------------------
+// Fountain (fountain.io) is the Pages lens' plain text for film and anime: a scene heading (INT./EXT./EST./I/E, or one
+// forced with ".") is a scene group, an action paragraph a beat, a character cue with its dialogue a line on the beat
+// before it, a section (#) an act, a synopsis (=) the intent of the beat before it. The script is telling order; story order
+// stays the story's (a moved scene is a telling change). Importing keeps ids: a beat whose
+// text is unchanged keeps its id, changes, plants and payoffs; a group keeps its id by kind and name. Notes [[…]], the
+// boneyard /*…*/ and transitions are left out. Cue names match the Book's Cast by name (case aside), else stay words
+const HEADING = /^(?:\.(?=[A-Za-z0-9])|(?:INT|EXT|EST|INT\.?\/EXT|I\/E)[.\s])/i;
+const CUE = /^@?[A-Z0-9][A-Z0-9 .'-]*(?:\s*\([^)]*\))?\s*\^?$/;
+const TRANSITION = /^(?:>|[A-Z ]+TO:$)/;
+export function fromFountain(text, { story = cleanStory({}), cast = [] } = {}) {
+  const src = String(text ?? "").replace(/\r\n?/g, "\n").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\[\[[\s\S]*?\]\]/g, "");
+  const blocks = src.split(/\n[ \t]*\n/).map((b) => b.replace(/^\n+|\n+$/g, "")).filter((b) => b.trim());
+  const byName = new Map(cast.map((ref) => [String(W.get(ref)?.version.body.name ?? "").toUpperCase(), ref]).filter(([n]) => n));
+  const oldByText = new Map(story.beats.map((b) => [b.text.trim(), b])), oldGroup = new Map(story.groups.map((g) => [`${g.kind}:${g.name}`, g]));
+  const beats = [], groups = [], used = new Set();
+  let title = story.title, scene = null, act = null;
+  const group = (kind, name) => { const was = oldGroup.get(`${kind}:${name}`), g = { ...(was ? structuredClone(was) : { kind, name }), list: [] }; groups.push(g); return g; };
+  const beat = (words) => {
+    const was = oldByText.get(words.trim()), b = was && !used.has(was.id) ? { ...structuredClone(was), lines: [], intent: undefined } : { text: words.trim(), changes: [], lines: [] }; // lines and the intent come from the script
+    // a script is telling order: a kept beat keeps its story order (a flashback stays one), a new one follows the beat before it
+    if (was && !used.has(was.id)) { used.add(was.id); b.order = was.order; } else { delete b.id; b.order = (beats.at(-1)?.order ?? 0) + 0.5; }
+    b.told = beats.length + 1;
+    beats.push(b); scene?.list.push(b); act?.list.push(b);
+    return b;
+  };
+  for (const [i, block] of blocks.entries()) {
+    const lines = block.split("\n").map((l) => l.trimEnd()), first = lines[0].trim();
+    if (i === 0 && /^title\s*:/i.test(first)) { title = first.replace(/^title\s*:\s*/i, "").trim() || title; continue; }
+    if (/^#/.test(first)) { act = group("act", first.replace(/^#+\s*/, "")); continue; }
+    if (/^=/.test(first)) { if (beats.length) beats.at(-1).intent = first.replace(/^=\s*/, ""); continue; }
+    if (lines.length === 1 && HEADING.test(first)) { scene = group("scene", first.replace(/^\./, "")); continue; }
+    if (lines.length === 1 && TRANSITION.test(first)) continue;
+    if (lines.length > 1 && CUE.test(first) && !HEADING.test(first)) {
+      const name = first.replace(/^@/, "").replace(/\s*\([^)]*\)/g, "").replace(/\^$/, "").trim(), who = byName.get(name.toUpperCase()) ?? name;
+      const said = lines.slice(1).filter((l) => !/^\s*\(.*\)\s*$/.test(l)).map((l) => l.trim()).join(" ");
+      const last = beats.at(-1), at = last && (!scene || scene.list.includes(last)) ? last : beat(`${name} speaks.`);
+      at.lines.push({ who, text: said });
+      continue;
+    }
+    beat(lines.map((l) => l.trim()).join(" ").replace(/^!/, ""));
+  }
+  // a beat whose words were edited keeps its id (and its changes) when its scene still has an old beat left unmatched:
+  // the first such one in telling order, so an edited line is a changed beat, not a new one
+  const oldScene = new Map(story.groups.filter((g) => g.kind === "scene").flatMap((g) => g.beats.map((id) => [id, g.name])));
+  const sceneName = new Map(groups.filter((g) => g.kind === "scene").flatMap((g) => g.list.map((b) => [b, g.name])));
+  const left = [...story.beats].sort((a, b) => a.told - b.told).filter((b) => !used.has(b.id));
+  for (const b of beats.filter((x) => !x.id)) {
+    const was = left.find((o) => !used.has(o.id) && oldScene.get(o.id) === sceneName.get(b));
+    if (was) { used.add(was.id); Object.assign(b, { ...structuredClone(was), text: b.text, lines: b.lines, intent: b.intent, order: was.order, told: b.told }); }
+  }
+  let next = Math.max(0, ...story.beats.map((b) => +b.id.replace(/^b/, "") || 0));
+  for (const b of beats) { b.id ??= `b${++next}`; if (!b.lines.length) delete b.lines; if (b.intent == null) delete b.intent; }
+  const ids = new Set(groups.map((g) => g.id).filter(Boolean));
+  const count = {};
+  const out = groups.map(({ list, ...g }) => { const pre = g.kind === "act" ? "act" : "sc"; if (!g.id) { do g.id = `${pre}${(count[pre] = (count[pre] ?? 0) + 1)}`; while (ids.has(g.id)); ids.add(g.id); } return { ...g, beats: list.map((b) => b.id) }; });
+  return cleanStory({ ...story, title, beats, groups: out });
+}
+// the story as Fountain: title, then telling order, a heading when a scene starts, each beat's action, its intent as a
+// synopsis, its lines under the speaker's name
+export function toFountain(story) {
+  const told = [...story.beats].sort((a, b) => a.told - b.told), sceneOf = new Map(), actOf = new Map();
+  for (const g of story.groups) for (const id of g.beats) (g.kind === "act" ? actOf : sceneOf).set(id, g);
+  const out = [`Title: ${story.title || "Untitled"}`];
+  let scene = null, act = null;
+  for (const b of told) {
+    const a = actOf.get(b.id), s = sceneOf.get(b.id);
+    if (a && a !== act) { act = a; out.push(`# ${a.name || a.id}`); }
+    if (s && s !== scene) { scene = s; out.push(HEADING.test(s.name) ? s.name.toUpperCase() : `.${(s.name || s.id).toUpperCase()}`); }
+    out.push(b.text || `(${b.id})`);
+    if (b.intent) out.push(`= ${b.intent}`);
+    for (const l of b.lines ?? []) out.push(`${String(nameOf(story, l.who)).toUpperCase()}\n${l.text}`);
+  }
+  return `${out.join("\n\n")}\n`;
+}
+
 // ---- the story clock: state at a beat ---------------------------------------------------------------------------------
 // every field of an entity at a beat: base ⊕ the changes on beats with order ≤ the beat's, in order; each field with the
 // beat and change that set it last (provenance). knows/injuries/… accumulate with add and remove
@@ -419,11 +495,14 @@ export async function apply(sceneId, shotId, { by = "agent" } = {}) {
 
 // ---- stale on the story clock -------------------------------------------------------------------------------------
 // a take made from a unit's compile, against today's compile of the same unit: which fields it used moved, named by beat
-export async function storyStale(take, { story = null } = {}) {
+// `compiled`: a Map the caller keeps for one pass, so each unit compiles once however many takes it has
+export async function storyStale(take, { story = null, compiled = new Map() } = {}) {
   const s = take?.story ?? take?.graph?.extra?.snap?.story;
   if (!s?.unit || !s.from) return null;
-  let now;
-  try { now = await compile(s.unit.scene, s.unit.shot, { story }); } catch (e) { return { reasons: [`its unit can't compile now: ${e.message}`] }; }
+  const key = `${s.unit.scene}/${s.unit.shot}`;
+  if (!compiled.has(key)) compiled.set(key, compile(s.unit.scene, s.unit.shot, { story }).catch((e) => ({ error: e.message })));
+  const now = await compiled.get(key);
+  if (now.error) return { reasons: [`its unit can't compile now: ${now.error}`] };
   // a field now, by its key (cast:kon.carried.right_hand), with the beat that set it
   const fields = new Map(now.entities.flatMap((e) => e.fields.map((f) => [`${e.ref}.${f.path}`, { ...f, name: e.name }]))), reasons = [];
   for (const k of new Set([...Object.keys(s.from), ...Object.keys(now.from)])) {
@@ -440,9 +519,9 @@ export async function storyStale(take, { story = null } = {}) {
 // every take of a Book's units with what moved under it (story fields and the style), and the count per unit
 export async function bookStale(bookRef, { story = null } = {}) {
   await T.load();
-  const book = bookOf(bookRef), out = [];
+  const book = bookOf(bookRef), out = [], compiled = new Map();
   for (const { scene, shot, unit } of units(book)) for (const e of SC.takesOf(shot)) {
-    const t = T.get(e.take), st = t && await storyStale(t, { story });
+    const t = T.get(e.take), st = t && await storyStale(t, { story, compiled });
     if (st) out.push({ take: t.id, number: t.number, cut: unit.cut ?? null, scene: scene.id, shot: shot.id, active: shot.active === t.id, reasons: st.reasons });
   }
   return out;

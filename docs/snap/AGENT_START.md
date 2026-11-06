@@ -462,6 +462,9 @@ it on the Library rail's **Book** row (lenses Beat sheet, Settei, Boards, Cut ba
   the Book: `wait_for` its run), then video per cut from its approved board (`apply_unit` opens it on the board), and
   `export_cut {"book"}` (the active takes in telling order with their trims and levels: one mp4 plus an OTIO file
   under output/snap_book/).
+- **Pages**: `export_fountain {"book"}` gives the story as a Fountain script (scene headings, action, `=` intents,
+  dialogue under each name); `import_fountain {"book", "text"}` proposes a story from one. A beat keeps its id (and its
+  changes) when its text is unchanged or edited in place in its scene; moving a scene changes telling order only.
 - **Set plan**: `draw_set_plan {"location", "shapes": [{"kind": "rect", "x": 0.5, "y": 0.1, "w": 0.3, "h": 0.14,
   "label": "Hall"}, ...], "cameras": [{"name": "C1", "x": 0.5, "y": 0.86, "heading": 0, "lens": 35}]}` saves the
   plan picture (shapes and labels only) and the marks on the location; the person draws the same in "Draw the plan".

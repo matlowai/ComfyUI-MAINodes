@@ -30,7 +30,8 @@ until the person accepts it. Tool calls: `docs/snap/AGENT_START.md` ("The Book")
    moves. Give each its intent and intensity (the director pass: how hard it hits, by the genre's playbook). Plants and
    payoffs (`plants [{what, window}]`, `pays_off`) make the Beat sheet flag an unpaid setup. Every story edit is a
    proposal; tell the person what it is for in one line and wait. Don't batch many unrelated edits into one
-   `save_story`: the person accepts beat by beat.
+   `save_story`: the person accepts beat by beat. A script the person already has goes in whole with
+   `import_fountain` (Fountain; `export_fountain` gives Pages back as text).
 4. **The script supervisor's pass.** For each beat, read its text and propose the state changes it implies, one
    `add_change` each, with `why` quoting the words. What to extract:
    - who holds, takes, drops or hands over what (`carried.right_hand` / `left_hand` on each person; `holder` on the

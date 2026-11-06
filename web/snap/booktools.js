@@ -142,6 +142,20 @@ export const BOOK_TOOLS = [
     run: (args, ctx = {}) => storyEdit(args, ctx, (s) => ({ story: B.cleanStory({ ...s, ...Object.fromEntries(Object.entries(args).filter(([k, v]) => v !== undefined && !["book", "proposal"].includes(k))) }), said: {} }), "the whole story replaced", "save_story", args),
   },
   {
+    name: "import_fountain",
+    description: `Pages (§11.5 step 12): replace the story's beats from a Fountain script (fountain.io; plain text Final Draft, Highland and Fade In open): a scene heading (INT./EXT., or forced with ".") is a scene group, an action paragraph a beat, a character cue and its dialogue a line on the beat before it (cue names match the Book's Cast by name), a section (#) an act, a synopsis (=) the beat's intent. A beat whose text is unchanged keeps its id, its changes and its plants; a group keeps its id by name. ${STORY_NOTE}`,
+    direct: true,
+    inputSchema: { type: "object", properties: { book: { type: "string" }, text: { type: "string" }, proposal: { type: "string" } }, required: ["book", "text"] },
+    run: (args, ctx = {}) => storyEdit(args, ctx, (s) => { const story = B.fromFountain(args.text, { story: s, cast: B.bookOf(args.book).body.cast }); return { story, said: { beats: story.beats.length, groups: story.groups.length } }; }, "the story from a Fountain script", "import_fountain", args),
+  },
+  {
+    name: "export_fountain",
+    description: "Pages as Fountain (§11.5 step 12): the Book's story in telling order as a Fountain script (title, scene headings, action, synopses for intents, dialogue under each speaker's name), whole. Nothing changes.",
+    inputSchema: { type: "object", properties: { book: { type: "string" } }, required: ["book"] },
+    annotations: { readOnlyHint: true, untrustedContentHint: true },
+    run: async ({ book }) => { await ready(); const st = B.storyOf(B.bookOf(book).body); return { story: st.ref, text: B.toFountain(st.body) }; },
+  },
+  {
     name: "state_at",
     description: "An entity's state at a beat (the story clock, SNAP-R67): its fields folded from every change on beats at or before it in story order, each with the beat and change that set it. entity: cast:<id>, prop:<name>, rel:<a>|<b>. Leave out beat for the end of the story.",
     inputSchema: { type: "object", properties: { book: { type: "string" }, entity: { type: "string" }, beat: { type: "string" } }, required: ["book", "entity"] },

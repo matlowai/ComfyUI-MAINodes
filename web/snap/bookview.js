@@ -23,7 +23,7 @@ import { openPlanEditor } from "./planview.js";
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat(Infinity).filter((k) => k != null && k !== false)); return el; };
 const fill = (el, ...kids) => el.replaceChildren(...kids.flat(Infinity).filter((k) => k != null && k !== false)); // never "null" (LESSONS)
 const hostOf = (el) => el?.closest(".snap-root") ?? document.querySelector(".snap-root");
-const LENSES = [["beat_sheet", "Beat sheet"], ["settei", "Settei"], ["boards", "Boards"], ["cut_bag", "Cut bag"], ["the_cut", "the Cut"]];
+const LENSES = [["beat_sheet", "Beat sheet"], ["pages", "Pages"], ["settei", "Settei"], ["boards", "Boards"], ["cut_bag", "Cut bag"], ["the_cut", "the Cut"]];
 const BOOK_TOOLS = new Set(["add_beat", "edit_beat", "move_beat", "add_change", "remove_change", "save_story", "set_autonomy", "save_style", "set_book_style", "set_board", "make_board"]);
 const pic = (file, name, source, group, cls = "") => full(h("img", { className: cls, src: inputUrl(file), alt: name, loading: "lazy", onerror: (e) => e.target.replaceWith(h("div", { className: "snap-cast-missing", textContent: `✕ ${file} isn't in input/` })) }), { src: inputUrl(file), name, source: `input/${file}${source ? ` · ${source}` : ""}` }, group);
 // a state value as a person reads it: a Cast by name, a prop by its name, an empty value as "none"
@@ -119,6 +119,14 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
       h("table", { className: "snap-book-table" }, h("thead", {}, h("tr", {}, ...["entity", "path", "op", "value", "why", "source", ""].map((t) => h("th", { textContent: t })))), h("tbody", {}, ...x.changes.map(row))),
       h("div", { className: "snap-plan-row" }, inputs.entity, inputs.path, inputs.op, inputs.value, inputs.why, addChange),
       (x.lines ?? []).length ? [h("div", { className: "snap-rail-title", textContent: "Lines" }), ...(x.lines ?? []).map((l) => h("div", { className: "snap-quiet", textContent: `${W.get(l.who)?.version.body.name ?? l.who}: "${l.text}"` }))] : null);
+  }
+
+  // ---- Pages: the story as Fountain, edited as text and saved as a story version (beats keep their ids) ------------------
+  function pages(b) {
+    const st = B.storyOf(b.body), area = h("textarea", { className: "snap-book-pages", value: B.toFountain(st.body), rows: 28, spellcheck: true, ariaLabel: "the story as Fountain" });
+    return [h("div", { className: "snap-book-row" }, h("div", { className: "snap-rail-title", textContent: `Pages (Fountain) · story v${st.n}` }), h("span", { className: "snap-spacer" }),
+      h("span", { className: "snap-quiet", textContent: "scene headings are scenes, paragraphs are beats, a NAME over a line is dialogue, = is a beat's intent" }),
+      h("button", { className: "snap-primary", textContent: "Save as a story version", onclick: act(async () => { const next = B.fromFountain(area.value, { story: st.body, cast: b.body.cast }), out = await B.saveStory(st.id, next, { note: "edited in Pages" }); return out.made ? `Story v${out.n}: ${next.beats.length} beats from the pages` : "Nothing changed"; }) })), area];
   }
 
   // ---- Settei ---------------------------------------------------------------------------------------------------
@@ -217,6 +225,7 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
     const b = B.bookOf(bookRef);
     if (tab === "beat_sheet") return fill(body, b.body.story ? beatSheet(b) : h("div", { className: "snap-quiet", textContent: "This Book has no story yet." }));
     if (tab === "settei") return fill(body, settei(b));
+    if (tab === "pages") return fill(body, b.body.story ? pages(b) : h("div", { className: "snap-quiet", textContent: "This Book has no story yet." }));
     if (tab === "boards") return fill(body, boards(b));
     if (tab === "the_cut") return fill(body, theCut(b));
     const sheets = new Map();
@@ -291,6 +300,7 @@ export const BOOK_STYLE = `
 .snap-book-bar { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--s-card); } .snap-book-bar.bar-kept { color: #57c785; } .snap-book-bar.bar-stale { color: #f0b445; } .snap-book-bar.bar-none { color: #e5534b; }
 .snap-book-sentences { margin: 0; padding-left: 20px; font-size: 12px; display: flex; flex-direction: column; gap: 2px; }
 .snap-book-cut { display: flex; flex-direction: column; gap: 6px; }
+.snap-book-pages { width: 100%; box-sizing: border-box; font: 13px/1.5 "Courier Prime", "Courier New", ui-monospace, monospace; padding: 14px 18px; border-radius: 8px; resize: vertical; min-height: 420px; }
 .snap-book-cutrow { display: grid; grid-template-columns: 48px 160px minmax(120px, 1fr) repeat(3, 96px); gap: 10px; align-items: center; padding: 6px; border-radius: 8px; border: 1px solid var(--s-line); }
 .snap-book-cutthumb { width: 160px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; background: #000; display: flex; align-items: center; justify-content: center; font-size: 11px; }
 .snap-book-num input { width: 100%; }

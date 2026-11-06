@@ -1018,7 +1018,8 @@ the Room.
   `pages`, `settei`, `boards`, `cut_bag`, `dailies`, `the_cut`: assist waits, collaborate follows Let agents run,
   automatic goes ahead with `by: agent`), read where SNAP-R16's flag is read; outside a Book nothing changes. A take made
   from a unit carries `story` {book, ref, beat, unit, from} beside `world`, and its job's `about` names the book, beat
-  and cut. *Why:* the operator's answers of 2026-11-05 (the Book, the Room, the Work card; canon changes are always
+  and cut. Pages is the story as Fountain (`import_fountain`, `export_fountain`, the Pages lens): the script is telling
+  order, and a beat keeps its id and changes when its text is unchanged or edited in its scene. *Why:* the operator's answers of 2026-11-05 (the Book, the Room, the Work card; canon changes are always
   proposals, even on automatic; the first anime's dial mix). *More:* CONCEPT_PRODUCTION §11.1-§11.5 steps 1-2;
   proto/test_book_story.js.
 - **SNAP-R68: A unit compiles from the state at its beat, with provenance; a render never writes state.** An entity's
