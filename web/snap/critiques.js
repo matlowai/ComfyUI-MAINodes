@@ -252,12 +252,14 @@ export const describe = (r) => ({ critique: r.id, title: r.title, subject: r.sub
 
 // ---- the Work card's rows (SNAP-R65): one per critique, folded per decision -----------------------------------------
 const STATE = { due: "queued", claimed: "running", done: "done", skipped: "failed" };
+// the decision a row's take is a candidate of, as the store says now (a take can land before its decision is written)
+const decisionKey = (r) => r.about.decision ?? (r.subject.take ? decisionOf(r.subject.take)?.id : null) ?? null;
 export function rowsFor(whereOf) {
   const one = (list) => {
     const r = list.at(-1), states = list.map(stateOf), c = list.filter((x) => x.done).map(counts).reduce((a, b) => ({ high: a.high + b.high, medium: a.medium + b.medium, low: a.low + b.low }), { high: 0, medium: 0, low: 0 });
     const st = states.includes("claimed") ? "claimed" : states.includes("due") ? "due" : states.every((s) => s === "skipped") ? "skipped" : "done";
     const late = st === "due" && list.some((x) => stateOf(x) === "due" && now() - x.created > dueAfterS * 1000);
-    const d = r.about.decision && list.length > 1 ? C.get(r.about.decision) : null, take = r.subject.take ? T.get(r.subject.take) : null, stale = list.map(staleOf).find(Boolean);
+    const d = list.length > 1 ? C.get(decisionKey(r)) : null, take = r.subject.take ? T.get(r.subject.take) : null, stale = list.map(staleOf).find(Boolean);
     const said = st === "due" ? (late ? `critique due · no critic on duty${list.length > 1 ? ` (${states.filter((s) => s === "due").length} of ${list.length})` : ""}` : "critique due · waiting for a critic")
       : st === "claimed" ? `${list.find((x) => stateOf(x) === "claimed").claimed.by} is reading it`
       : st === "skipped" ? `skipped: ${r.skipped?.why ?? ""}` : `${list.length > 1 ? `${list.filter((x) => x.done).length} of ${list.length} read · ` : ""}${c.high || c.medium || c.low ? [c.high && `${c.high} high`, c.medium && `${c.medium} medium`, c.low && `${c.low} low`].filter(Boolean).join(" · ") : "clean"}${stale ? ` · stale: ${stale}` : ""}`;
@@ -267,7 +269,7 @@ export function rowsFor(whereOf) {
       result: st === "done" ? { critique: r.id, verdict: c.high || c.medium || c.low ? "flaws" : "clean", ...c, ...(take ? { take: take.id, number: take.number } : {}), said: `${c.high ? `${c.high} high note${c.high > 1 ? "s" : ""}` : c.medium || c.low ? "no high notes" : "clean"}${stale ? ` · stale: ${stale}` : ""}` } : null };
   };
   const groups = new Map();
-  for (const r of rows) { if (Date.now() - (r.updated ?? r.created) > 86400000 && stateOf(r) !== "due") continue; const k = r.about.decision ?? r.id; groups.set(k, [...(groups.get(k) ?? []), r]); }
+  for (const r of rows) { if (Date.now() - (r.updated ?? r.created) > 86400000 && stateOf(r) !== "due") continue; const k = decisionKey(r) ?? r.id; groups.set(k, [...(groups.get(k) ?? []), r]); }
   return [...groups.values()].map(one);
 }
 // the Work card's foot line: due rows nobody claims say so, with what the critic has agreed on
