@@ -698,8 +698,9 @@ R67-R70 are reserved for the Book (CONCEPT_PRODUCTION §11); U101's rules start 
   window, Refine samples about 1 MP tiles (20 at 3328x4096) on Ref2VA with the take as <Video 1> and a first-frame still
   as <Picture 1>, on its validated v4 recipe (turbo head, detail-LoRA euler tail, sigmas 1.0 / 0.7 / 0.4 / 0, guide
   release 0.8, flat-tile skip, cfg 1), with a hero tile on `hero` (SAM 3.1 words, default "face") on its own schedule.
-  The still is the take's newest stage 2's frame 0 by default (else its own Picture 1): Tessera's laws say a pixel
-  splice is a 2x tool, so at 4x the still goes in as the attention reference. Files, words, sigmas and tiling are the
+  The still is the take's newest stage 2's frame 0 by default (else its own frame 0), cropped to each tile with the take
+  (`image_ref_crop: per_tile`): given whole, it painted small copies of the person into the backdrop tiles. Tessera's
+  laws say a pixel splice is a 2x tool, so at 4x the still goes in as the attention reference. Files, words, sigmas and tiling are the
   method's `run` (SNAP-R13). *Why:* Dylan 2026-11-05: "you can even try the tessera tiled upscaling process if we wanna
   try out 4k". *More:* PLAN U102b, the pack's docs/LAWS.md, proto/test_u102b.js.
 

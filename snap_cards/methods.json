@@ -200,7 +200,7 @@
       "constraints": ["needs the ComfyUI-Tessera pack", "the take is <Video 1>: its motion is kept; its own style LoRAs are not applied again"],
       "options": {
         "hero": { "default": "face", "why": "words for SAM 3.1: the tracked region gets its own first tile and its own schedule; empty = no hero tile" },
-        "anchor": { "default": null, "why": "a take whose frame 0 is <Picture 1> (this take's stage 2 is best); else the take's own Picture 1, else its frame 0. Tessera's laws: at 4x the still goes in as the attention reference, never spliced" }
+        "anchor": { "default": null, "why": "a take whose frame 0 is <Picture 1>, cropped to each tile (this take's newest stage 2 when there is one, else its own frame 0); a Cast picture given whole painted ghost copies into backdrop tiles. Tessera's laws: at 4x the still is the attention reference, never spliced" }
       },
       "run": {
         "grid": 32, "factor": 4,

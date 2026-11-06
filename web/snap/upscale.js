@@ -90,17 +90,13 @@ const plates = {
 };
 
 // Tessera's first-frame still (<Picture 1>): frame 0 of `anchor` (a take, e.g. this take's stage 2), else the take's own
-// Picture 1, else its own frame 0
-function anchorOf(take, anchor, g) {
-  if (anchor) {
-    Object.assign(g, { anv: { class_type: "LoadVideo", inputs: { file: ED.clip(anchor).video } }, anc: { class_type: "GetVideoComponents", inputs: { video: ["anv", 0] } },
-      an: { class_type: "ImageFromBatch", inputs: { image: ["anc", 0], batch_index: 0, length: 1 } } });
-    return `take ${anchor.number}, frame 0`;
-  }
-  const refs = Object.values(take.prompt ?? {}).find((n) => n.class_type === "H3References"), first = refs?.inputs?.["ref_images.ref_image_0"], img = link(first) && take.prompt[first[0]];
-  if (img?.class_type === "LoadImage") { g.an = { class_type: "LoadImage", inputs: { image: img.inputs.image } }; return `its Picture 1 (${img.inputs.image})`; }
-  g.an = { class_type: "ImageFromBatch", inputs: { image: ["srcs", 0], batch_index: 0, length: 1 } };
-  return "its own frame 0";
+// frame 0. Tessera crops it per tile (`image_ref_crop: per_tile`), so it must be a view of frame 0: a Cast picture given
+// whole to every tile painted small copies of the person into the backdrop tiles (U102b)
+function anchorOf(anchor, g) {
+  if (!anchor) { g.an = { class_type: "ImageFromBatch", inputs: { image: ["srcs", 0], batch_index: 0, length: 1 } }; return "its own frame 0"; }
+  Object.assign(g, { anv: { class_type: "LoadVideo", inputs: { file: ED.clip(anchor).video } }, anc: { class_type: "GetVideoComponents", inputs: { video: ["anv", 0] } },
+    an: { class_type: "ImageFromBatch", inputs: { image: ["anc", 0], batch_index: 0, length: 1 } } });
+  return `take ${anchor.number}, frame 0`;
 }
 
 async function tessera(take, m, t, { hero, anchor, seed }) {
@@ -121,7 +117,7 @@ async function tessera(take, m, t, { hero, anchor, seed }) {
     // the take at the size it rendered at (an upscaled take's file is bigger): the factor counts from there
     srcs: { class_type: "ImageScale", inputs: { image: ["srcp", 0], upscale_method: "area", width: c.width, height: c.height, crop: "disabled" } },
   };
-  const from = anchorOf(take, anchor, g);
+  const from = anchorOf(anchor, g);
   Object.assign(g, {
     refs: { class_type: "H3References", inputs: { "ref_images.ref_image_0": ["an", 0], "ref_videos.ref_video_0": ["srcs", 0] } },
     pos0: { class_type: "H3ReferenceToVideoRefs", inputs: { clip: ["clip", 0], vae: ["vae", 0], audio_vae: ["avae", 0], refs: ["refs", 0], prompt: run.prompt, width: t.width, height: H, length: c.frames, ref_image_size: "match" } },
@@ -158,8 +154,8 @@ async function tessera(take, m, t, { hero, anchor, seed }) {
 }
 
 // queue the bigger take: a new take in the take's group, parent the take (`upscale/<method>`), carrying the take's world
-// pins (SNAP-R60); its rating follows the parent (SNAP-R39). `anchor` is a take (Tessera only; null = none, undefined = the
-// take's newest stage 2)
+// pins (SNAP-R60); its rating follows the parent (SNAP-R39). `anchor` is a take (Tessera only; null = the take's own frame 0,
+// undefined = the take's newest stage 2)
 export async function start(take, id, { factor, width, height, denoise, upscaler, hero, anchor, by = "person" } = {}) {
   const m = await method(id);
   if (m.install_state !== "ready") throw new Error(`${m.title}: ${m.install_state}`);
@@ -173,7 +169,7 @@ export async function start(take, id, { factor, width, height, denoise, upscaler
     g = secondPass(take, m, t, denoise, plates[m.run.plate](t, file));
     options = { width: t.width, height: t.height, denoise, ...(file ? { upscaler: file } : {}) };
   } else {
-    // the anchor: the take given, else this take's newest stage 2, else (null) the take's own Picture 1
+    // the anchor: the take given, else this take's newest stage 2, else (null) the take's own frame 0
     if (anchor === undefined) anchor = T.all().filter((x) => x.parent?.take === take.id && x.parent.method === "upscale/stage2" && x.status === "success" && x.media.some((f) => f.kind === "video")).at(-1) ?? null;
     const made = await tessera(take, m, t, { hero: hero ?? o.hero.default, anchor, seed: take.seed ?? 0 });
     g = made.g; t.height = made.height;
