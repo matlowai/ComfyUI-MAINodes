@@ -47,6 +47,7 @@ Status: **ready** (can start), **blocked** (waits on another node), **running**,
 | T5g | Can a pin that changes over time let the look through? | loose (guide 0.3) for the first 2 of 6 steps, then the default pin; and the reverse; sinister +2, 1 seed | 2 renders + a two-sampler graph | better darkening-for-drift than T5f | T5f | ready |
 | T5h | Is the Qwen-side copy of the first frame part of the pin? | first frame only on the DiT path (hidden from Qwen), sinister +1 vs its control, 1 seed | 2 renders + graph check | darkening returns → the pin is partly in Qwen's reading of the picture | – | ready (check the graph can split the two paths) |
 | T5i | Does a weak-reference prompt role pin less? | T5d with the prompt guide's weak-reference role, sinister +1 vs control, 1 seed | 2 renders | darkening > T5d's | – | ready |
+| T5j | High strength at weak pins (Dylan: "go higher still, and .2 .1") | sinister +2/+4/+6 at guide 0.3/0.2/0.1, 1 seed, same card | 10 renders | strongest look that keeps the opening | T5f | **done**: [guide 0.1 +4 = two thirds of the text-to-video darkening; at +6 the dial turns into content (a creature, a skull figure)](experiments/T5j-high-strength-weak-pin.md) |
 | T6 | Is a dial made on one H3 family valid on another? | Make the same dial on FL2VA and Ref2VA weights; compare cosine and size | offline | If cos < 0.9, dials need a family/recipe tag check (and that may explain weaker image-to-video) | – | **done**: [cos ≈ 0.99, same size](experiments/T6-family-fl2va-ref2va.md); no family check needed |
 | T6b | Does a dial act the same on both families, and with refiner-patching LoRAs? | sinister +1 text-to-video on Ref2VA vs FL2VA weights, own controls (AdaLN tensors are opposite across families); offline: dial cosine with vs without a refiner-patching turbo LoRA | 4 renders + offline | effects differ → dials need a family tag | – | ready |
 | T7 | Can covariance whitening act as an automatic hold? | v_white = (XᵀX + εI)⁻¹v using A-side token activations (DeTangle / CCS idea) on dials with known leaks (evil cold → colour temperature; expressive face → loudness) | offline + ~16 renders | Leak reduced at matched target effect vs today's hold | T1 | blocked |
@@ -133,3 +134,7 @@ release, or more budget waits for a decision.
   does not at 1.5. Next for J3: center against a large neutral vocabulary; second seed for underwater and thunder.
 - **2026-11-06** Credit made explicit: the J track is joint work with fredbliss (he brought the Jacobian lens to H3 and is
   trying keyword dials with it); our J2/J3 are an independent reimplementation.
+- **2026-11-06** T5j (1 seed): at weak pins frame-0 drift depends only on the guide; darkening saturates (+12 at guide 0.1,
+  +4) then falls; cold keeps rising (+19 at 0.1, +6 = text-to-video +1); past +4 sinister becomes content (a creature at 0.2,
+  a skull-faced figure at 0.1) while frame 0 still matches the picture. T5f's cross-card comparison re-checked: identical.
+  Next: second seed at 0.1 (+4, +6); the same grid with a content dial (underwater).
