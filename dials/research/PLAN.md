@@ -1,0 +1,55 @@
+# Dials research plan (living)
+
+This page is the single source of truth for the running research: the goal, the experiment queue with its gates, and
+a log of every revision. It is updated after each experiment, from what the outputs showed.
+
+## Goal
+
+Make Dials more **predictable and more useful** without giving up what makes them good (tiny files, no training, no
+extra model calls at render time):
+
+1. **Cleaner directions:** more of the intended change per unit of collateral change (identity, layout, speech).
+2. **Known interactions:** know which dials combine well, which fight, and why, including useful surprises.
+3. **Works with references:** dials that keep their strength in image-to-video and reference-to-video, not only
+   text-to-video.
+4. **Audio-aware:** dials that can leave speech alone, or act on the soundtrack on purpose.
+5. **A library worth sharing:** interesting dials with their pairs, evidence and honest strengths.
+
+Success is measured against the current Make Dial (whole-prompt mean, 3-dim debias, all rows shifted) at **matched
+push** (strength × vector size) and against a **size-matched placebo**, on held-out scenes and at least 2 seeds before
+anything is called a result.
+
+## Ground rules
+
+- Every render: Pika H3 Flex 6-step unless an experiment says otherwise, its own control (same seed, same GPU),
+  launched from a saved workflow. Contact sheets are looked at before any verdict; temporal claims need playback.
+- Numbers carry seeds, scenes and metric names. One seed is a hint, two seeds a finding, held-out scenes a result.
+- Simple first: a new method has to beat the plain dial at matched push before it earns more machinery.
+- Rendering stays free: extraction, fitting and analysis are offline; nothing adds model calls to a normal render.
+
+## Queue
+
+Status: **ready** (can start), **blocked** (waits on another node), **running**, **done**, **parked** (idea, no slot).
+
+| id | question | method | cost | gate (what decides the next step) | depends on | status |
+|---|---|---|---|---|---|---|
+| T1 | Do a few tokens dominate Make Dial's whole-prompt mean? | Per-token audit on 5 shipped dials: encoder (5120) and post-refiner (5376) norms per token, each token's share of the pair difference, the first token's share | offline, minutes | If ≤ 3 tokens carry > 30 % of the difference energy, test sink-excluded pooling (T2). Report shares either way | – | ready |
+| T2 | Do other poolings give a better direction? | Build variants of 3 dials (sinister, datamosh, oil_pixel): whole mean (today), first token excluded, differing span only | offline | Variants that are near-identical to today's (cos > 0.97) are dropped before rendering | T1 | blocked |
+| T3 | Is a better-looking variant actually better, or just bigger? | Render surviving variants at matched push with a size-matched placebo, 2 seeds, 2 scenes | ~30-40 renders | Keep a variant only if it moves the target more (wheel metrics + sheets) at equal push with no more collateral | T2 | blocked |
+| T4 | Which dial pairs interact, and does input cosine predict it? | Factorial: a, b, a+b, control for 6 pairs × 2 seeds; interaction = f(a+b) − f(a) − f(b) + f(0) on pixel metrics + sheets | ~38 renders | If cosine doesn't predict interaction, the rack's overlap readout needs a caveat; promising combos go to the Lab | – | ready |
+| T5 | Do vision-row and dialogue-row masks help? | Experimental apply option: leave vision rows (tag 0) and/or `<d>…</d>` rows unshifted. Ref2V scene and the dialogue scene, 2 dials × 2 seeds | test node + ~16 renders | Vision mask: does the dial keep its strength with a reference without breaking it? Dialogue mask: speech kept at the plain dial's picture effect? | – | ready |
+| T6 | Is a dial made on one H3 family valid on another? | Make the same dial on FL2VA and Ref2VA weights; compare cosine and size | offline | If cos < 0.9, dials need a family/recipe tag check (and that may explain weaker image-to-video) | – | ready |
+| T7 | Can covariance whitening act as an automatic hold? | v_white = (XᵀX + εI)⁻¹v using A-side token activations (DeTangle / CCS idea) on dials with known leaks (evil cold → colour temperature; expressive face → loudness) | offline + ~16 renders | Leak reduced at matched target effect vs today's hold | T1 | blocked |
+| T8 | Compensator ("functional hold") | Fit a small blend of probe directions from measured render responses to keep the target and cancel a side effect | ~60-100 renders | ≤ +1 dB loudness at the plain face dial's effect (today's hold: +1.7 dB) | T7, face panel | blocked |
+| P1 | Face-visible preservation panel | 4 scenes with visible faces + dialogue; ArcFace identity (weights on disk), WER, loudness | setup | needed for identity claims | – | ready |
+| X1 | Audio-only pushes | A dial on the audio stream only (inverse of `audio: protect`) | needs an A/V split | – | – | parked |
+| X2 | Lexical readout of a dial (jacobian-lens) | What words a vector boosts | – | fredbliss is exploring this; borrow when it lands | – | parked |
+
+Budget without the operator: up to ~6 GPU-hours a day across the two cards. Anything that needs a new public node, a
+release, or more budget waits for a decision.
+
+## Revision log
+
+- **2026-11-06** Plan created from the overnight findings, the external-ideas review, and the public Discord thread
+  (span pooling and masks from fredbliss's control vectors; a 15k-norm first token reported in his jacobian-lens
+  work; audio-only pushes). T1 and T4 start first.

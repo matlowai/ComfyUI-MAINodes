@@ -1,0 +1,27 @@
+# Dials research
+
+Open, in-progress research on Dials: training-free steering vectors for MiniMax H3 made from prompt pairs. This folder
+holds findings, the running plan, and one write-up per experiment. Things here are measured on few seeds and few
+scenes unless a page says otherwise; they move into the main [README](../README.md) or [LESSONS](../LESSONS.md) once
+they hold up.
+
+| page | what |
+|---|---|
+| [PLAN.md](PLAN.md) | the goal, the experiment queue with gates, and the revision log. Start here |
+| [2026-11-06-overnight-findings.md](2026-11-06-overnight-findings.md) | villainy pack on Pika, size-matched placebos, speech survival, experimental dials, a two-dial painting, probe profiles vs renders |
+| [2026-11-06-external-ideas.md](2026-11-06-external-ideas.md) | ideas from control-vector / steering work elsewhere, checked against our measurements, with sources |
+| [experiments/](experiments/) | one page per experiment as results come in |
+
+Clips: [Dials Lab](https://matlowai.github.io/ComfyUI-Dials/lab.html). Dials: [H3-Dials on Hugging Face](https://huggingface.co/MATLOWAI/H3-Dials).
+
+## Status labels
+
+Every claim carries one of: **measured** (with seeds and scenes), **source-confirmed** (read in code or a paper),
+**proposed**, or **rejected**. Numbers always come with their seed count.
+
+## Credits
+
+Ideas here borrow openly from people working on the same thing from other directions:
+[fredbliss](https://github.com/fblissjr)'s H3 control vectors ([guide](https://github.com/fblissjr/ComfyUI-h3-explorations/blob/main/docs/wiki/control_vectors.md):
+span pooling, vision-row and dialogue masks, norm-matched application, jacobian-lens experiments), JohnDopamine's
+audio-push experiments, [Heretic](https://github.com/p-e-w/heretic), and [DeTangle](https://github.com/matlowai/DeTangle).
