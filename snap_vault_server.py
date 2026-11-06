@@ -301,7 +301,10 @@ def containers(value):
     """The containers a string input names: an input/output/temp file (annotated as core does) or a model-folder file."""
     if not isinstance(value, str) or not value or "\n" in value or len(value) > 1024:
         return []
-    found = [folder_paths.get_annotated_filepath(value)]
+    try:
+        found = [folder_paths.get_annotated_filepath(value)]
+    except ValueError:  # core refuses a path outside its folders; an absolute one is checked as it is below
+        found = []
     if os.path.isabs(value):
         found.append(value)
     found += [p for p in (folder_paths.get_full_path(f, value) for f in folder_paths.folder_names_and_paths) if p]

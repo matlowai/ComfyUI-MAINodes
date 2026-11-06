@@ -793,7 +793,12 @@ def metadata_gate(json_data):
     # U79: where privacy is on, a private take is saved encrypted with its recipe (SNAP-R96); rules that can't be read
     # still seal it (fail closed)
     if snap_vault_server is not None:
-        vault = snap_vault_server.seal_prompt(json_data, found, writes_metadata)
+        try:
+            vault = snap_vault_server.seal_prompt(json_data, found, writes_metadata)
+        except Exception as e:  # core would queue it unchanged, saved in plain: refuse it instead (fail closed)
+            logging.exception("Snap vault: couldn't check this prompt for private takes; refused")
+            vault = {}
+            json_data["prompt"] = {"vault": {"class_type": "MAIRatingRefused", "inputs": {"why": f"Snap couldn't check this prompt for private takes ({e}), so nothing of it runs. Tell the operator; the server log has the error."}}}
     elif found["private"] and snap_privacy.switched_on(folder_paths.get_user_directory()):
         vault = {}
         json_data["prompt"] = {"vault": {"class_type": "MAIRatingRefused", "inputs": {"why": f"This install keeps private takes encrypted, and the vault can't load ({vault_missing}): pip install cryptography in ComfyUI's Python."}}}
@@ -866,22 +871,26 @@ def rating_cap(json_data):
     cap = snap_privacy.LEVELS.get(str(extra.get("snap_max_rating")).lower())
     if cap is None or not isinstance(prompt, dict):
         return json_data
-    notes = [f"node {nid} ({node.get('class_type')}) saves without a filename_prefix, so its file may land outside {extra.get('snap_user')}'s output folder"
-             for nid, node in prompt.items() if saves_without_prefix(node.get("class_type"))]
-    graph, shown = snap_privacy.model_graph(folder_paths.get_user_directory()), "PG" if cap == 0 else str(extra["snap_max_rating"]).capitalize()
-    title = lambda nid: (prompt[nid].get("_meta") or {}).get("title") or prompt[nid].get("class_type")
-    refused = {nid: f"Node {nid} ({t}) loads a file rated above this account's {shown} cap. Ask the admin." for nid, t in snap_privacy.above(prompt, graph, cap, folders_of).items()}
-    # U90: words that rate the prompt Adult are refused here too, for any cap below Adult (they always count there,
-    # SNAP-R39), so the run never renders only to be hidden from its own account
-    for nid, k, term in snap_privacy.said(prompt, graph, folders_of) if cap < snap_privacy.LEVELS["adult"] else []:
-        refused.setdefault(nid, f"Node {nid} ({title(nid)}): its {k} says \"{term}\", which rates this prompt Adult, above this account's {shown} cap. Change the words, or ask the admin.")
-    # a pinned record rated above the cap (a Cast the person rated Adult): what the re-run plan said the server refuses
-    over = [f"{who} is rated {snap_privacy.NAMES[lvl].capitalize()}" for lvl, who in snap_privacy.pinned((extra.get("extra_pnginfo") or {}).get("workflow")) if lvl > cap]
-    if over:
-        refused["world"] = f"{', '.join(over)}, above this account's {shown} cap. Pick another version or record, or ask the admin."
+    try:
+        notes = [f"node {nid} ({node.get('class_type')}) saves without a filename_prefix, so its file may land outside {extra.get('snap_user')}'s output folder"
+                 for nid, node in prompt.items() if saves_without_prefix(node.get("class_type"))]
+        graph, shown = snap_privacy.model_graph(folder_paths.get_user_directory()), "PG" if cap == 0 else str(extra["snap_max_rating"]).capitalize()
+        title = lambda nid: (prompt[nid].get("_meta") or {}).get("title") or prompt[nid].get("class_type")
+        refused = {nid: f"Node {nid} ({t}) loads a file rated above this account's {shown} cap. Ask the admin." for nid, t in snap_privacy.above(prompt, graph, cap, folders_of).items()}
+        # U90: words that rate the prompt Adult are refused here too, for any cap below Adult (they always count there,
+        # SNAP-R39), so the run never renders only to be hidden from its own account
+        for nid, k, term in snap_privacy.said(prompt, graph, folders_of) if cap < snap_privacy.LEVELS["adult"] else []:
+            refused.setdefault(nid, f"Node {nid} ({title(nid)}): its {k} says \"{term}\", which rates this prompt Adult, above this account's {shown} cap. Change the words, or ask the admin.")
+        # a pinned record rated above the cap (a Cast the person rated Adult): what the re-run plan said the server refuses
+        over = [f"{who} is rated {snap_privacy.NAMES[lvl].capitalize()}" for lvl, who in snap_privacy.pinned((extra.get("extra_pnginfo") or {}).get("workflow")) if lvl > cap]
+        if over:
+            refused["world"] = f"{', '.join(over)}, above this account's {shown} cap. Pick another version or record, or ask the admin."
+    except Exception as e:  # core would queue it unchanged, past the cap: refuse it instead (fail closed)
+        logging.exception("Snap: couldn't check this prompt against %s's cap; refused", extra.get("snap_user"))
+        notes, refused = [], {"cap": f"Snap couldn't check this prompt against this account's cap ({e}), so nothing of it runs. Tell the admin; the server log has the error."}
     if refused:
         logging.warning("Snap: %s's prompt rates above their %s cap (nodes %s); refused", extra.get("snap_user"), extra["snap_max_rating"], ", ".join(refused))
-        json_data["prompt"] = {nid: {"class_type": "MAIRatingRefused", "inputs": {"why": why}, "_meta": prompt.get(nid, {}).get("_meta", {})} for nid, why in refused.items()}  # "world" is no node
+        json_data["prompt"] = {nid: {"class_type": "MAIRatingRefused", "inputs": {"why": why}, "_meta": prompt.get(nid, {}).get("_meta", {})} for nid, why in refused.items()}  # "world" and "cap" are no node
     if notes:
         logging.warning("Snap: %s", "; ".join(notes))
         json_data.setdefault("extra_data", {})["snap_notes"] = notes
