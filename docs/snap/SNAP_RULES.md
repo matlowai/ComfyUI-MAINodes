@@ -1879,4 +1879,13 @@ SNAP-R197 on. R160-R164 stay free.
   below the new edge), and the eye crop (0.13 of the height) held 2/2 only when taken down to the lapel (0.33), 1.5 crops
   further. Read the seam note after every retry; set the crop where the thing ends when you can see it.
 
-Next free ID after this batch: SNAP-R201 (R160-R164 stay free).
+- **SNAP-R201: A proposal that changes a record's pictures shows them now and after, and waits in order.** A waiting
+  `save_cast` (new `refs`), `use_take {as: "cast"}` (with `replace` or a new picture), `save_location` (master, plan,
+  map or plates) or `add_plate` / `use_take {as: "plate"}` carries, for each picture it changes, the record's picture
+  now and the one it would put there (`nearby.js` `changeOf`); the Room shows them side by side ("Picture 1 (identity:
+  front) now" / "… after"), each with its what-line and Nearby, and the record's line with Nearby above them (its
+  versions and what pins it). A proposal row sorts by when it was asked (the server's `created`), not below every other
+  row. *Why:* dogfood F-Y11: Kuroe's Cast fix (save_cast v5 with a new front) sorted last in the docket and showed no
+  picture, so the person couldn't see what they were saying yes to. *More:* tests/snap/test_g12.js.
+
+Next free ID after this batch: SNAP-R202 (R160-R164 stay free).

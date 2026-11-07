@@ -519,7 +519,7 @@ export const STYLE = `
 .snap-room-q.quiet h2 { color: var(--s-dim); font-weight: 500; }
 .snap-room-where, .snap-room-stakes { margin: 0; color: var(--s-dim); }
 .snap-room-pics { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
-.snap-room-pics.one { grid-template-columns: 1fr; }
+.snap-room-pics.one { grid-template-columns: 1fr; } .snap-room-none { display: grid; place-items: center; aspect-ratio: 4 / 3; color: var(--s-dim); }
 .snap-room-pics figure { margin: 0; display: flex; flex-direction: column; gap: 6px; }
 .snap-room-pics figcaption { text-align: center; font-weight: 600; }
 .snap-room-pic { width: 100%; max-height: 62vh; object-fit: contain; background: #000; border-radius: 12px; display: block; }

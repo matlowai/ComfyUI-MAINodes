@@ -6,7 +6,8 @@
 // no ids, file names, model names, state words, counts or progress; every text an agent wrote passes plain().
 // On the person's own install the Room is the page at /?room (localhost); a phone door belongs to snap-gate.
 // SNAP-R70 the Room never restricts, renders no machinery, and its verdicts are the record's · SNAP-R197 each picture says
-// what it is (a still or a frame of a video, its kind and cut), in plain() words · SNAP-R198 Nearby opens on it · SNAP-R179 each question one
+// what it is (a still or a frame of a video, its kind and cut), in plain() words; a record change shows its pictures now
+// and after (SNAP-R201) · SNAP-R198 Nearby opens on it · SNAP-R179 each question one
 // plain sentence naming the thing · SNAP-R180 a critic's row asks its finding, with each note's words and where it was born · SNAP-R173 one verdict and why · SNAP-R174 blind pairs from the server · SNAP-R65 the Work card's rows · SNAP-R7 rebuilt only when its
 // content changes, never under a pointer · see docs/snap/SNAP_RULES.md
 import * as A from "./activity.js";
@@ -139,8 +140,11 @@ export function openRoom({ say } = {}) {
     const where = place ? h("p", { className: "snap-room-where", textContent: place }) : null;
     const said = more ? h("p", { className: "snap-room-where", textContent: more }) : null;
     if (r.source === "proposal") {
-      const p = P.get(r.proposal);
+      const p = P.get(r.proposal), ch = N.changeOf(p); // F-Y11: a record change shows each picture now and after
+      const side = (ref, label) => { const m = ref && N.srcOf(ref); return h("figure", {}, m ? (m.kind === "video" ? h("video", { src: m.src, controls: true, playsInline: true, className: "snap-room-pic" }) : h("img", { src: m.src, className: "snap-room-pic", alt: "" })) : h("div", { className: "snap-room-pic snap-room-none", textContent: "no picture" }),
+        h("figcaption", { textContent: label }), ref ? N.whatEl(ref, { room: true, words: plain, say, more: false }) : null); };
       return h("section", { className: "snap-room-q" }, h("h2", { textContent: asked }), said, where,
+        ch ? [N.whatEl(ch.ref, { room: true, words: plain, say, more: false }), ch.pairs.map((x) => h("div", { className: "snap-room-pics two" }, side(x.before, plain(`${cap(x.part)} now`)), side(x.after, plain(`${cap(x.part)} after`))))] : null,
         p?.plan?.eta_s ? h("p", { className: "snap-room-stakes", textContent: `About ${Math.max(1, Math.round(p.plan.eta_s / 60))} minute${Math.round(p.plan.eta_s / 60) > 1 ? "s" : ""} on the GPU.` }) : null, why,
         h("div", { className: "snap-room-verdict" },
           h("button", { className: "snap-primary", textContent: "Yes", onclick: act(async () => { const out = await P.decide(r.proposal, true, run); await answered(asked, out?.status === "accepted" ? `Done: ${plain(typeof out.result === "object" ? out.result?.said ?? asked : asked)}.` : `It couldn't be done: ${plain(out?.result ?? "answered elsewhere")}.`); }) }),

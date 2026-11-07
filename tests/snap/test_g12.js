@@ -11,7 +11,9 @@
 //   file hashed before and after, keys pressed inside it over the take viewer judge nothing);
 // - SNAP-R199: the nearby tool's shape: every list, every tile with ref, path, name and line; part pages one list with
 //   its total; a picture path, a /view address and a record ref resolve.
-// Screens: ui/g12/room_what_desk.png, room_nearby_desk.png, room_nearby_phone.png, viewer_what.png, lightbox_what.png.
+// - F-Y11: a Cast proposal (use_take as cast, replace) sorts by when it was asked, carries its picture now and after,
+//   shows them side by side in the Room with their lines, and Nearby on the Cast lists its versions and what pins it.
+// Screens: ui/g12/room_what_desk.png, room_cast_change.png, room_nearby_desk.png, room_nearby_phone.png, viewer_what.png, lightbox_what.png.
 // usage: node test_g12.js [port] [base]   prints "g12 n/m" last
 const { chromium } = require("playwright");
 const fs = require("fs"), path = require("path"), crypto = require("crypto");
@@ -99,6 +101,12 @@ const changed = (a, b) => [...new Set([...Object.keys(a), ...Object.keys(b)])].f
       { severity: "high", pass: "beat", text: "Mio still holds the ladle in her right hand while setting the bowl down.", owner: "prompt" }] }, "g12-critic");
     await page.waitForTimeout(800);
 
+    // F-Y11: an agent's Cast fix waits as a proposal (use_take as cast, replace picture 1), asked before the critic's row
+    R.castProposal = await call("use_take", { take: S.settei, as: "cast", cast: kuroe, replace: 0, propose: true, reason: "Kuroe's front picture without the bar across the nose" });
+    await page.evaluate(async () => { const A = await import("/extensions/ComfyUI-MAINodes/snap/activity.js"); await A.reconcile(); });
+    R.order = await page.evaluate(async () => { const A = await import("/extensions/ComfyUI-MAINodes/snap/activity.js"); return A.all().filter((r) => r.zone === "landed").map((r) => [r.source, r.asked_at ?? r.queued_at ?? null]); });
+    R.change = await page.evaluate(async (id) => { const N = await import("/extensions/ComfyUI-MAINodes/snap/nearby.js"), P = await import("/extensions/ComfyUI-MAINodes/snap/proposals.js"); await N.load(); await P.load(); const p = P.all().find((x) => x.tool === "use_take" && x.status === "waiting"); return N.changeOf(p); }, null);
+
     // ---- SNAP-R197: the lines ----
     R.what = await page.evaluate(async (S) => { const N = await import("/extensions/ComfyUI-MAINodes/snap/nearby.js"); await N.load();
       const w = (r, o) => { try { return N.what(r, o); } catch (e) { return { error: e.message }; } };
@@ -133,6 +141,15 @@ const changed = (a, b) => [...new Set([...Object.keys(a), ...Object.keys(b)])].f
     await page.keyboard.press("Escape");
     // every candidate the Room asks about, too
     for (const l of await page.locator("button.snap-room-line").allTextContents()) { await page.locator("button.snap-room-line", { hasText: l }).first().click().catch(() => {}); await page.waitForTimeout(500); texts.push(await page.locator(".snap-room").textContent()); }
+    // the Cast proposal: its picture now and after, each with its line, and Nearby on the Cast (its versions, what pins it)
+    await page.locator("button.snap-room-line", { hasText: "Shall I" }).first().click().catch(() => {}); await page.waitForTimeout(1200);
+    R.roomChange = await page.evaluate(() => { const q = document.querySelector(".snap-room-q"); return { h2: q.querySelector("h2").textContent, caps: [...q.querySelectorAll("figcaption")].map((x) => x.textContent), pics: q.querySelectorAll("figure .snap-room-pic").length, what: [...q.querySelectorAll(".snap-what")].map((x) => x.textContent) }; });
+    await page.screenshot({ path: path.join(out, "room_cast_change.png") });
+    texts.push(await page.locator(".snap-room").textContent());
+    await page.locator(".snap-room-q .snap-near-open").first().click(); await page.waitForSelector(".snap-near .snap-near-part", { timeout: 20000 }).catch(() => {}); await page.waitForTimeout(800);
+    R.recordModal = await page.evaluate(() => ({ line: document.querySelector(".snap-near-line1")?.textContent, parts: [...document.querySelectorAll(".snap-near-part h3")].map((x) => x.textContent) }));
+    texts.push(await page.locator(".snap-near").textContent());
+    await page.keyboard.press("Escape");
     R.banned = await page.evaluate(async (texts) => { const RM = await import("/extensions/ComfyUI-MAINodes/snap/room.js"); return texts.flatMap((t) => RM.BANNED.filter((re) => re.test(t)).map((re) => `${re} in "${t.match(re)?.[0]}"`)); }, texts);
     R.roomTexts = texts.length;
 
@@ -233,6 +250,11 @@ const changed = (a, b) => [...new Set([...Object.keys(a), ...Object.keys(b)])].f
     candidateTiles: (R.tiles ?? []).length === 2 && /the key drawing of C2 the bowl lands, the picture its video builds to\. It was picked\.$/.test(R.tiles[0]) && /It was turned down\./.test(R.tiles[1]),
     roomSaysWhat: /^A still, not a frame of a video: take 3, the key drawing of C2 the bowl lands, the picture its video builds to/.test(R.room?.what?.[0] ?? "") && /^Made from Picture 1/.test(R.room?.what?.[1] ?? ""),
     roomModal: (R.roomModal ?? []).length >= 5,
+    proposalSortsByAsk: (R.order ?? []).some(([src, at]) => src === "proposal" && at > 0) && (R.order ?? []).findIndex(([src]) => src === "proposal") < (R.order ?? []).findIndex(([src]) => src === "critique"),
+    proposalPictures: R.change?.pairs?.length === 1 && R.change.pairs[0].part === "picture 1 (identity: front)" && R.change.pairs[0].before === "input/snaptest_g12/kuroe.png" && R.change.pairs[0].after === R.seeded?.settei && R.change.name === "Baron Kuroe",
+    roomShowsChange: /^Shall I/.test(R.roomChange?.h2 ?? "") && R.roomChange.pics === 2 && R.roomChange.caps.join("|") === "Picture 1 (identity: front) now|Picture 1 (identity: front) after"
+      && /^A Cast record: Baron Kuroe, version 1/.test(R.roomChange.what[0] ?? "") && /It is Baron Kuroe's Cast picture 1/.test(R.roomChange.what[1] ?? "") && /a settei of Baron Kuroe/.test(R.roomChange.what[2] ?? ""),
+    recordModal: /^A Cast record: Baron Kuroe/.test(R.recordModal?.line ?? "") && ["Its versions", "What pins it", "What it cites"].every((p) => R.recordModal.parts.some((x) => x.toUpperCase() === p.toUpperCase())),
     leakTest: Array.isArray(R.banned) && R.banned.length === 0 && R.roomTexts >= 3,
     phone: R.phone === true && R.phoneModal?.sideways === false && R.phoneModal.stacked === true,
     noErrors: !R.crash && !(R.errors ?? []).length,

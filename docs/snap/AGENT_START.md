@@ -663,7 +663,9 @@ gate hold through the turn?"), and when you can't find something, say so plainly
 wrote it when it is one, and makes one from the row otherwise (SNAP-R179), so a question is the best thing to write. A
 verdict there is the same record as anywhere else. A critic's row asks its worst note ("…: keep it anyway?") with every
 note listed under the picture, boxed on it, and where it was born in words, so write notes a person can read: the flaw
-first, in a sentence (SNAP-R180).
+first, in a sentence (SNAP-R180). A proposal that changes a Cast's or a location's pictures (save_cast with
+new refs, use_take as cast or plate, save_location, add_plate) shows the person each picture now and after, side by
+side (SNAP-R201): give it a reason that says what the new picture fixes.
 
 ## Working habits
 

@@ -9,7 +9,7 @@
 // waiting rows. It survives a reload, a closed viewer and another tab because every row is read back from the server:
 // the `status` broadcast every tab gets wakes a reconcile, and while work is live a 2 s tick reads again.
 // SNAP-R5 an arrival never moves the person · SNAP-R17 by: person|agent · SNAP-R23 candidates wait for the person's pick ·
-// SNAP-R58 whole lists, explicit paging · SNAP-R65 the Work card · SNAP-R66 arrivals announce, a press moves · see
+// SNAP-R58 whole lists, explicit paging · SNAP-R65 the Work card · SNAP-R201 a proposal sorts by when it was asked · SNAP-R66 arrivals announce, a press moves · see
 // docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as T from "./takes.js";
@@ -97,14 +97,14 @@ function build() {
   let ahead = server.filter((p) => p.state === "running").length;
   const prompts = server.filter((p) => !folded.has(p.id) && (p.job || p.state === "running" || p.state === "queued")).map((p) => fromPrompt(p, p.state === "queued" ? ahead++ : undefined));
   const asked = P.all().filter((p) => p.status === "waiting").map((p) => ({ id: `p:${p.id}`, proposal: p.id, source: "proposal", kind: "proposal", title: P.reasonNow(p) || p.tool.replaceAll("_", " "), by: "agent", owner: "agents", state: "waiting",
-    about: { take: p.args?.take, slot: p.args?.slot, ...(p.book ? { book: p.book } : {}) }, where: p.book ? `the Book ${W.get(p.book)?.version.body.name ?? p.book}` : where({ take: p.args?.take }), tool: p.tool, eta_s: p.plan?.eta_s ?? null, plan: p.plan ?? null, queued_at: null }));
+    about: { take: p.args?.take, slot: p.args?.slot, ...(p.book ? { book: p.book } : {}) }, where: p.book ? `the Book ${W.get(p.book)?.version.body.name ?? p.book}` : where({ take: p.args?.take }), tool: p.tool, eta_s: p.plan?.eta_s ?? null, plan: p.plan ?? null, queued_at: null, asked_at: P.get(p.id)?.created ?? null }));
   const refusals = J.refusals().map((x) => ({ id: x.id, source: "refusal", kind: x.spec.kind, title: x.spec.title, by: x.spec.by ?? "person", owner: x.spec.by === "agent" ? "agents" : "you", state: "failed",
     about: x.spec.about ?? {}, where: where(x.spec.about), error: `refused at queue: ${x.error}`, queued_at: x.at, retry: x.retry }));
   rows = [...prompts, ...decisions, ...asked, ...pairs, ...refusals, ...lost.values(), ...CR.rowsFor(where)].map((r) => {
     const parked = marks.parked[r.id] ?? null, opened = marks.opened[r.id] ?? null;
     const zone = parked ? "parked" : LIVE.has(r.state) || r.state === "failed" || r.state === "gone" ? "in_flight" : r.state === "waiting" || (r.state === "done" && !opened) ? "landed" : "closed";
     return { ...r, zone, eta: eta(r), ...(parked ? { parked } : {}), ...(opened ? { opened } : {}) };
-  }).sort((a, b) => (b.queued_at ?? b.started_at ?? 0) - (a.queued_at ?? a.started_at ?? 0));
+  }).sort((a, b) => (b.queued_at ?? b.asked_at ?? b.started_at ?? 0) - (a.queued_at ?? a.asked_at ?? a.started_at ?? 0)); // F-Y11: a proposal sorts by when it was asked, not last
   if (readOnce) announce();
   for (const fn of listeners) fn();
 }

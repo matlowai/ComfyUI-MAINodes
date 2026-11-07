@@ -10,7 +10,7 @@
 // cites, the story beat it is pinned to (stale or not) and its critiques; every neighbour carries its own ref and line.
 // openNearby(): the modal over any page, one click from a picture; a tile re-centres it, Back walks back. It reads and
 // never writes: no take is marked opened, nothing is applied, nothing navigates (SNAP-R5).
-// SNAP-R197 what this is · SNAP-R198 the Nearby modal · SNAP-R199 nearby {ref}, whole · SNAP-R5 viewing changes nothing ·
+// SNAP-R197 what this is · SNAP-R198 the Nearby modal · SNAP-R199 nearby {ref}, whole · SNAP-R201 a record proposal's pictures now and after · SNAP-R5 viewing changes nothing ·
 // SNAP-R58 nothing cut, paged explicitly · SNAP-R70 in the Room no machinery (the Room passes its plain()) · SNAP-R174 a
 // blind pair is never named · see docs/snap/SNAP_RULES.md
 import * as T from "./takes.js";
@@ -287,6 +287,32 @@ export function page(all, { part, offset = 0, limit } = {}) {
   return { ref: all.ref, what: all.what, part, total: list.length, offset, items: list.slice(offset, end), ...(end < list.length ? { next: { part, offset: end, limit } } : {}) };
 }
 
+// ---- a proposal that changes a record's pictures (F-Y11) ---------------------------------------------------------------
+// the record and each picture it would change, now and after (a file or a take), so the Room can show them side by side
+export function changeOf(p) {
+  const a = p?.args ?? {}, file = (f) => (f ? `input/${f}` : null), pic = (x) => (x?.file ? file(x.file) : x?.take ? T.find(x.take)?.id ?? null : null), pairs = [];
+  const body = (ref) => W.get(ref)?.version.body ?? {};
+  let ref = null;
+  if (p?.tool === "save_cast" && a.cast && a.refs) {
+    ref = a.cast; const now = body(ref).refs ?? [];
+    a.refs.forEach((x, i) => { if (x.file !== now[i]?.file) pairs.push({ part: `picture ${i + 1}${x.role ? ` (${x.role})` : ""}`, before: file(now[i]?.file), after: pic(x) }); });
+    now.slice(a.refs.length).forEach((x, i) => pairs.push({ part: `picture ${a.refs.length + i + 1}${x.role ? ` (${x.role})` : ""}`, before: file(x.file), after: null }));
+  } else if (p?.tool === "use_take" && a.as === "cast" && a.cast) {
+    ref = a.cast; const now = body(ref).refs ?? [], i = a.replace;
+    pairs.push({ part: i != null ? `picture ${i + 1}${now[i]?.role ? ` (${now[i].role})` : ""}` : "a new picture", before: i != null ? file(now[i]?.file) : null, after: pic({ take: a.take }) });
+  } else if (p?.tool === "save_location" && a.location) {
+    ref = a.location; const now = body(ref);
+    for (const k of ["master", "plan", "map"]) if (a[k] !== undefined && pic(a[k]) !== file(now[k]?.file)) pairs.push({ part: k, before: file(now[k]?.file), after: pic(a[k]) });
+    for (const x of a.plates ?? []) { const was = now.plates?.find((y) => y.name === x.name); if (pic(x) && pic(x) !== file(was?.file)) pairs.push({ part: `plate ${x.name}`, before: file(was?.file), after: pic(x) }); }
+  } else if ((p?.tool === "add_plate" || (p?.tool === "use_take" && a.as === "plate")) && a.location) {
+    ref = a.location; const was = body(ref).plates?.find((y) => y.name === a.name);
+    if (pic(a)) pairs.push({ part: `plate ${a.name ?? "new"}`, before: file(was?.file), after: pic(a) });
+  }
+  return ref && pairs.length && W.get(ref) ? { ref, name: nameOf(ref), pairs } : null;
+}
+// a ref's picture or video for a page to show: {kind, src}
+export const srcOf = (ref) => { const x = tile(ref, ""); return x.path ? { kind: x.kind, src: url(mediaAt(x.path)) } : null; };
+
 // ---- on the page ------------------------------------------------------------------------------------------------------
 // the line and the second beside a picture (either can be left out), with the press that opens the modal on it; filled
 // once the stores are read, so any surface can put it under a picture as it draws
@@ -347,7 +373,8 @@ export function openNearby(ref, { room = false, words = (x) => x, say } = {}) {
           d.cut ? section(words(`The cut: ${d.cut.name}`), [...d.cut.boards, ...d.cut.takes]) : null,
           d.candidates ? section(words("The other candidates of the same pick"), d.candidates.tiles) : null,
           d.shot?.takes.length ? section(words(`More takes of ${d.shot.name}`), d.shot.takes) : null,
-          section(words("Made from"), d.made_from), section(words("Made from it"), d.made_into),
+          d.subject.kind === "record" ? h("section", { className: "snap-near-part" }, h("h3", { textContent: words("Its versions") }), h("ol", { className: "snap-near-notes" }, [...d.subject.versions].reverse().map((v) => h("li", {}, h("strong", { textContent: words(`version ${v.n}${v.n === d.subject.head ? " (the newest)" : ""}:`) }), " ", words(`${v.note || "no note"}${v.by ? `, by ${v.by === "agent" ? "an agent" : "the person"}` : ""}`))))) : null,
+          section(words("Made from"), d.made_from), section(words(d.subject.kind === "record" ? "What pins it" : "Made from it"), d.made_into),
           d.records.length ? section(words("What it cites"), d.records.flatMap((r) => r.pictures.length ? r.pictures : [{ ref: r.ref, kind: "image", path: null, name: r.name, marks: [], what: "" }]),
             h("p", { className: "snap-near-line", textContent: words(d.records.map((r) => `${r.name}, version ${r.n}${r.moved ? ` (the newest is ${r.head})` : ""}`).join(" · ")) })) : null,
           beat ? h("section", { className: "snap-near-part" }, h("h3", { textContent: words("The story") }), beat) : null,
