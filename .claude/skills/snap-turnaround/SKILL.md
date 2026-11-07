@@ -37,6 +37,8 @@ records: AGENT_START §5 (SNAP-R59, R60).
 5. **Pull frames** at 90 / 180 / 270 (clockwise seen from above, 90° is the subject's right side) and check each view:
    the prop's side and length, the hair's side, the straps.
 6. **Make them references:** redraw with `stage2` (`snap-reference-upscale`), then save a Cast version with the views.
+   A view that also needs a region fix (a prop drawn wrong) gets the redraw first and the fix last (F-Y06): a redraw
+   after the fix can draw the flaw back (`snap-new-view`).
    Re-run what used the old version (`snap-critic`, fix at the source).
 
 Without an orbit LoRA: `make_character_sheet` `contact_sheet` (Picture 1 padded square: front to back 9/9). A portrait

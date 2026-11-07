@@ -6,7 +6,7 @@ description: >
   a still of a known place or character, edit one detail of a still, or a New view candidate came back wrong (copied
   the master, turned the head, lost the set).
 scope: [tool:edit_from_context]
-rules: [SNAP-R72, SNAP-R76, SNAP-R79, SNAP-R86]
+rules: [SNAP-R72, SNAP-R76, SNAP-R79, SNAP-R86, SNAP-R190, SNAP-R200, SNAP-R202, SNAP-R203]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-new-view"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -43,6 +43,22 @@ what it is not, and say what holds:
 That drew true slits 3/3; "slit pupils" alone gave round ones, and without the line on what holds 5 of 6 candidates
 turned the head to show the eyes. A Fizgig "edit" is a re-render (mean change 23-25 outside the target, vs 3-8 for
 P-H3); P-H3's floor for "regenerated, nothing changed" is SSIM 0.94-0.96.
+
+When the words don't take after two or three seeds, change the approach (SNAP-R200). Three that worked on Kuroe's
+monocle, where a gold bar across the nose came back from every wording (dogfood F-Y01..F-Y06, G13):
+
+- **Show the item, don't describe it** (F-Y02). To change how a thing is built, give a settei of the item alone as
+  Picture 2: make it from a crop of the record's own picture ("drawn alone … only one lens, no bridge, no face"), then
+  region-edit (`paste_back`, SNAP-R190) with it. Words over the bar: 0/4; the same region edit with the settei: 2/2.
+- **Remove the whole item, then add the right one** (F-Y03). "Remove only the bar" failed; "he wears no eyewear at
+  all" gave a bare face 2/2, then adding the monocle from its settei 2/2. An edit whose Picture 1 still shows the flaw
+  tends to keep it: the settei edit on a redraw that had the bar back kept the bar 2/2 (G13, s9961/s9962).
+- **Redraw first, region-edit last** (F-Y06). A redraw draws the model's prior again. Stage 2 of a region edit redraws
+  the whole still at the new size (SNAP-R202), and that can bring the flaw back: Kuroe's fix B got its bar back at
+  denoise 0.30 and 0.20, fix C stayed clean at both. After any redraw of a fixed picture, look at the fixed part at
+  100 %; if the flaw is back, fix the redraw (the remove-then-add pair above), not the other way round.
+- Then compare the eyes with the Cast: a redraw darkened Kuroe's grey irises. `keep_eye_colour` runs on any take
+  (SNAP-R203) but moves only the hue, so it leaves a grey iris as it is (the picture comes back unchanged).
 
 ## Reading the notes
 

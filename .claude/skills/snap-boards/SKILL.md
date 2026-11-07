@@ -64,7 +64,9 @@ Re-boarding from a fixed board (G10, short05 C2):
   Cast picture is fixed there), then a missing Snap capability; try a few different approaches side by side before
   asking. Only a taste choice between working results goes to the person.
 - A flaw born in the Cast picture itself is fixed there, not in every board: a region edit of the Cast picture, then
-  `use_take {as: "cast", replace: n, propose: true}` (SNAP-R196), then rerun_dependents.
+  `use_take {as: "cast", replace: n, propose: true}` (SNAP-R196), then rerun_dependents. When words don't move the
+  flaw, give a settei of the item alone as Picture 2 (F-Y02), or remove the whole item and add it back from that settei
+  (F-Y03); when the picture also needs a bigger redraw, redraw first and region-edit last (F-Y06): `snap-new-view`.
 
 ## 3. Animatic and checks
 

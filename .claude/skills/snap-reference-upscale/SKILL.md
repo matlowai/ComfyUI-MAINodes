@@ -6,7 +6,7 @@ description: >
   or board is too small or its face looks smeared, before a picture becomes a reference, or when the person asks for
   2K or 4K.
 scope: [tool:upscale_take]
-rules: [SNAP-R16, SNAP-R81, SNAP-R82, SNAP-R85, SNAP-R113, SNAP-R134]
+rules: [SNAP-R16, SNAP-R81, SNAP-R82, SNAP-R85, SNAP-R113, SNAP-R134, SNAP-R202, SNAP-R203]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-reference-upscale"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -34,7 +34,10 @@ The front was also the take's Picture 1, so a redraw toward it is expected: read
 
 ## Steps
 
-1. `upscale_take {"take": ..., "method": "stage2", "factor": 2, "denoise": 0.3}`. A 2K pass at cfg 5 fills a 32 GB card
+1. `upscale_take {"take": ..., "method": "stage2", "factor": 2, "denoise": 0.3}`. It takes any still made by one
+   sampler, from any model (P-H3, Fizgig, MOSS, Krea), and redraws a region edit as its whole picture (SNAP-R202;
+   on a 5090 a 2x P-H3 still took 5-9 s, a MOSS still 19 s). Look at any part that was fixed by hand: the redraw can
+   bring a removed flaw back (F-Y06; `snap-new-view`). A 2K pass at cfg 5 fills a 32 GB card
    and takes ~2.5 min a step (15-19 min for a 5 s orbit); the plan says how long (SNAP-R16).
    `speed` (SNAP-R113): `"quality"` (default, the take's own cfg) or `"fast"` (cfg 1): one orbit took 10.4 min instead of
    17.9, same VRAM, no added flicker, a touch softer line weight and eye shading. Fast for drafts or when the person
@@ -47,7 +50,8 @@ The front was also the take's Picture 1, so a redraw toward it is expected: read
    Hiyori's brown eyes came back grey and Liesl's amber olive, while the face otherwise improved. A lower denoise barely
    helps (0.20 still grey). If they drifted, `keep_eye_colour {take: <the redraw>, cast}` (optional, never default,
    SNAP-R134) re-tints only the irises toward the Cast front, found by SAM on every frame; profiles and backs pass
-   through. Look at it at 100 % before keeping it.
+   through. It runs on any take (SNAP-R203: a redraw made another way too) and its `ran_on` says which; it moves hue
+   only, so a grey iris that went dark stays dark. Look at it at 100 % before keeping it.
 5. Use the frames you keep as Cast pictures or plates (a new Cast version).
 
 ## Traps
