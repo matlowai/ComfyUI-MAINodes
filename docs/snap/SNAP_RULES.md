@@ -2145,4 +2145,75 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
   … | 2: …", Accept 1, Accept 2, Reject both). *Why:* the operator, 2026-11-07: "yes side by side"; the G15 note:
   either/or was one quiet line on each proposal, answered one at a time. *More:* tests/snap/test_g16_either.js.
 
-Next free ID after this batch: SNAP-R230 (R160-R164 stay free; G16 reserved R215-R229).
+- **SNAP-R230: A Book cut owns its dial rows.** A cut's unit holds `dials`: rack rows as the Dial Rack stores them (the
+  steering dials, not the Book's autonomy dial), time curve keys in clip seconds. `set_cut_dials` (by `{scene, shot}`
+  or `{book, cut}`) writes them: the whole plan, one row, one key moved (`move_key`, kept between its neighbours), or the
+  open rack adopted (`from_rack`); each row is checked with the rack's own rules before anything is written.
+  `compile_unit` shows them with each row's effective strength and lints them; `apply_unit` sets the rack exactly from
+  them and names any row it took off; a take keeps the rows that ran inside its graph, and reads stale ("dial rows
+  changed") when its cut's rows move. A row set by hand on a cut's shot (`add_dial`) says where the plan lives. *Why:*
+  the operator, 2026-11-07 ~17:5x, on G17's questions: "all of these sound good to me ... feel free to use your
+  judgement through this leg" (replace the whole rack, name what was removed, one-call adopt); seq02 is a mage duel
+  driven by dial time curves (DECISIONS ~15:0x-16:5x); the bake-off set curves by hand through `set_widget` (F-SQ13).
+  *More:* study DESIGN_G17 §4.1-4.2; tests/snap/test_g17_dials.js.
+- **SNAP-R231: On a Book cut, a time row blends on every step and protects the sound unless told otherwise.** `steps`
+  defaults to the setup's step count (6 on Pika) unless the dial's info measured fewer for the recipe's pipeline;
+  `audio` defaults to protect; the strength to the pipeline's measured useful strength, else the dial's own, else 0.5.
+  Every default is filled into the row when it is written (a later default change never moves an old cut) and said in
+  `defaulted` with its reason. `add_dial` / `set_dial {time}` use the same defaults. *Why:* the operator's standing
+  rule "audio: protect is the default for look rows, SFX laid in post"; F-SQ14/F-SQ30 (look dials at k = 2 drew
+  nothing under two reference pictures; k = 6 drew every one); bake-off round 1 (+6-9 LU of roar under follow).
+  *More:* dials/README.md "Time curves"; tests/snap/test_g17_dials.js.
+- **SNAP-R232: A dial file says what it does and how strong it runs per pipeline.** dial_info stays version 2 and may
+  carry `kind` (look, light, weather, motion, camera, voice, other) and `pipelines {t2v | ref2v | fl2v: {useful,
+  overcook, steps, evidence, notes}}`; older files read without them. `set_dial_info` merges info into the file (the
+  tensors and their sha unchanged, said before and after); `list_dials` shows the block and, with a recipe open, its
+  pipeline's numbers (`models.pipeline()`: ref2v under the Ref2V conditioning, fl2v with a First frame on, else t2v);
+  the rack's ⚙ keeps both when it saves. The published Hugging Face dial files stay as they are until a released pack
+  reads the block. *Why:* F-SQ16/F-SQ31/F-SQ35 (no tool wrote dial info; strengths differ per pipeline); the operator,
+  2026-11-07 ~17:5x ("all of these sound good"). *More:* tests/snap/test_g17_dials.js.
+- **SNAP-R233: The Cut's export carries each clip's dial rows in the take's seconds.** `generation.snap.dials
+  {pipeline, clip_seconds, rows [{dial, strength, on, curve {interp, smooth, keys} | null, steps, audio}]}`, read from
+  the take's own graph with the rack's defaults filled for hand-set rows, normalized keys turned into seconds by the
+  take's length; the .otio clip's `metadata.snap.dials` says the same. The keys share the clock of `app.astrid.words`
+  (the take's seconds; a trimmed cut's picture shows a key at key − in_s); a re-take's swap rewrites them and the clip
+  keeps its id. *Why:* protocol v1.1 §15: an Astrid-side re-take moves a dial's peak onto a spoken word. *More:* the
+  study's CONTRACT_SNAP_EXPORT v5; tests/snap/test_g17_export.js.
+- **SNAP-R234: A re-take can take the cut's dial rows as they stand, or only open.** `retake {dials: "cut" | "take",
+  open_only}`: for a take of a Book cut whose plan has dial rows, `cut` (the agent's default) puts the plan's rows on
+  the rack before the run and names each key it moved; `take` keeps the rows that ran (the person's "Retake · as it
+  was" does). `open_only` opens a take's chain into its shot and saves it with nothing queued, never waiting as a
+  proposal. *Why:* the Astrid round trip (set_cut_dials move_key, then a same-seed re-take); F-SQ18's restore without a
+  render. *More:* tests/snap/test_g17_export.js, test_g17_shots.js.
+- **SNAP-R235: A shot has one tab.** When a setup switch moves a shot's recipe into a new tab, the old tab stops
+  claiming the shot (its mark goes, it is renamed "was <shot> · <scene>", its nodes and undo stay); `open_shot` with
+  two claimants opens the one holding the shot's saved workflow (else the newest) and says so; a tab is never saved
+  over a shot when a newer open tab holds the shot's saved workflow: the save is refused, said in the answer and a
+  toast, and the tab becomes scratch. *Why:* F-SQ18 (Shot 5's Pika recipe overwritten by a stale MOSS tab after
+  apply_setup moved it), F-AC08. *More:* tests/snap/test_g17_shots.js.
+- **SNAP-R236: An insert cites a frame of its master.** `set_unit {master: {cut, at_s, crop?}}`: that cut's active
+  take's frame at `at_s` (cropped) goes into the cut's reference package and References as `continuity: <cut> at <s>`,
+  is the board's nearest prior view unless the cut has its own approved board or a context, and `apply_unit`'s hint
+  says to keep its light, colours and background; `from.master` makes the insert stale when the master's active take
+  or the frame moves; a cut whose camera reads as an insert or close-up and names no master gets a lint. *Why:* the
+  operator, 2026-11-07 ~16:5x: "dramatic light wins btw. also it might be good to take a frame of the blocking as a
+  reference to feed the Corvin block sweat drop :P"; F-SQ23. *More:* tests/snap/test_g17_dials.js.
+- **SNAP-R237: A Cast's voice goes in only where that Cast speaks.** One rule in one place (`library.voiceWanted`),
+  for `apply_cast`, `apply_unit`, `update_pins`, `retake` and `rerun` alike: a recipe a Book cut compiled goes by its
+  story pin's lines; a plain shot keeps a voice already in and adds one when the prompt gives the Cast a line;
+  `apply_cast {voice: true | false}` overrides; a recast speaks where the Cast it replaces spoke. A voice left out is
+  said ("no voice for Kuroe: no line in C2"); a speaker with no Cast voice reference is a compile lint. *Why:* F-SQ11 /
+  F-SQ12 (H3 spoke a reference's words into silent cuts), F-AC11 (a retake with today's world added a voice); the
+  operator's rule "every speaking character needs a Cast voice reference". *More:* tests/snap/test_g17_dials.js.
+- **SNAP-R238: list_nodes lists hidden widgets too, marked hidden.** Only `$$` widgets are left out; a widget its node's
+  own panel hides (the Dial Rack's `rack`) comes back with `hidden: true`, and `set_widget` sets it. *Why:* F-SQ13 (the
+  rack's rows could not be found from the tools); the no-trim rule (SNAP-R58). *More:* tests/snap/test_g17_dials.js.
+- **SNAP-R239: Make a dial puts nothing on the rack unless asked, and says where the file landed.** `make_dial
+  {add_to_rack}` defaults to false (the Make a dial sheet, a person's press, still puts it on); Make Dial's last input
+  `folder` names each loras root by its shortest distinct tail and is checked again where the file is written; the
+  answer gives `saved`, `folder`, `shared` (false = this server's own models folder: on a `--base-directory` server,
+  that base's) and the other folders it reads, such as a shared dial library. A dev or test server keeps saving into
+  its own folder unless `folder` says otherwise. *Why:* F-SQ17, F-SQ33; the operator, 2026-11-07 ~17:5x ("all of these
+  sound good to me"); the gate's realmodels guard. *More:* tests/snap/test_g17_dials.js.
+
+Next free ID after this batch: SNAP-R240 (R160-R164 stay free; G16 reserved R215-R229).

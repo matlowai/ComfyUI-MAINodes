@@ -40,5 +40,8 @@ the cut ids (`C7`), the dialogue on A2 with its words (`timelines words --publis
 names its take, cut, Book and pins. To ask for a re-take: `snap.call` the Book's tools (`get_book` → the unit →
 `compile_unit` → `apply_unit` → `run`): it waits as a proposal in the Room; after the person accepts the new active take,
 `tools/astrid_push.py swap --book <book> --cut C7` puts it into the same clip in place (same id, its new file, its
-`generation.snap` and words). Reads (`get_book`, `get_take`, `list_proposals`) answer even while another agent drives the
+`generation.snap` and words). `generation.snap.dials` lists the steering dial rows the take ran, curve keys in the
+take's own seconds, the clock of the words: to land a dial's peak on a word, `snap.call set_cut_dials {book, cut,
+move_key: {dial, key: "peak", to_s: <the word's start>}}`, then `retake {take, dials: "cut", seed: "same"}`, then the
+swap. Reads (`get_book`, `get_take`, `list_proposals`) answer even while another agent drives the
 page; `withdraw_proposal` takes back your own out-of-date proposal, saying why.

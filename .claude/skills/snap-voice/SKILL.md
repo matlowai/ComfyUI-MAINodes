@@ -44,6 +44,12 @@ actress" came out at 97-138 Hz, "clearly a woman's voice" at 112-145 Hz, and the
 
 H3 reads audio references only with a reference setup (Ref2V).
 
+**Only where the Cast speaks** (SNAP-R237): a voice reference in a cut where nobody speaks makes H3 say its words
+(F-SQ11, F-SQ12). Snap keeps it out: `apply_unit` gives a voice only to the cut's speakers, `apply_cast` on a plain
+shot only when the prompt gives the Cast a line (`voice: true` overrides), and a retake or re-run with today's world
+drops a voice from a cut with no line, saying so. Every speaking Cast needs a voice reference: the compile lints one
+that has none.
+
 ## Sound in a cut
 
 - **Listen before you pick** (SNAP-R150): judge talking takes and every video candidate with the sound on, and say in

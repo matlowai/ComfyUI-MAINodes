@@ -111,7 +111,10 @@ You can also run the tools as an MCP server (Claude Code); it also serves Snap's
   a Book alone has one of its own name), each Book a timeline in it. `export_cut {book}` writes `otio.astrid.archive`
   (archive v2: clip ids = cut ids, a speaking cut's sound on A2 "Dialogue" with its line and words), probes it in
   Astrid when the person set "Astrid on this machine" (`otio.astrid.probe`) and, once the Book was pushed, answers
-  `otio.astrid.diff`. The person pushes with the Cut lens's button or the Book's auto-push setting; from a shell,
+  `otio.astrid.diff`. Each clip's `generation.snap.dials` holds the dial rows its take ran, keys in the take's seconds
+  (the clock of its words; SNAP-R233): to move a dial's peak onto a word, `set_cut_dials {book, cut, move_key: {dial,
+  key: "peak", to_s: <word start>}}`, then `retake {take, dials: "cut", seed: "same"}` (a proposal unless the stage
+  allows), then the swap. The person pushes with the Cut lens's button or the Book's auto-push setting; from a shell,
   `SNAP_BASE=$BASE SNAP_AGENT=<you> python3 -I $PACK/tools/astrid_push.py push --book <book>` imports it once, and later
   pushes swap the changed cuts in place (same clip ids; `swap --cut C7` for one re-take; a changed shape needs
   `--new-timeline`). `get_book.astrid` and each unit's `astrid.state` say where it stands. Private takes stay out
@@ -519,7 +522,10 @@ every picture's line, or `m` in the take viewer and the full-size viewer.
   its words"). `describe_recipe.references` lists every `<Picture n>` and `<Audio n>`; `remove_audio_ref {"audio": n}`
   takes one out (the later ones move up).
 - A Cast can hold the voice: `save_cast {..., "voice": {"file": "snap/kon_voice.wav", "casting": "young woman, low
-  cool alto, clipped"}}`. `apply_cast` then puts the voice in with the pictures and says its `<Audio n>`.
+  cool alto, clipped"}}`. `apply_cast` then puts the voice in with the pictures and says its `<Audio n>`, but only
+  where that Cast speaks (SNAP-R237): on a Book cut where the cut gives it a line, on a plain shot when the prompt
+  gives it one (or the voice is already in); `voice: true` puts it in anyway, `false` keeps it out. A voice reference
+  in a cut where nobody speaks makes H3 speak its words (F-SQ11). Every speaking Cast needs a voice reference.
 - H3 reads audio references only with a reference setup (Ref2V). A voice reference itself is made at 12 steps or more
   (low resolution is fine; SNAP-R88); normal video takes stay at the setup's steps. Text alone doesn't cast a voice:
   H3 ignores pitch, age and sex words, so anchor the voice with a talking take and measure it (skill `snap-voice`).
@@ -617,13 +623,27 @@ it on the Library rail's **Book** row (lenses Beat sheet, Settei, Boards, Cut ba
   relationships are prose only. `state_at {"book", "entity", "beat"}` folds them (story order, never telling order).
 - **Cuts**: `add_cut {"book", "scene_name" or "scene", "beats": ["b3"], "cast": [...], "props": ["prop:letter"],
   "location": "location:<id>", "plate": "P1", "seconds": 4, "sound", "transition"}` makes a shot with its unit and
-  the next cut number (C1, C2…: an id). `set_unit` changes it (`trim {in_s, out_s, gain_db}` for the Cut).
+  the next cut number (C1, C2…: an id). `set_unit` changes it (`trim {in_s, out_s, gain_db}` for the Cut; `master
+  {"cut": "C8", "at_s": 1.92, "crop": [0.5, 0, 0.5, 1]}` for an insert or close-up: that cut's active take's frame
+  becomes its continuity picture, in the board's context and in References, SNAP-R236).
+- **Dials on a cut** (the steering dials; the Book's "dial" is its autonomy dial): `set_cut_dials {"book", "cut":
+  "C6", "rows": [{"dial": "dials/h3_light_dramatic_v2_hook.safetensors", "strength": 3, "time": {"points": [[0, 0],
+  [0.6, 0.2], [1.6, 1], [5.17, 1]]}}]}` plans a cut's rows (or by `{scene, shot}`; `set` one row, `remove` one,
+  `move_key {dial, key: "peak", to_s}`, `from_rack: true` adopts the open recipe's rack). Keys are clip seconds, the
+  clock of the take's words. Defaults are filled and said in `defaulted` (every blend step of the setup, audio
+  protect, the pipeline's measured strength; SNAP-R231). `compile_unit` shows `dials` (with `effective`) and lints
+  them; `apply_unit` sets the rack exactly from them, naming what it took off; a take reads stale "dial rows changed"
+  when they move; `retake {take, dials: "cut"}` re-takes with the plan as it stands (SNAP-R230, R234). `add_dial` /
+  `set_dial` take the same `time` on a plain shot. `set_dial_info {dial, info}` writes `kind` and per-pipeline
+  `pipelines {t2v, ref2v, fl2v: {useful, overcook, steps, evidence, notes}}` into a dial file (metadata only, SNAP-R232);
+  `make_dial` saves into this server's own models folder and puts nothing on the rack unless `add_to_rack` (its answer
+  names the folder and the others; SNAP-R239).
 - **Compile, then apply**: `compile_unit {"scene", "shot"}` is the compiled state sheet (each field with the beat and
   change that set it, its sentence, "words only" or its state picture; the place; the reference package; the prompt
   with the style paragraph first, then the beats' text, the unit's blocking and camera; palette notes; a beat still
   waiting in a proposal is named with its id; `board`: exactly what `make_board` sends). `apply_unit` puts it into the cut's recipe (open the shot and
   `start_recipe` first on an empty one) and pins what the take will carry, citing every picture from References as
-  they finally stand and giving a Cast its voice only where it has a line (SNAP-R141); its answer gives the whole
+  they finally stand and giving a Cast its voice only where it has a line (SNAP-R141, R237); its answer gives the whole
   prompt. Then `run`. Both take `beats` (the Beat
   slot): the same cut at another story moment, and its takes remember it. `story_stale {"book"}` names
   the takes whose used fields moved.

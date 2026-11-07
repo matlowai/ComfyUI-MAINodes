@@ -76,6 +76,14 @@ until the person accepts it. Tool calls: `docs/snap/AGENT_START.md` ("The Book")
    (`add_shot {scene, from: {scene, shot}}`: the copy carries no story pin) and `apply_unit {scene, shot, land: {scene,
    shot: <the copy>}}`: the takes there pin the cut they came from (SNAP-R166). Before proposing a story edit, read its
    `reversal_cost.said`: it names the cuts whose compile moves, not only the takes it newly flags (SNAP-R172).
+8b. **Dial rows (the steering dials, SNAP-R230).** A cut's dials are its plan: `set_cut_dials {book, cut, rows}` with
+   time curves in clip seconds (the premise's dial plan is already in seconds). Leave steps and audio to the defaults
+   (every step, protect) unless a dial's info measured otherwise; read `defaulted` and `compile_unit`'s lint (a look
+   row at the wide's strength on a close-up, F-SQ21: about half; a weather row leaks into the sound, F-SQ22: plan the
+   attack's sound in post). `apply_unit` owns the rack: a row you tuned by hand goes unless you adopt it
+   (`set_cut_dials {from_rack: true}`). An insert or close-up names its master (`set_unit {master: {cut, at_s,
+   crop}}`, SNAP-R236): a frame of the wide it cuts in from. Every speaking Cast needs a voice reference; a Cast who
+   has no line in a cut gets no voice there (SNAP-R237).
 9. **The Cut.** Make the best take of each cut active, trim and level them (`set_unit {trim}`), `export_cut {book}`:
    one mp4 as a take of the Book, plus OTIO for an editing program.
 

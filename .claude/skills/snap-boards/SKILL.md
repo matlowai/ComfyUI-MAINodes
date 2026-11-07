@@ -33,6 +33,11 @@ One board per cut, made with New view on the cut's plate (`snap-new-view`) and l
 - the planned transition to the next cut: match on action, eyeline, screen direction, the 180° line;
 - the beat's intensity, by the genre's playbook (a climax stands and delivers; horror holds).
 
+An insert or close-up cites a frame of its master shot (SNAP-R236; the operator: "take a frame of the blocking as a
+reference"): `set_unit {master: {cut: "C8", at_s: 1.92, crop: [0.5, 0, 0.5, 1]}}` makes that frame of C8's active
+take the board's nearest prior view and a continuity picture in the video's References, so light, palm, robe and
+background match (seq02's sweat-drop insert from frame 46 of the clash scored 0.55-0.58 against 0.51 without).
+
 Re-boarding from a fixed board (G10, short05 C2):
 - Pick a board candidate with `set_board`, never `apply_candidate`: in a cut's shot a still is a board, and the cut's
   active take stays its video (SNAP-R185).

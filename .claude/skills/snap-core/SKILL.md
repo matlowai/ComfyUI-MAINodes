@@ -112,7 +112,9 @@ Every call in Snap runs under one resolved stack of agent instructions. Read it 
   writes there go as proposals (`propose: true`) or wait for the driver (SNAP-R219). Take back your own stale proposal
   with `withdraw_proposal {id, because}` (SNAP-R228). Words come from Snap (check_voice's `voice.words`, SNAP-R227):
   read them in Astrid with `timelines words --published` (without `--published` it leaves a working copy that blocks
-  trims).
+  trims). A clip's `generation.snap.dials.rows[*].curve.keys` are in the same seconds as its `app.astrid.words`
+  (SNAP-R233): a dial's peak moves onto a word with `set_cut_dials {book, cut, move_key: {dial, key: "peak", to_s}}`
+  and a `retake {take, dials: "cut"}` (on a trimmed cut the picture shows a key at key − in_s).
 
 ## Working rules
 
