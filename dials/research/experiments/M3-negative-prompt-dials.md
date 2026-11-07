@@ -64,6 +64,12 @@ Same 4096² render, seed 7, at CFG 1:
 At −8 the picture dial does what the CFG 1.5 negative did to the logo, at CFG 1 and with no extra pass, and keeps the
 composition far better than the word dial. A small signature remains, as it does with the real negative. One seed.
 
+**Twelve more seeds** (1024², KroMoss DMD2, CFG 1, 8 steps, no high-resolution LoRA; seeds 101-112): the prompt draws a
+watermark on **8 of 12** controls (seven logo-style marks, one "@handle"). With the picture dial at −8: **6 of 8 fully
+removed**, one reduced, one survives (smaller); the 3 clean controls stay clean, and **one clean control gains a tiny new
+mark** (a false positive). Side effect: the white dress turns light blue, aqua or mint in most seeds (pose, composition and
+face stay close). Next: re-make the pairs from more varied crops and stamp colours, and re-run the same seeds.
+
 **What it shows.** A negative-prompt dial pushes in the right direction but only part of the way: it fades a watermark
 the real negative removes. A dial is one fixed shift of the text conditioning; a negative prompt steers at every step
 through a second branch. A picture-pair dial does the job (above). Next: a second seed and other prompts; more varied stamp pairs (the
