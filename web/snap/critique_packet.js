@@ -11,7 +11,8 @@
 // carry its camera mark and eye gap; the record's notes are flagged as claims to check, never evidence (F-E22).
 // SNAP-R102 whole frame first, nothing shrunk · SNAP-R104 what is read follows the checklist · SNAP-R58 nothing an agent
 // reads is cut: part, offset and limit page it · SNAP-R136 what the sheet shows, the packet shows · SNAP-R155 the place's
-// scale anchors and how to measure against them (scale_rule) · see docs/snap/SNAP_RULES.md
+// scale anchors and how to measure against them (scale_rule) · SNAP-R184 a board's packet: its Cast, its pictures by number, a
+// measuring copy · see docs/snap/SNAP_RULES.md
 import * as L from "./library.js";
 import * as T from "./takes.js";
 import * as C from "./candidates.js";
@@ -64,17 +65,22 @@ function marked(plan, b) {
   }
   return c;
 }
-// F-G07: a measuring copy of a plate or master: lines every 10 % of each side with their pixel position, so a critic reads
-// a camera height or a wall ratio off the picture instead of cropping its own
+// F-G07: a measuring copy of a plate, master or board: lines every 5 % of each side with their pixel position and a 1 %
+// ruler on all four edges (F-Q26: a 10 % grid was too coarse to read a sill or an arch top), so a critic reads a camera
+// height or a wall ratio off the picture instead of cropping its own
 function measured(src) {
-  const c = Object.assign(document.createElement("canvas"), { width: src.width, height: src.height }), g = c.getContext("2d"), fs = Math.max(11, Math.round(c.width * 0.011));
+  const c = Object.assign(document.createElement("canvas"), { width: src.width, height: src.height }), g = c.getContext("2d"), fs = Math.max(11, Math.round(c.width * 0.009));
   g.drawImage(src, 0, 0);
   g.font = `bold ${fs}px sans-serif`; g.lineWidth = 1;
-  for (let k = 1; k < 10; k++) {
-    const x = Math.round((c.width * k) / 10), y = Math.round((c.height * k) / 10);
-    g.strokeStyle = "#ff3df0a0"; g.beginPath(); g.moveTo(x + 0.5, 0); g.lineTo(x + 0.5, c.height); g.moveTo(0, y + 0.5); g.lineTo(c.width, y + 0.5); g.stroke();
+  for (let k = 1; k < 100; k++) { // the ruler: a short tick every 1 %, longer every 5 %
+    const x = Math.round((c.width * k) / 100) + 0.5, y = Math.round((c.height * k) / 100) + 0.5, len = Math.max(6, Math.round(c.width * (k % 5 ? 0.006 : 0.012)));
+    g.strokeStyle = "#ff3df0"; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, len); g.moveTo(x, c.height); g.lineTo(x, c.height - len); g.moveTo(0, y); g.lineTo(len, y); g.moveTo(c.width, y); g.lineTo(c.width - len, y); g.stroke();
+  }
+  for (let k = 1; k < 20; k++) {
+    const x = Math.round((c.width * k) / 20), y = Math.round((c.height * k) / 20);
+    g.strokeStyle = k % 2 ? "#ff3df060" : "#ff3df0a0"; g.beginPath(); g.moveTo(x + 0.5, 0); g.lineTo(x + 0.5, c.height); g.moveTo(0, y + 0.5); g.lineTo(c.width, y + 0.5); g.stroke();
     g.fillStyle = "#0b0c0f"; g.strokeStyle = "#ffffffd0"; g.lineWidth = 3;
-    for (const [t, tx, ty] of [[`x ${x}`, x + 3, fs + 2], [`y ${y}`, 3, y - 3]]) { g.strokeText(t, tx, ty); g.fillText(t, tx, ty); }
+    for (const [t, tx, ty] of [[`x ${x}`, x + 3, fs * (k % 2 ? 2.2 : 1.1) + 2], [`y ${y}`, fs * 1.6, y - 3]]) { g.strokeText(t, tx, ty); g.fillText(t, tx, ty); }
     g.lineWidth = 1;
   }
   return c;
@@ -106,7 +112,8 @@ function subjects(r, tb) {
 // the context pictures, whole: from the subject's pins and its place in the scene
 function contextOf(r, tb) {
   const s = r.subject, want = new Set((tb.checklists[r.checklist] ?? tb.checklists.still).context), out = [];
-  const add = (media, what, take, marks) => { if (marks || !out.some((x) => pathOf(x.media) === pathOf(media) && !x.marks)) out.push({ media, what, ...(take ? { take } : {}), ...(marks ? { marks } : {}) }); };
+  // F-Q26: a picture the subject was made from that is already here (the plate the place adds) says its Picture number too
+  const add = (media, what, take, marks) => { const same = !marks && out.find((x) => pathOf(x.media) === pathOf(media) && !x.marks); if (same) { if (/^made from: /.test(what) && !same.what.startsWith("made from: ")) same.what = `${what} (= ${same.what})`; return; } out.push({ media, what, ...(take ? { take } : {}), ...(marks ? { marks } : {}) }); };
   const place = (ref, n, plates, skip) => { const got = W.get(W.refOf("location", W.parse(ref).id, n)); if (!got) return; const b = got.version.body;
     if (b.master && skip !== "master") add(inputMedia(b.master.file), `${b.name} v${got.version.n}, master`);
     if (b.plan && skip !== "plan") add(inputMedia(b.plan.file), `${b.name} v${got.version.n}, plan`);
@@ -127,7 +134,8 @@ function contextOf(r, tb) {
     if (s.kind === "candidate") takeFrame(t, "last", `take ${t.number}, the take this edit paints over`);
     // F-F11: a New view (a board) was made from context pictures, given as files (the Cast's, the place's): they are what
     // it should agree with, so the cast pass reads pictures, not only words
-    if (/^view\//.test(t.parent?.method ?? "")) for (const c of t.parent.options?.context ?? []) if (c.file && !c.take) add(inputMedia(c.file), `made from: Picture ${c.n} ${c.label ?? c.file}`);
+    // F-Q26: every one of them, numbered as the prompt cites them (a take given as context too)
+    if (/^view\//.test(t.parent?.method ?? "")) for (const c of t.parent.options?.context ?? []) { if (c.file && !c.take) add(inputMedia(c.file), `made from: Picture ${c.n} ${c.label ?? c.file}`); else if (c.take) takeFrame(T.get(c.take), c.frame ?? 0, `made from: Picture ${c.n} ${c.label ?? c.take}`); }
   }
   if (s.kind === "record" && s.ref.startsWith("location:")) { const { n } = W.parse(s.ref); place(s.ref, n, null, s.part === "views" ? "all" : s.part); }
   if (s.kind === "record" && s.part === "views") out.splice(0, out.length, ...out.filter((x) => x.marks || /, camera map$/.test(x.what))); // every view is a subject already; the drawn plan and the map stay
@@ -145,7 +153,10 @@ function words(r, tb) {
     if (t.sound?.mean_db != null) out.sound = { mean_db: t.sound.mean_db, quiet_below_db: T.QUIET_DB };
     out.pins = Object.entries(t.world ?? {}).map(([ref, p]) => { const b = W.get(W.refOf(W.parse(ref).kind, W.parse(ref).id, p.n))?.version.body ?? {};
       return { ref: W.refOf(W.parse(ref).kind, W.parse(ref).id, p.n), name: b.name ?? p.name, ...(b.details ? { details: b.details } : {}), ...(b.notes ? { notes: b.notes } : {}), ...(W.parse(ref).kind === "location" ? { scale: b.scale ?? [] } : {}), ...(p.placed?.plates ? { plates_cited: p.placed.plates, cameras: (b.plates ?? []).filter((x) => p.placed.plates.includes(x.name)).map((x) => ({ plate: x.name, ...(x.pose ?? {}), ...(x.camera ? { mark: x.camera } : {}) })) } : {}), ...(p.placed?.missing ? { missing: p.placed.missing } : {}) }; });
-    out.who_should_be_here = out.pins.filter((p) => p.ref.startsWith("cast:")).map((p) => p.name);
+    // F-Q26: a board's Cast are in its cut (its story pin's unit, or the shot it landed in), not in its pins: a New view
+    // pins the place it was drawn from, and the Cast's pictures go in as files
+    const st = t.story ?? null, unit = (st?.unit && SC.get(st.unit.scene)?.shots.find((x) => x.id === st.unit.shot)?.unit) || RT.shotOf(t)?.shot.unit, castName = (ref) => W.get(ref)?.version.body.name ?? null;
+    out.who_should_be_here = [...new Set([...out.pins.filter((p) => p.ref.startsWith("cast:")).map((p) => p.name), ...(unit?.cast ?? []).map(castName), ...(st?.cast ? [castName(st.cast)] : [])].filter(Boolean))];
   }
   if (s.kind === "record") { const b = W.get(s.ref)?.version.body ?? {}, gaps = s.ref.startsWith("location:") ? L.eyeGaps(b) : {};
     out.record = { ref: s.ref, name: b.name, ...(b.notes ? { notes: b.notes } : {}), ...(b.details ? { details: b.details } : {}),
@@ -172,11 +183,11 @@ export async function build(r, tb) {
   wholes.forEach((w, i) => { if (!tiled(i) || Math.max(w.canvas.width, w.canvas.height) <= tile.size) return;
     for (const x of tiles(w.canvas, tile.size, tile.overlap)) { pics.push({ label: `${pics[i].label.split(" · ")[0]} · tile ${x.cell} · px ${x.box.join(",")} of ${w.canvas.width}x${w.canvas.height}, ${fmt(lossless(w))}`, role: "tile", what: w.what, path: pics[i].path, width: x.box[2], height: x.box[3], format: lossless(w) ? "png" : "jpeg", tile: { of: i, cell: x.cell, box: x.box } }); images.push(encode(x.canvas, lossless(w))); } });
   // F-K11: say why there are no tiles, so a critic doesn't wait for them (a picture within the tile size is whole at 100 %)
-  if (!pics.some((p) => p.role === "tile")) w.tiles = `none: every subject picture is at most ${tile.size} px on its long side, so each whole is already at 100 %${["plate", "master", "location"].includes(r.checklist) ? "; the measuring copies follow the wholes" : ""}`;
-  // F-G07: a plate or master gets a measuring copy (10 % grid with pixel marks), mapped like a tile over the whole picture;
+  if (!pics.some((p) => p.role === "tile")) w.tiles = `none: every subject picture is at most ${tile.size} px on its long side, so each whole is already at 100 %${["plate", "master", "location", "board"].includes(r.checklist) ? "; the measuring copies follow the wholes" : ""}`;
+  // F-G07: a plate or master gets a measuring copy (a 5 % grid with pixel marks, a 1 % ruler), mapped like a tile over the whole picture;
   // F-K11: every view of a location too (village v21: its eye heights were measured from the critic's own crops)
-  if (["plate", "master", "location"].includes(r.checklist)) wholes.forEach((w, i) => { if (isVideo(w.media)) return;
-    pics.push({ label: `${pics[i].label.split(" · ")[0]} · measure: a 10 % grid with its pixel positions over the whole, ${w.canvas.width}x${w.canvas.height}, png`, role: "tile", what: w.what, path: pics[i].path, width: w.canvas.width, height: w.canvas.height, format: "png", tile: { of: i, cell: "measure", box: [0, 0, w.canvas.width, w.canvas.height] } });
+  if (["plate", "master", "location", "board"].includes(r.checklist)) wholes.forEach((w, i) => { if (isVideo(w.media)) return; // F-Q26: a board's horizon is measured too
+    pics.push({ label: `${pics[i].label.split(" · ")[0]} · measure: a 5 % grid with its pixel positions and a 1 % ruler on the edges, over the whole, ${w.canvas.width}x${w.canvas.height}, png`, role: "tile", what: w.what, path: pics[i].path, width: w.canvas.width, height: w.canvas.height, format: "png", tile: { of: i, cell: "measure", box: [0, 0, w.canvas.width, w.canvas.height] } });
     images.push(png(measured(w.canvas))); });
   for (const cx of ctx) {
     try {

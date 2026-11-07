@@ -9,7 +9,10 @@
 //   first (no if_kept); without it, if_kept says how to make one;
 // - SNAP-R183 (F-Q12): exporting a Book alone carries its story and look (manifest carried), offers its Cast and places, says
 //   how the zip reaches another install; after the Book, story and look are parked, importing the zip brings them back and
-//   get_book opens.
+//   get_book opens;
+// - SNAP-R184 (F-Q26): a board's packet names who should be in it (its cut's Cast), labels every picture it was made from
+//   by its Picture number (the plate the place adds says "made from: Picture 1 C2's camera (= … plate P2 counter)"), and
+//   carries a measuring copy (a 5 % grid with a 1 % ruler).
 // usage: node test_g9_book.js [port] [base]   prints "g9book n/m" last
 const { chromium } = require("playwright");
 const fs = require("fs"), path = require("path");
@@ -58,6 +61,11 @@ const STYLE = "2D cel-shaded Japanese TV anime, crisp clean black lineart, flat 
     R.keyTake = keyTake && await waitTake(keyTake);
     R.setKey = keyTake && await call("set_board", { scene: c2.scene, shot: c2.shot, take: keyTake });
     R.unit2 = await B((B, { scene, shot }) => B.unitOf(scene, shot).unit, { scene: c2.scene, shot: c2.shot });
+    // F-Q26: the key board's packet
+    const crow = keyTake && (await call("critique", { take: keyTake })).critique;
+    R.pkContext = crow && await call("critique_packet", { critique: crow, part: "context" });
+    R.pkTiles = crow && await call("critique_packet", { critique: crow, part: "tiles" });
+    for (const k of ["pkContext", "pkTiles"]) if (R[k]?.images) R[k].images = R[k].images.length; // the pictures' bytes stay out of the result file
 
     // ---- F-Q13, F-Q14 ----
     R.design = await call("design_state", { book, cast: kuroe, state: "monocle off", covers: { "carried.worn": [] }, words: "both eyes bare, the monocle hangs on its chain", count: 1, seeds: [9401], method: "ph3_view" });
@@ -93,6 +101,9 @@ const STYLE = "2D cel-shaded Japanese TV anime, crisp clean black lineart, flat 
     exportCarries: JSON.stringify(carried) === JSON.stringify(["look", "story"]) && (S.exp?.manifest?.records ?? []).length === 3,
     exportOffers: (S.exp?.offered ?? []).length === 3 && /upload\/image/.test(S.exp?.to_another_install ?? ""),
     goneThenBack: !!S.gone?.error && !S.back?.error && (S.imp?.records ?? []).length === 3 && !!S.back?.story,
+    boardPacketCast: JSON.stringify([...(S.pkContext?.words?.who_should_be_here ?? [])].sort()) === JSON.stringify(["Baron Kuroe", "Mio Hayase"]),
+    boardPacketNumbered: (S.pkContext?.pictures ?? []).some((x) => /^context · made from: Picture 1 C2's camera \(= Hayase Yatai v\d+, plate P2 counter\)/.test(x.label)) && [2, 3].every((n) => (S.pkContext?.pictures ?? []).some((x) => x.label.includes(`made from: Picture ${n} `))),
+    boardMeasure: (S.pkTiles?.pictures ?? []).some((x) => x.tile?.cell === "measure" && /measure: a 5 % grid with its pixel positions and a 1 % ruler/.test(x.label)) && S.pkContext?.words?.checklist === "board",
     noErrors: !S.crash && !(S.errors ?? []).length,
   };
   R.checks = checks; R.pass = Object.values(checks).filter(Boolean).length; R.total = Object.keys(checks).length;

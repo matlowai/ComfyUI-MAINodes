@@ -8,7 +8,7 @@
 //   adds a mark, and the same name again moves it;
 // - F-G02: set_active_take takes a unique start of the take's id; F-G08: apply_candidate names the take it replaced;
 // - F-G11: list_critiques {ref} lists one record's rows; F-G10: a note two rows wrote on the same region counts once;
-// - F-G07: a plate's packet has a measuring copy (a 10 % grid, mapped like a tile over the whole), its still context is
+// - F-G07: a plate's packet has a measuring copy (a 5 % grid with a 1 % ruler, mapped like a tile over the whole), its still context is
 //   PNG, and the drawn plan names the file it was drawn over instead of claiming its path;
 // - F-G04 (SNAP-R154): draw_set_plan {preview: true} answers the picture and the labels that run off the plan or over
 //   another, and makes no version;
@@ -142,7 +142,7 @@ const bridge = (tool, args, agent) => http("/mainodes/snap/call", { tool, args }
     "F-G03 a pose alone keeps the plate's picture, mark, use and note": (() => { const p = plate(S.afterPose); return p?.file === "snaptest_g5/village_gate.png" && p.camera === "G1" && p.use === "C1" && p.note === "the gate from the road" && p.pose?.eye_height === 1.5 && (S.pose?.kept?.gate ?? []).includes("file"); })(),
     "F-G03 a camera mark object adds a mark, then moves it": (() => { const b = v(S.afterMove), g2 = (b?.cameras ?? []).find((c) => c.name === "G2"); return plate(S.afterMove)?.camera === "G2" && g2?.x === 0.45 && g2?.heading === 20 && (b.cameras ?? []).some((c) => c.name === "G1"); })(),
     "F-G11 list_critiques {ref} lists the record's rows only": S.byRef?.count >= 2 && (S.byRef?.rows ?? []).every((r) => /g5|Hold test|Village/.test(r.title ?? "")) && S.rows?.every((r) => S.byRef.rows.some((x) => x.critique === r)),
-    "F-G07 a plate's packet: a measuring copy, PNG still context, the drawn plan's file named apart": (S.packet ?? []).some((p) => p.cell === "measure" && p.format === "png" && /measure: a 10 % grid/.test(p.label)) && (S.packet ?? []).filter((p) => p.role === "context" && !p.drawn_over).every((p) => p.format === "png") && (S.packet ?? []).some((p) => p.drawn_over && p.path === null),
+    "F-G07 a plate's packet: a measuring copy, PNG still context, the drawn plan's file named apart": (S.packet ?? []).some((p) => p.cell === "measure" && p.format === "png" && /measure: a 5 % grid/.test(p.label)) && (S.packet ?? []).filter((p) => p.role === "context" && !p.drawn_over).every((p) => p.format === "png") && (S.packet ?? []).some((p) => p.drawn_over && p.path === null),
     "F-G04 a plan preview: the picture, the labels in trouble, no version": S.preview?.preview === true && S.preview.images?.[0]?.mimeType === "image/png" && S.preview.images[0].bytes > 1000 && S.previewSame
       && (S.preview.labels ?? []).some((l) => l.shape === 1 && l.off_edge?.includes("right")) && (S.preview.labels ?? []).some((l) => l.shape === 2 && l.overlaps?.some((o) => /Gate/.test(o))) && !(S.preview.labels ?? []).some((l) => l.shape === 0),
     "F-G06 an older due plate row is answered by the later written one": (S.oldPlate ?? []).some((r) => r.state === "stale" && /read on v\d+ \(crit-[^)]+\): the same plate gate/.test(r.stale ?? "")),
