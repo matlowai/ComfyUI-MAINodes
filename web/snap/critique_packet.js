@@ -5,8 +5,8 @@
 // its passes, the prompt (the beat), the Cast lines, the location's notes, the pins, the sound. A region the critic names
 // on a tile maps back to the subject's own fractions through the tile's box (critiques.js). Frames of a take kept
 // encrypted open only through the vault, as the viewer reads them; a locked one says so instead.
-// G3: a still's subject pictures and tiles go as PNG (lossless: seams and ghost faces survive), video frames and context
-// as JPEG, and every label says which (F-E07); a location's plan also goes with its camera marks and plate poses drawn as
+// G3: a still's subject pictures and tiles go as PNG (lossless: seams and ghost faces survive), video frames as JPEG, and
+// every label says which (F-E07; G5: a still's context pictures go as PNG too, F-G07); a location's plan also goes with its camera marks and plate poses drawn as
 // the Location sheet draws them, beside the bare plan, and its camera map when it has one (F-E17); each plate's words
 // carry its camera mark and eye gap; the record's notes are flagged as claims to check, never evidence (F-E22).
 // SNAP-R102 whole frame first, nothing shrunk · SNAP-R104 what is read follows the checklist · SNAP-R58 nothing an agent
@@ -60,6 +60,21 @@ function marked(plan, b) {
     g.beginPath(); g.arc(x, y, r, 0, 2 * Math.PI); g.fillStyle = col; g.fill(); g.strokeStyle = "#0b0c0f"; g.stroke();
     g.fillStyle = "#0b0c0f"; g.strokeStyle = "#ffffffd0"; g.lineWidth = 4; const label = `${m.kind === "plate" ? "plate" : "mark"} ${m.name}`;
     g.strokeText(label, x + r * 1.4, y + (m.kind === "plate" ? -r : r * 2.6)); g.fillText(label, x + r * 1.4, y + (m.kind === "plate" ? -r : r * 2.6)); g.lineWidth = 2;
+  }
+  return c;
+}
+// F-G07: a measuring copy of a plate or master: lines every 10 % of each side with their pixel position, so a critic reads
+// a camera height or a wall ratio off the picture instead of cropping its own
+function measured(src) {
+  const c = Object.assign(document.createElement("canvas"), { width: src.width, height: src.height }), g = c.getContext("2d"), fs = Math.max(11, Math.round(c.width * 0.011));
+  g.drawImage(src, 0, 0);
+  g.font = `bold ${fs}px sans-serif`; g.lineWidth = 1;
+  for (let k = 1; k < 10; k++) {
+    const x = Math.round((c.width * k) / 10), y = Math.round((c.height * k) / 10);
+    g.strokeStyle = "#ff3df0a0"; g.beginPath(); g.moveTo(x + 0.5, 0); g.lineTo(x + 0.5, c.height); g.moveTo(0, y + 0.5); g.lineTo(c.width, y + 0.5); g.stroke();
+    g.fillStyle = "#0b0c0f"; g.strokeStyle = "#ffffffd0"; g.lineWidth = 3;
+    for (const [t, tx, ty] of [[`x ${x}`, x + 3, fs + 2], [`y ${y}`, 3, y - 3]]) { g.strokeText(t, tx, ty); g.fillText(t, tx, ty); }
+    g.lineWidth = 1;
   }
   return c;
 }
@@ -150,12 +165,17 @@ export async function build(r, tb) {
   const tiled = (i) => rule === "all" || rule === "views" || (rule === "ends" && (i === 0 || i === wholes.length - 1));
   wholes.forEach((w, i) => { if (!tiled(i) || Math.max(w.canvas.width, w.canvas.height) <= tile.size) return;
     for (const x of tiles(w.canvas, tile.size, tile.overlap)) { pics.push({ label: `${pics[i].label.split(" · ")[0]} · tile ${x.cell} · px ${x.box.join(",")} of ${w.canvas.width}x${w.canvas.height}, ${fmt(lossless(w))}`, role: "tile", what: w.what, path: pics[i].path, width: x.box[2], height: x.box[3], format: lossless(w) ? "png" : "jpeg", tile: { of: i, cell: x.cell, box: x.box } }); images.push(encode(x.canvas, lossless(w))); } });
+  // F-G07: a plate or master gets a measuring copy (10 % grid with pixel marks), mapped like a tile over the whole picture
+  if (["plate", "master"].includes(r.checklist)) wholes.forEach((w, i) => { if (isVideo(w.media)) return;
+    pics.push({ label: `${pics[i].label.split(" · ")[0]} · measure: a 10 % grid with its pixel positions over the whole, ${w.canvas.width}x${w.canvas.height}, png`, role: "tile", what: w.what, path: pics[i].path, width: w.canvas.width, height: w.canvas.height, format: "png", tile: { of: i, cell: "measure", box: [0, 0, w.canvas.width, w.canvas.height] } });
+    images.push(png(measured(w.canvas))); });
   for (const cx of ctx) {
     try {
       const at = cx.media.at, [f] = await canvases(cx.media, at != null ? [at] : [0]);
-      const canvas = cx.marks ? marked(f.canvas, cx.marks) : f.canvas;
-      pics.push({ label: `context · ${cx.what} · ${canvas.width}x${canvas.height}, ${fmt(false)}`, role: "context", what: cx.what, path: pathOf(cx.media), width: canvas.width, height: canvas.height, format: "jpeg", ...(f.frame != null ? { frame: f.frame } : {}), ...(cx.take ? { take: cx.take } : {}) });
-      images.push(jpeg(canvas));
+      // F-G07: a still's context goes lossless like the subject; the drawn plan names the file it was drawn over, not as its own path
+      const canvas = cx.marks ? marked(f.canvas, cx.marks) : f.canvas, still = !isVideo(cx.media);
+      pics.push({ label: `context · ${cx.what} · ${canvas.width}x${canvas.height}, ${fmt(still)}`, role: "context", what: cx.what, ...(cx.marks ? { path: null, drawn_over: pathOf(cx.media) } : { path: pathOf(cx.media) }), width: canvas.width, height: canvas.height, format: still ? "png" : "jpeg", ...(f.frame != null ? { frame: f.frame } : {}), ...(cx.take ? { take: cx.take } : {}) });
+      images.push(encode(canvas, still));
     } catch (e) { pics.push({ label: `context · ${cx.what} · not readable: ${e.message}`, role: "context", what: cx.what, path: pathOf(cx.media), missing: e.message }); images.push(null); }
   }
   return { pictures: pics, images, words: w };

@@ -110,7 +110,7 @@ const upload = async (file, name) => { const fd = new FormData(); fd.append("ima
   const checks = {
     "F-E01: a location saved before the critic started gets rows for its newest version (master, plan, 6 plates, every view), trigger existing": R.existing?.length === 9 && R.existing.every((r) => r.trigger === "existing" && /saved before the critic started/.test(r.title)),
     "F-E19: a note owned by 'location notes' is the record's notes, not the master": R.ownerNotes?.part === "notes" && /^location:location-village@1$/.test(R.ownerNotes.ref),
-    "F-E07: a still's packet pictures are PNG and the labels say so; context JPEG": R.planPk?.mimes?.[0] === "image/png" && /, png$/.test(R.planPk.labels[0]) && R.planPk.labels.some((l) => /^context .*jpeg q90$/.test(l)),
+    "F-E07: a still's packet pictures are PNG and the labels say so; a still's context too (F-G07)": R.planPk?.mimes?.[0] === "image/png" && /, png$/.test(R.planPk.labels[0]) && R.planPk.labels.some((l) => /^context .*png$/.test(l)) && !R.planPk.labels.some((l) => /^context .*jpeg/.test(l)),
     "F-E17: the plan also comes with its camera marks and plate poses drawn": R.planPk?.labels?.some((l) => /plan with camera marks \(blue\) and plate poses \(amber\) drawn/.test(l)),
     "F-E17: each plate in the words carries its camera mark": R.planPk?.plates?.find((p) => p.name === "Pa road outside")?.mark === "P01/C1",
     "F-E22: the record's notes are flagged as claims to check": /claims to check against the pictures, never evidence/.test(R.planPk?.notesAre ?? ""),
