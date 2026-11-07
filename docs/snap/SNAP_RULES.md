@@ -1537,6 +1537,11 @@ SNAP-R165..R172 (the Book's share of G6; G6's other rules take SNAP-R155..R164).
   state puts elsewhere is a lint line. *Why:* short05 story pass, F-L02: "Mio's right hand is empty" and "a steel
   ladle in her right hand" in one prompt, with an empty lint; the C2 board drew the ladle, and the first pass's C3
   put the monocle back on his eye. *More:* SNAP-R68.
+  *Amended G16 (F-SQ02):* the line is cut into clauses on commas and semicolons outside brackets only, a carried value
+  is matched to a clause by the item it names (its head: "the greatsword in its long scabbard on her back" is a
+  greatsword), never by its place words (back, shoulder), and a hair clause never folds under carried.*. *Why:* seq01:
+  Maren's braid went from 13 of 16 cuts and "tip by her left calf)" was cut out of its bracket. *More:*
+  tests/snap/test_g16_braid.js.
 - **SNAP-R166: apply_unit lands off the Cut.** `apply_unit {land: {scene, shot}}` compiles a cut into another shot (a
   test at a story moment): the cut's own shot and the Cut stay as they are, and the takes there pin the story, beat and
   unit they came from, with `landed`. A shot copied with `add_shot {from}` drops the source's story pin: a copy is not

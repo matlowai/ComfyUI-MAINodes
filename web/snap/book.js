@@ -373,7 +373,23 @@ const cap = (s) => s && s[0].toUpperCase() + s.slice(1);
 // the state agrees with stays, look words and all. {line, left_out: [{clause, path, value, beat, change, said}]}
 const HANDS = { right: "carried.right_hand", left: "carried.left_hand" };
 const escaped = (s) => s.replace(/[.*+?^$()|[\]\\{}]/g, "\\$&");
-const nounOf = (story, v) => String(nameOf(story, v) ?? "").toLowerCase().replace(/^(the|a|an)\s+/, "").trim().split(/\s+/).at(-1) ?? "";
+// F-SQ02: the item a carried value names is its head ("the greatsword in its long scabbard on her back" is a greatsword),
+// never its place words (back, shoulder), which other clauses share
+const nounOf = (story, v) => headOf(String(nameOf(story, v) ?? "")) ?? "";
+// a Cast line's clauses: split on commas and semicolons outside brackets ("(hilt above her right shoulder, tip by her left
+// calf)" stays one clause)
+function clausesOf(line) {
+  const out = [];
+  let depth = 0, at = 0;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === "(" || c === "[") depth++;
+    else if ((c === ")" || c === "]") && depth) depth--;
+    else if ((c === "," || c === ";") && !depth) { out.push(line.slice(at, i)); at = i + 1; }
+  }
+  return [...out, line.slice(at)].map((x) => x.trim()).filter(Boolean);
+}
+const HAIR = /\b(hair|braids?|ponytail|bun|plaits?|fringe|bangs|locks)\b/i; // a hair clause is the person, never something carried
 // F-N01 (SNAP-R178): a wardrobe value read as items: its parts ("no apron", "sleeves rolled up"), each with its head (the
 // garment it names: the last word before a preposition or a participle, never a colour), its words, and whether it takes
 // the item off. The operator hasn't ruled on dropping every clothing clause, so only clauses naming these items fold
@@ -402,9 +418,9 @@ export function foldCastLine(story, ref, line, fields) {
   const ward = fields.wardrobe?.value != null ? wardrobeItems(story, fields.wardrobe.value) : [], items = new Set(ward.map((x) => x.head));
   for (const b of story.beats) for (const c of b.changes.filter((x) => x.entity === ref && x.path === "wardrobe")) for (const x of wardrobeItems(story, c.value)) items.add(x.head);
   const keep = [], left_out = [], lint = [];
-  for (const clause of line.split(/\s*[,;]\s*/).filter(Boolean)) {
+  for (const clause of clausesOf(line)) {
     const side = clause.match(/\b(right|left) hand\b/i)?.[1]?.toLowerCase(), hand = side && HANDS[side];
-    const noun = [...things].find((n) => n && new RegExp(`\\b${escaped(n)}e?s?\\b`, "i").test(clause)), said = new Set(wordsOf(clause)), head = headOf(clause);
+    const noun = HAIR.test(clause) ? null : [...things].find((n) => n && new RegExp(`\\b${escaped(n)}e?s?\\b`, "i").test(clause)), said = new Set(wordsOf(clause)), head = headOf(clause);
     let by = null;
     if (noun) {
       const now = where(noun), agree = hand ? now.includes(hand) : now.includes("carried.worn");
