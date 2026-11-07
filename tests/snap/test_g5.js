@@ -7,7 +7,11 @@
 // - F-G03 (SNAP-R148): add_plate with a pose only keeps the plate's picture, camera, use and note; a camera mark object
 //   adds a mark, and the same name again moves it;
 // - F-G02: set_active_take takes a unique start of the take's id; F-G08: apply_candidate names the take it replaced;
-// - F-G11: list_critiques {ref} lists one record's rows; F-G10: a note two rows wrote on the same region counts once.
+// - F-G11: list_critiques {ref} lists one record's rows; F-G10: a note two rows wrote on the same region counts once;
+// - F-G07: a plate's packet has a measuring copy (a 10 % grid, mapped like a tile over the whole), its still context is
+//   PNG, and the drawn plan names the file it was drawn over instead of claiming its path;
+// - F-G04 (SNAP-R154): draw_set_plan {preview: true} answers the picture and the labels that run off the plan or over
+//   another, and makes no version.
 // usage: node test_g5.js [port] [base]   prints "g5 n/m" last
 const { chromium } = require("playwright");
 const fs = require("fs"), path = require("path");
@@ -44,8 +48,9 @@ const bridge = (tool, args, agent) => http("/mainodes/snap/call", { tool, args }
     R.stamp = await page.evaluate(async () => {
       const I = await import("/extensions/ComfyUI-MAINodes/snap/instructions.js"), J = window.__J, { api } = await import("/scripts/api.js");
       I.setCaller("g5-runner"); const job = J.job({ kind: "check", title: "a slow check for the hold test", takes: false }); I.setCaller(null);
-      const r = await api.fetchApi("/prompt", { method: "POST", body: JSON.stringify({ client_id: api.clientId, prompt: {}, extra_data: { snap_job: job } }) });
-      return { job, queued: (await r.json()).prompt_id ?? null, after: J.job({ kind: "check", title: "no caller" }).agent ?? null };
+      const send = () => api.fetchApi("/prompt", { method: "POST", body: JSON.stringify({ client_id: api.clientId, prompt: {}, extra_data: { snap_job: job } }) }).then((r) => r.json());
+      const ids = []; for (let i = 0; i < 3; i++) ids.push((await send()).prompt_id); // three, so one is still on the queue when list_pages reads it
+      return { job, queued: ids[0] ?? null, after: J.job({ kind: "check", title: "no caller" }).agent ?? null };
     });
     R.listRun = (await bridge("list_pages", {}, "g5-runner")).result?.pages?.find((p) => p.id === id);
     await bridge("use_page", { page: null }, "g5-runner");
@@ -64,7 +69,7 @@ const bridge = (tool, args, agent) => http("/mainodes/snap/call", { tool, args }
     R.plate = await call("add_plate", { location: loc, name: "gate", file: "snaptest_g5/village_gate.png", camera: { name: "G1", x: 0.5, y: 0.9, heading: 0, eye_height: 1.6 }, use: "C1", note: "the gate from the road" });
     // the plate's picture came from take g5w2 (as a walkthrough frame would): written into the record the way add_plate {take} keeps it
     R.v3 = await page.evaluate(async ([loc]) => { const L = await import("/extensions/ComfyUI-MAINodes/snap/library.js"), W = await import("/extensions/ComfyUI-MAINodes/snap/world.js"); const { id, body } = L.locationOf(loc); return L.saveLocation(id, { ...body, plates: body.plates.map((p) => (p.name === "gate" ? { ...p, from: { take: "take-g5w2", frame: 0 } } : p)) }, { note: "gate plate source", by: "agent" }); }, [loc]);
-    R.v4 = await call("save_location", { location: loc, master: { file: "snaptest_g5/master_v2.png" }, note: "master fixed at the source" });
+    R.v4 = await call("save_location", { location: loc, master: { file: "snaptest_g5/master_v2.png" }, plan: { file: "snaptest_g5/a.png" }, note: "master fixed at the source, a plan" });
     R.deps = await call("dependents", { ref: loc });
     R.slots = await call("rerun_slots", { take: "take-g5w1" });
     R.plan = await call("rerun_dependents", { ref: loc });
@@ -76,11 +81,21 @@ const bridge = (tool, args, agent) => http("/mainodes/snap/call", { tool, args }
     R.move = await call("add_plate", { location: loc, name: "gate", camera: { name: "G2", x: 0.45 } });
     R.afterMove = await call("get_record", { ref: R.move.ref });
 
+    // ---- F-G04: a plan preview ----
+    const before = (await call("get_record", { ref: loc })).head;
+    const pv = await call("draw_set_plan", { location: loc, preview: true, shapes: [{ kind: "rect", x: 0.5, y: 0.5, w: 0.3, h: 0.2, label: "Square" }, { kind: "label", x: 0.97, y: 0.3, label: "THE EAST WALL RUNS THE WHOLE WAY" }, { kind: "label", x: 0.5, y: 0.8, label: "Well" }, { kind: "label", x: 0.52, y: 0.8, label: "Gate" }] });
+    R.preview = { ...pv, images: (pv.images ?? []).map((i) => ({ mimeType: i.mimeType, bytes: Math.round((i.data?.length ?? 0) * 0.75) })) };
+    R.afterPreview = (await call("get_record", { ref: loc })).head;
+    R.previewSame = before === R.afterPreview;
+
     // ---- F-G11 + F-G10: one record's rows; a note two rows wrote once ----
     const head = R.move.ref, by = "agent:g5-notes";
     const row = async (part, packet) => { const r = (await http("/mainodes/snap/critique/due", { key: `record:${head}:${part}:g5`, subject: { kind: "record", ref: head, part }, title: `Critic: g5 ${part}`, checklist: part === "views" ? "location" : "plate", by: "fixtures" })).critique; await http("/mainodes/snap/critique/claim", { id: r.id, by }); await http("/mainodes/snap/critique/update", { id: r.id, set: { packet } }); await http("/mainodes/snap/critique/write", { id: r.id, by, verdict: "flaws", passes: {}, notes: [{ id: "n1", severity: "medium", pass: "map", text: "the gate's wall is too low", region: [0.2, 0.3, 0.2, 0.2], picture: 0, owner: "plate gate" }] }); return r.id; };
     R.rows = [await row("views", { pictures: [{ what: "Village v6, plate gate" }], at: Date.now() }), await row("plate gate", { pictures: [{ what: "Village v6, plate gate" }], at: Date.now() })];
     await page.waitForTimeout(1500);
+    const pr = await call("critique", { location: loc, part: "plate gate", again: true });
+    const pk = await call("critique_packet", { critique: pr.critique });
+    R.packet = (pk.pictures ?? []).map((p) => ({ role: p.role, cell: p.tile?.cell ?? null, path: p.path, drawn_over: p.drawn_over ?? null, format: p.format, label: p.label }));
     R.byRef = await call("list_critiques", { ref: loc, compact: true });
     R.notes = await page.evaluate(async ([ref]) => { const CR = await import("/extensions/ComfyUI-MAINodes/snap/critiques.js"), CV = await import("/extensions/ComfyUI-MAINodes/snap/critiqueview.js"); await CR.load(); return CV.locationNotes(ref).map((x) => ({ k: x.k, part: x.part, also: x.also ?? [] })); }, [head]);
 
@@ -111,6 +126,9 @@ const bridge = (tool, args, agent) => http("/mainodes/snap/call", { tool, args }
     "F-G03 a pose alone keeps the plate's picture, mark, use and note": (() => { const p = plate(S.afterPose); return p?.file === "snaptest_g5/village_gate.png" && p.camera === "G1" && p.use === "C1" && p.note === "the gate from the road" && p.pose?.eye_height === 1.5 && (S.pose?.kept?.gate ?? []).includes("file"); })(),
     "F-G03 a camera mark object adds a mark, then moves it": (() => { const b = v(S.afterMove), g2 = (b?.cameras ?? []).find((c) => c.name === "G2"); return plate(S.afterMove)?.camera === "G2" && g2?.x === 0.45 && g2?.heading === 20 && (b.cameras ?? []).some((c) => c.name === "G1"); })(),
     "F-G11 list_critiques {ref} lists the record's rows only": S.byRef?.count >= 2 && (S.byRef?.rows ?? []).every((r) => /g5|Hold test|Village/.test(r.title ?? "")) && S.rows?.every((r) => S.byRef.rows.some((x) => x.critique === r)),
+    "F-G07 a plate's packet: a measuring copy, PNG still context, the drawn plan's file named apart": (S.packet ?? []).some((p) => p.cell === "measure" && p.format === "png" && /measure: a 10 % grid/.test(p.label)) && (S.packet ?? []).filter((p) => p.role === "context" && !p.drawn_over).every((p) => p.format === "png") && (S.packet ?? []).some((p) => p.drawn_over && p.path === null),
+    "F-G04 a plan preview: the picture, the labels in trouble, no version": S.preview?.preview === true && S.preview.images?.[0]?.mimeType === "image/png" && S.preview.images[0].bytes > 1000 && S.previewSame
+      && (S.preview.labels ?? []).some((l) => l.shape === 1 && l.off_edge?.includes("right")) && (S.preview.labels ?? []).some((l) => l.shape === 2 && l.overlaps?.some((o) => /Gate/.test(o))) && !(S.preview.labels ?? []).some((l) => l.shape === 0),
     "F-G10 the repeated note is one note": (S.notes ?? []).filter((x) => x.part === "plate gate").length === 1 && (S.notes ?? []).find((x) => x.part === "plate gate")?.also?.length === 1,
     "F-G02 set_active_take takes a unique start of the id": S.short?.active === "take-g5s2bb",
     "F-G08 apply_candidate names the take it replaced": S.apply?.replaced === "take-g5s2bb" && /in place of take \d+ \(take-g5s2bb\)/.test(S.apply?.said ?? ""),

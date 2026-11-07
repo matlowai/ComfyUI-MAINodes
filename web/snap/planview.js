@@ -6,7 +6,7 @@
 // render picture (plan.render) holds the shapes alone, cropped to the drawing: a render that cites the plan gets that one,
 // so no label is drawn as a disc on the street and no blank paper reads as a surface (short05 F-F04).
 // Coordinates are fractions of the plan from its top left (the same as camera marks and plate poses, SNAP-R84).
-// SNAP-R133 a set plan drawn in Snap, and its render picture · SNAP-R84 locations · SNAP-R60 versions · see docs/snap/SNAP_RULES.md
+// SNAP-R133 a set plan drawn in Snap, and its render picture · SNAP-R154 a preview costs no version, and labels in trouble are named · SNAP-R84 locations · SNAP-R60 versions · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as L from "./library.js";
 import * as W from "./world.js";
@@ -28,22 +28,27 @@ export function checkShapes(shapes) {
 }
 
 // draw shapes (and, for the editor only, camera marks and a selection) onto a 2D context of size w × h
-export function paint(ctx, shapes, w, h_, { cameras = [], selected = -1, marks = false, labels = true } = {}) {
+// `placed` (an array) gets each drawn label's box in pixels: {shape, label, box: [x0, y0, x1, y1]} (F-G04)
+export function paint(ctx, shapes, w, h_, { cameras = [], selected = -1, marks = false, labels = true, placed = null } = {}) {
   const u = Math.min(w, h_), X = (v) => v * w, Y = (v) => v * h_;
+  let at = -1;
   ctx.save();
   ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, w, h_);
   ctx.lineJoin = "round"; ctx.lineCap = "round";
   // a label in its shape: shrunk to fit the shape's width (never below 9 px), lines centred
-  const text = (t, x, y, size, fit = Infinity) => {
+  const text = (t, x, y, size, fit = Infinity, [ax, ay] = [x, y]) => {
     if (!labels) return;
     const lines = String(t).split("\n"), font = (px) => `600 ${Math.round(px)}px Inter, system-ui, sans-serif`;
     ctx.font = font(size);
-    const wide = Math.max(...lines.map((l) => ctx.measureText(l).width));
-    if (wide > fit) { size = Math.max(9, (size * fit) / wide); ctx.font = font(size); }
+    let wide = Math.max(...lines.map((l) => ctx.measureText(l).width));
+    if (wide > fit) { size = Math.max(9, (size * fit) / wide); ctx.font = font(size); wide = Math.max(...lines.map((l) => ctx.measureText(l).width)); }
+    const tall = lines.length * size * 1.15;
+    placed?.push({ shape: at, label: String(t), box: [ax - wide / 2, ay - tall / 2, ax + wide / 2, ay + tall / 2].map(Math.round) });
     ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#111";
     for (const [k, part] of lines.entries()) ctx.fillText(part, x, y + (k - (lines.length - 1) / 2) * size * 1.15);
   };
   shapes.forEach((s, i) => {
+    at = i;
     ctx.save();
     ctx.strokeStyle = "#111"; ctx.fillStyle = "#e9e9e9"; ctx.lineWidth = Math.max(1.5, u * (s.width ?? 0.004));
     const cx = X(s.x ?? 0), cy = Y(s.y ?? 0);
@@ -52,7 +57,7 @@ export function paint(ctx, shapes, w, h_, { cameras = [], selected = -1, marks =
       ctx.beginPath();
       if (s.kind === "rect") ctx.rect(-X(s.w) / 2, -Y(s.h) / 2, X(s.w), Y(s.h)); else ctx.ellipse(0, 0, X(s.w) / 2, Y(s.h) / 2, 0, 0, Math.PI * 2);
       ctx.fill(); ctx.stroke();
-      if (s.label) text(s.label, 0, 0, Math.max(10, u * 0.026), X(s.w) * 0.9);
+      if (s.label) text(s.label, 0, 0, Math.max(10, u * 0.026), X(s.w) * 0.9, [cx, cy]);
     } else if (s.kind === "line") {
       ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(X(s.x2), Y(s.y2)); ctx.lineWidth = Math.max(1.5, u * (s.width ?? 0.006)); ctx.stroke();
       if (s.label) text(s.label, (cx + X(s.x2)) / 2, (cy + Y(s.y2)) / 2 - u * 0.025, Math.max(10, u * 0.022));
@@ -85,7 +90,7 @@ export function bounds(s) {
 const size = (long, aspect) => (aspect >= 1 ? [long, Math.round(long / aspect)] : [Math.round(long * aspect), long]);
 // the plan picture (shapes and labels only) as a PNG blob; `crop`: the render picture, shapes alone, the drawing's bounds
 // filling the picture edge to edge (its fractions are its own, so only the plan's file carries the record's coordinates)
-export async function render(shapes, { size: long = 1024, aspect = 1.4, crop = false } = {}) {
+export async function render(shapes, { size: long = 1024, aspect = 1.4, crop = false, placed = null } = {}) {
   let list = shapes;
   if (crop && shapes.length) {
     const b = shapes.map(bounds).reduce((a, x) => ({ x0: Math.min(a.x0, x.x0), y0: Math.min(a.y0, x.y0), x1: Math.max(a.x1, x.x1), y1: Math.max(a.y1, x.y1) })), bw = Math.max(1e-3, b.x1 - b.x0), bh = Math.max(1e-3, b.y1 - b.y0);
@@ -94,14 +99,32 @@ export async function render(shapes, { size: long = 1024, aspect = 1.4, crop = f
     aspect *= bw / bh;
   }
   const [w, hh] = size(long, aspect), c = Object.assign(document.createElement("canvas"), { width: w, height: hh });
-  paint(c.getContext("2d"), list, w, hh, { labels: !crop });
+  paint(c.getContext("2d"), list, w, hh, { labels: !crop, placed });
+  if (placed) placed.size = [w, hh];
   return new Promise((ok) => c.toBlob(ok, "image/png"));
+}
+// F-G04: labels that run off the plan or over another label, in words an agent can act on
+function labelTrouble(placed) {
+  const [w, hh] = placed.size, out = [], meet = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+  placed.forEach((p, i) => {
+    const off = [p.box[0] < 0 && "left", p.box[1] < 0 && "top", p.box[2] > w && "right", p.box[3] > hh && "bottom"].filter(Boolean);
+    const over = placed.filter((q, j) => j !== i && meet(p.box, q.box)).map((q) => `"${q.label}" (shape ${q.shape})`);
+    if (off.length || over.length) out.push({ shape: p.shape, label: p.label, box: p.box, ...(off.length ? { off_edge: off } : {}), ...(over.length ? { overlaps: over } : {}) });
+  });
+  return out;
 }
 // draw and save: the picture into input/snap/location/<id>/ (named by what it shows), then a new location version with
 // plan {file, shapes} and the camera marks (kept as they were when none are given)
-export async function drawPlan(ref, { shapes, cameras, size: long = 1024, aspect = 1.4, by = "person", note } = {}) {
+// preview: draw only, no upload and no version: the picture comes back (images) with the label trouble (F-G04)
+export async function drawPlan(ref, { shapes, cameras, size: long = 1024, aspect = 1.4, by = "person", note, preview = false } = {}) {
   await L.ready();
-  const { id, body } = L.locationOf(W.refOf("location", W.parse(ref).id)), clean = checkShapes(shapes);
+  const { id, body } = L.locationOf(W.refOf("location", W.parse(ref).id)), clean = checkShapes(shapes), placed = [];
+  if (preview) {
+    const blob = await render(clean, { size: long, aspect, placed }), data = (await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(blob); })).split(",")[1];
+    const trouble = labelTrouble(placed);
+    return { preview: true, shapes: clean.length, size: placed.size, labels: trouble, images: [{ mimeType: "image/png", data, label: "the plan as it would be saved (labels drawn; marks are drawn by the Location sheet, not into it)" }],
+      said: `nothing saved; ${trouble.length ? `${trouble.length} label${trouble.length === 1 ? "" : "s"} run off the plan or over another (labels): move them, shorten them, or break a line with \\n` : "every label sits inside the plan and clear of the others"}` };
+  }
   const hash = W.short(await W.sha({ clean, long, aspect }));
   const upload = async (blob, name) => {
     const form = new FormData();
@@ -111,9 +134,10 @@ export async function drawPlan(ref, { shapes, cameras, size: long = 1024, aspect
     const up = await (await api.fetchApi("/upload/image", { method: "POST", body: form })).json();
     return `${up.subfolder}/${up.name}`;
   };
-  const file = await upload(await render(clean, { size: long, aspect }), `plan-${hash}.png`), shown = await upload(await render(clean, { size: long, aspect, crop: true }), `plan-${hash}-render.png`);
+  const file = await upload(await render(clean, { size: long, aspect, placed }), `plan-${hash}.png`), shown = await upload(await render(clean, { size: long, aspect, crop: true }), `plan-${hash}-render.png`);
   const out = await L.saveLocation(id, { ...body, plan: { file, shapes: clean, render: shown }, cameras: cameras ?? body.cameras ?? [] }, { note: note ?? `plan drawn in Snap (${clean.length} shapes)`, by });
-  return { location: `location:${id}`, ref: out.ref, version: out.n, made: out.made, plan: file, render: shown, shapes: clean.length, cameras: (cameras ?? body.cameras ?? []).length };
+  const trouble = labelTrouble(placed);
+  return { location: `location:${id}`, ref: out.ref, version: out.n, made: out.made, plan: file, render: shown, shapes: clean.length, cameras: (cameras ?? body.cameras ?? []).length, ...(trouble.length ? { labels: trouble } : {}) };
 }
 
 // ---- the editor: a sheet over the Location sheet -------------------------------------------------------------------
