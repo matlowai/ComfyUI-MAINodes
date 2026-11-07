@@ -575,6 +575,10 @@ for t in test_g8_wardrobe.js test_g8_room.js test_g8_dryrun.js; do park; timeout
 # a held-prop cut is boarded at its key, a settei on a plain ground, a Book's export carries its story and look, board
 # packets; each prints "g9<name> n/m" last; screens in ui/g9/
 for t in test_g9_room.js test_g9_book.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
+# G10 (SNAP-R185..R190; F-S findings): a still in a cut's shot is a board, a record's new view lands with it, open_view
+# room says what shows, plate owners by whole name, a board says absent what its pictures may show, a region edit pastes
+# back; prints "g10 n/m" last; screens in ui/g10/
+for t in test_g10.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
 nice -n 19 "$py" -I "$T"/test_iris.py >test_iris.py.out 2>&1; tail -1 test_iris.py.out
 # SNAP-R109: the shipped critic prompt's last real run on the fixtures holds the floor (fixtures.json: r5b, 27/31, 0 FA;
 # a real-agent check, re-scored from its saved notes). critic = r6, the shipped prompt (r5b + metres from the record's

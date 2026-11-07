@@ -6,7 +6,7 @@ description: >
   sound. Use it whenever you make a short, a scene with several cuts, a trailer, or any multi-shot video in Snap, or
   when cuts don't connect (wrong positions, jumps in light, weak climax).
 scope: [tool:run, tool:compile_shot, tool:make_board, tool:set_board, tool:animatic]
-rules: [SNAP-R36, SNAP-R67, SNAP-R131, SNAP-R132]
+rules: [SNAP-R36, SNAP-R67, SNAP-R131, SNAP-R132, SNAP-R185, SNAP-R189, SNAP-R190]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-boards"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -32,6 +32,15 @@ One board per cut, made with New view on the cut's plate (`snap-new-view`) and l
 - scale drawn, not worded: tiny people beside the big thing, low angle, wide lens;
 - the planned transition to the next cut: match on action, eyeline, screen direction, the 180° line;
 - the beat's intensity, by the genre's playbook (a climax stands and delivers; horror holds).
+
+Re-boarding from a fixed board (G10, short05 C2):
+- Pick a board candidate with `set_board`, never `apply_candidate`: in a cut's shot a still is a board, and the cut's
+  active take stays its video (SNAP-R185).
+- The context board's props come back whatever the compile says (the ladle returned from the context, 2/2). The board
+  prompt now says each thing the state takes away is absent even where a picture shows it (SNAP-R189), but the
+  cheapest sure fix is a context that already agrees: edit it at the source first, every field it differs on.
+- To change one detail of a board (the eyewear), edit a crop and paste it back (`edit_from_context {paste_back: true}`,
+  SNAP-R190): a whole-board edit with the Cast's front picture turned a face that looked away from camera (2/2).
 
 ## 3. Animatic and checks
 

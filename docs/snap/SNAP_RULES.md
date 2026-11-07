@@ -1724,3 +1724,53 @@ SNAP-R180 on. R160-R164 stay free.
 - **SNAP-R179 (amended, G9): the candidate tools carry the agent's question.** make_board, edit_from_context and
   design_state take `question`: it heads the Work card row and is the Room's question (F-Q21). The checks Snap queues
   for an agent's candidates are the agent's (F-Q11), and a board keeps its purpose when a method is named (F-Q10).
+
+## Batch G10 (2026-11-07)
+
+SNAP-R185 on. R160-R164 stay free.
+
+- **SNAP-R185: A still in a cut's shot is a board, never the cut's take.** A New view or board candidate that lands in a
+  Book cut's shot is a board candidate: apply_candidate from an agent refuses it before it can wait as a proposal and
+  names the call (`set_board {scene, shot, take}`, role key for a key candidate), and the person's Apply (the candidate
+  sheet, the Room's "This one") puts it in the cut's board slot (the key drawing for a key candidate), not approved,
+  saying the cut's active take stays; Undo puts the old board back. The answer after an edit or a sheet that lands in a
+  cut's shot says set_board in `next` and why in `in_a_cut`. *Why:* F-S07: the hint after a board edit said
+  apply_candidate, which would have made the still the active take of a cut whose active take is its video.
+  *More:* tests/snap/test_g10.js.
+- **SNAP-R186: A record's picture's new view lands with the record.** With no `land`, a New view whose Picture 1 is a
+  location's picture (or a Cast's picture under purpose edit) lands in the shot of the take that picture came from,
+  else in the newest shot outside a Book's cuts with a take that pins the place, and says so in `lands`; when no shot
+  holds the record's work an agent is refused, naming land, and a person's view lands in the open shot as before.
+  *Why:* F-S02: a village plate edit landed in the open short05 shot, and its critic row and Room question then named
+  a short05 shot for a village plate. *More:* tests/snap/test_g10.js.
+- **SNAP-R187: open_view says what the page shows.** The Room lives in Snap's root, so `open_view {view: "room"}` on a
+  page showing the graph switches to Snap first (as the Book and the sheets do), `read_ui` reports `room`, and the
+  answer says the Room is open only when the page shows it. *Why:* F-S03: it said "the Room is open" while the page
+  showed the graph. *More:* tests/snap/test_g10.js.
+- **SNAP-R188: A critic owner names a plate by its whole name first.** Whole plate names that appear in the owner's
+  words are matched first (the longest where two overlap); a label (a name's first word) counts only where one plate
+  has it and no whole name covers it; a label several plates share alone is ambiguous: the owner is unmapped, saying
+  which plates it starts. *Why:* F-S12: "plate Pc square from gate eye" was stored as "plate Pc square N row" because
+  both start with "Pc". *More:* SNAP-R156, tests/snap/test_g10.js.
+- **SNAP-R189: A board says absent what its pictures may still show.** When the frame a board draws (the key, or a cut
+  with no own-beat change) has a thing out of a hand that the cut's own beat puts down, or a Cast line clause the state
+  leaves out, the board prompt says "<who> is without <thing> in this frame, even where <Picture n> shows it", citing
+  the context boards and (for a Cast line clause) that person's Cast pictures; the board's `lint` says so; the board's
+  story pin keeps the list as `absent`, and its critic packet lists it under `should_be_absent` for the beat pass. A
+  context `{take}` takes `keep` like a file does. *Why:* F-S05: compile_unit dropped the ladle, but both key boards drew
+  it again from the context board that showed it: pictures beat words. *More:* tests/snap/test_g10.js; the GPU
+  measure is in the study's LESSONS "Batch G10".
+- **SNAP-R190: A region edit pastes back.** `edit_from_context {paste_back: true}` with a crop on Picture 1 (ph3_view
+  only, no size): P-H3 edits the crop at about 1 MP, the result is scaled back to the crop's pixels and pasted over the
+  whole Picture 1 with a feathered edge (6 % of the crop's short side, none on a side the crop shares with the
+  picture's border), all with core nodes. The candidate is the whole picture; everything outside the crop is the
+  picture as it was, so a face edit can't turn the body. *Why:* F-S04: a whole-board monocle edit turned a face that
+  looked away from camera (2/2). *More:* tests/snap/test_g10.js.
+- **SNAP-R180 (amended, G10): a context board is the board of the cut that holds it.** A critic's "board" owner on a
+  take drawn from another cut's board names that cut, its take and "<cut>'s board" (make_board's "the previous cut's
+  board" was read as the take's own cut); a picture no cut holds now keeps its own label. The G9 screenshot's
+  "It comes from C1's approved board" on a C2 take was right: that test's one-cut Book numbered its only cut C1 while
+  its shot was named "C2 the bowl lands".
+- **SNAP-R179 (amended, G10): a question asked in the same words as one above waits behind it.** The Room's Then list
+  shows each sentence once; the next row with the same words comes up when that one is answered (F-S11: 35 identical
+  "Which new view do you keep for …?" rows).

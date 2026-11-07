@@ -412,8 +412,14 @@ them). It works on stills: masters, plates, boards.
 - **What Picture 1 is depends on the model** (each method's `picture_one`; the answer names it too). For both, the
   words set the camera, so the location's master can go first. Write `<Picture 1>`, `<Picture 2>`, … in the prompt.
 - One candidate per seed (`seeds`, or `count`), each a take in the shot it lands in (`land`; by default Picture 1's
-  shot). `wait_for {job: <decision>, until: "waiting"}`, look with `candidate_frames` beside the master, then
-  `apply_candidate` makes the one that holds the set the shot's take.
+  shot; with a location's plate or master as Picture 1, where that place's work is, SNAP-R186). `wait_for {job:
+  <decision>, until: "waiting"}`, look with `candidate_frames` beside the master, then `apply_candidate` makes the one
+  that holds the set the shot's take. In a Book cut's shot a still is a board: pick it with `set_board` (the answer's
+  `next` says so; `apply_candidate` refuses there, so the cut's video take is never replaced by a still, SNAP-R185).
+- **A region edit** keeps everything outside the region by construction: Picture 1 with a `crop` (the face) and
+  `paste_back: true` (`ph3_view`): the crop is edited at about 1 MP and pasted back with a feathered edge, so a face
+  edit can't turn the body (F-S04, SNAP-R190). For a face turned away from camera, give the item's crop as Picture 2,
+  not the Cast's front picture (it pulls the head round).
 - In the take viewer the same route is "New view from these pictures": add this picture, a marked region of it, or a
   Cast's picture, move them up or down, and pick the model.
 - A small change to one detail (eyes, a prop): `ph3_view` with the still (or a crop of the part, e.g. the face) as
@@ -577,7 +583,10 @@ it on the Library rail's **Book** row (lenses Beat sheet, Settei, Boards, Cut ba
   shares this camera; `role: "key"` draws the beat's peak instead of the opening; a cut whose own beat changes what a hand
   holds is boarded at its key by default, said in `role_why`, SNAP-R181; `question` is what the Room asks about the
   candidates), `set_board {"scene", "shot", "take" or "file", "approved": true}` (`role: "key"` sets the key drawing: a
-  reference the cut builds to, SNAP-R142; a key candidate is set as the key by default),
+  reference the cut builds to, SNAP-R142; a key candidate is set as the key by default; a take id's start is enough),
+  A board whose state takes a thing out of a hand says it absent "even where <Picture n> shows it" and lints it
+  (`lint`; SNAP-R189); still, fix every field a context board differs on (or start from a board that already agrees):
+  pictures beat words.
   `animatic {"book"}` (boards timed in telling order, kept takes in place of their boards; one video lands as a take of
   the Book: `wait_for` its run), then video per cut from its approved board (`apply_unit` opens it on the board), and
   `export_cut {"book"}` (the active takes in telling order with their trims and levels: one mp4 plus an OTIO file

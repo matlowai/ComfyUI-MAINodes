@@ -124,3 +124,13 @@ polarity once checked by eye. `packets` writes the same blind packets to disk fo
   never excuses a wire (added after r3).
 - X25, X16 (and X03 in r2): a palisade run inside the village read as a gap or a second opening.
 - X14: the kite crossing the lantern wire, never caught (low).
+
+- `runs/2026-11-07-r7-horizon/`: r7 = r6 plus G9's held lines (`prompt_delta.diff`: a scale pass in `passes`, and
+  "lines meet on the horizon only when they are parallel in the world", F-Q06), all 32 blind packets on disk, two fresh
+  Opus 5.5 critics of 16 each (odd and even fixtures; 15 and 18 min). **25/31 caught, 0 false alarms: below the r5b
+  floor, so r7 does not ship** (SNAP-R109; the skill keeps r6). Its misses: X13, X14 wire and kite, X21 LEFT float, as
+  before, plus X07's SIDE-view bare blade with no holder (r6 caught it) and X21's RIGHT-view chape at the shins (r6
+  caught it); neither is a horizon or scale reading, so one blind run can't tell the delta from run-to-run spread.
+  Settled by eye with the earlier rounds' calls (`confirm.json`); new: X24's road along the palisade (real, ok) and
+  X27's well against the palisade at medium (its allowed minor, ok).
+
