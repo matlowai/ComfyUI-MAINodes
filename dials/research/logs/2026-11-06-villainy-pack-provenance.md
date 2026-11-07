@@ -1,0 +1,12 @@
+# Villainy pack provenance (received 2026-11-06 from the other machine's snap session, 3 parts)
+
+
+Key facts:
+- Dylan gave NO pair-writing instructions or reference. He asked "an Evil dial?" (T:2547) then "might wanna make a few different evils then because they are all useful for different cinema" (T:2554). The agent proposed the eight and wrote all 24 pairs in one shell call (T:2562-2563); never edited. Agent's own rule: describe *cinematic* villainy (expression, light, atmosphere), nothing violent; 8 different adults so identity cancels.
+- Pair text never changed (one commit 15646fc). The METHOD changed: v1 pre-refiner LoRA-file dials were 98% collinear (cos 0.98-0.99, norm tracked B-A word count), caught from files before renders (T:2836) -> v2 debiased+calibrated LoRA files (debias removed 76-99%, agreement 0.74-0.83) -> hook (post-refiner) dials, which Dylan preferred ("i kind of like the hook better", T:2822) -> shipped as h3_evil_<n>.safetensors.
+- Evil pairs do NOT follow the later "word-for-word identical" rule: A/B differ in several clauses (mood + lighting + expression), relying on debias.
+- Tests: 4 neutral scenes (office/library/dinner/street), seed 1001, +2/+4 hook (eval21); only office seen with audio before commit. Dialogue test seed 2101 +2: Whisper large-v3 WER base 0.00, seductive 0.00, sinister 0.84, unhinged 0.42 (unhinged not in README). CLIP violence screen: unhinged +2 0.99/0.95 (screaming, lunging; no weapon/blood). Safety probe cosines: sinister 0.38, dread 0.34, cold/corrupted 0.30, creepy 0.27, unhinged 0.18, seductive 0.13, impish 0.07, motion 0.07.
+- A/V split (local unpushed node DialsApplyDialSplit, ComfyUI-Dials experimental/split-and-dial-to-lora 9b9d693 on the other machine): sinister video +2 / audio 0 -> WER 0.00; speech crush comes from the VIDEO-stream dial reaching audio via joint attention.
+- Library on the other machine: 86 files; 37-38 with dial_info. Failures with causes: A5_pack2_notes.md (pulled to study_2026-10-28-h3-motion/codex/).
+- Skill takeaways (snap's list): explicit pair rules; collinearity check (cosine matrix + norm vs word-count gap) before rendering; debias + hook; always listen + WER on a scripted two-line scene; neutral scenes x 2 strengths + dialogue + violence screen with human review; per-dial warnings + evidence level; rejects ledger; test before upload; explain vs slider LoRA / refmod / embedding; SFW demos.
+- Gaps: no Codex sessions 10-29/30; eval22 unhinged stress outcome not found; one scripted dialogue only.

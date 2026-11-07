@@ -127,7 +127,7 @@ pixel-art level (+2.5 / +3). Both progressions are the best explainer material o
 Prompt: `pairs/new1106/dialogue_office_prompt.txt` (the two scripted lines of the original sinister
 WER test, H3 `(S1) says: <d>[English] ...</d>` format, office, both faces visible). Scorer:
 `code/dial_dialogue_wer.py` (whisper-large-v3-turbo local, greedy, English; WER vs the two lines).
-Original result for comparison (base H3, not Pika; another machine provenance): base 0.00, seductive +2 0.00, unhinged +2 0.42,
+Original result for comparison (base H3, not Pika; the other machine provenance): base 0.00, seductive +2 0.00, unhinged +2 0.42,
 sinister +2 0.84.
 
 | arm | WER | LUFS | transcript |
