@@ -474,7 +474,8 @@ cuts, as candidates; it stops before video unless `"through": "cuts"`. The fixtu
   tag, "<Picture 2> is Maren" (SNAP-R137; `set_setting` answers `cites` when a tag holds more). `describe_recipe.references[].named` says whether the prompt
   cites each picture. "Missing" means the file is gone (subfolder files count as there).
 - **Where a picture goes:** `use_take {as: "cast", cast, role}` makes a frame a Cast's next picture (a new version);
-  `{as: "plate", location, name}` makes it a location's plate.
+  `{as: "plate", location, name}` makes it a location's plate; `{as: "voice", cast, at, length}` makes a stretch of its
+  sound the Cast's voice reference (SNAP-R143).
 - **A Cast's pictures per shot:** `apply_cast {cast, pictures: ["state A"]}` (roles). The pin keeps the choice. An update
   to a version without one of them is refused. A re-run can take a Cast out: `rerun {swaps: {"cast:<id>": {to: "out"}}}`.
 - **Is this shot's recipe what made its ★ take?** `open_shot` and `run` answer `recipe_matches_active` and, when it
@@ -570,5 +571,7 @@ unless you page it with `offset`/`limit`). `zone` is `in_flight` (queued, runnin
 for the person, or done and not opened yet), `parked` or `closed`. `list_docket` is what waits for the person.
 `wait_for {"job": "<run id or decision id>", "until": "done" | "waiting" | "failed" | "settled"}` waits for one job:
 an edit's candidates are `waiting` once their identity notes are in. Never poll JSON files or sleep: wait_for answers.
+`cancel_run {"run": "<id>"}` takes a queued run out of the queue or stops a running one (yours at once; the person's
+waits as a proposal; SNAP-R144).
 - Snap proposes and you act, always with the person's yes for downloads, installs and anything that spends their GPU
   without "Let agents run".

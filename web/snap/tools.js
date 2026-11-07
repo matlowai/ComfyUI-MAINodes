@@ -52,6 +52,7 @@ import * as RT from "./retake.js";
 import * as RR from "./rerun.js";
 import * as J from "./jobs.js";
 import * as A from "./activity.js";
+import * as WV from "./workview.js";
 import * as LB from "./lightbox.js";
 import * as I from "./instructions.js";
 import * as CR from "./critiques.js";
@@ -1022,6 +1023,23 @@ export const TOOLS = [
     },
   },
   {
+    name: "cancel_run",
+    direct: true, // the person's own run waits for their yes below; an agent's goes at once
+    description: "Cancel a run (F-F13, SNAP-R144), as the Work card's Cancel and Stop do: run is its prompt id (from run, retake, rerun, make_louder) or a decision's row id (d:<decision>, its candidates' renders; list_activity lists both). Queued: it leaves the queue; running: it is interrupted (what it made so far is lost). An agent's run is cancelled at once; a run the person started waits as a proposal for them. The answer says what it was and what happened.",
+    inputSchema: { type: "object", properties: { run: { type: "string" }, reason: { type: "string", description: "one line the person sees" } }, required: ["run"] },
+    run: async ({ run, reason }, { confirmed } = {}) => {
+      await A.reconcile();
+      const r = A.get(run);
+      if (!r) throw new Error(`No run ${run} on the Work card (list_activity lists them; a run's id comes from run)`);
+      if (!["queued", "running"].includes(r.state)) return { run, state: r.state, said: `${r.title ?? run} is ${r.state} already: nothing to cancel` };
+      if (r.by !== "agent" && !confirmed) { const p = await P.add("cancel_run", { run }, reason ?? `cancel your run "${r.title ?? run}" (${r.state})`, null, null); return { proposed: p.id, status: "the person started this run: waiting for them to accept" }; }
+      const res = await (r.state === "queued" ? WV.cancel(r) : WV.stop(r)), refused = res.filter((x) => !x.ok);
+      if (refused.length) throw new Error(`ComfyUI refused the ${r.state === "queued" ? "delete" : "interrupt"} (${refused.map((x) => x.status).join(", ")})`);
+      await A.reconcile();
+      return { run, was: r.state, state: A.get(run)?.state ?? "gone", said: `${r.title ?? run}: ${r.state === "queued" ? "taken out of the queue" : "interrupted"}` };
+    },
+  },
+  {
     name: "make_louder",
     description: "A new version of a take with its sound normalised to -23 LUFS (EBU R128, true peak -2 dB) and the picture copied as it is, as the take's 'Make it louder' does: for a take list_takes says is quiet, when the person wants it. It lands in Takes as a version of that take: follow `run` with run_status. A quiet take usually comes from a soundscape of only soft ambience: naming the sounds the action makes in the prompt and rendering again fixes the cause.",
     inputSchema: { type: "object", properties: { take: { type: "string" } }, required: ["take"] },
@@ -1430,12 +1448,14 @@ export const TOOLS = [
   },
   {
     name: "use_take",
-    description: "Use a frame of a take as an input (U32): as first_frame it goes on the First frame brick (FL2V's start picture), as reference into References as a picture (the answer gives its <Picture n> as cite). Which frame: frame (a frame number, as take_frames counts them), else at (the moment in seconds, or 'last', the default, for its end); a still has one. crop [x, y, width, height] in fractions keeps a part of it (the front and the back of one sheet are two pictures). Another frame or part of the same take is another picture; the same one again says it is already there. One undo step; the brick remembers the take and frame it came from. An input/ file goes in with add_ref. UI-03 (SNAP-R123): as cast (with cast, role) makes the frame that Cast's next picture (a new version); as plate (with location, name) makes it a plate of that location (a new version).",
-    inputSchema: { type: "object", properties: { take: { type: "string" }, as: { type: "string", enum: ["first_frame", "reference", "cast", "plate"] }, frame: { type: "integer", minimum: 0 }, at: { type: ["number", "string"] },
+    description: "Use a frame of a take as an input (U32): as first_frame it goes on the First frame brick (FL2V's start picture), as reference into References as a picture (the answer gives its <Picture n> as cite). Which frame: frame (a frame number, as take_frames counts them), else at (the moment in seconds, or 'last', the default, for its end); a still has one. crop [x, y, width, height] in fractions keeps a part of it (the front and the back of one sheet are two pictures). Another frame or part of the same take is another picture; the same one again says it is already there. One undo step; the brick remembers the take and frame it came from. An input/ file goes in with add_ref. UI-03 (SNAP-R123): as cast (with cast, role) makes the frame that Cast's next picture (a new version); as plate (with location, name) makes it a plate of that location (a new version). as voice (F-F06, SNAP-R143, with cast; at the start in seconds, default 0; length in seconds, default to the end; casting, default the Cast's) cuts the take's sound into input/snap/voice/ and makes it that Cast's voice reference (a new version naming the take); a private take is refused.",
+    inputSchema: { type: "object", properties: { take: { type: "string" }, as: { type: "string", enum: ["first_frame", "reference", "cast", "plate", "voice"] }, frame: { type: "integer", minimum: 0 }, at: { type: ["number", "string"] }, length: { type: "number", exclusiveMinimum: 0, description: "as voice: seconds of sound from at" }, casting: { type: "string", description: "as voice: the casting line (default the Cast's)" },
       crop: { type: "array", items: { type: "number", minimum: 0, maximum: 1 }, minItems: 4, maxItems: 4 }, cast: { type: "string", description: "as cast: the Cast (cast:<id>) it becomes a picture of" }, role: { type: "string", description: "as cast: what the picture shows" },
       location: { type: "string", description: "as plate: the location (location:<id>)" }, name: { type: "string", description: "as plate: the plate's name" } }, required: ["take", "as"] },
-    run: async ({ take, as, frame, at = "last", crop, cast, role, location: place, name }) => {
+    run: async ({ take, as, frame, at, crop, cast, role, location: place, name, length, casting }) => {
       await T.load(); const t = T.find(take); if (!t) throw new Error(`No take ${take}`);
+      if (as === "voice") { if (!cast) throw new Error("as voice needs cast (cast:<id>, list_cast lists them); at and length pick the stretch of sound"); return L.takeToVoice(t, cast, { at: +(at ?? 0) || 0, length, casting, by: "agent" }); }
+      at ??= "last";
       if (as === "cast") { if (!cast) throw new Error('as cast needs cast (cast:<id>, list_cast lists them) and, if you can, role: what the picture shows'); return L.takeToCast(t, cast, { at, frame, crop, role, by: "agent" }); }
       if (as === "plate") { if (!place) throw new Error("as plate needs location (location:<id>, list_locations lists them) and, if you can, name"); return L.takeToPlate(t, place, { frame, name, by: "agent" }); }
       return T.use(t, { as, t: at, frame, crop, by: "agent" });

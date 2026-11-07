@@ -5,7 +5,7 @@
 // SNAP-R21 a shot's reference shows its own camera · SNAP-R25 SFW only leaves out cards tagged or loading nsfw ·
 // SNAP-R59 Cast by reference (applyCast) · SNAP-R60 the person's cards are world records (world.js) ·
 // SNAP-R73 a Cast's voice reference goes in as an <Audio n> · SNAP-R84 a location by reference: its master, plan and named
-// plates (applyLocation) · SNAP-R115 under Ref2V the First frame opens the shot as <Picture 1> (syncOpening) ·
+// plates (applyLocation), in one order on every apply · SNAP-R143 a take's sound as a Cast's voice (takeToVoice) · SNAP-R115 under Ref2V the First frame opens the shot as <Picture 1> (syncOpening) ·
 // see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import { app } from "../../../scripts/app.js";
@@ -380,6 +380,18 @@ export async function takeToCast(t, ref, { at = "last", frame, crop, role, by = 
   const got = await T.frameAt(t, at, { frame, crop }), b = W.headOf(r).body, what = role?.trim() || `from take ${t.number}${t.media.some((m) => m.kind === "video") ? `, frame ${got.frame}` : ""}`;
   const out = await saveCast(id, { ...b, refs: [...b.refs, { file: got.file, role: what }] }, { note: `a picture from take ${t.number}, frame ${got.frame}`, by });
   return { cast: `cast:${id}`, version: out.n, file: got.file, role: what, said: `${b.name} v${out.n}: frame ${got.frame} of take ${t.number} is picture ${b.refs.length + 1} ("${what}")${role ? "" : "; say what it shows in the Cast sheet"}` };
+}
+// F-F06 (SNAP-R143): a stretch of a take's sound becomes the Cast's voice reference, a new version naming the take
+export async function takeToVoice(t, ref, { at = 0, length, casting, by = "person" } = {}) {
+  await ready();
+  const { kind, id } = W.parse(ref), r = kind === "cast" && W.record("cast", id), video = t.media.find((m) => m.kind === "video" || m.kind === "audio");
+  if (!r) throw new Error(`No Cast ${ref}; list_cast lists them`);
+  if (!video) throw new Error(`take ${t.number} is a still: it has no sound`);
+  const b = W.headOf(r).body, name = `${b.name}_voice_take${t.number}_${String(at).replace(".", "p")}s`;
+  const res = await api.fetchApi("/mainodes/snap/take_voice", { method: "POST", body: JSON.stringify({ video: `${video.subfolder ? `${video.subfolder}/` : ""}${video.filename} [${video.type ?? "output"}]`, at, ...(length ? { length } : {}), name }) }), got = await res.json();
+  if (!res.ok) throw new Error(got.error ?? `cutting the sound failed (${res.status})`);
+  const out = await saveCast(id, { ...b, voice: { file: got.file, casting: casting ?? b.voice?.casting ?? "" } }, { note: `voice from take ${t.number}, ${at} s${length ? ` for ${length} s` : " to the end"}`, by });
+  return { cast: `cast:${id}`, version: out.n, voice: got.file, seconds: got.seconds, said: `${b.name} v${out.n}: the voice is ${got.seconds} s of take ${t.number}'s sound from ${at} s (${got.file})` };
 }
 export async function takeToPlate(t, ref, { frame, name, by = "person" } = {}) {
   await ready();

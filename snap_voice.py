@@ -6,8 +6,19 @@ clip, the page compares them with thresholds from the model graph:
 - the pitch: the median F0 of the loud voiced frames (YIN), in Hz. A cut that cites a reference stays within 1-8 Hz of it.
 WavLM's TDNN head runs here as conv1d over the module's own weights: transformers' TDNNLayer imports peft lazily, and a
 peft that doesn't match the installed transformers breaks that import. Notes only, never a block (SNAP-R23).
-SNAP-R18 local only · SNAP-R23 checks are notes · SNAP-R114 the voice note · see docs/snap/SNAP_RULES.md"""
+POST /mainodes/snap/take_voice cuts a take's sound into input/snap/voice/ for use_take {as: "voice"} (F-F06): a stretch
+of the take, 48 kHz mono wav, the Cast's next voice reference. A take kept encrypted is refused (its sound would land
+in input/ in the clear; privacy fails closed).
+SNAP-R18 local only · SNAP-R23 checks are notes · SNAP-R114 the voice note · SNAP-R143 a take's sound becomes a Cast's voice ·
+see docs/snap/SNAP_RULES.md"""
+import asyncio
+import os
+import re
+import subprocess
+
 import torch
+from aiohttp import web
+from server import PromptServer
 from transformers import WavLMConfig, WavLMForXVector
 
 import comfy.audio
@@ -100,6 +111,33 @@ class MAISnapVoice(io.ComfyNode):
         wave = comfy.audio.resample(audio["waveform"][0].float().mean(0), audio["sample_rate"], RATE).to(voice_model.load_device)
         e = xvector(voice_model.model.sv, wave)
         return io.NodeOutput(ui={"voices": [[round(v, 5) for v in e.tolist()]], "f0": [pitch(wave)], "seconds": [round(wave.shape[0] / RATE, 2)]})
+
+
+try:
+    from . import snap_vault_server
+except ImportError:  # no `cryptography`: nothing is sealed on this install
+    snap_vault_server = None
+
+
+@PromptServer.instance.routes.post("/mainodes/snap/take_voice")
+async def take_voice(request):
+    """{video: an annotated take file, at: start s, length: s, name} -> {file: snap/voice/<name>.wav, seconds}"""
+    q = await request.json()
+    path = folder_paths.get_annotated_filepath(str(q.get("video") or ""))
+    if not os.path.isfile(path):
+        return web.json_response({"error": f"{q.get('video')} isn't on this server"}, status=400)
+    if snap_vault_server is not None and snap_vault_server.snap_vault.sealed(path):
+        return web.json_response({"error": "this take is kept encrypted: its sound can't be written into input/ in the clear (cut it from a take that isn't private, or save the voice file yourself)"}, status=400)
+    name = re.sub(r"[^A-Za-z0-9._-]+", "_", str(q.get("name") or "voice")).strip("_") or "voice"
+    out_dir = os.path.join(folder_paths.get_input_directory(), "snap", "voice")
+    os.makedirs(out_dir, exist_ok=True)
+    out = os.path.join(out_dir, f"{name}.wav")
+    cmd = ["ffmpeg", "-v", "error", "-y", "-ss", str(float(q.get("at") or 0)), "-i", path, *(["-t", str(float(q["length"]))] if q.get("length") else []), "-vn", "-ac", "1", "-ar", "48000", out]
+    r = await asyncio.to_thread(subprocess.run, cmd, capture_output=True, text=True)
+    if r.returncode or not os.path.isfile(out) or os.path.getsize(out) < 1000:
+        return web.json_response({"error": f"no sound came out of {q.get('video')} at {q.get('at') or 0} s: {r.stderr.strip() or 'the take has no audio track there'}"}, status=400)
+    seconds = (os.path.getsize(out) - 44) / 96000
+    return web.json_response({"file": f"snap/voice/{name}.wav", "seconds": round(seconds, 2)})
 
 
 NODE_CLASS_MAPPINGS = {"MAISnapVoiceModelLoader": MAISnapVoiceModelLoader, "MAISnapVoice": MAISnapVoice}

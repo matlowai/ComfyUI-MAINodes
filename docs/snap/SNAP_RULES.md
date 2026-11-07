@@ -1348,7 +1348,7 @@ Next free ID after this batch: SNAP-R139.
 
 ## Batch G4 (2026-11-06)
 
-Next free ID after this batch: SNAP-R143.
+Next free ID after this batch: SNAP-R145.
 
 - **SNAP-R139: An agent's proposals live on the server, stack on each other, and keep their answers.** A proposal is a
   row in the person's `snap/proposals.json` (`/mainodes/snap/proposals`), not page memory: a reload, a second page or
@@ -1383,3 +1383,16 @@ Next free ID after this batch: SNAP-R143.
   cut's board, so a cut that shares a camera with an earlier one starts from it. Ref2V reads a board as a reference,
   not an exact first frame, and apply_unit says so. *Why:* short05 F-F16 (C3's board at the burst's peak made the video
   start at its peak; C4 couldn't take C2's camera). *More:* SNAP-R131.
+- **SNAP-R143: A take's sound can become a Cast's voice in one call.** `use_take {as: "voice", cast, at, length,
+  casting}` cuts that stretch of the take's sound into `input/snap/voice/` (48 kHz mono) and saves it as the Cast's
+  voice reference, a new version whose note names the take and the stretch; a still or a take kept encrypted is refused
+  with why. *Why:* short05 F-F06: the voice anchor ran in Snap but becoming a Cast voice took ffmpeg, an upload and a
+  whole save_cast retyped. *More:* SNAP-R73, SNAP-R114.
+- **SNAP-R144: An agent can cancel a run.** `cancel_run {run}` does what the Work card's Cancel and Stop do: a queued
+  run leaves the queue, a running one is interrupted; an agent's run goes at once, a run the person started waits as
+  a proposal. *Why:* short05 F-F13: two walkthroughs with mis-cited pictures had to run to the end. *More:* SNAP-R65.
+- **SNAP-R84 (amended, G4): a location's new version keeps what it leaves out, and its pictures keep one order.**
+  `save_location {location}` keeps every field the call leaves out (the plan's shapes while its file is the same) and
+  says so in `kept`; null or an empty list clears one. `apply_location` puts the place's pictures in the same order
+  every time (camera, master, plan, plates), however an earlier apply left them. *Why:* short05 F-F05 (a master change
+  lost the plan's shapes and the camera marks) and F-F08 (a re-apply after `master: false` put the plan before the master).
