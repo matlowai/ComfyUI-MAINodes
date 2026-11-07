@@ -1035,8 +1035,7 @@ export const TOOLS = [
       if (r.by !== "agent" && !confirmed) { const p = await P.add("cancel_run", { run }, reason ?? `cancel your run "${r.title ?? run}" (${r.state})`, null, null); return { proposed: p.id, status: "the person started this run: waiting for them to accept" }; }
       const res = await (r.state === "queued" ? WV.cancel(r) : WV.stop(r)), refused = res.filter((x) => !x.ok);
       if (refused.length) throw new Error(`ComfyUI refused the ${r.state === "queued" ? "delete" : "interrupt"} (${refused.map((x) => x.status).join(", ")})`);
-      await A.reconcile();
-      return { run, was: r.state, state: A.get(run)?.state ?? "gone", said: `${r.title ?? run}: ${r.state === "queued" ? "taken out of the queue" : "interrupted"}` };
+      return { run, was: r.state, next: "wait_for {job: run} reads it settled (failed: interrupted, or gone)", said: `${r.title ?? run}: ${r.state === "queued" ? "taken out of the queue" : "interrupted"}` };
     },
   },
   {
