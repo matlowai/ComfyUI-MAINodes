@@ -111,8 +111,10 @@ export async function toToday(refs) {
 // "take" keeps the rows that ran. -> null when the rack stays as the take had it, else {rows, changes: the words}
 export function cutRows(take, dials) {
   if (dials && dials !== "cut" && dials !== "take") throw new Error(`dials is cut (the cut's planned rows) or take (the rows that ran); not ${JSON.stringify(dials)}`);
-  const pin = take.story ?? take.graph?.extra?.snap?.story, scene = pin?.unit && SC.get(pin.unit.scene), unit = scene?.shots.find((x) => x.id === pin.unit.shot)?.unit;
-  if (dials === "take" || !unit?.dials) { if (dials === "cut") throw new Error(`take ${take.number} ${pin?.unit ? `is of ${pin.unit.cut ?? "a cut"} whose plan has no dial rows (set_cut_dials plans them)` : "isn't a Book cut's take"}: dials "cut" has nothing to put on the rack`); return null; }
+  // the cut its story pin names, else the Book cut whose shot holds it (a take made before the cut was planned)
+  const pin = take.story ?? take.graph?.extra?.snap?.story, scene = pin?.unit && SC.get(pin.unit.scene), home = scene ? null : shotOf(take);
+  const unit = scene ? scene.shots.find((x) => x.id === pin.unit.shot)?.unit : home?.scene.book ? home.shot.unit : null;
+  if (dials === "take" || !unit?.dials) { if (dials === "cut") throw new Error(`take ${take.number} ${unit ? `is of ${unit.cut ?? "a cut"} whose plan has no dial rows (set_cut_dials plans them)` : "isn't a Book cut's take"}: dials "cut" has nothing to put on the rack`); return null; }
   const ran = rackOf(take.graph) ?? [], text = (r) => JSON.stringify(r ?? null), changes = [];
   for (const r of unit.dials) { const was = ran.find((x) => x.dial === r.dial); if (text(was) !== text(r)) changes.push(was ? keyWords(was, r) : `${r.dial} added (in ${unit.cut ?? "the cut"}'s plan)`); }
   for (const r of ran) if (r.dial && !unit.dials.some((x) => x.dial === r.dial)) changes.push(`${r.dial} taken off (not in ${unit.cut ?? "the cut"}'s plan)`);

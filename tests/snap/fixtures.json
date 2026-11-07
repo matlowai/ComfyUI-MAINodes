@@ -18,7 +18,8 @@
   "u61": "identity looks per frame (test_identity_notes.py writes a fresh copy to the output folder's u61/)",
   "voice_timbre": "the voice timbre scout's clips, embeddings and rounds (G1b voice note)",
   "short05": "the anime dogfood short05 'One More Bowl': the live C2 board s9221 (Kuroe in spectacles, the critic's finding F-Q20) the G9 Room suite shows",
-  "g14": "real region edits cropped to the box and 24 px around it (picture and pasted box), with each box's place and feather (seam_cases.json), and fix B s9912's Picture 1, edit and two stage 2 redraws around the head (G14 seam tone and keep-edit suites)"
+  "g14": "real region edits cropped to the box and 24 px around it (picture and pasted box), with each box's place and feather (seam_cases.json), and fix B s9912's Picture 1, edit and two stage 2 redraws around the head (G14 seam tone and keep-edit suites)",
+  "seq02_bakeoff": "the anime dogfood seq02 dials bake-off: the dramatic-light clash w05 (take-7eb0036f: its clip, its take record with the graph that ran, and the frame-46 crop the continuity insert used), test_g17_dials.js and test_g17_export.js"
  },
  "files": [
   {
@@ -2080,6 +2081,21 @@
    "path": "g14/seam_s9972_20e921b8_picture.png",
    "bytes": 66576,
    "sha256": "d7e6f13553a77ffc1bd4f20b2aa72e5fe9a7e83abd16cc2bfbb3c533866c9388"
+  },
+  {
+   "path": "seq02_bakeoff/w05_dramatic_light.mp4",
+   "bytes": 3488619,
+   "sha256": "41bf40153bb566b06361c6e7baa05199c9f3b722af6521a3e6ffdea19d8ae54c"
+  },
+  {
+   "path": "seq02_bakeoff/w05_f46_crop.png",
+   "bytes": 728833,
+   "sha256": "86a4fc36ac8de0ef5613b8aa4f1a615a70241870718669e55f41ca2472fad1d2"
+  },
+  {
+   "path": "seq02_bakeoff/w05_take.json",
+   "bytes": 79673,
+   "sha256": "4415b51c173e5ff795913797d13eebe19d111db906e2b9d2099529c6dce0c2ea"
   }
  ]
 }

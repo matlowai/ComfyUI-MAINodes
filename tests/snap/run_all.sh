@@ -639,6 +639,16 @@ for t in test_g16_rerun.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port"
 # G16 either/or is one question (SNAP-R229): two proposals on one record at one version asked once in the Room with the
 # picture now and both "after" pictures side by side, one row on the Work card, the other withdrawn; prints "g16either n/m"
 for t in test_g16_either.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
+# G17a dial rows (SNAP-R230-R232, R236-R239) with the seq02 bake-off's footage: time curves on add_dial / set_dial,
+# list_nodes hidden widgets, set_dial_info on a scratch copy of a test-base dial, make_dial off the rack, a Book cut's
+# set_cut_dials / compile lints / apply_unit owning the rack, an insert's master frame, the voice rule, F-AC02; prints "g17dials n/m"
+for t in test_g17_dials.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
+# G17a the export carries each clip's dial rows in the take's seconds (SNAP-R233) and a re-take takes the cut's rows
+# (SNAP-R234): w05's real graph, normalized keys converted, a trimmed cut, move_key onto a word time; prints "g17export n/m"
+for t in test_g17_export.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
+# G17a a shot has one tab (SNAP-R235, F-SQ18): the bake-off's MOSS → Pika sequence never saves the stale tab over the
+# shot; two claimants open the one holding the saved workflow; retake open_only restores; prints "g17shots n/m"
+for t in test_g17_shots.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
 # SNAP-R109: the shipped critic prompt's last real run on the fixtures holds the floor (fixtures.json: r5b, 27/31, 0 FA;
 # a real-agent check, re-scored from its saved notes). critic = r6, the shipped prompt (r5b + metres from the record's
 # scale, SNAP-R155); critic5b = the floor's own run. The r3/r4/r5 runs stay in critic/runs/ as history (critic/README.md)
