@@ -10,7 +10,7 @@
 // SNAP-R86 the New view model follows the job · SNAP-R85 a picture's purpose is a known field ·
 // SNAP-R71 a new view is an edit from context, in the person's words · SNAP-R72 what Picture 1 is, per model; the order is
 // the person's · SNAP-R75 the model is the person's pick (P-H3-Image, the Fizgig H3 still) · SNAP-R19 the tool table is the
-// API · SNAP-R23 candidates · see docs/snap/SNAP_RULES.md
+// API · SNAP-R23 candidates · SNAP-R190 a marked region pasted back · see docs/snap/SNAP_RULES.md
 import * as ED from "./edits.js";
 import * as S from "./slots.js";
 import * as T from "./takes.js";
@@ -33,6 +33,8 @@ export function contextPanel(t, { say, frame, region }) {
   const purpose = h("select", { ariaLabel: "what it is for" }), why = h("div", { className: "snap-quiet" });
   let purposeTouched = false, modelTouched = false;
   const model = h("select", { ariaLabel: "model" }), count = h("input", { type: "number", min: 1, step: 1, value: 2, ariaLabel: "candidates", className: "snap-take-clips" });
+  // F-S04/F-U01 (SNAP-R190, R196): with a marked region as Picture 1 on P-H3-Image, edit only that region and paste it back
+  const paste = h("input", { type: "checkbox", ariaLabel: "paste the edit back over Picture 1" }), pasteRow = h("label", { className: "snap-quiet", title: "only the marked region is edited, then pasted back over the whole Picture 1, so the rest (a pose, a face) stays as it was; each candidate gets a seam note" }, paste, " edit only the marked region, then paste it back");
   const cast = h("select", { ariaLabel: "add a Cast picture" }), intro = h("div", { className: "snap-quiet" });
   let methods = [];
   const one = () => methods.find((x) => x.id === model.value)?.picture_one ?? null; // what Picture 1 is for the picked model
@@ -52,6 +54,7 @@ export function contextPanel(t, { say, frame, region }) {
     if (!modelTouched && P[purpose.value] && methods.some((x) => x.id === P[purpose.value].method)) model.value = P[purpose.value].method;
     const chosen = methods.find((x) => x.id === model.value);
     why.textContent = chosen ? `${chosen.title.replace(/^New view · /, "")}: ${modelTouched ? "your pick" : `the model for ${P[purpose.value]?.label ?? purpose.value}${purposeTouched ? "" : tray.some((x) => x.cast) ? " (a Cast picture is in the tray)" : " (no Cast picture in the tray)"}`}${P[purpose.value]?.reference ? "; a reference: made bigger, it is redrawn (stage 2)" : ""}` : "";
+    pasteRow.hidden = !(tray[0]?.crop && chosen?.id === "ph3_view");
     make.disabled = !tray.length;
     make.textContent = `Make ${Math.max(1, Number(count.value) || 1)} candidate${Number(count.value) === 1 ? "" : "s"}`;
   }
@@ -64,7 +67,7 @@ export function contextPanel(t, { say, frame, region }) {
   const make = h("button", { className: "snap-primary", onclick: async () => {
     make.disabled = true;
     try {
-      const r = await ED.fromContext(tray.map(({ label, ...p }) => ({ ...p, label })), words.value, { method: model.value || undefined, purpose: purpose.value || undefined, count: Math.max(1, Number(count.value) || 1) });
+      const r = await ED.fromContext(tray.map(({ label, ...p }) => ({ ...p, label })), words.value, { method: model.value || undefined, purpose: purpose.value || undefined, count: Math.max(1, Number(count.value) || 1), paste: !pasteRow.hidden && paste.checked });
       note.textContent = `Painting ${r.candidates.length} candidate${r.candidates.length > 1 ? "s" : ""} into ${r.lands}${r.seconds_each ? ` (about ${r.seconds_each} s each)` : ""}: ${r.pictures.join(" · ")}. They show under ${tray[0].take ? "Picture 1's take" : "the Work card"}; Apply one to make it the shot's take`;
     } catch (err) { note.textContent = err.message; say?.(err.message, true); }
     paint();
@@ -89,5 +92,5 @@ export function contextPanel(t, { say, frame, region }) {
   paint();
   return [h("div", { className: "snap-rail-title", textContent: "New view from these pictures" }),
     intro,
-    rows, h("div", { className: "snap-set-actions" }, addBtn, cast), words, h("label", { className: "snap-field" }, h("span", { textContent: "what it is for" }), purpose), why, h("div", { className: "snap-set-actions" }, model, h("label", { className: "snap-quiet" }, count, " candidates"), make), note];
+    rows, h("div", { className: "snap-set-actions" }, addBtn, cast), words, h("label", { className: "snap-field" }, h("span", { textContent: "what it is for" }), purpose), why, h("div", { className: "snap-set-actions" }, model, h("label", { className: "snap-quiet" }, count, " candidates"), make), pasteRow, note];
 }

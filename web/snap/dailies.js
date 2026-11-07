@@ -17,7 +17,7 @@
 // takes (SNAP-R27: by the current rules) · SNAP-R21 copies flagged · SNAP-R23 candidates · SNAP-R24 scenes own the work ·
 // SNAP-R36 quiet sound: a note and two actions, never applied by itself · SNAP-R54 takes above the account's cap are
 // left out · SNAP-R65 a job shows on its take's card and as a ghost card · SNAP-R71/R72 New view from these pictures (its
-// tray: contextview.js) · SNAP-R81/R82/R113 Make it bigger (upscale.js) · SNAP-R114 the voice note (voices.js) · SNAP-R93 the instructions a take ran under · SNAP-R123 Send to · see docs/snap/SNAP_RULES.md
+// tray: contextview.js) · SNAP-R81/R82/R113 Make it bigger (upscale.js) · SNAP-R114 the voice note (voices.js) · SNAP-R93 the instructions a take ran under · SNAP-R123 Send to · SNAP-R196 a Cast picture in place of the one it fixes · see docs/snap/SNAP_RULES.md
 import * as T from "./takes.js";
 import * as V from "./vault.js";
 import * as CV from "./critiqueview.js"; // SNAP-R103 the critic on the take: its chip, masks and notes
@@ -401,6 +401,8 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
       const menu = h("div", { className: "snap-scene-menu snap-send-menu", role: "menu" },
         h("button", { textContent: "References in the open recipe", onclick: go(() => T.use(t, { as: "reference", t: at })) }),
         ...W.all("cast").map((r) => h("button", { textContent: `Cast: ${W.headOf(r).body.name} (a new picture)`, title: "a new version of the Cast with this picture added; say what it shows in the Cast sheet", onclick: go(() => L.takeToCast(t, `cast:${r.id}`, { at, frame })) })),
+        // F-U01 (SNAP-R196): a fixed Cast picture (a region edit of it) in place of the one it fixes, for each Cast the take pins
+        ...W.all("cast").filter((r) => Object.keys(t.world ?? {}).some((k) => W.parse(k).id === r.id)).flatMap((r) => (W.headOf(r).body.refs ?? []).map((x, i) => h("button", { textContent: `Cast: ${W.headOf(r).body.name}, in place of picture ${i + 1} (${x.role})`, title: `a new version of the Cast whose picture ${i + 1} is this one, its role kept; the version before keeps the old picture`, onclick: go(() => L.takeToCast(t, `cast:${r.id}`, { at, frame, replace: i })) }))),
         h("button", { textContent: "New cast member from this picture…", onclick: go(async () => { const got = await T.frameAt(t, at, { frame }); await openCast(host, { refs: [{ file: got.file, role: "identity: front" }], say, onApplied: onRestore }); return null; }) }),
         ...W.all("location").map((r) => h("button", { textContent: `Location: ${W.headOf(r).body.name} (a plate)`, title: "a new version of the location with this frame as a plate; place it on the plan in the Location sheet", onclick: go(() => L.takeToPlate(t, `location:${r.id}`, { frame })) })));
       const at0 = anchor.getBoundingClientRect();

@@ -3,7 +3,7 @@
 // multimodal embedder plugs in behind `search` once its runtime is chosen.
 // SNAP-R5 another family opens a new tab · SNAP-R12 identity rows never leave in a card · SNAP-R18 local only ·
 // SNAP-R21 a shot's reference shows its own camera · SNAP-R25 SFW only leaves out cards tagged or loading nsfw ·
-// SNAP-R59 Cast by reference (applyCast) · SNAP-R60 the person's cards are world records (world.js) ·
+// SNAP-R59 Cast by reference (applyCast) · SNAP-R196 a Cast picture replaced as a new version · SNAP-R60 the person's cards are world records (world.js) ·
 // SNAP-R73 a Cast's voice reference goes in as an <Audio n> · SNAP-R84 a location by reference: its master, plan and named
 // plates (applyLocation), in one order on every apply · SNAP-R143 a take's sound as a Cast's voice (takeToVoice) · SNAP-R115 under Ref2V the First frame opens the shot as <Picture 1> (syncOpening) ·
 // SNAP-R148 one plate or camera mark changes alone (addPlate) · SNAP-R177 a dry run writes nothing (saveLocation dry) · SNAP-R155 a place's scale anchors (scaleOf) · SNAP-R165 a Cast line folds through the story state (applyCast line) · see docs/snap/SNAP_RULES.md
@@ -373,13 +373,19 @@ export async function uploadCastPicture(file, id) {
 }
 // UI-03 (SNAP-R123): a take's frame sent where it is going, from the take viewer's "Send to" and use_take: a Cast's next
 // picture (a new version saying which take and frame) or a location's plate (a new version, the plate's from = the take)
-export async function takeToCast(t, ref, { at = "last", frame, crop, role, by = "person" } = {}) {
+// F-U01 (SNAP-R196): `replace` (a picture's number from 0) puts the take's picture in that picture's place, keeping its
+// role unless one is given: one detail of a Cast picture fixed (a region edit of it) is a new version, the old one kept
+export async function takeToCast(t, ref, { at = "last", frame, crop, role, replace, by = "person" } = {}) {
   await ready();
   const { kind, id } = W.parse(ref), r = kind === "cast" && W.record("cast", id);
   if (!r) throw new Error(`No Cast ${ref}; list_cast lists them`);
-  const got = await T.frameAt(t, at, { frame, crop }), b = W.headOf(r).body, what = role?.trim() || `from take ${t.number}${t.media.some((m) => m.kind === "video") ? `, frame ${got.frame}` : ""}`;
-  const out = await saveCast(id, { ...b, refs: [...b.refs, { file: got.file, role: what }] }, { note: `a picture from take ${t.number}, frame ${got.frame}`, by });
-  return { cast: `cast:${id}`, version: out.n, file: got.file, role: what, said: `${b.name} v${out.n}: frame ${got.frame} of take ${t.number} is picture ${b.refs.length + 1} ("${what}")${role ? "" : "; say what it shows in the Cast sheet"}` };
+  const b = W.headOf(r).body, was = replace != null ? b.refs[replace] : null;
+  if (replace != null && !was) throw new Error(`${b.name} v${W.headOf(r).n} has no picture ${replace}; it has ${b.refs.length} (0 to ${b.refs.length - 1})`);
+  const got = await T.frameAt(t, at, { frame, crop }), what = role?.trim() || was?.role || `from take ${t.number}${t.media.some((m) => m.kind === "video") ? `, frame ${got.frame}` : ""}`;
+  const refs = was ? b.refs.map((x, i) => (i === replace ? { ...x, file: got.file, role: what } : x)) : [...b.refs, { file: got.file, role: what }];
+  const out = await saveCast(id, { ...b, refs }, { note: was ? `picture ${replace} ("${was.role}") from take ${t.number}, frame ${got.frame}` : `a picture from take ${t.number}, frame ${got.frame}`, by });
+  return { cast: `cast:${id}`, version: out.n, file: got.file, role: what, ...(was ? { replaced: { picture: replace, file: was.file, kept_in: `v${out.n - 1}` } } : {}),
+    said: was ? `${b.name} v${out.n}: picture ${replace} ("${what}") is now frame ${got.frame} of take ${t.number}; v${out.n - 1} keeps the old one, and what pinned v${out.n - 1} still reads it (rerun_dependents re-makes them)` : `${b.name} v${out.n}: frame ${got.frame} of take ${t.number} is picture ${b.refs.length + 1} ("${what}")${role ? "" : "; say what it shows in the Cast sheet"}` };
 }
 // F-F06 (SNAP-R143): a stretch of a take's sound becomes the Cast's voice reference, a new version naming the take
 export async function takeToVoice(t, ref, { at = 0, length, casting, by = "person" } = {}) {
