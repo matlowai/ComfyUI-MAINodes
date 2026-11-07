@@ -1,0 +1,41 @@
+{
+  "original_image": {
+    "class_type": "EmptyImage",
+    "_meta": {"title": "the original (socket a)"},
+    "inputs": {"width": 32, "height": 32, "batch_size": 1, "color": 0}
+  },
+  "restore": {
+    "class_type": "EmptyImage",
+    "_meta": {"title": "the expensive restore (socket b)"},
+    "inputs": {"width": 64, "height": 64, "batch_size": 1, "color": 255}
+  },
+  "probe": {
+    "class_type": "MAIFlowProbe",
+    "_meta": {"title": "counts how often the restore actually ran"},
+    "inputs": {"value": ["restore", 0], "name": "safe_function", "salt": 0, "delay_s": 0.0}
+  },
+  "enabled": {
+    "class_type": "PrimitiveBoolean",
+    "_meta": {"title": "enabled (socket c)"},
+    "inputs": {"value": false}
+  },
+  "safe_function": {
+    "class_type": "MAIFlowSafeFunction",
+    "_meta": {"title": "Safe Function: parameters bind to a, b, c positionally"},
+    "inputs": {
+      "source": "def main(original: IMAGE, restored: IMAGE, enabled: BOOL = True, strength: FLOAT = 1.0) -> IMAGE:\n    if not enabled:\n        return original\n    if strength <= 0:\n        return original\n    return restored\n",
+      "a": ["original_image", 0],
+      "b": ["probe", 0],
+      "c": ["enabled", 0],
+      "max_iterations": 1000,
+      "max_ops": 50000,
+      "max_calls": 5000,
+      "max_collection": 10000,
+      "max_tensor_elements": 100000000
+    }
+  },
+  "preview": {
+    "class_type": "PreviewAny",
+    "inputs": {"source": ["safe_function", 0]}
+  }
+}
