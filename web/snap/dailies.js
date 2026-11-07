@@ -337,7 +337,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
         n.tags.map((x) => h("span", { className: `snap-tag ${n.sentiment} on`, textContent: x })), h("span", { textContent: ` ${n.text}` }), n.region ? h("em", { className: "snap-quiet", textContent: " ▭" }) : null,
         n.by !== "person" ? h("span", { className: "snap-agent", textContent: n.by }) : null)));
       markers.replaceChildren(...(isVideo && player.duration ? t.notes.map((n) => h("i", { className: n.sentiment, style: `left:${(100 * n.t) / player.duration}%`, title: `${clock(n.t)} ${n.tags.join(", ")} ${n.text}` })) : []));
-      verdicts.replaceChildren(h("div", { className: "snap-verdict-row" }, verdict("keep"), verdict("reject"), verdict("neither")), because, revive, t.verdict ? h("div", { className: "snap-quiet" }, `${t.verdict_by === "agent" ? "an agent's" : "your"} verdict${t.verdict_note ? `: ${t.verdict_note}` : ""}${t.revive_if ? ` · look again if ${t.revive_if}` : ""} `, retract()) : null, ...past());
+      verdicts.replaceChildren(...[h("div", { className: "snap-verdict-row" }, verdict("keep"), verdict("reject"), verdict("neither")), because, revive, t.verdict ? h("div", { className: "snap-quiet" }, `${t.verdict_by === "agent" ? "an agent's" : "your"} verdict${t.verdict_note ? `: ${t.verdict_note}` : ""}${t.revive_if ? ` · look again if ${t.revive_if}` : ""} `, retract()) : null, ...past()].filter(Boolean)); // a null child prints "null"
       priorBtn.textContent = t.prior ? "★ In the Library as a prior" : "☆ Keep as a prior";
     }
     const verdicts = h("div", { className: "snap-verdicts" });
