@@ -81,6 +81,14 @@ over the figure rose on 9 of 12 seeds); removal got slightly worse (seed 112 kee
 106 and 110 as before). My guess (untested): the drift is an object colour ("a blue dress"), not a lighting grade, so a grade
 dial is the wrong thing to hold. Next candidate: hold a dial made from "a white dress ||| a light blue dress" pairs.
 
+**v2 + a dress-colour hold** (a new dial, white dress ↔ light blue dress, 3 templates × 6 dressed subjects, made on KroMoss):
+**also no help.** The same seeds turn blue, aqua or mint; removal is the same as v2 alone (6 of 8, 109 reduced, 106 survives,
+110's tiny mark). **Why both holds did nothing:** the watermark dial is almost exactly orthogonal to both hold dials (cosine
+−0.003 with the dress dial, +0.018 with the grade dial), so projecting them out removes almost none of the shift. A hold
+only helps when the dial being held overlaps the dial doing the work. The blue therefore does not come from a dress-colour
+component inside the watermark dial; my guess (untested) is that it comes from how the model responds to the shift as a
+whole. Next: push back with the dress dial itself (toward white) instead of holding it.
+
 **What it shows.** A negative-prompt dial pushes in the right direction but only part of the way: it fades a watermark
 the real negative removes. A dial is one fixed shift of the text conditioning; a negative prompt steers at every step
 through a second branch. A picture-pair dial does the job (above). Next: a second seed and other prompts; more varied stamp pairs (the
