@@ -16,7 +16,8 @@
   "u56b": "U56b hair metrics the identity notes are checked against",
   "u59": "four scene takes, day and night (U59)",
   "u61": "identity looks per frame (test_identity_notes.py writes a fresh copy to the output folder's u61/)",
-  "voice_timbre": "the voice timbre scout's clips, embeddings and rounds (G1b voice note)"
+  "voice_timbre": "the voice timbre scout's clips, embeddings and rounds (G1b voice note)",
+  "short05": "the anime dogfood short05 'One More Bowl': the live C2 board s9221 (Kuroe in spectacles, the critic's finding F-Q20) the G9 Room suite shows"
  },
  "files": [
   {
@@ -1388,6 +1389,11 @@
    "path": "short04/settei_bg/P1_torii_eyelevel.png",
    "bytes": 2947939,
    "sha256": "1aec7081abcbde8c31170d0bd82167b6c2b35dae1c6c397afb9d6959d7fa474b"
+  },
+  {
+   "path": "short05/board_c2_s9221.png",
+   "bytes": 2189323,
+   "sha256": "1cf1c7378cbddcd64bf7e984a93cd98c68a0e6c627a710e7fa15c4f1d8ecafab"
   },
   {
    "path": "u102b_orbit_prompt.json",

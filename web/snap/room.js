@@ -6,7 +6,7 @@
 // no ids, file names, model names, state words, counts or progress; every text an agent wrote passes plain().
 // On the person's own install the Room is the page at /?room (localhost); a phone door belongs to snap-gate.
 // SNAP-R70 the Room never restricts, renders no machinery, and its verdicts are the record's · SNAP-R179 each question one
-// plain sentence naming the thing · SNAP-R173 one verdict and why · SNAP-R174 blind pairs from the server · SNAP-R65 the Work card's rows · SNAP-R7 rebuilt only when its
+// plain sentence naming the thing · SNAP-R180 a critic's row asks its finding, with each note's words and where it was born · SNAP-R173 one verdict and why · SNAP-R174 blind pairs from the server · SNAP-R65 the Work card's rows · SNAP-R7 rebuilt only when its
 // content changes, never under a pointer · see docs/snap/SNAP_RULES.md
 import * as A from "./activity.js";
 import * as T from "./takes.js";
@@ -14,6 +14,7 @@ import * as C from "./candidates.js";
 import * as P from "./proposals.js";
 import * as W from "./world.js";
 import * as B from "./book.js";
+import * as CR from "./critiques.js";
 import { url } from "./checks.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat(Infinity).filter((k) => k != null && k !== false)); return el; };
@@ -47,6 +48,7 @@ const EMPTY = /^(?:\s|[,;:·-]|\bit\b|\bthe (?:picture|clip|sound)\b|\ba documen
 const VERB = /^(add|edit|move|remove|set|use|keep|turn|cancel|make|change|save|apply|draw|re-?run|run|design|put|take|give|drop|swap|import|delete|replace|try|render|upscale|extend)\b/i;
 const low = (x) => (VERB.test(x) || /^(?:The|A|An|This|That|These|Those|Some|Its|Her|His|Their)\b/.test(x) ? x[0].toLowerCase() + x.slice(1) : x);
 const SNAP_TITLE = /^(?:Run|Re-take|Re-run|Make|Keep|Take|New view|Character sheet|Extend|Upscale)\b/; // a job title Snap wrote, not the agent's words
+const cap = (x) => (x ? x[0].toUpperCase() + x.slice(1) : x);
 const bare = (x) => x.replace(/[.!?]+(["”']?)\s*$/, "$1").trim();
 function words(text, name) {
   let s = String(text ?? "").replace(/^\s*p\d+\s*:\s*/i, "").replace(/\(\s*on p\d+(?:\s*,\s*p\d+)*\s*\)/gi, "");
@@ -54,11 +56,33 @@ function words(text, name) {
   return plain(s).replace(/\(([^()]*)\)/g, (all, inner) => (EMPTY.test(inner) ? "" : all)).replace(/\s{2,}/g, " ").replace(/\s+([,.;:!?])/g, "$1").trim();
 }
 const asides = (s) => [...s.matchAll(/\(([^()]*)\)/g)].map((m) => m[1].trim()).filter(Boolean);
-const noAsides = (s) => s.replace(/\s*\([^()]*\)/g, "").replace(/\s{2,}/g, " ").trim();
+const noAsides = (s) => { let was; do { was = s; s = s.replace(/\s*\([^()]*\)/g, ""); } while (s !== was); return s.replace(/\s{2,}/g, " ").trim(); }; // F-Q19: a prompt aside holds asides of its own
 const questionIn = (s) => s.match(/^[^?]*?([^.!?]*\?)/)?.[1]?.trim() || null;
 const placeOf = (where) => (where?.includes("›") ? plain(where).replace(/\s*›\s*/g, ", ") : null);
+// SNAP-R180 (F-Q20): a critic's row asks its finding: the worst note's first sentence ("Kuroe's eyewear is spectacles, not
+// the Cast's monocle: keep it anyway?"), every note under the picture with where it was born, in words a person reads
+const RANK = { high: 0, medium: 1, low: 2 }, SEVERITY = { high: "Serious", medium: "Worth fixing", low: "Small" };
+export const notesOf = (r) => [...(CR.get(r.result?.critique ?? r.critiques?.at(-1))?.notes ?? [])].sort((a, b) => (RANK[a.severity] ?? 3) - (RANK[b.severity] ?? 3));
+const PIXELS = /\s*\((?:[^()]*\b[xy]\s*[~=]?\s*\d[^()]*|[\d\s.,~×x–-]+)\)/g; // "(x~660-735, y~385-400)", "(980-1060, 695-715)": the box on the picture says where
+const said_ = (text) => plain(String(text ?? "").replace(PIXELS, ""));
+const headline = (text) => bare(noAsides(said_(text)).split(/(?<=[.!?])\s+|:\s+|;\s+/)[0] ?? "").replace(/[,:;\s]+$/, "");
+export function bornIn(o) {
+  if (!o || typeof o !== "object") return "this picture itself";
+  const name = (ref) => { try { return W.get(ref)?.version.body.name ?? null; } catch { return null; } };
+  if (o.ref?.startsWith("cast:")) return `${name(o.ref) ?? "the Cast"}'s Cast pictures`;
+  if (o.ref?.startsWith("location:")) {
+    const place = name(o.ref) ?? "the place", part = o.part ?? "";
+    if (part === "marks") return o.plate ? `the camera height typed for ${place}'s plate ${o.plate}` : `the camera heights typed for ${place}`;
+    if (part.startsWith("plate ")) return `${place}'s ${part}`;
+    return { master: `${place}'s master picture`, plan: `${place}'s plan`, notes: `${place}'s notes`, map: `${place}'s camera map` }[part] ?? `${place}, somewhere`;
+  }
+  if (o.what === "board") return plain(o.label ?? "the board it was drawn from");
+  if (o.what === "prompt") return "the words it was made from";
+  return "this picture itself";
+}
 export function ask(r) {
   if (r.source === "blind_pair") return { q: "Which is better, A or B?" };
+  if (r.source === "critique") { const top = notesOf(r)[0], head = top && headline(top.text); return { q: head ? `${cap(head)}: keep it anyway?` : "The critic found nothing wrong here: keep it?" }; }
   const p = r.source === "proposal" ? P.get(r.proposal) : null, book = p?.book ? W.get(p.book)?.version.body : null;
   const w = words(r.title, book?.name), own = questionIn(w), more = own ? null : asides(w).join("; ") || null, said = noAsides(w);
   if (own) return { q: own };
@@ -127,9 +151,17 @@ export function openRoom({ say } = {}) {
           h("button", { className: "snap-primary", textContent: "This one", onclick: act(async () => { await C.apply(d.id, c.id, "person"); await answered(asked, `Picked: it's in ${place ?? "its place"} now.`); }) })))), why,
         h("div", { className: "snap-room-verdict" }, h("button", { className: "snap-link", textContent: "Neither, same problem", onclick: act(async () => { for (const c of ready) await C.reject(d.id, c.id, "person", { because: why.value.trim() || "neither: the same problem" }); await answered(asked, "None of them: they'll be made again with that in mind."); }) })));
     }
-    const t = T.get(r.result.take);
+    const t = T.get(r.result.take), notes = r.source === "critique" ? notesOf(r) : [], crit = notes.length ? CR.get(r.result.critique) : null;
+    // the boxes go on the picture only where the note was drawn on it (a still's own pixels, not a context picture)
+    const boxed = notes.map((n, i) => [n, i + 1]).filter(([n]) => n.region && (!n.take || n.take === t?.id) && ["subject", "tile", undefined].includes(crit?.packet?.pictures?.[n.picture ?? 0]?.role));
+    const media = t ? t.media.find((m) => m.kind === "video") ?? t.media[0] : null;
+    const pic = media && boxed.length && media.kind !== "video" ? h("div", { className: "snap-room-mark" }, h("img", { src: url(media), className: "snap-room-pic", alt: "" }),
+      boxed.map(([n, k]) => h("i", { className: `snap-room-box ${n.severity ?? ""}`, style: `left:${n.region[0] * 100}%;top:${n.region[1] * 100}%;width:${n.region[2] * 100}%;height:${n.region[3] * 100}%` }, h("b", { textContent: String(k) })))) : pictureOf(media);
+    const list = notes.length ? h("ol", { className: "snap-room-notes" }, notes.map((n) => h("li", { className: n.severity ?? "" },
+      h("p", {}, h("strong", { textContent: `${SEVERITY[n.severity] ?? "A note"}: ` }), said_(n.text)),
+      h("p", { className: "snap-room-where", textContent: `It comes from ${bornIn(n.owner)}.${n.fix ? ` What would fix it: ${said_(n.fix).replace(/[.\s]+$/, "")}.` : ""}` })))) : null;
     const judge = (v, said) => act(async () => { await T.setVerdict(t, v, { because: why.value.trim() }); await A.opened(t.id); await answered(asked, said, async () => { await T.setVerdict(t, null, { reason: "changed_mind" }); }); });
-    return h("section", { className: "snap-room-q" }, h("h2", { textContent: asked }), where, h("div", { className: "snap-room-pics one" }, t ? pictureOf(t.media.find((m) => m.kind === "video") ?? t.media[0]) : null), why,
+    return h("section", { className: "snap-room-q" }, h("h2", { textContent: asked }), where, h("div", { className: "snap-room-pics one" }, pic), list, why,
       h("div", { className: "snap-room-verdict" }, h("button", { className: "snap-primary", textContent: "Keep it", onclick: judge("keep", `Kept${place ? `: ${place} can use it` : ""}.`) }),
         h("button", { className: "snap-link", textContent: "Not this one", onclick: judge("reject", "Set aside, with your reason.") }),
         h("button", { className: "snap-link", textContent: "Neither, same problem", onclick: judge("neither", "Noted: the same problem as the others.") })));

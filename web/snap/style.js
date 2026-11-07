@@ -523,6 +523,14 @@ export const STYLE = `
 .snap-room-pics figure { margin: 0; display: flex; flex-direction: column; gap: 6px; }
 .snap-room-pics figcaption { text-align: center; font-weight: 600; }
 .snap-room-pic { width: 100%; max-height: 62vh; object-fit: contain; background: #000; border-radius: 12px; display: block; }
+/* SNAP-R180 a critic's notes: numbered boxes on the picture (sized to the picture itself), the notes listed under it */
+.snap-room-mark { position: relative; width: fit-content; max-width: 100%; margin: 0 auto; }
+.snap-room-mark .snap-room-pic { width: auto; max-width: 100%; height: auto; object-fit: initial; }
+.snap-room-box { --c: #f0b445; position: absolute; box-sizing: border-box; border: 2px solid var(--c); border-radius: 6px; pointer-events: none; }
+.snap-room-box.high { --c: #f08f8f; } .snap-room-box.low { --c: #8fb8f0; }
+.snap-room-box b { position: absolute; bottom: 100%; font-style: normal; left: -2px; margin-bottom: 2px; padding: 0 5px; border-radius: 4px; background: var(--c); color: #0b0c0f; font-size: 12px; line-height: 16px; } /* the number sits above its box, never over what it marks */
+.snap-room-notes { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 10px; }
+.snap-room-notes li p { margin: 0; overflow-wrap: anywhere; } .snap-room-notes li .snap-room-where { font-size: 14px; margin-top: 2px; }
 .snap-room-why { all: unset; box-sizing: border-box; width: 100%; padding: 11px 13px; border-radius: 11px; background: var(--s-card); box-shadow: inset 0 0 0 1px var(--s-line); }
 .snap-room-verdict { display: flex; flex-wrap: wrap; gap: 8px; }
 .snap-room-verdict .snap-primary, .snap-room-verdict .snap-link, .snap-room-pics .snap-primary { margin: 0; padding: 12px 18px; text-align: center; }
