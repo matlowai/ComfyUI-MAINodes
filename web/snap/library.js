@@ -600,7 +600,7 @@ export function locationOf(ref) {
 // add or replace one plate (by name) as a new version of the location
 // (a list of plates is one version: F-D10, four corrections made four versions)
 // F-G03 (SNAP-R148): a plate already there keeps every field the call leaves out, its picture too (so one pose or note
-// changes alone); camera may be a mark {name, x, y, heading, eye_height, lens, note}, added to the place or moved, the
+// changes alone), and a pose the fields it leaves out (F-P01); camera may be a mark {name, x, y, heading, eye_height, lens, note}, added to the place or moved, the
 // rest of the marks kept. Returns kept: per plate, what it kept
 export async function addPlate(ref, plate, { note, by = "person", dry = false } = {}) {
   const { id, body } = locationOf(W.refOf("location", W.parse(ref).id)), cameras = [...(body.cameras ?? [])], kept = {};
@@ -615,6 +615,8 @@ export async function addPlate(ref, plate, { note, by = "person", dry = false } 
     }
     const was = (body.plates ?? []).find((q) => q.name === x.name);
     if (!was) return x;
+    // F-P01: a pose merges by field like a camera mark ({eye_height: 1.7} keeps x, y, heading and lens; a null clears one)
+    if (x.pose && typeof x.pose === "object" && was.pose) x.pose = Object.fromEntries(Object.entries({ ...was.pose, ...x.pose }).filter(([, v]) => v !== null));
     const fresh = x.take != null || x.file != null, left = Object.keys(was).filter((k) => x[k] === undefined && !(fresh && ["file", "from"].includes(k)));
     if (left.length) kept[x.name] = left;
     return { ...Object.fromEntries(left.map((k) => [k, was[k]])), ...Object.fromEntries(Object.entries(x).filter(([, v]) => v !== undefined)) };

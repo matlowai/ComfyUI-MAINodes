@@ -1,7 +1,8 @@
 // Batch G8, dry_run on the location and clean-up writes G7 left (SNAP-R177) on the CPU test server:
 // - add_plate {dry_run}: a new plate and camera mark, one plate's pose alone (kept names the rest), a take's frame (named,
 //   not pulled into input/): each answers the version it would make and its diff by plate and mark name, and the
-//   location stays at its version; a bad camera mark is refused as the real call refuses it;
+//   location stays at its version; a bad camera mark is refused as the real call refuses it; F-P01: a pose merges by
+//   field ({eye_height: 1.7} changes that alone, {lens: null} clears the lens), in the dry run and the real call;
 // - draw_set_plan {dry_run}: the preview's picture and labels plus the would-be version and the plan's diff; no picture
 //   saved into input/, no version;
 // - delete_record {dry_run}: answers at once what it would delete and keep and which takes pinned it, with no proposal,
@@ -51,12 +52,15 @@ const files = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir, { recursive: tr
     R.headAfter = await head();
     R.inputSame = JSON.stringify(files(path.join(base, "input", "snap"))) === JSON.stringify(inputBefore) && !fs.existsSync(locDir);
     R.delReal = await call("delete_record", { ref: loc, reason: "the dry run's twin: it must still wait" });
+    const real = await call("add_plate", { location: loc, name: "P1", pose: { eye_height: 1.7, lens: null } });
+    R.poseReal = { version: real.version, pose: await page.evaluate(async (ref) => { const W = await import("/extensions/ComfyUI-MAINodes/snap/world.js"); await W.reload(); return W.get(ref)?.version.body.plates.find((p) => p.name === "P1")?.pose ?? null; }, real.ref) };
     R.errors = A.errors;
   } catch (e) { R.crash = e.stack; } finally { await b.close(); }
   const S = R, has = (x, re) => (x?.diff ?? []).some((l) => re.test(l));
   const checks = {
     newPlateDry: S.newPlate?.dry_run === true && S.newPlate.from_version === 1 && S.newPlate.would_be === 2 && has(S.newPlate, /^plate P2 added: /) && has(S.newPlate, /^camera mark C2 added: /) && /nothing was written: the real call saves Yard v2/.test(S.newPlate.said ?? ""),
-    poseAloneDry: S.poseOnly?.dry_run === true && S.poseOnly.diff?.length >= 1 && S.poseOnly.diff.every((l) => /^plate P1\.pose\./.test(l)) && S.poseOnly.diff.includes("plate P1.pose.eye_height 1.6 → 1.7") && S.poseOnly.kept?.P1?.includes("file"),
+    poseAloneDry: S.poseOnly?.dry_run === true && JSON.stringify(S.poseOnly.diff) === JSON.stringify(["plate P1.pose.eye_height 1.6 → 1.7"]) && S.poseOnly.kept?.P1?.includes("file"),
+    poseMergesReal: JSON.stringify(S.poseReal?.pose) === JSON.stringify({ x: 0.5, y: 0.9, heading: 0, eye_height: 1.7 }) && S.poseReal.version === 2, // F-P01: one field changes, a null clears one (lens)
     takeNotPulled: S.fromTake?.dry_run === true && has(S.fromTake, /plate P3 added: .*take \d+'s frame, saved into input\/ by the real call/) && /pulling each take's frame into input\//.test(S.fromTake.said ?? ""),
     refusedLikeReal: /no camera mark "C9"/.test(S.badMark?.error ?? ""),
     planDry: S.plan?.dry_run === true && S.plan.would_be === 2 && has(S.plan, /^plan /) && S.planImages === 1 && Array.isArray(S.plan.labels) && /nothing was written: the real call saves the picture into input\/ and Yard v2/.test(S.plan.said ?? ""),

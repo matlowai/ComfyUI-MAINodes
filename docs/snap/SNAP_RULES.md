@@ -1665,3 +1665,7 @@ SNAP-R178 on. R160-R164 stay free.
   keep and which takes pinned it. A dry run never waits as a proposal, even on a tool that waits for the person: it
   writes nothing, so there is nothing to accept. *Why:* G7 left these three without one (Astrid interop map, write
   safety). *More:* tests/snap/test_g8_dryrun.js.
+- **SNAP-R148 (amended, G8): a plate's pose merges by field.** `add_plate {location, name, pose: {eye_height: 1.7}}` on
+  a plate that exists changes that number alone and keeps x, y, heading and lens; a field given null clears it, and
+  `pose: null` clears the pose, as camera marks given as objects already merged. *Why:* F-P01: the G8 dry run showed a
+  pose-only call wiping the plate's x, y, heading and lens.
