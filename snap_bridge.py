@@ -27,6 +27,7 @@ import subprocess
 import uuid
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit, urlunsplit
 
 import time
 
@@ -596,7 +597,11 @@ async def chrome_tool(request, user, args):
         async with aiohttp.ClientSession() as session:
             for t, _ in hit:
                 async with session.ws_connect(t["webSocketDebuggerUrl"], max_msg_size=0) as ws:
-                    await cdp(ws, "Page.reload", {"ignoreCache": True})
+                    u = urlsplit(t["url"])
+                    if "snap" in parse_qs(u.query, keep_blank_values=True):
+                        await cdp(ws, "Page.reload", {"ignoreCache": True})
+                    else:  # F-F14: a tab opened without ?snap came back on Graph view; it reopens on Snap (same tab: sessionStorage kept)
+                        await cdp(ws, "Page.navigate", {"url": urlunsplit(u._replace(query=f"{u.query}&snap" if u.query else "snap"))})
         for _ in range(100):  # each reloaded tab registers again (its client id stays: sessionStorage is the tab's)
             if all(c in pages and pages[c]["code"] == code and pages[c]["registered"] > time.time() - 30 for _, c in hit):
                 break
