@@ -6,7 +6,7 @@
 // production style · SNAP-R131 boards and the animatic · SNAP-R132 the Cut · SNAP-R133 a set plan drawn in Snap ·
 // SNAP-R139 story proposals stack and outlive the page · SNAP-R142 opening board and key drawing · SNAP-R19 the tool table is the API · SNAP-R58 nothing trimmed ·
 // SNAP-R165 a Cast line folds through the state · SNAP-R166 apply_unit lands off the Cut · SNAP-R168 a cut opens before its beat · SNAP-R169 boards pin the story ·
-// SNAP-R170 a re-board keeps its own board · SNAP-R172 the reversal cost says what moves · SNAP-R175 the colour script ·
+// SNAP-R170 a re-board keeps its own board · SNAP-R172 the reversal cost says what moves · SNAP-R175 the colour script · SNAP-R176 settei design it · SNAP-R177 dry_run writes nothing ·
 // see docs/snap/SNAP_RULES.md
 import * as B from "./book.js";
 import * as W from "./world.js";
@@ -32,8 +32,8 @@ const STORY_NOTE = "Canon: from an agent this always waits as a proposal for the
 const fieldWords = (v, story = { props: [] }) => Array.isArray(v) ? v.map((x) => (x?.who ? `${B.nameOf(story, x.who)}: "${x.text}"` : x?.what ? `"${x.what}"` : JSON.stringify(x))).join(", ") || "none" : typeof v === "string" ? `"${v}"` : JSON.stringify(v);
 // a group by id, or the error naming the groups there are
 const groupIn = (story, id) => story.groups.find((g) => g.id === id) ?? (() => { throw new Error(`No group ${id}; the groups: ${story.groups.map((g) => `${g.id} "${g.name}"`).join(", ") || "none yet (add_group)"}`); })();
-// F-L16: a prop a change names gets its name in the story's props (the given name, else its words), once
-const withPropName = (story, entity, name) => (!String(entity ?? "").startsWith("prop:") || (story.props ?? []).some((p) => `prop:${p.id}` === entity) && !name ? story : B.cleanStory({ ...story, props: [...(story.props ?? []).filter((p) => `prop:${p.id}` !== entity), { id: entity.slice(5), name: name ?? entity.slice(5).replace(/[-_]+/g, " ") }] }));
+// F-L16: a prop a change names gets the name given with it in the story's props (without one it reads "the <id words>")
+const withPropName = (story, entity, name) => (!name || !String(entity ?? "").startsWith("prop:") ? story : B.cleanStory({ ...story, props: [...(story.props ?? []).filter((p) => `prop:${p.id}` !== entity), { id: entity.slice(5), name: name ?? entity.slice(5).replace(/[-_]+/g, " ") }] }));
 // the take a keep_as_canon names, with the Book and beat it was made at
 function takeStory(id) {
   const t = T.get(id), s = t?.story ?? t?.graph?.extra?.snap?.story;
@@ -62,7 +62,7 @@ const STORY = {
 };
 // a story edit: from an agent it waits as a proposal built on the draft (the story with the Book's waiting story proposals
 // applied in order), with what it needs and its reversal cost; from an accepted proposal it is saved on the story's head
-async function storyEdit(tool, args, { confirmed } = {}) {
+async function storyEdit(tool, { dry_run, ...args }, { confirmed } = {}) {
   await ready();
   const edit = STORY[tool], b = B.bookOf(edit.book?.(args) ?? args.book), st = B.storyOf(b.body), bookRef = `book:${b.id}`;
   if (confirmed) {
@@ -79,6 +79,8 @@ async function storyEdit(tool, args, { confirmed } = {}) {
   const needs = built.filter((p) => (p.makes ?? []).some((id) => named.has(id))).map((p) => p.id);
   // F-L06: on top of waiting proposals, the cost is this edit's own (draft → this) and, apart, the whole stack's (canon → this)
   const own = await B.reversalCost(bookRef, story, built.length ? { base: draft } : {}), stack = built.length ? await B.reversalCost(bookRef, story) : null;
+  // SNAP-R177: a dry run answers what the edit would write and re-open, and writes nothing (no proposal, no version)
+  if (dry_run) return { dry_run: true, would: said, title: `${b.body.name}: ${what}`, diff: B.storyDiff(draft, story), reversal_cost: stack ? { ...own, with_waiting: { built_on: built.map((x) => x.id), said: stack.said, takes: stack.takes, boards: stack.boards, cuts: stack.cuts } } : own, ...(needs.length ? { needs } : {}), said: "nothing was written: call it again without dry_run to propose it" };
   const cost = stack ? { ...own, with_waiting: { built_on: built.map((x) => x.id), said: stack.said, takes: stack.takes, boards: stack.boards, cuts: stack.cuts } } : own;
   const costLine = [own.moves ? own.said : null, stack?.moves ? `with ${built.map((x) => x.id).join(", ")} waiting: ${stack.said}` : null].filter(Boolean).join("; ");
   const p = await B.propose(tool, tool === "add_beat" ? { ...args, id: said.beat } : args, `${b.body.name}: ${what}${needs.length ? ` (on ${needs.join(", ")})` : ""}${costLine ? ` (${costLine})` : ""}`, { book: bookRef, needs, makes }); // the beat id is kept, so what names it still finds it after the accept
@@ -86,6 +88,7 @@ async function storyEdit(tool, args, { confirmed } = {}) {
     ...(built.length ? { draft: `built on the story as ${built.map((x) => x.id).join(", ")} (waiting) would leave it` } : {}), reversal_cost: cost };
 }
 
+const DRY = { dry_run: { type: "boolean", description: "answer what this would write (the diff) and re-open (reversal_cost), and write nothing: no proposal, no version (SNAP-R177)" } };
 export const BOOK_TOOLS = [
   {
     name: "list_books",
@@ -234,9 +237,10 @@ export const BOOK_TOOLS = [
     direct: true, // canon: its own proposal path (the proposal id goes into the story version), never the generic one
     description: "A Book's production style (SNAP-R130, the look record; style scout 2026-11-06): name, paragraph (2-3 sentences in the catalogue's register: medium, line, shading, texture, finish; it goes FIRST in every prompt, then the subject), palette (monochrome, limited, full: under monochrome or limited the compile notes colour words in Cast lines, since a colour word in a subject beats the style), still (one approved reference picture {file} or {take, frame}: Picture 1 for video), lora {file, strength} (optional), voice (the house acting direction each Cast's casting builds on), sound (the sound palette), genre (the genre playbook: staging and intensity), source (where the paragraph came from, a name only). No negative: the H3 models run at cfg 1. With book, the Book's style is set to it; a Book's first style is set directly (said so in the answer); a change to the style a Book uses is canon and waits as a proposal from an agent.",
     inputSchema: { type: "object", properties: { book: { type: "string" }, look: { type: "string" }, name: { type: "string" }, paragraph: { type: "string" }, palette: { type: "string", enum: B.PALETTES }, still: { type: ["object", "null"], properties: { file: { type: "string" }, take: { type: "string" }, frame: { type: "integer", minimum: 0 } } }, lora: { type: ["object", "null"], properties: { file: { type: "string" }, strength: { type: "number" } } }, voice: { type: "string" }, sound: { type: "string" }, genre: { type: "string" }, source: { type: "string" }, proposal: { type: "string" } }, required: ["name", "paragraph"] },
-    run: async (args, { confirmed } = {}) => {
+    run: async ({ dry_run, ...args }, { confirmed } = {}) => {
       await ready();
       const { book, look, proposal, ...body } = args, b = book ? B.bookOf(book) : null, id = look ? W.parse(look).id : null, used = b?.body.style && (!id || W.parse(b.body.style).id === id);
+      if (dry_run) { const was = id ? W.get(`look:${id}`)?.version.body : used ? B.styleOf(b.body)?.body : null; return { dry_run: true, look: id ? `look:${id}` : used ? b.body.style : "a new style", diff: W.diff(was ?? {}, { ...was, ...body }), canon: !!used, said: `nothing was written${used ? ": the Book's style is canon, so the real call waits as a proposal" : ""}` }; } // SNAP-R177
       if (body.still?.take) { const t = T.get(body.still.take); if (!t) throw new Error(`still: no take ${body.still.take}`); const f = await T.frameAt(t, "last", { frame: body.still.frame ?? (t.media.some((m) => m.kind === "video") ? undefined : 0) }); body.still = { file: f.file, from: { take: t.id, frame: f.frame } }; }
       if (used && !confirmed) { const p = await B.propose("save_style", { ...args, look: look ?? b.body.style.split("@")[0] }, `${b.body.name}: the production style → "${body.paragraph}"`, { book: `book:${b.id}` }); return { proposed: p.id, status: "the Book's style is canon: waiting for the person to accept" }; }
       const out = await B.saveLook(id ?? (used ? W.parse(b.body.style).id : null), body, { by: "agent", note: proposal ? `accepted proposal ${proposal}` : "" });
@@ -299,10 +303,11 @@ export const BOOK_TOOLS = [
     name: "save_cast_state",
     description: "Settei per state on a Cast (SNAP-R69): a state of the character (name, e.g. oilskin) that covers story fields ({wardrobe: \"oilskin\"}: the compile cites its pictures wherever the fold gives those values) and its pictures [{file} or {take, frame}, view (front, three-quarter, side, back, expression…)], plus words. Saves a new Cast version naming the take each picture came from; takes made before read 'Cast v6 → v7'. A state with no pictures compiles 'words only'.",
     inputSchema: { type: "object", properties: { cast: { type: "string" }, state: { type: "string" }, covers: { type: "object" }, words: { type: "string" }, pictures: { type: "array", items: { type: "object", properties: { file: { type: "string" }, take: { type: "string" }, frame: { type: "integer", minimum: 0 }, view: { type: "string" } } } } }, required: ["cast", "state"] },
-    run: async ({ cast, state, covers = {}, words = "", pictures = [] }, { confirmed } = {}) => {
+    run: async ({ cast, state, covers = {}, words = "", pictures = [], dry_run }, { confirmed } = {}) => {
       await ready();
       const { id } = W.parse(cast), got = W.get(`cast:${id}`);
       if (!got) throw new Error(`No Cast ${cast}`);
+      if (dry_run) { const was = (got.version.body.states ?? []).find((x) => x.name === state) ?? null; return { dry_run: true, cast: `cast:${id}`, from_version: got.version.n, state, was, would: { name: state, covers, ...(words ? { words } : {}), pictures: pictures.map((p) => ({ ...p })) }, said: `nothing was written: the real call saves ${got.version.body.name} v${got.version.n + 1}${pictures.some((p) => p.take) ? ", pulling each take's frame into input/" : ""}` }; } // SNAP-R177
       const pics = [];
       for (const p of pictures) {
         if (p.take) { const t = T.get(p.take); if (!t) throw new Error(`no take ${p.take}`); const f = await T.frameAt(t, "last", { frame: p.frame ?? (t.media.some((m) => m.kind === "video") ? undefined : 0) }); pics.push({ file: f.file, ...(p.view ? { view: p.view } : {}), from: { take: t.id, frame: f.frame } }); }
@@ -396,3 +401,5 @@ export const BOOK_TOOLS = [
     run: async ({ location, shapes, cameras, size, aspect, preview }) => { await ready(); return drawPlan(location, { shapes, cameras, size, aspect, preview, by: "agent" }); },
   },
 ];
+// SNAP-R177: dry_run on the Book's writes that change canon or a record
+for (const t of BOOK_TOOLS) if (STORY[t.name] || ["save_style", "save_cast_state"].includes(t.name)) t.inputSchema.properties = { ...t.inputSchema.properties, ...DRY };
