@@ -25,6 +25,7 @@ import * as L from "./library.js";
 import * as E from "./engine.js";
 import * as K from "./checks.js";
 import * as P from "./proposals.js";
+import * as RT from "./retake.js";
 
 export const MEDIA = ["anime", "film", "manga", "novel"];
 export const DIAL = ["assist", "collaborate", "automatic"];
@@ -652,22 +653,43 @@ export async function storyStale(take, { story = null, compiled = new Map() } = 
   }
   return reasons.length ? { reasons, was: s.ref ?? null, now: now.story?.ref ?? null } : null;
 }
-// every take of a Book's units with what moved under it (story fields and the style), and the count per unit
+// every take of a Book's units with what moved under it (story fields and the style), and the count per unit: the takes
+// in its cuts' shots, and the takes that pin one of its cuts from elsewhere (apply_unit {land}, board candidates landed
+// off the cut, F-L04/F-L10). board says a board or key candidate (its pin's role) or the cut's picked board
 export async function bookStale(bookRef, { story = null } = {}) {
   await T.load();
-  const book = bookOf(bookRef), out = [], compiled = new Map();
-  for (const { scene, shot, unit } of units(book)) for (const e of SC.takesOf(shot)) {
-    const t = T.get(e.take), st = t && await storyStale(t, { story, compiled });
-    if (st) out.push({ take: t.id, number: t.number, cut: unit.cut ?? null, scene: scene.id, shot: shot.id, active: shot.active === t.id, reasons: st.reasons });
+  const book = bookOf(bookRef), out = [], compiled = new Map(), seen = new Set(), list = units(book), ref = `book:${book.id}`;
+  const row = async (t, u, where = null) => {
+    seen.add(t.id);
+    const st = await storyStale(t, { story, compiled }), pin = t.story ?? t.graph?.extra?.snap?.story;
+    if (u && pin?.unit?.shot && pin.unit.shot !== u.shot.id) { where = { scene: u.scene.id, shot: u.shot.id }; u = list.find((x) => x.shot.id === pin.unit.shot); } // landed in another shot of the Book
+    const board = pin?.role === "board" || pin?.role === "key" ? pin.role : u && (u.unit.board?.from?.take === t.id ? "board" : u.unit.key?.from?.take === t.id ? "key" : null);
+    if (st) out.push({ take: t.id, number: t.number, cut: u?.unit.cut ?? pin?.unit?.cut ?? null, scene: u?.scene.id ?? pin?.unit?.scene, shot: u?.shot.id ?? pin?.unit?.shot, active: !!u && !where && u.shot.active === t.id, ...(board ? { board } : {}), ...(where ? { landed: where } : {}), reasons: st.reasons });
+  };
+  for (const u of list) for (const e of SC.takesOf(u.shot)) { const t = T.get(e.take); if (t) await row(t, u); }
+  for (const t of T.all().filter((x) => !seen.has(x.id) && (x.story ?? x.graph?.extra?.snap?.story)?.book === ref)) {
+    const pin = t.story ?? t.graph?.extra?.snap?.story, u = list.find((x) => x.shot.id === pin.unit?.shot), home = RT.shotOf(t);
+    await row(t, u, home ? { scene: home.scene.id, shot: home.shot.id } : pin.landed ?? { scene: null, shot: null });
   }
   return out;
 }
-// what a story edit would re-open before it is saved (reversal cost, box1:43): takes it would flag and boards it touches
+// what a story edit would re-open before it is saved (reversal cost, box1:43), its own words for what moves (F-L03,
+// SNAP-R172): the cuts whose compile changes and by which fields, the takes and boards it newly flags, and the takes
+// already stale that it flags again for more (counted, never left out: "nothing" only when nothing moves)
 export async function reversalCost(bookRef, story) {
-  const before = new Set((await bookStale(bookRef)).map((x) => x.take)), after = await bookStale(bookRef, { story: cleanStory(story) });
-  const flagged = after.filter((x) => !before.has(x.take));
-  const boards = units(bookOf(bookRef)).filter((u) => u.unit.board?.from && flagged.some((f) => f.shot === u.shot.id)).length;
-  return { takes: flagged.length, boards, said: flagged.length ? `re-flags ${plural(flagged.length, "take")}${boards ? ` and ${plural(boards, "board")}` : ""}` : "re-flags nothing", list: flagged };
+  const book = bookOf(bookRef), draft = cleanStory(story), before = new Map((await bookStale(bookRef)).map((x) => [x.take, x])), after = await bookStale(bookRef, { story: draft });
+  const flagged = after.filter((x) => !before.has(x.take)), also = after.filter((x) => before.has(x.take)).map((x) => ({ ...x, also: x.reasons.filter((r) => !before.get(x.take).reasons.includes(r)) })).filter((x) => x.also.length);
+  const cuts = [], field = (k) => { const [h, ...rest] = k.split("."); return /^b\d+$/.test(h) ? `${h} ${rest.join(" ")}` : rest.length ? `${nameOf(draft, h)}.${rest.join(".")}` : k; };
+  for (const { scene, shot, unit } of units(book)) {
+    const [a, b] = await Promise.all([compile(scene.id, shot.id).catch(() => null), compile(scene.id, shot.id, { story: draft }).catch(() => null)]);
+    const keys = a && b ? [...new Set([...Object.keys(a.from), ...Object.keys(b.from)])].filter((k) => a.from[k] !== b.from[k]) : [];
+    if (keys.length) cuts.push({ cut: unit.cut ?? shot.id, scene: scene.id, shot: shot.id, fields: keys.map(field) });
+  }
+  const boards = flagged.filter((x) => x.board).length, takes = flagged.length - boards, why = [...new Set(also.flatMap((x) => x.also.map((r) => r.replace(/^story: /, ""))))];
+  const said = [cuts.length ? `changes the compile of ${cuts.map((c) => `${c.cut} (${c.fields.join(", ")})`).join(", ")}` : null,
+    takes || boards ? `re-flags ${[takes ? plural(takes, "take") : null, boards ? plural(boards, "board") : null].filter(Boolean).join(" and ")}` : null,
+    also.length ? `${plural(also.length, also.some((x) => x.board) && also.every((x) => x.board) ? "board" : "take")} already stale ${also.length === 1 ? "is" : "are"} now also stale for ${why.join("; ")}` : null].filter(Boolean);
+  return { takes, boards, also: also.length, cuts, moves: said.length > 0, said: said.join("; ") || "nothing moves: no cut's compile changes and no take or board is flagged", list: flagged, ...(also.length ? { also_list: also } : {}) };
 }
 
 // ---- the dial (the GPU and pick half reads it where SNAP-R16's flag is read) ------------------------------------------

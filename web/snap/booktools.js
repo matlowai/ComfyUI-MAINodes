@@ -63,7 +63,7 @@ async function storyEdit(tool, args, { confirmed } = {}) {
   const { story, said, makes = [] } = edit.make(draft, args), what = edit.what(args, draft), named = new Set(edit.names(args).filter(Boolean));
   const needs = built.filter((p) => (p.makes ?? []).some((id) => named.has(id))).map((p) => p.id);
   const cost = await B.reversalCost(bookRef, story);
-  const p = await B.propose(tool, tool === "add_beat" ? { ...args, id: said.beat } : args, `${b.body.name}: ${what}${needs.length ? ` (on ${needs.join(", ")})` : ""}${cost.takes ? ` (${cost.said})` : ""}`, { book: bookRef, needs, makes }); // the beat id is kept, so what names it still finds it after the accept
+  const p = await B.propose(tool, tool === "add_beat" ? { ...args, id: said.beat } : args, `${b.body.name}: ${what}${needs.length ? ` (on ${needs.join(", ")})` : ""}${cost.moves ? ` (${cost.said})` : ""}`, { book: bookRef, needs, makes }); // the beat id is kept, so what names it still finds it after the accept
   return { proposed: p.id, status: "waiting for the person to accept or reject (story edits are always proposals)", would: said, ...(needs.length ? { needs, built_on: `accepting ${p.id} accepts ${needs.join(", ")} first (it names their beats)` } : {}),
     ...(built.length ? { draft: `built on the story as ${built.map((x) => x.id).join(", ")} (waiting) would leave it` } : {}), reversal_cost: cost };
 }
@@ -250,10 +250,10 @@ export const BOOK_TOOLS = [
   },
   {
     name: "story_stale",
-    description: "Which takes of a Book's cuts were made from a story or style that has since moved (SNAP-R68): per take, the reasons by field and beat (\"story: Kon.carried.right_hand changed at b4\"), only for fields the cut actually used. Nothing changes.",
+    description: "Which takes of a Book's cuts were made from a story or style that has since moved (SNAP-R68): per take, the reasons by field and beat (\"story: Kon.carried.right_hand changed at b4\"), only for fields the cut actually used. Board candidates count too (board: board or key; F-L04), and so do takes that pin a cut from another shot (landed: where they are, apply_unit {land}). Nothing changes.",
     inputSchema: { type: "object", properties: { book: { type: "string" } }, required: ["book"] },
     annotations: { readOnlyHint: true },
-    run: async ({ book }) => { await ready(); const list = await B.bookStale(book); return { stale: list, said: list.length ? `${list.length} take${list.length === 1 ? "" : "s"} made from a story or style that moved` : "every take matches today's story and style" }; },
+    run: async ({ book }) => { await ready(); const list = await B.bookStale(book), boards = list.filter((x) => x.board).length; return { stale: list, said: list.length ? `${list.length - boards} take${list.length - boards === 1 ? "" : "s"}${boards ? ` and ${boards} board${boards === 1 ? "" : "s"}` : ""} made from a story or style that moved` : "every take and board matches today's story and style" }; },
   },
   {
     name: "save_cast_state",
