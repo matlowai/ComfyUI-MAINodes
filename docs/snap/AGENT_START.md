@@ -315,7 +315,7 @@ cameras → master → a people-free walkthrough → plates from its frames), th
     apply_location {"location": "location:<id>", "plates": ["Pb gate inside"], "camera": "Pb gate inside"}
                                                        # answers cite (master, plan, plates), use and prompt_hint
     save_location {"location": "location:<id>", "master": {"take": "<fixed>"}}   # a new master; the rest is kept (kept says what)
-    add_plate {"location": "location:<id>", "name": "Pb gate inside", "pose": {"eye_height": 1.5}}   # one plate's pose; its picture and the rest kept
+    add_plate {"location": "location:<id>", "name": "Pb gate inside", "pose": {"eye_height": 1.5}}   # one number of one plate's pose; the rest of its pose, its picture and the other plates kept (a null clears one field)
     add_plate {"location": "location:<id>", "name": "Pc N row", "camera": {"name": "Pc N", "x": 0.4, "y": 0.2, "heading": 0, "eye_height": 1.6}}
                                                        # a camera mark added (or moved, by name) with the plate (SNAP-R148)
     save_location {"location": "location:<id>", "scale": [{"name": "house door", "height_m": 2.0}, {"name": "gate door", "height_m": 3.7}]}
