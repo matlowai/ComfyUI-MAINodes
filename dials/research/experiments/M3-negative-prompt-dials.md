@@ -121,3 +121,9 @@ backgrounds turn light blue or aqua: the same blue lean as on the beach. The lan
 **What it changes.** The dial generalizes beyond the prompt family it was tested on, and to a kind of text it was not made
 from (whole caption layouts, not corner stamps): it reads as "no overlaid text or branding". The blue lean travels with it;
 the dress push from above is the known fix when the subject has a dress to push. Held-out: 2 prompts × 6 seeds.
+
+**Cross-model: the landscape prompt on MOSS SFT DeBand** at its own settings (ER-SDE 25 steps, CFG 3, the real negative
+prompt), seeds 201-206: **the controls are already clean**: plain landscapes, no caption bands or badges on any seed. So the
+award-poster text is a KroMoss-at-CFG-1 failure (or the negative prompt's work); there is nothing for the dial to remove
+here. The dial at −8 is harmless on DeBand: the same scene on every seed, small changes to clouds and mist. A removal test
+on DeBand needs a prompt that still draws a watermark through its negative prompt.
