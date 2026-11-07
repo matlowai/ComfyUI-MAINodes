@@ -141,3 +141,11 @@ release, or more budget waits for a decision.
 - **2026-11-06** M1 (MOSS-Image, branch dials-moss): 12 MOSS dials made on SFT DeBand; six steer DeBand, Base and KroMoss
   (Base/KroMoss ~2× the effect); Disney ↔ anime swept to breakdown on two prompts and at 4096²: arrival depends on the start
   image, breakdown on strength. [Write-up](experiments/M1-moss-image-dials.md).
+- **2026-11-07** M2 (MOSS word dials straight off the encoder's output head, the exact lens on MOSS): word lists land on the
+  right pair dials offline (rank 1 for night, storm, cold); visual weather words work at +8 (snow: 2 seeds, 2 scenes; rain a
+  strong hint); light-source colour words do not. [Write-up](experiments/M2-moss-word-dials.md).
+- **2026-11-07** M3 (a negative prompt as dials at CFG 1, KroMoss DMD2): word dials only fade a watermark; a picture-pair
+  dial (clean vs stamped corner crops) at −8 removes 6 of 8 on 12 seeds, 3 of 3 on held-out fan art and all 6 award-poster
+  caption layouts on a held-out landscape prompt. Side effect: a blue lean; holds do nothing (the hold dials are orthogonal,
+  cos ≈ 0), an active dress-colour push at −4 removes it. DeBand at CFG 3 with its negative draws no poster text to remove.
+  [Write-up](experiments/M3-negative-prompt-dials.md).
