@@ -548,21 +548,26 @@ export async function setUnit(sceneId, shotId, u, { by = "person" } = {}) {
 
 // ---- the board's package: what make_board sends, and compile_unit shows (SNAP-R131, F-F03) ---------------------------
 // the context pictures with their labels and the still prompt citing each by number: the plate as the camera (or the
-// master as the place), the nearest prior view (the previous cut's board in telling order, or `context` when given:
-// [{cut} its board, {take, frame}, {file, label}], F-F16), the Cast's state and identity pictures
-export async function boardPackage(sheet, { context = null } = {}) {
+// master as the place), the nearest prior view (F-L20, SNAP-R170: the cut's own approved board when it has one, so a
+// re-board keeps its blocking; else the previous cut's board in telling order; or `context` when given: [{cut} its
+// board, {take, frame}, {file, label}], F-F16), the Cast's state and identity pictures. role: opening draws the state
+// the cut opens on (F-L09), key the state at the beat's peak; the role sentence is part of the prompt (F-L14)
+const ROLE_LINE = { opening: "This frame is the moment the cut starts, before the beat's peak.", key: "This frame is the beat at its peak." };
+export async function boardPackage(sheet, { context = null, role = "opening" } = {}) {
   const { book, unit } = unitOf(sheet.scene, sheet.shot), list = units(book), i = list.findIndex((x) => x.shot.id === sheet.shot), near = [];
-  for (const c of context ?? (list[i - 1]?.unit.board?.file ? [{ file: list[i - 1].unit.board.file, label: "the previous cut's board" }] : [])) {
-    if (c.cut) { const u = list.find((x) => x.unit.cut === c.cut); if (!u?.unit.board?.file) throw new Error(`context: ${u ? `${c.cut} has no board yet` : `no cut ${c.cut}; the cuts: ${list.map((x) => x.unit.cut).join(", ")}`}`); near.push({ file: u.unit.board.file, label: `${c.cut}'s board` }); }
+  const own = unit.board?.file && unit.board.approved ? [{ file: unit.board.file, label: `${unit.cut ?? "this cut"}'s approved board`, keep: "keep its blocking: who stands or sits where, facing which way" }] : null;
+  for (const c of context ?? own ?? (list[i - 1]?.unit.board?.file ? [{ file: list[i - 1].unit.board.file, label: "the previous cut's board" }] : [])) {
+    if (c.cut) { const u = list.find((x) => x.unit.cut === c.cut); if (!u?.unit.board?.file) throw new Error(`context: ${u ? `${c.cut} has no board yet` : `no cut ${c.cut}; the cuts: ${list.map((x) => x.unit.cut).join(", ")}`}`); near.push({ file: u.unit.board.file, label: c.cut === unit.cut ? `${c.cut}'s own board` : `${c.cut}'s board`, ...(c.cut === unit.cut ? { keep: "keep its blocking: who stands or sits where, facing which way" } : {}) }); }
     else if (c.take) { const t = T.get(c.take); if (!t) throw new Error(`context: no take ${c.take}`); const f = await T.frameAt(t, "last", { frame: c.frame ?? (t.media.some((m) => m.kind === "video") ? undefined : 0) }); near.push({ file: f.file, label: c.label ?? `take ${t.number}` }); }
-    else if (c.file) near.push({ file: c.file, label: c.label ?? c.file });
+    else if (c.file) near.push({ file: c.file, label: c.label ?? c.file, ...(c.keep ? { keep: c.keep } : {}) });
     else throw new Error("context: each picture is {cut}, {take, frame} or {file, label}");
   }
-  const pictures = [...(unit.location ? [{ location: unit.location, plate: unit.plate ?? "master", label: unit.plate ? `${unit.cut}'s camera` : "the place" }] : []), ...near,
+  const pictures = [...(unit.location ? [{ location: unit.location, plate: unit.plate ?? "master", label: unit.plate ? `${unit.cut}'s camera` : "the place" }] : []), ...near.map(({ keep: _, ...n }) => n),
     ...sheet.package.filter((p) => p.role.startsWith("state: ") || p.role.startsWith("cast: ")).map((p) => ({ file: p.file, label: p.role }))];
   const at = unit.location ? 1 : 0, cast = sheet.entities.filter((e) => e.ref.startsWith("cast:")).map((e) => { const n = pictures.map((p, k) => (sheet.package.some((x) => x.file === p.file && x.from === e.ref) ? `<Picture ${k + 1}>` : null)).filter(Boolean); return n.length ? `${e.name} is ${n.join(" and ")}.` : null; });
-  const cites = [unit.location ? `<Picture 1> is ${unit.plate ? "this cut's camera on the place: keep its framing" : "the place"}.` : null, ...near.map((n, k) => `<Picture ${at + k + 1}> is ${n.label}: the same place and light.`), ...cast].filter(Boolean).join(" ");
-  return { pictures, prompt: [sheet.still_prompt, cites].filter(Boolean).join(" ") };
+  const cites = [unit.location ? `<Picture 1> is ${unit.plate ? "this cut's camera on the place: keep its framing" : "the place"}.` : null, ...near.map((n, k) => `<Picture ${at + k + 1}> is ${n.label}: ${n.keep ?? "the same place and light"}.`), ...cast].filter(Boolean).join(" ");
+  const still = role === "key" ? sheet.still_prompt : sheet.opens?.still_prompt ?? sheet.still_prompt;
+  return { role, ...(own && !context ? { context: `${own[0].label} (re-boarding keeps its blocking; give context to choose another)` } : {}), pictures, prompt: [still, cites, ROLE_LINE[role] ?? ROLE_LINE.opening].filter(Boolean).join(" ") };
 }
 
 // ---- apply a compile to the open recipe (the Snap chain of the unit's shot) ------------------------------------------
