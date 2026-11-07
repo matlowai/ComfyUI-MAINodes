@@ -571,10 +571,19 @@ export async function boardPackage(sheet, { context = null, role = "opening" } =
 }
 
 // ---- apply a compile to the open recipe (the Snap chain of the unit's shot) ------------------------------------------
-export async function apply(sceneId, shotId, { by = "agent", beats = null } = {}) {
+// land (F-L10, SNAP-R166): {scene, shot}, another shot (any scene) to compile into: the unit's shot and the Cut stay as
+// they are, and the takes made there pin the story and the unit they were compiled from (a test render at a moment)
+export async function apply(sceneId, shotId, { by = "agent", beats = null, land = null } = {}) {
   const sheet = await compile(sceneId, shotId, { beats }), { unit } = unitOf(sceneId, shotId);
-  if (SC.current()?.shot.id !== shotId) await SC.openShot(sceneId, shotId);
-  if (!E.state().bricks.some((b) => b.key === "render")) throw new Error(`${unit.cut ?? "This cut"} has no recipe yet: start_recipe first (it opens on the shot), then apply_unit again`);
+  const to = land ? { scene: land.scene, shot: land.shot } : { scene: sceneId, shot: shotId };
+  if (land) {
+    const s = SC.get(land.scene);
+    if (!s || !land.shot) throw new Error(`land is {scene, shot}: a shot to compile into${s ? "" : ` (no scene ${land.scene})`}; add_shot {scene, from: {scene: "${sceneId}", shot: "${shotId}"}} makes one that starts from ${unit.cut ?? "this cut"}'s recipe`);
+    SC.shotOf(s, land.shot);
+    if (land.shot === shotId) throw new Error(`land is the cut's own shot: leave land out to apply ${unit.cut ?? "it"} in place`);
+  }
+  if (SC.current()?.shot.id !== to.shot) await SC.openShot(to.scene, to.shot);
+  if (!E.state().bricks.some((b) => b.key === "render")) throw new Error(`${land ? "The shot to land in" : unit.cut ?? "This cut"} has no recipe yet: start_recipe first (it opens on the shot), then apply_unit again`);
   const said = [], number = units(bookOfScene(sceneId)).findIndex((x) => x.shot.id === shotId) + 1, refs = () => E.state().bricks.find((x) => x.key === "refs");
   const t = unit.timing?.seconds && E.timing("render");
   if (t) {
@@ -615,8 +624,9 @@ export async function apply(sceneId, shotId, { by = "agent", beats = null } = {}
   if (hint) first = `${first.replace(/\s*$/, "")} ${hint}`;
   E.setValue("render", "render", "prompt", [first, ...others].join("\n"));
   if (sheet.style) L.pin(sheet.style.ref.replace(/@\d+$/, ""), { n: +sheet.style.ref.split("@")[1], hash: W.short(W.get(sheet.style.ref).version.hash), name: sheet.style.name });
-  E.tag("story", { book: sheet.book, ...(sheet.story ? { ref: sheet.story.ref } : {}), beat: sheet.at?.beat ?? null, ...(beats ? { beats } : {}), unit: { scene: sceneId, shot: shotId, cut: unit.cut ?? null }, from: sheet.from });
-  return { said: said.filter(Boolean), sheet, prompt: E.getValue("render", "render", "prompt") };
+  E.tag("story", { book: sheet.book, ...(sheet.story ? { ref: sheet.story.ref } : {}), beat: sheet.at?.beat ?? null, ...(beats ? { beats } : {}), unit: { scene: sceneId, shot: shotId, cut: unit.cut ?? null }, ...(land ? { landed: to } : {}), from: sheet.from });
+  if (land) said.push(`compiled ${unit.cut ?? "the cut"} into ${SC.shotTitle(SC.get(to.scene), SC.shotOf(SC.get(to.scene), to.shot))} of ${SC.get(to.scene).name}; ${unit.cut ?? "the cut"}'s own shot and the Cut are unchanged`);
+  return { said: said.filter(Boolean), sheet, prompt: E.getValue("render", "render", "prompt"), ...(land ? { landed: to } : {}) };
 }
 
 // ---- stale on the story clock -------------------------------------------------------------------------------------
