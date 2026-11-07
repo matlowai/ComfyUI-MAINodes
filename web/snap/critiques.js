@@ -176,7 +176,8 @@ const landedAt = (t) => t.finished ?? t.created;
 const critiquable = (t) => t.status === "success" && !t.locked && t.media.some((m) => m.kind === "image" || m.kind === "video");
 async function scanTakes() {
   if (since == null) return;
-  for (const t of T.all()) if (critiquable(t) && landedAt(t) >= since && !rows.some((r) => r.key === `take:${t.id}`)) await forTake(t).catch((e) => console.warn(`critic: ${e.message}`));
+  // F-F18: a louder copy is its parent's picture as it was: the parent's critique holds for it (a pair still reads it)
+  for (const t of T.all()) if (critiquable(t) && t.parent?.method !== "louder" && landedAt(t) >= since && !rows.some((r) => r.key === `take:${t.id}`)) await forTake(t).catch((e) => console.warn(`critic: ${e.message}`));
 }
 async function scanCandidates() {
   if (since == null) return;

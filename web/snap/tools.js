@@ -1404,6 +1404,7 @@ export const TOOLS = [
       decision: { type: "string" }, candidate: { type: "string" }, file: { type: "string" }, path: { type: "string" }, location: { type: "string" }, plate: { type: "string", description: "view picture: a plate of location (by name), or master / plan / map" },
       masks: { type: "boolean", description: "the critic's masks: view location shows them on the sheet (default off); view picture of a location draws them (default on)" } }, required: ["view"] },
     run: async ({ view, take, index = 0, cast, ref = 0, decision, candidate, file, path, location: place, plate, tab = "here", scope, book, lens, masks }) => {
+      if (view !== "picture" && LB.showing()) LB.close(); // F-F14: a full-size picture left open by an earlier agent would cover the sheet
       if (view === "library") return { showing: await ui.act("library", `${tab}${scope ? `|${scope}` : ""}`), said: `the Agent library is open on the person's page (${tab === "notes" ? "Instructions" : tab === "skills" ? "Skills" : "Applies here"}${scope ? `, ${scope}` : ""})` }; // F-D09
       if (view === "book") { if (!book) throw new Error("open_view book: give book (book:<id>, list_books lists them)"); await W.load(); B.bookOf(book); return { showing: await ui.act("book", { book, lens }), said: "the Book is open on the person's page" }; }
       if (view === "location") {
