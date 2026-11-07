@@ -3,8 +3,8 @@
 SNAP-R108 every miss the person catches is one press from a fixture · SNAP-R109 the critic skill is the prompt's one
 home, and a prompt change ships only when the fixtures run holds the floor.
 
-`fixtures.json` is the manifest: 30 pictures the operator judged by eye (20 with flaws, 29 expected flaws counted, plus
-X30; 9 clean), each with what it is, its context words and pictures, the expected flaws (with the keys the auto-scorer
+`fixtures.json` is the manifest: 32 pictures the operator judged by eye (21 with flaws, 30 expected flaws counted, plus
+X30; 10 clean), each with what it is, its context words and pictures, the expected flaws (with the keys the auto-scorer
 matches), the allowed minor flaws, the must-not-flag readings and the operator's words. `floor` is the last accepted
 round (r3: 24/29 caught, 0 false alarms, run by Opus 5.5).
 
@@ -37,6 +37,15 @@ polarity once checked by eye. `packets` writes the same blind packets to disk fo
   float. `results.jsonl` (every note), `confirm.json` (the hand-settled rows, scored the way the r3 rounds scored them:
   the giants on X19/X29 and the beat items on X04/X27 are real, as scores_r3 found), `score.json`.
 
+- `runs/2026-11-06-r4-colour/`: the r4 colour delta (a Cast colour line per person read in every frame, effects
+  included; Cast colour drift medium; low colour shifts only for props and background) on all 32 fixtures, blind packets
+  on disk (`packets`), one Opus 5.5 critic: 26/30 caught (X31 caught; misses X13, X14 wire and kite, X21 LEFT float),
+  1 false alarm on 10 clean: X02's LEFT view "no hilt above the head", a sheet landmark note outside the colour delta
+  (by eye the grip doesn't show there; the operator accepted this sheet, so it counts until the operator says it is
+  real). The colour lines fired on no clean picture. X32's second monocle is real (both critics, checked by eye).
+  The r3 text on X31/X32 alone (`runs/2026-11-06-r3-x31x32/`): X31 missed (the dark hair read as a reaction gag, the
+  suit at low), X32 the same real monocle note.
+
 ## The fixtures
 
 - X01 master v1: the palisade only across the front; the village is not enclosed.
@@ -68,7 +77,9 @@ polarity once checked by eye. `packets` writes the same blind packets to disk fo
 - X27 board: clean (small fires are allowed minors).
 - X28 board: an inner palisade.
 - X29 walk frame: clean.
-- X30 master v2: a house outside the ring (not counted in the 29).
+- X30 master v2: a house outside the ring (not counted).
+- X31 clip sheet (short05 C3 burst): Cast colour drift, grey hair goes dark and the suit olive (medium).
+- X32 clip sheet (short05 C4): the clean colour twin (hair stays grey); a real second monocle in the last two frames.
 
 ## Known misses (r3)
 

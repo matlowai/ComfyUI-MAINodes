@@ -2,7 +2,7 @@
 name: snap-critic
 description: >
   The critic in Snap: claim the critique rows Snap puts on the docket for every landed take, board, sheet, plate, master,
-  location version and cut pair, read each packet (whole frames first, then tiles, then context) with the measured r3
+  location version and cut pair, read each packet (whole frames first, then tiles, then context) with the measured r4
   prompt below, and write the verdict and notes (severity, pass, region, owner, fix) back; then fix a flaw at its source
   record and re-run what depended on it. Use it whenever critiques are due (list_critiques), before you call any
   picture good or show results to the person, after a batch of candidates lands, and whenever a flaw comes back after a
@@ -12,7 +12,8 @@ rules: [SNAP-R101, SNAP-R102, SNAP-R103, SNAP-R104, SNAP-R105, SNAP-R106, SNAP-R
 ---
 
 SNAP-R101 the critic is a docket job an agent claims · SNAP-R109 this file is the prompt's one home, and a change ships
-only after the fixtures run holds the floor (tests/snap/critic/run_fixtures.py; floor 24/29 caught, 0 false alarms).
+only after the fixtures run holds the floor (tests/snap/critic/run_fixtures.py; floor 24/29 caught, 0 false alarms; r4
+measured 26/30 with X31, one sheet note on X02 waiting for the operator's look).
 If a Snap server is reachable, `read_skill {"name": "snap-critic"}` returns the person's version of this skill (their
 edits over the pack's); this file is the pack's. What each checklist adds is in `reference.md`
 (`read_skill {"name": "snap-critic", "file": "reference.md"}`). The fixtures and the known misses are in the pack's
@@ -49,7 +50,7 @@ When the docket is done (or your run ends), let go of your page: `use_page {"pag
 keeps its hold leaves the agents' window "Driven by" it for the next agent. Name every call (SNAP_AGENT), so the page
 knows the caller is you.
 
-# The critic prompt (r3, measured: 24/29 caught, 0 false alarms on 9 clean pictures)
+# The critic prompt (r4: r3 plus the Cast colour line; measured 26/30 caught, 1 false alarm on 10 clean, X02's hilt)
 
 In the output below, `<id>` is the packet's critique id; write it with write_critique as step 5 says.
 
@@ -106,7 +107,11 @@ Look at the WHOLE frame first at full size, then crop. Never judge from a thumbn
    (a twin parapet behind, a step in front): a twin is a set-topology flaw. Also
    check intersections: things passing through each other.
 4. **Cast check.** Compare each person to their Cast description/picture: count, identity, outfit, carried items
-   (with the same attachment as the Cast), extra people not in the beat or the Cast. State the baseline before reading
+   (with the same attachment as the Cast), extra people not in the beat or the Cast. Write a colour line per person
+   from the Cast picture: hair, eyes, skin, main outfit colour, accent colour (tie, sash). Then read the same five in
+   EVERY sampled frame of a clip, and in the frames inside a flash, glow, burst or ray effect too. Light may tint a
+   colour; it does not turn grey hair dark or a black suit olive. A hair, eye or main-outfit colour that differs from
+   the Cast and stays different across frames is a Cast colour drift. State the baseline before reading
    a face score: the identity notes' character score (SNAP-R111) reads the same character 0.55-0.94 and others
    0.07-0.52 on the anime fixtures (below 0.45 says "probably a different person"); ArcFace beside it reads a bowed
    profile at 0.06. Neither decides: the head crops do (SNAP-R23, R76).
@@ -127,9 +132,10 @@ Look at the WHOLE frame first at full size, then crop. Never judge from a thumbn
   - an item passing through a body;
   - a person far too big or small for the set.
 - **medium**: a clear physical or continuity error that a viewer would notice but that doesn't break the picture's job,
-  for example costume off the Cast, a prop design change between views, a well in the wrong place, a wall too low, or
-  an unheld item in a board or take.
-- **low**: cosmetic, such as stray small objects, small fires or embers, colour shifts, labels or crops.
+  for example costume off the Cast, a Cast colour drift in hair, eyes or main outfit colour (also inside an effect), a
+  prop design change between views, a well in the wrong place, a wall too low, or an unheld item in a board or take.
+- **low**: cosmetic, such as stray small objects, small fires or embers, colour shifts of props or background, labels
+  or crops.
 
 ### Output (per picture)
 ```
@@ -138,6 +144,8 @@ Look at the WHOLE frame first at full size, then crop. Never judge from a thumbn
   Cast record | board | take | prompt> | fix: <one line>
 passes: scan … / map … / support … / cast … / beat … / cross-view …
 ```
+The cast line names each person's colour line and where it moved, e.g. `cast: Kuroe hair grey, suit black, tie
+burgundy; hair grey -> dark f24-f56` (or `… : matches in every frame`).
 The owner is where the flaw was born (fix at the source): a flaw already in the location master or plan is owned by
 the master/plan, even when you see it in a board; a flaw in a Cast picture is owned by the Cast record.
 

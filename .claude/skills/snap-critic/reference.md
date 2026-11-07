@@ -63,6 +63,9 @@ A board or still in a shot (people in the place). Every pass.
 
 A video take in a shot: 5 spread frames whole, the first and last also tiled.
 - Scan each frame: duplicates, people popping in or out between frames, ghost figures.
+- Cast colour (r4): each person's colour line from the Cast (hair, eyes, skin, main outfit, accent), read again in every
+  sampled frame, the frames inside a burst or glow included; a colour that leaves the Cast and stays off is a medium
+  Cast colour drift, while a tint the light explains is not a flag (short05 C3: grey hair went dark in the burst).
 - Contact: bodies meet the surfaces they rest on (no one sinks into a roof); attachments: every wire, string and rope
   has an anchor at BOTH ends (the coincidence rule never excuses a wire;
   added after r3, measured from the r4 fixtures run on).

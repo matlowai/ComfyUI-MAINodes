@@ -1004,6 +1004,64 @@
     "a missing house row (all three are present: the far wall is two runs meeting at a corner at x≈690; read from the SW: N 5, E 3, S 4)"
    ],
    "note": "Added 2026-11-06. short03 CRITIC.md flagged the outside house (real) and a missing row (not real). The master is read diagonally from the SW: corners SW near (x≈900,y≈600), NW far left, NE = the top-edge peak at x≈690, SE right; gate wall = W. Lesson for the prompt: on high three-quarter views find the corners from the wall's top edge before naming walls or rows."
+  },
+  {
+   "id": "X31",
+   "polarity": "positive",
+   "checklist": "cut",
+   "counted": true,
+   "what": "CLIP, 6 frames of one take (sheet, left to right, top to bottom: frames 0, 12, 24, 40, 56, 89 of 90 at 24 fps): FL2V take s8201 of C3 (the tasting burst)",
+   "context": "Short05 'One More Bowl' (night ramen cart). Baron Kuroe (Cast cast-mw5ig1ny8ylr@4): elderly man, short swept-back GREY/silver hair, grey moustache, gold monocle on his RIGHT eye with a gold chain to his right lapel, black three-piece suit with a dark waistcoat, white shirt, dark burgundy tie, white pocket square. Mio (the cook) is not in this shot. Beat C3 (the tasting): he sips the broth, the taste hits him, a golden burst, the monocle flies off on its chain.",
+   "picture": "blind/X31.png",
+   "context_pictures": [
+    "blind/ctx/kuroe_cast_front.png"
+   ],
+   "expected": [
+    {
+     "flaw": "character colour drift vs the Cast: his grey hair turns dark, near black with heavy black shading, from the burst on (frame 24 darkest, partly grey again by 56/89); the suit also drifts from black to olive-grey and the tie from burgundy to pink-red. The hair is the cue a viewer reads as 'a different man'.",
+     "where": "his head (top centre) in frames 24, 40, 56; suit and tie across the same frames",
+     "severity": "medium",
+     "owner": "take (re-roll; the prompt could name 'his hair stays grey')",
+     "keys": [
+      [
+       "hair"
+      ],
+      [
+       "dark|black|darken|drift|colou?r|value|shade"
+      ]
+     ]
+    }
+   ],
+   "allowed_true_minor": [
+    "the monocle flies off on its chain (the beat; later frames show it hanging away from his face)",
+    "glow, rays, steam and noren over the set (the burst)",
+    "face and hands shaded darker in the burst frames"
+   ],
+   "must_not_flag": [
+    "the golden light tinting the whole frame (burst lighting is wanted); the flag is a hue or value change of the hair that the light cannot explain, persisting across frames"
+   ],
+   "note": "Added 2026-11-06 from short05 C3 option (b). The studio r3 critic gave 'low flaws only' and never mentioned the hair; the operator saw it on the sheet. Severity medium: costume or Cast-colour off model is medium in r3's list (a viewer notices), the picture's job survives (he is still recognisable by moustache and face), and the hair is back to mostly grey by frame 89, so not high. See rounds/c3b_hair_2026-11-06.md."
+  },
+  {
+   "id": "X32",
+   "polarity": "negative",
+   "checklist": "cut",
+   "counted": true,
+   "what": "CLIP, 4 frames of C4 of the finished Cut (sheet, left to right, top to bottom: cut times 10.2, 11.2, 12.2, 13.4 s; C4 starts at 9.92 s): take s7401. Kuroe turns on the stool and holds up the monocle; Mio ladles",
+   "context": "Short05 'One More Bowl' (night ramen cart). Baron Kuroe (Cast cast-mw5ig1ny8ylr@4): elderly man, short swept-back GREY/silver hair, grey moustache, gold monocle on his RIGHT eye with a gold chain to his right lapel, black three-piece suit with a dark waistcoat, white shirt, dark burgundy tie, white pocket square. Mio Hayase (Cast cast-mw5ig1ktoq32@2) is in this shot: young woman, orange-red ponytail, white headband, green apron, black T-shirt. Beat C4: he asks 'One more bowl.', the monocle now in his hand.",
+   "picture": "blind/X32.png",
+   "context_pictures": [
+    "blind/ctx/kuroe_cast_front.png"
+   ],
+   "expected": [],
+   "allowed_true_minor": [
+    "he turns on the stool to face the camera (both seeds)",
+    "ladle and bowl hand-off details (CRITIC.md rates C4 medium for the turn, not for colour)"
+   ],
+   "must_not_flag": [
+    "any hair, suit or tie colour drift: his hair stays grey, suit black, tie burgundy in all four frames"
+   ],
+   "note": "Added 2026-11-06 as the clean twin of X31: same man, same Cast, hair stays grey. The false-alarm floor for a hair/colour rule. Both blind critics (r3 and r4, 2026-11-06) also found a second monocle: he holds one up and wears another in the last two frames, each on its own chain; confirmed by eye, so a note on it is real (settle it ok), and the fixture stays the colour twin."
   }
  ]
 }
