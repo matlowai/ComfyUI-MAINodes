@@ -402,7 +402,9 @@ export async function takeToPlate(t, ref, { frame, name, by = "person" } = {}) {
 // put one Cast version into the open recipe, replacing what an earlier apply of the same record put there: its LoRA row
 // on the Cast brick (snapped in when missing), its sentence in the prompt's first line, its pictures in References.
 // `strength` overrides the record's for this recipe (the pin says so). Returns what happened
-export async function applyCast(ref, { strength, pictures } = {}) {
+// line (F-L02, SNAP-R165): the details line as a Book cut tells it (the Cast's clauses its story state overrides left out);
+// the pin keeps it, so a re-apply takes that text back out
+export async function applyCast(ref, { strength, pictures, line: told = null } = {}) {
   await ready();
   const { kind, id, n } = W.parse(ref);
   if (kind !== "cast") throw new Error(`${ref} isn't a Cast reference (cast:<id> or cast:<id>@n)`);
@@ -413,7 +415,7 @@ export async function applyCast(ref, { strength, pictures } = {}) {
   const all = got.version.body, pick = pictures?.length ? pictures : pictures ? null : pinOf(`cast:${id}`)?.placed?.pictures ?? null; // [] = every picture again
   const absent = (pick ?? []).filter((x) => !all.refs.some((r) => r.role === x));
   if (absent.length) throw new Error(`${all.name} v${got.version.n} has no picture ${absent.map((x) => `"${x}"`).join(", ")}; its pictures: ${all.refs.map((r) => `"${r.role}"`).join(", ") || "none"}`);
-  const b = pick ? { ...all, refs: all.refs.filter((r) => pick.includes(r.role)) } : all, key = `cast:${id}`, was = pinOf(key)?.placed ?? {}, placed = pick ? { pictures: pick } : {}, line = castLine(b);
+  const b = pick ? { ...all, refs: all.refs.filter((r) => pick.includes(r.role)) } : all, key = `cast:${id}`, was = pinOf(key)?.placed ?? {}, placed = pick ? { pictures: pick } : {}, line = told ?? castLine(b);
   let preset = null, opening = null;
   if (!E.state().bricks.some((x) => x.key === "render")) throw new Error(`${b.name} goes into the Render prompt: add the Render brick first`);
   const keys = () => E.state().bricks.map((x) => x.key);
