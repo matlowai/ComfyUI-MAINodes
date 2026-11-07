@@ -40,7 +40,31 @@ whatever they remove: do not use them blind.
 at −8 and even −16, and the combined dial at −8, leave the corner **exactly as with no dial**, and the figure unchanged
 too. In this 8-step setup the corner signature and the body side effect are both decided in the early steps.
 
+**Early steps only** (`early` envelope): −8 matches −8 on all steps (the same partial fade and figure change); −16
+fades the logo further but turns her into a different person (a sun hat, another dress). With word dials there is no
+setting that removes the watermark without changing the picture.
+
+## A picture-pair dial (Dylan's idea): the same image with and without a watermark
+
+16 pairs made without any editing model: 512×512 corner crops of plain MOSS renders, and the same crop with a stamped
+made-up signature or studio name plus a date (random fonts, colours, opacity; some faint). The pixels differ only by the
+stamp. Crops, not whole images, because MOSS's text encoder sees a picture at about 384×384, where a corner watermark on a
+full frame would vanish. Encoded with a "Picture 1" marker under three framings, through MOSS's `text_embedder`, B − A
+averaged (pair agreement 0.67), debiased, scaled to the word dial's size. Read back through the encoder's output head, the
+direction's top tokens toward the stamped side include "signed" (twice).
+
+Same 4096² render, seed 7, at CFG 1:
+
+| | the corner | the rest |
+|---|---|---|
+| picture dial −2 | logo still there, a short signature | same pose; a printed pattern on the dress |
+| picture dial −4 | logo faint, a thin signature | same pose |
+| **picture dial −8** | **logo gone**, a small signature left | **same pose and figure**; a star print on the dress, darker hair |
+
+At −8 the picture dial does what the CFG 1.5 negative did to the logo, at CFG 1 and with no extra pass, and keeps the
+composition far better than the word dial. A small signature remains, as it does with the real negative. One seed.
+
 **What it shows.** A negative-prompt dial pushes in the right direction but only part of the way: it fades a watermark
 the real negative removes. A dial is one fixed shift of the text conditioning; a negative prompt steers at every step
-through a second branch. Next: the dial in the early steps only, and a dial made
-from pictures (the same image with and without a watermark) instead of words. One seed: a hint.
+through a second branch. A picture-pair dial does the job (above). Next: a second seed and other prompts; more varied stamp pairs (the
+dress pattern may come from the crops' content). One seed: a hint.
