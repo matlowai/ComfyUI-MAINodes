@@ -242,7 +242,7 @@ export const BOOK_TOOLS = [
       await ready();
       const { book, look, proposal, ...body } = args, b = book ? B.bookOf(book) : null, id = look ? W.parse(look).id : null, used = b?.body.style && (!id || W.parse(b.body.style).id === id);
       if (dry_run) { const was = id ? W.get(`look:${id}`)?.version.body : used ? B.styleOf(b.body)?.body : null; return { dry_run: true, look: id ? `look:${id}` : used ? b.body.style : "a new style", diff: W.diff(was ?? {}, { ...was, ...body }), canon: !!used, said: `nothing was written${used ? ": the Book's style is canon, so the real call waits as a proposal" : ""}` }; } // SNAP-R177
-      if (body.still?.take) { const t = T.get(body.still.take); if (!t) throw new Error(`still: no take ${body.still.take}`); const f = await T.frameAt(t, "last", { frame: body.still.frame ?? (t.media.some((m) => m.kind === "video") ? undefined : 0) }); body.still = { file: f.file, from: { take: t.id, frame: f.frame } }; }
+      if (body.still?.take) { const t = T.find(body.still.take); if (!t) throw new Error(`still: no take ${body.still.take}`); const f = await T.frameAt(t, "last", { frame: body.still.frame ?? (t.media.some((m) => m.kind === "video") ? undefined : 0) }); body.still = { file: f.file, from: { take: t.id, frame: f.frame } }; }
       if (used && !confirmed) { const p = await B.propose("save_style", { ...args, look: look ?? b.body.style.split("@")[0] }, `${b.body.name}: the production style → "${body.paragraph}"`, { book: `book:${b.id}` }); return { proposed: p.id, status: "the Book's style is canon: waiting for the person to accept" }; }
       const out = await B.saveLook(id ?? (used ? W.parse(b.body.style).id : null), body, { by: "agent", note: proposal ? `accepted proposal ${proposal}` : "" });
       if (b && b.body.style !== `look:${out.id}`) {
@@ -311,7 +311,7 @@ export const BOOK_TOOLS = [
       if (dry_run) { const was = (got.version.body.states ?? []).find((x) => x.name === state) ?? null; return { dry_run: true, cast: `cast:${id}`, from_version: got.version.n, state, was, would: { name: state, covers, ...(words ? { words } : {}), pictures: pictures.map((p) => ({ ...p })) }, said: `nothing was written: the real call saves ${got.version.body.name} v${got.version.n + 1}${pictures.some((p) => p.take) ? ", pulling each take's frame into input/" : ""}` }; } // SNAP-R177
       const pics = [];
       for (const p of pictures) {
-        if (p.take) { const t = T.get(p.take); if (!t) throw new Error(`no take ${p.take}`); const f = await T.frameAt(t, "last", { frame: p.frame ?? (t.media.some((m) => m.kind === "video") ? undefined : 0) }); pics.push({ file: f.file, ...(p.view ? { view: p.view } : {}), from: { take: t.id, frame: f.frame } }); }
+        if (p.take) { const t = T.find(p.take); if (!t) throw new Error(`no take ${p.take}`); const f = await T.frameAt(t, "last", { frame: p.frame ?? (t.media.some((m) => m.kind === "video") ? undefined : 0) }); pics.push({ file: f.file, ...(p.view ? { view: p.view } : {}), from: { take: t.id, frame: f.frame } }); }
         else if (p.file) pics.push({ file: p.file, ...(p.view ? { view: p.view } : {}) });
       }
       const body = got.version.body, states = [...(body.states ?? []).filter((s) => s.name !== state), { name: state, covers, ...(words ? { words } : {}), pictures: pics }];
@@ -385,10 +385,11 @@ question: { type: "string", description: "what the person is asked about these c
     decides: true,
     run: async ({ scene, shot, take, frame, file, approved, role }) => {
       await ready();
-      role ??= take && T.get(take)?.story?.role === "key" ? "key" : "opening"; // F-Q09: a key candidate from make_board is picked as the key
+      role ??= take && T.find(take)?.story?.role === "key" ? "key" : "opening"; // F-Q09: a key candidate from make_board is picked as the key
       const { unit } = B.unitOf(scene, shot), slot = role === "key" ? "key" : "board";
       let board = unit[slot] ?? null;
-      if (take) { const t = T.get(take); if (!t) throw new Error(`No take ${take}`); const f = await T.frameAt(t, "last", { frame: frame ?? (t.media.some((m) => m.kind === "video") ? undefined : 0) }); board = { file: f.file, from: { take: t.id, frame: f.frame } }; }
+      // F-S01: a take by a unique start of its id, as every take tool takes it
+      if (take) { const t = T.find(take); if (!t) throw new Error(`No take ${take} (find_take finds any by the start of its id)`); const f = await T.frameAt(t, "last", { frame: frame ?? (t.media.some((m) => m.kind === "video") ? undefined : 0) }); board = { file: f.file, from: { take: t.id, frame: f.frame } }; }
       else if (file) board = { file };
       if (!board) throw new Error(`${unit.cut} has no ${role === "key" ? "key drawing" : "board"} yet: give take or file`);
       if (approved != null && slot === "board") board = { ...board, approved };

@@ -360,7 +360,7 @@ async function contextPicture(p, i) {
   const k = (x) => `c${i}${x}`, nodes = {}, said = { n: i + 1 };
   let out, size, world = null;
   if (p.take) {
-    const t = T.get(p.take);
+    const t = T.find(p.take); // F-S01: a unique start of an id
     if (!t) throw new Error(`Picture ${i + 1}: no take ${p.take}`);
     const v = t.media.find((m) => m.kind === "video"), m = v ?? t.media.find((x) => x.kind === "image");
     if (!m) throw new Error(`Picture ${i + 1}: take ${t.number} has no picture or video`);
