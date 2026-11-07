@@ -6,7 +6,7 @@
 // Buttons: Open (lands in context, view.js), Cancel on a queued job, "Stop the running render" on a running one (core
 // stops only that prompt), Retry on a failure, Park / Unpark; a landed take takes a verdict with one key (p keep, x
 // reject, n neither) and an optional sentence, the same verdict the take viewer writes.
-// SNAP-R5 only a press moves the person · SNAP-R7 lists rebuilt only when their content changes, never under a pointer ·
+// SNAP-R5 only a press moves the person · SNAP-R158 critiques due fold into one row, proposals first · SNAP-R7 lists rebuilt only when their content changes, never under a pointer ·
 // SNAP-R17 by: person|agent · SNAP-R58 nothing cut · SNAP-R65 the Work card · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as A from "./activity.js";
@@ -14,7 +14,7 @@ import * as T from "./takes.js";
 import * as ACC from "./account.js";
 import * as CR from "./critiques.js"; // SNAP-R101 the critic's rows and its foot line
 
-const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
+const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat(Infinity).filter((k) => k != null && k !== false)); return el; }; // F-L01: a row's buttons nest a list (Accept, Reject): a string of it printed "[object HTMLButtonElement]"
 const OWNERS = [["you", "You"], ["agents", "Agents"], ["others", "Others on this server"]];
 export const VERDICT_KEYS = { p: "keep", x: "reject", n: "neither" };
 
@@ -35,8 +35,9 @@ export function stateText(r) {
 }
 // what the pill says: in flight, landed (proposals have their own part), failures in red
 export function pillText(rows) {
-  const n = (f) => rows.filter(f).length, flying = n((r) => r.zone === "in_flight" && r.state !== "failed" && r.state !== "gone"), landed = n((r) => r.zone === "landed" && r.source !== "proposal"), failed = n((r) => r.zone === "in_flight" && (r.state === "failed" || r.state === "gone"));
-  return { flying, landed, failed, text: [flying ? `${flying} in flight` : null, landed ? `${landed} landed` : null, failed ? `${failed} failed` : null].filter(Boolean).join(" · ") };
+  const due = (r) => r.source === "critique" && r.state === "queued"; // F-M01: critiques waiting for a critic are one count, not 100 rows of "in flight"
+  const n = (f) => rows.filter(f).length, critiques = n((r) => r.zone === "in_flight" && due(r)), flying = n((r) => r.zone === "in_flight" && !due(r) && r.state !== "failed" && r.state !== "gone"), landed = n((r) => r.zone === "landed" && r.source !== "proposal"), failed = n((r) => r.zone === "in_flight" && (r.state === "failed" || r.state === "gone"));
+  return { flying, landed, failed, critiques, text: [flying ? `${flying} in flight` : null, landed ? `${landed} landed` : null, failed ? `${failed} failed` : null, critiques ? `${critiques} critique${critiques === 1 ? "" : "s"} due` : null].filter(Boolean).join(" · ") };
 }
 
 // the actions every surface shares (the sheet, agents' tools go through the same queue routes)
@@ -69,7 +70,7 @@ export async function verdict(r, v, why) {
 export function openWork(host, { say, open, decide }) {
   for (const s of host.querySelectorAll(".snap-work-sheet")) s.remove();
   const body = h("div", { className: "snap-work-body" }), status = h("div", { className: "snap-quiet", role: "status" });
-  let sig = "", pressed = false, showParked = false;
+  let sig = "", pressed = false, showParked = false, showDue = false;
   const close = () => { sheet.remove(); host.focus({ preventScroll: true }); };
   const act = (fn) => async (e) => { e?.stopPropagation(); try { const said = await fn(); if (typeof said === "string") { status.textContent = said; say?.(said); } } catch (err) { status.textContent = err.message; say?.(err.message, true); } A.reconcile(); };
   const admin = () => !ACC.account() || ACC.account().role === "admin";
@@ -95,18 +96,26 @@ export function openWork(host, { say, open, decide }) {
     return el;
   }
   const LIVE = (r) => ["queued", "running", "checking"].includes(r.state);
+  // F-M01: the critiques due fold into one row (how many, whether a critic is on duty, the oldest's age) with an explicit
+  // press that lists every one; F-L01: proposals, which wait for the person, come first in their group
+  const dueRow = (list) => h("div", { className: `snap-work-row queued snap-work-due${list.some((r) => r.no_critic) ? " late" : ""}`, role: "listitem" },
+    h("div", { className: "snap-work-line" }, h("i", { className: "snap-work-dot" }), h("strong", { className: "snap-work-title", textContent: `${list.length} critiques due` }), h("span", { className: "snap-spacer" }),
+      h("button", { className: "snap-link", textContent: showDue ? "Fold them" : "Show them", title: "every critique row, one by one (agents read them all with list_critiques)", onclick: () => { showDue = !showDue; sig = ""; draw(); } })),
+    h("div", { className: "snap-quiet snap-work-meta", textContent: `${list.some((r) => r.no_critic) ? "no critic on duty" : "waiting for a critic"} · a critic agent works them with list_critiques {state: "due"}` }));
+  const rank = (r) => (r.source === "proposal" ? 0 : r.source === "critique" ? 2 : 1);
   function zone(id, rows) {
-    const groups = OWNERS.map(([o, name]) => [name, rows.filter((r) => r.owner === o)]).filter(([, list]) => list.length);
+    const due = rows.filter((r) => r.source === "critique" && r.state === "queued"), fold = due.length > 1 && !showDue ? new Set(due) : null;
+    const groups = OWNERS.map(([o, name]) => [name, rows.filter((r) => r.owner === o && !fold?.has(r)).sort((a, b) => rank(a) - rank(b))]).filter(([name, list]) => list.length || (fold && name === "Agents"));
     const waiting = rows.filter((r) => r.source === "proposal" && r.owner === "agents");
     return h("section", { className: `snap-work-zone ${id}` },
-      h("div", { className: "snap-rail-title" }, A.ZONE_NAMES[id], id === "parked" ? null : h("span", { className: "snap-quiet", textContent: ` ${rows.length}` })),
+      h("div", { className: "snap-rail-title" }, A.ZONE_NAMES[id], id === "parked" ? null : h("span", { className: "snap-quiet", textContent: ` ${rows.length - due.length}${due.length ? ` · ${due.length} critique${due.length === 1 ? "" : "s"} due` : ""}` })),
       groups.length ? groups.map(([name, list]) => h("div", { className: "snap-work-group", role: "list" },
         h("div", { className: "snap-work-owner" }, name, name === "Agents" && waiting.length > 1 ? [h("button", { className: "snap-link snap-quiet-btn", textContent: "Accept all", onclick: act(async () => { for (const p of waiting) await decide(p.proposal, true); }) }),
           h("button", { className: "snap-link snap-quiet-btn", textContent: "Reject all", onclick: act(async () => { for (const p of waiting) await decide(p.proposal, false); }) })] : null),
-        list.map(row))) : h("div", { className: "snap-quiet", textContent: id === "in_flight" ? "Nothing is running or waiting in the queue." : "Nothing waits for you." }));
+        list.map(row), fold && name === "Agents" ? dueRow(due) : null, !fold && due.length > 1 && name === "Agents" ? dueRow(due) : null)) : h("div", { className: "snap-quiet", textContent: id === "in_flight" ? "Nothing is running or waiting in the queue." : "Nothing waits for you." }));
   }
   function draw() {
-    const rows = A.all(), now = JSON.stringify([showParked, A.routeProblem(), rows.map((r) => [r.id, r.state, r.zone, r.ahead, r.progress, r.eta, r.error, r.result, r.candidates])]);
+    const rows = A.all(), now = JSON.stringify([showParked, showDue, A.routeProblem(), rows.map((r) => [r.id, r.state, r.zone, r.ahead, r.progress, r.eta, r.error, r.result, r.candidates])]);
     if (now === sig || pressed) return;
     sig = now;
     const by = (z) => rows.filter((r) => r.zone === z), parked = by("parked");

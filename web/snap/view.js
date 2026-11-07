@@ -121,8 +121,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   const workPill = h("span", { className: "snap-work-pill", hidden: true }, workBtn, proposalsPill);
   function renderWork() {
     const p = WV.pillText(A.all());
-    workBtn.replaceChildren(...[h("i", { className: `snap-work-dot${p.flying ? " live" : ""}` }), h("span", { textContent: ["Work", p.flying ? `${p.flying} in flight` : null, p.landed ? `${p.landed} landed` : null].filter(Boolean).join(" · ") }), p.failed ? h("b", { className: "snap-work-failed", textContent: ` · ${p.failed} failed` }) : null].filter(Boolean)); // replaceChildren(null) prints "null"
-    workPill.hidden = !p.flying && !p.landed && !p.failed && proposalsPill.hidden;
+    workBtn.replaceChildren(...[h("i", { className: `snap-work-dot${p.flying ? " live" : ""}` }), h("span", { textContent: ["Work", p.flying ? `${p.flying} in flight` : null, p.landed ? `${p.landed} landed` : null, p.critiques ? `${p.critiques} critique${p.critiques === 1 ? "" : "s"} due` : null].filter(Boolean).join(" · ") }), p.failed ? h("b", { className: "snap-work-failed", textContent: ` · ${p.failed} failed` }) : null].filter(Boolean)); // replaceChildren(null) prints "null"
+    workPill.hidden = !p.flying && !p.landed && !p.failed && !p.critiques && proposalsPill.hidden;
   }
   A.onChange(renderWork);
   // Open on a Work card row (or an arrival's toast): the result where it belongs, only on this press (SNAP-R5, SNAP-R66).
