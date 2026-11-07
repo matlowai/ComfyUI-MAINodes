@@ -230,6 +230,6 @@ export async function rerun(take, { swaps = {}, route = "regenerate", seed = "sa
     { title: `Re-run ${named(take)} ${what.length ? `with ${what.join(", ")}` : "as it was"}${seed === "new" ? ", new seed" : ""}`, by, eta_s: take.seconds ?? null }) : null;
   if (take.id) await SC.saveOpen(); // the shot's workflow as it ran: the next re-run of a batch finds nothing unsaved (SNAP-R5)
   return { take: take.id, route, seed, opened: where, swapped: done, ...(newSeed != null ? { new_seed: newSeed } : {}), run,
-    ...(cached ? { cache_hit: `nothing the prompt holds changed: ComfyUI serves take ${take.number}'s own file from its cache. Re-run with seed new for a fresh render` } : {}),
+    ...(cached ? { cache_hit: `nothing the prompt holds changed: ComfyUI may serve take ${take.number}'s own file from its cache (after other jobs or a restart it renders again; run_status says which). Re-run with seed new for a fresh render` } : {}),
     said: `${named(take)} ${go ? (take.id ? "re-run" : "running") : "opened"} ${what.length ? `with ${what.join(", ")}` : "as it was"} in ${where}${done.length ? ` · ${done.join(" · ")}` : ""}${go ? "" : " · nothing is queued"}` };
 }

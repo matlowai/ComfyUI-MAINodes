@@ -77,6 +77,7 @@ export const AGENTS_RUN = "MAINodes.Snap.AgentsMayRun";
 const mayRun = () => app.extensionManager.setting.get(AGENTS_RUN) === true;
 const agents = () => ({ run: mayRun(), see: sight.HEADLESS || sight.sees(), ...(sight.HEADLESS ? { page: "headless (an agent's own): screenshot shows it (Chrome renders it for the bridge)" } : sight.managed() ? { page: "the agents' window (snap_agent_page.sh, SNAP-R83): agents see and drive it; screenshot comes from its Chrome" } : {}) });
 const WAIT_S = 25; // run_status waits at most this long: a bridge call ends after 30 s
+const identityChecks = new Map(); // F-F24: check_identity calls still running, by their arguments
 
 const has = (key) => E.state().bricks.some((b) => b.key === key);
 const keys = () => E.state().bricks.map((b) => b.key);
@@ -752,7 +753,7 @@ export const TOOLS = [
       return { runs: `take ${t.number}'s recipe again ${go.length ? `with ${go.map((s) => s.text).join(", ")}` : "as it was"}, seed ${seed}`, route,
         swaps: asked.map(({ slot, to, text, fields, pictures, warning, keep }) => ({ slot, to, text, ...(fields ? { fields } : {}), ...(pictures ? { pictures } : {}), ...(warning ? { warning } : {}), ...(keep ? { kept: true } : {}) })),
         rating: RR.ratingFor(t, asked),
-        ...(seed === "same" && !asked.some((s) => s.into_run) ? { cache_hit: `nothing the prompt holds changes: ComfyUI serves take ${t.number}'s own file from its cache; pick seed new for a fresh render` } : {}), ...T.measured([t], "of the take re-made") };
+        ...(seed === "same" && !asked.some((s) => s.into_run) ? { cache_hit: `nothing the prompt holds changes: ComfyUI may serve take ${t.number}'s own file from its cache (while that run is still cached; after other jobs or a restart it renders again, and run_status says which); pick seed new for a fresh render` } : {}), ...T.measured([t], "of the take re-made") };
     },
     run: async ({ take, file, swaps, route, seed, land, count, who }) => { const t = await takeOrFile(take, file), r = await RR.rerun(t, { swaps, route, seed, land, count, who, by: "agent" }); return route === "reuse_motion" ? r : { ...r, next: "run_status {run, wait_s: 25} until state is done" }; },
   },
@@ -999,7 +1000,7 @@ export const TOOLS = [
       const errors = Object.entries(app.lastNodeErrors ?? {}).map(([id, e]) => ({ node: id, brick: brickOf(id), error: e.errors?.[0]?.message, details: e.errors?.[0]?.details }));
       if (errors.length || !id) throw new Error(`Not queued: ${JSON.stringify(errors)}`);
       return { queued: true, run: id, title: job.title, state: "queued", next: "run_status {run, wait_s: 25} (or wait_for {job: run}) until state is done",
-        ...(twin ? { cache_hit: `the same recipe and seed as take ${twin.number} (${twin.id}): ComfyUI serves that take's file from its cache, not a new render; new_seed (or a change) makes a fresh one` } : {}), ...truth };
+        ...(twin ? { cache_hit: `the same recipe and seed as take ${twin.number} (${twin.id}): ComfyUI may serve that take's file from its cache (while that run is still cached; after other jobs or a restart it renders again, and run_status says which); new_seed (or a change) makes a fresh one` } : {}), ...truth };
     },
   },
   {
@@ -1298,7 +1299,13 @@ export const TOOLS = [
       if (decision) return ED.recheck(decision);
       if (!take || !cast) throw new Error("check_identity takes decision (an edit's candidates), or take and cast (a take or still against Cast pictures)");
       await T.load(); const t = T.get(take); if (!t) throw new Error(`No take ${take} (list_takes lists them)`);
-      return ED.castIdentity(t, [cast].flat(), { frames, ref });
+      // F-F24: behind a busy GPU the check outlives a bridge call: it keeps running, and the same call again reads it
+      const key = JSON.stringify([t.id, [cast].flat(), ref ?? 0, frames ?? null]), job = identityChecks.get(key) ?? ED.castIdentity(t, [cast].flat(), { frames, ref });
+      identityChecks.set(key, job); job.then(() => {}, () => identityChecks.delete(key));
+      const out = await Promise.race([job, new Promise((ok) => setTimeout(() => ok(null), WAIT_S * 1000))]);
+      if (out) { identityChecks.delete(key); return out; }
+      const q = await (await api.fetchApi("/queue")).json();
+      return { take: t.id, state: "waiting", said: `the check waits its turn on the GPU (${(q.queue_running?.length ?? 0) + (q.queue_pending?.length ?? 0)} prompts in the queue) and keeps running: call check_identity again with the same arguments to read it` };
     },
   },
   {

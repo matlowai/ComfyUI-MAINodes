@@ -231,7 +231,9 @@ export async function runState(id) {
   if (running.has(id) || saving.has(id)) return { run: id, state: "running", saving: "the take" };
   const dir = await outputs(), files = media(h.outputs).filter((m) => m.type === "output");
   const kept = h.prompt?.[3]?.snap_marks?.kept; // SNAP-R38: metadata was off, and these nodes wrote it anyway
-  return { run: id, state: "done", take: get(`take-${id}`)?.id ?? null, ...(kept ? { metadata_kept: kept } : {}),
+  // F-F24: whether it rendered or came back from ComfyUI's cache, from the history's own record of cached nodes
+  const cached = h.status?.messages?.find((m) => m[0] === "execution_cached")?.[1]?.nodes?.length ?? 0, nodes = Object.keys(h.prompt?.[2] ?? {}).length;
+  return { run: id, state: "done", take: get(`take-${id}`)?.id ?? null, ...(kept ? { metadata_kept: kept } : {}), ...(nodes ? { cache: cached >= nodes ? "served from ComfyUI's cache: nothing rendered" : `rendered (${nodes - cached} of ${nodes} nodes ran)` } : {}),
     outputs: files.map((m) => ({ kind: m.kind, ...(dir ? { path: [dir, m.subfolder, m.filename].filter(Boolean).join("/") } : {}), url: new URL(url(m), location.href).href })) };
 }
 
