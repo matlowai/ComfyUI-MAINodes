@@ -387,7 +387,7 @@ async function contextPicture(p, i) {
   } else if (p.location) { // SNAP-R84: a location's master, plan or plate by name; the still pins the location's version
     const got = W.get(p.location), { kind, id } = W.parse(p.location), b = got?.version.body, which = p.plate ?? "master";
     if (kind !== "location" || !got) throw new Error(`Picture ${i + 1}: no location ${p.location} (list_locations lists them)`);
-    const pic = which === "master" || which === "plan" ? b[which] : b.plates?.find((x) => x.name === which);
+    const pic = which === "master" || which === "plan" ? (which === "plan" && b.plan?.render ? { ...b.plan, file: b.plan.render } : b[which]) : b.plates?.find((x) => x.name === which); // F-F04: a plan goes in as its render picture
     if (!pic) throw new Error(`Picture ${i + 1}: ${b.name} v${got.version.n} has no ${which === "master" || which === "plan" ? which : `plate "${which}"`}; it has ${[...["master", "plan"].filter((k) => b[k]), ...(b.plates ?? []).map((x) => x.name)].join(", ") || "nothing yet"}`);
     nodes[k("l")] = { class_type: "LoadImage", inputs: { image: pic.file } };
     out = [k("l"), 0]; size = p.crop && await sizeOf(inputUrl(pic.file));
@@ -577,6 +577,9 @@ export async function fromContext(pictures, prompt, { method, purpose, seeds, co
   const said = pics.map((p) => p.said), where = await landing(land, said), world = Object.fromEntries(pics.map((p) => p.world).filter(Boolean));
   const list = seeds?.length ? seeds : Array.from({ length: count }, () => Math.floor(Math.random() * 2 ** 32));
   const label = prompt.trim(), first = said.find((x) => x.take)?.take ?? null;
+  // F-F04 (SNAP-R133): a set plan is context, never a subject: say so with its plain cite (SNAP-R137)
+  const plans = said.filter((x) => x.plate === "plan").map((x) => `<Picture ${x.n}>`);
+  if (plans.length) prompt = `${label} ${plans.join(" and ")} ${plans.length > 1 ? "are set plans" : "is the set plan"} seen from above: the layout only (where things stand), not a picture to draw; no paper, lines or labels from it.`;
   const made = [], size = width != null ? { width, height } : null, prefix = `snap_views/${where.group.slice(0, 8)}`, build = GRAPHS[m.anchors.kind];
   for (const [i, seed] of list.entries()) {
     const g = await build(m.anchors, pics, { prompt: prompt.trim() }, seed, size, prefix);
@@ -584,7 +587,7 @@ export async function fromContext(pictures, prompt, { method, purpose, seeds, co
     made.push({ prompt_id: await K.queue(g, { group: where.group, world, job, extra: { snap_parent: { take: first, method: `view/${id}`, options: { label, prompt: prompt.trim(), context: said, purpose: aim } } } }),
       seed, made: { model: m.anchors.unet.split("/").pop() }, label: "new view" }); // a take, no check to wait for (its tile's chips)
   }
-  const d = await C.create({ kind: "view", target: first ?? where.group, title: `New view · ${m.title} ×${list.length} (${label}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: first, method: id,
+  const d = await C.create({ kind: "view", target: first ?? where.group, title: `New view · ${m.title.replace(/^New view\s*·\s*/, "")} ×${list.length} (${label}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: first, method: id,
     options: { prompt: prompt.trim(), context: said, purpose: aim, ...(size ?? {}) }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}) }, made);
   // F-C15: landed away from the shot a context board belongs to: say where it would sit beside that board
   const board = land && land !== "tab" ? said.map((x) => x.take && T.get(x.take)).map((t) => t && { t, home: RT.shotOf(t) }).find((x) => x?.home && x.home.shot.id !== where.shot) : null;

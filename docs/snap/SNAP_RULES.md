@@ -1396,3 +1396,9 @@ Next free ID after this batch: SNAP-R145.
   says so in `kept`; null or an empty list clears one. `apply_location` puts the place's pictures in the same order
   every time (camera, master, plan, plates), however an earlier apply left them. *Why:* short05 F-F05 (a master change
   lost the plan's shapes and the camera marks) and F-F08 (a re-apply after `master: false` put the plan before the master).
+- **SNAP-R133 (amended, G4): a drawn plan has a render picture, and a render cites it as layout only.** `draw_set_plan`
+  saves beside the plan picture a render picture (`plan.render`): the shapes alone, no labels, cropped so the drawing
+  fills it edge to edge. New view and `apply_location` put that picture in when they cite the plan, and New view adds a
+  plain line that it is the set plan seen from above, the layout only, not a picture to draw. The plan picture with its
+  labels stays the record's (the sheet, critics, coordinates). *Why:* short05 F-F04: the plan's blank paper became flat
+  grey areas and its small labelled circles white discs on the street in both master candidates.

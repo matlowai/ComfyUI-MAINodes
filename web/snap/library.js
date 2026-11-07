@@ -542,7 +542,7 @@ export async function saveLocation(id, body, { note = "", by = "person" } = {}) 
   const master = await locationPicture(body.master, "master");
   const plan = await locationPicture(body.plan, "plan"), shapes = body.plan?.shapes; // SNAP-R133: a plan drawn in Snap keeps its shapes beside its picture
   const map = await locationPicture(body.map, "map");
-  const clean = { name: body.name.trim(), notes: body.notes?.trim() ?? "", master: master && { ...master, ...roleIn(body.master.role, "master") }, plan: plan && shapes ? { ...plan, shapes } : plan, ...(map ? { map } : {}), cameras, plates, rating: body.rating ?? null,
+  const clean = { name: body.name.trim(), notes: body.notes?.trim() ?? "", master: master && { ...master, ...roleIn(body.master.role, "master") }, plan: plan && shapes ? { ...plan, shapes, ...(body.plan.render ? { render: body.plan.render } : {}) } : plan, ...(map ? { map } : {}), cameras, plates, rating: body.rating ?? null,
     ...(body.from_cast ? { from_cast: body.from_cast } : {}) };
   id ??= locationStamp();
   const out = await W.save("location", id, clean, { note, by });
@@ -577,7 +577,7 @@ export async function applyLocation(ref, { plates = [], master = true, plan = tr
   if (missing.length) throw new Error(`${b.name} v${n} has no plate ${missing.map((x) => `"${x}"`).join(", ")}; its plates: ${(b.plates ?? []).map((p) => p.name).join(", ") || "none"}`);
   if (camera != null && camera !== "master" && !plates.includes(camera)) throw new Error(`camera names the picture this shot keeps the framing of: "master" or one of the plates given (${plates.join(", ") || "none"}); not "${camera}"`);
   const roleOf = (what, pic) => (camera != null ? (camera === what ? "camera" : "place") : pic.role ?? "place");
-  const want = [...(master && b.master ? [["master", b.master.file, roleOf("master", b.master)]] : []), ...(plan && b.plan ? [["plan", b.plan.file, "map"]] : []),
+  const want = [...(master && b.master ? [["master", b.master.file, roleOf("master", b.master)]] : []), ...(plan && b.plan ? [["plan", b.plan.render ?? b.plan.file, "map"]] : []), // F-F04: shapes alone, cropped to the drawing
     ...plates.map((x) => { const p = b.plates.find((q) => q.name === x); return [`plate ${x}`, p.file, roleOf(x, p)]; })];
   if (!want.length) throw new Error(`${b.name} v${n}: nothing to put in (no master, no plan, no plates named)`);
   const keys = () => E.state().bricks.map((x) => x.key);

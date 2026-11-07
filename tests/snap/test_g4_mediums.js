@@ -5,6 +5,8 @@
 //   next apply has master, plan, plate in a row (not the plan before the master);
 // - F-F06 use_take {as: "voice"} cuts a take's sound into input/snap/voice/ and makes it the Cast's voice (a new version
 //   naming the take); a still is refused;
+// - F-F04 draw_set_plan saves a render picture beside the plan (shapes alone, cropped to the drawing); a New view citing the
+//   plan gets that picture and a plain line saying it is the layout only; candidate_frames names each candidate's take;
 // - F-F13 cancel_run takes an agent's queued run out of the queue and interrupts its running one; a finished run says
 //   there is nothing to cancel.
 // usage: node test_g4_mediums.js [port] [base]   prints "g4med n/m" last
@@ -14,6 +16,8 @@ const CFG = require("./snaptest_config.js");
 const F = require("./fwork.js");
 const port = process.argv[2] || CFG.port, base = process.argv[3] || CFG.base, R = {};
 const snap = path.join(base, "user", "default", "snap");
+// P-H3-Image is New view's set method: empty stand-ins make it ready on a CPU server (parked after, never deleted)
+const FILES = ["diffusion_models/h3/p-h3-image_int8_convrot.safetensors", "text_encoders/h3/p-h3-image_text_encoder_int8_convrot.safetensors", "vae/h3/p-h3-image_vae_int8_convrot.safetensors"];
 const park = (d) => { const p = path.join(snap, d); if (fs.existsSync(p)) { fs.mkdirSync(path.join(snap, "_parked"), { recursive: true }); fs.renameSync(p, path.join(snap, "_parked", `${d.replaceAll("/", "_")}-g4med-${Date.now()}`)); } };
 (async () => {
   ["takes", "location", "cast", "proposals.json"].forEach(park); // moved, never deleted
@@ -22,14 +26,20 @@ const park = (d) => { const p = path.join(snap, d); if (fs.existsSync(p)) { fs.m
   for (const [f, to] of [["settei_bg/MASTER_shrine_v1.png", "master.png"], ["settei_bg/P1_torii_eyelevel.png", "plan.png"], ["bible/hiyori_back_v1.png", "p1.png"], ["bible/hiyori_front_v1.png", "kon.png"]]) fs.copyFileSync(path.join(D, f), path.join(fx, to));
   fs.copyFileSync(CFG.fixture("e2e_refs3_00001_.mp4"), path.join(vo, "voice_take.mp4"));
   await fetch(`http://127.0.0.1:${port}/history`, { method: "POST", body: JSON.stringify({ clear: true }) });
+  const made = FILES.map((f) => path.join(base, "models", f)).filter((f) => !fs.existsSync(f));
+  for (const f of made) { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, ""); }
   const b = await chromium.launch({ executablePath: CFG.chrome, headless: true });
   try {
-    const A = await F.open(b, port, { slow: 60 }), page = A.page;
+    const A = await F.open(b, port, { slow: 300 }), page = A.page;
     const call = (name, args) => page.evaluate(([n, a]) => window.__X.callTool(n, a).catch((e) => ({ error: e.message })), [name, args]);
     await page.evaluate(async () => { await app.extensionManager.setting.set("MAINodes.Snap.AgentsMayRun", true); });
     // F-F05
     const loc = (await call("save_location", { name: "Cart", master: { file: "snaptest_g4med/master.png" }, cameras: [{ name: "C1", x: 0.5, y: 0.8, heading: 0 }, { name: "C2", x: 0.2, y: 0.5, heading: 90 }], plates: [{ name: "P1", file: "snaptest_g4med/p1.png" }] })).location;
     R.plan = await call("draw_set_plan", { location: loc, shapes: [{ kind: "rect", x: 0.5, y: 0.5, w: 0.3, h: 0.2, label: "cart" }], cameras: [{ name: "C1", x: 0.5, y: 0.8, heading: 0 }, { name: "C2", x: 0.2, y: 0.5, heading: 90 }] });
+    R.renderSize = R.plan?.render ? await page.evaluate(async (f) => { const i = new Image(); i.src = `/view?filename=${encodeURIComponent(f.split("/").pop())}&subfolder=${encodeURIComponent(f.split("/").slice(0, -1).join("/"))}&type=input`; await i.decode(); return [i.naturalWidth, i.naturalHeight]; }, R.plan.render) : null;
+    R.view = await call("edit_from_context", { pictures: [{ location: loc, plate: "plan" }, { location: loc, plate: "P1" }], prompt: "the cart street at eye level", purpose: "set", count: 1, land: "tab" });
+    R.viewDecision = R.view?.decision ? await page.evaluate((id) => { const d = window.__C.get(id); return { prompt: d.options.prompt, files: d.options.context.map((x) => x.file), title: d.title }; }, R.view.decision) : null;
+    R.frames = R.view?.decision ? await call("candidate_frames", { decision: R.view.decision }) : null;
     R.v3 = await call("save_location", { location: loc, master: { file: "snaptest_g4med/kon.png" } });
     R.rec3 = (await call("list_locations", {})).find?.((l) => l.location === loc || l.ref?.startsWith(loc)) ?? null;
     R.head3 = await page.evaluate(async (loc) => { const W = await import("/extensions/ComfyUI-MAINodes/snap/world.js"); await W.load(); const b = W.headOf(W.record("location", loc.split(":")[1])).body; return { master: b.master?.file, plan: b.plan?.file, shapes: b.plan?.shapes?.length ?? 0, cameras: b.cameras.length, plates: b.plates.length }; }, loc);
@@ -53,9 +63,10 @@ const park = (d) => { const p = path.join(snap, d); if (fs.existsSync(p)) { fs.m
     // F-F13
     R.run1 = await call("run", { question: "g4 cancel: the running one", new_seed: true });
     R.run2 = await call("run", { question: "g4 cancel: the queued one", new_seed: true });
-    await page.waitForTimeout(1500);
-    R.cancelQueued = await call("cancel_run", { run: R.run2.run });
+    R.cancelView = R.view?.decision ? await call("cancel_run", { run: `d:${R.view.decision}` }) : null;
+    for (let i = 0; i < 60 && (await call("list_activity", { about: R.run1.run })).rows?.find((r) => r.id === R.run1.run)?.state !== "running"; i++) await page.waitForTimeout(500);
     R.cancelRunning = await call("cancel_run", { run: R.run1.run });
+    R.cancelQueued = await call("cancel_run", { run: R.run2.run });
     await page.waitForTimeout(3000);
     R.cancelDone = await call("cancel_run", { run: R.run1.run });
     R.cancelNone = await call("cancel_run", { run: "no-such-run" });
@@ -63,9 +74,14 @@ const park = (d) => { const p = path.join(snap, d); if (fs.existsSync(p)) { fs.m
   } catch (e) { R.crash = e.stack; } finally {
     await fetch(`http://127.0.0.1:${port}/settings/MAINodes.Snap.AgentsMayRun`, { method: "POST", body: "false" }).catch(() => {});
     await b.close();
+    const parked = path.join(base, "_parked_placeholders", `g4med-${Date.now()}`);
+    for (const f of made) { const to = path.join(parked, path.relative(path.join(base, "models"), f)); fs.mkdirSync(path.dirname(to), { recursive: true }); fs.renameSync(f, to); }
   }
   const S = R, at = (re) => S.order?.findIndex((r) => re.test(r ?? ""));
   const checks = {
+    planRender: /plan-\w+-render\.png$/.test(S.plan?.render ?? "") && S.renderSize?.[0] === 1024 && Math.abs(S.renderSize[0] / S.renderSize[1] - (0.3 * 1.4) / 0.2) < 0.05,
+    viewGetsRender: S.viewDecision?.files?.[0] === S.plan?.render && /<Picture 1> is the set plan seen from above: the layout only/.test(S.viewDecision?.prompt ?? "") && !/New view · New view/.test(S.viewDecision?.title ?? ""),
+    framesNameTake: /^take-/.test(S.frames?.candidates?.[0]?.take ?? "") && S.frames.candidates[0].seed != null,
     keepsOmitted: S.head3?.master === "snaptest_g4med/kon.png" && S.head3.shapes === 1 && S.head3.cameras === 2 && S.head3.plates === 1 && !!S.head3.plan,
     saysKept: S.v3?.kept?.some((k) => /^cameras \(2\)$/.test(k)) && S.v3?.kept?.some((k) => /^plates \(1\)$/.test(k)) && S.v3?.kept?.includes("plan") && /kept from v2/.test(S.v3?.said ?? ""),
     emptyListClears: S.head4plates === 0,
@@ -74,6 +90,7 @@ const park = (d) => { const p = path.join(snap, d); if (fs.existsSync(p)) { fs.m
     voiceStillRefused: /is a still: it has no sound/.test(S.voiceStill?.error ?? ""),
     cancelQueued: S.cancelQueued?.was === "queued" && /taken out of the queue/.test(S.cancelQueued?.said ?? ""),
     cancelRunning: S.cancelRunning?.was === "running" && /interrupted/.test(S.cancelRunning?.said ?? ""),
+    cancelDecision: ["queued", "running"].includes(S.cancelView?.was) || /already: nothing to cancel/.test(S.cancelView?.said ?? ""), // a 64 px stand-in may finish first
     cancelDone: /already: nothing to cancel/.test(S.cancelDone?.said ?? "") && /No run no-such-run/.test(S.cancelNone?.error ?? ""),
     noErrors: !S.crash && !(S.errors ?? []).length,
   };

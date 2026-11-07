@@ -1253,7 +1253,8 @@ export const TOOLS = [
         const video = /\.(mp4|webm|mov)$/i.test(p.media.filename), shot = await T.frames({ media: [{ kind: video ? "video" : "image", ...p.media }] }, { count: video ? 3 : 1, maxWidth: max_width });
         for (const s of shot) images.push({ ...s, label: `${c.id} · ${video ? `${p.label}, frame ${s.frame}` : p.label}`, path: C.path(p.media) });
       }
-      return { decision: d.id, title: d.title, candidates: list.map((c) => ({ id: c.id, state: c.state, pictures: c.pictures.map((p) => ({ label: p.label, path: C.path(p.media) })) })), images };
+      // F-F12: each candidate's take and seed, so a critique or set_board names it without a second lookup
+      return { decision: d.id, title: d.title, candidates: list.map((c) => ({ id: c.id, state: c.state, ...(c.take || c.prompt_id ? { take: c.take ?? `take-${c.prompt_id}` } : {}), ...(c.seed != null ? { seed: c.seed } : {}), pictures: c.pictures.map((p) => ({ label: p.label, path: C.path(p.media) })) })), images };
     },
   },
   {
