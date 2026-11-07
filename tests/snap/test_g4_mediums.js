@@ -65,8 +65,8 @@ const park = (d) => { const p = path.join(snap, d); if (fs.existsSync(p)) { fs.m
     R.run2 = await call("run", { question: "g4 cancel: the queued one", new_seed: true });
     R.cancelView = R.view?.decision ? await call("cancel_run", { run: `d:${R.view.decision}` }) : null;
     for (let i = 0; i < 60 && (await call("list_activity", { about: R.run1.run })).rows?.find((r) => r.id === R.run1.run)?.state !== "running"; i++) await page.waitForTimeout(500);
+    R.cancelQueued = await call("cancel_run", { run: R.run2.run }); // the queued one first: once the running one stops, the next starts
     R.cancelRunning = await call("cancel_run", { run: R.run1.run });
-    R.cancelQueued = await call("cancel_run", { run: R.run2.run });
     await page.waitForTimeout(3000);
     R.cancelDone = await call("cancel_run", { run: R.run1.run });
     R.cancelNone = await call("cancel_run", { run: "no-such-run" });
