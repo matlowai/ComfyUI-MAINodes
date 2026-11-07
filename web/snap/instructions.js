@@ -33,7 +33,7 @@ W.onChange(changed);
 
 // who writes: the agent the bridge says is calling (snap_view sets it per call), else "agent" (in-page WebMCP)
 let caller = "agent";
-export const setCaller = (name) => { caller = name ? `agent:${name}` : "agent"; };
+export const setCaller = (name) => { caller = name ? `agent:${name}` : "agent"; J.setAgent(name); };
 export const by = () => caller;
 
 async function get(route) {

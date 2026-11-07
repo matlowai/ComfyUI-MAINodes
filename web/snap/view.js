@@ -155,13 +155,13 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // SNAP-R135: the chip says how long since its agent's last call, so a hold left by a finished job shows as idle
   const driverChip = h("span", { className: "snap-driver", hidden: true });
   let driverAt = 0, idleTimer = 0;
-  const idleText = () => { const m = Math.floor((Date.now() - driverAt) / 60000); return m < 1 ? "" : ` · idle ${m} min (lets go at 10)`; };
+  const idleText = () => { const m = Math.floor((Date.now() - driverAt) / 60000); return m < 1 ? "" : ` · idle ${m} min`; };
   function called(agent) { if (agent && driverChip.dataset.agent === agent) { driverAt = Date.now(); const el = driverChip.querySelector(".snap-driver-idle"); if (el) el.textContent = ""; } }
   function driver(agent) {
     driverChip.hidden = !agent;
     driverChip.dataset.agent = agent ?? ""; driverAt = Date.now(); clearInterval(idleTimer);
     if (agent) idleTimer = setInterval(() => { const el = driverChip.querySelector(".snap-driver-idle"); if (el) el.textContent = idleText(); }, 30000);
-    driverChip.replaceChildren(...(agent ? [h("span", { textContent: `Driven by: ${agent}` }), h("span", { className: "snap-driver-idle snap-quiet" }), h("button", { textContent: "Release", title: "this agent stops driving this page; it is told so on its next call",
+    driverChip.replaceChildren(...(agent ? [h("span", { textContent: `Driven by: ${agent}` }), h("span", { className: "snap-driver-idle snap-quiet", title: "minutes since this agent's last call: its hold lets go after 10, unless it still reads a critique it claimed or waits on a run of its own (SNAP-R146)" }), h("button", { textContent: "Release", title: "this agent stops driving this page; it is told so on its next call",
       onclick: () => api.fetchApi("/mainodes/snap/release", { method: "POST", body: JSON.stringify({ client: api.clientId }) }).then(() => say(`${agent} no longer drives this page`)) })] : []));
   }
   // F-C12: a tab that runs older Snap code than the server serves says so, with the agent that asked when one did

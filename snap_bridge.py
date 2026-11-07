@@ -13,7 +13,8 @@ SNAP-R139 proposals kept on the server · SNAP-R78 a stale tab says so, agents a
 Chrome agents drive, reload and restart, the default with the person's tab; never headless · SNAP-R96 private takes saved
 encrypted (snap_vault_server.py) · SNAP-R98 their ffmpeg steps work in RAM scratch · SNAP-R93/R94 the pack's notes end
 the bridge tools' descriptions, /info names the docs and skills, a call names its agent · SNAP-R135 a hold on a page ends
-with its job: use_page null, the MCP connection closing, or 10 idle minutes; the page shows the idle time · see docs/snap/SNAP_RULES.md"""
+with its job: use_page null, the MCP connection closing, or 10 idle minutes; the page shows the idle time · SNAP-R146 an
+agent's claimed critique or queued run keeps its hold · see docs/snap/SNAP_RULES.md"""
 import asyncio
 import glob
 import hashlib
@@ -45,7 +46,7 @@ from comfy_execution.utils import get_executing_context
 from comfy_extras.nodes_video import SaveVideo
 from server import PromptServer
 
-from . import snap_faces, snap_instructions, snap_privacy
+from . import snap_critiques, snap_faces, snap_instructions, snap_privacy
 from .dials import core as dial_core
 try:
     from . import snap_vault_server
@@ -144,10 +145,10 @@ def agent_of(request):
     return request.headers.get("X-Snap-Agent") or UNNAMED
 
 
-def health(user, agent=None, target=None):
-    now, found, code = time.time(), open_pages(user), served_code()
+def health(user, agent=None, target=None, doing=None):
+    now, found, code, doing = time.time(), open_pages(user), served_code(), doing or {}
     to = chosen(user, code, target or bound.get((user, agent)))
-    return [{"id": c, "name": page_name(c), "title": pages[c].get("title"), "who": pages[c].get("who"), "driven_by": drivers.get(c), **({"driver_idle_s": round(now - touched.get(c, now))} if c in drivers else {}), "yours": bound.get((user, agent)) == c, "registered_s_ago": round(now - pages[c]["registered"]), "last_answer_s_ago": None if pages[c]["answered"] is None else round(now - pages[c]["answered"]),
+    return [{"id": c, "name": page_name(c), "title": pages[c].get("title"), "who": pages[c].get("who"), "driven_by": drivers.get(c), **({"driver_idle_s": round(now - touched.get(c, now))} if c in drivers else {}), **({"driver_busy": doing[drivers[c]]} if drivers.get(c) in doing else {}), "yours": bound.get((user, agent)) == c, "registered_s_ago": round(now - pages[c]["registered"]), "last_answer_s_ago": None if pages[c]["answered"] is None else round(now - pages[c]["answered"]),
              "code_current": pages[c]["code"] == code, "headless": pages[c]["headless"], "managed": pages[c].get("managed", False), "sees": pages[c]["sees"], "tools": len(pages[c]["tools"]), "calls_go_here": c == to} for c in found]
 pending = {}       # call id -> (future answered by /mainodes/snap/result, the page it was sent to)
 # Which agent drives which page (the operator, 2026-11-05: "easily select which web ui instance you want to interact with and
@@ -157,7 +158,7 @@ pending = {}       # call id -> (future answered by /mainodes/snap/result, the p
 drivers = {}   # page client id -> the agent driving it
 touched = {}   # page client id -> when its driver last called (a hold idle for HOLD_IDLE_S lapses, SNAP-R135)
 HOLD_IDLE_S = 600
-lapsed = {}    # (user, agent) -> what its hold lapsed on (said once, on its next call)
+lapsed = {}    # (user, agent) -> (what its hold lapsed on, that page's client id), said once on its next call
 bound = {}     # (user, agent) -> page client id
 released = {}  # (user, agent) -> the page name the person released from it (said once, on its next call)
 
@@ -166,15 +167,43 @@ def error(message, status=400):
     return web.json_response({"error": message}, status=status)
 
 
-async def lapse(user):
+def busy(request, user):
+    """F-G05: what an agent is still doing while it makes no call: a critique row it claimed (claim_critique and each
+    critique_packet renew the claim, which lapses by itself after 30 untouched minutes) or a run of its own still queued
+    or running (the job stamp names the agent). agent -> why"""
+    out = {}
+    for state, items in zip(("running", "queued"), PromptServer.instance.prompt_queue.get_current_queue_volatile()):
+        for i in items:
+            job = i[3].get("snap_job") or {}
+            if job.get("agent") and i[3].get("snap_user") in (None, user):
+                out.setdefault(job["agent"], f"its run {i[1]} ({job.get('title')}) is {state}")
+    for agent, row in snap_critiques.holders(request).items():
+        out.setdefault(agent, f"it holds the critique {row['id']} ({row['title']})")
+    return out
+
+
+async def lapse(request):
     """SNAP-R135: a hold whose driver made no call for HOLD_IDLE_S ends by itself (the blind critic finished its run and
-    left the agents' window 'Driven by: critic-v10' until someone released it); its agent hears so on its next call"""
-    now = time.time()
-    for c in [c for c, a in drivers.items() if c in pages and pages[c]["user"] == user and now - touched.get(c, now) > HOLD_IDLE_S]:
-        agent = drivers.pop(c)
+    left the agents' window 'Driven by: critic-v10' until someone released it); its agent hears so on its next call.
+    F-G05: not while that agent still reads a critique it claimed or waits on its own run (a critic read 10 packets for
+    16 minutes between calls, and its hold lapsed mid-job)"""
+    user, now = user_of(request), time.time()
+    idle = [c for c in drivers if c in pages and pages[c]["user"] == user and now - touched.get(c, now) > HOLD_IDLE_S]
+    doing = busy(request, user) if idle else {}
+    for c in idle:
+        agent = drivers[c]
+        if agent in doing:
+            continue
+        del drivers[c]
         bound.pop((user, agent), None)
-        lapsed[(user, agent)] = f"{page_name(c)} (no call from {agent} for {round((now - touched.pop(c)) / 60)} min)"
+        lapsed[(user, agent)] = (f"{page_name(c)} (no call from {agent} for {round((now - touched.pop(c)) / 60)} min, and no claimed critique or run of its own)", c)
         await PromptServer.instance.send("mainodes-snap-driver", {"agent": None}, c)
+
+
+def lapsed_error(user, agent):
+    what, c = lapsed.pop((user, agent))
+    back = f"use_page {{page: \"{c}\"}} takes it back (nobody holds it now), or pick another (list_pages)" if c in pages and c not in drivers else "pick a page (list_pages, use_page)"
+    return error(f"Your hold on {what} lapsed, so {agent} drives no page now: {back}, and call again.", 409)
 
 
 def held_by(client, agent):
@@ -228,9 +257,9 @@ async def release(request):
 
 
 BRIDGE_TOOLS = [
-    {"name": "list_pages", "description": "Every Snap page of yours on this server: id, name (whose it is, the id's first six characters, the tab or shot it shows), title, headless (an agent's own page), sees (its person lets agents see and drive it), driven_by (the agent holding it, if any), driver_idle_s (seconds since that agent's last call; a hold lapses after 600), yours (you hold it) and calls_go_here (where your next call goes). Pick one with use_page.",
+    {"name": "list_pages", "description": "Every Snap page of yours on this server: id, name (whose it is, the id's first six characters, the tab or shot it shows), title, headless (an agent's own page), sees (its person lets agents see and drive it), driven_by (the agent holding it, if any), driver_idle_s (seconds since that agent's last call; a hold lapses after 600 unless driver_busy says what its agent still does: a critique it claimed, or its own run on the queue), yours (you hold it) and calls_go_here (where your next call goes). Pick one with use_page.",
      "inputSchema": {"type": "object", "properties": {}}, "annotations": {"readOnlyHint": True}},
-    {"name": "use_page", "description": "Bind yourself to one Snap page for this session: your calls go there until you pick another, pass null, or the person presses Release on it. When your job ends, pass null: a finished agent that keeps a hold leaves the page 'Driven by' it (a hold with no call for 10 minutes lapses by itself, SNAP-R135). One agent drives a page at a time: a page another agent holds is refused, naming it. page: an id, the start of one, or a name from list_pages. Name yourself with the X-Snap-Agent header (snapcall.py: SNAP_AGENT; snap_mcp.py names each connection), or every unnamed caller shares one binding.",
+    {"name": "use_page", "description": "Bind yourself to one Snap page for this session: your calls go there until you pick another, pass null, or the person presses Release on it. When your job ends, pass null: a finished agent that keeps a hold leaves the page 'Driven by' it (a hold with no call for 10 minutes lapses by itself, SNAP-R135, unless you hold a claimed critique or have a run of yours on the queue). One agent drives a page at a time: a page another agent holds is refused, naming it. page: an id, the start of one, or a name from list_pages. Name yourself with the X-Snap-Agent header (snapcall.py: SNAP_AGENT; snap_mcp.py names each connection), or every unnamed caller shares one binding.",
      "inputSchema": {"type": "object", "properties": {"page": {"type": ["string", "null"]}}, "required": ["page"]}},
     {"name": "chrome", "description": "The agents' window (SNAP-R83): one visible Chrome on this machine, with its own profile and a localhost DevTools port, that agents drive, reload and restart; never headless. It counts as a tab that sees, so with no use_page your calls go to it (or to the person's newest tab with 'Let agents see' on). action status (default): whether it runs, its DevTools port, and each tab in it (url, title, the Snap page it is, its code_current, who drives it). reload: reload its Snap tabs (page: one of them, an id, the start of one or a name), e.g. after this ComfyUI restarted, and wait until each registers again with the code the server serves now. start: open it if it isn't running (and a Snap tab in it if it has none). restart: close it (every process of its profile) and open it again. Nothing here works headless: start and restart need a display.",
      "inputSchema": {"type": "object", "properties": {"action": {"type": "string", "enum": ["status", "reload", "start", "restart"]}, "page": {"type": "string"}}}},
@@ -243,8 +272,8 @@ async def bridge_tool(request, user, agent, tool, args):
     if tool == "chrome":
         return await chrome_tool(request, user, args)
     if tool == "list_pages":
-        await lapse(user)
-        return web.json_response({"result": {"pages": health(user, agent), "you": agent}})
+        await lapse(request)
+        return web.json_response({"result": {"pages": health(user, agent, doing=busy(request, user)), "you": agent}})
     if tool == "request_reload":
         client = find_page(user, args["page"]) if args.get("page") else chosen(user, target=bound.get((user, agent)))
         if not client:
@@ -255,7 +284,7 @@ async def bridge_tool(request, user, agent, tool, args):
             return web.json_response({"result": {"page": page_name(client), "shown": False, "said": f"{page_name(client)} runs Snap code from before the reload bar, so it can't show it: ask its person in words to reload the tab"}})
         await PromptServer.instance.send("mainodes-snap-reload", {"agent": agent}, client)
         return web.json_response({"result": {"page": page_name(client), "shown": True, "said": f"{page_name(client)} shows 'Snap was updated: reload to get the new tools ({agent} asked)'; the person reloads it, nothing reloads by itself"}})
-    await lapse(user)
+    await lapse(request)
     ref = args.get("page")
     was = bound.pop((user, agent), None)
     if was and drivers.get(was) == agent:
@@ -342,9 +371,9 @@ async def call(request):
         return await bridge_tool(request, user, agent, body["tool"], body.get("args") or {})
     if (user, agent) in released:
         return error(f"The person pressed Release on {released.pop((user, agent))}, so {agent} drives no page now: pick one (list_pages, use_page) and call again.", 409)
-    await lapse(user)
+    await lapse(request)
     if (user, agent) in lapsed:
-        return error(f"Your hold on {lapsed.pop((user, agent))} lapsed, so {agent} drives no page now: pick one (list_pages, use_page) and call again.", 409)
+        return lapsed_error(user, agent)
     target = request.headers.get("X-Snap-Page") or body.get("page")
     client = chosen(user, code, (find_page(user, target) or target) if target else bound.get((user, agent)))
     if client and drivers.get(client, agent) != agent:

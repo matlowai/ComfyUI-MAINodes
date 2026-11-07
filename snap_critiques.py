@@ -7,7 +7,8 @@ notes' words on the take, which the vault seals, never here (SNAP-R98: no plaint
 "Add as fixture" copies a picture into the person's fixtures folder (SNAP_CRITIC_FIXTURES, else user snap/critic_fixtures)
 and appends to its fixtures.local.json; a sealed picture is refused (privacy fails closed).
 SNAP-R101 the critic is a docket job · SNAP-R103 notes: severity, pass, region, owner, fix · SNAP-R108 a miss is one press
-from a fixture · SNAP-R18 local only · SNAP-R58 nothing trimmed · see docs/snap/SNAP_RULES.md"""
+from a fixture · SNAP-R146 a live claim keeps its agent's page hold · SNAP-R18 local only · SNAP-R58 nothing trimmed · see
+docs/snap/SNAP_RULES.md"""
 import asyncio
 import json
 import os
@@ -90,6 +91,11 @@ def state(row):
 def held(row):
     c = row.get("claimed")
     return bool(c) and not row.get("done") and not row.get("skipped") and now_ms() - c["touched"] < CLAIM_S * 1000
+
+
+def holders(request):
+    """the agents holding a live claim, each with its row: the bridge keeps such an agent's page hold (F-G05, SNAP-R146)"""
+    return {r["claimed"]["by"].removeprefix("agent:"): r for r in read_all(folder(request)) if held(r)}
 
 
 def find(root, rid):

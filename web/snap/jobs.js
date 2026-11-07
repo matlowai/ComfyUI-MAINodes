@@ -6,20 +6,24 @@
 // nothing is stored anywhere new. Runs go through ComfyUI's own app.queuePrompt (seed control, its errors, its queue
 // panel), which sends a run later when it is still sending another, so a run's stamp waits here and its id comes from
 // the send itself: a run always returns its id or says why not (anime dogfood F-A13).
-// SNAP-R52 values outside the choices are refused naming them · SNAP-R65 the Work card · see docs/snap/SNAP_RULES.md
+// SNAP-R52 values outside the choices are refused naming them · SNAP-R65 the Work card · SNAP-R146 a run names its agent · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 
 export const KINDS = ["run", "retake", "rerun", "paint", "propagate", "extend", "upscale", "louder", "eyes", "plate", "check", "preview", "make_dial", "settei", "board", "compile", "prose", "cut", "critique"]; // critique: a critic row (critiques.js, SNAP-R101), never a queued prompt; eyes: keep eye colour after a redraw (SNAP-R134)
 export const ABOUT = ["take", "group", "scene", "shot", "decision", "candidate", "set", "camera", "slot", "book", "beat", "unit", "entity", "state"];
 export const BY = ["person", "agent"];
 
+// the agent whose call is running (instructions.setCaller sets it per bridge call): its runs carry its name, so its page
+// hold stays while a run of its own is queued or running (F-G05, SNAP-R146)
+let agent = null;
+export const setAgent = (name) => { agent = name || null; };
 export function job({ kind, title, about = {}, by = "person", eta_s = null, takes = true } = {}) {
   if (!KINDS.includes(kind)) throw new Error(`A job's kind is one of ${KINDS.join(", ")}; not ${JSON.stringify(kind)}`);
   if (typeof title !== "string" || !title.trim()) throw new Error(`Not queued: this ${kind} job has no question (title): say what it answers, in the person's words`);
   if (!BY.includes(by)) throw new Error(`A job's by is one of ${BY.join(", ")}; not ${JSON.stringify(by)}`);
   const odd = Object.keys(about).filter((k) => !ABOUT.includes(k));
   if (odd.length) throw new Error(`A job's about takes ${ABOUT.join(", ")}; not ${odd.join(", ")}`);
-  return { kind, title: title.trim(), about: Object.fromEntries(Object.entries(about).filter(([, v]) => v != null)), by, eta_s: eta_s ?? null, ...(takes ? {} : { takes: false }), at: Date.now() };
+  return { kind, title: title.trim(), about: Object.fromEntries(Object.entries(about).filter(([, v]) => v != null)), by, ...(agent ? { agent } : {}), eta_s: eta_s ?? null, ...(takes ? {} : { takes: false }), at: Date.now() };
 }
 
 // the open tab, as a run's title names it and as its `about` (a scene tab's shot mark, SNAP-R24)
