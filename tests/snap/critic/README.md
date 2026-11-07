@@ -43,6 +43,10 @@ polarity once checked by eye. `packets` writes the same blind packets to disk fo
   1 false alarm on 10 clean: X02's LEFT view "no hilt above the head", a sheet landmark note outside the colour delta
   (by eye the grip doesn't show there; the operator accepted this sheet, so it counts until the operator says it is
   real). The colour lines fired on no clean picture. X32's second monocle is real (both critics, checked by eye).
+  `runs/2026-11-06-x02-check/`: X02 alone, blind, two runs each of r3 and r4 in the same packets harness: all four flag
+  it (r3: a high LEFT-view hilt; a high RIGHT-view scabbard gap plus a medium hilt. r4: a high hilt; a medium scabbard
+  gap), so X02's note is run and harness variance on this sheet, not the colour delta; the earlier run through Snap's
+  own packets wrote X02 clean.
   The r3 text on X31/X32 alone (`runs/2026-11-06-r3-x31x32/`): X31 missed (the dark hair read as a reaction gag, the
   suit at low), X32 the same real monocle note.
 
