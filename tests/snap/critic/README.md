@@ -40,7 +40,8 @@ polarity once checked by eye. `packets` writes the same blind packets to disk fo
 - `runs/2026-11-06-r4-colour/`: the r4 colour delta (a Cast colour line per person read in every frame, effects
   included; Cast colour drift medium; low colour shifts only for props and background) on all 32 fixtures, blind packets
   on disk (`packets`), one Opus 5.5 critic: 26/30 caught (X31 caught; misses X13, X14 wire and kite, X21 LEFT float),
-  1 false alarm on 10 clean: X02's LEFT view "no hilt above the head", a sheet landmark note outside the colour delta
+  1 false alarm on 10 clean: X02's LEFT view "no hilt above the head" (contested: the operator to decide if the LEFT
+  hilt note is real), a sheet landmark note outside the colour delta
   (by eye the grip doesn't show there; the operator accepted this sheet, so it counts until the operator says it is
   real). The colour lines fired on no clean picture. X32's second monocle is real (both critics, checked by eye).
   `runs/2026-11-06-x02-check/`: X02 alone, blind, two runs each of r3 and r4 in the same packets harness: all four flag
@@ -53,7 +54,8 @@ polarity once checked by eye. `packets` writes the same blind packets to disk fo
 ## The fixtures
 
 - X01 master v1: the palisade only across the front; the village is not enclosed.
-- X02 turnaround v3: clean (profile scabbards near-vertical are correct).
+- X02 turnaround v3: clean (profile scabbards near-vertical are correct). Contested (G4): every blind run flags the LEFT
+  view's hilt (a pommel nub behind the head, no grip or crossguard); the operator decides if that note is real.
 - X03 board: an inner palisade, a duplicate person, a second gatehouse.
 - X04 board: clean (the blade through the coat is the beat).
 - X05 plate (rooftop): a double parapet.
