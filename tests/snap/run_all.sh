@@ -553,6 +553,9 @@ for t in test_u93_critique.js test_u93_packet.js test_u93_triggers.js test_u93_m
 # prompt words, the eye colour step's math; each prints "g3<name> n/m" or "iris n/m" last
 for t in test_g3_critic.js test_g3_pages.js test_g3_eyes.js; do park; timeout 600 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
 nice -n 19 python3 -I "$T"/test_g3_cards.py >test_g3_cards.py.out 2>&1; tail -1 test_g3_cards.py.out
+# G5 (SNAP-R146..R148, F-G01..F-G11): busy page holds, a location's dependents from its Cast, one plate's fields, short
+# take ids, the replaced active take, one record's critique rows, a repeated note once; prints "g5 n/m" last
+for t in test_g5.js; do park; timeout 600 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
 nice -n 19 "$py" -I "$T"/test_iris.py >test_iris.py.out 2>&1; tail -1 test_iris.py.out
 # SNAP-R109: the last real critic run on the fixtures still holds the floor (a real-agent check; this only re-scores its saved notes)
 nice -n 19 python3 -I "$T/critic/run_fixtures.py" score --results "$T/critic/runs/2026-11-06-r4/results.jsonl" --confirm "$T/critic/runs/2026-11-06-r4/confirm.json" | tail -1 | sed 's/^/critic   /'
