@@ -54,6 +54,7 @@ const ZIP = "import json,sys,zipfile\nz=zipfile.ZipFile(sys.argv[1])\nprint(json
       R.push = json(await run("python3", ["-I", PUSH, "push", "--book", book, "--page", client, "--archive", R.cut.otio.astrid.archive], { SNAP_BASE: `http://127.0.0.1:${port}`, SNAP_AGENT: "astrid-g16w" }));
       if (R.push?.timeline) R.words = await run(LAUNCHER, ["astrid", "timelines", "words", R.push.timeline.timeline_id, "--project", R.slug, "--published"], { ASTRID_RUNTIME_DATA_ROOT: ROOT });
     }
+    await page.evaluate(() => app.extensionManager.setting.set("MAINodes.Snap.AstridLauncher", "")); // later suites' exports don't probe
     R.errors = A.errors;
   } catch (e) { R.crash = e.stack; } finally { await b.close(); }
   const S = R, dlg = (S.clips ?? []).find((c) => c.id === "C1-dialogue"), heard = (S.voice?.words ?? []).map((w) => w[2]).join(" ");

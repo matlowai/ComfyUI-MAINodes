@@ -93,6 +93,7 @@ const json = (r) => { try { const t = r.out.slice(r.out.indexOf("{")); return JS
     R.fresh = await push("cut", "--book", book, "--new-timeline");
     R.remote = json(await run("python3", ["-I", PUSH, "cut", "--book", book], { SNAP_BASE: "http://192.0.2.7:8188", SNAP_AGENT: "astrid-g16" }));
     R.note = await push("proposal-note", "--book", book);
+    await page.evaluate(() => app.extensionManager.setting.set("MAINodes.Snap.AstridLauncher", "")); // later suites' exports don't probe
     R.errors = A.errors;
   } catch (e) { R.crash = e.stack; } finally { await b.close(); }
   const S = R, entry = S.receipt1?.books ? Object.values(S.receipt1.books)[0] : null, clips1 = (S.show1?.data?.clips ?? []).map((c) => c.clip_id).sort(), clips2 = S.show2?.data?.clips ?? [];

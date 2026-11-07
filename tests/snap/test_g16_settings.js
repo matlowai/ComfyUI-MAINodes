@@ -109,6 +109,7 @@ async function childEnv(ms) {
     R.final = await receipt();
     R.timelines = json(await astrid("timelines", "list", "--project", slug, "--json"));
     R.prodDoc = json(await astrid("documents", "show", `snap.production.${slug}`, "--project", slug, "--json"));
+    await page.evaluate(() => app.extensionManager.setting.set("MAINodes.Snap.AstridLauncher", "")); // later suites' exports don't probe
     R.errors = A.errors;
   } catch (e) { R.crash = e.stack; } finally { await b.close(); }
   const S = R, p = S.final?.productions?.[Object.keys(S.final?.productions ?? {})[0]], tl = (book) => p?.books?.[book]?.timeline?.timeline_id;
