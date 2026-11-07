@@ -71,7 +71,7 @@ setting on (Let agents run) leaves it on. Read the suite's header before trustin
   another's renders (F-C25).
 - **The stale-result guard**: `run` parks a suite's previous result before the suite starts, so a suite that crashes
   prints `FAIL (no ui/<suite>_result.json: the suite wrote no result)`, never the last run's PASS.
-- **Expected totals** live in `summary`'s checks (`agent`, `agentfull`: MCP 174 tools, WebMCP 169 after G5). A branch that adds or
+- **Expected totals** live in `summary`'s checks (`agent`, `agentfull`: MCP 176 tools, WebMCP 171 after G6). A branch that adds or
   removes tools changes those numbers in the same commit.
 
 ## Privacy checks fail closed
