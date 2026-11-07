@@ -13,7 +13,7 @@
 // SNAP-R23 candidates · SNAP-R51 change something, recast, pins · SNAP-R71 a new view from context, in the asker's words ·
 // SNAP-R72 what Picture 1 is, per model · SNAP-R75 the view slot's models are data (P-H3-Image, H3 still) ·
 // SNAP-R77 a character sheet is a sheet-slot method whose candidates are takes · SNAP-R79 a new view says which
-// picture it copied · SNAP-R186 a record's picture's new view lands with the record · SNAP-R190 a region edit pastes back ·
+// picture it copied · SNAP-R186 a record's picture's new view lands with the record · SNAP-R190 a region edit pastes back · SNAP-R202 its stage 2 is the whole still · SNAP-R204 its SAM mask ·
 // SNAP-R191 its seam is checked · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as C from "./candidates.js";
@@ -417,19 +417,32 @@ async function contextPicture(p, i) {
 // Core nodes only: ImageScaleToTotalPixels, ImageScale, SolidMask, FeatherMask, ImageCompositeMasked; the pack's seam
 // check (MAISnapSeam, F-T02, SNAP-R191) reads each edge past the feather for a thing redrawn inside that doesn't meet
 // the picture outside (a chain crossing the crop's edge)
-const PASTE_MP = 1.0;
-function pasteFirst(pic) { return { ...pic, nodes: { ...pic.nodes, r0s: { class_type: "ImageScaleToTotalPixels", inputs: { image: pic.out, upscale_method: "lanczos", megapixels: PASTE_MP, resolution_steps: 16 } } }, out: ["r0s", 0] }; }
-function pasteBack(g, pic) {
+// F-Y09 (SNAP-R204): `mask` (words SAM 3.1 finds in the crop, e.g. "the gold bar across the nose:1") keeps the edit only
+// where that thing is, grown and softened by the feather, so a removal changes the thing and not the face around it; SAM
+// finding nothing leaves the picture as it was
+const PASTE_MP = 1.0, MASK = { threshold: 0.3, refine: 2 };
+function pasteFirst(pic) { return { ...pic, crop: pic.out, nodes: { ...pic.nodes, r0s: { class_type: "ImageScaleToTotalPixels", inputs: { image: pic.out, upscale_method: "lanczos", megapixels: PASTE_MP, resolution_steps: 16 } } }, out: ["r0s", 0] }; }
+function pasteBack(g, pic, mask, detector) {
   const { box, size } = pic, f = Math.max(4, Math.round(0.06 * Math.min(box.width, box.height)));
   Object.assign(g, {
     rb: { class_type: "ImageScale", inputs: { image: ["d", 0], upscale_method: "lanczos", width: box.width, height: box.height, crop: "disabled" } },
     rm: { class_type: "SolidMask", inputs: { value: 1.0, width: box.width, height: box.height } },
     rf: { class_type: "FeatherMask", inputs: { mask: ["rm", 0], left: box.x > 0 ? f : 0, top: box.y > 0 ? f : 0, right: box.x + box.width < size.width ? f : 0, bottom: box.y + box.height < size.height ? f : 0 } },
-    rc: { class_type: "ImageCompositeMasked", inputs: { destination: pic.whole, source: ["rb", 0], x: box.x, y: box.y, resize_source: false, mask: ["rf", 0] } },
+    rc: { class_type: "ImageCompositeMasked", inputs: { destination: pic.whole, source: ["rb", 0], x: box.x, y: box.y, resize_source: false, mask: mask ? ["rx", 0] : ["rf", 0] } },
     rs: { class_type: "MAISnapSeam", inputs: { picture: pic.whole, edit: ["rb", 0], x: box.x, y: box.y, feather: f } },
   });
+  if (mask) Object.assign(g, {
+    rd: { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: detector } },
+    rdt: { class_type: "CLIPTextEncode", inputs: { clip: ["rd", 1], text: mask } },
+    rdm: { class_type: "SAM3_Detect", inputs: { model: ["rd", 0], image: pic.crop, conditioning: ["rdt", 0], threshold: MASK.threshold, refine_iterations: MASK.refine, individual_masks: false } },
+    rdg: { class_type: "GrowMask", inputs: { mask: ["rdm", 0], expand: f, tapered_corners: true } },
+    rdi: { class_type: "MaskToImage", inputs: { mask: ["rdg", 0] } },
+    rdb: { class_type: "ImageBlur", inputs: { image: ["rdi", 0], blur_radius: Math.min(31, f), sigma: f / 2 } },
+    rdk: { class_type: "ImageToMask", inputs: { image: ["rdb", 0], channel: "red" } },
+    rx: { class_type: "MaskComposite", inputs: { destination: ["rf", 0], source: ["rdk", 0], x: 0, y: 0, operation: "multiply" } },
+  });
   g.o.inputs.images = ["rc", 0];
-  return { box, feather: f };
+  return { box, feather: f, ...(mask ? { mask } : {}) };
 }
 // F-Y04 (SNAP-R202): a region edit's graph as an edit of its whole still (its stage 2): Picture 1 is `whole`, the edited
 // still, not the crop, and the decode is saved as it is. Re-running the crop and the paste pasted the whole picture, small,
@@ -437,7 +450,7 @@ function pasteBack(g, pic) {
 export function unpaste(g, whole) {
   for (const n of Object.values(g)) for (const [k, v] of Object.entries(n.inputs ?? {})) if (Array.isArray(v) && v[0] === "r0s") n.inputs[k] = whole;
   g.o.inputs.images = ["d", 0];
-  for (const k of Object.keys(g)) if (["r0s", "rb", "rm", "rf", "rc", "rs"].includes(k) || /^c0[a-z]$/.test(k)) delete g[k];
+  for (const k of Object.keys(g)) if (["r0s", "rb", "rm", "rf", "rc", "rs", "rx"].includes(k) || /^(c0[a-z]|rd[a-z]?)$/.test(k)) delete g[k];
 }
 // F-S02 (SNAP-R186): a new view whose Picture 1 is a location's picture (or a Cast's picture it edits) lands with that
 // record: the shot of the take the picture came from, else (a place) the newest take that pins it outside a Book's cuts
@@ -603,7 +616,7 @@ const GRAPHS = { ph3: ph3Graph, fizgig: fizgigGraph, h3: fizgigGraph, contact: c
 // words, one candidate per seed (`seeds`, else `count` new ones), on the view slot's `method` (ph3_view, fizgig_still; by
 // default the first the registry lists).
 // Returns at once; each candidate is a take in the shot it lands in once its paint finishes
-export async function fromContext(pictures, prompt, { method, purpose, seeds, count = 2, width, height, land, story = null, question = null, paste = false, by = "person" } = {}) {
+export async function fromContext(pictures, prompt, { method, purpose, seeds, count = 2, width, height, land, story = null, question = null, paste = false, mask = null, by = "person" } = {}) {
   await Promise.all([S.load(), M.load(), T.load(), W.load()]);
   const P = purposes();
   if (purpose != null && !P[purpose]) throw new Error(`purpose is one of ${Object.keys(P).join(", ")}; not ${JSON.stringify(purpose)}`);
@@ -619,6 +632,9 @@ export async function fromContext(pictures, prompt, { method, purpose, seeds, co
   if ((width == null) !== (height == null)) throw new Error(`${m.title}: give width and height together, or neither (then the still is Picture 1's size)`);
   if (m.anchors.max_pictures && pictures.length > m.anchors.max_pictures) throw new Error(`${m.title} reads up to ${m.anchors.max_pictures} pictures; ${pictures.length} given`);
   const pics = []; for (const [i, p] of pictures.entries()) pics.push(await contextPicture(p, i));
+  if (mask && !paste) throw new Error(`${m.title}: mask keeps a region edit only where SAM finds that thing; it goes with paste_back`);
+  const detector = mask ? (await K.needs()).detector : null;
+  if (mask && !detector) throw new Error("mask finds the thing with SAM 3.1 (models/checkpoints/sam3.1_multiplex_fp16.safetensors), which isn't in the model graph here");
   if (paste && !pics[0].box) throw new Error(`${m.title}: paste_back edits a region of Picture 1 and puts it back: give Picture 1 a crop [x, y, width, height] (the face, the hand)`);
   if (paste) pics[0] = pasteFirst(pics[0]);
   const said = pics.map((p) => p.said), where = await landing(land, said, { purpose: aim, by }), world = Object.fromEntries(pics.map((p) => p.world).filter(Boolean));
@@ -629,13 +645,13 @@ export async function fromContext(pictures, prompt, { method, purpose, seeds, co
   if (plans.length) prompt = `${label} ${plans.join(" and ")} ${plans.length > 1 ? "are set plans" : "is the set plan"} seen from above: the layout only (where things stand), not a picture to draw; no paper, lines or labels from it.`;
   const made = [], size = width != null ? { width, height } : null, prefix = `snap_views/${where.group.slice(0, 8)}`, build = GRAPHS[m.anchors.kind];
   for (const [i, seed] of list.entries()) {
-    const g = await build(m.anchors, pics, { prompt: prompt.trim() }, seed, size, prefix), pasted = paste ? pasteBack(g, pics[0]) : null;
+    const g = await build(m.anchors, pics, { prompt: prompt.trim() }, seed, size, prefix), pasted = paste ? pasteBack(g, pics[0], mask, detector) : null;
     const job = { kind: "paint", title: `New view (${label}), candidate ${i + 1} of ${list.length}`, about: { take: first, group: where.group, scene: where.scene, shot: where.shot }, by, eta_s: [m.cost?.local_s].flat().at(-1) ?? null };
     made.push({ prompt_id: await K.queue(g, { group: where.group, world, ...(story ? { story } : {}), job, extra: { snap_parent: { take: first, method: `view/${id}`, options: { label, prompt: prompt.trim(), context: said, purpose: aim, ...(pasted ? { pasted } : {}) } } } }),
       seed, made: { model: m.anchors.unet.split("/").pop() }, label: "new view" }); // a take, no check to wait for (its tile's chips)
   }
   const d = await C.create({ kind: "view", target: first ?? where.group, title: `New view · ${m.title.replace(/^New view\s*·\s*/, "")} ×${list.length} (${label}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: first, method: id,
-    options: { prompt: prompt.trim(), context: said, purpose: aim, ...(size ?? {}), ...(paste ? { pasted: { box: pics[0].box, size: pics[0].size } } : {}) }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}), ...(question?.trim() ? { question: question.trim() } : {}) }, made); // F-Q21: the agent's question for the person
+    options: { prompt: prompt.trim(), context: said, purpose: aim, ...(size ?? {}), ...(paste ? { pasted: { box: pics[0].box, size: pics[0].size, ...(mask ? { mask } : {}) } } : {}) }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}), ...(question?.trim() ? { question: question.trim() } : {}) }, made); // F-Q21: the agent's question for the person
   // F-C15: landed away from the shot a context board belongs to: say where it would sit beside that board
   const board = land && land !== "tab" ? said.map((x) => x.take && T.get(x.take)).map((t) => t && { t, home: RT.shotOf(t) }).find((x) => x?.home && x.home.shot.id !== where.shot) : null;
   return { decision: d.id, chosen, pictures: said.map((x) => `Picture ${x.n}${x.n === 1 && m.picture_one ? ` (${m.picture_one.label})` : ""}: ${x.label}`), lands: where.where,

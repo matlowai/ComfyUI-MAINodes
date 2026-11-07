@@ -6,7 +6,7 @@ description: >
   a still of a known place or character, edit one detail of a still, or a New view candidate came back wrong (copied
   the master, turned the head, lost the set).
 scope: [tool:edit_from_context]
-rules: [SNAP-R72, SNAP-R76, SNAP-R79, SNAP-R86, SNAP-R190, SNAP-R200, SNAP-R202, SNAP-R203]
+rules: [SNAP-R72, SNAP-R76, SNAP-R79, SNAP-R86, SNAP-R190, SNAP-R200, SNAP-R202, SNAP-R203, SNAP-R204]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-new-view"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -44,9 +44,13 @@ That drew true slits 3/3; "slit pupils" alone gave round ones, and without the l
 turned the head to show the eyes. A Fizgig "edit" is a re-render (mean change 23-25 outside the target, vs 3-8 for
 P-H3); P-H3's floor for "regenerated, nothing changed" is SSIM 0.94-0.96.
 
-When the words don't take after two or three seeds, change the approach (SNAP-R200). Three that worked on Kuroe's
+When the words don't take after two or three seeds, change the approach (SNAP-R200). Four that worked on Kuroe's
 monocle, where a gold bar across the nose came back from every wording (dogfood F-Y01..F-Y06, G13):
 
+- **Mask the thing out** (F-Y09, SNAP-R204). For a removal (a stray bar, a ghost line, a prop that shouldn't be
+  there), add `mask: "<the thing>:1"` to the region edit: SAM finds it in the crop and only it changes. Kuroe's nose
+  bar came off 2/2 this way on his original front, with his eyes and lens untouched (a faint 1 px trace showed at 6x).
+  Say in the prompt what is there instead ("bare skin, nothing across it").
 - **Show the item, don't describe it** (F-Y02). To change how a thing is built, give a settei of the item alone as
   Picture 2: make it from a crop of the record's own picture ("drawn alone … only one lens, no bridge, no face"), then
   region-edit (`paste_back`, SNAP-R190) with it. Words over the bar: 0/4; the same region edit with the settei: 2/2.

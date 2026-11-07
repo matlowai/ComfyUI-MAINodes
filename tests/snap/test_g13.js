@@ -7,7 +7,9 @@
 //   one at denoise 0.3, fast at cfg 1;
 // - SNAP-R203 (F-Y07): keep_eye_colour runs on a still that isn't a stage 2 redraw and says what it ran on; a still that
 //   pins no Cast asks for one, and runs with the one given;
-// - F-Y08: check_identity, upscale_take and set_purpose take a unique start of a take id, as every take tool does.
+// - F-Y08: check_identity, upscale_take and set_purpose take a unique start of a take id, as every take tool does;
+// - SNAP-R204 (F-Y09): a region edit's mask: SAM 3.1 on Picture 1's crop with the words given, grown and softened,
+//   multiplied into the paste's feathered mask; refused without paste_back; its stage 2 carries no SAM.
 // Model files are empty placeholders (parked afterwards); SAM 3.1 is listed as a GPU machine lists it.
 // usage: node test_g13.js [port] [base]   prints "g13 n/m" last
 const { chromium } = require("playwright");
@@ -58,9 +60,12 @@ const KS = {
     cast = (await call("save_cast", { name: "G13 Kuroe", details: "grey eyes, a round gold monocle", refs: [{ file: "snaptest_g13/front.png", role: "identity: front" }] })).cast;
     // the region edit's real graph, as edit_from_context queues it, becomes a still take
     let n = prompts.length;
-    R.edit = await call("edit_from_context", { pictures: [{ file: "snaptest_g13/front.png", crop: [0.4, 0.05, 0.2, 0.3] }], prompt: "he wears no eyewear at all", method: "ph3_view", paste_back: true, seeds: [9921], land: "tab" });
+    R.maskAlone = await call("edit_from_context", { pictures: [{ file: "snaptest_g13/front.png", crop: [0.4, 0.05, 0.2, 0.3] }], prompt: "x", method: "ph3_view", mask: "the bar", seeds: [1], land: "tab" });
+    R.edit = await call("edit_from_context", { pictures: [{ file: "snaptest_g13/front.png", crop: [0.4, 0.05, 0.2, 0.3] }], prompt: "he wears no eyewear at all", method: "ph3_view", paste_back: true, mask: "the gold bar across the nose:1", seeds: [9921], land: "tab" });
     const edit = await posted(n, (x) => x.extra_data?.snap_parent?.method === "view/ph3_view");
     R.editPasted = !!edit?.extra_data?.snap_parent?.options?.pasted && Object.values(edit.prompt).some((x) => x.class_type === "ImageCompositeMasked");
+    const eg = edit?.prompt ?? {}, rc = Object.values(eg).find((x) => x.class_type === "ImageCompositeMasked"), mx = eg[rc?.inputs.mask[0]], sam = Object.values(eg).find((x) => x.class_type === "SAM3_Detect");
+    R.mask = { comp: mx && [mx.class_type, mx.inputs.operation, eg[mx.inputs.destination[0]]?.class_type], samOn: eg[sam?.inputs.image[0]]?.class_type, words: eg[sam?.inputs.conditioning[0]]?.inputs.text, kept: edit?.extra_data?.snap_parent?.options?.pasted?.mask };
     await page.evaluate(async ([paste, parent, moss, ks, cast]) => {
       const T = window.__T, group = app.graph.id;
       const mk = (id, number, prompt, extra) => ({ id, kind: "run", prompt_id: id.slice(5), created: Date.now() + number, finished: Date.now() + number, seconds: 8, group, number, status: "success", text: "g13", seed: 5,
@@ -101,7 +106,9 @@ const KS = {
   const P = R.paste, M = R.moss, K = R.ks, front = (g) => Object.values(g ?? {}).some((x) => x.class_type === "LoadImage" && x.inputs.image === "snaptest_g13/front.png");
   const checks = {
     "the region edit's own graph pastes back (the take stage 2 starts from)": R.editPasted,
-    "F-Y04: stage 2 of a region edit has no crop, paste back, mask or seam check": P.classes.length && !P.classes.some((c) => ["ImageCropV2", "ImageCompositeMasked", "SolidMask", "FeatherMask", "MAISnapSeam", "ImageScaleToTotalPixels"].includes(c)),
+    "F-Y09: a masked region edit: SAM on the crop with the words, multiplied into the feathered paste mask; kept on the take": JSON.stringify(R.mask.comp) === JSON.stringify(["MaskComposite", "multiply", "FeatherMask"]) && R.mask.samOn === "ImageCropV2" && R.mask.words === "the gold bar across the nose:1" && R.mask.kept === "the gold bar across the nose:1",
+    "F-Y09: mask without paste_back is refused": /mask keeps a region edit only where SAM finds that thing; it goes with paste_back/.test(R.maskAlone?.error ?? ""),
+    "F-Y04: stage 2 of a region edit has no crop, paste back, mask, SAM or seam check": P.classes.length && !P.classes.some((c) => ["ImageCropV2", "ImageCompositeMasked", "SolidMask", "FeatherMask", "MaskComposite", "SAM3_Detect", "GrowMask", "MAISnapSeam", "ImageScaleToTotalPixels"].includes(c)),
     "F-Y04: Picture 1 is the edited still itself, the prompt kept": P.one?.class_type === "LoadImage" && P.one.inputs.image === "snaptest/g13_still.png [output]" && P.prompt === "he wears no eyewear at all",
     "F-Y04: the decode is saved as it is, at the asked size (2x the still)": P.save === "VAEDecode" && P.decFrom === "SamplerCustomAdvanced" && JSON.stringify(P.size) === JSON.stringify([2560, 1408]) && P.r?.width === 2560 && P.r?.height === 1408 && P.r?.still === true,
     "F-Y04: the still, Lanczos to the size, is the video half of the AV latent": P.lat === "LTXVConcatAVLatent" && P.sep === "LTXVSeparateAVLatent" && P.scale?.[0] === "ImageScale" && P.scale[1] === 2560 && P.scale[3] === "snaptest/g13_still.png [output]",

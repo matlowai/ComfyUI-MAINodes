@@ -586,7 +586,8 @@ for t in test_g11.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNA
 # read-only Nearby modal (R5: records hashed before and after), the nearby tool; prints "g12 n/m" last; screens in ui/g12/
 for t in test_g12.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
 # G13 (SNAP-R202, R203; dogfood F-Y04, F-Y05, F-Y07): a still's stage 2 redraws the whole still (a region edit too) from
-# any model's graph; keep eye colour on any take; take tools read a unique start of an id; prints "g13 n/m" last
+# any model's graph; keep eye colour on any take; take tools read a unique start of an id; a region edit's SAM mask
+# (SNAP-R204, F-Y09); prints "g13 n/m" last
 for t in test_g13.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
 nice -n 19 "$py" -I "$T"/test_iris.py >test_iris.py.out 2>&1; tail -1 test_iris.py.out
 # SNAP-R109: the shipped critic prompt's last real run on the fixtures holds the floor (fixtures.json: r5b, 27/31, 0 FA;

@@ -1906,4 +1906,13 @@ SNAP-R197 on. R160-R164 stay free.
   the region edit) darkened his irises, and the step refused it for not being a stage 2. *More:* tests/snap/test_g13.js,
   test_g3_eyes.js.
 
-Next free ID after this batch: SNAP-R204 (R160-R164 stay free).
+- **SNAP-R204: A region edit can keep its change only where SAM finds a named thing.** `edit_from_context {paste_back:
+  true, mask: "<words>"}` runs SAM 3.1 on Picture 1's crop with the words (`:n` keeps the best n), grows the mask by the
+  feather and softens it, and multiplies it into the paste's feathered mask, so only that thing changes; the rest of the
+  crop is the picture as it was, eyes and line work included. SAM finding nothing leaves the picture unchanged. Core
+  nodes only (SAM3_Detect, GrowMask, ImageBlur, MaskComposite); refused without paste_back. *Why:* dogfood F-Y09: a
+  removal that words can't make had no route on a still; on :8194 the masked removal of Kuroe's nose bar ("the thin gold
+  bar across the bridge of the nose:1") took it off 2/2 on his original front, changing a 55x46 px patch, where words
+  over the same crop had failed 0/4 (F-V05). *More:* tests/snap/test_g13.js.
+
+Next free ID after this batch: SNAP-R205 (R160-R164 stay free).
