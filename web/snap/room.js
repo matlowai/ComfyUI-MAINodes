@@ -7,7 +7,7 @@
 // On the person's own install the Room is the page at /?room (localhost); a phone door belongs to snap-gate.
 // SNAP-R70 the Room never restricts, renders no machinery, and its verdicts are the record's · SNAP-R197 each picture says
 // what it is (a still or a frame of a video, its kind and cut), in plain() words; a record change shows its pictures now
-// and after (SNAP-R201) · SNAP-R209 out of date offers a re-make, either/or says so · SNAP-R198 Nearby opens on it · SNAP-R179 each question one
+// and after (SNAP-R201) · SNAP-R209 out of date offers a re-make · SNAP-R229 either/or is one question, both outcomes side by side · SNAP-R198 Nearby opens on it · SNAP-R179 each question one
 // plain sentence naming the thing · SNAP-R180 a critic's row asks its finding, with each note's words and where it was born · SNAP-R173 one verdict and why · SNAP-R174 blind pairs from the server · SNAP-R65 the Work card's rows · SNAP-R7 rebuilt only when its
 // content changes, never under a pointer · see docs/snap/SNAP_RULES.md
 import * as A from "./activity.js";
@@ -114,7 +114,16 @@ export function ask(r) {
 const asks = () => {
   const list = A.all().filter((r) => r.zone === "landed" && ((r.source === "proposal") || (r.source === "decision" && r.state === "waiting") || r.source === "blind_pair" || (r.state === "done" && r.result?.take)));
   const runs = new Map(list.filter((r) => r.source === "prompt" && r.result?.take).map((r) => [r.result.take, r])), read = new Set(list.filter((r) => r.source === "critique" && r.result?.take).map((r) => r.result.take));
-  return list.filter((r) => !(r.source === "prompt" && read.has(r.result?.take))).map((r) => (r.source === "critique" && runs.has(r.result?.take) ? { ...r, run: runs.get(r.result.take) } : r));
+  const out = list.filter((r) => !(r.source === "prompt" && read.has(r.result?.take))).map((r) => (r.source === "critique" && runs.has(r.result?.take) ? { ...r, run: runs.get(r.result.take) } : r));
+  // SNAP-R229: proposals that are either/or (one record, one version) are one question, asked on the first of them
+  const folded = new Set();
+  return out.flatMap((r) => {
+    if (r.source !== "proposal" || !r.either_or?.length || r.stale) return [r];
+    if (folded.has(r.proposal)) return [];
+    const rivals = out.filter((x) => x.source === "proposal" && r.either_or.includes(x.proposal) && !x.stale);
+    for (const x of rivals) folded.add(x.proposal);
+    return [rivals.length ? { ...r, rivals } : r];
+  });
 };
 const pictureOf = (m) => m && (m.kind === "video" ? h("video", { src: url(m), controls: true, loop: true, muted: true, playsInline: true, className: "snap-room-pic" }) : h("img", { src: url(m), className: "snap-room-pic", alt: "" }));
 
@@ -133,12 +142,37 @@ export function openRoom({ say } = {}) {
   const act = (fn) => async () => { try { await fn(); } catch (e) { reply = plain(e.message); sig = ""; draw(); say?.(e.message, true); } };
   const sentence = () => h("input", { className: "snap-room-why", placeholder: "a sentence, if you like", ariaLabel: "your sentence" });
 
+  const shown = (ref, label) => { const m = ref && N.srcOf(ref); return h("figure", {}, m ? (m.kind === "video" ? h("video", { src: m.src, controls: true, playsInline: true, className: "snap-room-pic" }) : h("img", { src: m.src, className: "snap-room-pic", alt: "" })) : h("div", { className: "snap-room-pic snap-room-none", textContent: "no picture" }),
+    h("figcaption", { textContent: label }), ref ? N.whatEl(ref, { room: true, words: plain, say, more: false }) : null); };
+  // SNAP-R229: either/or is one question: the record as it is now, then each suggestion's "after" pictures side by side,
+  // one Yes per side; the other side is withdrawn naming the one chosen
+  function eitherOr(r, why) {
+    const options = [r, ...r.rivals].map((x, i) => ({ row: x, p: P.get(x.proposal), n: i + 1 })).map((o) => ({ ...o, ch: N.changeOf(o.p), said: ask(o.row).q }));
+    const name = options.find((o) => o.ch)?.ch?.name ?? "the same thing", now = options.find((o) => o.ch)?.ch;
+    const asked = plain(`${options.length === 2 ? "Two" : options.length} suggestions for ${name}: which one?`);
+    const choose = (o) => act(async () => {
+      const out = await P.decide(o.row.proposal, true, run);
+      if (out?.status !== "accepted") return answered(asked, `It couldn't be done: ${plain(out?.result ?? "answered elsewhere")}.`);
+      const others = options.filter((x) => x !== o).map((x) => x.row.proposal);
+      await P.withdraw((x) => others.includes(x.id), `either/or: the person chose ${o.row.proposal} instead`);
+      await answered(asked, `Done: suggestion ${o.n} it is; the other ${others.length > 1 ? "ones are" : "one is"} set aside.`);
+    });
+    return h("section", { className: "snap-room-q snap-room-either" }, h("h2", { textContent: asked }),
+      h("p", { className: "snap-room-stakes", textContent: "Either one or the other: they change the same thing from the same version." }),
+      h("div", { className: "snap-room-pics" }, now ? h("figure", { className: "snap-room-option now" }, h("h3", { textContent: "As it is" }), h("p", { className: "snap-room-where", textContent: plain(`${name} now`) }), shown(now.pairs[0]?.before, plain(`${cap(now.pairs[0]?.part ?? "it")} now`))) : null,
+        options.map((o) => h("figure", { className: "snap-room-option" },
+        h("h3", { textContent: `Suggestion ${o.n}` }), h("p", { className: "snap-room-where", textContent: o.said }),
+        (o.ch?.pairs ?? []).map((x) => shown(x.after, plain(`${cap(x.part)} after`))),
+        h("button", { className: "snap-primary", textContent: `Yes to suggestion ${o.n}`, onclick: choose(o) })))), why,
+      h("div", { className: "snap-room-verdict" }, h("button", { className: "snap-link", textContent: "Neither", onclick: act(async () => { for (const o of options) await P.decide(o.row.proposal, false, run, { because: why.value.trim() }); await answered(asked, `Left as it is${why.value.trim() ? `: ${why.value.trim()}` : ""}.`); }) })));
+  }
   // one question, whole
   function question(r) {
     const why = sentence(), { q: asked, more } = ask(r);
     const place = r.where && !/^(?:a scratch tab|set )/.test(r.where) ? plain(r.where) : null; // a place, never the Work card's "a scratch tab"
     const where = place ? h("p", { className: "snap-room-where", textContent: place }) : null;
     const said = more ? h("p", { className: "snap-room-where", textContent: more }) : null;
+    if (r.source === "proposal" && r.rivals) return eitherOr(r, why);
     if (r.source === "proposal") {
       const p = P.get(r.proposal), ch = N.changeOf(p); // F-Y11: a record change shows each picture now and after
       const side = (ref, label) => { const m = ref && N.srcOf(ref); return h("figure", {}, m ? (m.kind === "video" ? h("video", { src: m.src, controls: true, playsInline: true, className: "snap-room-pic" }) : h("img", { src: m.src, className: "snap-room-pic", alt: "" })) : h("div", { className: "snap-room-pic snap-room-none", textContent: "no picture" }),

@@ -2126,4 +2126,11 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
   operator, 2026-11-07: "yes they can withdraw"; the G15 note: an agent saw `stale` and had no tool for its own old one.
   *More:* tests/snap/test_g16_guest.js.
 
+- **SNAP-R229: Two waiting proposals on one record at one version are asked as one question with both outcomes
+  shown.** The Room asks "Two suggestions for Maren: which one?" with the record as it is and each suggestion's "after"
+  pictures side by side, one "Yes to suggestion n" per side and "Neither"; a yes accepts that one and withdraws the
+  others, naming it ("either/or: the person chose p14 instead"). The Work card shows the pair as one row ("Either/or: 1:
+  … | 2: …", Accept 1, Accept 2, Reject both). *Why:* the operator, 2026-11-07: "yes side by side"; the G15 note:
+  either/or was one quiet line on each proposal, answered one at a time. *More:* tests/snap/test_g16_either.js.
+
 Next free ID after this batch: SNAP-R230 (R160-R164 stay free; G16 reserved R215-R229).

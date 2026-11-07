@@ -636,6 +636,9 @@ for t in test_g16_braid.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port"
 # G16 F-AD05 (SNAP-R214 extended): a re-run whose swap the take's recipe can't take is refused before its graph opens;
 # the shot's files and tab stay as they were; prints "g16rerun n/m"
 for t in test_g16_rerun.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
+# G16 either/or is one question (SNAP-R229): two proposals on one record at one version asked once in the Room with the
+# picture now and both "after" pictures side by side, one row on the Work card, the other withdrawn; prints "g16either n/m"
+for t in test_g16_either.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
 # SNAP-R109: the shipped critic prompt's last real run on the fixtures holds the floor (fixtures.json: r5b, 27/31, 0 FA;
 # a real-agent check, re-scored from its saved notes). critic = r6, the shipped prompt (r5b + metres from the record's
 # scale, SNAP-R155); critic5b = the floor's own run. The r3/r4/r5 runs stay in critic/runs/ as history (critic/README.md)

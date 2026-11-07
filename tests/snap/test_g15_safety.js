@@ -132,7 +132,7 @@ const bridge = (tool, args, agent, key) => http("/mainodes/snap/call", { tool, a
     "R208 the answer is kept in the user's idempotency.json": S.kept?.tool === "run" && !!S.kept?.answer?.result?.run && S.kept?.answer?.result?.run === S.third?.result?.run,
     "R209 both proposals keep base {cast, v1}": S.listBefore?.length === 2 && S.listBefore.every((p) => p.base?.ref === S.cast && p.base?.version === 1),
     "R209 F-AB03 they are either/or": S.listBefore?.find((p) => p.id === S.pa)?.either_or?.[0] === S.pb && S.listBefore?.find((p) => p.id === S.pb)?.either_or?.[0] === S.pa,
-    "R209 the Room says either/or on the pair": (S.roomPair ?? []).some((t) => /^Either this or another suggestion for Hiyori: a yes to one leaves the other out of date\.$/.test(t)),
+    "R209 the Room says either/or on the pair (one question since SNAP-R229)": (S.roomPair ?? []).some((t) => /^Either one or the other: they change the same thing from the same version\.$/.test(t)),
     "R209 accepting A makes v2": S.acceptA?.status === "accepted" && S.head === 2,
     "R209 B is out of date: v1 → v2 by A": S.listAfter?.stale?.from === 1 && S.listAfter?.stale?.to === 2 && S.listAfter?.stale?.by?.[0] === S.pa && !S.listAfter?.either_or,
     "R209 accepting B refuses and makes no v3": /out of date: Hiyori v1 → v2/.test(S.acceptB?.error ?? "") && S.headAfterB === 2,
