@@ -149,3 +149,5 @@ release, or more budget waits for a decision.
   caption layouts on a held-out landscape prompt. Side effect: a blue lean; holds do nothing (the hold dials are orthogonal,
   cos ≈ 0), an active dress-colour push at −4 removes it. DeBand at CFG 3 with its negative draws no poster text to remove.
   [Write-up](experiments/M3-negative-prompt-dials.md).
+- **2026-11-07** M1 replication (DeBand, lighthouse seed 8 + a held-out park-bench scene): 5 of 6 dials replicate and carry
+  to the held-out scene; tiny ↔ colossal needs a subject with scale; at ±4 the dials restage the person (identity drift).
