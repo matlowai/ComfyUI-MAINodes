@@ -7,13 +7,16 @@
 // missed, said why) or no voice (nothing voiced in the take). Two similar voices overlap in WavLM (short03's two young
 // women 0.81-0.95), so it gives numbers and the margin and never claims a person; it never blocks anything. The check is
 // a small prompt under this page's client id whose job says `takes: false` (SNAP-R65); the take keeps its prompt id
-// while it runs, so a page reloaded meanwhile finishes it.
+// while it runs, so a page reloaded meanwhile finishes it. With a Whisper in the model graph (word_timing) the same prompt
+// times the take's words ([[start, end, word]], the take's seconds) and says how its text matches the cut's line.
 // SNAP-R18 local only · SNAP-R23 checks are notes, never rejections · SNAP-R65 job stamps · SNAP-R73 a Cast's voice is
-// an <Audio n> · SNAP-R114 the voice note · see docs/snap/SNAP_RULES.md
+// an <Audio n> · SNAP-R114 the voice note · SNAP-R227 the take's words timed by a Whisper, matched against its line · see
+// docs/snap/SNAP_RULES.md
 import * as K from "./checks.js";
 import * as M from "./models.js";
 import * as T from "./takes.js";
 import * as W from "./world.js";
+import * as SC from "./scenes.js";
 
 // the voice model and its thresholds from the model graph: the audio_encoders file whose entry has voice_check
 async function voiceModel() {
@@ -23,6 +26,25 @@ async function voiceModel() {
   return { name, check: M.entry(name).voice_check };
 }
 
+// SNAP-R227: the Whisper that times a take's words, when the model graph has one (an audio_encoders entry with word_timing)
+function wordsModel() { return (M.folders().get("audio_encoders") ?? []).find((n) => M.entry(n)?.word_timing) ?? null; }
+// the line the take's cut speaks, as the story says it at the version the take pinned (its beats' dialogue), or ""
+function lineOf(take) {
+  const pin = take.story ?? take.graph?.extra?.snap?.story, scene = pin?.unit && SC.get(pin.unit.scene), unit = scene?.shots.find((x) => x.id === pin.unit.shot)?.unit;
+  const story = pin?.ref && W.get(pin.ref)?.version.body;
+  return (unit?.beats ?? []).flatMap((id) => story?.beats.find((b) => b.id === id)?.lines ?? []).map((l) => l.text).join(" ");
+}
+const plain = (t) => t.toLowerCase().replace(/[^\p{L}\p{N}' ]+/gu, " ").split(/\s+/).filter(Boolean);
+// Whisper's text against the line as written: exact (same words in order, punctuation and case aside) or how many of the
+// line's words it heard, in order
+export function lineMatch(heard, line) {
+  const a = plain(heard), b = plain(line);
+  if (!b.length) return null;
+  let i = 0, hit = 0;
+  for (const w of b) { const k = a.indexOf(w, i); if (k >= 0) { hit++; i = k + 1; } }
+  const exact = a.join(" ") === b.join(" ");
+  return { exact, heard: heard.trim(), line, words: `${hit} of ${b.length}`, said: exact ? "Whisper exact" : `Whisper heard ${hit} of the line's ${b.length} words: "${heard.trim()}"` };
+}
 // the audio files a take's prompt gave H3 as references: LoadAudio files wired into any ref_audios.* input, in slot order
 export function referenceAudios(prompt) {
   const out = [];
@@ -60,17 +82,19 @@ export async function check(take, by = "person") {
   const g = { vm: { class_type: "MAISnapVoiceModelLoader", inputs: { model_name: name } }, tv: { class_type: "LoadVideo", inputs: { file: K.annotated(video) } },
     tc: { class_type: "GetVideoComponents", inputs: { video: ["tv", 0] } }, t: { class_type: "MAISnapVoice", inputs: { voice_model: ["vm", 0], audio: ["tc", 1] } } };
   files.forEach((file, i) => { g[`a${i}`] = { class_type: "LoadAudio", inputs: { audio: file } }; g[`r${i}`] = { class_type: "MAISnapVoice", inputs: { voice_model: ["vm", 0], audio: [`a${i}`, 0] } }; });
+  const words = wordsModel(), line = lineOf(take);
+  if (words) Object.assign(g, { wm: { class_type: "MAISnapWordsModelLoader", inputs: { model_name: words } }, w: { class_type: "MAISnapWords", inputs: { words_model: ["wm", 0], audio: ["tc", 1] } } });
   const id = await K.queue(g, { job: { kind: "check", title: `Voice check: does take ${take.number} keep ${voices.map((v) => v.name).join(" and ")}'s voice?`, about: { take: take.id, group: take.group }, by, takes: false } });
-  take.voice = { pending: true, by, prompt_id: id, voices, others, files, thresholds };
+  take.voice = { pending: true, by, prompt_id: id, voices, others, files, thresholds, ...(words ? { timed: true, line } : {}) };
   await T.save(take);
   heard(take);
-  return { queued: true, voices: voices.map((v) => `${v.name} (${v.cite})`), against: others.map((o) => o.name) };
+  return { queued: true, voices: voices.map((v) => `${v.name} (${v.cite})`), against: others.map((o) => o.name), words: words ? `timed by ${words}` : "not timed: no Whisper with word_timing in the model graph (models/audio_encoders)" };
 }
 
 const cos = (a, b) => +a.reduce((s, v, k) => s + v * b[k], 0).toFixed(3);
 const hz = (x) => (x == null ? "no pitch" : `${Math.round(x)} Hz`);
 // the note from the check's outputs: per cited voice its own score, the other Casts' (closest first), the margin and F0
-export function note({ voices, others, files, thresholds: c }, outputs, by) {
+export function note({ voices, others, files, thresholds: c, timed, line }, outputs, by) {
   const at = (k) => outputs?.[k] ?? {}, take = at("t"), ref = (file) => at(`r${files.indexOf(file)}`);
   const f0 = take.f0?.[0] ?? null, emb = take.voices?.[0];
   const rows = voices.map((v) => {
@@ -85,7 +109,8 @@ export function note({ voices, others, files, thresholds: c }, outputs, by) {
     return { name: v.name, cast: v.cast, cite: v.cite, own, others: vs, margin, f0, ref_f0, semitones: st, status, ...(why.length ? { why } : {}), said };
   });
   const status = rows.some((r) => r.status === "check") ? "check" : rows.every((r) => r.status === "no voice") ? "no voice" : "ok";
-  return { status, voices: rows, f0, thresholds: c, by, at: new Date().toISOString() };
+  const w = at("w"), heardText = w.text?.[0] ?? null, match = timed && heardText != null ? lineMatch(heardText, line ?? "") : null;
+  return { status, voices: rows, f0, thresholds: c, by, at: new Date().toISOString(), ...(timed ? { words: w.words ?? [], text: heardText, ...(match ? { line_match: match } : {}) } : {}) };
 }
 // a voice check's outputs onto its take, once its prompt is done
 function heard(take) {

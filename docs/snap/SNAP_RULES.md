@@ -2102,6 +2102,16 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
   the person's own text outside it stays. *Why:* the operator, 2026-11-07: "this should be a configuration item and
   needs better explaining". *More:* tests/snap/test_g16_settings.js.
 
+- **SNAP-R227: A take with a line gets its words timed in Snap.** With a Whisper in the model graph (an
+  audio_encoders entry with `word_timing`: whisper_large_v3.safetensors, linked to its Hugging Face snapshot so its
+  config and tokenizer sit beside it; read from disk, nothing downloaded), the voice note's prompt also runs
+  MAISnapWords on the take's sound: `voice.words [[start s, end s, word]]` in the take's own seconds (the first word
+  starts where the sound first gets loud: Whisper's alignment starts it at 0), `voice.text`, and `voice.line_match`
+  against the cut's line as the take's story pin says it ("Whisper exact", or how many of its words were heard, in
+  order). get_take / list_takes carry them; the Cut's export puts them on the dialogue clip's `app.astrid.words`
+  (SNAP-R216), which Astrid's `timelines words` lists. *Why:* lab check A4: Astrid's `editorial.transcribe` is OpenAI
+  whisper-1 and needs a key, so word times are Snap's (PROTOCOL_V1_1 §6); "Whisper exact" was done by hand in the
+  dogfood. *More:* tests/snap/test_g16_words.js (GPU).
 - **SNAP-R228: An agent may withdraw its own out-of-date proposal, and says why; the person's answered ones and other
   agents' stay.** `withdraw_proposal {id, because}` withdraws a waiting proposal whose `by` is the calling agent (the
   bridge names it; the server checks the maker again), recorded `withdrawn by agent:<name>: <because>`; list_proposals

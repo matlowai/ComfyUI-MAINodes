@@ -1420,6 +1420,29 @@
    "notes": "Snap's voice note on takes (MAISnapVoiceModelLoader + MAISnapVoice, snap_voice.py): WavLM-SV speaker embedding and YIN F0 of a take's sound against the Cast voice reference it cited"
   },
   {
+   "file": "whisper_large_v3.safetensors",
+   "folder": "audio_encoders",
+   "family": null,
+   "kind": "encoder",
+   "rating": "pg",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/openai/whisper-large-v3",
+   "download": "model.safetensors with its config.json, generation_config.json, preprocessor_config.json and tokenizer files beside it: link audio_encoders/whisper_large_v3.safetensors to the snapshot's model.safetensors (a Hugging Face cache folder already has them all)",
+   "size_gb": 3.1,
+   "quant_format": null,
+   "loads_in_core": true,
+   "word_timing": {
+    "evidence": "measured",
+    "source": "G16 (2026-11-07): transformers 5.10 in ComfyUI's venv, word timestamps from cross-attention alignment; Maren's voice reference (5.6 s) read word for word, 10 s on CPU"
+   },
+   "notes": "Snap's word timing (MAISnapWordsModelLoader + MAISnapWords, snap_voice.py): the take's words with their times, run with the voice note; the Cut's export puts them on the dialogue clip (app.astrid.words)"
+  },
+  {
    "file": "pika_h3_flex_fl2va_v1_bf16.safetensors",
    "folder": "loras",
    "family": "MiniMax H3",

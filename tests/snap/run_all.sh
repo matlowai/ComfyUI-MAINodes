@@ -532,6 +532,10 @@ park; timeout 600 nice -n 19 node "$T"/test_g1b_fresh.js "$port" >test_g1b_fresh
 park; timeout 600 nice -n 19 node "$T"/test_g1b_lost.js "$port" >test_g1b_lost.js.out 2>&1; tail -1 test_g1b_lost.js.out
 # G1b measures through the pack's own nodes on the GPU test unit ($SNAP_TEST_GPU_PORT, DINOv3 at 1024 px and WavLM): the scout's fixtures
 if gpu_up; then for t in test_g1b_id_copy.py test_g1b_voice.py; do nice -n 19 "$py" -I "$T/$t" "$gpu_port" >$t.out 2>&1; tail -1 $t.out; done; else echo "g1bgpu   skipped: no server on :$gpu_port"; fi
+# G16 words timed in Snap (SNAP-R227) on the GPU test unit: a real line read timed by the Whisper in SNAP_TEST_GPU_BASE's
+# audio_encoders, Whisper exact against the cut's line, the words on the dialogue clip and in Astrid's timelines words
+# (with SNAP_TEST_ASTRID_LAUNCHER/_ROOT); prints "g16words n/m"
+if gpu_up; then for t in test_g16_words.js; do timeout 900 node "$T/$t" >$t.out 2>&1; tail -1 $t.out; done; else echo "g16words skipped: no server on :$gpu_port"; fi
 # library marks + remove_lora by file + cache_hit, the shot's truth line + no-write browsing, Send to + Cast pictures +
 # re-run out, Play scene + stills door + phone; each prints "g2<name> n/m" last (port and base)
 for t in test_g2_refs.js test_g2_shots.js test_g2_fd.js test_g2_misc.js test_g2_truth.js test_g2_send.js test_g2_polish.js; do park; timeout 600 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
