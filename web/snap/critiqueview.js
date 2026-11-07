@@ -233,9 +233,17 @@ export function notePart(r, x) {
   return what.match(/, (master|plan|map|plate .+)$/)?.[1] ?? null;
 }
 // every note of the rows that hold for location ref (SNAP-R136), numbered high first: [{k, row, note, part}]
+// F-G10: the "every view" row and a plate's own row often write the same note on the same region: it is one note (also
+// names the other row), numbered and drawn once
 export function locationNotes(ref) {
-  const order = (a, b) => ORDER[a.note.severity] - ORDER[b.note.severity];
-  return CR.holding(ref).filter((r) => r.done).flatMap((r) => r.notes.map((x) => ({ row: r, note: x, part: notePart(r, x) }))).sort(order).map((x, i) => ({ ...x, k: i + 1 }));
+  const order = (a, b) => ORDER[a.note.severity] - ORDER[b.note.severity], seen = new Map(), out = [];
+  for (const x of CR.holding(ref).filter((r) => r.done).flatMap((r) => r.notes.map((n) => ({ row: r, note: n, part: notePart(r, n) }))).sort(order)) {
+    const key = x.note.region && x.part ? `${x.part}|${x.note.severity}|${x.note.region.map((v) => v.toFixed(2)).join(",")}` : null, first = key && seen.get(key);
+    if (first) { first.also = [...(first.also ?? []), x.row.id]; continue; }
+    if (key) seen.set(key, x);
+    out.push(x);
+  }
+  return out.map((x, i) => ({ ...x, k: i + 1 }));
 }
 // the masks on a sheet (or any root holding .snap-loc-pic[data-part] wrappers): all notes at once, a numbered badge each
 export function paintMasks(root, list, { on = true, lit = null } = {}) {
