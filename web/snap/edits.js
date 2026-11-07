@@ -654,7 +654,7 @@ export async function sheet(cast, { method, ref = 0, pictures = [], design, seed
   for (const [i, seed] of list.entries()) {
     const g = await GRAPHS[m.anchors.kind](m.anchors, pics, values, seed, size, prefix);
     const job = { kind: "paint", title: `Character sheet of ${b.name} (${m.title}), candidate ${i + 1} of ${list.length}`, about: { entity: cast, group: where.group, scene: where.scene, shot: where.shot }, by, eta_s: [m.cost?.local_s].flat().at(-1) ?? null };
-    made.push({ prompt_id: await K.queue(g, { group: where.group, world, ...(story ? { story } : {}), job, extra: { snap_parent: { take: null, method: `sheet/${id}`, options: { cast, prompt, context: said, purpose: "turnaround" } } } }),
+    made.push({ prompt_id: await K.queue(g, { group: where.group, world, job, extra: { snap_parent: { take: null, method: `sheet/${id}`, options: { cast, prompt, context: said, purpose: "turnaround" } } } }),
       seed, made: { model: m.anchors.unet.split("/").pop(), lora: m.anchors.lora?.split("/").pop() ?? m.anchors.turbo?.lora.split("/").pop() ?? null }, label: "sheet" });
   }
   const d = await C.create({ kind: "sheet", target: cast, title: `Character sheet of ${b.name} (${m.title}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: null, method: id,
