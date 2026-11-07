@@ -1,11 +1,11 @@
 // Batch G9, the Room with rows shaped like the live ones (F-Q19, F-Q20) and the critic's owners (F-Q24):
 // - SNAP-R180: a critic's row asks its worst note's first sentence ("Mio still holds the ladle …: keep it anyway?"), a clean
-//   one "The critic found nothing wrong here: keep it?"; every note is listed under the picture with its words, how much it
+//   one asks the run's own question once (the run's row folds into it) and says "The critic found nothing wrong."; every note is listed under the picture with its words, how much it
 //   matters and where it was born in plain words ("It comes from C1's approved board."), and a note drawn on the picture
 //   gets a numbered box on it; pixel asides ("(x~660-735, y~385-400)") and machinery stay out (the leak test);
 // - F-Q19: rows titled like :8193's (a critic row "Critic: <scene> › <shot> › take n (seed …) · New view · H3 still ×1 (<a
 //   long prompt with asides of its own>) from Picture 1 …", a New view pick with the same, a run named by an agent with a
-//   nested aside) each ask one short sentence with no "(", and on a phone the picture comes before the notes;
+//   nested aside ("Do you keep C2 retry, both hands on the bowl?")) each ask one short sentence with no "(", and on a phone the picture comes before the notes;
 // - F-Q24: a critic's owner "board" names the board the take opens on (the cut's approved board, as a take), "camera marks"
 //   names the plate the note is about and its camera mark; Fix at source opens that board and says that mark;
 // - F-Q23: write_critique takes a scale pass (and a note found by it).
@@ -100,6 +100,8 @@ const VIEW_TITLE = `New view · H3 still (Fizgig) ×1 (${PROMPT}) from Picture 1
     const heads = [], texts = [];
     for (const line of R.lines) { if (await page.locator(".snap-room-q h2").textContent() !== line) await page.locator("button.snap-room-line", { hasText: line }).first().click(); await page.waitForTimeout(500); heads.push(await page.locator(".snap-room-q h2").textContent()); texts.push(await page.locator(".snap-room").textContent()); }
     R.heads = heads;
+    await page.locator("button.snap-room-line", { hasText: "Do you keep C2 retry" }).first().click().catch(() => {}); await page.waitForTimeout(500);
+    R.cleanShown = await page.locator(".snap-room-q").textContent();
     await page.screenshot({ path: path.join(out, "room_then.png"), fullPage: false });
     R.banned = await page.evaluate(async (texts) => { const RM = await import("/extensions/ComfyUI-MAINodes/snap/room.js"); return texts.flatMap((t) => [...RM.BANNED, /\b[xy]~\d/].filter((re) => re.test(t)).map((re) => `${re} in "${t.match(re)?.[0]}"`)); }, texts);
     await page.locator(".snap-room-head button").click(); await page.waitForTimeout(400);
@@ -132,9 +134,8 @@ const VIEW_TITLE = `New view · H3 still (Fizgig) ×1 (${PROMPT}) from Picture 1
   const checks = {
     liveTitleShape: /^Critic: short05 · One More Bowl cuts › Shot 1 · C2 the bowl lands \(medium\) › take \d+.* · New view · H3 still \(Fizgig\) ×1 \(2D cel-shaded/.test(S.rowTitle ?? "") && (S.rowTitle ?? "").length > 1900,
     criticAsksItsWorstNote: S.criticLine === "Mio still holds the ladle in her right hand while setting the bowl down: keep it anyway?",
-    cleanRowAsks: all.includes("The critic found nothing wrong here: keep it?"),
+    cleanRunAskedOnce: all.filter((x) => x === "Do you keep C2 retry, both hands on the bowl?").length === 1 && !all.includes("The critic found nothing wrong here: keep it?") && /The critic found nothing wrong\./.test(S.cleanShown ?? ""),
     pickAsksShort: all.includes("Which new view do you keep for short05 · One More Bowl cuts, Shot 1 · C2 the bowl lands (medium)?"),
-    runWithNestedAside: all.includes("Do you keep C2 retry, both hands on the bowl?"),
     shortSentences: all.length >= 4 && all.every((x) => x.length <= 140 && /^[A-Z'][^?]*\?$/.test(x.replace(/\(medium\)/, "")) && !/[()]/.test(x.replace(/\(medium\)/, ""))),
     notesListed: (S.criticShown?.notes ?? []).length === 3 && /^Serious: Mio still holds the ladle/.test(S.criticShown.notes[0]) && /^Worth fixing: Kuroe's eyewear is spectacles/.test(S.criticShown.notes[1]) && /^Small: /.test(S.criticShown.notes[2]),
     ownersInWords: /It comes from the words it was made from\./.test(S.criticShown?.notes?.[0] ?? "") && /It comes from C1's approved board\. What would fix it: Targeted edit on the face/.test(S.criticShown?.notes?.[1] ?? "") && /It comes from this picture itself\./.test(S.criticShown?.notes?.[2] ?? ""),

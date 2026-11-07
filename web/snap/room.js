@@ -82,7 +82,7 @@ export function bornIn(o) {
 }
 export function ask(r) {
   if (r.source === "blind_pair") return { q: "Which is better, A or B?" };
-  if (r.source === "critique") { const top = notesOf(r)[0], head = top && headline(top.text); return { q: head ? `${cap(head)}: keep it anyway?` : "The critic found nothing wrong here: keep it?" }; }
+  if (r.source === "critique") { const top = notesOf(r)[0], head = top && headline(top.text); return { q: head ? `${cap(head)}: keep it anyway?` : r.run ? ask(r.run).q : "The critic found nothing wrong here: keep it?" }; }
   const p = r.source === "proposal" ? P.get(r.proposal) : null, book = p?.book ? W.get(p.book)?.version.body : null;
   const w = words(r.title, book?.name), own = questionIn(w), more = own ? null : asides(w).join("; ") || null, said = noAsides(w);
   if (own) return { q: own };
@@ -106,8 +106,13 @@ export function ask(r) {
   return { q: `Do you keep ${said && !SNAP_TITLE.test(said) ? bare(low(said)) : n ? `take ${n}` : "it"}?` };
 }
 
-// what waits for the person, newest first: the docket's rows the Room can ask about
-const asks = () => A.all().filter((r) => r.zone === "landed" && ((r.source === "proposal") || (r.source === "decision" && r.state === "waiting") || r.source === "blind_pair" || (r.state === "done" && r.result?.take)));
+// what waits for the person, newest first: the docket's rows the Room can ask about. A take a critic has read is asked
+// once, on the critic's row (its picture and notes), with the run's own question when the run had one (SNAP-R180)
+const asks = () => {
+  const list = A.all().filter((r) => r.zone === "landed" && ((r.source === "proposal") || (r.source === "decision" && r.state === "waiting") || r.source === "blind_pair" || (r.state === "done" && r.result?.take)));
+  const runs = new Map(list.filter((r) => r.source === "prompt" && r.result?.take).map((r) => [r.result.take, r])), read = new Set(list.filter((r) => r.source === "critique" && r.result?.take).map((r) => r.result.take));
+  return list.filter((r) => !(r.source === "prompt" && read.has(r.result?.take))).map((r) => (r.source === "critique" && runs.has(r.result?.take) ? { ...r, run: runs.get(r.result.take) } : r));
+};
 const pictureOf = (m) => m && (m.kind === "video" ? h("video", { src: url(m), controls: true, loop: true, muted: true, playsInline: true, className: "snap-room-pic" }) : h("img", { src: url(m), className: "snap-room-pic", alt: "" }));
 
 export function openRoom({ say } = {}) {
@@ -160,7 +165,8 @@ export function openRoom({ say } = {}) {
       boxed.map(([n, k]) => h("i", { className: `snap-room-box ${n.severity ?? ""}`, style: `left:${n.region[0] * 100}%;top:${n.region[1] * 100}%;width:${n.region[2] * 100}%;height:${n.region[3] * 100}%` }, h("b", { textContent: String(k) })))) : pictureOf(media);
     const list = notes.length ? h("ol", { className: "snap-room-notes" }, notes.map((n) => h("li", { className: n.severity ?? "" },
       h("p", {}, h("strong", { textContent: `${SEVERITY[n.severity] ?? "A note"}: ` }), said_(n.text)),
-      h("p", { className: "snap-room-where", textContent: `It comes from ${bornIn(n.owner)}.${n.fix ? ` What would fix it: ${said_(n.fix).replace(/[.\s]+$/, "")}.` : ""}` })))) : null;
+      h("p", { className: "snap-room-where", textContent: `It comes from ${bornIn(n.owner)}.${n.fix ? ` What would fix it: ${said_(n.fix).replace(/[.\s]+$/, "")}.` : ""}` }))))
+      : r.source === "critique" && r.run ? h("p", { className: "snap-room-where", textContent: "The critic found nothing wrong." }) : null;
     const judge = (v, said) => act(async () => { await T.setVerdict(t, v, { because: why.value.trim() }); await A.opened(t.id); await answered(asked, said, async () => { await T.setVerdict(t, null, { reason: "changed_mind" }); }); });
     return h("section", { className: "snap-room-q" }, h("h2", { textContent: asked }), where, h("div", { className: "snap-room-pics one" }, pic), list, why,
       h("div", { className: "snap-room-verdict" }, h("button", { className: "snap-primary", textContent: "Keep it", onclick: judge("keep", `Kept${place ? `: ${place} can use it` : ""}.`) }),
