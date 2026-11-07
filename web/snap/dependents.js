@@ -62,12 +62,12 @@ export function staleOf(ref) {
   for (const v of r.versions) if (v.body.master?.from?.take) up(v.body.master.from.take);
   const unpicked = (t) => { const x = decisionOf(t.id); return !x ? null : x.c.state === "rejected" ? "a rejected candidate" : x.d.applied && x.d.applied.candidate !== x.c.id ? "a candidate that wasn't picked" : null; };
   const left_out = [], keep = (t) => { const why = source.has(t.id) ? `the ${W.headOf(r).body.name ?? id} record's own picture (a master, the take it was edited from, or a candidate beside it)` : unpicked(t); if (why) left_out.push({ take: t.id, number: t.number, why }); return !why; };
-  // already re-made on a newer version; and a take the newest version holds as its own picture (a plate) moved only
-  // when what a plate is made from moved (master, plan, notes), not when sibling plates did
-  const remade = (t) => T.all().some((k) => k.parent?.take === t.id && (k.world?.[key]?.n ?? 0) > t.world[key].n);
+  // a take the newest version holds as its own picture (a plate) moved only when what a plate is made from moved
+  // (master, plan, notes), not when sibling plates did
   const head = W.headOf(r).body, own = new Set([head.master, ...(head.plates ?? [])].map((p) => p?.from?.take).filter(Boolean));
   const core = (b) => JSON.stringify({ ...b, plates: null }), moved = (t) => !own.has(t.id) || core(W.get(W.refOf(kind, id, t.world[key].n))?.version.body ?? {}) !== core(head);
-  const stale = T.all().filter((t) => t.world?.[key] && t.world[key].n < r.head && t.status === "success" && keep(t) && !remade(t) && moved(t));
+  const stale = T.all().filter((t) => t.world?.[key] && t.world[key].n < r.head && t.status === "success" && keep(t)
+    && (moved(t) || !left_out.push({ take: t.id, number: t.number, why: "the newest version holds it as its own picture, and nothing its plates are made from moved" })));
   const ids = new Set(stale.map((t) => t.id)), follows = [];
   for (let grew = true; grew;) {
     grew = false;
@@ -84,7 +84,9 @@ export function staleOf(ref) {
 export function stagesOf(ref) {
   const { key, stale: list0 } = staleOf(ref);
   const plates = plateTakes(key), order = (t) => { const h = RT.shotOf(t); return h ? SC.all().indexOf(h.scene) * 1000 + h.scene.shots.indexOf(h.shot) : 1e9 + t.created; };
-  const stale = [...list0].sort((a, b) => order(a) - order(b));
+  // a re-run batch skips what was already re-made on a newer version (dependents still lists it)
+  const remade = (t) => T.all().some((k) => k.parent?.take === t.id && (k.world?.[key]?.n ?? 0) > t.world[key].n);
+  const stale = list0.filter((t) => !remade(t)).sort((a, b) => order(a) - order(b));
   const stageOf = (t) => (plates.has(t.id) || PLATE_PURPOSES.has(ED.purposeOf(t)?.purpose) ? "plates" : isVideo(t) ? "cuts" : "boards");
   return STAGES.map((name) => {
     const list = stale.filter((t) => stageOf(t) === name).map((t) => { const h = RT.shotOf(t); return { take: t.id, number: t.number, n: t.world[key].n, ...(h ? { scene: h.scene.name, shot: SC.shotTitle(h.scene, h.shot) } : {}), seconds: t.seconds > 0 ? t.seconds : null }; });

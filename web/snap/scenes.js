@@ -274,9 +274,9 @@ export async function loadIntoShot(sceneId, shotId, graph, from) {
   const tabs = app.extensionManager.workflow, here = current(), saved = await read(here.shot.workflow);
   const clean = !!saved && tabs.activeWorkflow.changeTracker.constructor.graphEqual(comparable(saved), comparable(app.graph.serialize()));
   if (!clean) await newTab();
-  // F-F21: a take's graph carries its own shot's graph id, which is the group its takes land in: here it takes this
-  // shot's (its saved workflow's id, or a new one this shot lists), so a take re-made here lands here, not in its source
-  const id = clean && saved.id ? saved.id : crypto.randomUUID();
+  // F-F21: a take's graph carries its own shot's graph id, which is the group its takes land in: a graph from another
+  // shot takes this shot's (its saved workflow's id, or a new one this shot lists), so a take re-made here lands here
+  const id = here.shot.groups.includes(graph.id) ? graph.id : clean && saved.id ? saved.id : crypto.randomUUID();
   if (!here.shot.groups.includes(id)) await addGroup(sceneId, shotId, id);
   await app.loadGraphData({ ...structuredClone(graph), id, extra: { ...structuredClone(graph.extra ?? {}), snap_scene: { scene: sceneId, shot: shotId } } }, true, true, tabs.activeWorkflow);
   if (!clean) await retitle(here.scene, here.shot, from);
