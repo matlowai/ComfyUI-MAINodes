@@ -2043,6 +2043,14 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
   "in sync", "swapped HH:MM", "changed here since the push", "a gap in Astrid (kept private)", "not in Astrid"; the
   Cut lens shows "Astrid: C7 · in sync" on each row. *Why:* the person lives in Snap until the finish and needs to see
   the hand-off without opening Astrid (PROTOCOL_V1 §7.18). *More:* tests/snap/test_g16_receipt.js.
+- **SNAP-R219: On a page another agent drives, reads answer and proposals may be made; nothing else.** A call to a
+  driven page from an agent that isn't its driver runs when the tool is read-only (`readOnlyHint`: get_book, get_take,
+  list_proposals, describe_recipe…), when it asks only for a proposal (`propose: true` on a tool that takes it), or
+  when it is `withdraw_proposal` (it writes only the proposals store); anything else is refused naming the driver and
+  saying what works. Such a call doesn't count as the driver's (its hold's idle clock). Every proposal records `by` (the
+  agent whose call made it) and, when that wasn't the page's driver, `driven_by` apart. *Why:* F-SQ08: the critic, and
+  an Astrid-side agent asking for a re-take, couldn't read while the studio held the agents' window (PROTOCOL_V1 §7.17).
+  *More:* tests/snap/test_g16_guest.js.
 - **SNAP-R221: What Snap puts in Astrid's project are projections of its records, by Snap's ids and the takes' own
   pins.** `tools/astrid_push.py context` makes or updates one Astrid reference per Cast and place (canonical = the
   front picture or the master; `metadata.snap {record, version}`; every version the Cut's active takes ran on as a
@@ -2093,5 +2101,12 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
   and genre notes (never its still, LoRA or source), through the CLI's checkout/checkin; off, the next push removes it;
   the person's own text outside it stays. *Why:* the operator, 2026-11-07: "this should be a configuration item and
   needs better explaining". *More:* tests/snap/test_g16_settings.js.
+
+- **SNAP-R228: An agent may withdraw its own out-of-date proposal, and says why; the person's answered ones and other
+  agents' stay.** `withdraw_proposal {id, because}` withdraws a waiting proposal whose `by` is the calling agent (the
+  bridge names it; the server checks the maker again), recorded `withdrawn by agent:<name>: <because>`; list_proposals
+  shows it and the Room and the Work card drop it. Another agent's, or one already answered, is refused. *Why:* the
+  operator, 2026-11-07: "yes they can withdraw"; the G15 note: an agent saw `stale` and had no tool for its own old one.
+  *More:* tests/snap/test_g16_guest.js.
 
 Next free ID after this batch: SNAP-R230 (R160-R164 stay free; G16 reserved R215-R229).

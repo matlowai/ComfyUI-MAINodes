@@ -13,12 +13,17 @@
 // record at one version are either/or: accepting one leaves the other out of date. With the person's expiry setting on,
 // an unanswered proposal past `expires_at` is parked (kept, never deleted).
 // SNAP-R139 proposals kept on the server, stacked on each other · SNAP-R173 the option cemetery · SNAP-R67 canon waits for the person, and a driven press is the agent's · SNAP-R172 a stacked reason reads as it stands ·
-// SNAP-R209 a proposal keeps its base and goes out of date when it moves; either/or on one record · SNAP-R210 expiry parks, off by default · see docs/snap/SNAP_RULES.md
+// SNAP-R209 a proposal keeps its base and goes out of date when it moves; either/or on one record · SNAP-R210 expiry parks, off by default ·
+// SNAP-R219 a proposal records its maker and the page's driver apart · SNAP-R228 an agent withdraws only its own · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as sight from "./sight.js";
 import * as W from "./world.js";
 export const EXPIRY = "MAINodes.Snap.ProposalExpiry"; // hours; 0 = never (the person's setting, SNAP-R210)
+// the agent whose call is running on this page (the bridge names it), and the page's driver when that is another agent:
+// a proposal records both apart (SNAP-R219), and only its maker may withdraw it (SNAP-R228)
+let maker = null, guestOf = null;
+export const setMaker = (agent, driver = null) => { maker = agent ? `agent:${agent}` : null; guestOf = agent ? driver : null; };
 let list = [], loading = null;
 const listeners = new Set();
 const changed = () => { for (const fn of listeners) fn(); };
@@ -37,8 +42,8 @@ export const onChange = (fn) => listeners.add(fn);
 const here = (p) => p.graph == null || p.graph === app.graph.id;
 export const pending = () => list.filter((p) => p.status === "waiting" && here(p));
 export const get = (id) => list.find((p) => p.id === id) ?? null;
-export const all = () => list.map((p) => { const { id, tool, args, reason, note, plan, status, result, book, needs, makes, stacked, answered_by, because, revive_if, base, expires_at } = p, stale = staleOf(p), rival = rivals(p);
-  return { id, tool, args, reason, status, ...(book ? { book } : {}), ...(needs?.length ? { needs } : {}), ...(makes?.length ? { makes } : {}), ...(stacked ? { stacked } : {}), ...(note ? { note } : {}), ...(plan ? { plan } : {}), ...(result !== undefined ? { result } : {}), ...(answered_by ? { answered_by } : {}), ...(because ? { because } : {}), ...(revive_if ? { revive_if } : {}),
+export const all = () => list.map((p) => { const { id, tool, args, reason, note, plan, status, result, book, needs, makes, stacked, answered_by, because, revive_if, base, expires_at, by, driven_by } = p, stale = staleOf(p), rival = rivals(p);
+  return { id, tool, args, reason, status, ...(by ? { by } : {}), ...(driven_by ? { driven_by } : {}), ...(book ? { book } : {}), ...(needs?.length ? { needs } : {}), ...(makes?.length ? { makes } : {}), ...(stacked ? { stacked } : {}), ...(note ? { note } : {}), ...(plan ? { plan } : {}), ...(result !== undefined ? { result } : {}), ...(answered_by ? { answered_by } : {}), ...(because ? { because } : {}), ...(revive_if ? { revive_if } : {}),
     ...(base ? { base } : {}), ...(stale ? { stale: { ...stale, remake: `out of date: the person can re-make it against v${stale.to} (or call ${tool} again with propose: true)` } } : {}), ...(rival.length ? { either_or: rival.map((x) => x.id) } : {}), ...(expires_at ? { expires_at, ...(expired(p) ? { expired: true } : {}) } : {}) }; });
 
 // ---- SNAP-R209 the base: the record a waiting write would change, at its version when asked -----------------------------
@@ -93,7 +98,7 @@ async function write(body) {
 export async function add(tool, args, reason, note, plan, { book = null, needs = [], makes = [], stacked = null, base = null } = {}) {
   await Promise.all([load(), W.load()]);
   const on = base ?? baseOf(tool, args), hours = +(app.extensionManager.setting.get(EXPIRY) ?? 0);
-  return (await write({ add: { tool, args, reason: reason || "", graph: book ? null : app.graph.id, ...(book ? { book } : {}), ...(needs.length ? { needs } : {}), ...(makes.length ? { makes } : {}), ...(stacked ? { stacked } : {}), ...(note ? { note } : {}), ...(plan ? { plan } : {}),
+  return (await write({ add: { tool, args, reason: reason || "", graph: book ? null : app.graph.id, ...(maker ? { by: maker } : {}), ...(guestOf ? { driven_by: guestOf } : {}), ...(book ? { book } : {}), ...(needs.length ? { needs } : {}), ...(makes.length ? { makes } : {}), ...(stacked ? { stacked } : {}), ...(note ? { note } : {}), ...(plan ? { plan } : {}),
     ...(on ? { base: on } : {}), ...(hours > 0 ? { expires_at: Date.now() + hours * 3600000 } : {}) } })).row;
 }
 
@@ -110,6 +115,17 @@ export async function remake(id) {
   return { remade: out.proposed, withdrew: id, against: st.to };
 }
 
+// SNAP-R228: an agent withdraws a proposal it made itself (the same agent name) that still waits, saying why; never the
+// person's answered ones, never another agent's. Recorded withdrawn, by: agent, with its words; the Room drops it
+export async function withdrawOwn(id, because) {
+  await load();
+  const p = get(id);
+  if (!p) throw new Error(`No proposal ${id} (list_proposals lists them)`);
+  if (!maker || p.by !== maker) throw new Error(`${id} was made by ${p.by ?? "someone before proposals named their maker"}, not ${maker ?? "an unnamed caller"}: an agent withdraws only its own (the person rejects any)`);
+  if (p.status !== "waiting") throw new Error(`${id} is ${p.status} already: only a waiting proposal can be withdrawn`);
+  if (!because?.trim()) throw new Error("withdraw_proposal says why in because (e.g. \"out of date: re-made as p12 against v6\")");
+  return (await write({ id, status: "withdrawn", withdrawn_by: maker, result: `withdrawn by ${maker}: ${because.trim()}`, answered_by: { by: "agent", where: "a tool call", agent: maker }, because: because.trim() })).row;
+}
 // proposals about something that is gone (a deleted scene) are withdrawn with a short note, on every graph; returns how many
 export async function withdraw(about, note) {
   const gone = list.filter((p) => p.status === "waiting" && about(p));

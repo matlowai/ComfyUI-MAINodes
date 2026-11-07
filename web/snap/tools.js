@@ -1720,6 +1720,13 @@ export const TOOLS = [
     annotations: { readOnlyHint: true },
     run: () => P.all(),
   },
+  {
+    name: "withdraw_proposal",
+    description: "Withdraw a proposal you made yourself (SNAP-R228): the same agent name (X-Snap-Agent) that made it, while it still waits, e.g. one list_proposals shows stale, or one you are about to make again. because says why in a sentence (\"out of date: re-made as p14 against v6\"). It is recorded withdrawn, by you, with your words; the Room and the Work card drop it. Another agent's proposal, or one the person already answered, is refused: the person rejects any.",
+    inputSchema: { type: "object", properties: { id: { type: "string" }, because: { type: "string" } }, required: ["id", "because"] },
+    direct: true, // it answers a proposal; it never waits as one
+    run: async ({ id, because }) => { const row = await P.withdrawOwn(id, because); return { withdrawn: row.id, status: row.status, result: row.result }; },
+  },
   ...I.TOOLS, // SNAP-R93-R95 instructions, list_instructions, save_instruction, set_instruction_status, list_skills, read_skill, save_skill
   ...CR.TOOLS, // SNAP-R101-R110 list_critiques, claim_critique, critique_packet, write_critique, skip_critique, critique, critic_report, add_fixture
   ...DP.TOOLS, // SNAP-R106 rerun_dependents, list_dependents

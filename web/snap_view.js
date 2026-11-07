@@ -202,9 +202,10 @@ app.registerExtension({
     api.addEventListener("reconnected", register);
     api.addEventListener("mainodes-snap-call", async ({ detail }) => {
       let reply;
-      view.called(detail.agent); // SNAP-R135: the Driven by chip counts idle time from here
+      if (!detail.guest_of) view.called(detail.agent); // SNAP-R135: the Driven by chip counts idle time from here (a guest's read or proposal isn't the driver's call)
       I.setCaller(detail.agent); // what an agent writes is marked with its name (SNAP-R95); one agent drives a page at a time
-      try { reply = { id: detail.id, result: await agentCall(detail.tool, detail.args) }; } catch (e) { reply = { id: detail.id, error: e.message }; } finally { I.setCaller(null); }
+      P.setMaker(detail.agent, detail.guest_of); // SNAP-R219, R228: a proposal names the agent that made it, and the page's driver when that was another
+      try { reply = { id: detail.id, result: await agentCall(detail.tool, detail.args) }; } catch (e) { reply = { id: detail.id, error: e.message }; } finally { I.setCaller(null); P.setMaker(null); }
       api.fetchApi("/mainodes/snap/result", { method: "POST", body: JSON.stringify({ client: api.clientId, ...reply }) });
     });
     // http://host/?snap opens straight into Snap once the first workflow has loaded

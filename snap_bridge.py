@@ -16,7 +16,8 @@ the bridge tools' descriptions, /info names the docs and skills, a call names it
 with its job: use_page null, the MCP connection closing, or 10 idle minutes; the page shows the idle time · SNAP-R146 an
 agent's claimed critique or queued run keeps its hold · SNAP-R159 a retried call with the same Idempotency-Key answers the
 first call's answer and never runs twice · SNAP-R208 for a day, across a restart, in_flight while it runs · SNAP-R191 a region edit's seam is checked (MAISnapSeam) · SNAP-R205 and its tone ·
-SNAP-R206 a region edit's stage 2 keeps its change (MAISnapKeepEdit) · see docs/snap/SNAP_RULES.md"""
+SNAP-R206 a region edit's stage 2 keeps its change (MAISnapKeepEdit) · SNAP-R219 reads and proposals on a page another agent drives ·
+see docs/snap/SNAP_RULES.md"""
 import asyncio
 import glob
 import hashlib
@@ -142,6 +143,7 @@ def find_page(user, ref):
 
 
 UNNAMED = "an unnamed agent"
+GUEST_WRITES = {"withdraw_proposal"}  # SNAP-R228: writes only the proposals store, never the page, so a guest may call it (SNAP-R219)
 
 
 def agent_of(request):
@@ -246,7 +248,7 @@ def held_by(client, agent):
     """the refusal for a call or use_page on a page another agent drives; F-E23: an unnamed call says it is unnamed"""
     idle = round((time.time() - touched.get(client, time.time())) / 60)
     unnamed = "This call carries no agent name (set SNAP_AGENT for snapcall.py, or the X-Snap-Agent header), so it can't be the page's driver. " if agent == UNNAMED else ""
-    return error(f"{unnamed}{page_name(client)} is driven by {drivers[client]} (last call {idle} min ago; a hold lapses after {HOLD_IDLE_S // 60} idle min): pick another page (list_pages, use_page), or ask the person to press Release on it.", 409)
+    return error(f"{unnamed}{page_name(client)} is driven by {drivers[client]} (last call {idle} min ago; a hold lapses after {HOLD_IDLE_S // 60} idle min): reads (tools marked read-only) and proposals (propose: true) work here without driving it; for anything else pick another page (list_pages, use_page), or ask the person to press Release on it.", 409)
 
 
 routes = PromptServer.instance.routes
@@ -435,9 +437,15 @@ async def call(request):
         return lapsed_error(user, agent)
     target = request.headers.get("X-Snap-Page") or body.get("page")
     client = chosen(user, code, (find_page(user, target) or target) if target else bound.get((user, agent)))
-    if client and drivers.get(client, agent) != agent:
-        return held_by(client, agent)
-    if client in drivers:
+    # SNAP-R219: on a page another agent drives, a read answers and a proposal may be made (it changes nothing on the
+    # page; it records who made it and who drove the page apart); anything else waits for the driver
+    guest = drivers.get(client) if client and drivers.get(client, agent) != agent else None
+    if guest:
+        tool = next((t for t in pages[client]["tools"] if t["name"] == body.get("tool")), {})
+        asks = (body.get("args") or {}).get("propose") is True and "propose" in (tool.get("inputSchema") or {}).get("properties", {})
+        if not (tool.get("annotations", {}).get("readOnlyHint") or asks or body.get("tool") in GUEST_WRITES):
+            return held_by(client, agent)
+    elif client in drivers:
         touched[client] = time.time()
     if not client:
         if (user, agent) in bound:
@@ -454,7 +462,7 @@ async def call(request):
         return error(f"Unknown Snap tool {body.get('tool')!r}: GET /mainodes/snap/tools lists them." + (f" {stale_note(client, base)}" if stale else ""), 404)
     call_id = secrets.token_hex(8)
     pending[call_id] = (asyncio.get_running_loop().create_future(), client)
-    await PromptServer.instance.send("mainodes-snap-call", {"id": call_id, "tool": body["tool"], "args": body.get("args") or {}, "agent": agent}, client)  # the agent names what it writes (SNAP-R95)
+    await PromptServer.instance.send("mainodes-snap-call", {"id": call_id, "tool": body["tool"], "args": body.get("args") or {}, "agent": agent, **({"guest_of": guest} if guest else {})}, client)  # the agent names what it writes (SNAP-R95)
     page = {"id": client, "name": page_name(client), "headless": pages[client]["headless"], "sees": pages[client]["sees"], "driven_by": drivers.get(client), "code_current": not stale}
     read_only = next((t for t in pages[client]["tools"] if t["name"] == body["tool"]), {}).get("annotations", {}).get("readOnlyHint")
     if key and not read_only:
@@ -582,9 +590,11 @@ async def proposals_write(request):
                 return web.json_response({"error": f"status is running or one of {', '.join(ANSWERS)}; not {status!r}"}, status=400)
             if row["status"] not in (("waiting",) if status == "running" else ("waiting", "running")):
                 return web.json_response({"error": f"{row['id']} is {row['status']} already", "row": row}, status=409)
+            if q.get("withdrawn_by") and (status != "withdrawn" or row.get("by") != q["withdrawn_by"] or row["status"] != "waiting"):  # SNAP-R228: only its maker, only while it waits
+                return web.json_response({"error": f"{row['id']} was made by {row.get('by') or 'an unnamed maker'}: {q['withdrawn_by']} can't withdraw it", "row": row}, status=403)
             # who pressed it (F-L17) and, on a reject, the option cemetery's why and when to look again (CONCEPT §11.2)
             row.update({"status": status, "answered": int(time.time() * 1000), **({"result": q["result"]} if "result" in q else {}),
-                        **{k: q[k] for k in ("answered_by", "because", "revive_if") if q.get(k)}})
+                        **{k: q[k] for k in ("answered_by", "because", "revive_if", "withdrawn_by") if q.get(k)}})
         tmp = f"{path}.{os.getpid()}.tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(rows, f, ensure_ascii=False)
