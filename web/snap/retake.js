@@ -10,7 +10,7 @@
 // SNAP-R5 open work untouched · SNAP-R214 a take with no workflow nodes never opens · SNAP-R16 GPU tools wait as proposals · SNAP-R24 scenes own the work · SNAP-R60 pins ·
 // SNAP-R61 re-run as it was, with today's world, or edited · SNAP-R65 the run carries its job stamp · SNAP-R23 a candidate
 // that is a take (takeCandidate: re-run batches, new views) · SNAP-R185 a still in a cut's shot is a board, never its
-// active take · see docs/snap/SNAP_RULES.md
+// active take · SNAP-R234 a re-take takes the cut's dial rows as they stand, or only opens · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import * as L from "./library.js";
@@ -18,6 +18,7 @@ import * as SC from "./scenes.js";
 import * as T from "./takes.js";
 import * as W from "./world.js";
 import * as J from "./jobs.js";
+import * as D from "./dials.js";
 
 export const WORLDS = ["pinned", "latest"], SEEDS = ["same", "new"];
 const shown = { pinned: "as it was", latest: "today's world" };
@@ -105,6 +106,31 @@ export async function toToday(refs) {
   return said;
 }
 
+// SNAP-R234: the dial rows a re-take runs with. A take of a Book cut whose plan has dial rows takes the plan's rows as they
+// stand now ("cut", the default there), so a key moved onto a word (set_cut_dials move_key) lands in a same-seed re-take;
+// "take" keeps the rows that ran. -> null when the rack stays as the take had it, else {rows, changes: the words}
+export function cutRows(take, dials) {
+  if (dials && dials !== "cut" && dials !== "take") throw new Error(`dials is cut (the cut's planned rows) or take (the rows that ran); not ${JSON.stringify(dials)}`);
+  const pin = take.story ?? take.graph?.extra?.snap?.story, scene = pin?.unit && SC.get(pin.unit.scene), unit = scene?.shots.find((x) => x.id === pin.unit.shot)?.unit;
+  if (dials === "take" || !unit?.dials) { if (dials === "cut") throw new Error(`take ${take.number} ${pin?.unit ? `is of ${pin.unit.cut ?? "a cut"} whose plan has no dial rows (set_cut_dials plans them)` : "isn't a Book cut's take"}: dials "cut" has nothing to put on the rack`); return null; }
+  const ran = rackOf(take.graph) ?? [], text = (r) => JSON.stringify(r ?? null), changes = [];
+  for (const r of unit.dials) { const was = ran.find((x) => x.dial === r.dial); if (text(was) !== text(r)) changes.push(was ? keyWords(was, r) : `${r.dial} added (in ${unit.cut ?? "the cut"}'s plan)`); }
+  for (const r of ran) if (r.dial && !unit.dials.some((x) => x.dial === r.dial)) changes.push(`${r.dial} taken off (not in ${unit.cut ?? "the cut"}'s plan)`);
+  return { rows: unit.dials, changes };
+}
+// the rack rows a graph ran with: its Dial Rack's rack widget, at the top level or inside a blueprint
+export function rackOf(graph) {
+  for (const n of [...(graph?.nodes ?? []), ...(graph?.definitions?.subgraphs ?? []).flatMap((g) => g.nodes ?? [])]) if (n.type === "MAIDialRack") {
+    const v = Array.isArray(n.widgets_values) ? n.widgets_values.find((x) => typeof x === "string" && x.trim().startsWith("[")) : n.widgets_values?.rack;
+    try { return JSON.parse(v ?? "[]"); } catch { return null; }
+  }
+  return null;
+}
+const keyWords = (was, r) => {
+  const a = was.time?.points ?? [], b = r.time?.points ?? [], moved = b.map(([t], i) => (a[i] && a[i][0] !== t ? `key ${i + 1}: ${a[i][0]} s → ${t} s` : null)).filter(Boolean);
+  return `${r.dial}: ${moved.length ? moved.join(", ") : [was.strength !== r.strength && `strength ${was.strength} → ${r.strength}`, JSON.stringify(was.time) !== JSON.stringify(r.time) && "its time curve changed", was.on !== r.on && (r.on === false ? "off" : "on")].filter(Boolean).join(", ") || "changed"}`;
+};
+
 // mark the next queued run (extra.snap[mark]: a re-take or a re-run of a take, read from the queued workflow at capture),
 // then queue it as Run does, with its job stamp (`job`: its question, SNAP-R65); the mark stays on until the run is sent
 export async function queue(mark, value, job) {
@@ -119,11 +145,13 @@ export async function queue(mark, value, job) {
 }
 
 // re-take a take: open its chain, today's world when asked, the same seed or a new one, then run (queue: false only opens)
-export async function retake(take, { world = "pinned", seed = "same", refs, queue: go = true, by = "person" } = {}) {
+export async function retake(take, { world = "pinned", seed = "same", refs, dials, queue: go = true, by = "person" } = {}) {
   if (!WORLDS.includes(world)) throw new Error(`world is one of ${WORLDS.join(", ")}`);
   if (!SEEDS.includes(seed)) throw new Error(`seed is one of ${SEEDS.join(", ")}`);
   if (!take.graph) throw new Error(`Take ${take.number} has no workflow saved with it`);
-  const where = await openTake(take), updated = world === "latest" ? await toToday(refs) : [];
+  await SC.load();
+  const rows = cutRows(take, dials), where = await openTake(take), updated = world === "latest" ? await toToday(refs) : [];
+  if (rows) { if (!E.state().bricks.some((b) => b.key === "rack")) await E.snap("rack"); D.replace(rows.rows); if (rows.changes.length) updated.push(`dial rows from the cut's plan: ${rows.changes.join("; ")}`); }
   const seedKey = E.state().bricks.find((b) => E.seedMode(b.key))?.key, newSeed = seed === "new" && seedKey ? E.newSeed(seedKey) : null;
   const run = go ? await queue("retake", { take: take.id, world, seed }, { title: `Re-take take ${take.number} ${worldShown(world)}${seed === "new" ? ", new seed" : ""}`, by, eta_s: take.seconds ?? null }) : null;
   await SC.saveOpen(); // the shot's workflow as it ran, so a next re-take from this tab finds nothing unsaved

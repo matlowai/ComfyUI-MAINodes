@@ -205,7 +205,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), inspector, handle, railHandle), toast);
   // takes under the chain: "Use as input" puts a take's frame on the First frame or References brick (T.use)
   const dailies = createDailies({ host: root, say, onRestore: () => render(null), onHover: (t) => previewTake(t), onRunFrom: (t) => runFrom(t).catch((err) => say(err.message, true)),
-    onRetake: (t, world) => RT.retake(t, { world }).then((r) => { say(r.said); render(null); }, (err) => say(err.message, true)),
+    // SNAP-R234: "as it was" keeps the dial rows that ran; "today's world" takes the cut's plan as it stands too
+    onRetake: (t, world) => RT.retake(t, { world, dials: world === "latest" ? undefined : "take" }).then((r) => { say(r.said); render(null); }, (err) => say(err.message, true)),
     onRerun: (t) => openRerunSheet(root, { take: t, say, edit: editPinned }).catch((err) => say(err.message, true)),
     onReprompt: () => repromptSound() });
   stack.after(dailies.el);

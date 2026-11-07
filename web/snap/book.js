@@ -17,7 +17,8 @@
 // and key drawing · SNAP-R165 a Cast line folds through the state · SNAP-R166 apply_unit lands off the Cut · SNAP-R167 holder and
 // mood sentences · SNAP-R168 a cut opens before its beat · SNAP-R169 boards pin the story · SNAP-R170 a re-board keeps its own
 // board · SNAP-R172 the reversal cost says what moves · SNAP-R178 a wardrobe state folds the items it names · SNAP-R60 versions ·
-// SNAP-R11 nothing blocks · SNAP-R181 a held-prop cut is boarded at its key · SNAP-R189 a board says absent what its
+// SNAP-R11 nothing blocks · SNAP-R230 a cut owns its dial rows · SNAP-R231 their defaults · SNAP-R236 an insert cites a frame of its master ·
+// SNAP-R237 a Cast's voice only where it speaks · SNAP-R181 a held-prop cut is boarded at its key · SNAP-R189 a board says absent what its
 // pictures may still show · SNAP-R212 the Cut opens in Astrid, private takes stay out · SNAP-R213 a cut's take may come from another shot ·
 // SNAP-R215 the archive Astrid can edit, its clips named by cut · SNAP-R216 a speaking cut's sound on its own lane · SNAP-R217 a pushed Book
 // changes in place, its diff says what moved · SNAP-R223 a production is the record above the Book · SNAP-R224 the push is the person's (button,
@@ -32,6 +33,8 @@ import * as K from "./checks.js";
 import * as P from "./proposals.js";
 import * as RT from "./retake.js";
 import * as I from "./instructions.js";
+import * as D from "./dials.js";
+import * as M from "./models.js";
 
 export const MEDIA = ["anime", "film", "manga", "novel"];
 export const DIAL = ["assist", "collaborate", "automatic"];
@@ -606,6 +609,49 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
     }
   }
   if (unit.board?.file) package_.unshift({ file: unit.board.file, role: `board: ${unit.cut ?? "this cut"}${unit.board.approved ? "" : " (not approved yet)"}`, why: "the cut opens on its board frame", from: "board", order: -1 });
+  // SNAP-R236 (the operator, 2026-11-07; F-SQ23): an insert cites a frame of its master: that cut's active take at at_s
+  let master = null;
+  const closeUp = /\b(ECU|MCU|CU|close[- ]?up|insert|detail)\b/i.test(unit.camera ?? "");
+  if (unit.master) {
+    const m = units(book).find((x) => x.unit.cut === unit.master.cut), t = m?.shot.active && T.get(m.shot.active);
+    if (!m) lint.push(`master ${unit.master.cut}: no such cut in this Book; the cuts: ${units(book).map((x) => x.unit.cut).filter(Boolean).join(", ")}`);
+    else if (!t) lint.push(`master ${unit.master.cut} has no active take yet: the continuity frame comes in when it has one`);
+    else {
+      const f = await T.frameAt(t, unit.master.at_s, { crop: unit.master.crop }).catch((e) => ({ error: e.message }));
+      if (f.error) lint.push(`master ${unit.master.cut}: its take ${t.number}'s frame at ${unit.master.at_s} s can't be read: ${f.error}`);
+      else {
+        master = { cut: unit.master.cut, take: t.id, number: t.number, at_s: unit.master.at_s, frame: f.frame, file: f.file, ...(unit.master.crop ? { crop: unit.master.crop } : {}) };
+        package_.push({ file: f.file, role: `continuity: ${unit.master.cut} at ${unit.master.at_s} s`, why: "an insert cites a frame of its master shot (the operator, 2026-11-07)", from: "master", order: -0.5 });
+        from.master = `${t.id}@${f.frame}${unit.master.crop ? `:${unit.master.crop.join(",")}` : ""}`;
+      }
+    }
+  } else if (closeUp) lint.push(`this cut reads like an insert or close-up (camera "${unit.camera}") and names no master: set_unit {master: {cut: "C8", at_s: 1.9}} cites a frame of the shot it cuts in from, so light, colours and background match (SNAP-R236)`);
+  // F-SQ20: a key picture cited inside the action made H3 jump-cut to it; the key belongs in apply_unit's closing hint
+  const cited = [...present.map((b) => b.text), unit.blocking, unit.camera].filter((x) => /<Picture \d+>/.test(x ?? ""));
+  if (cited.length) lint.push(`the action cites a picture ("${cited[0]}"): citing a key board inside the action made H3 jump-cut to it and stall the clash (F-SQ20); write the motion out, and the key stays in the closing hint apply_unit writes`);
+  // every speaking Cast needs a voice reference, or its voice can't be checked (SNAP-R237)
+  for (const who of new Set(lines.map((l) => l.who))) if (who.startsWith("cast:") && !W.get(who)?.version.body.voice?.file) lint.push(`${nameOf(story, who)} speaks here and has no Cast voice reference: the voice can't be held or checked (snap-voice: use_take {as: "voice"} on a take of theirs)`);
+  // SNAP-R230/R231: the cut's dial rows, what they give over the clip, and what to look at
+  let dials = null;
+  if (unit.dials) {
+    const open = SC.current()?.shot.id === shot.id, pipe = open ? M.pipeline() : null, fam = open ? D.family() : null, speaks = lines.length > 0, length = unit.timing?.seconds;
+    await D.load();
+    for (const r of unit.dials) {
+      const d = D.find(r.dial), name = D.label(d ?? r), kind = d?.info?.kind, measured = d?.info?.pipelines ?? {}, here = pipe && measured[pipe], top = r.time?.type === "keys" ? Math.max(...r.time.points.map((x) => x[1])) : 1, peak = r.strength * top;
+      if (!d) { lint.push(`${r.dial} isn't installed here: the rack fails at run time (list_dials lists the dials)`); continue; }
+      if (fam && d.family !== fam) lint.push(`${name} is a ${d.family} dial and this cut's recipe renders with ${fam}: it fails at run time`);
+      if (pipe && Object.keys(measured).length && !here) lint.push(`${name}: measured on ${Object.entries(measured).map(([k, v]) => `${k}${v.useful ? ` (useful ${v.useful})` : ""}`).join(", ")}; this cut is ${pipe}: check its frames`);
+      const over = here?.overcook ?? d.info?.pos?.overcook;
+      if (over && Math.abs(peak) > over) lint.push(`${name} peaks at ${+peak.toFixed(3)}, past its overcook ${over}${here ? ` on ${pipe}` : ""}`);
+      if (closeUp && r.on !== false && (kind === "look" || kind === "light" || !kind)) lint.push(`${name} at ${+peak.toFixed(3)} on a close-up${kind ? "" : " (if it is a look or light dial)"}: close-ups needed half the wide's strength on the one dial measured (dramatic light 1.5 vs 3.0, bake-off round 3); a held look row at 3 replaced a face within a second (F-SQ21)`);
+      if (kind === "weather" && r.time?.audio === "protect") lint.push(`${name} is a weather dial: protect is partial for weather, the sound follows the action (+3.4 LU, F-SQ22); plan the attack's sound in post`);
+      if (speaks && r.time && r.time.audio !== "protect") lint.push(`${name} runs audio: ${r.time.audio} on a speaking cut: every look or mood row on a speaking cut runs audio: protect (dials steer voices)`);
+      const late = r.time?.type === "keys" && r.time.unit === "seconds" && length ? r.time.points.filter(([t]) => t > length + 0.5) : [];
+      if (late.length) lint.push(`${name}: key${late.length > 1 ? "s" : ""} at ${late.map(([t]) => `${t} s`).join(", ")} past the cut's ${length} s: the curve holds flat after the clip ends`);
+    }
+    dials = { rows: unit.dials, ...(pipe ? { pipeline: pipe } : { pipeline: null, pipeline_note: "the cut's shot isn't open: the pipeline (and its measured numbers) is read from its recipe when it is" }), effective: unit.dials.map(D.effective) };
+    from.dials = JSON.stringify(unit.dials);
+  }
   const pictures = package_.sort((a, b) => a.order - b.order).map(({ order: _, i: __, ...p }) => p);
   if (style) from.style = `${style.ref}`;
   const budget = 9, dropped = pictures.slice(budget).map((p) => p.role);
@@ -623,7 +669,7 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
     still_prompt: still(ends, whoEnd),
     ...(moved ? { opens: { after: prev?.id ?? null, said: `the cut opens on the state ${prev ? `after ${prev.id}` : "before any beat"} and ends on the state after ${at.id}: the opening board draws the start, the key drawing the end`, still_prompt: still(opens, whoOpen), ...(held.length ? { held, board_role: "key" } : {}) } } : {}),
     ends: at ? { beat: at.id } : null,
-    speakers: [...new Set(lines.map((l) => l.who))], transition: unit.transition ?? null, timing: unit.timing ?? null, lint,
+    speakers: [...new Set(lines.map((l) => l.who))], transition: unit.transition ?? null, timing: unit.timing ?? null, ...(dials ? { dials } : {}), ...(master ? { master } : {}), lint,
     from: Object.fromEntries(await Promise.all(Object.entries(from).map(async ([k, v]) => [k, W.short(await W.sha(v))]))),
   };
   out.board = await boardPackage(out).catch((e) => ({ error: e.message }));
@@ -652,6 +698,9 @@ export function cleanUnit(u, was = {}) {
   if (u.trim !== undefined) out.trim = u.trim;
   if (u.board !== undefined) out.board = u.board;
   if (u.key !== undefined) out.key = u.key; // F-F16: the beat's peak, a reference the cut builds to (the board is what it opens on)
+  for (const k of ["dials", "master"]) if (u[k] !== undefined) { if (u[k] === null) delete out[k]; else out[k] = u[k]; } // SNAP-R230 rows; SNAP-R236 the insert's master
+  if (out.master && (typeof out.master.cut !== "string" || !Number.isFinite(out.master.at_s) || out.master.at_s < 0 || (out.master.crop != null && !(Array.isArray(out.master.crop) && out.master.crop.length === 4 && out.master.crop.every((v) => typeof v === "number" && v >= 0 && v <= 1)))))
+    throw new Error(`master is {cut: "C8", at_s: <seconds into its active take>, crop?: [x, y, width, height] in fractions}; not ${JSON.stringify(out.master)}`);
   for (const r of [...(out.cast ?? []), ...(out.location ? [out.location] : [])]) W.parse(r);
   return out;
 }
@@ -690,7 +739,9 @@ export const boardRole = (sheet) => (sheet.opens?.board_role === "key" ? "key" :
 export async function boardPackage(sheet, { context = null, role = boardRole(sheet) } = {}) {
   const { book, unit } = unitOf(sheet.scene, sheet.shot), list = units(book), i = list.findIndex((x) => x.shot.id === sheet.shot), near = [];
   const own = unit.board?.file && unit.board.approved ? [{ file: unit.board.file, label: `${unit.cut ?? "this cut"}'s approved board`, keep: "keep its blocking: who stands or sits where, facing which way" }] : null;
-  for (const c of context ?? own ?? (list[i - 1]?.unit.board?.file ? [{ file: list[i - 1].unit.board.file, label: "the previous cut's board" }] : [])) {
+  // SNAP-R236: an insert's master frame is its nearest prior view, unless it has its own approved board or context says
+  const master = sheet.master ? [{ file: sheet.master.file, label: `${sheet.master.cut} at ${sheet.master.at_s} s, the shot this insert cuts in from`, keep: "keep its light, colours and background" }] : null;
+  for (const c of context ?? own ?? master ?? (list[i - 1]?.unit.board?.file ? [{ file: list[i - 1].unit.board.file, label: "the previous cut's board" }] : [])) {
     if (c.cut) { const u = list.find((x) => x.unit.cut === c.cut); if (!u?.unit.board?.file) throw new Error(`context: ${u ? `${c.cut} has no board yet` : `no cut ${c.cut}; the cuts: ${list.map((x) => x.unit.cut).join(", ")}`}`); near.push({ file: u.unit.board.file, label: c.cut === unit.cut ? `${c.cut}'s own board` : `${c.cut}'s board`, ...(c.cut === unit.cut ? { keep: "keep its blocking: who stands or sits where, facing which way" } : {}) }); }
     else if (c.take) { const t = T.find(c.take); if (!t) throw new Error(`context: no take ${c.take}`); const f = await T.frameAt(t, "last", { frame: c.frame ?? (t.media.some((m) => m.kind === "video") ? undefined : 0) }); near.push({ file: f.file, label: c.label ?? `take ${t.number}`, ...(c.keep ? { keep: c.keep } : {}) }); }
     else if (c.file) near.push({ file: c.file, label: c.label ?? c.file, ...(c.keep ? { keep: c.keep } : {}) });
@@ -759,6 +810,14 @@ export async function apply(sceneId, shotId, { by = "agent", beats = null, land 
     said.push("the approved board as a reference picture (Ref2V reads no first frame: for an exact opening, run FL2V with the board as the First frame)");
   }
   if (unit.key?.file) E.addPicture(unit.key.file, { role: `key: ${unit.cut}, the beat's peak`, reason: "the cut's key drawing (F-F16): it builds to it", source: `book-key:${shotId}` });
+  for (const p of refs()?.pictures ?? []) if (p.source === `book-master:${shotId}`) E.removePicture(p.node);
+  if (sheet.master) E.addPicture(sheet.master.file, { role: `continuity: ${sheet.master.cut} at ${sheet.master.at_s} s`, reason: "an insert cites a frame of its master shot (SNAP-R236)", source: `book-master:${shotId}` });
+  // SNAP-R230: the cut owns the rack: exactly its rows, and what was taken off is named
+  if (unit.dials) {
+    if (!E.state().bricks.some((b) => b.key === "rack")) await E.snap("rack");
+    const off = D.replace(unit.dials), name = unit.cut ?? "the cut";
+    said.push(`dial rows from ${name}'s plan: ${unit.dials.length ? unit.dials.map((r) => `${D.label(D.find(r.dial) ?? r)} at ${r.strength}${r.time ? " with its time curve" : ""}`).join(", ") : "none"}${off.length ? `; took off the rack: ${off.map((r) => `${D.label(D.find(r.dial) ?? r)} at ${r.strength >= 0 ? "+" : ""}${r.strength}`).join(", ")} (not in ${name}'s plan; set_cut_dials {from_rack: true} adopts the rack into the plan)` : ""}`);
+  }
   if (E.state().bricks.some((b) => b.key === "upscale")) said.push("the Upscale brick is in this recipe: its takes come out bigger than the Cut (take it out for the Cut's size)"); // F-F15
   // F-F09: every cite from References as they stand now, after the last picture went in
   const pics = E.references()?.pictures ?? [], heard = E.references()?.audio ?? [], cite = (test) => pics.filter((p) => p.role && test(p.role)).map((p) => p.cite);
@@ -767,7 +826,8 @@ export async function apply(sceneId, shotId, { by = "agent", beats = null, land 
   const who = casts.map((e) => [e.name, pics.filter((p) => p.role?.startsWith(`cast: ${e.name},`) || (p.role?.startsWith("state: ") && sheet.package.some((x) => x.from === e.ref && x.file === p.file))).map((p) => p.cite)]).filter(([, c]) => c.length);
   const hint = [board.length && `The cut opens on ${board[0]}: keep its framing and blocking.`, cam.length && `${cam.join(" and ")} ${cam.length > 1 ? "are" : "is"} this cut's camera on the place${board.length ? "" : ": keep its framing"}.`,
     place.length && `${place.join(", ")} show${place.length > 1 ? "" : "s"} the place (the same set, its buildings and layout), not this cut's framing.`,
-    key.length && `${key[0]} is the beat's peak (a key drawing): the cut builds to it and does not open on it.`, ...who.map(([n, c]) => `${n} is ${c.join(" and ")}.`)].filter(Boolean).join(" ");
+    key.length && `${key[0]} is the beat's peak (a key drawing): the cut builds to it and does not open on it.`, ...who.map(([n, c]) => `${n} is ${c.join(" and ")}.`),
+    ...cite((r) => r.startsWith(`continuity: ${unit.master?.cut} at`)).map((c) => `${c} is ${unit.master.cut}'s frame at ${unit.master.at_s} s, the shot this cuts in from: keep its light, colours and background.`)].filter(Boolean).join(" ");
   let [first, ...others] = E.getValue("render", "render", "prompt").split("\n");
   for (const e of casts) { const a = heard.find((x) => x.role === `cast: ${e.name}, voice`)?.cite; first = a ? first.replaceAll(`{voice:${e.ref}}`, a) : first.replaceAll(` in the voice of {voice:${e.ref}}`, ""); }
   first = first.replace(/ in the voice of \{voice:[^}]+\}/g, "");
@@ -795,6 +855,8 @@ export async function storyStale(take, { story = null, compiled = new Map() } = 
     if (s.from[k] === now.from[k]) continue;
     const f = fields.get(k), [head, ...rest] = k.split(".");
     if (k === "style") reasons.push(`the production style ${s.from[k] ? "changed" : "was added"}`);
+    else if (k === "dials") reasons.push(`dial rows ${!(k in s.from) ? "were planned" : !(k in now.from) ? "were taken out of the plan" : "changed"}`); // SNAP-R230
+    else if (k === "master") reasons.push(`its master's frame ${k in now.from ? "changed (the master cut's active take or the frame moved)" : "is no longer cited"}`); // SNAP-R236
     else if (/^b\d+$/.test(head)) reasons.push(`story: ${head}'s ${rest.join(" ")} changed`);
     else if (head.startsWith("location:") && !rest.length) reasons.push(`its place ${head} changed`);
     else if (!(k in now.from)) reasons.push(`story: ${k} is no longer set at this beat`);

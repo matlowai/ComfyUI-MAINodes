@@ -75,6 +75,8 @@ function widgetInfo(n, w) {
     ...(w.options?.min != null ? { min: w.options.min } : {}), ...(w.options?.max != null ? { max: w.options.max } : {}),
     ...(wired ? { wired_from: app.graph.getNodeById(app.graph.links[wired.link]?.origin_id)?.title ?? "another node" } : {}) };
 }
+// SNAP-R230: on a Book cut's shot a rack row set by hand is not the cut's plan; the answer says where the plan lives
+const cutHere = () => { const h = SC.current(), u = h?.shot.unit; return h?.scene.book && u ? `this shot is ${u.cut ?? SC.shotTitle(h.scene, h.shot)} of a Book: set_cut_dials keeps a row in the cut's plan (apply_unit sets the rack exactly from the plan and would take this row off; set_cut_dials {from_rack: true} adopts the rack as it stands)` : null; };
 const brickOf = (id) => E.state().bricks.find((b) => Object.values(b.nodes).some((n) => String(n) === String(id)))?.key ?? null;
 // runs (GPU time) wait for the person unless they let agents run in ComfyUI's settings
 export const AGENTS_RUN = "MAINodes.Snap.AgentsMayRun";
@@ -772,13 +774,13 @@ export const TOOLS = [
   },
   {
     name: "retake",
-    description: "Re-take a take (U87, SNAP-R61): open its chain (in its shot's scene tab when it belongs to a shot, else a new tab) and run it again. world: pinned = as it was (the record versions it used, which the workflow already holds), latest = with today's world (each pinned record with a newer version is updated first; refs limits that to those records, kind:id). seed: same (default) or new. open_only: true opens the chain into its shot and saves it there with nothing queued (SNAP-R234: restore a shot's recipe from one of its takes; no GPU, never a proposal). The new take nests under the original as 'Retake · as it was' / 'Retake · today's world'. get_take's world shows what moved. Uses GPU time: unless the person lets agents run, this waits as a proposal; plan says what would change.",
-    inputSchema: { type: "object", properties: { take: { type: "string" }, world: { type: "string", enum: ["pinned", "latest"] }, seed: { type: "string", enum: ["same", "new"] }, refs: { type: "array", items: { type: "string" } }, open_only: { type: "boolean", description: "open and save the take's chain in its shot, queue nothing" } }, required: ["take"] },
+    description: "Re-take a take (U87, SNAP-R61): open its chain (in its shot's scene tab when it belongs to a shot, else a new tab) and run it again. world: pinned = as it was (the record versions it used, which the workflow already holds), latest = with today's world (each pinned record with a newer version is updated first; refs limits that to those records, kind:id). seed: same (default) or new. open_only: true opens the chain into its shot and saves it there with nothing queued (SNAP-R234: restore a shot's recipe from one of its takes; no GPU, never a proposal). dials (SNAP-R234): cut (the default for a take of a Book cut whose plan has dial rows) puts the cut's dial rows as they stand now on the rack before the run, so a key moved with set_cut_dials {move_key} lands in a same-seed re-take; take keeps the rows that ran. The new take nests under the original as 'Retake · as it was' / 'Retake · today's world'. get_take's world shows what moved. Uses GPU time: unless the person lets agents run, this waits as a proposal; plan says what would change.",
+    inputSchema: { type: "object", properties: { take: { type: "string" }, world: { type: "string", enum: ["pinned", "latest"] }, seed: { type: "string", enum: ["same", "new"] }, refs: { type: "array", items: { type: "string" } }, open_only: { type: "boolean", description: "open and save the take's chain in its shot, queue nothing" }, dials: { type: "string", enum: ["cut", "take"] } }, required: ["take"] },
     annotations: { consequentialHint: true },
     consequential: true,
-    plan: async ({ take, world = "pinned", refs }) => { const t = await takeOf(take), moved = await RT.differs(t.world), used = world === "latest" ? moved.filter((m) => !m.missing && (!refs?.length || refs.includes(m.ref))) : [];
-      return { runs: `take ${t.number}'s workflow again, ${RT.worldShown(world)}`, updates: used.map((m) => ({ ref: m.ref, text: m.text, fields: m.fields, ...(m.warning ? { warning: m.warning } : {}) })), ...(world === "pinned" && moved.length ? { kept_as_it_was: moved.map((m) => m.text) } : {}), ...T.measured([t], "of the take re-made") }; },
-    run: async ({ take, world, seed, refs, open_only = false }) => { const t = await takeOf(take), r = await RT.retake(t, { world, seed, refs, queue: !open_only, by: "agent" }); return open_only ? r : { ...r, next: "run_status {run, wait_s: 25} until state is done" }; },
+    plan: async ({ take, world = "pinned", refs, dials }) => { const t = await takeOf(take), moved = await RT.differs(t.world), used = world === "latest" ? moved.filter((m) => !m.missing && (!refs?.length || refs.includes(m.ref))) : [], rows = RT.cutRows(t, dials);
+      return { runs: `take ${t.number}'s workflow again, ${RT.worldShown(world)}`, ...(rows?.changes.length ? { dial_rows: rows.changes } : {}), updates: used.map((m) => ({ ref: m.ref, text: m.text, fields: m.fields, ...(m.warning ? { warning: m.warning } : {}) })), ...(world === "pinned" && moved.length ? { kept_as_it_was: moved.map((m) => m.text) } : {}), ...T.measured([t], "of the take re-made") }; },
+    run: async ({ take, world, seed, refs, open_only = false, dials }) => { const t = await takeOf(take), r = await RT.retake(t, { world, seed, refs, dials, queue: !open_only, by: "agent" }); return open_only ? r : { ...r, next: "run_status {run, wait_s: 25} until state is done" }; },
   },
   {
     name: "rerun",
@@ -1045,8 +1047,8 @@ export const TOOLS = [
     inputSchema: { type: "object", properties: { dial: { type: "string", description: "a file from list_dials" }, strength: { type: "number" }, time: { type: "object", description: "a time curve: the row's strength × level over the clip (MiniMax H3, post-refiner dials). points [[t, level], …] with t increasing; unit seconds (default: clip seconds from the take's first frame, the clock of its words) or normalized (0..1); interp linear (default) or step; smooth 0..1; steps: blend steps (default: every step of the setup, or the dial's measured number for this pipeline); audio: protect (default: the soundtrack is left alone) or follow", properties: { points: { type: "array", items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 } }, unit: { type: "string", enum: ["seconds", "normalized"] }, interp: { type: "string", enum: ["linear", "step"] }, smooth: { type: "number" }, steps: { type: "integer", minimum: 1 }, audio: { type: "string", enum: ["protect", "follow"] } } } }, required: ["dial"] },
     run: async ({ dial, strength, time }) => {
       await D.load();
-      const pipe = M.pipeline(), t = D.timeOf(dial, time, { steps: M.sampling().steps?.value, pipeline: pipe }), said = D.add(dial, strength ?? D.useful(D.find(dial), pipe), t.time);
-      return time == null ? said : { said, row: D.rows().find((r) => r.dial === dial), defaulted: t.defaulted };
+      const pipe = M.pipeline(), t = D.timeOf(dial, time, { steps: M.sampling().steps?.value, pipeline: pipe }), said = D.add(dial, strength ?? D.useful(D.find(dial), pipe), t.time), cut = cutHere();
+      return time == null && !cut ? said : { said, ...(time != null ? { row: D.rows().find((r) => r.dial === dial), defaulted: t.defaulted } : {}), ...(cut ? { cut } : {}) };
     },
   },
   {
@@ -1055,9 +1057,9 @@ export const TOOLS = [
     inputSchema: { type: "object", properties: { dial: { type: "string" }, strength: { type: "number" }, on: { type: "boolean" }, solo: { type: "boolean" }, time: { ...{ type: "object", description: "a time curve: the row's strength × level over the clip (MiniMax H3, post-refiner dials). points [[t, level], …] with t increasing; unit seconds (default: clip seconds from the take's first frame, the clock of its words) or normalized (0..1); interp linear (default) or step; smooth 0..1; steps: blend steps (default: every step of the setup, or the dial's measured number for this pipeline); audio: protect (default: the soundtrack is left alone) or follow", properties: { points: { type: "array", items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 } }, unit: { type: "string", enum: ["seconds", "normalized"] }, interp: { type: "string", enum: ["linear", "step"] }, smooth: { type: "number" }, steps: { type: "integer", minimum: 1 }, audio: { type: "string", enum: ["protect", "follow"] } } }, type: ["object", "null"] } }, required: ["dial"] },
     run: async ({ dial, time, ...patch }) => {
       await D.load();
-      const t = time === undefined ? null : D.timeOf(dial, time, { steps: M.sampling().steps?.value, pipeline: M.pipeline() });
+      const t = time === undefined ? null : D.timeOf(dial, time, { steps: M.sampling().steps?.value, pipeline: M.pipeline() }), cut = cutHere();
       D.set(dial, time === undefined ? patch : { ...patch, time: t.time });
-      return { dial, ...D.rows().find((r) => r.dial === dial), ...(t?.defaulted.length ? { defaulted: t.defaulted } : {}) };
+      return { dial, ...D.rows().find((r) => r.dial === dial), ...(t?.defaulted.length ? { defaulted: t.defaulted } : {}), ...(cut ? { cut } : {}) };
     },
   },
   {

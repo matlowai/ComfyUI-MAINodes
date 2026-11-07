@@ -133,6 +133,36 @@ export function replace(next) {
 }
 export const remove = (dial) => write(rows().filter((x) => x.dial !== dial));
 
+// ---- a Book cut's rows (SNAP-R230) ---------------------------------------------------------------------------------
+// one row of a cut's plan as the rack stores it, from what an agent gives: the dial installed and allowed, its strength
+// the pipeline's measured useful one when not given, its time curve checked with every default filled and said
+export function planRow(x, { steps, pipeline } = {}) {
+  if (!x || typeof x !== "object" || typeof x.dial !== "string") throw new Error("a row is {dial, strength?, on?, solo?, time?}: dial is a file from list_dials");
+  const d = find(x.dial);
+  if (!d) throw new Error(`no dial ${x.dial}${hidden(x.dial) ? " shown here (it is tagged nsfw and SFW only is on)" : ""}; list_dials lists them`);
+  const t = timeOf(x.dial, x.time, { steps, pipeline }), measured = d.info?.pipelines?.[pipeline]?.useful, defaulted = t.defaulted.map((w) => `${label(d)}: ${w}`);
+  if (x.strength != null && !Number.isFinite(x.strength)) throw new Error(`${x.dial}: strength is a number, not ${JSON.stringify(x.strength)}`);
+  const strength = x.strength ?? useful(d, pipeline);
+  if (x.strength == null) defaulted.push(`${label(d)}: strength ${strength}: ${measured ? `its info's useful strength on ${pipeline}` : d.info?.pos?.useful ? "its own useful strength" : "0.5, the dial is uncalibrated"}`);
+  return { row: { on: x.on ?? true, dial: x.dial, strength, solo: x.solo ?? false, ...(t.time ? { time: t.time } : {}) }, defaulted };
+}
+// what each row gives over the clip: a constant row its strength; a key row strength × level at each key, in its unit
+export const effective = (r) => ({ dial: r.dial, label: label(find(r.dial) ?? r), ...(r.on === false ? { off: true } : {}),
+  ...(r.time?.type === "keys" ? { unit: r.time.unit, keys: r.time.points.map(([t, m]) => ({ at: t, level: m, strength: +(r.strength * m).toFixed(3) })) } : r.time ? { curve: `${r.time.feature} of the rack's curve_audio` } : { strength: r.strength }) });
+// one key of a row's curve moved in time, kept between its neighbours. key: its number from 1, "peak" (the first key at
+// the curve's highest level) or "last"; to_s in clip seconds
+export function moveKey(r, key, to_s) {
+  const t = r.time, name = label(find(r.dial) ?? r);
+  if (t?.type !== "keys") throw new Error(`${name} has no keyed time curve to move a key of${t ? " (its curve follows the music)" : " (it is constant)"}: set its time first`);
+  if (t.unit !== "seconds") throw new Error(`${name}'s keys are in normalized clip time: give its rows again in seconds (time.unit seconds) to move a key onto a time`);
+  if (!Number.isFinite(to_s) || to_s < 0) throw new Error(`to_s is a time in clip seconds, from 0; not ${JSON.stringify(to_s)}`);
+  const p = t.points, top = Math.max(...p.map((x) => x[1])), i = key === "peak" ? p.findIndex((x) => x[1] === top) : key === "last" ? p.length - 1 : Number.isInteger(key) && key >= 1 && key <= p.length ? key - 1 : -1;
+  if (i < 0) throw new Error(`key ${JSON.stringify(key)}: its number from 1 to ${p.length}, "peak" or "last"`);
+  if (i > 0 && to_s <= p[i - 1][0]) throw new Error(`${to_s} s would pass the key before it at ${p[i - 1][0]} s (key ${i}): move that one first, or give rows`);
+  if (i < p.length - 1 && to_s >= p[i + 1][0]) throw new Error(`${to_s} s would pass the next key at ${p[i + 1][0]} s (key ${i + 2}): move that one first, or give rows`);
+  return { row: { ...r, time: { ...t, points: p.map((x, j) => (j === i ? [to_s, x[1]] : x)) } }, moved: { key: i + 1, from: p[i][0], to: to_s } };
+}
+
 // ---- the rack brick's face ---------------------------------------------------------------------------------------
 // the slider's reach: everyday ±2, wider when a dial's own overcook says so
 const reach = (d) => Math.max(2, Math.ceil(Math.max(d?.info?.pos?.overcook ?? 0, d?.info?.neg?.overcook ?? 0) + 0.5));

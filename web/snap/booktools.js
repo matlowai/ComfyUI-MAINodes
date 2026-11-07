@@ -9,7 +9,8 @@
 // SNAP-R170 a re-board keeps its own board · SNAP-R172 the reversal cost says what moves · SNAP-R175 the colour script · SNAP-R176 settei design it · SNAP-R177 dry_run writes nothing ·
 // SNAP-R178 a wardrobe state folds the items it names out of the Cast line ·
 // SNAP-R181 a held-prop cut is boarded at its key · SNAP-R189 what the state takes away is said absent · SNAP-R182 a settei on a plain ground, without what its state takes off ·
-// SNAP-R217 a pushed Book's diff · SNAP-R223 a production above the Book · SNAP-R225 the receipt of where a Cut went · see docs/snap/SNAP_RULES.md
+// SNAP-R217 a pushed Book's diff · SNAP-R223 a production above the Book · SNAP-R225 the receipt of where a Cut went ·
+// SNAP-R230 set_cut_dials: a cut owns its dial rows · SNAP-R231 their defaults, said · SNAP-R236 set_unit master · see docs/snap/SNAP_RULES.md
 import * as B from "./book.js";
 import * as W from "./world.js";
 import * as SC from "./scenes.js";
@@ -17,6 +18,8 @@ import * as T from "./takes.js";
 import * as L from "./library.js";
 import * as ED from "./edits.js";
 import * as P from "./proposals.js";
+import * as D from "./dials.js";
+import * as M from "./models.js";
 import { drawPlan } from "./planview.js";
 
 const ready = () => Promise.all([W.load(), SC.load(), T.load(), L.ready(), P.load()]);
@@ -26,7 +29,8 @@ const line = { type: "object", properties: { who: { type: "string" }, text: { ty
 const beatFields = { text: { type: "string" }, intent: { type: "string" }, time: { type: "string" }, intensity: { type: "string" }, sound: { type: "string" }, source: { type: "string", enum: B.SOURCES },
   lines: { type: "array", items: line }, plants: { type: "array", items: { type: "object", properties: { id: { type: "string" }, what: { type: "string" }, window: { type: "integer", minimum: 1 } }, required: ["what"] } }, pays_off: { type: "array", items: { type: "string" } } };
 const unitFields = { beats: { type: "array", items: { type: "string" } }, cast: { type: "array", items: { type: "string" } }, props: { type: "array", items: { type: "string" } }, location: { type: "string" }, plate: { type: "string" },
-  seconds: { type: "number", exclusiveMinimum: 0 }, sound: { type: "string" }, music: { type: "string" }, transition: { type: "string" }, camera: { type: "string" }, blocking: { type: "string" }, note: { type: "string" } };
+  seconds: { type: "number", exclusiveMinimum: 0 }, sound: { type: "string" }, music: { type: "string" }, transition: { type: "string" }, camera: { type: "string" }, blocking: { type: "string" }, note: { type: "string" },
+  master: { type: ["object", "null"], description: "an insert or close-up's master shot (SNAP-R236): {cut, at_s, crop?}: that cut's active take's frame at at_s seconds (crop [x, y, width, height] in fractions) goes into the board's context and References as continuity, so light, colours and background match", properties: { cut: { type: "string" }, at_s: { type: "number", minimum: 0 }, crop: { type: "array", items: { type: "number", minimum: 0, maximum: 1 }, minItems: 4, maxItems: 4 } }, required: ["cut", "at_s"] } };
 const STORY_NOTE = "Canon: from an agent this always waits as a proposal for the person (SNAP-R67), whatever the dial says; the answer gives its id and what it would re-flag (reversal cost); the person's accept makes the story version, with the proposal's id in its note. It builds on the story as the Book's waiting story proposals would leave it (SNAP-R139): it may name a beat that is only proposed (needs says which proposal adds it; accepting this accepts that one first, rejecting that one withdraws this).";
 
 // an edited field in the words a person reads in a proposal's title and the version's note, whole (F-L12, SNAP-R58):
@@ -36,6 +40,17 @@ const fieldWords = (v, story = { props: [] }) => Array.isArray(v) ? v.map((x) =>
 const groupIn = (story, id) => story.groups.find((g) => g.id === id) ?? (() => { throw new Error(`No group ${id}; the groups: ${story.groups.map((g) => `${g.id} "${g.name}"`).join(", ") || "none yet (add_group)"}`); })();
 // F-L16: a prop a change names gets the name given with it in the story's props (without one it reads "the <id words>")
 const withPropName = (story, entity, name) => (!name || !String(entity ?? "").startsWith("prop:") ? story : B.cleanStory({ ...story, props: [...(story.props ?? []).filter((p) => `prop:${p.id}` !== entity), { id: entity.slice(5), name: name ?? entity.slice(5).replace(/[-_]+/g, " ") }] }));
+// a cut by {scene, shot} or {book, cut} (what an Astrid-side agent has: generation.snap {book, cut})
+function cutOf({ scene, shot, book, cut }) {
+  if (scene && shot) return B.unitOf(scene, shot);
+  if (!book || !cut) throw new Error("name the cut: {scene, shot} or {book, cut}");
+  const b = B.bookOf(book), u = B.units(b).find((x) => x.unit.cut === cut);
+  if (!u) throw new Error(`${b.body.name} has no cut ${cut}; its cuts: ${B.units(b).map((x) => x.unit.cut).filter(Boolean).join(", ") || "none yet"}`);
+  return B.unitOf(u.scene.id, u.shot.id);
+}
+const ROW = { type: "object", properties: { dial: { type: "string" }, strength: { type: "number" }, on: { type: "boolean" }, solo: { type: "boolean" },
+  time: { type: ["object", "null"], description: "points [[seconds, level], …], unit (seconds by default), interp, smooth, steps (default every step of the setup), audio (default protect); null = constant" } }, required: ["dial"] };
+
 // the take a keep_as_canon names, with the Book and beat it was made at
 function takeStory(id) {
   const t = T.get(id), s = t?.story ?? t?.graph?.extra?.snap?.story;
@@ -310,20 +325,65 @@ export const BOOK_TOOLS = [
   },
   {
     name: "set_unit",
-    description: "Change a cut's unit fields (scene, shot; the fields of add_cut, plus trim {in_s, out_s, gain_db} for the Cut; null clears a field).",
+    description: "Change a cut's unit fields (scene, shot; the fields of add_cut, plus trim {in_s, out_s, gain_db} for the Cut, and master {cut, at_s, crop?} for an insert or close-up: a frame of that cut's active take becomes its continuity picture, SNAP-R236; null clears a field). Its dial rows are set with set_cut_dials.",
     inputSchema: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" }, ...unitFields, trim: { type: ["object", "null"], properties: { in_s: { type: "number", minimum: 0 }, out_s: { type: "number", minimum: 0 }, gain_db: { type: "number" } } } }, required: ["scene", "shot"] },
     run: async ({ scene, shot, ...u }) => { await ready(); return { scene, shot, unit: await B.setUnit(scene, shot, u, { by: "agent" }) }; },
   },
   {
+    name: "set_cut_dials",
+    description: "Plan a Book cut's steering dial rows (SNAP-R230: the cut owns them; not the Book's autonomy dial): rack rows as the Dial Rack stores them, time curve keys in clip seconds (the take's own seconds, the clock of its words). Name the cut by {scene, shot} or {book, cut} (generation.snap carries book and cut). One of: rows (the whole plan: [{dial, strength?, on?, solo?, time?}], [] = no dials), set (one row by dial: added, or patched; time null makes it constant), remove (a dial file), move_key ({dial, key: its number from 1 | \"peak\" | \"last\", to_s}: one key of its curve moved in time, kept between its neighbours: to put a dial's peak on a word, to_s = the word's start in take seconds; on a trimmed cut the word shows at start − in_s in the picture), from_rack (true: the open recipe's rack as it stands becomes the plan, verbatim; the open tab must be this cut's shot). Defaults (SNAP-R231), filled and said in defaulted: strength = the dial's useful strength measured on the recipe's pipeline, else its own useful, else 0.5; a time row blends on every step of the setup unless the dial's info measured fewer for the pipeline; audio protect. Each row is checked with the rack's own rules before anything is written. Answers the rows, effective (strength × level at each key), defaulted, the compile's dial lint, the cut's takes that now read stale (dial rows changed), and next: compile_unit shows the plan in the sheet, apply_unit puts exactly these rows on the rack (naming what it takes off), retake {take, dials: \"cut\"} re-takes with them.",
+    inputSchema: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" }, book: { type: "string" }, cut: { type: "string" }, rows: { type: "array", items: ROW }, set: ROW, remove: { type: "string" },
+      move_key: { type: "object", properties: { dial: { type: "string" }, key: { type: ["integer", "string"] }, to_s: { type: "number", minimum: 0 } }, required: ["dial", "key", "to_s"] }, from_rack: { type: "boolean" } } },
+    run: async (args) => {
+      await ready(); await D.load();
+      const ops = ["rows", "set", "remove", "move_key", "from_rack"].filter((k) => args[k] !== undefined && args[k] !== false);
+      if (ops.length !== 1) throw new Error(`give one of rows, set, remove, move_key or from_rack${ops.length ? ` (not ${ops.join(" and ")} together)` : ""}`);
+      const { scene, shot, unit } = cutOf(args), name = unit.cut ?? SC.shotTitle(scene, shot), here = SC.current();
+      const open = here?.shot.id === shot.id, ctx = { steps: open ? M.sampling().steps?.value : null, pipeline: open ? M.pipeline() : null };
+      const was = unit.dials ?? [], defaulted = [];
+      const plan = (x) => { const r = D.planRow(x, ctx); defaulted.push(...r.defaulted); return r.row; };
+      let rows, moved = null;
+      if (args.rows) {
+        if (!Array.isArray(args.rows)) throw new Error("rows is a list of {dial, strength?, on?, solo?, time?}");
+        rows = args.rows.map(plan);
+        const twice = rows.map((r) => r.dial).find((d, i, a) => a.indexOf(d) !== i);
+        if (twice) throw new Error(`${twice} is in rows twice: one row per dial file`);
+      } else if (args.set) {
+        const old = was.find((r) => r.dial === args.set.dial), merged = old ? { ...old, ...args.set } : args.set;
+        if (old && args.set.time === undefined && old.time) merged.time = old.time; // a patch without time keeps the row's curve
+        const row = plan(merged);
+        rows = old ? was.map((r) => (r.dial === row.dial ? row : r)) : [...was, row];
+      } else if (args.remove) {
+        if (!was.some((r) => r.dial === args.remove)) throw new Error(`${args.remove} isn't in ${name}'s dial rows; they are: ${was.map((r) => r.dial).join(", ") || "none"}`);
+        rows = was.filter((r) => r.dial !== args.remove);
+      } else if (args.move_key) {
+        const { dial, key, to_s } = args.move_key, r = was.find((x) => x.dial === dial);
+        if (!r) throw new Error(`${dial} isn't in ${name}'s dial rows; they are: ${was.map((x) => x.dial).join(", ") || "none"}`);
+        const out = D.moveKey(r, typeof key === "string" && /^\d+$/.test(key) ? +key : key, to_s);
+        rows = was.map((x) => (x.dial === dial ? out.row : x)); moved = { dial, ...out.moved };
+      } else {
+        if (!open) throw new Error(`from_rack reads the open recipe's rack, and the open tab is ${here ? `${SC.shotTitle(here.scene, here.shot)} of ${here.scene.name}` : "scratch work"}, not ${name}'s shot: open_shot {scene: "${scene.id}", shot: "${shot.id}"} first`);
+        rows = D.rows();
+        for (const r of rows.filter((x) => x.time && (x.time.steps == null || x.time.audio == null))) defaulted.push(`${D.label(D.find(r.dial) ?? r)}: kept as the rack has it: ${r.time.steps == null ? "steps 2 (the rack's own default)" : `steps ${r.time.steps}`}, ${r.time.audio == null ? "audio follow (the rack's own default)" : `audio ${r.time.audio}`}`);
+      }
+      await SC.setUnit(scene.id, shot.id, B.cleanUnit({ dials: rows }, unit), "agent", `${name} dial rows changed`);
+      const sheet = await B.compile(scene.id, shot.id), stale = (await B.bookStale(sheet.book)).filter((x) => x.shot === shot.id && x.reasons.some((w) => w.startsWith("dial rows")));
+      const lint = sheet.lint.filter((w) => rows.some((r) => w.includes(D.label(D.find(r.dial) ?? r)) || w.includes(r.dial)));
+      return { book: sheet.book, cut: unit.cut ?? null, scene: scene.id, shot: shot.id, rows, effective: rows.map(D.effective), ...(defaulted.length ? { defaulted } : {}), ...(moved ? { moved } : {}), ...(sheet.dials?.pipeline ? { pipeline: sheet.dials.pipeline } : { pipeline: null }),
+        ...(lint.length ? { lint } : {}), ...(stale.length ? { stale: stale.map((x) => ({ take: x.take, number: x.number, active: x.active, reasons: x.reasons })) } : {}),
+        next: `compile_unit shows the plan in the sheet; apply_unit puts exactly these rows on the rack${stale.length ? `; take${stale.length > 1 ? "s" : ""} ${stale.map((x) => x.number).join(", ")} now read stale: dial rows changed (retake {take, dials: "cut"} re-takes with them)` : ""}` };
+    },
+  },
+  {
     name: "compile_unit",
-    description: "The compiled state sheet of a cut (SNAP-R68), what it would put into its recipe: at (the beat it compiles at), every entity in frame with each state field (value, the beat and change that set it, its provenance story:<id>@n bN change cN, the sentence it becomes, its backing: a state picture or 'words only', and for a field the cut's own beats set, opens: its value before them) and each Cast's cast_line (its details line as this cut tells it: left_out names each clause the state overrides with the beat and change, F-L02; opens: the line at the opening when it differs), opens (F-L09: when the cut's own beats move a field, the state it opens on and its still prompt; the video prompt says 'At the start of the cut, …' and 'By the end, …' for those fields), the place (location version, plate, pose), the reference package (pictures with roles and why, the 9-picture budget and what would go over), the prompt (the production style paragraph first, then the sentences with their sources: the beats' text, the unit's blocking and camera, the state, the lines), speakers (the Cast with a line here: only they get their voice), the still prompt (style, blank line, subject), board (exactly what make_board sends with no context given, role opening: its pictures with labels and the prompt citing each <Picture n>, with the role sentence), the lint (palette colour words, missing beats, beats still waiting in a proposal, a beat or the blocking that puts a thing in a hand where the state puts it elsewhere) and from (a hash per field used). The video prompt's picture cites are set by apply_unit from References as they stand after its last picture, and its answer gives the whole prompt. Nothing changes; apply_unit puts it into the cut's recipe.",
+    description: "The compiled state sheet of a cut (SNAP-R68), what it would put into its recipe: at (the beat it compiles at), every entity in frame with each state field (value, the beat and change that set it, its provenance story:<id>@n bN change cN, the sentence it becomes, its backing: a state picture or 'words only', and for a field the cut's own beats set, opens: its value before them) and each Cast's cast_line (its details line as this cut tells it: left_out names each clause the state overrides with the beat and change, F-L02; opens: the line at the opening when it differs), opens (F-L09: when the cut's own beats move a field, the state it opens on and its still prompt; the video prompt says 'At the start of the cut, …' and 'By the end, …' for those fields), the place (location version, plate, pose), the reference package (pictures with roles and why, the 9-picture budget and what would go over), the prompt (the production style paragraph first, then the sentences with their sources: the beats' text, the unit's blocking and camera, the state, the lines), speakers (the Cast with a line here: only they get their voice), the still prompt (style, blank line, subject), board (exactly what make_board sends with no context given, role opening: its pictures with labels and the prompt citing each <Picture n>, with the role sentence), dials (SNAP-R230, when the cut has dial rows: the rows, the pipeline the open recipe runs (t2v, ref2v, fl2v; null when the cut's shot isn't open) and effective: each row's strength × level at each key), master (SNAP-R236: the insert's continuity frame: cut, take, at_s, frame, file), the lint (palette colour words, missing beats, beats still waiting in a proposal, a beat or the blocking that puts a thing in a hand where the state puts it elsewhere; a speaker with no Cast voice reference; a picture cited inside the action (F-SQ20); an insert or close-up with no master; per dial row: another model family, measured on another pipeline, past its overcook, a look row at a wide's strength on a close-up (F-SQ21), a weather row under protect (F-SQ22), a speaking cut's row not on protect, a key past the clip) and from (a hash per field used; dial rows and the master frame too, so a take reads stale when they move). The video prompt's picture cites are set by apply_unit from References as they stand after its last picture, and its answer gives the whole prompt. Nothing changes; apply_unit puts it into the cut's recipe.",
     inputSchema: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" }, beats: { type: "array", items: { type: "string" }, description: "compile at these beats instead of the cut's own (the Beat slot)" } }, required: ["scene", "shot"] },
     annotations: { readOnlyHint: true },
     run: async ({ scene, shot, beats }) => { await ready(); return B.compile(scene, shot, { beats: beats ?? null }); },
   },
   {
     name: "apply_unit",
-    description: "Put a cut's compile into its recipe (opens its shot first); beats (optional, the Beat slot) compiles it at other beats than its own, the same shot at another story moment (\"Kon after the fall\"), and its takes remember them: length from its timing (the next length the model takes, never shorter; said when it differs); the prompt's three lines (the production style paragraph first in the description, the beats' action, the unit's blocking and camera, the state sentences, dialogue citing each speaker's <Audio n>, the soundscape); each Cast in frame (apply_cast: LoRA, line, pictures; the voice only for a Cast with a line in this cut); state pictures; its location with the plate as the camera; an approved board as the opening picture (a reference under Ref2V) and the key drawing (set_board role key) as the beat's peak; then every <Picture n> and <Audio n> cite from References as they finally stand, each Cast named by its pictures. Pins the style (world) and the story version, beat and field hashes the take will carry (story_stale reads them). Start a recipe first on an empty shot (start_recipe).",
+    description: "Put a cut's compile into its recipe (opens its shot first); beats (optional, the Beat slot) compiles it at other beats than its own, the same shot at another story moment (\"Kon after the fall\"), and its takes remember them: length from its timing (the next length the model takes, never shorter; said when it differs); the prompt's three lines (the production style paragraph first in the description, the beats' action, the unit's blocking and camera, the state sentences, dialogue citing each speaker's <Audio n>, the soundscape); each Cast in frame (apply_cast: LoRA, line, pictures; the voice only for a Cast with a line in this cut); state pictures; its location with the plate as the camera; an approved board as the opening picture (a reference under Ref2V) and the key drawing (set_board role key) as the beat's peak; an insert's master frame as continuity (SNAP-R236); the cut's dial rows (set_cut_dials) as the whole rack, naming any row it took off (SNAP-R230); then every <Picture n> and <Audio n> cite from References as they finally stand, each Cast named by its pictures. Pins the style (world) and the story version, beat and field hashes the take will carry (story_stale reads them). Start a recipe first on an empty shot (start_recipe).",
     inputSchema: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" }, beats: { type: "array", items: { type: "string" } },
       land: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" } }, required: ["scene", "shot"], description: "compile into this shot instead (any scene, e.g. a test shot made with add_shot {scene, from: the cut's scene and shot}): the cut's own shot and the Cut stay as they are, and the takes made there pin the story, beat and unit they were compiled from (F-L10)" } }, required: ["scene", "shot"] },
     run: async ({ scene, shot, beats, land }) => { await ready(); const out = await B.apply(scene, shot, { by: "agent", beats: beats ?? null, land: land ?? null }); return { said: out.said, prompt: out.prompt, compiled: out.sheet.prompt, package: out.sheet.package, lint: out.sheet.lint, ...(out.landed ? { landed: out.landed } : {}), next: "run {question} renders it" }; },
