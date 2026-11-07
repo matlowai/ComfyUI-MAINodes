@@ -180,6 +180,20 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
   }
 
   // ---- Settei ---------------------------------------------------------------------------------------------------
+  // "design it" (SNAP-R176): a state's cell makes candidates from the Cast's own pictures, the style and the state's words
+  // (design_state), and shows those that landed with Use this, which saves the state's picture as a new Cast version
+  function designCell(b, ref, c, x) {
+    const pin = (t) => t.story ?? t.graph?.extra?.snap?.story, made = T.all().filter((t) => t.status === "success" && t.media.length && pin(t)?.role === "settei" && pin(t).cast === ref && pin(t).state === x.name && !x.pictures.some((p) => p.from?.take === t.id));
+    const views = ["front", "three-quarter", "side", "back"], had = new Set(x.pictures.map((p) => p.view)), view = views.find((v) => !had.has(v)) ?? "front";
+    const use = (t) => act(async () => { const keep = x.pictures.filter((p) => p.view !== pin(t).view).map((p) => ({ file: p.file, ...(p.view ? { view: p.view } : {}) }));
+      const out = await callTool("save_cast_state", { cast: ref, state: x.name, covers: x.covers ?? {}, ...(x.words && x.words !== true ? { words: x.words } : {}), pictures: [...keep, { take: t.id, view: pin(t).view }] });
+      return `${c.name} v${out.version}: ${x.name} ${pin(t).view} from take ${t.number}`; });
+    return h("div", { className: "snap-book-design" },
+      h("button", { className: "snap-link snap-quiet-btn", textContent: x.pictures.length ? `Design the ${view} view` : "Design it", title: "candidates from the Cast's own pictures, the production style and this state's words (a New view; GPU)",
+        onclick: act(async () => { const out = await callTool("design_state", { book: `book:${b.id}`, cast: ref, state: x.name, covers: x.covers ?? {}, view }); return out.proposed ? `Waiting for your yes: ${out.status}` : `${x.name}: ${out.candidates?.length ?? "the"} candidates on their way to ${out.landed?.where ?? "the settei scene"}`; }) }),
+      made.length ? h("div", { className: "snap-book-design-cands" }, made.map((t) => h("figure", {}, h("img", { src: takeUrl(t), alt: `${c.name}, ${x.name}, take ${t.number}`, className: "snap-book-design-pic" }),
+        h("button", { className: "snap-link snap-quiet-btn", textContent: `Use this (${pin(t).view})`, onclick: use(t) })))) : null);
+  }
   function settei(b) {
     const style = B.styleOf(b.body), s = structuredClone(style?.body ?? { name: `${b.body.name} style`, paragraph: "", palette: "full", voice: "", sound: "", genre: "" });
     const area = (k, label, rows = 2) => h("label", { className: "snap-field" }, h("span", { textContent: label }), h("textarea", { rows, value: s[k] ?? "", ariaLabel: label, oninput: (e) => { s[k] = e.target.value; } }));
@@ -201,7 +215,7 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
         h("div", { className: "snap-book-thumbs" }, ...(c.refs ?? []).map((r) => h("figure", {}, pic(r.file, `${c.name}, ${r.role}`, ref, `book-cast-${ref}`), h("figcaption", { textContent: `base · ${r.role}` })))),
         h("div", { className: "snap-rail-sub", textContent: "States" }),
         states.length ? h("div", { className: "snap-book-thumbs" }, ...states.map((x) => h("figure", { className: x.pictures.length ? "" : "words" }, x.pictures.length ? pic(x.pictures[0].file, `${c.name}, ${x.name}`, ref, `book-cast-${ref}`) : h("div", { className: "snap-cast-missing", textContent: "words only: no picture for this state yet" }),
-          h("figcaption", { textContent: `${x.name}${x.pictures.length > 1 ? ` · ${x.pictures.length} views` : ""}` })))) : h("div", { className: "snap-quiet", textContent: "No states: the story changes nothing this character wears." }),
+          h("figcaption", { textContent: `${x.name}${x.pictures.length > 1 ? ` · ${x.pictures.length} views` : ""}` }), designCell(b, ref, c, x)))) : h("div", { className: "snap-quiet", textContent: "No states: the story changes nothing this character wears." }),
         h("div", { className: "snap-rail-sub", textContent: "Voice settei" }),
         c.voice?.file ? h("div", { className: "snap-quiet", textContent: `${c.voice.file}${c.voice.casting ? ` · cast as: ${c.voice.casting}` : ""} · cuts cite it as <Audio n>, no voice words` }) : h("div", { className: "snap-quiet", textContent: "no voice reference yet (skill snap-voice: a 3-6 s line at 12 steps)" })); });
     const places = (b.body.locations ?? []).map((ref) => { const got = W.get(ref), l = got?.version.body; if (!l) return h("section", { className: "snap-book-card" }, h("div", { className: "snap-cast-missing", textContent: `${ref} isn't here` }));
@@ -333,6 +347,18 @@ export const BOOK_STYLE = `
 .snap-book-lane-name { font-size: 12px; font-weight: 600; align-self: center; }
 .snap-book-lane-cell { min-height: 22px; border-top: 2px solid var(--s-line); font-size: 11px; color: var(--s-dim); display: flex; flex-direction: column; gap: 2px; padding-top: 3px; }
 .snap-book-lane-cell.mark { border-top-color: #f08fb8; color: var(--s-fg); }
+.snap-book-lane-cell.ghost { border-top: 2px dashed var(--s-line); }
+.snap-book-lane-ghost { opacity: .75; font-style: italic; }
+.snap-book-lane.prop .snap-book-lane-name { font-weight: 500; color: var(--s-dim); }
+.snap-book-beat-line { font-size: 11px; color: var(--s-dim); font-style: italic; }
+.snap-book-colours { display: grid; gap: 6px; align-items: start; margin-bottom: 6px; }
+.snap-book-colour-cell { display: flex; flex-direction: column; gap: 3px; padding: 4px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--s-line); }
+.snap-book-colour-cell.chosen { box-shadow: inset 0 0 0 1px #f0b445; }
+.snap-book-design { display: flex; flex-direction: column; gap: 4px; }
+.snap-book-design-cands { display: flex; gap: 6px; flex-wrap: wrap; }
+.snap-book-design-cands figure { margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.snap-book-design-pic { width: 72px; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 4px; }
+.snap-book-colour { width: 100%; max-height: 90px; object-fit: cover; border-radius: 6px; }
 .snap-book-lane-thumb { width: 64px; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 4px; cursor: zoom-in; }
 .snap-book-flags { font-size: 12px; color: #f0b445; display: flex; flex-direction: column; gap: 2px; }
 .snap-book-detail { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 10px; border: 1px solid var(--s-line); }
@@ -347,18 +373,6 @@ export const BOOK_STYLE = `
 .snap-book-thumbs figcaption { font-size: 11px; color: var(--s-dim); overflow-wrap: anywhere; }
 .snap-book-thumbs figure.words .snap-cast-missing { aspect-ratio: 16 / 10; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 11px; border: 1px dashed #f0b44599; border-radius: 6px; color: #f0b445; padding: 4px; }
 .snap-book-still { width: 100%; max-width: 360px; border-radius: 8px; cursor: zoom-in; }
-.snap-book-lane-cell.ghost { border-top: 2px dashed var(--s-line); }
-.snap-book-lane-ghost { opacity: .75; font-style: italic; }
-.snap-book-lane.prop .snap-book-lane-name { font-weight: 500; color: var(--s-dim); }
-.snap-book-beat-line { font-size: 11px; color: var(--s-dim); font-style: italic; }
-.snap-book-colours { display: grid; gap: 6px; align-items: start; margin-bottom: 6px; }
-.snap-book-colour-cell { display: flex; flex-direction: column; gap: 3px; padding: 4px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--s-line); }
-.snap-book-colour-cell.chosen { box-shadow: inset 0 0 0 1px #f0b445; }
-.snap-book-design { display: flex; flex-direction: column; gap: 4px; }
-.snap-book-design-cands { display: flex; gap: 6px; flex-wrap: wrap; }
-.snap-book-design-cands figure { margin: 0; display: flex; flex-direction: column; gap: 2px; }
-.snap-book-design-pic { width: 72px; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 4px; }
-.snap-book-colour { width: 100%; max-height: 90px; object-fit: cover; border-radius: 6px; }
 .snap-book-boards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
 .snap-book-board { padding: 8px; border-radius: 10px; border: 1px solid var(--s-line); display: flex; flex-direction: column; gap: 6px; }
 .snap-book-board.approved { border-color: #57c785; }

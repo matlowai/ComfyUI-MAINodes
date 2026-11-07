@@ -299,7 +299,7 @@ export const BOOK_TOOLS = [
     name: "save_cast_state",
     description: "Settei per state on a Cast (SNAP-R69): a state of the character (name, e.g. oilskin) that covers story fields ({wardrobe: \"oilskin\"}: the compile cites its pictures wherever the fold gives those values) and its pictures [{file} or {take, frame}, view (front, three-quarter, side, back, expression…)], plus words. Saves a new Cast version naming the take each picture came from; takes made before read 'Cast v6 → v7'. A state with no pictures compiles 'words only'.",
     inputSchema: { type: "object", properties: { cast: { type: "string" }, state: { type: "string" }, covers: { type: "object" }, words: { type: "string" }, pictures: { type: "array", items: { type: "object", properties: { file: { type: "string" }, take: { type: "string" }, frame: { type: "integer", minimum: 0 }, view: { type: "string" } } } } }, required: ["cast", "state"] },
-    run: async ({ cast, state, covers = {}, words = "", pictures = [] }) => {
+    run: async ({ cast, state, covers = {}, words = "", pictures = [] }, { confirmed } = {}) => {
       await ready();
       const { id } = W.parse(cast), got = W.get(`cast:${id}`);
       if (!got) throw new Error(`No Cast ${cast}`);
@@ -309,8 +309,36 @@ export const BOOK_TOOLS = [
         else if (p.file) pics.push({ file: p.file, ...(p.view ? { view: p.view } : {}) });
       }
       const body = got.version.body, states = [...(body.states ?? []).filter((s) => s.name !== state), { name: state, covers, ...(words ? { words } : {}), pictures: pics }];
-      const out = await L.saveCast(id, { ...body, states }, { note: `state ${state}${pics.find((p) => p.from) ? ` from ${pics.find((p) => p.from).from.take}` : ""}`, by: "agent" });
+      const out = await L.saveCast(id, { ...body, states }, { note: `state ${state}${pics.find((p) => p.from) ? ` from ${pics.find((p) => p.from).from.take}` : ""}`, by: confirmed ? "person" : "agent" }); // a press in the Settei lens is the person's
       return { cast: out.ref, version: out.n, made: out.made, states: states.map((s) => ({ name: s.name, covers: s.covers, pictures: s.pictures.length })) };
+    },
+  },
+  {
+    name: "design_state",
+    description: "Settei 'design it' (SNAP-R176): candidate pictures of a Cast in one of its states, made by a New view from the Cast's own pictures (identity), with the Book's production style paragraph first, then the Cast line as the state tells it (clauses the state overrides left out), the state's sentences and words, and the view (front by default; three-quarter, side, back, expression…). state is the state's name; covers (the story fields it stands for, e.g. {wardrobe: \"the oilskin\"}) and words come from the Cast's state of that name when left out. Candidates land in the scene \"Settei · <Book>\", shot <the Cast's name>, each pinned {role: settei, cast, state, view}; the Book's Settei lens shows them under the state with Use this, which is save_cast_state with that take: approval writes the Cast version (SNAP-R69). GPU: follows the Book's dial at the settei stage.",
+    inputSchema: { type: "object", properties: { book: { type: "string" }, cast: { type: "string" }, state: { type: "string" }, covers: { type: "object" }, words: { type: "string" }, view: { type: "string" }, method: { type: "string" }, seeds: { type: "array", items: { type: "integer", minimum: 0 } }, count: { type: "integer", minimum: 1 }, extra: { type: "string", description: "words added at the end" } }, required: ["book", "cast", "state"] },
+    annotations: { consequentialHint: true },
+    consequential: true,
+    run: async ({ book, cast, state, covers, words, view = "front", method, seeds, count = 2, extra }) => {
+      await ready();
+      const b = B.bookOf(book), { id } = W.parse(cast), got = W.get(`cast:${id}`), body = got?.version.body;
+      if (!body) throw new Error(`No Cast ${cast}`);
+      if (!body.refs?.length) throw new Error(`${body.name} has no pictures yet: a state is designed from the Cast's own pictures (identity), so give it one first (save_cast refs)`);
+      const known = (body.states ?? []).find((x) => x.name === state);
+      covers ??= known?.covers ?? {}; words ??= known?.words ?? "";
+      if (!Object.keys(covers).length && !words) throw new Error(`Say what the state ${state} is: covers (the story fields it stands for, e.g. {wardrobe: "the oilskin"}) or words`);
+      const story = b.body.story ? B.storyOf(b.body).body : B.cleanStory({}), style = B.styleOf(b.body), ref = `cast:${id}`;
+      const line = B.foldCastLine(story, ref, L.castLine(body), Object.fromEntries(Object.entries(covers).map(([path, value]) => [path, { value, beat: "settei", change: state }]))).line;
+      const said = Object.entries(covers).map(([path, value]) => B.stateSentence(story, body.name, path, value)).filter(Boolean).map((x) => `${x.replace(/[.\s]+$/, "")}.`);
+      const subject = [`<Picture 1> is ${body.name}${line ? `, ${line}` : ""}.`, ...said, words, `A settei (model sheet) view of ${body.name} in this state: ${view} view, full body, standing, on a plain light background.`, extra].filter(Boolean).join(" ");
+      const prompt = style?.body.paragraph ? `${style.body.paragraph}\n\n${subject}` : subject;
+      const sceneName = `Settei · ${b.body.name}`;
+      await SC.load();
+      const sc = SC.all().find((x) => x.name === sceneName && !x.book) ?? await SC.create({ name: sceneName, by: "agent" }), here = SC.get(sc.id);
+      const shot = here.shots.find((x) => x.name === body.name) ?? (await SC.addShot(sc.id, { name: body.name, by: "agent" })).shot;
+      const pictures = body.refs.map((r, i) => ({ cast: ref, ref: i }));
+      const out = await ED.fromContext(pictures, prompt, { method, purpose: method ? undefined : "character", seeds, count, land: { scene: sc.id, shot: shot.id }, story: { book: `book:${b.id}`, role: "settei", cast: ref, state, view, covers }, by: "agent" });
+      return { ...out, cast: ref, state, view, covers, prompt, landed: { scene: sc.id, shot: shot.id, where: `${sceneName} › ${body.name}` }, next: `wait_for {job: decision, until: waiting}, look at the candidates, then save_cast_state {cast: "${ref}", state: "${state}", covers, pictures: [{take, view: "${view}"}]} (the person's Use this in the Settei lens does the same)` };
     },
   },
   {

@@ -37,7 +37,7 @@ export const OPS = ["set", "add", "remove", "note"];
 export const SOURCES = ["canon", "adapted", "invented"];
 export const PALETTES = ["monochrome", "limited", "full"];
 // which stage a tool's work belongs to, for the dial (the person's "Let agents run" stays the default outside a Book)
-const STAGE_OF = { make_set_plates: "settei", make_character_sheet: "settei", save_cast_state: "settei", upscale_take: "settei", make_board: "boards", set_board: "boards",
+const STAGE_OF = { make_set_plates: "settei", make_character_sheet: "settei", save_cast_state: "settei", design_state: "settei", upscale_take: "settei", make_board: "boards", set_board: "boards",
   run: "cut_bag", retake: "cut_bag", rerun: "cut_bag", rerun_batch: "cut_bag", edit_take: "cut_bag", extend_take: "cut_bag", apply_candidate: "dailies", reject_candidate: "dailies", judge_takes: "dailies", export_cut: "the_cut", animatic: "boards" };
 
 const stamp = (kind) => `${kind}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -304,6 +304,7 @@ export function nameOf(story, ref) {
 // from its chain on his lapel"); a mood is a look ("looks calm") or a face ("has a confident grin")
 const PLACE_WORD = /^(on|in|at|under|over|beside|behind|by|near|inside|against|across|between|above|below|from|off|out|into|onto|upon|around|[a-z]+ing)\b/i;
 const FACE_WORD = /\b(grin|smile|smirk|frown|scowl|glare|pout|stare|look|expression|face|sneer|glower|tears|sigh|blush)$/i;
+export const stateSentence = (story, who, path, value) => sentence(story, who, path, value); // a state field as the compile says it (settei design, SNAP-R176)
 function sentence(story, who, path, value) {
   const thing = (v) => nameOf(story, v), hand = path.match(/^carried\.(right|left)_hand$/);
   if (PROSE_ONLY.has(path.split(".")[0])) return null;
@@ -483,8 +484,8 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
   // F-L02: what the state still contradicts after the fold (the blocking or a beat naming a thing in a hand, or a prop
   // put somewhere else), as lint: the compile says it, the person or the writer settles it
   lint.push(...stateLint(story, unit, present, entities));
-  // dialogue on the unit's beats, each line citing the speaker's voice reference (voice scout 2026-11-06: no voice words)
   if (at) lint.push(...propMismatch(story, at.id).filter((m) => (unit.props ?? []).includes(m.prop) || carriersOf(story, m.prop, at.id).some((c) => castRefs.includes(c.who))).map((m) => `${m.text}: check they agree (F-L11)`));
+  // dialogue on the unit's beats, each line citing the speaker's voice reference (voice scout 2026-11-06: no voice words)
   const lines = present.flatMap((b) => (b.lines ?? []).map((l) => ({ ...l, beat: b.id })));
   for (const l of lines) { const who = nameOf(story, l.who), text = `${who} says "${l.text}"${words.some((x) => x.cast === l.who) ? ` in the voice of {voice:${l.who}}` : ""}`; from[`${l.beat}.line.${l.who}`] = l.text; say(text, `story ${l.beat} line`); tail.push(S(text)); }
   // the place: the unit's location at its plate (camera) and the master
