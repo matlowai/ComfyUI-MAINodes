@@ -13,7 +13,7 @@
 // Plain data with stable ids, so a sequence editor can sit on it later: shots in order now, lanes and in/out on shots
 // and takes later (scout/editor_layer §5.6-5.7).
 // SNAP-R5 open work is never lost · SNAP-R60 authored fields versioned · SNAP-R17 by · SNAP-R18 local only · SNAP-R19 the tools call these · SNAP-R145 a take loaded here gets this shot's graph id · SNAP-R24 scenes
-// own the work, tabs are scratch · SNAP-R120 a new shot keeps the setup, not the content · SNAP-R122 browsing never writes · SNAP-R213 a take of another shot can stand for this one, saying where it came from · SNAP-R214 a graph with no nodes never becomes a shot's workflow · see docs/snap/SNAP_RULES.md
+// own the work, tabs are scratch · SNAP-R120 a new shot keeps the setup, not the content · SNAP-R122 browsing never writes · SNAP-R213 a take of another shot can stand for this one, saying where it came from · SNAP-R214 a graph with no nodes never becomes a shot's workflow · SNAP-R235 a shot has one tab (release, the claimant holding the saved id, saveOpen refuses a stale one) · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -141,16 +141,24 @@ export function current() {
   return shot ? { scene: s, shot } : null;
 }
 
-// the open shot's graph into its scene: its workflow file, and its graph id among the shot's workflows
+// the open shot's graph into its scene: its workflow file, and its graph id among the shot's workflows. Returns the file,
+// or {refused} when the tab stands for the shot no more (SNAP-R235): its mark is taken off and nothing is written
 export async function saveOpen() {
   const here = current();
   if (!here) return null;
-  const graph = app.graph.serialize(), file = here.shot.workflow ?? workflowFile(here.scene.id, here.shot.id);
+  const graph = app.graph.serialize(), file = here.shot.workflow ?? workflowFile(here.scene.id, here.shot.id), tabs = app.extensionManager.workflow;
+  const saved = here.shot.workflow ? await read(file) : null;
   // UI-09 (B3, SNAP-R122): browsing never writes: a shot whose graph is its file's (nodes sized aside) and whose graph id
   // the scene lists is not written again, so opening another person's scene leaves its files as they were
-  if (here.shot.workflow && here.shot.groups.includes(graph.id)) {
-    const saved = await read(file);
-    if (saved && app.extensionManager.workflow.activeWorkflow.changeTracker.constructor.graphEqual(comparable(saved), comparable(graph))) return file;
+  if (saved && here.shot.groups.includes(graph.id) && tabs.activeWorkflow.changeTracker.constructor.graphEqual(comparable(saved), comparable(graph))) return file;
+  // SNAP-R235 (F-SQ18): a newer open tab holds the shot's saved workflow, so this one is an older claimant (a recipe a
+  // setup switch moved on, a re-take's tab since replaced): it is never saved over the shot; it stays open as scratch
+  const order = tabs.openWorkflows, newer = saved && saved.id !== graph.id && order.slice(order.indexOf(tabs.activeWorkflow) + 1).find((w) => w.activeState?.id === saved.id && w.activeState?.extra?.snap_scene?.shot === here.shot.id);
+  if (newer) {
+    delete app.graph.extra.snap_scene;
+    const refused = `not saved: another tab holds ${shotTitle(here.scene, here.shot)}'s recipe; this tab is scratch now (its work is kept)`;
+    app.extensionManager.toast.add({ severity: "warn", summary: "Snap", detail: refused, life: 8000 });
+    return { refused };
   }
   await api.storeUserData(file, graph);
   await update(here.scene.id, (s) => {
@@ -160,6 +168,14 @@ export async function saveOpen() {
     if (!shot.groups.includes(graph.id)) shot.groups.push(graph.id);
   });
   return file;
+}
+
+// SNAP-R235: a tab that stands for a shot no longer (a setup switch moved the shot's recipe to a new tab): its mark goes
+// from its stored state and a tab never saved as a file is renamed "was <shot> · <scene>"; its nodes and undo stay
+export async function release(w, scene, shot) {
+  for (const st of [w.changeTracker?.activeState, w.changeTracker?.initialState]) if (st?.extra?.snap_scene) delete st.extra.snap_scene;
+  const tabs = app.extensionManager.workflow, file = `workflows/${`was ${shotTitle(scene, shot)} · ${scene.name}`.replace(/[\\/:*?"<>|]+/g, "-")}.json`;
+  if (w.isTemporary && !tabs.getWorkflowByPath(file)) await tabs.renameWorkflow(w, file);
 }
 
 async function newTab() {
@@ -194,15 +210,20 @@ export async function openShot(sceneId, shotId) {
   await Promise.all([load(), T.load()]);
   const scene = need(sceneId), shot = shotOf(scene, shotId), tabs = app.extensionManager.workflow;
   const usable = () => !!tabs.activeWorkflow?.isTemporary && (!!current() || !app.graph.nodes.length);
-  let switched = false;
+  let switched = false, claimed = null, refused = null;
   if (current()?.shot.id !== shot.id) {
-    if (current()) await saveOpen();
+    if (current()) refused = (await saveOpen())?.refused ?? null;
     const others = tabs.openWorkflows.filter((w) => w !== tabs.activeWorkflow && w.activeState?.extra?.snap_scene?.scene === scene.id);
-    const there = others.find((w) => w.activeState.extra.snap_scene.shot === shot.id) ?? (usable() ? null : others.find((w) => w.isTemporary));
+    // SNAP-R235 (F-SQ18): two tabs claiming the shot (marks from before this rule, or a reload): the one holding its
+    // saved workflow, else the newest; never the first found
+    const claims = others.filter((w) => w.activeState.extra.snap_scene.shot === shot.id), savedId = claims.length > 1 && shot.workflow ? (await read(shot.workflow))?.id : null;
+    const pick = claims.length > 1 ? claims.find((w) => w.activeState.id === savedId) ?? claims.at(-1) : claims[0];
+    if (claims.length > 1) claimed = `${claims.length} tabs claimed ${shotTitle(scene, shot)}; opened the ${pick.activeState.id === savedId ? "one holding its saved workflow" : "newest (none holds its saved workflow)"}`;
+    const there = pick ?? (usable() ? null : others.find((w) => w.isTemporary));
     if (there) { await switchTo(there); switched = tabs.activeWorkflow === there; }
   }
-  const here = current(), title = shotTitle(scene, shot);
-  if (here?.scene.id === scene.id && here.shot.id === shot.id) return { scene: scene.id, shot: shot.id, tab: switched ? "switched" : "same", said: `${title} ${switched ? "is open in its own tab" : "is open"}` };
+  const here = current(), title = shotTitle(scene, shot), notes = [refused, claimed].filter(Boolean);
+  if (here?.scene.id === scene.id && here.shot.id === shot.id) return { scene: scene.id, shot: shot.id, tab: switched ? "switched" : "same", said: [`${title} ${switched ? "is open in its own tab" : "is open"}`, ...notes].join(" · "), ...(notes.length ? { notes } : {}) };
   const inPlace = usable();
   if (here && switched) await saveOpen();
   let graph = shot.workflow ? await read(shot.workflow) : null, built = "its saved workflow";
@@ -237,8 +258,8 @@ export async function openShot(sceneId, shotId) {
   // F-G09: a shot built now says when its recipe upscales every take (the recommended recipe has Upscale on), so a walk or
   // a draft that doesn't want it can switch it off before the first run
   const upscale = !shot.workflow && E.state().bricks.some((b) => b.key === "upscale") && S.on("upscale") ? 'Upscale is on: every take is upscaled after it renders (set_method {slot: "upscale", method: "off"} for a walkthrough, a plate or a draft)' : null;
-  return { scene: scene.id, shot: shot.id, tab: inPlace ? (switched ? "scene tab" : "same") : "new", built, ...(card ? { card } : {}), ...(upscale ? { upscale } : {}),
-    said: `${title} of ${scene.name}${where}${shot.workflow ? "" : `: ${built}`}${card ? ` · ${card}` : ""}${upscale ? ` · ${upscale}` : ""}` };
+  return { scene: scene.id, shot: shot.id, tab: inPlace ? (switched ? "scene tab" : "same") : "new", built, ...(card ? { card } : {}), ...(upscale ? { upscale } : {}), ...(notes.length ? { notes } : {}),
+    said: `${title} of ${scene.name}${where}${shot.workflow ? "" : `: ${built}`}${card ? ` · ${card}` : ""}${upscale ? ` · ${upscale}` : ""}${notes.map((x) => ` · ${x}`).join("")}` };
 }
 
 // F-D12 / UI-02 (SNAP-R120): what a new shot keeps of the open shot it was made from is the setup (models, Render Preset,

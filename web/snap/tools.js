@@ -306,7 +306,7 @@ export const TOOLS = [
     inputSchema: { type: "object", properties: { name: { type: "string" }, save_current: { type: "boolean" } }, required: ["name"] },
     run: async ({ name, save_current = false }) => {
       await M.load(); await L.ready(); await SC.load();
-      const here = SC.current(), mark = here && { scene: here.scene.id, shot: here.shot.id };
+      const here = SC.current(), mark = here && { scene: here.scene.id, shot: here.shot.id }, before = app.extensionManager.workflow.activeWorkflow;
       let s = M.setups().find((x) => x.name === name), via = null;
       if (!s) { // G1 (short03 F-C18): a Render Preset setup of another family: that family's card first, then the preset
         const list = await (await api.fetchApi("/mainodes/render/presets")).json(), presets = Array.isArray(list) ? list : [];
@@ -323,11 +323,13 @@ export const TOOLS = [
       const done = [via, await M.useSetup(s, { keep: save_current })].filter(Boolean).join("; then ");
       // a shot whose setup switched family into a new tab: the new tab is that shot now (its workflow and takes)
       const moved = mark && !SC.current();
-      if (moved) { app.graph.extra = { ...app.graph.extra, snap_scene: mark }; await SC.saveOpen(); await SC.retitleOpen(`setup ${s.name}`); } // F-D05: the tab says which shot it is
+      // F-D05: the tab says which shot it is. SNAP-R235 (F-SQ18): and the tab the shot left stops claiming it, or a later
+      // open_shot could switch to it and save its old recipe over the shot's
+      if (moved) { await SC.release(before, here.scene, here.shot); app.graph.extra = { ...app.graph.extra, snap_scene: mark }; await SC.saveOpen(); await SC.retitleOpen(`setup ${s.name}`); }
       // F-D05: what the new recipe carries besides the setup, said outright (dials, style and Cast LoRA rows, Upscale)
       const carried = [...D.rows().map((r) => `dial ${r.dial} at ${r.strength}`), ...["style", "cast"].flatMap((k) => (E.state().bricks.some((b) => b.key === k) ? M.rows(k) : []).map((r) => `${k} LoRA ${r.file}`)),
         ...(E.state().bricks.some((b) => b.key === "upscale") && S.on("upscale") ? ["Upscale on"] : [])];
-      return { done, ...(moved || here ? { shot: `still ${SC.shotTitle(here.scene, here.shot)} of ${here.scene.name}${moved ? ": this tab is that shot now" : ""}` } : {}), ...(carried.length ? { carried } : {}), ...(await models()) };
+      return { done, ...(moved || here ? { shot: `still ${SC.shotTitle(here.scene, here.shot)} of ${here.scene.name}${moved ? `: this tab is that shot now; the earlier tab is scratch work (renamed "was ${SC.shotTitle(here.scene, here.shot)}"), its nodes kept` : ""}` } : {}), ...(carried.length ? { carried } : {}), ...(await models()) };
     },
   },
   {
@@ -770,13 +772,13 @@ export const TOOLS = [
   },
   {
     name: "retake",
-    description: "Re-take a take (U87, SNAP-R61): open its chain (in its shot's scene tab when it belongs to a shot, else a new tab) and run it again. world: pinned = as it was (the record versions it used, which the workflow already holds), latest = with today's world (each pinned record with a newer version is updated first; refs limits that to those records, kind:id). seed: same (default) or new. The new take nests under the original as 'Retake · as it was' / 'Retake · today's world'. get_take's world shows what moved. Uses GPU time: unless the person lets agents run, this waits as a proposal; plan says what would change.",
-    inputSchema: { type: "object", properties: { take: { type: "string" }, world: { type: "string", enum: ["pinned", "latest"] }, seed: { type: "string", enum: ["same", "new"] }, refs: { type: "array", items: { type: "string" } } }, required: ["take"] },
+    description: "Re-take a take (U87, SNAP-R61): open its chain (in its shot's scene tab when it belongs to a shot, else a new tab) and run it again. world: pinned = as it was (the record versions it used, which the workflow already holds), latest = with today's world (each pinned record with a newer version is updated first; refs limits that to those records, kind:id). seed: same (default) or new. open_only: true opens the chain into its shot and saves it there with nothing queued (SNAP-R234: restore a shot's recipe from one of its takes; no GPU, never a proposal). The new take nests under the original as 'Retake · as it was' / 'Retake · today's world'. get_take's world shows what moved. Uses GPU time: unless the person lets agents run, this waits as a proposal; plan says what would change.",
+    inputSchema: { type: "object", properties: { take: { type: "string" }, world: { type: "string", enum: ["pinned", "latest"] }, seed: { type: "string", enum: ["same", "new"] }, refs: { type: "array", items: { type: "string" } }, open_only: { type: "boolean", description: "open and save the take's chain in its shot, queue nothing" } }, required: ["take"] },
     annotations: { consequentialHint: true },
     consequential: true,
     plan: async ({ take, world = "pinned", refs }) => { const t = await takeOf(take), moved = await RT.differs(t.world), used = world === "latest" ? moved.filter((m) => !m.missing && (!refs?.length || refs.includes(m.ref))) : [];
       return { runs: `take ${t.number}'s workflow again, ${RT.worldShown(world)}`, updates: used.map((m) => ({ ref: m.ref, text: m.text, fields: m.fields, ...(m.warning ? { warning: m.warning } : {}) })), ...(world === "pinned" && moved.length ? { kept_as_it_was: moved.map((m) => m.text) } : {}), ...T.measured([t], "of the take re-made") }; },
-    run: async ({ take, world, seed, refs }) => { const t = await takeOf(take); return { ...await RT.retake(t, { world, seed, refs, by: "agent" }), next: "run_status {run, wait_s: 25} until state is done" }; },
+    run: async ({ take, world, seed, refs, open_only = false }) => { const t = await takeOf(take), r = await RT.retake(t, { world, seed, refs, queue: !open_only, by: "agent" }); return open_only ? r : { ...r, next: "run_status {run, wait_s: 25} until state is done" }; },
   },
   {
     name: "rerun",
@@ -1841,7 +1843,8 @@ export async function callTool(name, args = {}, { confirmed } = {}) {
     if (now !== if_revision) throw new Error(`The recipe changed since revision ${if_revision} (now ${now})${was ? `: ${T.changes(was, seen.get(now)).join(", ") || "seeds"}` : ""}. Read describe_recipe again and decide with what is there now`);
   }
   if ("reason" in (tool.inputSchema.properties ?? {})) rest.reason = reason; // the tool's own argument too (set_lora_category), kept when it waits as a proposal
-  const dry = rest.dry_run === true && "dry_run" in (tool.inputSchema.properties ?? {}); // SNAP-R177: a dry run writes nothing, so nothing waits for the person
+  const dry = (rest.dry_run === true && "dry_run" in (tool.inputSchema.properties ?? {})) // SNAP-R177: a dry run writes nothing, so nothing waits for the person
+    || (rest.open_only === true && "open_only" in (tool.inputSchema.properties ?? {})); // SNAP-R234: open_only queues nothing either
   const plan = tool.plan && !dry ? await tool.plan(rest) : null, warning = plan?.warning ? { warning: plan.warning } : {}; // a plan's warning (run: a default prompt) is said at the top too
   // dogfood F-D14: a long job holds the GPU's queue (core runs one prompt at a time): the plan says so, never blocks
   if (plan?.eta_s > 600) plan.holds_queue = `about ${Math.round(plan.eta_s / 60)} min on this GPU: every prompt queued after it waits that long (queue it when the queue is empty, or say so to the person)`;
