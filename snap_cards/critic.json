@@ -14,7 +14,7 @@
     "walk": { "label": "a people-free walkthrough of a location: a video whose frames become plates (F-K06)", "passes": ["scan", "map", "support", "cross_view"], "context": ["master", "plan", "plates"], "tiles": "ends", "frames": 5 },
     "cut_pair": { "label": "a cut pair: the last frame of one cut and the first of the next", "passes": ["cut_pair"], "context": ["boards"], "tiles": "none" },
     "upscale": { "label": "an upscaled take", "passes": ["scan", "cross_view"], "context": ["source"], "tiles": "all" },
-    "edit": { "label": "a targeted edit", "passes": ["scan", "cross_view"], "context": ["source"], "tiles": "all" },
+    "edit": { "label": "a targeted edit", "passes": ["scan", "cross_view"], "context": ["source", "cast"], "tiles": "all" },
     "still": { "label": "a still with no known purpose", "passes": ["scan", "map", "support", "cast", "beat", "cross_view"], "context": ["master", "plates", "cast"], "tiles": "all" }
   },
   "purpose_checklist": { "master": "master", "plate": "plate", "settei": "settei", "turnaround": "sheet", "cast_picture": "sheet", "character": "board", "set": "board", "edit": "edit" },

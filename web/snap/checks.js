@@ -19,7 +19,7 @@
 //   "person 2" (U35 agent eyes, UX_GEMS #5).
 // SNAP-R18 local only · SNAP-R21 plates · SNAP-R23 checks are notes, never rejections · SNAP-R65 every queued prompt
 // carries its job stamp · SNAP-R76 every face its own measurement, matched one to one · SNAP-R111 the character score
-// raises the identity note, ArcFace is shown · see docs/snap/SNAP_RULES.md
+// raises the identity note, ArcFace is shown · SNAP-R193 a named thing's boxes for a critic's zoom · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as M from "./models.js";
 import * as MD from "./metadata.js";
@@ -214,6 +214,19 @@ export async function peopleCheck(src, about = {}) {
   g.p = { class_type: "PreviewImage", inputs: { images: ["m", 0] } };
   const boxes = (await Promise.all(((await screen(g, { title: "Find the people in this frame", about })).outputs?.p?.images ?? []).map(box))).filter(Boolean);
   return boxes.sort((a, b) => a[0] + a[2] / 2 - (b[0] + b[2] / 2)).map((b, i) => ({ n: i + 1, box: b }));
+}
+
+// F-U05 (SNAP-R193): the boxes SAM 3.1 finds for a thing named in words ("eyes", "the monocle") in one picture (`src` as
+// source() takes it), as fractions [x, y, w, h], biggest first: a critic's zoom on a named thing
+export async function findBoxes(src, text, { about = {}, by = "agent" } = {}) {
+  const { detector: name } = await needs();
+  if (!name) throw new Error(`finding "${text}" by name needs SAM 3.1 (models/checkpoints/sam3.1_multiplex_fp16.safetensors), which isn't in the model graph here; give a region instead`);
+  const g = { ...detector(name) }, img = source(g, "i", src);
+  find(g, "f", img, /:\d+$/.test(text) ? text : `${text}:9`, 0.4, true);
+  g.m = { class_type: "MaskToImage", inputs: { mask: ["f", 0] } };
+  g.p = { class_type: "PreviewImage", inputs: { images: ["m", 0] } };
+  const boxes = (await Promise.all(((await screen(g, { title: `Find ${text} in this picture`, about, by })).outputs?.p?.images ?? []).map(box))).filter(Boolean);
+  return boxes.sort((a, b) => b[2] * b[3] - a[2] * a[3]);
 }
 
 // a picture (the screenshot tool's image shape) with each person's box and number drawn on it

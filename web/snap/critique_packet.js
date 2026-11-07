@@ -12,16 +12,18 @@
 // SNAP-R102 whole frame first, nothing shrunk · SNAP-R104 what is read follows the checklist · SNAP-R58 nothing an agent
 // reads is cut: part, offset and limit page it · SNAP-R136 what the sheet shows, the packet shows · SNAP-R155 the place's
 // scale anchors and how to measure against them (scale_rule) · SNAP-R184 a board's packet: its Cast, its pictures by number, a
-// measuring copy · SNAP-R189 what a board's state takes away (should_be_absent) · see docs/snap/SNAP_RULES.md
+// measuring copy · SNAP-R189 what a board's state takes away (should_be_absent) · SNAP-R192 a cropped picture as the model
+// got it · SNAP-R193 zoom tiles at 100 % · SNAP-R194 an edit's or New view's packet carries its cut's Cast · see docs/snap/SNAP_RULES.md
 import * as L from "./library.js";
 import * as T from "./takes.js";
 import * as C from "./candidates.js";
 import * as W from "./world.js";
 import * as SC from "./scenes.js";
 import * as RT from "./retake.js";
+import * as K from "./checks.js";
 
 const FPS = 24, Q = 0.9;
-export const PARTS = ["all", "whole", "tiles", "context"];
+export const PARTS = ["all", "whole", "tiles", "context", "zoom"];
 const LOCKED = "kept encrypted and the vault is locked: the person signs in (or unlocks it) first, then ask for the packet again";
 const inputMedia = (file) => { const cut = file.lastIndexOf("/"); return { filename: file.slice(cut + 1), subfolder: file.slice(0, Math.max(cut, 0)), type: "input" }; };
 const pathOf = (m) => [m.type, m.subfolder, m.filename].filter(Boolean).join("/");
@@ -109,11 +111,24 @@ function subjects(r, tb) {
   if (!p) throw new Error(`${b.name} v${got.version.n} has no ${s.part}`);
   return [{ media: inputMedia(p.file), frames: null, what: `${b.name} v${got.version.n}, ${s.part}` }];
 }
+// a take's cut: its story pin's unit, or the shot it landed in
+const unitOf = (t) => { const st = t.story ?? null; return (st?.unit && SC.get(st.unit.scene)?.shots.find((x) => x.id === st.unit.shot)?.unit) || RT.shotOf(t)?.shot.unit || null; };
+// F-U04 (SNAP-R194): who a take's packet expects, each Cast once at a version: the Cast it pins, its cut's Cast, a
+// board's story pin, and the Cast the take it was made from pins (an edit's or New view's Picture 1), with where from
+function castOf(t) {
+  const out = new Map(), unit = unitOf(t), src = t.parent?.take ? T.get(t.parent.take) : null;
+  const put = (ref, n, from) => { const { id } = W.parse(ref), got = W.get(W.refOf("cast", id, n)); if (got && ![...out.values()].some((x) => x.id === id)) out.set(W.refOf("cast", id, got.version.n), { id, from }); };
+  for (const [ref, p] of Object.entries(t.world ?? {})) if (ref.startsWith("cast:")) put(ref, p.n, "pinned");
+  for (const ref of unit?.cast ?? []) put(ref, W.parse(ref).n, `${unit.cut ?? "its cut"}'s Cast`);
+  if (t.story?.cast) put(t.story.cast, W.parse(t.story.cast).n, "the board's story pin");
+  for (const [ref, p] of Object.entries(src?.world ?? {})) if (ref.startsWith("cast:")) put(ref, p.n, `pinned by take ${src.number}, the take it was made from`);
+  return [...out].map(([ref, x]) => ({ ref, from: x.from }));
+}
 // the context pictures, whole: from the subject's pins and its place in the scene
 function contextOf(r, tb) {
   const s = r.subject, want = new Set((tb.checklists[r.checklist] ?? tb.checklists.still).context), out = [];
   // F-Q26: a picture the subject was made from that is already here (the plate the place adds) says its Picture number too
-  const add = (media, what, take, marks) => { const same = !marks && out.find((x) => pathOf(x.media) === pathOf(media) && !x.marks); if (same) { if (/^made from: /.test(what) && !same.what.startsWith("made from: ")) same.what = `${what} (= ${same.what})`; return; } out.push({ media, what, ...(take ? { take } : {}), ...(marks ? { marks } : {}) }); };
+  const add = (media, what, take, marks) => { const same = !marks && out.find((x) => pathOf(x.media) === pathOf(media) && !x.marks && String(x.media.crop) === String(media.crop)); if (same) { if (/^made from: /.test(what) && !same.what.startsWith("made from: ")) same.what = `${what} (= ${same.what})`; return; } out.push({ media, what, ...(take ? { take } : {}), ...(marks ? { marks } : {}) }); };
   const place = (ref, n, plates, skip) => { const got = W.get(W.refOf("location", W.parse(ref).id, n)); if (!got) return; const b = got.version.body;
     if (b.master && skip !== "master") add(inputMedia(b.master.file), `${b.name} v${got.version.n}, master`);
     if (b.plan && skip !== "plan") add(inputMedia(b.plan.file), `${b.name} v${got.version.n}, plan`);
@@ -124,18 +139,25 @@ function contextOf(r, tb) {
   const takeFrame = (t, frame, what) => { if (!t || t.locked) return; const m = t.media.find((x) => x.kind === "video") ?? t.media.find((x) => x.kind === "image"); if (m) add({ ...m, at: frame }, what, t.id); };
   const t = s.kind === "take" ? T.get(s.take) : s.kind === "pair" ? T.get(s.pair[1]) : s.kind === "candidate" ? T.get(C.get(s.decision)?.take) : null;
   if (t) {
-    for (const [ref, p] of Object.entries(t.world ?? {})) {
-      if (ref.startsWith("location:")) place(ref, p.n, want.has("plates") ? p.placed?.plates ?? null : []);
-      if (ref.startsWith("cast:") && want.has("cast")) cast(ref, p.n);
+    for (const [ref, p] of Object.entries(t.world ?? {})) if (ref.startsWith("location:")) place(ref, p.n, want.has("plates") ? p.placed?.plates ?? null : []);
+    // F-F11: a New view (a board) was made from context pictures, given as files (the Cast's, the place's): they are what
+    // it should agree with, so the cast pass reads pictures, not only words
+    // F-Q26: every one of them, numbered as the prompt cites them (a take given as context too)
+    // F-U03 (SNAP-R192): a cropped picture goes in as the model got it (the crop, at its own pixels), then the whole it
+    // was cut from, as context only
+    if (/^view\//.test(t.parent?.method ?? "")) for (const c of t.parent.options?.context ?? []) {
+      const label = `made from: Picture ${c.n} ${c.label ?? c.file ?? c.take}`, src = c.take ? T.get(c.take) : null, m = src && !src.locked && (src.media.find((x) => x.kind === "video") ?? src.media.find((x) => x.kind === "image"));
+      const media = c.take ? m && { ...m, at: c.frame ?? 0 } : c.file ? inputMedia(c.file) : null;
+      if (!media) continue;
+      if (c.crop) add({ ...media, crop: c.crop }, `${label}: the crop the model got${t.parent.options.pasted && c.n === 1 ? " (edited, then pasted back over the whole)" : ""}`, c.take);
+      add(media, c.crop ? `${label}: the whole picture the crop was cut from (context: the model saw only the crop)` : label, c.take);
+      if (c.n === 1) out.find((x) => pathOf(x.media) === pathOf(media) && !x.media.crop).first = true; // the edit's diff reads it (F-U05)
     }
+    if (want.has("cast")) for (const c of castOf(t)) cast(c.ref, W.parse(c.ref).n);
     if (t.parent?.take && (want.has("source") || want.has("board"))) takeFrame(T.get(t.parent.take), t.parent.frame ?? "last", `the take it was made from (${t.parent.method})`);
     const h = RT.shotOf(t), i = h ? h.scene.shots.indexOf(h.shot) : -1, before = i > 0 ? T.get(h.scene.shots[i - 1].active) : null;
     if (before && want.has("previous")) takeFrame(before, "last", `the previous cut's last frame (take ${before.number}, ${SC.shotTitle(h.scene, h.scene.shots[i - 1])})`);
     if (s.kind === "candidate") takeFrame(t, "last", `take ${t.number}, the take this edit paints over`);
-    // F-F11: a New view (a board) was made from context pictures, given as files (the Cast's, the place's): they are what
-    // it should agree with, so the cast pass reads pictures, not only words
-    // F-Q26: every one of them, numbered as the prompt cites them (a take given as context too)
-    if (/^view\//.test(t.parent?.method ?? "")) for (const c of t.parent.options?.context ?? []) { if (c.file && !c.take) add(inputMedia(c.file), `made from: Picture ${c.n} ${c.label ?? c.file}`); else if (c.take) takeFrame(T.get(c.take), c.frame ?? 0, `made from: Picture ${c.n} ${c.label ?? c.take}`); }
   }
   if (s.kind === "record" && s.ref.startsWith("location:")) { const { n } = W.parse(s.ref); place(s.ref, n, null, s.part === "views" ? "all" : s.part); }
   if (s.kind === "record" && s.part === "views") out.splice(0, out.length, ...out.filter((x) => x.marks || /, camera map$/.test(x.what))); // every view is a subject already; the drawn plan and the map stay
@@ -154,9 +176,11 @@ function words(r, tb) {
     out.pins = Object.entries(t.world ?? {}).map(([ref, p]) => { const b = W.get(W.refOf(W.parse(ref).kind, W.parse(ref).id, p.n))?.version.body ?? {};
       return { ref: W.refOf(W.parse(ref).kind, W.parse(ref).id, p.n), name: b.name ?? p.name, ...(b.details ? { details: b.details } : {}), ...(b.notes ? { notes: b.notes } : {}), ...(W.parse(ref).kind === "location" ? { scale: b.scale ?? [] } : {}), ...(p.placed?.plates ? { plates_cited: p.placed.plates, cameras: (b.plates ?? []).filter((x) => p.placed.plates.includes(x.name)).map((x) => ({ plate: x.name, ...(x.pose ?? {}), ...(x.camera ? { mark: x.camera } : {}) })) } : {}), ...(p.placed?.missing ? { missing: p.placed.missing } : {}) }; });
     // F-Q26: a board's Cast are in its cut (its story pin's unit, or the shot it landed in), not in its pins: a New view
-    // pins the place it was drawn from, and the Cast's pictures go in as files
-    const st = t.story ?? null, unit = (st?.unit && SC.get(st.unit.scene)?.shots.find((x) => x.id === st.unit.shot)?.unit) || RT.shotOf(t)?.shot.unit, castName = (ref) => W.get(ref)?.version.body.name ?? null;
-    out.who_should_be_here = [...new Set([...out.pins.filter((p) => p.ref.startsWith("cast:")).map((p) => p.name), ...(unit?.cast ?? []).map(castName), ...(st?.cast ? [castName(st.cast)] : [])].filter(Boolean))];
+    // pins the place it was drawn from, and the Cast's pictures go in as files. F-U04 (SNAP-R194): an edit's too, and the
+    // Cast of the take it was made from; each one not pinned joins the pins with where it came from
+    const st = t.story ?? null, cast = castOf(t);
+    for (const c of cast.filter((x) => x.from !== "pinned")) { const b = W.get(c.ref)?.version.body ?? {}; out.pins.push({ ref: c.ref, name: b.name, ...(b.details ? { details: b.details } : {}), not_pinned: `not pinned by this take: ${c.from}` }); }
+    out.who_should_be_here = [...new Set(cast.map((c) => W.get(c.ref)?.version.body.name).filter(Boolean))];
     // F-S05 (SNAP-R189): what the board's state takes away while a context picture may show it: a note when it is drawn
     if (st?.absent?.length) out.should_be_absent = { said: "the story's state at this frame leaves each of these out, though a picture it was made from may show it: a board that draws one back is a mismatch with the state (beat pass, high when it is in a hand the beat empties)", things: st.absent.map((a) => ({ who: a.who, thing: a.thing, beat: a.beat, shown_in: a.shows })) };
   }
@@ -172,8 +196,37 @@ function words(r, tb) {
   return out;
 }
 
-// the packet: pictures (whole subject, tiles, context) as images with their labels, the words, and what each picture is
-export async function build(r, tb) {
+// F-U05 (SNAP-R193): a zoom is a 100 % tile around a small region (a 60 px monocle is lost in a 1536 px tile), with a
+// 2x copy when it is small, each mapped like a tile so a note drawn on it lands on the subject
+const ZOOM = { pad: 0.25, min: 160, twice: 512, changed: 28, cell: 8, most: 4 };
+function zoomBox(c, [x, y, w, h]) { // fractions → pixels, padded, at least ZOOM.min a side, inside the picture
+  const pw = Math.max(w * c.width * (1 + 2 * ZOOM.pad), ZOOM.min), ph = Math.max(h * c.height * (1 + 2 * ZOOM.pad), ZOOM.min), cx = (x + w / 2) * c.width, cy = (y + h / 2) * c.height;
+  const bw = Math.round(Math.min(pw, c.width)), bh = Math.round(Math.min(ph, c.height));
+  return [Math.round(Math.min(Math.max(0, cx - bw / 2), c.width - bw)), Math.round(Math.min(Math.max(0, cy - bh / 2), c.height - bh)), bw, bh];
+}
+const cut = (c, [x, y, w, h], k = 1) => { const out = Object.assign(document.createElement("canvas"), { width: w * k, height: h * k }), g = out.getContext("2d"); g.imageSmoothingQuality = "high"; g.drawImage(c, x, y, w, h, 0, 0, w * k, h * k); return out; };
+// where an edit changed its Picture 1 (same size): cells of ZOOM.cell px whose colour moved more than ZOOM.changed,
+// joined into regions, the biggest few; none when most of the picture changed (a new view, not an edit)
+function changed(a, b) {
+  if (a.width !== b.width || a.height !== b.height) return [];
+  const w = Math.ceil(a.width / ZOOM.cell), h = Math.ceil(a.height / ZOOM.cell), px = (c) => cut(c, [0, 0, c.width, c.height], 1 / ZOOM.cell).getContext("2d").getImageData(0, 0, w, h).data;
+  const pa = px(a), pb = px(b), hot = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) hot[i] = Math.max(Math.abs(pa[4 * i] - pb[4 * i]), Math.abs(pa[4 * i + 1] - pb[4 * i + 1]), Math.abs(pa[4 * i + 2] - pb[4 * i + 2])) > ZOOM.changed ? 1 : 0;
+  const boxes = [], seen = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) if (hot[i] && !seen[i]) { // one region: its cells, joined across a gap of one
+    let x0 = w, y0 = h, x1 = 0, y1 = 0, n = 0; const stack = [i]; seen[i] = 1;
+    while (stack.length) { const j = stack.pop(), x = j % w, y = (j - x) / w; n++; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const nx = x + dx, ny = y + dy, k = ny * w + nx; if (nx >= 0 && ny >= 0 && nx < w && ny < h && hot[k] && !seen[k]) { seen[k] = 1; stack.push(k); } } }
+    if (n >= 2) boxes.push({ n, box: [x0 / w, y0 / h, (x1 - x0 + 1) / w, (y1 - y0 + 1) / h] });
+  }
+  if (boxes.reduce((t, b) => t + b.box[2] * b.box[3], 0) > 0.5) return [];
+  return boxes.sort((p, q) => q.n - p.n).slice(0, ZOOM.most).map((b) => b.box);
+}
+
+// the packet: pictures (whole subject, tiles, context) as images with their labels, the words, and what each picture is.
+// `zoom`: the zooms asked for ({region, picture} in a subject whole's fractions, or {find: words, picture}), kept on the
+// row so a later call keeps their numbers
+export async function build(r, tb, { zoom = [] } = {}) {
   const pics = [], images = [], tile = tb.tile, rule = (tb.checklists[r.checklist] ?? tb.checklists.still).tiles, ctx = contextOf(r, tb), w = words(r, tb);
   if (r.checklist !== "cut_pair" && !ctx.some((x) => /previous cut/.test(x.what))) w.passes = w.passes.filter((x) => x !== "cut_pair"); // no previous cut in the packet: nothing to pair
   const subs = subjects(r, tb);
@@ -191,14 +244,39 @@ export async function build(r, tb) {
   if (["plate", "master", "location", "board"].includes(r.checklist)) wholes.forEach((w, i) => { if (isVideo(w.media)) return; // F-Q26: a board's horizon is measured too
     pics.push({ label: `${pics[i].label.split(" · ")[0]} · measure: a 5 % grid with its pixel positions and a 1 % ruler on the edges, over the whole, ${w.canvas.width}x${w.canvas.height}, png`, role: "tile", what: w.what, path: pics[i].path, width: w.canvas.width, height: w.canvas.height, format: "png", tile: { of: i, cell: "measure", box: [0, 0, w.canvas.width, w.canvas.height] } });
     images.push(png(measured(w.canvas))); });
+  let first = null;
   for (const cx of ctx) {
     try {
       const at = cx.media.at, [f] = await canvases(cx.media, at != null ? [at] : [0]);
+      if (cx.first) first = f.canvas;
+      // F-U03: a crop at the pixels ComfyUI's crop cut (edits.js rounds the same way)
+      const box = cx.media.crop && [Math.round(cx.media.crop[0] * f.canvas.width), Math.round(cx.media.crop[1] * f.canvas.height), Math.max(1, Math.round(cx.media.crop[2] * f.canvas.width)), Math.max(1, Math.round(cx.media.crop[3] * f.canvas.height))];
       // F-G07: a still's context goes lossless like the subject; the drawn plan names the file it was drawn over, not as its own path
-      const canvas = cx.marks ? marked(f.canvas, cx.marks) : f.canvas, still = !isVideo(cx.media);
-      pics.push({ label: `context · ${cx.what} · ${canvas.width}x${canvas.height}, ${fmt(still)}`, role: "context", what: cx.what, ...(cx.marks ? { path: null, drawn_over: pathOf(cx.media) } : { path: pathOf(cx.media) }), width: canvas.width, height: canvas.height, format: still ? "png" : "jpeg", ...(f.frame != null ? { frame: f.frame } : {}), ...(cx.take ? { take: cx.take } : {}) });
+      const canvas = cx.marks ? marked(f.canvas, cx.marks) : box ? cut(f.canvas, box) : f.canvas, still = !isVideo(cx.media);
+      pics.push({ label: `context · ${cx.what}${box ? ` · px ${box.join(",")} of ${f.canvas.width}x${f.canvas.height}` : ""} · ${canvas.width}x${canvas.height}, ${fmt(still)}`, role: "context", what: cx.what, ...(cx.marks ? { path: null, drawn_over: pathOf(cx.media) } : { path: pathOf(cx.media) }), ...(box ? { crop: { box, of: [f.canvas.width, f.canvas.height] } } : {}), width: canvas.width, height: canvas.height, format: still ? "png" : "jpeg", ...(f.frame != null ? { frame: f.frame } : {}), ...(cx.take ? { take: cx.take } : {}) });
       images.push(encode(canvas, still));
     } catch (e) { pics.push({ label: `context · ${cx.what} · not readable: ${e.message}`, role: "context", what: cx.what, path: pathOf(cx.media), missing: e.message }); images.push(null); }
   }
-  return { pictures: pics, images, words: w };
+  // F-U05 (SNAP-R193): zooms last, so the numbers above never move: where a region edit pasted back or an edit changed
+  // its Picture 1, then the ones asked for
+  const zoomed = (i, frac, why) => { const wh = wholes[i], b = zoomBox(wh.canvas, frac), letter = pics[i].label.split(" · ")[0], lossless_ = lossless(wh);
+    for (const k of Math.max(b[2], b[3]) <= ZOOM.twice ? [1, 2] : [1]) {
+      pics.push({ label: `${letter} · zoom: ${why} · px ${b.join(",")} of ${wh.canvas.width}x${wh.canvas.height}${k === 2 ? ", at 2x (enlarged)" : ", at 100 %"}, ${fmt(lossless_)}`, role: "tile", zoom: true, what: wh.what, path: pics[i].path, width: b[2] * k, height: b[3] * k, format: lossless_ ? "png" : "jpeg", tile: { of: i, cell: k === 2 ? "zoom 2x" : "zoom", box: b } });
+      images.push(encode(cut(wh.canvas, b, k), lossless_));
+    } };
+  const t0 = r.subject.kind === "take" ? T.get(r.subject.take) : null, pasted = t0?.parent?.options?.pasted;
+  if (pasted && wholes[0] && !isVideo(wholes[0].media)) zoomed(0, [pasted.box.x / wholes[0].canvas.width, pasted.box.y / wholes[0].canvas.height, pasted.box.width / wholes[0].canvas.width, pasted.box.height / wholes[0].canvas.height], "the region edit's crop, pasted back (the rest is Picture 1 as it was)");
+  else if (first && wholes[0] && !isVideo(wholes[0].media)) for (const f of changed(wholes[0].canvas, first)) zoomed(0, f, "where it differs from Picture 1, the picture it edits");
+  const asked = [...(r.packet?.zooms ?? []), ...zoom.filter((z) => !(r.packet?.zooms ?? []).some((o) => JSON.stringify(o) === JSON.stringify(z)))];
+  for (const z of asked) {
+    const i = z.picture ?? 0, wh = wholes[i];
+    if (!wh) { pics.push({ label: `zoom on picture ${i}: not a subject whole (0 to ${wholes.length - 1})`, role: "tile", zoom: true, missing: "no such subject picture" }); images.push(null); continue; }
+    if (z.region) { zoomed(i, z.region, `the region asked for, [${z.region.join(", ")}]`); continue; }
+    try {
+      const found = await K.findBoxes(wh.frame != null ? { video: K.annotated(wh.media), frame: wh.frame } : { image: K.annotated(wh.media) }, z.find, { about: { critique: r.id } });
+      if (!found.length) { pics.push({ label: `zoom on "${z.find}": SAM 3.1 found none in ${pics[i].label.split(" · ")[0]}`, role: "tile", zoom: true, missing: "nothing found" }); images.push(null); }
+      for (const [k, f] of found.slice(0, ZOOM.most).entries()) zoomed(i, f, `"${z.find}"${found.length > 1 ? ` ${k + 1} of ${found.length}` : ""}, found by SAM 3.1`);
+    } catch (e) { pics.push({ label: `zoom on "${z.find}": ${e.message}`, role: "tile", zoom: true, missing: e.message }); images.push(null); }
+  }
+  return { pictures: pics, images, words: w, zooms: asked };
 }

@@ -380,14 +380,16 @@ export function footLine() {
 }
 
 // ---- the packet (critique_packet.js), pinned on the row so a note's region maps back and a fixture can be re-made ------
-export async function packet(id, { part = "all", offset = 0, limit } = {}) {
+export async function packet(id, { part = "all", offset = 0, limit, zoom = [] } = {}) {
   await load();
   const r = get(id);
   if (!r) throw new Error(`No critique ${id} (list_critiques lists them)`);
   if (!PK.PARTS.includes(part)) throw new Error(`part is one of ${PK.PARTS.join(", ")}; not ${JSON.stringify(part)}`);
-  const tb = await critic(), out = await PK.build(r, tb), at = now();
-  if (!r.done) await pin(id, { pictures: out.pictures, words: out.words, at });
-  const keep = out.pictures.map((p, i) => [p, out.images[i], i]).filter(([p]) => part === "all" || (part === "whole" ? p.role === "subject" : part === "tiles" ? p.role === "tile" : p.role === "context"));
+  for (const z of zoom) if (!(z?.region?.length === 4 && z.region.every((v) => typeof v === "number" && v >= 0 && v <= 1)) && !(typeof z?.find === "string" && z.find.trim())) throw new Error(`each zoom is {region: [x, y, w, h] in fractions of a subject picture (0 to 1), picture: its #index (default 0)} or {find: "the thing in words", picture}; not ${JSON.stringify(z)}`);
+  const tb = await critic(), out = await PK.build(r, tb, { zoom }), at = now();
+  // F-U05: the zooms asked for stay on the row, so a later call keeps every picture's number
+  if (!r.done) await pin(id, { pictures: out.pictures, words: out.words, at, ...(out.zooms.length ? { zooms: out.zooms } : {}) });
+  const keep = out.pictures.map((p, i) => [p, out.images[i], i]).filter(([p]) => part === "all" || (part === "whole" ? p.role === "subject" : part === "tiles" ? p.role === "tile" : part === "zoom" ? p.zoom : p.role === "context"));
   const page = keep.slice(offset, limit == null ? undefined : offset + limit), shown = page.filter(([, img]) => img), at_ = new Map(shown.map(([, , i], k) => [i, k]));
   return { critique: r.id, title: r.title, state: stateOf(r), part, skill: { name: "snap-critic", read: "read_skill {name: \"snap-critic\"} for the prompt, then read_skill {name: \"snap-critic\", file: \"reference.md\"} for this checklist's section", section: r.checklist },
     words: out.words, pictures: keep.map(([p, , i]) => ({ index: i, ...p, ...(at_.has(i) ? { image: at_.get(i) } : {}) })), of: out.pictures.length, count: keep.length, offset, ...(limit != null && offset + page.length < keep.length ? { next: { part, offset: offset + page.length, limit } } : {}),
@@ -490,10 +492,11 @@ export const TOOLS = [
   },
   {
     name: "critique_packet",
-    description: "What a critique reads (SNAP-R102): the subject WHOLE at its native size first (every frame named: a still, a video's 5 spread frames, a cut pair's two frames, a location's picture, every view of a location side by side), then 100% tiles of each subject picture bigger than the tile size (1536 px; a cut's first and last frames, every picture of a still, each view of a sheet), each labelled with its grid cell and pixel box, then the context pictures whole (the location's master, plan and the plates the shot cited, the Cast pictures pinned, the previous cut's last frame, the take an upscale or edit came from, pictures the row was asked with), then words: checklist, label, passes, purpose, prompt (the beat), shot, pins with each Cast's details and each location's notes, who_should_be_here, sound. pictures lists every picture with its #index, role (subject | tile | context), path, size, frame, tile {of, cell, box} and image (its place in this answer's images; snapcall saves them in that order); images carry them, labelled #index. part (all | whole | tiles | context), offset and limit page the images (nothing is cut otherwise). Read the WHOLE frames before any tile. Read the prompt with read_skill {name: \"snap-critic\"} and this checklist's section of its reference.md.",
-    inputSchema: { type: "object", properties: { critique: { type: "string" }, part: { type: "string", enum: ["all", "whole", "tiles", "context"] }, offset: { type: "integer", minimum: 0 }, limit: { type: "integer", minimum: 1 } }, required: ["critique"] },
+    description: "What a critique reads (SNAP-R102): the subject WHOLE at its native size first (every frame named: a still, a video's 5 spread frames, a cut pair's two frames, a location's picture, every view of a location side by side), then 100% tiles of each subject picture bigger than the tile size (1536 px; a cut's first and last frames, every picture of a still, each view of a sheet), each labelled with its grid cell and pixel box, then the context pictures whole (the location's master, plan and the plates the shot cited, the Cast pictures: pinned, the cut's Cast and the Cast the take it was made from pins (F-U04), the previous cut's last frame, the take an upscale or edit came from, pictures the row was asked with; a picture the model got cropped goes in as that crop, labelled with its px box, then the whole it was cut from as context, F-U03), then zooms (F-U05): a region edit's crop or where an edit changed its Picture 1, at 100 % (and 2x when small), plus any asked for with zoom, then words: checklist, label, passes, purpose, prompt (the beat), shot, pins with each Cast's details and each location's notes (a Cast the take doesn't pin says not_pinned and where it comes from), who_should_be_here, sound. pictures lists every picture with its #index, role (subject | tile | context), path, size, frame, tile {of, cell, box} and image (its place in this answer's images; snapcall saves them in that order); images carry them, labelled #index. part (all | whole | tiles | context), offset and limit page the images (nothing is cut otherwise). Read the WHOLE frames before any tile. Read the prompt with read_skill {name: \"snap-critic\"} and this checklist's section of its reference.md.",
+    inputSchema: { type: "object", properties: { critique: { type: "string" }, part: { type: "string", enum: ["all", "whole", "tiles", "context", "zoom"] }, offset: { type: "integer", minimum: 0 }, limit: { type: "integer", minimum: 1 },
+      zoom: { type: "array", items: { type: "object", properties: { region: { type: "array", items: { type: "number", minimum: 0, maximum: 1 }, minItems: 4, maxItems: 4 }, find: { type: "string" }, picture: { type: "integer", minimum: 0 } } }, description: "F-U05 (SNAP-R193): 100 % zooms to add (and 2x when small): {region: [x, y, w, h] in a subject picture's fractions, e.g. a note's region} or {find: \"eyes\"} (SAM 3.1 boxes the thing, up to 4); picture is the subject whole's #index (default 0). They come last and stay on the row, so later calls keep the numbers; part: \"zoom\" pages only them" } }, required: ["critique"] },
     direct: true, // it pins what was read on the row; nothing else changes
-    run: ({ critique: id, part, offset, limit }) => packet(id, { part, offset, limit }),
+    run: ({ critique: id, part, offset, limit, zoom }) => packet(id, { part, offset, limit, zoom }),
   },
   {
     name: "write_critique",
