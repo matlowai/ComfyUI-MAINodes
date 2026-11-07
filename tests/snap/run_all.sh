@@ -615,6 +615,10 @@ for t in test_g16_cut.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "
 # G16 the receipt (SNAP-R217, R218, R225): link_astrid, every unit's Astrid state (in sync / swapped / changed here),
 # the diff on get_book and export_cut, the Cut lens's Astrid card with Open in Astrid; prints "g16receipt n/m"
 for t in test_g16_receipt.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
+# G16 tools/astrid_push.py against a real Astrid (SNAP-R217, R221, R224, R225; SNAP_TEST_ASTRID_LAUNCHER/_ROOT, skipped
+# without): push imports once, words on the dialogue clip, references and documents idempotent, a re-take swapped in
+# place keeping its clip id, a changed shape refused until --new-timeline, loopback only; prints "g16push n/m"
+for t in test_g16_push.js; do park; timeout 1500 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
 # SNAP-R109: the shipped critic prompt's last real run on the fixtures holds the floor (fixtures.json: r5b, 27/31, 0 FA;
 # a real-agent check, re-scored from its saved notes). critic = r6, the shipped prompt (r5b + metres from the record's
 # scale, SNAP-R155); critic5b = the floor's own run. The r3/r4/r5 runs stay in critic/runs/ as history (critic/README.md)

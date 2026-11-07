@@ -2012,8 +2012,9 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
 
 - **SNAP-R215: The Cut goes to Astrid as an archive Astrid can edit, its clips named by cut, and every archive is proved
   editable before the answer.** `export_cut`'s `.astrid` (archive v2): one picture clip per cut on V1 whose id is the cut
-  id at import (after a re-take it is the cut id with a suffix, `C7-r<8 hex>`, and Snap's receipt maps it, SNAP-R225);
-  `gain_db` becomes the sounding clip's linear `volume`; tracks overlays first (the first draws on top): V1, A1 (the
+  id;
+  `gain_db` becomes the sounding clip's linear `volume`; a re-take swaps the clip's media and fields in place, so the
+  clip keeps the cut id (SNAP-R217); tracks overlays first (the first draws on top): V1, A1 (the
   bed's lane), A2; `generation.snap` as SNAP-R212 plus the cut's scene `group`; never `app.astrid.cut`, chapters,
   placements or shots. With "Astrid on this machine" set (Settings > MAINodes > Snap > Astrid: the launcher and the
   Runtime's data folder), the server imports the archive into Astrid's scratch project `snap-probe`, trims a clip by
@@ -2032,13 +2033,26 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
 - **SNAP-R217: A pushed Book changes in place; its diff says what moved.** Once a Book is in Astrid, `get_book.astrid`
   and `export_cut`'s `otio.astrid.diff` say what changed in the Cut since the push: `changed` (a new active take, or a
   trim or sound level moved), `added`, `removed`, `order_changed`, `shape`. A push swaps the changed cuts in place
-  (SNAP-R224); a changed shape can't be swapped, so a push makes a new timeline and keeps the one in Astrid, said
-  plainly. *Why:* each import makes a new timeline (contract §0.5), so importing again would orphan the finish work in
+  (SNAP-R224): through Astrid's SDK, `clip.swap-media` (both files admitted to the project's catalog) plus one
+  `doc.patch` of the clip's label, `generation.snap`, `app.astrid` words, volume and trim, in one commit, so the clip
+  keeps its id (the cut id) and its slot and says the new take. No clip is ever deleted (a delete is refused in any
+  timeline whose clips carry words, F-AE02). A changed shape (a cut added, removed or moved, a length changed) can't be
+  swapped, so a push refuses and `--new-timeline` makes "<Book> · Cut 2" beside the one in Astrid, said plainly. *Why:* each import makes a new timeline (contract §0.5), so importing again would orphan the finish work in
   Astrid (PROTOCOL_V1 §7.9). *More:* tests/snap/test_g16_receipt.js.
 - **SNAP-R218: Every cut says its Astrid state.** `get_book` units carry `astrid {clip, media, take, head, state}`:
   "in sync", "swapped HH:MM", "changed here since the push", "a gap in Astrid (kept private)", "not in Astrid"; the
   Cut lens shows "Astrid: C7 · in sync" on each row. *Why:* the person lives in Snap until the finish and needs to see
   the hand-off without opening Astrid (PROTOCOL_V1 §7.18). *More:* tests/snap/test_g16_receipt.js.
+- **SNAP-R221: What Snap puts in Astrid's project are projections of its records, by Snap's ids and the takes' own
+  pins.** `tools/astrid_push.py context` makes or updates one Astrid reference per Cast and place (canonical = the
+  front picture or the master; `metadata.snap {record, version}`; every version the Cut's active takes ran on as a
+  `depicts` association with its version, read from each take's pins, never from the records' heads; a Cast's voice as
+  an association with `metadata.snap.role: "voice"` until Astrid has a voice role), the Book's documents
+  (`snap.story/beat-sheet/style/voices.<project>.<book>`, `snap.production.<project>`; Astrid's document ids are
+  realm-wide, F-AE04) and nothing else. It matches by `metadata.snap.record` and document id, so a second run makes
+  nothing new. Nothing comes back as a write: an Astrid-side wish is a Snap proposal, a fact a note. *Why:* the jam
+  hand-wrote today's heads where the takes had run on older versions (INTEROP_LOG 13:38); PROTOCOL_V1 §7.3, §7.6.
+  *More:* tests/snap/test_g16_push.js.
 - **SNAP-R223: A production is the record above the Book, and it is what an Astrid project is.** A `production` record
   holds a name, its Books in order, the Cast and places they share, a default style and `astrid.project` (the Astrid
   project's slug, from the name unless given). A Book is in one production: listing it in another takes it out of the

@@ -440,10 +440,10 @@ question: { type: "string", description: "what the person is asked about these c
   {
     name: "export_cut",
     description: "Assemble the Cut (SNAP-R132): every cut's active take in telling order, trimmed by its trim {in_s, out_s} and levelled by gain_db (set_unit), scaled to one size, sound at 48 kHz; one mp4 lands as a take of the Book; otio: true (the default) also writes, under output/snap_book/, an OpenTimelineIO file (a video and an audio track, a marker per cut, metadata.snap with each take) and the same Cut as an Astrid timeline (SNAP-R212): <name>.astrid (format astrid.timeline/1: the takes' files inside by sha256, one clip per cut with generation.snap {take, cut, book, beat, world pins, instructions, recipe_digest}; ids only for a take run with metadata off) plus its timeline.json and assets.json beside it to read; the answer's otio.astrid.import is the command that opens it in Astrid, otio.astrid.probe says whether Astrid could import and trim it (SNAP-R215), and once the Book was pushed otio.astrid.diff says what changed since (SNAP-R217: changed, added, removed, order_changed; a push swaps the changed cuts in place, a changed shape makes a new timeline). A take kept private is left out of the archive (its cut is a gap, said in left_out). Cuts with no active take are listed and left out.",
-    inputSchema: { type: "object", properties: { book: { type: "string" }, otio: { type: "boolean" }, width: { type: "integer", minimum: 16 }, height: { type: "integer", minimum: 16 }, fps: { type: "integer", minimum: 1 } }, required: ["book"] },
-    run: async ({ book, otio = true, ...o }) => {
+    inputSchema: { type: "object", properties: { book: { type: "string" }, otio: { type: "boolean" }, mp4: { type: "boolean", description: "false: write only the OTIO and the .astrid (no mp4 take; what tools/astrid_push.py asks for)" }, width: { type: "integer", minimum: 16 }, height: { type: "integer", minimum: 16 }, fps: { type: "integer", minimum: 1 } }, required: ["book"] },
+    run: async ({ book, otio = true, mp4 = true, ...o }) => {
       await ready();
-      const out = await B.assemble(book, { mode: "cut", ...o, by: "agent" }), file = otio ? await B.otio(book, { fps: o.fps ?? 24, width: o.width ?? 1280, height: o.height ?? 704 }) : null;
+      const out = mp4 ? await B.assemble(book, { mode: "cut", ...o, by: "agent" }) : { mp4: false }, file = otio || !mp4 ? await B.otio(book, { fps: o.fps ?? 24, width: o.width ?? 1280, height: o.height ?? 704 }) : null;
       const b = B.bookOf(book), ax = file ? await B.astridOf(b) : null; // SNAP-R217: a pushed Book answers what changed since its push
       if (ax?.entry) file.astrid.diff = B.astridDiff(b, ax.entry);
       return { ...out, ...(file ? { otio: file } : {}) };
