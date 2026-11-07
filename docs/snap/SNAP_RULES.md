@@ -1983,4 +1983,22 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
   calls wait as proposals unless the person lets agents run. Astrid-hosted Claude Code uses snap_mcp.py directly
   (AGENT_START "From Astrid"), which also serves Snap's skills as MCP prompts. *Why:* INTEROP_MAP step 2; files plus
   loopback, nothing in ComfyUI core or Snap's page. *More:* tests/snap/test_g15_astrid.py.
-Next free ID after this batch: SNAP-R212 (R160-R164 stay free).
+- **SNAP-R212: The Cut opens in Astrid; a private take stays out.** `export_cut` writes, beside the .otio, `<name>.astrid`
+  (format astrid.timeline/1, every zip entry stored: manifest.json with each file's sha256, size and type;
+  timeline.json, the authoring bundle whose parent clips mirror its config's; media/<sha256>), plus its timeline.json
+  and assets.json to read. One media clip per cut on V1 at its place in the Cut (`from`/`to` = the trim), asset key =
+  the take id, `label` "C2 · take 4", `generation.snap` {take, cut, book, beat, world pins, instructions, recipe_digest},
+  ids only for a take run with metadata off (SNAP-R20). A take kept private, or one the page doesn't say may be shared,
+  adds no clip and no bytes; its time stays a gap, named in `left_out` (fails closed). Every clip names a registered
+  asset (Astrid doesn't check this itself). Takes store `recipe_digest` (sha-256 of the prompt they ran). Nothing is
+  sent; the answer gives the `astrid timelines import` command, and each import makes a new timeline. *Why:*
+  INTEROP_MAP step 1 as the lab proved it (CONTRACT_SNAP_EXPORT v1: there is no import of a bare TimelineConfig).
+  *More:* tests/snap/test_g15_cut.js.
+- **SNAP-R213: A cut can stand on a take from another shot, and says where it came from.** `set_active_take` with a
+  take that isn't the shot's own (an earlier scene's, as a sequence reusing a short's takes) lists it in the shot with
+  `from {scene, shot, name}` and makes it active; the take itself (its group, provenance, pins) is unchanged and its
+  own shot keeps it. The answer says `brought_from`, and its Nearby line says "It is the active take of C3 too, brought
+  from <scene> › <shot>". A take that doesn't exist is refused. *Why:* seq01 pre-production (step P7): a Book cut had
+  no way to adopt an existing take. *More:* tests/snap/test_g15_cut.js.
+
+Next free ID after this batch: SNAP-R214 (R160-R164 stay free).

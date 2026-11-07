@@ -601,6 +601,10 @@ for t in test_g15_safety.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port
 # G15 Astrid drives Snap (SNAP-R211): the pack's Astrid pack actions (run.py) on this server, loopback only, an installed
 # copy through SNAP_PACK, skills as MCP prompts, Astrid's own pack validator when SNAP_TEST_ASTRID_PY is set; prints "g15astrid n/m"
 for t in test_g15_astrid.js; do timeout 900 nice -n 19 node "$T/$t" "$port" >$t.out 2>&1; tail -1 $t.out; done
+# G15 the Cut opens in Astrid (SNAP-R212): a 3-cut Book exports a .astrid archive (stored entries, media by sha256, a
+# private take left out, ids only with metadata off; Astrid's own preflight when SNAP_TEST_ASTRID_PY/_VALIDATE are set),
+# and a cut stands on an earlier scene's take (SNAP-R213); prints "g15cut n/m"
+for t in test_g15_cut.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
 # SNAP-R109: the shipped critic prompt's last real run on the fixtures holds the floor (fixtures.json: r5b, 27/31, 0 FA;
 # a real-agent check, re-scored from its saved notes). critic = r6, the shipped prompt (r5b + metres from the record's
 # scale, SNAP-R155); critic5b = the floor's own run. The r3/r4/r5 runs stay in critic/runs/ as history (critic/README.md)

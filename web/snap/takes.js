@@ -308,7 +308,7 @@ async function captureRun(id, started, status, error, failedNode) {
     status, ...(error ? { error, failed_node: failedNode } : {}), text, seed, media: files, ...(sound?.sound ? { sound: { mean_db: sound.mean_db, max_db: sound.max_db } } : {}),
     ...(extra?.snap_marks?.private ? { private: true } : {}), ...(extra?.snap_marks?.nsfw ? { nsfw: true } : {}), ...(extra?.snap_marks?.encrypted ? { kept_encrypted: true } : {}),
     ...rated(extra?.snap_marks, graph, parent), ...madeFrom(graph, parent),
-    ...(extra?.snap_marks?.metadata === false ? { metadata: false } : {}), ...(extra?.snap_marks?.kept ? { metadata_kept: extra.snap_marks.kept } : {}), ...(Object.keys(swapped).length ? { swapped } : {}), ...(parent ? { parent } : {}), ...await hashes(canonical(prompt, swapped)),
+    ...(extra?.snap_marks?.metadata === false ? { metadata: false } : {}), ...(extra?.snap_marks?.kept ? { metadata_kept: extra.snap_marks.kept } : {}), ...(Object.keys(swapped).length ? { swapped } : {}), ...(parent ? { parent } : {}), ...await hashes(canonical(prompt, swapped)), recipe_digest: `sha256:${await W.sha(prompt)}`,
     ...(graph?.extra?.snap?.world ? { world: placedCheck(graph.extra.snap.world, prompt) } : {}), ...(graph?.extra?.snap?.story ? { story: graph.extra.snap.story } : {}), ...pinsOfParent(parent), ...(twin ? { cached_from: twin.id } : {}), verdict: null, prior: false, notes: [], graph, prompt,
   });
   for (const fn of status === "error" ? failures : status === "success" ? arrivals : []) fn(get(`take-${id}`));
@@ -334,6 +334,9 @@ export function canonical(prompt, swapped = {}) {
 }
 const sha = async (x) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(x))))].map((b) => b.toString(16).padStart(2, "0")).join("");
 export const hashes = async (c) => ({ hash: await sha(c.recipe), seed_hash: await sha(c.seeds) });
+// SNAP-R212: the sha-256 of the prompt a take ran (canonical JSON, seeds in): "the same recipe" is one compare, and Astrid's
+// join key. A take from before it was stored gets it from its kept prompt; a locked stub has none
+export const digestOf = async (t) => t.recipe_digest ?? (t.prompt ? `sha256:${await W.sha(t.prompt)}` : null);
 // the live chain as Run would queue it
 export const live = async () => canonical((await app.graphToPrompt()).output);
 // the agent tools' revision: the live recipe and its seeds, so any edit (a seed too) moves it

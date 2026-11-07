@@ -18,7 +18,7 @@
 // mood sentences · SNAP-R168 a cut opens before its beat · SNAP-R169 boards pin the story · SNAP-R170 a re-board keeps its own
 // board · SNAP-R172 the reversal cost says what moves · SNAP-R178 a wardrobe state folds the items it names · SNAP-R60 versions ·
 // SNAP-R11 nothing blocks · SNAP-R181 a held-prop cut is boarded at its key · SNAP-R189 a board says absent what its
-// pictures may still show · see docs/snap/SNAP_RULES.md
+// pictures may still show · SNAP-R212 the Cut opens in Astrid, private takes stay out · SNAP-R213 a cut's take may come from another shot · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as W from "./world.js";
 import * as SC from "./scenes.js";
@@ -28,6 +28,7 @@ import * as E from "./engine.js";
 import * as K from "./checks.js";
 import * as P from "./proposals.js";
 import * as RT from "./retake.js";
+import * as I from "./instructions.js";
 
 export const MEDIA = ["anime", "film", "manga", "novel"];
 export const DIAL = ["assist", "collaborate", "automatic"];
@@ -840,11 +841,23 @@ export async function assemble(bookRef, { mode = "cut", width = 1280, height = 7
     extra: { snap_parent: { method: `book/${mode}`, options: { book: `book:${book.id}@${book.n}`, clips: clips.map(({ cut, take }) => ({ cut, ...(take ? { take } : {}) })) } } } });
   return { run: id, take: `take-${id}`, mode, clips: clips.map(({ cut, take, video, image, ...c }) => ({ cut, ...(take ? { take } : {}), from: video ? "take" : "board", ...c })), gaps };
 }
-// OpenTimelineIO of the Cut: one video track of the active takes as source ranges, a marker per cut (server side writes
-// the file beside the outputs: /mainodes/snap/book/otio)
-export async function otio(bookRef, { fps = 24 } = {}) {
-  const { book, clips, gaps } = plan(bookRef, "cut");
-  const r = await api.fetchApi("/mainodes/snap/book/otio", { method: "POST", body: JSON.stringify({ name: book.body.name, book: `book:${book.id}@${book.n}`, fps, clips }) }), out = await r.json();
+// OpenTimelineIO of the Cut: one video track of the active takes as source ranges, a marker per cut, and the same Cut as
+// an Astrid timeline archive (SNAP-R212); the server writes the files beside the outputs (/mainodes/snap/book/otio).
+// Each clip says what made it (`snap`): its take, cut, Book, beat, world pins, instruction stack and recipe digest, or
+// ids alone when the take ran with metadata off (SNAP-R20). A take kept private, or one this page can't read, is `private`:
+// its bytes stay out of the archive (fails closed)
+async function madeOf(c, bookRef) {
+  const t = T.get(c.take), ids = { take: c.take, cut: c.cut, book: bookRef };
+  if (!t) return { snap: ids, private: true };
+  const pin = t.story ?? t.graph?.extra?.snap?.story, stack = t.graph?.extra?.snap?.instructions;
+  const snap = t.metadata === false ? { ...ids, metadata: false } : { ...ids, ...(pin?.beat ? { beat: pin.beat } : {}), ...(pin?.beats?.length ? { beats: pin.beats } : {}),
+    world: Object.fromEntries(Object.entries(t.world ?? {}).map(([ref, x]) => [ref, x.n])), ...(stack?.refs ? { instructions: await I.hashOf(stack) } : {}), ...(await T.digestOf(t) ? { recipe_digest: await T.digestOf(t) } : {}) };
+  return { snap, label: `${c.cut} · take ${t.number}`, private: !!(t.private || t.kept_encrypted || T.locked(t)) };
+}
+export async function otio(bookRef, { fps = 24, width = 1280, height = 704 } = {}) {
+  const { book, clips, gaps } = plan(bookRef, "cut"), ref = `book:${book.id}@${book.n}`;
+  const made = await Promise.all(clips.map(async (c) => ({ ...c, ...(c.take ? await madeOf(c, ref) : {}) })));
+  const r = await api.fetchApi("/mainodes/snap/book/otio", { method: "POST", body: JSON.stringify({ name: book.body.name, book: ref, fps, width, height, clips: made }) }), out = await r.json();
   if (!r.ok) throw new Error(out.error ?? `writing the OTIO failed (${r.status})`);
   return { ...out, gaps };
 }

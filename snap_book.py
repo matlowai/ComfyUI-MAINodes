@@ -10,17 +10,27 @@ the prompt's own saver like any other output (privacy fails closed: the vault's 
 
 POST /mainodes/snap/book/otio writes the Cut's timeline (one video and one audio track of the active takes as source
 ranges, a marker at each cut, metadata.snap with each take and the Book version) beside the outputs, as JSON an NLE
-opens (OTIO's Timeline.1 / Clip.1 schema, no opentimelineio package needed).
+opens (OTIO's Timeline.1 / Clip.1 schema, no opentimelineio package needed), and the same Cut as an Astrid timeline
+archive (SNAP-R212): `<name>.astrid`, a zip with every entry stored: manifest.json (format astrid.timeline/1, the media
+by sha256), timeline.json (the authoring bundle: parent {name, config, clips, registry.assets}) and media/<sha256> for
+each take's file, plus the bundle and an asset list beside it to read. Nothing is sent anywhere; the answer names the
+`astrid timelines import` command. A take kept private (sealed by the vault, or marked by the page) is left out: its
+bytes never enter the archive and its cut stays a gap.
+SNAP-R131 the animatic · SNAP-R132 the Cut · SNAP-R98 RAM scratch for sealed takes · SNAP-R212 the Cut opens in Astrid,
+private takes stay out (fails closed) · SNAP-R18 local only · see docs/snap/SNAP_RULES.md
 """
 import asyncio
 import contextlib
+import hashlib
 import json
 import logging
 import os
 import re
+import shlex
 import subprocess
 import time
 import uuid
+import zipfile
 from io import BytesIO
 
 import folder_paths
@@ -159,6 +169,40 @@ def timeline(name, book, fps, rows):
                        "children": [track("Video"), track("Audio")]}}
 
 
+def sha256_of(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def astrid(path, name, fps, width, height, rows):
+    """Write the Cut as an Astrid timeline archive at `path` (CONTRACT_SNAP_EXPORT v1): one media clip per row on V1 at
+    its place in the Cut, the take's file once per sha256. Private rows add no clip and no bytes; their time stays a gap.
+    -> (the authoring bundle, the assets by key, the media rows)"""
+    clips, assets, media, at = [], {}, {}, 0.0
+    for r in rows:
+        if not r["private"]:
+            digest = sha256_of(r["path"])
+            media.setdefault(digest, {"sha256": digest, "size": os.path.getsize(r["path"]), "media_type": "video/mp4", "original_name": os.path.basename(r["path"]), "path": r["path"]})
+            assets[r["take"]] = {"media_id": f"sha256:{digest}", "type": "video", "duration": round(r["length_s"], 3)}
+            clips.append({"id": f"clip-{len(clips) + 1}", "clipType": "media", "track": "V1", "asset": r["take"], "at": round(at, 3), "from": round(r["in_s"], 3), "to": round(r["in_s"] + r["dur_s"], 3), "speed": 1,
+                          **({"label": r["label"]} if r.get("label") else {}), "generation": {"snap": r.get("snap") or {"take": r["take"], "cut": r["cut"]}}})
+        at += r["dur_s"]
+    config = {"clips": clips, "tracks": [{"id": "V1", "kind": "visual", "label": "V1"}, {"id": "A1", "kind": "audio", "label": "A1"}],
+              "output": {"file": f"{os.path.splitext(os.path.basename(path))[0]}.mp4", "fps": fps, "resolution": f"{width}x{height}"},
+              "theme_overrides": {"visual": {"canvas": {"fps": fps, "width": width, "height": height}}}}
+    bundle = {"schema_version": 1, "parent": {"name": name, "config": config, "clips": clips, "registry": {"assets": assets}}, "placements": [], "shots": {}}
+    manifest = {"format": "astrid.timeline/1", "name": name, "elements": [], "transcripts": [], "media": [{k: v for k, v in m.items() if k != "path"} for m in media.values()]}
+    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_STORED) as z:  # Astrid refuses any compressed entry
+        z.writestr("manifest.json", json.dumps(manifest, indent=1, ensure_ascii=False))
+        z.writestr("timeline.json", json.dumps(bundle, indent=1, ensure_ascii=False))
+        for m in media.values():
+            z.write(m["path"], f"media/{m['sha256']}")
+    return bundle, assets, list(media.values())
+
+
 def sealed(path):
     return snap_vault_server is not None and snap_vault_server.snap_vault.sealed(path)
 
@@ -175,21 +219,37 @@ async def otio(request):
             path = folder_paths.get_annotated_filepath(c["video"])
             if not os.path.isfile(path):
                 raise FileNotFoundError(f"{c['cut']}: {c['video']} isn't on this server")
-            private = sealed(path)
-            length = probe(path)[0] if not private else float(c.get("out_s") or 0)
+            # the page says a take may be shared; anything else stays out of the archive (fails closed)
+            private = "kept private" if sealed(path) or c.get("private") is True else None if c.get("private") is False else "the page didn't say whether it is private (reload a tab older than this server)"
+            length = probe(path)[0] if not sealed(path) else float(c.get("out_s") or 0)
             start = float(c.get("in_s") or 0)
             end = min(length, float(c["out_s"])) if c.get("out_s") is not None else length
-            rows.append({"cut": c["cut"], "take": c.get("take"), "path": os.path.abspath(path), "in_s": start, "dur_s": max(0.0, end - start), "length_s": length, "gain_db": c.get("gain_db", 0), "private": private})
+            rows.append({"cut": c["cut"], "take": c.get("take"), "path": os.path.abspath(path), "in_s": start, "dur_s": max(0.0, end - start), "length_s": length, "gain_db": c.get("gain_db", 0), "private": private,
+                         "snap": c.get("snap"), "label": c.get("label")})
         if not rows:
             raise ValueError("The Cut has no clips yet (each unit needs an active take)")
         out_dir = os.path.join(folder_paths.get_output_directory(), "snap_book")
         os.makedirs(out_dir, exist_ok=True)
-        fname = f"{re.sub(r'[^A-Za-z0-9._-]+', '_', name).strip('_') or 'cut'}_{time.strftime('%Y%m%d-%H%M%S')}.otio"
+        stem = f"{re.sub(r'[^A-Za-z0-9._-]+', '_', name).strip('_') or 'cut'}_{time.strftime('%Y%m%d-%H%M%S')}"
+        fname = f"{stem}.otio"
         with open(os.path.join(out_dir, fname), "w", encoding="utf-8") as f:
             json.dump(timeline(name, q.get("book"), fps, rows), f, indent=2)
         locked = [r["cut"] for r in rows if r["private"]]
+        archive = os.path.join(out_dir, f"{stem}.astrid")
+        bundle, assets, media = astrid(archive, name, fps, int(q.get("width") or 1280), int(q.get("height") or 704), rows)
+        with open(os.path.join(out_dir, f"{stem}.timeline.json"), "w", encoding="utf-8") as f:
+            json.dump(bundle, f, indent=1, ensure_ascii=False)
+        listed = {k: {**v, "file": next(r["path"] for r in rows if r["take"] == k), "content_sha256": v["media_id"].removeprefix("sha256:")} for k, v in assets.items()}
+        with open(os.path.join(out_dir, f"{stem}.assets.json"), "w", encoding="utf-8") as f:
+            json.dump(listed, f, indent=1, ensure_ascii=False)
+        left_out = [{"cut": r["cut"], "take": r["take"], "at_s": round(sum(x["dur_s"] for x in rows[:i]), 3), "seconds": round(r["dur_s"], 3), "why": f"{r['private']}: its file never enters the archive; its time stays a gap"} for i, r in enumerate(rows) if r["private"]]
         return {"file": f"snap_book/{fname} [output]", "clips": len(rows), "seconds": round(sum(r["dur_s"] for r in rows), 3),
-                **({"note": f"{', '.join(locked)} {'is' if len(locked) == 1 else 'are'} kept encrypted: an editing program can't read {'it' if len(locked) == 1 else 'them'} from this file"} if locked else {})}
+                **({"note": f"{', '.join(locked)} {'is' if len(locked) == 1 else 'are'} kept private: an editing program can't read {'it' if len(locked) == 1 else 'them'} from this file"} if locked else {}),
+                "astrid": {"archive": archive, "timeline": os.path.join(out_dir, f"{stem}.timeline.json"), "assets": os.path.join(out_dir, f"{stem}.assets.json"),
+                           "clips": len(bundle["parent"]["clips"]), "media": len(media), "left_out": left_out,
+                           "import": f"astrid timelines import {shlex.quote(archive)} --project <project> --name {shlex.quote(name)}",
+                           "said": f"An Astrid timeline of {len(bundle['parent']['clips'])} clip{'s' if len(bundle['parent']['clips']) != 1 else ''}, {len(media)} file{'s' if len(media) != 1 else ''} inside{f'; left out (private): {chr(44).join(locked)}' if locked else ''}. "
+                                   "Each import makes a new timeline in the project: to change an imported one, edit it in Astrid in place."}}
     try:
         return web.json_response(await asyncio.to_thread(write))
     except (FileNotFoundError, ValueError, KeyError) as e:

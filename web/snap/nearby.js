@@ -10,7 +10,7 @@
 // cites, the story beat it is pinned to (stale or not) and its critiques; every neighbour carries its own ref and line.
 // openNearby(): the modal over any page, one click from a picture; a tile re-centres it, Back walks back. It reads and
 // never writes: no take is marked opened, nothing is applied, nothing navigates (SNAP-R5).
-// SNAP-R197 what this is · SNAP-R198 the Nearby modal · SNAP-R199 nearby {ref}, whole · SNAP-R201 a record proposal's pictures now and after · SNAP-R5 viewing changes nothing ·
+// SNAP-R197 what this is · SNAP-R198 the Nearby modal · SNAP-R199 nearby {ref}, whole · SNAP-R201 a record proposal's pictures now and after · SNAP-R213 a take brought into a cut says from where · SNAP-R5 viewing changes nothing ·
 // SNAP-R58 nothing cut, paged explicitly · SNAP-R70 in the Room no machinery (the Room passes its plain()) · SNAP-R174 a
 // blind pair is never named · see docs/snap/SNAP_RULES.md
 import * as T from "./takes.js";
@@ -145,6 +145,7 @@ function standing(t, home) {
     const frame = x.from?.frame ?? (FRAME.exec(f) ? +FRAME.exec(f)[2] : null);
     out.push(`${isVideo(t) && frame != null ? `Its frame ${frame} (${seconds(frame)}) is` : "It is"} ${holderName(x)}${x.kind === "cast" || x.kind === "location" ? `, version ${x.n}${x.n !== x.head ? ` (the newest is ${x.head})` : ""}` : ""}${x.kind === "board" && !x.approved ? ", not approved yet" : ""}.`);
   }
+  for (const c of cuts()) { const e = c.shot.takes?.find((x) => x.take === t.id && x.from); if (e) out.push(c.shot.id === home.shot?.shot.id && c.shot.active === t.id ? `Brought from ${e.from.name}.` : `It ${c.shot.active === t.id ? "is the active take" : "is a take"} of ${cutName(c)} too, brought from ${e.from.name}.`); } // SNAP-R213
   if (cand && !out.length) out.push({ applied: "It was picked.", rejected: "It was turned down.", ready: "Not picked yet.", rendering: "Still being made.", failed: "It failed." }[cand.c.state] ?? "");
   if (t.verdict) out.push({ keep: "Kept.", reject: "Set aside.", neither: "Neither: the same problem as the others." }[t.verdict]);
   return out.filter(Boolean);

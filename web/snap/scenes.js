@@ -13,7 +13,7 @@
 // Plain data with stable ids, so a sequence editor can sit on it later: shots in order now, lanes and in/out on shots
 // and takes later (scout/editor_layer §5.6-5.7).
 // SNAP-R5 open work is never lost · SNAP-R60 authored fields versioned · SNAP-R17 by · SNAP-R18 local only · SNAP-R19 the tools call these · SNAP-R145 a take loaded here gets this shot's graph id · SNAP-R24 scenes
-// own the work, tabs are scratch · SNAP-R120 a new shot keeps the setup, not the content · SNAP-R122 browsing never writes · see docs/snap/SNAP_RULES.md
+// own the work, tabs are scratch · SNAP-R120 a new shot keeps the setup, not the content · SNAP-R122 browsing never writes · SNAP-R213 a take of another shot can stand for this one, saying where it came from · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -411,10 +411,18 @@ export async function setActive(sceneId, shotId, takeId, by = "person") {
   await Promise.all([load(), T.load()]);
   if (takeId != null) takeId = T.find(takeId)?.id ?? takeId; // F-G02: a unique start of the id, as every take tool takes
   const shot = shotOf(need(sceneId), shotId);
-  if (takeId != null && !takesOf(shot).some((e) => e.take === takeId)) throw new Error(`${takeId} isn't a take of ${shotTitle(get(sceneId), shot)}`); // null: no active take (an Undo back to none)
-  await update(sceneId, (s) => { const x = s.shots.find((y) => y.id === shotId); x.takes = takesOf(x); x.active = takeId; x.active_by = by; });
+  // SNAP-R213: a take of another shot (a Book cut reusing an earlier take) joins this one, saying where it came from;
+  // the take itself (its group, provenance and pins) is unchanged. null: no active take (an Undo back to none)
+  let from = null;
+  if (takeId != null && !takesOf(shot).some((e) => e.take === takeId)) {
+    const t = T.get(takeId);
+    if (!t) throw new Error(`No take ${takeId} (list_takes lists them)`);
+    const home = scenes.flatMap((s) => s.shots.map((x) => ({ s, x }))).find(({ s, x }) => !(s.id === sceneId && x.id === shotId) && takesOf(x).some((e) => e.take === takeId));
+    from = home ? { scene: home.s.id, shot: home.x.id, name: `${home.s.name} › ${shotTitle(home.s, home.x)}` } : { name: "no shot (a take of its own)" };
+  }
+  await update(sceneId, (s) => { const x = s.shots.find((y) => y.id === shotId); x.takes = [...takesOf(x), ...(from ? [{ ...entry(T.get(takeId)), from }] : [])]; x.active = takeId; x.active_by = by; });
   const scene = get(sceneId), now = scene.shots.find((x) => x.id === shotId);
-  return { scene: sceneId, shot: shotId, active: takeId, by, path: [scene.name, shotTitle(scene, now), ...(takeId ? path(now, takeId).map((id) => label(T.get(id))) : [])] };
+  return { scene: sceneId, shot: shotId, active: takeId, by, ...(from ? { brought_from: from.name } : {}), path: [scene.name, shotTitle(scene, now), ...(takeId ? path(now, takeId).map((id) => label(T.get(id))) : [])] };
 }
 
 // SNAP-R67: a scene of a Book, and a shot's unit (its cut number, beats, Cast, place, timing, board, trim: book.js)
