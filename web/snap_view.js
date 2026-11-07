@@ -198,8 +198,10 @@ app.registerExtension({
       api.fetchApi("/mainodes/snap/result", { method: "POST", body: JSON.stringify({ client: api.clientId, ...reply }) });
     });
     // http://host/?snap opens straight into Snap once the first workflow has loaded
-    if (new URLSearchParams(location.search).has("snap")) {
-      const open = () => (activeTab() ? setTimeout(() => sw.showing || toggle(), 400) : setTimeout(open, 100));
+    // http://host/?room opens the Room over it (SNAP-R70): the person's front door, on their own machine
+    const room = new URLSearchParams(location.search).has("room");
+    if (room || new URLSearchParams(location.search).has("snap")) {
+      const open = () => (activeTab() ? setTimeout(() => { if (!sw.showing) toggle(); if (room) import("./snap/room.js").then((R) => R.openRoom({ say: view.say })); }, 400) : setTimeout(open, 100));
       open();
     }
     // each workflow tab remembers Snap or Graph (as App mode does): recorded when the person switches, restored when

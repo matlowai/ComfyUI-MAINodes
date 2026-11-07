@@ -124,7 +124,7 @@ export function openWork(host, { say, open, decide }) {
   body.addEventListener("pointerdown", () => { pressed = true; });
   addEventListener("pointerup", () => { if (pressed) { pressed = false; setTimeout(draw, 0); } });
   const sheet = h("div", { className: "snap-sheet snap-setup-sheet snap-work-sheet", role: "dialog", ariaLabel: "Work" },
-    h("header", {}, h("strong", { textContent: "Work" }), h("span", { className: "snap-quiet", textContent: "everything started here or by an agent, from the server's own records" }), h("span", { className: "snap-spacer" }), h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: close })),
+    h("header", {}, h("strong", { textContent: "Work" }), h("span", { className: "snap-quiet", textContent: "everything started here or by an agent, from the server's own records" }), h("span", { className: "snap-spacer" }), h("button", { className: "snap-link", textContent: "The Room", title: "what waits for you, one question at a time, without the machinery (SNAP-R70)", onclick: async () => { close(); (await import("./room.js")).openRoom({ say }); } }), h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: close })),
     body, status);
   sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
   A.onChange(() => { if (sheet.isConnected) draw(); });
