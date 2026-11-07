@@ -68,7 +68,7 @@ const park = (dir) => { const p = path.join(base, "user", "default", "snap", dir
     R.earlier = await page.locator(".snap-room-earlier").textContent().catch(() => null);
     await page.locator(".snap-room-earlier .snap-link", { hasText: "actually, no" }).first().click(); await page.waitForTimeout(800);
     R.takeBack = await page.evaluate((id) => { const t = window.__T.get(id); return { verdict: t.verdict ?? null, past: t.verdicts_past?.map((x) => x.retracted.reason) }; }, ids[0]);
-    R.broughtProp = await bring(/^So:/);
+    R.broughtProp = await bring(/^Shall I/);
     await page.locator(".snap-room-why").fill("not dusk, keep it noon");
     await page.locator(".snap-room-verdict button", { hasText: "No" }).click(); await page.waitForTimeout(1200);
     R.propAfter = await page.evaluate((id) => { const p = window.__P.get(id); return { status: p?.status, because: p?.because }; }, R.prop);
@@ -101,7 +101,7 @@ const park = (dir) => { const p = path.join(base, "user", "default", "snap", dir
   const S = R;
   const checks = {
     opens: /the Room is open/.test(S.open?.said ?? "") && !!S.firstQ,
-    everyKindAsked: (S.lines?.length ?? 0) >= 3 && S.texts?.some((t) => /Which is better\?/.test(t)) && S.texts.some((t) => /^.*So: .*Shall I\?/.test(t)) && S.texts.some((t) => /Which lantern\?/.test(t)) && S.texts.some((t) => /hold the gate/.test(t)),
+    everyKindAsked: (S.lines?.length ?? 0) >= 3 && S.texts?.some((t) => /Which is better/.test(t)) && S.texts.some((t) => /Shall I go ahead with dusk light on the gate/.test(t)) && S.texts.some((t) => /Which lantern\?/.test(t)) && S.texts.some((t) => /hold the gate/.test(t)),
     leakTest: Array.isArray(S.banned) && S.banned.length === 0 && Array.isArray(S.finalBanned) && S.finalBanned.length === 0,
     noMachinery: S.machinery?.workEls === 0 && S.machinery.buttons.length === 0 && !S.machinery.digits,
     verdictIsTheTakes: S.broughtTake && S.takeAfter?.verdict === "keep" && S.takeAfter.by === "person" && S.takeAfter.because === "the gate holds through the turn" && /Kept/.test(S.reply ?? "") && /Earlier/.test(S.earlier ?? ""),

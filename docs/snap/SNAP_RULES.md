@@ -1645,3 +1645,15 @@ SNAP-R178 on. R160-R164 stay free.
   off are not a clash). Only the named items fold until the operator rules on dropping every clothing clause. *Why:*
   F-N01: Aya's "apron off" settei prompt said "green apron" and "Aya wears no apron" in one breath. *More:*
   tests/snap/test_g8_wardrobe.js.
+- **SNAP-R179: A Room question is one plain sentence that names its thing.** At the top and on every "Then" line the
+  Room asks the same sentence (`ask()` in room.js): the agent's own question when its words hold one ("Which lantern?"
+  out of "Which lantern? a MOSS edit of take-… for cast:…"), else one made from what the row is: a take "Do you keep the
+  lantern, second try?" (by number when Snap titled the run), a proposal "Shall I …?" without its "pN:" label or its
+  stacking note, a Book story change as the state in words ("From b1 on, Aya holds the ladle in the right hand: shall I
+  add that to the story?"), a new beat quoted, a pick named by its kind and place ("Which new view do you keep for Gate,
+  Shot 1 · C1?"), a blind pair "Which is better, A or B?". The agent's other words go on a quiet line under the top
+  question, never into it. `plain()` drops a reference it can't name with the word that led to it ("an edit of it for
+  it" becomes "an edit"), an aside it empties ("(it, the picture)") goes, and the line under a question names a place
+  or nothing (never "a scratch tab"). *Why:* the G7 Room read "Which lantern? an edit of it for it", "Does the take hold
+  the gate? (it, the picture)" and "So: an earlier suggestion: …"; the person should read each at a glance. *More:*
+  tests/snap/test_g8_room.js.

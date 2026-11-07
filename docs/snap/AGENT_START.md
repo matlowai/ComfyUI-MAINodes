@@ -613,8 +613,9 @@ name the takes when you tell them it waits.
 The person's front door: `open_view {"view": "room"}` (or `/?room`) shows what waits for them, one question at a time,
 pictures full width, with no machinery. Your words reach it as job questions (`run {question}`) and proposal reasons:
 write them for a person: no ids, file paths, model names, status words or counts; say what you want to know ("does the
-gate hold through the turn?"), and when you can't find something, say so plainly. A verdict there is the same record as
-anywhere else.
+gate hold through the turn?"), and when you can't find something, say so plainly. The Room asks your question as you
+wrote it when it is one, and makes one from the row otherwise (SNAP-R179), so a question is the best thing to write. A
+verdict there is the same record as anywhere else.
 
 ## When Snap can't do it
 
