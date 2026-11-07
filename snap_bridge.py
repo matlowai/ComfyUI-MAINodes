@@ -15,7 +15,7 @@ encrypted (snap_vault_server.py) · SNAP-R98 their ffmpeg steps work in RAM scra
 the bridge tools' descriptions, /info names the docs and skills, a call names its agent · SNAP-R135 a hold on a page ends
 with its job: use_page null, the MCP connection closing, or 10 idle minutes; the page shows the idle time · SNAP-R146 an
 agent's claimed critique or queued run keeps its hold · SNAP-R159 a retried call with the same Idempotency-Key answers the
-first call's answer and never runs twice · see docs/snap/SNAP_RULES.md"""
+first call's answer and never runs twice · SNAP-R191 a region edit's seam is checked (MAISnapSeam) · see docs/snap/SNAP_RULES.md"""
 import asyncio
 import glob
 import hashlib
@@ -1362,7 +1362,62 @@ class MAISnapCopyScore(io.ComfyNode):
             sim = p @ ref[0].T  # every patch against every reference patch
             soft += ((sim.amax(-1).mean(-1) + sim.amax(-2).mean(-1)) / 2).tolist()
         return io.NodeOutput(ui={"copy_scores": [round(s, 4) for s in scores], "soft_scores": [round(s, 4) for s in soft]})
+class MAISnapSeam(io.ComfyNode):
+    """Where a region edit breaks at its crop's edge (F-T02, SNAP-R191): a thin thing that crosses the edge (a monocle's
+    chain) is redrawn inside the crop and kept as it was outside, so it shows as two offset pieces. Just inside each edge
+    the paste can blend (past the feather), the edit is compared with the picture it is pasted over: a run of pixels
+    that differ far more than that edge does elsewhere is a break, and so is an edge redrawn all along. Measured on a 184x150 eye crop (C2 key s9221): the
+    chain's run peaked at 67-130 (max channel, 0-255) against an edge median of about 3; an untouched edge stays under
+    13. A side on the picture's border has nothing outside it and is not read."""
+    BREAK_MIN = 40  # a run's level (max channel, 0-255) below this is the edit's own shading drift, not a break
+    BREAK_X = 3  # ... and it must stand this many times above the edge's median
+    BREAK_ALL = 100  # ... unless it is above this: an edge whose median is that high was redrawn all along (a head turned)
+    BAND = 4  # rows read just past the feather
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="MAISnapSeam",
+            display_name="Seam check (Snap)",
+            category="MAINodes/snap",
+            description="Compares an edited crop with the picture it is pasted back over, just inside each edge of the crop "
+                        "(past the feather), and lists each run along an edge where they differ far more than elsewhere: "
+                        "something redrawn inside that does not meet the picture outside.",
+            inputs=[io.Image.Input("picture"), io.Image.Input("edit"), io.Int.Input("x", min=0), io.Int.Input("y", min=0), io.Int.Input("feather", min=0)],
+            outputs=[],
+            is_output_node=True,
+        )
+
+    @classmethod
+    def execute(cls, picture, edit, x, y, feather) -> io.NodeOutput:
+        h, w = edit.shape[1:3]
+        under = picture[0, y:y + h, x:x + w].to(edit.device, edit.dtype)
+        d = (edit[0] - under).abs().amax(-1) * 255
+        fy, fx = min(feather, max(0, h - cls.BAND)), min(feather, max(0, w - cls.BAND))  # a crop thinner than its feather: read what there is
+        bands = {"top": (y > 0, d[fy:fy + cls.BAND].mean(0), x),
+                 "bottom": (y + h < picture.shape[1], d[h - fy - cls.BAND:h - fy].mean(0), x),
+                 "left": (x > 0, d[:, fx:fx + cls.BAND].mean(1), y),
+                 "right": (x + w < picture.shape[2], d[:, w - fx - cls.BAND:w - fx].mean(1), y)}
+        breaks, checked = [], []
+        for side, (inner, line, start) in bands.items():
+            if not inner:
+                continue
+            line = torch.nn.functional.avg_pool1d(line[None, None], 3, 1, 1, count_include_pad=False)[0, 0]
+            median = float(line.median())
+            level = min(max(cls.BREAK_MIN, cls.BREAK_X * median), cls.BREAK_ALL)
+            checked.append({"side": side, "median": round(median, 1), "level": round(level, 1)})
+            hot = (line > level).nonzero().flatten().tolist()
+            runs = []
+            for i in hot:  # runs of hot pixels; a gap of up to 2 joins them
+                if runs and i - runs[-1][1] <= 3:
+                    runs[-1][1] = i
+                else:
+                    runs.append([i, i])
+            breaks += [{"side": side, "from": start + a, "to": start + b, "peak": round(float(line[a:b + 1].max()), 1)} for a, b in runs if b > a]
+        return io.NodeOutput(ui={"seam": breaks, "seam_checked": checked})
+
+
 NODE_CLASS_MAPPINGS = {"MAISaveImagePrivate": MAISaveImagePrivate, "MAIPreviewImagePrivate": MAIPreviewImagePrivate,
-                       "MAISaveVideoPrivate": MAISaveVideoPrivate, "MAIVideoOutPrivate": MAIVideoOutPrivate, "MAIRatingRefused": MAIRatingRefused, "MAISnapLouder": MAISnapLouder, "MAISnapCopyScore": MAISnapCopyScore}
+                       "MAISaveVideoPrivate": MAISaveVideoPrivate, "MAIVideoOutPrivate": MAIVideoOutPrivate, "MAIRatingRefused": MAIRatingRefused, "MAISnapLouder": MAISnapLouder, "MAISnapCopyScore": MAISnapCopyScore, "MAISnapSeam": MAISnapSeam}
 NODE_DISPLAY_NAME_MAPPINGS = {"MAISaveImagePrivate": "Save Image (no metadata)", "MAIPreviewImagePrivate": "Preview Image (no metadata)",
-                              "MAIVideoOutPrivate": "MAI Video Out (no metadata)", "MAIRatingRefused": "Above the rating cap: refused", "MAISnapLouder": "Make the sound louder (Snap)", "MAISnapCopyScore": "Copy score (Snap)"}
+                              "MAIVideoOutPrivate": "MAI Video Out (no metadata)", "MAIRatingRefused": "Above the rating cap: refused", "MAISnapLouder": "Make the sound louder (Snap)", "MAISnapCopyScore": "Copy score (Snap)", "MAISnapSeam": "Seam check (Snap)"}

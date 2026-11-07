@@ -14,7 +14,7 @@
 // SNAP-R72 what Picture 1 is, per model · SNAP-R75 the view slot's models are data (P-H3-Image, H3 still) ·
 // SNAP-R77 a character sheet is a sheet-slot method whose candidates are takes · SNAP-R79 a new view says which
 // picture it copied · SNAP-R186 a record's picture's new view lands with the record · SNAP-R190 a region edit pastes back ·
-// see docs/snap/SNAP_RULES.md
+// SNAP-R191 its seam is checked · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as C from "./candidates.js";
 import * as K from "./checks.js";
@@ -414,7 +414,9 @@ async function contextPicture(p, i) {
 // F-S04 (SNAP-R190): a region edit: Picture 1's crop is edited at about 1 MP (a face is too small to edit at its own
 // size), scaled back to the crop's pixels and pasted over the whole Picture 1 with a feathered edge (none on a side the
 // crop shares with the picture's border), so everything outside the crop, the pose included, is the picture as it was.
-// Core nodes only: ImageScaleToTotalPixels, ImageScale, SolidMask, FeatherMask, ImageCompositeMasked
+// Core nodes only: ImageScaleToTotalPixels, ImageScale, SolidMask, FeatherMask, ImageCompositeMasked; the pack's seam
+// check (MAISnapSeam, F-T02, SNAP-R191) reads each edge past the feather for a thing redrawn inside that doesn't meet
+// the picture outside (a chain crossing the crop's edge)
 const PASTE_MP = 1.0;
 function pasteFirst(pic) { return { ...pic, nodes: { ...pic.nodes, r0s: { class_type: "ImageScaleToTotalPixels", inputs: { image: pic.out, upscale_method: "lanczos", megapixels: PASTE_MP, resolution_steps: 16 } } }, out: ["r0s", 0] }; }
 function pasteBack(g, pic) {
@@ -424,6 +426,7 @@ function pasteBack(g, pic) {
     rm: { class_type: "SolidMask", inputs: { value: 1.0, width: box.width, height: box.height } },
     rf: { class_type: "FeatherMask", inputs: { mask: ["rm", 0], left: box.x > 0 ? f : 0, top: box.y > 0 ? f : 0, right: box.x + box.width < size.width ? f : 0, bottom: box.y + box.height < size.height ? f : 0 } },
     rc: { class_type: "ImageCompositeMasked", inputs: { destination: pic.whole, source: ["rb", 0], x: box.x, y: box.y, resize_source: false, mask: ["rf", 0] } },
+    rs: { class_type: "MAISnapSeam", inputs: { picture: pic.whole, edit: ["rb", 0], x: box.x, y: box.y, feather: f } },
   });
   g.o.inputs.images = ["rc", 0];
   return { box, feather: f };
@@ -624,7 +627,7 @@ export async function fromContext(pictures, prompt, { method, purpose, seeds, co
       seed, made: { model: m.anchors.unet.split("/").pop() }, label: "new view" }); // a take, no check to wait for (its tile's chips)
   }
   const d = await C.create({ kind: "view", target: first ?? where.group, title: `New view · ${m.title.replace(/^New view\s*·\s*/, "")} ×${list.length} (${label}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: first, method: id,
-    options: { prompt: prompt.trim(), context: said, purpose: aim, ...(size ?? {}) }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}), ...(question?.trim() ? { question: question.trim() } : {}) }, made); // F-Q21: the agent's question for the person
+    options: { prompt: prompt.trim(), context: said, purpose: aim, ...(size ?? {}), ...(paste ? { pasted: { box: pics[0].box, size: pics[0].size } } : {}) }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}), ...(question?.trim() ? { question: question.trim() } : {}) }, made); // F-Q21: the agent's question for the person
   // F-C15: landed away from the shot a context board belongs to: say where it would sit beside that board
   const board = land && land !== "tab" ? said.map((x) => x.take && T.get(x.take)).map((t) => t && { t, home: RT.shotOf(t) }).find((x) => x?.home && x.home.shot.id !== where.shot) : null;
   return { decision: d.id, chosen, pictures: said.map((x) => `Picture ${x.n}${x.n === 1 && m.picture_one ? ` (${m.picture_one.label})` : ""}: ${x.label}`), lands: where.where,
@@ -662,7 +665,25 @@ async function contextCopies(d, c) {
     return { threshold, soft_threshold: soft, against, copied: against.filter((a) => framing.includes(a.n) || (a.soft != null && a.soft >= soft)).map((a) => a.n), framing };
   } catch (e) { return { error: e.message }; }
 }
+// F-T02 (SNAP-R191): a region edit's seam: each run along the crop's edge where the edit doesn't meet the picture
+// outside, and the crop to try next (half the crop again past each side that breaks), never a gate (SNAP-R23)
+export function seamNote(pasted, out) {
+  if (!out?.seam) return { error: "the seam check didn't run (a server from before G11: restart it)" };
+  const { box, size } = pasted, sides = [...new Set(out.seam.map((b) => b.side))];
+  let [x, y, x2, y2] = [box.x, box.y, box.x + box.width, box.y + box.height];
+  if (sides.includes("top")) y = Math.max(0, y - box.height / 2);
+  if (sides.includes("bottom")) y2 = Math.min(size.height, y2 + box.height / 2);
+  if (sides.includes("left")) x = Math.max(0, x - box.width / 2);
+  if (sides.includes("right")) x2 = Math.min(size.width, x2 + box.width / 2);
+  const f = (v) => +v.toFixed(4), along = (b) => `${["top", "bottom"].includes(b.side) ? "x" : "y"} ${b.from}-${b.to}`;
+  const edges = (l) => (l.length > 1 ? `${l.slice(0, -1).join(", ")} and ${l.at(-1)} edges` : `${l[0]} edge`);
+  return { breaks: out.seam, checked: out.seam_checked, box,
+    ...(sides.length ? { crop_to_try: [f(x / size.width), f(y / size.height), f((x2 - x) / size.width), f((y2 - y) / size.height)] } : {}),
+    said: sides.length ? `the edit breaks at the crop's ${edges(sides)} (${out.seam.map(along).join(", ")} px): something drawn inside doesn't meet the picture outside. Look at the seam; to fix it, edit again with the crop past where that thing ends (crop_to_try reaches half the crop further on that side; set it where the thing ends)`
+      : `no break along the crop's ${edges(out.seam_checked.map((c) => c.side))}` };
+}
 C.kind("view", { ...RT.takeCandidate, finish: (d, c, h) => { RT.takeCandidate.finish(d, c, h);
+  if (d.options.pasted) c.notes.seam = seamNote(d.options.pasted, h.outputs?.rs); // saved with the candidate's ready state
   castFaces(d, c).then((r) => r && C.note(d, c, "identity", r)).then(() => contextCopies(d, c)).then((r) => r && C.note(d, c, "copied", r)); } });
 
 // A character sheet of a Cast (the sheet slot, U101 turnaround round 2): the method draws the Cast's picture `ref`

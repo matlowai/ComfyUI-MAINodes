@@ -21,7 +21,7 @@
 // SNAP-R121 answers say what the work is: whole titles, what a setup switch carried, eye gaps, caption files · SNAP-R122 recipe_matches_active · SNAP-R123 use_take as cast / plate · SNAP-R124 apply_cast pictures, rerun out
 // SNAP-R67-R69, R130-R133 the Book's tools (booktools.js), joined at the end of the table; open_view book · see docs/snap/SNAP_RULES.md
 // SNAP-R134 keep_eye_colour and the redraw's eye line · SNAP-R136 open_view masks, find_take, add_plate's facts · SNAP-R137 cites stay plain · see docs/snap/SNAP_RULES.md
-// SNAP-R185 apply_candidate never makes a still a cut's take · SNAP-R186 a record's new view lands with it · SNAP-R187 open_view says what the page shows · SNAP-R190 paste_back · see docs/snap/SNAP_RULES.md
+// SNAP-R185 apply_candidate never makes a still a cut's take · SNAP-R186 a record's new view lands with it · SNAP-R187 open_view says what the page shows · SNAP-R190 paste_back · SNAP-R191 its seam note · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import { BRICKS, PACK_BRICKS } from "./bricks.js";
@@ -1462,7 +1462,7 @@ export const TOOLS = [
       prompt: { type: "string" }, method: { type: "string" }, purpose: { type: "string", enum: ["character", "turnaround", "cast_picture", "set", "master", "plate", "settei", "edit"] }, seeds: { type: "array", items: { type: "integer", minimum: 0 } }, count: { type: "integer", minimum: 1 },
       width: { type: "integer", minimum: 16 }, height: { type: "integer", minimum: 16 },
       land: { anyOf: [{ type: "string", enum: ["tab"] }, { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" } }, required: ["scene", "shot"] }] }, question: { type: "string", description: "what the person is asked about these candidates, in a sentence (shown as the Room's question and on the Work card; no ids or file names): e.g. \"Does Kuroe stay on the middle stool?\" (F-Q21)" },
-      paste_back: { type: "boolean", description: "a region edit (F-S04, SNAP-R190): Picture 1 has a crop (a face, a hand); P-H3 edits the crop at about 1 MP, and it is scaled back and pasted over the whole Picture 1 with a feathered edge, so the rest of the picture, the pose included, stays as it was. The candidate is the whole picture. ph3_view only, no width or height" } }, required: ["pictures", "prompt"] },
+      paste_back: { type: "boolean", description: "a region edit (F-S04, SNAP-R190): Picture 1 has a crop (a face, a hand); P-H3 edits the crop at about 1 MP, and it is scaled back and pasted over the whole Picture 1 with a feathered edge, so the rest of the picture, the pose included, stays as it was. The candidate is the whole picture. Each candidate gets a seam note (F-T02, SNAP-R191): breaks lists each run along the crop's edge where the edit doesn't meet the picture outside (a chain or strap redrawn inside and kept outside), with crop_to_try, the crop reaching half again past that side: make the crop reach past where such a thing ends and edit again. ph3_view only, no width or height" } }, required: ["pictures", "prompt"] },
     annotations: { consequentialHint: true },
     consequential: true,
     plan: async ({ pictures, seeds, count = 2, method, purpose }) => { await S.load(); const m = S.list("view").find((x) => x.id === (method ?? ED.purposes()[purpose ?? ED.inferPurpose(pictures ?? [])]?.method ?? S.list("view")[0]?.id)), n = seeds?.length || count;
