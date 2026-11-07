@@ -163,13 +163,13 @@ export function what(ref, { room = false } = {}) {
     if (src?.take && isVideo(src.take)) return { form: "frame", take: src.take.id, frame: src.frame, line: `A frame of a video: take ${src.take.number}${src.frame != null ? ` at ${seconds(src.frame)} (frame ${src.frame})` : ""}.${is}`, more: madeLine(src.take, room) };
     if (src?.take) { const home = homeOf(src.take), own = inSlot(src.take, home), rest = own ? hold.filter((x) => !(["board", "key"].includes(x.kind) && x.shot === home.cut.shot.id)) : hold; // its kind says its own slot
       return { form: "still", take: src.take.id, line: `A still, not a frame of a video: take ${src.take.number}, ${kindWords(src.take, home, room)}.${rest.length ? ` It is ${listWords(rest.map((x) => `${holderName(x)}${x.kind === "cast" || x.kind === "location" ? `, version ${x.n}` : ""}`))}.` : ""}`, more: madeLine(src.take, room) }; }
-    if (src) return { form: "frame", frame: src.frame, line: `A frame of a take that isn't on this install${src.frame != null ? ` (frame ${src.frame})` : ""}.${is}`, more: null };
+    if (src) return { form: "kept", frame: src.frame, line: `Kept from a take not on this install${src.frame != null ? ` (frame ${src.frame})` : ""}: a still or a video's frame, unknown here.${is}`, more: null };
     return { form: "picture", line: `A picture brought in, not made here${room ? "" : ` (${s.path})`}.${is}`, more: null };
   }
   const t = s.take, home = homeOf(t), shot = home.shot ? ` in ${home.shot.scene.name} › ${SC.shotTitle(home.shot.scene, home.shot.shot)}` : "";
   const stand = standing(t, home), tail = stand.length ? ` ${stand.join(" ")}` : "";
   if (isVideo(t)) return { form: "video", take: t.id, line: `A video: take ${t.number}${home.cut ? ` of ${cutName(home.cut)}` : shot}.${tail}`, more: madeLine(t, room) };
-  const where = !home.cut ? shot : ["board", "key"].includes(home.pin?.role) ? "" : ` in ${cutName(home.cut)}`; // a board's words name its cut
+  const where = !home.cut ? (shot && `,${shot}`) : ["board", "key"].includes(home.pin?.role) ? "" : `, in ${cutName(home.cut)}`; // a board's words name its cut
   return { form: "still", take: t.id, line: `A still, not a frame of a video: take ${t.number}, ${kindWords(t, home, room)}${where}.${tail}`, more: madeLine(t, room) };
 }
 
@@ -337,8 +337,9 @@ export function openNearby(ref, { room = false, words = (x) => x, say } = {}) {
       const centre = d.subject.kind === "take" ? { kind: d.subject.media.find((m) => m.kind === "video")?.kind ?? "image", path: (d.subject.media.find((m) => m.kind === "video") ?? d.subject.media.find((m) => m.kind === "image") ?? d.subject.media[0])?.path, name: `take ${d.subject.number}` }
         : d.subject.kind === "picture" ? { ...d.subject.media, name: "" } : { kind: "image", path: d.records[0]?.pictures[0]?.path ?? null, name: d.subject.name };
       head.replaceChildren(h("p", { className: "snap-near-line1", textContent: words(d.what.line) }), d.what.more ? h("p", { className: "snap-near-line", textContent: words(d.what.more) }) : null);
-      const crit = d.critiques.length ? h("ol", { className: "snap-near-notes" }, d.critiques.flatMap((r) => (r.notes.length ? r.notes : [{ severity_words: r.state === "done" ? "Clean" : "Waiting for a critic", text: r.state === "done" ? "The critic found nothing wrong." : "" }]).map((n) => h("li", { className: n.severity ?? "" }, h("strong", { textContent: `${words(n.severity_words)}: ` }), words(n.text ?? ""), n.fix ? h("span", { className: "snap-near-line", textContent: ` What would fix it: ${words(n.fix)}` }) : null)))) : null;
-      const beat = d.beat ? h("div", { className: "snap-near-beat" }, d.beat.beats.map((b) => h("p", {}, h("strong", { textContent: words(b.id === d.beat.beats[0]?.id ? "The story beat: " : "and: ") }), words(b.text ?? "(not in the story now)"))),
+      const crit = d.critiques.length ? h("ol", { className: "snap-near-notes" }, d.critiques.flatMap((r) => (r.notes.length ? r.notes.map((n) => h("li", { className: n.severity ?? "" }, h("strong", { textContent: `${words(n.severity_words)}:` }), " ", words(n.text ?? ""), n.fix ? h("span", { className: "snap-near-line", textContent: `What would fix it: ${words(n.fix)}` }) : null))
+        : [h("li", {}, words(r.state === "done" ? "The critic found nothing wrong." : "Not read by a critic yet."))]))) : null;
+      const beat = d.beat ? h("div", { className: "snap-near-beat" }, d.beat.beats.map((b) => h("p", {}, h("strong", { textContent: words(b.id === d.beat.beats[0]?.id ? "The story beat:" : "and:") }), " ", words(b.text ?? "(not in the story now)"))),
         h("p", { className: "snap-near-line", textContent: words(d.beat.error ? `The story isn't here: ${d.beat.error}` : d.beat.stale ? `Made from an older story: ${d.beat.reasons.join("; ")}.` : d.beat.pinned ? "Made from the story as it stands." : "") })) : null;
       body.replaceChildren(...[
         h("div", { className: "snap-near-centre" }, mediaEl(centre, true), centre.path ? h("a", { className: "snap-near-btn", href: url(mediaAt(centre.path)), target: "_blank", rel: "noopener", textContent: "Open in a new tab ↗" }) : null),
