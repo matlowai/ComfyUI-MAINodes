@@ -1915,4 +1915,16 @@ SNAP-R197 on. R160-R164 stay free.
   bar across the bridge of the nose:1") took it off 2/2 on his original front, changing a 55x46 px patch, where words
   over the same crop had failed 0/4 (F-V05). *More:* tests/snap/test_g13.js.
 
-Next free ID after this batch: SNAP-R205 (R160-R164 stay free).
+- **SNAP-R205: A region edit's seam check also says when the box shows.** MAISnapSeam reads the box as pasted (a crop of
+  the composite, so a masked edit is judged by what shows) and, beside the breaks, takes the edit's luma minus the
+  picture's just inside each edge past the feather: outside the box the picture is the picture, so that is the step
+  across the edge. Its median along the edge (a window of a quarter of it, so moved line work drops out) at 10 grey
+  levels or more over at least a quarter of the edge is a box that shows: the seam note's `box_shows` lists each run
+  {side, from, to, delta} (delta + lighter, - darker), `checked` carries every edge's mean step, the note says "the box
+  shows" with the edges and levels, and the chip says "box shows · <sides>". A note, never a gate. *Why:* dogfood F-Z03:
+  s9962's box came out ~22 levels lighter than the background around it, a rectangle at 100 %, and the note said "no
+  break" (runs against each edge's own median can't see a whole-edge step). On 22 real region edits s9962 held +21
+  over 95 % of its left and right edges; every clean edit stayed under 10 (one 37 px edge reached 12 over 22 %).
+  *More:* tests/snap/test_g14_nodes.py (real crops), test_g14.js.
+
+Next free ID after this batch: SNAP-R206 (R160-R164 stay free).

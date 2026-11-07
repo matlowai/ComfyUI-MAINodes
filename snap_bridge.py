@@ -15,7 +15,7 @@ encrypted (snap_vault_server.py) · SNAP-R98 their ffmpeg steps work in RAM scra
 the bridge tools' descriptions, /info names the docs and skills, a call names its agent · SNAP-R135 a hold on a page ends
 with its job: use_page null, the MCP connection closing, or 10 idle minutes; the page shows the idle time · SNAP-R146 an
 agent's claimed critique or queued run keeps its hold · SNAP-R159 a retried call with the same Idempotency-Key answers the
-first call's answer and never runs twice · SNAP-R191 a region edit's seam is checked (MAISnapSeam) · see docs/snap/SNAP_RULES.md"""
+first call's answer and never runs twice · SNAP-R191 a region edit's seam is checked (MAISnapSeam) · SNAP-R205 and its tone · see docs/snap/SNAP_RULES.md"""
 import asyncio
 import glob
 import hashlib
@@ -1368,11 +1368,21 @@ class MAISnapSeam(io.ComfyNode):
     the paste can blend (past the feather), the edit is compared with the picture it is pasted over: a run of pixels
     that differ far more than that edge does elsewhere is a break, and so is an edge redrawn all along. Measured on a 184x150 eye crop (C2 key s9221): the
     chain's run peaked at 67-130 (max channel, 0-255) against an edge median of about 3; an untouched edge stays under
-    13. A side on the picture's border has nothing outside it and is not read."""
+    13. A side on the picture's border has nothing outside it and is not read.
+    F-Z03 (SNAP-R205): a box pasted a few grey levels lighter or darker than the picture shows as a rectangle with no break
+    in it (s9962: +21 levels along its sides, edge medians of 23-25, "no break"). Outside the box the picture is the
+    picture, so the edit's luma minus the picture's, just inside each edge past the feather, is the step across that edge;
+    its median along the edge (a window of a quarter of it, so line work moved by the redraw drops out) is the tone. Measured
+    on 22 region edits on Kuroe and the C2 key: s9962's left and right edges held +21 over 95 % of their length; every
+    clean edit stayed under 10, except a 37 px edge of a 42x37 crop at 12 over 22 % of it (no box to see)."""
     BREAK_MIN = 40  # a run's level (max channel, 0-255) below this is the edit's own shading drift, not a break
     BREAK_X = 3  # ... and it must stand this many times above the edge's median
     BREAK_ALL = 100  # ... unless it is above this: an edge whose median is that high was redrawn all along (a head turned)
     BAND = 4  # rows read just past the feather
+    TONE = 10  # a step (luma, 0-255, median along the edge) this big is a box that shows
+    TONE_RUN = 0.25  # ... held over this much of the edge
+    TONE_BAND = 8  # rows read for the tone, past the feather
+    LUMA = (0.299, 0.587, 0.114)
 
     @classmethod
     def define_schema(cls):
@@ -1382,7 +1392,8 @@ class MAISnapSeam(io.ComfyNode):
             category="MAINodes/snap",
             description="Compares an edited crop with the picture it is pasted back over, just inside each edge of the crop "
                         "(past the feather), and lists each run along an edge where they differ far more than elsewhere: "
-                        "something redrawn inside that does not meet the picture outside.",
+                        "something redrawn inside that does not meet the picture outside; and each run where the edit is "
+                        "lighter or darker than the picture: a box that shows.",
             inputs=[io.Image.Input("picture"), io.Image.Input("edit"), io.Int.Input("x", min=0), io.Int.Input("y", min=0), io.Int.Input("feather", min=0)],
             outputs=[],
             is_output_node=True,
@@ -1398,14 +1409,21 @@ class MAISnapSeam(io.ComfyNode):
                  "bottom": (y + h < picture.shape[1], d[h - fy - cls.BAND:h - fy].mean(0), x),
                  "left": (x > 0, d[:, fx:fx + cls.BAND].mean(1), y),
                  "right": (x + w < picture.shape[2], d[:, w - fx - cls.BAND:w - fx].mean(1), y)}
-        breaks, checked = [], []
+        s = (edit[0, ..., :3] - under[..., :3]) @ torch.tensor(cls.LUMA, device=edit.device, dtype=edit.dtype) * 255
+        ty, tx = min(feather, max(0, h - cls.TONE_BAND)), min(feather, max(0, w - cls.TONE_BAND))
+        tones = {"top": s[ty:ty + cls.TONE_BAND].mean(0), "bottom": s[max(0, h - ty - cls.TONE_BAND):h - ty].mean(0),
+                 "left": s[:, tx:tx + cls.TONE_BAND].mean(1), "right": s[:, max(0, w - tx - cls.TONE_BAND):w - tx].mean(1)}
+        breaks, checked, shows = [], [], []
         for side, (inner, line, start) in bands.items():
             if not inner:
                 continue
             line = torch.nn.functional.avg_pool1d(line[None, None], 3, 1, 1, count_include_pad=False)[0, 0]
             median = float(line.median())
             level = min(max(cls.BREAK_MIN, cls.BREAK_X * median), cls.BREAK_ALL)
-            checked.append({"side": side, "median": round(median, 1), "level": round(level, 1)})
+            step = tones[side]
+            k = max(9, len(step) // 4) | 1
+            tone = torch.nn.functional.pad(step[None, None], (k // 2, k // 2), mode="replicate")[0, 0].unfold(0, k, 1).median(-1).values
+            checked.append({"side": side, "median": round(median, 1), "level": round(level, 1), "tone": round(float(step.mean()), 1)})
             hot = (line > level).nonzero().flatten().tolist()
             runs = []
             for i in hot:  # runs of hot pixels; a gap of up to 2 joins them
@@ -1414,7 +1432,15 @@ class MAISnapSeam(io.ComfyNode):
                 else:
                     runs.append([i, i])
             breaks += [{"side": side, "from": start + a, "to": start + b, "peak": round(float(line[a:b + 1].max()), 1)} for a, b in runs if b > a]
-        return io.NodeOutput(ui={"seam": breaks, "seam_checked": checked})
+            for sign in (1, -1):  # runs of one sign past the tone level, a lighter and a darker step apart
+                runs = []
+                for i in (tone * sign >= cls.TONE).nonzero().flatten().tolist():
+                    if runs and i == runs[-1][1] + 1:
+                        runs[-1][1] = i
+                    else:
+                        runs.append([i, i])
+                shows += [{"side": side, "from": start + a, "to": start + b, "delta": round(float(step[a:b + 1].mean()), 1)} for a, b in runs if b - a + 1 >= cls.TONE_RUN * len(step)]
+        return io.NodeOutput(ui={"seam": breaks, "seam_checked": checked, "seam_tone": shows})
 
 
 NODE_CLASS_MAPPINGS = {"MAISaveImagePrivate": MAISaveImagePrivate, "MAIPreviewImagePrivate": MAIPreviewImagePrivate,

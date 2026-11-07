@@ -589,6 +589,10 @@ for t in test_g12.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNA
 # any model's graph; keep eye colour on any take; take tools read a unique start of an id; a region edit's SAM mask
 # (SNAP-R204, F-Y09); prints "g13 n/m" last
 for t in test_g13.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
+# G14: a region edit's seam says when the box shows (SNAP-R205, F-Z03); the seam check on real crops (fixtures g14/);
+# prints "g14 n/m" and "g14nodes n/m" last
+for t in test_g14.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
+nice -n 19 "$py" -I "$T"/test_g14_nodes.py "$port" >test_g14_nodes.py.out 2>&1; tail -1 test_g14_nodes.py.out
 nice -n 19 "$py" -I "$T"/test_iris.py >test_iris.py.out 2>&1; tail -1 test_iris.py.out
 # SNAP-R109: the shipped critic prompt's last real run on the fixtures holds the floor (fixtures.json: r5b, 27/31, 0 FA;
 # a real-agent check, re-scored from its saved notes). critic = r6, the shipped prompt (r5b + metres from the record's

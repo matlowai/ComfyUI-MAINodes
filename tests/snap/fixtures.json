@@ -17,7 +17,8 @@
   "u59": "four scene takes, day and night (U59)",
   "u61": "identity looks per frame (test_identity_notes.py writes a fresh copy to the output folder's u61/)",
   "voice_timbre": "the voice timbre scout's clips, embeddings and rounds (G1b voice note)",
-  "short05": "the anime dogfood short05 'One More Bowl': the live C2 board s9221 (Kuroe in spectacles, the critic's finding F-Q20) the G9 Room suite shows"
+  "short05": "the anime dogfood short05 'One More Bowl': the live C2 board s9221 (Kuroe in spectacles, the critic's finding F-Q20) the G9 Room suite shows",
+  "g14": "real region edits cropped to the box and 24 px around it (picture and pasted box), with each box's place and feather (seam_cases.json) (G14 seam tone suite)"
  },
  "files": [
   {
@@ -1884,6 +1885,181 @@
    "path": "voice_timbre/vt_table.py",
    "bytes": 526,
    "sha256": "586a52eaef0d1c317286afcc0d4d6d2dd08ca4ae71b9955a442d5557bf9474d9"
+  },
+  {
+   "path": "g14/seam_cases.json",
+   "bytes": 2238,
+   "sha256": "48de07eecf17fbe99aca91a89a24d6bf1b63d4b9e17a48559e86535927af9a57"
+  },
+  {
+   "path": "g14/seam_s9601_08dcb470_edit.png",
+   "bytes": 56592,
+   "sha256": "6288337709f4ac678e3a5099def11a35c52aa06aa83d469bcaa4720f49c5b1ae"
+  },
+  {
+   "path": "g14/seam_s9601_08dcb470_picture.png",
+   "bytes": 87524,
+   "sha256": "99b98f5b2a0c78b3fa27d2f35920c9f7bd89b78a262f6d3434496f1e61ccea10"
+  },
+  {
+   "path": "g14/seam_s9601_273531ac_edit.png",
+   "bytes": 38632,
+   "sha256": "fc96c3eef0b5575f9e5d9035566007f65c5b8d11733efc41b4f01eae92e532ba"
+  },
+  {
+   "path": "g14/seam_s9601_273531ac_picture.png",
+   "bytes": 67746,
+   "sha256": "13f1b8c152288b2134dcf00cfec0cdf520b39fc2948f7238bb1b89666fd35486"
+  },
+  {
+   "path": "g14/seam_s9601_80decc50_edit.png",
+   "bytes": 78922,
+   "sha256": "2bdabd6c2480fdee7fbc46560e38886461f6892512c4beb97ad58fbda4b6fbcb"
+  },
+  {
+   "path": "g14/seam_s9601_80decc50_picture.png",
+   "bytes": 115852,
+   "sha256": "73e9a2558dc046bed9d502e0899deee0299b91b74995ec083cdca6f22338d4d1"
+  },
+  {
+   "path": "g14/seam_s9602_1df123d5_edit.png",
+   "bytes": 56823,
+   "sha256": "4e0085da68bee84e24b37acfc03d5b13ca23b1df4222b74f54513e74a1c2d13d"
+  },
+  {
+   "path": "g14/seam_s9602_1df123d5_picture.png",
+   "bytes": 87524,
+   "sha256": "99b98f5b2a0c78b3fa27d2f35920c9f7bd89b78a262f6d3434496f1e61ccea10"
+  },
+  {
+   "path": "g14/seam_s9602_62c9eced_edit.png",
+   "bytes": 38748,
+   "sha256": "46e87e38035bc67b3ec78d243d48d54a89d5df5c17c631328ed69a9487f8ca56"
+  },
+  {
+   "path": "g14/seam_s9602_62c9eced_picture.png",
+   "bytes": 67746,
+   "sha256": "13f1b8c152288b2134dcf00cfec0cdf520b39fc2948f7238bb1b89666fd35486"
+  },
+  {
+   "path": "g14/seam_s9602_9b6b9f81_edit.png",
+   "bytes": 79541,
+   "sha256": "b5f234e31d8ddde79a3fab09c92bb2337ba3f413f623804e9e79aa7a6f66c316"
+  },
+  {
+   "path": "g14/seam_s9602_9b6b9f81_picture.png",
+   "bytes": 115852,
+   "sha256": "73e9a2558dc046bed9d502e0899deee0299b91b74995ec083cdca6f22338d4d1"
+  },
+  {
+   "path": "g14/seam_s9701_ddb8c408_edit.png",
+   "bytes": 15110,
+   "sha256": "03d810dd9c1fcd5e77c64656f911e901869040643d1d59d7a134bc2f5f232d80"
+  },
+  {
+   "path": "g14/seam_s9701_ddb8c408_picture.png",
+   "bytes": 32798,
+   "sha256": "755c9038ecfa005b645bbed070180ea9b9e5a4c8a35889d363847747a530226a"
+  },
+  {
+   "path": "g14/seam_s9702_f4e6ba3e_edit.png",
+   "bytes": 14691,
+   "sha256": "5f0ad5772502866a87ac219b36f822f44ac62ba90bd8fcdfd8f7fa740527797a"
+  },
+  {
+   "path": "g14/seam_s9702_f4e6ba3e_picture.png",
+   "bytes": 32798,
+   "sha256": "755c9038ecfa005b645bbed070180ea9b9e5a4c8a35889d363847747a530226a"
+  },
+  {
+   "path": "g14/seam_s9711_1bb45b7a_edit.png",
+   "bytes": 3515,
+   "sha256": "7d61dbd0717f9007903eb36b20f544c700bd0b66bc9e7ae44bdc1227c68af88d"
+  },
+  {
+   "path": "g14/seam_s9711_1bb45b7a_picture.png",
+   "bytes": 15591,
+   "sha256": "5e4365b29adc78c3d0ebcbf3a89502e2a33847930046fbbc873243286ef0e604"
+  },
+  {
+   "path": "g14/seam_s9712_8b895d3d_edit.png",
+   "bytes": 3402,
+   "sha256": "e70b3d7dcf23bdfb285102bede7b733e11ef014f20c0c79e4d562d3280b6fd67"
+  },
+  {
+   "path": "g14/seam_s9712_8b895d3d_picture.png",
+   "bytes": 15591,
+   "sha256": "5e4365b29adc78c3d0ebcbf3a89502e2a33847930046fbbc873243286ef0e604"
+  },
+  {
+   "path": "g14/seam_s9911_24f25cd2_edit.png",
+   "bytes": 42367,
+   "sha256": "841cd51cda68e72c47033124747b3b898779a7083904241b4ea372a1496938a0"
+  },
+  {
+   "path": "g14/seam_s9911_24f25cd2_picture.png",
+   "bytes": 66576,
+   "sha256": "d7e6f13553a77ffc1bd4f20b2aa72e5fe9a7e83abd16cc2bfbb3c533866c9388"
+  },
+  {
+   "path": "g14/seam_s9912_798a8278_edit.png",
+   "bytes": 45891,
+   "sha256": "1713bece429390ef616952ef3701825b1bbb807456d3cd668e9024a61ed0e81a"
+  },
+  {
+   "path": "g14/seam_s9912_798a8278_picture.png",
+   "bytes": 66576,
+   "sha256": "d7e6f13553a77ffc1bd4f20b2aa72e5fe9a7e83abd16cc2bfbb3c533866c9388"
+  },
+  {
+   "path": "g14/seam_s9931_af579c34_edit.png",
+   "bytes": 47705,
+   "sha256": "7f6b15d814b530b8ac2d4d894e3f9d19da2487b33adde88af1b96e1fc5529a90"
+  },
+  {
+   "path": "g14/seam_s9931_af579c34_picture.png",
+   "bytes": 64852,
+   "sha256": "88f84c3b38149cadb668fa2815098dbc3f4f748dd85286f4315da1401bdb85dc"
+  },
+  {
+   "path": "g14/seam_s9961_e1da1094_edit.png",
+   "bytes": 161321,
+   "sha256": "b012ec27c639c464955f809e309867c2d6f62e362c3868bfd2e3a4093604801e"
+  },
+  {
+   "path": "g14/seam_s9961_e1da1094_picture.png",
+   "bytes": 216119,
+   "sha256": "67c82fc4f725bf4a10a8d77c2d02099a90c404d37d5d177460fb75b6f73e4509"
+  },
+  {
+   "path": "g14/seam_s9962_f5f67a12_edit.png",
+   "bytes": 154483,
+   "sha256": "876ae658ee6390562659ca697658da263d820520097aa0d1065b025a7437b4ff"
+  },
+  {
+   "path": "g14/seam_s9962_f5f67a12_picture.png",
+   "bytes": 216119,
+   "sha256": "67c82fc4f725bf4a10a8d77c2d02099a90c404d37d5d177460fb75b6f73e4509"
+  },
+  {
+   "path": "g14/seam_s9971_cb1a4cca_edit.png",
+   "bytes": 47384,
+   "sha256": "4fff36f1bd7d30d9141b89fc3dad528f41d55dd6b9a7a9bbdf518aa648b31fb5"
+  },
+  {
+   "path": "g14/seam_s9971_cb1a4cca_picture.png",
+   "bytes": 66576,
+   "sha256": "d7e6f13553a77ffc1bd4f20b2aa72e5fe9a7e83abd16cc2bfbb3c533866c9388"
+  },
+  {
+   "path": "g14/seam_s9972_20e921b8_edit.png",
+   "bytes": 47366,
+   "sha256": "8cc1fe27671fb7e92bdbb92fc6c495c8e4ee3f4f6bc9dc9343c761f140f2e336"
+  },
+  {
+   "path": "g14/seam_s9972_20e921b8_picture.png",
+   "bytes": 66576,
+   "sha256": "d7e6f13553a77ffc1bd4f20b2aa72e5fe9a7e83abd16cc2bfbb3c533866c9388"
   }
  ]
 }

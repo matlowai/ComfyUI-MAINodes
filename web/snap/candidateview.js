@@ -4,7 +4,7 @@
 // edited). The buttons call the same functions as the apply_candidate / reject_candidate / undo_candidate tools.
 // SNAP-R7 lists keep their elements while a pointer is down · SNAP-R17 by · SNAP-R23 candidates · SNAP-R76 a score per
 // person, with that person's crops · SNAP-R79 copied Picture n · SNAP-R111 the character score flags, ArcFace is shown ·
-// SNAP-R112 same composition · SNAP-R191 a region edit's seam · SNAP-R197 each tile says what it is, with Nearby (SNAP-R198) · see docs/snap/SNAP_RULES.md
+// SNAP-R112 same composition · SNAP-R191 a region edit's seam · SNAP-R205 a box that shows · SNAP-R197 each tile says what it is, with Nearby (SNAP-R198) · see docs/snap/SNAP_RULES.md
 import * as C from "./candidates.js";
 import * as CV from "./critiqueview.js";
 import * as P from "./proposals.js";
@@ -33,7 +33,8 @@ export function noteChips(c) {
         title: `copy scores against each picture, below ${n.copied.soft_threshold ?? n.copied.threshold} for all: ${n.copied.against.map((a) => `Picture ${a.n} ${both(a)}`).join("; ")}. The soft score catches a copy drawn again from another viewpoint (short03's aerials of the master 0.84) as well as a re-render (0.9+); new views of the same set scored 0.69-0.81` })]; })()));
   // F-T02 (SNAP-R191): a region edit's seam, amber where something drawn inside doesn't meet the picture outside
   if (n.seam) out.push(n.seam.error ? h("span", { className: "snap-cand-note", textContent: "seam: not checked", title: n.seam.error })
-    : h("span", { className: `snap-cand-note${n.seam.breaks.length ? " warn" : ""}`, textContent: n.seam.breaks.length ? `seam breaks · ${[...new Set(n.seam.breaks.map((b) => b.side))].join(", ")}` : "seam ok", title: n.seam.said }));
+    : h("span", { className: `snap-cand-note${n.seam.breaks.length || n.seam.box_shows?.length ? " warn" : ""}`, title: n.seam.said,
+      textContent: [n.seam.breaks.length ? `seam breaks · ${[...new Set(n.seam.breaks.map((b) => b.side))].join(", ")}` : null, n.seam.box_shows?.length ? `box shows · ${[...new Set(n.seam.box_shows.map((b) => b.side))].join(", ")}` : null].filter(Boolean).join(" · ") || "seam ok" }));
   if (n.layout) out.push(n.layout.error ? h("span", { className: "snap-cand-note", textContent: "layout: not checked", title: n.layout.error })
     : h("span", { className: `snap-cand-note${n.layout.as_planned < n.layout.checked ? " warn" : ""}`, textContent: `layout ${n.layout.as_planned}/${n.layout.checked}${n.layout.order ? ` · order ${n.layout.order}` : ""}`,
       title: `where ${n.layout.detector} finds each thing against the plan:\n${n.layout.rows.map((r) => `${r.ok === false ? "✗" : r.ok ? "✓" : "·"} ${r.name}: plan ${r.plan}, found ${r.found}`).join("\n")}` }));

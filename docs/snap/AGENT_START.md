@@ -423,9 +423,12 @@ them). It works on stills: masters, plates, boards.
   a face that looked away 4/4 (F-U02). Crop only what changes, but past where a thin thing that crosses the crop ends (a
   chain, a strap): each candidate's seam note (`list_candidates` notes.seam, a chip on its tile) lists where the edit
   doesn't meet the picture outside, with `crop_to_try` (one and a half crops past that side, G12: half again still broke on the measured chain); on "seam breaks", edit
-  again with a crop set where the thing ends (F-T02, SNAP-R191). `mask: "<the thing>:1"` keeps the edit only where SAM
-  3.1 finds that thing in the crop: the route for a removal words can't make (SNAP-R204). Stage 2 of a region edit
-  redraws its whole still (SNAP-R202); look at the fixed part after it, since a redraw can draw the flaw back.
+  again with a crop set where the thing ends (F-T02, SNAP-R191). The note's `box_shows` lists each edge where the
+  pasted box came out lighter or darker than the picture around it (a rectangle you can see with no break in it; s9962
+  was +22 grey levels): use `mask`, or a crop whose edges sit on the thing rather than open background (F-Z03,
+  SNAP-R205). `mask: "<the thing>:1"` keeps the edit only where SAM 3.1 finds that thing in the crop: the route for a
+  removal words can't make (SNAP-R204). Stage 2 of a region edit redraws its whole still (SNAP-R202); look at the fixed
+  part after it, since a redraw can draw the flaw back.
 - In the take viewer the same route is "New view from these pictures": add this picture, a marked region of it, or a
   Cast's picture, move them up or down, and pick the model.
 - A small change to one detail (eyes, a prop): `ph3_view` with the still (or a crop of the part, e.g. the face) as

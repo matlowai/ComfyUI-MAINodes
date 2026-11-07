@@ -14,7 +14,7 @@
 // SNAP-R72 what Picture 1 is, per model · SNAP-R75 the view slot's models are data (P-H3-Image, H3 still) ·
 // SNAP-R77 a character sheet is a sheet-slot method whose candidates are takes · SNAP-R79 a new view says which
 // picture it copied · SNAP-R186 a record's picture's new view lands with the record · SNAP-R190 a region edit pastes back · SNAP-R202 its stage 2 is the whole still · SNAP-R204 its SAM mask ·
-// SNAP-R191 its seam is checked · see docs/snap/SNAP_RULES.md
+// SNAP-R191 its seam is checked · SNAP-R205 and its tone · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as C from "./candidates.js";
 import * as K from "./checks.js";
@@ -429,7 +429,8 @@ function pasteBack(g, pic, mask, detector) {
     rm: { class_type: "SolidMask", inputs: { value: 1.0, width: box.width, height: box.height } },
     rf: { class_type: "FeatherMask", inputs: { mask: ["rm", 0], left: box.x > 0 ? f : 0, top: box.y > 0 ? f : 0, right: box.x + box.width < size.width ? f : 0, bottom: box.y + box.height < size.height ? f : 0 } },
     rc: { class_type: "ImageCompositeMasked", inputs: { destination: pic.whole, source: ["rb", 0], x: box.x, y: box.y, resize_source: false, mask: mask ? ["rx", 0] : ["rf", 0] } },
-    rs: { class_type: "MAISnapSeam", inputs: { picture: pic.whole, edit: ["rb", 0], x: box.x, y: box.y, feather: f } },
+    rp: { class_type: "ImageCropV2", inputs: { image: ["rc", 0], crop_region: box } }, // the box as pasted: a masked edit shows only inside its mask (SNAP-R205)
+    rs: { class_type: "MAISnapSeam", inputs: { picture: pic.whole, edit: ["rp", 0], x: box.x, y: box.y, feather: f } },
   });
   if (mask) Object.assign(g, {
     rd: { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: detector } },
@@ -450,7 +451,7 @@ function pasteBack(g, pic, mask, detector) {
 export function unpaste(g, whole) {
   for (const n of Object.values(g)) for (const [k, v] of Object.entries(n.inputs ?? {})) if (Array.isArray(v) && v[0] === "r0s") n.inputs[k] = whole;
   g.o.inputs.images = ["d", 0];
-  for (const k of Object.keys(g)) if (["r0s", "rb", "rm", "rf", "rc", "rs", "rx"].includes(k) || /^(c0[a-z]|rd[a-z]?)$/.test(k)) delete g[k];
+  for (const k of Object.keys(g)) if (["r0s", "rb", "rm", "rf", "rc", "rp", "rs", "rx"].includes(k) || /^(c0[a-z]|rd[a-z]?)$/.test(k)) delete g[k];
 }
 // F-S02 (SNAP-R186): a new view whose Picture 1 is a location's picture (or a Cast's picture it edits) lands with that
 // record: the shot of the take the picture came from, else (a place) the newest take that pins it outside a Book's cuts
@@ -704,10 +705,13 @@ export function seamNote(pasted, out) {
   if (sides.includes("right")) x2 = Math.min(size.width, x2 + box.width * REACH);
   const f = (v) => +v.toFixed(4), along = (b) => `${["top", "bottom"].includes(b.side) ? "x" : "y"} ${b.from}-${b.to}`;
   const edges = (l) => (l.length > 1 ? `${l.slice(0, -1).join(", ")} and ${l.at(-1)} edges` : `${l[0]} edge`);
-  return { breaks: out.seam, checked: out.seam_checked, box,
+  // F-Z03 (SNAP-R205): a box pasted lighter or darker than the picture around it, from a server since G14
+  const shows = out.seam_tone ?? [];
+  const tone = shows.length ? `the box shows: the edit is ${shows.map((t) => `${Math.abs(t.delta)} grey levels ${t.delta > 0 ? "lighter" : "darker"} than the picture along the ${t.side} edge (${along(t)} px)`).join(", ")}. A mask (SNAP-R204) keeps only the thing that changes, or edit again with the crop's edges on the thing rather than open background` : null;
+  const seam = sides.length ? `the edit breaks at the crop's ${edges(sides)} (${out.seam.map(along).join(", ")} px): something drawn inside doesn't meet the picture outside. Look at the seam; to fix it, edit again with the crop past where that thing ends (crop_to_try reaches one and a half crops further on that side, enough on the measured chain; set it where the thing ends when you can see it)` : null;
+  return { breaks: out.seam, checked: out.seam_checked, box, ...(out.seam_tone ? { box_shows: shows } : {}),
     ...(sides.length ? { crop_to_try: [f(x / size.width), f(y / size.height), f((x2 - x) / size.width), f((y2 - y) / size.height)] } : {}),
-    said: sides.length ? `the edit breaks at the crop's ${edges(sides)} (${out.seam.map(along).join(", ")} px): something drawn inside doesn't meet the picture outside. Look at the seam; to fix it, edit again with the crop past where that thing ends (crop_to_try reaches one and a half crops further on that side, enough on the measured chain; set it where the thing ends when you can see it)`
-      : `no break along the crop's ${edges(out.seam_checked.map((c) => c.side))}` };
+    said: seam || tone ? [seam, tone].filter(Boolean).join("; ") : `no break along the crop's ${edges(out.seam_checked.map((c) => c.side))}` };
 }
 C.kind("view", { ...RT.takeCandidate, finish: (d, c, h) => { RT.takeCandidate.finish(d, c, h);
   if (d.options.pasted) c.notes.seam = seamNote(d.options.pasted, h.outputs?.rs); // saved with the candidate's ready state
