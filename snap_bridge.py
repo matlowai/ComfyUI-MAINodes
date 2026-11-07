@@ -749,7 +749,9 @@ async def chrome_tool(request, user, args):
             return error(said, 503)
     tabs, code = await chrome_pages(), served_code()
     if action == "reload":
-        want = (find_page(user, args["page"]) or args["page"]) if args.get("page") else None
+        want = find_page(user, args["page"]) if args.get("page") else None  # F-L13: an id start or a name resolves as use_page does
+        if args.get("page") and want is None:
+            return error(f"No Snap page matched {args['page']!r} (a page id, a unique start of one, or its name; list_pages lists them): nothing was reloaded", 404)
         hit = [(t, c) for t, c in tabs if c in pages and pages[c]["user"] == user and want in (None, c)]  # only this server's tabs
         if not hit:
             return error(f"No Snap tab {args.get('page') or ''} of this ComfyUI in the agents' window; its tabs: {', '.join(t['url'] for t, _ in tabs) or 'none'} (chrome {{\"action\": \"status\"}})"
@@ -770,7 +772,7 @@ async def chrome_tool(request, user, args):
              "code_current": pages[c]["code"] == code if c in pages else None, "driven_by": drivers.get(c)} for t, c in tabs]
     running = bool(await chrome_targets()) or bool(tabs)
     return web.json_response({"result": {"running": running, "cdp": chrome_state().get("cdp"), "tabs": rows,
-                                         **({"reloaded": [r for r in rows if r["page"] and (not args.get("page") or r["page"] == (find_page(user, args["page"]) or args["page"]))]} if action == "reload" else {}),
+                                         **({"reloaded": [r for r in rows if r["page"] and (want is None or r["page"] == want)]} if action == "reload" else {}),
                                          **({"said": said} if action in ("start", "restart") else {})}})
 
 

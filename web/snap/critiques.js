@@ -421,6 +421,11 @@ export const TOOLS = [
     annotations: { readOnlyHint: true, untrustedContentHint: true },
     run: async ({ state, take, ref, checklist, stale, compact, offset = 0, limit } = {}) => {
       await Promise.all([load(), T.load(), W.load()]);
+      if (take) { // F-L18: a unique start of a take id finds its rows, as other tools resolve takes
+        const ids = [...new Set(rows.flatMap((r) => [r.subject.take, ...(r.subject.pair ?? [])]).filter(Boolean))], hit = ids.includes(take) ? [take] : ids.filter((id) => id.startsWith(take));
+        if (hit.length > 1) throw new Error(`take ${take} starts ${hit.length} takes' ids: ${hit.join(", ")}; give more of it`);
+        if (hit.length === 1) take = hit[0];
+      }
       // F-G11: one record's rows in a long docket: ref matches a row about that record (any version unless @n is given)
       const of = ref && W.parse(ref), mine = (r) => { if (r.subject.kind !== "record") return false; const x = W.parse(r.subject.ref); return x.kind === of.kind && x.id === of.id && (of.n == null || x.n === of.n); };
       const match = rows.filter((r) => (!state || stateOf(r) === state) && (!take || r.subject.take === take || r.subject.pair?.includes(take)) && (!ref || mine(r)) && (!checklist || r.checklist === checklist) && (stale == null || !!staleOf(r) === stale));
