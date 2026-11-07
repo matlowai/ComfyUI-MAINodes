@@ -1591,7 +1591,7 @@ async function offerPlates(sceneId, shotId) {
   const need = await PL.forShot(card);
   if (!need || need.rendering || need.waiting) return need;
   const args = { set: need.set, cameras: [need.camera] }, same = P.pending().find((p) => p.tool === "make_set_plates" && p.args.set === need.set && p.args.cameras?.join() === need.camera);
-  const p = same ?? P.add("make_set_plates", args, `${SC.shotTitle(scene, shot)}: ${need.camera} has no camera plate yet; make candidates to pick from`, null, await byName.get("make_set_plates").plan(args));
+  const p = same ?? await P.add("make_set_plates", args, `${SC.shotTitle(scene, shot)}: ${need.camera} has no camera plate yet; make candidates to pick from`, null, await byName.get("make_set_plates").plan(args));
   return { ...need, proposed: p.id, plan: p.plan };
 }
 
@@ -1661,11 +1661,11 @@ export async function callTool(name, args = {}, { confirmed } = {}) {
   if (plan?.eta_s > 600) plan.holds_queue = `about ${Math.round(plan.eta_s / 60)} min on this GPU: every prompt queued after it waits that long (queue it when the queue is empty, or say so to the person)`;
   if ((tool.consequential || tool.decides) && !confirmed && !(B.allows(name, mayRun()) ?? mayRun())) { // SNAP-R67: inside a Book its dial decides per stage
     const why = tool.decides ? "the person's pick" : "uses the GPU";
-    const p = P.add(name, rest, reason ?? `${name.replaceAll("_", " ")} (${why})`, for_note, plan);
+    const p = await P.add(name, rest, reason ?? `${name.replaceAll("_", " ")} (${why})`, for_note, plan);
     return { proposed: p.id, ...warning, ...(plan ? { plan } : {}), status: `${why}: waiting for the person to accept (or to allow agents to run in ComfyUI's settings)` };
   }
   if (propose && proposable(name)) {
-    const p = P.add(name, rest, reason, for_note, plan);
+    const p = await P.add(name, rest, reason, for_note, plan);
     return { proposed: p.id, ...warning, ...(plan ? { plan } : {}), status: "waiting for the person to accept or reject; see list_proposals" };
   }
   const out = await tool.run(rest, { confirmed });

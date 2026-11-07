@@ -9,7 +9,7 @@ proposes, never downloads · SNAP-R27 locks follow the current rules · SNAP-R30
 health listing, errors that say what to do · SNAP-R33 the rating cap's second line · SNAP-R36 quiet sound ·
 SNAP-R37 privacy per install · SNAP-R38 metadata off writes none, the rest is named · SNAP-R39 ratings from how a thing
 was made · SNAP-R65 the Work card's jobs and progress, an agent page's own screenshot · SNAP-R74 Load Audio lists input/snap/ ·
-SNAP-R78 a stale tab says so, agents ask (request_reload), the person reloads · SNAP-R83 the agents' window: one visible
+SNAP-R139 proposals kept on the server · SNAP-R78 a stale tab says so, agents ask (request_reload), the person reloads · SNAP-R83 the agents' window: one visible
 Chrome agents drive, reload and restart, the default with the person's tab; never headless · SNAP-R96 private takes saved
 encrypted (snap_vault_server.py) · SNAP-R98 their ffmpeg steps work in RAM scratch · SNAP-R93/R94 the pack's notes end
 the bridge tools' descriptions, /info names the docs and skills, a call names its agent · SNAP-R135 a hold on a page ends
@@ -446,6 +446,54 @@ async def adopt(request):
     mine = pid not in adopted
     adopted.add(pid)
     return web.json_response({"id": pid, "mine": mine})
+
+
+PROPOSALS = "snap/proposals.json"
+ANSWERS = ("accepted", "rejected", "failed", "withdrawn")
+proposals_lock = asyncio.Lock()
+
+
+def read_proposals(path):
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+@routes.get("/mainodes/snap/proposals")
+async def proposals(request):
+    """SNAP-R139: agents' proposals live here, not in the page that made them, so a reload or a second page keeps them"""
+    async with proposals_lock:
+        return web.json_response({"rows": read_proposals(PromptServer.instance.user_manager.get_request_user_filepath(request, PROPOSALS))})
+
+
+@routes.post("/mainodes/snap/proposals")
+async def proposals_write(request):
+    """{add: {tool, args, reason, ...}} -> the row with the next id (p1, p2, ...); {id, status, result} answers one:
+    running only from waiting (so one page applies it), an answer from waiting or running"""
+    q = await request.json()
+    path = PromptServer.instance.user_manager.get_request_user_filepath(request, PROPOSALS)
+    async with proposals_lock:
+        rows = read_proposals(path)
+        if q.get("add"):
+            row = {**q["add"], "id": f"p{max([int(r['id'][1:]) for r in rows] or [0]) + 1}", "status": "waiting", "created": int(time.time() * 1000)}
+            rows.append(row)
+        else:
+            row = next((r for r in rows if r["id"] == q.get("id")), None)
+            if row is None:
+                return web.json_response({"error": f"No proposal {q.get('id')} (list_proposals lists them)"}, status=404)
+            status = q.get("status")
+            if status not in ("running", *ANSWERS):
+                return web.json_response({"error": f"status is running or one of {', '.join(ANSWERS)}; not {status!r}"}, status=400)
+            if row["status"] not in (("waiting",) if status == "running" else ("waiting", "running")):
+                return web.json_response({"error": f"{row['id']} is {row['status']} already", "row": row}, status=409)
+            row.update({"status": status, "answered": int(time.time() * 1000), **({"result": q["result"]} if "result" in q else {})})
+        tmp = f"{path}.{os.getpid()}.tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(rows, f, ensure_ascii=False)
+        os.replace(tmp, path)
+    PromptServer.instance.send_sync("mainodes-snap-proposals", {"id": row["id"], "status": row["status"]})
+    return web.json_response({"row": row})
 
 
 @routes.get("/mainodes/snap/progress")

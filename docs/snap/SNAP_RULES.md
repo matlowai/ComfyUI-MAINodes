@@ -1345,3 +1345,41 @@ Next free ID after this batch: SNAP-R139.
   and a method that must not draw text says so in prose. *Why:* the Krea 2 DynamicCharacterSheet card drew labels on 4/4
   sheets with the author's headings and on 0/4 with prose, same layout and identity (F-E25, scout
   krea_pitch_sheet_2026-11-06). *More:* tests/snap/test_g3_cards.py.
+
+## Batch G4 (2026-11-06)
+
+Next free ID after this batch: SNAP-R143.
+
+- **SNAP-R139: An agent's proposals live on the server, stack on each other, and keep their answers.** A proposal is a
+  row in the person's `snap/proposals.json` (`/mainodes/snap/proposals`), not page memory: a reload, a second page or
+  the agents' window restarting keeps it, and an answer (accepted with its result, rejected, failed, withdrawn) stays
+  listed. A recipe proposal belongs to its graph; a Book's canon proposal (story, style, dial) belongs to the Book and
+  shows on every graph, on the Book's "Waiting for you" rows, as a ghost beat on the Beat sheet, on the Work card and in
+  `get_book.proposals`. A story edit is built on the story as the Book's waiting proposals would leave it: it may name
+  a beat that is only proposed (`needs`), the Accept of it accepts what it needs first, and rejecting one withdraws what
+  was built on it. A proposed beat keeps the id the answer gave. Only one page applies an Accept (the server holds it).
+  *Why:* short05 F-F02 (the script supervisor's pass stalled at the first proposed beat), F-F10 (the Book's proposals
+  showed nowhere the person looks), F-F19 (a reload of the agents' window lost the whole draft without a trace).
+  *More:* SNAP-R67, SNAP-R65.
+- **SNAP-R140: A record's own pictures are not its dependents, and a take made from a stale take follows it.**
+  `dependents` and `rerun_dependents` leave out the record itself (each version's master take, the takes it was edited
+  from, and the other candidates of the decision that made each) and candidates that were rejected or not picked, and
+  name them in `left_out`; a take made from a stale take (an edit, a first frame, a reference) is listed in `follows`
+  with its parent, even when it pins nothing of the record. *Why:* short05 F-F07: after the master fix, re-run
+  dependents would have re-made the master's own first candidates from the plan (undoing the fix), re-run rejected
+  candidates, and missed the eye-level still and the walkthrough that carried the old cart. *More:* SNAP-R105,
+  SNAP-R106.
+- **SNAP-R141: apply_unit cites every picture from References as they finally stand, and voices only the speakers.**
+  The cites (board, camera plate, place, key drawing, each Cast by its pictures) are read after the last picture went
+  in; the description carries the beats' action and the unit's blocking and camera; a Cast's voice reference stays only
+  on a cut where that Cast has a line; the length is the next one the model takes, never a shorter one, and said when
+  it differs. `compile_unit.board` is exactly what `make_board` sends, and a beat waiting in a proposal is named with
+  the proposal's id. *Why:* short05 F-F09 (four cuts with <Picture 5> called the place when it was a Cast's back view,
+  no action, a voice on cuts where its character is silent, 4 s became 3.75 s) and F-F03 (the sheet didn't show the
+  board's prompt). *More:* SNAP-R68, SNAP-R137.
+- **SNAP-R142: A cut has an opening board and may have a key drawing.** The board (`set_board`, role opening) is the
+  frame the cut starts on, before the beat's peak; the key drawing (role key) is the peak, put in References as what
+  the cut builds to. `make_board` takes `context` (another cut's board, a take or a file) instead of the previous
+  cut's board, so a cut that shares a camera with an earlier one starts from it. Ref2V reads a board as a reference,
+  not an exact first frame, and apply_unit says so. *Why:* short05 F-F16 (C3's board at the burst's peak made the video
+  start at its peak; C4 couldn't take C2's camera). *More:* SNAP-R131.

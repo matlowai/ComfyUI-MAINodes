@@ -501,6 +501,13 @@ it on the Library rail's **Book** row (lenses Beat sheet, Settei, Boards, Cut ba
   `keep_as_canon`, `set_autonomy` and a change to the Book's style (`save_style`) always answer `proposed`: the
   person's Accept (the Book's "Waiting for you" row, or the Work card) makes the version. The answer says what the edit
   would re-flag (`reversal_cost`). Don't ask them to turn anything on to skip this; it holds at every dial position.
+  The Book's first style is the exception: a Book with no style takes it directly, and the answer says so.
+- **Proposals stack and stay** (SNAP-R139). A story edit builds on the story as the Book's waiting proposals would leave
+  it: propose b1, then `add_change {"beat": "b1"}` at once; the answer's `needs` names the proposal that adds b1, and
+  the person's Accept of the change accepts b1 first (rejecting b1 withdraws the change). Proposals live on the server:
+  a reload or another page keeps them, `list_proposals` and `get_book.proposals` give each one's answer (accepted,
+  rejected, failed, withdrawn), and the person sees them on the Book's "Waiting for you" rows, as ghost beats on the
+  Beat sheet and on the Work card.
 - **The dial** (`autonomy`): per stage (beat_sheet, pages, settei, boards, cut_bag, dailies, the_cut) assist (your GPU
   work and picks wait), collaborate (as "Let agents run"), automatic (they go ahead, recorded as yours). It applies
   while the open shot is a Book cut; elsewhere "Let agents run" decides as before.
@@ -513,8 +520,11 @@ it on the Library rail's **Book** row (lenses Beat sheet, Settei, Boards, Cut ba
   the next cut number (C1, C2…: an id). `set_unit` changes it (`trim {in_s, out_s, gain_db}` for the Cut).
 - **Compile, then apply**: `compile_unit {"scene", "shot"}` is the compiled state sheet (each field with the beat and
   change that set it, its sentence, "words only" or its state picture; the place; the reference package; the prompt
-  with the style paragraph first; palette notes). `apply_unit` puts it into the cut's recipe (open the shot and
-  `start_recipe` first on an empty one) and pins what the take will carry; then `run`. Both take `beats` (the Beat
+  with the style paragraph first, then the beats' text, the unit's blocking and camera; palette notes; a beat still
+  waiting in a proposal is named with its id; `board`: exactly what `make_board` sends). `apply_unit` puts it into the cut's recipe (open the shot and
+  `start_recipe` first on an empty one) and pins what the take will carry, citing every picture from References as
+  they finally stand and giving a Cast its voice only where it has a line (SNAP-R141); its answer gives the whole
+  prompt. Then `run`. Both take `beats` (the Beat
   slot): the same cut at another story moment, and its takes remember it. `story_stale {"book"}` names
   the takes whose used fields moved.
 - **Style**: `save_style {"book", "name", "paragraph", "palette": "monochrome" | "limited" | "full", "still": {"take"} or
@@ -523,7 +533,9 @@ it on the Library rail's **Book** row (lenses Beat sheet, Settei, Boards, Cut ba
 - **Settei**: `save_cast_state {"cast", "state": "oilskin", "covers": {"wardrobe": "the oilskin"}, "pictures": [{"take",
   "view": "front"}]}`; a state with no picture compiles "words only".
 - **Boards → animatic → video → the Cut**: `make_board {"scene", "shot"}` (a New view from the cut's plate, the previous
-  board and its Cast; candidates land in the shot), `set_board {"scene", "shot", "take" or "file", "approved": true}`,
+  board and its Cast; candidates land in the shot; `context: [{"cut": "C2"}]` picks the prior view, e.g. the cut that
+  shares this camera; `role: "key"` draws the beat's peak instead of the opening), `set_board {"scene", "shot", "take"
+  or "file", "approved": true}` (`role: "key"` sets the key drawing: a reference the cut builds to, SNAP-R142),
   `animatic {"book"}` (boards timed in telling order, kept takes in place of their boards; one video lands as a take of
   the Book: `wait_for` its run), then video per cut from its approved board (`apply_unit` opens it on the board), and
   `export_cut {"book"}` (the active takes in telling order with their trims and levels: one mp4 plus an OTIO file

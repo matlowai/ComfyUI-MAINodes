@@ -29,7 +29,9 @@ until the person accepts it. Tool calls: `docs/snap/AGENT_START.md` ("The Book")
 3. **Beats** (the writers' room). Propose the beats with `add_beat`: one thing happens, is learned, or a relationship
    moves. Give each its intent and intensity (the director pass: how hard it hits, by the genre's playbook). Plants and
    payoffs (`plants [{what, window}]`, `pays_off`) make the Beat sheet flag an unpaid setup. Every story edit is a
-   proposal; tell the person what it is for in one line and wait. Don't batch many unrelated edits into one
+   proposal; tell the person what it is for in one line. You don't have to wait: the next edit may name a beat that is
+   only proposed (its answer's `needs` says which proposal it builds on; the person's Accept takes them in order).
+   Don't batch many unrelated edits into one
    `save_story`: the person accepts beat by beat. A script the person already has goes in whole with
    `import_fountain` (Fountain; `export_fountain` gives Pages back as text).
 4. **The script supervisor's pass.** For each beat, read its text and propose the state changes it implies, one
@@ -48,8 +50,12 @@ until the person accepts it. Tool calls: `docs/snap/AGENT_START.md` ("The Book")
    Until then the compile marks it "words only": pictures win over words, so fill the gaps before video.
 6. **Cuts** (`add_cut`): beats, Cast, props, location and the plate whose framing is the camera, seconds, sound,
    the transition to the next cut. Read `compile_unit` for each: who holds what, which picture backs each field,
-   what is words only, the reference budget.
-7. **Boards → animatic.** `make_board` per cut (`snap-boards` for the craft), pick with `set_board` and approve; play
+   what is words only, the reference budget, and `board` (the prompt and pictures `make_board` will send). A lint
+   "waiting in proposal pN" means that beat isn't canon yet: the cut compiles from its blocking and camera only.
+7. **Boards → animatic.** `make_board` per cut (`snap-boards` for the craft), pick with `set_board` and approve. The
+   board is the frame the cut opens on (calm, before the peak); a beat's peak is a key drawing (`make_board {role:
+   "key"}`, `set_board {role: "key"}`), cited as what the cut builds to. A cut that shares another's camera takes
+   that cut's board as context (`context: [{cut}]`). Play
    `animatic {book}` and run the cut-pair checks on the boards (`snap-critic`). Fixes cost seconds here.
 8. **Video.** `apply_unit` then `run` per approved cut. `story_stale {book}` after any story or style edit tells which
    takes moved, by field and beat.

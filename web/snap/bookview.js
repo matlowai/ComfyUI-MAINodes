@@ -5,7 +5,8 @@
 // each Cast's base pictures, states and voice, each location's master and plan (drawn here, planview.js). Boards: one
 // frame per cut in telling order with its timing and transition, approve, make a board, play the animatic. Cut bag:
 // each cut's compiled state sheet with provenance and its render bar. The Cut: the active takes in telling order with
-// trims and sound levels, export one mp4 and an OTIO. Agents' story proposals wait on top (the Book's docket).
+// trims and sound levels, export one mp4 and an OTIO. Agents' story proposals wait on top (the Book's docket), their beats
+// as ghost cards on the spine, and the answered ones stay listed (SNAP-R139, F-F10/F-F19).
 // SNAP-R67 the Book and the story clock · SNAP-R68 compile with provenance · SNAP-R69 settei per state · SNAP-R130 the
 // production style · SNAP-R131 boards and the animatic · SNAP-R132 the Cut · SNAP-R133 the plan drawn here · SNAP-R80
 // every picture full size · SNAP-R58 nothing trimmed · SNAP-R8 judged from screenshots · see docs/snap/SNAP_RULES.md
@@ -24,7 +25,7 @@ const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.crea
 const fill = (el, ...kids) => el.replaceChildren(...kids.flat(Infinity).filter((k) => k != null && k !== false)); // never "null" (LESSONS)
 const hostOf = (el) => el?.closest(".snap-root") ?? document.querySelector(".snap-root");
 const LENSES = [["beat_sheet", "Beat sheet"], ["pages", "Pages"], ["settei", "Settei"], ["boards", "Boards"], ["cut_bag", "Cut bag"], ["the_cut", "the Cut"]];
-const BOOK_TOOLS = new Set(["add_beat", "edit_beat", "move_beat", "add_change", "remove_change", "save_story", "set_autonomy", "save_style", "set_book_style", "set_board", "make_board"]);
+const BOOK_TOOLS = new Set(["set_board", "make_board"]); // the Book's GPU and pick proposals (graph-bound); canon ones carry `book`
 const pic = (file, name, source, group, cls = "") => full(h("img", { className: cls, src: inputUrl(file), alt: name, loading: "lazy", onerror: (e) => e.target.replaceWith(h("div", { className: "snap-cast-missing", textContent: `✕ ${file} isn't in input/` })) }), { src: inputUrl(file), name, source: `input/${file}${source ? ` · ${source}` : ""}` }, group);
 // a state value as a person reads it: a Cast by name, a prop by its name, an empty value as "none"
 const shown = (v) => (v == null || v === "" ? "none" : Array.isArray(v) ? v.map(shown).join(", ") : typeof v === "string" ? (v.startsWith("cast:") ? W.get(v)?.version.body.name ?? v : v.replace(/^prop:/, "").replaceAll("-", " ")) : JSON.stringify(v));
@@ -38,11 +39,11 @@ function listen() {
   const live = () => sheetOpen?.sheet.isConnected;
   W.onChange(() => { if (live()) sheetOpen.redraw(); });
   SC.onChange(() => { if (live() && sheetOpen.lens() !== "cut_bag") sheetOpen.redraw(); });
-  P.onChange(() => { if (live()) sheetOpen.docket(); });
+  P.onChange(() => { if (!live()) return; sheetOpen.docket(); if (sheetOpen.lens() === "beat_sheet") sheetOpen.redraw(); });
 }
 export async function openBook(host, { book: ref = null, lens = "beat_sheet", say } = {}) {
   host.querySelector(".snap-book-sheet")?.remove();
-  await Promise.all([W.load(), SC.load(), T.load(), L.ready()]);
+  await Promise.all([W.load(), SC.load(), T.load(), L.ready(), P.load().catch(() => {})]);
   let bookRef = ref ?? B.books()[0]?.ref ?? null, tab = LENSES.some(([k]) => k === lens) ? lens : "beat_sheet", picked = null, dialOpen = false;
   const status = h("div", { className: "snap-quiet snap-book-status", role: "status" }), body = h("div", { className: "snap-book-body" }), top = h("div", { className: "snap-book-top" }), docket = h("div", { className: "snap-book-docket" });
   const tabs = h("div", { className: "snap-seg snap-book-tabs", role: "tablist" });
@@ -66,12 +67,17 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
         h("div", { className: "snap-quiet", textContent: "Story and style edits from agents wait for you at every position." })) : null);
   }
   // the Book's docket: agents' proposals about it, waiting for the person, with what each would re-open
+  const ofBook = (b) => (p) => p.book === `book:${b.id}` || (BOOK_TOOLS.has(p.tool) && W.parse(String(p.args.book ?? "book:x")).id === b.id);
+  const accept = (p) => act(async () => { const out = await P.decide(p.id, true, callTool); return out?.status === "accepted" ? `Accepted ${p.id}: ${p.reason}` : out ? `Couldn't apply ${p.id}: ${out.result}` : `${p.id} was answered on another page`; });
+  const reject = (p) => act(async () => { const out = await P.decide(p.id, false, callTool); return out ? `Rejected ${p.id}` : `${p.id} was answered on another page`; });
   function drawDocket() {
-    const b = bookRef && B.bookOf(bookRef), mine = b ? P.pending().filter((p) => BOOK_TOOLS.has(p.tool) && (p.args.book === bookRef || p.args.book === `book:${b.id}` || W.parse(String(p.args.book ?? "book:x")).id === b.id)) : [];
+    const b = bookRef && B.bookOf(bookRef), mine = b ? P.pending().filter(ofBook(b)) : [], answered = b ? P.all().filter((p) => p.status !== "waiting" && p.status !== "running" && ofBook(b)(p)) : [];
     fill(docket, mine.length ? [h("div", { className: "snap-rail-title", textContent: `Waiting for you (${mine.length})` }), ...mine.map((p) => h("div", { className: "snap-book-prop" },
-      h("span", { className: "snap-agent", textContent: "agent" }), h("span", { className: "snap-book-prop-what", textContent: p.reason || p.tool.replaceAll("_", " ") }),
-      h("button", { className: "snap-accept", textContent: "Accept", onclick: act(async () => { const out = await P.decide(p.id, true, callTool); return out?.status === "accepted" ? `Accepted: ${p.reason}` : `Couldn't apply it: ${out?.result}`; }) }),
-      h("button", { className: "snap-reject", textContent: "Reject", onclick: act(async () => { await P.decide(p.id, false, callTool); return "Rejected"; }) })))] : []);
+      h("span", { className: "snap-agent", textContent: "agent" }), h("strong", { textContent: p.id }), h("span", { className: "snap-book-prop-what", textContent: p.reason || p.tool.replaceAll("_", " ") }),
+      p.needs?.length ? h("span", { className: "snap-al-chip", title: "accepting this accepts these first", textContent: `needs ${p.needs.join(", ")}` }) : null,
+      h("button", { className: "snap-accept", textContent: "Accept", onclick: accept(p) }), h("button", { className: "snap-reject", textContent: "Reject", onclick: reject(p) })))] : [],
+      answered.length ? h("details", { className: "snap-book-answered" }, h("summary", { className: "snap-quiet", textContent: `Answered (${answered.length})` }),
+        answered.map((p) => h("div", { className: "snap-quiet", textContent: `${p.id} ${p.status}: ${p.reason || p.tool.replaceAll("_", " ")}${p.status !== "accepted" && typeof p.result === "string" ? ` · ${p.result}` : ""}` }))) : null);
   }
   function drawTabs() { fill(tabs, ...LENSES.map(([k, label]) => h("button", { className: tab === k ? "on" : "", textContent: label, role: "tab", ariaSelected: String(tab === k), onclick: () => { tab = k; draw(); } }))); }
 
@@ -98,11 +104,18 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
           // the state this beat puts the character in, when it has settei: its picture in the lane (a gap shows as words)
           const st = cs.length ? B.stateFor(W.get(ref)?.version.body, B.stateAt(story, ref, x.id)) : null, thumb = st && cs.some((c) => c.path in (st.covers ?? {})) ? st.pictures?.[0] : null;
           return h("div", { className: `snap-book-lane-cell${cs.length ? " mark" : ""}`, title: cs.map((c) => `${c.path} ${c.op} ${shown(c.value)}${c.why ? ` (${c.why})` : ""}`).join("\n") }, cs.map((c) => h("span", { textContent: `${c.path} → ${shown(c.value)}` })), thumb ? pic(thumb.file, `${name}, ${st.name}`, `state ${st.name}`, `book-lane-${ref}`, "snap-book-lane-thumb") : null); })); }));
+    // F-F10: the beats agents proposed, as ghost cards after the spine, each with its proposal's Accept and Reject
+    const ghosts = P.pending().filter((p) => p.book === `book:${b.id}` && p.tool === "add_beat");
+    const proposed = ghosts.length ? h("div", { className: "snap-book-ghosts" }, h("div", { className: "snap-quiet snap-book-lane-name", textContent: "proposed" }), ...ghosts.map((p) => h("div", { className: "snap-book-beat snap-book-ghost" },
+      h("div", { className: "snap-book-beat-id" }, h("strong", { textContent: p.makes?.[0] ?? "new" }), h("span", { className: "snap-al-chip", textContent: `${p.id}${p.args.after ? ` · after ${p.args.after}` : ""}` })),
+      h("div", { className: "snap-book-beat-text", textContent: p.args.text }), p.args.changes?.length ? h("span", { className: "snap-al-chip choice", textContent: `${p.args.changes.length} change${p.args.changes.length === 1 ? "" : "s"}` }) : null,
+      h("div", { className: "snap-book-beat-marks" }, h("button", { className: "snap-accept", textContent: "Accept", onclick: accept(p) }), h("button", { className: "snap-reject", textContent: "Reject", onclick: reject(p) }))))) : null;
+    const waiting = P.pending().filter(ofBook(b)).length;
     const sel = story.beats.find((x) => x.id === picked);
-    const detail = sel ? beatDetail(b, st, sel, save) : h("div", { className: "snap-quiet", textContent: story.beats.length ? "Pick a beat to edit its text, changes, lines, plants and payoffs." : "No beats yet." });
+    const detail = sel ? beatDetail(b, st, sel, save) : h("div", { className: "snap-quiet", textContent: story.beats.length ? "Pick a beat to edit its text, changes, lines, plants and payoffs." : waiting ? `No beats yet: ${waiting} proposal${waiting === 1 ? "" : "s"} wait above, accept or reject them there.` : "No beats yet." });
     const add = h("button", { className: "snap-link snap-quiet-btn", textContent: "+ Beat", onclick: act(async () => { const out = B.withBeat(story, { text: "", after: picked ?? undefined }); const saved = await B.saveStory(st.id, out.story, { note: `beat ${out.beat} added` }); picked = out.beat; return `Story v${saved.n}: ${out.beat} added`; }) });
     return [h("div", { className: "snap-book-row" }, h("div", { className: "snap-rail-title", textContent: "Spine (telling order)" }), h("span", { className: "snap-spacer" }), add),
-      h("div", { className: "snap-book-scroll" }, groupBands.childElementCount ? groupBands : null, cards, lanes), flags.length ? h("div", { className: "snap-book-flags" }, flags.map((f) => h("div", { textContent: `⚑ ${f}` }))) : null, detail];
+      h("div", { className: "snap-book-scroll" }, groupBands.childElementCount ? groupBands : null, cards, lanes, proposed), flags.length ? h("div", { className: "snap-book-flags" }, flags.map((f) => h("div", { textContent: `⚑ ${f}` }))) : null, detail];
   }
   function beatDetail(b, st, x, save) {
     const story = st.body, edit = (k) => (e) => { const v = e.target.value; if ((x[k] ?? "") === v) return; save(B.withEdit(story, x.id, { [k]: v || null }), `${x.id} ${k}`)(); };
@@ -265,6 +278,9 @@ export const BOOK_STYLE = `
 .snap-book-dial { flex-basis: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 12px; padding: 8px 0 2px; }
 .snap-book-docket:not(:empty) { padding: 8px 16px; border-bottom: 1px solid var(--s-line); background: color-mix(in srgb, #f0b445 8%, transparent); }
 .snap-book-prop { display: flex; align-items: center; gap: 8px; padding: 3px 0; } .snap-book-prop-what { flex: 1; }
+.snap-book-answered summary { cursor: pointer; padding-top: 4px; }
+.snap-book-ghosts { display: grid; gap: 6px; grid-template-columns: 120px repeat(auto-fill, minmax(150px, 220px)); }
+.snap-book-ghost { cursor: default; border-style: dashed; border-color: #a78bfa88; opacity: .92; }
 .snap-book-body { flex: 1; overflow: auto; padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
 .snap-book-status { padding: 6px 16px 10px; }
 .snap-book-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

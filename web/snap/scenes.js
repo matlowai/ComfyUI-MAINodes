@@ -371,7 +371,7 @@ export async function removeScene(id, by = "person") {
   if (r.status !== 200) throw new Error(`${scene.name} couldn't be parked (${r.status} ${await r.text()})`);
   scenes = scenes.filter((x) => x.id !== id);
   changed();
-  const withdrawn = P.withdraw((p) => p.args?.scene === id, "scene deleted");
+  const withdrawn = await P.withdraw((p) => p.args?.scene === id, "scene deleted");
   return { scene: id, parked: parkedFile(id), withdrawn, said: `${scene.name} deleted: its document is parked in your user folder (${parkedFile(id)}); its ${scene.shots.length} shot workflow${scene.shots.length === 1 ? "" : "s"} and ${takes} take${takes === 1 ? "" : "s"} are kept${withdrawn ? ` · ${withdrawn} agent proposal${withdrawn === 1 ? "" : "s"} about it withdrawn` : ""}` };
 }
 

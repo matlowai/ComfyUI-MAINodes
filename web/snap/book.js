@@ -13,7 +13,8 @@
 // at every dial position; everything else obeys the dial per stage.
 // SNAP-R67 the Book and the story clock · SNAP-R68 compile with provenance; a render never writes state · SNAP-R69 a
 // state is held by its pictures · SNAP-R130 the production style record · SNAP-R131 boards and the animatic · SNAP-R132
-// the Cut · SNAP-R60 versions · SNAP-R11 nothing blocks · see docs/snap/SNAP_RULES.md
+// the Cut · SNAP-R139 canon proposals stack · SNAP-R141 apply cites References as they stand · SNAP-R142 opening board
+// and key drawing · SNAP-R60 versions · SNAP-R11 nothing blocks · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as W from "./world.js";
 import * as SC from "./scenes.js";
@@ -346,7 +347,11 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
   const style = styleOf(book.body), sentences = [], package_ = [], lint = [], from = {}, words = [];
   const say = (text, src) => { if (text) sentences.push({ text: cap(text.replace(/\.?$/, ".")), from: src }); };
   for (const b of present) { say(b.text, `story ${b.id} text`); from[`${b.id}.text`] = b.text; }
-  for (const b of beats.filter((x) => x.missing)) lint.push(`beat ${b.id} isn't in the story any more: the unit compiles without it`);
+  // F-F09: the unit's own blocking and camera are the cut's action too (a cut whose beats wait as proposals still moves)
+  if (unit.blocking) say(unit.blocking, "the unit's blocking");
+  if (unit.camera) say(`Camera: ${unit.camera}`, "the unit's camera");
+  const waiting = waitingBeats(book);
+  for (const b of beats.filter((x) => x.missing)) lint.push(waiting.has(b.id) ? `beat ${b.id} is waiting in proposal ${waiting.get(b.id)} (not accepted yet): the unit compiles without it until the person accepts` : `beat ${b.id} isn't in the story any more: the unit compiles without it`);
   // entities: the unit's Cast, then any other entity the story changes that the unit names (props)
   const castRefs = unit.cast ?? [], other = entitiesOf(story).filter((e) => !e.startsWith("cast:") && (unit.props ?? []).includes(e));
   const entities = [];
@@ -396,17 +401,19 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
   // one is, so a board doesn't draw a lantern spirit with a girl's body (U97 GPU board, C2)
   const who = entities.filter((e) => e.ref.startsWith("cast:") && !e.missing).map((e) => { const line = L.castLine(W.get(e.ref)?.version.body ?? {}); return line ? `${e.name} is ${line}.` : null; }).filter(Boolean);
   const subject = [...sentences.map((s) => s.text), ...who].join(" ");
-  return {
+  const out = {
     book: book.ref ?? `book:${book.id}`, scene: scene.id, shot: shot.id, cut: unit.cut ?? null, unit_kind: unit.kind ?? "cut",
     story: st ? { ref: st.ref, n: st.n } : null, at: at ? { beat: at.id, order: at.order, told: at.told, text: at.text, ...(at.intent ? { intent: at.intent } : {}), ...(at.intensity ? { intensity: at.intensity } : {}) } : null,
-    ...(present.length ? {} : { note: "no beat: this unit compiles from the Cast's base, as any shot does" }),
+    ...(present.length ? {} : { note: beats.some((b) => waiting.has(b.id)) ? `no accepted beat yet (${beats.filter((b) => waiting.has(b.id)).map((b) => `${b.id} waits in ${waiting.get(b.id)}`).join(", ")}): this unit compiles from the Cast's base and its own blocking and camera` : "no beat: this unit compiles from the Cast's base, as any shot does" }),
     style: style ? { ref: style.ref, name: style.body.name, palette: style.body.palette, ...(style.body.still ? { still: style.body.still.file } : {}) } : null,
     entities, place, package: pictures, budget: { used: Math.min(pictures.length, budget), of: budget, ...(dropped.length ? { over: dropped } : {}) },
     prompt: { description, sentences, soundscape: unit.sound ?? "", music: unit.music ?? "N/A" },
     still_prompt: [style?.body.paragraph, subject].filter(Boolean).join("\n\n"),
-    transition: unit.transition ?? null, timing: unit.timing ?? null, lint,
+    speakers: [...new Set(lines.map((l) => l.who))], transition: unit.transition ?? null, timing: unit.timing ?? null, lint,
     from: Object.fromEntries(await Promise.all(Object.entries(from).map(async ([k, v]) => [k, W.short(await W.sha(v))]))),
   };
+  out.board = await boardPackage(out).catch((e) => ({ error: e.message }));
+  return out;
 }
 
 // ---- units ------------------------------------------------------------------------------------------------------------
@@ -430,6 +437,7 @@ export function cleanUnit(u, was = {}) {
   if (u.timing !== undefined) out.timing = u.timing;
   if (u.trim !== undefined) out.trim = u.trim;
   if (u.board !== undefined) out.board = u.board;
+  if (u.key !== undefined) out.key = u.key; // F-F16: the beat's peak, a reference the cut builds to (the board is what it opens on)
   for (const r of [...(out.cast ?? []), ...(out.location ? [out.location] : [])]) W.parse(r);
   return out;
 }
@@ -456,45 +464,71 @@ export async function setUnit(sceneId, shotId, u, { by = "person" } = {}) {
   return next;
 }
 
+// ---- the board's package: what make_board sends, and compile_unit shows (SNAP-R131, F-F03) ---------------------------
+// the context pictures with their labels and the still prompt citing each by number: the plate as the camera (or the
+// master as the place), the nearest prior view (the previous cut's board in telling order, or `context` when given:
+// [{cut} its board, {take, frame}, {file, label}], F-F16), the Cast's state and identity pictures
+export async function boardPackage(sheet, { context = null } = {}) {
+  const { book, unit } = unitOf(sheet.scene, sheet.shot), list = units(book), i = list.findIndex((x) => x.shot.id === sheet.shot), near = [];
+  for (const c of context ?? (list[i - 1]?.unit.board?.file ? [{ file: list[i - 1].unit.board.file, label: "the previous cut's board" }] : [])) {
+    if (c.cut) { const u = list.find((x) => x.unit.cut === c.cut); if (!u?.unit.board?.file) throw new Error(`context: ${u ? `${c.cut} has no board yet` : `no cut ${c.cut}; the cuts: ${list.map((x) => x.unit.cut).join(", ")}`}`); near.push({ file: u.unit.board.file, label: `${c.cut}'s board` }); }
+    else if (c.take) { const t = T.get(c.take); if (!t) throw new Error(`context: no take ${c.take}`); const f = await T.frameAt(t, "last", { frame: c.frame ?? (t.media.some((m) => m.kind === "video") ? undefined : 0) }); near.push({ file: f.file, label: c.label ?? `take ${t.number}` }); }
+    else if (c.file) near.push({ file: c.file, label: c.label ?? c.file });
+    else throw new Error("context: each picture is {cut}, {take, frame} or {file, label}");
+  }
+  const pictures = [...(unit.location ? [{ location: unit.location, plate: unit.plate ?? "master", label: unit.plate ? `${unit.cut}'s camera` : "the place" }] : []), ...near,
+    ...sheet.package.filter((p) => p.role.startsWith("state: ") || p.role.startsWith("cast: ")).map((p) => ({ file: p.file, label: p.role }))];
+  const at = unit.location ? 1 : 0, cast = sheet.entities.filter((e) => e.ref.startsWith("cast:")).map((e) => { const n = pictures.map((p, k) => (sheet.package.some((x) => x.file === p.file && x.from === e.ref) ? `<Picture ${k + 1}>` : null)).filter(Boolean); return n.length ? `${e.name} is ${n.join(" and ")}.` : null; });
+  const cites = [unit.location ? `<Picture 1> is ${unit.plate ? "this cut's camera on the place: keep its framing" : "the place"}.` : null, ...near.map((n, k) => `<Picture ${at + k + 1}> is ${n.label}: the same place and light.`), ...cast].filter(Boolean).join(" ");
+  return { pictures, prompt: [sheet.still_prompt, cites].filter(Boolean).join(" ") };
+}
+
 // ---- apply a compile to the open recipe (the Snap chain of the unit's shot) ------------------------------------------
 export async function apply(sceneId, shotId, { by = "agent", beats = null } = {}) {
   const sheet = await compile(sceneId, shotId, { beats }), { unit } = unitOf(sceneId, shotId);
   if (SC.current()?.shot.id !== shotId) await SC.openShot(sceneId, shotId);
   if (!E.state().bricks.some((b) => b.key === "render")) throw new Error(`${unit.cut ?? "This cut"} has no recipe yet: start_recipe first (it opens on the shot), then apply_unit again`);
-  const said = [], number = units(bookOfScene(sceneId)).findIndex((x) => x.shot.id === shotId) + 1;
+  const said = [], number = units(bookOfScene(sceneId)).findIndex((x) => x.shot.id === shotId) + 1, refs = () => E.state().bricks.find((x) => x.key === "refs");
   const t = unit.timing?.seconds && E.timing("render");
-  if (t) { const f = E.framesFor(t, `${unit.timing.seconds}s`); E.setValue("render", t.node, t.name, f); said.push(`length ${E.seconds(t, f)} s`); }
+  if (t) {
+    let f = E.framesFor(t, `${unit.timing.seconds}s`);
+    while (E.seconds(t, f) < unit.timing.seconds) f += t.step; // F-F09: the next length the model takes, never a shorter one
+    E.setValue("render", t.node, t.name, f);
+    said.push(`length ${E.seconds(t, f)} s${E.seconds(t, f) !== unit.timing.seconds ? ` (${unit.timing.seconds} s asked: the next length the model takes)` : ""}`);
+  }
   const rest = (E.getValue("render", "render", "prompt") ?? "").split("\n").slice(1).filter((l) => !/^(overall_soundscape|non_diegetic_music):/.test(l));
   E.setValue("render", "render", "prompt", [`integrated_multimodal_description: [Shot ${number}] ${sheet.prompt.description}`, `overall_soundscape: ${sheet.prompt.soundscape || "N/A"}`, `non_diegetic_music: ${sheet.prompt.music || "N/A"}`, ...rest].join("\n"));
-  const voices = {};
-  for (const e of sheet.entities.filter((x) => x.ref.startsWith("cast:") && !x.missing)) {
-    said.push(await L.applyCast(e.ref));
-    const v = L.pinOf(e.ref)?.placed?.voice;
-    if (v) voices[e.ref] = v;
-  }
+  const casts = sheet.entities.filter((x) => x.ref.startsWith("cast:") && !x.missing);
+  for (const e of casts) said.push(await L.applyCast(e.ref));
+  // F-F09: a Cast's voice only on a cut where that Cast has a line
+  for (const e of casts.filter((x) => !sheet.speakers.includes(x.ref))) { const a = refs()?.audios?.find((x) => x.source === e.ref); if (a) { E.removeAudio(a.node); said.push(`no voice for ${e.name}: no line in this cut`); } }
   // state pictures go in after the Cast's own (their source is the Book, so a Cast apply never takes them out)
-  for (const p of E.state().bricks.find((x) => x.key === "refs")?.pictures ?? []) if (p.source === `book-state:${shotId}`) E.removePicture(p.node);
+  for (const p of refs()?.pictures ?? []) if (p.source === `book-state:${shotId}`) E.removePicture(p.node);
   for (const p of sheet.package.filter((x) => x.role.startsWith("state: "))) E.addPicture(p.file, { role: p.role, reason: p.why, source: `book-state:${shotId}` });
-  let hint = "";
-  if (unit.location) { const out = await L.applyLocation(unit.location, { plates: unit.plate ? [unit.plate] : [], plan: false, ...(unit.plate ? { camera: unit.plate } : {}) }); hint = out.prompt_hint; said.push(out.said); }
+  if (unit.location) said.push((await L.applyLocation(unit.location, { plates: unit.plate ? [unit.plate] : [], plan: false, ...(unit.plate ? { camera: unit.plate } : {}) })).said);
+  for (const p of refs()?.pictures ?? []) if (p.source === `book-board:${shotId}` || p.source === `book-key:${shotId}`) E.removePicture(p.node);
   if (unit.board?.file && unit.board.approved) {
-    for (const p of E.state().bricks.find((x) => x.key === "refs")?.pictures ?? []) if (p.source === `book-board:${shotId}`) E.removePicture(p.node);
     E.addPicture(unit.board.file, { role: `board: ${unit.cut}, the cut opens on it`, reason: "the approved board frame (SNAP-R131)", source: `book-board:${shotId}`, first: true });
-    const cite = E.references()?.pictures.find((p) => p.role?.startsWith(`board: ${unit.cut}`))?.cite;
-    hint = `The cut opens on ${cite}: keep its framing and blocking. ${hint}`;
-    said.push(`the board as ${cite}`);
+    said.push("the approved board as a reference picture (Ref2V reads no first frame: for an exact opening, run FL2V with the board as the First frame)");
   }
-  // each Cast named by the pictures that show them, so the words and the references meet ("Kon is <Picture 2>.")
-  const cites = sheet.entities.filter((e) => e.ref.startsWith("cast:") && !e.missing).map((e) => [e.name, (E.references()?.pictures ?? []).filter((p) => p.role?.startsWith(`cast: ${e.name},`) || (p.role?.startsWith("state: ") && sheet.package.some((x) => x.from === e.ref && x.file === p.file))).map((p) => p.cite)]).filter(([, c]) => c.length);
-  if (cites.length) hint = `${cites.map(([n, c]) => `${n} is ${c.join(" and ")}.`).join(" ")} ${hint}`.trim();
+  if (unit.key?.file) E.addPicture(unit.key.file, { role: `key: ${unit.cut}, the beat's peak`, reason: "the cut's key drawing (F-F16): it builds to it", source: `book-key:${shotId}` });
+  if (E.state().bricks.some((b) => b.key === "upscale")) said.push("the Upscale brick is in this recipe: its takes come out bigger than the Cut (take it out for the Cut's size)"); // F-F15
+  // F-F09: every cite from References as they stand now, after the last picture went in
+  const pics = E.references()?.pictures ?? [], heard = E.references()?.audio ?? [], cite = (test) => pics.filter((p) => p.role && test(p.role)).map((p) => p.cite);
+  const board = cite((r) => r.startsWith(`board: ${unit.cut}`)), key = cite((r) => r.startsWith(`key: ${unit.cut}`)), cam = cite((r) => r.startsWith("location: ") && r.endsWith("(camera)")),
+    place = cite((r) => r.startsWith("location: ") && r.endsWith("(place)"));
+  const who = casts.map((e) => [e.name, pics.filter((p) => p.role?.startsWith(`cast: ${e.name},`) || (p.role?.startsWith("state: ") && sheet.package.some((x) => x.from === e.ref && x.file === p.file))).map((p) => p.cite)]).filter(([, c]) => c.length);
+  const hint = [board.length && `The cut opens on ${board[0]}: keep its framing and blocking.`, cam.length && `${cam.join(" and ")} ${cam.length > 1 ? "are" : "is"} this cut's camera on the place${board.length ? "" : ": keep its framing"}.`,
+    place.length && `${place.join(", ")} show${place.length > 1 ? "" : "s"} the place (the same set, its buildings and layout), not this cut's framing.`,
+    key.length && `${key[0]} is the beat's peak (a key drawing): the cut builds to it and does not open on it.`, ...who.map(([n, c]) => `${n} is ${c.join(" and ")}.`)].filter(Boolean).join(" ");
   let [first, ...others] = E.getValue("render", "render", "prompt").split("\n");
-  for (const [ref, cite] of Object.entries(voices)) first = first.replaceAll(`{voice:${ref}}`, cite);
+  for (const e of casts) { const a = heard.find((x) => x.role === `cast: ${e.name}, voice`)?.cite; first = a ? first.replaceAll(`{voice:${e.ref}}`, a) : first.replaceAll(` in the voice of {voice:${e.ref}}`, ""); }
   first = first.replace(/ in the voice of \{voice:[^}]+\}/g, "");
   if (hint) first = `${first.replace(/\s*$/, "")} ${hint}`;
   E.setValue("render", "render", "prompt", [first, ...others].join("\n"));
   if (sheet.style) L.pin(sheet.style.ref.replace(/@\d+$/, ""), { n: +sheet.style.ref.split("@")[1], hash: W.short(W.get(sheet.style.ref).version.hash), name: sheet.style.name });
   E.tag("story", { book: sheet.book, ...(sheet.story ? { ref: sheet.story.ref } : {}), beat: sheet.at?.beat ?? null, ...(beats ? { beats } : {}), unit: { scene: sceneId, shot: shotId, cut: unit.cut ?? null }, from: sheet.from });
-  return { said: said.filter(Boolean), sheet };
+  return { said: said.filter(Boolean), sheet, prompt: E.getValue("render", "render", "prompt") };
 }
 
 // ---- stale on the story clock -------------------------------------------------------------------------------------
@@ -550,11 +584,10 @@ export function allows(tool, letAgentsRun) {
 }
 
 // ---- proposals for canon (SNAP-R67): story, style and the dial wait for the person at every dial position -----------
-export function propose(tool, args, reason, plan) {
-  const p = P.add(tool, args, reason, null, plan);
-  p.args = { ...p.args, proposal: p.id };
-  return p;
-}
+// they belong to the Book, not a graph (SNAP-R139); the accept names its id in the version it makes
+export const propose = (tool, args, reason, { book, needs = [], makes = [] }) => P.add(tool, args, reason, null, null, { book, needs, makes });
+// the beats waiting in a Book's story proposals: beat id -> the proposal that would add it
+export const waitingBeats = (book) => new Map(P.all().filter((p) => p.status === "waiting" && p.book === `book:${book.id}`).flatMap((p) => (p.makes ?? []).map((id) => [id, p.id])));
 
 // ---- the animatic and the Cut (SNAP-R131, SNAP-R132): one MAISnapCut prompt over the units in telling order --------
 const annotated = (file, type = "input") => `${file} [${type}]`;

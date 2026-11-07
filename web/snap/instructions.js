@@ -319,7 +319,7 @@ export const TOOLS = [
       if (!row && !(key.startsWith("skill:") && skills.some((s) => `skill:${s.name}` === key))) throw new Error(`No note ${ref}; list_instructions shows them`);
       const theirs = key.startsWith("skill:") ? !String(W.headOf(W.record("skill", key.slice(6)))?.by ?? "person").startsWith("agent") : row.layer !== "person" || !String(row.by).startsWith("agent");
       if (status === "off" && theirs && !confirmed) {
-        const p = P.add("set_instruction_status", { ref: key, status }, reason ?? `turn off ${key} (${row ? lineOf(row) : "the person's version of this skill"})`, undefined, null);
+        const p = await P.add("set_instruction_status", { ref: key, status }, reason ?? `turn off ${key} (${row ? lineOf(row) : "the person's version of this skill"})`, undefined, null);
         return { proposed: p.id, status: `waiting for the person: ${key} is ${row?.layer === "pack" ? "the pack's" : "the person's"}; until they accept, a note with mode replace changes it now` };
       }
       await setOff(key, status === "off", confirmed ? "person" : caller);

@@ -16,6 +16,7 @@ import * as T from "./takes.js";
 import * as C from "./candidates.js";
 import * as P from "./proposals.js";
 import * as SC from "./scenes.js";
+import * as W from "./world.js";
 import * as ACC from "./account.js";
 import * as J from "./jobs.js";
 import * as CR from "./critiques.js"; // SNAP-R101 the critic's docket is a source too
@@ -96,7 +97,7 @@ function build() {
   let ahead = server.filter((p) => p.state === "running").length;
   const prompts = server.filter((p) => !folded.has(p.id) && (p.job || p.state === "running" || p.state === "queued")).map((p) => fromPrompt(p, p.state === "queued" ? ahead++ : undefined));
   const asked = P.all().filter((p) => p.status === "waiting").map((p) => ({ id: `p:${p.id}`, proposal: p.id, source: "proposal", kind: "proposal", title: p.reason || p.tool.replaceAll("_", " "), by: "agent", owner: "agents", state: "waiting",
-    about: { take: p.args?.take, slot: p.args?.slot }, where: where({ take: p.args?.take }), tool: p.tool, eta_s: p.plan?.eta_s ?? null, plan: p.plan ?? null, queued_at: null }));
+    about: { take: p.args?.take, slot: p.args?.slot, ...(p.book ? { book: p.book } : {}) }, where: p.book ? `the Book ${W.get(p.book)?.version.body.name ?? p.book}` : where({ take: p.args?.take }), tool: p.tool, eta_s: p.plan?.eta_s ?? null, plan: p.plan ?? null, queued_at: null }));
   const refusals = J.refusals().map((x) => ({ id: x.id, source: "refusal", kind: x.spec.kind, title: x.spec.title, by: x.spec.by ?? "person", owner: x.spec.by === "agent" ? "agents" : "you", state: "failed",
     about: x.spec.about ?? {}, where: where(x.spec.about), error: `refused at queue: ${x.error}`, queued_at: x.at, retry: x.retry }));
   rows = [...prompts, ...decisions, ...asked, ...pairs, ...refusals, ...lost.values(), ...CR.rowsFor(where)].map((r) => {
@@ -214,4 +215,4 @@ onChange(() => {
   if (live && !timer) timer = setInterval(() => reconcile(), 2000);
   if (!live && timer) { clearInterval(timer); timer = null; }
 });
-Promise.all([loadMarks().catch(() => {}), T.load(), C.load(), SC.load()]).then(() => reconcile(), () => reconcile());
+Promise.all([loadMarks().catch(() => {}), T.load(), C.load(), SC.load(), P.load().catch(() => {})]).then(() => reconcile(), () => reconcile());
