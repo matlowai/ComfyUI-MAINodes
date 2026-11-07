@@ -11,7 +11,7 @@
 // picture, and the notes listed below by number with their pass, owner and fix (F-E03..F-E06, F-E21).
 // Candidate tiles carry the critic's chip beside the other notes. Nothing here is hidden, rejected or held by a note.
 // SNAP-R103 notes as masks, they inform · SNAP-R105 fix at the source · SNAP-R106 re-run dependents · SNAP-R108 a miss
-// is one press from a fixture · SNAP-R110 a stale critique says why · SNAP-R5 only a press moves · SNAP-R136 masks:
+// is one press from a fixture · SNAP-R110 a stale critique says why · SNAP-R156 Fix at source opens the part the owner names · SNAP-R5 only a press moves · SNAP-R136 masks:
 // all at once, numbered, never words over the picture · see docs/snap/SNAP_RULES.md
 import * as CR from "./critiques.js";
 import * as DP from "./dependents.js";
@@ -155,7 +155,7 @@ function mine(t, say, draw) {
       n.fixture ? h("span", { className: "snap-quiet", textContent: `fixture ${n.fixture.id}` }) : h("button", { className: "snap-link snap-quiet-btn", textContent: "Add as fixture", onclick: () => addFixture(t, n, say).then(draw) }))))];
 }
 async function addFixture(t, n, say) { try { say?.((await CR.addFixture({ take: t.id, note: n.id, polarity: "positive" })).said); } catch (err) { say?.(err.message, true); } }
-const ownerText = (o) => (!o ? "take" : typeof o === "string" ? o : o.ref ? `${o.ref}${o.part ? `, ${o.part}` : ""}` : o.what ?? o.words ?? "take");
+const ownerText = (o) => (!o ? "take" : typeof o === "string" ? o : o.ref ? `${o.ref}${o.parts ? `, ${o.parts.join(" / ")}` : o.part ? `, ${o.part}` : o.unmapped ? ` (“${o.words}”: no part named)` : ""}` : o.what ?? o.words ?? "take");
 
 // ---- Fix at source (SNAP-R105) -------------------------------------------------------------------------------------
 // the owner's picture: a location's master, plan or plate at the version the take pinned, a Cast's first picture, else
@@ -163,11 +163,15 @@ const ownerText = (o) => (!o ? "take" : typeof o === "string" ? o : o.ref ? `${o
 function ownerPicture(t, n) {
   const o = n.owner ?? {};
   if (o.ref?.startsWith("location:")) {
-    const got = W.get(o.ref), b = got?.version.body, part = o.part ?? "master";
-    const p = part === "master" ? b?.master : part === "plan" ? b?.plan : b?.plates?.find((x) => `plate ${x.name}` === part);
+    // F-K09 (SNAP-R156): the part the critic named; notes, camera marks or an unmapped owner have no picture to redraw
+    const got = W.get(o.ref), b = got?.version.body, part = o.part ?? null;
+    const p = part === "master" ? b?.master : part === "plan" ? b?.plan : part === "map" ? b?.map : b?.plates?.find((x) => `plate ${x.name}` === part);
+    if (!p && b) return { record: o.ref, label: `${b.name} v${got.version.n}, ${part === "marks" ? "camera marks and plate poses" : part === "notes" ? "notes and scale" : "no part named"}`, words: true,
+      how: part === "marks" ? "Fix the typed numbers on the Location sheet (or add_plate {location, name, pose} / {camera: {name, eye_height}}): no picture changes" : part === "notes" ? "Fix the record's notes or scale on the Location sheet (save_location {location, notes, scale}): no picture changes" : o.unmapped ?? "The note names no part of the place: open the Location sheet and fix it where it was born" };
     if (p) return { src: viewInput(p.file), label: `${b.name} v${got.version.n}, ${part}`, context: { location: W.refOf("location", W.parse(o.ref).id, got.version.n), plate: part === "master" || part === "plan" ? part : part.replace(/^plate /, "") }, purpose: part === "master" ? "master" : "plate", record: o.ref };
   }
   if (o.ref?.startsWith("cast:")) { const got = W.get(o.ref), r0 = got?.version.body.refs?.[0]; if (r0) return { src: viewInput(r0.file), label: `${got.version.body.name} v${got.version.n}`, context: { cast: o.ref, ref: 0 }, purpose: "cast_picture", record: o.ref }; }
+  if (!t) return { record: o.ref ?? "", label: o.ref ?? "the record", words: true, how: `${o.ref ?? "Its record"} has no such version here any more: open the Location sheet` };
   const m = t.media.find((x) => x.kind === "image") ?? t.media[0], frame = n.t != null ? Math.round(n.t * FPS) : null;
   return { src: T.url(m), label: `take ${t.number}${m.kind === "video" ? `, frame ${frame ?? 0}` : ""}`, context: { take: t.id, ...(m.kind === "video" ? { frame: frame ?? 0 } : {}) }, purpose: ED.purposeOf(t)?.purpose ?? "edit", sameAsNote: true, video: m.kind === "video" };
 }
@@ -176,6 +180,7 @@ export function fixSheet(host, t, n, { say }) {
   style();
   host.querySelector(".snap-critic-sheet")?.remove();
   const own = ownerPicture(t, n), status = h("div", { className: "snap-quiet", role: "status" });
+  if (own.words) return wordsSheet(host, n, own);
   const pic = own.video ? h("video", { src: own.src, muted: true, preload: "auto" }) : h("img", { src: own.src, alt: own.label });
   if (own.video) pic.addEventListener("loadedmetadata", () => { pic.currentTime = n.t ?? 0; });
   const fig = h("div", { className: "snap-critic-pic" }, pic, own.sameAsNote && n.region ? h("div", { className: "snap-critic-box", style: `--sev:${COLOR[n.severity]};left:${n.region[0] * 100}%;top:${n.region[1] * 100}%;width:${n.region[2] * 100}%;height:${n.region[3] * 100}%` }, h("b", { textContent: n.severity })) : null);
@@ -202,6 +207,21 @@ export function fixSheet(host, t, n, { say }) {
       h("div", { className: "snap-set-actions" }, h("label", {}, "purpose ", purpose), h("label", { className: "snap-quiet", title: own.sameAsNote ? "the marked region as a second context picture" : "the mask was drawn on the take, not on this picture" }, crop, " also the marked region")),
       h("div", { className: "snap-set-actions" }, h("button", { className: "snap-primary", textContent: "Make 2 candidates", title: "a New view of this picture (GPU time); the old one stays until you pick", onclick: run }), openOwner),
       status));
+  host.append(sheet);
+  return sheet;
+}
+
+// F-K09: a flaw born in the record's words or typed numbers: the note, where it lives, and the Location sheet
+function wordsSheet(host, n, own) {
+  const close = () => { sheet.remove(); removeEventListener("keydown", esc, true); };
+  const esc = (e) => { if (e.key === "Escape" && sheet.isConnected) { e.stopImmediatePropagation(); e.preventDefault(); close(); } };
+  addEventListener("keydown", esc, true);
+  const sheet = h("div", { className: "snap-sheet snap-setup-sheet snap-critic-sheet", role: "dialog", ariaLabel: "Fix at source" },
+    h("header", {}, h("strong", { textContent: `Fix at source: ${own.label}` }), h("span", { className: "snap-quiet", textContent: ` · ${n.severity} · ${n.pass}` }), h("span", { className: "snap-spacer" }), h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: close })),
+    h("div", { className: "snap-critic-packet" },
+      h("p", {}, h("strong", { textContent: n.text ?? "" }), h("span", { className: "snap-quiet", textContent: ` · born in ${own.record}${n.owner?.part ? `, ${n.owner.part}` : ""}` })),
+      ...[n.fix ? h("p", { className: "snap-critic-fix", textContent: `fix: ${n.fix}` }) : null, h("p", { className: "snap-quiet", textContent: own.how })].filter(Boolean),
+      h("div", { className: "snap-set-actions" }, h("button", { className: "snap-primary", textContent: "Open the Location sheet", onclick: async () => { const { ui } = await import("./tools.js"); close(); await ui.act("location", own.record); } }))));
   host.append(sheet);
   return sheet;
 }
@@ -280,7 +300,8 @@ export function locationBlock({ id, n, say }) {
       ...(rows.length ? rows.map(line) : [h("div", { className: "snap-quiet", textContent: "No critique for this version yet" })]),
       list.length ? h("ol", { className: "snap-critic-list" }, list.map((x) => h("li", { className: lit === x.k ? "on" : "", style: `--sev:${COLOR[x.note.severity]}`, onclick: () => { lit = lit === x.k ? null : x.k; if (sheet && lit && !masksOn(sheet)) showMasks(sheet, true); else draw(); sheet?.querySelector(`.snap-mask[data-k="${x.k}"]`)?.scrollIntoView({ block: "nearest" }); } },
         h("b", { textContent: String(x.k) }), h("span", {}, h("strong", { textContent: `${x.note.severity} · ${x.part ?? "the record"} · ` }), x.note.text ?? x.note.words ?? ""),
-        h("span", { className: "snap-quiet", textContent: `owner: ${ownerText(x.note.owner)}${x.note.region && x.part ? "" : " · no mask"}` }), x.note.fix ? h("span", { className: "snap-critic-fix", textContent: `fix: ${x.note.fix}` }) : null))) : null,
+        h("span", { className: "snap-quiet", textContent: `owner: ${ownerText(x.note.owner)}${x.note.region && x.part ? "" : " · no mask"}` }), x.note.fix ? h("span", { className: "snap-critic-fix", textContent: `fix: ${x.note.fix}` }) : null,
+        x.note.owner?.ref?.startsWith("location:") ? h("button", { className: "snap-link snap-quiet-btn", textContent: "Fix at source", title: "the part this flaw was born in (its owner), not the picture it was seen on (F-K09)", onclick: (e) => { e.stopPropagation(); const sheet = sheetOf(); fixSheet(sheet?.parentElement ?? document.body, null, x.note, { say }); } }) : null))) : null,
       h("div", { className: "snap-set-actions" }, h("button", { className: "snap-link", textContent: "Critique this location", title: "every view of this version side by side, as one critique row for a critic", onclick: async () => {
         try { const { TOOLS } = CR; const out = await TOOLS.find((x) => x.name === "critique").run({ location: ref, part: "views", again: true }); say?.(`${out.title}: on the docket`); } catch (err) { say?.(err.message, true); } } })),
       stages.length ? h("div", { className: "snap-set-actions" }, h("button", { className: "snap-primary", textContent: `Re-run dependents (${stages.map((s) => `${s.takes.length} ${s.takes.length === 1 ? s.stage.replace(/s$/, "") : s.stage}`).join(", ")}${plan.eta_s != null ? ` · about ${Math.max(1, Math.round(plan.eta_s / 60))} min` : ""})`,

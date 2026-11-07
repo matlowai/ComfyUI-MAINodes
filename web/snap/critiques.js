@@ -12,7 +12,7 @@
 // (a location's master, plan or plate, a Cast's pictures) changed in a later version; a row nobody wrote that went stale
 // leaves the due list (state "stale"). Only a record's newest version gets rows, and a location or Cast saved before the
 // critic started gets rows for its newest version once (F-E01).
-// SNAP-R101 the critic is a docket job · SNAP-R103 notes: severity, pass, region as a mask, owner, fix; they inform ·
+// SNAP-R101 the critic is a docket job · SNAP-R103 notes: severity, pass, region as a mask, owner, fix; they inform · SNAP-R156 the owner's part as written ·
 // SNAP-R104 checks by purpose · SNAP-R107 approval: the person's, or the critic's where a note says so · SNAP-R110 stale ·
 // SNAP-R17 by: person|agent · SNAP-R58 whole lists, explicit paging · SNAP-R65 the Work card · SNAP-R136 a row holds
 // while its part's picture holds; stale rows leave the docket · see docs/snap/SNAP_RULES.md
@@ -90,11 +90,13 @@ export function partFiles(body, part) {
   // F-G06: every view also reads the notes and the camera marks, so a notes-only version gets its own views row
   if (part === "views") return JSON.stringify([body?.master?.file, body?.plan?.file, body?.map?.file, ...(body?.plates ?? []).map(plate), body?.notes ?? "", body?.cameras ?? []]);
   if (["master", "plan", "map"].includes(part)) return body?.[part]?.file ?? null;
+  if (part === "marks") return JSON.stringify([body?.cameras ?? [], (body?.plates ?? []).map((p) => [p.name, p.pose ?? null, p.camera ?? null])]); // F-K09: typed numbers, no picture
+  if (part === "notes") return JSON.stringify([body?.notes ?? "", body?.scale ?? []]);
   return plate(body?.plates?.find((x) => `plate ${x.name}` === part)) ?? null;
 }
 const moved = (ref, part) => { const { kind, id, n } = W.parse(ref), rec = W.record(kind, id), head = rec?.head; if (!head || !n || head <= n) return null;
   const was = rec.versions.find((v) => v.n === n)?.body, now = W.headOf(rec).body;
-  return !part || part === "notes" || partFiles(was, part) !== partFiles(now, part) ? { name: was?.name ?? id, n, head } : null; };
+  return !part || partFiles(was, part) !== partFiles(now, part) ? { name: was?.name ?? id, n, head } : null; };
 export function staleOf(r) {
   const why = [];
   if (r.subject.kind === "take") {
@@ -140,12 +142,23 @@ export function ownerOf(r, owner) {
   const ref = words.match(/\b(cast|location|card|set_snapshot):[A-Za-z0-9][\w.-]*(@\d+)?/)?.[0];
   if (ref) { const p = W.parse(ref); return { ref: p.n != null ? ref : W.refOf(p.kind, p.id, pins[W.refOf(p.kind, p.id)]?.n ?? W.record(p.kind, p.id)?.head), words }; }
   const loc = pinned("location"), cast = pinned("cast");
-  // the part a location owner names: a plate by its name (the longest the words hold), the plan, else the master
-  const partOf = (ref, fallback) => { const plates = (W.get(ref)?.version.body.plates ?? []).map((p) => p.name).filter((n) => words.toLowerCase().includes(n.toLowerCase())).sort((a, b) => b.length - a.length);
-    return plates.length ? `plate ${plates[0]}` : /\bplan\b/i.test(words) && !/\bmaster\b/i.test(words) ? "plan" : /\bmaster\b/i.test(words) ? "master" : /\bnotes?\b/i.test(words) ? "notes" : fallback; }; // F-E19: "location notes" is the record's words, no picture
-  if (loc && /\b(master|plan|plate|location|set)\b/i.test(words)) { const ref = W.refOf("location", W.parse(loc[0]).id, loc[1].n); return { ref, part: partOf(ref, "master"), words }; }
+  // F-K09 (SNAP-R156): the part a location owner names, as the critic wrote it: plates by their whole name or by their
+  // label (the name's first word, "Pb", as the sheet labels them), in the order the words name them; the plan; the master;
+  // the record's notes; its camera marks and plate poses (typed numbers, no picture). Words that name none of these are
+  // said to be unmapped, never read as the master
+  const partOf = (ref) => { const plates = W.get(ref)?.version.body.plates ?? [];
+    const word = (x, flags) => new RegExp(`(^|[^\\w])${x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w])`, flags).exec(words), at = (p) => { const tag = p.name.split(/[\s,]/)[0], m = word(p.name, "i") ?? (tag !== p.name ? word(tag, "") : null); return m ? m.index + m[1].length : -1; };
+    const named = plates.map((p) => [p.name, at(p)]).filter(([, i]) => i >= 0).sort((a, b) => a[1] - b[1]).map(([n]) => `plate ${n}`);
+    if (named.length) return { part: named[0], ...(named.length > 1 ? { parts: named } : {}) };
+    if (/\b(poses?|camera marks?|marks?|eye heights?)\b/i.test(words)) return { part: "marks" };
+    if (/\bplan\b/i.test(words) && !/\bmaster\b/i.test(words)) return { part: "plan" };
+    if (/\bmaster\b/i.test(words)) return { part: "master" };
+    if (/\b(notes?|scale)\b/i.test(words)) return { part: "notes" }; // F-E19: "location notes" is the record's words, no picture
+    if (/\bmap\b/i.test(words)) return { part: "map" };
+    return { part: null, unmapped: `"${words}" names no part of the place (master, plan, plate <name>, notes, camera marks): Fix at source opens the Location sheet` }; };
+  if (loc && /\b(master|plan|plates?|location|set|record|notes|marks?|poses?)\b/i.test(words)) { const ref = W.refOf("location", W.parse(loc[0]).id, loc[1].n); return { ref, ...partOf(ref), words }; }
   if (cast && /\bcast\b/i.test(words)) return { ref: W.refOf("cast", W.parse(cast[0]).id, cast[1].n), words };
-  if (r.subject.kind === "record" && /\b(master|plan|plate|location|record)\b/i.test(words)) return { ref: r.subject.ref, part: partOf(r.subject.ref, r.subject.part === "views" ? "master" : r.subject.part), words };
+  if (r.subject.kind === "record" && r.subject.ref.startsWith("location:") && /\b(master|plan|plates?|location|record|notes|marks?|poses?|map)\b/i.test(words)) return { ref: r.subject.ref, ...partOf(r.subject.ref), words };
   return { what: /\bprompt\b/i.test(words) ? "prompt" : /\bboard\b/i.test(words) ? "board" : "take", words: words || "take" };
 }
 
@@ -393,7 +406,7 @@ const pathOf = (m) => [m.type, m.subfolder, m.filename].filter(Boolean).join("/"
 const STATES = ["due", "claimed", "done", "skipped", "stale"];
 const NOTE = { type: "object", properties: { severity: { type: "string", enum: ["high", "medium", "low"] }, pass: { type: "string", enum: ["scan", "map", "support", "cast", "beat", "cross_view", "cut_pair"] }, text: { type: "string" },
   picture: { type: "integer", minimum: 0, description: "the packet picture (#index) the region is drawn on: a whole frame, a tile or a context picture; default 0" }, region: { type: "array", items: { type: "number", minimum: 0, maximum: 1 }, minItems: 4, maxItems: 4, description: "[x, y, w, h] in fractions of that picture, from its top left" },
-  owner: { description: "where the flaw was born (fix at the source): \"location master\", \"plan\", \"plate <name>\", \"Cast record\", \"board\", \"take\", \"prompt\", or a record kind:id[@n]" }, fix: { type: "string" }, tags: { type: "array", items: { type: "string" } } }, required: ["severity", "pass", "text"] };
+  owner: { description: "where the flaw was born (fix at the source): \"location master\", \"plan\", \"plate <name>\", \"location notes\", \"camera marks\", \"Cast record\", \"board\", \"take\", \"prompt\", or a record kind:id[@n]" }, fix: { type: "string" }, tags: { type: "array", items: { type: "string" } } }, required: ["severity", "pass", "text"] };
 const agentName = () => I.by();
 export const TOOLS = [
   {
@@ -433,10 +446,11 @@ export const TOOLS = [
   },
   {
     name: "write_critique",
-    description: "Write a critique (SNAP-R103): verdict clean | flaws, passes {scan, map, support, cast, beat, cross_view, cut_pair} (one line each of what the pass found, the r3 prompt's passes: line), and notes, each {severity: high | medium | low, pass, text (the flaw in a sentence), picture (the packet #index the region is drawn on, default 0), region [x, y, w, h] in that picture's fractions (a region on a tile is stored in the subject's own fractions), owner (where it was born: \"location master\", \"plan\", \"plate <name>\", \"Cast record\", \"board\", \"take\", \"prompt\", or kind:id[@n]; words naming a place or Cast the subject pinned resolve to that version), fix (one line)}. Only the claimer writes (claim_critique first). Each note lands on the take it is about (get_take notes: by agent, with severity, pass, region, owner, fix and the critique id) and is drawn there as a mask; notes inform and never block (SNAP-R23). Where the scene's notes say \"approval: critic\" (instructions {scope: \"scene:<id>\"}) a critique with no high note sets the take's verdict to keep, by agent; a high note sets nothing; the person's own verdict is never overwritten (SNAP-R107). A clean verdict is a valid answer: write it with no notes.",
+    description: "Write a critique (SNAP-R103): verdict clean | flaws, passes {scan, map, support, cast, beat, cross_view, cut_pair} (one line each of what the pass found, the r3 prompt's passes: line), and notes, each {severity: high | medium | low, pass, text (the flaw in a sentence), picture (the packet #index the region is drawn on, default 0), region [x, y, w, h] in that picture's fractions (a region on a tile is stored in the subject's own fractions), owner (where it was born: \"location master\", \"plan\", \"plate <name>\" (several plates: the first named is the part, parts lists all), \"location notes\", \"camera marks\" (typed poses and marks), \"Cast record\", \"board\", \"take\", \"prompt\", or kind:id[@n]; words naming a place or Cast the subject pinned resolve to that version and part (owner {ref, part, parts}); words that name no part are kept with part null and listed in owners_unmapped, never read as the master: F-K09, SNAP-R156), fix (one line)}. Only the claimer writes (claim_critique first). Each note lands on the take it is about (get_take notes: by agent, with severity, pass, region, owner, fix and the critique id) and is drawn there as a mask; notes inform and never block (SNAP-R23). Where the scene's notes say \"approval: critic\" (instructions {scope: \"scene:<id>\"}) a critique with no high note sets the take's verdict to keep, by agent; a high note sets nothing; the person's own verdict is never overwritten (SNAP-R107). A clean verdict is a valid answer: write it with no notes.",
     inputSchema: { type: "object", properties: { critique: { type: "string" }, verdict: { type: "string", enum: ["clean", "flaws"] }, passes: { type: "object", properties: Object.fromEntries(["scan", "map", "support", "cast", "beat", "cross_view", "cut_pair"].map((k) => [k, { type: "string" }])) }, notes: { type: "array", items: NOTE } }, required: ["critique", "verdict"] },
     direct: true, // notes only: the person's verdicts and picks stay theirs (SNAP-R17)
-    run: async ({ critique: id, verdict, passes, notes }) => { const r = await write(id, agentName(), { verdict, passes, notes }); return { ...describe(r), said: `${r.title}: ${countText(r)}${r.verdict_set?.verdict ? ` · verdict keep by the critic (${r.verdict_set.because})` : ""}` }; },
+    run: async ({ critique: id, verdict, passes, notes }) => { const r = await write(id, agentName(), { verdict, passes, notes }), lost = r.notes.filter((n) => n.owner?.unmapped);
+      return { ...describe(r), ...(lost.length ? { owners_unmapped: lost.map((n) => ({ note: n.id, owner: n.owner.words, said: n.owner.unmapped })) } : {}), said: `${r.title}: ${countText(r)}${r.verdict_set?.verdict ? ` · verdict keep by the critic (${r.verdict_set.because})` : ""}${lost.length ? ` · ${lost.length} owner${lost.length > 1 ? "s" : ""} named no part of the place (owners_unmapped): say master, plan, plate <name>, notes or camera marks` : ""}` }; },
   },
   {
     name: "skip_critique",
