@@ -9,7 +9,8 @@
 // Save metadata off they hold nothing (SNAP-R38).
 // SNAP-R5 open work untouched · SNAP-R16 GPU tools wait as proposals · SNAP-R24 scenes own the work · SNAP-R60 pins ·
 // SNAP-R61 re-run as it was, with today's world, or edited · SNAP-R65 the run carries its job stamp · SNAP-R23 a candidate
-// that is a take (takeCandidate: re-run batches, new views) · see docs/snap/SNAP_RULES.md
+// that is a take (takeCandidate: re-run batches, new views) · SNAP-R185 a still in a cut's shot is a board, never its
+// active take · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import * as L from "./library.js";
@@ -39,6 +40,18 @@ export function shotOf(take) {
   return null;
 }
 
+// F-S07 (SNAP-R185): a Book cut's shot holds the cut's video; a still landed there is a board candidate. The person's
+// pick fills the cut's board slot (its key drawing for a key candidate); an agent is refused with set_board named,
+// since the pick is the boards stage's (the Book's dial), and the cut's active take never becomes a still
+const cutHome = (home) => (home?.scene.book && home.shot.unit ? home : null);
+const still = (d, t) => (t ? !t.media.some((m) => m.kind === "video") : ["view", "sheet"].includes(d.kind));
+export function cutStill(d, c) {
+  const t = T.get(c.take ?? `take-${c.prompt_id}`), home = cutHome(t ? shotOf(t) : d.land && (() => { const scene = SC.get(d.land.scene), shot = scene?.shots.find((x) => x.id === d.land.shot); return shot && { scene, shot }; })());
+  if (!home || !still(d, t)) return null;
+  const unit = home.shot.unit, key = t?.story?.role === "key", active = home.shot.active && T.get(home.shot.active);
+  return { home, t, slot: key ? "key" : "board", cut: unit.cut ?? SC.shotTitle(home.scene, home.shot),
+    refusal: `apply_candidate would make ${t ? `still take ${t.number}` : "a still"} the active take of ${unit.cut ?? SC.shotTitle(home.scene, home.shot)}, a cut of the Book${active ? ` whose active take is take ${active.number} (${active.media.some((m) => m.kind === "video") ? "its video" : "a still"})` : ""}: a still in a cut's shot is a board, never its take. Pick it with set_board {scene: "${home.scene.id}", shot: "${home.shot.id}", take: "${t?.id ?? `take-${c.prompt_id}`}"${key ? ", role: \"key\"" : ""}} (the Book's boards dial decides), or pass it to make_board as context: [{take}]` };
+}
 // a candidate that is a take (a re-run batch's, SNAP-R63; a new view's, U101): its media is the picture; Apply makes it
 // the shot's active take (in a scratch tab it is marked keep), Undo puts back what was active, Reject marks the take
 // rejected by whoever pressed it (SNAP-R17)
@@ -48,6 +61,14 @@ export const takeCandidate = {
     await T.load(); await SC.load();
     const t = T.get(`take-${c.prompt_id}`);
     if (!t) throw new Error(`${d.title}: candidate ${c.id}'s take isn't here yet (run_status ${c.prompt_id})`);
+    const board = cutStill(d, c);
+    if (board && by === "agent") throw new Error(board.refusal);
+    if (board) {
+      const { home, slot } = board, was = home.shot.unit[slot] ?? null, f = await T.frameAt(t, "last", { frame: 0 }), name = slot === "key" ? "key drawing" : "board";
+      await SC.setUnit(home.scene.id, home.shot.id, { ...home.shot.unit, [slot]: { file: f.file, from: { take: t.id, frame: f.frame } } }, by, `${board.cut} ${name} picked`);
+      const active = home.shot.active && T.get(home.shot.active);
+      return { take: t.id, scene: home.scene.id, shot: home.shot.id, slot, board_was: was, said: `take ${t.number} is now ${board.cut}'s ${name}${slot === "board" ? " (not approved yet: approve it in the Book's Boards lens)" : ""}; the cut's active take stays ${active ? `take ${active.number}` : "unset"}` };
+    }
     const home = shotOf(t);
     if (!home) { t.verdict = "keep"; await T.save(t); return { take: t.id, kept: true }; }
     const was = home.shot.active ?? null, old = was && T.get(was), title = SC.shotTitle(home.scene, home.shot);
@@ -55,7 +76,9 @@ export const takeCandidate = {
     // F-G08: the answer names the take it replaced, and how to put it back
     return { take: t.id, scene: home.scene.id, shot: home.shot.id, was, said: `take ${t.number} is now ${title}'s active take${was === t.id ? " (it already was)" : was ? `, in place of take ${old?.number ?? was} (${was}); undo_candidate {decision: "${d.id}"} puts that one back` : " (it had none)"}` };
   },
-  undo: async (d, c, that) => { if (that.scene) await SC.setActive(that.scene, that.shot, that.was, "person"); else { const t = T.get(that.take); if (t) { t.verdict = null; await T.save(t); } } },
+  undo: async (d, c, that) => {
+    if (that.slot) { await SC.load(); const shot = SC.get(that.scene)?.shots.find((x) => x.id === that.shot), { [that.slot]: _, ...rest } = shot?.unit ?? {}; if (shot) await SC.setUnit(that.scene, that.shot, that.board_was ? { ...rest, [that.slot]: that.board_was } : rest, "person", "board pick undone"); return; }
+    if (that.scene) await SC.setActive(that.scene, that.shot, that.was, "person"); else { const t = T.get(that.take); if (t) { t.verdict = null; await T.save(t); } } },
   reject: async (d, c, by) => { await T.load(); const t = T.get(`take-${c.prompt_id}`); if (t) { t.verdict = "reject"; t.verdict_by = by; await T.save(t); } },
 };
 

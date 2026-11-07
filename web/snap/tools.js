@@ -95,6 +95,16 @@ async function defaultPrompt() {
 }
 // what a full run of the open recipe took before
 const recipeEta = async () => T.eta((await T.hashes(await T.live())).hash);
+// F-S07 (SNAP-R185): the hint after a still's candidates: apply_candidate, or in a Book cut's shot set_board (a still
+// there is a board, and apply_candidate would refuse rather than replace the cut's video take)
+async function nextPick(decision, which, look = "") {
+  await Promise.all([C.load(), SC.load()]);
+  const d = C.get(decision), scene = d?.land && SC.get(d.land.scene), shot = scene?.shots.find((x) => x.id === d.land.shot);
+  if (!scene?.book || !shot?.unit) return { next: `wait_for {job: <decision>, until: "waiting"}, then candidate_frames {decision}${look} and apply_candidate ${which}` };
+  const cut = shot.unit.cut ?? SC.shotTitle(scene, shot);
+  return { next: `wait_for {job: <decision>, until: "waiting"}, then candidate_frames {decision}${look}, then set_board {scene: "${scene.id}", shot: "${shot.id}", take: <the candidate's take>} (role: "key" for the key drawing)`,
+    in_a_cut: `these land in ${cut}'s shot, a cut of the Book: a still there is a board candidate, so pick it with set_board; apply_candidate is refused there, because it would make the still the cut's active take in place of its video` };
+}
 const takeOf = async (id) => { await T.load(); const t = T.find(id); if (!t) throw new Error(`No take ${id} (list_takes lists the open shot's; find_take finds any by file, seed or the start of its id)`); return t; }; // F-E12: a unique start of an id works
 // what delete_record would delete and keep (its plan, and its dry run's answer)
 async function deletePlan({ ref }) {
@@ -1333,13 +1343,15 @@ export const TOOLS = [
   },
   {
     name: "apply_candidate",
-    description: "Apply one candidate of a decision: a plate candidate becomes the camera's plate (a shot compiled from that camera on the open chain compiles again with it); an edit or recast candidate's painted frames are carried over the take (H3 Ripple about 90-110 s, Viggle Remake 150-190 s on a 5090) and land as a new take whose parent is the original. A re-run or new-view candidate is already a take: it becomes the shot's active take (nothing renders). `pin` (Remake methods only) places the painted frames at the frames they were painted from (on by default) or, false, uses them only as references. Applying another candidate of the same decision first undoes the earlier one. The pick is the person's: unless they let agents run, this waits as a proposal, which is how an agent recommends one (give the reason: which notes made it the best).",
+    description: "Apply one candidate of a decision: a plate candidate becomes the camera's plate (a shot compiled from that camera on the open chain compiles again with it); an edit or recast candidate's painted frames are carried over the take (H3 Ripple about 90-110 s, Viggle Remake 150-190 s on a 5090) and land as a new take whose parent is the original. A re-run or new-view candidate is already a take: it becomes the shot's active take (nothing renders). `pin` (Remake methods only) places the painted frames at the frames they were painted from (on by default) or, false, uses them only as references. Applying another candidate of the same decision first undoes the earlier one. A still in a Book cut's shot (a New view or board candidate landed there) is a board, never the cut's active take: from an agent apply_candidate refuses it, naming the set_board call, and the person's Apply puts it in the cut's board slot (its key drawing for a key candidate; F-S07, SNAP-R185). The pick is the person's: unless they let agents run, this waits as a proposal, which is how an agent recommends one (give the reason: which notes made it the best).",
     inputSchema: { type: "object", properties: { decision: { type: "string" }, candidate: { type: "string" }, pin: { type: "boolean" } }, required: ["decision", "candidate"] },
     annotations: { consequentialHint: true },
     decides: true,
-    plan: async ({ decision }) => {
-      await C.load();
-      if (["rerun", "view", "sheet"].includes(C.get(decision)?.kind)) return { runs: "no render: the candidate's take becomes the shot's active take", eta_s: 0, from: "nothing runs" };
+    plan: async ({ decision, candidate }) => {
+      await Promise.all([C.load(), T.load(), SC.load()]);
+      const d = C.get(decision), c = C.candidate(d, candidate), board = c && RT.cutStill(d, c);
+      if (board) throw new Error(board.refusal); // F-S07 (SNAP-R185): refused before it can wait as a proposal
+      if (["rerun", "view", "sheet"].includes(d?.kind)) return { runs: "no render: the candidate's take becomes the shot's active take", eta_s: 0, from: "nothing runs" };
       if (C.get(decision)?.kind !== "edit") return { runs: "no render: the candidate becomes the camera's plate", eta_s: 0, from: "nothing runs" };
       return { runs: "the picked painted frames carried over the take, as a new take", ...(T.measured(T.all().filter((t) => /^(edit|recast)\//.test(t.parent?.method ?? "") && t.status === "success"), "of edits here") ?? { eta_s: 100, from: "U54: Ripple 89-103 s for 90 frames on a 5090; U69: Remake 154-193 s for 107 frames" }) };
     },
@@ -1468,8 +1480,8 @@ export const TOOLS = [
     consequential: true,
     plan: async ({ cast, seeds, count = 2, method }) => { await S.load(); const m = S.list("sheet").find((x) => x.id === (method ?? S.list("sheet")[0]?.id)), n = seeds?.length || count;
       return { runs: `${n} character sheet${n > 1 ? "s" : ""} of ${cast} (${m?.title ?? method}); each lands as a still take`, eta_s: n * ([m?.cost?.local_s].flat().at(-1) ?? 60), from: m?.cost?.per ?? "U101" }; },
-    run: async ({ cast, method, ref, pictures, design, seeds, count, width, height, land }) => ({ ...await ED.sheet(cast, { method, ref, pictures, design, seeds, count, width, height, land, by: "agent" }),
-      next: "wait_for {job: <decision>, until: \"waiting\"}, then candidate_frames {decision} (the sheet, then each view) and apply_candidate the one that holds the design" }),
+    run: async ({ cast, method, ref, pictures, design, seeds, count, width, height, land }) => { const out = await ED.sheet(cast, { method, ref, pictures, design, seeds, count, width, height, land, by: "agent" });
+      return { ...out, ...await nextPick(out.decision, "the one that holds the design", " (the sheet, then each view)") }; },
   },
   {
     name: "open_view",
