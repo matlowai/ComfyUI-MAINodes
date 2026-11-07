@@ -809,7 +809,12 @@ export async function apply(sceneId, shotId, { by = "agent", beats = null, land 
     E.addPicture(unit.board.file, { role: `board: ${unit.cut}, the cut opens on it`, reason: "the approved board frame (SNAP-R131)", source: `book-board:${shotId}`, first: true });
     said.push("the approved board as a reference picture (Ref2V reads no first frame: for an exact opening, run FL2V with the board as the First frame)");
   }
-  if (unit.key?.file) E.addPicture(unit.key.file, { role: `key: ${unit.cut}, the beat's peak`, reason: "the cut's key drawing (F-F16): it builds to it", source: `book-key:${shotId}` });
+  if (unit.key?.file) {
+    E.addPicture(unit.key.file, { role: `key: ${unit.cut}, the beat's peak`, reason: "the cut's key drawing (F-F16): it builds to it", source: `book-key:${shotId}` });
+    // lab L8 (F-SQ20): the key as a reference plus the "builds to it" sentence made H3 jump-cut to its framing at ~1.5 s and stall
+    // an action cut (mean frame change from 2.5 s: 5.5-5.7 with it, 12.7 without, 2/2 seeds); said, never taken out (SNAP-R11)
+    said.push(`the key drawing is a reference and its closing sentence is in the prompt: on an action cut (a clash, a chase) H3 jumped to its framing about 1.5 s in and stalled (F-SQ20, lab L8: motion 5.5 against 12.7 without it); keep it for a cut that ends on a held pose, and for an action cut set_unit {key: null} then apply_unit again`);
+  }
   for (const p of refs()?.pictures ?? []) if (p.source === `book-master:${shotId}`) E.removePicture(p.node);
   if (sheet.master) E.addPicture(sheet.master.file, { role: `continuity: ${sheet.master.cut} at ${sheet.master.at_s} s`, reason: "an insert cites a frame of its master shot (SNAP-R236)", source: `book-master:${shotId}` });
   // SNAP-R230: the cut owns the rack: exactly its rows, and what was taken off is named
