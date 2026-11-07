@@ -112,6 +112,11 @@ app.registerExtension({
       tooltip: "Off: an agent's run or make_dial waits as a proposal you accept. On: it starts right away (it uses GPU time)." },
     { id: P.EXPIRY, category: ["MAINodes", "Snap", "Proposal expiry"], name: "Park agents' proposals nobody answered after this many hours (0: never)", type: "number", defaultValue: 0, attrs: { min: 0, step: 1 },
       tooltip: "Off by default. A parked proposal is kept (the Work card's Parked), never deleted, and can still be accepted (SNAP-R210)." },
+    // SNAP-R215, R224: where Astrid is on this machine; the server runs its command line through this launcher, on loopback
+    { id: "MAINodes.Snap.AstridLauncher", category: ["MAINodes", "Snap", "Astrid"], name: "Astrid on this machine: the launcher its command line runs through", type: "text", defaultValue: "",
+      tooltip: "A script on this computer that runs Astrid's commands in a clean environment (for example an Astrid lab's bin/clean.sh). Snap checks every Cut it writes for Astrid with it, and the Cut lens pushes through it. Empty: Snap still writes the .astrid file, and says nobody checked it." },
+    { id: "MAINodes.Snap.AstridDataRoot", category: ["MAINodes", "Snap", "Astrid"], name: "Astrid on this machine: its data folder (empty: the launcher's own)", type: "text", defaultValue: "",
+      tooltip: "The folder of the Astrid Runtime Snap talks to. It must be a Runtime on this computer: Snap refuses one whose address isn't this machine." },
     { id: MD.SETTING, category: ["MAINodes", "Snap", "Metadata"], name: "Save the prompt and workflow (metadata) in every saved picture and video", type: "boolean", defaultValue: true,
       tooltip: "On: files keep their recipe, LoRA names included, so you can reproduce them. Off: this browser's runs save without it. Also the switch next to Run in Snap.",
       onChange: () => view?.metadataChanged() },

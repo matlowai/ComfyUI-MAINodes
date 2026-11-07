@@ -19,7 +19,7 @@
 // board · SNAP-R172 the reversal cost says what moves · SNAP-R178 a wardrobe state folds the items it names · SNAP-R60 versions ·
 // SNAP-R11 nothing blocks · SNAP-R181 a held-prop cut is boarded at its key · SNAP-R189 a board says absent what its
 // pictures may still show · SNAP-R212 the Cut opens in Astrid, private takes stay out · SNAP-R213 a cut's take may come from another shot ·
-// SNAP-R223 a production is the record above the Book · see docs/snap/SNAP_RULES.md
+// SNAP-R215 the archive Astrid can edit, its clips named by cut · SNAP-R216 a speaking cut's sound on its own lane · SNAP-R223 a production is the record above the Book · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as W from "./world.js";
 import * as SC from "./scenes.js";
@@ -882,18 +882,25 @@ export async function assemble(bookRef, { mode = "cut", width = 1280, height = 7
 // Each clip says what made it (`snap`): its take, cut, Book, beat, world pins, instruction stack and recipe digest, or
 // ids alone when the take ran with metadata off (SNAP-R20). A take kept private, or one this page can't read, is `private`:
 // its bytes stay out of the archive (fails closed)
-async function madeOf(c, bookRef) {
+// SNAP-R216: a cut with a line carries it (speaker, words, the voice reference the take cited) for the Dialogue lane, and
+// every clip its scene group's name (§14.1: the Book's structure stays readable on one timeline)
+async function madeOf(c, bookRef, unit, story) {
   const t = T.get(c.take), ids = { take: c.take, cut: c.cut, book: bookRef };
   if (!t) return { snap: ids, private: true };
   const pin = t.story ?? t.graph?.extra?.snap?.story, stack = t.graph?.extra?.snap?.instructions;
   const snap = t.metadata === false ? { ...ids, metadata: false } : { ...ids, ...(pin?.beat ? { beat: pin.beat } : {}), ...(pin?.beats?.length ? { beats: pin.beats } : {}),
     world: Object.fromEntries(Object.entries(t.world ?? {}).map(([ref, x]) => [ref, x.n])), ...(stack?.refs ? { instructions: await I.hashOf(stack) } : {}), ...(await T.digestOf(t) ? { recipe_digest: await T.digestOf(t) } : {}) };
-  return { snap, label: `${c.cut} · take ${t.number}`, private: !!(t.private || t.kept_encrypted || T.locked(t)) };
+  const beats = (unit?.beats ?? []).map((id) => story.beats.find((b) => b.id === id)).filter(Boolean), group = story.groups.find((g) => beats.some((b) => g.beats.includes(b.id)))?.name || null;
+  const lines = beats.flatMap((b) => (b.lines ?? []).map((l) => ({ who: l.who, name: nameOf(story, l.who), text: l.text })));
+  const voiced = lines.map((l) => { const n = t.world?.[l.who]?.n; return W.get(n ? `${l.who}@${n}` : l.who)?.version.body.voice?.file; }).find(Boolean);
+  return { snap, label: `${c.cut} · take ${t.number}`, private: !!(t.private || t.kept_encrypted || T.locked(t)), ...(group ? { group } : {}),
+    ...(lines.length ? { lines, ...(t.voice?.words?.length ? { words: t.voice.words } : {}), ...(voiced ? { voice_reference: voiced } : {}) } : {}) };
 }
 export async function otio(bookRef, { fps = 24, width = 1280, height = 704 } = {}) {
-  const { book, clips, gaps } = plan(bookRef, "cut"), ref = `book:${book.id}@${book.n}`;
-  const made = await Promise.all(clips.map(async (c) => ({ ...c, ...(c.take ? await madeOf(c, ref) : {}) })));
-  const r = await api.fetchApi("/mainodes/snap/book/otio", { method: "POST", body: JSON.stringify({ name: book.body.name, book: ref, fps, width, height, clips: made }) }), out = await r.json();
+  const { book, clips, gaps } = plan(bookRef, "cut"), ref = `book:${book.id}@${book.n}`, story = book.body.story ? storyOf(book.body).body : cleanStory({});
+  const unitOfCut = new Map(units(book).map((u) => [u.unit.cut ?? u.shot.name, u.unit])), production = await productionFor(book);
+  const made = await Promise.all(clips.map(async (c) => ({ ...c, ...(c.take ? await madeOf(c, ref, unitOfCut.get(c.cut), story) : {}) })));
+  const r = await api.fetchApi("/mainodes/snap/book/otio", { method: "POST", body: JSON.stringify({ name: book.body.name, book: ref, project: production.body.astrid.project, fps, width, height, clips: made }) }), out = await r.json();
   if (!r.ok) throw new Error(out.error ?? `writing the OTIO failed (${r.status})`);
   return { ...out, gaps };
 }

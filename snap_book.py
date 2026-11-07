@@ -28,6 +28,7 @@ import os
 import re
 import shlex
 import subprocess
+import tempfile
 import time
 import uuid
 import zipfile
@@ -37,6 +38,8 @@ import folder_paths
 from aiohttp import web
 from comfy_api.latest import InputImpl, io
 from server import PromptServer
+
+from . import snap_astrid
 
 try:
     from . import snap_vault_server
@@ -177,20 +180,50 @@ def sha256_of(path):
     return h.hexdigest()
 
 
-def astrid(path, name, fps, width, height, rows):
-    """Write the Cut as an Astrid timeline archive at `path` (CONTRACT_SNAP_EXPORT v1): one media clip per row on V1 at
-    its place in the Cut, the take's file once per sha256. Private rows add no clip and no bytes; their time stays a gap.
-    -> (the authoring bundle, the assets by key, the media rows)"""
-    clips, assets, media, at = [], {}, {}, 0.0
+def sound_of(path, out):
+    """a take's own sound as a 48 kHz stereo wav (the dialogue lane's file); False when the take has none"""
+    r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", path, "-vn", "-ac", "2", "-ar", "48000", "-c:a", "pcm_s16le", out], capture_output=True, text=True, timeout=600)
+    return r.returncode == 0 and os.path.isfile(out) and os.path.getsize(out) > 1000
+
+
+def astrid(path, name, fps, width, height, rows, scratch):
+    """Write the Cut as an Astrid timeline archive at `path` (CONTRACT_SNAP_EXPORT v4, SNAP-R215, R216): one picture clip
+    per cut on V1 whose id is the cut id, at its place in the Cut, the take's file once per sha256. A cut with a line
+    (its beats' dialogue) is split: the picture plays at volume 0 and the take's own sound (48 kHz, written in `scratch`)
+    goes on A2 "Dialogue" labelled "<Speaker>: <line>" with app.astrid {segment, text, words}; gain_db becomes the
+    sounding clip's linear volume. No cut idiom, chapters, placements or shots (check A6: they make an import
+    uneditable). Private rows add no clip and no bytes; their time stays a gap. Tracks are written overlays first (the
+    first track draws on top): V1, A1 (the bed's lane), A2. -> (the authoring bundle, the assets by key, the media rows)"""
+    clips, assets, media, at, spoken = [], {}, {}, 0.0, False
+
+    def put(file, key, kind, media_type, length):
+        digest = sha256_of(file)
+        media.setdefault(digest, {"sha256": digest, "size": os.path.getsize(file), "media_type": media_type, "original_name": os.path.basename(file), "path": file})
+        assets[key] = {"media_id": f"sha256:{digest}", "type": kind, "duration": round(length, 3)}
+
     for r in rows:
         if not r["private"]:
-            digest = sha256_of(r["path"])
-            media.setdefault(digest, {"sha256": digest, "size": os.path.getsize(r["path"]), "media_type": "video/mp4", "original_name": os.path.basename(r["path"]), "path": r["path"]})
-            assets[r["take"]] = {"media_id": f"sha256:{digest}", "type": "video", "duration": round(r["length_s"], 3)}
-            clips.append({"id": f"clip-{len(clips) + 1}", "clipType": "media", "track": "V1", "asset": r["take"], "at": round(at, 3), "from": round(r["in_s"], 3), "to": round(r["in_s"] + r["dur_s"], 3), "speed": 1,
-                          **({"label": r["label"]} if r.get("label") else {}), "generation": {"snap": r.get("snap") or {"take": r["take"], "cut": r["cut"]}}})
+            put(r["path"], r["take"], "video", "video/mp4", r["length_s"])
+            lines = r.get("lines") or []
+            volume = round(10 ** (float(r.get("gain_db") or 0) / 20), 4)
+            wav = os.path.join(scratch, f"{r['take']}-sound.wav")
+            spoken_here = bool(lines) and sound_of(r["path"], wav)
+            timing = {"at": round(at, 3), "from": round(r["in_s"], 3), "to": round(r["in_s"] + r["dur_s"], 3), "speed": 1}
+            snap = {**(r.get("snap") or {"take": r["take"], "cut": r["cut"]}), **({"group": r["group"]} if r.get("group") else {})}
+            clips.append({"id": r["cut"], "clipType": "media", "track": "V1", "asset": r["take"], **timing, **({"volume": 0} if spoken_here else {"volume": volume} if volume != 1 else {}),
+                          **({"label": r["label"]} if r.get("label") else {}), "generation": {"snap": snap}})
+            if spoken_here:
+                spoken = True
+                put(wav, f"{r['take']}-sound", "audio", "audio/x-wav", r["length_s"])
+                said = " / ".join(f"{x['name']}: {x['text']}" for x in lines)
+                text = " ".join(x["text"] for x in lines)
+                clips.append({"id": f"{r['cut']}-dialogue", "clipType": "media", "track": "A2", "asset": f"{r['take']}-sound", **timing, **({"volume": volume} if volume != 1 else {}), "label": said,
+                              "app": {"astrid": {"segment": f"line-{r['cut']}", "text": text, **({"words": r["words"]} if r.get("words") else {})}},
+                              "generation": {"snap": {"take": r["take"], "audio_of": r["cut"], "speaker": ", ".join(dict.fromkeys(x["name"] for x in lines)), "line": text,
+                                                      **({"voice_reference": r["voice_reference"]} if r.get("voice_reference") else {})}}})
         at += r["dur_s"]
-    config = {"clips": clips, "tracks": [{"id": "V1", "kind": "visual", "label": "V1"}, {"id": "A1", "kind": "audio", "label": "A1"}],
+    tracks = [{"id": "V1", "kind": "visual", "label": "Picture"}, {"id": "A1", "kind": "audio", "label": "A1"}, *([{"id": "A2", "kind": "audio", "label": "Dialogue"}] if spoken else [])]
+    config = {"clips": clips, "tracks": tracks,
               "output": {"file": f"{os.path.splitext(os.path.basename(path))[0]}.mp4", "fps": fps, "resolution": f"{width}x{height}"},
               "theme_overrides": {"visual": {"canvas": {"fps": fps, "width": width, "height": height}}}}
     bundle = {"schema_version": 1, "parent": {"name": name, "config": config, "clips": clips, "registry": {"assets": assets}}, "placements": [], "shots": {}}
@@ -225,7 +258,7 @@ async def otio(request):
             start = float(c.get("in_s") or 0)
             end = min(length, float(c["out_s"])) if c.get("out_s") is not None else length
             rows.append({"cut": c["cut"], "take": c.get("take"), "path": os.path.abspath(path), "in_s": start, "dur_s": max(0.0, end - start), "length_s": length, "gain_db": c.get("gain_db", 0), "private": private,
-                         "snap": c.get("snap"), "label": c.get("label")})
+                         **{k: c.get(k) for k in ("snap", "label", "lines", "words", "voice_reference", "group")}})
         if not rows:
             raise ValueError("The Cut has no clips yet (each unit needs an active take)")
         out_dir = os.path.join(folder_paths.get_output_directory(), "snap_book")
@@ -236,10 +269,11 @@ async def otio(request):
             json.dump(timeline(name, q.get("book"), fps, rows), f, indent=2)
         locked = [r["cut"] for r in rows if r["private"]]
         archive = os.path.join(out_dir, f"{stem}.astrid")
-        bundle, assets, media = astrid(archive, name, fps, int(q.get("width") or 1280), int(q.get("height") or 704), rows)
+        with tempfile.TemporaryDirectory(prefix="snap_cut_sound_") as scratch:  # the dialogue lane's wavs live only until they are inside the archive
+            bundle, assets, media = astrid(archive, name, fps, int(q.get("width") or 1280), int(q.get("height") or 704), rows, scratch)
         with open(os.path.join(out_dir, f"{stem}.timeline.json"), "w", encoding="utf-8") as f:
             json.dump(bundle, f, indent=1, ensure_ascii=False)
-        listed = {k: {**v, "file": next(r["path"] for r in rows if r["take"] == k), "content_sha256": v["media_id"].removeprefix("sha256:")} for k, v in assets.items()}
+        listed = {k: {**v, **({"file": next(r["path"] for r in rows if r["take"] == k)} if v["type"] == "video" else {"sound_of": k.removesuffix("-sound")}), "content_sha256": v["media_id"].removeprefix("sha256:")} for k, v in assets.items()}
         with open(os.path.join(out_dir, f"{stem}.assets.json"), "w", encoding="utf-8") as f:
             json.dump(listed, f, indent=1, ensure_ascii=False)
         left_out = [{"cut": r["cut"], "take": r["take"], "at_s": round(sum(x["dur_s"] for x in rows[:i]), 3), "seconds": round(r["dur_s"], 3), "why": f"{r['private']}: its file never enters the archive; its time stays a gap"} for i, r in enumerate(rows) if r["private"]]
@@ -247,13 +281,21 @@ async def otio(request):
                 **({"note": f"{', '.join(locked)} {'is' if len(locked) == 1 else 'are'} kept private: an editing program can't read {'it' if len(locked) == 1 else 'them'} from this file"} if locked else {}),
                 "astrid": {"archive": archive, "timeline": os.path.join(out_dir, f"{stem}.timeline.json"), "assets": os.path.join(out_dir, f"{stem}.assets.json"),
                            "clips": len(bundle["parent"]["clips"]), "media": len(media), "left_out": left_out,
-                           "import": f"astrid timelines import {shlex.quote(archive)} --project <project> --name {shlex.quote(name)}",
+                           "import": f"astrid timelines import {shlex.quote(archive)} --project {shlex.quote(project)} --name {shlex.quote(name)}",
                            "said": f"An Astrid timeline of {len(bundle['parent']['clips'])} clip{'s' if len(bundle['parent']['clips']) != 1 else ''}, {len(media)} file{'s' if len(media) != 1 else ''} inside{f'; left out (private): {chr(44).join(locked)}' if locked else ''}. "
-                                   "Each import makes a new timeline in the project: to change an imported one, edit it in Astrid in place."}}
+                                   "Each import makes a new timeline in the project: a pushed Book is changed in place by the next push (tools/astrid_push.py), not imported again."}}
+    project = str(q.get("project") or "<project>")
     try:
-        return web.json_response(await asyncio.to_thread(write))
+        out = await asyncio.to_thread(write)
     except (FileNotFoundError, ValueError, KeyError) as e:
         return web.json_response({"error": str(e)}, status=400)
+    # SNAP-R215: every archive is imported and trimmed in Astrid's scratch project before the answer, when Astrid is here
+    at = snap_astrid.where(request)
+    if "said" in at:
+        out["astrid"]["probe"] = {"ran": False, "said": f"{at['said']}: the archive is written, and nobody has checked it opens editable in Astrid"}
+    else:
+        _, out["astrid"]["probe"] = await snap_astrid.run(request, "probe", out["astrid"]["archive"], "--name", name)
+    return web.json_response(out)
 
 
 NODE_CLASS_MAPPINGS = {"MAISnapCut": MAISnapCut}

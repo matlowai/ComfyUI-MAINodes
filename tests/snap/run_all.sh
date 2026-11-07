@@ -608,6 +608,10 @@ for t in test_g15_cut.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "
 # G16 the production record (SNAP-R223): a Book alone gets a production of its own name (old Books too, at first read),
 # create_production moves Books into it in order, export_records carries its Books and their stories; prints "g16prod n/m"
 for t in test_g16_production.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
+# G16 archive v2 (SNAP-R215, R216): clip id = cut id, a speaking cut's sound on A2 "Dialogue" with its line and words,
+# gain as volume, no cut idiom; every archive imported and trimmed in Astrid's scratch project before the answer when
+# SNAP_TEST_ASTRID_LAUNCHER/_ROOT name the lab (said skipped otherwise); prints "g16cut n/m"
+for t in test_g16_cut.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
 # SNAP-R109: the shipped critic prompt's last real run on the fixtures holds the floor (fixtures.json: r5b, 27/31, 0 FA;
 # a real-agent check, re-scored from its saved notes). critic = r6, the shipped prompt (r5b + metres from the record's
 # scale, SNAP-R155); critic5b = the floor's own run. The r3/r4/r5 runs stay in critic/runs/ as history (critic/README.md)

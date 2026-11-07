@@ -2010,6 +2010,25 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
   F-AC08: a refused `rerun` of short05's C2 key opened its empty workflow and saved it over the shot, and every
   recipe-reading tool then threw until a retake restored it. *More:* tests/snap/test_g15_cut.js.
 
+- **SNAP-R215: The Cut goes to Astrid as an archive Astrid can edit, its clips named by cut, and every archive is proved
+  editable before the answer.** `export_cut`'s `.astrid` (archive v2): one picture clip per cut on V1 whose id is the cut
+  id at import (after a re-take it is the cut id with a suffix, `C7-r<8 hex>`, and Snap's receipt maps it, SNAP-R225);
+  `gain_db` becomes the sounding clip's linear `volume`; tracks overlays first (the first draws on top): V1, A1 (the
+  bed's lane), A2; `generation.snap` as SNAP-R212 plus the cut's scene `group`; never `app.astrid.cut`, chapters,
+  placements or shots. With "Astrid on this machine" set (Settings > MAINodes > Snap > Astrid: the launcher and the
+  Runtime's data folder), the server imports the archive into Astrid's scratch project `snap-probe`, trims a clip by
+  0.1 s, commits and reads it back (tools/astrid_push.py probe, the lab's probe_editable.py steps) before it answers;
+  without it the archive is still written and `probe` says nobody checked it. The import command names the
+  production's project. *Why:* lab check A6: the cut idiom made an import uneditable ("invalid timing input: ''", "trim
+  v1 does not support cut") and a placed-shot archive failed to import; the probe would have caught the jam's archive.
+  *More:* tests/snap/test_g16_cut.js.
+- **SNAP-R216: A speaking cut's sound has its own lane, with its line.** A cut whose beats carry dialogue is split: its
+  picture plays at volume 0 and `<cut>-dialogue` on A2 "Dialogue" carries the take's own sound (48 kHz wav, inside the
+  archive), labelled "<Speaker>: <line>", with `app.astrid {segment, text, words}` (words from the take's voice note,
+  SNAP-R227) and `generation.snap {take, audio_of, speaker, line, voice_reference}`. A cut with no line keeps its sound
+  inside its clip. *Why:* the G15 UX note "sound rides inside video clips, so Astrid's audio lane looks empty"; lab
+  check A3: a dialogue clip with words on its own track imports, trims and lists its words. *More:*
+  tests/snap/test_g16_cut.js.
 - **SNAP-R223: A production is the record above the Book, and it is what an Astrid project is.** A `production` record
   holds a name, its Books in order, the Cast and places they share, a default style and `astrid.project` (the Astrid
   project's slug, from the name unless given). A Book is in one production: listing it in another takes it out of the
