@@ -339,7 +339,7 @@ checks = {
    r["run"]["proposed"] and r["run"]["plan"]["eta_s"] == 70 and "same recipe" in r["run"]["plan"]["from"] and "about 70 s" in (r["chip"] or "") and r["listed"],
    r["runFrom"]["tabs"] == r["tabsBefore"] + 1 and r["runFrom"]["length"] == 73 and r["runFrom"]["selected"] == "render" and r["runFrom"]["showing"] and "nothing is queued" in r["runFrom"]["toast"] and not r["runFrom"]["sheet"],
    r["listsNotStale"], r["queue"] == 0 and r["sam"] == 1, not r["errors"]],
- "newcomer": lambda r: [len(r["tools"]) == 182 and "set_agent_permissions" in r["tools"], r["profile"]["agents"]["run"] is False,
+ "newcomer": lambda r: [len(r["tools"]) == 187 and "set_agent_permissions" in r["tools"], r["profile"]["agents"]["run"] is False,
    r["allowRun"]["value"]["run"] is True and r["afterRun"]["setting"] is True and r["afterRun"]["profile"]["run"] is True,
    not r["allowSee"]["error"] and "screenshot shows this page" in r["allowSee"]["value"].get("note", ""), r["screenshot"]["error"] and "take_frames" in r["screenshot"]["value"],
    r["firstFrame"]["on"] is False and "text to video" in r["firstFrame"]["off"], r["renderLength"]["fps"] == 24 and r["renderLength"]["seconds"] == round(r["renderLength"]["value"] / 24, 2),
