@@ -65,6 +65,8 @@ export function shotOf(scene, id) {
   return shot;
 }
 // how a shot reads: its place in the scene, then its name when it has one
+// F-K04: a name given as the whole title ("Shot 5 · Parch re-walk") keeps only its own part: Snap numbers shots itself
+const ownName = (name) => name?.trim().replace(/^shot\s*\d+\s*[·:\-–]\s*/i, "") ?? "";
 export const shotTitle = (scene, shot) => `Shot ${scene.shots.findIndex((x) => x.id === shot.id) + 1}${shot.name ? ` · ${shot.name}` : ""}`; // by id: a scene read again holds new shot objects (F-D05 "Shot 0")
 
 // a scene versions its authored fields only (SNAP-R60): its name, set, and shots in order with their names and cards. A
@@ -317,7 +319,7 @@ export async function addShot(sceneId, { name, card = null, adopt = null, at, st
   const scene = need(sceneId), here = current();
   if (card) { await L.ready(); if (L.get(card)?.kind !== "shot") throw new Error(`No shot card ${card}`); }
   if (adopt === "open" && here) throw new Error(`This workflow is already ${shotTitle(here.scene, here.shot)} of ${here.scene.name}`);
-  const shot = { id: `shot-${stamp()}`, name: name?.trim() || (card ? L.get(card).title.replace(/^Shot \d+:\s*/, "") : ""), card, workflow: null, groups: [], takes: [], active: null, by, created: Date.now(), ...(start === "copy" ? { start } : {}) };
+  const shot = { id: `shot-${stamp()}`, name: ownName(name) || (card ? L.get(card).title.replace(/^Shot \d+:\s*/, "") : ""), card, workflow: null, groups: [], takes: [], active: null, by, created: Date.now(), ...(start === "copy" ? { start } : {}) };
   const tab = app.extensionManager.workflow.activeWorkflow;
   if (adopt) {
     const group = adopt === "open" ? app.graph.id : adopt, list = T.all().filter((t) => t.group === group).sort((a, b) => a.created - b.created);
@@ -361,7 +363,7 @@ export async function renameScene(id, name) {
 export async function renameShot(sceneId, shotId, name) {
   await load();
   shotOf(need(sceneId), shotId);
-  await update(sceneId, (s) => { s.shots.find((x) => x.id === shotId).name = name?.trim() ?? ""; }, { note: "shot renamed" });
+  await update(sceneId, (s) => { s.shots.find((x) => x.id === shotId).name = ownName(name); }, { note: "shot renamed" });
   await retitleOpen();
   const scene = get(sceneId);
   return { scene: sceneId, shot: shotId, title: shotTitle(scene, scene.shots.find((x) => x.id === shotId)) };
