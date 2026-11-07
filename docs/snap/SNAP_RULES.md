@@ -2013,7 +2013,9 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
   it are refused before anything opens ("make it again with the call that made it"), and loading any graph with no
   nodes into a shot is refused, so the shot's saved workflow and the open recipe stay as they were. *Why:* dogfood
   F-AC08: a refused `rerun` of short05's C2 key opened its empty workflow and saved it over the shot, and every
-  recipe-reading tool then threw until a retake restored it. *More:* tests/snap/test_g15_cut.js.
+  recipe-reading tool then threw until a retake restored it. *More:* tests/snap/test_g15_cut.js. *Extended G16 (F-AD05):* `rerun` checks what each swap needs before the take's graph opens
+  (opening saves it as the shot's workflow): the pin it swaps is in the take's own recipe, a set is in the Library, a
+  setup exists; otherwise it refuses, "Nothing was opened or saved". *More:* tests/snap/test_g16_rerun.js.
 
 - **SNAP-R215: The Cut goes to Astrid as an archive Astrid can edit, its clips named by cut, and every archive is proved
   editable before the answer.** `export_cut`'s `.astrid` (archive v2): one picture clip per cut on V1 whose id is the cut

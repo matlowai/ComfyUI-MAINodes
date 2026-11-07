@@ -15,7 +15,7 @@
 // A slot may take a list ("this shot with each of these 3 characters"): every combination is one re-run. Re-generate
 // makes them one candidates decision whose candidates are the queued takes (Apply makes one the shot's active take,
 // Reject marks its take rejected by whoever pressed it); Reuse the motion makes one decision per combination.
-// SNAP-R63 re-run with swaps · SNAP-R147 a Cast kept as a place swaps to its location · SNAP-R61 as it was / today's world · SNAP-R60 pins · SNAP-R24 where it lands · SNAP-R11
+// SNAP-R63 re-run with swaps · SNAP-R214 a refusal comes before the graph opens · SNAP-R147 a Cast kept as a place swaps to its location · SNAP-R61 as it was / today's world · SNAP-R60 pins · SNAP-R24 where it lands · SNAP-R11
 // warn, never block · SNAP-R58 every choice listed in full · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as ACC from "./account.js";
@@ -221,6 +221,15 @@ async function batch(take, all, { route, seed, land, go, count, who, by }) {
 
 C.kind("rerun", RT.takeCandidate); // a re-run candidate is a take (retake.js)
 
+// F-AD05 (SNAP-R214): what each swap needs from the take's own recipe and the Library, checked before its graph opens
+// (opening saves it as the shot's workflow), so a refusal leaves the shot and its tab as they were
+function ready(take, asked) {
+  const pins = take.graph?.extra?.snap?.world ?? {};
+  for (const s of asked.filter((x) => !x.keep)) {
+    if (s.slot === "setup" ? !M.setups().some((x) => x.name === s.to) : s.slot === "scene" ? !L.get(s.set) : !pins[s.slot])
+      throw new Error(`${named(take)}: ${s.slot === "setup" ? `no setup ${s.to} here` : s.slot === "scene" ? `the set ${s.set} isn't in the Library any more` : `${s.slot} isn't pinned in the take's own recipe (its pins: ${Object.keys(pins).join(", ") || "none"})`}. Nothing was opened or saved`);
+  }
+}
 // Re-generate: the take's recipe again with the swaps, the same seed unless `seed` is new; queue: false only opens it.
 // An opened file (opened()) runs in place, unmarked
 export async function rerun(take, { swaps = {}, route = "regenerate", seed = "same", land, queue: go = true, count, who, by = "person" } = {}) {
@@ -230,7 +239,9 @@ export async function rerun(take, { swaps = {}, route = "regenerate", seed = "sa
   if (all.length > 1) return batch(take, all, { route, seed, land, go, count, who, by });
   if (route === "reuse_motion") { if (!take.id) throw new Error("Reuse the motion needs a take (its video is the motion): this file isn't one here"); return reuse(take, await resolve(take, swaps), { count, who, by }); }
   if (!take.graph) throw new Error(`${named(take)} has no workflow saved with it`);
-  const asked = await resolve(take, swaps), home = landing(land), where = take.id ? await RT.openTake(take, home) : "this tab", done = [];
+  const asked = await resolve(take, swaps), home = landing(land);
+  if (take.id) ready(take, asked);
+  const where = take.id ? await RT.openTake(take, home) : "this tab", done = [];
   for (const s of asked.filter((x) => !x.keep)) done.push(await put(s));
   const seedKey = E.state().bricks.find((b) => E.seedMode(b.key))?.key, newSeed = seed === "new" && seedKey ? E.newSeed(seedKey) : null;
   const cached = seed === "same" && (await T.hashes(await T.live())).hash === take.hash;
