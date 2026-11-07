@@ -38,7 +38,8 @@ loop, or between your own renders), work it:
    pictures to judge; the context pictures are the master, plan, other views, the Cast, the previous cut.
 5. `write_critique` with your answer, mapped from the output format below:
    - `verdict`: clean or flaws;
-   - `passes`: one line per pass (scan, map, support, cast, beat, cross_view; cut_pair for a cut pair);
+   - `passes`: one line per pass (scan, map, support, cast, beat, cross_view; cut_pair for a cut pair; scale on a place,
+     a plate or a board: the scale anchors against each other, then eye and wall heights against them, F-Q23);
    - one note per `- [sev] ...` line: `severity`, `pass` (the pass that found it), `text` (the flaw), `picture` (the
      packet `#index` you drew the region on: a whole frame, a tile, or a context picture), `region` [x, y, w, h] as
      fractions of that picture, `owner` (the record it was born in, e.g. "location master", "plate Pb" (the plate's

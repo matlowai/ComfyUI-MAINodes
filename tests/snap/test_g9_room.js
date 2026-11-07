@@ -7,7 +7,8 @@
 //   long prompt with asides of its own>) from Picture 1 …", a New view pick with the same, a run named by an agent with a
 //   nested aside) each ask one short sentence with no "(", and on a phone the picture comes before the notes;
 // - F-Q24: a critic's owner "board" names the board the take opens on (the cut's approved board, as a take), "camera marks"
-//   names the plate the note is about and its camera mark; Fix at source opens that board and says that mark.
+//   names the plate the note is about and its camera mark; Fix at source opens that board and says that mark;
+// - F-Q23: write_critique takes a scale pass (and a note found by it).
 // Screens: ui/g9/room_critic_desk.png, room_critic_phone.png, room_then.png, fix_board.png. usage: node test_g9_room.js [port] [base]
 const { chromium } = require("playwright");
 const fs = require("fs"), path = require("path");
@@ -81,10 +82,11 @@ const VIEW_TITLE = `New view · H3 still (Fizgig) ×1 (${PROMPT}) from Picture 1
       plates: [{ name: "Pa road eye", file: "snaptest_g9/pa.png", camera: "Pa road / C1", pose: { eye_height: 2.8 } }, { name: "Pb gate inside v2", file: "snaptest_g9/master.png", camera: "Pb gate inside", pose: { eye_height: 1.6 } }] });
     const prow = (await call("critique", { location: place.ref ?? place.location, part: "plate Pb gate inside v2", again: true })).critique;
     await bridge("claim_critique", { critique: prow }, "g9-critic");
-    R.marks = (await bridge("write_critique", { critique: prow, verdict: "flaws", passes: { map: "read" }, notes: [
-      { severity: "medium", pass: "map", text: "Pa's eye is ~1.9 m, typed 2.8 m (gap 0.9 m), measured against the record's scale (gate door 3.8 m).", owner: "camera marks" },
+    R.marksWrite = await bridge("write_critique", { critique: prow, verdict: "flaws", passes: { map: "read", scale: "the gate door 3.8 m against the house door 2.0 m: agree" }, notes: [
+      { severity: "medium", pass: "scale", text: "Pa's eye is ~1.9 m, typed 2.8 m (gap 0.9 m), measured against the record's scale (gate door 3.8 m).", owner: "camera marks" },
       { severity: "low", pass: "map", text: "This plate's typed eye height 1.6 m disagrees with the picture.", owner: "camera marks" },
-      { severity: "low", pass: "map", text: "Retype the eye height.", owner: "plate Pa road eye (pose)" }] }, "g9-critic")).result?.notes?.map((n) => n.owner);
+      { severity: "low", pass: "map", text: "Retype the eye height.", owner: "plate Pa road eye (pose)" }] }, "g9-critic");
+    R.marks = R.marksWrite.result?.notes?.map((n) => n.owner);
 
     // the Room, at the critic's row
     await call("open_view", { view: "room" });
@@ -142,6 +144,7 @@ const VIEW_TITLE = `New view · H3 still (Fizgig) ×1 (${PROMPT}) from Picture 1
     leakTest: Array.isArray(S.banned) && S.banned.length === 0,
     boardOwnerNamesTheBoard: own(0).what === "board" && own(0).take === (S.board?.from?.take) && own(0).role === "board" && own(0).label === "C1's approved board",
     marksNamePlate: mk(0).part === "marks" && mk(0).plate === "Pa road eye" && mk(0).mark === "Pa road / C1" && mk(1).plate === "Pb gate inside v2" && mk(1).mark === "Pb gate inside" && mk(2).part === "marks" && mk(2).plate === "Pa road eye",
+    scalePass: R.marksWrite?.result?.passes?.scale?.startsWith("the gate door") && R.marksWrite.result.notes?.[0]?.pass === "scale" && R.marksWrite.result.notes[0].tags?.includes("scale"),
     fixOpensBoard: /C1's approved board, take \d+/.test(S.fix?.head ?? "") && S.fix?.src === S.fix?.boardSrc,
     fixSaysMark: /plate Pa road eye's pose and mark Pa road \/ C1/.test(S.fix?.marks ?? "") && /name: "Pa road eye"/.test(S.fix?.marks ?? ""),
     phonePictureFirst: S.phone === true && S.phoneLayout?.sideways === false && /keep it anyway\?$/.test(S.phoneLayout?.h2 ?? "") && S.phoneLayout.picTop != null && S.phoneLayout.picTop < 844 && S.phoneLayout.notesTop > S.phoneLayout.picTop,

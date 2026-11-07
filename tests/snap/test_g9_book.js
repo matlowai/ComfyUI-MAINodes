@@ -12,7 +12,8 @@
 //   get_book opens;
 // - SNAP-R184 (F-Q26): a board's packet names who should be in it (its cut's Cast), labels every picture it was made from
 //   by its Picture number (the plate the place adds says "made from: Picture 1 C2's camera (= … plate P2 counter)"), and
-//   carries a measuring copy (a 5 % grid with a 1 % ruler).
+//   carries a measuring copy (a 5 % grid with a 1 % ruler);
+// - F-Q10: make_board and design_state with a method keep the purpose from what is in frame (character).
 // usage: node test_g9_book.js [port] [base]   prints "g9book n/m" last
 const { chromium } = require("playwright");
 const fs = require("fs"), path = require("path");
@@ -89,6 +90,7 @@ const STYLE = "2D cel-shaded Japanese TV anime, crisp clean black lineart, flat 
     heldLint: /C2's own beat b2 changes what is held \(Mio Hayase holds the ladle in the right hand\..*→ .*Mio Hayase's right hand is empty\..*with both hands.*make_board draws the key/s.test(lint2),
     defaultBoardIsKey: S.s2?.board?.role === "key" && /This frame is the beat at its peak\./.test(S.s2.board.prompt ?? "") && !/holds the ladle/.test(S.s2.board.prompt ?? "") && /right hand is empty/.test(S.s2.board.prompt ?? ""),
     takeUpKeepsOpening: !S.s1?.opens?.held && S.s1?.board?.role === "opening",
+    purposeWithMethod: S.mbKey?.chosen?.purpose === "character" && S.design?.chosen?.purpose === "character",
     makeBoardKey: S.mbKey?.role === "key" && /changes what is held/.test(S.mbKey?.role_why ?? "") && S.keyTake?.story?.role === "key",
     openingStillAsked: S.mbOpen?.role === "opening" && !S.mbOpen?.role_why && /moment the cut starts/.test(S.mbOpen?.prompt ?? ""),
     setBoardPicksKey: S.setKey?.role === "key" && !!S.unit2?.key?.file && !S.unit2?.board,
