@@ -157,7 +157,7 @@ const sh = (cmd, args) => new Promise((done, fail) => execFile(cmd, args, (e) =>
     R.removed = await call("remove_audio_ref", { audio: 1 });
     R.cv = await call("save_cast", { cast: R.cast.cast, name: "Maren", details: "a tall swordswoman, white braid", lora: null, refs: [{ file: "snap/snaptest_u101_face.png", role: "identity: front" }], voice: { file: "snap/snaptest_u101_voice.wav", casting: "young woman, low cool alto" } });
     R.cvMissing = await call("save_cast", { cast: R.cast.cast, name: "Maren", lora: null, voice: { file: "snap/no_voice.wav" } });
-    R.applied = await call("apply_cast", { cast: R.cast.cast });
+    R.applied = await call("apply_cast", { cast: R.cast.cast, voice: true }); // SNAP-R237: no line in this prompt, so the voice goes in only when asked
     R.afterCast = (await call("describe_recipe", {}))?.references?.audio;
     await page.evaluate(async () => { const m = await import("/extensions/ComfyUI-MAINodes/snap_view.js"); m.snap.view?.render?.(); }).catch(() => {});
     await page.waitForTimeout(500);

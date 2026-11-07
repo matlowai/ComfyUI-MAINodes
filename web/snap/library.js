@@ -6,7 +6,7 @@
 // SNAP-R59 Cast by reference (applyCast) · SNAP-R196 a Cast picture replaced as a new version · SNAP-R60 the person's cards are world records (world.js) ·
 // SNAP-R73 a Cast's voice reference goes in as an <Audio n> · SNAP-R84 a location by reference: its master, plan and named
 // plates (applyLocation), in one order on every apply · SNAP-R143 a take's sound as a Cast's voice (takeToVoice) · SNAP-R115 under Ref2V the First frame opens the shot as <Picture 1> (syncOpening) ·
-// SNAP-R148 one plate or camera mark changes alone (addPlate) · SNAP-R177 a dry run writes nothing (saveLocation dry) · SNAP-R155 a place's scale anchors (scaleOf) · SNAP-R165 a Cast line folds through the story state (applyCast line) · see docs/snap/SNAP_RULES.md
+// SNAP-R148 one plate or camera mark changes alone (addPlate) · SNAP-R177 a dry run writes nothing (saveLocation dry) · SNAP-R155 a place's scale anchors (scaleOf) · SNAP-R165 a Cast line folds through the story state (applyCast line) · SNAP-R237 a Cast's voice only where that Cast speaks (voiceWanted) · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
@@ -410,7 +410,8 @@ export async function takeToPlate(t, ref, { frame, name, by = "person" } = {}) {
 // `strength` overrides the record's for this recipe (the pin says so). Returns what happened
 // line (F-L02, SNAP-R165): the details line as a Book cut tells it (the Cast's clauses its story state overrides left out);
 // the pin keeps it, so a re-apply takes that text back out
-export async function applyCast(ref, { strength, pictures, line: told = null } = {}) {
+// voice (SNAP-R237): true puts the Cast's voice reference in, false keeps it out (why: the reason said); unset, voiceWanted decides
+export async function applyCast(ref, { strength, pictures, line: told = null, voice = null, why = null } = {}) {
   await ready();
   const { kind, id, n } = W.parse(ref);
   if (kind !== "cast") throw new Error(`${ref} isn't a Cast reference (cast:<id> or cast:<id>@n)`);
@@ -452,9 +453,13 @@ export async function applyCast(ref, { strength, pictures, line: told = null } =
       if (b.refs.length) { try { preset = conditionFor("Ref2V"); } catch (e) { placed.unread = e.message; } }
     }
     // SNAP-R73: the Cast's voice reference goes into References as an audio reference, cited <Audio n>; a version without
-    // one takes the last apply's out
+    // one takes the last apply's out. SNAP-R237 (F-SQ11/12, F-AC11): only where that Cast speaks, else it stays out, said
     const voiced = E.state().bricks.find((x) => x.key === "refs")?.audios?.find((x) => x.source === key);
-    if (b.voice?.file) {
+    const wanted = b.voice?.file && voice == null ? voiceWanted(key, b.name, !!voiced) : { want: voice !== false, why: why ?? (voice === false ? "asked to leave it out" : "asked for") };
+    if (b.voice?.file && !wanted.want) {
+      if (voiced) E.removeAudio(voiced.node);
+      placed.no_voice = wanted.why;
+    } else if (b.voice?.file) {
       if (!keys().includes("refs")) await E.snap("refs");
       const a = E.addAudio(b.voice.file, { role: `cast: ${b.name}, voice`, reason: `${b.name}, cast v${got.version.n}${b.voice.casting ? `: ${b.voice.casting}` : ""}`, source: key, card: W.refOf("cast", id, got.version.n) });
       placed.voice = `<Audio ${E.audioNumber(a.node)}>`;
@@ -463,7 +468,24 @@ export async function applyCast(ref, { strength, pictures, line: told = null } =
     pin(key, { n: got.version.n, hash: W.short(got.version.hash), name: b.name, placed, ...(strength != null ? { strength } : {}) });
   } finally { app.canvas.emitAfterChange(); }
   app.canvas.setDirty(true, true);
-  return `${b.name} v${got.version.n}: ${[b.lora && `${b.lora.file.split("/").pop().replace(/\.safetensors$/, "")} at ${strength ?? b.lora.strength} on Cast`, line && "the details in the prompt", b.refs.length && `${b.refs.length} picture${b.refs.length === 1 ? "" : "s"} in References`, placed.voice && `the voice reference as ${placed.voice} (cite it in the prompt)`].filter(Boolean).join(", ") || "nothing to put in (no LoRA, words or pictures)"}${preset ? `; Render Preset now ${preset} (the pictures need it)` : ""}${opening ? `; ${opening.said}` : ""}${placed.unread ? `; the pictures are not read by this render: ${placed.unread}` : ""}`;
+  return `${b.name} v${got.version.n}: ${[b.lora && `${b.lora.file.split("/").pop().replace(/\.safetensors$/, "")} at ${strength ?? b.lora.strength} on Cast`, line && "the details in the prompt", b.refs.length && `${b.refs.length} picture${b.refs.length === 1 ? "" : "s"} in References`, placed.voice && `the voice reference as ${placed.voice} (cite it in the prompt)`, placed.no_voice && `no voice for ${b.name}: ${placed.no_voice} (apply_cast {voice: true} puts it in)`].filter(Boolean).join(", ") || "nothing to put in (no LoRA, words or pictures)"}${preset ? `; Render Preset now ${preset} (the pictures need it)` : ""}${opening ? `; ${opening.said}` : ""}${placed.unread ? `; the pictures are not read by this render: ${placed.unread}` : ""}`;
+}
+
+// SNAP-R237: whether a Cast's voice reference belongs in the open recipe. A recipe a Book cut compiled (its story pin)
+// says it by its lines: the voice goes in only where that Cast has one, so a re-take or re-run with today's world never
+// brings a voice into a silent cut (F-AC11). On a plain shot it stays when already in (a version update) and goes in when
+// the prompt gives the Cast a line ("Kuroe says…", "Kuroe: \"…\"", "Kuroe <d>…</d>"). -> {want, why}
+const SPEECH = "says|said|asks|asked|shouts|shouted|whispers|whispered|yells|yelled|mutters|muttered|replies|replied|calls out|exclaims|gasps";
+export function voiceWanted(key, name, voiced) {
+  const from = E.state().story?.from;
+  if (from) {
+    const speaks = Object.keys(from).some((k) => k.split(".line.")[1] === key);
+    return { want: speaks, why: speaks ? "a line in this cut" : `no line in this cut${E.state().story.unit?.cut ? ` (${E.state().story.unit.cut})` : ""}` };
+  }
+  if (voiced) return { want: true, why: "already in this recipe" };
+  const n = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), prompt = E.getValue("render", "render", "prompt") ?? "";
+  const line = new RegExp(`\\b${n}\\b[^.\\n"“]{0,40}\\b(${SPEECH})\\b|\\b${n}\\b\\s*(\\(S\\d+\\))?\\s*:?\\s*(<d>|["“])`, "i").test(prompt);
+  return { want: line, why: line ? "the prompt gives a line" : "the prompt gives no line" };
 }
 
 // U72 F23: References that this render won't read (H3 reads pictures only with a Ref2V conditioning), as one line, or null
@@ -753,10 +775,12 @@ export async function swapPin(from, to) {
         }
         if (p.text) { const before = E.getValue("render", "render", "prompt"); removeFromPrompt([p.text]); if (E.getValue("render", "render", "prompt") === before) said.push(`${old.name}'s line wasn't found as written; check the prompt`); }
         for (const x of E.state().bricks.find((k) => k.key === "refs")?.pictures ?? []) if (x.source === from) E.removePicture(x.node);
+        for (const x of E.state().bricks.find((k) => k.key === "refs")?.audios ?? []) if (x.source === from) E.removeAudio(x.node); // SNAP-R237: the old Cast's voice goes with it
         unpin(from);
       } finally { app.canvas.emitAfterChange(); }
     }
-    return [await applyCast(to), ...said].join("; ");
+    // SNAP-R237: a recast speaks where the Cast it replaces spoke (the cut's line is the role's, not the person's)
+    return [await applyCast(to, other ? { voice: voiceWanted(W.refOf(a.kind, a.id), old.name ?? "", !!old.placed?.voice).want } : {}), ...said].join("; ");
   }
   if (b.kind === "location") { // the same pictures of the other place or version: master, plan and the plates of the same names
     const p = old.placed ?? {};

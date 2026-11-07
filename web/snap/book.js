@@ -746,10 +746,9 @@ export async function apply(sceneId, shotId, { by = "agent", beats = null, land 
   const rest = (E.getValue("render", "render", "prompt") ?? "").split("\n").slice(1).filter((l) => !/^(overall_soundscape|non_diegetic_music):/.test(l));
   E.setValue("render", "render", "prompt", [`integrated_multimodal_description: [Shot ${number}] ${sheet.prompt.description}`, `overall_soundscape: ${sheet.prompt.soundscape || "N/A"}`, `non_diegetic_music: ${sheet.prompt.music || "N/A"}`, ...rest].join("\n"));
   const casts = sheet.entities.filter((x) => x.ref.startsWith("cast:") && !x.missing);
-  for (const e of casts) said.push(await L.applyCast(e.ref, { line: e.cast_line?.line ?? null })); // F-L02: the Cast line as this cut tells it
+  // F-L02: the Cast line as this cut tells it; F-F09 (SNAP-R237): a Cast's voice only on a cut where that Cast has a line
+  for (const e of casts) said.push(await L.applyCast(e.ref, { line: e.cast_line?.line ?? null, voice: sheet.speakers.includes(e.ref), why: `no line in ${unit.cut ?? "this cut"}` }));
   for (const e of casts) for (const x of e.cast_line?.left_out ?? []) said.push(`${e.name}: ${x.said}`);
-  // F-F09: a Cast's voice only on a cut where that Cast has a line
-  for (const e of casts.filter((x) => !sheet.speakers.includes(x.ref))) { const a = refs()?.audios?.find((x) => x.source === e.ref); if (a) { E.removeAudio(a.node); said.push(`no voice for ${e.name}: no line in this cut`); } }
   // state pictures go in after the Cast's own (their source is the Book, so a Cast apply never takes them out)
   for (const p of refs()?.pictures ?? []) if (p.source === `book-state:${shotId}`) E.removePicture(p.node);
   for (const p of sheet.package.filter((x) => x.role.startsWith("state: "))) E.addPicture(p.file, { role: p.role, reason: p.why, source: `book-state:${shotId}` });
