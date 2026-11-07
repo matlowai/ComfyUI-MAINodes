@@ -32,14 +32,18 @@ async function open(browser, opts = {}) {
 
 // ms from toggle until the switch to the graph has fully settled
 // ms from toggle until it looks done (veil < 2 %, every card within 2 px of its node) and until fully at rest
+// worstFrameMs: the longest gap between two frames during the switch. The times are wall clock read once a frame, so a
+// box starving the browser of frames (a gate beside critic agents or renders) reads late: a looksDone over 350 with a
+// worst frame far over 17 ms is the box, not the switch (G6: 417 ms in the G5 gate, 314-320 alone)
 const switchMs = (page) => page.evaluate(() => new Promise((done) => {
   const t0 = performance.now(), root = window.__snap.view.root;
-  let looks = 0;
+  let looks = 0, last = t0, worst = 0;
   window.__snap.toggle();
   const poll = () => {
-    const veil = Number(getComputedStyle(root).getPropertyValue("--veil") || 0);
-    if (!looks && veil < 0.02) looks = Math.round(performance.now() - t0);
-    if (root.style.display === "none") return done({ looksDone: looks, rest: Math.round(performance.now() - t0) });
+    const now = performance.now(), veil = Number(getComputedStyle(root).getPropertyValue("--veil") || 0);
+    worst = Math.max(worst, now - last); last = now;
+    if (!looks && veil < 0.02) looks = Math.round(now - t0);
+    if (root.style.display === "none") return done({ looksDone: looks, rest: Math.round(now - t0), worstFrameMs: Math.round(worst) });
     requestAnimationFrame(poll);
   };
   requestAnimationFrame(poll);

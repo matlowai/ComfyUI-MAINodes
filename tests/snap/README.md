@@ -74,6 +74,15 @@ setting on (Let agents run) leaves it on. Read the suite's header before trustin
 - **Expected totals** live in `summary`'s checks (`agent`, `agentfull`: MCP 176 tools, WebMCP 171 after G6). A branch that adds or
   removes tools changes those numbers in the same commit.
 
+## Timing suites need a quiet box
+
+`ui` (drag frame times), `ui2` (palette open, the Snap ⇄ Graph switch at ~320 ms looks-done, ≤ 350) and `proposals`
+measure wall-clock time read once a frame. A box that starves the browser of frames (critic agents, renders, a long
+check beside the gate) reads them late: ui2's switch read 417 ms in the G5 gate and 314-320 ms alone, 345-499 ms with
+every core busy. ui2 records `worstFrameMs` (the longest gap between two frames during the switch): a fail with a worst
+frame far over 17 ms is the box, not the code. Start the gate when side jobs are done, and rerun a timing fail alone
+before calling it a regression.
+
 ## Privacy checks fail closed
 
 A privacy suite that cannot check reports FAIL: the CPU server's privacy suites (`test_private_files.py`,

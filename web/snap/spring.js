@@ -13,7 +13,7 @@ export const SPRINGS = {
 
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 export const reducedMotion = () => reduced.matches;
-const STEP = 1 / 120;
+const STEP = 1 / 120, MAX_DT = 0.25; // past MAX_DT (a hidden tab's paused frames) a spring resumes instead of jumping
 
 // a spring over a flat array of numbers (x, y, scale... animated together so they arrive together)
 // `eps` is the rest precision per axis in that axis' units: 0.5 for pixels, ~0.002 for opacity or scale
@@ -41,9 +41,11 @@ export class Spring {
 
   jump(to) { this.x = [...to]; this.to = [...to]; this.v = this.v.map(() => 0); }
 
-  // advance dt seconds; true when at rest on every axis (distance < eps and speed < 4·eps per second)
+  // advance dt seconds; true when at rest on every axis (distance < eps and speed < 4·eps per second). A long frame
+  // advances by its real time up to MAX_DT, so a busy machine slows a switch less (G6, F-M02: with a 64 ms cap a 300 ms
+  // switch read ~480 ms under full CPU load, ~400 ms with this); fixed substeps keep any dt stable
   step(dt) {
-    for (let t = Math.min(dt, 0.064); t > 1e-6; t -= STEP) {
+    for (let t = Math.min(dt, MAX_DT); t > 1e-6; t -= STEP) {
       const h = Math.min(STEP, t);
       for (let i = 0; i < this.x.length; i++) {
         const a = -this.k * (this.x[i] - this.to[i]) - this.c * this.v[i];
