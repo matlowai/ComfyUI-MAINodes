@@ -19,7 +19,7 @@
 // - F-Q04: a stacked proposal's "with pN waiting: …" clause leaves its Work card row once pN is answered; F-Q02: a
 //   remove_change proposal says what it takes back; F-Q03: a press on the agents' window an agent drives is by agent;
 // - F-Q07: draw_set_plan names a label under another shape's line (its thickness counted); F-Q08: a redraw with no size or
-//   aspect keeps the current plan picture's size (size_from); F-Q15: the Settei lens names a place this install lacks.
+//   aspect keeps the current plan picture's size (size_from); F-Q18: diff_record reads plates by name and field; F-Q15: the Settei lens names a place this install lacks.
 // usage: node test_g9_book.js [port] [base]   prints "g9book n/m" last
 const { chromium } = require("playwright");
 const fs = require("fs"), path = require("path");
@@ -105,6 +105,10 @@ const STYLE = "2D cel-shaded Japanese TV anime, crisp clean black lineart, flat 
     R.plan = await call("draw_set_plan", { location: place, shapes, size: 1400, aspect: 1.4 });
     R.replan = await call("draw_set_plan", { location: place, shapes, preview: true });
     if (R.replan?.images) R.replan.images = R.replan.images.length;
+    // F-Q18: diff_record reads a list of named things by name and field
+    R.posed = await call("add_plate", { location: place, name: "P2 counter", pose: { eye_height: 1.4, heading: 0 } });
+    R.reposed = await call("add_plate", { location: place, name: "P2 counter", pose: { eye_height: 1.6 } });
+    R.diff = await call("diff_record", { a: R.posed.ref ?? `${place}@${R.posed.version}`, b: R.reposed.ref ?? `${place}@${R.reposed.version}` });
 
     // ---- F-Q12 ----
     R.exp = await call("export_records", { refs: [book] });
@@ -154,6 +158,7 @@ const STYLE = "2D cel-shaded Japanese TV anime, crisp clean black lineart, flat 
     stackClauseGoes: /with p\d+ waiting/.test(S.reasonBefore ?? "") && S.accA === "accepted" && !!S.reasonAfter && !/waiting/.test(S.reasonAfter) && S.rowTitle === S.reasonAfter,
     drivenPressIsAgents: R.driven?.by === "agent" && R.driven.driven_by === "g9-agent" && R.driven.where === "the agents' window" && R.notDriven?.by === "person",
     removalSaysWhat: /^One More Bowl: b1: take back Mio Hayase's mood → calm and focused/.test(S.reasonC ?? ""),
+    diffByName: (S.diff?.fields ?? S.diff?.changes ?? []).some((x) => /^plates\[P2 counter\]\.pose\.eye_height 1\.4 → 1\.6$/.test(x)) && !(S.diff?.fields ?? S.diff?.changes ?? []).some((x) => /^plates \[/.test(x)),
     noErrors: !S.crash && !(S.errors ?? []).length,
   };
   R.checks = checks; R.pass = Object.values(checks).filter(Boolean).length; R.total = Object.keys(checks).length;

@@ -77,13 +77,24 @@ export function get(ref) {
 }
 
 // what changed between two bodies, field by field, with both values whole (SNAP-R58): "lora.strength 0.8 → 0.6"
+const named = (l) => Array.isArray(l) && l.length > 0 && l.every((v) => v && typeof v === "object" && typeof v.name === "string") && new Set(l.map((v) => v.name)).size === l.length;
 export function diff(a, b, at = "") {
   const out = [], skip = at ? [] : ["id", "saved"]; // a card's id and save stamp are bookkeeping
   for (const k of new Set([...Object.keys(a ?? {}), ...Object.keys(b ?? {})].filter((k) => !skip.includes(k)))) {
     const x = a?.[k], y = b?.[k], name = `${at}${k}`;
     if (canonical(x) === canonical(y)) continue;
     if (x && y && typeof x === "object" && typeof y === "object" && !Array.isArray(x) && !Array.isArray(y)) out.push(...diff(x, y, `${name}.`));
-    else out.push(`${name} ${JSON.stringify(x) ?? "none"} → ${JSON.stringify(y) ?? "none"}`);
+    else if (named(x) && named(y)) { // F-Q18: a list of named things (plates, camera marks) diffs by name and field
+      const was = new Map(x.map((v) => [v.name, v])), now = new Map(y.map((v) => [v.name, v]));
+      for (const n of new Set([...was.keys(), ...now.keys()])) {
+        const v = was.get(n), w = now.get(n);
+        if (!v) out.push(`${name}[${n}] added ${JSON.stringify(w)}`);
+        else if (!w) out.push(`${name}[${n}] taken out (was ${JSON.stringify(v)})`);
+        else if (canonical(v) !== canonical(w)) out.push(...diff(v, w, `${name}[${n}].`));
+      }
+      const order = (l) => l.map((v) => v.name).join("\u0000");
+      if (order(x.filter((v) => now.has(v.name))) !== order(y.filter((v) => was.has(v.name)))) out.push(`${name} order ${JSON.stringify(x.map((v) => v.name))} → ${JSON.stringify(y.map((v) => v.name))}`);
+    } else out.push(`${name} ${JSON.stringify(x) ?? "none"} → ${JSON.stringify(y) ?? "none"}`);
   }
   return out;
 }
