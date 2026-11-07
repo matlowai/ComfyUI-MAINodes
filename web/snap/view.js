@@ -1177,10 +1177,13 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   async function runFrom(t) {
     if (!t?.graph) throw new Error("This take has no workflow saved with it");
     await T.openAsTab(t);
+    // F-F23: the saved workflow holds the seed after the run moved it on (control after generate): put the take's own back
+    const seeded = t.seed != null && E.state().bricks.find((b) => E.seedMode(b.key));
+    if (seeded) E.setSeed(seeded.key, t.seed);
     const main = ["render", "image"].find((k) => E.state().bricks.some((b) => b.key === k));
     if (main) select(main, false);
     render(null);
-    say(`Take ${t.number}'s settings are in a new tab, ready to run · nothing is queued`);
+    say(`Take ${t.number}'s settings are in a new tab of its own (seed ${t.seed ?? "as saved"}), ready to run · nothing is queued`);
   }
 
   // SNAP-R60: the record versions a brick holds, on that brick: "Kon v1", and when the record moved on, one press to

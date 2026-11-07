@@ -454,7 +454,11 @@ export function restore(take) {
   return changedNodes;
 }
 
-export const openAsTab = (take) => app.loadGraphData(structuredClone(take.graph), true, true, `${take.workflow || "take"} #${take.number}`);
+// F-F23: a scratch tab of its own (no shot, a new graph id: its runs land here, not in the take's shot)
+export function openAsTab(take) {
+  const { snap_scene, ...extra } = take.graph.extra ?? {};
+  return app.loadGraphData({ ...structuredClone(take.graph), id: crypto.randomUUID(), extra: structuredClone(extra) }, true, true, `${take.workflow || "take"} #${take.number}`);
+}
 
 // what changed between two takes' executed prompts: [{node, input, from, to}]
 export function delta(a, b) {

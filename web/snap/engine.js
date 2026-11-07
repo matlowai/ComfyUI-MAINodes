@@ -616,6 +616,10 @@ export function newSeed(key) {
   setValue(key, nodeKey, name, lo + Math.floor(Math.random() * (hi - lo + 1)));
   return getValue(key, nodeKey, name);
 }
+export function setSeed(key, value) {
+  const [nodeKey, name] = seedName(key) ?? (() => { throw new Error(`${key} has no seed`); })();
+  setValue(key, nodeKey, name, value);
+}
 export const seedMode = (key) => (seedName(key) ? brick(key)?.seed ?? "fixed" : null);
 export function setSeedMode(key, mode) {
   if (!seedName(key)) throw new Error(`${key} has no seed`);

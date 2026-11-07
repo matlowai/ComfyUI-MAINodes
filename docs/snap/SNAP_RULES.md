@@ -1348,7 +1348,7 @@ Next free ID after this batch: SNAP-R139.
 
 ## Batch G4 (2026-11-06)
 
-Next free ID after this batch: SNAP-R145.
+Next free ID after this batch: SNAP-R146.
 
 - **SNAP-R139: An agent's proposals live on the server, stack on each other, and keep their answers.** A proposal is a
   row in the person's `snap/proposals.json` (`/mainodes/snap/proposals`), not page memory: a reload, a second page or
@@ -1408,3 +1408,11 @@ Next free ID after this batch: SNAP-R145.
   view's packet carries the pictures it was made from as context; `critique_packet {part}` lists only that part's
   pictures (each keeps its packet #index). *Why:* short05 F-F11: 73 rows titled "Critic: take 1", unpicked candidates
   due forever, a "cut" pair between a front and a back sheet, a board packet with no Cast pictures.
+- **SNAP-R145: Work made from another shot's take lands where it was asked to, and the source shot stays as it was.** A
+  take's graph carries its shot's graph id, which is the group its runs land in; loading it into another shot (`rerun
+  {land}`, `retake`) gives it that shot's id, a scratch tab (`land: "tab"`, `run_from_take`) a new one, so no take
+  lands back in the source shot. `run_from_take` puts the take's own seed back (the saved workflow holds the seed after
+  the run moved it on). `add_shot {from: {scene, shot}}` copies a shot's recipe into any scene now, and `start: "copy"`
+  into another scene copies the open recipe now, each with a graph id of its own and none of the takes. *Why:* the
+  preset-options run (F-F21, F-F22, F-F23): re-runs landed as versions in the Cut's own shots, a copy into another
+  scene built the stock recipe, and "run from take" opened a tab owned by the Cut's shot with the seed one past.

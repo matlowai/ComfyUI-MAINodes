@@ -67,7 +67,7 @@ export async function openTake(take, home) {
   // "as it was" would not be exact); a shot tab with unsaved changes keeps them and the graph opens in a new tab (SNAP-R5)
   if (home) return SC.loadIntoShot(home.scene.id, home.shot.id, take.graph, `take ${take.number}`);
   const { snap_scene, ...extra } = take.graph.extra ?? {};
-  await app.loadGraphData({ ...structuredClone(take.graph), extra: structuredClone(extra) }, true, true, `${take.workflow || "take"} #${take.number} · retake`);
+  await app.loadGraphData({ ...structuredClone(take.graph), id: crypto.randomUUID(), extra: structuredClone(extra) }, true, true, `${take.workflow || "take"} #${take.number} · retake`); // F-F21: a scratch tab's takes are its own, not the source shot's
   return "a new tab";
 }
 

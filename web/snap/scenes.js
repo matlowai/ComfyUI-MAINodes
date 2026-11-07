@@ -12,7 +12,7 @@
 // and its workflow file kept, and a deleted scene's document is parked in snap/scenes/_parked/ (U62).
 // Plain data with stable ids, so a sequence editor can sit on it later: shots in order now, lanes and in/out on shots
 // and takes later (scout/editor_layer §5.6-5.7).
-// SNAP-R5 open work is never lost · SNAP-R60 authored fields versioned · SNAP-R17 by · SNAP-R18 local only · SNAP-R19 the tools call these · SNAP-R24 scenes
+// SNAP-R5 open work is never lost · SNAP-R60 authored fields versioned · SNAP-R17 by · SNAP-R18 local only · SNAP-R19 the tools call these · SNAP-R145 a take loaded here gets this shot's graph id · SNAP-R24 scenes
 // own the work, tabs are scratch · SNAP-R120 a new shot keeps the setup, not the content · SNAP-R122 browsing never writes · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
@@ -274,7 +274,11 @@ export async function loadIntoShot(sceneId, shotId, graph, from) {
   const tabs = app.extensionManager.workflow, here = current(), saved = await read(here.shot.workflow);
   const clean = !!saved && tabs.activeWorkflow.changeTracker.constructor.graphEqual(comparable(saved), comparable(app.graph.serialize()));
   if (!clean) await newTab();
-  await app.loadGraphData({ ...structuredClone(graph), extra: { ...structuredClone(graph.extra ?? {}), snap_scene: { scene: sceneId, shot: shotId } } }, true, true, tabs.activeWorkflow);
+  // F-F21: a take's graph carries its own shot's graph id, which is the group its takes land in: here it takes this
+  // shot's (its saved workflow's id, or a new one this shot lists), so a take re-made here lands here, not in its source
+  const id = clean && saved.id ? saved.id : crypto.randomUUID();
+  if (!here.shot.groups.includes(id)) await addGroup(sceneId, shotId, id);
+  await app.loadGraphData({ ...structuredClone(graph), id, extra: { ...structuredClone(graph.extra ?? {}), snap_scene: { scene: sceneId, shot: shotId } } }, true, true, tabs.activeWorkflow);
   if (!clean) await retitle(here.scene, here.shot, from);
   await saveOpen();
   return `${shotTitle(here.scene, here.shot)} of ${here.scene.name}${clean ? "" : ` in a new tab (the shot's tab has unsaved changes, left as they are)`}`;
@@ -304,7 +308,7 @@ async function first(list, group) {
 // graph id, so runs from either join the shot). adopt <group id> is a take group: its newest take's workflow is the
 // copy. Either way the takes keep their store; the shot lists them (versions under the take they came from) and starts
 // on first() above
-export async function addShot(sceneId, { name, card = null, adopt = null, at, start = "clean", by = "person" } = {}) {
+export async function addShot(sceneId, { name, card = null, adopt = null, at, start = "clean", from = null, by = "person" } = {}) {
   if (!["clean", "copy"].includes(start)) throw new Error(`start is "clean" (the open shot's setup, nothing else; the default) or "copy" (the open shot's recipe as it is); not ${JSON.stringify(start)}`);
   await Promise.all([load(), T.load()]);
   const scene = need(sceneId), here = current();
@@ -323,6 +327,17 @@ export async function addShot(sceneId, { name, card = null, adopt = null, at, st
       delete graph.extra?.snap_scene;
       await api.storeUserData(shot.workflow, graph);
     }
+  }
+  // F-F22: a copy is made now, into any scene: of the open recipe (start: copy) or of a named shot's workflow (from),
+  // with a graph id of its own, so its runs land in the new shot and the source shot stays as it was
+  if (!adopt && (from || (start === "copy" && here?.scene.id !== scene.id))) {
+    let graph = app.graph.serialize(), what = here ? shotTitle(here.scene, here.shot) : "the open workflow";
+    if (from) { const s = need(from.scene), x = shotOf(s, from.shot); graph = x.workflow ? await read(x.workflow) : null; what = `${shotTitle(s, x)} of ${s.name}`; if (!graph) throw new Error(`${what} has no workflow yet (open_shot opens it once)`); }
+    graph = structuredClone(graph); graph.id = crypto.randomUUID();
+    delete graph.extra?.snap_scene; delete graph.extra?.snap?.notes; // notes were about that shot
+    Object.assign(shot, { workflow: workflowFile(scene.id, shot.id), groups: [graph.id], copied_from: what });
+    delete shot.start;
+    await api.storeUserData(shot.workflow, graph);
   }
   await update(scene.id, (s) => s.shots.splice(at == null ? s.shots.length : Math.max(0, Math.min(at, s.shots.length)), 0, shot), { by, note: `added ${shot.name || "a shot"}` });
   const opened = adopt === "open" ? await openShot(scene.id, shot.id) : null;
