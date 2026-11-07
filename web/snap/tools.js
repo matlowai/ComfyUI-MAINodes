@@ -1448,12 +1448,12 @@ export const TOOLS = [
         location: { type: "string" }, plate: { type: "string" }, crop: { type: "array", items: { type: "number", minimum: 0, maximum: 1 }, minItems: 4, maxItems: 4 }, label: { type: "string" } } } },
       prompt: { type: "string" }, method: { type: "string" }, purpose: { type: "string", enum: ["character", "turnaround", "cast_picture", "set", "master", "plate", "settei", "edit"] }, seeds: { type: "array", items: { type: "integer", minimum: 0 } }, count: { type: "integer", minimum: 1 },
       width: { type: "integer", minimum: 16 }, height: { type: "integer", minimum: 16 },
-      land: { anyOf: [{ type: "string", enum: ["tab"] }, { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" } }, required: ["scene", "shot"] }] } }, required: ["pictures", "prompt"] },
+      land: { anyOf: [{ type: "string", enum: ["tab"] }, { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" } }, required: ["scene", "shot"] }] }, question: { type: "string", description: "what the person is asked about these candidates, in a sentence (shown as the Room's question and on the Work card; no ids or file names): e.g. \"Does Kuroe stay on the middle stool?\" (F-Q21)" } }, required: ["pictures", "prompt"] },
     annotations: { consequentialHint: true },
     consequential: true,
     plan: async ({ pictures, seeds, count = 2, method, purpose }) => { await S.load(); const m = S.list("view").find((x) => x.id === (method ?? ED.purposes()[purpose ?? ED.inferPurpose(pictures ?? [])]?.method ?? S.list("view")[0]?.id)), n = seeds?.length || count;
       return { runs: `${n} candidate still${n > 1 ? "s" : ""} from ${pictures?.length ?? 0} context picture${pictures?.length === 1 ? "" : "s"} (${m?.title ?? method}); each lands as a take, and the pick makes one the shot's take`, eta_s: n * ([m?.cost?.local_s].flat().at(-1) ?? 30), from: m?.cost?.per ?? "U101" }; },
-    run: async ({ pictures, prompt, method, purpose, seeds, count, width, height, land }) => ({ ...await ED.fromContext(pictures, prompt, { method, purpose, seeds, count, width, height, land, by: "agent" }),
+    run: async ({ pictures, prompt, method, purpose, seeds, count, width, height, land, question }) => ({ ...await ED.fromContext(pictures, prompt, { method, purpose, seeds, count, width, height, land, question, by: "agent" }),
       next: "wait_for {job: <decision>, until: \"waiting\"}, then candidate_frames {decision} and apply_candidate the one that holds the set" }),
   },
   {

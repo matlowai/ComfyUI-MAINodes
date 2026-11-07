@@ -97,6 +97,7 @@ export function ask(r) {
     return { q: said ? `Shall I ${VERB.test(said) ? bare(low(said)) : `go ahead with ${bare(low(said))}`}?` : "Shall I go ahead?", more };
   }
   if (r.source === "decision") {
+    if (r.question) { const w = words(r.question), own = questionIn(w); if (own || w) return { q: own ?? `${bare(cap(noAsides(w)))}?` }; } // F-Q21: the agent's own question for its candidates
     const d = C.get(r.decision), t = d?.take ? T.get(d.take) : null, place = placeOf(r.where), of = t ? ` of take ${t.number}` : "";
     const q = { edit: `Which edit${of} do you keep?`, rerun: `Which re-run${of} do you keep?`, plate: `Which picture is the ${d?.camera ?? "camera"} plate?`, sheet: `Which character sheet of ${plain(d?.target ?? "") || "them"} do you keep?` }[d?.kind] ?? `Which ${d?.kind === "view" ? "new view" : "one"} do you keep${place ? ` for ${place}` : ""}?`;
     return { q };

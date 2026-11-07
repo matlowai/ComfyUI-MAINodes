@@ -559,7 +559,7 @@ const GRAPHS = { ph3: ph3Graph, fizgig: fizgigGraph, h3: fizgigGraph, contact: c
 // words, one candidate per seed (`seeds`, else `count` new ones), on the view slot's `method` (ph3_view, fizgig_still; by
 // default the first the registry lists).
 // Returns at once; each candidate is a take in the shot it lands in once its paint finishes
-export async function fromContext(pictures, prompt, { method, purpose, seeds, count = 2, width, height, land, story = null, by = "person" } = {}) {
+export async function fromContext(pictures, prompt, { method, purpose, seeds, count = 2, width, height, land, story = null, question = null, by = "person" } = {}) {
   await Promise.all([S.load(), M.load(), T.load(), W.load()]);
   const P = purposes();
   if (purpose != null && !P[purpose]) throw new Error(`purpose is one of ${Object.keys(P).join(", ")}; not ${JSON.stringify(purpose)}`);
@@ -588,7 +588,7 @@ export async function fromContext(pictures, prompt, { method, purpose, seeds, co
       seed, made: { model: m.anchors.unet.split("/").pop() }, label: "new view" }); // a take, no check to wait for (its tile's chips)
   }
   const d = await C.create({ kind: "view", target: first ?? where.group, title: `New view · ${m.title.replace(/^New view\s*·\s*/, "")} ×${list.length} (${label}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: first, method: id,
-    options: { prompt: prompt.trim(), context: said, purpose: aim, ...(size ?? {}) }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}) }, made);
+    options: { prompt: prompt.trim(), context: said, purpose: aim, ...(size ?? {}) }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}), ...(question?.trim() ? { question: question.trim() } : {}) }, made); // F-Q21: the agent's question for the person
   // F-C15: landed away from the shot a context board belongs to: say where it would sit beside that board
   const board = land && land !== "tab" ? said.map((x) => x.take && T.get(x.take)).map((t) => t && { t, home: RT.shotOf(t) }).find((x) => x?.home && x.home.shot.id !== where.shot) : null;
   return { decision: d.id, chosen, pictures: said.map((x) => `Picture ${x.n}${x.n === 1 && m.picture_one ? ` (${m.picture_one.label})` : ""}: ${x.label}`), lands: where.where,

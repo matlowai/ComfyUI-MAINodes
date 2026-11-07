@@ -13,6 +13,7 @@
 // - SNAP-R184 (F-Q26): a board's packet names who should be in it (its cut's Cast), labels every picture it was made from
 //   by its Picture number (the plate the place adds says "made from: Picture 1 C2's camera (= … plate P2 counter)"), and
 //   carries a measuring copy (a 5 % grid with a 1 % ruler);
+// - F-Q21: make_board's question rides on its decision to the Work card row and the Room (asides gone);
 // - F-Q11: the face and copy checks queued for an agent's make_board candidates are by agent;
 // - F-Q10: make_board and design_state with a method keep the purpose from what is in frame (character);
 // - F-Q04: a stacked proposal's "with pN waiting: …" clause leaves its Work card row once pN is answered; F-Q02: a
@@ -62,13 +63,15 @@ const STYLE = "2D cel-shaded Japanese TV anime, crisp clean black lineart, flat 
     R.s1 = await call("compile_unit", { scene: c1.scene, shot: c1.shot });
     R.s2 = await call("compile_unit", { scene: c2.scene, shot: c2.shot });
     R.mbKey = await call("make_board", { scene: c2.scene, shot: c2.shot, count: 1, seeds: [9221], method: "ph3_view" });
-    R.mbOpen = await call("make_board", { scene: c2.scene, shot: c2.shot, count: 1, seeds: [9211], method: "ph3_view", role: "opening" });
+    R.mbOpen = await call("make_board", { scene: c2.scene, shot: c2.shot, count: 1, seeds: [9211], method: "ph3_view", role: "opening", question: "Does Kuroe stay on the middle stool (take-ab12cd34ef)?" });
+    // F-Q21: the agent's question reaches the Work card row and the Room
+    R.asked = await page.evaluate(async (d) => { const A = await import("/extensions/ComfyUI-MAINodes/snap/activity.js"), RM = await import("/extensions/ComfyUI-MAINodes/snap/room.js"); await A.reconcile(); const r = A.all().find((x) => x.decision === d); return r ? { question: r.question ?? null, room: RM.ask(r).q } : null; }, R.mbOpen.decision);
     const keyTake = R.mbKey.candidates?.[0]?.prompt_id ? `take-${R.mbKey.candidates[0].prompt_id}` : null;
     R.keyTake = keyTake && await waitTake(keyTake);
     R.setKey = keyTake && await call("set_board", { scene: c2.scene, shot: c2.shot, take: keyTake });
     R.unit2 = await B((B, { scene, shot }) => B.unitOf(scene, shot).unit, { scene: c2.scene, shot: c2.shot });
     // F-Q11: the checks Snap queues for an agent's candidates are the agent's
-    R.checks = await page.evaluate(async (d) => { const A = await import("/extensions/ComfyUI-MAINodes/snap/activity.js");
+    R.checkJobs = await page.evaluate(async (d) => { const A = await import("/extensions/ComfyUI-MAINodes/snap/activity.js");
       for (let i = 0; i < 60; i++) { await A.reconcile(); const rows = A.all().filter((r) => r.kind === "check" && r.about?.decision === d); if (rows.length) return rows.map((r) => ({ title: r.title, by: r.by, state: r.state })); await new Promise((ok) => setTimeout(ok, 1000)); } return []; }, R.mbKey.decision);
     // F-Q26: the key board's packet
     const crow = keyTake && (await call("critique", { take: keyTake })).critique;
@@ -127,7 +130,8 @@ const STYLE = "2D cel-shaded Japanese TV anime, crisp clean black lineart, flat 
     heldLint: /C2's own beat b2 changes what is held \(Mio Hayase holds the ladle in the right hand\..*→ .*Mio Hayase's right hand is empty\..*with both hands.*make_board draws the key/s.test(lint2),
     defaultBoardIsKey: S.s2?.board?.role === "key" && /This frame is the beat at its peak\./.test(S.s2.board.prompt ?? "") && !/holds the ladle/.test(S.s2.board.prompt ?? "") && /right hand is empty/.test(S.s2.board.prompt ?? ""),
     takeUpKeepsOpening: !S.s1?.opens?.held && S.s1?.board?.role === "opening",
-    agentChecksAreAgents: (S.checks ?? []).length > 0 && S.checks.every((x) => x.by === "agent"),
+    questionReachesRoom: S.asked?.question === "Does Kuroe stay on the middle stool (take-ab12cd34ef)?" && S.asked?.room === "Does Kuroe stay on the middle stool?",
+    agentChecksAreAgents: (S.checkJobs ?? []).length > 0 && S.checkJobs.every((x) => x.by === "agent"),
     purposeWithMethod: S.mbKey?.chosen?.purpose === "character" && S.design?.chosen?.purpose === "character",
     makeBoardKey: S.mbKey?.role === "key" && /changes what is held/.test(S.mbKey?.role_why ?? "") && S.keyTake?.story?.role === "key",
     openingStillAsked: S.mbOpen?.role === "opening" && !S.mbOpen?.role_why && /moment the cut starts/.test(S.mbOpen?.prompt ?? ""),

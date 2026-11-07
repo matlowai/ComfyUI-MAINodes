@@ -84,7 +84,7 @@ export function openWork(host, { say, open, decide }) {
       LIVE(r) ? null : h("button", { className: "snap-link snap-quiet-btn", textContent: r.zone === "parked" ? "Unpark" : "Park", title: r.zone === "parked" ? "back where it was" : "out of the way, kept, never counted", onclick: act(() => A.park(r.id, r.zone !== "parked").then(() => "")) }),
     ];
     const el = h("div", { className: `snap-work-row ${r.state}`, tabIndex: 0, role: "listitem" },
-      h("div", { className: "snap-work-line" }, h("i", { className: "snap-work-dot" }), h("strong", { className: "snap-work-title", textContent: r.title }), h("span", { className: "snap-spacer" }), buttons),
+      h("div", { className: "snap-work-line" }, h("i", { className: "snap-work-dot" }), h("strong", { className: "snap-work-title", textContent: r.question ?? r.title, ...(r.question ? { title: r.title } : {}) }), h("span", { className: "snap-spacer" }), buttons),
       h("div", { className: "snap-quiet snap-work-meta", textContent: [r.where, stateText(r), r.by === "agent" ? "started by an agent" : null, take ? "p keep · x reject · n neither" : null].filter(Boolean).join(" · ") }),
       r.error ? h("pre", { className: "snap-work-error", textContent: r.error }) : null,
       r.traceback?.length ? h("details", { className: "snap-work-rest" }, h("summary", { textContent: "the rest of it" }), h("pre", { className: "snap-work-error", textContent: r.traceback.join("") })) : null,
