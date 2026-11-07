@@ -89,6 +89,17 @@ only helps when the dial being held overlaps the dial doing the work. The blue t
 component inside the watermark dial; my guess (untested) is that it comes from how the model responds to the shift as a
 whole. Next: push back with the dress dial itself (toward white) instead of holding it.
 
+**v2 −8 + the dress dial at −4 (an active push toward white):** **the blue is gone.** All 12 dresses are white or cream
+again; mean blue − red over the figure returns to control levels (−21…+12 vs the controls' −45…+29; v2 alone reached +106).
+Pose and composition stay as with v2 alone; a few faces shift a little. Watermarks: **5 of 8 fully removed**, 2 reduced to a
+tiny mark (seed 102's "@handle" becomes a small number; 109 a small signature), 106's logo survives but fainter; seed 110's
+false-positive mark persists. So slightly less removal than v2 alone (6 of 8) for a clean dress colour. **Caveat:** the dial
+pushes toward white, not back to the original colour: seed 104's control dress is yellow and comes out cream. One render per
+seed, 12 seeds, one prompt.
+
+**What it changes.** A hold only helps when the held dial overlaps the working dial (check the cosine first); a side effect
+that is orthogonal to the working dial has to be pushed back actively, and the push needs a known target colour.
+
 **What it shows.** A negative-prompt dial pushes in the right direction but only part of the way: it fades a watermark
 the real negative removes. A dial is one fixed shift of the text conditioning; a negative prompt steers at every step
 through a second branch. A picture-pair dial does the job (above). Next: a second seed and other prompts; more varied stamp pairs (the
