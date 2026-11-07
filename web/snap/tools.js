@@ -1174,6 +1174,20 @@ export const TOOLS = [
     },
   },
   {
+    name: "list_tabs",
+    description: "The workflow tabs open on this page (UI-17, F-A24: agents' scratch tabs piled up unseen), in tab order, whole: name, path, active (the one calls act on), modified (unsaved changes), temporary (never saved as a file), nodes, and scene/shot when the tab is a scene's shot (its scene and shot ids and names). Nothing changes; closing a tab is the person's.",
+    inputSchema: { type: "object", properties: {} },
+    annotations: { readOnlyHint: true },
+    run: async () => {
+      await SC.load();
+      const tabs = app.extensionManager.workflow, list = tabs.openWorkflows.map((w, i) => {
+        const g = w === tabs.activeWorkflow ? app.graph.serialize() : w.activeState ?? w.changeTracker?.activeState ?? null, m = g?.extra?.snap_scene, sc = m && SC.get(m.scene), sh = sc?.shots.find((x) => x.id === m.shot);
+        return { tab: i, name: w.filename, path: w.path, active: w === tabs.activeWorkflow, modified: !!w.isModified, temporary: !!w.isTemporary, nodes: g?.nodes?.length ?? null, ...(m ? { scene: m.scene, shot: m.shot, ...(sc ? { scene_name: sc.name } : {}), ...(sh ? { shot_title: SC.shotTitle(sc, sh) } : {}) } : {}) };
+      });
+      return { tabs: list, count: list.length, said: `${list.length} tab${list.length === 1 ? "" : "s"} open; ${list.filter((t) => t.modified).length} with unsaved changes; calls act on "${list.find((t) => t.active)?.name}"` };
+    },
+  },
+  {
     name: "read_ui",
     description: "The Snap view as a person sees it: Snap or Graph, the selected brick, what is open (side panel, an open brick, a take, the dial picker or maker), and the workflow name.",
     inputSchema: { type: "object", properties: {} },

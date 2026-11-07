@@ -13,7 +13,10 @@
 // - F-G04 (SNAP-R154): draw_set_plan {preview: true} answers the picture and the labels that run off the plan or over
 //   another, and makes no version;
 // - F-G06: a due row of an older version whose picture a later written row read is answered there (stale, "read on
-//   vN"); a notes-only version gets its own "every view" row.
+//   vN"); a notes-only version gets its own "every view" row;
+// - G2 item 11 (UI-13): list_setups' presets say what they read (Ref2V: references and audio; FL2V: the First frame)
+//   and what they are, the no-turbo ones as opt-in and not a quality step up (SNAP-R149); G2 item 24 (UI-17):
+//   list_tabs lists the open tabs, the scene shot's tab named with its scene and shot.
 // usage: node test_g5.js [port] [base]   prints "g5 n/m" last
 const { chromium } = require("playwright");
 const fs = require("fs"), path = require("path");
@@ -111,6 +114,8 @@ const bridge = (tool, args, agent) => http("/mainodes/snap/call", { tool, args }
     const shot = await call("add_shot", { scene: sid, name: "S1" });
     await call("open_shot", { scene: sid, shot: shot.shot?.id }); await page.waitForTimeout(2500);
     const group = await page.evaluate(() => app.graph.id);
+    R.tabs = await call("list_tabs", {});
+    R.setups = (await call("list_setups", {})).filter?.((s) => s.source === "preset").map((s) => ({ name: s.name, reads: s.reads, about: s.about }));
     await take("take-g5s1aa", "a.png", { group }); await take("take-g5s2bb", "b.png", { group });
     R.short = await call("set_active_take", { scene: sid, shot: shot.shot?.id, take: "g5s2b" });
     await page.evaluate(async ([g]) => { await window.__C.save({ id: "dec-g5", kind: "view", target: "take-g5s2bb", title: "g5 new view", by: "agent", status: "open", created: Date.now(), candidates: [{ id: "c1", prompt_id: "g5s1aa", take: "take-g5s1aa", state: "ready", label: "c1", pictures: [] }] }); }, [group]);
@@ -137,6 +142,8 @@ const bridge = (tool, args, agent) => http("/mainodes/snap/call", { tool, args }
       && (S.preview.labels ?? []).some((l) => l.shape === 1 && l.off_edge?.includes("right")) && (S.preview.labels ?? []).some((l) => l.shape === 2 && l.overlaps?.some((o) => /Gate/.test(o))) && !(S.preview.labels ?? []).some((l) => l.shape === 0),
     "F-G06 an older due plate row is answered by the later written one": (S.oldPlate ?? []).some((r) => r.state === "stale" && /read on v\d+ \(crit-[^)]+\): the same plate gate/.test(r.stale ?? "")),
     "F-G06 a notes-only version gets its own views row": (S.notesRows ?? []).some((r) => /every view side by side/.test(r.title) && r.state === "due"),
+    "UI-13 presets say what they read and what they are": (() => { const by = (n) => (S.setups ?? []).find((s) => s.name === n); return /reference pictures/.test(by("Pika + reference pictures")?.reads?.join() ?? "") && /First frame/.test(by("Pika H3 Flex")?.reads?.join() ?? "") && /6 steps with/.test(by("Pika H3 Flex")?.about ?? "") && /opt-in.*not a quality step up/.test(by("Reference pictures, no turbo (20 steps)")?.about ?? ""); })(),
+    "UI-17 list_tabs names the open tabs and the shot's scene": (S.tabs?.tabs ?? []).some((t) => t.active && t.scene && t.scene_name === "G5 shots" && t.shot_title) && S.tabs?.count === S.tabs?.tabs?.length,
     "F-G10 the repeated note is one note": (S.notes ?? []).filter((x) => x.part === "plate gate").length === 1 && (S.notes ?? []).find((x) => x.part === "plate gate")?.also?.length === 1,
     "F-G02 set_active_take takes a unique start of the id": S.short?.active === "take-g5s2bb",
     "F-G08 apply_candidate names the take it replaced": S.apply?.replaced === "take-g5s2bb" && /in place of take \d+ \(take-g5s2bb\)/.test(S.apply?.said ?? ""),
