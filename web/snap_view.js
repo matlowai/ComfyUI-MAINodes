@@ -153,7 +153,7 @@ app.registerExtension({
     };
     view = createView({ onSwitch: (key) => toGraph(key), onMakeApp: makeApp, run: (name, args) => callTool(name, args, { confirmed: true }), openIn, setOpenIn });
     // agents read and drive the view through the read_ui / ui tools; switching views lives here with the switch
-    const SHOWN_IN_SNAP = new Set(["location", "library", "book", "open_take", "setups", "dials", "make_dial", "loras", "methods", "turbo", "onboarding", "scenes", "select"]);
+    const SHOWN_IN_SNAP = new Set(["location", "library", "book", "room", "open_take", "setups", "dials", "make_dial", "loras", "methods", "turbo", "onboarding", "scenes", "select"]);
     ui.read = () => ({ ...view.uiRead(), view: sw.showing ? (sw.docked ? "snap (docked)" : "snap") : "graph" });
     ui.act = async (action, target) => {
       if (action === "snap") { if (!sw.showing) await toggle(); return ui.read(); }

@@ -1605,7 +1605,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const here = SC.current();
     return { selected, open: opened, side_panel: root.classList.contains("inspecting"), sheet: root.querySelector(".snap-sheet")?.ariaLabel ?? null,
       workflow: app.extensionManager.workflow.activeWorkflow?.filename ?? null, bricks: E.state().bricks.map((b) => b.key), metadata: MD.on() ? "on" : "off",
-      scene: here ? { id: here.scene.id, name: here.scene.name, shot: here.shot.id, shot_title: SC.shotTitle(here.scene, here.shot) } : null };
+      scene: here ? { id: here.scene.id, name: here.scene.name, shot: here.shot.id, shot_title: SC.shotTitle(here.scene, here.shot) } : null, room: !!root.querySelector(".snap-room") }; // F-S03
   }
   async function uiAct(action, target) {
     const tracker = app.extensionManager.workflow.activeWorkflow?.changeTracker;

@@ -21,6 +21,7 @@
 // SNAP-R121 answers say what the work is: whole titles, what a setup switch carried, eye gaps, caption files · SNAP-R122 recipe_matches_active · SNAP-R123 use_take as cast / plate · SNAP-R124 apply_cast pictures, rerun out
 // SNAP-R67-R69, R130-R133 the Book's tools (booktools.js), joined at the end of the table; open_view book · see docs/snap/SNAP_RULES.md
 // SNAP-R134 keep_eye_colour and the redraw's eye line · SNAP-R136 open_view masks, find_take, add_plate's facts · SNAP-R137 cites stay plain · see docs/snap/SNAP_RULES.md
+// SNAP-R185 apply_candidate never makes a still a cut's take · SNAP-R186 a record's new view lands with it · SNAP-R187 open_view says what the page shows · SNAP-R190 paste_back · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import { BRICKS, PACK_BRICKS } from "./bricks.js";
@@ -1493,7 +1494,9 @@ export const TOOLS = [
     run: async ({ view, take, index = 0, cast, ref = 0, decision, candidate, file, path, location: place, plate, tab = "here", scope, book, lens, masks }) => {
       if (view !== "picture" && LB.showing()) LB.close(); // F-F14: a full-size picture left open by an earlier agent would cover the sheet
       if (view === "library") return { showing: await ui.act("library", `${tab}${scope ? `|${scope}` : ""}`), said: `the Agent library is open on the person's page (${tab === "notes" ? "Instructions" : tab === "skills" ? "Skills" : "Applies here"}${scope ? `, ${scope}` : ""})` }; // F-D09
-      if (view === "room") return { showing: await ui.act("room"), said: "the Room is open on the person's page: the newest question first, pictures full width, no machinery (SNAP-R70). Your words reach it through your questions and proposal reasons: no ids, file names, model names, state words or counts" };
+      if (view === "room") { const showing = await ui.act("room"); // F-S03 (SNAP-R187): said from what the page shows, never assumed
+        if (!showing.room || showing.view === "graph") return { showing, said: `the Room did not open where the person can see it (the page shows ${showing.view}${showing.room ? "" : ", no Room"}): try again, or send them to /?room` };
+        return { showing, said: "the Room is open on the person's page: the newest question first, pictures full width, no machinery (SNAP-R70). Your words reach it through your questions and proposal reasons: no ids, file names, model names, state words or counts" }; }
       if (view === "book") { if (!book) throw new Error("open_view book: give book (book:<id>, list_books lists them)"); await W.load(); B.bookOf(book); return { showing: await ui.act("book", { book, lens }), said: "the Book is open on the person's page" }; }
       if (view === "location") {
         if (!place) throw new Error("open_view location: give location (location:<id>, list_locations lists them)");
