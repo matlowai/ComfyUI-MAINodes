@@ -109,6 +109,9 @@ function contextOf(r, tb) {
     const h = RT.shotOf(t), i = h ? h.scene.shots.indexOf(h.shot) : -1, before = i > 0 ? T.get(h.scene.shots[i - 1].active) : null;
     if (before && want.has("previous")) takeFrame(before, "last", `the previous cut's last frame (take ${before.number}, ${SC.shotTitle(h.scene, h.scene.shots[i - 1])})`);
     if (s.kind === "candidate") takeFrame(t, "last", `take ${t.number}, the take this edit paints over`);
+    // F-F11: a New view (a board) was made from context pictures, given as files (the Cast's, the place's): they are what
+    // it should agree with, so the cast pass reads pictures, not only words
+    if (/^view\//.test(t.parent?.method ?? "")) for (const c of t.parent.options?.context ?? []) if (c.file && !c.take) add(inputMedia(c.file), `made from: Picture ${c.n} ${c.label ?? c.file}`);
   }
   if (s.kind === "record" && s.ref.startsWith("location:")) { const { n } = W.parse(s.ref); place(s.ref, n, null, s.part === "views" ? "all" : s.part); }
   if (s.kind === "record" && s.part === "views") out.splice(0, out.length, ...out.filter((x) => x.marks || /, camera map$/.test(x.what))); // every view is a subject already; the drawn plan and the map stay

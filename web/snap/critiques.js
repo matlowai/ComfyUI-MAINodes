@@ -99,6 +99,10 @@ export function staleOf(r) {
   if (r.subject.kind === "take") {
     const kid = T.all().find((x) => x.parent?.take === r.subject.take && /^(rerun|retake|upscale)/.test(x.parent.method ?? "") && x.created > r.created);
     if (kid) why.push(`its subject was re-made as take ${kid.number}`);
+    // F-F11: a candidate passed over is off the docket: its decision was made without it
+    const d = decisionOf(r.subject.take), c = d?.candidates.find((x) => x.take === r.subject.take || (x.prompt_id && `take-${x.prompt_id}` === r.subject.take));
+    if (c?.state === "rejected") why.push(`candidate ${c.id} was rejected`);
+    else if (d?.applied && c && d.applied.candidate !== c.id) why.push(`another candidate (${d.applied.candidate}) was picked`);
   }
   if (r.subject.kind === "record") { const m = moved(r.subject.ref, r.subject.part); if (m) why.push(`${m.name} v${m.n} → v${m.head}: ${r.subject.part === "views" ? "a view" : `its ${r.subject.part}`} changed`); } // F-E15: the version it read, then the head
   for (const x of r.notes) {
@@ -156,11 +160,17 @@ export async function checklistOf(t) {
   return { purpose: p ?? null, checklist: RT.shotOf(t) ? "board" : "still" };
 }
 const decisionOf = (id) => C.all().find((d) => d.candidates.some((c) => c.take === id || (c.prompt_id && `take-${c.prompt_id}` === id))) ?? null;
+// F-F11: a row says where its take is and what made it, so the compact docket can be worked without the full rows
+export function titleOf(t) {
+  const h = RT.shotOf(t), d = decisionOf(t.id);
+  return `Critic: ${h ? `${h.scene.name} › ${SC.shotTitle(h.scene, h.shot)} › ` : ""}take ${t.number}${t.seed != null ? ` (seed ${t.seed})` : ""}${d ? ` · ${d.title}` : ""}`;
+}
+const titleNow = (r) => (r.subject.kind === "take" && T.get(r.subject.take) ? titleOf(T.get(r.subject.take)) : r.title); // rows made before G4 said only "take n"
 const aboutTake = (t) => { const h = RT.shotOf(t), d = decisionOf(t.id); return { take: t.id, ...(d ? { decision: d.id } : {}), ...(h ? { scene: h.scene.id, shot: h.shot.id } : {}) }; };
 export async function forTake(t, { trigger = "landed", again = false, context, by = "snap" } = {}) {
   const { purpose, checklist } = await checklistOf(t);
-  if (again) { const out = await call("/mainodes/snap/critique/due", { key: `take:${t.id}`, subject: { kind: "take", take: t.id }, title: `Critic: take ${t.number}`, purpose, checklist, trigger, about: aboutTake(t), again: true, context, by }); rows.push(out.critique); changed(); wake(); return out.critique; }
-  return due(`take:${t.id}`, { subject: { kind: "take", take: t.id }, title: `Critic: take ${t.number}`, purpose, checklist, trigger, about: aboutTake(t), ...(context ? { context } : {}), by });
+  if (again) { const out = await call("/mainodes/snap/critique/due", { key: `take:${t.id}`, subject: { kind: "take", take: t.id }, title: titleOf(t), purpose, checklist, trigger, about: aboutTake(t), again: true, context, by }); rows.push(out.critique); changed(); wake(); return out.critique; }
+  return due(`take:${t.id}`, { subject: { kind: "take", take: t.id }, title: titleOf(t), purpose, checklist, trigger, about: aboutTake(t), ...(context ? { context } : {}), by });
 }
 const landedAt = (t) => t.finished ?? t.created;
 const critiquable = (t) => t.status === "success" && !t.locked && t.media.some((m) => m.kind === "image" || m.kind === "video");
@@ -207,6 +217,7 @@ async function scanPairs() {
   for (const s of SC.all()) for (let i = 1; i < s.shots.length; i++) {
     const a = T.get(s.shots[i - 1].active), b = T.get(s.shots[i].active);
     if (!a || !b || !critiquable(a) || !critiquable(b) || Math.max(landedAt(a), landedAt(b)) < since) continue;
+    if (!s.book && ![a, b].every((x) => x.media.some((m) => m.kind === "video"))) continue; // F-F11: two stills in a row (a front and a back sheet) are no cut
     await due(`pair:${a.id}|${b.id}`, { subject: { kind: "pair", pair: [a.id, b.id] }, title: `Critic: cut take ${a.number} → take ${b.number}`, checklist: "cut_pair", trigger: "active", about: { take: b.id, scene: s.id, shot: s.shots[i].id } }).catch((e) => console.warn(`critic: ${e.message}`));
   }
 }
@@ -274,7 +285,7 @@ export async function write(id, by, { verdict, passes = {}, notes = [] }) {
 }
 
 // what an agent reads of a row (whole, SNAP-R58)
-export const describe = (r) => ({ critique: r.id, title: r.title, subject: r.subject, about: r.about, purpose: r.purpose, checklist: r.checklist, trigger: r.trigger, state: stateOf(r), created: new Date(r.created).toISOString(),
+export const describe = (r) => ({ critique: r.id, title: titleNow(r), subject: r.subject, about: r.about, purpose: r.purpose, checklist: r.checklist, trigger: r.trigger, state: stateOf(r), created: new Date(r.created).toISOString(),
   claimed: r.claimed ? { by: r.claimed.by, at: new Date(r.claimed.at).toISOString() } : null, done: r.done ? { by: r.done.by, at: new Date(r.done.at).toISOString() } : null, ...(r.skipped ? { skipped: r.skipped } : {}),
   ...(r.context ? { context: r.context } : {}), verdict: r.verdict, passes: r.passes, notes: r.notes, ...(r.done ? { counts: counts(r) } : {}), ...(r.verdict_set ? { verdict_set: r.verdict_set } : {}), ...(r.private ? { private: "its notes' words are on the take (private: sealed with it); get_take reads them once the vault is open" } : {}),
   ...(r.packet ? { packet: { pictures: r.packet.pictures.length, at: r.packet.at } } : {}), stale: staleOf(r), ...(r.replaces ? { replaces: r.replaces } : {}) });
@@ -292,7 +303,7 @@ export function rowsFor(whereOf) {
     const said = st === "due" ? (late ? `critique due · no critic on duty${list.length > 1 ? ` (${states.filter((s) => s === "due").length} of ${list.length})` : ""}` : "critique due · waiting for a critic")
       : st === "claimed" ? `${list.find((x) => stateOf(x) === "claimed").claimed.by} is reading it`
       : st === "skipped" ? `skipped: ${r.skipped?.why ?? ""}` : `${list.length > 1 ? `${list.filter((x) => x.done).length} of ${list.length} read · ` : ""}${c.high || c.medium || c.low ? [c.high && `${c.high} high`, c.medium && `${c.medium} medium`, c.low && `${c.low} low`].filter(Boolean).join(" · ") : "clean"}${stale ? ` · stale: ${stale}` : ""}`;
-    return { id: d ? `crd:${d.id}` : rec ? `crr:${rec}` : `cr:${r.id}`, source: "critique", critiques: list.map((x) => x.id), kind: "critique", title: d ? `Critic: ${list.length} candidates of ${d.title}` : rec ? `Critic: ${recordName(rec)}, ${list.length} pictures (each, then every view side by side)` : r.title,
+    return { id: d ? `crd:${d.id}` : rec ? `crr:${rec}` : `cr:${r.id}`, source: "critique", critiques: list.map((x) => x.id), kind: "critique", title: d ? `Critic: ${list.length} candidates of ${d.title}` : rec ? `Critic: ${recordName(rec)}, ${list.length} pictures (each, then every view side by side)` : titleNow(r),
       by: list.some((x) => x.claimed) ? "agent" : "snap", owner: "agents", state: STATE[st],
       about: { ...r.about }, where: r.subject.kind === "record" ? `${W.parse(r.subject.ref).kind} ${recordName(r.subject.ref)}` : whereOf(r.about), queued_at: list[0].created, started_at: list.find((x) => x.claimed)?.claimed.at ?? null, eta_s: null, said, ...(late ? { no_critic: true } : {}),
       ...(st === "skipped" ? { error: `skipped by ${r.skipped?.by}: ${r.skipped?.why}` } : {}),
@@ -320,7 +331,7 @@ export async function packet(id, { part = "all", offset = 0, limit } = {}) {
   const keep = out.pictures.map((p, i) => [p, out.images[i], i]).filter(([p]) => part === "all" || (part === "whole" ? p.role === "subject" : part === "tiles" ? p.role === "tile" : p.role === "context"));
   const page = keep.slice(offset, limit == null ? undefined : offset + limit), shown = page.filter(([, img]) => img), at_ = new Map(shown.map(([, , i], k) => [i, k]));
   return { critique: r.id, title: r.title, state: stateOf(r), part, skill: { name: "snap-critic", read: "read_skill {name: \"snap-critic\"} for the prompt, then read_skill {name: \"snap-critic\", file: \"reference.md\"} for this checklist's section", section: r.checklist },
-    words: out.words, pictures: out.pictures.map((p, i) => ({ index: i, ...p, ...(at_.has(i) ? { image: at_.get(i) } : {}) })), count: keep.length, offset, ...(limit != null && offset + page.length < keep.length ? { next: { part, offset: offset + page.length, limit } } : {}),
+    words: out.words, pictures: keep.map(([p, , i]) => ({ index: i, ...p, ...(at_.has(i) ? { image: at_.get(i) } : {}) })), of: out.pictures.length, count: keep.length, offset, ...(limit != null && offset + page.length < keep.length ? { next: { part, offset: offset + page.length, limit } } : {}),
     images: shown.map(([p, img, i]) => ({ ...img, label: `#${i} ${p.label}` })),
     write: "write_critique {critique, verdict, passes: {scan, map, …: one line each}, notes: [{severity, pass, text, picture: <#index the region is drawn on>, region: [x, y, w, h] in that picture's fractions, owner, fix}]}" };
 }
@@ -388,7 +399,7 @@ export const TOOLS = [
       await Promise.all([load(), T.load(), W.load()]);
       const match = rows.filter((r) => (!state || stateOf(r) === state) && (!take || r.subject.take === take || r.subject.pair?.includes(take)) && (!checklist || r.checklist === checklist) && (stale == null || !!staleOf(r) === stale));
       const page = match.slice(offset, limit == null ? undefined : offset + limit);
-      return { rows: page.map((r) => (compact ? { critique: r.id, title: r.title, state: stateOf(r), checklist: r.checklist, what: r.context?.what ?? subjectText(r.subject) } : describe(r))), count: match.length, offset, ...(limit != null && offset + page.length < match.length ? { next: { offset: offset + page.length, limit } } : {}),
+      return { rows: page.map((r) => (compact ? { critique: r.id, title: titleNow(r), state: stateOf(r), checklist: r.checklist, what: r.context?.what ?? subjectText(r.subject) } : describe(r))), count: match.length, offset, ...(limit != null && offset + page.length < match.length ? { next: { offset: offset + page.length, limit } } : {}),
         states: Object.fromEntries(STATES.map((s) => [s, rows.filter((r) => stateOf(r) === s).length])), since: since ? new Date(since).toISOString() : null };
     },
   },

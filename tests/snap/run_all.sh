@@ -545,7 +545,7 @@ park; timeout 600 nice -n 19 python3 -I "$T"/test_gate_instructions.py "$port" "
 # U97 the Book (SNAP-R67-R69, R130-R133; +28 tools above): records, the story clock and the dial; compile, stale, settei
 # and the style; boards, the animatic, the Cut, the OTIO and the set plan on short04's pictures; Pages (Fountain); each prints
 # "book_<name> n/m" last; screens in ui/u97/
-for t in test_book_story.js test_book_compile.js test_book_cut.js test_book_pages.js test_g4_book.js test_g4_deps.js test_g4_mediums.js; do park; timeout 600 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
+for t in test_book_story.js test_book_compile.js test_book_cut.js test_book_pages.js test_g4_book.js test_g4_deps.js test_g4_mediums.js test_g4_critic.js; do park; timeout 600 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
 # U93/U94 (SNAP-R101..R110): the critic's docket, packets, triggers and approval, the critic on the object (screens in
 # ui/u93/), agreement, re-run dependents; each prints "<name> n/m" last; they take this server's port and base
 for t in test_u93_critique.js test_u93_packet.js test_u93_triggers.js test_u93_marks.js test_u93_agreement.js test_u94_dependents.js; do park; timeout 600 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done

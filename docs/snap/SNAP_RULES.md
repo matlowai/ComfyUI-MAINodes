@@ -1402,3 +1402,9 @@ Next free ID after this batch: SNAP-R145.
   plain line that it is the set plan seen from above, the layout only, not a picture to draw. The plan picture with its
   labels stays the record's (the sheet, critics, coordinates). *Why:* short05 F-F04: the plan's blank paper became flat
   grey areas and its small labelled circles white discs on the street in both master candidates.
+- **SNAP-R136 (amended, G4): a docket row says where it is, and a passed-over candidate leaves the docket.** A take's row
+  is titled scene › shot › take n (seed) · the decision it came from (rows made before say so too); a candidate that
+  was rejected or not picked reads stale; a cut pair is made only between two video takes or in a Book scene; a New
+  view's packet carries the pictures it was made from as context; `critique_packet {part}` lists only that part's
+  pictures (each keeps its packet #index). *Why:* short05 F-F11: 73 rows titled "Critic: take 1", unpicked candidates
+  due forever, a "cut" pair between a front and a back sheet, a board packet with no Cast pictures.
