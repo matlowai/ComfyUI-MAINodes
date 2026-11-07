@@ -163,6 +163,16 @@ export function moveKey(r, key, to_s) {
   return { row: { ...r, time: { ...t, points: p.map((x, j) => (j === i ? [to_s, x[1]] : x)) } }, moved: { key: i + 1, from: p[i][0], to: to_s } };
 }
 
+// a row's time curve in words, as the rack brick and the Book's Cut bag show it (the rack's own defaults when unset)
+const signed = (v) => `${v >= 0 ? "+" : ""}${+v.toFixed(2)}`;
+export function curveWords(r) {
+  const t = r.time;
+  if (!t) return null;
+  const tail = `${t.steps ?? 2} blend steps · sound ${(t.audio ?? "follow") === "protect" ? "protected" : "follows the dial"}`;
+  if (t.type !== "keys") return `follows the ${t.feature ?? "onset"} of the music · ${tail}`;
+  return `${t.points.map(([at, m]) => `${at}${(t.unit ?? "normalized") === "seconds" ? " s" : ""} ${signed(r.strength * m)}`).join(" → ")} · ${tail}`;
+}
+
 // ---- the rack brick's face ---------------------------------------------------------------------------------------
 // the slider's reach: everyday ±2, wider when a dial's own overcook says so
 const reach = (d) => Math.max(2, Math.ceil(Math.max(d?.info?.pos?.overcook ?? 0, d?.info?.neg?.overcook ?? 0) + 0.5));
@@ -192,6 +202,7 @@ export function face({ onChange, onPick, onMake }) {
         value,
         h("button", { className: "snap-x", textContent: "×", title: "take it off the rack", onclick: (e) => { e.stopPropagation(); remove(r.dial); onChange(); } })),
       range,
+      r.time ? h("div", { className: "snap-quiet snap-dial-curve", title: "a time curve: the strength over the clip (SNAP-R230)", textContent: `over the clip: ${curveWords(r)}` }) : null,
       h("div", { className: "snap-dial-ends" }, h("span", { textContent: side(d?.info?.negative) || "−" }), calibrated(d) ? null : h("em", { textContent: "uncalibrated" }), h("span", { textContent: side(d?.info?.positive) || "+" })));
   });
   return h("div", { className: "snap-dials" }, ...(body.length ? body : [h("div", { className: "snap-quiet", textContent: "No dials yet" })]),

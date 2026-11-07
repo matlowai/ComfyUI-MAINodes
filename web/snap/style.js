@@ -393,6 +393,7 @@ export const STYLE = `
 .snap-dial-range::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -4px; border-radius: 50%; background: hsl(35 90% 65%); box-shadow: 0 0 0 3px #0006, 0 2px 6px #0008; }
 .snap-dial-range::-moz-range-track { height: 6px; border-radius: 3px; background: var(--bands); }
 .snap-dial-range::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: hsl(35 90% 65%); }
+.snap-dial-curve { font-size: 10.5px; line-height: 1.35; }
 .snap-dial-ends { display: flex; justify-content: space-between; gap: 6px; font-size: 10.5px; color: var(--s-dim); }
 .snap-dial-ends em { font-style: normal; color: #f0b445; }
 .snap-dial-warn { font-size: 11.5px; color: #f0b445; }

@@ -11,7 +11,7 @@
 // production style · SNAP-R131 boards and the animatic · SNAP-R132 the Cut · SNAP-R133 the plan drawn here · SNAP-R80
 // every picture full size · SNAP-R58 nothing trimmed · SNAP-R8 judged from screenshots · SNAP-R165 Cast lines folded · SNAP-R209 an out-of-date story proposal offers a re-make ·
 // SNAP-R168 a cut opens before its beat · SNAP-R183 a record this install lacks is named, with how to bring it · SNAP-R223 the Book names its production · SNAP-R224 the Book's Astrid settings and the Push button · SNAP-R225 the Cut lens says where the Cut went in Astrid ·
-// SNAP-R226 the style setting explained in its own words · see docs/snap/SNAP_RULES.md
+// SNAP-R226 the style setting explained in its own words · SNAP-R230 a cut's dial rows in the Cut bag · see docs/snap/SNAP_RULES.md
 import * as B from "./book.js";
 import * as W from "./world.js";
 import * as SC from "./scenes.js";
@@ -19,6 +19,7 @@ import * as T from "./takes.js";
 import * as K from "./checks.js";
 import * as P from "./proposals.js";
 import * as L from "./library.js";
+import * as D from "./dials.js";
 import { full } from "./lightbox.js";
 import { view as inputUrl } from "./castview.js";
 import { openPlanEditor } from "./planview.js";
@@ -282,6 +283,8 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
           // F-L02, F-L09 (SNAP-R165, R168): what the state left out of each Cast line, and the state the cut opens on
           ...s.entities.filter((e) => e.cast_line?.left_out?.length).map((e) => h("div", { className: "snap-quiet snap-book-leftout" }, ...e.cast_line.left_out.map((x) => h("div", { textContent: `${e.name}: ${x.said}` })))),
           s.opens ? h("div", { className: "snap-quiet", textContent: `Opens: ${s.opens.said}` }) : null,
+          // SNAP-R230: the cut's steering dial rows, as apply_unit puts them on the rack
+          s.dials ? h("div", { className: "snap-book-dials" }, h("strong", { textContent: "Dial rows" }), ...(s.dials.rows.length ? s.dials.rows.map((r) => h("div", { className: "snap-quiet", textContent: `${D.label(D.find(r.dial) ?? r)}${r.on === false ? " (off)" : ""}: ${D.curveWords(r) ?? `${r.strength >= 0 ? "+" : ""}${r.strength} throughout`}` })) : [h("div", { className: "snap-quiet", textContent: "none: apply_unit clears the rack" })])) : null,
           s.lint.length ? h("div", { className: "snap-book-flags" }, s.lint.map((x) => h("div", { textContent: `⚑ ${x}` }))) : null,
           st.length ? h("div", { className: "snap-book-flags" }, st.map((x) => h("div", { textContent: `take ${x.number}: ${x.reasons.join("; ")}` }))) : null] : h("div", { className: "snap-quiet", textContent: "compiling…" }));
     });
@@ -410,6 +413,7 @@ export const BOOK_STYLE = `
 .snap-book-colour { width: 100%; max-height: 90px; object-fit: cover; border-radius: 6px; }
 .snap-book-lane-thumb { width: 64px; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 4px; cursor: zoom-in; }
 .snap-book-flags { font-size: 12px; color: #f0b445; display: flex; flex-direction: column; gap: 2px; }
+.snap-book-dials { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
 .snap-book-detail { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 10px; border: 1px solid var(--s-line); }
 .snap-book-grid2 { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 12px; }
 .snap-book-table { width: 100%; border-collapse: collapse; font-size: 12px; } .snap-book-table th, .snap-book-table td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--s-line); vertical-align: top; overflow-wrap: anywhere; }
