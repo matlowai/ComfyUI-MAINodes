@@ -30,8 +30,8 @@ const mcp = (page) => new Promise((done) => {
     await page.waitForTimeout(500);
     R.chipA = await page.evaluate(() => document.querySelector(".snap-driver:not([hidden])")?.textContent ?? null);
     R.list = (await call("list_pages", {}, "g3-a")).result?.pages?.find((p) => p.id === id);
-    R.unnamed = await call("read_ui", {});
-    R.other = await call("read_ui", {}, "g3-b");
+    R.unnamed = await call("new_seed", {}); // a write: reads answer on a driven page for anyone (SNAP-R219)
+    R.other = await call("new_seed", {}, "g3-b");
     R.mine = await call("read_ui", {}, "g3-a");
     R.release = await call("use_page", { page: null }, "g3-a");
     R.mcp = await mcp(id);

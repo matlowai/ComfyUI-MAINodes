@@ -32,7 +32,7 @@ const snapcall = (env, ...args) => new Promise((done) => execFile("python3", [`$
   R.chip = await A.p.textContent(".snap-driver").catch(() => null);
   await A.p.screenshot({ path: path.join(out, "420-f-driven-by.png"), clip: { x: 0, y: 0, width: 1400, height: 60 } });
   R.betaTakes = await call("beta", "use_page", { page: A.id });
-  R.betaTargets = await call("beta", "read_ui", {}, A.id);
+  R.betaTargets = await call("beta", "new_seed", {}, A.id); // a write: reads answer on a driven page for anyone (SNAP-R219)
   R.betaDefault = (await call("beta", "read_ui")).status === 503;
   await A.p.click(".snap-driver button"); await A.p.waitForTimeout(800);
   R.chipAfter = await A.p.evaluate(() => document.querySelector(".snap-driver")?.hidden);
