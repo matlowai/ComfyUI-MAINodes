@@ -13,9 +13,10 @@
 // - SNAP-R184 (F-Q26): a board's packet names who should be in it (its cut's Cast), labels every picture it was made from
 //   by its Picture number (the plate the place adds says "made from: Picture 1 C2's camera (= … plate P2 counter)"), and
 //   carries a measuring copy (a 5 % grid with a 1 % ruler);
+// - F-Q11: the face and copy checks queued for an agent's make_board candidates are by agent;
 // - F-Q10: make_board and design_state with a method keep the purpose from what is in frame (character);
 // - F-Q04: a stacked proposal's "with pN waiting: …" clause leaves its Work card row once pN is answered; F-Q02: a
-//   remove_change proposal says what it takes back;
+//   remove_change proposal says what it takes back; F-Q03: a press on the agents' window an agent drives is by agent;
 // - F-Q07: draw_set_plan names a label under another shape's line (its thickness counted); F-Q08: a redraw with no size or
 //   aspect keeps the current plan picture's size (size_from); F-Q15: the Settei lens names a place this install lacks.
 // usage: node test_g9_book.js [port] [base]   prints "g9book n/m" last
@@ -66,6 +67,9 @@ const STYLE = "2D cel-shaded Japanese TV anime, crisp clean black lineart, flat 
     R.keyTake = keyTake && await waitTake(keyTake);
     R.setKey = keyTake && await call("set_board", { scene: c2.scene, shot: c2.shot, take: keyTake });
     R.unit2 = await B((B, { scene, shot }) => B.unitOf(scene, shot).unit, { scene: c2.scene, shot: c2.shot });
+    // F-Q11: the checks Snap queues for an agent's candidates are the agent's
+    R.checks = await page.evaluate(async (d) => { const A = await import("/extensions/ComfyUI-MAINodes/snap/activity.js");
+      for (let i = 0; i < 60; i++) { await A.reconcile(); const rows = A.all().filter((r) => r.kind === "check" && r.about?.decision === d); if (rows.length) return rows.map((r) => ({ title: r.title, by: r.by, state: r.state })); await new Promise((ok) => setTimeout(ok, 1000)); } return []; }, R.mbKey.decision);
     // F-Q26: the key board's packet
     const crow = keyTake && (await call("critique", { take: keyTake })).critique;
     R.pkContext = crow && await call("critique_packet", { critique: crow, part: "context" });
@@ -87,6 +91,11 @@ const STYLE = "2D cel-shaded Japanese TV anime, crisp clean black lineart, flat 
     const changeId = (await call("get_book", { book })).story?.beats?.find((x) => x.id === "b1")?.changes?.find((c) => c.path === "mood")?.id;
     R.pC = await call("remove_change", { book, beat: "b1", change: changeId });
     R.reasonC = await page.evaluate((id) => window.__P.get(id)?.reason ?? null, R.pC.proposed);
+    // F-Q03: Accept pressed on the agents' window while an agent drives it is recorded as the agent's
+    const pD = await call("add_beat", { book, text: "Kuroe slides the empty bowl back.", after: "b3" });
+    R.driven = await page.evaluate(async (id) => { const S = await import("/extensions/ComfyUI-MAINodes/snap/sight.js"); S.setManaged(true); S.setDriver("g9-agent");
+      try { await window.__P.decide(id, true, (n, a) => window.__X.callTool(n, a, { confirmed: true })); return window.__P.get(id)?.answered_by ?? null; } finally { S.setDriver(null); S.setManaged(false); } }, pD.proposed);
+    R.notDriven = await page.evaluate(async () => (await import("/extensions/ComfyUI-MAINodes/snap/proposals.js")).pressedBy());
 
     // ---- F-Q07, F-Q08: a plan's labels under a line; a redraw keeps the plan's size ----
     const shapes = [{ kind: "line", x: 0.05, y: 0.5, x2: 0.46, y2: 0.5, width: 0.03, label: "road" }, { kind: "label", x: 0.47, y: 0.5, label: "GATE" }, { kind: "rect", x: 0.75, y: 0.5, w: 0.3, h: 0.4, label: "square" }];
@@ -118,6 +127,7 @@ const STYLE = "2D cel-shaded Japanese TV anime, crisp clean black lineart, flat 
     heldLint: /C2's own beat b2 changes what is held \(Mio Hayase holds the ladle in the right hand\..*→ .*Mio Hayase's right hand is empty\..*with both hands.*make_board draws the key/s.test(lint2),
     defaultBoardIsKey: S.s2?.board?.role === "key" && /This frame is the beat at its peak\./.test(S.s2.board.prompt ?? "") && !/holds the ladle/.test(S.s2.board.prompt ?? "") && /right hand is empty/.test(S.s2.board.prompt ?? ""),
     takeUpKeepsOpening: !S.s1?.opens?.held && S.s1?.board?.role === "opening",
+    agentChecksAreAgents: (S.checks ?? []).length > 0 && S.checks.every((x) => x.by === "agent"),
     purposeWithMethod: S.mbKey?.chosen?.purpose === "character" && S.design?.chosen?.purpose === "character",
     makeBoardKey: S.mbKey?.role === "key" && /changes what is held/.test(S.mbKey?.role_why ?? "") && S.keyTake?.story?.role === "key",
     openingStillAsked: S.mbOpen?.role === "opening" && !S.mbOpen?.role_why && /moment the cut starts/.test(S.mbOpen?.prompt ?? ""),
@@ -138,6 +148,7 @@ const STYLE = "2D cel-shaded Japanese TV anime, crisp clean black lineart, flat 
     redrawKeepsSize: S.replan?.size_from === "the current plan, 1400x1000" && JSON.stringify(S.replan?.size) === "[1400,1000]" && /under a line/.test(S.replan?.said ?? ""),
     missingPlaceNamed: (S.missing ?? []).some((x) => /^Hayase Yatai isn't on this install \(location:[\w-]+\): import it/.test(x)),
     stackClauseGoes: /with p\d+ waiting/.test(S.reasonBefore ?? "") && S.accA === "accepted" && !!S.reasonAfter && !/waiting/.test(S.reasonAfter) && S.rowTitle === S.reasonAfter,
+    drivenPressIsAgents: R.driven?.by === "agent" && R.driven.driven_by === "g9-agent" && R.driven.where === "the agents' window" && R.notDriven?.by === "person",
     removalSaysWhat: /^One More Bowl: b1: take back Mio Hayase's mood → calm and focused/.test(S.reasonC ?? ""),
     noErrors: !S.crash && !(S.errors ?? []).length,
   };

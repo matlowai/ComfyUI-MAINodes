@@ -601,7 +601,7 @@ async function castFaces(d, c) {
   const casts = d.options.context.filter((x) => x.cast && x.file), still = c.pictures[0]?.media;
   if (!casts.length || !still) return null;
   try {
-    const n = await K.identityCheck(casts.map((x) => [{ image: x.file }, { image: K.annotated(still) }]), [], { about: { decision: d.id, candidate: c.id }, title: `Face check: is each Cast in ${c.id} of ${d.title} themselves?` });
+    const n = await K.identityCheck(casts.map((x) => [{ image: x.file }, { image: K.annotated(still) }]), [], { about: { decision: d.id, candidate: c.id }, title: `Face check: is each Cast in ${c.id} of ${d.title} themselves?`, by: d.by === "agent" ? "agent" : "person" }); // F-Q11: an agent's job's checks are the agent's
     if (n.error) return { error: n.error };
     return { different_below: n.different_below, casts: casts.map((x, i) => ({ name: x.label.split(",")[0], cast: x.cast, character: n.scores[i].character, face: n.scores[i].face, different: n.scores[i].different, crops: n.scores[i].crops })) };
   } catch (e) { return { error: e.message }; }
@@ -620,7 +620,7 @@ async function contextCopies(d, c) {
       const p = await contextPicture(x.cast || x.location ? { file: x.file, crop: x.crop } : { take: x.take, frame: x.frame, file: x.file, crop: x.crop }, i);
       Object.assign(g, p.nodes, { [`q${i}`]: { class_type: "MAISnapCopyScore", inputs: { clip_vision: ["e", 0], reference: p.out, images: ["s", 0] } } });
     }
-    const h = await K.screen(g, { title: `Copy check: did ${c.id} of ${d.title} copy one of its pictures?`, about: { decision: d.id, candidate: c.id } });
+    const h = await K.screen(g, { title: `Copy check: did ${c.id} of ${d.title} copy one of its pictures?`, about: { decision: d.id, candidate: c.id }, by: d.by === "agent" ? "agent" : "person" });
     const against = d.options.context.map((x, i) => ({ n: x.n, label: x.label, score: h.outputs?.[`q${i}`]?.copy_scores?.[0] ?? null, soft: h.outputs?.[`q${i}`]?.soft_scores?.[0] ?? null }));
     const framing = against.filter((a) => a.score != null && a.score >= threshold).map((a) => a.n);
     return { threshold, soft_threshold: soft, against, copied: against.filter((a) => framing.includes(a.n) || (a.soft != null && a.soft >= soft)).map((a) => a.n), framing };

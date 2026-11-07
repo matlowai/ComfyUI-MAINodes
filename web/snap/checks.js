@@ -150,7 +150,7 @@ export function assign(m) {
 // lowest match, and `face` that match's ArcFace. Per edit, its hair's rise over the originals' median. `does`: what the
 // edit's method does (methods.json); one the model graph lists in identity_check.unreliable_for (relighting) keeps the
 // scores but never the different-person flag
-export async function identityCheck(pairs, baseline = [], { does, about = {}, title = "Identity check: did the edit keep the person?" } = {}) {
+export async function identityCheck(pairs, baseline = [], { does, about = {}, title = "Identity check: did the edit keep the person?", by = "person" } = {}) {
   const { detector: name, face, identity, hair, encoder, character } = await needs();
   if (!name || !face || !hair || !character) return { error: `the identity notes need ${!name ? "SAM 3.1 (models/checkpoints)" : !face ? "a face model with identity_check in the model graph (models/face_recognition/cvlface_arcface_ir101_webface4m.safetensors)" : !hair ? "hair_check on SAM 3.1 in the model graph" : "the encoder with character_check in the model graph (DINOv3 ViT-H, models/clip_vision/dino_v3_vit_h_bf16.safetensors)"}` };
   const g = { ...detector(name), fm: { class_type: "MAISnapFaceModelLoader", inputs: { model_name: face } }, ce: { class_type: "CLIPVisionLoader", inputs: { clip_name: encoder } } };
@@ -160,7 +160,7 @@ export async function identityCheck(pairs, baseline = [], { does, about = {}, ti
   };
   pairs.forEach((pair, i) => pair.forEach((src, j) => measure(`${i}${j}`, src)));
   baseline.forEach((src, i) => measure(`b${i}`, src));
-  const h = await screen(g, { title, about }), look = (k) => { const o = h.outputs[`x${k}`] ?? {};
+  const h = await screen(g, { title, about, by }), look = (k) => { const o = h.outputs[`x${k}`] ?? {};
     return { faces: o.faces?.[0] ?? [], characters: o.characters?.[0] ?? [], boxes: o.boxes?.[0] ?? [], crops: o.images ?? [], hair: o.hair_l90?.[0] ?? null }; };
   const lit = [...pairs.map((_, i) => look(`${i}0`).hair), ...baseline.map((_, i) => look(`b${i}`).hair)].filter((x) => x != null).sort((a, b) => a - b);
   const base = lit.length ? (lit[(lit.length - 1) >> 1] + lit[lit.length >> 1]) / 2 : null;
