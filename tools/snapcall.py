@@ -9,11 +9,16 @@ usage: python3 snapcall.py <port or base URL> [--page <id|name>] <tool> ['<json 
   e.g. python3 snapcall.py 8188 get_profile
        SNAP_AGENT=my-studio python3 snapcall.py 8188 --page 3f9a2c run
        python3 snapcall.py 8188 run_status '{"wait_s": 25}'
-SNAP-R30 the agent front door · see docs/snap/SNAP_RULES.md
+Every call carries an Idempotency-Key (SNAP-R159; SNAP_IDEMPOTENCY_KEY names one, else a new one per call, printed as
+idempotency_key): a call the bridge timed out on, or a dropped connection, is retried here with the same key, and the bridge
+answers the first call's answer instead of running it twice. To retry a whole command yourself, run it again with
+SNAP_IDEMPOTENCY_KEY=<the key it printed>.
+SNAP-R30 the agent front door · SNAP-R159 retries reuse the call's key · see docs/snap/SNAP_RULES.md
 """
 import base64
 import json
 import os
+import secrets
 import sys
 import tempfile
 import time
@@ -42,18 +47,26 @@ if page is not None:  # bind first (use_page); its refusal (a page another agent
         urllib.request.urlopen(bind, timeout=60).read()
     except urllib.error.HTTPError as e:
         sys.exit(e.read().decode(errors="replace"))
-request = urllib.request.Request(f"{base}/mainodes/snap/call", data=json.dumps({"tool": tool, "args": args}).encode(), headers={"Content-Type": "application/json", **auth})
-try:
-    with urllib.request.urlopen(request, timeout=60) as r:
-        out = json.load(r)
-except urllib.error.HTTPError as e:  # the bridge answers errors as JSON too: print them as they are
-    text = e.read().decode(errors="replace")
+key = os.environ.get("SNAP_IDEMPOTENCY_KEY") or f"snapcall-{secrets.token_hex(8)}"
+request = urllib.request.Request(f"{base}/mainodes/snap/call", data=json.dumps({"tool": tool, "args": args}).encode(), headers={"Content-Type": "application/json", "Idempotency-Key": key, **auth})
+for attempt in range(3):  # SNAP-R159: a timeout or a dropped connection is retried with the same key, so it never runs twice
     try:
-        out = json.loads(text)
-    except ValueError:
-        out = {"error": f"ComfyUI answered {e.code}: {text}"}
-except urllib.error.URLError as e:
-    sys.exit(json.dumps({"error": f"ComfyUI is not reachable at {base} ({e.reason})"}))
+        with urllib.request.urlopen(request, timeout=60) as r:
+            out = json.load(r)
+        break
+    except urllib.error.HTTPError as e:  # the bridge answers errors as JSON too: print them as they are
+        text = e.read().decode(errors="replace")
+        try:
+            out = json.loads(text)
+        except ValueError:
+            out = {"error": f"ComfyUI answered {e.code}: {text}"}
+        if e.code != 504 or attempt == 2:
+            break
+    except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
+        if attempt == 2:
+            sys.exit(json.dumps({"error": f"ComfyUI is not reachable at {base} ({getattr(e, 'reason', e)}); to retry this call without running it twice: SNAP_IDEMPOTENCY_KEY={key}", "idempotency_key": key}))
+    time.sleep(2)
+out.setdefault("idempotency_key", key)
 result = out.get("result")
 pictures = (result.get("images") or ([result["image"]] if isinstance(result.get("image"), dict) else [])) if isinstance(result, dict) else []
 if pictures:

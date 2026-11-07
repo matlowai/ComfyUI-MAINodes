@@ -14,7 +14,8 @@ Chrome agents drive, reload and restart, the default with the person's tab; neve
 encrypted (snap_vault_server.py) · SNAP-R98 their ffmpeg steps work in RAM scratch · SNAP-R93/R94 the pack's notes end
 the bridge tools' descriptions, /info names the docs and skills, a call names its agent · SNAP-R135 a hold on a page ends
 with its job: use_page null, the MCP connection closing, or 10 idle minutes; the page shows the idle time · SNAP-R146 an
-agent's claimed critique or queued run keeps its hold · see docs/snap/SNAP_RULES.md"""
+agent's claimed critique or queued run keeps its hold · SNAP-R159 a retried call with the same Idempotency-Key answers the
+first call's answer and never runs twice · see docs/snap/SNAP_RULES.md"""
 import asyncio
 import glob
 import hashlib
@@ -161,6 +162,18 @@ HOLD_IDLE_S = 600
 lapsed = {}    # (user, agent) -> (what its hold lapsed on, that page's client id), said once on its next call
 bound = {}     # (user, agent) -> page client id
 released = {}  # (user, agent) -> the page name the person released from it (said once, on its next call)
+# SNAP-R159 a retried call never runs twice: (user, agent, Idempotency-Key) -> the first call's tool and args digest, when,
+# the page, and its answer's future (kept past the bridge's timeout, so a retry gets the page's late answer). Memory only,
+# for IDEM_S; a read-only tool's answer is not kept (re-reading is harmless and packets are big)
+IDEM_S = 3600
+idem = {}
+
+
+def idem_prune():
+    now = time.time()
+    for k in [k for k, v in idem.items() if now - v["at"] > IDEM_S]:
+        pending.pop(idem.pop(k)["call"], None)
+
 
 
 def error(message, status=400):
@@ -369,6 +382,21 @@ async def call(request):
     user, agent, code = user_of(request), agent_of(request), served_code()
     if body.get("tool") in {t["name"] for t in BRIDGE_TOOLS}:
         return await bridge_tool(request, user, agent, body["tool"], body.get("args") or {})
+    key = request.headers.get("Idempotency-Key") or body.get("idempotency_key")
+    if key is not None and not (isinstance(key, str) and 0 < len(key) <= 200):
+        return error("Idempotency-Key is a string of 1-200 characters, one per call you mean (reuse it only to retry that call)")
+    if key:
+        idem_prune()
+        digest = hashlib.sha256(json.dumps([body.get("tool"), body.get("args") or {}], sort_keys=True).encode()).hexdigest()
+        was = idem.get((user, agent, key))
+        if was and was["digest"] != digest:
+            return error(f"Idempotency-Key {key!r} was used at {time.strftime('%H:%M:%S', time.localtime(was['at']))} for a different call ({was['tool']}): a key names one call; give this one a new key", 409)
+        if was:  # the same call again: the first call's answer, never a second run
+            try:
+                out = await asyncio.wait_for(asyncio.shield(was["future"]), TIMEOUT)
+            except TimeoutError:
+                return error(f"The first {was['tool']} call with Idempotency-Key {key!r} (at {time.strftime('%H:%M:%S', time.localtime(was['at']))}) has no answer from its page yet: it was not run again. Retry later with the same key.", 504)
+            return web.json_response({**out, "page": was["page"], "replayed": True, "idempotency_key": key})
     if (user, agent) in released:
         return error(f"The person pressed Release on {released.pop((user, agent))}, so {agent} drives no page now: pick one (list_pages, use_page) and call again.", 409)
     await lapse(request)
@@ -397,6 +425,9 @@ async def call(request):
     pending[call_id] = (asyncio.get_running_loop().create_future(), client)
     await PromptServer.instance.send("mainodes-snap-call", {"id": call_id, "tool": body["tool"], "args": body.get("args") or {}, "agent": agent}, client)  # the agent names what it writes (SNAP-R95)
     page = {"id": client, "name": page_name(client), "headless": pages[client]["headless"], "sees": pages[client]["sees"], "driven_by": drivers.get(client), "code_current": not stale}
+    read_only = next((t for t in pages[client]["tools"] if t["name"] == body["tool"]), {}).get("annotations", {}).get("readOnlyHint")
+    if key and not read_only:
+        idem[(user, agent, key)] = {"tool": body["tool"], "digest": digest, "at": time.time(), "page": page, "future": pending[call_id][0], "call": call_id}
     try:
         out = await asyncio.wait_for(pending[call_id][0], TIMEOUT)
         if stale:  # said inside the answer, where every client shows it
@@ -407,12 +438,14 @@ async def call(request):
                 out["result"] = {**out["result"], "page_warning": note}
             else:
                 out["warning"] = note
-        return web.json_response({**out, "page": page})
+        return web.json_response({**out, "page": page, **({"idempotency_key": key} if key else {})})
     except TimeoutError:
         return error(f"The Snap page did not answer within {TIMEOUT} s. Long work returns at once (run, then run_status with wait_s); "
-                     "GET /mainodes/snap/tools shows when your page last answered.", 504)
+                     "GET /mainodes/snap/tools shows when your page last answered."
+                     + (f" Retry with the same Idempotency-Key ({key!r}): it returns this call's answer when the page gives it, and never runs it twice." if (user, agent, key) in idem else ""), 504)
     finally:
-        pending.pop(call_id, None)
+        if (user, agent, key) not in idem:  # a kept call waits for its page's late answer (idem_prune lets it go)
+            pending.pop(call_id, None)
 
 
 @routes.post("/mainodes/snap/result")

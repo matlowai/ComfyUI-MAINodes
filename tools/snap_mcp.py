@@ -11,8 +11,10 @@ Example Claude Code config entry (not installed by the pack):
 
     {"mcpServers": {"comfy-snap": {"command": "python", "args": ["custom_nodes/ComfyUI-MAINodes/tools/snap_mcp.py", "--port", "8188"]}}}
 
+Each tool call carries an Idempotency-Key of its own; a call the bridge timed out on (504) or a dropped connection is
+retried with the same key, so the bridge answers the first call's answer and never runs it twice (SNAP-R159).
 SNAP-R30 the agent front door · SNAP-R135 a page this connection bound is released when the connection closes ·
-see docs/snap/SNAP_RULES.md
+SNAP-R159 retries reuse the call's key · see docs/snap/SNAP_RULES.md
 """
 import argparse
 import json
@@ -20,6 +22,7 @@ import mimetypes
 import os
 import secrets
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -48,20 +51,26 @@ def upload(base, path, subfolder=""):
     return {"name": f"{r['subfolder']}/{r['name']}" if r.get("subfolder") else r["name"]}
 
 
-def http(base, path, body=None):
+def http(base, path, body=None, key=None):
     request = urllib.request.Request(base + path, data=None if body is None else json.dumps(body).encode(),
-                                     headers={"Content-Type": "application/json", **AUTH})
-    try:
-        with urllib.request.urlopen(request, timeout=40) as response:
-            return json.load(response)
-    except urllib.error.HTTPError as e:  # the bridge answers JSON; anything else (a plain 404, a 500 page) is passed on as text
-        text = e.read().decode(errors="replace")
+                                     headers={"Content-Type": "application/json", **AUTH, **({"Idempotency-Key": key} if key else {})})
+    for attempt in range(3 if key else 1):  # SNAP-R159: retried with the same key, so a call never runs twice
+        if attempt:
+            time.sleep(2)
         try:
-            return json.loads(text)
-        except ValueError:
-            return {"error": f"ComfyUI answered {e.code}: {text}"}
-    except (urllib.error.URLError, TimeoutError) as e:
-        return {"error": f"ComfyUI is not reachable at {base} ({getattr(e, 'reason', e)})."}
+            with urllib.request.urlopen(request, timeout=40) as response:
+                return json.load(response)
+        except urllib.error.HTTPError as e:  # the bridge answers JSON; anything else (a plain 404, a 500 page) is passed on as text
+            text = e.read().decode(errors="replace")
+            try:
+                out = json.loads(text)
+            except ValueError:
+                out = {"error": f"ComfyUI answered {e.code}: {text}"}
+            if e.code != 504:
+                return out
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
+            out = {"error": f"ComfyUI is not reachable at {base} ({getattr(e, 'reason', e)})."}
+    return out
 
 
 def handle(base, message):
@@ -80,7 +89,7 @@ def handle(base, message):
     if method == "tools/call":
         global bound
         bound = bound or (params.get("name") == "use_page" and (params.get("arguments") or {}).get("page") is not None)
-        answer = http(base, "/mainodes/snap/call", {"tool": params.get("name"), "args": params.get("arguments") or {}})
+        answer = http(base, "/mainodes/snap/call", {"tool": params.get("name"), "args": params.get("arguments") or {}}, key=f"mcp-{secrets.token_hex(8)}")
         failed = "error" in answer
         result = answer.get("result")
         images = (result.get("images") or ([result["image"]] if isinstance(result.get("image"), dict) else [])) if not failed and isinstance(result, dict) else []
