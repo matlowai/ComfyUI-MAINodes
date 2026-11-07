@@ -5,7 +5,8 @@
 // person), a pick is apply_candidate, a yes is the proposal's Accept. Machinery is not rendered here (not hidden):
 // no ids, file names, model names, state words, counts or progress; every text an agent wrote passes plain().
 // On the person's own install the Room is the page at /?room (localhost); a phone door belongs to snap-gate.
-// SNAP-R70 the Room never restricts, renders no machinery, and its verdicts are the record's · SNAP-R179 each question one
+// SNAP-R70 the Room never restricts, renders no machinery, and its verdicts are the record's · SNAP-R197 each picture says
+// what it is (a still or a frame of a video, its kind and cut), in plain() words · SNAP-R198 Nearby opens on it · SNAP-R179 each question one
 // plain sentence naming the thing · SNAP-R180 a critic's row asks its finding, with each note's words and where it was born · SNAP-R173 one verdict and why · SNAP-R174 blind pairs from the server · SNAP-R65 the Work card's rows · SNAP-R7 rebuilt only when its
 // content changes, never under a pointer · see docs/snap/SNAP_RULES.md
 import * as A from "./activity.js";
@@ -15,6 +16,7 @@ import * as P from "./proposals.js";
 import * as W from "./world.js";
 import * as B from "./book.js";
 import * as CR from "./critiques.js";
+import * as N from "./nearby.js";
 import { url } from "./checks.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat(Infinity).filter((k) => k != null && k !== false)); return el; };
@@ -152,8 +154,11 @@ export function openRoom({ say } = {}) {
     }
     if (r.source === "decision") {
       const d = C.get(r.decision), ready = d?.candidates.filter((c) => c.state === "ready") ?? [];
+      // SNAP-R197: each candidate says what it is; what they were made from is the pick's, said once above them
+      const take = (c) => c.take ?? `take-${c.prompt_id}`, made = ready.find((c) => T.get(take(c)));
       return h("section", { className: "snap-room-q" }, h("h2", { textContent: asked }), where,
-        h("div", { className: "snap-room-pics" }, ready.map((c) => h("figure", {}, pictureOf(c.pictures?.[0]?.media ?? T.get(c.take)?.media?.[0]),
+        made ? N.whatEl(take(made), { room: true, words: plain, line: false, button: false }) : null,
+        h("div", { className: "snap-room-pics" }, ready.map((c) => h("figure", {}, pictureOf(c.pictures?.[0]?.media ?? T.get(c.take)?.media?.[0]), T.get(take(c)) ? N.whatEl(take(c), { room: true, words: plain, say, more: false }) : null,
           h("button", { className: "snap-primary", textContent: "This one", onclick: act(async () => { await C.apply(d.id, c.id, "person"); await answered(asked, `Picked: it's in ${place ?? "its place"} now.`); }) })))), why,
         h("div", { className: "snap-room-verdict" }, h("button", { className: "snap-link", textContent: "Neither, same problem", onclick: act(async () => { for (const c of ready) await C.reject(d.id, c.id, "person", { because: why.value.trim() || "neither: the same problem" }); await answered(asked, "None of them: they'll be made again with that in mind."); }) })));
     }
@@ -168,7 +173,7 @@ export function openRoom({ say } = {}) {
       h("p", { className: "snap-room-where", textContent: `It comes from ${bornIn(n.owner)}.${n.fix ? ` What would fix it: ${said_(n.fix).replace(/[.\s]+$/, "")}.` : ""}` }))))
       : r.source === "critique" && r.run ? h("p", { className: "snap-room-where", textContent: "The critic found nothing wrong." }) : null;
     const judge = (v, said) => act(async () => { await T.setVerdict(t, v, { because: why.value.trim() }); await A.opened(t.id); await answered(asked, said, async () => { await T.setVerdict(t, null, { reason: "changed_mind" }); }); });
-    return h("section", { className: "snap-room-q" }, h("h2", { textContent: asked }), where, h("div", { className: "snap-room-pics one" }, pic), list, why,
+    return h("section", { className: "snap-room-q" }, h("h2", { textContent: asked }), where, h("div", { className: "snap-room-pics one" }, pic), t ? N.whatEl(t.id, { room: true, words: plain, say }) : null, list, why,
       h("div", { className: "snap-room-verdict" }, h("button", { className: "snap-primary", textContent: "Keep it", onclick: judge("keep", `Kept${place ? `: ${place} can use it` : ""}.`) }),
         h("button", { className: "snap-link", textContent: "Not this one", onclick: judge("reject", "Set aside, with your reason.") }),
         h("button", { className: "snap-link", textContent: "Neither, same problem", onclick: judge("neither", "Noted: the same problem as the others.") })));
@@ -193,7 +198,7 @@ export function openRoom({ say } = {}) {
         undo ? h("button", { className: "snap-link", textContent: "actually, no", onclick: act(async () => { await undo(); earlier[i][1] = `${said} (taken back)`; earlier[i][2] = null; reply = "Taken back."; sig = ""; draw(); }) }) : null))) : null].filter(Boolean));
   }
   A.onChange(draw);
-  Promise.all([T.load(), C.load(), P.load(), W.load()]).then(() => A.reconcile()).then(draw, (e) => { reply = plain(e.message); draw(); });
+  Promise.all([T.load(), C.load(), P.load(), W.load(), N.load()]).then(() => A.reconcile()).then(draw, (e) => { reply = plain(e.message); draw(); });
   (document.querySelector(".snap-root") ?? document.body).append(room); // inside Snap's root: its colours, above its sheets
   room.focus({ preventScroll: true });
   draw();

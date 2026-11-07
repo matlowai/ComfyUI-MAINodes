@@ -6,8 +6,10 @@
 // The agent twin is open_view {view: "picture"} (tools.js), which opens it on the person's tab. An item may carry the
 // critic's masks ({k, region, severity, text}): drawn over the picture at any zoom, a box and its number each, with the
 // notes listed in the bar's title (F-E21: the viewer showed none of the critic's regions).
+// Under the bar each picture says what it is (nearby.js: a still or a frame of a video, its kind, its cut, what made it),
+// and Nearby (m) opens what is around it in the data model, over the viewer.
 // SNAP-R5 never navigate away from the work · SNAP-R80 every picture one click from full size · SNAP-R136 masks numbered,
-// never words over the picture · see docs/snap/SNAP_RULES.md
+// never words over the picture · SNAP-R197 what this is · SNAP-R198 Nearby · see docs/snap/SNAP_RULES.md
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const actions = new WeakMap(); // a thumbnail's own action, offered in the viewer
@@ -16,12 +18,12 @@ const actions = new WeakMap(); // a thumbnail's own action, offered in the viewe
 // steps through with the arrows, `action` {label, run} what its click did before
 export function full(el, item, group, action) {
   el.classList.add("snap-full");
-  Object.assign(el.dataset, { fullSrc: item.src, fullName: item.name ?? "", fullSource: item.source ?? "", fullKind: item.kind ?? "image", fullGroup: group ?? "" });
+  Object.assign(el.dataset, { fullSrc: item.src, fullName: item.name ?? "", fullSource: item.source ?? "", fullKind: item.kind ?? "image", fullGroup: group ?? "", fullRef: item.ref ?? "" });
   if (action) actions.set(el, action);
   return el;
 }
 const SEV = { high: "#e5484d", medium: "#f0b445", low: "#6aa8ff" };
-const itemOf = (el) => ({ src: el.dataset.fullSrc, name: el.dataset.fullName, source: el.dataset.fullSource, kind: el.dataset.fullKind, action: actions.get(el) ?? null });
+const itemOf = (el) => ({ src: el.dataset.fullSrc, name: el.dataset.fullName, source: el.dataset.fullSource, kind: el.dataset.fullKind, ref: el.dataset.fullRef || null, action: actions.get(el) ?? null });
 
 // one capture-phase listener: a marked thumbnail's click opens the viewer and stops there (the row's own click doesn't run)
 document.addEventListener("click", (e) => {
@@ -44,12 +46,15 @@ export function show(items, at = 0) {
   // the scale fit shows it at: the whole picture in the stage, small ones enlarged too
   const fitScale = () => { const n = natural(), r = media.getBoundingClientRect(); return n.w && n.h ? Math.min(r.width / n.w, r.height / n.h) : 1; };
   const zoom = (k) => { if (fit) { scale = fitScale(); fit = false; x = y = 0; } scale = Math.min(16, Math.max(0.05, scale * k)); place(); };
-  const tab = h("a", { className: "snap-lb-btn", target: "_blank", rel: "noopener", textContent: "Open in a new tab ↗" }), act = h("button", { hidden: true });
+  const tab = h("a", { className: "snap-lb-btn", target: "_blank", rel: "noopener", textContent: "Open in a new tab ↗" }), act = h("button", { hidden: true }), whatLine = h("div", { className: "snap-lb-whatline" });
+  // the picture's ref for nearby.js: the one it was marked with, else its own /view address (a take's file, a record's picture)
+  const refOf = (it) => it.ref || it.src;
+  const near = () => import("./nearby.js").then((N) => N.openNearby(refOf(open.items[open.at])));
   const root = h("div", { className: "snap-lb", role: "dialog", ariaModal: "true", ariaLabel: "picture at full size", tabIndex: -1 },
-    h("div", { className: "snap-lb-bar" }, head, h("span", { className: "snap-spacer" }), act, fitBtn,
+    h("div", { className: "snap-lb-bar" }, head, h("span", { className: "snap-spacer" }), act, h("button", { textContent: "Nearby (m)", title: "what is near it in the data model (changes nothing)", onclick: () => near() }), fitBtn,
       h("button", { textContent: "−", title: "zoom out", onclick: () => zoom(1 / 1.25) }), h("button", { textContent: "+", title: "zoom in", onclick: () => zoom(1.25) }), tab,
       h("button", { textContent: "✕", title: "close (Esc)", onclick: () => close() })),
-    media, masks,
+    whatLine, media, masks,
     h("button", { className: "snap-lb-prev", textContent: "‹", title: "previous (←)", onclick: () => step(-1) }), h("button", { className: "snap-lb-next", textContent: "›", title: "next (→)", onclick: () => step(1) }));
   const current = () => media.firstElementChild;
   const natural = () => { const m = current(); return m ? { w: m.naturalWidth ?? m.videoWidth ?? 0, h: m.naturalHeight ?? m.videoHeight ?? 0 } : { w: 0, h: 0 }; };
@@ -84,6 +89,8 @@ export function show(items, at = 0) {
       n.w ? h("span", { textContent: ` · ${n.w}×${n.h}` }) : null, open.items.length > 1 ? h("span", { className: "snap-quiet", textContent: ` · ${open.at + 1} of ${open.items.length}` }) : null].filter(Boolean)); };
     m.addEventListener(it.kind === "video" ? "loadedmetadata" : "load", () => { what(); place(); });
     media.replaceChildren(m); what(); place();
+    whatLine.replaceChildren();
+    import("./nearby.js").then(async (N) => { await N.load(); const w = N.what(refOf(it)); if (open?.items[open.at] === it) whatLine.replaceChildren(w.line, w.more ? h("span", { textContent: w.more }) : ""); }).catch(() => whatLine.replaceChildren()); // a picture Snap holds nothing about says nothing
     tab.href = it.src;
     act.hidden = !it.action;
     if (it.action) { act.textContent = it.action.label; act.onclick = () => { close(); it.action.run(); }; }
@@ -104,8 +111,9 @@ export function show(items, at = 0) {
   // a click on the picture switches fit and 100 % (not after a drag); on the dark around it, closes
   root.addEventListener("click", (e) => { if (e.target === root || e.target === media) close(); else if (e.target === current() && current().tagName === "IMG" && !moved) { fit = !fit; scale = 1; x = y = 0; place(); } });
   const keys = (e) => {
+    if (document.querySelector(".snap-near")) return; // the Nearby modal over the viewer takes the keys first
     if (e.key === "Escape") close(); else if (e.key === "ArrowRight") step(1); else if (e.key === "ArrowLeft") step(-1);
-    else if (e.key === "0" || e.key === "f") { fit = !fit; scale = 1; x = y = 0; place(); } else return;
+    else if (e.key === "0" || e.key === "f") { fit = !fit; scale = 1; x = y = 0; place(); } else if (e.key === "m") near(); else return;
     e.preventDefault(); e.stopImmediatePropagation(); // the take viewer under it keeps its own Esc and arrows
   };
   open = { items, at: Math.min(Math.max(0, at), items.length - 1), root, keys, resize: () => paintMasks() };

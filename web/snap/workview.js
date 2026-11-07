@@ -7,12 +7,13 @@
 // stops only that prompt), Retry on a failure, Park / Unpark; a landed take takes a verdict with one key (p keep, x
 // reject, n neither) and an optional sentence, the same verdict the take viewer writes.
 // SNAP-R5 only a press moves the person · SNAP-R158 critiques due fold into one row, proposals first · SNAP-R7 lists rebuilt only when their content changes, never under a pointer ·
-// SNAP-R17 by: person|agent · SNAP-R58 nothing cut · SNAP-R65 the Work card · see docs/snap/SNAP_RULES.md
+// SNAP-R17 by: person|agent · SNAP-R58 nothing cut · SNAP-R65 the Work card · SNAP-R197 a row with a take says what it is, with Nearby (SNAP-R198) · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as A from "./activity.js";
 import * as T from "./takes.js";
 import * as ACC from "./account.js";
 import * as CR from "./critiques.js"; // SNAP-R101 the critic's rows and its foot line
+import * as N from "./nearby.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat(Infinity).filter((k) => k != null && k !== false)); return el; }; // F-L01: a row's buttons nest a list (Accept, Reject): a string of it printed "[object HTMLButtonElement]"
 const OWNERS = [["you", "You"], ["agents", "Agents"], ["others", "Others on this server"]];
@@ -86,6 +87,7 @@ export function openWork(host, { say, open, decide }) {
     const el = h("div", { className: `snap-work-row ${r.state}`, tabIndex: 0, role: "listitem" },
       h("div", { className: "snap-work-line" }, h("i", { className: "snap-work-dot" }), h("strong", { className: "snap-work-title", textContent: r.question ?? r.title, ...(r.question ? { title: r.title } : {}) }), h("span", { className: "snap-spacer" }), buttons),
       h("div", { className: "snap-quiet snap-work-meta", textContent: [r.where, stateText(r), r.by === "agent" ? "started by an agent" : null, take ? "p keep · x reject · n neither" : null].filter(Boolean).join(" · ") }),
+      (r.result?.take ?? r.about?.take) && r.source !== "blind_pair" ? N.whatEl(r.result?.take ?? r.about.take, { say, more: false }) : null,
       r.error ? h("pre", { className: "snap-work-error", textContent: r.error }) : null,
       r.traceback?.length ? h("details", { className: "snap-work-rest" }, h("summary", { textContent: "the rest of it" }), h("pre", { className: "snap-work-error", textContent: r.traceback.join("") })) : null,
       take ? h("div", { className: "snap-set-actions snap-work-verdict" }, why, ...Object.entries(VERDICT_KEYS).map(([k, v]) => h("button", { className: "snap-link snap-quiet-btn", textContent: `${v[0].toUpperCase()}${v.slice(1)} (${k})`, onclick: act(() => verdict(r, v, why.value.trim())) }))) : null);

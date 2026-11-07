@@ -4,13 +4,14 @@
 // edited). The buttons call the same functions as the apply_candidate / reject_candidate / undo_candidate tools.
 // SNAP-R7 lists keep their elements while a pointer is down · SNAP-R17 by · SNAP-R23 candidates · SNAP-R76 a score per
 // person, with that person's crops · SNAP-R79 copied Picture n · SNAP-R111 the character score flags, ArcFace is shown ·
-// SNAP-R112 same composition · SNAP-R191 a region edit's seam · see docs/snap/SNAP_RULES.md
+// SNAP-R112 same composition · SNAP-R191 a region edit's seam · SNAP-R197 each tile says what it is, with Nearby (SNAP-R198) · see docs/snap/SNAP_RULES.md
 import * as C from "./candidates.js";
 import * as CV from "./critiqueview.js";
 import * as P from "./proposals.js";
 import * as ED from "./edits.js";
 import { url } from "./checks.js";
 import { full } from "./lightbox.js";
+import * as N from "./nearby.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const TOOL = { apply_candidate: "recommends this one", reject_candidate: "suggests rejecting it" };
@@ -88,6 +89,7 @@ export function candidatesEl(d, { say, crops } = {}) {
       id ? h("div", { className: "snap-cand-crops", title: `head crops: ${versus} | the edit` }, id.flatMap((s) => (s.people ?? [s]).flatMap((x) => x.crops ?? []).filter(Boolean).map((m) => full(h("img", { src: url(m), alt: "head crop", loading: "lazy" }), { src: url(m), name: `${c.id} · head crop`, source: C.path(m) }, `crops:${d.id}:${c.id}`)))) : null,
       h("figcaption", {},
         h("div", { className: "snap-cand-line" }, h("b", { textContent: c.label ? `${c.id} · ${c.label}` : c.id }), h("span", { className: "snap-quiet", textContent: [c.seed != null ? `seed ${c.seed}` : null, (c.made?.lora ?? c.made?.model) ? (c.made.lora ?? c.made.model).replace(/\.safetensors$/, "").replace(/_/g, " ").slice(0, 28) : null, c.by !== "person" ? `by ${c.by}` : null].filter(Boolean).join(" · ") })),
+        c.state !== "rendering" && (c.take || c.prompt_id) ? N.whatEl(c.take ?? `take-${c.prompt_id}`, { say, more: false }) : null,
         h("div", { className: "snap-cand-notes" }, noteChips(c)),
         // SNAP-R51: a pinning method's painted frames sit at the frames they came from until the person unpins them
         "pin" in c && c.state === "ready" ? h("label", { className: "snap-cand-pin", title: "on: the take passes through these painted frames at those moments; off: they only set the look (fine on one shot, worse at cuts)" },

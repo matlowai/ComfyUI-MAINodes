@@ -22,6 +22,7 @@ import * as T from "./takes.js";
 import * as V from "./vault.js";
 import * as CV from "./critiqueview.js"; // SNAP-R103 the critic on the take: its chip, masks and notes
 import * as LB from "./lightbox.js";
+import * as N from "./nearby.js"; // SNAP-R197 what the take is · SNAP-R198 Nearby (m)
 import * as RT from "./retake.js";
 import * as PL from "./plates.js";
 import * as C from "./candidates.js";
@@ -569,6 +570,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
       else if (isVideo && (e.key === "," || e.key === ".")) { e.preventDefault(); player.pause(); player.currentTime = Math.max(0, player.currentTime + (e.key === "," ? -1 : 1) / FPS); }
       else if (isVideo && e.key === " ") { e.preventDefault(); player.paused ? player.play() : player.pause(); }
       else if (KEYS[e.key] && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); judge(KEYS[e.key]); }
+      else if (e.key === "m" && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); N.openNearby(t.id, { say }); }
     };
     document.addEventListener("keydown", keys, true);
 
@@ -581,7 +583,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
       h("div", { className: "snap-take-body" },
         h("div", { className: "snap-take-left" }, stage, markers, isVideo ? h("div", { className: "snap-quiet", textContent: "Space plays · , and . step one frame" }) : null),
         h("aside", {},
-          verdicts, rankLine, ratingRow(t), quietRow, AL.takeLine(t, { say }), CV.panel(t, { stage, fit, player, isVideo, say, host }),
+          N.whatEl(t.id, { say, key: "m" }), verdicts, rankLine, ratingRow(t), quietRow, AL.takeLine(t, { say }), CV.panel(t, { stage, fit, player, isVideo, say, host }),
           t.metadata_kept ? h("p", { className: "snap-take-keptline", textContent: `Save metadata was off, but ${t.metadata_kept.join("; ")}: those files still hold the prompt and workflow. Save with Save Image or Save Video to leave them out.` }) : null,
           h("div", { className: "snap-rail-title", textContent: "Note a moment" }), sentimentSeg, tagBox, words,
           h("div", { className: "snap-take-noteline" }, at, markBtn, regionText, h("span", { className: "snap-spacer" }), h("button", { className: "snap-primary", textContent: "Add note", onclick: add })),
