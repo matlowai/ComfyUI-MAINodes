@@ -171,8 +171,11 @@ export async function build(r, tb) {
   const tiled = (i) => rule === "all" || rule === "views" || (rule === "ends" && (i === 0 || i === wholes.length - 1));
   wholes.forEach((w, i) => { if (!tiled(i) || Math.max(w.canvas.width, w.canvas.height) <= tile.size) return;
     for (const x of tiles(w.canvas, tile.size, tile.overlap)) { pics.push({ label: `${pics[i].label.split(" · ")[0]} · tile ${x.cell} · px ${x.box.join(",")} of ${w.canvas.width}x${w.canvas.height}, ${fmt(lossless(w))}`, role: "tile", what: w.what, path: pics[i].path, width: x.box[2], height: x.box[3], format: lossless(w) ? "png" : "jpeg", tile: { of: i, cell: x.cell, box: x.box } }); images.push(encode(x.canvas, lossless(w))); } });
-  // F-G07: a plate or master gets a measuring copy (10 % grid with pixel marks), mapped like a tile over the whole picture
-  if (["plate", "master"].includes(r.checklist)) wholes.forEach((w, i) => { if (isVideo(w.media)) return;
+  // F-K11: say why there are no tiles, so a critic doesn't wait for them (a picture within the tile size is whole at 100 %)
+  if (!pics.some((p) => p.role === "tile")) w.tiles = `none: every subject picture is at most ${tile.size} px on its long side, so each whole is already at 100 %${["plate", "master", "location"].includes(r.checklist) ? "; the measuring copies follow the wholes" : ""}`;
+  // F-G07: a plate or master gets a measuring copy (10 % grid with pixel marks), mapped like a tile over the whole picture;
+  // F-K11: every view of a location too (village v21: its eye heights were measured from the critic's own crops)
+  if (["plate", "master", "location"].includes(r.checklist)) wholes.forEach((w, i) => { if (isVideo(w.media)) return;
     pics.push({ label: `${pics[i].label.split(" · ")[0]} · measure: a 10 % grid with its pixel positions over the whole, ${w.canvas.width}x${w.canvas.height}, png`, role: "tile", what: w.what, path: pics[i].path, width: w.canvas.width, height: w.canvas.height, format: "png", tile: { of: i, cell: "measure", box: [0, 0, w.canvas.width, w.canvas.height] } });
     images.push(png(measured(w.canvas))); });
   for (const cx of ctx) {
