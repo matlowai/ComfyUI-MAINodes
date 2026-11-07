@@ -1800,7 +1800,7 @@ SNAP-R191 on. R160-R164 stay free.
   least 160 px a side, with a 2x copy when it is at most 512 px: over a region edit's pasted crop; over where an edit
   changed its Picture 1 (8 px cells whose colour moved more than 28, joined; none when more than half the picture
   changed, a new view rather than an edit); and any the critic asks for with `critique_packet {zoom: [{region, picture}
-  | {find, picture}]}` (a note's region, or a thing in words that SAM 3.1 boxes, up to 4). Asked zooms stay on the row,
+  | {find, picture}]}` (a note's region, or a thing in words that SAM 3.1 boxes, smallest first, none over a quarter of the picture, up to 4). Asked zooms stay on the row,
   so a later call keeps every picture's number; `part: "zoom"` pages only the zooms. *Why:* F-U05: the "100 % tiles" of
   a 2048x1152 still were two 1536 px halves, too big to read a 60 px monocle; the critic cropped faces by hand.
 - **SNAP-R194: An edit's or New view's packet carries its cut's Cast.** Who a take's packet expects is the Cast it pins,

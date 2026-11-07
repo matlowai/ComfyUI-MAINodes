@@ -217,7 +217,8 @@ export async function peopleCheck(src, about = {}) {
 }
 
 // F-U05 (SNAP-R193): the boxes SAM 3.1 finds for a thing named in words ("eyes", "the monocle") in one picture (`src` as
-// source() takes it), as fractions [x, y, w, h], biggest first: a critic's zoom on a named thing
+// source() takes it), as fractions [x, y, w, h], smallest first and none over a quarter of the picture (on C2 key s9221
+// "monocle" also boxed the whole frame and a corner): a critic's zoom on a named thing
 export async function findBoxes(src, text, { about = {}, by = "agent" } = {}) {
   const { detector: name } = await needs();
   if (!name) throw new Error(`finding "${text}" by name needs SAM 3.1 (models/checkpoints/sam3.1_multiplex_fp16.safetensors), which isn't in the model graph here; give a region instead`);
@@ -226,7 +227,7 @@ export async function findBoxes(src, text, { about = {}, by = "agent" } = {}) {
   g.m = { class_type: "MaskToImage", inputs: { mask: ["f", 0] } };
   g.p = { class_type: "PreviewImage", inputs: { images: ["m", 0] } };
   const boxes = (await Promise.all(((await screen(g, { title: `Find ${text} in this picture`, about, by })).outputs?.p?.images ?? []).map(box))).filter(Boolean);
-  return boxes.sort((a, b) => b[2] * b[3] - a[2] * a[3]);
+  return boxes.filter((b) => b[2] * b[3] <= 0.25).sort((a, b) => a[2] * a[3] - b[2] * b[3]);
 }
 
 // a picture (the screenshot tool's image shape) with each person's box and number drawn on it

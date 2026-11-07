@@ -273,7 +273,7 @@ export async function build(r, tb, { zoom = [] } = {}) {
     if (!wh) { pics.push({ label: `zoom on picture ${i}: not a subject whole (0 to ${wholes.length - 1})`, role: "tile", zoom: true, missing: "no such subject picture" }); images.push(null); continue; }
     if (z.region) { zoomed(i, z.region, `the region asked for, [${z.region.join(", ")}]`); continue; }
     try {
-      const found = await K.findBoxes(wh.frame != null ? { video: K.annotated(wh.media), frame: wh.frame } : { image: K.annotated(wh.media) }, z.find, { about: { critique: r.id } });
+      const found = await K.findBoxes(wh.frame != null ? { video: K.annotated(wh.media), frame: wh.frame } : { image: K.annotated(wh.media) }, z.find, { about: wh.take ? { take: wh.take } : {} });
       if (!found.length) { pics.push({ label: `zoom on "${z.find}": SAM 3.1 found none in ${pics[i].label.split(" · ")[0]}`, role: "tile", zoom: true, missing: "nothing found" }); images.push(null); }
       for (const [k, f] of found.slice(0, ZOOM.most).entries()) zoomed(i, f, `"${z.find}"${found.length > 1 ? ` ${k + 1} of ${found.length}` : ""}, found by SAM 3.1`);
     } catch (e) { pics.push({ label: `zoom on "${z.find}": ${e.message}`, role: "tile", zoom: true, missing: e.message }); images.push(null); }

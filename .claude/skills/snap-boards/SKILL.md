@@ -45,7 +45,9 @@ Re-boarding from a fixed board (G10, short05 C2):
   two tries, with or without the Cast's front picture. Crop only what changes (a whole-head crop turned the head 2/2; an
   eye crop kept it 2/2), and past where a thin thing crossing the crop ends (the monocle's chain broke at an eye crop's
   bottom edge). Read each candidate's seam note; on "seam breaks", edit again with its `crop_to_try` or a crop set where
-  the thing ends (SNAP-R191).
+  the thing ends (SNAP-R191), and read the note again: a redraw can make the thing longer. On C2 key s9221 the eye crop
+  broke 2/2, crop_to_try still broke 2/2 (the new chain hung lower), and a crop down to the lapel held 2/2 with the head
+  kept in all six.
 - A flaw born in the Cast picture itself is fixed there, not in every board: a region edit of the Cast picture, then
   `use_take {as: "cast", replace: n, propose: true}` (SNAP-R196), then rerun_dependents.
 
