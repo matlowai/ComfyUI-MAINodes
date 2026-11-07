@@ -107,11 +107,16 @@ You can also run the tools as an MCP server (Claude Code); it also serves Snap's
   page, idempotency_key}`; its `docs/SKILL.md` is the short version of this page.
 - **Either way** you are an agent here: GPU calls answer `{proposed, status}` and wait for the person unless they let
   agents run; read that as waiting, not failing. Bind a page (`use_page`) and let it go (`use_page {"page": null}`).
-- **The Cut into Astrid:** `export_cut {book}` writes `otio.astrid.archive` (a `.astrid` file) and answers the command,
-  `astrid timelines import <file.astrid> --project <project> --name "<name>"`. Private takes are left out
-  (`left_out`, their time a gap). Each import makes a new timeline: after a re-take in Snap, swap the new take's file
-  into the imported timeline in Astrid rather than importing again. Each clip's `generation.snap.take` and `cut` name
-  where to re-take it here.
+- **The Cut into Astrid (SNAP-R215-R227):** a production is an Astrid project (`create_production`, `get_production`;
+  a Book alone has one of its own name), each Book a timeline in it. `export_cut {book}` writes `otio.astrid.archive`
+  (archive v2: clip ids = cut ids, a speaking cut's sound on A2 "Dialogue" with its line and words), probes it in
+  Astrid when the person set "Astrid on this machine" (`otio.astrid.probe`) and, once the Book was pushed, answers
+  `otio.astrid.diff`. The person pushes with the Cut lens's button or the Book's auto-push setting; from a shell,
+  `SNAP_BASE=$BASE SNAP_AGENT=<you> python3 -I $PACK/tools/astrid_push.py push --book <book>` imports it once, and later
+  pushes swap the changed cuts in place (same clip ids; `swap --cut C7` for one re-take; a changed shape needs
+  `--new-timeline`). `get_book.astrid` and each unit's `astrid.state` say where it stands. Private takes stay out
+  (`left_out`, a gap). In Astrid read words with `timelines words --published`; the receipt, not Astrid's metadata, is
+  the link (contract v4).
 
 - A call ends after 30 s. Long work, such as a render, returns at once, and you follow it as described in step 4.
 - A wrong or missing argument is refused, and every error names the arguments the tool takes. Read the error and call

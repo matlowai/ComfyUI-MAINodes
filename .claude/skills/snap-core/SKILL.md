@@ -97,6 +97,23 @@ Every call in Snap runs under one resolved stack of agent instructions. Read it 
 - GPU-spending tools wait as proposals unless the person lets agents run (SNAP-R16). Downloads and installs always
   wait for the person's yes; Snap itself never downloads (SNAP-R25).
 
+## To Astrid and from Astrid (SNAP-R215-R229)
+
+- **The tree:** a production (`create_production`; a Book alone has one of its own name) is one Astrid project; each
+  Book is one timeline in it; a cut is a clip whose id is the cut id (`C7`), kept across re-takes (SNAP-R223, R215).
+- **The push is the person's:** the Cut lens's Push button or the Book's "Push the Cut to Astrid by itself" setting;
+  agents and the dial never turn either on. From your shell: `tools/astrid_push.py push --book <book>` (cut + context),
+  `swap --book <book> --cut C7` after a re-take, `render`, `proposal-note`; SNAP_BASE on loopback, SNAP_AGENT named
+  (SNAP-R224). Snap's receipt (`get_book.astrid`, the Cut lens) is the only record of where a Cut went (SNAP-R225).
+- **What goes over:** projections only: the Cut (archive v2, probed editable before the answer), references per Cast
+  and place from the takes' own pins, the Book's documents, the style as words when the person shared it. Nothing
+  syncs back as a write: an Astrid-side wish is a Snap proposal (it waits in the Room), a fact is a take note (SNAP-R222).
+- **Asking Snap from Astrid:** reads (`get_book`, `get_take`, `list_proposals`) answer on a page another agent drives;
+  writes there go as proposals (`propose: true`) or wait for the driver (SNAP-R219). Take back your own stale proposal
+  with `withdraw_proposal {id, because}` (SNAP-R228). Words come from Snap (check_voice's `voice.words`, SNAP-R227):
+  read them in Astrid with `timelines words --published` (without `--published` it leaves a working copy that blocks
+  trims).
+
 ## Working rules
 
 - **Consistency is data, not prompting.** Words make a new place and a new design every render. Carry pictures and

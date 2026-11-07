@@ -2073,6 +2073,13 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
   nothing new. Nothing comes back as a write: an Astrid-side wish is a Snap proposal, a fact a note. *Why:* the jam
   hand-wrote today's heads where the takes had run on older versions (INTEROP_LOG 13:38); PROTOCOL_V1 §7.3, §7.6.
   *More:* tests/snap/test_g16_push.js.
+- **SNAP-R222: Snap ↔ Astrid is one owner per record, projections one way, the cut id as the join.** Snap owns story,
+  style, Cast, places, boards, takes and every generation proposal; Astrid owns the timeline after the Cut, its finish
+  and its render. What Astrid holds of Snap's records is a projection stamped with Snap's ids and versions
+  (`generation.snap`, `metadata.snap`); what Snap holds of Astrid's is the receipt. Nothing syncs back as a write: an
+  Astrid-side wish is a Snap proposal, an Astrid-side fact a take note. The cut id is the clip id, kept across
+  re-takes. The skills (snap-core "To Astrid and from Astrid", the pack's SKILL) and the study's CONTRACT_SNAP_EXPORT
+  v4 say it whole. *Why:* PROTOCOL_V1 §1, v1.1 §1. *More:* tests/snap/test_g16_push.js.
 - **SNAP-R223: A production is the record above the Book, and it is what an Astrid project is.** A `production` record
   holds a name, its Books in order, the Cast and places they share, a default style and `astrid.project` (the Astrid
   project's slug, from the name unless given). A Book is in one production: listing it in another takes it out of the
