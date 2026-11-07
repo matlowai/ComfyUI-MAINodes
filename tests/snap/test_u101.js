@@ -164,7 +164,8 @@ const sh = (cmd, args) => new Promise((done, fail) => execFile(cmd, args, (e) =>
     R.face = await page.$$eval(".snap-ref-audio", (xs) => xs.map((x) => x.textContent));
     await page.locator(".snap-ref-audio").first().scrollIntoViewIfNeeded().catch(() => {});
     await page.screenshot({ path: path.join(out, "421-u101-audio-refs.png") });
-    R.cv2 = await call("save_cast", { cast: R.cast.cast, name: "Maren", details: "a tall swordswoman, white braid", lora: null, refs: [{ file: "snap/snaptest_u101_face.png", role: "identity: front" }] });
+    // G6 F-K02 (SNAP-R84 amended): a version keeps what it leaves out, so taking the voice out is an explicit null
+    R.cv2 = await call("save_cast", { cast: R.cast.cast, name: "Maren", details: "a tall swordswoman, white braid", lora: null, voice: null, refs: [{ file: "snap/snaptest_u101_face.png", role: "identity: front" }] });
     R.applied2 = await call("apply_cast", { cast: R.cast.cast });
     R.afterNoVoice = (await call("describe_recipe", {}))?.references?.audio;
     R.errors = A.errors;
