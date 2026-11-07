@@ -7,7 +7,7 @@
 // each cut's compiled state sheet with provenance and its render bar. The Cut: the active takes in telling order with
 // trims and sound levels, export one mp4 and an OTIO. Agents' story proposals wait on top (the Book's docket), their beats
 // as ghost cards on the spine, and the answered ones stay listed (SNAP-R139, F-F10/F-F19).
-// SNAP-R67 the Book and the story clock · SNAP-R68 compile with provenance · SNAP-R69 settei per state · SNAP-R130 the
+// SNAP-R67 the Book and the story clock · SNAP-R68 compile with provenance · SNAP-R69 settei per state · SNAP-R175 the colour script · SNAP-R176 settei design it · SNAP-R130 the
 // production style · SNAP-R131 boards and the animatic · SNAP-R132 the Cut · SNAP-R133 the plan drawn here · SNAP-R80
 // every picture full size · SNAP-R58 nothing trimmed · SNAP-R8 judged from screenshots · SNAP-R165 Cast lines folded ·
 // SNAP-R168 a cut opens before its beat · see docs/snap/SNAP_RULES.md
@@ -83,40 +83,72 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
   function drawTabs() { fill(tabs, ...LENSES.map(([k, label]) => h("button", { className: tab === k ? "on" : "", textContent: label, role: "tab", ariaSelected: String(tab === k), onclick: () => { tab = k; draw(); } }))); }
 
   // ---- Beat sheet -----------------------------------------------------------------------------------------------
+  // the colour script (SNAP-R175): one chosen frame per scene group, a strip over the spine. A group with none shows what
+  // its cuts offer (an approved board, else an active take) to choose from; choosing is a story version (an agent's
+  // set_colour_frame waits as a proposal)
+  function colourScript(b, story, byTold, cols) {
+    const st = B.storyOf(b.body), units = B.units(b);
+    if (!story.groups.length) return h("div", { className: "snap-book-colours empty", style: cols }, h("div", { className: "snap-quiet snap-book-lane-name", textContent: "colour script" }),
+      h("div", { className: "snap-quiet", style: "grid-column: 2 / -1", textContent: "One frame per scene group: group the beats into scenes first (add_group, or + Scene group on a picked beat)." }));
+    const offers = (g) => units.filter((u) => (u.unit.beats ?? []).some((id) => g.beats.includes(id))).flatMap((u) => { const t = u.shot.active ? T.get(u.shot.active) : null;
+      return [u.unit.board?.file ? { file: u.unit.board.file, from: `${u.unit.cut}'s board` } : null, t?.media?.length ? { take: t.id, from: `${u.unit.cut}'s take ${t.number}` } : null].filter(Boolean); });
+    const frame = (f, name) => (f.file ? pic(f.file, name, f.from ?? "", "book-colours", "snap-book-colour") : f.take && T.get(f.take) ? h("img", { className: "snap-book-colour", src: takeUrl(T.get(f.take)), alt: name }) : h("div", { className: "snap-cast-missing snap-book-colour", textContent: "✕ its picture is gone" }));
+    const choose = (g, f) => act(async () => { const next = structuredClone(story); next.groups.find((x) => x.id === g.id).colour = { ...(f.file ? { file: f.file } : { take: f.take }), from: f.from }; const out = await B.saveStory(st.id, next, { note: `colour script: ${g.name || g.id} ← ${f.from}` }); return out.made ? `Story v${out.n}: ${g.name || g.id}'s colour frame is ${f.from}` : null; });
+    return h("div", { className: "snap-book-colours", style: cols }, h("div", { className: "snap-quiet snap-book-lane-name", textContent: "colour script" }),
+      ...story.groups.map((g) => { const idx = g.beats.map((id) => byTold.findIndex((x) => x.id === id)).filter((i) => i >= 0); if (!idx.length) return null;
+        const offer = offers(g), place = `grid-column: ${Math.min(...idx) + 2} / ${Math.max(...idx) + 3}`;
+        return h("div", { className: `snap-book-colour-cell${g.colour ? " chosen" : ""}`, style: place },
+          g.colour ? [frame(g.colour, `${g.name || g.id}, colour frame`), h("span", { className: "snap-quiet", textContent: `${g.name || g.id} · ${g.colour.from ?? "chosen"}` })]
+            : offer.length ? [frame(offer[0], `${g.name || g.id}, ${offer[0].from}`), h("span", { className: "snap-quiet", textContent: `${g.name || g.id} · not chosen: ${offer[0].from}?` }),
+              h("div", { className: "snap-set-actions" }, offer.map((f) => h("button", { className: "snap-link snap-quiet-btn", textContent: `Use ${f.from}`, onclick: choose(g, f) })))]
+            : h("span", { className: "snap-quiet", textContent: `${g.name || g.id}: no board or take to choose from yet` })); }));
+  }
   function beatSheet(b) {
     const st = B.storyOf(b.body), story = st.body, castRefs = b.body.cast ?? [], byTold = [...story.beats].sort((x, y) => x.told - y.told);
     const save = (next, note) => act(async () => { const out = await B.saveStory(st.id, next, { note }); return out.made ? `Story v${out.n}: ${note}` : null; });
-    const cols = `grid-template-columns: 120px repeat(${Math.max(1, byTold.length)}, minmax(150px, 1fr))`; // the lanes' name column, then one column per beat
+    // F-F10, F-L15: the beats agents proposed are ghost columns after the spine, and every waiting change shows in its lane
+    // as a ghost under its beat (accepted or ghost), with its proposal
+    const bookRef = `book:${b.id}`, ghosts = P.pending().filter((p) => p.book === bookRef && p.tool === "add_beat");
+    const columns = [...byTold, ...ghosts.map((p) => ({ id: p.makes?.[0] ?? p.args.id ?? "new", text: p.args.text ?? "", lines: p.args.lines ?? [], plants: p.args.plants ?? [], pays_off: p.args.pays_off ?? [], changes: [], ghost: p }))];
+    const waitingChanges = [...P.pending().filter((p) => p.book === bookRef && p.tool === "add_change").map((p) => ({ ...p.args, op: p.args.op ?? "set", proposal: p.id })),
+      ...ghosts.flatMap((p) => (p.args.changes ?? []).map((c) => ({ ...c, op: c.op ?? "set", beat: p.makes?.[0], proposal: p.id })))];
+    const cols = `grid-template-columns: 120px repeat(${Math.max(1, columns.length)}, minmax(150px, 1fr))`; // the lanes' name column, then one column per beat
     const groupBands = h("div", { className: "snap-book-bands", style: cols }, ...story.groups.map((g) => { const idx = g.beats.map((id) => byTold.findIndex((x) => x.id === id)).filter((i) => i >= 0); if (!idx.length) return null;
       return h("div", { className: `snap-book-band kind-${g.kind}`, style: `grid-column: ${Math.min(...idx) + 2} / ${Math.max(...idx) + 3}`, title: g.place ?? "", textContent: `${g.kind}: ${g.name || g.id}` }); }));
     const moved = B.outOfOrder(story);
-    const cards = h("div", { className: "snap-book-spine", style: cols }, h("div", { className: "snap-quiet snap-book-lane-name", textContent: "beats" }), ...byTold.map((x) => h("button", { className: `snap-book-beat${picked === x.id ? " on" : ""}`, onclick: () => { picked = x.id; draw(); } },
-      h("div", { className: "snap-book-beat-id" }, h("strong", { textContent: x.id }), moved.has(x.id) ? h("span", { className: "snap-al-chip", title: "told out of story order (a flashback or a cold open): compile folds by story order", textContent: `happens #${x.order}` }) : null, x.intensity ? h("span", { className: "snap-al-chip", textContent: x.intensity }) : null),
+    // F-L08: a payoff by the words of what it pays off, and the beat's lines on its card
+    const plantWords = new Map(columns.flatMap((x) => x.plants.map((p) => [p.id, p.what]))), said = (id) => (plantWords.has(id) ? `"${plantWords.get(id)}"` : id);
+    const cards = h("div", { className: "snap-book-spine", style: cols }, h("div", { className: "snap-quiet snap-book-lane-name", textContent: "beats" }), ...columns.map((x) => h(x.ghost ? "div" : "button", { className: `snap-book-beat${x.ghost ? " snap-book-ghost" : ""}${picked === x.id ? " on" : ""}`, ...(x.ghost ? {} : { onclick: () => { picked = x.id; draw(); } }) },
+      h("div", { className: "snap-book-beat-id" }, h("strong", { textContent: x.id }), x.ghost ? h("span", { className: "snap-al-chip", textContent: `${x.ghost.id}${x.ghost.args.after ? ` · after ${x.ghost.args.after}` : ""}` }) : null, moved.has(x.id) ? h("span", { className: "snap-al-chip", title: "told out of story order (a flashback or a cold open): compile folds by story order", textContent: `happens #${x.order}` }) : null, x.intensity ? h("span", { className: "snap-al-chip", textContent: x.intensity }) : null),
       h("div", { className: "snap-book-beat-text", textContent: x.text || "(no text yet)" }),
+      (x.lines ?? []).map((l) => h("div", { className: "snap-book-beat-line", textContent: `${shown(l.who)}: “${l.text}”` })),
       h("div", { className: "snap-book-beat-marks" }, x.changes.length ? h("span", { className: "snap-al-chip choice", textContent: `${x.changes.length} change${x.changes.length === 1 ? "" : "s"}` }) : null,
-        x.plants.length ? h("span", { className: "snap-al-chip", textContent: `plants ${x.plants.map((p) => p.what).join(", ")}` }) : null, x.pays_off.length ? h("span", { className: "snap-al-chip", textContent: `pays off ${x.pays_off.join(", ")}` }) : null))));
-    // plants past their window with no payoff, and payoffs with no plant: flags on the spine, never blocking
+        x.plants.length ? h("span", { className: "snap-al-chip", textContent: `plants ${x.plants.map((p) => `"${p.what}"`).join(", ")}` }) : null, x.pays_off.length ? h("span", { className: "snap-al-chip", textContent: `pays off ${x.pays_off.map(said).join(", ")}` }) : null),
+      x.ghost ? h("div", { className: "snap-book-beat-marks" }, h("button", { className: "snap-accept", textContent: "Accept", onclick: accept(x.ghost) }), h("button", { className: "snap-reject", textContent: "Reject", onclick: reject(x.ghost) })) : null)));
+    // plants past their window with no payoff, payoffs with no plant, and props whose holder and carriers disagree (F-L11): flags on the spine, never blocking
     const plants = story.beats.flatMap((x) => x.plants.map((p) => ({ ...p, at: x }))), paid = new Set(story.beats.flatMap((x) => x.pays_off));
     const flags = [...plants.filter((p) => !paid.has(p.id) && p.window && story.beats.length - p.at.order >= p.window).map((p) => `"${p.what}" was planted at ${p.at.id} and nothing pays it off within ${p.window} beats`),
-      ...story.beats.flatMap((x) => x.pays_off.filter((id) => !plants.some((p) => p.id === id)).map((id) => `${x.id} pays off ${id}, which nothing plants`))];
-    const lanes = h("div", { className: "snap-book-lanes" }, ...castRefs.map((ref) => { const name = W.get(ref)?.version.body.name ?? ref;
-      return h("div", { className: "snap-book-lane", style: cols }, h("div", { className: "snap-book-lane-name", textContent: name }),
-        ...byTold.map((x) => { const cs = x.changes.filter((c) => c.entity === ref);
+      ...story.beats.flatMap((x) => x.pays_off.filter((id) => !plants.some((p) => p.id === id)).map((id) => `${x.id} pays off ${id}, which nothing plants`)), ...B.propFlags(story)];
+    // a lane per Cast and per prop the story names (F-L08); a change reads with its op's sign, a waiting one as a ghost
+    const propRefs = [...new Set([...(story.props ?? []).map((p) => `prop:${p.id}`), ...B.entitiesOf(story).filter((e) => e.startsWith("prop:")), ...waitingChanges.map((c) => c.entity).filter((e) => e?.startsWith("prop:"))])];
+    const val = (v) => (v == null || v === "" ? "none" : [v].flat().map((x) => (typeof x === "string" && /^(prop|cast|location):/.test(x) ? B.nameOf(story, x) : shown(x))).join(", "));
+    const changeSpan = (c, ghost) => h("span", { className: ghost ? "snap-book-lane-ghost" : "", textContent: `${c.path} ${B.OP_SIGN[c.op] ?? c.op} ${val(c.value)}${ghost ? ` (${c.proposal})` : ""}`, title: `${c.why ?? ""}${ghost ? `${c.why ? "\n" : ""}waiting in ${c.proposal}: accept it on the Waiting rows` : ""}` });
+    const lanes = h("div", { className: "snap-book-lanes" }, ...[...castRefs, ...propRefs].map((ref) => { const name = ref.startsWith("prop:") ? B.nameOf(story, ref) : W.get(ref)?.version.body.name ?? ref;
+      return h("div", { className: `snap-book-lane${ref.startsWith("prop:") ? " prop" : ""}`, style: cols }, h("div", { className: "snap-book-lane-name", textContent: name }),
+        ...columns.map((x) => { const cs = x.changes.filter((c) => c.entity === ref), ws = waitingChanges.filter((c) => c.entity === ref && c.beat === x.id);
           // the state this beat puts the character in, when it has settei: its picture in the lane (a gap shows as words)
-          const st = cs.length ? B.stateFor(W.get(ref)?.version.body, B.stateAt(story, ref, x.id)) : null, thumb = st && cs.some((c) => c.path in (st.covers ?? {})) ? st.pictures?.[0] : null;
-          return h("div", { className: `snap-book-lane-cell${cs.length ? " mark" : ""}`, title: cs.map((c) => `${c.path} ${c.op} ${shown(c.value)}${c.why ? ` (${c.why})` : ""}`).join("\n") }, cs.map((c) => h("span", { textContent: `${c.path} → ${shown(c.value)}` })), thumb ? pic(thumb.file, `${name}, ${st.name}`, `state ${st.name}`, `book-lane-${ref}`, "snap-book-lane-thumb") : null); })); }));
-    // F-F10: the beats agents proposed, as ghost cards after the spine, each with its proposal's Accept and Reject
-    const ghosts = P.pending().filter((p) => p.book === `book:${b.id}` && p.tool === "add_beat");
-    const proposed = ghosts.length ? h("div", { className: "snap-book-ghosts" }, h("div", { className: "snap-quiet snap-book-lane-name", textContent: "proposed" }), ...ghosts.map((p) => h("div", { className: "snap-book-beat snap-book-ghost" },
-      h("div", { className: "snap-book-beat-id" }, h("strong", { textContent: p.makes?.[0] ?? "new" }), h("span", { className: "snap-al-chip", textContent: `${p.id}${p.args.after ? ` · after ${p.args.after}` : ""}` })),
-      h("div", { className: "snap-book-beat-text", textContent: p.args.text }), p.args.changes?.length ? h("span", { className: "snap-al-chip choice", textContent: `${p.args.changes.length} change${p.args.changes.length === 1 ? "" : "s"}` }) : null,
-      h("div", { className: "snap-book-beat-marks" }, h("button", { className: "snap-accept", textContent: "Accept", onclick: accept(p) }), h("button", { className: "snap-reject", textContent: "Reject", onclick: reject(p) }))))) : null;
+          const st = cs.length && ref.startsWith("cast:") ? B.stateFor(W.get(ref)?.version.body, B.stateAt(story, ref, x.id)) : null, thumb = st && cs.some((c) => c.path in (st.covers ?? {})) ? st.pictures?.[0] : null;
+          return h("div", { className: `snap-book-lane-cell${cs.length ? " mark" : ws.length ? " ghost" : ""}`, title: cs.map((c) => `${c.path} ${c.op} ${shown(c.value)}${c.why ? ` (${c.why})` : ""}`).join("\n") }, cs.map((c) => changeSpan(c, false)), ws.map((c) => changeSpan(c, true)), thumb ? pic(thumb.file, `${name}, ${st.name}`, `state ${st.name}`, `book-lane-${ref}`, "snap-book-lane-thumb") : null); })); }));
+    const colours = colourScript(b, story, byTold, cols);
     const waiting = P.pending().filter(ofBook(b)).length;
     const sel = story.beats.find((x) => x.id === picked);
     const detail = sel ? beatDetail(b, st, sel, save) : h("div", { className: "snap-quiet", textContent: story.beats.length ? "Pick a beat to edit its text, changes, lines, plants and payoffs." : waiting ? `No beats yet: ${waiting} proposal${waiting === 1 ? "" : "s"} wait above, accept or reject them there.` : "No beats yet." });
     const add = h("button", { className: "snap-link snap-quiet-btn", textContent: "+ Beat", onclick: act(async () => { const out = B.withBeat(story, { text: "", after: picked ?? undefined }); const saved = await B.saveStory(st.id, out.story, { note: `beat ${out.beat} added` }); picked = out.beat; return `Story v${saved.n}: ${out.beat} added`; }) });
-    return [h("div", { className: "snap-book-row" }, h("div", { className: "snap-rail-title", textContent: "Spine (telling order)" }), h("span", { className: "snap-spacer" }), add),
-      h("div", { className: "snap-book-scroll" }, groupBands.childElementCount ? groupBands : null, cards, lanes, proposed), flags.length ? h("div", { className: "snap-book-flags" }, flags.map((f) => h("div", { textContent: `⚑ ${f}` }))) : null, detail];
+    const inGroup = new Set(story.groups.flatMap((g) => g.beats)), loose = byTold.filter((x) => !inGroup.has(x.id)).map((x) => x.id);
+    const addGroup = h("button", { className: "snap-link snap-quiet-btn", textContent: "+ Scene group", title: picked ? `a scene group of ${picked}` : "a scene group of the beats in no group yet", disabled: !(picked ? !inGroup.has(picked) : loose.length),
+      onclick: act(async () => { const next = structuredClone(story), id = `g${Math.max(0, ...story.groups.map((g) => +String(g.id).replace(/^g/, "") || 0)) + 1}`; next.groups.push({ id, kind: "scene", name: `Scene ${next.groups.length + 1}`, beats: picked ? [picked] : loose }); const out = await B.saveStory(st.id, next, { note: `scene group ${id}` }); return `Story v${out.n}: scene group ${id}`; }) });
+    return [h("div", { className: "snap-book-row" }, h("div", { className: "snap-rail-title", textContent: "Spine (telling order)" }), h("span", { className: "snap-spacer" }), addGroup, add),
+      h("div", { className: "snap-book-scroll" }, groupBands.childElementCount ? groupBands : null, colours, cards, lanes), flags.length ? h("div", { className: "snap-book-flags" }, flags.map((f) => h("div", { textContent: `⚑ ${f}` }))) : null, detail];
   }
   function beatDetail(b, st, x, save) {
     const story = st.body, edit = (k) => (e) => { const v = e.target.value; if ((x[k] ?? "") === v) return; save(B.withEdit(story, x.id, { [k]: v || null }), `${x.id} ${k}`)(); };
@@ -315,6 +347,18 @@ export const BOOK_STYLE = `
 .snap-book-thumbs figcaption { font-size: 11px; color: var(--s-dim); overflow-wrap: anywhere; }
 .snap-book-thumbs figure.words .snap-cast-missing { aspect-ratio: 16 / 10; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 11px; border: 1px dashed #f0b44599; border-radius: 6px; color: #f0b445; padding: 4px; }
 .snap-book-still { width: 100%; max-width: 360px; border-radius: 8px; cursor: zoom-in; }
+.snap-book-lane-cell.ghost { border-top: 2px dashed var(--s-line); }
+.snap-book-lane-ghost { opacity: .75; font-style: italic; }
+.snap-book-lane.prop .snap-book-lane-name { font-weight: 500; color: var(--s-dim); }
+.snap-book-beat-line { font-size: 11px; color: var(--s-dim); font-style: italic; }
+.snap-book-colours { display: grid; gap: 6px; align-items: start; margin-bottom: 6px; }
+.snap-book-colour-cell { display: flex; flex-direction: column; gap: 3px; padding: 4px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--s-line); }
+.snap-book-colour-cell.chosen { box-shadow: inset 0 0 0 1px #f0b445; }
+.snap-book-design { display: flex; flex-direction: column; gap: 4px; }
+.snap-book-design-cands { display: flex; gap: 6px; flex-wrap: wrap; }
+.snap-book-design-cands figure { margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.snap-book-design-pic { width: 72px; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 4px; }
+.snap-book-colour { width: 100%; max-height: 90px; object-fit: cover; border-radius: 6px; }
 .snap-book-boards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
 .snap-book-board { padding: 8px; border-radius: 10px; border: 1px solid var(--s-line); display: flex; flex-direction: column; gap: 6px; }
 .snap-book-board.approved { border-color: #57c785; }

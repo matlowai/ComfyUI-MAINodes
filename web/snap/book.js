@@ -123,7 +123,7 @@ export function cleanStory(body) {
   const groups = (body?.groups ?? []).map((g, i) => {
     const missing = (g.beats ?? []).filter((x) => !ids.has(x));
     if (missing.length) throw new Error(`group ${g.name ?? g.id ?? i + 1}: no beat ${missing.join(", ")}`);
-    return { id: g.id ?? `g${i + 1}`, kind: g.kind ?? "scene", name: g.name ?? "", beats: g.beats ?? [], ...(g.place ? { place: g.place } : {}), ...(g.scene ? { scene: g.scene } : {}), ...(g.contract ? { contract: g.contract } : {}) };
+    return { id: g.id ?? `g${i + 1}`, kind: g.kind ?? "scene", name: g.name ?? "", beats: g.beats ?? [], ...(g.place ? { place: g.place } : {}), ...(g.scene ? { scene: g.scene } : {}), ...(g.contract ? { contract: g.contract } : {}), ...(g.colour ? { colour: g.colour } : {}) }; // colour: the colour script's frame (SNAP-R175)
   });
   return { title: body?.title?.trim() ?? "", shape_locked: !!body?.shape_locked, beats, groups, ...(body?.props?.length ? { props: body.props.map((p) => ({ id: p.id, name: p.name ?? words(p.id) })) } : {}) };
 }
@@ -376,7 +376,31 @@ function stateLint(story, unit, present, entities) {
   return out;
 }
 // a change as a person reads it:"Kon's carried.right_hand → none (hands over the letter)"
-export const changeText = (story, c) => `${nameOf(story, c.entity)}'s ${c.path} ${c.op === "set" ? "→" : c.op} ${c.value == null ? "none" : Array.isArray(c.value) ? c.value.map((v) => nameOf(story, v)).join(", ") : nameOf(story, c.value)}${c.why ? ` (${c.why})` : ""}`;
+// an op as its sign (F-L08: a remove read as "→ the ladle", the reverse of what it does)
+export const OP_SIGN = { set: "→", add: "+", remove: "−", note: "note:" };
+export const changeText = (story, c) => `${nameOf(story, c.entity)}'s ${c.path} ${OP_SIGN[c.op ?? "set"] ?? c.op} ${c.value == null ? "none" : Array.isArray(c.value) ? c.value.map((v) => nameOf(story, v)).join(", ") : nameOf(story, c.value)}${c.why ? ` (${c.why})` : ""}`;
+// F-L11: a prop and the people who carry it agree. Who carries or wears a prop at a beat (a person's carried.* names it)
+export function carriersOf(story, prop, beatId) {
+  return entitiesOf(story).filter((e) => e.startsWith("cast:")).flatMap((who) => Object.entries(stateAt(story, who, beatId)).filter(([path, f]) => /^carried\./.test(path) && [f.value].flat().includes(prop)).map(([path, f]) => ({ who, path, beat: f.beat, change: f.change })));
+}
+// where a prop's holder and its carriers disagree at a beat, in words (a holder unset while someone carries it is fine: the
+// carrier holds it)
+export function propMismatch(story, beatId) {
+  const props = [...new Set([...(story.props ?? []).map((p) => `prop:${p.id}`), ...entitiesOf(story).filter((e) => e.startsWith("prop:")), ...story.beats.flatMap((b) => b.changes.filter((c) => /^carried\./.test(c.path)).flatMap((c) => [c.value].flat()).filter((v) => typeof v === "string" && v.startsWith("prop:")))])];
+  const out = [];
+  for (const prop of props) {
+    const hold = stateAt(story, prop, beatId).holder, carry = carriersOf(story, prop, beatId), name = nameOf(story, prop), said = (c) => `${nameOf(story, c.who)}'s ${c.path} names it (${c.beat} ${c.change})`;
+    if (hold?.value && carry.length && !carry.some((c) => c.who === hold.value)) out.push({ prop, text: `${name}'s holder is ${nameOf(story, hold.value)} (${hold.beat} ${hold.change}) while ${carry.map(said).join(" and ")}` });
+    else if (String(hold?.value ?? "").startsWith("cast:") && !carry.length) out.push({ prop, text: `${name}'s holder is ${nameOf(story, hold.value)} (${hold.beat} ${hold.change}) while nothing ${nameOf(story, hold.value)} carries or wears names it` });
+  }
+  return out;
+}
+// the Beat sheet's flags: each mismatch at the first beat it shows (story order), never blocking
+export function propFlags(story) {
+  const seen = new Map(), out = [];
+  for (const b of story.beats) { const now = new Map(propMismatch(story, b.id).map((m) => [m.prop, m.text.replace(/\([^)]*\)/g, "")])); for (const [prop, key] of now) if (seen.get(prop) !== key) out.push(`${b.id}: ${propMismatch(story, b.id).find((m) => m.prop === prop).text}`); for (const prop of seen.keys()) if (!now.has(prop)) seen.delete(prop); for (const [k, v] of now) seen.set(k, v); }
+  return out;
+}
 // the beats told out of their story order: the fewest beats whose moving explains the telling (the ones off the longest
 // run that keeps story order), so a cold open marks one beat, not every beat after it
 export function outOfOrder(story) {
@@ -460,6 +484,7 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
   // put somewhere else), as lint: the compile says it, the person or the writer settles it
   lint.push(...stateLint(story, unit, present, entities));
   // dialogue on the unit's beats, each line citing the speaker's voice reference (voice scout 2026-11-06: no voice words)
+  if (at) lint.push(...propMismatch(story, at.id).filter((m) => (unit.props ?? []).includes(m.prop) || carriersOf(story, m.prop, at.id).some((c) => castRefs.includes(c.who))).map((m) => `${m.text}: check they agree (F-L11)`));
   const lines = present.flatMap((b) => (b.lines ?? []).map((l) => ({ ...l, beat: b.id })));
   for (const l of lines) { const who = nameOf(story, l.who), text = `${who} says "${l.text}"${words.some((x) => x.cast === l.who) ? ` in the voice of {voice:${l.who}}` : ""}`; from[`${l.beat}.line.${l.who}`] = l.text; say(text, `story ${l.beat} line`); tail.push(S(text)); }
   // the place: the unit's location at its plate (camera) and the master
@@ -678,12 +703,13 @@ export async function bookStale(bookRef, { story = null } = {}) {
 // what a story edit would re-open before it is saved (reversal cost, box1:43), its own words for what moves (F-L03,
 // SNAP-R172): the cuts whose compile changes and by which fields, the takes and boards it newly flags, and the takes
 // already stale that it flags again for more (counted, never left out: "nothing" only when nothing moves)
-export async function reversalCost(bookRef, story) {
-  const book = bookOf(bookRef), draft = cleanStory(story), before = new Map((await bookStale(bookRef)).map((x) => [x.take, x])), after = await bookStale(bookRef, { story: draft });
+// `base`: measure from that story instead of canon (F-L06: a stacked proposal's own delta over the waiting ones it builds on)
+export async function reversalCost(bookRef, story, { base = null } = {}) {
+  const book = bookOf(bookRef), draft = cleanStory(story), from = base ? cleanStory(base) : null, before = new Map((await bookStale(bookRef, { story: from })).map((x) => [x.take, x])), after = await bookStale(bookRef, { story: draft });
   const flagged = after.filter((x) => !before.has(x.take)), also = after.filter((x) => before.has(x.take)).map((x) => ({ ...x, also: x.reasons.filter((r) => !before.get(x.take).reasons.includes(r)) })).filter((x) => x.also.length);
-  const cuts = [], field = (k) => { const [h, ...rest] = k.split("."); return /^b\d+$/.test(h) ? `${h} ${rest.join(" ")}` : rest.length ? `${nameOf(draft, h)}.${rest.join(".")}` : k; };
+  const cuts = [], field = (k) => { const [h, ...rest] = k.split("."); return /^b\d+$/.test(h) ? `${h} ${rest.join(" ").replace(/\b(cast|prop|location):[\w-]+/g, (r) => nameOf(draft, r))}` : rest.length ? `${nameOf(draft, h)}.${rest.join(".")}` : k; }; // names, never ids (F-L12)
   for (const { scene, shot, unit } of units(book)) {
-    const [a, b] = await Promise.all([compile(scene.id, shot.id).catch(() => null), compile(scene.id, shot.id, { story: draft }).catch(() => null)]);
+    const [a, b] = await Promise.all([compile(scene.id, shot.id, from ? { story: from } : {}).catch(() => null), compile(scene.id, shot.id, { story: draft }).catch(() => null)]);
     const keys = a && b ? [...new Set([...Object.keys(a.from), ...Object.keys(b.from)])].filter((k) => a.from[k] !== b.from[k]) : [];
     if (keys.length) cuts.push({ cut: unit.cut ?? shot.id, scene: scene.id, shot: shot.id, fields: keys.map(field) });
   }

@@ -6,7 +6,7 @@
 // production style · SNAP-R131 boards and the animatic · SNAP-R132 the Cut · SNAP-R133 a set plan drawn in Snap ·
 // SNAP-R139 story proposals stack and outlive the page · SNAP-R142 opening board and key drawing · SNAP-R19 the tool table is the API · SNAP-R58 nothing trimmed ·
 // SNAP-R165 a Cast line folds through the state · SNAP-R166 apply_unit lands off the Cut · SNAP-R168 a cut opens before its beat · SNAP-R169 boards pin the story ·
-// SNAP-R170 a re-board keeps its own board · SNAP-R172 the reversal cost says what moves ·
+// SNAP-R170 a re-board keeps its own board · SNAP-R172 the reversal cost says what moves · SNAP-R175 the colour script ·
 // see docs/snap/SNAP_RULES.md
 import * as B from "./book.js";
 import * as W from "./world.js";
@@ -29,7 +29,11 @@ const STORY_NOTE = "Canon: from an agent this always waits as a proposal for the
 
 // an edited field in the words a person reads in a proposal's title and the version's note, whole (F-L12, SNAP-R58):
 // lines as `who: "text"`, plants by what they plant
-const fieldWords = (v) => Array.isArray(v) ? v.map((x) => (x?.who ? `${x.who}: "${x.text}"` : x?.what ? `"${x.what}"` : JSON.stringify(x))).join(", ") || "none" : typeof v === "string" ? `"${v}"` : JSON.stringify(v);
+const fieldWords = (v, story = { props: [] }) => Array.isArray(v) ? v.map((x) => (x?.who ? `${B.nameOf(story, x.who)}: "${x.text}"` : x?.what ? `"${x.what}"` : JSON.stringify(x))).join(", ") || "none" : typeof v === "string" ? `"${v}"` : JSON.stringify(v);
+// a group by id, or the error naming the groups there are
+const groupIn = (story, id) => story.groups.find((g) => g.id === id) ?? (() => { throw new Error(`No group ${id}; the groups: ${story.groups.map((g) => `${g.id} "${g.name}"`).join(", ") || "none yet (add_group)"}`); })();
+// F-L16: a prop a change names gets its name in the story's props (the given name, else its words), once
+const withPropName = (story, entity, name) => (!String(entity ?? "").startsWith("prop:") || (story.props ?? []).some((p) => `prop:${p.id}` === entity) && !name ? story : B.cleanStory({ ...story, props: [...(story.props ?? []).filter((p) => `prop:${p.id}` !== entity), { id: entity.slice(5), name: name ?? entity.slice(5).replace(/[-_]+/g, " ") }] }));
 // the take a keep_as_canon names, with the Book and beat it was made at
 function takeStory(id) {
   const t = T.get(id), s = t?.story ?? t?.graph?.extra?.snap?.story;
@@ -40,9 +44,16 @@ function takeStory(id) {
 // make(story, args) -> {story, said, makes}; what(args, story): the line the person reads; names(args): the beats it names
 const STORY = {
   add_beat: { make: (s, { book: _, proposal: __, ...fields }) => { const out = B.withBeat(s, fields); return { story: out.story, said: { beat: out.beat }, makes: [out.beat] }; }, what: (a) => `add beat "${a.text}"`, names: (a) => [a.after] },
-  edit_beat: { make: (s, { book: _, beat, proposal: __, ...fields }) => ({ story: B.withEdit(s, beat, fields), said: { beat } }), what: (a) => `edit ${a.beat}: ${Object.entries(a).filter(([k]) => !["book", "beat", "proposal"].includes(k)).map(([k, v]) => `${k} ${fieldWords(v)}`).join("; ")}`, names: (a) => [a.beat] },
+  edit_beat: { make: (s, { book: _, beat, proposal: __, ...fields }) => ({ story: B.withEdit(s, beat, fields), said: { beat } }), what: (a, s) => `edit ${a.beat}: ${Object.entries(a).filter(([k]) => !["book", "beat", "proposal"].includes(k)).map(([k, v]) => `${k} ${fieldWords(v, s)}`).join("; ")}`, names: (a) => [a.beat] },
   move_beat: { make: (s, a) => ({ story: B.withMove(s, a.beat, a), said: { beat: a.beat } }), what: (a) => `move ${a.beat}${a.to ? ` to story position ${a.to}` : ""}${a.told ? ` to telling position ${a.told}` : ""}`, names: (a) => [a.beat] },
-  add_change: { make: (s, { book: _, beat, proposal: __, ...c }) => { const out = B.withChange(s, beat, c); return { story: out.story, said: { beat, change: out.change } }; }, what: (a, s) => `${a.beat}: ${B.changeText(s, { op: "set", ...a })}`, names: (a) => [a.beat] },
+  add_change: { make: (s, { book: _, beat, proposal: __, name, ...c }) => { const out = B.withChange(s, beat, c); return { story: withPropName(out.story, [c.entity, ...[c.value].flat()].find((x) => typeof x === "string" && x.startsWith("prop:")), name), said: { beat, change: out.change } }; }, what: (a, s) => `${a.beat}: ${B.changeText(s, { op: "set", ...a })}`, names: (a) => [a.beat] },
+  // F-L16: scene groups (with their place) without replacing the whole story; SNAP-R175: a group's colour frame
+  add_group: { make: (s, { book: _, proposal: __, ...g }) => { const out = structuredClone(s), id = g.id ?? `g${Math.max(0, ...s.groups.map((x) => +String(x.id).replace(/^g/, "") || 0)) + 1}`; if (s.groups.some((x) => x.id === id)) throw new Error(`There is a group ${id} already: set_group changes it`); out.groups.push({ id, kind: g.kind ?? "scene", name: g.name ?? "", beats: g.beats ?? [], ...(g.place ? { place: g.place } : {}), ...(g.contract ? { contract: g.contract } : {}) }); return { story: B.cleanStory(out), said: { group: id } }; },
+    what: (a) => `add ${a.kind ?? "scene"} group "${a.name ?? ""}" over ${(a.beats ?? []).join(", ") || "no beats yet"}${a.place ? ` at ${B.nameOf({ props: [] }, a.place)}` : ""}`, names: (a) => a.beats ?? [] },
+  set_group: { make: (s, { book: _, proposal: __, group, ...g }) => { const out = structuredClone(s), x = groupIn(out, group); for (const k of ["name", "kind", "beats", "place", "contract"]) if (g[k] !== undefined) { if (g[k] === null) delete x[k]; else x[k] = g[k]; } return { story: B.cleanStory(out), said: { group } }; },
+    what: (a) => `${a.group}: ${Object.entries(a).filter(([k]) => !["book", "group", "proposal"].includes(k)).map(([k, v]) => `${k} ${fieldWords(v)}`).join("; ")}`, names: (a) => a.beats ?? [] },
+  set_colour_frame: { make: (s, { group, take, file, proposal: _ }) => { const out = structuredClone(s), x = groupIn(out, group); if (!take === !file) throw new Error("set_colour_frame takes one of take (a take id) or file (a picture in input/)"); const t = take ? T.find(take) : null; if (take && !t) throw new Error(`No take ${take}`); x.colour = { ...(t ? { take: t.id } : { file }), from: t ? `take ${t.number}` : file }; return { story: B.cleanStory(out), said: { group } }; },
+    what: (a) => `colour script: ${a.group} ← ${a.take ? `take ${T.find(a.take)?.number ?? a.take}` : a.file}`, names: () => [] },
   remove_change: { make: (s, a) => { const out = structuredClone(s), b = out.beats.find((x) => x.id === a.beat); if (!b?.changes.some((c) => c.id === a.change)) throw new Error(`${a.beat} has no change ${a.change}`); b.changes = b.changes.filter((c) => c.id !== a.change); return { story: B.cleanStory(out), said: { beat: a.beat } }; }, what: (a) => `${a.beat}: remove change ${a.change}`, names: (a) => [a.beat] },
   save_story: { make: (s, a) => ({ story: B.cleanStory({ ...s, ...Object.fromEntries(Object.entries(a).filter(([k, v]) => v !== undefined && !["book", "proposal"].includes(k))) }), said: {} }), what: () => "the whole story replaced", names: () => [] },
   import_fountain: { make: (s, a) => { const story = B.fromFountain(a.text, { story: s, cast: B.bookOf(a.book).body.cast }); return { story, said: { beats: story.beats.length, groups: story.groups.length } }; }, what: () => "the story from a Fountain script", names: () => [] },
@@ -66,8 +77,11 @@ async function storyEdit(tool, args, { confirmed } = {}) {
   }
   const { story, said, makes = [] } = edit.make(draft, args), what = edit.what(args, draft), named = new Set(edit.names(args).filter(Boolean));
   const needs = built.filter((p) => (p.makes ?? []).some((id) => named.has(id))).map((p) => p.id);
-  const cost = await B.reversalCost(bookRef, story);
-  const p = await B.propose(tool, tool === "add_beat" ? { ...args, id: said.beat } : args, `${b.body.name}: ${what}${needs.length ? ` (on ${needs.join(", ")})` : ""}${cost.moves ? ` (${cost.said})` : ""}`, { book: bookRef, needs, makes }); // the beat id is kept, so what names it still finds it after the accept
+  // F-L06: on top of waiting proposals, the cost is this edit's own (draft → this) and, apart, the whole stack's (canon → this)
+  const own = await B.reversalCost(bookRef, story, built.length ? { base: draft } : {}), stack = built.length ? await B.reversalCost(bookRef, story) : null;
+  const cost = stack ? { ...own, with_waiting: { built_on: built.map((x) => x.id), said: stack.said, takes: stack.takes, boards: stack.boards, cuts: stack.cuts } } : own;
+  const costLine = [own.moves ? own.said : null, stack?.moves ? `with ${built.map((x) => x.id).join(", ")} waiting: ${stack.said}` : null].filter(Boolean).join("; ");
+  const p = await B.propose(tool, tool === "add_beat" ? { ...args, id: said.beat } : args, `${b.body.name}: ${what}${needs.length ? ` (on ${needs.join(", ")})` : ""}${costLine ? ` (${costLine})` : ""}`, { book: bookRef, needs, makes }); // the beat id is kept, so what names it still finds it after the accept
   return { proposed: p.id, status: "waiting for the person to accept or reject (story edits are always proposals)", would: said, ...(needs.length ? { needs, built_on: `accepting ${p.id} accepts ${needs.join(", ")} first (it names their beats)` } : {}),
     ...(built.length ? { draft: `built on the story as ${built.map((x) => x.id).join(", ")} (waiting) would leave it` } : {}), reversal_cost: cost };
 }
@@ -148,8 +162,29 @@ export const BOOK_TOOLS = [
     name: "add_change",
     direct: true, // canon: its own proposal path (the proposal id goes into the story version), never the generic one
     description: `A state change on a beat (the script supervisor's unit, SNAP-R67/R68): entity (cast:<id>, prop:<name>, rel:<a>|<b>, location:<id>), path (wardrobe, carried.right_hand, carried.left_hand, carried.worn, holder, mood, position, facing, hair, injuries, dirt, knows, wants, …), op (set, add, remove, note), value (a prop as prop:<name>, a person as cast:<id>, else words), why, source. Every unit at or after the beat in story order compiles with it; takes of those units read stale naming the field and the beat. ${STORY_NOTE}`,
-    inputSchema: { type: "object", properties: { book: { type: "string" }, beat: { type: "string" }, ...change.properties, proposal: { type: "string" } }, required: ["book", "beat", "entity", "path"] },
+    inputSchema: { type: "object", properties: { book: { type: "string" }, beat: { type: "string" }, ...change.properties, name: { type: "string", description: "a prop entity's name as the compile says it (\"the ladle\"): kept in the story's props (F-L16)" }, proposal: { type: "string" } }, required: ["book", "beat", "entity", "path"] },
     run: (args, ctx = {}) => storyEdit("add_change", args, ctx),
+  },
+  {
+    name: "add_group",
+    direct: true,
+    description: `A group over beats (a scene, an act, a sequence; F-L16): name, kind (scene by default), beats (ids, in story order), place (location:<id>), contract (the scene's dramatic question, owner, turn…). The colour script has one frame per scene group (set_colour_frame). ${STORY_NOTE}`,
+    inputSchema: { type: "object", properties: { book: { type: "string" }, name: { type: "string" }, kind: { type: "string" }, beats: { type: "array", items: { type: "string" } }, place: { type: "string" }, contract: { type: "object" }, id: { type: "string" }, proposal: { type: "string" } }, required: ["book", "name"] },
+    run: (args, ctx = {}) => storyEdit("add_group", args, ctx),
+  },
+  {
+    name: "set_group",
+    direct: true,
+    description: `Change a group (F-L16): name, kind, beats, place, contract; null clears one. ${STORY_NOTE}`,
+    inputSchema: { type: "object", properties: { book: { type: "string" }, group: { type: "string" }, name: { type: "string" }, kind: { type: "string" }, beats: { type: "array", items: { type: "string" } }, place: { type: ["string", "null"] }, contract: { type: ["object", "null"] }, proposal: { type: "string" } }, required: ["book", "group"] },
+    run: (args, ctx = {}) => storyEdit("set_group", args, ctx),
+  },
+  {
+    name: "set_colour_frame",
+    direct: true,
+    description: `The colour script (SNAP-R175): choose one frame for a scene group, the frame that sets its colour and light (a take: an approved board or a kept take of one of its cuts; or a file in input/). The Beat sheet shows the strip over the spine, with what each group's cuts offer while none is chosen. ${STORY_NOTE}`,
+    inputSchema: { type: "object", properties: { book: { type: "string" }, group: { type: "string" }, take: { type: "string" }, file: { type: "string" }, proposal: { type: "string" } }, required: ["book", "group"] },
+    run: (args, ctx = {}) => storyEdit("set_colour_frame", args, ctx),
   },
   {
     name: "keep_as_canon",
@@ -191,7 +226,8 @@ export const BOOK_TOOLS = [
     description: "An entity's state at a beat (the story clock, SNAP-R67): its fields folded from every change on beats at or before it in story order, each with the beat and change that set it. entity: cast:<id>, prop:<name>, rel:<a>|<b>. Leave out beat for the end of the story.",
     inputSchema: { type: "object", properties: { book: { type: "string" }, entity: { type: "string" }, beat: { type: "string" } }, required: ["book", "entity"] },
     annotations: { readOnlyHint: true },
-    run: async ({ book, entity, beat }) => { await ready(); const st = B.storyOf(B.bookOf(book).body); return { entity, at: beat ?? "the end", story: st.ref, fields: B.stateAt(st.body, entity, beat) }; },
+    run: async ({ book, entity, beat }) => { await ready(); const st = B.storyOf(B.bookOf(book).body), carried = entity.startsWith("prop:") ? B.carriersOf(st.body, entity, beat) : []; // F-L11: who carries a prop, and where its holder disagrees
+      return { entity, at: beat ?? "the end", story: st.ref, fields: B.stateAt(st.body, entity, beat), ...(carried.length ? { carried_by: carried } : {}), ...(entity.startsWith("prop:") ? { disagree: B.propMismatch(st.body, beat ?? st.body.beats.at(-1)?.id).filter((m) => m.prop === entity).map((m) => m.text) } : {}) }; },
   },
   {
     name: "save_style",
