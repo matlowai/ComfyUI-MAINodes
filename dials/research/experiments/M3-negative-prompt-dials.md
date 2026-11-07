@@ -127,3 +127,10 @@ prompt), seeds 201-206: **the controls are already clean**: plain landscapes, no
 award-poster text is a KroMoss-at-CFG-1 failure (or the negative prompt's work); there is nothing for the dial to remove
 here. The dial at −8 is harmless on DeBand: the same scene on every seed, small changes to clouds and mist. A removal test
 on DeBand needs a prompt that still draws a watermark through its negative prompt.
+
+**DeBand, the fan-art prompt** (its own settings, CFG 3 with the real negative; seeds 201-206): even with "watermark" in the
+negative, seed 203 draws large overlaid lettering (Chinese characters and a script name across the picture) and seed 206 a
+small column of characters top left. **The dial at −8 removes both**: 203 becomes a clean picture (same girl and cat, now
+laughing, a pink headband), 206 loses the column. The 4 clean seeds stay clean with the same girl, cat and room; seed 205's
+sweater becomes an off-shoulder top. No blue lean on this prompt (if anything pinker). So the dial works at CFG 3 on DeBand
+too, on top of the real negative prompt, and removes text the negative prompt let through. 6 seeds, one prompt.
