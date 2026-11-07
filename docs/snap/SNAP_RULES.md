@@ -1898,4 +1898,12 @@ SNAP-R197 on. R160-R164 stay free.
   crop and came back at 1x with a small whole-body copy in the head box (2/2); F-Y05: stage 2 of the MOSS still his Cast
   front came from crashed in LTXVSeparateAVLatent. *More:* tests/snap/test_g13.js.
 
-Next free ID after this batch: SNAP-R203 (R160-R164 stay free).
+- **SNAP-R203: Keep eye colour runs on any still or video take, and says what it ran on.** `keep_eye_colour` (SNAP-R134)
+  is no longer only for a stage 2 child: any take with a picture or video, toward the Cast the take pins or the one given
+  (`cast`, for a still made from other takes, which pins none). The answer's `ran_on` (and its `said`) is the take's
+  what-line (SNAP-R197), so the person sees whether it re-tinted a redraw, a region edit or a video. The node still skips
+  a Cast whose iris is grey. *Why:* dogfood F-Y07: the only 2x redraw that worked for Kuroe's front (a P-H3 redraw, then
+  the region edit) darkened his irises, and the step refused it for not being a stage 2. *More:* tests/snap/test_g13.js,
+  test_g3_eyes.js.
+
+Next free ID after this batch: SNAP-R204 (R160-R164 stay free).

@@ -5,10 +5,11 @@
 // Cast picture with the same words, no hand seeding; MAISnapEyeColour moves Lab a/b inside the iris only, lightness never,
 // and passes a frame with no iris (a profile, a back) through untouched. It lands as a new take beside the redraw, made
 // only when asked (a GPU step: a proposal unless the person lets agents run).
-// SNAP-R134 optional, after stage 2, SAM-located, never the default · SNAP-R85 references are redrawn · SNAP-R16 GPU work
+// SNAP-R134 optional, after stage 2, SAM-located, never the default · SNAP-R203 on any take, saying what it ran on · SNAP-R85 references are redrawn · SNAP-R16 GPU work
 // waits for the person · SNAP-R60 the new take keeps the redraw's pins · see docs/snap/SNAP_RULES.md
 import * as ED from "./edits.js";
 import * as K from "./checks.js";
+import * as N from "./nearby.js";
 import * as T from "./takes.js";
 import * as W from "./world.js";
 
@@ -33,14 +34,28 @@ export function note(t) {
   return { said: `Eye colour can shift in the redraw: compare the eyes with ${who ? `${who}'s Cast picture` : "the Cast picture"}.${casts.length ? " Keep eye colour (optional) re-tints only the irises toward it." : ""}`, casts: casts.map((c) => ({ cast: c.ref, name: c.name, picture: c.front.file })) };
 }
 
-// the new take: the redraw's frames (or its still), SAM on them and on the Cast front, the re-tint, saved beside it
-// refused before any plan or proposal: the step only follows a redraw
-export function need(t) { if (!redrawn(t)) throw new Error(`Take ${t.number} isn't a stage 2 redraw: keep eye colour runs after stage 2 (SNAP-R134); upscale_take {method: "stage2"} first`); }
+// the new take: the take's frames (or its still), SAM on them and on the Cast front, the re-tint, saved beside it.
+// F-Y07 (SNAP-R203): any still or video take, not only a stage 2 redraw: a redraw made another way (a whole-picture P-H3
+// redraw, then a region edit) darkened Kuroe's irises and was refused. The Cast is the one the take pins, or the one
+// given (a still made from takes pins none); the node itself skips a Cast whose iris is grey
+export function need(t) { if (!t.media.some((m) => m.kind === "video" || m.kind === "image")) throw new Error(`Take ${t.number} has no picture or video for keep eye colour to re-tint`); }
+// the Cast asked for (cast:<id>[@n], pinned or not), else the one Cast the take pins
+export function castFor(t, cast) {
+  const casts = castsOf(t);
+  if (cast) {
+    const pinned = W.parse(cast).n == null && casts.find((c) => W.parse(c.ref).id === W.parse(cast).id); // the version the take pins
+    if (pinned) return pinned;
+    const got = W.get(cast), refs = got?.version.body.refs ?? [], i = Math.max(0, refs.findIndex((x) => /front/i.test(x.role ?? "")));
+    if (!refs.length) throw new Error(`No Cast ${cast} with a picture (list_cast shows them)`);
+    return { ref: W.refOf("cast", W.parse(cast).id, got.version.n), name: got.version.body.name, front: { ...refs[i], index: i } };
+  }
+  if (casts.length !== 1) throw new Error(casts.length ? `Take ${t.number} pins ${casts.length} Casts: name one (cast: ${casts.map((c) => c.ref).join(" or ")})` : `Take ${t.number} pins no Cast with a picture: give cast (cast:<id>)`);
+  return casts[0];
+}
 export async function start(t, { cast, ref, strength = 1, by = "person" } = {}) {
   need(t);
   if (!(strength >= 0 && strength <= 1)) throw new Error(`strength is how far toward the Cast's colour, 0 to 1 (1: all the way); not ${strength}`);
-  const casts = castsOf(t), pick = cast ? casts.find((c) => W.parse(c.ref).id === W.parse(cast).id) : casts.length === 1 ? casts[0] : null;
-  if (!pick) throw new Error(cast ? `Take ${t.number} pins no Cast ${cast} with a picture; it pins ${casts.map((c) => c.ref).join(", ") || "none"}` : casts.length ? `Take ${t.number} pins ${casts.length} Casts: name one (cast: ${casts.map((c) => c.ref).join(" or ")})` : `Take ${t.number} pins no Cast with a picture: give cast (cast:<id>)`);
+  const pick = castFor(t, cast);
   const refs = W.get(pick.ref).version.body.refs, front = ref != null ? refs[ref] : pick.front;
   if (!front) throw new Error(`${pick.name} has no picture ${ref}; it has ${refs.length} (0 to ${refs.length - 1})`);
   const { detector } = await K.needs();
@@ -67,5 +82,7 @@ export async function start(t, { cast, ref, strength = 1, by = "person" } = {}) 
   const options = { cast: pick.ref, picture: front.file, strength, find: `${FIND.eye.text} and ${FIND.iris.text}` };
   const job = { kind: "eyes", title: `Keep eye colour on take ${t.number}: its irises toward ${pick.name}'s (${front.role ?? "picture"})${strength < 1 ? `, strength ${strength}` : ""}`, about: { take: t.id, group: t.group }, by, eta_s: null };
   const id = await K.queue(g, { group: t.group, world: t.graph?.extra?.snap?.world, job, extra: { snap_parent: { take: t.id, method: "eyecolour", options: { ...options, label: "eye colour" }, by } } });
-  return { prompt_id: id, take: `take-${id}`, ...options, said: `Keep eye colour is running on take ${t.number}: a new take beside it (the redraw stays); look at the eyes at 100 % against ${pick.name}'s picture before keeping it` };
+  await N.load();
+  const on = N.what(t.id).line;
+  return { prompt_id: id, take: `take-${id}`, ...options, ran_on: on, said: `Keep eye colour is running on take ${t.number} (${on.replace(/\.$/, "")}): a new take beside it (take ${t.number} stays); look at the eyes at 100 % against ${pick.name}'s picture before keeping it` };
 }

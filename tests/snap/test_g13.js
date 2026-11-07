@@ -1,11 +1,13 @@
-// Batch G13 (dogfood F-Y04, F-Y05) on the CPU test server:
+// Batch G13 (dogfood F-Y04, F-Y05, F-Y07) on the CPU test server:
 // - SNAP-R202 (F-Y04): stage 2 of a region edit (paste_back) still redraws the whole still: its recorded P-H3 graph with
 //   Picture 1 = the edited still itself (no crop), the decode saved as it is (no paste back, no seam check, no mask), every
 //   size at the asked one, the still VAE-encoded as the video half of the AV latent;
 // - SNAP-R202 (F-Y05): stage 2 of a MOSS still (one SamplerCustomAdvanced from a plain EmptyLatentImage) and of a
 //   KSampler still (a Krea or MOSS-reference edit) starts the sampler from the encoded still, with no AV split; the KSampler
 //   one at denoise 0.3, fast at cfg 1;
-// Model files are empty placeholders (parked afterwards).
+// - SNAP-R203 (F-Y07): keep_eye_colour runs on a still that isn't a stage 2 redraw and says what it ran on; a still that
+//   pins no Cast asks for one, and runs with the one given.
+// Model files are empty placeholders (parked afterwards); SAM 3.1 is listed as a GPU machine lists it.
 // usage: node test_g13.js [port] [base]   prints "g13 n/m" last
 const { chromium } = require("playwright");
 const fs = require("fs"), path = require("path");
@@ -79,6 +81,14 @@ const KS = {
     R.moss = { r: m.r, classes: Object.values(mg ?? {}).map((x) => x.class_type), lat: mlat?.class_type, pix: node(mg, mlat?.inputs.pixels)?.class_type, sig: msig?.class_type, inject: msig?.inputs.inject, empty: all(mg, "EmptyLatentImage")[0]?.inputs };
     const q = await up("take-g13-ksam-0003", { speed: "fast" }), kk = all(q.g, "KSampler")[0];
     R.ks = { r: q.r, classes: Object.values(q.g ?? {}).map((x) => x.class_type), lat: node(q.g, kk?.inputs.latent_image)?.class_type, denoise: kk?.inputs.denoise, cfg: kk?.inputs.cfg };
+    // F-Y07
+    n = prompts.length;
+    R.eyesMoss = await call("keep_eye_colour", { take: "take-g13-moss-0002" });
+    R.eyesMossGraph = (await posted(n, (x) => Object.values(x.prompt).some((y) => y.class_type === "MAISnapEyeColour")))?.prompt;
+    R.eyesNoCast = await call("keep_eye_colour", { take: "take-g13-ksam-0003" });
+    n = prompts.length;
+    R.eyesGiven = await call("keep_eye_colour", { take: "take-g13-ksam-0003", cast });
+    R.eyesGivenGraph = (await posted(n, (x) => Object.values(x.prompt).some((y) => y.class_type === "MAISnapEyeColour")))?.prompt;
     R.errors = A.errors;
   } finally { await fetch(`http://127.0.0.1:${port}/settings/MAINodes.Snap.AgentsMayRun`, { method: "POST", body: "false" }).catch(() => {}); await b.close(); }
   for (const f of made) { const to = path.join(base, "models", "_parked_g13", path.relative(path.join(base, "models"), f)); fs.mkdirSync(path.dirname(to), { recursive: true }); fs.renameSync(f, to); } // placeholders moved, never deleted
@@ -91,6 +101,8 @@ const KS = {
     "F-Y04: the still, Lanczos to the size, is the video half of the AV latent": P.lat === "LTXVConcatAVLatent" && P.sep === "LTXVSeparateAVLatent" && P.scale?.[0] === "ImageScale" && P.scale[1] === 2560 && P.scale[3] === "snaptest/g13_still.png [output]",
     "F-Y05: stage 2 of a MOSS still starts from the encoded still, no AV split": M.r?.still === true && M.lat === "VAEEncode" && M.pix === "ImageScale" && !M.classes.some((c) => /^LTXV/.test(c)) && M.sig === "H3DeropeSigmas" && M.inject === 0.3 && M.empty?.width === 2560,
     "F-Y05: a KSampler still: the encoded still at denoise 0.3, fast at cfg 1": K.r?.still === true && K.r.speed === "fast" && K.lat === "VAEEncode" && K.denoise === 0.3 && K.cfg === 1 && !K.classes.some((c) => /^LTXV|H3Derope/.test(c)),
+    "F-Y07: keep_eye_colour runs on a still that isn't a stage 2 redraw, saying what it ran on": /^A still, not a frame of a video: take 972/.test(R.eyesMoss?.ran_on ?? "") && /running on take 972 \(A still, not a frame of a video/.test(R.eyesMoss?.said ?? "") && front(R.eyesMossGraph),
+    "F-Y07: a still that pins no Cast asks for one, and runs with the one given": /pins no Cast with a picture: give cast/.test(R.eyesNoCast?.error ?? "") && R.eyesGiven?.cast?.startsWith(cast) && front(R.eyesGivenGraph),
     "no page errors": !R.errors?.length,
   };
   console.log(JSON.stringify(R, null, 1));
