@@ -6,7 +6,8 @@
 // merge vs LoRA · SNAP-R11 warn, never block · SNAP-R12 LoRA roles · SNAP-R13 family rules from the model graph
 // SNAP-R25 SFW only hides what the graph tags nsfw · SNAP-R26 a name files a turbo LoRA only on strong signals ·
 // SNAP-R27 a lock on LoRAs the private rules match · SNAP-R35 a rating from move to…, the admin's on a gated install ·
-// SNAP-R149 the no-turbo presets are opt-in, never offered as better · see docs/snap/SNAP_RULES.md
+// SNAP-R149 the no-turbo presets are opt-in, never offered as better · SNAP-R232 pipeline(): the key of a dial's measured strengths ·
+// see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -388,6 +389,15 @@ export function sampling() {
     if (w) out[k] = { brick: b.key, node: nodeKey, name: w.name, value: w.value, choices: choices(w) };
   }
   return out;
+}
+
+// the Pika pipeline a recipe runs, the key a dial file's measured strengths go by (SNAP-R232): ref2v under the Ref2V
+// conditioning, fl2v under FL2V with a First frame on, t2v under FL2V without one; null when no setting says
+export function pipeline() {
+  let cond = null;
+  for (const b of E.state().bricks) for (const [, n] of nodesOf(b.key)) cond ??= n.widgets?.find((w) => w.name === "conditioning" && typeof w.value === "string")?.value;
+  if (cond == null) return null;
+  return /^Ref2V/.test(cond) ? "ref2v" : nodesOf("first_frame").some(([, n]) => n.mode !== 4) ? "fl2v" : "t2v";
 }
 
 // what doesn't fit, as one line each on the brick it concerns; never blocks anything (SNAP-R11)

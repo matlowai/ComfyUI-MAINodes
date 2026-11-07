@@ -1,9 +1,11 @@
 // Dials in Snap: the Dial Rack brick shows each dial as a two-sided slider labelled with what each side gives ("frozen ◀ ● ▶
 // zoomies"), its useful range shaded and its overcook zone marked, all read from the dial file's own info. A picker lists
 // every installed dial (/mainodes/dials/catalog); "Make a dial" fills the pack's own Make Dial node and runs only that
-// node, then puts the new dial on the rack. Rows live in the rack's `rack` widget (the backend's source of truth).
+// node (the sheet then puts the new dial on the rack; an agent's make_dial only when asked). Rows live in the rack's `rack` widget (the backend's source of truth).
 // SNAP-R2 the rack follows its widget · SNAP-R13 family from the setup, strength scale from the dials' own data ·
-// SNAP-R25 SFW only leaves out dials the model graph tags nsfw · see docs/snap/SNAP_RULES.md
+// SNAP-R25 SFW only leaves out dials the model graph tags nsfw · SNAP-R230 rows with time curves, keys in clip seconds ·
+// SNAP-R231 a time row's defaults (every step, protect), said · SNAP-R232 a dial's per-pipeline strengths ·
+// SNAP-R239 make puts nothing on the rack unless asked and says where the file landed · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -58,19 +60,76 @@ export function scaleNote(fam) {
 export const rows = () => { try { const v = JSON.parse(E.getValue("rack", "rack", "rack") || "[]"); return Array.isArray(v) ? v : []; } catch { return []; } };
 const write = (next) => E.setValue("rack", "rack", "rack", JSON.stringify(next)); // the rack UI follows its widget's callback
 
-export function add(dial, strength) {
+// the strength a dial runs at on a pipeline: its info's measured useful strength there, else its own useful, else 0.5
+export const useful = (d, pipeline) => d?.info?.pipelines?.[pipeline]?.useful ?? d?.info?.pos?.useful ?? 0.5;
+
+// a row's time curve, checked with dials/timecurve.check_spec's rules and the rack's refusals (nodes.py timed), so an
+// agent hears before the run what the rack would say during it. Keys are clip seconds unless unit says normalized
+// (SNAP-R230: the clock of the take's words). Defaults (SNAP-R231): every step of the setup unless the dial's info
+// measured fewer for this pipeline, and audio protect; each default comes back in words. -> { time, defaulted }
+const UNITS = ["seconds", "normalized"], INTERPS = ["linear", "step"], AUDIO = ["follow", "protect"], FEATURES = ["rms", "onset", "low", "mid", "high"];
+const SHAPING = ["gain", "offset", "threshold", "attack", "release", "invert"];
+export function timeOf(dial, t, { steps: setup, pipeline } = {}) {
+  if (t == null) return { time: null, defaulted: [] };
+  if (typeof t !== "object" || Array.isArray(t)) throw new Error("time is {points: [[seconds, level], …], unit?: seconds | normalized, interp?: linear | step, smooth?: 0..1, steps?, audio?: protect | follow}");
+  const d = find(dial), type = t.type ?? "keys", defaulted = [];
+  if (d?.mode === "pre") throw new Error(`${dial} is a pre-refiner (LoRA file) dial: time curves need a post-refiner dial (the rack refuses a LoRA-file row with a curve)`);
+  if (d && d.family !== "MiniMax H3") throw new Error(`${dial} is a ${d.family} dial: time curves support MiniMax H3 only (they blend video and audio latent frames)`);
+  if (type !== "keys" && type !== "audio") throw new Error(`time type ${JSON.stringify(type)}: keys (points over clip time) or audio (a feature of the rack's curve_audio)`);
+  const measured = d?.info?.pipelines?.[pipeline]?.steps;
+  const steps = t.steps ?? measured ?? setup ?? 6;
+  if (!Number.isInteger(steps) || steps < 1) throw new Error(`time steps ${JSON.stringify(t.steps)}: a whole number of blend steps, at least 1`);
+  if (t.steps == null) defaulted.push(measured ? `steps ${steps}: ${label(d)}'s info measured ${steps} blend steps on ${pipeline}` : `steps ${steps}: a time row blends on every step of the setup (${steps}) unless the dial's info gives a measured number for this pipeline (SNAP-R231: look dials under reference pictures drew nothing at 2)`);
+  const audio = t.audio ?? "protect";
+  if (!AUDIO.includes(audio)) throw new Error(`time audio ${JSON.stringify(t.audio)}: follow (the sound changes with the dial) or protect (the soundtrack is left alone)`);
+  if (t.audio == null) defaulted.push("audio protect: the row leaves the soundtrack alone (SNAP-R231: look rows under follow added 6-9 dB of roar); audio: follow lets the dial steer the sound too");
+  if (type === "audio") {
+    const feature = t.feature ?? "onset";
+    if (!FEATURES.includes(feature)) throw new Error(`time feature ${JSON.stringify(t.feature)}: one of ${FEATURES.join(", ")}`);
+    return { time: { type, feature, ...Object.fromEntries(SHAPING.filter((k) => t[k] != null).map((k) => [k, t[k]])), steps, audio }, defaulted };
+  }
+  const unit = t.unit ?? "seconds", interp = t.interp ?? "linear", smooth = t.smooth ?? 0, points = t.points;
+  if (!UNITS.includes(unit)) throw new Error(`time unit ${JSON.stringify(t.unit)}: seconds (clip seconds, the default) or normalized (0 = first frame, 1 = clip end)`);
+  if (!INTERPS.includes(interp)) throw new Error(`time interp ${JSON.stringify(t.interp)}: linear or step`);
+  if (typeof smooth !== "number" || !(smooth >= 0 && smooth <= 1)) throw new Error(`time smooth ${JSON.stringify(t.smooth)}: a number from 0 to 1 (0 = straight lines)`);
+  if (!Array.isArray(points) || !points.length || points.some((p) => !Array.isArray(p) || p.length !== 2 || !p.every(Number.isFinite)))
+    throw new Error("time points: [[time, level], …], at least one, each two finite numbers (level 0 = off, 1 = the row's strength)");
+  const u = unit === "seconds" ? " s" : "";
+  for (let i = 1; i < points.length; i++) if (points[i][0] <= points[i - 1][0]) throw new Error(`key ${i + 1} at ${points[i][0]}${u} comes after key ${i} at ${points[i - 1][0]}${u}: times must increase`);
+  if (t.unit == null) defaulted.push("unit seconds: keys are clip seconds from the take's first frame, the clock of its words");
+  return { time: { type, points: points.map(([a, b]) => [a, b]), unit, interp, smooth, steps, audio }, defaulted };
+}
+const holdBeside = (r, time) => time && r.some((x) => x.hold && x.on !== false) && new Error("a hold row is on this rack: the rack refuses hold rows beside a time curve (turn the hold rows off first)");
+
+export function add(dial, strength, time) {
   if (hidden(dial)) throw new Error(`${dial} is tagged nsfw and SFW only is on (the person's profile)`);
   if (!E.state().bricks.some((b) => b.key === "rack")) throw new Error("Add the Dial Rack brick first");
   const r = rows();
   if (r.some((x) => x.dial === dial)) return `${label(find(dial) ?? { dial })} is already on the rack`;
+  const bad = holdBeside(r, time);
+  if (bad) throw bad;
   const d = find(dial), s = strength ?? d?.info?.pos?.useful ?? 0.5;
-  write([...r, { on: true, dial, strength: s, solo: false }]);
-  return `${label(d ?? { dial })} on the rack at ${s >= 0 ? "+" : ""}${s}`;
+  write([...r, { on: true, dial, strength: s, solo: false, ...(time ? { time } : {}) }]);
+  return `${label(d ?? { dial })} on the rack at ${s >= 0 ? "+" : ""}${s}${time ? " with a time curve" : ""}`;
 }
+// patch.time: a checked spec, or null to make the row constant again
 export function set(dial, patch) {
   const r = rows();
   if (!r.some((x) => x.dial === dial)) throw new Error(`${dial} isn't on the rack`);
-  write(r.map((x) => (x.dial === dial ? { ...x, ...patch } : x)));
+  const bad = holdBeside(r, patch.time);
+  if (bad) throw bad;
+  write(r.map((x) => {
+    if (x.dial !== dial) return x;
+    const { time, ...rest } = { ...x, ...patch };
+    return time ? { ...rest, time } : rest;
+  }));
+}
+// the whole rack as given (a Book cut's rows, SNAP-R230); answers the rows it took off
+export function replace(next) {
+  if (!E.state().bricks.some((b) => b.key === "rack")) throw new Error("Add the Dial Rack brick first");
+  const keep = new Set(next.map((x) => x.dial)), off = rows().filter((x) => x.dial && !keep.has(x.dial));
+  write(next);
+  return off;
 }
 export const remove = (dial) => write(rows().filter((x) => x.dial !== dial));
 
@@ -153,8 +212,10 @@ export async function openPicker(host, { say, onChange, onMake, move }) {
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 60);
 
 // fill the pack's Make Dial node from the spec, wire it to the recipe's text encoder and H3 model, run only that node,
-// put the new dial on the rack, and take the node away again. Resolves with { dial, report }.
-export async function make({ name, negative, positive, pairs, subjects, description, by = "person" }, onStatus = () => {}) {
+// and take the node away again; the new dial goes on the rack only with add_to_rack. Resolves with { dial, report,
+// saved, folder, shared, folders }: shared is false when the file went into this server's own models folder (the first
+// loras folder; on a --base-directory server, that base's) and folders names the others it reads (SNAP-R239, F-SQ33).
+export async function make({ name, negative, positive, pairs, subjects, description, folder, add_to_rack = false, by = "person" }, onStatus = () => {}) {
   const clip = E.nodeFor("models", "clip"), model = E.nodeFor("preset", "preset");
   if (!clip || !model) throw new Error("Making a dial needs the Models and Render Preset bricks (its text encoder and H3 model)");
   const lines = pairs.filter(([a, b]) => a.trim() && b.trim()).map(([a, b]) => `${a.trim()} ||| ${b.trim()}`);
@@ -166,8 +227,10 @@ export async function make({ name, negative, positive, pairs, subjects, descript
   try {
     clip.connect(clip.outputs.findIndex((o) => o.type === "CLIP"), n, n.findInputSlot("clip"));
     model.connect(model.outputs.findIndex((o) => o.type === "MODEL"), n, n.findInputSlot("model"));
+    const folders = n.widgets.find((x) => x.name === "folder")?.options?.values ?? [];
+    if (folder != null && !folders.includes(folder)) throw new Error(`folder ${JSON.stringify(folder)}: this server's loras folders are ${folders.map((f) => JSON.stringify(f)).join(", ") || "not listed (the Make Dial node has no folder input: update the pack)"}`);
     const values = { pairs: lines.join("\n"), subjects: subjects ?? "", name: file, description: description ?? "", negative_label: negative ?? "", positive_label: positive ?? "",
-      useful: 0, overcook: 0, evidence: "unknown" }; // a new dial's strengths are unknown until someone tries it
+      useful: 0, overcook: 0, evidence: "unknown", ...(folder != null ? { folder } : {}) }; // a new dial's strengths are unknown until someone tries it
     for (const [k, v] of Object.entries(values)) { const w = n.widgets.find((x) => x.name === k); if (w) w.value = v; }
     onStatus("Making the dial (only the Make Dial node runs)…");
     const done = new Promise((resolve, reject) => {
@@ -187,9 +250,9 @@ export async function make({ name, negative, positive, pairs, subjects, descript
     if (!queued) throw new Error("ComfyUI didn't take the job (see its message)");
     const report = await done;
     await load(true);
-    const dial = `dials/${file}.safetensors`;
-    add(dial, 0.5);
-    return { dial, report };
+    const dial = `dials/${file}.safetensors`, into = folder ?? folders[0] ?? null;
+    if (add_to_rack) add(dial, 0.5);
+    return { dial, report, saved: report.match(/^saved (.+)$/m)?.[1] ?? null, folder: into, shared: !!into && into !== folders[0], folders, on_rack: add_to_rack };
   } finally {
     app.graph.remove(n);
     app.canvas.setDirty(true, true);
@@ -218,7 +281,7 @@ export function openMaker(host, { say, onChange }) {
     makeBtn.disabled = true;
     try {
       const pairs = [...pairsBox.querySelectorAll(".snap-pair")].map((r) => [...r.querySelectorAll("textarea")].map((t) => t.value));
-      const { dial, report } = await make({ name: name.value, negative: neg.value, positive: pos.value, pairs, subjects: subjects.value, description: desc.value }, (t) => { status.textContent = t; });
+      const { dial, report } = await make({ name: name.value, negative: neg.value, positive: pos.value, pairs, subjects: subjects.value, description: desc.value, add_to_rack: true }, (t) => { status.textContent = t; });
       status.textContent = report;
       say(`Made ${dial}: it's on the rack at +0.5. Try a take at −1 and +1 to find its useful strength.`);
       onChange();

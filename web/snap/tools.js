@@ -23,6 +23,7 @@
 // SNAP-R134 keep_eye_colour and the redraw's eye line · SNAP-R202 a still's stage 2 redraws it whole · SNAP-R203 keep_eye_colour on any take · SNAP-R207 and says what it did · SNAP-R136 open_view masks, find_take, add_plate's facts · SNAP-R137 cites stay plain · see docs/snap/SNAP_RULES.md
 // SNAP-R185 apply_candidate never makes a still a cut's take · SNAP-R186 a record's new view lands with it · SNAP-R187 open_view says what the page shows · SNAP-R190 paste_back · SNAP-R191 its seam note · SNAP-R205 its tone · SNAP-R204 its mask · see docs/snap/SNAP_RULES.md
 // SNAP-R199 nearby {ref}: what a picture is and its neighbours in the data model, whole (nearby.js); open_view nearby opens the modal on the person's page · see docs/snap/SNAP_RULES.md
+// SNAP-R230/R231 add_dial / set_dial take a time curve, its defaults said · SNAP-R232 list_dials pipelines, set_dial_info · SNAP-R238 list_nodes lists hidden widgets, marked · SNAP-R239 make_dial: rack only when asked, where the file landed · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import { BRICKS, PACK_BRICKS } from "./bricks.js";
@@ -1024,28 +1025,38 @@ export const TOOLS = [
   },
   {
     name: "list_dials",
-    description: "Every installed dial (a training-free steering direction for H3, MOSS-Image or Krea 2): its file, model family, family_strength_scale (how much stronger that family's dials run than H3's, e.g. 4 for MOSS-Image: use its own useful strength, not an H3 number), what negative and positive strength give, useful and overcook strengths, description, and its row if it is on the rack. Filter with a query (words in the labels, description or file) or a family.",
+    description: "Every installed dial (a training-free steering direction for H3, MOSS-Image or Krea 2): its file, model family, family_strength_scale (how much stronger that family's dials run than H3's, e.g. 4 for MOSS-Image: use its own useful strength, not an H3 number), what negative and positive strength give, useful and overcook strengths, kind (look, light, weather, motion, camera, voice, other) and pipelines (strengths, blend steps and notes measured per Pika pipeline: t2v text to video, ref2v reference pictures, fl2v first frame; SNAP-R232) when its info has them, with a recipe open for_this_recipe (the pipeline this recipe runs and that pipeline's numbers), mode (post: the rack's hook; pre: a LoRA file, no time curves), description, and its row if it is on the rack. Filter with a query (words in the labels, description or file) or a family.",
     inputSchema: { type: "object", properties: { query: { type: "string" }, family: { type: "string", description: "e.g. 'MiniMax H3'" } } },
     annotations: { readOnlyHint: true },
     run: async ({ query = "", family } = {}) => {
       await D.load();
-      const words = query.toLowerCase().split(/\s+/).filter(Boolean), on = new Map(D.rows().map((r) => [r.dial, r]));
+      const words = query.toLowerCase().split(/\s+/).filter(Boolean), on = new Map(D.rows().map((r) => [r.dial, r])), pipe = M.pipeline();
       return D.all().filter((d) => (!family || d.family === family) && words.every((w) => `${D.label(d)} ${d.info.description} ${d.dial}`.toLowerCase().includes(w)))
         .map((d) => ({ dial: d.dial, family: d.family, family_strength_scale: D.scale(d.family), negative: d.info.negative, positive: d.info.positive, useful: d.info.pos.useful, overcook: d.info.pos.overcook,
-          negative_useful: d.info.neg.useful, description: d.info.description, on_rack: on.get(d.dial) ?? null }));
+          negative_useful: d.info.neg.useful, ...(d.info.kind ? { kind: d.info.kind } : {}), ...(d.info.pipelines ? { pipelines: d.info.pipelines } : {}),
+          ...(pipe ? { for_this_recipe: { pipeline: pipe, ...(d.info.pipelines?.[pipe] ?? { measured: false }) } } : {}), mode: d.mode, description: d.info.description, on_rack: on.get(d.dial) ?? null }));
     },
   },
   {
     name: "add_dial",
-    description: "Put a dial on the Dial Rack (strength defaults to the dial's own useful strength, else 0.5). Negative strength moves toward the dial's negative side, positive toward its positive side.",
-    inputSchema: { type: "object", properties: { dial: { type: "string", description: "a file from list_dials" }, strength: { type: "number" } }, required: ["dial"] },
-    run: async ({ dial, strength }) => { await D.load(); return D.add(dial, strength); },
+    description: "Put a dial on the Dial Rack (strength defaults to the dial's useful strength measured on this recipe's pipeline, else its own useful strength, else 0.5). Negative strength moves toward the dial's negative side, positive toward its positive side. time gives the row a time curve (SNAP-R230): its strength rises and falls over the clip, checked here with the rack's own rules; defaults (every blend step, audio protect) come back in defaulted. With time, the answer is {said, row, defaulted}; without, a sentence.",
+    inputSchema: { type: "object", properties: { dial: { type: "string", description: "a file from list_dials" }, strength: { type: "number" }, time: { type: "object", description: "a time curve: the row's strength × level over the clip (MiniMax H3, post-refiner dials). points [[t, level], …] with t increasing; unit seconds (default: clip seconds from the take's first frame, the clock of its words) or normalized (0..1); interp linear (default) or step; smooth 0..1; steps: blend steps (default: every step of the setup, or the dial's measured number for this pipeline); audio: protect (default: the soundtrack is left alone) or follow", properties: { points: { type: "array", items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 } }, unit: { type: "string", enum: ["seconds", "normalized"] }, interp: { type: "string", enum: ["linear", "step"] }, smooth: { type: "number" }, steps: { type: "integer", minimum: 1 }, audio: { type: "string", enum: ["protect", "follow"] } } } }, required: ["dial"] },
+    run: async ({ dial, strength, time }) => {
+      await D.load();
+      const pipe = M.pipeline(), t = D.timeOf(dial, time, { steps: M.sampling().steps?.value, pipeline: pipe }), said = D.add(dial, strength ?? D.useful(D.find(dial), pipe), t.time);
+      return time == null ? said : { said, row: D.rows().find((r) => r.dial === dial), defaulted: t.defaulted };
+    },
   },
   {
     name: "set_dial",
-    description: "Change a dial on the rack: strength, on/off, solo.",
-    inputSchema: { type: "object", properties: { dial: { type: "string" }, strength: { type: "number" }, on: { type: "boolean" }, solo: { type: "boolean" } }, required: ["dial"] },
-    run: ({ dial, ...patch }) => { D.set(dial, patch); return { dial, ...D.rows().find((r) => r.dial === dial) }; },
+    description: "Change a dial on the rack: strength, on/off, solo, time (a time curve as add_dial takes it, checked with the rack's rules; null makes the row constant again). Returns the row, with defaulted when a time curve's defaults were filled.",
+    inputSchema: { type: "object", properties: { dial: { type: "string" }, strength: { type: "number" }, on: { type: "boolean" }, solo: { type: "boolean" }, time: { ...{ type: "object", description: "a time curve: the row's strength × level over the clip (MiniMax H3, post-refiner dials). points [[t, level], …] with t increasing; unit seconds (default: clip seconds from the take's first frame, the clock of its words) or normalized (0..1); interp linear (default) or step; smooth 0..1; steps: blend steps (default: every step of the setup, or the dial's measured number for this pipeline); audio: protect (default: the soundtrack is left alone) or follow", properties: { points: { type: "array", items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 } }, unit: { type: "string", enum: ["seconds", "normalized"] }, interp: { type: "string", enum: ["linear", "step"] }, smooth: { type: "number" }, steps: { type: "integer", minimum: 1 }, audio: { type: "string", enum: ["protect", "follow"] } } }, type: ["object", "null"] } }, required: ["dial"] },
+    run: async ({ dial, time, ...patch }) => {
+      await D.load();
+      const t = time === undefined ? null : D.timeOf(dial, time, { steps: M.sampling().steps?.value, pipeline: M.pipeline() });
+      D.set(dial, time === undefined ? patch : { ...patch, time: t.time });
+      return { dial, ...D.rows().find((r) => r.dial === dial), ...(t?.defaulted.length ? { defaulted: t.defaulted } : {}) };
+    },
   },
   {
     name: "remove_dial",
@@ -1055,13 +1066,37 @@ export const TOOLS = [
   },
   {
     name: "make_dial",
-    description: "Make a new dial from prompt pairs with the pack's Make Dial node (runs only that node on the GPU, saves models/loras/dials/<name>.safetensors, puts it on the rack at +0.5). Each pair is the same sentence twice, changed only in the quality to steer; {subject} expands over the subjects list. Uses GPU time: unless the person lets agents run (ComfyUI setting), this waits as a proposal they accept.",
+    description: "Make a new dial from prompt pairs with the pack's Make Dial node (runs only that node on the GPU, saves <loras folder>/dials/<name>.safetensors). Each pair is the same sentence twice, changed only in the quality to steer; {subject} expands over the subjects list. The dial goes on the rack only with add_to_rack: true (SNAP-R239). folder picks the loras folder (the answer's folders lists them; the first is this server's own models folder, on a --base-directory server that base's; another can be a shared dial library). Answers dial, report, saved (the file), folder, shared (false = this server's own folder), folders, and next. Uses GPU time: unless the person lets agents run (ComfyUI setting), this waits as a proposal they accept.",
     inputSchema: { type: "object", properties: { name: { type: "string" }, negative: { type: "string", description: "what negative strength gives" }, positive: { type: "string", description: "what positive strength gives" },
-      pairs: { type: "array", items: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 2 }, description: "[[A, B], ...]" }, subjects: { type: "string", description: "one per line" }, description: { type: "string" } }, required: ["negative", "positive", "pairs"] },
+      pairs: { type: "array", items: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 2 }, description: "[[A, B], ...]" }, subjects: { type: "string", description: "one per line" }, description: { type: "string" },
+      add_to_rack: { type: "boolean", description: "also put it on this recipe's rack at +0.5 (default false)" }, folder: { type: "string", description: "one of the Make Dial node's folder choices (default: the first, this server's own)" } }, required: ["negative", "positive", "pairs"] },
     annotations: { consequentialHint: true },
     consequential: true,
     plan: async ({ pairs = [] }) => ({ runs: `the Make Dial node only: ${pairs.length} prompt pairs through the text encoder, no render`, eta_s: null, from: "not measured here yet" }),
-    run: async (spec) => D.make({ ...spec, subjects: spec.subjects ?? "A young woman\nAn old man\nA golden dog\nA horse", by: "agent" }),
+    run: async (spec) => {
+      const r = await D.make({ ...spec, subjects: spec.subjects ?? "A young woman\nAn old man\nA golden dog\nA horse", by: "agent" }), others = r.folders.filter((f) => f !== r.folder);
+      // SNAP-R239 (F-SQ33): a dev or test server saves into its own folder; the answer names the others and how to choose
+      const where = r.shared ? `saved into ${r.folder}, not this server's own models folder (${r.folders[0]})` : `saved into this server's own models folder (${r.folder})${others.length ? `; the other loras folders it reads, such as a shared dial library: ${others.join(", ")}: give folder to save there` : ""}`;
+      return { ...r, where, next: `${r.on_rack ? "it is on the rack at +0.5" : `add_dial {dial: "${r.dial}"} puts it on the rack`}; try −1 and +1 to find its useful strength; set_dial_info saves what you find` };
+    },
+  },
+  {
+    name: "set_dial_info",
+    description: "Write what a dial does and how strong it runs into the dial file's own info (SNAP-R232): description, negative / positive (what each side gives), neg / pos {useful, overcook}, evidence (creator, one-seed, multi-seed, multi-scene), pipeline, notes, kind (look, light, weather, motion, camera, voice, other) and pipelines {t2v | ref2v | fl2v: {useful, overcook, steps, evidence, notes}} (measured per Pika pipeline: text to video, reference pictures, first frame; steps = blend steps a time curve needs there). info is merged over what the file says (pipelines per key; null removes a key). Only the metadata changes: the answer gives the info saved, the file and the tensors' sha256 before and after (equal). Dial files only (loras/dials/).",
+    inputSchema: { type: "object", properties: { dial: { type: "string", description: "a file from list_dials" }, info: { type: "object" } }, required: ["dial", "info"] },
+    run: async ({ dial, info }) => {
+      if (!info || typeof info !== "object" || Array.isArray(info)) throw new Error("info is an object: description, negative, positive, neg, pos, evidence, pipeline, notes, kind, pipelines");
+      const get = async () => { const r = await api.fetchApi(`/mainodes/dials/file?dial=${encodeURIComponent(dial)}`), j = await r.json(); if (!r.ok) throw new Error(`${dial}: ${j.error}; list_dials lists the dial files`); return j; };
+      const before = await get(), merged = { ...before.info, ...info, version: 2 };
+      if (info.pipelines !== undefined) merged.pipelines = info.pipelines === null ? null : { ...(before.info.pipelines ?? {}), ...info.pipelines };
+      for (const k of Object.keys(merged)) if (merged[k] === null && ["kind", "pipelines"].includes(k)) delete merged[k];
+      if (merged.pipelines) for (const k of Object.keys(merged.pipelines)) if (merged.pipelines[k] === null) delete merged.pipelines[k];
+      const r = await api.fetchApi("/mainodes/dials/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dial, info: merged }) }), saved = await r.json();
+      if (!r.ok) throw new Error(`${dial}: ${saved.error}`);
+      const after = await get();
+      await D.load(true);
+      return { dial, info: saved, file: after.path, tensors_sha256: { before: before.tensors_sha256, after: after.tensors_sha256, unchanged: before.tensors_sha256 === after.tensors_sha256 } };
+    },
   },
   {
     name: "run",
@@ -1178,11 +1213,11 @@ export const TOOLS = [
   },
   {
     name: "list_nodes",
-    description: "Every node in the open workflow (not only bricks): id, type, title, the brick it belongs to, and each widget with its value, choices (model files, samplers…), limits and the node it is wired from. Node titles and texts come from installed packs, not from Snap.",
+    description: "Every node in the open workflow (not only bricks): id, type, title, the brick it belongs to, and each widget with its value, choices (model files, samplers…), limits and the node it is wired from. A widget its node's own panel hides (e.g. the Dial Rack's `rack` rows) is listed too, marked hidden: true (SNAP-R238); set_widget sets it. Node titles and texts come from installed packs, not from Snap.",
     inputSchema: { type: "object", properties: { brick: { type: "string", description: "only this brick's nodes" } } },
     annotations: { readOnlyHint: true, untrustedContentHint: true },
     run: ({ brick } = {}) => (brick && inRecipe(brick), app.graph.nodes).filter((n) => !brick || brickOf(n.id) === brick).map((n) => ({ id: n.id, type: n.type.length > 30 ? "blueprint" : n.type, title: n.title, brick: brickOf(n.id),
-      widgets: (n.widgets ?? []).filter((w) => w.name && !w.name.startsWith("$$") && !w.hidden).map((w) => widgetInfo(n, w)) })),
+      widgets: (n.widgets ?? []).filter((w) => w.name && !w.name.startsWith("$$")).map((w) => ({ ...widgetInfo(n, w), ...(w.hidden || w.options?.hidden ? { hidden: true } : {}) })) })),
   },
   {
     name: "set_widget",

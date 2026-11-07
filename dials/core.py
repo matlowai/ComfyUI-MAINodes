@@ -438,6 +438,14 @@ def dial_catalog():
     return {"dials": sorted(out, key=lambda d: d["dial"]), "families": {p.clip_type: p.family for p in TEXT_PATHS.values()}}
 
 
+def dial_file(dial_name):
+    """A dial file's path, the hash of its tensors (unchanged by info edits) and its info."""
+    path = folder_paths.get_full_path_or_raise("loras", dial_name)
+    with safe_open(path, "pt") as f:
+        sha = tensors_sha256({k: f.get_tensor(k) for k in f.keys()})
+    return {"dial": dial_name, "path": path, "tensors_sha256": sha, "info": dial_info(dial_name)}
+
+
 def save_dial_info(dial_name, info):
     """Write the info into a dial file's metadata; the vector is copied unchanged and the file replaced atomically. Only
     dial files in loras/dials/ are rewritten, never another LoRA."""

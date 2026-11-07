@@ -73,6 +73,10 @@ def install():
     async def info(request):  # description, side labels, useful and overcook strengths for one dial file
         return await respond(core.dial_info, request.query.get("dial", ""))
 
+    @routes.get("/mainodes/dials/file")
+    async def dial_file(request):  # where a dial file is, its tensors' hash and info (info edits keep the hash)
+        return await respond(core.dial_file, request.query.get("dial", ""))
+
     @routes.post("/mainodes/dials/info")
     async def save_info(request):
         try:
