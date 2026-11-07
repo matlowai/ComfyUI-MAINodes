@@ -14,7 +14,7 @@
 // SNAP-R72 what Picture 1 is, per model · SNAP-R75 the view slot's models are data (P-H3-Image, H3 still) ·
 // SNAP-R77 a character sheet is a sheet-slot method whose candidates are takes · SNAP-R79 a new view says which
 // picture it copied · SNAP-R186 a record's picture's new view lands with the record · SNAP-R190 a region edit pastes back · SNAP-R202 its stage 2 is the whole still · SNAP-R204 its SAM mask ·
-// SNAP-R191 its seam is checked · SNAP-R205 and its tone · see docs/snap/SNAP_RULES.md
+// SNAP-R191 its seam is checked · SNAP-R205 and its tone · SNAP-R206 its stage 2 keeps its change · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as C from "./candidates.js";
 import * as K from "./checks.js";
@@ -446,12 +446,17 @@ function pasteBack(g, pic, mask, detector) {
   return { box, feather: f, ...(mask ? { mask } : {}) };
 }
 // F-Y04 (SNAP-R202): a region edit's graph as an edit of its whole still (its stage 2): Picture 1 is `whole`, the edited
-// still, not the crop, and the decode is saved as it is. Re-running the crop and the paste pasted the whole picture, small,
-// into the crop at 1x. Picture 1's own nodes (c0…: its loader and crop) are read by nothing then
-export function unpaste(g, whole) {
+// still, not the crop. Re-running the crop and the paste pasted the whole picture, small, into the crop at 1x.
+// F-Z01 (SNAP-R206): the redraw draws the model's prior again (Kuroe's nose bar came back at d0.30 and d0.20), so the edit's
+// change goes back over it: MAISnapKeepEdit compares the edited still with the picture it was made over (Picture 1's
+// loader, kept; its crop goes) and keeps the edit wherever they differ, grown by the edit's feather
+export function unpaste(g, whole, pasted) {
+  const before = g.c0c?.inputs.image;
+  if (!before) throw new Error("this region edit's graph has no crop of its Picture 1 to compare the edit with");
   for (const n of Object.values(g)) for (const [k, v] of Object.entries(n.inputs ?? {})) if (Array.isArray(v) && v[0] === "r0s") n.inputs[k] = whole;
-  g.o.inputs.images = ["d", 0];
-  for (const k of Object.keys(g)) if (["r0s", "rb", "rm", "rf", "rc", "rp", "rs", "rx"].includes(k) || /^(c0[a-z]|rd[a-z]?)$/.test(k)) delete g[k];
+  for (const k of Object.keys(g)) if (["r0s", "rb", "rm", "rf", "rc", "rp", "rs", "rx", "c0c"].includes(k) || /^rd[a-z]?$/.test(k)) delete g[k];
+  g.rk = { class_type: "MAISnapKeepEdit", inputs: { redraw: ["d", 0], edit: whole, before, feather: pasted.feather } };
+  g.o.inputs.images = ["rk", 0];
 }
 // F-S02 (SNAP-R186): a new view whose Picture 1 is a location's picture (or a Cast's picture it edits) lands with that
 // record: the shot of the take the picture came from, else (a place) the newest take that pins it outside a Book's cuts

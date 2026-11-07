@@ -15,7 +15,8 @@ encrypted (snap_vault_server.py) · SNAP-R98 their ffmpeg steps work in RAM scra
 the bridge tools' descriptions, /info names the docs and skills, a call names its agent · SNAP-R135 a hold on a page ends
 with its job: use_page null, the MCP connection closing, or 10 idle minutes; the page shows the idle time · SNAP-R146 an
 agent's claimed critique or queued run keeps its hold · SNAP-R159 a retried call with the same Idempotency-Key answers the
-first call's answer and never runs twice · SNAP-R191 a region edit's seam is checked (MAISnapSeam) · SNAP-R205 and its tone · see docs/snap/SNAP_RULES.md"""
+first call's answer and never runs twice · SNAP-R191 a region edit's seam is checked (MAISnapSeam) · SNAP-R205 and its tone ·
+SNAP-R206 a region edit's stage 2 keeps its change (MAISnapKeepEdit) · see docs/snap/SNAP_RULES.md"""
 import asyncio
 import glob
 import hashlib
@@ -39,6 +40,7 @@ import torch
 from aiohttp import web
 
 from comfy.cli_args import args
+import comfy.utils
 import folder_paths
 import nodes
 from comfy_api.latest import InputImpl, io
@@ -1443,7 +1445,49 @@ class MAISnapSeam(io.ComfyNode):
         return io.NodeOutput(ui={"seam": breaks, "seam_checked": checked, "seam_tone": shows})
 
 
+class MAISnapKeepEdit(io.ComfyNode):
+    """Stage 2 of a region edit keeps the edit's change (F-Z01, SNAP-R206): a whole redraw of the edited still draws the
+    model's prior again, so a flaw the edit took off can come back (Kuroe's nose bar at d0.30 and d0.20 on his fix B). Where
+    the edit differs from the picture it was made over (max channel, averaged over 7x7 px so redrawn line work drops out,
+    grown by the edit's feather and softened), the edit, Lanczos to the redraw's size, goes back over the redraw; everywhere
+    else the redraw stays. On B s9912 that was the monocle, its chain and the old bar's place, 15 % of the head box: the bar
+    stayed off and the rest of the face kept the redraw. Pasting the whole box back instead also kept the bar off but put
+    the 1x head back; editing the redraw again kept the bar 2/2 (its Picture 1 shows it)."""
+    LEVEL = 24  # a change (max channel, 0-255, over 7x7 px) below this is the edit's redrawn line work, not its change
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="MAISnapKeepEdit",
+            display_name="Keep a region edit's change (Snap)",
+            category="MAINodes/snap",
+            description="Puts a region edit's change back over a bigger redraw of the edited picture: where the edit differs "
+                        "from the picture it was made over (grown by the feather and softened), the edit scaled to the redraw's "
+                        "size; the redraw everywhere else.",
+            inputs=[io.Image.Input("redraw"), io.Image.Input("edit", tooltip="the edited picture at its own size"),
+                    io.Image.Input("before", tooltip="the picture the edit was made over, the edit's size"), io.Int.Input("feather", min=0)],
+            outputs=[io.Image.Output()],
+        )
+
+    @classmethod
+    def execute(cls, redraw, edit, before, feather) -> io.NodeOutput:
+        e, b = edit[:1, ..., :3], before[:1, ..., :3].to(edit.device, edit.dtype)
+        if e.shape != b.shape:
+            raise ValueError(f"the edit is {e.shape[2]}x{e.shape[1]} and the picture it was made over {b.shape[2]}x{b.shape[1]}: a region edit keeps its picture's size")
+        d = (e - b).abs().amax(-1)[None] * 255
+        m = (torch.nn.functional.avg_pool2d(d, 7, 1, 3, count_include_pad=False) > cls.LEVEL).to(redraw.dtype)
+        if feather:
+            m = torch.nn.functional.max_pool2d(m, 2 * feather + 1, 1, feather)
+        H, W = redraw.shape[1:3]
+        m = torch.nn.functional.interpolate(m.to(redraw.device), size=(H, W), mode="bilinear")
+        r = max(1, round(feather * H / e.shape[1] / 2))
+        for _ in range(2):
+            m = torch.nn.functional.avg_pool2d(m, 2 * r + 1, 1, r, count_include_pad=False)
+        up = comfy.utils.common_upscale(e.movedim(-1, 1), W, H, "lanczos", "disabled").movedim(1, -1).clamp(0, 1).to(redraw.device, redraw.dtype)
+        return io.NodeOutput(torch.lerp(redraw[..., :3], up, m[0, 0, :, :, None]))
+
+
 NODE_CLASS_MAPPINGS = {"MAISaveImagePrivate": MAISaveImagePrivate, "MAIPreviewImagePrivate": MAIPreviewImagePrivate,
-                       "MAISaveVideoPrivate": MAISaveVideoPrivate, "MAIVideoOutPrivate": MAIVideoOutPrivate, "MAIRatingRefused": MAIRatingRefused, "MAISnapLouder": MAISnapLouder, "MAISnapCopyScore": MAISnapCopyScore, "MAISnapSeam": MAISnapSeam}
+                       "MAISaveVideoPrivate": MAISaveVideoPrivate, "MAIVideoOutPrivate": MAIVideoOutPrivate, "MAIRatingRefused": MAIRatingRefused, "MAISnapLouder": MAISnapLouder, "MAISnapCopyScore": MAISnapCopyScore, "MAISnapSeam": MAISnapSeam, "MAISnapKeepEdit": MAISnapKeepEdit}
 NODE_DISPLAY_NAME_MAPPINGS = {"MAISaveImagePrivate": "Save Image (no metadata)", "MAIPreviewImagePrivate": "Preview Image (no metadata)",
-                              "MAIVideoOutPrivate": "MAI Video Out (no metadata)", "MAIRatingRefused": "Above the rating cap: refused", "MAISnapLouder": "Make the sound louder (Snap)", "MAISnapCopyScore": "Copy score (Snap)", "MAISnapSeam": "Seam check (Snap)"}
+                              "MAIVideoOutPrivate": "MAI Video Out (no metadata)", "MAIRatingRefused": "Above the rating cap: refused", "MAISnapLouder": "Make the sound louder (Snap)", "MAISnapCopyScore": "Copy score (Snap)", "MAISnapSeam": "Seam check (Snap)", "MAISnapKeepEdit": "Keep a region edit's change (Snap)"}

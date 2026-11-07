@@ -18,7 +18,7 @@
   "u61": "identity looks per frame (test_identity_notes.py writes a fresh copy to the output folder's u61/)",
   "voice_timbre": "the voice timbre scout's clips, embeddings and rounds (G1b voice note)",
   "short05": "the anime dogfood short05 'One More Bowl': the live C2 board s9221 (Kuroe in spectacles, the critic's finding F-Q20) the G9 Room suite shows",
-  "g14": "real region edits cropped to the box and 24 px around it (picture and pasted box), with each box's place and feather (seam_cases.json) (G14 seam tone suite)"
+  "g14": "real region edits cropped to the box and 24 px around it (picture and pasted box), with each box's place and feather (seam_cases.json), and fix B s9912's Picture 1, edit and two stage 2 redraws around the head (G14 seam tone and keep-edit suites)"
  },
  "files": [
   {
@@ -1885,6 +1885,26 @@
    "path": "voice_timbre/vt_table.py",
    "bytes": 526,
    "sha256": "586a52eaef0d1c317286afcc0d4d6d2dd08ca4ae71b9955a442d5557bf9474d9"
+  },
+  {
+   "path": "g14/keep_s9912_before.png",
+   "bytes": 86621,
+   "sha256": "9b7ddd52a2da388e99b069e1b818b94e856eb009f9df45602127cd22ae92f2e5"
+  },
+  {
+   "path": "g14/keep_s9912_edit.png",
+   "bytes": 85472,
+   "sha256": "b5e2ae98307c7576b3254f08d42f8fb40cde39357093531fb5e45a588746a8db"
+  },
+  {
+   "path": "g14/keep_s9912_redraw_d20.png",
+   "bytes": 337142,
+   "sha256": "f8d74e065aadd304aadf3aada312ab88fee8d300805be0fdcd3fe68814b748b8"
+  },
+  {
+   "path": "g14/keep_s9912_redraw_d30.png",
+   "bytes": 337426,
+   "sha256": "be6a27dae0c454d947adb659db91881128f7542d03a111e0441c17bd214107bb"
   },
   {
    "path": "g14/seam_cases.json",

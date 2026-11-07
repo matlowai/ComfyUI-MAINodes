@@ -1927,4 +1927,15 @@ SNAP-R197 on. R160-R164 stay free.
   over 95 % of its left and right edges; every clean edit stayed under 10 (one 37 px edge reached 12 over 22 %).
   *More:* tests/snap/test_g14_nodes.py (real crops), test_g14.js.
 
-Next free ID after this batch: SNAP-R206 (R160-R164 stay free).
+- **SNAP-R206: Stage 2 of a region edit keeps the edit's change.** After the whole redraw (SNAP-R202), MAISnapKeepEdit
+  compares the edited still with the picture it was made over (Picture 1's own loader, kept in the graph; its crop
+  goes): where they differ (max channel over 7x7 px above 24, grown by the edit's feather, softened), the edit, Lanczos
+  to the redraw's size, goes back over the redraw; everywhere else the redraw stays. A masked edit (SNAP-R204) changed
+  only its mask, so only that comes back. `upscale_take`'s answer and plan say it (`keeps`). *Why:* dogfood F-Z01: a
+  whole redraw draws the model's prior again, and Kuroe's fix B got its nose bar back at d0.30 and d0.20. Measured on
+  :8194 (both B seeds, both denoise values): where the bar was, the plain redraw was 25-32 grey levels from the edit,
+  the kept one 0.8-3.7; the rest of the head kept the redraw (the change was 15 % of the box on s9912). Pasting the
+  whole box back also kept the bar off but put the 1x head back; editing the redraw again kept the bar 2/2 (its
+  Picture 1 shows it). *More:* tests/snap/test_g14.js, test_g14_nodes.py; study proto/ui/g14.
+
+Next free ID after this batch: SNAP-R207 (R160-R164 stay free).

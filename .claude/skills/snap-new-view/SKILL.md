@@ -57,10 +57,12 @@ monocle, where a gold bar across the nose came back from every wording (dogfood 
 - **Remove the whole item, then add the right one** (F-Y03). "Remove only the bar" failed; "he wears no eyewear at
   all" gave a bare face 2/2, then adding the monocle from its settei 2/2. An edit whose Picture 1 still shows the flaw
   tends to keep it: the settei edit on a redraw that had the bar back kept the bar 2/2 (G13, s9961/s9962).
-- **Redraw first, region-edit last** (F-Y06). A redraw draws the model's prior again. Stage 2 of a region edit redraws
-  the whole still at the new size (SNAP-R202), and that can bring the flaw back: Kuroe's fix B got its bar back at
-  denoise 0.30 and 0.20, fix C stayed clean at both. After any redraw of a fixed picture, look at the fixed part at
-  100 %; if the flaw is back, fix the redraw (the remove-then-add pair above), not the other way round.
+- **Redraw first, region-edit last** (F-Y06). A redraw draws the model's prior again. Stage 2 of a region edit does
+  this order for you: it redraws the whole still (SNAP-R202), then puts the edit's change back over the redraw where
+  the edit differs from its Picture 1 (SNAP-R206, G14: Kuroe's fix B kept its bar off at 0.30 and 0.20, 2/2 seeds,
+  where the plain redraw drew it back). Any other redraw of a fixed picture (a whole-picture P-H3 redraw, a turnaround
+  pass) has no such step: look at the fixed part at 100 %; if the flaw is back, fix the redraw (the remove-then-add
+  pair above), not the other way round.
 - Then compare the eyes with the Cast: a redraw darkened Kuroe's grey irises. `keep_eye_colour` runs on any take
   (SNAP-R203) but moves only the hue, so it leaves a grey iris as it is (the picture comes back unchanged).
 - A seam note that says **"the box shows"** means the pasted box is lighter or darker than the picture around it

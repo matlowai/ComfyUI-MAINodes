@@ -35,9 +35,10 @@ The front was also the take's Picture 1, so a redraw toward it is expected: read
 ## Steps
 
 1. `upscale_take {"take": ..., "method": "stage2", "factor": 2, "denoise": 0.3}`. It takes any still made by one
-   sampler, from any model (P-H3, Fizgig, MOSS, Krea), and redraws a region edit as its whole picture (SNAP-R202;
-   on a 5090 a 2x P-H3 still took 5-9 s, a MOSS still 19 s). Look at any part that was fixed by hand: the redraw can
-   bring a removed flaw back (F-Y06; `snap-new-view`). A 2K pass at cfg 5 fills a 32 GB card
+   sampler, from any model (P-H3, Fizgig, MOSS, Krea), and redraws a region edit as its whole picture, then puts the
+   edit's change back over it (SNAP-R202, R206; on a 5090 a 2x P-H3 still took 3-11 s, a MOSS still 19 s). Look at
+   any part that was fixed by hand: a redraw of a picture fixed some other way can bring a removed flaw back (F-Y06;
+   `snap-new-view`). A 2K pass at cfg 5 fills a 32 GB card
    and takes ~2.5 min a step (15-19 min for a 5 s orbit); the plan says how long (SNAP-R16).
    `speed` (SNAP-R113): `"quality"` (default, the take's own cfg) or `"fast"` (cfg 1): one orbit took 10.4 min instead of
    17.9, same VRAM, no added flicker, a touch softer line weight and eye shading. Fast for drafts or when the person

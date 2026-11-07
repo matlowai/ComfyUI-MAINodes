@@ -427,8 +427,9 @@ them). It works on stills: masters, plates, boards.
   pasted box came out lighter or darker than the picture around it (a rectangle you can see with no break in it; s9962
   was +22 grey levels): use `mask`, or a crop whose edges sit on the thing rather than open background (F-Z03,
   SNAP-R205). `mask: "<the thing>:1"` keeps the edit only where SAM 3.1 finds that thing in the crop: the route for a
-  removal words can't make (SNAP-R204). Stage 2 of a region edit redraws its whole still (SNAP-R202); look at the fixed
-  part after it, since a redraw can draw the flaw back.
+  removal words can't make (SNAP-R204). Stage 2 of a region edit redraws its whole still (SNAP-R202) and then puts the
+  edit's change back over the redraw wherever the edit differs from its Picture 1 (the answer's `keeps`, F-Z01,
+  SNAP-R206: Kuroe's nose bar no longer comes back); still look at the fixed part and its edge at 100 %.
 - In the take viewer the same route is "New view from these pictures": add this picture, a marked region of it, or a
   Cast's picture, move them up or down, and pick the model.
 - A small change to one detail (eyes, a prop): `ph3_view` with the still (or a crop of the part, e.g. the face) as

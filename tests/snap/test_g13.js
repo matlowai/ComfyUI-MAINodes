@@ -1,6 +1,6 @@
 // Batch G13 (dogfood F-Y04, F-Y05, F-Y07, F-Y08) on the CPU test server:
 // - SNAP-R202 (F-Y04): stage 2 of a region edit (paste_back) still redraws the whole still: its recorded P-H3 graph with
-//   Picture 1 = the edited still itself (no crop), the decode saved as it is (no paste back, no seam check, no mask), every
+//   Picture 1 = the edited still itself (no crop), the decode saved through MAISnapKeepEdit (G14; no paste back, seam check or mask), every
 //   size at the asked one, the still VAE-encoded as the video half of the AV latent;
 // - SNAP-R202 (F-Y05): stage 2 of a MOSS still (one SamplerCustomAdvanced from a plain EmptyLatentImage) and of a
 //   KSampler still (a Krea or MOSS-reference edit) starts the sampler from the encoded still, with no AV split; the KSampler
@@ -78,10 +78,10 @@ const KS = {
       const g = (await posted(n, (x) => x.extra_data?.snap_parent?.method === "upscale/stage2"))?.prompt; return { r, g }; };
     const node = (g, l) => g?.[l?.[0]], all = (g, c) => Object.values(g ?? {}).filter((x) => x.class_type === c);
     // F-Y04
-    const p = await up("take-g13-paste-0001"), pg = p.g, cond = all(pg, "PH3ImageConditioning")[0], save = all(pg, "SaveImage")[0], dec = node(pg, save?.inputs.images);
+    const p = await up("take-g13-paste-0001"), pg = p.g, cond = all(pg, "PH3ImageConditioning")[0], save = all(pg, "SaveImage")[0], keep = node(pg, save?.inputs.images), dec = node(pg, keep?.inputs.redraw);
     const k = all(pg, "SamplerCustomAdvanced")[0], lat = node(pg, k?.inputs.latent_image), enc = node(pg, lat?.inputs.video_latent), sc = node(pg, enc?.inputs.pixels);
     R.paste = { r: p.r, classes: Object.values(pg ?? {}).map((x) => x.class_type), one: node(pg, cond?.inputs["images.image_1"]), size: cond && [cond.inputs.width, cond.inputs.height], save: dec?.class_type, decFrom: node(pg, dec?.inputs.samples)?.class_type,
-      lat: lat?.class_type, sep: node(pg, lat?.inputs.audio_latent)?.class_type, scale: sc && [sc.class_type, sc.inputs.width, sc.inputs.height, node(pg, sc.inputs.image)?.inputs.image], prompt: cond?.inputs.prompt };
+      lat: lat?.class_type, sep: node(pg, lat?.inputs.audio_latent)?.class_type, scale: sc && [sc.class_type, sc.inputs.width, sc.inputs.height, node(pg, sc.inputs.image)?.inputs.image], prompt: cond?.inputs.prompt, keep: keep?.class_type };
     // F-Y05
     const m = await up("take-g13-moss-0002"), mg = m.g, mk2 = all(mg, "SamplerCustomAdvanced")[0], mlat = node(mg, mk2?.inputs.latent_image), msig = node(mg, mk2?.inputs.sigmas);
     R.moss = { r: m.r, classes: Object.values(mg ?? {}).map((x) => x.class_type), lat: mlat?.class_type, pix: node(mg, mlat?.inputs.pixels)?.class_type, sig: msig?.class_type, inject: msig?.inputs.inject, empty: all(mg, "EmptyLatentImage")[0]?.inputs };
@@ -110,7 +110,7 @@ const KS = {
     "F-Y09: mask without paste_back is refused": /mask keeps a region edit only where SAM finds that thing; it goes with paste_back/.test(R.maskAlone?.error ?? ""),
     "F-Y04: stage 2 of a region edit has no crop, paste back, mask, SAM or seam check": P.classes.length && !P.classes.some((c) => ["ImageCropV2", "ImageCompositeMasked", "SolidMask", "FeatherMask", "MaskComposite", "SAM3_Detect", "GrowMask", "MAISnapSeam", "ImageScaleToTotalPixels"].includes(c)),
     "F-Y04: Picture 1 is the edited still itself, the prompt kept": P.one?.class_type === "LoadImage" && P.one.inputs.image === "snaptest/g13_still.png [output]" && P.prompt === "he wears no eyewear at all",
-    "F-Y04: the decode is saved as it is, at the asked size (2x the still)": P.save === "VAEDecode" && P.decFrom === "SamplerCustomAdvanced" && JSON.stringify(P.size) === JSON.stringify([2560, 1408]) && P.r?.width === 2560 && P.r?.height === 1408 && P.r?.still === true,
+    "F-Y04: the decode, at the asked size (2x the still), is saved through the keep-edit step (G14, SNAP-R206)": P.keep === "MAISnapKeepEdit" && P.save === "VAEDecode" && P.decFrom === "SamplerCustomAdvanced" && JSON.stringify(P.size) === JSON.stringify([2560, 1408]) && P.r?.width === 2560 && P.r?.height === 1408 && P.r?.still === true,
     "F-Y04: the still, Lanczos to the size, is the video half of the AV latent": P.lat === "LTXVConcatAVLatent" && P.sep === "LTXVSeparateAVLatent" && P.scale?.[0] === "ImageScale" && P.scale[1] === 2560 && P.scale[3] === "snaptest/g13_still.png [output]",
     "F-Y05: stage 2 of a MOSS still starts from the encoded still, no AV split": M.r?.still === true && M.lat === "VAEEncode" && M.pix === "ImageScale" && !M.classes.some((c) => /^LTXV/.test(c)) && M.sig === "H3DeropeSigmas" && M.inject === 0.3 && M.empty?.width === 2560,
     "F-Y05: a KSampler still: the encoded still at denoise 0.3, fast at cfg 1": K.r?.still === true && K.r.speed === "fast" && K.lat === "VAEEncode" && K.denoise === 0.3 && K.cfg === 1 && !K.classes.some((c) => /^LTXV|H3Derope/.test(c)),

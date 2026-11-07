@@ -10,11 +10,12 @@
 // <Picture 1>. What each runs (files, words, sigmas, tiling) is registry data, the method's `run` and `options`.
 // Stage 2 runs on stills too (G1): a New view or sheet still's own graph at the bigger size, its sampler starting from the
 // still itself (VAE-encoded, the empty AV latent's audio kept) at `denoise`; any model's still made by one sampler (G13:
-// MOSS, Krea), and a region edit as an edit of its whole picture (G13). A take whose purpose is a reference (a Cast
+// MOSS, Krea), and a region edit as an edit of its whole picture (G13) with the edit's change put back over it (G14). A take whose purpose is a reference (a Cast
 // picture, a turnaround, a location's master or plate, settei) is redrawn this way by default, and the answer says why.
 // Stage 2's `speed` (G1b) is time against softness: "quality" keeps the take's own cfg, "fast" samples at cfg 1 (one model
 // pass per step: 1.7x faster, a touch softer); quality stays the default.
-// SNAP-R85 a reference is redrawn, never only sharpened · SNAP-R202 a still's stage 2 redraws the whole still, from any model · SNAP-R113 stage 2 fast is a choice, never the default ·
+// SNAP-R85 a reference is redrawn, never only sharpened · SNAP-R202 a still's stage 2 redraws the whole still, from any model ·
+// SNAP-R206 a region edit's stage 2 keeps the edit's change · SNAP-R113 stage 2 fast is a choice, never the default ·
 // SNAP-R134 a reference's redraw says to compare the eyes with the Cast (keep eye colour is a separate, optional step) ·
 // SNAP-R81 a take's upscale is a second pass of its own recipe · SNAP-R82 Tessera tiles a take · SNAP-R13 data, not code
 // branches · SNAP-R14 method slots · SNAP-R16 GPU work waits for the person · SNAP-R60 pins · see docs/snap/SNAP_RULES.md
@@ -106,10 +107,11 @@ function secondPass(take, m, t, denoise, plate, cfg) {
 // the target size, the sampler starting from the still itself, upscaled and VAE-encoded with the graph's own VAE, at
 // `denoise` on its own sigmas; saved as a new still. An H3 still's latent carries sound (the method's `av_latents` make
 // it), so the encoded still is its video half with the audio half kept; any other model's latent is the encoded still
-// (F-Y05: a MOSS still crashed in LTXVSeparateAVLatent). A region edit is redrawn whole (F-Y04, SNAP-R202)
+// (F-Y05: a MOSS still crashed in LTXVSeparateAVLatent). A region edit is redrawn whole (F-Y04, SNAP-R202), its change
+// kept over the redraw (F-Z01, SNAP-R206)
 function stillPass(take, m, t, denoise, upscaler, cfg) {
   const g = sendable(take.prompt);
-  if (take.parent?.options?.pasted) ED.unpaste(g, ["u2i", 0]);
+  if (take.parent?.options?.pasted) ED.unpaste(g, ["u2i", 0], take.parent.options.pasted);
   const samplers = Object.keys(g).filter((k) => SAMPLERS.includes(g[k].class_type));
   const decode = Object.values(g).find((n) => ["VAEDecode", "FizgigH3StillDecode"].includes(n.class_type) && samplers.includes(n.inputs.samples?.[0]));
   if (samplers.length !== 1 || !decode) throw new Error(`Take ${take.number}: its prompt has no one sampler decoded to a still (${m.title} runs on stills made by one sampler)`);
@@ -238,6 +240,10 @@ export function reason(take) {
   const p = ED.purposeOf(take);
   return p?.reference ? `take ${take.number} is a reference (${p.label}: ${p.from}): a reference is redrawn at the new size (stage 2, light denoise), so a face too small to read is drawn again as a face, not only sharpened` : null;
 }
+// F-Z01 (SNAP-R206): what a region edit's stage 2 keeps of the edit; null for any other take
+export function keeps(take) {
+  return still(take) && take.parent?.options?.pasted ? `take ${take.number} is a region edit: the redraw is of its whole picture, then the edit's change (where it differs from its Picture 1, grown by its feather) goes back over the redraw, so a flaw the edit took off can't come back (Kuroe's nose bar did, F-Z01). Look at the edited part and its edge at 100 %` : null;
+}
 // the speed asked for (the method's default when not given): {name, cfg, speedup}; a method without speeds has none
 export function speedOf(m, speed) {
   const o = m.options?.speed;
@@ -281,7 +287,7 @@ export async function start(take, id, { factor, width, height, denoise, upscaler
   const per = m.cost?.local_s_per_mp_frame, eta_s = per && !pic ? Math.round((per * ((t.width * t.height) / 1e6) * ED.clip(take).frames) / (pace?.speedup ?? 1)) : null; // measured on video only
   const job = { kind: "upscale", title: `Make take ${take.number} ${t.width}×${t.height}: ${m.title}${options.denoise != null ? ` at denoise ${options.denoise}` : ""}${fast.speed ? `, fast (cfg ${fast.cfg})` : ""}`, about: { take: take.id, group: take.group }, by, eta_s };
   const runId = await K.queue(g, { group: take.group, world: take.graph?.extra?.snap?.world, job, extra: { snap_parent: { take: take.id, method: `upscale/${id}`, options, by } } });
-  const why = reason(take);
+  const why = reason(take), kept = id === "stage2" ? keeps(take) : null;
   const eyes = why && id === "stage2" ? "When it lands, compare the eyes with the Cast picture: the redraw can shift eye colour (Hiyori's brown came back grey at 0.30). keep_eye_colour {take} re-tints only the irises toward the Cast front, if you want it (optional, SNAP-R134)" : null;
-  return { prompt_id: runId, take: `take-${runId}`, ...options, eta_s, eta: eta_s ? (eta_s < 90 ? `about ${eta_s} s of GPU` : `about ${Math.round(eta_s / 60)} min of GPU`) : "no estimate yet", ...(why ? { why } : {}), ...(eyes ? { eyes } : {}) };
+  return { prompt_id: runId, take: `take-${runId}`, ...options, eta_s, eta: eta_s ? (eta_s < 90 ? `about ${eta_s} s of GPU` : `about ${Math.round(eta_s / 60)} min of GPU`) : "no estimate yet", ...(why ? { why } : {}), ...(kept ? { keeps: kept } : {}), ...(eyes ? { eyes } : {}) };
 }
