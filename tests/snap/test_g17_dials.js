@@ -129,6 +129,10 @@ const ENVELOPE = [[0, 0], [0.6, 0.2], [1.6, 1], [5.17, 1]]; // the bake-off's ro
     R.plainAudioAsked = (await call("describe_recipe", {}))?.references?.audio ?? [];
     R.errors = A.errors;
   } catch (e) { R.crash = e.stack; } finally { await b.close(); }
+  // the scratch dials leave the catalog (a folder starting with "_"), so test_dials' counts stay as they were (moved, never deleted;
+  // the next run's copies replace these)
+  fs.mkdirSync(path.join(dials, "_g17_scratch"), { recursive: true });
+  for (const f of ["g17_scratch_light.safetensors", "g17_scratch_storm.safetensors"]) fs.renameSync(path.join(dials, f), path.join(dials, "_g17_scratch", f));
   // the compiled continuity frame against the bake-off's own frame-46 crop (same take, frame and crop)
   const mf = R.sheet2?.master?.file && path.join(base, "input", R.sheet2.master.file);
   if (mf && fs.existsSync(mf)) { const p = await sh("ffmpeg", ["-v", "info", "-i", mf, "-i", path.join(FX, "w05_f46_crop.png"), "-lavfi", "psnr", "-f", "null", "-"]); R.psnr = Number((p.err.match(/average:([\d.]+|inf)/) ?? [])[1]?.replace("inf", "99")); }
