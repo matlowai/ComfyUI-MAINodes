@@ -2003,4 +2003,11 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
   from <scene> › <shot>". A take that doesn't exist is refused. *Why:* seq01 pre-production (step P7): a Book cut had
   no way to adopt an existing take. *More:* tests/snap/test_g15_cut.js.
 
-Next free ID after this batch: SNAP-R214 (R160-R164 stay free).
+- **SNAP-R214: A graph with no nodes never opens as a recipe or becomes a shot's workflow.** A take made by a paint or
+  an edit queued as a bare prompt (a region edit, a New view) keeps a workflow with no nodes; `rerun` and `retake` of
+  it are refused before anything opens ("make it again with the call that made it"), and loading any graph with no
+  nodes into a shot is refused, so the shot's saved workflow and the open recipe stay as they were. *Why:* dogfood
+  F-AC08: a refused `rerun` of short05's C2 key opened its empty workflow and saved it over the shot, and every
+  recipe-reading tool then threw until a retake restored it. *More:* tests/snap/test_g15_cut.js.
+
+Next free ID after this batch: SNAP-R215 (R160-R164 stay free).

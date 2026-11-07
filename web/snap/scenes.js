@@ -13,7 +13,7 @@
 // Plain data with stable ids, so a sequence editor can sit on it later: shots in order now, lanes and in/out on shots
 // and takes later (scout/editor_layer §5.6-5.7).
 // SNAP-R5 open work is never lost · SNAP-R60 authored fields versioned · SNAP-R17 by · SNAP-R18 local only · SNAP-R19 the tools call these · SNAP-R145 a take loaded here gets this shot's graph id · SNAP-R24 scenes
-// own the work, tabs are scratch · SNAP-R120 a new shot keeps the setup, not the content · SNAP-R122 browsing never writes · SNAP-R213 a take of another shot can stand for this one, saying where it came from · see docs/snap/SNAP_RULES.md
+// own the work, tabs are scratch · SNAP-R120 a new shot keeps the setup, not the content · SNAP-R122 browsing never writes · SNAP-R213 a take of another shot can stand for this one, saying where it came from · SNAP-R214 a graph with no nodes never becomes a shot's workflow · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -275,6 +275,7 @@ function comparable(graph) {
 // holds the shot's saved workflow (the load is an Undo step there); a tab with unsaved changes is left as it is and the
 // graph opens in a new tab of the same shot (SNAP-R5), so runs from it still land under the shot. Saved either way
 export async function loadIntoShot(sceneId, shotId, graph, from) {
+  if (!graph?.nodes?.length) throw new Error(`${from ?? "That"} has no workflow nodes: it can't become the shot's recipe (nothing was opened or saved)`); // SNAP-R214
   await openShot(sceneId, shotId);
   const tabs = app.extensionManager.workflow, here = current(), saved = await read(here.shot.workflow);
   const clean = !!saved && tabs.activeWorkflow.changeTracker.constructor.graphEqual(comparable(saved), comparable(app.graph.serialize()));

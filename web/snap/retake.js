@@ -7,7 +7,7 @@
 // `extra.snap.retake` in its workflow, so the new take nests under the original as "Retake · as it was" / "· today's
 // world". Saved files: core writes the queued prompt and workflow (extra.snap.world inside) as it always does; with
 // Save metadata off they hold nothing (SNAP-R38).
-// SNAP-R5 open work untouched · SNAP-R16 GPU tools wait as proposals · SNAP-R24 scenes own the work · SNAP-R60 pins ·
+// SNAP-R5 open work untouched · SNAP-R214 a take with no workflow nodes never opens · SNAP-R16 GPU tools wait as proposals · SNAP-R24 scenes own the work · SNAP-R60 pins ·
 // SNAP-R61 re-run as it was, with today's world, or edited · SNAP-R65 the run carries its job stamp · SNAP-R23 a candidate
 // that is a take (takeCandidate: re-run batches, new views) · SNAP-R185 a still in a cut's shot is a board, never its
 // active take · see docs/snap/SNAP_RULES.md
@@ -85,6 +85,9 @@ export const takeCandidate = {
 // open the take's chain as it ran: the shot's tab (or the shot `home` names, U89's "lands in") with the take's settings
 // and pins put back, else a scratch tab (home null)
 export async function openTake(take, home) {
+  // F-AC08 (SNAP-R214): a paint or edit queued as a bare prompt keeps a workflow with no nodes; opening it emptied the
+  // shot's tab and saved that over the shot. Refuse before anything opens or is written
+  if (!take.graph?.nodes?.length) throw new Error(`take ${take.number} has no recipe to open (it was made by ${take.parent?.method ?? "a paint or an edit"}, queued as a prompt with no workflow nodes); make it again with the call that made it (get_take shows its parent). Nothing was opened or saved`);
   await SC.load();
   if (home === undefined) home = shotOf(take);
   // the take's whole graph as the shot's workflow (widget-by-widget restore misplaces dynamic rows, a LoRA stack's, so

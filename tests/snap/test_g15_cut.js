@@ -9,6 +9,8 @@
 //   its kept prompt); new runs store recipe_digest;
 // - with SNAP_TEST_ASTRID_PY (a Python with Astrid installed) and SNAP_TEST_ASTRID_VALIDATE (the lab's archive
 //   validator script), Astrid's own import preflight accepts the archive; without them that check is skipped (said).
+// - SNAP-R214 (F-AC08): a refused rerun or retake of a take whose workflow has no nodes (a region edit) opens and
+//   writes nothing; the shot's files and the open recipe stay as they were.
 // usage: node test_g15_cut.js [port] [base]   prints "g15cut n/m" last
 const { chromium } = require("playwright");
 const fs = require("fs"), path = require("path"), crypto = require("crypto"), { execFileSync } = require("child_process");
@@ -67,6 +69,18 @@ const ZIP = "import json,sys,zipfile,hashlib\nz=zipfile.ZipFile(sys.argv[1])\npr
     R.ax = ax;
     R.zip = ax?.archive && fs.existsSync(ax.archive) ? JSON.parse(execFileSync("python3", ["-I", "-c", ZIP, ax.archive]).toString()) : null;
     R.beside = ax ? [ax.timeline, ax.assets].every((f) => fs.existsSync(f)) : false;
+    // SNAP-R214 (F-AC08): a region edit's take keeps a workflow with no nodes; a refused rerun or retake of it opens and
+    // writes nothing, and the open recipe still reads
+    const sceneDir = path.join(base, "user", "default", "snap", "scenes", c1.scene), files = () => (fs.existsSync(sceneDir) ? fs.readdirSync(sceneDir).sort().map((f) => [f, sha(path.join(sceneDir, f))]) : []);
+    await page.evaluate(async ({ c1 }) => { await window.__T.save({ id: "take-g15paint", kind: "run", prompt_id: "g15paint", created: Date.now(), seconds: 20, group: "g15-c1", number: 2, status: "success", text: "paint", seed: 1, media: [{ kind: "image", filename: "C1_pick.mp4", subfolder: "snaptest_g15cut", type: "output" }], parent: { method: "view/ph3_view", take: "take-g15c1" }, prompt: { 1: { class_type: "EmptyImage", inputs: {} } }, graph: { id: "g15-c1", nodes: [], links: [], extra: {} }, verdict: null, notes: [] }); }, { c1 });
+    await call("open_shot", { scene: c1.scene, shot: c1.shot }); await page.waitForTimeout(1500);
+    const before = JSON.stringify(files()), nodesBefore = await page.evaluate(() => app.graph.nodes.length);
+    R.paintRerun = await call("rerun", { take: "take-g15paint", swaps: {} });
+    R.paintRetake = await call("retake", { take: "take-g15paint" });
+    await page.waitForTimeout(1500);
+    R.paintSame = JSON.stringify(files()) === before && before !== "[]";
+    R.paintNodes = [nodesBefore, await page.evaluate(() => app.graph.nodes.length)];
+    R.paintDescribe = await call("describe_recipe", {});
     // a new run stores its recipe_digest
     const run = await call("run", { question: "g15 digest" });
     for (let i = 0; i < 40 && !R.newDigest; i++) { R.newDigest = await page.evaluate((id) => window.__T.get(`take-${id}`)?.recipe_digest ?? null, run.run); if (!R.newDigest) await page.waitForTimeout(500); }
@@ -92,6 +106,7 @@ const ZIP = "import json,sys,zipfile,hashlib\nz=zipfile.ZipFile(sys.argv[1])\npr
     "R212 C2's generation.snap: take, cut, Book, world pins, recipe_digest": (() => { const g = clip("take-g15old")?.generation?.snap; return g?.take === "take-g15old" && /^book:/.test(g.book) && !!g.cut && Object.values(g.world ?? {})[0] === 1 && g.recipe_digest === S.takes?.digest && /^sha256:[0-9a-f]{64}$/.test(g.recipe_digest); })(),
     "R212 a new run stores recipe_digest": /^sha256:[0-9a-f]{64}$/.test(S.newDigest ?? ""),
     [`R212 Astrid's own import preflight accepts it${apy && aval ? "" : " (skipped: SNAP_TEST_ASTRID_PY / SNAP_TEST_ASTRID_VALIDATE unset)"}`]: !(apy && aval) || (S.astrid?.ok === true && S.astrid.clips === 2 && S.astrid.media === 2),
+    "R214 F-AC08 a refused rerun / retake of a take with no workflow nodes opens and writes nothing": /no recipe to open .*Nothing was opened or saved/.test(S.paintRerun?.error ?? "") && /no recipe to open/.test(S.paintRetake?.error ?? "") && S.paintSame === true && S.paintNodes?.[0] > 0 && S.paintNodes[1] === S.paintNodes[0] && typeof S.paintDescribe?.revision === "string",
     "no page errors": !S.crash && !(S.errors ?? []).length,
   };
   for (const [k, v] of Object.entries(checks)) console.log(`${v ? "PASS" : "FAIL"} ${k}`);
