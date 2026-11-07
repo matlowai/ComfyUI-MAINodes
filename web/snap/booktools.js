@@ -351,7 +351,7 @@ export const BOOK_TOOLS = [
       const sc = SC.all().find((x) => x.name === sceneName && !x.book) ?? await SC.create({ name: sceneName, by: "agent" }), here = SC.get(sc.id);
       const shot = here.shots.find((x) => x.name === body.name) ?? (await SC.addShot(sc.id, { name: body.name, by: "agent" })).shot;
       const pictures = [...(from ? [from.take ? { take: from.take, ...(from.frame != null ? { frame: from.frame } : {}), label: `${body.name} in this state` } : { file: from.file, label: `${body.name} in this state` }] : []), ...body.refs.map((r, i) => ({ cast: ref, ref: i }))];
-      const out = await ED.fromContext(pictures, prompt, { method, purpose: method ? undefined : "character", seeds, count, land: { scene: sc.id, shot: shot.id }, story: { book: `book:${b.id}`, role: "settei", cast: ref, state, view, covers }, by: "agent" });
+      const out = await ED.fromContext(pictures, prompt, { method, purpose: "character", seeds, count, land: { scene: sc.id, shot: shot.id }, story: { book: `book:${b.id}`, role: "settei", cast: ref, state, view, covers }, by: "agent" });
       return { ...out, cast: ref, state, view, covers, prompt, ...(fold.left_out.length ? { left_out: fold.left_out } : {}), ...(ground.length ? { style_left_out: ground.map((x) => ({ sentence: x, said: `style '${x}' left out: a settei stands on a plain background` })) } : {}),
         ...(fold.left_out.length && !from ? { if_kept: `<Picture 1> (the Cast's own picture) still shows ${fold.left_out.map((x) => `'${x.clause}'`).join(", ")}: if the candidates keep it, take it out of that picture first (edit_from_context {pictures: [{cast: "${ref}", ref: 0}], prompt: "remove only …"}), then design_state again with from: {take} (F-Q13)` } : {}), ...(fold.lint.length ? { lint: fold.lint } : {}), landed: { scene: sc.id, shot: shot.id, where: `${sceneName} › ${body.name}` }, next: `wait_for {job: decision, until: waiting}, look at the candidates, then save_cast_state {cast: "${ref}", state: "${state}", covers, pictures: [{take, view: "${view}"}]} (the person's Use this in the Settei lens does the same)` };
     },
@@ -372,7 +372,7 @@ export const BOOK_TOOLS = [
       const prompt = [pkg.prompt, extra].filter(Boolean).join(" ");
       // F-L04 (SNAP-R169): a board pins the story it was compiled from, like a cut's take, so story_stale and the reversal cost see it
       const story = { book: sheet.book, ...(sheet.story ? { ref: sheet.story.ref } : {}), beat: sheet.at?.beat ?? null, unit: { scene, shot, cut: unit.cut ?? null }, role: role === "key" ? "key" : "board", from: sheet.from };
-      const out = await ED.fromContext(pkg.pictures, prompt, { method, purpose: method ? undefined : unit.cast?.length ? "character" : "set", seeds, count, width, height, land: { scene, shot }, story, by: "agent" });
+      const out = await ED.fromContext(pkg.pictures, prompt, { method, purpose: unit.cast?.length ? "character" : "set", seeds, count, width, height, land: { scene, shot }, story, by: "agent" });
       return { ...out, cut: unit.cut, role, ...(!asked && role === "key" ? { role_why: `${unit.cut}'s own beat changes what is held (compile_unit opens.held): its board is the key, the beat at its peak; role: "opening" draws the start (F-Q09)` } : {}), prompt, ...(pkg.context ? { context: pkg.context } : {}), next: `wait_for {job: decision, until: waiting}, look at the candidates, then set_board {scene, shot, take${role === "key" ? ", role: \"key\"" : ""}}` };
     },
   },
