@@ -1962,8 +1962,10 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
 - **SNAP-R209: A proposal keeps the version it was made against, and goes out of date when that moves.** A waiting
   write to a record (save_cast, save_cast_state, save_location, add_plate, remove_plate, draw_set_plan, use_take as
   cast or plate, delete_record) keeps `base {ref, version}`; a Book story edit keeps the story's head plus `on`, the
-  waiting story edits it was drafted over (their accepts don't move it; a story version names the proposal that made it).
-  Once the record has a newer version, list_proposals gives `stale {from, to, by, said}`, Accept refuses, and the
+  waiting story edits it was drafted over (their accepts don't move it; a story version names the proposal that made it)
+  and the beats it names or makes: only a later version that changed one of those beats (order and telling rank
+  aside) moves it, so independent story edits keep stacking; one that names no beat watches the whole story.
+  Once the record has a newer version that moves it, list_proposals gives `stale {from, to, by, said}`, Accept refuses, and the
   Room, the Work card and the Book docket offer "re-make against vN": the same call made again as a new proposal on
   the record as it is now, the old one withdrawn naming it. Two waiting writes on one record at one version are
   `either_or`; the Room says a yes to one leaves the other out of date. *Why:* F-AB03 (two proposals for Kuroe's

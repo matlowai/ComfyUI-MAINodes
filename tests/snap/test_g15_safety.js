@@ -5,8 +5,9 @@
 // - SNAP-R209 records (F-AB03): two waiting save_cast proposals on one Cast at one version are either/or; accepting one
 //   leaves the other out of date ("v1 → v2", by the first), its Accept refuses, the Work card offers "Re-make against
 //   v2", and the re-make waits as a new proposal on v2 (the old one withdrawn naming it), which accepts to v3;
-// - SNAP-R209 story: an edit drafted over a waiting edit stays current when that one is accepted; a waiting edit goes
-//   out of date when the person saves the story themselves; the Book docket shows it with Re-make;
+// - SNAP-R209 story: an edit drafted over a waiting edit stays current when that one is accepted; a waiting edit stays
+//   current after an edit of another beat and goes out of date when the person edits its own beat; the Book docket shows
+//   it with Re-make;
 // - SNAP-R210: with the person's expiry setting on, a proposal past expires_at is parked on the Work card, not deleted.
 // Screenshots (proto/ui/g15 via SNAP_TEST_OUT/ui/g15): the Room's either/or pair, the Room and Work card out of date.
 // usage: node test_g15_safety.js [port] [base]   prints "g15safety n/m" last
@@ -93,7 +94,7 @@ const bridge = (tool, args, agent, key) => http("/mainodes/snap/call", { tool, a
     R.acceptNew = await accept(R.remake?.remade);
     R.headFinal = await page.evaluate(async (c) => { const W = await import("/extensions/ComfyUI-MAINodes/snap/world.js"); await W.reload(); return { n: W.get(c)?.version.n, file: W.get(c)?.version.body.refs?.[0]?.file }; }, cast);
 
-    // ---- SNAP-R209 story: drafted-over edits stay current; the person's own save makes a waiting one out of date ----
+    // ---- SNAP-R209 story: drafted-over edits and edits of other beats leave it current; the person's edit of its beat doesn't ----
     const book = (await call("create_book", { name: "G15 lamp", medium: "anime", logline: "a lamp goes dark", cast: [cast] })).book;
     const b1 = await call("add_beat", { book, text: "Hiyori climbs the stairs." });
     const b2 = await call("add_beat", { book, text: "The lamp goes dark." });
@@ -103,7 +104,9 @@ const bridge = (tool, args, agent, key) => http("/mainodes/snap/call", { tool, a
     R.acceptB2 = await accept(b2.proposed);
     const mv = await call("move_beat", { book, beat: "b2", told: 1 });
     R.mv = mv.proposed;
-    R.personSave = await page.evaluate(async (bk) => { const B = await import("/extensions/ComfyUI-MAINodes/snap/book.js"); const st = B.storyOf(bk); const next = structuredClone(st.body); next.beats[0].text = "Hiyori climbs the long stairs."; const out = await B.saveStory(st.id, next, { note: "the person's own edit" }); return out.n; }, book);
+    R.otherSave = await page.evaluate(async (bk) => { const B = await import("/extensions/ComfyUI-MAINodes/snap/book.js"); const st = B.storyOf(bk); const next = structuredClone(st.body); next.beats.find((x) => x.id === "b1").text = "Hiyori climbs the long stairs."; return (await B.saveStory(st.id, next, { note: "the person's edit of another beat" })).n; }, book);
+    R.mvAfterOther = (await props()).find((p) => p.id === R.mv)?.stale ?? null;
+    R.personSave = await page.evaluate(async (bk) => { const B = await import("/extensions/ComfyUI-MAINodes/snap/book.js"); const st = B.storyOf(bk); const next = structuredClone(st.body); next.beats.find((x) => x.id === "b2").text = "The lamp gutters and goes dark."; const out = await B.saveStory(st.id, next, { note: "the person's own edit" }); return out.n; }, book);
     R.mvRow = (await props()).find((p) => p.id === R.mv);
     R.mvAccept = await accept(R.mv);
     await call("open_view", { view: "book", book }); await page.waitForTimeout(1500);
@@ -139,7 +142,8 @@ const bridge = (tool, args, agent, key) => http("/mainodes/snap/call", { tool, a
     "R209 the re-made one accepts to v3 with B's picture": S.acceptNew?.status === "accepted" && S.headFinal?.n === 3 && /alt_b/.test(S.headFinal?.file ?? ""),
     "R209 a story edit's base is the story head plus what it was drafted over": S.b2base?.ref?.startsWith("story:") && S.b2base?.on?.length === 1,
     "R209 accepting the edit it was drafted over leaves it current": S.acceptB1?.status === "accepted" && S.b2AfterB1 === null && S.acceptB2?.status === "accepted",
-    "R209 the person's own story save makes a waiting edit out of date": S.mvRow?.stale?.ref?.startsWith("story:") && S.mvRow?.stale?.to === S.personSave && !S.mvRow?.stale?.by && /out of date/.test(S.mvAccept?.error ?? ""),
+    "R209 an edit of another beat leaves a story edit current": typeof S.otherSave === "number" && S.mvAfterOther === null,
+    "R209 the person's own edit of its beat makes a waiting edit out of date": S.mvRow?.stale?.ref?.startsWith("story:") && S.mvRow?.stale?.to === S.personSave && !S.mvRow?.stale?.by && /out of date/.test(S.mvAccept?.error ?? ""),
     "R209 the Book docket shows it out of date with Re-make": (S.docket ?? []).some((t) => /out of date: the story v\d+ → v\d+/.test(t) && /Re-make against v\d+/.test(t)),
     "R210 an expired proposal is parked, kept waiting (not deleted)": S.exRow?.status === "waiting" && S.exRow?.expired === true && S.exWork?.zone === "parked" && /expired/.test(S.exWork?.parked?.because ?? ""),
     "R210 off by default: no expires_at": S.noExpiry === null,

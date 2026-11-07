@@ -56,7 +56,11 @@ export function staleOf(p) {
   if (!p?.base || p.status !== "waiting") return null;
   const { kind, id } = W.parse(p.base.ref), r = W.record(kind, id), name = kind === "story" ? "the story" : W.get(p.base.ref)?.version.body.name ?? p.base.ref;
   if (!r) return null; // not read yet, or deleted (the accept then says so itself)
-  const moved = r.versions.filter((v) => v.n > p.base.version && !(p.base.on ?? []).includes(v.proposal));
+  // a story edit that names beats is out of date only when a later version changed one of them (order and telling
+  // rank aside): independent story edits stack (SNAP-R139); one that names none watches the whole story
+  const beat = (v, id) => { const b = v?.body?.beats?.find((x) => x.id === id); if (!b) return null; const { order, told, ...rest } = b; return JSON.stringify(rest); };
+  const touched = (v) => !p.base.beats || p.base.beats.some((id) => beat(v, id) !== beat(r.versions.find((x) => x.n === v.n - 1), id));
+  const moved = r.versions.filter((v) => v.n > p.base.version && !(p.base.on ?? []).includes(v.proposal) && touched(v));
   if (!moved.length) return null;
   const by = list.filter((x) => x.id !== p.id && x.status === "accepted" && x.base?.ref === p.base.ref && x.base.version >= p.base.version && !(p.base.on ?? []).includes(x.id)).map((x) => x.id); // the accepted ones that moved it
   return { ref: p.base.ref, name, from: p.base.version, to: r.head, ...(by.length ? { by } : {}), said: `${name} v${p.base.version} → v${r.head}${by.length ? ` (${by.join(", ")} accepted)` : ""}` };
