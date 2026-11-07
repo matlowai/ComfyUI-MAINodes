@@ -1975,4 +1975,12 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
   expiry (INTEROP_MAP §9): stale yes, time expiry only as an opt-in (no artificial limits). *More:*
   tests/snap/test_g15_safety.js.
 
-Next free ID after this batch: SNAP-R211 (R160-R164 stay free).
+- **SNAP-R211: Astrid's agents drive Snap through Snap's own tool table, on loopback.** The pack's
+  `integrations/astrid/` (an Astrid pack, schema v3, checked by Astrid's own validator) has two actions, `snap.pages`
+  and `snap.call {tool, args, page, idempotency_key}`, both running the pack's `tools/snapcall.py` (found through
+  SNAP_PACK, since Astrid copies a pack on install) and writing its whole answer to the action's output. A SNAP_BASE
+  that isn't this machine is refused before anything is sent. An Astrid agent is an agent (SNAP-R16, R95): its GPU
+  calls wait as proposals unless the person lets agents run. Astrid-hosted Claude Code uses snap_mcp.py directly
+  (AGENT_START "From Astrid"), which also serves Snap's skills as MCP prompts. *Why:* INTEROP_MAP step 2; files plus
+  loopback, nothing in ComfyUI core or Snap's page. *More:* tests/snap/test_g15_astrid.py.
+Next free ID after this batch: SNAP-R212 (R160-R164 stay free).

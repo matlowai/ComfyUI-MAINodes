@@ -1,0 +1,102 @@
+# Snap for Astrid's agent (schema v3, the shape Astrid's own integration packs use). It lets an Astrid agent
+# (astrid_invoke -> a Runtime task -> this pack's subprocess) call Snap's tool table on a ComfyUI on this machine.
+# It reaches Snap only through the existing bridge (POST /mainodes/snap/call on loopback); nothing here enters ComfyUI
+# core or Snap's page. Install: astrid packs install <ComfyUI-MAINodes>/integrations/astrid, and set SNAP_PACK to the
+# ComfyUI-MAINodes folder (Astrid copies the pack, so its actions find Snap's client through it).
+# SNAP-R18 local only · SNAP-R19 the tool table is the API · SNAP-R30 front door · SNAP-R83/R135 page binding and
+# release · SNAP-R16 GPU tools wait as proposals unless the person lets agents run · SNAP-R211 · see docs/snap/SNAP_RULES.md
+schema_version: 3
+id: snap
+name: Snap (ComfyUI-MAINodes)
+version: 0.1.0
+domain: integration
+stability: experimental
+support: community
+visibility: visible
+permissions:
+- id: network
+  reason: Calls the Snap bridge of a ComfyUI on this machine (loopback only; run.py refuses any other address).
+- id: subprocess
+  reason: Runs Snap's own client, tools/snapcall.py, with this interpreter.
+description: 'Drive Snap, the snap-together view over a local ComfyUI graph: recipes and bricks, takes, scenes and
+  shots, Cast and location records, the critic docket and the Book (beats, cuts, boards, the Cut). One generic action
+  calls any Snap tool by name; GET <SNAP_BASE>/mainodes/snap/tools lists them with their schemas. GPU-spending tools
+  wait as proposals on the person''s page unless they let agents run.
+
+  '
+keywords: [snap, comfyui, h3, takes, cast, location, book, storyboard, critic]
+capabilities: [snap_call, snap_pages]
+agent:
+  purpose: 'Use when the person works in Snap on a local ComfyUI and wants you to make or change takes, shots, Cast,
+    locations, boards or a Book there, or to re-take a shot of a Cut that came from Snap. Read docs/SKILL.md, then the
+    snap-core skill (snap.call with tool read_skill and args {"name": "snap-core"}).
+
+    '
+  do_not_use_for: 'Not for queueing raw ComfyUI graphs beside Snap (a take queued outside Snap never shows in its
+    shot, its Cast pins or the Work card); not for downloads or installs (Snap proposes them; the person runs them).
+
+    '
+  normal_entrypoints: [snap.pages, snap.call]
+documentation:
+  kind: skill
+  path: docs/SKILL.md
+dependencies:
+  packs: []
+  python_requirements: []
+extensions:
+  astrid:
+    output_result_exemptions:
+      actions:
+        pages:
+          reasons: [external-escape-hatch]
+          note: Writes Snap's bridge answer whole (the page list), not the universal result manifest.
+        call:
+          reasons: [external-escape-hatch]
+          note: Writes Snap's bridge answer whole ({result | error, page, idempotency_key}), not the universal result manifest.
+actions:
+  pages:
+    name: Pages
+    version: '0.1'
+    short_description: List this person's Snap pages on the ComfyUI (ids, names, who drives each, where calls go).
+    description: 'Snap''s list_pages through tools/snapcall.py: every open Snap page of this ComfyUI user with its id,
+      name, who drives it, and which one calls go to now. Pick one for snap.call''s page.'
+    invocation:
+      kind: command
+      command:
+        argv: ['{python_exec}', actions/call/run.py, --tool, list_pages, --out, '{out}/result.json']
+    inputs: []
+    outputs:
+    - {name: result, type: file, path_template: '{out}/result.json'}
+    cache: {mode: none}
+    isolation:
+      mode: subprocess
+      network: true
+      env_passthrough: [SNAP_BASE, SNAP_AGENT, SNAP_TOKEN, SNAP_PACK]
+  call:
+    name: Call a Snap tool
+    version: '0.1'
+    short_description: Call one Snap tool by name with JSON arguments on the bound page; the answer comes back whole.
+    description: 'Wraps tools/snapcall.py. `page` binds this agent (SNAP_AGENT) to a page first (use_page); later calls
+      with the same SNAP_AGENT keep going there. When the job ends call tool use_page with {"page": null}. A GPU tool
+      answers {proposed, status} while it waits for the person: read that as waiting, not failing. Pictures
+      (take_frames, screenshot) come back as files listed in the result. The answer is never cut.'
+    invocation:
+      kind: command
+      command:
+        argv: ['{python_exec}', actions/call/run.py, --tool, '{tool}', --out, '{out}/result.json']
+        input_args:
+        - {input: args, flag: --args, optional: true}
+        - {input: page, flag: --page, optional: true}
+        - {input: idempotency_key, flag: --idempotency-key, optional: true}
+    inputs:
+    - {name: tool, type: string, required: true, description: 'A Snap tool name, e.g. describe_recipe, run, list_takes, export_cut.'}
+    - {name: args, type: string, required: false, description: 'The tool''s arguments as JSON (its inputSchema from GET /mainodes/snap/tools).'}
+    - {name: page, type: string, required: false, description: 'A page id, the start of one, or a name from snap.pages.'}
+    - {name: idempotency_key, type: string, required: false, description: 'Same key, same answer: a retried call never runs twice (in_flight while the first still runs).'}
+    outputs:
+    - {name: result, type: file, path_template: '{out}/result.json'}
+    cache: {mode: none}
+    isolation:
+      mode: subprocess
+      network: true
+      env_passthrough: [SNAP_BASE, SNAP_AGENT, SNAP_TOKEN, SNAP_PAGE, SNAP_PACK]

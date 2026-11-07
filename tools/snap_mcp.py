@@ -14,7 +14,7 @@ Example Claude Code config entry (not installed by the pack):
 Each tool call carries an Idempotency-Key of its own; a call the bridge timed out on (504) or a dropped connection is
 retried with the same key, so the bridge answers the first call's answer and never runs it twice (SNAP-R159).
 SNAP-R30 the agent front door · SNAP-R135 a page this connection bound is released when the connection closes ·
-SNAP-R159 retries reuse the call's key · SNAP-R208 in_flight is asked again · see docs/snap/SNAP_RULES.md
+SNAP-R159 retries reuse the call's key · SNAP-R208 in_flight is asked again · SNAP-R211 the pack's skills as MCP prompts · see docs/snap/SNAP_RULES.md
 """
 import argparse
 import json
@@ -24,6 +24,7 @@ import secrets
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 PROTOCOL = "2025-06-18"
@@ -79,7 +80,14 @@ def http(base, path, body=None, key=None):
 def handle(base, message):
     method, params = message.get("method"), message.get("params") or {}
     if method == "initialize":
-        return {"protocolVersion": PROTOCOL, "capabilities": {"tools": {}}, "serverInfo": {"name": "comfy-snap", "version": "0.1"}}
+        return {"protocolVersion": PROTOCOL, "capabilities": {"tools": {}, "prompts": {}}, "serverInfo": {"name": "comfy-snap", "version": "0.1"}}
+    if method == "prompts/list":  # SNAP-R211: the pack's skills, whole (the person's own versions come from read_skill with a page open)
+        return {"prompts": [{"name": s["name"], "description": s.get("description") or ""} for s in http(base, "/mainodes/snap/skills").get("skills", [])]}
+    if method == "prompts/get":
+        skill = http(base, f"/mainodes/snap/skills?name={urllib.parse.quote(str(params.get('name')))}")
+        if "error" in skill:
+            raise ValueError(skill["error"])  # answered as an error naming the skills there are
+        return {"description": f"Snap skill {skill['name']}", "messages": [{"role": "user", "content": {"type": "text", "text": skill["text"]}}]}
     if method == "tools/list":
         listing = http(base, "/mainodes/snap/tools")
         return {"tools": [{k: t[k] for k in ("name", "description", "inputSchema", "annotations") if k in t} for t in listing.get("tools", [])] + [UPLOAD]}

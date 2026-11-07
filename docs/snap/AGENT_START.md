@@ -89,11 +89,29 @@ says how to start one.
 Every call carries an `Idempotency-Key` (SNAP-R159): snapcall and snap_mcp make one per call and retry a bridge timeout
 or a dropped connection with it, and the bridge answers the first call's answer (`replayed: true`) instead of running it
 twice. snapcall prints the key (`idempotency_key`); to retry a whole command, run it again with
-`SNAP_IDEMPOTENCY_KEY=<that key>`. With curl, send your own `-H 'Idempotency-Key: <one per call>'`.
+`SNAP_IDEMPOTENCY_KEY=<that key>`. With curl, send your own `-H 'Idempotency-Key: <one per call>'`. The bridge keeps
+answers a day (SNAP-R208); while the first call still runs, a retry answers `in_flight: true` (202): ask again later
+with the same key.
 
-You can also run the tools as an MCP server (Claude Code):
+You can also run the tools as an MCP server (Claude Code); it also serves Snap's skills as MCP prompts:
 
     claude mcp add comfy-snap -- python3 $PACK/tools/snap_mcp.py --base-url $BASE
+
+### From Astrid (SNAP-R211, R212)
+
+- **Astrid-hosted Claude Code, Codex or Hermes:** add the same MCP server to that agent, with a name of its own:
+  `claude mcp add comfy-snap -e SNAP_AGENT=astrid-<session> -- python3 $PACK/tools/snap_mcp.py --base-url $BASE`.
+  Beside it, Astrid's own MCP (`astrid`) edits the timeline; neither renames the other's tools.
+- **Astrid's own agent:** install the pack's Astrid pack, `astrid packs install $PACK/integrations/astrid`, and give it
+  `SNAP_BASE` (loopback only), `SNAP_AGENT` and `SNAP_PACK=$PACK`. It calls `snap.pages` and `snap.call {tool, args,
+  page, idempotency_key}`; its `docs/SKILL.md` is the short version of this page.
+- **Either way** you are an agent here: GPU calls answer `{proposed, status}` and wait for the person unless they let
+  agents run; read that as waiting, not failing. Bind a page (`use_page`) and let it go (`use_page {"page": null}`).
+- **The Cut into Astrid:** `export_cut {book}` writes `otio.astrid.archive` (a `.astrid` file) and answers the command,
+  `astrid timelines import <file.astrid> --project <project> --name "<name>"`. Private takes are left out
+  (`left_out`, their time a gap). Each import makes a new timeline: after a re-take in Snap, swap the new take's file
+  into the imported timeline in Astrid rather than importing again. Each clip's `generation.snap.take` and `cut` name
+  where to re-take it here.
 
 - A call ends after 30 s. Long work, such as a render, returns at once, and you follow it as described in step 4.
 - A wrong or missing argument is refused, and every error names the arguments the tool takes. Read the error and call
