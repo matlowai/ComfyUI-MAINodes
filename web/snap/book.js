@@ -478,7 +478,7 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
   // F-L09 (SNAP-R168): a cut opens on the state before its own beats (the beat before them in story order) and ends on
   // the state after; the still parts are kept apart so the opening board draws the start and the key drawing the end
   const own = new Set(present.map((b) => b.id)), prev = at ? story.beats.filter((b) => b.order < at.order && !own.has(b.id)).reduce((x, b) => (!x || b.order > x.order ? b : x), null) : null;
-  const head = [], tail = [], ends = [], opens = [], whoEnd = [], whoOpen = [];
+  const head = [], tail = [], ends = [], opens = [], whoEnd = [], whoOpen = [], held = [];
   let moved = false;
   for (const b of present) { say(b.text, `story ${b.id} text`); if (b.text) head.push(S(b.text)); from[`${b.id}.text`] = b.text; }
   // F-F09: the unit's own blocking and camera are the cut's action too (a cut whose beats wait as proposals still moves)
@@ -499,6 +499,11 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
       rows.push({ path, value: f.value, beat: f.beat, change: f.change, ...(f.why ? { why: f.why } : {}), provenance, ...(text ? { sentence: S(text) } : { prose_only: true }), backing: pictured ? `picture: state ${state.name}` : text ? "words only" : "not shown in a picture",
         ...(here ? { opens: was ? { value: was.value, beat: was.beat, change: was.change, ...(wasText ? { sentence: S(wasText) } : {}) } : { value: null, said: "not set before this beat (the Cast's own look)" } } : {}) });
       if (here && text) moved = true;
+      // F-Q09 (SNAP-R181): the cut's own beat changes what a hand holds (or where a prop is held): its action words belong
+      // to the end, so an opening drawn under them mixes the two (the ladle still in her hand "with both hands"); a hand that
+      // takes something up from nothing opens empty, which agrees with the action
+      const empty = f.value == null || (Array.isArray(f.value) && !f.value.length);
+      if (here && (/^carried\.(right|left)_hand$/.test(path) || (!ref.startsWith("cast:") && path === "holder")) && (was || empty) && JSON.stringify(was?.value ?? null) !== JSON.stringify(f.value ?? null)) held.push({ who: name, path, beat: f.beat, ...(wasText ? { opens: S(wasText) } : {}), ...(text ? { ends: S(text) } : {}) });
       if (here && wasText && wasText !== text) { say(`At the start of the cut, ${wasText}`, `${was.beat} change ${was.change} (before ${f.beat})`); if (text) say(`By the end, ${text}`, provenance); }
       else if (text) say(text, provenance);
       if (text) ends.push(S(text));
@@ -524,6 +529,7 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
   // F-L02: what the state still contradicts after the fold (the blocking or a beat naming a thing in a hand, or a prop
   // put somewhere else), as lint: the compile says it, the person or the writer settles it
   lint.push(...stateLint(story, unit, present, entities));
+  if (held.length) lint.push(`${unit.cut ?? "This cut"}'s own beat ${held[0].beat} changes what is held (${held.map((x) => x.opens ?? `${x.who} as the Cast line has them.`).join(" ")} → ${held.map((x) => x.ends ?? `${x.who}: nothing`).join(" ")}): an opening board would draw the hands before the beat under its action words ("${present.map((b) => b.text).filter(Boolean).join(" ")}"), so make_board draws the key (the beat at its peak) unless role: "opening" is asked (F-Q09)`);
   if (at) lint.push(...propMismatch(story, at.id).filter((m) => (unit.props ?? []).includes(m.prop) || carriersOf(story, m.prop, at.id).some((c) => castRefs.includes(c.who))).map((m) => `${m.text}: check they agree (F-L11)`));
   // dialogue on the unit's beats, each line citing the speaker's voice reference (voice scout 2026-11-06: no voice words)
   const lines = present.flatMap((b) => (b.lines ?? []).map((l) => ({ ...l, beat: b.id })));
@@ -558,7 +564,7 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
     entities, place, package: pictures, budget: { used: Math.min(pictures.length, budget), of: budget, ...(dropped.length ? { over: dropped } : {}) },
     prompt: { description, sentences, soundscape: unit.sound ?? "", music: unit.music ?? "N/A" },
     still_prompt: still(ends, whoEnd),
-    ...(moved ? { opens: { after: prev?.id ?? null, said: `the cut opens on the state ${prev ? `after ${prev.id}` : "before any beat"} and ends on the state after ${at.id}: the opening board draws the start, the key drawing the end`, still_prompt: still(opens, whoOpen) } } : {}),
+    ...(moved ? { opens: { after: prev?.id ?? null, said: `the cut opens on the state ${prev ? `after ${prev.id}` : "before any beat"} and ends on the state after ${at.id}: the opening board draws the start, the key drawing the end`, still_prompt: still(opens, whoOpen), ...(held.length ? { held, board_role: "key" } : {}) } } : {}),
     ends: at ? { beat: at.id } : null,
     speakers: [...new Set(lines.map((l) => l.who))], transition: unit.transition ?? null, timing: unit.timing ?? null, lint,
     from: Object.fromEntries(await Promise.all(Object.entries(from).map(async ([k, v]) => [k, W.short(await W.sha(v))]))),
@@ -622,7 +628,9 @@ export async function setUnit(sceneId, shotId, u, { by = "person" } = {}) {
 // board, {take, frame}, {file, label}], F-F16), the Cast's state and identity pictures. role: opening draws the state
 // the cut opens on (F-L09), key the state at the beat's peak; the role sentence is part of the prompt (F-L14)
 const ROLE_LINE = { opening: "This frame is the moment the cut starts, before the beat's peak.", key: "This frame is the beat at its peak." };
-export async function boardPackage(sheet, { context = null, role = "opening" } = {}) {
+// F-Q09 (SNAP-R181): a cut whose own beat changes what a hand holds is boarded at its key by default; else its opening
+export const boardRole = (sheet) => (sheet.opens?.board_role === "key" ? "key" : "opening");
+export async function boardPackage(sheet, { context = null, role = boardRole(sheet) } = {}) {
   const { book, unit } = unitOf(sheet.scene, sheet.shot), list = units(book), i = list.findIndex((x) => x.shot.id === sheet.shot), near = [];
   const own = unit.board?.file && unit.board.approved ? [{ file: unit.board.file, label: `${unit.cut ?? "this cut"}'s approved board`, keep: "keep its blocking: who stands or sits where, facing which way" }] : null;
   for (const c of context ?? own ?? (list[i - 1]?.unit.board?.file ? [{ file: list[i - 1].unit.board.file, label: "the previous cut's board" }] : [])) {
