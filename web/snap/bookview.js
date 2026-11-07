@@ -10,7 +10,7 @@
 // SNAP-R67 the Book and the story clock · SNAP-R68 compile with provenance · SNAP-R69 settei per state · SNAP-R175 the colour script · SNAP-R176 settei design it · SNAP-R130 the
 // production style · SNAP-R131 boards and the animatic · SNAP-R132 the Cut · SNAP-R133 the plan drawn here · SNAP-R80
 // every picture full size · SNAP-R58 nothing trimmed · SNAP-R8 judged from screenshots · SNAP-R165 Cast lines folded ·
-// SNAP-R168 a cut opens before its beat · see docs/snap/SNAP_RULES.md
+// SNAP-R168 a cut opens before its beat · SNAP-R183 a record this install lacks is named, with how to bring it · see docs/snap/SNAP_RULES.md
 import * as B from "./book.js";
 import * as W from "./world.js";
 import * as SC from "./scenes.js";

@@ -15,7 +15,7 @@
 // SNAP-R101 the critic is a docket job · SNAP-R103 notes: severity, pass, region as a mask, owner, fix; they inform · SNAP-R156 the owner's part as written ·
 // SNAP-R104 checks by purpose · SNAP-R107 approval: the person's, or the critic's where a note says so · SNAP-R110 stale ·
 // SNAP-R17 by: person|agent · SNAP-R58 whole lists, explicit paging · SNAP-R65 the Work card · SNAP-R136 a row holds
-// while its part's picture holds; stale rows leave the docket · see docs/snap/SNAP_RULES.md
+// while its part's picture holds; stale rows leave the docket · SNAP-R180 owners name their target · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as T from "./takes.js";
 import * as C from "./candidates.js";

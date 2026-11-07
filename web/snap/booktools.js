@@ -8,7 +8,7 @@
 // SNAP-R165 a Cast line folds through the state · SNAP-R166 apply_unit lands off the Cut · SNAP-R168 a cut opens before its beat · SNAP-R169 boards pin the story ·
 // SNAP-R170 a re-board keeps its own board · SNAP-R172 the reversal cost says what moves · SNAP-R175 the colour script · SNAP-R176 settei design it · SNAP-R177 dry_run writes nothing ·
 // SNAP-R178 a wardrobe state folds the items it names out of the Cast line ·
-// see docs/snap/SNAP_RULES.md
+// SNAP-R181 a held-prop cut is boarded at its key · SNAP-R182 a settei on a plain ground, without what its state takes off · see docs/snap/SNAP_RULES.md
 import * as B from "./book.js";
 import * as W from "./world.js";
 import * as SC from "./scenes.js";

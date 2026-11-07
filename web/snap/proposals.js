@@ -8,7 +8,7 @@
 // An answer records who pressed it and where (`answered_by`: the person's press on a tab or in the agents' window, and
 // the agent driving that page if one did), and a reject may say why and when it is worth another look (`because`,
 // `revive_if`: the option cemetery).
-// SNAP-R139 proposals kept on the server, stacked on each other · SNAP-R173 the option cemetery · SNAP-R67 canon waits for the person · see docs/snap/SNAP_RULES.md
+// SNAP-R139 proposals kept on the server, stacked on each other · SNAP-R173 the option cemetery · SNAP-R67 canon waits for the person, and a driven press is the agent's · SNAP-R172 a stacked reason reads as it stands · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as sight from "./sight.js";

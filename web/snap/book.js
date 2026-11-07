@@ -17,7 +17,7 @@
 // and key drawing · SNAP-R165 a Cast line folds through the state · SNAP-R166 apply_unit lands off the Cut · SNAP-R167 holder and
 // mood sentences · SNAP-R168 a cut opens before its beat · SNAP-R169 boards pin the story · SNAP-R170 a re-board keeps its own
 // board · SNAP-R172 the reversal cost says what moves · SNAP-R178 a wardrobe state folds the items it names · SNAP-R60 versions ·
-// SNAP-R11 nothing blocks · see docs/snap/SNAP_RULES.md
+// SNAP-R11 nothing blocks · SNAP-R181 a held-prop cut is boarded at its key · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as W from "./world.js";
 import * as SC from "./scenes.js";

@@ -12,7 +12,7 @@
 // Candidate tiles carry the critic's chip beside the other notes. Nothing here is hidden, rejected or held by a note.
 // SNAP-R103 notes as masks, they inform · SNAP-R105 fix at the source · SNAP-R106 re-run dependents · SNAP-R108 a miss
 // is one press from a fixture · SNAP-R110 a stale critique says why · SNAP-R156 Fix at source opens the part the owner names · SNAP-R5 only a press moves · SNAP-R136 masks:
-// all at once, numbered, never words over the picture · see docs/snap/SNAP_RULES.md
+// all at once, numbered, never words over the picture · SNAP-R180 Fix at source opens the board or mark the owner names · see docs/snap/SNAP_RULES.md
 import * as CR from "./critiques.js";
 import * as DP from "./dependents.js";
 import * as T from "./takes.js";
