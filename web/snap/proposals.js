@@ -35,7 +35,8 @@ export const all = () => list.map(({ id, tool, args, reason, note, plan, status,
 // (the stored reason stays whole for agents, SNAP-R58)
 export const reasonNow = (p) => { const r = p?.reason ?? "", st = p?.stacked; if (!st?.said || st.on.every((id) => get(id)?.status === "waiting")) return r; return r.replace(`; ${st.said}`, "").replace(` (${st.said})`, ""); };
 // who answers on this page: a press is the person's, made on their tab or in the agents' window, where an agent may drive it (F-L17)
-export const pressedBy = () => ({ by: "person", where: sight.managed() ? "the agents' window" : "a person's tab", page: api.clientId ?? null, ...(sight.driver() ? { driven_by: sight.driver() } : {}) });
+// F-Q03: a press on the agents' window while an agent drives it is the agent's: nothing says a person made it
+export const pressedBy = () => ({ by: sight.managed() && sight.driver() ? "agent" : "person", where: sight.managed() ? "the agents' window" : "a person's tab", page: api.clientId ?? null, ...(sight.driver() ? { driven_by: sight.driver() } : {}) });
 
 async function write(body) {
   const r = await api.fetchApi("/mainodes/snap/proposals", { method: "POST", body: JSON.stringify(body) }), out = await r.json();
