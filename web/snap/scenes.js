@@ -417,7 +417,7 @@ export async function setActive(sceneId, shotId, takeId, by = "person") {
   let from = null;
   if (takeId != null && !takesOf(shot).some((e) => e.take === takeId)) {
     const t = T.get(takeId);
-    if (!t) throw new Error(`No take ${takeId} (list_takes lists them)`);
+    if (!t) throw new Error(`${takeId} isn't a take of ${shotTitle(get(sceneId), shot)} or anywhere here (list_takes lists them)`);
     const home = scenes.flatMap((s) => s.shots.map((x) => ({ s, x }))).find(({ s, x }) => !(s.id === sceneId && x.id === shotId) && takesOf(x).some((e) => e.take === takeId));
     from = home ? { scene: home.s.id, shot: home.x.id, name: `${home.s.name} › ${shotTitle(home.s, home.x)}` } : { name: "no shot (a take of its own)" };
   }

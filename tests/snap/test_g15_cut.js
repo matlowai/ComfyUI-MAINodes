@@ -95,7 +95,7 @@ const ZIP = "import json,sys,zipfile,hashlib\nz=zipfile.ZipFile(sys.argv[1])\npr
     "R213 a take of another scene becomes C2's active take, saying where from": S.reuse?.active === "take-g15old" && /^G15 earlier short › /.test(S.reuse?.brought_from ?? ""),
     "R213 the take itself is unchanged and its own shot keeps it": S.reuseTake?.group === "g15-old" && S.reuseTake?.world && S.oldStill === "take-g15old",
     "R213 its Nearby line says it stands for C2, brought from the earlier scene": /active take of .*brought from G15 earlier short › /i.test(S.nearLine ?? ""),
-    "R213 a take that doesn't exist is refused": /No take take-nosuch/.test(S.badTake?.error ?? ""),
+    "R213 a take that doesn't exist is refused": /take-nosuch isn't a take of .* or anywhere here/.test(S.badTake?.error ?? ""),
     "R212 the Cut assembles and the answer names the archive and the import command": S.cutDone === "success" && /\.astrid$/.test(S.ax?.archive ?? "") && /^astrid timelines import .*\.astrid --project <project> --name /.test(S.ax?.import ?? "") && S.beside,
     "R212 every entry stored; exactly manifest, timeline and the media": !!zip && zip.entries.every((e) => e.stored) && JSON.stringify(zip.entries.map((e) => e.name).sort()) === JSON.stringify(["manifest.json", "timeline.json", ...m.media.map((x) => `media/${x.sha256}`)].sort()),
     "R212 manifest format and media match the files (sha256, size)": m?.format === "astrid.timeline/1" && m.media.length === 2 && m.media.every((x) => [files.c1, files.c2].includes(x.sha256) && zip.entries.find((e) => e.name === `media/${x.sha256}`)?.sha === x.sha256 && zip.entries.find((e) => e.name === `media/${x.sha256}`)?.size === x.size),
