@@ -9,7 +9,7 @@
 // waiting rows. It survives a reload, a closed viewer and another tab because every row is read back from the server:
 // the `status` broadcast every tab gets wakes a reconcile, and while work is live a 2 s tick reads again.
 // SNAP-R5 an arrival never moves the person · SNAP-R17 by: person|agent · SNAP-R23 candidates wait for the person's pick ·
-// SNAP-R58 whole lists, explicit paging · SNAP-R65 the Work card · SNAP-R201 a proposal sorts by when it was asked · SNAP-R209 out of date and either/or on its row · SNAP-R210 an expired one is parked · SNAP-R66 arrivals announce, a press moves · see
+// SNAP-R58 whole lists, explicit paging · SNAP-R65 the Work card · SNAP-R201 a proposal sorts by when it was asked · SNAP-R209 out of date and either/or on its row · SNAP-R210 an expired one is parked · SNAP-R66 arrivals announce, a press moves · SNAP-R224 pushes to Astrid · see
 // docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as T from "./takes.js";
@@ -101,9 +101,9 @@ function build() {
     ...(p.stale ? { stale: p.stale } : {}), ...(p.either_or ? { either_or: p.either_or } : {}), ...(p.expired ? { expired: p.expires_at } : {}) }));
   const refusals = J.refusals().map((x) => ({ id: x.id, source: "refusal", kind: x.spec.kind, title: x.spec.title, by: x.spec.by ?? "person", owner: x.spec.by === "agent" ? "agents" : "you", state: "failed",
     about: x.spec.about ?? {}, where: where(x.spec.about), error: `refused at queue: ${x.error}`, queued_at: x.at, retry: x.retry }));
-  rows = [...prompts, ...decisions, ...asked, ...pairs, ...refusals, ...lost.values(), ...CR.rowsFor(where)].map((r) => {
+  rows = [...prompts, ...decisions, ...asked, ...pairs, ...pushes, ...refusals, ...lost.values(), ...CR.rowsFor(where)].map((r) => {
     const parked = marks.parked[r.id] ?? (r.expired ? { at: new Date(r.expired).toISOString(), because: "expired: nobody answered it in time (the person's expiry setting)" } : null), opened = marks.opened[r.id] ?? null; // SNAP-R210
-    const zone = parked ? "parked" : LIVE.has(r.state) || r.state === "failed" || r.state === "gone" ? "in_flight" : r.state === "waiting" || (r.state === "done" && !opened) ? "landed" : "closed";
+    const zone = parked ? "parked" : r.source === "astrid" && r.state === "done" ? "closed" : LIVE.has(r.state) || r.state === "failed" || r.state === "gone" ? "in_flight" : r.state === "waiting" || (r.state === "done" && !opened) ? "landed" : "closed";
     return { ...r, zone, eta: eta(r), ...(parked ? { parked } : {}), ...(opened ? { opened } : {}) };
   }).sort((a, b) => (b.queued_at ?? b.asked_at ?? b.started_at ?? 0) - (a.queued_at ?? a.asked_at ?? a.started_at ?? 0)); // F-Y11: a proposal sorts by when it was asked, not last
   if (readOnce) announce();
@@ -141,7 +141,7 @@ async function adopt(finished) {
   } catch (e) { console.warn(`Snap couldn't land a finished job: ${e.message}`); } finally { adopting = false; }
 }
 
-let pairs = [];
+let pairs = [], pushes = [];
 let reading = null, again = false;
 // read every source again; overlapping calls fold into one more read
 export function reconcile() {
@@ -157,6 +157,11 @@ export function reconcile() {
     if (gone.length || server.some((p) => before.has(p.id) && !LIVE.has(p.state)) || rows.some((r) => r.result?.saving)) await Promise.all([T.reload(), C.reload()]); // something left the queue: another page may have written its take or decision
     if (server.some((p) => p.state === "running")) progress = await (await api.fetchApi("/mainodes/snap/progress")).json().catch(() => progress);
     // SNAP-R174: a blind pair's row names no take until it is judged (which is A is the server's)
+    // SNAP-R224: pushes to Astrid are jobs too (the server runs one per Book); their answer is said whole on failure
+    const ax = await api.fetchApi("/mainodes/snap/astrid").then((x) => (x.ok ? x.json() : { jobs: [] }));
+    pushes = (ax.jobs ?? []).map((j) => { const name = W.get(j.book)?.version.body.name ?? j.book;
+      return { id: `ax:${j.book}:${j.started}`, source: "astrid", kind: "astrid", title: j.state === "running" ? `Pushing ${name} to Astrid` : j.state === "failed" ? `Push of ${name} to Astrid` : j.said, by: "person", owner: "you",
+        state: { running: "running", done: "done", failed: "failed" }[j.state], about: { book: j.book }, where: `the Book ${name}`, said: j.said, queued_at: j.started, ...(j.state === "failed" ? { error: JSON.stringify(j.answer, null, 1) } : {}) }; });
     pairs = (await T.pending()).map((p) => ({ id: `ab:${p.id}`, source: "blind_pair", kind: "blind_pair", title: "A blind pair: which is better, A or B?", by: p.by, owner: p.by === "agent" ? "agents" : "you", state: "waiting", about: {}, where: p.group === T.groupOf() ? "this workflow's takes" : "takes in another workflow", queued_at: p.at ?? null, pair: p.id }));
     await C.settle();
     const finished = server.filter((p) => p.job?.takes !== false && p.job && ["success", "error", "interrupted"].includes(p.state));
@@ -204,6 +209,7 @@ export async function list({ zone, state, kind, by, about, offset = 0, limit } =
 // waking up: on load, on every queue change any tab makes (core's `status` broadcast), on this page's own events and
 // store changes, and every 2 s while anything is live
 let remaining = null, timer = null;
+api.addEventListener("mainodes-snap-astrid", () => reconcile()); // a push to Astrid started, queued or ended
 api.addEventListener("status", ({ detail }) => { const n = detail?.exec_info?.queue_remaining ?? null; if (n !== remaining) { remaining = n; reconcile(); } });
 for (const ev of ["execution_start", "execution_success", "execution_error", "execution_interrupted"]) api.addEventListener(ev, () => reconcile());
 api.addEventListener("reconnected", () => { restarted = true; reconcile(); });

@@ -22,7 +22,7 @@ export const VERDICT_KEYS = { p: "keep", x: "reject", n: "neither" };
 
 // a row's state in words
 export function stateText(r) {
-  if (r.source === "critique") return r.said;
+  if (r.source === "critique" || r.source === "astrid") return r.said;
   if (r.state === "queued") return r.ahead ? `queued · ${r.ahead} ahead` : "queued · next";
   if (r.state === "running") {
     const p = r.progress, node = p?.max > 1 ? ` · step ${p.value} of ${p.max}` : "";
@@ -79,7 +79,7 @@ export function openWork(host, { say, open, decide }) {
     const mine = r.owner !== "others", why = h("input", { className: "snap-work-why", placeholder: "why, in a sentence (optional)", ariaLabel: "verdict note" });
     const take = r.zone === "landed" && r.result?.take;
     const buttons = [
-      mine && (r.result?.take || r.about?.take || r.decision || r.pair || (r.kind === "plate" && r.about?.set)) ? h("button", { className: "snap-link snap-work-open", textContent: "Open", title: "go to the result where it belongs (nothing runs)", onclick: act(() => open(r)) }) : null,
+      mine && (r.result?.take || r.about?.take || r.decision || r.pair || r.source === "astrid" || (r.kind === "plate" && r.about?.set)) ? h("button", { className: "snap-link snap-work-open", textContent: "Open", title: "go to the result where it belongs (nothing runs)", onclick: act(() => open(r)) }) : null,
       mine && r.state === "queued" && (r.source === "prompt" || r.source === "decision") ? h("button", { className: "snap-link", textContent: "Cancel", title: "take it off the queue", onclick: act(async () => { await cancel(r); return `Cancelled: ${r.title}`; }) }) : null,
       mine && r.state === "running" && (r.owner === "you" || admin()) ? h("button", { className: "snap-link", textContent: "Stop the running render", title: "stops this job on the GPU now (only this one; the rest of the queue goes on)", onclick: act(async () => { await stop(r); return `Stopped: ${r.title}`; }) }) : null,
       mine && r.state === "failed" && (r.source === "prompt" || r.source === "refusal") ? h("button", { className: "snap-link", textContent: "Retry", onclick: act(async () => { await retry(r); return `Queued again: ${r.title}`; }) }) : null,

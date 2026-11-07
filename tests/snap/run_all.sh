@@ -619,6 +619,10 @@ for t in test_g16_receipt.js; do park; timeout 900 nice -n 19 node "$T/$t" "$por
 # without): push imports once, words on the dialogue clip, references and documents idempotent, a re-take swapped in
 # place keeping its clip id, a changed shape refused until --new-timeline, loopback only; prints "g16push n/m"
 for t in test_g16_push.js; do park; timeout 1500 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
+# G16 the push is the person's (SNAP-R224, R226; against the lab like g16push): the two Book settings with their help
+# texts, Book 1 by the Push button and Book 2 by auto-push into one project, the child's built environment, the job on
+# the Work card, the style section written and removed; prints "g16settings n/m"
+for t in test_g16_settings.js; do park; timeout 1500 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
 # SNAP-R109: the shipped critic prompt's last real run on the fixtures holds the floor (fixtures.json: r5b, 27/31, 0 FA;
 # a real-agent check, re-scored from its saved notes). critic = r6, the shipped prompt (r5b + metres from the record's
 # scale, SNAP-R155); critic5b = the floor's own run. The r3/r4/r5 runs stay in critic/runs/ as history (critic/README.md)

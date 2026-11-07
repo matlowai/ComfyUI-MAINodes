@@ -2,7 +2,8 @@
 machine": its launcher and Runtime data root), and the one way the server runs it: tools/astrid_push.py as a child
 process outside ComfyUI's Python, in an environment built here (no key or token of this server's reaches it), on
 loopback, for a request from this machine only; and the receipt of where each Cut went.
-SNAP-R215 every archive is probed before the answer · SNAP-R225 Snap remembers where a Cut went · SNAP-R18 local only ·
+SNAP-R215 every archive is probed before the answer · SNAP-R224 the push is the person's, one job per Book, on loopback ·
+SNAP-R225 Snap remembers where a Cut went · SNAP-R18 local only ·
 see docs/snap/SNAP_RULES.md"""
 import asyncio
 import json
@@ -42,18 +43,23 @@ def where(request):
     return {"launcher": launcher, "data_root": root or None, **out}
 
 
-async def run(request, *argv):
-    """tools/astrid_push.py <argv>: (exit code, its one JSON answer, whole; or what it printed when that isn't JSON).
-    The child's environment is built, never inherited: PATH, HOME, the Runtime's data root, this server's loopback base
-    and the agent name it calls back with (the lab found Astrid's host inheriting provider keys from a tool shell)."""
+def prepare(request):
+    """what running Astrid needs for this request: (launcher, the child's environment) or a refusal. The environment is
+    built, never inherited: PATH, HOME, the Runtime's data root, this server's loopback base and the agent name the child
+    calls back with (the lab found Astrid's host inheriting provider keys from a tool shell; ComfyUI's environment is
+    not Astrid's to read)"""
     if request.remote not in LOOPBACK:
-        return 1, {"ok": False, "error": "not_loopback", "message": f"Astrid runs only for a request from this machine; this one came from {request.remote}"}
+        return None, {"ok": False, "error": "not_loopback", "message": f"Astrid runs only for a request from this machine; this one came from {request.remote}"}
     at = where(request)
     if "said" in at:
-        return 1, {"ok": False, "error": "no_launcher", "message": at["said"]}
-    env = {"PATH": "/usr/local/bin:/usr/bin:/bin", "HOME": os.path.expanduser("~"), "SNAP_BASE": f"http://127.0.0.1:{args.port}", "SNAP_AGENT": "snap-push",
-           **({"ASTRID_RUNTIME_DATA_ROOT": at["data_root"]} if at["data_root"] else {})}
-    proc = await asyncio.create_subprocess_exec(sys.executable, "-I", str(PUSH), *argv, "--launcher", at["launcher"], env=env, cwd=str(PUSH.parent),
+        return None, {"ok": False, "error": "no_launcher", "message": at["said"]}
+    return (at["launcher"], {"PATH": "/usr/local/bin:/usr/bin:/bin", "HOME": os.path.expanduser("~"), "SNAP_BASE": f"http://127.0.0.1:{args.port}", "SNAP_AGENT": "snap-push",
+                             **({"ASTRID_RUNTIME_DATA_ROOT": at["data_root"]} if at["data_root"] else {})}), None
+
+
+async def spawn(launcher, env, *argv):
+    """tools/astrid_push.py <argv>: (exit code, its one JSON answer, whole; or what it printed when that isn't JSON)"""
+    proc = await asyncio.create_subprocess_exec(sys.executable, "-I", str(PUSH), *argv, "--launcher", launcher, env=env, cwd=str(PUSH.parent),
                                                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
     out, err = await proc.communicate()
     text = out.decode(errors="replace").strip()
@@ -61,6 +67,11 @@ async def run(request, *argv):
         return proc.returncode, json.loads(text)
     except ValueError:
         return proc.returncode or 1, {"ok": False, "error": "no_answer", "message": f"{text}\n{err.decode(errors='replace')}".strip()}
+
+
+async def run(request, *argv):
+    ready, refused = prepare(request)
+    return (1, refused) if refused else await spawn(*ready, *argv)
 
 
 # ---- the receipt (SNAP-R225): where each production's Cut went in Astrid, kept by the bridge, the only source of truth
@@ -87,7 +98,7 @@ async def receipt(request):
     """the receipt whole, and whether Astrid is set up on this machine (setup: {launcher, data_root, app} or {said})"""
     async with receipt_lock:
         out = read_receipt(receipt_path(request))
-    return web.json_response({**out, "setup": where(request)})
+    return web.json_response({**out, "setup": where(request), "jobs": job_rows(PromptServer.instance.user_manager.get_request_user_id(request))})
 
 
 @routes.post("/mainodes/snap/astrid/link")
@@ -116,3 +127,54 @@ async def link(request):
         os.replace(tmp, path)
     PromptServer.instance.send_sync("mainodes-snap-astrid", {"production": production, "book": q.get("book")})
     return web.json_response({"production": production.split("@")[0], **entry})
+
+
+# ---- the push (SNAP-R224): the person's button or their Book's auto-push setting, one job per Book on the Work card -----
+# A push is one operation whatever starts it (tools/astrid_push.py push: import once, then swap what changed, then the
+# context). One runs at a time per Book; a second request while it runs queues one more (a run of accepts makes one
+# push after the one running). Jobs live here while the server runs, each with its answer whole (a reload asks again);
+# a push that landed is in the receipt on disk.
+WHATS = ("push", "cut", "context", "swap", "render", "proposal-note")
+pushes = {}  # (user, book) -> the job row: {book, what, by, state: running|done|failed, started, ended, said, answer, again}
+
+
+def job_rows(user):
+    return [{k: v for k, v in j.items() if k != "next"} for (u, _), j in pushes.items() if u == user]
+
+
+async def push_job(key, ready, argv):
+    job = pushes[key]
+    while True:
+        code, answer = await spawn(*ready, *argv)
+        job.update(state="done" if code == 0 and answer.get("ok") else "failed", ended=int(time.time() * 1000), answer=answer, said=answer.get("said") or answer.get("message") or "")
+        PromptServer.instance.send_sync("mainodes-snap-astrid", {"book": job["book"], "job": job["state"]})
+        if not job.get("next"):
+            return
+        argv, job["next"] = job["next"], None
+        job.update(state="running", started=int(time.time() * 1000), ended=None, answer=None, said="pushing again: the Cut changed while the last push ran")
+        PromptServer.instance.send_sync("mainodes-snap-astrid", {"book": job["book"], "job": "running"})
+
+
+@routes.post("/mainodes/snap/astrid/push")
+async def push(request):
+    """{book, what (push | cut | context | swap | render | proposal-note), by (button | auto-push), client (the page that
+    pressed), archive?, cut?, new_timeline?} -> the Book's job, started or queued behind the running one"""
+    q = await request.json()
+    book, what, by = str(q.get("book") or "").split("@")[0], q.get("what") or "push", q.get("by")
+    if not book.startswith("book:") or what not in WHATS or by not in ("button", "auto-push"):
+        return web.json_response({"error": f"push takes book (book:<id>), what ({', '.join(WHATS)}) and by (button or auto-push); got {book!r}, {what!r}, {by!r}"}, status=400)
+    ready, refused = prepare(request)
+    if refused:
+        return web.json_response(refused, status=409)
+    user = PromptServer.instance.user_manager.get_request_user_id(request)
+    argv = [what, "--book", book, "--by", f"person ({by})", *(["--page", str(q["client"])] if q.get("client") else []), *(["--user", user] if args.multi_user else []),
+            *(["--archive", str(q["archive"])] if q.get("archive") else []), *(["--cut", str(q["cut"])] if q.get("cut") else []), *(["--new-timeline"] if q.get("new_timeline") else [])]
+    key, job = (user, book), pushes.get((user, book))
+    if job and job["state"] == "running":
+        job["next"] = argv
+        PromptServer.instance.send_sync("mainodes-snap-astrid", {"book": book, "job": "queued"})
+        return web.json_response({"queued": True, "said": "a push of this Book is running: one more runs after it", "job": {k: v for k, v in job.items() if k != "next"}})
+    pushes[key] = {"book": book, "what": what, "by": f"person ({by})", "state": "running", "started": int(time.time() * 1000), "ended": None, "said": f"Pushing to Astrid ({what})", "answer": None}
+    asyncio.create_task(push_job(key, ready, argv))
+    PromptServer.instance.send_sync("mainodes-snap-astrid", {"book": book, "job": "running"})
+    return web.json_response({"started": True, "job": pushes[key]})

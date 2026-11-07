@@ -20,7 +20,8 @@
 // SNAP-R11 nothing blocks · SNAP-R181 a held-prop cut is boarded at its key · SNAP-R189 a board says absent what its
 // pictures may still show · SNAP-R212 the Cut opens in Astrid, private takes stay out · SNAP-R213 a cut's take may come from another shot ·
 // SNAP-R215 the archive Astrid can edit, its clips named by cut · SNAP-R216 a speaking cut's sound on its own lane · SNAP-R217 a pushed Book
-// changes in place, its diff says what moved · SNAP-R223 a production is the record above the Book · SNAP-R225 Snap remembers where a Cut went · see docs/snap/SNAP_RULES.md
+// changes in place, its diff says what moved · SNAP-R223 a production is the record above the Book · SNAP-R224 the push is the person's (button,
+// auto-push) · SNAP-R225 Snap remembers where a Cut went · SNAP-R226 the style shared with Astrid is the person's switch · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as W from "./world.js";
 import * as SC from "./scenes.js";
@@ -92,7 +93,8 @@ export async function saveBook(id, body, { note = "", by = "person" } = {}) {
   if (!body?.name?.trim()) throw new Error("A Book needs a name");
   if (body.medium && !MEDIA.includes(body.medium)) throw new Error(`medium is one of ${MEDIA.join(", ")}; not ${JSON.stringify(body.medium)}`);
   const clean = { name: body.name.trim(), logline: body.logline?.trim() ?? "", medium: body.medium ?? "anime", story: body.story ?? null, style: body.style ?? null,
-    autonomy: cleanAutonomy(body.autonomy ?? FIRST_MIX), numbers: !!body.numbers, cast: [...new Set(body.cast ?? [])], locations: [...new Set(body.locations ?? [])], scenes: [...new Set(body.scenes ?? [])] };
+    autonomy: cleanAutonomy(body.autonomy ?? FIRST_MIX), numbers: !!body.numbers, cast: [...new Set(body.cast ?? [])], locations: [...new Set(body.locations ?? [])], scenes: [...new Set(body.scenes ?? [])],
+    to_astrid: { auto_push: !!body.to_astrid?.auto_push, share_style: !!body.to_astrid?.share_style } }; // SNAP-R224, R226: the person's two Astrid settings, off by default
   for (const r of [...clean.cast, ...clean.locations]) W.parse(r);
   id ??= stamp("book");
   const out = await W.save("book", id, clean, { note, by });
@@ -901,7 +903,7 @@ export async function linkAstrid(q) {
 // a Book's link: its production, the production's project, the Book's entry (null: not pushed yet) and the setup
 export async function astridOf(book) {
   const pr = await productionFor(book), r = await receipt(), at = r.productions[`production:${pr.id}`] ?? null;
-  return { production: pr, project: at?.project ?? null, entry: at?.books?.[`book:${book.id}`] ?? null, setup: r.setup, at };
+  return { production: pr, project: at?.project ?? null, entry: at?.books?.[`book:${book.id}`] ?? null, setup: r.setup, at, jobs: (r.jobs ?? []).filter((j) => j.book === `book:${book.id}`) };
 }
 const trimOf = (t) => ({ in_s: t?.in_s ?? 0, out_s: t?.out_s ?? null, gain_db: t?.gain_db ?? 0 });
 // SNAP-R217: what changed in the Cut since its push, from the receipt: {changed, added, removed, order_changed, shape,
@@ -923,6 +925,48 @@ export function astridDiff(book, entry) {
   return { changed, added, removed, order_changed, shape: !!shape, cuts,
     said: !entry ? "not in Astrid yet" : shape ? `the Cut's shape changed (${[added.length && `added ${added.join(", ")}`, removed.length && `removed ${removed.join(", ")}`, order_changed && "the order moved"].filter(Boolean).join("; ")}): a push makes a new timeline and keeps the one in Astrid`
       : changed.length ? `${plural(changed.length, "cut")} changed since the push (${changed.join(", ")})` : "in sync with Astrid" };
+}
+// SNAP-R226: the style section in Astrid's preferences differs from the setting: shared and a newer style accepted (or
+// never written), or not shared and still there
+export function styleMoved(book, ax) {
+  const shared = ax.at?.style?.[book.id], style = styleOf(book.body);
+  return book.body.to_astrid?.share_style ? !!style && shared?.look !== style.ref : !!shared?.look;
+}
+// SNAP-R224: the person's push (their button, or their Book's auto-push): this page writes the archive (its probe said
+// whether Astrid can edit it), then the server runs tools/astrid_push.py as the Book's one job
+export async function pushAstrid(bookRef, { by = "button", new_timeline = false } = {}) {
+  const out = await otio(bookRef), probe = out.astrid?.probe;
+  if (probe?.ok === false) throw new Error(`Astrid can't edit the archive Snap wrote, so nothing was pushed: ${JSON.stringify(probe)}`);
+  const r = await api.fetchApi("/mainodes/snap/astrid/push", { method: "POST", body: JSON.stringify({ book: `book:${bookOf(bookRef).id}`, what: "push", by, client: api.clientId, archive: out.astrid.archive, ...(new_timeline ? { new_timeline: true } : {}) }) });
+  const res = await r.json();
+  if (!r.ok) throw new Error(res.message ?? res.error ?? `/mainodes/snap/astrid/push answered ${r.status}`);
+  receiptNow = null;
+  return res;
+}
+// SNAP-R224: auto-push, the person's per-Book setting. When the Cut's canon moves (an active take, a trim or sound level,
+// the Book's style while it is shared), a push waits until the Cut has been still STILL_MS; the server runs one at a
+// time per Book; a changed shape stops it, said on the Cut lens (autoNote), never a silent new timeline
+const STILL_MS = 20000, autoTimers = new Map(), autoNotes = new Map();
+export const autoNote = (bookRef) => autoNotes.get(bookRef) ?? null;
+async function autoCheck() {
+  await Promise.all([W.load(), SC.load(), T.load()]);
+  for (const b of books().filter((x) => x.body.to_astrid?.auto_push)) {
+    const book = bookOf(b.ref), ax = await astridOf(book).catch(() => null);
+    if (!ax || ax.setup?.said || ax.jobs?.some((j) => j.book === b.ref && j.state === "running")) continue;
+    const diff = astridDiff(book, ax.entry);
+    if (ax.entry && diff.shape) { autoNotes.set(b.ref, `Auto-push stopped: ${diff.said}. Press Push to make it.`); continue; }
+    autoNotes.delete(b.ref);
+    if (ax.entry && !diff.changed.length && !styleMoved(book, ax)) continue;
+    clearTimeout(autoTimers.get(b.ref));
+    autoTimers.set(b.ref, setTimeout(() => { autoTimers.delete(b.ref); pushAstrid(b.ref, { by: "auto-push" }).catch((e) => { autoNotes.set(b.ref, `Auto-push: ${e.message}`); for (const fn of astridListeners) fn({ book: b.ref }); }); }, STILL_MS));
+  }
+}
+let watching = false;
+export function watchAutoPush() {
+  if (watching) return;
+  watching = true;
+  const kick = () => { autoCheck().catch((e) => console.warn(`Snap's auto-push couldn't look: ${e.message}`)); };
+  SC.onChange(kick); W.onChange(kick); onAstrid(kick); kick();
 }
 // OpenTimelineIO of the Cut: one video track of the active takes as source ranges, a marker per cut, and the same Cut as
 // an Astrid timeline archive (SNAP-R212); the server writes the files beside the outputs (/mainodes/snap/book/otio).

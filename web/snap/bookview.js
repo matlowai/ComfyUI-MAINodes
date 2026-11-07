@@ -10,7 +10,8 @@
 // SNAP-R67 the Book and the story clock · SNAP-R68 compile with provenance · SNAP-R69 settei per state · SNAP-R175 the colour script · SNAP-R176 settei design it · SNAP-R130 the
 // production style · SNAP-R131 boards and the animatic · SNAP-R132 the Cut · SNAP-R133 the plan drawn here · SNAP-R80
 // every picture full size · SNAP-R58 nothing trimmed · SNAP-R8 judged from screenshots · SNAP-R165 Cast lines folded · SNAP-R209 an out-of-date story proposal offers a re-make ·
-// SNAP-R168 a cut opens before its beat · SNAP-R183 a record this install lacks is named, with how to bring it · SNAP-R223 the Book names its production · SNAP-R225 the Cut lens says where the Cut went in Astrid · see docs/snap/SNAP_RULES.md
+// SNAP-R168 a cut opens before its beat · SNAP-R183 a record this install lacks is named, with how to bring it · SNAP-R223 the Book names its production · SNAP-R224 the Book's Astrid settings and the Push button · SNAP-R225 the Cut lens says where the Cut went in Astrid ·
+// SNAP-R226 the style setting explained in its own words · see docs/snap/SNAP_RULES.md
 import * as B from "./book.js";
 import * as W from "./world.js";
 import * as SC from "./scenes.js";
@@ -32,6 +33,9 @@ const BOOK_TOOLS = new Set(["set_board", "make_board"]); // the Book's GPU and p
 const pic = (file, name, source, group, cls = "") => full(h("img", { className: cls, src: inputUrl(file), alt: name, loading: "lazy", onerror: (e) => e.target.replaceWith(h("div", { className: "snap-cast-missing", textContent: `✕ ${file} isn't in input/` })) }), { src: inputUrl(file), name, source: `input/${file}${source ? ` · ${source}` : ""}` }, group);
 // a state value as a person reads it: a Cast by name, a prop by its name, an empty value as "none"
 const shown = (v) => (v == null || v === "" ? "none" : Array.isArray(v) ? v.map(shown).join(", ") : typeof v === "string" ? (v.startsWith("cast:") ? W.get(v)?.version.body.name ?? v : v.replace(/^prop:/, "").replaceAll("-", " ")) : JSON.stringify(v));
+// the settings' own words (PROTOCOL_V1_1 §5 for the style, as the operator asked: "needs better explaining")
+const AUTO_PUSH_HELP = "When this is on, Snap pushes this Book's Cut to Astrid by itself whenever its canon changes: an active take set or accepted, a trim or sound level saved, the shared style accepted. It waits until the Cut has been still for 20 seconds, so a run of accepts makes one push, and it never runs two at once. A push copies the takes' files into Astrid's store on this computer and swaps the changed cuts in place in this Book's timeline; your finish work in Astrid (music, titles, fades) stays. If the Cut's shape changed (a cut added, removed or moved, or a length changed) it stops and says so on the Cut lens: press Push there to make a new timeline. Private takes never go. It is yours: agents and the dial don't turn it on.";
+const SHARE_STYLE_HELP = "When this is on, Snap copies this Book's production style into the Astrid project's preferences, as one marked section: the style paragraph (medium, line, shading, colour, finish), the palette rule, the voice direction (the house acting style the Casts' voices were cast under), the sound palette and the genre notes. It copies words only: no pictures, no file names, no takes, nothing private. Astrid puts its project preferences into every new chat its agent starts, so an agent working in Astrid on this Book's timeline knows the look and the voice direction without being told again, and judges or generates to them. Snap re-copies the section whenever a new style version is accepted, and only then. Astrid's agents can read it but cannot change it from their tools (Astrid refuses preference edits from agents on purpose); you can edit Astrid's preferences yourself at any time, and your own text outside Snap's marked section is left alone. Turn this off to have Snap remove its section on the next push; the snap.style document in the project stays, because documents are not put into prompts. This never sends anything off this computer: Astrid's preferences live in its local Runtime.";
 const takeUrl = (t) => { const m = t?.media.find((x) => x.kind === "video") ?? t?.media[0]; return m ? K.url(m) : null; };
 
 let sheetOpen = null, listening = false;
@@ -66,11 +70,19 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
       h("span", { className: "snap-al-chip", textContent: b.body.medium }), st ? h("span", { className: "snap-quiet", textContent: `story v${st.n} · ${st.body.beats.length} beats · ${B.units(b).length} cuts` }) : null,
       style ? h("span", { className: "snap-al-chip choice", title: style.body.paragraph, textContent: `style: ${style.body.name} · ${style.body.palette}` }) : h("span", { className: "snap-al-chip", textContent: "no production style yet" }),
       h("span", { className: "snap-spacer" }),
-      h("button", { className: `snap-link snap-quiet-btn${dialOpen ? " on" : ""}`, textContent: `Dial: ${a.default}${Object.keys(a.stages).length ? ` · ${Object.entries(a.stages).filter(([, v]) => v !== a.default).length} stage${Object.entries(a.stages).filter(([, v]) => v !== a.default).length === 1 ? "" : "s"} differ` : ""}`, title: "who may act without asking, per stage: assist (agents wait), collaborate (as Let agents run), automatic (that stage goes ahead); story and style stay proposals", onclick: () => { dialOpen = !dialOpen; draw(); } }),
+      h("button", { className: `snap-link snap-quiet-btn${dialOpen ? " on" : ""}`, textContent: `Dial: ${a.default}${Object.keys(a.stages).length ? ` · ${Object.entries(a.stages).filter(([, v]) => v !== a.default).length} stage${Object.entries(a.stages).filter(([, v]) => v !== a.default).length === 1 ? "" : "s"} differ` : ""}`, title: "the Book's settings: who may act without asking, per stage (assist: agents wait; collaborate: as Let agents run; automatic: that stage goes ahead; story and style stay proposals), and what goes to Astrid", onclick: () => { dialOpen = !dialOpen; draw(); } }),
       dialOpen ? h("div", { className: "snap-book-dial" }, ...[["default", "Default"], ...Object.entries(B.STAGES)].map(([k, label]) => h("label", { className: "snap-field" }, h("span", { textContent: label }),
         h("select", { ariaLabel: `dial ${label}`, onchange: act(async (e) => { const next = { default: a.default, stages: { ...a.stages } }; if (k === "default") next.default = e.target.value; else next.stages[k] = e.target.value; await B.saveBook(b.id, { ...b.body, autonomy: next }, { note: `dial: ${label} ${e.target.value}` }); return `Dial: ${label} → ${e.target.value}`; }) },
           ...B.DIAL.map((d) => h("option", { value: d, textContent: d, selected: (k === "default" ? a.default : a.stages[k] ?? a.default) === d }))))),
-        h("div", { className: "snap-quiet", textContent: "Story and style edits from agents wait for you at every position." })) : null);
+        h("div", { className: "snap-quiet", textContent: "Story and style edits from agents wait for you at every position." }), astridSettings(b)) : null);
+  }
+  // SNAP-R224, R226: the Book's two Astrid settings, the person's (the dial doesn't reach them), off by default, each with
+  // the words that say what it does and what the other side sees
+  function astridSettings(b) {
+    const set = b.body.to_astrid ?? {}, toggle = (k, label) => act(async (e) => { await B.saveBook(b.id, { ...b.body, to_astrid: { ...set, [k]: e.target.checked } }, { note: `${label}: ${e.target.checked ? "on" : "off"}` }); return `${label}: ${e.target.checked ? "on" : "off"}`; });
+    const row = (k, label, help) => h("label", { className: "snap-book-astrid-set" }, h("span", { className: "snap-book-astrid-set-line" }, h("input", { type: "checkbox", checked: !!set[k], ariaLabel: label, onchange: toggle(k, label) }), h("strong", { textContent: label })), h("span", { className: "snap-book-astrid-help", textContent: help }));
+    return h("div", { className: "snap-book-astrid-sets" }, h("div", { className: "snap-rail-sub", textContent: "Astrid" }),
+      row("auto_push", "Push the Cut to Astrid by itself", AUTO_PUSH_HELP), row("share_style", "Share the production style with Astrid", SHARE_STYLE_HELP));
   }
   // the Book's docket: agents' proposals about it, waiting for the person, with what each would re-open
   const ofBook = (b) => (p) => p.book === `book:${b.id}` || (BOOK_TOOLS.has(p.tool) && W.parse(String(p.args.book ?? "book:x")).id === b.id);
@@ -281,12 +293,20 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
   const headOf = (rev) => (rev ? `${String(rev).replace(/^authoring-parent-revision-/, "").slice(0, 7)}…` : "?");
   function astridCard(b, ax, diff) {
     if (ax.error) return h("div", { className: "snap-book-card snap-book-astrid" }, h("strong", { textContent: "Astrid" }), h("span", { className: "snap-quiet", textContent: ax.error }));
-    const e = ax.entry, setup = ax.setup ?? {}, ready = !!setup.launcher, synced = e && !diff.changed.length && !diff.shape;
+    const e = ax.entry, setup = ax.setup ?? {}, ready = !!setup.launcher, synced = e && !diff.changed.length && !diff.shape && !B.styleMoved(b, ax);
     const app = setup.app && e && ax.project?.project_id ? `${setup.app}/tools/video-editor?project=${encodeURIComponent(ax.project.project_id)}&timeline=${encodeURIComponent(e.timeline.timeline_id)}` : null;
-    const where = e ? `In Astrid: ${ax.project?.name ?? ax.production.body.name} › ${e.timeline?.name ?? b.body.name} · head ${headOf(e.head)} · ${diff.said}` : ready ? `Not in Astrid yet: a push makes the project “${ax.production.body.astrid.project}” and this Book's timeline in it` : setup.said ?? "Astrid isn't set up on this machine";
+    const job = ax.jobs?.[0], running = job?.state === "running", note = B.autoNote(`book:${b.id}`), set = b.body.to_astrid ?? {};
+    const where = running ? `${job.said}…` : e ? `In Astrid: ${ax.project?.name ?? ax.production.body.name} › ${e.timeline?.name ?? b.body.name} · head ${headOf(e.head)} · ${diff.said}` : ready ? `Not in Astrid yet: a push makes the project “${ax.production.body.astrid.project}” and this Book's timeline in it` : setup.said ?? "Astrid isn't set up on this machine";
+    const label = !e ? "Push to Astrid" : diff.shape ? `Push as a new timeline (keeps “${e.timeline?.name}”)` : "Push to Astrid";
+    const push = (fresh) => act(async () => { const out = await B.pushAstrid(`book:${b.id}`, { by: "button", new_timeline: fresh }); return out.queued ? out.said : `Pushing ${b.body.name} to Astrid: the Work card and this card follow it`; });
     return h("div", { className: "snap-book-card snap-book-astrid" },
-      h("div", { className: "snap-book-row" }, h("strong", { textContent: "Astrid" }), h("span", { className: `snap-quiet snap-book-astrid-said${synced ? " ok" : ""}`, role: "status", textContent: where }), h("span", { className: "snap-spacer" }),
-        synced && app ? h("a", { className: "snap-primary snap-book-astrid-go", href: app, target: "_blank", rel: "noopener", textContent: "Open in Astrid" }) : null),
+      h("div", { className: "snap-book-row" }, h("strong", { textContent: "Astrid" }), h("span", { className: `snap-quiet snap-book-astrid-said${synced && !running ? " ok" : ""}`, role: "status", textContent: where }), h("span", { className: "snap-spacer" }),
+        synced && app && !running ? h("a", { className: "snap-primary snap-book-astrid-go", href: app, target: "_blank", rel: "noopener", textContent: "Open in Astrid" })
+          : ready ? h("button", { className: "snap-primary snap-book-astrid-push", textContent: running ? "Pushing…" : label, disabled: running, title: "copy this Book's Cut into Astrid: the first push imports it as this Book's timeline in its production's project; later pushes swap the changed cuts in place", onclick: push(!!(e && diff.shape)) }) : null),
+      h("div", { className: "snap-quiet", textContent: `Push by itself: ${set.auto_push ? "on" : "off"} · Share the production style: ${set.share_style ? "on" : "off"} (the Book's settings, under Dial)` }),
+      note ? h("div", { className: "snap-book-flags", textContent: note }) : null,
+      e && diff.shape ? h("div", { className: "snap-book-flags", textContent: `The Cut's shape changed: a push makes a new timeline “${b.body.name} · Cut ${(e.timelines_before?.length ?? 0) + 2}” and keeps “${e.timeline?.name}” as it is.` }) : null,
+      job?.state === "failed" ? h("details", { className: "snap-book-astrid-fail", open: true }, h("summary", { textContent: `The last push failed: ${job.said}` }), h("pre", { className: "snap-work-error", textContent: JSON.stringify(job.answer, null, 1) })) : null,
       e?.left_out?.length ? h("div", { className: "snap-quiet", textContent: `Gaps in Astrid: ${e.left_out.map((x) => `${x.cut} (${x.why ?? "left out"})`).join("; ")}` }) : null);
   }
   function theCut(b, ax) {
@@ -343,6 +363,7 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
 export function railButton({ say }) {
   const b = h("button", { className: "snap-link snap-quiet-btn snap-new-cast snap-book-rail", textContent: "Book", title: "the production: story beats, style, settei, boards, the Cut (layer 3)" });
   b.addEventListener("click", () => openBook(hostOf(b), { say }).catch((err) => say?.(err.message, true)));
+  B.watchAutoPush(); // SNAP-R224: a Book's auto-push watches from page load, not only while the sheet is open
   const update = () => { const n = B.books().length; b.replaceChildren("Book", h("small", { textContent: n ? `${n} Book${n === 1 ? "" : "s"}` : "a production: beats, boards, the Cut" })); };
   W.onChange(update); update();
   return b;
@@ -415,6 +436,11 @@ export const BOOK_STYLE = `
 .snap-book-cutrow { display: grid; grid-template-columns: 48px 160px minmax(120px, 1fr) repeat(3, 96px) minmax(150px, 220px); gap: 10px; align-items: center; padding: 6px; border-radius: 8px; border: 1px solid var(--s-line); }
 .snap-book-astrid .snap-book-astrid-said { flex: 1 1 320px; } .snap-book-astrid-said.ok, .snap-book-astrid-cut.ok { color: #57c785; } .snap-book-astrid-cut.moved { color: #f0b445; }
 .snap-book-astrid-go { text-decoration: none; padding: 5px 12px; border-radius: 8px; }
+.snap-book-astrid { flex-shrink: 0; }
+.snap-book-astrid-sets { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px 24px; padding-top: 10px; margin-top: 4px; border-top: 1px solid var(--s-line); }
+.snap-book-astrid-sets > .snap-rail-sub { grid-column: 1 / -1; }
+.snap-book-astrid-set { display: flex; flex-direction: column; gap: 4px; } .snap-book-astrid-set-line { display: flex; align-items: center; gap: 8px; }
+.snap-book-astrid-fail pre { max-height: 240px; overflow: auto; }
 .snap-book-astrid-help { font-size: 12px; line-height: 1.45; color: var(--s-dim); max-width: 760px; }
 .snap-book-cutthumb { width: 160px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; background: #000; display: flex; align-items: center; justify-content: center; font-size: 11px; }
 .snap-book-num input { width: 100%; }

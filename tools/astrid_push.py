@@ -300,7 +300,7 @@ def swap(a, snap, astrid, archive, production, book, entry, cuts, changed, linke
             if not out.get("ok"):
                 raise Refused("swap", f"Astrid refused the swap of {cut}: {json.dumps(out)}", out.get("error") or "swap_refused", swapped=done)
             done[cut] = out["changed"]
-            rows[cut] = {**row_of(cut), "clip": was["clip"], **({"dialogue": was["dialogue"]} if "dialogue" in new else {}), "archive": archive, "swapped_at": int(time.time() * 1000), "by": a.by}
+            rows[cut] = {**row_of(cut), "clip": was["clip"], **({"dialogue": was["dialogue"]} if "dialogue" in new else {}), "archive": archive, "swapped_at": int(time.time() * 1000), "by": a.by, "via": "sdk"}
     _, head = astrid.clips(linked["slug"], timeline)
     snap.link(production=production, project=linked, book=book, set={"head": head, "pushed_at": int(time.time() * 1000), "by": a.by}, clips=rows)
     return {"ok": True, "did": "swapped", "project": linked, "timeline": entry["timeline"], "head": head, "swapped": done,
@@ -487,7 +487,7 @@ def style_section(astrid, slug, book, bid):
         block = f"<!-- snap:style book:{bid} {style['ref']} -->\n{style_words(style)}<!-- /snap:style -->\n" if on and style else ""
         new = mark.sub("\n" + block if block else "\n", text, count=1) if mark.search(text) else (text.rstrip("\n") + ("\n\n" if text.strip() else "") + block if block else text)
         if new == text:
-            return {"state": "unchanged (on)" if block else "not there (off)", "on": on}
+            return {"state": "unchanged (on)" if block else "not there (off)", "on": on, **({"look": style["ref"]} if block else {})}
         with open(path, "w", encoding="utf-8") as f:
             f.write(new)
         version = astrid.run("preferences", "checkin", path, stage="style")["version"]

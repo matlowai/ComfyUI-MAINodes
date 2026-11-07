@@ -2063,6 +2063,19 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
   project being a trilogy or multi books"; one Astrid project per production, one timeline per Book (PROTOCOL_V1_1 §3,
   §14.1). *More:* tests/snap/test_g16_production.js.
 
+- **SNAP-R224: The Cut goes to Astrid by the person's button or their per-Book setting, as one job the Work card shows;
+  the server runs Astrid's CLI on loopback in a built environment and never re-imports a linked Book.** The Cut lens's
+  Astrid card has Push to Astrid (Open in Astrid once in sync; "Push as a new timeline" when the shape changed); the
+  Book's settings (under Dial) have "Push the Cut to Astrid by itself" (off by default): when the Cut's canon moves (an
+  active take, a trim or sound level, the shared style) and the Cut has been still 20 s, the page pushes; a changed
+  shape stops it and says so on the card. Either way the page writes the archive (probed, SNAP-R215) and POSTs
+  `/mainodes/snap/astrid/push` (loopback only), which runs tools/astrid_push.py with exactly PATH, HOME,
+  ASTRID_RUNTIME_DATA_ROOT, SNAP_BASE (this server, loopback) and SNAP_AGENT=snap-push, one job per Book (a second
+  request while one runs queues one more), recorded `by: person (button)` / `person (auto-push)`; the job is a Work card
+  row (running, failed with its answer whole) and the card's status line. Agents and the dial never turn these on; an
+  agent's own push is tools/astrid_push.py from its shell. *Why:* the operator, 2026-11-07: "both options are good.
+  setting on off and button to push over there"; the lab found Astrid's host inheriting provider keys from a tool
+  shell. *More:* tests/snap/test_g16_settings.js.
 - **SNAP-R225: Snap remembers where a Cut went.** The bridge keeps a receipt per user (`snap/astrid.json`): production
   -> Astrid project `{project_id, slug, name}`, its references, documents and the style section; Book -> timeline
   `{timeline_id, name}`, head, order, and per cut `{clip, media, take, trim, swapped_at}`. tools/astrid_push.py writes it
@@ -2072,5 +2085,13 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
   link: Astrid drops a manifest's `snap` block on re-export (lab check A7), and a project's settings update replaces its
   metadata whole (F-AE01). *Why:* the G15 UX notes: nothing linked the two back, and the import named a placeholder
   project. *More:* tests/snap/test_g16_receipt.js.
+
+- **SNAP-R226: The production style reaches Astrid's agent only as a marked preference section the person switched on;
+  words only; removed when switched off.** "Share the production style with Astrid" (the Book's settings, off by
+  default, with the help text of PROTOCOL_V1_1 §5): on a push, `<!-- snap:style book:<id> look:<id>@n -->` … `<!--
+  /snap:style -->` in the project's preferences carries the look's paragraph, palette, voice direction, sound palette
+  and genre notes (never its still, LoRA or source), through the CLI's checkout/checkin; off, the next push removes it;
+  the person's own text outside it stays. *Why:* the operator, 2026-11-07: "this should be a configuration item and
+  needs better explaining". *More:* tests/snap/test_g16_settings.js.
 
 Next free ID after this batch: SNAP-R230 (R160-R164 stay free; G16 reserved R215-R229).
