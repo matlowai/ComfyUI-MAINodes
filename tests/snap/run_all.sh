@@ -556,6 +556,8 @@ nice -n 19 python3 -I "$T"/test_g3_cards.py >test_g3_cards.py.out 2>&1; tail -1 
 nice -n 19 "$py" -I "$T"/test_iris.py >test_iris.py.out 2>&1; tail -1 test_iris.py.out
 # SNAP-R109: the last real critic run on the fixtures still holds the floor (a real-agent check; this only re-scores its saved notes)
 nice -n 19 python3 -I "$T/critic/run_fixtures.py" score --results "$T/critic/runs/2026-11-06-r4/results.jsonl" --confirm "$T/critic/runs/2026-11-06-r4/confirm.json" | tail -1 | sed 's/^/critic   /'
+# G4: the r4 colour delta's run on all 32 (X02's hilt note waits for the operator's look; see critic/README.md)
+nice -n 19 python3 -I "$T/critic/run_fixtures.py" score --results "$T/critic/runs/2026-11-06-r4-colour/results.jsonl" --confirm "$T/critic/runs/2026-11-06-r4-colour/confirm.json" | tail -1 | sed 's/^/critic4  /'
 # U79 (SNAP-R96, R97, R99): the vault container and keys, pure Python on the pack this server loads; prints "vaultfmt n/m" last
 timeout 600 nice -n 19 "$py" -I "$T"/test_vault_format.py "$SNAP_TEST_PACK" >test_vault_format.py.out 2>&1; tail -1 test_vault_format.py.out
 # U79 server, migrate, gate and page suites need the gatetest pair (gate in front of the gatetest ComfyUI, --multi-user, privacy on)
