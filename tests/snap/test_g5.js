@@ -89,6 +89,8 @@ const bridge = (tool, args, agent) => http("/mainodes/snap/call", { tool, args }
     // ---- F-G04: a plan preview ----
     const before = (await call("get_record", { ref: loc })).head;
     const pv = await call("draw_set_plan", { location: loc, preview: true, shapes: [{ kind: "rect", x: 0.5, y: 0.5, w: 0.3, h: 0.2, label: "Square" }, { kind: "label", x: 0.97, y: 0.3, label: "THE EAST WALL RUNS THE WHOLE WAY" }, { kind: "label", x: 0.5, y: 0.8, label: "Well" }, { kind: "label", x: 0.52, y: 0.8, label: "Gate" }] });
+    const shots = path.join(CFG.out, "ui", "g5"); fs.mkdirSync(shots, { recursive: true });
+    if (pv.images?.[0]?.data) fs.writeFileSync(path.join(shots, "g5_plan_preview.png"), Buffer.from(pv.images[0].data, "base64"));
     R.preview = { ...pv, images: (pv.images ?? []).map((i) => ({ mimeType: i.mimeType, bytes: Math.round((i.data?.length ?? 0) * 0.75) })) };
     R.afterPreview = (await call("get_record", { ref: loc })).head;
     R.previewSame = before === R.afterPreview;
@@ -106,6 +108,9 @@ const bridge = (tool, args, agent) => http("/mainodes/snap/call", { tool, args }
     R.notesOnly = await call("save_location", { location: loc, notes: "the gate faces the road; the well is mid-square" });
     await page.waitForTimeout(2500);
     R.notesRows = (await call("list_critiques", { ref: R.notesOnly.ref, compact: true })).rows;
+    R.sheet = await call("open_view", { view: "location", location: head, masks: true });
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: path.join(shots, "g5_location_masks_once.png") });
     R.notes = await page.evaluate(async ([ref]) => { const CR = await import("/extensions/ComfyUI-MAINodes/snap/critiques.js"), CV = await import("/extensions/ComfyUI-MAINodes/snap/critiqueview.js"); await CR.load(); return CV.locationNotes(ref).map((x) => ({ k: x.k, part: x.part, also: x.also ?? [] })); }, [head]);
 
     // ---- F-G02 + F-G08: a short take id; the replaced active take ----
