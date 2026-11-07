@@ -155,7 +155,7 @@ function mine(t, say, draw) {
       n.fixture ? h("span", { className: "snap-quiet", textContent: `fixture ${n.fixture.id}` }) : h("button", { className: "snap-link snap-quiet-btn", textContent: "Add as fixture", onclick: () => addFixture(t, n, say).then(draw) }))))];
 }
 async function addFixture(t, n, say) { try { say?.((await CR.addFixture({ take: t.id, note: n.id, polarity: "positive" })).said); } catch (err) { say?.(err.message, true); } }
-const ownerText = (o) => (!o ? "take" : typeof o === "string" ? o : o.ref ? `${o.ref}${o.parts ? `, ${o.parts.join(" / ")}` : o.part ? `, ${o.part}` : o.unmapped ? ` (“${o.words}”: no part named)` : ""}` : o.what ?? o.words ?? "take");
+const ownerText = (o) => (!o ? "take" : typeof o === "string" ? o : o.ref ? `${o.ref}${o.parts ? `, ${o.parts.join(" / ")}` : o.part === "marks" && o.plate ? `, camera marks: plate ${o.plate}${o.mark ? ` (mark ${o.mark})` : ""}` : o.part ? `, ${o.part}` : o.unmapped ? ` (“${o.words}”: no part named)` : ""}` : o.what === "board" && o.label ? `board: ${o.label}${o.take ? ` (${o.take})` : ""}` : o.what ?? o.words ?? "take"); // F-Q24
 
 // ---- Fix at source (SNAP-R105) -------------------------------------------------------------------------------------
 // the owner's picture: a location's master, plan or plate at the version the take pinned, a Cast's first picture, else
@@ -166,14 +166,18 @@ function ownerPicture(t, n) {
     // F-K09 (SNAP-R156): the part the critic named; notes, camera marks or an unmapped owner have no picture to redraw
     const got = W.get(o.ref), b = got?.version.body, part = o.part ?? null;
     const p = part === "master" ? b?.master : part === "plan" ? b?.plan : part === "map" ? b?.map : b?.plates?.find((x) => `plate ${x.name}` === part);
-    if (!p && b) return { record: o.ref, label: `${b.name} v${got.version.n}, ${part === "marks" ? "camera marks and plate poses" : part === "notes" ? "notes and scale" : "no part named"}`, words: true,
-      how: part === "marks" ? "Fix the typed numbers on the Location sheet (or add_plate {location, name, pose} / {camera: {name, eye_height}}): no picture changes" : part === "notes" ? "Fix the record's notes or scale on the Location sheet (save_location {location, notes, scale}): no picture changes" : o.unmapped ?? "The note names no part of the place: open the Location sheet and fix it where it was born" };
+    if (!p && b) return { record: o.ref, label: `${b.name} v${got.version.n}, ${part === "marks" ? (o.plate ? `camera marks: plate ${o.plate}'s pose${o.mark ? ` and mark ${o.mark}` : ""}` : "camera marks and plate poses") : part === "notes" ? "notes and scale" : "no part named"}`, words: true,
+      how: part === "marks" ? `Fix the typed numbers on the Location sheet (or add_plate {location, name: ${JSON.stringify(o.plate ?? "<plate>")}, pose: {eye_height}}${o.mark ? ` / {camera: {name: ${JSON.stringify(o.mark)}, eye_height}}` : " / {camera: {name, eye_height}}"}): no picture changes` : part === "notes" ? "Fix the record's notes or scale on the Location sheet (save_location {location, notes, scale}): no picture changes" : o.unmapped ?? "The note names no part of the place: open the Location sheet and fix it where it was born" };
     if (p) return { src: viewInput(p.file), label: `${b.name} v${got.version.n}, ${part}`, context: { location: W.refOf("location", W.parse(o.ref).id, got.version.n), plate: part === "master" || part === "plan" ? part : part.replace(/^plate /, "") }, purpose: part === "master" ? "master" : "plate", record: o.ref };
   }
   if (o.ref?.startsWith("cast:")) { const got = W.get(o.ref), r0 = got?.version.body.refs?.[0]; if (r0) return { src: viewInput(r0.file), label: `${got.version.body.name} v${got.version.n}`, context: { cast: o.ref, ref: 0 }, purpose: "cast_picture", record: o.ref }; }
+  // F-Q24 (SNAP-R180): a flaw born in a board opens that board (its take, else its file), not the picture it was seen on
+  const board = o.what === "board" ? (o.take && T.get(o.take)) || null : null;
+  if (o.what === "board" && !board && o.file) return { src: viewInput(o.file), label: o.label ?? "the board", context: { file: o.file }, purpose: "edit" };
+  if (board) { t = board; n = { ...n, region: null }; }
   if (!t) return { record: o.ref ?? "", label: o.ref ?? "the record", words: true, how: `${o.ref ?? "Its record"} has no such version here any more: open the Location sheet` };
   const m = t.media.find((x) => x.kind === "image") ?? t.media[0], frame = n.t != null ? Math.round(n.t * FPS) : null;
-  return { src: T.url(m), label: `take ${t.number}${m.kind === "video" ? `, frame ${frame ?? 0}` : ""}`, context: { take: t.id, ...(m.kind === "video" ? { frame: frame ?? 0 } : {}) }, purpose: ED.purposeOf(t)?.purpose ?? "edit", sameAsNote: true, video: m.kind === "video" };
+  return { src: T.url(m), label: `${board ? `${o.label ?? "the board"}, ` : ""}take ${t.number}${m.kind === "video" ? `, frame ${frame ?? 0}` : ""}`, context: { take: t.id, ...(m.kind === "video" ? { frame: frame ?? 0 } : {}) }, purpose: ED.purposeOf(t)?.purpose ?? "edit", sameAsNote: !board, video: m.kind === "video" };
 }
 const viewInput = (file) => { const cut = file.lastIndexOf("/"); return T.url({ filename: file.slice(cut + 1), subfolder: file.slice(0, Math.max(cut, 0)), type: "input" }); };
 export function fixSheet(host, t, n, { say }) {

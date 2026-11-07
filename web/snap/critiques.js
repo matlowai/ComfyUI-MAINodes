@@ -136,7 +136,20 @@ function pinsOf(r) {
   if (s.kind === "record") { const { kind, id, n } = W.parse(s.ref); return { [W.refOf(kind, id)]: { n } }; }
   return {};
 }
-export function ownerOf(r, owner) {
+// F-Q24 (SNAP-R180): "board" names the board the subject was drawn from or opens on: the New view's context picture
+// labelled a board, else its cut's board (the key drawing when the note says key or peak), as a take when one made it
+function boardOf(r, text) {
+  const t = T.get(r.subject.take ?? (r.subject.kind === "pair" ? r.subject.pair[1] : null) ?? "");
+  if (!t) return null;
+  const h = RT.shotOf(t), unit = h?.shot.unit ?? {}, key = /\b(key(?:frame| drawing)?|peak)\b/i.test(text ?? "");
+  const made = /^view\//.test(t.parent?.method ?? "") ? (t.parent.options?.context ?? []).find((c) => /\bboard\b/i.test(c.label ?? "")) : null;
+  const slot = made ? [unit.board, unit.key].find((b) => b?.file && b.file === made.file) : key ? unit.key : unit.board;
+  const from = made ?? slot;
+  if (!from) return null;
+  const take = made?.take ?? slot?.from?.take ?? null, role = slot === unit.key && slot ? "key" : "board";
+  return { ...(take ? { take } : {}), ...(from.file ? { file: from.file } : {}), ...(unit.cut ? { cut: unit.cut } : {}), role, label: made?.label ?? `${unit.cut ?? "the cut"}'s ${role === "key" ? "key drawing" : `${slot?.approved ? "approved " : ""}board`}` };
+}
+export function ownerOf(r, owner, text = "") {
   if (owner && typeof owner === "object") return owner;
   const words = String(owner ?? "").trim(), pins = pinsOf(r), pinned = (kind) => Object.entries(pins).find(([ref]) => ref.startsWith(`${kind}:`));
   const ref = words.match(/\b(cast|location|card|set_snapshot):[A-Za-z0-9][\w.-]*(@\d+)?/)?.[0];
@@ -149,8 +162,14 @@ export function ownerOf(r, owner) {
   const partOf = (ref) => { const plates = W.get(ref)?.version.body.plates ?? [];
     const word = (x, flags) => new RegExp(`(^|[^\\w])${x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w])`, flags).exec(words), at = (p) => { const tag = p.name.split(/[\s,]/)[0], m = word(p.name, "i") ?? (tag !== p.name ? word(tag, "") : null); return m ? m.index + m[1].length : -1; };
     const named = plates.map((p) => [p.name, at(p)]).filter(([, i]) => i >= 0).sort((a, b) => a[1] - b[1]).map(([n]) => `plate ${n}`);
+    // F-Q24 (SNAP-R180): the marks name the plate whose typed pose is wrong: one the words name, else the note's text, else
+    // the plate the row reads; the plate's own camera mark with it
+    if (/\b(poses?|camera marks?|marks?|eye heights?)\b/i.test(words)) {
+      const inText = plates.map((p) => { const tag = p.name.split(/[\s,]/)[0], m = new RegExp(`(^|[^\\w])${tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w])`).exec(text); return [p, m ? m.index : -1]; }).filter(([, i]) => i >= 0).sort((a, b) => a[1] - b[1])[0]?.[0];
+      const plate = named.length ? plates.find((p) => `plate ${p.name}` === named[0]) : inText ?? plates.find((p) => `plate ${p.name}` === r.subject.part);
+      return { part: "marks", ...(plate ? { plate: plate.name, ...(plate.camera ? { mark: plate.camera } : {}) } : {}) };
+    }
     if (named.length) return { part: named[0], ...(named.length > 1 ? { parts: named } : {}) };
-    if (/\b(poses?|camera marks?|marks?|eye heights?)\b/i.test(words)) return { part: "marks" };
     if (/\bplan\b/i.test(words) && !/\bmaster\b/i.test(words)) return { part: "plan" };
     if (/\bmaster\b/i.test(words)) return { part: "master" };
     if (/\b(notes?|scale)\b/i.test(words)) return { part: "notes" }; // F-E19: "location notes" is the record's words, no picture
@@ -159,7 +178,8 @@ export function ownerOf(r, owner) {
   if (loc && /\b(master|plan|plates?|location|set|record|notes|marks?|poses?)\b/i.test(words)) { const ref = W.refOf("location", W.parse(loc[0]).id, loc[1].n); return { ref, ...partOf(ref), words }; }
   if (cast && /\bcast\b/i.test(words)) return { ref: W.refOf("cast", W.parse(cast[0]).id, cast[1].n), words };
   if (r.subject.kind === "record" && r.subject.ref.startsWith("location:") && /\b(master|plan|plates?|location|record|notes|marks?|poses?|map)\b/i.test(words)) return { ref: r.subject.ref, ...partOf(r.subject.ref), words };
-  return { what: /\bprompt\b/i.test(words) ? "prompt" : /\bboard\b/i.test(words) ? "board" : "take", words: words || "take" };
+  const what = /\bprompt\b/i.test(words) ? "prompt" : /\bboard\b/i.test(words) ? "board" : "take";
+  return { what, ...(what === "board" ? boardOf(r, `${words} ${text}`) ?? { unmapped: "no board made this picture or opens its cut: Fix at source opens the take" } : {}), words: words || "take" };
 }
 
 // ---- making rows (SNAP-R101, R104): one per subject, idempotent on the server -----------------------------------------
@@ -283,7 +303,7 @@ export async function write(id, by, { verdict, passes = {}, notes = [], amend = 
   let r = get(id);
   if (!r) throw new Error(`No critique ${id} (list_critiques lists them)`);
   const was = amend && r.done ? r : null;
-  const out = notes.map((n, i) => ({ id: `cn${i + 1}`, severity: n.severity, pass: n.pass, text: n.text, ...placed(r, n), owner: ownerOf(r, n.owner), ...(n.fix ? { fix: n.fix } : {}), ...(n.mask ? { mask: n.mask } : {}), tags: [...new Set([TAG[n.pass], ...(n.tags ?? [])].filter(Boolean))], by, at: new Date(now()).toISOString() }));
+  const out = notes.map((n, i) => ({ id: `cn${i + 1}`, severity: n.severity, pass: n.pass, text: n.text, ...placed(r, n), owner: ownerOf(r, n.owner, n.text), ...(n.fix ? { fix: n.fix } : {}), ...(n.mask ? { mask: n.mask } : {}), tags: [...new Set([TAG[n.pass], ...(n.tags ?? [])].filter(Boolean))], by, at: new Date(now()).toISOString() }));
   const done = await put(await call("/mainodes/snap/critique/write", { id, by, verdict, passes, notes: out, ...(was ? { amend: true } : {}) }));
   // F-K10 (SNAP-R157): an amendment is a new row; the old one says what superseded it, and its notes leave the take's list
   if (was) { was.superseded_by = done.id; r = done; for (const t of new Set(was.notes.map((n) => n.take ?? was.subject.take).filter(Boolean))) { const take = T.get(t); if (!take) continue; for (const n of take.notes) if (n.critique === was.id) n.superseded_by = done.id; await T.save(take); } changed(); }
