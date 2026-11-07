@@ -13,7 +13,8 @@
 // SNAP-R23 candidates · SNAP-R51 change something, recast, pins · SNAP-R71 a new view from context, in the asker's words ·
 // SNAP-R72 what Picture 1 is, per model · SNAP-R75 the view slot's models are data (P-H3-Image, H3 still) ·
 // SNAP-R77 a character sheet is a sheet-slot method whose candidates are takes · SNAP-R79 a new view says which
-// picture it copied · see docs/snap/SNAP_RULES.md
+// picture it copied · SNAP-R186 a record's picture's new view lands with the record · SNAP-R190 a region edit pastes back ·
+// see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as C from "./candidates.js";
 import * as K from "./checks.js";
@@ -403,14 +404,44 @@ async function contextPicture(p, i) {
   if (p.crop) { // fractions of the picture, as the take viewer's marked region holds them
     const [x, y, w, hgt] = p.crop;
     if (![x, y, w, hgt].every((v) => typeof v === "number" && v >= 0 && v <= 1) || w <= 0 || hgt <= 0) throw new Error(`Picture ${i + 1}: crop is [x, y, width, height] in fractions of the picture (0 to 1); not ${JSON.stringify(p.crop)}`);
-    nodes[k("c")] = { class_type: "ImageCropV2", inputs: { image: out, crop_region: { x: Math.round(x * size.width), y: Math.round(y * size.height), width: Math.max(1, Math.round(w * size.width)), height: Math.max(1, Math.round(hgt * size.height)) } } };
-    out = [k("c"), 0]; said.crop = p.crop; if (!p.label) said.label += " (cropped)";
+    const box = { x: Math.round(x * size.width), y: Math.round(y * size.height), width: Math.max(1, Math.round(w * size.width)), height: Math.max(1, Math.round(hgt * size.height)) };
+    nodes[k("c")] = { class_type: "ImageCropV2", inputs: { image: out, crop_region: box } };
+    const whole = out; out = [k("c"), 0]; said.crop = p.crop; if (!p.label) said.label += " (cropped)";
+    return { nodes, out, said, world, whole, box, size };
   }
   return { nodes, out, said, world };
 }
-// where the new view lands: the shot asked for, else the shot Picture 1's take (or the first take among the pictures) is
-// in, else the open tab's shot, else the open tab
-async function landing(land, said) {
+// F-S04 (SNAP-R190): a region edit: Picture 1's crop is edited at about 1 MP (a face is too small to edit at its own
+// size), scaled back to the crop's pixels and pasted over the whole Picture 1 with a feathered edge (none on a side the
+// crop shares with the picture's border), so everything outside the crop, the pose included, is the picture as it was.
+// Core nodes only: ImageScaleToTotalPixels, ImageScale, SolidMask, FeatherMask, ImageCompositeMasked
+const PASTE_MP = 1.0;
+function pasteFirst(pic) { return { ...pic, nodes: { ...pic.nodes, r0s: { class_type: "ImageScaleToTotalPixels", inputs: { image: pic.out, upscale_method: "lanczos", megapixels: PASTE_MP, resolution_steps: 16 } } }, out: ["r0s", 0] }; }
+function pasteBack(g, pic) {
+  const { box, size } = pic, f = Math.max(4, Math.round(0.06 * Math.min(box.width, box.height)));
+  Object.assign(g, {
+    rb: { class_type: "ImageScale", inputs: { image: ["d", 0], upscale_method: "lanczos", width: box.width, height: box.height, crop: "disabled" } },
+    rm: { class_type: "SolidMask", inputs: { value: 1.0, width: box.width, height: box.height } },
+    rf: { class_type: "FeatherMask", inputs: { mask: ["rm", 0], left: box.x > 0 ? f : 0, top: box.y > 0 ? f : 0, right: box.x + box.width < size.width ? f : 0, bottom: box.y + box.height < size.height ? f : 0 } },
+    rc: { class_type: "ImageCompositeMasked", inputs: { destination: pic.whole, source: ["rb", 0], x: box.x, y: box.y, resize_source: false, mask: ["rf", 0] } },
+  });
+  g.o.inputs.images = ["rc", 0];
+  return { box, feather: f };
+}
+// F-S02 (SNAP-R186): a new view whose Picture 1 is a location's picture (or a Cast's picture it edits) lands with that
+// record: the shot of the take the picture came from, else (a place) the newest take that pins it outside a Book's cuts
+// (a cut's shot is that production's, and a still there is a board); null when no shot holds the record's work
+function recordHome(x, purpose) {
+  if (!x.location && !(x.cast && purpose === "edit")) return undefined;
+  const { kind, id } = W.parse(x.location ?? x.cast), b = W.get(x.location ?? x.cast)?.version.body;
+  const pic = kind === "location" ? (["master", "plan"].includes(x.plate) ? b?.[x.plate] : b?.plates?.find((p) => p.name === x.plate)) : b?.refs?.find((r) => r.file === x.file);
+  const from = pic?.from?.take && T.get(pic.from.take), home = from && RT.shotOf(from);
+  if (home || kind !== "location") return home ?? null;
+  return T.all().filter((t) => t.world?.[`location:${id}`]).sort((a, b) => b.created - a.created).map(RT.shotOf).find((h) => h && !(h.scene.book && h.shot.unit)) ?? null;
+}
+// where the new view lands: the shot asked for, else with the record Picture 1 is a picture of (F-S02), else the shot
+// Picture 1's take (or the first take among the pictures) is in, else the open tab's shot, else the open tab
+async function landing(land, said, { purpose = null, by = "person" } = {}) {
   await SC.load();
   if (land === "tab") return { group: T.groupOf(), where: "this tab" };
   let home = null;
@@ -419,13 +450,15 @@ async function landing(land, said) {
     if (!scene) throw new Error(`land: "tab", or {scene, shot} of ${SC.all().map((x) => `${x.id} (${x.name}: ${x.shots.map((y) => y.id).join(", ")})`).join("; ") || "no scenes yet"}`);
     home = { scene, shot: SC.shotOf(scene, land.shot) };
   } else {
-    const first = said.map((x) => x.take && T.get(x.take)).find(Boolean);
-    home = (first && RT.shotOf(first)) ?? SC.current();
+    const first = said.map((x) => x.take && T.get(x.take)).find(Boolean), record = said[0] && recordHome(said[0], purpose);
+    if (record === null && by === "agent") throw new Error(`Picture 1 is ${said[0].label}, and no shot holds that record's work (no take it came from, and none outside a Book's cuts that pins it): give land {scene, shot} (where the record's pictures belong) or "tab"; the view doesn't land in the open shot, which may be another production's`);
+    home = record ?? (first && RT.shotOf(first)) ?? SC.current();
+    if (record) home = { ...home, why: `where ${said[0].label}'s work is` };
   }
   if (!home) return { group: T.groupOf(), where: "this tab" };
   const group = home.shot.groups[0] ?? crypto.randomUUID();
   if (!home.shot.groups.includes(group)) await SC.addGroup(home.scene.id, home.shot.id, group);
-  return { group, scene: home.scene.id, shot: home.shot.id, where: `${SC.shotTitle(home.scene, home.shot)} of ${home.scene.name}` };
+  return { group, scene: home.scene.id, shot: home.shot.id, where: `${SC.shotTitle(home.scene, home.shot)} of ${home.scene.name}${home.why ? ` (${home.why})` : ""}` };
 }
 // one P-H3-Image candidate (Pruna's edit graph: ModelSamplingMiniMaxH3 1.0/1.0, BasicGuider, 8 euler steps on their
 // ManualSigmas grid): core PH3ImageConditioning edits image_1 with the rest as references; width and height 0 is
@@ -559,7 +592,7 @@ const GRAPHS = { ph3: ph3Graph, fizgig: fizgigGraph, h3: fizgigGraph, contact: c
 // words, one candidate per seed (`seeds`, else `count` new ones), on the view slot's `method` (ph3_view, fizgig_still; by
 // default the first the registry lists).
 // Returns at once; each candidate is a take in the shot it lands in once its paint finishes
-export async function fromContext(pictures, prompt, { method, purpose, seeds, count = 2, width, height, land, story = null, question = null, by = "person" } = {}) {
+export async function fromContext(pictures, prompt, { method, purpose, seeds, count = 2, width, height, land, story = null, question = null, paste = false, by = "person" } = {}) {
   await Promise.all([S.load(), M.load(), T.load(), W.load()]);
   const P = purposes();
   if (purpose != null && !P[purpose]) throw new Error(`purpose is one of ${Object.keys(P).join(", ")}; not ${JSON.stringify(purpose)}`);
@@ -568,13 +601,16 @@ export async function fromContext(pictures, prompt, { method, purpose, seeds, co
   const id = method ?? P[aim]?.method ?? S.list("view")[0]?.id, m = S.list("view").find((x) => x.id === id);
   const chosen = { method: id, purpose: aim, why: method ? "the method asked for" : `${P[aim]?.label ?? aim}${purpose ? "" : pictures?.some((p) => p.cast) ? " (no purpose given; a Cast picture is among the pictures)" : " (no purpose given; no Cast picture among them)"} → ${m?.title ?? id}; give purpose or method to choose another` };
   if (!m) throw new Error(`No method "${id}" for a new view; there are: ${S.list("view").map((x) => x.id).join(", ")}`);
+  if (paste && (width != null || m.anchors.kind !== "ph3")) throw new Error(`paste_back runs on P-H3-Image (method ph3_view: an edit of Picture 1), at the crop's own size; ${width != null ? "leave width and height out" : `${m.title} draws a new picture from references`}`);
   if (m.install_state !== "ready") throw new Error(`${m.title} ${m.install_state}`);
   if (!pictures?.length) throw new Error(`${m.title}: give at least one picture (Picture 1 ${m.picture_one?.label ?? "comes first"})`);
   if (!prompt?.trim()) throw new Error(`${m.title}: say what the new still shows (prompt), naming the pictures as Picture 1, Picture 2, … if you like`);
   if ((width == null) !== (height == null)) throw new Error(`${m.title}: give width and height together, or neither (then the still is Picture 1's size)`);
   if (m.anchors.max_pictures && pictures.length > m.anchors.max_pictures) throw new Error(`${m.title} reads up to ${m.anchors.max_pictures} pictures; ${pictures.length} given`);
   const pics = []; for (const [i, p] of pictures.entries()) pics.push(await contextPicture(p, i));
-  const said = pics.map((p) => p.said), where = await landing(land, said), world = Object.fromEntries(pics.map((p) => p.world).filter(Boolean));
+  if (paste && !pics[0].box) throw new Error(`${m.title}: paste_back edits a region of Picture 1 and puts it back: give Picture 1 a crop [x, y, width, height] (the face, the hand)`);
+  if (paste) pics[0] = pasteFirst(pics[0]);
+  const said = pics.map((p) => p.said), where = await landing(land, said, { purpose: aim, by }), world = Object.fromEntries(pics.map((p) => p.world).filter(Boolean));
   const list = seeds?.length ? seeds : Array.from({ length: count }, () => Math.floor(Math.random() * 2 ** 32));
   const label = prompt.trim(), first = said.find((x) => x.take)?.take ?? null;
   // F-F04 (SNAP-R133): a set plan is context, never a subject: say so with its plain cite (SNAP-R137)
@@ -582,9 +618,9 @@ export async function fromContext(pictures, prompt, { method, purpose, seeds, co
   if (plans.length) prompt = `${label} ${plans.join(" and ")} ${plans.length > 1 ? "are set plans" : "is the set plan"} seen from above: the layout only (where things stand), not a picture to draw; no paper, lines or labels from it.`;
   const made = [], size = width != null ? { width, height } : null, prefix = `snap_views/${where.group.slice(0, 8)}`, build = GRAPHS[m.anchors.kind];
   for (const [i, seed] of list.entries()) {
-    const g = await build(m.anchors, pics, { prompt: prompt.trim() }, seed, size, prefix);
+    const g = await build(m.anchors, pics, { prompt: prompt.trim() }, seed, size, prefix), pasted = paste ? pasteBack(g, pics[0]) : null;
     const job = { kind: "paint", title: `New view (${label}), candidate ${i + 1} of ${list.length}`, about: { take: first, group: where.group, scene: where.scene, shot: where.shot }, by, eta_s: [m.cost?.local_s].flat().at(-1) ?? null };
-    made.push({ prompt_id: await K.queue(g, { group: where.group, world, ...(story ? { story } : {}), job, extra: { snap_parent: { take: first, method: `view/${id}`, options: { label, prompt: prompt.trim(), context: said, purpose: aim } } } }),
+    made.push({ prompt_id: await K.queue(g, { group: where.group, world, ...(story ? { story } : {}), job, extra: { snap_parent: { take: first, method: `view/${id}`, options: { label, prompt: prompt.trim(), context: said, purpose: aim, ...(pasted ? { pasted } : {}) } } } }),
       seed, made: { model: m.anchors.unet.split("/").pop() }, label: "new view" }); // a take, no check to wait for (its tile's chips)
   }
   const d = await C.create({ kind: "view", target: first ?? where.group, title: `New view · ${m.title.replace(/^New view\s*·\s*/, "")} ×${list.length} (${label}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: first, method: id,
