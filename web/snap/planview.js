@@ -6,7 +6,7 @@
 // render picture (plan.render) holds the shapes alone, cropped to the drawing: a render that cites the plan gets that one,
 // so no label is drawn as a disc on the street and no blank paper reads as a surface (short05 F-F04).
 // Coordinates are fractions of the plan from its top left (the same as camera marks and plate poses, SNAP-R84).
-// SNAP-R133 a set plan drawn in Snap, and its render picture · SNAP-R154 a preview costs no version, and labels in trouble are named · SNAP-R177 a dry run gives the diff and writes nothing · SNAP-R84 locations · SNAP-R60 versions · see docs/snap/SNAP_RULES.md
+// SNAP-R133 a set plan drawn in Snap, and its render picture · SNAP-R154 a preview costs no version, and labels in trouble are named (off the plan, over a label, under a line) · SNAP-R177 a dry run gives the diff and writes nothing · SNAP-R84 locations · SNAP-R60 versions · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as L from "./library.js";
 import * as W from "./world.js";
@@ -103,28 +103,55 @@ export async function render(shapes, { size: long = 1024, aspect = 1.4, crop = f
   if (placed) placed.size = [w, hh];
   return new Promise((ok) => c.toBlob(ok, "image/png"));
 }
-// F-G04: labels that run off the plan or over another label, in words an agent can act on
-function labelTrouble(placed) {
-  const [w, hh] = placed.size, out = [], meet = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+// F-G04: labels that run off the plan or over another label, in words an agent can act on; F-Q07: or under another shape's
+// line or outline (the road's thick end over "GATE"), with the line's own thickness
+function crosses([x1, y1, x2, y2], [bx0, by0, bx1, by1]) { // a segment against a box (Liang-Barsky)
+  let t0 = 0, t1 = 1;
+  const dx = x2 - x1, dy = y2 - y1;
+  for (const [p, q] of [[-dx, x1 - bx0], [dx, bx1 - x1], [-dy, y1 - by0], [dy, by1 - y1]]) {
+    if (p === 0) { if (q < 0) return false; continue; }
+    const r = q / p;
+    if (p < 0) t0 = Math.max(t0, r); else t1 = Math.min(t1, r);
+    if (t0 > t1) return false;
+  }
+  return true;
+}
+function labelTrouble(placed, shapes = []) {
+  const [w, hh] = placed.size, u = Math.min(w, hh), out = [], meet = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+  const edges = shapes.flatMap((s, j) => { const half = Math.max(1.5, u * (s.width ?? (s.kind === "line" ? 0.006 : 0.004))) / 2;
+    if (s.kind === "line") return [{ j, half, seg: [s.x * w, s.y * hh, s.x2 * w, s.y2 * hh] }];
+    if (s.kind === "poly") { const pts = s.points, closed = s.closed !== false && pts.length > 2; return pts.slice(0, closed ? pts.length : pts.length - 1).map((a, k) => { const b = pts[(k + 1) % pts.length]; return { j, half, seg: [a[0] * w, a[1] * hh, b[0] * w, b[1] * hh] }; }); }
+    return []; });
   placed.forEach((p, i) => {
     const off = [p.box[0] < 0 && "left", p.box[1] < 0 && "top", p.box[2] > w && "right", p.box[3] > hh && "bottom"].filter(Boolean);
     const over = placed.filter((q, j) => j !== i && meet(p.box, q.box)).map((q) => `"${q.label}" (shape ${q.shape})`);
-    if (off.length || over.length) out.push({ shape: p.shape, label: p.label, box: p.box, ...(off.length ? { off_edge: off } : {}), ...(over.length ? { overlaps: over } : {}) });
+    const lines = [...new Set(edges.filter((e) => e.j !== p.shape && crosses(e.seg, [p.box[0] - e.half, p.box[1] - e.half, p.box[2] + e.half, p.box[3] + e.half])).map((e) => `shape ${e.j} (${shapes[e.j].kind}${shapes[e.j].label ? ` "${shapes[e.j].label}"` : ""})`))];
+    if (off.length || over.length || lines.length) out.push({ shape: p.shape, label: p.label, box: p.box, ...(off.length ? { off_edge: off } : {}), ...(over.length ? { overlaps: over } : {}), ...(lines.length ? { under_lines: lines } : {}) });
   });
   return out;
+}
+// F-Q08: a redraw keeps the plan's own size: without size and aspect, the location's current plan picture sets them
+async function planSize(body) {
+  const file = body.plan?.file;
+  if (!file) return null;
+  const cut = file.lastIndexOf("/"), img = new Image();
+  img.src = api.apiURL(`/view?filename=${encodeURIComponent(file.slice(cut + 1))}&subfolder=${encodeURIComponent(file.slice(0, Math.max(cut, 0)))}&type=input`);
+  return img.decode().then(() => [img.naturalWidth, img.naturalHeight], () => null);
 }
 // draw and save: the picture into input/snap/location/<id>/ (named by what it shows), then a new location version with
 // plan {file, shapes} and the camera marks (kept as they were when none are given)
 // preview: draw only, no upload and no version: the picture comes back (images) with the label trouble (F-G04)
 // dry (SNAP-R177): the preview plus the version it would make and its diff (the plan's file and shapes, the camera marks)
-export async function drawPlan(ref, { shapes, cameras, size: long = 1024, aspect = 1.4, by = "person", note, preview = false, dry = false } = {}) {
+export async function drawPlan(ref, { shapes, cameras, size: long, aspect, by = "person", note, preview = false, dry = false } = {}) {
   await L.ready();
   const { id, n, body } = L.locationOf(W.refOf("location", W.parse(ref).id)), clean = checkShapes(shapes), placed = [];
+  const was = long == null && aspect == null ? await planSize(body) : null, sized = was ? { size_from: `the current plan, ${was[0]}x${was[1]}` } : {};
+  long ??= was ? Math.max(...was) : 1024; aspect ??= was ? was[0] / was[1] : 1.4;
   const hash = W.short(await W.sha({ clean, long, aspect }));
   if (preview || dry) {
     const blob = await render(clean, { size: long, aspect, placed }), data = (await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(blob); })).split(",")[1];
-    const trouble = labelTrouble(placed), labels = trouble.length ? `${trouble.length} label${trouble.length === 1 ? "" : "s"} run off the plan or over another (labels): move them, shorten them, or break a line with \\n` : "every label sits inside the plan and clear of the others";
-    const shown = { shapes: clean.length, size: placed.size, labels: trouble, images: [{ mimeType: "image/png", data, label: "the plan as it would be saved (labels drawn; marks are drawn by the Location sheet, not into it)" }] };
+    const trouble = labelTrouble(placed, clean), labels = trouble.length ? `${trouble.length} label${trouble.length === 1 ? "" : "s"} run off the plan, over another label or under a line (labels): move them, shorten them, or break a line with \\n` : "every label sits inside the plan, clear of the others and of every line";
+    const shown = { shapes: clean.length, size: placed.size, ...sized, labels: trouble, images: [{ mimeType: "image/png", data, label: "the plan as it would be saved (labels drawn; marks are drawn by the Location sheet, not into it)" }] };
     if (!dry) return { preview: true, ...shown, said: `nothing saved; ${labels}` };
     const dir = `snap/location/${id}`, now = { ...body, plan: { file: `${dir}/plan-${hash}.png`, shapes: clean, render: `${dir}/plan-${hash}-render.png` }, cameras: cameras ? L.camerasOf(cameras) : body.cameras ?? [] }, diff = L.locationDiff(body, now);
     return { dry_run: true, location: `location:${id}`, from_version: n, would_be: diff.length ? n + 1 : n, diff, ...shown, said: `nothing was written: ${diff.length ? `the real call saves the picture into input/ and ${body.name} v${n + 1} (${note ?? `plan drawn in Snap (${clean.length} shapes)`})` : `the real call would change nothing (${body.name} stays v${n})`}; ${labels}` };
@@ -139,8 +166,8 @@ export async function drawPlan(ref, { shapes, cameras, size: long = 1024, aspect
   };
   const file = await upload(await render(clean, { size: long, aspect, placed }), `plan-${hash}.png`), shown = await upload(await render(clean, { size: long, aspect, crop: true }), `plan-${hash}-render.png`);
   const out = await L.saveLocation(id, { ...body, plan: { file, shapes: clean, render: shown }, cameras: cameras ?? body.cameras ?? [] }, { note: note ?? `plan drawn in Snap (${clean.length} shapes)`, by });
-  const trouble = labelTrouble(placed);
-  return { location: `location:${id}`, ref: out.ref, version: out.n, made: out.made, plan: file, render: shown, shapes: clean.length, cameras: (cameras ?? body.cameras ?? []).length, ...(trouble.length ? { labels: trouble } : {}) };
+  const trouble = labelTrouble(placed, clean);
+  return { location: `location:${id}`, ref: out.ref, version: out.n, made: out.made, plan: file, render: shown, shapes: clean.length, cameras: (cameras ?? body.cameras ?? []).length, size: placed.size, ...sized, ...(trouble.length ? { labels: trouble } : {}) };
 }
 
 // ---- the editor: a sheet over the Location sheet -------------------------------------------------------------------

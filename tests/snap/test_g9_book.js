@@ -13,7 +13,9 @@
 // - SNAP-R184 (F-Q26): a board's packet names who should be in it (its cut's Cast), labels every picture it was made from
 //   by its Picture number (the plate the place adds says "made from: Picture 1 C2's camera (= … plate P2 counter)"), and
 //   carries a measuring copy (a 5 % grid with a 1 % ruler);
-// - F-Q10: make_board and design_state with a method keep the purpose from what is in frame (character).
+// - F-Q10: make_board and design_state with a method keep the purpose from what is in frame (character);
+// - F-Q07: draw_set_plan names a label under another shape's line (its thickness counted); F-Q08: a redraw with no size or
+//   aspect keeps the current plan picture's size (size_from).
 // usage: node test_g9_book.js [port] [base]   prints "g9book n/m" last
 const { chromium } = require("playwright");
 const fs = require("fs"), path = require("path");
@@ -72,6 +74,12 @@ const STYLE = "2D cel-shaded Japanese TV anime, crisp clean black lineart, flat 
     R.design = await call("design_state", { book, cast: kuroe, state: "monocle off", covers: { "carried.worn": [] }, words: "both eyes bare, the monocle hangs on its chain", count: 1, seeds: [9401], method: "ph3_view" });
     R.designFrom = await call("design_state", { book, cast: kuroe, state: "monocle off", covers: { "carried.worn": [] }, words: "both eyes bare", count: 1, seeds: [9402], method: "ph3_view", from: { file: "snaptest_book/tomoshi_front_v1.png" } });
 
+    // ---- F-Q07, F-Q08: a plan's labels under a line; a redraw keeps the plan's size ----
+    const shapes = [{ kind: "line", x: 0.05, y: 0.5, x2: 0.46, y2: 0.5, width: 0.03, label: "road" }, { kind: "label", x: 0.47, y: 0.5, label: "GATE" }, { kind: "rect", x: 0.75, y: 0.5, w: 0.3, h: 0.4, label: "square" }];
+    R.plan = await call("draw_set_plan", { location: place, shapes, size: 1400, aspect: 1.4 });
+    R.replan = await call("draw_set_plan", { location: place, shapes, preview: true });
+    if (R.replan?.images) R.replan.images = R.replan.images.length;
+
     // ---- F-Q12 ----
     R.exp = await call("export_records", { refs: [book] });
     for (const d of ["book", "story", "look"]) park(d);
@@ -106,6 +114,8 @@ const STYLE = "2D cel-shaded Japanese TV anime, crisp clean black lineart, flat 
     boardPacketCast: JSON.stringify([...(S.pkContext?.words?.who_should_be_here ?? [])].sort()) === JSON.stringify(["Baron Kuroe", "Mio Hayase"]),
     boardPacketNumbered: (S.pkContext?.pictures ?? []).some((x) => /^context · made from: Picture 1 C2's camera \(= Hayase Yatai v\d+, plate P2 counter\)/.test(x.label)) && [2, 3].every((n) => (S.pkContext?.pictures ?? []).some((x) => x.label.includes(`made from: Picture ${n} `))),
     boardMeasure: (S.pkTiles?.pictures ?? []).some((x) => x.tile?.cell === "measure" && /measure: a 5 % grid with its pixel positions and a 1 % ruler/.test(x.label)) && S.pkContext?.words?.checklist === "board",
+    planLabelUnderLine: (S.plan?.labels ?? []).some((l) => l.label === "GATE" && (l.under_lines ?? []).some((x) => /^shape 0 \(line "road"\)$/.test(x))) && !(S.plan?.labels ?? []).some((l) => l.label === "road" || l.label === "square"),
+    redrawKeepsSize: S.replan?.size_from === "the current plan, 1400x1000" && JSON.stringify(S.replan?.size) === "[1400,1000]" && /under a line/.test(S.replan?.said ?? ""),
     noErrors: !S.crash && !(S.errors ?? []).length,
   };
   R.checks = checks; R.pass = Object.values(checks).filter(Boolean).length; R.total = Object.keys(checks).length;
