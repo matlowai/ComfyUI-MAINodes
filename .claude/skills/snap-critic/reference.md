@@ -48,6 +48,10 @@ A Cast picture, character sheet or turnaround. Carried items need a visible hold
   (shoulder, hip, hem, knee) and what holds it; compare every view with FRONT. A landmark that moves between views, or a
   strip of background between the item and the back, is a flaw (high on a reference sheet). (Added after r3 for a
   miss no round caught; measured from the r4 fixtures run on.)
+- Garments (r5): a second table for the costume's construction: per view, each slit, split, vent, hem, opening and
+  closure (where it starts and ends on the body), and what each view sees of the far side through its gaps (between the
+  legs, under the arms). A split that BACK shows and FRONT, looking through the legs at the same coat, doesn't, is a
+  medium flaw (X02). A difference that the angle hides (the far side covered by a leg or the coat's front) is not.
 - Reading rule "Projection": a diagonal scabbard reads near-vertical in profile; that alone is not a flaw.
 - Cast pass: the sheet against the Cast's details line in `words.pins`.
 

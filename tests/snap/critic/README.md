@@ -3,8 +3,8 @@
 SNAP-R108 every miss the person catches is one press from a fixture · SNAP-R109 the critic skill is the prompt's one
 home, and a prompt change ships only when the fixtures run holds the floor.
 
-`fixtures.json` is the manifest: 32 pictures the operator judged by eye (21 with flaws, 30 expected flaws counted, plus
-X30; 10 clean), each with what it is, its context words and pictures, the expected flaws (with the keys the auto-scorer
+`fixtures.json` is the manifest: 32 pictures the operator judged by eye (22 with flaws, 31 expected flaws counted, plus
+X30; 9 clean), each with what it is, its context words and pictures, the expected flaws (with the keys the auto-scorer
 matches), the allowed minor flaws, the must-not-flag readings and the operator's words. `floor` is the last accepted
 round (r3: 24/29 caught, 0 false alarms, run by Opus 5.5).
 
@@ -40,22 +40,31 @@ polarity once checked by eye. `packets` writes the same blind packets to disk fo
 - `runs/2026-11-06-r4-colour/`: the r4 colour delta (a Cast colour line per person read in every frame, effects
   included; Cast colour drift medium; low colour shifts only for props and background) on all 32 fixtures, blind packets
   on disk (`packets`), one Opus 5.5 critic: 26/30 caught (X31 caught; misses X13, X14 wire and kite, X21 LEFT float),
-  1 false alarm on 10 clean: X02's LEFT view "no hilt above the head" (contested: the operator to decide if the LEFT
-  hilt note is real), a sheet landmark note outside the colour delta
-  (by eye the grip doesn't show there; the operator accepted this sheet, so it counts until the operator says it is
-  real). The colour lines fired on no clean picture. X32's second monocle is real (both critics, checked by eye).
+  0 false alarms once X02 turned out not clean (the operator, after G4: its LEFT-view hilt note is an allowed minor, and
+  the coat split no r3 or r4 run named is its expected flaw; re-scored on the 31: 26/31, X02 missed). The colour lines
+  fired on no clean picture. X32's second monocle is real (both critics, checked by eye).
   `runs/2026-11-06-x02-check/`: X02 alone, blind, two runs each of r3 and r4 in the same packets harness: all four flag
-  it (r3: a high LEFT-view hilt; a high RIGHT-view scabbard gap plus a medium hilt. r4: a high hilt; a medium scabbard
-  gap), so X02's note is run and harness variance on this sheet, not the colour delta; the earlier run through Snap's
-  own packets wrote X02 clean.
+  sheet landmarks (r3: a high LEFT-view hilt; a high RIGHT-view scabbard gap plus a medium hilt. r4: a high hilt; a
+  medium scabbard gap) and none names the coat split; the earlier run through Snap's own packets wrote X02 clean.
   The r3 text on X31/X32 alone (`runs/2026-11-06-r3-x31x32/`): X31 missed (the dark hair read as a reaction gag, the
   suit at low), X32 the same real monocle note.
+
+- `runs/2026-11-06-r5-garment/`: r5 = r4 plus the garment line in the cross-view pass (slits, splits, hems and openings
+  agree across views; look through one view's gaps at the far side another shows; a disagreement is medium, SNAP-R153),
+  all 32, blind packets on disk, one Opus 5.5 critic (18 min): 27/31 caught, **X02's coat split caught** (medium, "BACK
+  shows a centre-back split from mid-thigh to hem, but FRONT, looking between the legs at the inside of the same back
+  panel, shows it continuous"), and the same split written on X21 (v2, the same coat) unasked; misses X13, X14 wire
+  and kite, X21 LEFT float. 1 false alarm on 9 clean: X27, a doorway villager in Liesl's dress read as "a duplicate
+  Liesl" (medium). Settled by eye: X15's reddish-brown iris against the Cast's pale grey and X32's monocle on the wrong
+  eye after the turn are real (ok); X09's tile step is its allowed minor. The scan pass now says a duplicate is the same
+  person twice, not two people in the same dress (after this run).
 
 ## The fixtures
 
 - X01 master v1: the palisade only across the front; the village is not enclosed.
-- X02 turnaround v3: clean (profile scabbards near-vertical are correct). Contested (G4): every blind run flags the LEFT
-  view's hilt (a pommel nub behind the head, no grip or crossguard); the operator decides if that note is real.
+- X02 turnaround v3: the coat's centre-back split shows in BACK but not through the gap between her legs in FRONT
+  (medium; the operator, 2026-11-06). The LEFT view's hilt (a pommel nub behind the head) is an allowed minor; profile
+  scabbards near-vertical are correct.
 - X03 board: an inner palisade, a duplicate person, a second gatehouse.
 - X04 board: clean (the blade through the coat is the beat).
 - X05 plate (rooftop): a double parapet.

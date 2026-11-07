@@ -49,7 +49,7 @@
   },
   {
    "id": "X02",
-   "polarity": "negative",
+   "polarity": "positive",
    "checklist": "sheet",
    "counted": true,
    "what": "Cast turnaround sheet (front / left 270 / back 180 / right 90) for Maren v3",
@@ -58,18 +58,37 @@
    "context_pictures": [
     "blind/ctx/maren_v2_cast_front.png"
    ],
-   "expected": [],
+   "expected": [
+    {
+     "flaw": "coat back split inconsistent across views: the BACK view shows a centre-back split (slit) in her coat between the legs, but the FRONT view, looking through between her legs to the coat's back, shows no split",
+     "where": "BACK view lower coat vs FRONT view between the legs",
+     "severity": "medium",
+     "owner": "Cast Maren v3 turnaround",
+     "keys": [
+      [
+       "split|slit|vent|opening|part(ed|ing)"
+      ],
+      [
+       "coat|hem|skirt|tail|cloth|garment"
+      ],
+      [
+       "back view|front view|between (her|the) legs|through|views? (disagree|differ)|inconsistent|mismatch|only (in|on)"
+      ]
+     ]
+    }
+   ],
    "allowed_true_minor": [
     "front panel grey background, other three beige",
     "faint green tint on her neck in the LEFT view",
     "RIGHT view reads as a rear three-quarter, face mostly hidden",
-    "LEFT view head turned slightly toward camera"
+    "LEFT view head turned slightly toward camera",
+    "LEFT view hilt mostly hidden behind the head (pommel only)"
    ],
    "must_not_flag": [
     "scabbard vertical in the profiles (correct: a diagonal across the back plane projects to a near-vertical line in profile)",
     "lower scabbard hidden by her body in the RIGHT view (correct occlusion)"
    ],
-   "note": "the operator accepted v3 as the fix for the v2 profiles. Contested (G4, 2026-11-06): r3 and r4 blind runs flag the LEFT view's hilt (a pommel nub behind the head, no grip or crossguard); the operator decides if that note is real."
+   "note": "the operator accepted v3 as the fix for the v2 profiles. The operator, 2026-11-06 (decisions page): 'pretty good but the back has a split in her clothing vs no split in the look-through to the back between her legs': not clean; the LEFT-view hilt (a pommel nub behind the head, contested in G4) is an allowed minor."
   },
   {
    "id": "X03",

@@ -8,12 +8,12 @@ description: >
   picture good or show results to the person, after a batch of candidates lands, and whenever a flaw comes back after a
   re-roll.
 scope: [tool:list_critiques, tool:claim_critique, tool:critique_packet, tool:write_critique, tool:critique, tool:critic_report, tool:rerun_dependents, tool:judge_takes, tool:take_frames]
-rules: [SNAP-R101, SNAP-R102, SNAP-R103, SNAP-R104, SNAP-R105, SNAP-R106, SNAP-R107, SNAP-R108, SNAP-R109, SNAP-R110, SNAP-R23, SNAP-R63, SNAP-R135]
+rules: [SNAP-R101, SNAP-R102, SNAP-R103, SNAP-R104, SNAP-R105, SNAP-R106, SNAP-R107, SNAP-R108, SNAP-R109, SNAP-R110, SNAP-R23, SNAP-R63, SNAP-R135, SNAP-R146, SNAP-R153]
 ---
 
 SNAP-R101 the critic is a docket job an agent claims · SNAP-R109 this file is the prompt's one home, and a change ships
 only after the fixtures run holds the floor (tests/snap/critic/run_fixtures.py; floor 24/29 caught, 0 false alarms; r4
-measured 26/30 with X31, one sheet note on X02 waiting for the operator's look).
+measured 26/31 with X31; r5, the garment line, 27/31 with X02's coat split).
 If a Snap server is reachable, `read_skill {"name": "snap-critic"}` returns the person's version of this skill (their
 edits over the pack's); this file is the pack's. What each checklist adds is in `reference.md`
 (`read_skill {"name": "snap-critic", "file": "reference.md"}`). The fixtures and the known misses are in the pack's
@@ -27,6 +27,8 @@ loop, or between your own renders), work it:
 
 1. `list_critiques {"state": "due"}`: the rows nobody holds. Oldest first is fine.
 2. `claim_critique {"critique": "<id>"}` (or no id for the oldest due row). One agent holds a row; a second is refused.
+   Claim before you read: a claimed row keeps your page hold through a long read (SNAP-R146), and each packet you fetch
+   renews the claim (it lapses after 30 untouched minutes).
 3. `critique_packet {"critique": "<id>"}`: the subject WHOLE at its native size first, then 100% tiles (cell and pixel
    box in each label), then the context pictures whole, then `words` (checklist, passes, purpose, prompt = the beat,
    pins with each Cast's details and the location's notes, who should be here). Read every whole frame before any
@@ -50,7 +52,7 @@ When the docket is done (or your run ends), let go of your page: `use_page {"pag
 keeps its hold leaves the agents' window "Driven by" it for the next agent. Name every call (SNAP_AGENT), so the page
 knows the caller is you.
 
-# The critic prompt (r4: r3 plus the Cast colour line; measured 26/30 caught, 1 false alarm on 10 clean, X02's hilt)
+# The critic prompt (r5: r4 plus the garment line in the cross-view pass; measured 27/31 caught on the fixtures)
 
 In the output below, `<id>` is the packet's critique id; write it with write_critique as step 5 says.
 
@@ -86,7 +88,8 @@ Look at the WHOLE frame first at full size, then crop. Never judge from a thumbn
 ### Passes (do them in order; write a line for each)
 1. **Full-frame scan.** Divide the frame into a 3x3 grid. For each cell, list what is in it. Look specifically for
    duplicated people or objects, small ghost figures or faces in backgrounds/backdrops, half-drawn objects, text, tile
-   seams. Count the people and compare with who should be there.
+   seams. Count the people and compare with who should be there. A duplicate is the same person twice (face, hair,
+   build); two villagers in the same village dress are a crowd, not a duplicate.
 2. **Top-down map.** For any picture with a place in it, sketch the place as a top-down map in words: where the camera
    is, which way it looks, and where every wall, fence, gate, building, road, well and person sits. Then check the map:
    - **Enclosures close.** A wall/palisade/fence that guards something must ring it. Follow every wall to both ends:
@@ -121,6 +124,10 @@ Look at the WHOLE frame first at full size, then crop. Never judge from a thumbn
    Put them side by side. The same object must have the same design, size, side, and attachment in every view: the
    same gate, the same number of towers, the same wall, the same scabbard length and position. For an upscale, every
    thing in the upscale must exist in the source.
+   **Garment construction agrees too:** every slit, split, vent, hem line, opening, closure and layer of a costume is in
+   the same place in every view that can see it. Look *through* the gaps of one view (between the legs, under an arm,
+   past the hair) at the far side of the costume, and check it against the view that shows that side: a centre-back
+   split in BACK must show through the legs in FRONT, unless something in FRONT covers it.
 
 ### Severity
 - **high**:
@@ -133,7 +140,9 @@ Look at the WHOLE frame first at full size, then crop. Never judge from a thumbn
   - a person far too big or small for the set.
 - **medium**: a clear physical or continuity error that a viewer would notice but that doesn't break the picture's job,
   for example costume off the Cast, a Cast colour drift in hair, eyes or main outfit colour (also inside an effect), a
-  prop design change between views, a well in the wrong place, a wall too low, or an unheld item in a board or take.
+  prop design change between views, a garment's construction that disagrees between views (a split or opening in one
+  view that another view sees through to and doesn't show), a well in the wrong place, a wall too low, or an unheld
+  item in a board or take.
 - **low**: cosmetic, such as stray small objects, small fires or embers, colour shifts of props or background, labels
   or crops.
 
