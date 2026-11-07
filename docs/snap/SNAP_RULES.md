@@ -1669,3 +1669,58 @@ SNAP-R178 on. R160-R164 stay free.
   a plate that exists changes that number alone and keeps x, y, heading and lens; a field given null clears it, and
   `pose: null` clears the pose, as camera marks given as objects already merged. *Why:* F-P01: the G8 dry run showed a
   pose-only call wiping the plate's x, y, heading and lens.
+
+## Batch G9 (2026-11-07)
+
+SNAP-R180 on. R160-R164 stay free.
+
+- **SNAP-R180: A critic's finding is said where it was born, and asked as itself.** In the Room a critic's row asks its
+  worst note's first sentence ("Kuroe's eyewear is spectacles, not the Cast's monocle: keep it anyway?"; a clean row
+  "The critic found nothing wrong here: keep it?"), lists every note under the picture with how much it matters
+  (Serious, Worth fixing, Small), where it was born in words ("It comes from C2's approved board.") and its fix, and
+  boxes each note drawn on the picture; pixel asides stay out (the box says where). An owner names its target: "camera
+  marks" the plate the note is about (named in the owner's words, else in the note's text, else the plate the row
+  reads) and that plate's mark; "board" the board the take was drawn from (the New view's context picture labelled a
+  board) or opens on (its cut's board, the key drawing when the note says key or peak), as a take when one made it;
+  Fix at source opens that board and names that mark. *Why:* F-Q20: the Room showed a critic's row as "(medium)" with
+  no words (the "(medium)" was the shot's own name); F-Q24: "camera marks" and "board" pointed at nothing.
+  *More:* tests/snap/test_g9_room.js.
+- **SNAP-R181: A cut whose own beat changes what a hand holds is boarded at its key.** When a cut's own beats change a
+  hand's thing from a stated one or empty it (or move a prop's holder), the compile gives `opens.held` and
+  `board_role: "key"` with a lint line; its default board (compile_unit's `board`, make_board) is the key: the state
+  after the beat with the beat's action, said in `role_why`; set_board sets a key candidate as the key. `role:
+  "opening"` stays when asked. A hand that takes something up from nothing keeps the opening (the start agrees with the
+  action). *Why:* F-Q09: C2's opening board drew the ladle still in Mio's hand under "sets the full bowl down … with
+  both hands"; the key (s9221) drew it right. *More:* tests/snap/test_g9_book.js.
+- **SNAP-R182: A settei is the whole figure alone on a plain ground, without what its state takes off.** design_state's
+  subject opens with the framing (the view, the full body from head to feet, standing alone on a plain light grey
+  background), the style paragraph's background sentence is left out (`style_left_out`), the state's words are a
+  sentence, and each thing the state takes off is said to be absent though the Cast's picture shows it. `from` (a
+  picture already in the state) goes first; without it, `if_kept` says how to make one. *Why:* F-Q13: both "monocle off"
+  candidates kept the monocle and drew a bust on a night street; F-Q14: the state's words went in raw.
+  *More:* tests/snap/test_g9_book.js.
+- **SNAP-R183: An export carries what its records need to open.** A Book's export follows its parts, every version's
+  story and look, into the zip (`manifest.carried`); its Cast and places are offered (`offered`), never carried
+  unasked (they are the person's to share); a part this install lacks is `absent`; `to_another_install` says how the
+  zip gets there (output/snap_exports/, or /upload/image to input/snap_imports then import_records). A Book or its lens
+  naming a record this install lacks says the name a take pinned it with and how to bring it. *Why:* F-Q12: a Book
+  exported alone came back as "story … isn't here"; F-Q15: the Settei lens showed a raw id. *More:*
+  tests/snap/test_g9_book.js.
+- **SNAP-R184: A board's packet carries who should be in it, its pictures by number, and a measuring copy.**
+  `who_should_be_here` reads the cut's Cast (the story pin's unit, or the shot it landed in) as well as its pins; every
+  picture a New view was made from is labelled by its Picture number, the one already in the packet too ("made from:
+  Picture 1 C2's camera (= … plate P2 counter)"); boards get the measuring copy, now a 5 % grid with pixel positions and
+  a 1 % ruler on the edges (plates, masters and every-view rows too). *Why:* F-Q26: board packets had an empty
+  who_should_be_here, no picture named as the camera the prompt cites, and a 10 % grid too coarse to read a sill.
+  *More:* tests/snap/test_g9_book.js.
+- **SNAP-R67 (amended, G9): a press on the agents' window an agent drives is the agent's.** `answered_by.by` is `agent`
+  (with `driven_by`) when the managed window has a driver: nothing says a person pressed (F-Q03).
+- **SNAP-R172 (amended, G9): a stacked proposal reads as it stands.** The Work card, the Room and the Book's rows drop a
+  proposal's "with pN waiting: …" clause once one of those is answered; the stored reason stays whole (F-Q04). A
+  remove_change says what it takes back (F-Q02).
+- **SNAP-R154 (amended, G9): a plan's labels are checked against lines too, and a redraw keeps the plan's size.** A label
+  under another shape's line or outline (its thickness counted) is listed `under_lines`; with no size or aspect,
+  draw_set_plan takes the current plan picture's (`size_from`) (F-Q07, F-Q08).
+- **SNAP-R179 (amended, G9): the candidate tools carry the agent's question.** make_board, edit_from_context and
+  design_state take `question`: it heads the Work card row and is the Room's question (F-Q21). The checks Snap queues
+  for an agent's candidates are the agent's (F-Q11), and a board keeps its purpose when a method is named (F-Q10).

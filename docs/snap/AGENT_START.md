@@ -382,7 +382,9 @@ the motion matches or not (one frame doesn't show motion). A saved file works to
 `get_record {"ref": "cast:<id>@1"}` reads one version and the takes that pinned it; `diff_record {"a": "cast:<id>@1",
 "b": "cast:<id>"}` lists what changed. Note: H3 copies a reference picture closely, so a new look (clothes, hair)
 needs a new picture, not only new words. `list_world` shows every record with its size; `archive_record`,
-`export_records` and `import_records` tidy them. `delete_record` can't be undone: it waits for the person.
+`export_records` and `import_records` tidy them. A Book's export carries its story and look (`manifest.carried`) and offers
+its Cast and places (`offered`: add their refs to carry them); `to_another_install` says how the zip gets there
+(SNAP-R183). `delete_record` can't be undone: it waits for the person.
 
 ### A new view of a place (stills from context pictures)
 
@@ -482,7 +484,10 @@ it with the `snap-critic` skill: `list_critiques {"state": "due"}` (add `"compac
 says), then `write_critique {"critique", "verdict": "clean" | "flaws", "passes": {...}, "notes": [{"severity",
 "pass", "text", "picture", "region": [x, y, w, h], "owner", "fix"}]}`. The notes land on the take with masks; nothing
 is blocked by them. An owner names the part it was born in ("plate Pb", "plan", "location master", "location notes",
-"camera marks"): Snap stores that part and lists words it can't map in `owners_unmapped` (SNAP-R156). A mistake in a
+"camera marks"): Snap stores that part and lists words it can't map in `owners_unmapped` (SNAP-R156). "camera marks"
+also names the plate the note is about and its mark, and "board" the board the take was drawn from or opens on (as a
+take), so Fix at source opens the right one (SNAP-R180). `passes` takes `scale` too (the scale anchors against each
+other, eye and wall heights against them). A mistake in a
 row you wrote: `write_critique {"critique", "amend": true, ...}` writes it again as a new row that supersedes it
 (SNAP-R157). `critique {"location": "location:<id>", "part": "views"}` asks for one (every view of a place side
 by side); `critic_report` says how the critic agreed with the person. Only a record's newest version
@@ -569,8 +574,10 @@ it on the Library rail's **Book** row (lenses Beat sheet, Settei, Boards, Cut ba
   "view": "front"}]}`; a state with no picture compiles "words only".
 - **Boards → animatic → video → the Cut**: `make_board {"scene", "shot"}` (a New view from the cut's plate, the previous
   board and its Cast; candidates land in the shot; `context: [{"cut": "C2"}]` picks the prior view, e.g. the cut that
-  shares this camera; `role: "key"` draws the beat's peak instead of the opening), `set_board {"scene", "shot", "take"
-  or "file", "approved": true}` (`role: "key"` sets the key drawing: a reference the cut builds to, SNAP-R142),
+  shares this camera; `role: "key"` draws the beat's peak instead of the opening; a cut whose own beat changes what a hand
+  holds is boarded at its key by default, said in `role_why`, SNAP-R181; `question` is what the Room asks about the
+  candidates), `set_board {"scene", "shot", "take" or "file", "approved": true}` (`role: "key"` sets the key drawing: a
+  reference the cut builds to, SNAP-R142; a key candidate is set as the key by default),
   `animatic {"book"}` (boards timed in telling order, kept takes in place of their boards; one video lands as a take of
   the Book: `wait_for` its run), then video per cut from its approved board (`apply_unit` opens it on the board), and
   `export_cut {"book"}` (the active takes in telling order with their trims and levels: one mp4 plus an OTIO file
@@ -591,7 +598,10 @@ it on the Library rail's **Book** row (lenses Beat sheet, Settei, Boards, Cut ba
   "covers", "pictures": [{"take", "view"}]}`, which writes the Cast version (the person's Use this does the same).
   A wardrobe state leaves the Cast line's clauses that are its items out of the prompt ("green apron" under "no
   apron"), named in `left_out`; a clause that still disagrees comes back as `lint` (SNAP-R178): read both before the
-  GPU spends on it.
+  GPU spends on it. The prompt opens with the settei framing (the full body alone on a plain light grey background),
+  leaves the style's background sentence out (`style_left_out`) and says each thing the state takes off is absent
+  (SNAP-R182). The Cast's own picture still shows it, and pictures beat words: if the candidates keep it, take it out of
+  that picture first (`edit_from_context`, "remove only the monocle") and give that take as `from` (`if_kept` says so).
 - **dry_run** (SNAP-R177): the story edits, `save_style`, `save_cast_state`, `add_plate`, `draw_set_plan` and
   `delete_record` take `"dry_run": true`: the answer is the would-be diff (a story edit also its reversal cost and
   `needs`; a location write the version it would make, by plate and camera mark; a delete what goes and what pinned it)
@@ -612,11 +622,14 @@ name the takes when you tell them it waits.
 ### The Room (SNAP-R70)
 
 The person's front door: `open_view {"view": "room"}` (or `/?room`) shows what waits for them, one question at a time,
-pictures full width, with no machinery. Your words reach it as job questions (`run {question}`) and proposal reasons:
+pictures full width, with no machinery. Your words reach it as job questions (`run {question}`; `make_board`,
+`edit_from_context` and `design_state` take `question` too) and proposal reasons:
 write them for a person: no ids, file paths, model names, status words or counts; say what you want to know ("does the
 gate hold through the turn?"), and when you can't find something, say so plainly. The Room asks your question as you
 wrote it when it is one, and makes one from the row otherwise (SNAP-R179), so a question is the best thing to write. A
-verdict there is the same record as anywhere else.
+verdict there is the same record as anywhere else. A critic's row asks its worst note ("…: keep it anyway?") with every
+note listed under the picture, boxed on it, and where it was born in words, so write notes a person can read: the flaw
+first, in a sentence (SNAP-R180).
 
 ## When Snap can't do it
 
