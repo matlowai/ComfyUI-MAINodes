@@ -6,7 +6,8 @@ one agent's until it writes, skips or lets go, or for CLAIM_S after its last tou
 notes' words on the take, which the vault seals, never here (SNAP-R98: no plaintext of a private take on disk).
 "Add as fixture" copies a picture into the person's fixtures folder (SNAP_CRITIC_FIXTURES, else user snap/critic_fixtures)
 and appends to its fixtures.local.json; a sealed picture is refused (privacy fails closed).
-SNAP-R101 the critic is a docket job · SNAP-R103 notes: severity, pass, region, owner, fix · SNAP-R108 a miss is one press
+SNAP-R101 the critic is a docket job · SNAP-R103 notes: severity, pass, region, owner, fix · SNAP-R157 an author amends its
+own written row as a new row that supersedes it · SNAP-R108 a miss is one press
 from a fixture · SNAP-R146 a live claim keeps its agent's page hold · SNAP-R18 local only · SNAP-R58 nothing trimmed · see
 docs/snap/SNAP_RULES.md"""
 import asyncio
@@ -212,8 +213,20 @@ async def write_critique(request):
     async with lock:
         row = find(root, q.get("id"))
         c = row.get("claimed")
-        if row.get("done"):
-            return bad(f"{row['title']} was already written by {row['done']['by']}: ask for it again (critique {{again: true}})", 409)
+        if row.get("done") and q.get("amend"):
+            # F-K10 (SNAP-R157): the author of a written row amends it as a new row that supersedes it; the old one stays
+            if row["done"]["by"] != by:
+                return bad(f"{row['title']} was written by {row['done']['by']}: only its author amends it; you can ask for it again (critique {{again: true}})", 409)
+            if row.get("superseded_by"):
+                return bad(f"{row['id']} was already amended by {row['superseded_by']}: amend that one", 409)
+            old = row
+            row = {**{k: old[k] for k in ("key", "subject", "title", "purpose", "checklist", "trigger", "about", "by", "packet") if k in old}, **({"context": old["context"]} if old.get("context") else {}),
+                   "id": f"crit-{now_ms():x}-{secrets.token_hex(2)}", "created": now_ms(), "claimed": None, "done": None, "skipped": None, "verdict": None, "passes": {}, "notes": [], "supersedes": old["id"]}
+            old["superseded_by"] = row["id"]
+            write(root, old)
+            c = None
+        elif row.get("done"):
+            return bad(f"{row['title']} was already written by {row['done']['by']}: its author can amend it (write_critique {{critique, amend: true, ...}}: a new row that supersedes it), or ask for it again (critique {{again: true}})", 409)
         if held(row) and c["by"] != by:
             return bad(f"{row['title']} is claimed by {c['by']}: only the claimer writes it", 409)
         secret = row["subject"].get("kind") == "take" and private_take(request, row["subject"].get("take"))

@@ -115,7 +115,7 @@ export function panel(t, { stage, fit, player, isVideo, say, host }) {
   const canvas = h("canvas", { className: "snap-critic-masks" }), box = h("section", { className: "snap-critic", ariaLabel: "critic" });
   stage.insertBefore(canvas, stage.querySelector(".snap-take-overlay")); // under the marking overlay
   let on = null;
-  const notes = () => t.notes.filter((n) => n.critique && CR.get(n.critique)).sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || a.t - b.t);
+  const notes = () => t.notes.filter((n) => n.critique && CR.get(n.critique) && !n.superseded_by).sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || a.t - b.t);
   const near = (n) => !isVideo || Math.abs((n.t ?? 0) - player.currentTime) <= 0.6;
   const paint = () => drawMasks(canvas, fit, notes().filter(near), { on });
   const draw = () => {

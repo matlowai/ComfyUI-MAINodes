@@ -274,12 +274,15 @@ export async function approvalOf(t) {
   const st = (await I.answer(await I.contextOf(`shot:${h.scene.id}/${h.shot.id}`))).stack, said = st.filter((n) => /^\s*approval:\s*(critic|person)\b/i.test(n.text ?? "")).at(-1);
   return said ? { approval: said.text.match(/approval:\s*(critic|person)/i)[1].toLowerCase(), from: said.ref } : { approval: (await critic()).approval.default, from: "the pack default" };
 }
-export async function write(id, by, { verdict, passes = {}, notes = [] }) {
+export async function write(id, by, { verdict, passes = {}, notes = [], amend = false }) {
   await load();
-  const r = get(id);
+  let r = get(id);
   if (!r) throw new Error(`No critique ${id} (list_critiques lists them)`);
   const out = notes.map((n, i) => ({ id: `cn${i + 1}`, severity: n.severity, pass: n.pass, text: n.text, ...placed(r, n), owner: ownerOf(r, n.owner), ...(n.fix ? { fix: n.fix } : {}), ...(n.mask ? { mask: n.mask } : {}), tags: [...new Set([TAG[n.pass], ...(n.tags ?? [])].filter(Boolean))], by, at: new Date(now()).toISOString() }));
-  const done = await put(await call("/mainodes/snap/critique/write", { id, by, verdict, passes, notes: out }));
+  const done = await put(await call("/mainodes/snap/critique/write", { id, by, verdict, passes, notes: out, ...(was ? { amend: true } : {}) }));
+  // F-K10 (SNAP-R157): an amendment is a new row; the old one says what superseded it, and its notes leave the take's list
+  if (was) { was.superseded_by = done.id; r = done; for (const t of new Set(was.notes.map((n) => n.take ?? was.subject.take).filter(Boolean))) { const take = T.get(t); if (!take) continue; for (const n of take.notes) if (n.critique === was.id) n.superseded_by = done.id; await T.save(take); } changed(); }
+  const was = amend && r.done ? r : null;
   // mirror each note onto the take it is about (SNAP-R103): one place agents and the viewer read notes
   const mirrored = [];
   for (const n of out) {
@@ -299,14 +302,14 @@ export async function write(id, by, { verdict, passes = {}, notes = [] }) {
       verdict_set = { take: t.id, verdict: "keep", by: "agent", because: a.from };
     } else verdict_set = { take: t.id, verdict: null, because: a.approval === "person" ? `approval is the person's (${a.from})` : counts(done).high ? "a high note: the person decides" : "the person already set a verdict" };
   }
-  await put(await call("/mainodes/snap/critique/update", { id, set: { mirrored, ...(verdict_set ? { verdict_set } : {}) } }));
-  return get(id);
+  await put(await call("/mainodes/snap/critique/update", { id: r.id, set: { mirrored, ...(verdict_set ? { verdict_set } : {}) } }));
+  return get(r.id);
 }
 
 // what an agent reads of a row (whole, SNAP-R58)
 export const describe = (r) => ({ critique: r.id, title: titleNow(r), subject: r.subject, about: r.about, purpose: r.purpose, checklist: r.checklist, trigger: r.trigger, state: stateOf(r), created: new Date(r.created).toISOString(),
   claimed: r.claimed ? { by: r.claimed.by, at: new Date(r.claimed.at).toISOString() } : null, done: r.done ? { by: r.done.by, at: new Date(r.done.at).toISOString() } : null, ...(r.skipped ? { skipped: r.skipped } : {}),
-  ...(r.context ? { context: r.context } : {}), verdict: r.verdict, passes: r.passes, notes: r.notes, ...(r.done ? { counts: counts(r) } : {}), ...(r.verdict_set ? { verdict_set: r.verdict_set } : {}), ...(r.private ? { private: "its notes' words are on the take (private: sealed with it); get_take reads them once the vault is open" } : {}),
+  ...(r.context ? { context: r.context } : {}), ...(r.supersedes ? { supersedes: r.supersedes } : {}), ...(r.superseded_by ? { superseded_by: r.superseded_by, amended: `amended by its author as ${r.superseded_by}: read that row` } : {}), verdict: r.verdict, passes: r.passes, notes: r.notes, ...(r.done ? { counts: counts(r) } : {}), ...(r.verdict_set ? { verdict_set: r.verdict_set } : {}), ...(r.private ? { private: "its notes' words are on the take (private: sealed with it); get_take reads them once the vault is open" } : {}),
   ...(r.packet ? { packet: { pictures: r.packet.pictures.length, at: r.packet.at } } : {}), stale: staleOf(r), ...(r.replaces ? { replaces: r.replaces } : {}) });
 
 // ---- the Work card's rows (SNAP-R65): one per critique, folded per decision -----------------------------------------
@@ -446,10 +449,10 @@ export const TOOLS = [
   },
   {
     name: "write_critique",
-    description: "Write a critique (SNAP-R103): verdict clean | flaws, passes {scan, map, support, cast, beat, cross_view, cut_pair} (one line each of what the pass found, the r3 prompt's passes: line), and notes, each {severity: high | medium | low, pass, text (the flaw in a sentence), picture (the packet #index the region is drawn on, default 0), region [x, y, w, h] in that picture's fractions (a region on a tile is stored in the subject's own fractions), owner (where it was born: \"location master\", \"plan\", \"plate <name>\" (several plates: the first named is the part, parts lists all), \"location notes\", \"camera marks\" (typed poses and marks), \"Cast record\", \"board\", \"take\", \"prompt\", or kind:id[@n]; words naming a place or Cast the subject pinned resolve to that version and part (owner {ref, part, parts}); words that name no part are kept with part null and listed in owners_unmapped, never read as the master: F-K09, SNAP-R156), fix (one line)}. Only the claimer writes (claim_critique first). Each note lands on the take it is about (get_take notes: by agent, with severity, pass, region, owner, fix and the critique id) and is drawn there as a mask; notes inform and never block (SNAP-R23). Where the scene's notes say \"approval: critic\" (instructions {scope: \"scene:<id>\"}) a critique with no high note sets the take's verdict to keep, by agent; a high note sets nothing; the person's own verdict is never overwritten (SNAP-R107). A clean verdict is a valid answer: write it with no notes.",
-    inputSchema: { type: "object", properties: { critique: { type: "string" }, verdict: { type: "string", enum: ["clean", "flaws"] }, passes: { type: "object", properties: Object.fromEntries(["scan", "map", "support", "cast", "beat", "cross_view", "cut_pair"].map((k) => [k, { type: "string" }])) }, notes: { type: "array", items: NOTE } }, required: ["critique", "verdict"] },
+    description: "Write a critique (SNAP-R103): verdict clean | flaws, passes {scan, map, support, cast, beat, cross_view, cut_pair} (one line each of what the pass found, the r3 prompt's passes: line), and notes, each {severity: high | medium | low, pass, text (the flaw in a sentence), picture (the packet #index the region is drawn on, default 0), region [x, y, w, h] in that picture's fractions (a region on a tile is stored in the subject's own fractions), owner (where it was born: \"location master\", \"plan\", \"plate <name>\" (several plates: the first named is the part, parts lists all), \"location notes\", \"camera marks\" (typed poses and marks), \"Cast record\", \"board\", \"take\", \"prompt\", or kind:id[@n]; words naming a place or Cast the subject pinned resolve to that version and part (owner {ref, part, parts}); words that name no part are kept with part null and listed in owners_unmapped, never read as the master: F-K09, SNAP-R156), fix (one line)}. Only the claimer writes (claim_critique first). Its author amends a written row with amend: true (the whole critique again: a new row that supersedes it, the old one kept and marked superseded_by, its notes off the take's list; F-K10, SNAP-R157). Each note lands on the take it is about (get_take notes: by agent, with severity, pass, region, owner, fix and the critique id) and is drawn there as a mask; notes inform and never block (SNAP-R23). Where the scene's notes say \"approval: critic\" (instructions {scope: \"scene:<id>\"}) a critique with no high note sets the take's verdict to keep, by agent; a high note sets nothing; the person's own verdict is never overwritten (SNAP-R107). A clean verdict is a valid answer: write it with no notes.",
+    inputSchema: { type: "object", properties: { critique: { type: "string" }, amend: { type: "boolean", description: "the row is already written by you: write this as a new row that supersedes it (F-K10, SNAP-R157)" }, verdict: { type: "string", enum: ["clean", "flaws"] }, passes: { type: "object", properties: Object.fromEntries(["scan", "map", "support", "cast", "beat", "cross_view", "cut_pair"].map((k) => [k, { type: "string" }])) }, notes: { type: "array", items: NOTE } }, required: ["critique", "verdict"] },
     direct: true, // notes only: the person's verdicts and picks stay theirs (SNAP-R17)
-    run: async ({ critique: id, verdict, passes, notes }) => { const r = await write(id, agentName(), { verdict, passes, notes }), lost = r.notes.filter((n) => n.owner?.unmapped);
+    run: async ({ critique: id, verdict, passes, notes, amend }) => { const r = await write(id, agentName(), { verdict, passes, notes, amend }), lost = r.notes.filter((n) => n.owner?.unmapped);
       return { ...describe(r), ...(lost.length ? { owners_unmapped: lost.map((n) => ({ note: n.id, owner: n.owner.words, said: n.owner.unmapped })) } : {}), said: `${r.title}: ${countText(r)}${r.verdict_set?.verdict ? ` · verdict keep by the critic (${r.verdict_set.because})` : ""}${lost.length ? ` · ${lost.length} owner${lost.length > 1 ? "s" : ""} named no part of the place (owners_unmapped): say master, plan, plate <name>, notes or camera marks` : ""}` }; },
   },
   {
