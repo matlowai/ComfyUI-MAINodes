@@ -22,6 +22,8 @@ import { full } from "./lightbox.js";
 import { view as inputUrl } from "./castview.js";
 import { openPlanEditor } from "./planview.js";
 
+// F-Q15: a Cast or place the Book names that this install doesn't have, by the name a take pinned it with
+const absent = (ref) => { const k = W.parse(ref), name = T.all().map((t) => t.world?.[W.refOf(k.kind, k.id)]?.name).find(Boolean); return `${name ?? (k.kind === "cast" ? "A Cast" : "A place")} isn't on this install (${ref}): import it (import_records), or export it with the Book where it lives`; };
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat(Infinity).filter((k) => k != null && k !== false)); return el; };
 const fill = (el, ...kids) => el.replaceChildren(...kids.flat(Infinity).filter((k) => k != null && k !== false)); // never "null" (LESSONS)
 const hostOf = (el) => el?.closest(".snap-root") ?? document.querySelector(".snap-root");
@@ -207,7 +209,7 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
           area("voice", "voice direction (the house acting style)"), area("sound", "sound palette"), area("genre", "genre playbook (staging, intensity)"))),
       h("div", { className: "snap-set-actions" }, h("button", { className: "snap-primary", textContent: style ? "Save the style" : "Make the style", onclick: act(async () => { const out = await B.saveLook(style?.id ?? null, s, { note: "edited in the Book" }); if (b.body.style !== `look:${out.id}`) await B.saveBook(b.id, { ...b.body, style: `look:${out.id}` }, { note: `style ${s.name}` }); return out.made ? `Style v${out.n} saved` : "Nothing changed"; }) })));
     const st = b.body.story ? B.storyOf(b.body).body : null;
-    const casts = (b.body.cast ?? []).map((ref) => { const got = W.get(ref), c = got?.version.body; if (!c) return h("section", { className: "snap-book-card" }, h("div", { className: "snap-cast-missing", textContent: `${ref} isn't here` }));
+    const casts = (b.body.cast ?? []).map((ref) => { const got = W.get(ref), c = got?.version.body; if (!c) return h("section", { className: "snap-book-card" }, h("div", { className: "snap-cast-missing", textContent: absent(ref) }));
       // the states this Book's story gives the character (wardrobe values set on beats), each with its pictures or "words only"
       const told = st ? [...new Set(st.beats.flatMap((x) => x.changes.filter((ch) => ch.entity === ref && ch.path === "wardrobe").map((ch) => ch.value)).filter(Boolean))] : [];
       const states = [...(c.states ?? []).map((x) => ({ name: x.name, pictures: x.pictures ?? [], covers: x.covers })), ...told.filter((v) => !(c.states ?? []).some((x) => x.covers?.wardrobe === v)).map((v) => ({ name: v, pictures: [], covers: { wardrobe: v }, words: true }))];
@@ -218,7 +220,7 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
           h("figcaption", { textContent: `${x.name}${x.pictures.length > 1 ? ` · ${x.pictures.length} views` : ""}` }), designCell(b, ref, c, x)))) : h("div", { className: "snap-quiet", textContent: "No states: the story changes nothing this character wears." }),
         h("div", { className: "snap-rail-sub", textContent: "Voice settei" }),
         c.voice?.file ? h("div", { className: "snap-quiet", textContent: `${c.voice.file}${c.voice.casting ? ` · cast as: ${c.voice.casting}` : ""} · cuts cite it as <Audio n>, no voice words` }) : h("div", { className: "snap-quiet", textContent: "no voice reference yet (skill snap-voice: a 3-6 s line at 12 steps)" })); });
-    const places = (b.body.locations ?? []).map((ref) => { const got = W.get(ref), l = got?.version.body; if (!l) return h("section", { className: "snap-book-card" }, h("div", { className: "snap-cast-missing", textContent: `${ref} isn't here` }));
+    const places = (b.body.locations ?? []).map((ref) => { const got = W.get(ref), l = got?.version.body; if (!l) return h("section", { className: "snap-book-card" }, h("div", { className: "snap-cast-missing", textContent: absent(ref) }));
       return h("section", { className: "snap-book-card" }, h("div", { className: "snap-book-row" }, h("strong", { textContent: l.name }), h("span", { className: "snap-quiet", textContent: ` · location v${got.version.n} · ${l.plates?.length ?? 0} plates · ${l.cameras?.length ?? 0} camera marks` }), h("span", { className: "snap-spacer" }),
         h("button", { className: "snap-link", textContent: l.plan?.shapes ? "Edit the plan" : "Draw the plan", onclick: () => openPlanEditor(host, { id: W.parse(ref).id, say, onSaved: () => draw() }).catch((err) => say?.(err.message, true)) })),
         h("div", { className: "snap-book-thumbs" }, l.master ? h("figure", {}, pic(l.master.file, `${l.name}, master`, ref, `book-loc-${ref}`), h("figcaption", { textContent: "master" })) : h("figure", { className: "words" }, h("div", { className: "snap-cast-missing", textContent: "no master yet" })),

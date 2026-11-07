@@ -60,7 +60,7 @@ export function storyOf(book, n = null) {
   const b = typeof book === "string" ? bookOf(book).body : book;
   if (!b.story) throw new Error(`${b.name} has no story yet`);
   const { id } = W.parse(b.story), got = W.get(W.refOf("story", id, n));
-  if (!got) throw new Error(`${b.name}'s story ${b.story}${n ? `@${n}` : ""} isn't here`);
+  if (!got) throw new Error(`${b.name}'s story ${b.story}${n ? `@${n}` : ""} isn't on this install: import it (export_records of the Book carries its story and look, F-Q12)`);
   return { id, n: got.version.n, body: got.version.body, ref: W.refOf("story", id, got.version.n) };
 }
 export function styleOf(book, n = null) {

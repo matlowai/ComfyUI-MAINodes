@@ -14,8 +14,10 @@
 //   by its Picture number (the plate the place adds says "made from: Picture 1 C2's camera (= … plate P2 counter)"), and
 //   carries a measuring copy (a 5 % grid with a 1 % ruler);
 // - F-Q10: make_board and design_state with a method keep the purpose from what is in frame (character);
+// - F-Q04: a stacked proposal's "with pN waiting: …" clause leaves its Work card row once pN is answered; F-Q02: a
+//   remove_change proposal says what it takes back;
 // - F-Q07: draw_set_plan names a label under another shape's line (its thickness counted); F-Q08: a redraw with no size or
-//   aspect keeps the current plan picture's size (size_from).
+//   aspect keeps the current plan picture's size (size_from); F-Q15: the Settei lens names a place this install lacks.
 // usage: node test_g9_book.js [port] [base]   prints "g9book n/m" last
 const { chromium } = require("playwright");
 const fs = require("fs"), path = require("path");
@@ -74,6 +76,18 @@ const STYLE = "2D cel-shaded Japanese TV anime, crisp clean black lineart, flat 
     R.design = await call("design_state", { book, cast: kuroe, state: "monocle off", covers: { "carried.worn": [] }, words: "both eyes bare, the monocle hangs on its chain", count: 1, seeds: [9401], method: "ph3_view" });
     R.designFrom = await call("design_state", { book, cast: kuroe, state: "monocle off", covers: { "carried.worn": [] }, words: "both eyes bare", count: 1, seeds: [9402], method: "ph3_view", from: { file: "snaptest_book/tomoshi_front_v1.png" } });
 
+    // ---- F-Q04: a stacked proposal's "with pN waiting" clause goes once pN is answered; F-Q02: a removal says what it takes back
+    const accept = (id) => page.evaluate(async (id) => (await window.__P.decide(id, true, (n, a) => window.__X.callTool(n, a, { confirmed: true })))?.status ?? null, id);
+    R.pA = await call("add_change", { book, beat: "b1", entity: mio, path: "mood", op: "set", value: "calm and focused" });
+    R.pB = await call("add_change", { book, beat: "b1", entity: kuroe, path: "mood", op: "set", value: "stern, arms crossed" });
+    R.reasonBefore = await page.evaluate((id) => window.__P.reasonNow(window.__P.get(id)), R.pB.proposed);
+    R.accA = await accept(R.pA.proposed);
+    R.reasonAfter = await page.evaluate((id) => window.__P.reasonNow(window.__P.get(id)), R.pB.proposed);
+    R.rowTitle = await page.evaluate(async (id) => { const A = await import("/extensions/ComfyUI-MAINodes/snap/activity.js"); await A.reconcile(); return A.all().find((r) => r.proposal === id)?.title ?? null; }, R.pB.proposed);
+    const changeId = (await call("get_book", { book })).story?.beats?.find((x) => x.id === "b1")?.changes?.find((c) => c.path === "mood")?.id;
+    R.pC = await call("remove_change", { book, beat: "b1", change: changeId });
+    R.reasonC = await page.evaluate((id) => window.__P.get(id)?.reason ?? null, R.pC.proposed);
+
     // ---- F-Q07, F-Q08: a plan's labels under a line; a redraw keeps the plan's size ----
     const shapes = [{ kind: "line", x: 0.05, y: 0.5, x2: 0.46, y2: 0.5, width: 0.03, label: "road" }, { kind: "label", x: 0.47, y: 0.5, label: "GATE" }, { kind: "rect", x: 0.75, y: 0.5, w: 0.3, h: 0.4, label: "square" }];
     R.plan = await call("draw_set_plan", { location: place, shapes, size: 1400, aspect: 1.4 });
@@ -87,6 +101,12 @@ const STYLE = "2D cel-shaded Japanese TV anime, crisp clean black lineart, flat 
     R.gone = await call("get_book", { book });
     R.imp = R.exp?.file ? await call("import_records", { file: R.exp.file, subfolder: R.exp.subfolder, type: R.exp.type }) : null;
     R.back = await call("get_book", { book });
+    // F-Q15: a place the Book names that isn't on this install is named (from a take's pin) with how to bring it
+    park("location");
+    await page.evaluate(async () => { const W = await import("/extensions/ComfyUI-MAINodes/snap/world.js"); await W.reload(); });
+    await call("open_view", { view: "book", book, lens: "settei" }); await page.waitForTimeout(1500);
+    R.missing = await page.locator(".snap-cast-missing").allTextContents();
+    await page.keyboard.press("Escape");
     R.errors = A.errors;
   } catch (e) { R.crash = e.stack; } finally {
     await fetch(`http://127.0.0.1:${port}/settings/MAINodes.Snap.AgentsMayRun`, { method: "POST", body: "false" }).catch(() => {});
@@ -116,6 +136,9 @@ const STYLE = "2D cel-shaded Japanese TV anime, crisp clean black lineart, flat 
     boardMeasure: (S.pkTiles?.pictures ?? []).some((x) => x.tile?.cell === "measure" && /measure: a 5 % grid with its pixel positions and a 1 % ruler/.test(x.label)) && S.pkContext?.words?.checklist === "board",
     planLabelUnderLine: (S.plan?.labels ?? []).some((l) => l.label === "GATE" && (l.under_lines ?? []).some((x) => /^shape 0 \(line "road"\)$/.test(x))) && !(S.plan?.labels ?? []).some((l) => l.label === "road" || l.label === "square"),
     redrawKeepsSize: S.replan?.size_from === "the current plan, 1400x1000" && JSON.stringify(S.replan?.size) === "[1400,1000]" && /under a line/.test(S.replan?.said ?? ""),
+    missingPlaceNamed: (S.missing ?? []).some((x) => /^Hayase Yatai isn't on this install \(location:[\w-]+\): import it/.test(x)),
+    stackClauseGoes: /with p\d+ waiting/.test(S.reasonBefore ?? "") && S.accA === "accepted" && !!S.reasonAfter && !/waiting/.test(S.reasonAfter) && S.rowTitle === S.reasonAfter,
+    removalSaysWhat: /^One More Bowl: b1: take back Mio Hayase's mood → calm and focused/.test(S.reasonC ?? ""),
     noErrors: !S.crash && !(S.errors ?? []).length,
   };
   R.checks = checks; R.pass = Object.values(checks).filter(Boolean).length; R.total = Object.keys(checks).length;
