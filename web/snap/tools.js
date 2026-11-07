@@ -1564,7 +1564,7 @@ export const TOOLS = [
   },
   {
     name: "set_active_take",
-    description: "Make a take (a version too) the shot's active take: the one that stands for the shot in the scene (its tile, the breadcrumb, a later cut). Choosing it is the person's call: unless they let agents run, this waits as a proposal; say why in reason (which take reads best, by frame).",
+    description: "Make a take (a version too) the shot's active take: the one that stands for the shot in the scene (its tile, the breadcrumb, a later cut). take: its id or a unique start of it. Choosing it is the person's call: unless they let agents run, this waits as a proposal; say why in reason (which take reads best, by frame).",
     inputSchema: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" }, take: { type: "string" } }, required: ["scene", "shot", "take"] },
     decides: true,
     run: async ({ scene, shot, take }) => SC.setActive(scene, shot, take, "agent"),

@@ -50,9 +50,10 @@ export const takeCandidate = {
     if (!t) throw new Error(`${d.title}: candidate ${c.id}'s take isn't here yet (run_status ${c.prompt_id})`);
     const home = shotOf(t);
     if (!home) { t.verdict = "keep"; await T.save(t); return { take: t.id, kept: true }; }
-    const was = home.shot.active ?? null;
+    const was = home.shot.active ?? null, old = was && T.get(was), title = SC.shotTitle(home.scene, home.shot);
     await SC.setActive(home.scene.id, home.shot.id, t.id, by);
-    return { take: t.id, scene: home.scene.id, shot: home.shot.id, was };
+    // F-G08: the answer names the take it replaced, and how to put it back
+    return { take: t.id, scene: home.scene.id, shot: home.shot.id, was, said: `take ${t.number} is now ${title}'s active take${was === t.id ? " (it already was)" : was ? `, in place of take ${old?.number ?? was} (${was}); undo_candidate {decision: "${d.id}"} puts that one back` : " (it had none)"}` };
   },
   undo: async (d, c, that) => { if (that.scene) await SC.setActive(that.scene, that.shot, that.was, "person"); else { const t = T.get(that.take); if (t) { t.verdict = null; await T.save(t); } } },
   reject: async (d, c, by) => { await T.load(); const t = T.get(`take-${c.prompt_id}`); if (t) { t.verdict = "reject"; t.verdict_by = by; await T.save(t); } },

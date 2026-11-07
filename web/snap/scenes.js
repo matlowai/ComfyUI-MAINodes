@@ -403,6 +403,7 @@ export async function moveShot(sceneId, shotId, to) {
 // the take that stands for the shot (the one a cut would use); any take of the shot, a version too
 export async function setActive(sceneId, shotId, takeId, by = "person") {
   await Promise.all([load(), T.load()]);
+  if (takeId != null) takeId = T.find(takeId)?.id ?? takeId; // F-G02: a unique start of the id, as every take tool takes
   const shot = shotOf(need(sceneId), shotId);
   if (takeId != null && !takesOf(shot).some((e) => e.take === takeId)) throw new Error(`${takeId} isn't a take of ${shotTitle(get(sceneId), shot)}`); // null: no active take (an Undo back to none)
   await update(sceneId, (s) => { const x = s.shots.find((y) => y.id === shotId); x.takes = takesOf(x); x.active = takeId; x.active_by = by; });

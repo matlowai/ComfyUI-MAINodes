@@ -82,7 +82,7 @@ export async function apply(id, cid, by = "person") {
   d.applied = { candidate: cid, by, at: new Date().toISOString(), undo: was ?? null };
   d.status = "applied";
   await save(d);
-  return { decision: id, applied: cid, by };
+  return { decision: id, applied: cid, by, ...(was?.said ? { replaced: was.was ?? null, said: was.said } : {}) };
 }
 export async function undo(id, by = "person") {
   const d = get(id);
