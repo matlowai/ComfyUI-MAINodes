@@ -1,0 +1,29 @@
+{
+  "scale": {
+    "class_type": "PrimitiveFloat",
+    "_meta": {"title": "scale"},
+    "inputs": {"value": 0.5}
+  },
+  "source_image": {
+    "class_type": "EmptyImage",
+    "inputs": {"width": 64, "height": 64, "batch_size": 1, "color": 0}
+  },
+  "condition": {
+    "class_type": "ComfyMathExpression",
+    "_meta": {"title": "Math Expression: a != 1.0 (core)"},
+    "inputs": {"expression": "a != 1.0", "values.a": ["scale", 0]}
+  },
+  "resize": {
+    "class_type": "ImageScaleBy",
+    "inputs": {"image": ["source_image", 0], "upscale_method": "bilinear", "scale_by": ["scale", 0]}
+  },
+  "switch": {
+    "class_type": "ComfySwitchNode",
+    "_meta": {"title": "If/Else Switch (core, lazy)"},
+    "inputs": {"switch": ["condition", 2], "on_true": ["resize", 0], "on_false": ["source_image", 0]}
+  },
+  "preview": {
+    "class_type": "PreviewAny",
+    "inputs": {"source": ["switch", 0]}
+  }
+}

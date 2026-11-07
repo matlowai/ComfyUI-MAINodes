@@ -1,0 +1,51 @@
+{
+  "source_image": {
+    "class_type": "EmptyImage",
+    "_meta": {"title": "the frame the model looks at"},
+    "inputs": {"width": 64, "height": 64, "batch_size": 1, "color": 0}
+  },
+  "choose": {
+    "class_type": "MAIFlowLLMChoose",
+    "_meta": {"title": "LLM Choose: one case per branch, provider by NAME"},
+    "inputs": {
+      "cases": "keep: the frame is fine as it is\nlight: it needs a small fix\nrepair: it needs the expensive pass",
+      "prompt": "Look at the frame and choose the treatment it needs.",
+      "provider": "local",
+      "model": "",
+      "seed": 0,
+      "temperature": 0.0,
+      "max_tokens": 256,
+      "images": ["source_image", 0]
+    }
+  },
+  "light_fix": {
+    "class_type": "ImageScaleBy",
+    "_meta": {"title": "the cheap branch"},
+    "inputs": {"image": ["source_image", 0], "upscale_method": "bilinear", "scale_by": 1.5}
+  },
+  "repair": {
+    "class_type": "ImageScaleBy",
+    "_meta": {"title": "the expensive branch"},
+    "inputs": {"image": ["source_image", 0], "upscale_method": "lanczos", "scale_by": 4.0}
+  },
+  "probe": {
+    "class_type": "MAIFlowProbe",
+    "_meta": {"title": "counts how often the expensive branch actually ran"},
+    "inputs": {"value": ["repair", 0], "name": "llm_choose_select", "salt": 0, "delay_s": 0.0}
+  },
+  "select": {
+    "class_type": "MAIFlowSelect",
+    "_meta": {"title": "Lazy Select: only the chosen case is produced"},
+    "inputs": {
+      "selector": ["choose", 0],
+      "labels": "keep,light,repair",
+      "case_0": ["source_image", 0],
+      "case_1": ["light_fix", 0],
+      "case_2": ["probe", 0]
+    }
+  },
+  "preview": {
+    "class_type": "PreviewAny",
+    "inputs": {"source": ["select", 0]}
+  }
+}
