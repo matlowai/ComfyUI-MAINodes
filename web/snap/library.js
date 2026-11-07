@@ -6,7 +6,7 @@
 // SNAP-R59 Cast by reference (applyCast) · SNAP-R60 the person's cards are world records (world.js) ·
 // SNAP-R73 a Cast's voice reference goes in as an <Audio n> · SNAP-R84 a location by reference: its master, plan and named
 // plates (applyLocation), in one order on every apply · SNAP-R143 a take's sound as a Cast's voice (takeToVoice) · SNAP-R115 under Ref2V the First frame opens the shot as <Picture 1> (syncOpening) ·
-// SNAP-R148 one plate or camera mark changes alone (addPlate) · see docs/snap/SNAP_RULES.md
+// SNAP-R148 one plate or camera mark changes alone (addPlate) · SNAP-R155 a place's scale anchors (scaleOf) · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
@@ -521,12 +521,29 @@ async function locationPicture(p, what) {
 }
 // F-C28: what a picture is for when a shot cites it: camera (this exact framing) or place (same set, new camera)
 const roleIn = (r, what) => { if (r != null && !["camera", "place"].includes(r)) throw new Error(`${what}: role is camera (this exact framing) or place (the same set, a new camera); not ${JSON.stringify(r)}`); return r ? { role: r } : {}; };
+// SNAP-R155: the place's scale anchors, things of a known real size the critic measures heights against (a house door
+// 2.0 m, the gate door 3.7 m): [{name, height_m, note}]. Without one, a camera height read off a picture is a guess at
+// some door's size (village v21: "~2 m" on a 2.7 m gate door was ~2.7 m on the houses' own doors)
+function scaleOf(list) {
+  if (list == null) return [];
+  if (!Array.isArray(list)) throw new Error(`scale is a list of anchors [{name: "house door", height_m: 2.0, note}], things in the pictures of a known real height; not ${JSON.stringify(list)}`);
+  const seen = new Set();
+  return list.map((a, i) => {
+    const name = a?.name?.trim();
+    if (!name) throw new Error(`scale[${i}]: an anchor needs a name (what it is: "house door", "gate door", "palisade")`);
+    if (!(typeof a.height_m === "number" && a.height_m > 0)) throw new Error(`scale ${name}: height_m is its real height in metres, a number above 0; not ${JSON.stringify(a.height_m)}`);
+    if (seen.has(name)) throw new Error(`Two scale anchors are named "${name}"`);
+    seen.add(name);
+    return { name, height_m: a.height_m, ...(a.note?.trim() ? { note: a.note.trim() } : {}) };
+  });
+}
+export const scaleText = (scale) => (scale?.length ? scale.map((a) => `${a.name} ${a.height_m} m`).join(", ") : "");
 // a new version of a location (a new record when id is null): {id, ref, n, made}. The whole place each time; a picture
 // given as a take's frame is saved into input/ first
 export async function saveLocation(id, body, { note = "", by = "person" } = {}) {
   await ready();
   if (!body?.name?.trim()) throw new Error("A location needs a name");
-  const names = new Set(), cameras = [], plates = [];
+  const names = new Set(), cameras = [], plates = [], scale = scaleOf(body.scale);
   for (const [i, c] of (body.cameras ?? []).entries()) {
     if (!c?.name?.trim()) throw new Error(`cameras[${i}]: a camera mark needs a name (C1, P01, …)`);
     cameras.push({ name: c.name.trim(), ...poseOf(Object.fromEntries(POSE.filter((k) => c[k] != null).map((k) => [k, c[k]])), `camera ${c.name}`), ...(c.note?.trim() ? { note: c.note.trim() } : {}) });
@@ -542,7 +559,7 @@ export async function saveLocation(id, body, { note = "", by = "person" } = {}) 
   const master = await locationPicture(body.master, "master");
   const plan = await locationPicture(body.plan, "plan"), shapes = body.plan?.shapes; // SNAP-R133: a plan drawn in Snap keeps its shapes beside its picture
   const map = await locationPicture(body.map, "map");
-  const clean = { name: body.name.trim(), notes: body.notes?.trim() ?? "", master: master && { ...master, ...roleIn(body.master.role, "master") }, plan: plan && shapes ? { ...plan, shapes, ...(body.plan.render ? { render: body.plan.render } : {}) } : plan, ...(map ? { map } : {}), cameras, plates, rating: body.rating ?? null,
+  const clean = { name: body.name.trim(), notes: body.notes?.trim() ?? "", master: master && { ...master, ...roleIn(body.master.role, "master") }, plan: plan && shapes ? { ...plan, shapes, ...(body.plan.render ? { render: body.plan.render } : {}) } : plan, ...(map ? { map } : {}), cameras, plates, ...(scale.length ? { scale } : {}), rating: body.rating ?? null,
     ...(body.from_cast ? { from_cast: body.from_cast } : {}) };
   id ??= locationStamp();
   const out = await W.save("location", id, clean, { note, by });

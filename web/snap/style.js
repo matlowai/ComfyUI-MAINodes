@@ -840,6 +840,8 @@ export const STYLE = `
 .snap-picker-take { margin: 0; width: 132px; display: flex; flex-direction: column; gap: 3px; }
 .snap-picker-take img, .snap-picker-take video { width: 132px; height: 88px; object-fit: contain; background: #0005; border-radius: 8px; border: 1px solid #ffffff14; }
 .snap-picker-take button { font-size: 11px; white-space: normal; text-align: left; }
+.snap-loc-scale { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
+.snap-loc-scale-row { display: flex; align-items: center; gap: 4px; } .snap-loc-scale-row input:first-child { flex: 1; min-width: 0; } .snap-loc-scale-row input[type=number] { width: 64px; } /* SNAP-R155 */
 .snap-loc-gap { color: #c9b48a; font-size: 11px; line-height: 1.35; } /* F-D10, F-E18: typed numbers, a quiet line with the whole why on hover */
 .snap-shot-truth { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 6px 0 0; padding: 6px 10px; border-radius: 9px; background: #f0b44514; border: 1px solid #f0b44555; color: #f6cf86; font-size: 12.5px; } /* UI-09 */
 .snap-shot-truth[hidden] { display: none; }

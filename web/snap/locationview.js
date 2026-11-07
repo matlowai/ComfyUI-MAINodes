@@ -6,7 +6,7 @@
 // older version edits from it. Clicking the plan while a plate is picked places that plate there. The camera map (the
 // walks' wedges over the plan, F-E11) shows beside the plan when the place has one. Each picture sits in a wrapper the
 // critic's masks are drawn into (critiqueview.paintMasks); an eye gap is a quiet line that says the numbers are typed.
-// SNAP-R84 locations by reference · SNAP-R60 versions · SNAP-R80 every picture full size · SNAP-R3 a missing file shows as
+// SNAP-R84 locations by reference · SNAP-R155 its scale anchors · SNAP-R60 versions · SNAP-R80 every picture full size · SNAP-R3 a missing file shows as
 // missing · SNAP-R136 masks all at once, numbered · see docs/snap/SNAP_RULES.md
 import * as L from "./library.js";
 import * as W from "./world.js";
@@ -104,16 +104,26 @@ export async function openLocation(host, { id, n = null, say, onApplied }) {
       className: `snap-cast-version${v.n === shown ? " on" : ""}`, title: `${v.note || "no note"} · ${v.by} · ${v.hash.slice(0, 12)}`, onclick: () => openLocation(host, { id, n: v.n, say, onApplied }) },
       h("strong", { textContent: `v${v.n}${v.n === r.head ? " · newest" : ""}` }), h("span", { className: "snap-quiet", textContent: `${when(v.at)}${v.note ? ` · ${v.note}` : ""}` })))); };
   const notes = h("textarea", { rows: 4, value: b.notes ?? "", placeholder: "what this place is: its layout, what holds in every view", ariaLabel: "notes", oninput: () => { b.notes = notes.value; } });
+  // SNAP-R155: the scale anchors, things in the pictures of a known real height; the critic measures heights against them
+  const scaleBox = h("div", { className: "snap-loc-scale" });
+  const drawScale = () => { b.scale ??= [];
+    scaleBox.replaceChildren(...[h("div", { className: "snap-rail-title", textContent: "Scale" }),
+      b.scale.length ? null : h("div", { className: "snap-quiet", textContent: "No scale on record: the critic's heights are guesses at a door's size. Add a thing of known height (a house door, 2 m)." }),
+      ...b.scale.map((a, i) => h("div", { className: "snap-loc-scale-row" },
+        h("input", { value: a.name, placeholder: "what (house door)", ariaLabel: "scale anchor", oninput: (e) => { a.name = e.target.value; } }),
+        h("input", { type: "number", step: "0.05", min: "0", value: a.height_m ?? "", ariaLabel: `${a.name || "anchor"} height in metres`, oninput: (e) => { a.height_m = e.target.value === "" ? null : +e.target.value; } }), h("span", { className: "snap-quiet", textContent: "m" }),
+        h("button", { className: "snap-x", textContent: "×", title: "take this anchor out (Save makes it a version)", onclick: () => { b.scale.splice(i, 1); drawScale(); } }))),
+      h("button", { className: "snap-link", textContent: "+ scale anchor", onclick: () => { b.scale.push({ name: "", height_m: null }); drawScale(); } })].filter(Boolean)); }; // a null child prints "null"
   const note = h("input", { placeholder: "what changed (optional, shown in the version list)", ariaLabel: "version note" });
   const act = (fn) => async () => { try { await fn(); } catch (err) { status.textContent = err.message; say?.(err.message, true); } };
-  const saveIt = async () => { const out = await L.saveLocation(id, b, { note: note.value.trim(), by: "person" }); shown = out.n; status.textContent = out.made ? `Saved ${b.name} v${out.n}` : `Nothing changed: ${b.name} stays v${out.n}`; drawVersions(); head(); return out; };
+  const saveIt = async () => { b.scale = (b.scale ?? []).filter((a) => a.name.trim() || a.height_m != null); const out = await L.saveLocation(id, b, { note: note.value.trim(), by: "person" }); shown = out.n; status.textContent = out.made ? `Saved ${b.name} v${out.n}` : `Nothing changed: ${b.name} stays v${out.n}`; drawVersions(); head(); return out; };
   const close = () => { sheet.remove(); host.focus({ preventScroll: true }); };
   const sheet = h("div", { className: "snap-sheet snap-setup-sheet snap-cast-sheet snap-loc-sheet", role: "dialog", ariaLabel: "Location" },
     h("header", {}, title, h("span", { className: "snap-spacer" }), h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: close })),
     h("div", { className: "snap-cast-body" },
       h("div", { className: "snap-cast-fields" }, top, cams, h("div", { className: "snap-rail-title", textContent: `Plates (${b.plates.length}): tick the ones this shot cites` }), plates),
       h("aside", {}, versions, CV.locationBlock({ id, n: shown, say }), h("label", { className: "snap-field" }, h("span", { textContent: "name" }), h("input", { value: b.name, ariaLabel: "name", oninput: (e) => { b.name = e.target.value; } })),
-        h("div", { className: "snap-rail-title", textContent: "Notes" }), notes, note,
+        h("div", { className: "snap-rail-title", textContent: "Notes" }), notes, scaleBox, note,
         h("div", { className: "snap-set-actions" },
           h("button", { className: "snap-primary", textContent: "Use in this shot", title: "the master, the plan and the ticked plates into References, each as a <Picture n>; the shot pins this version", onclick: act(async () => {
             const ref = W.refOf("location", id, JSON.stringify(b) !== JSON.stringify(from.body) ? (await saveIt()).n : shown); // edits are saved first: a take pins a version
@@ -124,7 +134,7 @@ export async function openLocation(host, { id, n = null, say, onApplied }) {
           h("button", { className: "snap-link", textContent: b.plan?.shapes ? "Edit the plan" : "Draw the plan", title: "shapes, labels and camera marks on a top view, saved as this place's plan (SNAP-R133)", onclick: act(() => openPlanEditor(host, { id, say, onSaved: () => openLocation(host, { id, say, onApplied }) })) })),
         status)));
   sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
-  draw(); drawVersions();
+  draw(); drawVersions(); drawScale();
   host.append(sheet);
   return sheet;
 }

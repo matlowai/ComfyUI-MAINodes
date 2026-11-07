@@ -10,7 +10,8 @@
 // the Location sheet draws them, beside the bare plan, and its camera map when it has one (F-E17); each plate's words
 // carry its camera mark and eye gap; the record's notes are flagged as claims to check, never evidence (F-E22).
 // SNAP-R102 whole frame first, nothing shrunk · SNAP-R104 what is read follows the checklist · SNAP-R58 nothing an agent
-// reads is cut: part, offset and limit page it · SNAP-R136 what the sheet shows, the packet shows · see docs/snap/SNAP_RULES.md
+// reads is cut: part, offset and limit page it · SNAP-R136 what the sheet shows, the packet shows · SNAP-R155 the place's
+// scale anchors and how to measure against them (scale_rule) · see docs/snap/SNAP_RULES.md
 import * as L from "./library.js";
 import * as T from "./takes.js";
 import * as C from "./candidates.js";
@@ -143,12 +144,17 @@ function words(r, tb) {
     const h = RT.shotOf(t); if (h) out.shot = { scene: h.scene.name, shot: SC.shotTitle(h.scene, h.shot), set: h.scene.set ?? null };
     if (t.sound?.mean_db != null) out.sound = { mean_db: t.sound.mean_db, quiet_below_db: T.QUIET_DB };
     out.pins = Object.entries(t.world ?? {}).map(([ref, p]) => { const b = W.get(W.refOf(W.parse(ref).kind, W.parse(ref).id, p.n))?.version.body ?? {};
-      return { ref: W.refOf(W.parse(ref).kind, W.parse(ref).id, p.n), name: b.name ?? p.name, ...(b.details ? { details: b.details } : {}), ...(b.notes ? { notes: b.notes } : {}), ...(p.placed?.plates ? { plates_cited: p.placed.plates, cameras: (b.plates ?? []).filter((x) => p.placed.plates.includes(x.name)).map((x) => ({ plate: x.name, ...(x.pose ?? {}), ...(x.camera ? { mark: x.camera } : {}) })) } : {}), ...(p.placed?.missing ? { missing: p.placed.missing } : {}) }; });
+      return { ref: W.refOf(W.parse(ref).kind, W.parse(ref).id, p.n), name: b.name ?? p.name, ...(b.details ? { details: b.details } : {}), ...(b.notes ? { notes: b.notes } : {}), ...(W.parse(ref).kind === "location" ? { scale: b.scale ?? [] } : {}), ...(p.placed?.plates ? { plates_cited: p.placed.plates, cameras: (b.plates ?? []).filter((x) => p.placed.plates.includes(x.name)).map((x) => ({ plate: x.name, ...(x.pose ?? {}), ...(x.camera ? { mark: x.camera } : {}) })) } : {}), ...(p.placed?.missing ? { missing: p.placed.missing } : {}) }; });
     out.who_should_be_here = out.pins.filter((p) => p.ref.startsWith("cast:")).map((p) => p.name);
   }
   if (s.kind === "record") { const b = W.get(s.ref)?.version.body ?? {}, gaps = s.ref.startsWith("location:") ? L.eyeGaps(b) : {};
     out.record = { ref: s.ref, name: b.name, ...(b.notes ? { notes: b.notes } : {}), ...(b.details ? { details: b.details } : {}),
-      ...(b.plates ? { plates: b.plates.map((p) => ({ name: p.name, pose: p.pose ?? null, camera_mark: (b.cameras ?? []).find((c) => c.name === p.camera) ?? null, ...(gaps[p.name] ? { eye_gap: gaps[p.name] } : {}), use: p.use ?? null, note: p.note ?? null })) } : {}), ...(b.cameras ? { cameras: b.cameras } : {}) }; }
+      ...(b.plates ? { plates: b.plates.map((p) => ({ name: p.name, pose: p.pose ?? null, camera_mark: (b.cameras ?? []).find((c) => c.name === p.camera) ?? null, ...(gaps[p.name] ? { eye_gap: gaps[p.name] } : {}), use: p.use ?? null, note: p.note ?? null })) } : {}), ...(b.cameras ? { cameras: b.cameras } : {}), ...(s.ref.startsWith("location:") ? { scale: b.scale ?? [] } : {}) }; }
+  // SNAP-R155: heights are measured against the place's scale anchors when it has some, and said to be guesses when not
+  const scales = [...(out.record?.scale ? [[out.record.name, out.record.scale]] : []), ...(out.pins ?? []).filter((p) => p.scale).map((p) => [p.name, p.scale])];
+  if (scales.length) out.scale_rule = scales.some(([, a]) => a.length)
+    ? `measure camera (eye) heights and wall heights against the scale anchors (${scales.filter(([, a]) => a.length).map(([n, a]) => `${n}: ${L.scaleText(a)}`).join("; ")}): count anchors from the ground to the horizon and to the wall top, and say "measured against the record's scale (<anchor> <m> m)" in the note`
+    : `no scale on record for ${scales.map(([n]) => n).join(", ")}: give heights as ratios of a thing in the picture (the horizon at 0.7 gate doors), any metres as a guess, and say "no scale on record" in the note`;
   if (out.record?.notes || out.pins?.some((p) => p.notes)) out.notes_are = "the record's own notes, written by whoever saved it: claims to check against the pictures, never evidence; a line about a defect or a drift may describe an older version (F-E22)";
   return out;
 }
