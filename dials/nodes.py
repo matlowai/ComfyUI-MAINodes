@@ -199,6 +199,7 @@ class DialHoldMap(io.ComfyNode):
 class MakeDial(io.ComfyNode):
     @classmethod
     def define_schema(cls):
+        roots = core.loras_roots()
         return io.Schema(
             node_id="MAIDialMake",
             display_name="Make Dial (alpha)",
@@ -222,20 +223,26 @@ class MakeDial(io.ComfyNode):
                                  tooltip="Project out the generic 'more wording' directions that every prompt-pair difference shares."),
                 io.Int.Input("nuisance_dims", default=3, min=1, max=12, advanced=True, tooltip="How many nuisance directions to remove."),
                 *info_inputs(),  # last, so workflows saved before these fields load unchanged
+                io.Combo.Input("folder", options=list(roots), default=next(iter(roots)), optional=True, advanced=True,
+                               tooltip="The loras folder the dial is saved under (in its dials/ folder). The first is this server's own models folder; "
+                                       "others are model folders it also reads (extra_model_paths), such as a shared dial library."),
             ],
             outputs=[Dial.Output(display_name="dial")],
             is_output_node=True,
         )
 
     @classmethod
-    def execute(cls, clip, model, pairs, subjects, name, inject, debias, nuisance_dims, **info) -> io.NodeOutput:
+    def execute(cls, clip, model, pairs, subjects, name, inject, debias, nuisance_dims, folder=None, **info) -> io.NodeOutput:
         info = info_from(**info)
+        roots = core.loras_roots()
+        if folder is not None and folder not in roots:  # SNAP-R239: a combo value is checked again where the file is written
+            raise ValueError(f"folder {folder!r} is not one of this server's loras folders: {', '.join(roots)}")
         if name:
             core.check_dial_name(name)
         mode = "post" if inject.startswith("post") else "pre"
         dial, report = core.make_dial(clip, model, pairs, subjects, name or "unsaved", mode, debias=debias, nuisance_dims=nuisance_dims)
         if name:
-            report += f"\nsaved {core.save_dial(dial, name, info)}"
+            report += f"\nsaved {core.save_dial(dial, name, info, roots.get(folder))}"
             core.saved(name, [pairs, subjects, info["description"], info["negative"], info["positive"]])
         return io.NodeOutput(dial, ui=ui.PreviewText(report))
 

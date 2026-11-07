@@ -275,9 +275,20 @@ def dial_bytes(dial, info=None):
     return save(dial_tensors(dial), metadata=meta)
 
 
-def save_dial(dial, name, info=None):
+def loras_roots():
+    """{label: loras root}: each root named by the shortest tail of its path (two parts at least) that tells it apart, in
+    ComfyUI's order; the first is this server's own models folder (on a --base-directory server, that base's)."""
+    roots = folder_paths.get_folder_paths("loras")
+    parts = [os.path.normpath(r).split(os.sep) for r in roots]
+    n = 2
+    while n < max(map(len, parts)) and len({"/".join(p[-n:]) for p in parts}) < len(parts):
+        n += 1
+    return {"/".join(p[-n:]): r for p, r in zip(parts, roots)}
+
+
+def save_dial(dial, name, info=None, root=None):
     check_dial_name(name)
-    root = os.path.join(folder_paths.get_folder_paths("loras")[0], DIAL_SUBDIR)
+    root = os.path.join(root or folder_paths.get_folder_paths("loras")[0], DIAL_SUBDIR)
     os.makedirs(root, exist_ok=True)
     path = os.path.join(root, f"{name}.safetensors")
     with open(path, "wb") as f:
@@ -336,11 +347,40 @@ def load_dial(dial_name):
 
 INFO_DEFAULTS = {"version": 2}  # every strength unknown, no evidence
 INFO_EVIDENCE = ("creator", "one-seed", "multi-seed", "multi-scene")
+INFO_KINDS = ("look", "light", "weather", "motion", "camera", "voice", "other")
+INFO_PIPELINES = ("t2v", "ref2v", "fl2v")  # Pika's text to video, reference pictures, first/last frame
+
+
+def check_strength(where, v):
+    if v is not None and (isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or not 0 < v <= 20):
+        raise ValueError(f"dial info '{where}' must be a strength above 0 and at most 20, or null (unknown)")
+    return None if v is None else float(v)
+
+
+def check_pipeline_info(key, p):
+    """One measured pipeline: useful/overcook strengths, the blend steps a time curve needs there, evidence, notes."""
+    if not isinstance(p, dict):
+        raise ValueError(f"dial info 'pipelines.{key}' must be an object with useful, overcook, steps, evidence, notes")
+    out = {k: check_strength(f"pipelines.{key}.{k}", p.get(k)) for k in ("useful", "overcook")}
+    if None not in out.values() and out["overcook"] < out["useful"]:
+        raise ValueError(f"the pipelines.{key} overcook strength must be at least its useful strength")
+    if p.get("steps") is not None:
+        if isinstance(p["steps"], bool) or not isinstance(p["steps"], int) or p["steps"] < 1:
+            raise ValueError(f"dial info 'pipelines.{key}.steps' must be a whole number of blend steps, at least 1")
+        out["steps"] = p["steps"]
+    if p.get("evidence") not in (None, *INFO_EVIDENCE):
+        raise ValueError(f"dial info 'pipelines.{key}.evidence' must be one of {', '.join(INFO_EVIDENCE)} or null")
+    out["evidence"] = p.get("evidence")
+    notes = p.get("notes", "")
+    if not isinstance(notes, str) or len(notes) > 500:
+        raise ValueError(f"dial info 'pipelines.{key}.notes' must be text of at most 500 characters")
+    out["notes"] = notes
+    return out
 
 
 def check_dial_info(info):
     """-> info v2: labels, per-side ("neg", "pos") useful/overcook strengths where None means unknown, evidence, pipeline,
-    notes."""
+    notes; optionally kind and per-pipeline measurements (absent in older files, which still read)."""
     if not isinstance(info, dict):
         raise ValueError("dial info must be an object")
     if info.get("version") != 2:
@@ -355,17 +395,21 @@ def check_dial_info(info):
         side = info.get(name, {})
         if not isinstance(side, dict):
             raise ValueError(f"dial info '{name}' must be an object with useful and overcook")
-        out[name] = {}
-        for key in ("useful", "overcook"):
-            v = side.get(key)
-            if v is not None and (isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or not 0 < v <= 20):
-                raise ValueError(f"dial info '{name}.{key}' must be a strength above 0 and at most 20, or null (unknown)")
-            out[name][key] = None if v is None else float(v)
+        out[name] = {key: check_strength(f"{name}.{key}", side.get(key)) for key in ("useful", "overcook")}
         if None not in out[name].values() and out[name]["overcook"] < out[name]["useful"]:
             raise ValueError(f"the {name} overcook strength must be at least its useful strength")
     if info.get("evidence") not in (None, *INFO_EVIDENCE):
         raise ValueError(f"dial info 'evidence' must be one of {', '.join(INFO_EVIDENCE)} or null")
     out["evidence"] = info.get("evidence")
+    if info.get("kind") is not None:
+        if info["kind"] not in INFO_KINDS:
+            raise ValueError(f"dial info 'kind' must be one of {', '.join(INFO_KINDS)}, not {info['kind']!r}")
+        out["kind"] = info["kind"]
+    if info.get("pipelines") is not None:
+        pipelines = info["pipelines"]
+        if not isinstance(pipelines, dict) or any(k not in INFO_PIPELINES for k in pipelines):
+            raise ValueError(f"dial info 'pipelines' must be an object keyed by {', '.join(INFO_PIPELINES)} (text to video, reference pictures, first/last frame)")
+        out["pipelines"] = {k: check_pipeline_info(k, v) for k, v in pipelines.items()}
     return out
 
 

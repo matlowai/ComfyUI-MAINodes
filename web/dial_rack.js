@@ -1317,7 +1317,7 @@ class DialRackUI {
       b.disabled = true;
       try {
         const r = await api.fetchApi("/mainodes/dials/info", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ dial: file, info: { version: 2, description: desc.value, negative: neg.value, positive: pos.value,
+          body: JSON.stringify({ dial: file, info: { ...info, version: 2, description: desc.value, negative: neg.value, positive: pos.value,
             neg: { useful: num(negUseful), overcook: num(negOver) }, pos: { useful: num(posUseful), overcook: num(posOver) },
             evidence: evidence.value || null, pipeline: pipeline.value, notes: notes.value } }) });
         const data = await r.json();

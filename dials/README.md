@@ -100,6 +100,13 @@ draws each quarter from the matching sides (right/top from +, left/bottom from �
 a grey dashed ring at 1 marked *uncalibrated*, and the dot there reads "uncalibrated", never "within useful". Dials
 without info are all unknown.
 
+Two optional keys (same version 2; older files read without them): **kind** (look, light, weather, motion, camera,
+voice or other) and **pipelines**, measurements per Pika pipeline: `{"t2v" | "ref2v" | "fl2v": {"useful", "overcook",
+"steps", "evidence", "notes"}}` (text to video, reference pictures, first/last frame; `steps` is how many blend steps a
+time curve needs there). Snap's `set_dial_info` writes them; the rack's ⚙ keeps them when it saves. Make Dial's
+**folder** picks the loras folder the file goes under (its `dials/`): the first is this server's own models folder
+(on a `--base-directory` server, that base's), the others are model folders it also reads, such as a shared library.
+
 ## Example workflows
 
 ### Simple start
@@ -289,8 +296,12 @@ the change lands within ±5 frames of the step on seed 42 but as a ramp over 1.4
 still gets about 20 % of the darkening and the M = 1 half reaches 80–90 % (seed 42); on seed 43 the two halves differ
 only weakly. The leak comes through the shared latent (the undialled branch sees the dialled frames), so more steps do
 not fix it: k = 1, 2, 3 and 6 give the same transition (k = 1 already carries 86 % of the constant dial's darkening,
-k = 2 97 %), at 1.12x, 1.24x, 1.37x and 1.73x the render time. Use k = 1 or 2 and broad curves (changes over a
-second or more, sections rather than beats).
+k = 2 97 %), at 1.12x, 1.24x, 1.37x and 1.73x the render time. That was day/night in text to video. **With reference
+pictures it does not hold:** on Pika + reference pictures (two pictures), look dials at k = 2 drew nothing at any
+strength (psychedelic 1-5, space warp 1.5-4, dream 1.5-3), and k = 6 drew every one; under one picture aura and colour
+drain followed their curves at k = 2 as well as k = 6, and ink wash in text to video needed k = 6. So use all steps
+unless a dial's info gives a measured `steps` for the pipeline (Snap's Book cuts default to all steps, SNAP-R231), and
+broad curves (changes over a second or more, sections rather than beats).
 
 **Audio-driven (8 s dancer clip, the track as H3 reference audio or anchored at frame 0, 1 seed):** H3 carries the
 music in time (onset envelope r = 0.78 as reference audio, 0.97 anchored), and the curve sets how much of the dial the
