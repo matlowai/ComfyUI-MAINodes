@@ -65,7 +65,9 @@ one you work in so you never collide:
 - **Let go when your job ends** (SNAP-R135): `use_page {"page": null}` (snapcall: `use_page '{"page": null}'`). A
   finished agent that keeps its hold leaves the page "Driven by" it. snap_mcp.py lets go when its connection closes; a
   hold with no call for 10 minutes lapses by itself, the chip shows "idle n min" before that, and your next call says
-  it lapsed. Every call must carry your name (SNAP_AGENT / X-Snap-Agent): an unnamed call on a driven page is refused
+  it lapsed and names the `use_page` call that takes the page back. A long read is not idle (SNAP-R146): while you hold
+  a critique you claimed (each `critique_packet` renews the claim) or a run of yours is queued or running, the hold
+  stays; `list_pages` says `driver_busy`. So claim first, then read. Every call must carry your name (SNAP_AGENT / X-Snap-Agent): an unnamed call on a driven page is refused
   and says it carries no name.
 - With nothing picked, calls go to the newest tab that sees: the agents' window, or a tab whose person turned "Let
   agents see" on. While a person's tab is open with the control off, a call is refused (it says how to get a page); it
@@ -159,7 +161,12 @@ nested pack → install → person → book → scene → shot → take. Read th
      from words: start it from an eye-level still (skill `snap-location`). There is no last frame yet: core's H3 node
      takes one, but the pack's H3 setups don't wire it, and `use_take {as: "last_frame"}` says so (F-F20); end on a
      picture by citing it as a reference ("the shot ends on <Picture 2>").
-   - Upscale starts off when RelayVSR isn't installed.
+   - Upscale starts off when RelayVSR isn't installed, and on when it is: `open_shot` on a new shot says so
+     (`upscale`); switch it off (`set_method {"slot": "upscale", "method": "off"}`) for a walkthrough, a plate or a
+     draft (F-G09).
+   - **Pika at 6 steps is the quality standard** (SNAP-R149): video takes run on a Pika setup at its 6 steps. The
+     "no turbo (20 steps)" presets that Turbo off puts on are opt-in, not a quality step up (20 and 30 steps drifted
+     off the plate and the Cast); never reach for them to improve a take. Voice references take 12+ steps (below).
 2. Set the prompt: `set_setting {"brick": "render", "name": "prompt", "value": "..."}`.
    - `render` names the recipe's Render in every family (the stills recipe's brick id is `image`). Titles such as
      `save`, `models` and `upscale` work the same way. A brick that isn't there is refused with the recipe's brick ids.
@@ -168,8 +175,10 @@ nested pack → install → person → book → scene → shot → take. Read th
        and how the camera moves. `<Picture 1>` and so on name the reference pictures.
      - `overall_soundscape:` names the specific sounds the action makes (paws pattering on grass, a door slamming, a
        short bark), then a short ambience tail. Don't lead with soft, gentle, faint or distant: an ambience-only
-       soundscape comes out near-silent.
-     - `non_diegetic_music:` music laid over the scene, or `N/A`.
+       soundscape comes out near-silent. Keep them diegetic and subtle: no stings, "tada" hits, clash bursts or
+       game-style effects (SNAP-R150: they sink a take).
+     - `non_diegetic_music:` `N/A`. Music is a reference input the production supplies (`<Audio n>`, held across
+       cuts), never generated per take (SNAP-R151); sound effects come after picture lock.
    - For stills, write two or three concrete sentences.
    - `describe_recipe` → `prompt_help` repeats this for the open recipe.
 3. Set the length in frames or seconds: `set_setting {"brick": "render", "name": "length", "value": "5s"}`. Seconds
@@ -188,7 +197,8 @@ nested pack → install → person → book → scene → shot → take. Read th
    (`path` on the ComfyUI machine, and `url`). `metadata_kept` names nodes that wrote the prompt into their files
    although Save metadata was off: tell the person.
 7. `list_takes`, `take_frames` (look at a take) and `rank_takes` / `judge_takes` (your own judgments, kept apart from
-   the person's) come after that. Snap notes a take whose sound is quiet (mean below about -45 dB): its `sound.quiet` is
+   the person's) come after that. Judge a video take with its sound on (SNAP-R150): an options page plays the takes
+   with sound, and a recommendation says what the audio does. Snap notes a take whose sound is quiet (mean below about -45 dB): its `sound.quiet` is
    true. Then tell the person, and offer `make_louder` (a louder version of the take) or a prompt that names the sounds
    the action makes. With no note the level is normal (our good takes are about -25 to -45 dB): don't re-render for it.
 8. To make a take longer, call `edit_take {"take": "<id>", "method": "chain", "clips": 2}`. Standard (`chain`) holds the
@@ -299,6 +309,9 @@ cameras → master → a people-free walkthrough → plates from its frames), th
     apply_location {"location": "location:<id>", "plates": ["Pb gate inside"], "camera": "Pb gate inside"}
                                                        # answers cite (master, plan, plates), use and prompt_hint
     save_location {"location": "location:<id>", "master": {"take": "<fixed>"}}   # a new master; the rest is kept (kept says what)
+    add_plate {"location": "location:<id>", "name": "Pb gate inside", "pose": {"eye_height": 1.5}}   # one plate's pose; its picture and the rest kept
+    add_plate {"location": "location:<id>", "name": "Pc N row", "camera": {"name": "Pc N", "x": 0.4, "y": 0.2, "heading": 0, "eye_height": 1.6}}
+                                                       # a camera mark added (or moved, by name) with the plate (SNAP-R148)
 
 - A pose's `x`, `y` are fractions of the plan picture from its top left; `heading` is degrees clockwise from the
   plan's up (north); `eye_height` in metres; `lens` in mm. `list_locations` gives every place whole;
@@ -312,7 +325,10 @@ cameras → master → a people-free walkthrough → plates from its frames), th
   "Pb gate inside"}` (or `"master"`, `"plan"`) among its pictures.
 - A place kept as a Cast (before location records) moves over with `cast_to_location {"cast": "cast:<id>"}`: its
   master and map become the location's master and plan; the Cast stays, and its takes stop showing "its description
-  wasn't in the prompt". `remove_from_world {"ref": "cast:<id>"}` takes any record out of the open recipe (its
+  wasn't in the prompt". Those takes stay the location's dependents (SNAP-R147): `dependents` lists them (`via`), and
+  their rerun swaps the Cast for the location (`{"cast:<id>": {"to": "location:<id>"}}`). A take a plate or the master
+  came from that pins nothing has `rerun: null` (`by_hand` in rerun_dependents' plan): make it again in a shot that
+  applies the location. `remove_from_world {"ref": "cast:<id>"}` takes any record out of the open recipe (its
   pictures, its line in the prompt, its pin; the record stays), as the x on its chip does.
 - `open_view {"view": "location", "location": "location:<id>"}` opens the Location sheet for the person (switching
   their page to Snap if it shows the graph): the master, the plan with every camera mark and plate drawn as a dot and a
@@ -467,6 +483,9 @@ cuts, as candidates; it stops before video unless `"through": "cuts"`. The fixtu
 
 ### Shots, references and pictures (SNAP-R118..R125)
 
+`list_tabs` lists the workflow tabs open on the page (name, active, modified, temporary, nodes, and the scene and shot
+of a shot's tab): check it before opening more, and tell the person which scratch tabs you left.
+
 - **A new shot keeps the open shot's setup only** (models, preset, turbo, sampling, size): no Cast, location, References,
   first frame, dials, style rows or prompt. `open_shot`'s `built` lists what it left out. `add_shot {start: "copy"}` copies
   the shot as it is.
@@ -555,7 +574,8 @@ it on the Library rail's **Book** row (lenses Beat sheet, Settei, Boards, Cut ba
 
 A missing route is a gap in Snap, not a reason to leave it: a take queued outside Snap (raw API, a side graph) never
 shows in its shot, its Cast pins or the Work card. Tell the person what you tried, which tool and what it answered, so
-the route gets built into Snap.
+the route gets built into Snap. When several agents log such findings at the same time, each takes the ID range it was
+given (F-H01..F-H49 for one, F-H50..F-H99 for the next) so no two rows share an ID (SNAP-R152).
 
 ## Limits
 

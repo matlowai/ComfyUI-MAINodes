@@ -1348,7 +1348,7 @@ Next free ID after this batch: SNAP-R139.
 
 ## Batch G4 (2026-11-06)
 
-Next free ID after this batch: SNAP-R146.
+Next free ID after this batch: SNAP-R146 (G5 took R146 on).
 
 - **SNAP-R139: An agent's proposals live on the server, stack on each other, and keep their answers.** A proposal is a
   row in the person's `snap/proposals.json` (`/mainodes/snap/proposals`), not page memory: a reload, a second page or
@@ -1416,3 +1416,63 @@ Next free ID after this batch: SNAP-R146.
   into another scene copies the open recipe now, each with a graph id of its own and none of the takes. *Why:* the
   preset-options run (F-F21, F-F22, F-F23): re-runs landed as versions in the Cut's own shots, a copy into another
   scene built the stock recipe, and "run from take" opened a tab owned by the Cut's shot with the seed one past.
+
+## Batch G5 (2026-11-06)
+
+Next free ID after this batch: SNAP-R155.
+
+- **SNAP-R146: A long read is not an idle hold.** An agent's page hold does not lapse after 10 idle minutes while that
+  agent holds a critique it claimed (`claim_critique`; each `critique_packet` renews the claim, which lapses by itself
+  after 30 untouched minutes) or has a run of its own queued or running (the job stamp names the agent whose call
+  queued it, `snap_job.agent`). `list_pages` says what keeps it (`driver_busy`); a hold that does lapse says, on the
+  agent's next call, the `use_page` call that takes the page back when nobody else holds it. *Why:* the village v11
+  critic read 10 packets for 16 minutes between calls, and its hold lapsed mid-job (F-G05). *More:* SNAP-R135,
+  SNAP-R101.
+- **SNAP-R147: A location's dependents include what used it before it was a location.** A take that pinned the Cast a
+  place was kept as (cast_to_location's `from_cast`) used the location version made from it, and re-runs with that
+  Cast swapped for the location (`rerun {swaps: {"cast:<id>": {to: "location:<id>"}}}`: the Cast's pictures and words
+  go, the location's master, plan and the plates the Cast's pictures became go in); a take a master or plate came
+  `from` that pins nothing used the version that first held the picture, is listed with `rerun: null`, and is named
+  `by_hand` in the re-run plan (make it again in a shot that applies the location). *Why:* village v11: after master
+  v5, `dependents` said nothing used an older version while every walkthrough and plate source had pinned the village
+  Cast, and every plate was re-made by hand (F-G01). *More:* SNAP-R140, SNAP-R106.
+- **SNAP-R148: One plate or camera mark changes alone.** `add_plate` on a plate that exists keeps every field the call
+  leaves out, its picture too (null clears one), and says what it `kept`; `camera` may be a mark `{name, x, y,
+  heading, eye_height, lens, note}`, added to the place or moved when it has one of that name, the other marks kept.
+  *Why:* village v11: a pose or a note change meant list_locations, merge, save_location with every plate and mark,
+  and a helper script to keep each plate's `from` (F-G03). *More:* SNAP-R84 (save_location keeps what it leaves out).
+- **SNAP-R149: Pika at 6 steps is the quality standard.** The Pika turbo setups at 6 steps are the default and the
+  quality bar for video takes; more steps is not a quality step up. The no-turbo presets ("First frame, no turbo (20
+  steps)", "Reference pictures, no turbo (20 steps)") are opt-in, named for what they are, and no card, tool answer,
+  skill or doc labels or suggests them as better; agents never reach for them to "improve" a take. Kept: voice
+  references at 12 steps or more (SNAP-R88) and the audio pass in post. *Why:* the operator, 2026-11-06 ("Pika 6 steps
+  is the de facto standard for quality"); the preset test's 20/30 steps drifted off the plate and the Cast.
+- **SNAP-R150: Takes are judged with their sound on, and subtle sound is preferred.** A recommendation, a pick and an
+  options page judge a video take with its sound (videos with sound, not frame sheets alone), and say what the audio
+  does. Prompts ask for subtle, diegetic sound; stings, "tada" hits, clash bursts and game-style effects are a finding
+  that sinks a take whatever its picture. *Why:* the operator, 2026-11-06, on short05 C3: option b was out for its
+  "corny game tada sounds", and the coordinator had recommended it from frame sheets and loudness numbers.
+- **SNAP-R151: Music is a reference input, never generated per take.** A production's music comes in as an audio
+  reference (`<Audio n>`) the production supplies and holds across cuts; a take's own generation never makes the
+  music, and agents don't ask a prompt for a score. Sound effects are added after picture lock (the audio pass in post).
+  *Why:* the operator, 2026-11-06 ("music should be a reference input… sfx can be added in post").
+- **SNAP-R152: Parallel agents take disjoint finding-ID ranges.** When two or more agents log findings at the same
+  time, each is given its own range of IDs up front (F-H01..F-H49 for one, F-H50..F-H99 for the next, …), so rows never
+  collide and need no renumbering. *Why:* the village studio and the voice agent both wrote F-G01/F-G02 the same
+  evening; the second pair was renumbered F-G12/F-G13.
+- **SNAP-R153: A costume is built the same in every view.** The critic's cross-view pass checks garment construction:
+  every slit, split, vent, hem, opening, closure and layer is where every view that can see it says, and it looks
+  *through* one view's gaps (between the legs, under an arm) at the far side another view shows; a disagreement is a
+  medium flaw (r5). *Why:* the operator on X02, 2026-11-06: "the back has a split in her clothing vs no split in the
+  look-through to the back between her legs"; no r3 or r4 run caught it. *More:* SNAP-R109 (measured on the fixtures).
+- **SNAP-R154: A set plan's layout is tried without a version.** `draw_set_plan {preview: true}` draws the plan and
+  answers the picture with every label that runs off it or over another label (shape, box, off_edge, overlaps), and
+  saves nothing; a saved plan's answer lists them too. *Why:* village v11: labels at one size ran off a 1400 px plan and
+  over the gatehouse, and each try was a location version (v15, then v16 to fix it; F-G04). *More:* SNAP-R133.
+- **SNAP-R136 (amended, G5): a row answered on a later version leaves the docket, and every view reads the notes.** A due
+  row whose part a later version's written row read unchanged is stale ("read on vN (crit-…): the same <part>"); the
+  "every view" part covers the record's notes and camera marks, so a notes-only version gets its own views row. A plate
+  or master packet adds a measuring copy (a 10 % grid with pixel positions, mapped like a tile), a still's context goes
+  as PNG, and the plan with marks drawn names the file it was drawn over (`drawn_over`). *Why:* village v11: v3-v5 rows
+  of unchanged plates stayed due at v16, a notes-only save asked nothing, and every height came from the critic's own
+  crops (F-G06, F-G07).

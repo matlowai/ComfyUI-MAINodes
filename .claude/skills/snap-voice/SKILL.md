@@ -6,7 +6,7 @@ description: >
   speaks, then measured. Use it whenever a character speaks, a short has dialogue, voices sound alike or change
   between cuts, or you make voice settei.
 scope: [tool:add_audio_ref, tool:save_cast, tool:check_voice]
-rules: [SNAP-R73, SNAP-R74, SNAP-R88, SNAP-R114]
+rules: [SNAP-R73, SNAP-R74, SNAP-R88, SNAP-R114, SNAP-R150, SNAP-R151]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-voice"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -43,3 +43,12 @@ actress" came out at 97-138 Hz, "clearly a woman's voice" at 112-145 Hz, and the
    still yours to run.
 
 H3 reads audio references only with a reference setup (Ref2V).
+
+## Sound in a cut
+
+- **Listen before you pick** (SNAP-R150): judge talking takes and every video candidate with the sound on, and say in
+  the recommendation what the audio does. Ask for subtle, diegetic sound (footsteps, wind, cloth, a bowl set down);
+  stings, "tada" hits, clash bursts and game-style effects are a finding and sink the take.
+- **Music is a reference input** (SNAP-R151): the production supplies the music as an `<Audio n>` reference and holds
+  it across cuts; never ask a take's prompt for a score. Sound effects are made after picture lock, on a low-resolution
+  copy of the locked cut at 12 or more steps, then put on the full-resolution picture (the audio pass in post).

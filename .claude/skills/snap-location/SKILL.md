@@ -6,7 +6,7 @@ description: >
   it whenever a short, scene or shot needs a place (a village, a room, a street), when views of one place disagree
   (a gate that changes between cuts), or before making plates or boards of a set.
 scope: [tool:save_location, tool:add_plate, tool:apply_location, tool:use_take, tool:draw_set_plan]
-rules: [SNAP-R21, SNAP-R22, SNAP-R71, SNAP-R84, SNAP-R115, SNAP-R133, SNAP-R136]
+rules: [SNAP-R21, SNAP-R22, SNAP-R71, SNAP-R84, SNAP-R115, SNAP-R133, SNAP-R136, SNAP-R147, SNAP-R148, SNAP-R154]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-location"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -22,6 +22,8 @@ gates). Tool calls are in `docs/snap/AGENT_START.md` ("A new view of a place").
 1. **Set plan:** an overhead map. Draw it in Snap (`draw_set_plan {location, shapes, cameras}`, or "Draw the plan" on
    the Location sheet, SNAP-R133): boxes, rounds, lines for roads and walls, labels; camera marks stay on the record and
    the sheet draws them as wedges, never into the plan picture (marks in the picture leak into renders that cite it).
+   Try the layout with `preview: true` first: it answers the picture and every label that runs off it or over another,
+   and saves no version (SNAP-R154); break a long label with `\n`.
 2. **Master:** one establishing picture that shows how the parts connect (road → wall → gate → square). Run the
    critic's logic check on it now (`snap-critic`): does the wall enclose what it should, does the road reach the gate.
    A flaw here reaches every plate.
@@ -42,6 +44,12 @@ gates). Tool calls are in `docs/snap/AGENT_START.md` ("A new view of a place").
    Cite a frame with `use_take {take, as: reference, at}` or `{take, frame}` instead of exporting a file.
 5. **Boards:** plate + people with New view (`snap-new-view`); land each cut's board in its shot.
 6. **Cuts** cite their plate, the master and the Cast (`snap-boards`).
+
+7. **Fixes after a critique:** change one plate alone with `add_plate {location, name, pose}` (its picture and the
+   rest are kept; `camera: {name, x, y, heading, eye_height}` adds or moves its mark, SNAP-R148) and the notes with
+   `save_location {location, notes}`; never rewrite the whole place to move one pose. After a master fix,
+   `dependents {ref: location:<id>}` lists what used the older place, the walks made on the Cast it was kept as too
+   (SNAP-R147); `rerun_dependents` re-makes them, and names `by_hand` the takes that pin nothing of it.
 
 ## Traps
 
