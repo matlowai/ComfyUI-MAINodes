@@ -1,0 +1,4 @@
+# continuum between two creatures: A = an owl, B = an octopus; same place, same pose words, settings as subjects
+{subject}, an owl sits in the middle of the frame and slowly looks around. ||| {subject}, an octopus sits in the middle of the frame and slowly looks around.
+{subject}, a close view of an owl, its eyes turning toward the camera. ||| {subject}, a close view of an octopus, its eyes turning toward the camera.
+{subject}, an owl moves slowly across the ground toward the viewer. ||| {subject}, an octopus moves slowly across the ground toward the viewer.

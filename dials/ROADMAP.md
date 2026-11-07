@@ -5,6 +5,10 @@ the MAINodes branch `dials-rack` (pushed for testers; ComfyUI-Dials stays stable
 Designs: `dials/docs/INTERACTION_ATLAS.md` (atlas), `dials/docs/TIME_AND_AUDIO.md` (time curves, audio-reactive, audio protection). Evidence for the
 2026-10-31 items lives in the H3 motion study (`codex/` A-D reports, `renders/eval25-30`) and the LLM dial study.
 
+Open research (plan, findings, experiment write-ups): [`dials/research/`](research/README.md).
+Next research track (proposed): dials from word lists and readouts of dials via the Jacobian lens, see
+[the J track](research/PLAN.md) and [the ideas page](research/2026-11-06-jlens-ideas.md).
+
 ## Done (alpha on `dials-rack`)
 - **Dial Rack** (the multi-dial loader the community asked for, "spaghetti mode chaining dial apply"): rows with on/off,
   strength, solo, hold; wired dials become rows; presets; step envelopes. One row, four rows and all-off match the

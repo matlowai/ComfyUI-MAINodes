@@ -1,0 +1,5 @@
+# sinister with the SAME slot text as the released pack but templates that never mention the camera or the viewer.
+# Question: is "she turns to face the camera" (seen with most evil dials) carried by the templates or by the trait?
+{subject} stands in the room with a warm, friendly presence, soft even lighting on their face. ||| {subject} stands in the room with a sinister, menacing presence, deep shadows across their face.
+{subject} sits by the window with a kind, open expression. ||| {subject} sits by the window with a cold, threatening stare from the shadows.
+{subject} waits at the end of a long corridor in a gentle, welcoming way. ||| {subject} waits at the end of a long corridor in a looming, predatory, menacing way.

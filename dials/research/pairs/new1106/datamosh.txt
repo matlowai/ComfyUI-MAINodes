@@ -1,0 +1,4 @@
+# plain vs featured: A = the plain sentence, B = the same sentence with a datamosh glitch clause added
+{subject} stands in the room. ||| {subject} stands in the room, the image breaking into datamosh glitches, smeared pixel blocks and corrupted frames.
+{subject} looks up at the camera. ||| {subject} looks up at the camera, the picture tearing into compression artifacts and melting, glitching pixels.
+{subject} walks slowly toward the viewer. ||| {subject} walks slowly toward the viewer, every frame smearing into the next in broken digital datamosh.

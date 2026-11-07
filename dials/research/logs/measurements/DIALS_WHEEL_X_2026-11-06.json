@@ -1,0 +1,991 @@
+{
+ "control": "output/video/dials_x1106/control_00001_.mp4",
+ "base": {
+  "colour_temp": -4.032249450683594,
+  "time_of_day": -69.47905731201172,
+  "light_contrast": 66.06598663330078,
+  "motion": 7.244603633880615,
+  "texture": 13.76373291015625
+ },
+ "rows": [
+  {
+   "arm": "datamosh_m3",
+   "dial": "h3_x_datamosh.safetensors",
+   "strength": -3.0,
+   "unexplained": 0.8730917572975159,
+   "pred": {
+    "colour_temp": -0.9633429944515228,
+    "time_of_day": -0.612202987074852,
+    "light_contrast": 0.03443305380642414,
+    "motion": -0.6394562870264053,
+    "texture": -0.309501975774765
+   },
+   "meas": {
+    "colour_temp": -15.351661682128906,
+    "time_of_day": -33.163230895996094,
+    "light_contrast": -5.483295440673828,
+    "motion": -4.192475080490112,
+    "texture": 5.400758743286133
+   },
+   "top_axes": [
+    [
+     "colour_temp",
+     0.32111433148384094
+    ],
+    [
+     "motion",
+     0.21315209567546844
+    ],
+    [
+     "time_of_day",
+     0.204067662358284
+    ]
+   ]
+  },
+  {
+   "arm": "datamosh_m1p5",
+   "dial": "h3_x_datamosh.safetensors",
+   "strength": -1.5,
+   "unexplained": 0.8730917572975159,
+   "pred": {
+    "colour_temp": -0.4816714972257614,
+    "time_of_day": -0.306101493537426,
+    "light_contrast": 0.01721652690321207,
+    "motion": -0.31972814351320267,
+    "texture": -0.1547509878873825
+   },
+   "meas": {
+    "colour_temp": -15.515625,
+    "time_of_day": -1.6960678100585938,
+    "light_contrast": 1.9702224731445312,
+    "motion": -1.6343846321105957,
+    "texture": 4.429046630859375
+   },
+   "top_axes": [
+    [
+     "colour_temp",
+     0.32111433148384094
+    ],
+    [
+     "motion",
+     0.21315209567546844
+    ],
+    [
+     "time_of_day",
+     0.204067662358284
+    ]
+   ]
+  },
+  {
+   "arm": "datamosh_p1p5",
+   "dial": "h3_x_datamosh.safetensors",
+   "strength": 1.5,
+   "unexplained": 0.8730917572975159,
+   "pred": {
+    "colour_temp": 0.4816714972257614,
+    "time_of_day": 0.306101493537426,
+    "light_contrast": -0.01721652690321207,
+    "motion": 0.31972814351320267,
+    "texture": 0.1547509878873825
+   },
+   "meas": {
+    "colour_temp": 9.88916015625,
+    "time_of_day": -8.723731994628906,
+    "light_contrast": -1.8427276611328125,
+    "motion": 2.4417595863342285,
+    "texture": 0.4594545364379883
+   },
+   "top_axes": [
+    [
+     "colour_temp",
+     0.32111433148384094
+    ],
+    [
+     "motion",
+     0.21315209567546844
+    ],
+    [
+     "time_of_day",
+     0.204067662358284
+    ]
+   ]
+  },
+  {
+   "arm": "datamosh_p3",
+   "dial": "h3_x_datamosh.safetensors",
+   "strength": 3.0,
+   "unexplained": 0.8730917572975159,
+   "pred": {
+    "colour_temp": 0.9633429944515228,
+    "time_of_day": 0.612202987074852,
+    "light_contrast": -0.03443305380642414,
+    "motion": 0.6394562870264053,
+    "texture": 0.309501975774765
+   },
+   "meas": {
+    "colour_temp": 3.6698455810546875,
+    "time_of_day": -40.48644256591797,
+    "light_contrast": 6.424674987792969,
+    "motion": 56.32609415054321,
+    "texture": 2.4778919219970703
+   },
+   "top_axes": [
+    [
+     "colour_temp",
+     0.32111433148384094
+    ],
+    [
+     "motion",
+     0.21315209567546844
+    ],
+    [
+     "time_of_day",
+     0.204067662358284
+    ]
+   ]
+  },
+  {
+   "arm": "vhs_m3",
+   "dial": "h3_x_vhs.safetensors",
+   "strength": -3.0,
+   "unexplained": 0.6212957501411438,
+   "pred": {
+    "colour_temp": 0.20190471410751343,
+    "time_of_day": -0.4671551585197449,
+    "light_contrast": -0.0012761164689436555,
+    "motion": -0.5763063132762909,
+    "texture": -0.6437292248010635
+   },
+   "meas": {
+    "colour_temp": -2.539642333984375,
+    "time_of_day": -46.013099670410156,
+    "light_contrast": 8.191978454589844,
+    "motion": 3.007657527923584,
+    "texture": 4.947673797607422
+   },
+   "top_axes": [
+    [
+     "world_age",
+     0.5681226253509521
+    ],
+    [
+     "weather",
+     0.24720361828804016
+    ],
+    [
+     "texture",
+     0.21457640826702118
+    ]
+   ]
+  },
+  {
+   "arm": "vhs_m1p5",
+   "dial": "h3_x_vhs.safetensors",
+   "strength": -1.5,
+   "unexplained": 0.6212957501411438,
+   "pred": {
+    "colour_temp": 0.10095235705375671,
+    "time_of_day": -0.23357757925987244,
+    "light_contrast": -0.0006380582344718277,
+    "motion": -0.28815315663814545,
+    "texture": -0.32186461240053177
+   },
+   "meas": {
+    "colour_temp": 0.2460784912109375,
+    "time_of_day": -29.46369171142578,
+    "light_contrast": 8.847915649414062,
+    "motion": 3.0052685737609863,
+    "texture": 2.932912826538086
+   },
+   "top_axes": [
+    [
+     "world_age",
+     0.5681226253509521
+    ],
+    [
+     "weather",
+     0.24720361828804016
+    ],
+    [
+     "texture",
+     0.21457640826702118
+    ]
+   ]
+  },
+  {
+   "arm": "vhs_p1p5",
+   "dial": "h3_x_vhs.safetensors",
+   "strength": 1.5,
+   "unexplained": 0.6212957501411438,
+   "pred": {
+    "colour_temp": -0.10095235705375671,
+    "time_of_day": 0.23357757925987244,
+    "light_contrast": 0.0006380582344718277,
+    "motion": 0.28815315663814545,
+    "texture": 0.32186461240053177
+   },
+   "meas": {
+    "colour_temp": -2.3565216064453125,
+    "time_of_day": 1.97723388671875,
+    "light_contrast": 2.6829071044921875,
+    "motion": 1.5094952583312988,
+    "texture": 2.2069473266601562
+   },
+   "top_axes": [
+    [
+     "world_age",
+     0.5681226253509521
+    ],
+    [
+     "weather",
+     0.24720361828804016
+    ],
+    [
+     "texture",
+     0.21457640826702118
+    ]
+   ]
+  },
+  {
+   "arm": "vhs_p3",
+   "dial": "h3_x_vhs.safetensors",
+   "strength": 3.0,
+   "unexplained": 0.6212957501411438,
+   "pred": {
+    "colour_temp": -0.20190471410751343,
+    "time_of_day": 0.4671551585197449,
+    "light_contrast": 0.0012761164689436555,
+    "motion": 0.5763063132762909,
+    "texture": 0.6437292248010635
+   },
+   "meas": {
+    "colour_temp": 2.2814483642578125,
+    "time_of_day": 14.674495697021484,
+    "light_contrast": -18.057823181152344,
+    "motion": 9.224350452423096,
+    "texture": -5.313446044921875
+   },
+   "top_axes": [
+    [
+     "world_age",
+     0.5681226253509521
+    ],
+    [
+     "weather",
+     0.24720361828804016
+    ],
+    [
+     "texture",
+     0.21457640826702118
+    ]
+   ]
+  },
+  {
+   "arm": "silentfilm_cyberpunk_m3",
+   "dial": "h3_x_silentfilm_cyberpunk.safetensors",
+   "strength": -3.0,
+   "unexplained": 0.8858776092529297,
+   "pred": {
+    "colour_temp": -0.4511423707008362,
+    "time_of_day": -0.07201205380260944,
+    "light_contrast": 0.3061136305332184,
+    "motion": -0.6047455966472626,
+    "texture": 0.08940479345619678
+   },
+   "meas": {
+    "colour_temp": -3.3892288208007812,
+    "time_of_day": -22.57030487060547,
+    "light_contrast": -4.169425964355469,
+    "motion": 5.7395548820495605,
+    "texture": 2.1578731536865234
+   },
+   "top_axes": [
+    [
+     "world_age",
+     -0.312226802110672
+    ],
+    [
+     "motion",
+     0.20158186554908752
+    ],
+    [
+     "weather",
+     0.19873128831386566
+    ]
+   ]
+  },
+  {
+   "arm": "silentfilm_cyberpunk_m1p5",
+   "dial": "h3_x_silentfilm_cyberpunk.safetensors",
+   "strength": -1.5,
+   "unexplained": 0.8858776092529297,
+   "pred": {
+    "colour_temp": -0.2255711853504181,
+    "time_of_day": -0.03600602690130472,
+    "light_contrast": 0.1530568152666092,
+    "motion": -0.3023727983236313,
+    "texture": 0.04470239672809839
+   },
+   "meas": {
+    "colour_temp": -9.047569274902344,
+    "time_of_day": 1.9491653442382812,
+    "light_contrast": -0.5895309448242188,
+    "motion": -0.13435697555541992,
+    "texture": 8.487701416015625e-05
+   },
+   "top_axes": [
+    [
+     "world_age",
+     -0.312226802110672
+    ],
+    [
+     "motion",
+     0.20158186554908752
+    ],
+    [
+     "weather",
+     0.19873128831386566
+    ]
+   ]
+  },
+  {
+   "arm": "silentfilm_cyberpunk_p1p5",
+   "dial": "h3_x_silentfilm_cyberpunk.safetensors",
+   "strength": 1.5,
+   "unexplained": 0.8858776092529297,
+   "pred": {
+    "colour_temp": 0.2255711853504181,
+    "time_of_day": 0.03600602690130472,
+    "light_contrast": -0.1530568152666092,
+    "motion": 0.3023727983236313,
+    "texture": -0.04470239672809839
+   },
+   "meas": {
+    "colour_temp": 3.4263916015625,
+    "time_of_day": -20.706871032714844,
+    "light_contrast": -2.259014129638672,
+    "motion": 0.9284529685974121,
+    "texture": 3.128438949584961
+   },
+   "top_axes": [
+    [
+     "world_age",
+     -0.312226802110672
+    ],
+    [
+     "motion",
+     0.20158186554908752
+    ],
+    [
+     "weather",
+     0.19873128831386566
+    ]
+   ]
+  },
+  {
+   "arm": "silentfilm_cyberpunk_p3",
+   "dial": "h3_x_silentfilm_cyberpunk.safetensors",
+   "strength": 3.0,
+   "unexplained": 0.8858776092529297,
+   "pred": {
+    "colour_temp": 0.4511423707008362,
+    "time_of_day": 0.07201205380260944,
+    "light_contrast": -0.3061136305332184,
+    "motion": 0.6047455966472626,
+    "texture": -0.08940479345619678
+   },
+   "meas": {
+    "colour_temp": 37.478363037109375,
+    "time_of_day": -3.6705551147460938,
+    "light_contrast": -13.94329833984375,
+    "motion": 2.593766689300537,
+    "texture": 1.7546319961547852
+   },
+   "top_axes": [
+    [
+     "world_age",
+     -0.312226802110672
+    ],
+    [
+     "motion",
+     0.20158186554908752
+    ],
+    [
+     "weather",
+     0.19873128831386566
+    ]
+   ]
+  },
+  {
+   "arm": "oil_pixel_m3",
+   "dial": "h3_x_oil_pixel.safetensors",
+   "strength": -3.0,
+   "unexplained": 0.8391789197921753,
+   "pred": {
+    "colour_temp": -0.7872810959815979,
+    "time_of_day": 0.3339327871799469,
+    "light_contrast": 1.1728269159793854,
+    "motion": -0.2734283432364464,
+    "texture": -1.4269286692142487
+   },
+   "meas": {
+    "colour_temp": -22.093029022216797,
+    "time_of_day": -1.3243179321289062,
+    "light_contrast": -3.462635040283203,
+    "motion": -0.979097843170166,
+    "texture": 5.384517669677734
+   },
+   "top_axes": [
+    [
+     "voice",
+     0.5150414109230042
+    ],
+    [
+     "texture",
+     0.4756428897380829
+    ],
+    [
+     "light_contrast",
+     -0.3909423053264618
+    ]
+   ]
+  },
+  {
+   "arm": "oil_pixel_m1p5",
+   "dial": "h3_x_oil_pixel.safetensors",
+   "strength": -1.5,
+   "unexplained": 0.8391789197921753,
+   "pred": {
+    "colour_temp": -0.39364054799079895,
+    "time_of_day": 0.16696639358997345,
+    "light_contrast": 0.5864134579896927,
+    "motion": -0.1367141716182232,
+    "texture": -0.7134643346071243
+   },
+   "meas": {
+    "colour_temp": -15.308631896972656,
+    "time_of_day": -9.421890258789062,
+    "light_contrast": -3.345977783203125,
+    "motion": 0.7110233306884766,
+    "texture": 8.06613540649414
+   },
+   "top_axes": [
+    [
+     "voice",
+     0.5150414109230042
+    ],
+    [
+     "texture",
+     0.4756428897380829
+    ],
+    [
+     "light_contrast",
+     -0.3909423053264618
+    ]
+   ]
+  },
+  {
+   "arm": "oil_pixel_p1p5",
+   "dial": "h3_x_oil_pixel.safetensors",
+   "strength": 1.5,
+   "unexplained": 0.8391789197921753,
+   "pred": {
+    "colour_temp": 0.39364054799079895,
+    "time_of_day": -0.16696639358997345,
+    "light_contrast": -0.5864134579896927,
+    "motion": 0.1367141716182232,
+    "texture": 0.7134643346071243
+   },
+   "meas": {
+    "colour_temp": 15.261768341064453,
+    "time_of_day": -0.09099578857421875,
+    "light_contrast": -27.095115661621094,
+    "motion": 7.2203049659729,
+    "texture": 1.691965103149414
+   },
+   "top_axes": [
+    [
+     "voice",
+     0.5150414109230042
+    ],
+    [
+     "texture",
+     0.4756428897380829
+    ],
+    [
+     "light_contrast",
+     -0.3909423053264618
+    ]
+   ]
+  },
+  {
+   "arm": "oil_pixel_p3",
+   "dial": "h3_x_oil_pixel.safetensors",
+   "strength": 3.0,
+   "unexplained": 0.8391789197921753,
+   "pred": {
+    "colour_temp": 0.7872810959815979,
+    "time_of_day": -0.3339327871799469,
+    "light_contrast": -1.1728269159793854,
+    "motion": 0.2734283432364464,
+    "texture": 1.4269286692142487
+   },
+   "meas": {
+    "colour_temp": 12.054435729980469,
+    "time_of_day": -7.053131103515625,
+    "light_contrast": -1.3362350463867188,
+    "motion": 9.167263507843018,
+    "texture": 6.406597137451172
+   },
+   "top_axes": [
+    [
+     "voice",
+     0.5150414109230042
+    ],
+    [
+     "texture",
+     0.4756428897380829
+    ],
+    [
+     "light_contrast",
+     -0.3909423053264618
+    ]
+   ]
+  },
+  {
+   "arm": "owl_octopus_m3",
+   "dial": "h3_x_owl_octopus.safetensors",
+   "strength": -3.0,
+   "unexplained": 0.9024930596351624,
+   "pred": {
+    "colour_temp": -0.11256921663880348,
+    "time_of_day": 0.22717713564634323,
+    "light_contrast": 0.1910598948597908,
+    "motion": -0.03381415922194719,
+    "texture": -0.04760429263114929
+   },
+   "meas": {
+    "colour_temp": -9.808029174804688,
+    "time_of_day": -2.2299118041992188,
+    "light_contrast": 4.408943176269531,
+    "motion": 0.48581647872924805,
+    "texture": 1.2431573867797852
+   },
+   "top_axes": [
+    [
+     "voice",
+     0.14525428414344788
+    ],
+    [
+     "scale",
+     0.12511089444160461
+    ],
+    [
+     "crowd",
+     0.09755151718854904
+    ]
+   ]
+  },
+  {
+   "arm": "owl_octopus_m1p5",
+   "dial": "h3_x_owl_octopus.safetensors",
+   "strength": -1.5,
+   "unexplained": 0.9024930596351624,
+   "pred": {
+    "colour_temp": -0.05628460831940174,
+    "time_of_day": 0.11358856782317162,
+    "light_contrast": 0.0955299474298954,
+    "motion": -0.016907079610973597,
+    "texture": -0.023802146315574646
+   },
+   "meas": {
+    "colour_temp": -5.005107879638672,
+    "time_of_day": 0.033447265625,
+    "light_contrast": 2.5663833618164062,
+    "motion": 1.0160670280456543,
+    "texture": 0.5873031616210938
+   },
+   "top_axes": [
+    [
+     "voice",
+     0.14525428414344788
+    ],
+    [
+     "scale",
+     0.12511089444160461
+    ],
+    [
+     "crowd",
+     0.09755151718854904
+    ]
+   ]
+  },
+  {
+   "arm": "owl_octopus_p1p5",
+   "dial": "h3_x_owl_octopus.safetensors",
+   "strength": 1.5,
+   "unexplained": 0.9024930596351624,
+   "pred": {
+    "colour_temp": 0.05628460831940174,
+    "time_of_day": -0.11358856782317162,
+    "light_contrast": -0.0955299474298954,
+    "motion": 0.016907079610973597,
+    "texture": 0.023802146315574646
+   },
+   "meas": {
+    "colour_temp": 3.4349746704101562,
+    "time_of_day": -6.055809020996094,
+    "light_contrast": -0.49773406982421875,
+    "motion": 0.6315927505493164,
+    "texture": 0.6059350967407227
+   },
+   "top_axes": [
+    [
+     "voice",
+     0.14525428414344788
+    ],
+    [
+     "scale",
+     0.12511089444160461
+    ],
+    [
+     "crowd",
+     0.09755151718854904
+    ]
+   ]
+  },
+  {
+   "arm": "owl_octopus_p3",
+   "dial": "h3_x_owl_octopus.safetensors",
+   "strength": 3.0,
+   "unexplained": 0.9024930596351624,
+   "pred": {
+    "colour_temp": 0.11256921663880348,
+    "time_of_day": -0.22717713564634323,
+    "light_contrast": -0.1910598948597908,
+    "motion": 0.03381415922194719,
+    "texture": 0.04760429263114929
+   },
+   "meas": {
+    "colour_temp": -0.8999481201171875,
+    "time_of_day": -9.9642333984375,
+    "light_contrast": -9.706260681152344,
+    "motion": 1.9586033821105957,
+    "texture": 5.066173553466797
+   },
+   "top_axes": [
+    [
+     "voice",
+     0.14525428414344788
+    ],
+    [
+     "scale",
+     0.12511089444160461
+    ],
+    [
+     "crowd",
+     0.09755151718854904
+    ]
+   ]
+  },
+  {
+   "arm": "order_entropy_m3",
+   "dial": "h3_x_order_entropy.safetensors",
+   "strength": -3.0,
+   "unexplained": 0.5393521785736084,
+   "pred": {
+    "colour_temp": -0.4664512127637863,
+    "time_of_day": -0.5450068563222885,
+    "light_contrast": -0.23167499899864197,
+    "motion": -1.3074523508548737,
+    "texture": -0.8127023577690125
+   },
+   "meas": {
+    "colour_temp": -16.681045532226562,
+    "time_of_day": -35.97547912597656,
+    "light_contrast": -1.7798080444335938,
+    "motion": -0.4819674491882324,
+    "texture": 2.012493133544922
+   },
+   "top_axes": [
+    [
+     "motion",
+     0.4358174502849579
+    ],
+    [
+     "world_age",
+     0.3529263138771057
+    ],
+    [
+     "texture",
+     0.27090078592300415
+    ]
+   ]
+  },
+  {
+   "arm": "order_entropy_m1p5",
+   "dial": "h3_x_order_entropy.safetensors",
+   "strength": -1.5,
+   "unexplained": 0.5393521785736084,
+   "pred": {
+    "colour_temp": -0.23322560638189316,
+    "time_of_day": -0.27250342816114426,
+    "light_contrast": -0.11583749949932098,
+    "motion": -0.6537261754274368,
+    "texture": -0.4063511788845062
+   },
+   "meas": {
+    "colour_temp": -8.252998352050781,
+    "time_of_day": -11.200569152832031,
+    "light_contrast": 2.4882965087890625,
+    "motion": 1.459052562713623,
+    "texture": 1.785630226135254
+   },
+   "top_axes": [
+    [
+     "motion",
+     0.4358174502849579
+    ],
+    [
+     "world_age",
+     0.3529263138771057
+    ],
+    [
+     "texture",
+     0.27090078592300415
+    ]
+   ]
+  },
+  {
+   "arm": "order_entropy_p1p5",
+   "dial": "h3_x_order_entropy.safetensors",
+   "strength": 1.5,
+   "unexplained": 0.5393521785736084,
+   "pred": {
+    "colour_temp": 0.23322560638189316,
+    "time_of_day": 0.27250342816114426,
+    "light_contrast": 0.11583749949932098,
+    "motion": 0.6537261754274368,
+    "texture": 0.4063511788845062
+   },
+   "meas": {
+    "colour_temp": 3.2949447631835938,
+    "time_of_day": 13.803558349609375,
+    "light_contrast": -1.5951156616210938,
+    "motion": 1.5446715354919434,
+    "texture": -2.2643136978149414
+   },
+   "top_axes": [
+    [
+     "motion",
+     0.4358174502849579
+    ],
+    [
+     "world_age",
+     0.3529263138771057
+    ],
+    [
+     "texture",
+     0.27090078592300415
+    ]
+   ]
+  },
+  {
+   "arm": "order_entropy_p3",
+   "dial": "h3_x_order_entropy.safetensors",
+   "strength": 3.0,
+   "unexplained": 0.5393521785736084,
+   "pred": {
+    "colour_temp": 0.4664512127637863,
+    "time_of_day": 0.5450068563222885,
+    "light_contrast": 0.23167499899864197,
+    "motion": 1.3074523508548737,
+    "texture": 0.8127023577690125
+   },
+   "meas": {
+    "colour_temp": 9.805809020996094,
+    "time_of_day": -18.487258911132812,
+    "light_contrast": 4.076271057128906,
+    "motion": 4.706538677215576,
+    "texture": -0.06785964965820312
+   },
+   "top_axes": [
+    [
+     "motion",
+     0.4358174502849579
+    ],
+    [
+     "world_age",
+     0.3529263138771057
+    ],
+    [
+     "texture",
+     0.27090078592300415
+    ]
+   ]
+  },
+  {
+   "arm": "memory_present_m3",
+   "dial": "h3_x_memory_present.safetensors",
+   "strength": -3.0,
+   "unexplained": 0.7363532781600952,
+   "pred": {
+    "colour_temp": -0.47246235609054565,
+    "time_of_day": -0.11396778747439384,
+    "light_contrast": 0.3699508085846901,
+    "motion": -0.2856426537036896,
+    "texture": -0.113387580960989
+   },
+   "meas": {
+    "colour_temp": -19.34821319580078,
+    "time_of_day": -35.56367492675781,
+    "light_contrast": 0.7512893676757812,
+    "motion": 1.4396252632141113,
+    "texture": 5.828786849975586
+   },
+   "top_axes": [
+    [
+     "world_age",
+     0.3948977291584015
+    ],
+    [
+     "voice",
+     -0.2660158574581146
+    ],
+    [
+     "style",
+     0.16241468489170074
+    ]
+   ]
+  },
+  {
+   "arm": "memory_present_m1p5",
+   "dial": "h3_x_memory_present.safetensors",
+   "strength": -1.5,
+   "unexplained": 0.7363532781600952,
+   "pred": {
+    "colour_temp": -0.23623117804527283,
+    "time_of_day": -0.05698389373719692,
+    "light_contrast": 0.18497540429234505,
+    "motion": -0.1428213268518448,
+    "texture": -0.0566937904804945
+   },
+   "meas": {
+    "colour_temp": -4.4633941650390625,
+    "time_of_day": -8.931556701660156,
+    "light_contrast": 2.6443328857421875,
+    "motion": 0.4793682098388672,
+    "texture": 1.784001350402832
+   },
+   "top_axes": [
+    [
+     "world_age",
+     0.3948977291584015
+    ],
+    [
+     "voice",
+     -0.2660158574581146
+    ],
+    [
+     "style",
+     0.16241468489170074
+    ]
+   ]
+  },
+  {
+   "arm": "memory_present_p1p5",
+   "dial": "h3_x_memory_present.safetensors",
+   "strength": 1.5,
+   "unexplained": 0.7363532781600952,
+   "pred": {
+    "colour_temp": 0.23623117804527283,
+    "time_of_day": 0.05698389373719692,
+    "light_contrast": -0.18497540429234505,
+    "motion": 0.1428213268518448,
+    "texture": 0.0566937904804945
+   },
+   "meas": {
+    "colour_temp": -0.11351776123046875,
+    "time_of_day": 0.95111083984375,
+    "light_contrast": 4.426025390625,
+    "motion": -0.5036530494689941,
+    "texture": -1.6995954513549805
+   },
+   "top_axes": [
+    [
+     "world_age",
+     0.3948977291584015
+    ],
+    [
+     "voice",
+     -0.2660158574581146
+    ],
+    [
+     "style",
+     0.16241468489170074
+    ]
+   ]
+  },
+  {
+   "arm": "memory_present_p3",
+   "dial": "h3_x_memory_present.safetensors",
+   "strength": 3.0,
+   "unexplained": 0.7363532781600952,
+   "pred": {
+    "colour_temp": 0.47246235609054565,
+    "time_of_day": 0.11396778747439384,
+    "light_contrast": -0.3699508085846901,
+    "motion": 0.2856426537036896,
+    "texture": 0.113387580960989
+   },
+   "meas": {
+    "colour_temp": -4.436454772949219,
+    "time_of_day": -5.88787841796875,
+    "light_contrast": 2.0494155883789062,
+    "motion": -0.17109107971191406,
+    "texture": -4.907110214233398
+   },
+   "top_axes": [
+    [
+     "world_age",
+     0.3948977291584015
+    ],
+    [
+     "voice",
+     -0.2660158574581146
+    ],
+    [
+     "style",
+     0.16241468489170074
+    ]
+   ]
+  }
+ ],
+ "summary": {
+  "colour_temp": {
+   "n_confident": 22,
+   "sign_agree": 18,
+   "spearman_all": 0.8538587848932675
+  },
+  "time_of_day": {
+   "n_confident": 18,
+   "sign_agree": 12,
+   "spearman_all": 0.4165298303229338
+  },
+  "light_contrast": {
+   "n_confident": 16,
+   "sign_agree": 10,
+   "spearman_all": 0.10344827586206896
+  },
+  "motion": {
+   "n_confident": 20,
+   "sign_agree": 14,
+   "spearman_all": 0.4521072796934866
+  },
+  "texture": {
+   "n_confident": 16,
+   "sign_agree": 5,
+   "spearman_all": -0.4920634920634921
+  }
+ }
+}
