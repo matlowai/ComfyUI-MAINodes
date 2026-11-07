@@ -1017,8 +1017,7 @@ export const TOOLS = [
       severity: { type: "string", enum: ["high", "medium", "low"] }, owner: { type: "string", description: "where the flaw was born (SNAP-R105): location master, plan, plate <name>, Cast record, board, take, prompt, or kind:id[@n]" }, fix: { type: "string" } }, required: ["take", "t", "sentiment", "text"] },
     run: async ({ take, t, region, sentiment, tags = [], text, severity, owner, fix }) => {
       await T.load();
-      const x = T.get(take);
-      if (!x) throw new Error(`No take ${take}`);
+      const x = await takeOf(take);
       await T.note(x, { t, region, sentiment, tags, text, by: "agent", severity, owner, fix });
       return { take, notes: x.notes.length };
     },
@@ -1322,7 +1321,7 @@ export const TOOLS = [
     annotations: { consequentialHint: true },
     consequential: true,
     plan: async () => ({ runs: "DINOv3 on 5 frames of the take against each of its reference pictures", eta_s: 4, from: "U52: 3.5-4.5 s a take on a 5090" }),
-    run: async ({ take }) => { await T.load(); const t = T.get(take); if (!t) throw new Error(`No take ${take}`); return PL.checkTake(t, "agent"); },
+    run: async ({ take }) => PL.checkTake(await takeOf(take), "agent"),
   },
   {
     name: "list_candidates",
@@ -1394,7 +1393,7 @@ export const TOOLS = [
     run: async ({ decision, take, cast, ref, frames }) => {
       if (decision) return ED.recheck(decision);
       if (!take || !cast) throw new Error("check_identity takes decision (an edit's candidates), or take and cast (a take or still against Cast pictures)");
-      await T.load(); const t = T.get(take); if (!t) throw new Error(`No take ${take} (list_takes lists them)`);
+      const t = await takeOf(take); // F-Y08: a unique start of an id, as every take tool
       // F-F24: behind a busy GPU the check outlives a bridge call: it keeps running, and the same call again reads it
       const key = JSON.stringify([t.id, [cast].flat(), ref ?? 0, frames ?? null]), job = identityChecks.get(key) ?? ED.castIdentity(t, [cast].flat(), { frames, ref });
       identityChecks.set(key, job); job.then(() => {}, () => identityChecks.delete(key));
@@ -1409,7 +1408,7 @@ export const TOOLS = [
     description: "The voice note again on a take (G1b, SNAP-R114; a check, nothing is rendered: a few seconds on the server's queue). A take whose recipe cites a Cast's voice reference (<Audio n> in References, apply_cast puts it there) gets it by itself once it lands; this runs it again (a Cast's voice changed, or the note said what it needs). Its soundtrack is compared with the cited reference and every other Cast's newest voice: WavLM-SV speaker similarity and the median F0 of the voiced frames. get_take / list_takes then give `voice`: status ok (own at least 0.9, ahead of every other Cast by 0.05, F0 within 3 semitones), check (with why) or no voice, and per cited voice its line (\"voice matches Maren 0.98, next closest Liesl 0.91 (+0.07), F0 184 Hz vs ref 184 Hz\"). Two similar voices overlap (two young women 0.81-0.95), so a check means listen, never 'wrong person'; it never blocks anything. Answers at once; follow with wait_for or get_take.",
     inputSchema: { type: "object", properties: { take: { type: "string" } }, required: ["take"] },
     direct: true, // a check, nothing rendered: the note only informs
-    run: async ({ take }) => { await T.load(); const t = T.get(take); if (!t) throw new Error(`No take ${take} (list_takes lists them)`); return VO.check(t, "agent"); },
+    run: async ({ take }) => VO.check(await takeOf(take), "agent"),
   },
   {
     name: "edit_take",
@@ -1423,7 +1422,7 @@ export const TOOLS = [
       ? { runs: `${clips} new clip${clips > 1 ? "s" : ""} after the take, joined to it as a version`, eta_s: clips * ((await EX.method(method)).cost?.local_s_per_clip ?? 60), from: "U46b: 28-40 s per 141-frame clip at 832×480 on a 5090" }
       : { runs: `${count} candidate${count > 1 ? "s" : ""} of MOSS-painted frames (${frames?.length ? `frames ${frames.join(", ")}` : method === "relight" ? "frames 0 and middle" : "the middle frame"}); rendering over the take waits for the pick`, eta_s: count * (frames?.length || (method === "relight" ? 2 : 1)) * 16, from: "U54: 12-19 s per painted frame on a 5090" }),
     run: async ({ take, method = "relight", example, change, who, becomes, frames, lighter, count = 2, clips = 1, antiburn = 0, prompt }) => {
-      await Promise.all([T.load(), S.load()]); const t = T.get(take); if (!t) throw new Error(`No take ${take}`);
+      await S.load(); const t = await takeOf(take);
       return S.list("extend").some((m) => m.id === method) ? EX.start(t, method, { clips, antiburn, prompt, by: "agent" }) : ED.start(t, method, { example, change, who, becomes, frames, lighter, count, by: "agent" });
     },
   },
@@ -1436,13 +1435,13 @@ export const TOOLS = [
     annotations: { consequentialHint: true },
     consequential: true,
     plan: async ({ take, method = "stage2", factor, width, height, denoise, speed }) => {
-      await T.load(); const t = T.get(take), m = await UP.method(method), z = t && (!UP.still(t) || m.run.plate === "pixels") && UP.size(t, m, { factor, width, height }, UP.still(t) ? await UP.dims(t) : null);
+      const t = await takeOf(take), m = await UP.method(method), z = (!UP.still(t) || m.run.plate === "pixels") && UP.size(t, m, { factor, width, height }, UP.still(t) ? await UP.dims(t) : null);
       const why = t && UP.reason(t), pace = UP.speedOf(m, speed);
       return { runs: `${m.title}${denoise != null ? ` at denoise ${denoise}` : ""}${pace?.cfg != null ? `, fast (cfg ${pace.cfg})` : ""}: take ${t?.number ?? take} again at ${z ? `${z.width}×${z.height}` : "a bigger size"}, as a new take`, eta_s: m.cost?.local_s_per_mp_frame && z && !UP.still(t) ? Math.round((m.cost.local_s_per_mp_frame * (z.width * z.height / 1e6) * ED.clip(t).frames) / (pace?.speedup ?? 1)) : null, from: "PLAN U102b: measured on a 5090", ...(why ? { why } : {}) };
     },
     run: async ({ take, method = "stage2", factor, width, height, denoise, upscaler, hero, anchor, speed }) => {
-      await T.load(); const t = T.get(take); if (!t) throw new Error(`No take ${take}`);
-      const a = anchor === undefined ? undefined : anchor === "none" ? null : T.get(anchor); if (a === undefined && anchor !== undefined) throw new Error(`No take ${anchor} to anchor on`);
+      const t = await takeOf(take);
+      const a = anchor === undefined ? undefined : anchor === "none" ? null : T.find(anchor) ?? undefined; if (a === undefined && anchor !== undefined) throw new Error(`No take ${anchor} to anchor on`);
       return UP.start(t, method, { factor, width, height, denoise, upscaler, hero, anchor: a, speed, by: "agent" });
     },
   },
@@ -1460,7 +1459,7 @@ export const TOOLS = [
     name: "set_purpose",
     description: "Say what a take or still is for (G1, SNAP-R85), so Snap acts on it: purpose is one of the view slot's purposes (list_methods {slot: \"view\"} gives them with their labels): character, turnaround, cast_picture, set, master, plate, settei, edit; null clears it. A reference purpose (cast_picture, turnaround, master, plate, settei) makes the take's upscale a redraw (stage 2). Snap also knows it without this: a New view keeps the purpose it was made for, a sheet is a turnaround, and a take whose frame is a Cast picture or a location's master or plate is that. get_take shows purpose with how it is known.",
     inputSchema: { type: "object", properties: { take: { type: "string" }, purpose: { type: ["string", "null"] } }, required: ["take", "purpose"] },
-    run: async ({ take, purpose }) => { await Promise.all([T.load(), S.load(), W.load()]); const t = T.get(take); if (!t) throw new Error(`No take ${take}`); return ED.setPurpose(t, purpose); },
+    run: async ({ take, purpose }) => { await Promise.all([S.load(), W.load()]); return ED.setPurpose(await takeOf(take), purpose); },
   },
   {
     name: "edit_from_context",
