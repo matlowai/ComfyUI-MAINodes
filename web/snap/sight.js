@@ -10,6 +10,10 @@ export const HEADLESS_NOTE = "This is a headless page (an agent's own): nobody p
 // finds the tab among that Chrome's DevTools pages when it registers and says so; agents see and drive such a tab
 let managedTab = false;
 export const managed = () => managedTab;
+// which agent drives this page now (the bridge's 'Driven by'), so a press made on it can say so (F-L17)
+let driverName = null;
+export const driver = () => driverName;
+export const setDriver = (agent) => { driverName = agent ?? null; };
 const listeners = new Set();
 export const onChange = (fn) => listeners.add(fn);
 export const sharing = () => !!stream;

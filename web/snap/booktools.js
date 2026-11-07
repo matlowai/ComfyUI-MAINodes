@@ -27,6 +27,9 @@ const unitFields = { beats: { type: "array", items: { type: "string" } }, cast: 
   seconds: { type: "number", exclusiveMinimum: 0 }, sound: { type: "string" }, music: { type: "string" }, transition: { type: "string" }, camera: { type: "string" }, blocking: { type: "string" }, note: { type: "string" } };
 const STORY_NOTE = "Canon: from an agent this always waits as a proposal for the person (SNAP-R67), whatever the dial says; the answer gives its id and what it would re-flag (reversal cost); the person's accept makes the story version, with the proposal's id in its note. It builds on the story as the Book's waiting story proposals would leave it (SNAP-R139): it may name a beat that is only proposed (needs says which proposal adds it; accepting this accepts that one first, rejecting that one withdraws this).";
 
+// an edited field in the words a person reads in a proposal's title and the version's note, whole (F-L12, SNAP-R58):
+// lines as `who: "text"`, plants by what they plant
+const fieldWords = (v) => Array.isArray(v) ? v.map((x) => (x?.who ? `${x.who}: "${x.text}"` : x?.what ? `"${x.what}"` : JSON.stringify(x))).join(", ") || "none" : typeof v === "string" ? `"${v}"` : JSON.stringify(v);
 // the take a keep_as_canon names, with the Book and beat it was made at
 function takeStory(id) {
   const t = T.get(id), s = t?.story ?? t?.graph?.extra?.snap?.story;
@@ -36,8 +39,8 @@ function takeStory(id) {
 // the story tools as pure edits of a story body, so a waiting proposal replays into the draft the next one builds on:
 // make(story, args) -> {story, said, makes}; what(args, story): the line the person reads; names(args): the beats it names
 const STORY = {
-  add_beat: { make: (s, { book: _, proposal: __, ...fields }) => { const out = B.withBeat(s, fields); return { story: out.story, said: { beat: out.beat }, makes: [out.beat] }; }, what: (a) => `add beat "${a.text.slice(0, 80)}"`, names: (a) => [a.after] },
-  edit_beat: { make: (s, { book: _, beat, proposal: __, ...fields }) => ({ story: B.withEdit(s, beat, fields), said: { beat } }), what: (a) => `edit ${a.beat} (${Object.keys(a).filter((k) => !["book", "beat", "proposal"].includes(k)).join(", ")})`, names: (a) => [a.beat] },
+  add_beat: { make: (s, { book: _, proposal: __, ...fields }) => { const out = B.withBeat(s, fields); return { story: out.story, said: { beat: out.beat }, makes: [out.beat] }; }, what: (a) => `add beat "${a.text}"`, names: (a) => [a.after] },
+  edit_beat: { make: (s, { book: _, beat, proposal: __, ...fields }) => ({ story: B.withEdit(s, beat, fields), said: { beat } }), what: (a) => `edit ${a.beat}: ${Object.entries(a).filter(([k]) => !["book", "beat", "proposal"].includes(k)).map(([k, v]) => `${k} ${fieldWords(v)}`).join("; ")}`, names: (a) => [a.beat] },
   move_beat: { make: (s, a) => ({ story: B.withMove(s, a.beat, a), said: { beat: a.beat } }), what: (a) => `move ${a.beat}${a.to ? ` to story position ${a.to}` : ""}${a.told ? ` to telling position ${a.told}` : ""}`, names: (a) => [a.beat] },
   add_change: { make: (s, { book: _, beat, proposal: __, ...c }) => { const out = B.withChange(s, beat, c); return { story: out.story, said: { beat, change: out.change } }; }, what: (a, s) => `${a.beat}: ${B.changeText(s, { op: "set", ...a })}`, names: (a) => [a.beat] },
   remove_change: { make: (s, a) => { const out = structuredClone(s), b = out.beats.find((x) => x.id === a.beat); if (!b?.changes.some((c) => c.id === a.change)) throw new Error(`${a.beat} has no change ${a.change}`); b.changes = b.changes.filter((c) => c.id !== a.change); return { story: B.cleanStory(out), said: { beat: a.beat } }; }, what: (a) => `${a.beat}: remove change ${a.change}`, names: (a) => [a.beat] },
@@ -52,8 +55,9 @@ async function storyEdit(tool, args, { confirmed } = {}) {
   await ready();
   const edit = STORY[tool], b = B.bookOf(edit.book?.(args) ?? args.book), st = B.storyOf(b.body), bookRef = `book:${b.id}`;
   if (confirmed) {
-    const { story, said } = edit.make(st.body, args), what = edit.what(args, st.body), out = await B.saveStory(st.id, story, { by: "agent", proposal: args.proposal ?? "accepted", note: what });
-    return { story: out.ref, version: out.n, made: out.made, said: out.made ? `${b.body.name}'s story is v${out.n}: ${what}` : "nothing changed", ...said };
+    const accepted_by = P.get(args.proposal)?.answered_by ?? null; // F-L17: who pressed Accept, and where
+    const { story, said } = edit.make(st.body, args), what = edit.what(args, st.body), out = await B.saveStory(st.id, story, { by: "agent", proposal: args.proposal ?? "accepted", note: what, accepted_by });
+    return { story: out.ref, version: out.n, made: out.made, said: out.made ? `${b.body.name}'s story is v${out.n}: ${what}` : "nothing changed", ...said, ...(accepted_by ? { accepted_by } : {}) };
   }
   let draft = st.body;
   const built = [];
@@ -198,7 +202,7 @@ export const BOOK_TOOLS = [
       await ready();
       const { book, look, proposal, ...body } = args, b = book ? B.bookOf(book) : null, id = look ? W.parse(look).id : null, used = b?.body.style && (!id || W.parse(b.body.style).id === id);
       if (body.still?.take) { const t = T.get(body.still.take); if (!t) throw new Error(`still: no take ${body.still.take}`); const f = await T.frameAt(t, "last", { frame: body.still.frame ?? (t.media.some((m) => m.kind === "video") ? undefined : 0) }); body.still = { file: f.file, from: { take: t.id, frame: f.frame } }; }
-      if (used && !confirmed) { const p = await B.propose("save_style", { ...args, look: look ?? b.body.style.split("@")[0] }, `${b.body.name}: the production style → "${body.paragraph.slice(0, 90)}"`, { book: `book:${b.id}` }); return { proposed: p.id, status: "the Book's style is canon: waiting for the person to accept" }; }
+      if (used && !confirmed) { const p = await B.propose("save_style", { ...args, look: look ?? b.body.style.split("@")[0] }, `${b.body.name}: the production style → "${body.paragraph}"`, { book: `book:${b.id}` }); return { proposed: p.id, status: "the Book's style is canon: waiting for the person to accept" }; }
       const out = await B.saveLook(id ?? (used ? W.parse(b.body.style).id : null), body, { by: "agent", note: proposal ? `accepted proposal ${proposal}` : "" });
       if (b && b.body.style !== `look:${out.id}`) {
         if (b.body.style && !confirmed) { const p = await B.propose("set_book_style", { book, look: `look:${out.id}` }, `${b.body.name}: use the style ${body.name}`, { book: `book:${b.id}` }); return { look: `look:${out.id}`, version: out.n, proposed: p.id, status: "the Book's style changes on the person's accept" }; }

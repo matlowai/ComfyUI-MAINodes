@@ -127,13 +127,15 @@ export function cleanStory(body) {
   });
   return { title: body?.title?.trim() ?? "", shape_locked: !!body?.shape_locked, beats, groups, ...(body?.props?.length ? { props: body.props.map((p) => ({ id: p.id, name: p.name ?? words(p.id) })) } : {}) };
 }
-export async function saveStory(id, body, { note = "", by = "person", proposal = null } = {}) {
+export async function saveStory(id, body, { note = "", by = "person", proposal = null, accepted_by = null } = {}) {
   await W.load();
   // SNAP-R67: a story version by an agent exists only from a proposal the person accepted, at every dial position
   if (by !== "person" && !proposal && (body?.beats?.length || body?.groups?.length)) throw new Error("A story edit by an agent is always a proposal the person accepts (canon, SNAP-R67): call it again with propose: true, or as it is to have it proposed");
   const clean = cleanStory(body);
   id ??= stamp("story");
-  const out = await W.save("story", id, clean, { note: proposal ? `${note ? `${note} · ` : ""}accepted proposal ${proposal}` : note, by });
+  // F-L17: the version says who accepted the proposal and where (`accepted_by`), not only the agent that wrote it
+  const who = accepted_by ? ` by ${accepted_by.by === "person" ? "the person" : accepted_by.by} on ${accepted_by.where}${accepted_by.driven_by ? ` (driven by ${accepted_by.driven_by})` : ""}` : "";
+  const out = await W.save("story", id, clean, { note: proposal ? `${note ? `${note} · ` : ""}accepted proposal ${proposal}${who}` : note, by, ...(accepted_by ? { accepted_by } : {}) });
   return { id, ref: out.ref, n: out.n, made: out.made };
 }
 export async function saveLook(id, body, { note = "", by = "person" } = {}) {

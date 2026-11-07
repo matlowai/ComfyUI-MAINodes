@@ -180,8 +180,8 @@ app.registerExtension({
     // `title` and `who` name the page for agents choosing one (list_pages); the answer says which agent drives it (use_page)
     const title = () => { const here = SC.current(); return here ? `${here.scene.name} › ${SC.shotTitle(here.scene, here.shot)}` : activeTab()?.filename ?? "Snap"; };
     const register = () => Promise.all([S.load().catch(() => {}), loaded, I.load().catch(() => {})]).then(([, code]) => api.fetchApi("/mainodes/snap/register", { method: "POST", body: JSON.stringify({ client: api.clientId, tools: schema(), code, headless: sight.HEADLESS, sees: sight.sharing(), title: title(), who: ACC.account()?.name ?? null, banner: true }) }))
-      .then((r) => r.json()).then((r) => { sight.setManaged(!!r.managed); view.driver(r.driven_by ?? null); if (r.code_current === false) view.stale(); }, () => {});
-    api.addEventListener("mainodes-snap-driver", ({ detail }) => view.driver(detail.agent));
+      .then((r) => r.json()).then((r) => { sight.setManaged(!!r.managed); sight.setDriver(r.driven_by); view.driver(r.driven_by ?? null); if (r.code_current === false) view.stale(); }, () => {});
+    api.addEventListener("mainodes-snap-driver", ({ detail }) => { sight.setDriver(detail.agent); view.driver(detail.agent); });
     // F-C12: an agent's request_reload shows the "Snap was updated" bar with its name; the page never reloads itself
     api.addEventListener("mainodes-snap-reload", ({ detail }) => view.stale(detail.agent));
     let named = null;
