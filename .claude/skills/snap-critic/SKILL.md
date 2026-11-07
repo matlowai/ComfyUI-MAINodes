@@ -76,6 +76,12 @@ Look at the WHOLE frame first at full size, then crop. Never judge from a thumbn
   Eyes far below it mean too small, or a high camera. Measure how far above, in body heights. Only then judge a wall
   or a gate: put a person-sized mark at the wall's base and compare. If the person is right and the wall looks low,
   the flaw is the wall height (owner: the plate or master), not the person.
+- **Lines meet on the horizon only when they are parallel in the world.** Say which lines you met: two wall runs, roof
+  lines, a kerb, the rows of a paving, a known ellipse (a well rim's widest line sits on the horizon's side it is
+  seen from). A road's edges that narrow into a gate, a path that bends, or a perspective an edit painted over are not
+  parallel: where they meet is a bound, not the horizon (village Pa: the road's dots met at 0.49 gate doors, while a
+  reading "from the road edges" said 0.73). Prefer straight wall runs and roof lines; when the only lines bend, give a
+  range and say so ("0.45-0.55 gate doors, the road narrows to the gate"). (F-Q06)
 - **Metres come from the record's scale.** When the packet's words carry `scale` (the place's scale anchors, e.g. a
   house door 2.0 m) and `scale_rule`, measure against them on the measuring copy: anchor heights from the ground to the
   horizon give the camera's eye height, and to a wall's top its height. Write "measured against the record's scale

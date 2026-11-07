@@ -78,7 +78,13 @@ gates). Tool calls are in `docs/snap/AGENT_START.md` ("A new view of a place").
   bench, legs and feet visible". People staged on a ledge that isn't drawn sank into the roof or got a second ledge.
 - **A pose's eye height is a number you typed.** `eye_gaps` compares typed numbers, not the picture: read the horizon
   against a scale anchor before trusting either (the critic's note says "measured against the record's scale"), and
-  fix the one that's wrong with `add_plate {location, name, pose}` (a plate typed 2 m sat at eye height).
+  fix the one that's wrong with `add_plate {location, name, pose}` (a plate typed 2 m sat at eye height). Type a height
+  from two readings that agree, never one (village Pa: one critic read 2.8 m, two later readings 1.9 m).
+- **Read a horizon from lines that are parallel in the world.** Wall runs, roof lines, kerbs and a paving's rows meet
+  on the horizon; a road that narrows into a gate or bends does not, so its edges meet below or above it (Pa's road dots
+  bent inward to the gate: a lower bound). Use the measuring copy's 1 % ruler, name the lines you met, and give a range
+  when the only lines bend (F-Q06). A plate whose only receding lines are a funnelling road wants a scale anchor near
+  the horizon (a door, a person-high post) before its height is typed.
 - **Dropping a plate:** `remove_plate {location, name}`; the other plates keep their `from` (F-K05). A plate given by
   `file` alone keeps the take and frame the record had for that file.
 - **Doors and windows are said from the camera** (SNAP-R22), and each camera gets 2-3 plate candidates; one orbit
