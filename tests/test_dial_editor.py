@@ -139,6 +139,14 @@ def edit_math():
                 assert words in str(err), (bad, err)
             else:
                 raise AssertionError(f"accepted {bad}")
+        # a malformed edit is quoted whole: an agent reads the error to fix its call
+        long_edit = {"kind": "spin", "note": "y" * 400 + " the end"}
+        try:
+            editor.edited_vector(ctx, [long_edit])
+        except ValueError as err:
+            assert str(err) == f"malformed edit: {json.dumps(long_edit)}", err
+        else:
+            raise AssertionError("accepted a malformed edit")
 
 
 def pca_checks():

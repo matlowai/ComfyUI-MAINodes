@@ -127,7 +127,7 @@ def check_edits(ctx, edits):
         if kind == "axis":
             deltas = [deltas]
         if kind not in ("axis", "drag") or not isinstance(deltas, list) or len(deltas) != (1 if kind == "axis" else 2):
-            raise ValueError(f"malformed edit: {json.dumps(e)[:200]}")
+            raise ValueError(f"malformed edit: {json.dumps(e)}")
         deltas = [number(d) for d in deltas]
         if kind == "drag" and e.get("basis") == "library_pca":
             if ctx["components"] is None or (e.get("library_sha256"), e.get("components_sha256")) != (ctx["library_sha256"], components_sha256(ctx["components"])):

@@ -147,6 +147,8 @@ class RuntimeTests(unittest.TestCase):
         self.assertAlmostEqual(y.item(),4.0)
         self.assertEqual(report["extra_block_calls"]["wan"],0)
         self.assertTrue(any("WanModel" in x["owner"] for x in report["candidates"]))
+        long_error="Traceback: " + "x" * 5000 + " the last line"
+        self.assertEqual(worker.report(error=long_error)["error"], long_error)  # an agent reads the report: the error comes back whole
 
     def test_selected_first_block_one_extra_pass(self):
         torch=self.torch

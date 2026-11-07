@@ -303,7 +303,7 @@ class BlockLoopRuntime:
                 "installed": self._installed, "base_calls": self._calls,
                 "extra_block_calls": self._replays, "quality_calls": self._quality_calls, "warnings": self._warnings,
                 "spec": self.spec.as_dict(), "elapsed_wall_seconds": round(time.time() - self._start, 3),
-                "error": str(error)[:2000]}
+                "error": str(error)}
 
     def save(self, path: str | Path, error=""):
         target = Path(path)
