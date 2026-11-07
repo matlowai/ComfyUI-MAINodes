@@ -138,3 +138,6 @@ release, or more budget waits for a decision.
   +4) then falls; cold keeps rising (+19 at 0.1, +6 = text-to-video +1); past +4 sinister becomes content (a creature at 0.2,
   a skull-faced figure at 0.1) while frame 0 still matches the picture. T5f's cross-card comparison re-checked: identical.
   Next: second seed at 0.1 (+4, +6); the same grid with a content dial (underwater).
+- **2026-11-06** M1 (MOSS-Image, branch dials-moss): 12 MOSS dials made on SFT DeBand; six steer DeBand, Base and KroMoss
+  (Base/KroMoss ~2× the effect); Disney ↔ anime swept to breakdown on two prompts and at 4096²: arrival depends on the start
+  image, breakdown on strength. [Write-up](experiments/M1-moss-image-dials.md).
