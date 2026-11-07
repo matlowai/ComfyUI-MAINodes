@@ -1476,3 +1476,46 @@ Next free ID after this batch: SNAP-R155.
   as PNG, and the plan with marks drawn names the file it was drawn over (`drawn_over`). *Why:* village v11: v3-v5 rows
   of unchanged plates stayed due at v16, a notes-only save asked nothing, and every height came from the critic's own
   crops (F-G06, F-G07).
+
+## Batch G6, Book part (2026-11-06)
+
+SNAP-R165..R172 (the Book's share of G6; G6's other rules take SNAP-R155..R164).
+
+- **SNAP-R165: A Cast line folds through the story's state.** A clause of a Cast's details line that the state speaks
+  for (a hand, a thing worn or carried that the story moves) is left out of a cut's compile, its still prompt and
+  apply_unit's prompt when the state at that cut disagrees with it, and the compile names it with the beat and change
+  that override it (`cast_line.left_out`: "Cast line 'a steel ladle in her right hand' left out: b2 c1"); a clause the
+  state agrees with stays, look words and all. The beat's text or the blocking that still puts a thing in a hand the
+  state puts elsewhere is a lint line. *Why:* short05 story pass, F-L02: "Mio's right hand is empty" and "a steel
+  ladle in her right hand" in one prompt, with an empty lint; the C2 board drew the ladle, and the first pass's C3
+  put the monocle back on his eye. *More:* SNAP-R68.
+- **SNAP-R166: apply_unit lands off the Cut.** `apply_unit {land: {scene, shot}}` compiles a cut into another shot (a
+  test at a story moment): the cut's own shot and the Cut stay as they are, and the takes there pin the story, beat and
+  unit they came from, with `landed`. A shot copied with `add_shot {from}` drops the source's story pin: a copy is not
+  that cut. story_stale lists landed takes with where they are. *Why:* F-L10: the only story-pinned route rewrote the
+  Cut's shot, and a hand-made copy claimed to be the Cut's C1 at story v1 while rendered from v27 words.
+- **SNAP-R167: A holder is a person or a place; a mood is a look or a face.** "The bowl is in Kuroe's hand" only for a
+  person; a place is said as written ("The bowl is on the counter …", "The monocle is hanging from its chain …"); a
+  mood reads "looks calm" or, for a face word, "has a confident grin". *Why:* F-L07: "The bowl is in the counter …
+  empty's hand." reached the board and video prompts.
+- **SNAP-R168: A cut opens before its own beat.** When a cut's own beats move a field, the compile gives `opens`: the
+  state before them (after the beat before, in story order) with its own still prompt and Cast line; the opening board
+  draws it, the key drawing draws the end, and the video prompt says "At the start of the cut, …" and "By the end, …"
+  for those fields. *Why:* F-L09: C3 (the sip) compiled only the after-state (monocle off) while its board and blocking
+  opened before it.
+- **SNAP-R169: Boards pin the story.** make_board's candidates carry the story pin a cut's take carries (`role:
+  board` or `key`, the unit, the field hashes); story_stale lists a board made from a story that moved, and the
+  reversal cost counts boards it would re-flag. *Why:* F-L04: the C1 board read current after two b1 mood changes
+  that change its prompt.
+- **SNAP-R170: A re-board keeps the cut's own board.** make_board on a cut with an approved board takes that board
+  as its context by default ("keep its blocking: who stands or sits where"), named in the answer; `context` chooses
+  another. The role sentence ("This frame is the moment the cut starts …") is part of the board prompt compile_unit
+  shows. *Why:* F-L20: both new C1 boards moved Kuroe to another stool; F-L14: make_board sent a sentence the compile
+  didn't show.
+- **SNAP-R171: A sound-only version keeps its parent's pins.** A louder version of a take carries the parent's world
+  and story pins: it is the same picture, so dependents, story_stale and the reversal cost see the Cut's take whichever
+  version is active. *Why:* F-L05: the Cut's active C1 (a louder version) had no pins and read current whatever moved.
+- **SNAP-R172: The reversal cost says what moves.** A story edit's cost names the cuts whose compile changes and by
+  which fields, the takes and boards it newly flags, and the takes already stale that it flags again ("already stale,
+  now also for Kuroe.mood"); "nothing" only when nothing moves. *Why:* F-L03: two b1 mood edits said "re-flags
+  nothing" while they changed C1 and C2's compiles, because those takes were already stale.
