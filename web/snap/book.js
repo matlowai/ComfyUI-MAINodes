@@ -19,7 +19,8 @@
 // board · SNAP-R172 the reversal cost says what moves · SNAP-R178 a wardrobe state folds the items it names · SNAP-R60 versions ·
 // SNAP-R11 nothing blocks · SNAP-R181 a held-prop cut is boarded at its key · SNAP-R189 a board says absent what its
 // pictures may still show · SNAP-R212 the Cut opens in Astrid, private takes stay out · SNAP-R213 a cut's take may come from another shot ·
-// SNAP-R215 the archive Astrid can edit, its clips named by cut · SNAP-R216 a speaking cut's sound on its own lane · SNAP-R223 a production is the record above the Book · see docs/snap/SNAP_RULES.md
+// SNAP-R215 the archive Astrid can edit, its clips named by cut · SNAP-R216 a speaking cut's sound on its own lane · SNAP-R217 a pushed Book
+// changes in place, its diff says what moved · SNAP-R223 a production is the record above the Book · SNAP-R225 Snap remembers where a Cut went · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as W from "./world.js";
 import * as SC from "./scenes.js";
@@ -876,6 +877,52 @@ export async function assemble(bookRef, { mode = "cut", width = 1280, height = 7
   const id = await K.queue(g, { group: groupOf(book), job: { kind: mode === "cut" ? "cut" : "board", title, about: { book: `book:${book.id}` }, by },
     extra: { snap_parent: { method: `book/${mode}`, options: { book: `book:${book.id}@${book.n}`, clips: clips.map(({ cut, take }) => ({ cut, ...(take ? { take } : {}) })) } } } });
   return { run: id, take: `take-${id}`, mode, clips: clips.map(({ cut, take, video, image, ...c }) => ({ cut, ...(take ? { take } : {}), from: video ? "take" : "board", ...c })), gaps };
+}
+// ---- where the Cut went in Astrid (SNAP-R225): the bridge's receipt (snap/astrid.json), the only source of truth for
+// the link; a push or link_astrid announces itself, and the next read fetches it again
+let receiptNow = null;
+const astridListeners = new Set();
+export const onAstrid = (fn) => astridListeners.add(fn);
+api.addEventListener("mainodes-snap-astrid", ({ detail }) => { receiptNow = null; for (const fn of astridListeners) fn(detail); });
+export async function receipt() {
+  if (!receiptNow) {
+    const r = await api.fetchApi("/mainodes/snap/astrid"), out = await r.json();
+    if (!r.ok) throw new Error(out.error ?? `/mainodes/snap/astrid answered ${r.status}`);
+    receiptNow = out;
+  }
+  return receiptNow;
+}
+export async function linkAstrid(q) {
+  const r = await api.fetchApi("/mainodes/snap/astrid/link", { method: "POST", body: JSON.stringify(q) }), out = await r.json();
+  if (!r.ok) throw new Error(out.error ?? `/mainodes/snap/astrid/link answered ${r.status}`);
+  receiptNow = null;
+  return out;
+}
+// a Book's link: its production, the production's project, the Book's entry (null: not pushed yet) and the setup
+export async function astridOf(book) {
+  const pr = await productionFor(book), r = await receipt(), at = r.productions[`production:${pr.id}`] ?? null;
+  return { production: pr, project: at?.project ?? null, entry: at?.books?.[`book:${book.id}`] ?? null, setup: r.setup, at };
+}
+const trimOf = (t) => ({ in_s: t?.in_s ?? 0, out_s: t?.out_s ?? null, gain_db: t?.gain_db ?? 0 });
+// SNAP-R217: what changed in the Cut since its push, from the receipt: {changed, added, removed, order_changed, shape,
+// cuts: {C7: {state, clip, media, said}}}; a cut is changed when its active take or its trim / sound level moved
+export function astridDiff(book, entry) {
+  const now = units(book).map(({ shot, unit }) => { const t = shot.active ? T.get(shot.active) : null, video = t?.media.find((m) => m.kind === "video");
+    return { cut: unit.cut ?? shot.name, take: video ? t.id : null, trim: trimOf(unit.trim), private: !!t && !!(t.private || t.kept_encrypted || T.locked(t)) }; });
+  const clips = entry?.clips ?? {}, here = now.filter((x) => x.take && !x.private), cuts = {};
+  const changed = here.filter((x) => clips[x.cut] && (clips[x.cut].take !== x.take || JSON.stringify(trimOf(clips[x.cut].trim)) !== JSON.stringify(x.trim))).map((x) => x.cut);
+  const added = here.filter((x) => !clips[x.cut]).map((x) => x.cut), removed = Object.keys(clips).filter((c) => !here.some((x) => x.cut === c));
+  const was = (entry?.order ?? []).filter((c) => clips[c] && here.some((x) => x.cut === c)), is = here.map((x) => x.cut).filter((c) => clips[c]);
+  const order_changed = JSON.stringify(was) !== JSON.stringify(is);
+  for (const x of now) {
+    const c = clips[x.cut], at = c?.swapped_at ? new Date(c.swapped_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null;
+    const state = !entry ? "not in Astrid" : x.private ? "a gap in Astrid (kept private)" : !c ? (x.take ? "not in Astrid yet" : "a gap in Astrid (no take)") : changed.includes(x.cut) ? "changed here since the push" : at ? `swapped ${at}` : "in sync";
+    cuts[x.cut] = { state, ...(c ? { clip: c.clip, media: c.media, take: c.take } : {}) };
+  }
+  const shape = added.length || removed.length || order_changed;
+  return { changed, added, removed, order_changed, shape: !!shape, cuts,
+    said: !entry ? "not in Astrid yet" : shape ? `the Cut's shape changed (${[added.length && `added ${added.join(", ")}`, removed.length && `removed ${removed.join(", ")}`, order_changed && "the order moved"].filter(Boolean).join("; ")}): a push makes a new timeline and keeps the one in Astrid`
+      : changed.length ? `${plural(changed.length, "cut")} changed since the push (${changed.join(", ")})` : "in sync with Astrid" };
 }
 // OpenTimelineIO of the Cut: one video track of the active takes as source ranges, a marker per cut, and the same Cut as
 // an Astrid timeline archive (SNAP-R212); the server writes the files beside the outputs (/mainodes/snap/book/otio).

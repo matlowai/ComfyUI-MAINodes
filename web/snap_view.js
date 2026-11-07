@@ -117,6 +117,8 @@ app.registerExtension({
       tooltip: "A script on this computer that runs Astrid's commands in a clean environment (for example an Astrid lab's bin/clean.sh). Snap checks every Cut it writes for Astrid with it, and the Cut lens pushes through it. Empty: Snap still writes the .astrid file, and says nobody checked it." },
     { id: "MAINodes.Snap.AstridDataRoot", category: ["MAINodes", "Snap", "Astrid"], name: "Astrid on this machine: its data folder (empty: the launcher's own)", type: "text", defaultValue: "",
       tooltip: "The folder of the Astrid Runtime Snap talks to. It must be a Runtime on this computer: Snap refuses one whose address isn't this machine." },
+    { id: "MAINodes.Snap.AstridApp", category: ["MAINodes", "Snap", "Astrid"], name: "Astrid on this machine: the App's address (Open in Astrid)", type: "text", defaultValue: "http://127.0.0.1:5180",
+      tooltip: "Where the Cut lens's Open in Astrid goes. It must be this computer (127.0.0.1 or localhost)." },
     { id: MD.SETTING, category: ["MAINodes", "Snap", "Metadata"], name: "Save the prompt and workflow (metadata) in every saved picture and video", type: "boolean", defaultValue: true,
       tooltip: "On: files keep their recipe, LoRA names included, so you can reproduce them. Off: this browser's runs save without it. Also the switch next to Run in Snap.",
       onChange: () => view?.metadataChanged() },

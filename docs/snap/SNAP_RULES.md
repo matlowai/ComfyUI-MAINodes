@@ -2029,6 +2029,16 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
   inside its clip. *Why:* the G15 UX note "sound rides inside video clips, so Astrid's audio lane looks empty"; lab
   check A3: a dialogue clip with words on its own track imports, trims and lists its words. *More:*
   tests/snap/test_g16_cut.js.
+- **SNAP-R217: A pushed Book changes in place; its diff says what moved.** Once a Book is in Astrid, `get_book.astrid`
+  and `export_cut`'s `otio.astrid.diff` say what changed in the Cut since the push: `changed` (a new active take, or a
+  trim or sound level moved), `added`, `removed`, `order_changed`, `shape`. A push swaps the changed cuts in place
+  (SNAP-R224); a changed shape can't be swapped, so a push makes a new timeline and keeps the one in Astrid, said
+  plainly. *Why:* each import makes a new timeline (contract §0.5), so importing again would orphan the finish work in
+  Astrid (PROTOCOL_V1 §7.9). *More:* tests/snap/test_g16_receipt.js.
+- **SNAP-R218: Every cut says its Astrid state.** `get_book` units carry `astrid {clip, media, take, head, state}`:
+  "in sync", "swapped HH:MM", "changed here since the push", "a gap in Astrid (kept private)", "not in Astrid"; the
+  Cut lens shows "Astrid: C7 · in sync" on each row. *Why:* the person lives in Snap until the finish and needs to see
+  the hand-off without opening Astrid (PROTOCOL_V1 §7.18). *More:* tests/snap/test_g16_receipt.js.
 - **SNAP-R223: A production is the record above the Book, and it is what an Astrid project is.** A `production` record
   holds a name, its Books in order, the Cast and places they share, a default style and `astrid.project` (the Astrid
   project's slug, from the name unless given). A Book is in one production: listing it in another takes it out of the
@@ -2038,5 +2048,15 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
   operator, 2026-11-07: "one per book but it sounds like we need some higher organizational tree layers", and "a
   project being a trilogy or multi books"; one Astrid project per production, one timeline per Book (PROTOCOL_V1_1 §3,
   §14.1). *More:* tests/snap/test_g16_production.js.
+
+- **SNAP-R225: Snap remembers where a Cut went.** The bridge keeps a receipt per user (`snap/astrid.json`): production
+  -> Astrid project `{project_id, slug, name}`, its references, documents and the style section; Book -> timeline
+  `{timeline_id, name}`, head, order, and per cut `{clip, media, take, trim, swapped_at}`. tools/astrid_push.py writes it
+  after every push (`link_astrid` is the same write as a tool); `get_production.astrid.project` and the Cut lens's
+  Astrid card read it ("In Astrid: seq02 › Cut 1 · head a3f… · 2 cuts changed since the push", with Open in Astrid,
+  the App's address from the person's settings, loopback only, when in sync). It is the only source of truth for the
+  link: Astrid drops a manifest's `snap` block on re-export (lab check A7), and a project's settings update replaces its
+  metadata whole (F-AE01). *Why:* the G15 UX notes: nothing linked the two back, and the import named a placeholder
+  project. *More:* tests/snap/test_g16_receipt.js.
 
 Next free ID after this batch: SNAP-R230 (R160-R164 stay free; G16 reserved R215-R229).

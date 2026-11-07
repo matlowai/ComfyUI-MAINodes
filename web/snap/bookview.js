@@ -10,7 +10,7 @@
 // SNAP-R67 the Book and the story clock · SNAP-R68 compile with provenance · SNAP-R69 settei per state · SNAP-R175 the colour script · SNAP-R176 settei design it · SNAP-R130 the
 // production style · SNAP-R131 boards and the animatic · SNAP-R132 the Cut · SNAP-R133 the plan drawn here · SNAP-R80
 // every picture full size · SNAP-R58 nothing trimmed · SNAP-R8 judged from screenshots · SNAP-R165 Cast lines folded · SNAP-R209 an out-of-date story proposal offers a re-make ·
-// SNAP-R168 a cut opens before its beat · SNAP-R183 a record this install lacks is named, with how to bring it · SNAP-R223 the Book names its production · see docs/snap/SNAP_RULES.md
+// SNAP-R168 a cut opens before its beat · SNAP-R183 a record this install lacks is named, with how to bring it · SNAP-R223 the Book names its production · SNAP-R225 the Cut lens says where the Cut went in Astrid · see docs/snap/SNAP_RULES.md
 import * as B from "./book.js";
 import * as W from "./world.js";
 import * as SC from "./scenes.js";
@@ -41,6 +41,7 @@ function listen() {
   listening = true;
   const live = () => sheetOpen?.sheet.isConnected;
   W.onChange(() => { if (live()) sheetOpen.redraw(); });
+  B.onAstrid(() => { if (live() && sheetOpen.lens() === "the_cut") sheetOpen.redraw(); });
   SC.onChange(() => { if (live() && sheetOpen.lens() !== "cut_bag") sheetOpen.redraw(); });
   P.onChange(() => { if (!live()) return; sheetOpen.docket(); if (sheetOpen.lens() === "beat_sheet") sheetOpen.redraw(); });
 }
@@ -275,21 +276,37 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
   }
 
   // ---- the Cut ----------------------------------------------------------------------------------------------------
-  function theCut(b) {
+  // SNAP-R225: the Cut lens says where the Cut went in Astrid: the project and timeline, its head, what changed here since
+  // the push, and one button whose label follows the state (Open when in sync)
+  const headOf = (rev) => (rev ? `${String(rev).replace(/^authoring-parent-revision-/, "").slice(0, 7)}…` : "?");
+  function astridCard(b, ax, diff) {
+    if (ax.error) return h("div", { className: "snap-book-card snap-book-astrid" }, h("strong", { textContent: "Astrid" }), h("span", { className: "snap-quiet", textContent: ax.error }));
+    const e = ax.entry, setup = ax.setup ?? {}, ready = !!setup.launcher, synced = e && !diff.changed.length && !diff.shape;
+    const app = setup.app && e && ax.project?.project_id ? `${setup.app}/tools/video-editor?project=${encodeURIComponent(ax.project.project_id)}&timeline=${encodeURIComponent(e.timeline.timeline_id)}` : null;
+    const where = e ? `In Astrid: ${ax.project?.name ?? ax.production.body.name} › ${e.timeline?.name ?? b.body.name} · head ${headOf(e.head)} · ${diff.said}` : ready ? `Not in Astrid yet: a push makes the project “${ax.production.body.astrid.project}” and this Book's timeline in it` : setup.said ?? "Astrid isn't set up on this machine";
+    return h("div", { className: "snap-book-card snap-book-astrid" },
+      h("div", { className: "snap-book-row" }, h("strong", { textContent: "Astrid" }), h("span", { className: `snap-quiet snap-book-astrid-said${synced ? " ok" : ""}`, role: "status", textContent: where }), h("span", { className: "snap-spacer" }),
+        synced && app ? h("a", { className: "snap-primary snap-book-astrid-go", href: app, target: "_blank", rel: "noopener", textContent: "Open in Astrid" }) : null),
+      e?.left_out?.length ? h("div", { className: "snap-quiet", textContent: `Gaps in Astrid: ${e.left_out.map((x) => `${x.cut} (${x.why ?? "left out"})`).join("; ")}` }) : null);
+  }
+  function theCut(b, ax) {
+    const diff = ax && !ax.error ? B.astridDiff(b, ax.entry) : null;
     const list = B.units(b), exports = T.all().filter((t) => t.group === B.groupOf(b) && t.parent?.method === "book/cut" && t.status === "success").sort((x, y) => y.created - x.created);
     const rows = list.map(({ scene, shot, unit }) => { const t = shot.active ? T.get(shot.active) : null, video = t?.media.find((m) => m.kind === "video"), trim = { in_s: 0, gain_db: 0, ...(unit.trim ?? {}) };
       const num = (k, label, step) => h("label", { className: "snap-field snap-book-num" }, h("span", { textContent: label }), h("input", { type: "number", step, value: trim[k] ?? "", placeholder: k === "out_s" ? "end" : "0", ariaLabel: `${unit.cut} ${label}`, onchange: act(async (e) => { const v = e.target.value === "" ? null : +e.target.value; await B.setUnit(scene.id, shot.id, { trim: { ...trim, [k]: v } }); return `${unit.cut}: ${label} ${v ?? "end"}`; }) }));
       return h("div", { className: "snap-book-cutrow" }, h("strong", { textContent: unit.cut ?? shot.name }),
         video ? h("video", { src: K.url(video), preload: "metadata", muted: true, className: "snap-book-cutthumb" }) : h("div", { className: "snap-cast-missing snap-book-cutthumb", textContent: t ? "the active take is a still" : "no active take" }),
         h("span", { className: "snap-quiet", textContent: t ? `take ${t.number}${t.verdict ? ` · ${t.verdict}` : ""}${t.sound ? ` · ${Math.round(t.sound.mean_db)} dB` : ""}` : "" }),
-        num("in_s", "in (s)", 0.05), num("out_s", "out (s)", 0.05), num("gain_db", "sound (dB)", 0.5)); });
+        num("in_s", "in (s)", 0.05), num("out_s", "out (s)", 0.05), num("gain_db", "sound (dB)", 0.5),
+        diff ? h("span", { className: `snap-quiet snap-book-astrid-cut${diff.cuts[unit.cut ?? shot.name]?.state === "in sync" ? " ok" : diff.cuts[unit.cut ?? shot.name]?.state === "changed here since the push" ? " moved" : ""}`, textContent: `Astrid: ${diff.cuts[unit.cut ?? shot.name]?.clip ?? unit.cut ?? shot.name} · ${diff.cuts[unit.cut ?? shot.name]?.state ?? "not in Astrid"}` }) : null); });
     return [h("div", { className: "snap-book-row" }, h("div", { className: "snap-rail-title", textContent: "The Cut (telling order)" }), h("span", { className: "snap-spacer" }),
       h("button", { className: "snap-primary", textContent: "Export mp4 + OTIO", disabled: !list.length, onclick: act(async () => { const out = await B.assemble(`book:${b.id}`, { mode: "cut" }), o = await B.otio(`book:${b.id}`).catch((e) => ({ error: e.message })); return `The Cut queued (${out.clips.length} cuts${out.gaps.length ? `; missing: ${out.gaps.join("; ")}` : ""})${o.file ? ` · OTIO ${o.file}` : o.error ? ` · OTIO: ${o.error}` : ""}`; }) })),
+      ax ? astridCard(b, ax, diff) : null,
       h("div", { className: "snap-book-cut" }, rows.length ? rows : h("div", { className: "snap-quiet", textContent: "No cuts yet." })),
       exports.length ? h("div", { className: "snap-book-export" }, h("div", { className: "snap-rail-sub", textContent: `Latest export · take ${exports[0].number} · ${new Date(exports[0].created).toLocaleTimeString()}` }), h("video", { src: takeUrl(exports[0]), controls: true, preload: "metadata", className: "snap-book-video" })) : null];
   }
 
-  let drawing = 0;
+  let drawing = 0, axNow = null;
   async function draw() {
     const me = ++drawing;
     drawTop(); drawTabs(); drawDocket();
@@ -299,7 +316,13 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
     if (tab === "settei") return fill(body, settei(b));
     if (tab === "pages") return fill(body, b.body.story ? pages(b) : h("div", { className: "snap-quiet", textContent: "This Book has no story yet." }));
     if (tab === "boards") return fill(body, boards(b));
-    if (tab === "the_cut") return fill(body, theCut(b));
+    if (tab === "the_cut") { // drawn at once with the link as last read (no flicker), then again with the receipt as it is now
+      fill(body, theCut(b, axNow?.book === b.id ? axNow.ax : undefined));
+      const ax = await B.astridOf(b).catch((e) => ({ error: e.message }));
+      axNow = { book: b.id, ax };
+      if (me === drawing && tab === "the_cut") fill(body, theCut(b, ax));
+      return;
+    }
     const sheets = new Map();
     fill(body, cutBag(b, sheets, []));
     for (const u of B.units(b)) sheets.set(u.shot.id, await B.compile(u.scene.id, u.shot.id).catch((e) => ({ error: e.message, entities: [], package: [], prompt: { sentences: [] }, lint: [e.message], budget: { used: 0, of: 9 } })));
@@ -389,7 +412,10 @@ export const BOOK_STYLE = `
 .snap-book-sentences { margin: 0; padding-left: 20px; font-size: 12px; display: flex; flex-direction: column; gap: 2px; }
 .snap-book-cut { display: flex; flex-direction: column; gap: 6px; }
 .snap-book-pages { width: 100%; box-sizing: border-box; font: 13px/1.5 "Courier Prime", "Courier New", ui-monospace, monospace; padding: 14px 18px; border-radius: 8px; resize: vertical; min-height: 420px; }
-.snap-book-cutrow { display: grid; grid-template-columns: 48px 160px minmax(120px, 1fr) repeat(3, 96px); gap: 10px; align-items: center; padding: 6px; border-radius: 8px; border: 1px solid var(--s-line); }
+.snap-book-cutrow { display: grid; grid-template-columns: 48px 160px minmax(120px, 1fr) repeat(3, 96px) minmax(150px, 220px); gap: 10px; align-items: center; padding: 6px; border-radius: 8px; border: 1px solid var(--s-line); }
+.snap-book-astrid .snap-book-astrid-said { flex: 1 1 320px; } .snap-book-astrid-said.ok, .snap-book-astrid-cut.ok { color: #57c785; } .snap-book-astrid-cut.moved { color: #f0b445; }
+.snap-book-astrid-go { text-decoration: none; padding: 5px 12px; border-radius: 8px; }
+.snap-book-astrid-help { font-size: 12px; line-height: 1.45; color: var(--s-dim); max-width: 760px; }
 .snap-book-cutthumb { width: 160px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; background: #000; display: flex; align-items: center; justify-content: center; font-size: 11px; }
 .snap-book-num input { width: 100%; }
 @container (max-width: 760px) {

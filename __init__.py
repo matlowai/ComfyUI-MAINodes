@@ -40,10 +40,11 @@ NODE_DISPLAY_NAME_MAPPINGS = dict(TIMESMEAR_DISPLAY_MAPPINGS)
 # snap_bridge (2026-11-03) relays agent tool calls to the open Snap view (web/snap/tools.js); snap_faces (2026-11-04)
 # measures face and hair for Snap's identity notes on edits; snap_voice (2026-11-06) a take's voice against its Cast
 # voice reference; snap_vault_server (2026-11-06) keeps private takes encrypted where privacy is on; snap_critiques
-# (2026-11-06) keeps the critic's docket; snap_iris (2026-11-06) keeps the Cast's eye colour after a stage 2 redraw.
+# (2026-11-06) keeps the critic's docket; snap_iris (2026-11-06) keeps the Cast's eye colour after a stage 2 redraw;
+# snap_astrid (2026-11-07) runs Astrid's CLI for Snap and keeps the receipt of where each Cut went.
 for _mod in ("window_loop", "window_expand", "timeline.nodes",
              "concept_lab.nodes", "vram_lab", "derope_any", "video_out", "video_compare",
-             "h3_capabilities", "h3_extend", "h3_repair", "h3_drift", "h3_color_carry", "dials.nodes", "render", "relayvsr.nodes", "relayvsr.routes", "h3_refs", "snap_bridge", "snap_vault_server", "snap_world", "snap_critiques", "snap_instructions", "snap_faces", "snap_voice", "snap_book", "snap_iris"):
+             "h3_capabilities", "h3_extend", "h3_repair", "h3_drift", "h3_color_carry", "dials.nodes", "render", "relayvsr.nodes", "relayvsr.routes", "h3_refs", "snap_bridge", "snap_vault_server", "snap_world", "snap_critiques", "snap_instructions", "snap_faces", "snap_voice", "snap_book", "snap_astrid", "snap_iris"):
     try:
         _m = __import__(f"{__name__}.{_mod}", fromlist=["*"])
     except Exception as _e:                       # an alpha module must never
