@@ -178,7 +178,10 @@ export function openRoom({ say } = {}) {
     if (off) return;
     const list = asks();
     if (top && !list.some((r) => r.id === top)) top = null;
-    const first = list.find((r) => r.id === top) ?? list[0], rest = list.filter((r) => r !== first);
+    // F-S11 (SNAP-R179 amended): a question asked in the same words as one above waits behind it, so 35 picks of one
+    // shot read as one line; the next comes up when that one is answered
+    const first = list.find((r) => r.id === top) ?? list[0], seen = new Set(first ? [ask(first).q] : []);
+    const rest = list.filter((r) => { if (r === first) return false; const q = ask(r).q; return !seen.has(q) && !!seen.add(q); });
     const now = JSON.stringify([reply, earlier.length, first?.id, first?.state, rest.map((r) => r.id)]);
     if (now === sig || room.matches(":hover") && room.querySelector(".snap-room-why:focus")) return; // SNAP-R7: never under a typing hand
     sig = now;
