@@ -577,9 +577,12 @@ export async function applyLocation(ref, { plates = [], master = true, plan = tr
     for (const p of E.state().bricks.find((x) => x.key === "refs").pictures ?? []) if (p.source === key && !roles.includes(p.role)) E.removePicture(p.node);
     want.forEach(([what, file], i) => E.addPicture(file, { role: roles[i], reason: `${b.name}, location v${n}${what.startsWith("plate") ? `, ${what}` : ""}`, source: key, card: W.refOf("location", id, n) }));
     // F-D06: the camera picture is <Picture 1> (after an opening frame only, which syncOpening puts first): H3 keeps the
-    // framing of the picture the walkthrough starts from
-    const cam = want.findIndex(([, , use]) => use === "camera"), camNode = cam >= 0 && E.state().bricks.find((x) => x.key === "refs").pictures.find((p) => p.role === roles[cam])?.node;
-    if (camNode) E.recite(E.movePicture(camNode, 0));
+    // framing of the picture the walkthrough starts from. F-F08: the place's pictures stand in this order every time it is
+    // applied (camera, then master, plan, plates), however an earlier apply left them
+    const order = () => E.references()?.pictures.map((p) => p.node) ?? [], mine = E.state().bricks.find((x) => x.key === "refs").pictures;
+    const nodes = [...want.keys()].sort((a, c) => (want[c][2] === "camera") - (want[a][2] === "camera")).map((i) => mine.find((p) => p.role === roles[i])?.node).filter((x) => x != null && order().includes(x));
+    const at = want.some(([, , use]) => use === "camera") ? 0 : Math.min(...nodes.map((x) => order().indexOf(x)));
+    nodes.forEach((node, k) => { if (order().indexOf(node) !== at + k) E.recite(E.movePicture(node, at + k)); });
     try { preset = conditionFor("Ref2V"); } catch (e) { unread = e.message; }
     opening = syncOpening();
     pin(key, { n, hash: W.short(version.hash), name: b.name, placed: { roles, plates, master: !!(master && b.master), plan: !!(plan && b.plan), ...(camera != null ? { camera } : {}), ...(unread ? { unread } : {}) } });

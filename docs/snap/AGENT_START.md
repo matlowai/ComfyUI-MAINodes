@@ -296,6 +296,7 @@ cameras → master → a people-free walkthrough → plates from its frames), th
                "pose": {"x": 0.64, "y": 0.52, "heading": 280, "eye_height": 1.6, "lens": 28}, "use": "C2, C4"}
     apply_location {"location": "location:<id>", "plates": ["Pb gate inside"], "camera": "Pb gate inside"}
                                                        # answers cite (master, plan, plates), use and prompt_hint
+    save_location {"location": "location:<id>", "master": {"take": "<fixed>"}}   # a new master; the rest is kept (kept says what)
 
 - A pose's `x`, `y` are fractions of the plan picture from its top left; `heading` is degrees clockwise from the
   plan's up (north); `eye_height` in metres; `lens` in mm. `list_locations` gives every place whole;
