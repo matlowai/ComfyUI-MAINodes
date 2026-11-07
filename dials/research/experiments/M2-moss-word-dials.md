@@ -51,5 +51,10 @@ Visual-only lists work much better: weather words (snow, rain) come through clea
 golden, fog) partly; colour words for a light source (neon) do not. Offline, related lists agree with each other as
 expected (moonlit vs night +0.73, golden vs warm +0.82, fog vs foggy +0.73), and the placebo matches only itself.
 
-**Next.** A second seed and a held-out scene for snow and rain; compare with centered J-lens dials on H3 (where centering
+**Check: a second seed and a held-out scene** (lighthouse seed 8; an old man reading on a park bench, seed 7; +8, each
+with its own control): **snow holds on both** (snow on the rocks and path; snow in the park, and he gains a wintry scarf);
+**rain holds on the lighthouse** (umbrella, wet path) and is subtler in the park (damper, greener, a pond, no falling rain);
+the bland placebo only restages (a sunny sky, a jumper). So snow is a finding (2 seeds, 2 scenes); rain a strong hint.
+
+**Next.** compare with centered J-lens dials on H3 (where centering
 was needed).
