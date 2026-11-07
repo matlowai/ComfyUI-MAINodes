@@ -544,6 +544,10 @@ export async function saveLocation(id, body, { note = "", by = "person" } = {}) 
   await ready();
   if (!body?.name?.trim()) throw new Error("A location needs a name");
   const names = new Set(), cameras = [], plates = [], scale = scaleOf(body.scale);
+  // F-K05: a picture given by its file alone keeps the take and frame it came from when the newest version had that file
+  const prev = id && W.record("location", id) ? W.headOf(W.record("location", id)).body : null;
+  const was = (file) => [prev?.master, prev?.plan, prev?.map, ...(prev?.plates ?? [])].find((x) => x?.file === file && x.from)?.from;
+  const sourced = (p) => (p && p.file && !p.take && !p.from && was(p.file) ? { ...p, from: was(p.file) } : p);
   for (const [i, c] of (body.cameras ?? []).entries()) {
     if (!c?.name?.trim()) throw new Error(`cameras[${i}]: a camera mark needs a name (C1, P01, …)`);
     cameras.push({ name: c.name.trim(), ...poseOf(Object.fromEntries(POSE.filter((k) => c[k] != null).map((k) => [k, c[k]])), `camera ${c.name}`), ...(c.note?.trim() ? { note: c.note.trim() } : {}) });
@@ -554,11 +558,11 @@ export async function saveLocation(id, body, { note = "", by = "person" } = {}) 
     if (names.has(name)) throw new Error(`Two plates are named "${name}": a plate is cited by its name, so each name once`);
     names.add(name);
     if (p.camera && !cameras.some((c) => c.name === p.camera)) throw new Error(`plate ${name}: no camera mark "${p.camera}"; the marks are ${cameras.map((c) => c.name).join(", ") || "none"}`);
-    plates.push({ name, ...await locationPicture(p, `plate ${name}`), ...roleIn(p.role, `plate ${name}`), pose: poseOf(p.pose, `plate ${name}`), ...(p.camera ? { camera: p.camera } : {}), ...(p.use?.trim() ? { use: p.use.trim() } : {}), ...(p.note?.trim() ? { note: p.note.trim() } : {}) });
+    plates.push({ name, ...await locationPicture(sourced(p), `plate ${name}`), ...roleIn(p.role, `plate ${name}`), pose: poseOf(p.pose, `plate ${name}`), ...(p.camera ? { camera: p.camera } : {}), ...(p.use?.trim() ? { use: p.use.trim() } : {}), ...(p.note?.trim() ? { note: p.note.trim() } : {}) });
   }
-  const master = await locationPicture(body.master, "master");
-  const plan = await locationPicture(body.plan, "plan"), shapes = body.plan?.shapes; // SNAP-R133: a plan drawn in Snap keeps its shapes beside its picture
-  const map = await locationPicture(body.map, "map");
+  const master = await locationPicture(sourced(body.master), "master");
+  const plan = await locationPicture(sourced(body.plan), "plan"), shapes = body.plan?.shapes; // SNAP-R133: a plan drawn in Snap keeps its shapes beside its picture
+  const map = await locationPicture(sourced(body.map), "map");
   const clean = { name: body.name.trim(), notes: body.notes?.trim() ?? "", master: master && { ...master, ...roleIn(body.master.role, "master") }, plan: plan && shapes ? { ...plan, shapes, ...(body.plan.render ? { render: body.plan.render } : {}) } : plan, ...(map ? { map } : {}), cameras, plates, ...(scale.length ? { scale } : {}), rating: body.rating ?? null,
     ...(body.from_cast ? { from_cast: body.from_cast } : {}) };
   id ??= locationStamp();
@@ -598,6 +602,14 @@ export async function addPlate(ref, plate, { note, by = "person" } = {}) {
   });
   const names = new Set(list.map((p) => p.name)), plates = [...(body.plates ?? []).filter((p) => !names.has(p.name)), ...list];
   return { ...await saveLocation(id, { ...body, cameras, plates }, { note: note ?? `plate${list.length > 1 ? "s" : ""} ${list.map((p) => p.name).join(", ")}`, by }), kept };
+}
+// F-K05: take plates out of a location as a new version; the others keep everything, their provenance too
+export async function removePlate(ref, names, { note, by = "person" } = {}) {
+  const { id, body } = locationOf(W.refOf("location", W.parse(ref).id)), want = [names].flat().map((x) => String(x).trim());
+  const missing = want.filter((x) => !(body.plates ?? []).some((p) => p.name === x));
+  if (missing.length) throw new Error(`${body.name} has no plate ${missing.map((x) => `"${x}"`).join(", ")}; its plates are ${(body.plates ?? []).map((p) => p.name).join(", ") || "none"}`);
+  const out = await saveLocation(id, { ...body, plates: body.plates.filter((p) => !want.includes(p.name)) }, { note: note ?? `plate${want.length > 1 ? "s" : ""} ${want.join(", ")} taken out`, by });
+  return { ...out, removed: want };
 }
 // put a location version into the open recipe's References, replacing what an earlier apply of it put there: its master
 // and plan (each unless false) and the plates named (in that order). Pins the version. Returns {said, cite}
