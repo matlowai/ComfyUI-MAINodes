@@ -1,0 +1,69 @@
+{
+  "source_image": {
+    "class_type": "EmptyImage",
+    "_meta": {
+      "title": "the image to process"
+    },
+    "inputs": {
+      "width": 64,
+      "height": 64,
+      "batch_size": 1,
+      "color": 0
+    }
+  },
+  "probe": {
+    "class_type": "MAIFlowProbe",
+    "_meta": {
+      "title": "counts how often the resize branch actually ran"
+    },
+    "inputs": {
+      "value": [
+        "source_image",
+        0
+      ],
+      "name": "resize_gate",
+      "salt": 0,
+      "delay_s": 0.0
+    }
+  },
+  "resize": {
+    "class_type": "ImageScaleBy",
+    "_meta": {
+      "title": "the expensive branch; scale_by stays here"
+    },
+    "inputs": {
+      "image": [
+        "probe",
+        0
+      ],
+      "upscale_method": "bilinear",
+      "scale_by": 0.5
+    }
+  },
+  "gate": {
+    "class_type": "MAIFlowGate",
+    "_meta": {
+      "title": "Gate: resize only when its scale_by is not 1.0"
+    },
+    "inputs": {
+      "expression": "scale_by != 1.0",
+      "processed": [
+        "resize",
+        0
+      ],
+      "source": [
+        "source_image",
+        0
+      ]
+    }
+  },
+  "preview": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": [
+        "gate",
+        0
+      ]
+    }
+  }
+}
