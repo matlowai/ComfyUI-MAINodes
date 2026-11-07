@@ -87,7 +87,8 @@ export function subjectText(s) {
 export function partFiles(body, part) {
   const plate = (p) => p && `${p.file}|${JSON.stringify(p.pose ?? null)}`;
   if (part === "pictures") return JSON.stringify((body?.refs ?? []).map((x) => x.file));
-  if (part === "views") return JSON.stringify([body?.master?.file, body?.plan?.file, body?.map?.file, ...(body?.plates ?? []).map(plate)]);
+  // F-G06: every view also reads the notes and the camera marks, so a notes-only version gets its own views row
+  if (part === "views") return JSON.stringify([body?.master?.file, body?.plan?.file, body?.map?.file, ...(body?.plates ?? []).map(plate), body?.notes ?? "", body?.cameras ?? []]);
   if (["master", "plan", "map"].includes(part)) return body?.[part]?.file ?? null;
   return plate(body?.plates?.find((x) => `plate ${x.name}` === part)) ?? null;
 }
@@ -104,7 +105,11 @@ export function staleOf(r) {
     if (c?.state === "rejected") why.push(`candidate ${c.id} was rejected`);
     else if (d?.applied && c && d.applied.candidate !== c.id) why.push(`another candidate (${d.applied.candidate}) was picked`);
   }
-  if (r.subject.kind === "record") { const m = moved(r.subject.ref, r.subject.part); if (m) why.push(`${m.name} v${m.n} → v${m.head}: ${r.subject.part === "views" ? "a view" : `its ${r.subject.part}`} changed`); } // F-E15: the version it read, then the head
+  if (r.subject.kind === "record") { const m = moved(r.subject.ref, r.subject.part); if (m) why.push(`${m.name} v${m.n} → v${m.head}: ${r.subject.part === "views" ? "a view" : `its ${r.subject.part}`} changed`); // F-E15: the version it read, then the head
+    // F-G06: a later version's written row read the same picture: this one is answered there
+    const x = W.parse(r.subject.ref), rec = W.record(x.kind, x.id), body = (n) => rec?.versions.find((v) => v.n === n)?.body, mine = partFiles(body(x.n), r.subject.part);
+    const read = rec && !r.done && ofRecord(r.subject.ref).find((o) => o.done && o.subject.part === r.subject.part && W.parse(o.subject.ref).n > x.n && partFiles(body(W.parse(o.subject.ref).n), r.subject.part) === mine);
+    if (read) why.push(`read on v${W.parse(read.subject.ref).n} (${read.id}): the same ${r.subject.part === "views" ? "views" : r.subject.part}`); }
   for (const x of r.notes) {
     if (!x.owner?.ref?.includes("@") || (r.subject.kind === "record" && W.parse(x.owner.ref).id === W.parse(r.subject.ref).id)) continue; // the subject's own record moving is said once, above
     const m = moved(x.owner.ref, x.owner.part);
@@ -203,7 +208,7 @@ async function scanRecords() {
     if (b.plan) parts.push(["plan", "plan"]);
     for (const p of b.plates ?? []) parts.push([`plate ${p.name}`, "plate"]);
     const todo = parts.filter(([part]) => !held.has(part));
-    if (todo.length && !held.has("views")) todo.push(["views", "location"]);
+    if (!held.has("views")) todo.push(["views", "location"]); // F-G06: a notes or marks change alone makes a views row too
     for (const [part, checklist] of todo) await ask(`record:${ref}:${part}`, { subject: { kind: "record", ref, part }, title: `Critic: ${b.name} v${v.n}${part === "views" ? ", every view side by side" : `, ${part}`}${old ? " (saved before the critic started)" : ""}`, purpose: checklist === "location" ? null : checklist, checklist, trigger: old ? "existing" : "saved", about: {} });
   }
   for (const r of W.all("cast")) {

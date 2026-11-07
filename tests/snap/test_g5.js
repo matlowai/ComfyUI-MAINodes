@@ -11,7 +11,9 @@
 // - F-G07: a plate's packet has a measuring copy (a 10 % grid, mapped like a tile over the whole), its still context is
 //   PNG, and the drawn plan names the file it was drawn over instead of claiming its path;
 // - F-G04 (SNAP-R154): draw_set_plan {preview: true} answers the picture and the labels that run off the plan or over
-//   another, and makes no version.
+//   another, and makes no version;
+// - F-G06: a due row of an older version whose picture a later written row read is answered there (stale, "read on
+//   vN"); a notes-only version gets its own "every view" row.
 // usage: node test_g5.js [port] [base]   prints "g5 n/m" last
 const { chromium } = require("playwright");
 const fs = require("fs"), path = require("path");
@@ -97,6 +99,10 @@ const bridge = (tool, args, agent) => http("/mainodes/snap/call", { tool, args }
     const pk = await call("critique_packet", { critique: pr.critique });
     R.packet = (pk.pictures ?? []).map((p) => ({ role: p.role, cell: p.tile?.cell ?? null, path: p.path, drawn_over: p.drawn_over ?? null, format: p.format, label: p.label }));
     R.byRef = await call("list_critiques", { ref: loc, compact: true });
+    R.oldPlate = (await call("list_critiques", { ref: loc })).rows?.filter((r) => /, plate gate$/.test(r.title) && r.title !== "Critic: g5 plate gate").map((r) => ({ title: r.title, state: r.state, stale: r.stale }));
+    R.notesOnly = await call("save_location", { location: loc, notes: "the gate faces the road; the well is mid-square" });
+    await page.waitForTimeout(2500);
+    R.notesRows = (await call("list_critiques", { ref: R.notesOnly.ref, compact: true })).rows;
     R.notes = await page.evaluate(async ([ref]) => { const CR = await import("/extensions/ComfyUI-MAINodes/snap/critiques.js"), CV = await import("/extensions/ComfyUI-MAINodes/snap/critiqueview.js"); await CR.load(); return CV.locationNotes(ref).map((x) => ({ k: x.k, part: x.part, also: x.also ?? [] })); }, [head]);
 
     // ---- F-G02 + F-G08: a short take id; the replaced active take ----
@@ -129,6 +135,8 @@ const bridge = (tool, args, agent) => http("/mainodes/snap/call", { tool, args }
     "F-G07 a plate's packet: a measuring copy, PNG still context, the drawn plan's file named apart": (S.packet ?? []).some((p) => p.cell === "measure" && p.format === "png" && /measure: a 10 % grid/.test(p.label)) && (S.packet ?? []).filter((p) => p.role === "context" && !p.drawn_over).every((p) => p.format === "png") && (S.packet ?? []).some((p) => p.drawn_over && p.path === null),
     "F-G04 a plan preview: the picture, the labels in trouble, no version": S.preview?.preview === true && S.preview.images?.[0]?.mimeType === "image/png" && S.preview.images[0].bytes > 1000 && S.previewSame
       && (S.preview.labels ?? []).some((l) => l.shape === 1 && l.off_edge?.includes("right")) && (S.preview.labels ?? []).some((l) => l.shape === 2 && l.overlaps?.some((o) => /Gate/.test(o))) && !(S.preview.labels ?? []).some((l) => l.shape === 0),
+    "F-G06 an older due plate row is answered by the later written one": (S.oldPlate ?? []).some((r) => r.state === "stale" && /read on v\d+ \(crit-[^)]+\): the same plate gate/.test(r.stale ?? "")),
+    "F-G06 a notes-only version gets its own views row": (S.notesRows ?? []).some((r) => /every view side by side/.test(r.title) && r.state === "due"),
     "F-G10 the repeated note is one note": (S.notes ?? []).filter((x) => x.part === "plate gate").length === 1 && (S.notes ?? []).find((x) => x.part === "plate gate")?.also?.length === 1,
     "F-G02 set_active_take takes a unique start of the id": S.short?.active === "take-g5s2bb",
     "F-G08 apply_candidate names the take it replaced": S.apply?.replaced === "take-g5s2bb" && /in place of take \d+ \(take-g5s2bb\)/.test(S.apply?.said ?? ""),
