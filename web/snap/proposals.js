@@ -30,7 +30,10 @@ export const onChange = (fn) => listeners.add(fn);
 const here = (p) => p.graph == null || p.graph === app.graph.id;
 export const pending = () => list.filter((p) => p.status === "waiting" && here(p));
 export const get = (id) => list.find((p) => p.id === id) ?? null;
-export const all = () => list.map(({ id, tool, args, reason, note, plan, status, result, book, needs, makes, answered_by, because, revive_if }) => ({ id, tool, args, reason, status, ...(book ? { book } : {}), ...(needs?.length ? { needs } : {}), ...(makes?.length ? { makes } : {}), ...(note ? { note } : {}), ...(plan ? { plan } : {}), ...(result !== undefined ? { result } : {}), ...(answered_by ? { answered_by } : {}), ...(because ? { because } : {}), ...(revive_if ? { revive_if } : {}) }));
+export const all = () => list.map(({ id, tool, args, reason, note, plan, status, result, book, needs, makes, stacked, answered_by, because, revive_if }) => ({ id, tool, args, reason, status, ...(book ? { book } : {}), ...(needs?.length ? { needs } : {}), ...(makes?.length ? { makes } : {}), ...(stacked ? { stacked } : {}), ...(note ? { note } : {}), ...(plan ? { plan } : {}), ...(result !== undefined ? { result } : {}), ...(answered_by ? { answered_by } : {}), ...(because ? { because } : {}), ...(revive_if ? { revive_if } : {}) }));
+// F-Q04: a stacked proposal's reason as it reads now: its "with pN waiting: …" clause goes once any of those is answered
+// (the stored reason stays whole for agents, SNAP-R58)
+export const reasonNow = (p) => { const r = p?.reason ?? "", st = p?.stacked; if (!st?.said || st.on.every((id) => get(id)?.status === "waiting")) return r; return r.replace(`; ${st.said}`, "").replace(` (${st.said})`, ""); };
 // who answers on this page: a press is the person's, made on their tab or in the agents' window, where an agent may drive it (F-L17)
 export const pressedBy = () => ({ by: "person", where: sight.managed() ? "the agents' window" : "a person's tab", page: api.clientId ?? null, ...(sight.driver() ? { driven_by: sight.driver() } : {}) });
 
@@ -45,10 +48,11 @@ async function write(body) {
 
 // `note`: the director's note this proposal answers, if any; `plan`: what a GPU tool would run and about how long
 // (plan-then-approve, U35), shown with the proposal; `book`: a Book's canon proposal (no graph); `needs`: the waiting
-// proposals it was built on; `makes`: the beats it would add
-export async function add(tool, args, reason, note, plan, { book = null, needs = [], makes = [] } = {}) {
+// proposals it was built on; `makes`: the beats it would add; `stacked`: {on, said}, the waiting proposals its cost clause
+// names and that clause (F-Q04)
+export async function add(tool, args, reason, note, plan, { book = null, needs = [], makes = [], stacked = null } = {}) {
   await load();
-  return (await write({ add: { tool, args, reason: reason || "", graph: book ? null : app.graph.id, ...(book ? { book } : {}), ...(needs.length ? { needs } : {}), ...(makes.length ? { makes } : {}), ...(note ? { note } : {}), ...(plan ? { plan } : {}) } })).row;
+  return (await write({ add: { tool, args, reason: reason || "", graph: book ? null : app.graph.id, ...(book ? { book } : {}), ...(needs.length ? { needs } : {}), ...(makes.length ? { makes } : {}), ...(stacked ? { stacked } : {}), ...(note ? { note } : {}), ...(plan ? { plan } : {}) } })).row;
 }
 
 // proposals about something that is gone (a deleted scene) are withdrawn with a short note, on every graph; returns how many

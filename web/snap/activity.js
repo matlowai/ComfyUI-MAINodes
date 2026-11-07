@@ -96,7 +96,7 @@ function build() {
   const decisions = C.all().filter((d) => Date.now() - (d.updated ?? d.created) < DAY || d.status === "open").map((d) => { const r = fromDecision(d, byId); r.prompts.forEach((id) => folded.add(id)); return r; });
   let ahead = server.filter((p) => p.state === "running").length;
   const prompts = server.filter((p) => !folded.has(p.id) && (p.job || p.state === "running" || p.state === "queued")).map((p) => fromPrompt(p, p.state === "queued" ? ahead++ : undefined));
-  const asked = P.all().filter((p) => p.status === "waiting").map((p) => ({ id: `p:${p.id}`, proposal: p.id, source: "proposal", kind: "proposal", title: p.reason || p.tool.replaceAll("_", " "), by: "agent", owner: "agents", state: "waiting",
+  const asked = P.all().filter((p) => p.status === "waiting").map((p) => ({ id: `p:${p.id}`, proposal: p.id, source: "proposal", kind: "proposal", title: P.reasonNow(p) || p.tool.replaceAll("_", " "), by: "agent", owner: "agents", state: "waiting",
     about: { take: p.args?.take, slot: p.args?.slot, ...(p.book ? { book: p.book } : {}) }, where: p.book ? `the Book ${W.get(p.book)?.version.body.name ?? p.book}` : where({ take: p.args?.take }), tool: p.tool, eta_s: p.plan?.eta_s ?? null, plan: p.plan ?? null, queued_at: null }));
   const refusals = J.refusals().map((x) => ({ id: x.id, source: "refusal", kind: x.spec.kind, title: x.spec.title, by: x.spec.by ?? "person", owner: x.spec.by === "agent" ? "agents" : "you", state: "failed",
     about: x.spec.about ?? {}, where: where(x.spec.about), error: `refused at queue: ${x.error}`, queued_at: x.at, retry: x.retry }));

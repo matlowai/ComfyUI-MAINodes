@@ -782,7 +782,7 @@ export function allows(tool, letAgentsRun) {
 
 // ---- proposals for canon (SNAP-R67): story, style and the dial wait for the person at every dial position -----------
 // they belong to the Book, not a graph (SNAP-R139); the accept names its id in the version it makes
-export const propose = (tool, args, reason, { book, needs = [], makes = [] }) => P.add(tool, args, reason, null, null, { book, needs, makes });
+export const propose = (tool, args, reason, { book, needs = [], makes = [], stacked = null }) => P.add(tool, args, reason, null, null, { book, needs, makes, stacked });
 // the beats waiting in a Book's story proposals: beat id -> the proposal that would add it
 export const waitingBeats = (book) => new Map(P.all().filter((p) => p.status === "waiting" && p.book === `book:${book.id}`).flatMap((p) => (p.makes ?? []).map((id) => [id, p.id])));
 
