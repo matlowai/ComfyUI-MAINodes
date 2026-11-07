@@ -6,7 +6,7 @@
 // SNAP-R59 Cast by reference (applyCast) · SNAP-R60 the person's cards are world records (world.js) ·
 // SNAP-R73 a Cast's voice reference goes in as an <Audio n> · SNAP-R84 a location by reference: its master, plan and named
 // plates (applyLocation), in one order on every apply · SNAP-R143 a take's sound as a Cast's voice (takeToVoice) · SNAP-R115 under Ref2V the First frame opens the shot as <Picture 1> (syncOpening) ·
-// see docs/snap/SNAP_RULES.md
+// SNAP-R148 one plate or camera mark changes alone (addPlate) · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
@@ -559,10 +559,28 @@ export function locationOf(ref) {
 }
 // add or replace one plate (by name) as a new version of the location
 // (a list of plates is one version: F-D10, four corrections made four versions)
+// F-G03 (SNAP-R148): a plate already there keeps every field the call leaves out, its picture too (so one pose or note
+// changes alone); camera may be a mark {name, x, y, heading, eye_height, lens, note}, added to the place or moved, the
+// rest of the marks kept. Returns kept: per plate, what it kept
 export async function addPlate(ref, plate, { note, by = "person" } = {}) {
-  const { id, body } = locationOf(W.refOf("location", W.parse(ref).id)), list = [plate].flat(), names = new Set(list.map((p) => p.name?.trim()));
-  const plates = [...(body.plates ?? []).filter((p) => !names.has(p.name)), ...list];
-  return saveLocation(id, { ...body, plates }, { note: note ?? `plate${list.length > 1 ? "s" : ""} ${list.map((p) => p.name).join(", ")}`, by });
+  const { id, body } = locationOf(W.refOf("location", W.parse(ref).id)), cameras = [...(body.cameras ?? [])], kept = {};
+  const list = [plate].flat().map((p) => {
+    let x = { ...p, ...(typeof p.name === "string" ? { name: p.name.trim() } : {}) };
+    if (x.camera && typeof x.camera === "object") {
+      const c = { ...x.camera, name: x.camera.name?.trim() };
+      if (!c.name) throw new Error(`plate ${x.name}: a camera mark needs a name`);
+      const i = cameras.findIndex((m) => m.name === c.name);
+      if (i < 0) cameras.push(c); else cameras[i] = { ...cameras[i], ...c };
+      x.camera = c.name;
+    }
+    const was = (body.plates ?? []).find((q) => q.name === x.name);
+    if (!was) return x;
+    const fresh = x.take != null || x.file != null, left = Object.keys(was).filter((k) => x[k] === undefined && !(fresh && ["file", "from"].includes(k)));
+    if (left.length) kept[x.name] = left;
+    return { ...Object.fromEntries(left.map((k) => [k, was[k]])), ...Object.fromEntries(Object.entries(x).filter(([, v]) => v !== undefined)) };
+  });
+  const names = new Set(list.map((p) => p.name)), plates = [...(body.plates ?? []).filter((p) => !names.has(p.name)), ...list];
+  return { ...await saveLocation(id, { ...body, cameras, plates }, { note: note ?? `plate${list.length > 1 ? "s" : ""} ${list.map((p) => p.name).join(", ")}`, by }), kept };
 }
 // put a location version into the open recipe's References, replacing what an earlier apply of it put there: its master
 // and plan (each unless false) and the plates named (in that order). Pins the version. Returns {said, cite}
