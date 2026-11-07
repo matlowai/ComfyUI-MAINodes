@@ -342,7 +342,7 @@ export const BOOK_TOOLS = [
       // the identity picture still shows it (pictures beat words). F-Q14: the state's words are a sentence
       const sentence = (x) => (x ? `${x[0].toUpperCase()}${x.slice(1)}`.replace(/\s*$/, "").replace(/([^.!?])$/, "$1.") : "");
       const styleSaid = (style?.body.paragraph ?? "").split(/(?<=[.!?])\s+/).filter(Boolean), ground = styleSaid.filter((x) => /\bbackgrounds?\b/i.test(x));
-      const absent = fold.left_out.map((x) => `${body.name} is without ${x.clause} here, though <Picture ${from ? 2 : 1}> shows it.`);
+      const absent = fold.left_out.map((x) => `${body.name} is without ${/^(a|an|the|his|her|their|its|one|two|\d)\b/i.test(x.clause) ? x.clause : `the ${x.clause}`} here, though <Picture ${from ? 2 : 1}> shows it.`);
       const subject = [`A settei (model sheet) of ${body.name} in this state: ${view} view, the full body from head to feet, standing alone on a plain light grey background with nothing else in the picture.`,
         from ? `<Picture 1> is ${body.name} in this state already.` : null, `<Picture ${from ? 2 : 1}> is ${body.name}${line ? `, ${line}` : ""}.`, ...said, sentence(words), ...absent, extra].filter(Boolean).join(" ");
       const kept = styleSaid.filter((x) => !ground.includes(x)).join(" "), prompt = kept ? `${kept}\n\n${subject}` : subject;
