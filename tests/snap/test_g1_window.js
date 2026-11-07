@@ -43,8 +43,9 @@ async function open(browser, ua) {
     await until(async () => (await fetch(`${base}/system_stats`)).ok);
     R.stale = await until(async () => (await pages()).find((x) => x.id === W.id && x.code_current === false));
     R.reload = await call("chrome", { action: "reload" });
-    R.after = (await pages()).find((x) => x.id === W.id);
-    R.callAfter = await call("read_ui");
+    // G14 gate race: the reloaded page re-registers a moment after the tool answers, so wait for it (as for the stale one)
+    R.after = await until(async () => (await pages()).find((x) => x.id === W.id && x.code_current === true && x.tools > 0), 40);
+    R.callAfter = await until(async () => { const r = await call("read_ui"); return r.status === 200 ? r : null; }, 40) ?? await call("read_ui");
     R.status = await call("chrome", {});
     await W.p.context().close();
     // routing without the window: a person's tab with the control off, and an agent's headless page
