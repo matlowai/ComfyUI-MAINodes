@@ -18,7 +18,8 @@
 // mood sentences · SNAP-R168 a cut opens before its beat · SNAP-R169 boards pin the story · SNAP-R170 a re-board keeps its own
 // board · SNAP-R172 the reversal cost says what moves · SNAP-R178 a wardrobe state folds the items it names · SNAP-R60 versions ·
 // SNAP-R11 nothing blocks · SNAP-R181 a held-prop cut is boarded at its key · SNAP-R189 a board says absent what its
-// pictures may still show · SNAP-R212 the Cut opens in Astrid, private takes stay out · SNAP-R213 a cut's take may come from another shot · see docs/snap/SNAP_RULES.md
+// pictures may still show · SNAP-R212 the Cut opens in Astrid, private takes stay out · SNAP-R213 a cut's take may come from another shot ·
+// SNAP-R223 a production is the record above the Book · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as W from "./world.js";
 import * as SC from "./scenes.js";
@@ -95,6 +96,41 @@ export async function saveBook(id, body, { note = "", by = "person" } = {}) {
   id ??= stamp("book");
   const out = await W.save("book", id, clean, { note, by });
   return { id, ref: out.ref, n: out.n, made: out.made };
+}
+
+// ---- the production (SNAP-R223): the record above Books, and what an Astrid project is -------------------------------
+export const productions = () => W.all("production").map((r) => ({ id: r.id, ref: `production:${r.id}`, head: r.head, body: W.headOf(r).body }));
+export function productionOf(ref) {
+  const { kind, id, n } = W.parse(String(ref).includes(":") ? ref : `production:${ref}`);
+  if (kind !== "production") throw new Error(`${ref} isn't a production reference (production:<id>; list_productions lists them)`);
+  const got = W.get(W.refOf("production", id, n));
+  if (!got) throw new Error(`No production ${ref}; the productions: ${productions().map((p) => `production:${p.id} (${p.body.name})`).join(", ") || "none yet (create_production makes one; a Book gets one of its own name)"}`);
+  return { id, n: got.version.n, body: got.version.body, ref: W.refOf("production", id, got.version.n) };
+}
+const slugOf = (name) => name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "production";
+// a Book is in one production: listing it here takes it out of any other (a new version of that one, saying where it went)
+export async function saveProduction(id, body, { note = "", by = "person" } = {}) {
+  await W.load();
+  if (!body?.name?.trim()) throw new Error("A production needs a name");
+  const clean = { name: body.name.trim(), books: [...new Set(body.books ?? [])], cast: [...new Set(body.cast ?? [])], locations: [...new Set(body.locations ?? [])], style: body.style ?? null,
+    astrid: { project: body.astrid?.project?.trim() || slugOf(body.name) } };
+  for (const r of [...clean.books, ...clean.cast, ...clean.locations, ...(clean.style ? [clean.style] : [])]) W.parse(r);
+  for (const r of clean.books) if (!W.record("book", W.parse(r).id)) throw new Error(`No Book ${r} (list_books lists them)`);
+  id ??= stamp("production");
+  const out = await W.save("production", id, clean, { note, by });
+  for (const other of productions().filter((p) => p.id !== id && p.body.books.some((b) => clean.books.includes(b)))) {
+    const moved = other.body.books.filter((b) => clean.books.includes(b));
+    await W.save("production", other.id, { ...other.body, books: other.body.books.filter((b) => !moved.includes(b)) }, { note: `${moved.map((b) => W.get(b)?.version.body.name ?? b).join(", ")} moved to ${clean.name}`, by });
+  }
+  return { id, ref: out.ref, n: out.n, made: out.made };
+}
+// the production a Book is in; a Book alone gets one of its own name the first time one is needed (R15: made, never a
+// refusal), under one id per Book so two pages asking at once make one
+export async function productionFor(book, { by = "migration" } = {}) {
+  const ref = `book:${book.id}`, found = productions().find((p) => p.body.books.includes(ref));
+  if (found) return found;
+  await saveProduction(`of-${book.id}`, { name: book.body.name, books: [ref] }, { note: "made for a Book that was in none (SNAP-R223)", by });
+  return productions().find((p) => p.id === `of-${book.id}`);
 }
 
 // a story body, checked and put in order: beats by story order with ranks 1..n for `order` and `told`, every change

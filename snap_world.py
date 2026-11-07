@@ -27,7 +27,7 @@ def sealed(path):
     return snap_vault_server is not None and snap_vault_server.snap_vault.sealed(path)
 
 routes = PromptServer.instance.routes
-KINDS = ("cast", "card", "set_snapshot", "location", "instruction", "skill", "book", "story", "look")  # SNAP-R84 locations · SNAP-R93/R94 agent instructions, a person's skill versions · SNAP-R67 the Book
+KINDS = ("cast", "card", "set_snapshot", "location", "instruction", "skill", "book", "story", "look", "production")  # SNAP-R84 locations · SNAP-R93/R94 agent instructions, a person's skill versions · SNAP-R67 the Book · SNAP-R223 the production above it
 FIELDS = ("draft", "plates")  # a set's working copy and its camera plates live beside the versions
 ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 lock = asyncio.Lock()
@@ -269,10 +269,10 @@ async def sizes(request):
     return web.json_response(await asyncio.to_thread(find))
 
 
-# F-Q12 (SNAP-R183): a record that can't open without others carries them: a Book its story and look (every version's);
-# its Cast and places are offered, not carried (they are the person's to share)
-PARTS = {"book": ("story", "style")}
-OFFERS = {"book": ("cast", "locations")}
+# F-Q12 (SNAP-R183): a record that can't open without others carries them: a Book its story and look (every version's),
+# a production its Books (and so theirs) and its style; Cast and places are offered, not carried (the person's to share)
+PARTS = {"book": ("story", "style"), "production": ("books", "style")}
+OFFERS = {"book": ("cast", "locations"), "production": ("cast", "locations")}
 
 
 def refs_in(r, keys, versions):
@@ -300,7 +300,7 @@ async def export(request):
         if missing:
             raise web.HTTPNotFound(text=json.dumps({"error": f"No record {', '.join(missing)}"}), content_type="application/json")
         carried, absent, offered = [], [], []
-        for _, r in list(found):
+        for _, r in found:  # grows as parts are carried, so a production's Books carry their own stories
             own = f"{r['kind']}:{r['id']}"
             for ref in refs_in(r, PARTS.get(r["kind"], ()), r["versions"]):
                 k = tuple(ref.split(":", 1))

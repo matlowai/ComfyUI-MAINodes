@@ -14,7 +14,7 @@
 // SNAP-R116 a page never works from records another writer changed · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 
-export const KINDS = ["cast", "card", "set_snapshot", "location", "instruction", "skill", "book", "story", "look"]; // SNAP-R67: the Book, its story, its production style // scenes version their authored fields in their own documents (scenes.js)
+export const KINDS = ["cast", "card", "set_snapshot", "location", "instruction", "skill", "book", "story", "look", "production"]; // SNAP-R67: the Book, its story, its production style; SNAP-R223: the production above Books // scenes version their authored fields in their own documents (scenes.js)
 const fileOf = (kind, id) => `snap/${kind}/${id}.json`, archivedOf = (kind, id) => `snap/_archived/${kind}/${id}.json`;
 const key = (kind, id) => `${kind}:${id}`;
 let records = new Map(), loading = null, rev = null;

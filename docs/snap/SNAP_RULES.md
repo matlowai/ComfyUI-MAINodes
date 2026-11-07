@@ -2010,4 +2010,14 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
   F-AC08: a refused `rerun` of short05's C2 key opened its empty workflow and saved it over the shot, and every
   recipe-reading tool then threw until a retake restored it. *More:* tests/snap/test_g15_cut.js.
 
-Next free ID after this batch: SNAP-R215 (R160-R164 stay free).
+- **SNAP-R223: A production is the record above the Book, and it is what an Astrid project is.** A `production` record
+  holds a name, its Books in order, the Cast and places they share, a default style and `astrid.project` (the Astrid
+  project's slug, from the name unless given). A Book is in one production: listing it in another takes it out of the
+  first, whose version says where it went. A Book made alone, or an old Book read for the first time, gets a production
+  of its own name (`production:of-<book>`, so two pages asking at once make one), never a refusal. Its export carries
+  its Books and their stories; Cast and places are offered. The Book sheet names it ("Book 2 of 2"). *Why:* the
+  operator, 2026-11-07: "one per book but it sounds like we need some higher organizational tree layers", and "a
+  project being a trilogy or multi books"; one Astrid project per production, one timeline per Book (PROTOCOL_V1_1 §3,
+  §14.1). *More:* tests/snap/test_g16_production.js.
+
+Next free ID after this batch: SNAP-R230 (R160-R164 stay free; G16 reserved R215-R229).

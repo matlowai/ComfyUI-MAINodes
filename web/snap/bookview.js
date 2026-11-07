@@ -10,7 +10,7 @@
 // SNAP-R67 the Book and the story clock · SNAP-R68 compile with provenance · SNAP-R69 settei per state · SNAP-R175 the colour script · SNAP-R176 settei design it · SNAP-R130 the
 // production style · SNAP-R131 boards and the animatic · SNAP-R132 the Cut · SNAP-R133 the plan drawn here · SNAP-R80
 // every picture full size · SNAP-R58 nothing trimmed · SNAP-R8 judged from screenshots · SNAP-R165 Cast lines folded · SNAP-R209 an out-of-date story proposal offers a re-make ·
-// SNAP-R168 a cut opens before its beat · SNAP-R183 a record this install lacks is named, with how to bring it · see docs/snap/SNAP_RULES.md
+// SNAP-R168 a cut opens before its beat · SNAP-R183 a record this install lacks is named, with how to bring it · SNAP-R223 the Book names its production · see docs/snap/SNAP_RULES.md
 import * as B from "./book.js";
 import * as W from "./world.js";
 import * as SC from "./scenes.js";
@@ -60,7 +60,9 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
       h("button", { className: "snap-primary", textContent: "+ New Book", onclick: act(async () => { const st = await B.saveStory(null, { title: "Untitled" }); const out = await B.saveBook(null, { name: "Untitled Book", story: `story:${st.id}` }, { note: "made in the Book sheet" }); bookRef = `book:${out.id}`; return "A new Book"; }) })));
     const b = B.bookOf(bookRef), st = b.body.story ? B.storyOf(b.body) : null, style = B.styleOf(b.body), a = b.body.autonomy;
     const pickBook = h("select", { ariaLabel: "Book", onchange: (e) => { bookRef = e.target.value; picked = null; draw(); } }, ...all.map((x) => h("option", { value: x.ref, textContent: x.body.name, selected: x.ref === `book:${b.id}` })));
-    fill(top, pickBook, h("span", { className: "snap-al-chip", textContent: b.body.medium }), st ? h("span", { className: "snap-quiet", textContent: `story v${st.n} · ${st.body.beats.length} beats · ${B.units(b).length} cuts` }) : null,
+    const pr = B.productions().find((p) => p.body.books.includes(`book:${b.id}`)), nth = pr ? pr.body.books.indexOf(`book:${b.id}`) + 1 : 1;
+    fill(top, pickBook, h("span", { className: "snap-al-chip", title: "the production this Book is in (SNAP-R223): its Books share Cast, places and style, and in Astrid it is one project with a timeline per Book", textContent: `production: ${pr ? pr.body.name : `${b.body.name} (its own)`}${pr?.body.books.length > 1 ? ` · Book ${nth} of ${pr.body.books.length}` : ""}` }),
+      h("span", { className: "snap-al-chip", textContent: b.body.medium }), st ? h("span", { className: "snap-quiet", textContent: `story v${st.n} · ${st.body.beats.length} beats · ${B.units(b).length} cuts` }) : null,
       style ? h("span", { className: "snap-al-chip choice", title: style.body.paragraph, textContent: `style: ${style.body.name} · ${style.body.palette}` }) : h("span", { className: "snap-al-chip", textContent: "no production style yet" }),
       h("span", { className: "snap-spacer" }),
       h("button", { className: `snap-link snap-quiet-btn${dialOpen ? " on" : ""}`, textContent: `Dial: ${a.default}${Object.keys(a.stages).length ? ` · ${Object.entries(a.stages).filter(([, v]) => v !== a.default).length} stage${Object.entries(a.stages).filter(([, v]) => v !== a.default).length === 1 ? "" : "s"} differ` : ""}`, title: "who may act without asking, per stage: assist (agents wait), collaborate (as Let agents run), automatic (that stage goes ahead); story and style stay proposals", onclick: () => { dialOpen = !dialOpen; draw(); } }),
