@@ -513,7 +513,8 @@ async function locationPicture(p, what, dry = false) {
     await T.load();
     const t = T.find(p.take);
     if (!t) throw new Error(`${what}: no take ${p.take} (list_takes lists them)`);
-    if (dry) return { file: `(take ${t.number}'s frame, saved into input/ by the real call)`, from: { take: t.id, frame: p.frame ?? (t.media.some((m) => m.kind === "video") ? "last" : 0) } }; // SNAP-R177: nothing pulled
+    // F-S08: the take by its id's start too (two shots each have a take 3)
+    if (dry) return { file: `(take ${t.number}'s frame, saved into input/ by the real call; ${t.id.slice(0, 13)})`, from: { take: t.id, frame: p.frame ?? (t.media.some((m) => m.kind === "video") ? "last" : 0) } }; // SNAP-R177: nothing pulled
     const { file, frame } = await T.frameAt(t, "last", { frame: p.frame ?? (t.media.some((m) => m.kind === "video") ? undefined : 0) });
     return { file, from: { take: t.id, frame } };
   }
