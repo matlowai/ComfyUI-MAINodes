@@ -12,7 +12,7 @@
 // SNAP-R102 whole frame first, nothing shrunk · SNAP-R104 what is read follows the checklist · SNAP-R58 nothing an agent
 // reads is cut: part, offset and limit page it · SNAP-R136 what the sheet shows, the packet shows · SNAP-R155 the place's
 // scale anchors and how to measure against them (scale_rule) · SNAP-R184 a board's packet: its Cast, its pictures by number, a
-// measuring copy · see docs/snap/SNAP_RULES.md
+// measuring copy · SNAP-R189 what a board's state takes away (should_be_absent) · see docs/snap/SNAP_RULES.md
 import * as L from "./library.js";
 import * as T from "./takes.js";
 import * as C from "./candidates.js";
@@ -157,6 +157,8 @@ function words(r, tb) {
     // pins the place it was drawn from, and the Cast's pictures go in as files
     const st = t.story ?? null, unit = (st?.unit && SC.get(st.unit.scene)?.shots.find((x) => x.id === st.unit.shot)?.unit) || RT.shotOf(t)?.shot.unit, castName = (ref) => W.get(ref)?.version.body.name ?? null;
     out.who_should_be_here = [...new Set([...out.pins.filter((p) => p.ref.startsWith("cast:")).map((p) => p.name), ...(unit?.cast ?? []).map(castName), ...(st?.cast ? [castName(st.cast)] : [])].filter(Boolean))];
+    // F-S05 (SNAP-R189): what the board's state takes away while a context picture may show it: a note when it is drawn
+    if (st?.absent?.length) out.should_be_absent = { said: "the story's state at this frame leaves each of these out, though a picture it was made from may show it: a board that draws one back is a mismatch with the state (beat pass, high when it is in a hand the beat empties)", things: st.absent.map((a) => ({ who: a.who, thing: a.thing, beat: a.beat, shown_in: a.shows })) };
   }
   if (s.kind === "record") { const b = W.get(s.ref)?.version.body ?? {}, gaps = s.ref.startsWith("location:") ? L.eyeGaps(b) : {};
     out.record = { ref: s.ref, name: b.name, ...(b.notes ? { notes: b.notes } : {}), ...(b.details ? { details: b.details } : {}),

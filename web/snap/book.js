@@ -17,7 +17,8 @@
 // and key drawing · SNAP-R165 a Cast line folds through the state · SNAP-R166 apply_unit lands off the Cut · SNAP-R167 holder and
 // mood sentences · SNAP-R168 a cut opens before its beat · SNAP-R169 boards pin the story · SNAP-R170 a re-board keeps its own
 // board · SNAP-R172 the reversal cost says what moves · SNAP-R178 a wardrobe state folds the items it names · SNAP-R60 versions ·
-// SNAP-R11 nothing blocks · SNAP-R181 a held-prop cut is boarded at its key · see docs/snap/SNAP_RULES.md
+// SNAP-R11 nothing blocks · SNAP-R181 a held-prop cut is boarded at its key · SNAP-R189 a board says absent what its
+// pictures may still show · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as W from "./world.js";
 import * as SC from "./scenes.js";
@@ -503,7 +504,7 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
       // to the end, so an opening drawn under them mixes the two (the ladle still in her hand "with both hands"); a hand that
       // takes something up from nothing opens empty, which agrees with the action
       const empty = f.value == null || (Array.isArray(f.value) && !f.value.length);
-      if (here && (/^carried\.(right|left)_hand$/.test(path) || (!ref.startsWith("cast:") && path === "holder")) && (was || empty) && JSON.stringify(was?.value ?? null) !== JSON.stringify(f.value ?? null)) held.push({ who: name, path, beat: f.beat, ...(wasText ? { opens: S(wasText) } : {}), ...(text ? { ends: S(text) } : {}) });
+      if (here && (/^carried\.(right|left)_hand$/.test(path) || (!ref.startsWith("cast:") && path === "holder")) && (was || empty) && JSON.stringify(was?.value ?? null) !== JSON.stringify(f.value ?? null)) held.push({ who: name, path, beat: f.beat, ...(wasText ? { opens: S(wasText) } : {}), ...(text ? { ends: S(text) } : {}), ...(empty && was?.value ? { put_down: [was.value].flat().filter((v) => typeof v === "string").map((v) => nameOf(story, v)).join(", ") } : {}) }); // F-S05: what the beat takes out of the hand
       if (here && wasText && wasText !== text) { say(`At the start of the cut, ${wasText}`, `${was.beat} change ${was.change} (before ${f.beat})`); if (text) say(`By the end, ${text}`, provenance); }
       else if (text) say(text, provenance);
       if (text) ends.push(S(text));
@@ -635,7 +636,7 @@ export async function boardPackage(sheet, { context = null, role = boardRole(she
   const own = unit.board?.file && unit.board.approved ? [{ file: unit.board.file, label: `${unit.cut ?? "this cut"}'s approved board`, keep: "keep its blocking: who stands or sits where, facing which way" }] : null;
   for (const c of context ?? own ?? (list[i - 1]?.unit.board?.file ? [{ file: list[i - 1].unit.board.file, label: "the previous cut's board" }] : [])) {
     if (c.cut) { const u = list.find((x) => x.unit.cut === c.cut); if (!u?.unit.board?.file) throw new Error(`context: ${u ? `${c.cut} has no board yet` : `no cut ${c.cut}; the cuts: ${list.map((x) => x.unit.cut).join(", ")}`}`); near.push({ file: u.unit.board.file, label: c.cut === unit.cut ? `${c.cut}'s own board` : `${c.cut}'s board`, ...(c.cut === unit.cut ? { keep: "keep its blocking: who stands or sits where, facing which way" } : {}) }); }
-    else if (c.take) { const t = T.get(c.take); if (!t) throw new Error(`context: no take ${c.take}`); const f = await T.frameAt(t, "last", { frame: c.frame ?? (t.media.some((m) => m.kind === "video") ? undefined : 0) }); near.push({ file: f.file, label: c.label ?? `take ${t.number}` }); }
+    else if (c.take) { const t = T.find(c.take); if (!t) throw new Error(`context: no take ${c.take}`); const f = await T.frameAt(t, "last", { frame: c.frame ?? (t.media.some((m) => m.kind === "video") ? undefined : 0) }); near.push({ file: f.file, label: c.label ?? `take ${t.number}`, ...(c.keep ? { keep: c.keep } : {}) }); }
     else if (c.file) near.push({ file: c.file, label: c.label ?? c.file, ...(c.keep ? { keep: c.keep } : {}) });
     else throw new Error("context: each picture is {cut}, {take, frame} or {file, label}");
   }
@@ -644,7 +645,24 @@ export async function boardPackage(sheet, { context = null, role = boardRole(she
   const at = unit.location ? 1 : 0, cast = sheet.entities.filter((e) => e.ref.startsWith("cast:")).map((e) => { const n = pictures.map((p, k) => (sheet.package.some((x) => x.file === p.file && x.from === e.ref) ? `<Picture ${k + 1}>` : null)).filter(Boolean); return n.length ? `${e.name} is ${n.join(" and ")}.` : null; });
   const cites = [unit.location ? `<Picture 1> is ${unit.plate ? "this cut's camera on the place: keep its framing" : "the place"}.` : null, ...near.map((n, k) => `<Picture ${at + k + 1}> is ${n.label}: ${n.keep ?? "the same place and light"}.`), ...cast].filter(Boolean).join(" ");
   const still = role === "key" ? sheet.still_prompt : sheet.opens?.still_prompt ?? sheet.still_prompt;
-  return { role, ...(own && !context ? { context: `${own[0].label} (re-boarding keeps its blocking; give context to choose another)` } : {}), pictures, prompt: [still, cites, ROLE_LINE[role] ?? ROLE_LINE.opening].filter(Boolean).join(" ") };
+  // F-S05 (SNAP-R189): pictures beat words, so what the drawn frame's state takes away is said absent even where a
+  // context picture shows it: a thing the cut's own beat puts down (the key is drawn after it, the boards around it
+  // before), and a Cast line clause the state leaves out (the Cast's own picture still shows it). The key board's pin
+  // keeps the list, so its critic packet asks the critic to look for each one
+  const absent = [];
+  if (role === "key" || !sheet.opens) {
+    for (const x of sheet.opens?.held ?? []) if (x.put_down) absent.push({ who: x.who, thing: x.put_down, path: x.path, beat: x.beat });
+    for (const e of sheet.entities) for (const l of e.cast_line?.left_out ?? []) if (l.value == null || (Array.isArray(l.value) && !l.value.length)) {
+      const same = absent.find((a) => a.who === e.name && a.path === l.path);
+      if (same) same.clause = l.clause; else absent.push({ who: e.name, thing: l.clause, clause: l.clause, path: l.path, beat: l.beat });
+    }
+  }
+  const shows = (a) => pictures.map((p, k) => (near.some((n) => n.file === p.file) || (a.clause && p.label.startsWith("cast: ") && sheet.package.some((x) => x.file === p.file && sheet.entities.some((e) => e.ref === x.from && e.name === a.who))) ? `<Picture ${k + 1}>` : null)).filter(Boolean);
+  const unsaid = absent.map((a) => ({ ...a, shows: shows(a) })).filter((a) => a.shows.length);
+  const lines = unsaid.map((a) => `${a.who} is without ${a.thing} in this frame, even where ${a.shows.join(" and ")} show${a.shows.length > 1 ? "" : "s"} it.`);
+  const lint = unsaid.map((a) => `${a.shows.join(" and ")} may show ${a.thing} with ${a.who}, which the state leaves out here (${a.beat}, ${a.path}): the board prompt says it is absent, and the critic packet lists it (F-S05)`);
+  return { role, ...(own && !context ? { context: `${own[0].label} (re-boarding keeps its blocking; give context to choose another)` } : {}), pictures, prompt: [still, cites, ...lines, ROLE_LINE[role] ?? ROLE_LINE.opening].filter(Boolean).join(" "),
+    ...(unsaid.length ? { absent: unsaid.map(({ who, thing, path, beat, shows: on }) => ({ who, thing, path, beat, shows: on })), lint } : {}) };
 }
 
 // ---- apply a compile to the open recipe (the Snap chain of the unit's shot) ------------------------------------------
