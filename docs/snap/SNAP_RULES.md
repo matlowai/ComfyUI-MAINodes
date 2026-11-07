@@ -1774,3 +1774,56 @@ SNAP-R185 on. R160-R164 stay free.
 - **SNAP-R179 (amended, G10): a question asked in the same words as one above waits behind it.** The Room's Then list
   shows each sentence once; the next row with the same words comes up when that one is answered (F-S11: 35 identical
   "Which new view do you keep for …?" rows).
+
+## Batch G11 (2026-11-07)
+
+SNAP-R191 on. R160-R164 stay free.
+
+- **SNAP-R191: A region edit's seam is checked.** The paste-back graph (SNAP-R190) ends in the pack's seam check
+  (MAISnapSeam): just inside each edge of the crop, past the feather, the edit is compared with the picture it is pasted
+  over; a run along an edge where they differ far more than that edge does elsewhere (above 40 of 255 and three times
+  the edge's median, or above 100: an edge redrawn all along) is a break: something drawn inside that doesn't meet the
+  picture outside. A side on the picture's border is not read. Each candidate gets a seam note (`breaks` with side,
+  pixel run and peak; `crop_to_try`, the crop reaching half again past each side that breaks; a sentence) and a chip on
+  its tile ("seam breaks · bottom" or "seam ok"). It informs and never blocks (SNAP-R23). *Why:* F-T02: the monocle's
+  chain crossed the eye crop's bottom edge, was redrawn inside and kept outside, and broke at the seam; a wider feather
+  would only cross-fade two offset chains, and a named-feature extension needs the agent to foresee the feature. The
+  check finds what nobody named and says where. *More:* tests/snap/test_g11.js; the GPU measure is in the study's
+  LESSONS "Batch G11".
+- **SNAP-R192: A packet shows a cropped picture as the model got it.** A context picture a New view or edit was made
+  from with a crop goes into its critique packet as that crop (the pixels ComfyUI's crop cut, its px box in the label
+  and `crop {box, of}`), then the whole picture it was cut from, labelled as context only (the model saw only the crop).
+  Picture 1 of a region edit says it was edited and pasted back. *Why:* F-U03: the packet showed the whole 896x1152 Cast
+  picture labelled "cropped", and the critic rebuilt the crop by hand from get_take.
+- **SNAP-R193: Zooms are 100 % tiles over the small things.** After the context, a packet adds zoom tiles (role tile,
+  `zoom: true`, mapped like tiles so a note drawn on one lands on the subject), each padded by a quarter of its size and at
+  least 160 px a side, with a 2x copy when it is at most 512 px: over a region edit's pasted crop; over where an edit
+  changed its Picture 1 (8 px cells whose colour moved more than 28, joined; none when more than half the picture
+  changed, a new view rather than an edit); and any the critic asks for with `critique_packet {zoom: [{region, picture}
+  | {find, picture}]}` (a note's region, or a thing in words that SAM 3.1 boxes, up to 4). Asked zooms stay on the row,
+  so a later call keeps every picture's number; `part: "zoom"` pages only the zooms. *Why:* F-U05: the "100 % tiles" of
+  a 2048x1152 still were two 1536 px halves, too big to read a 60 px monocle; the critic cropped faces by hand.
+- **SNAP-R194: An edit's or New view's packet carries its cut's Cast.** Who a take's packet expects is the Cast it pins,
+  its cut's Cast (the story pin's unit, or the shot it landed in), a board's story pin, and the Cast the take it was
+  made from pins (Picture 1's), each once at a version: one the take doesn't pin joins `pins` with `not_pinned` saying
+  where it came from, `who_should_be_here` names them all, and the edit checklist now reads the Cast pictures too
+  (snap_cards/critic.json `edit.context`: source, cast). *Why:* F-U04: an edit candidate in C2's shot had Kuroe only
+  through its reference crop and Mio not at all; G9 had fixed this for key boards only (SNAP-R184).
+- **SNAP-R195: A compact critique row names its take and how it was made, never the job's prompt.** `list_critiques
+  {compact: true}` rows carry `take` (the id's start that every take tool takes), `decision`, the agent's `question`
+  when it asked one, and a title of the place, the take, its seed and the job's method ("… › take 10 (seed 9401) · New
+  view · P-H3-Image ×2"); `list_critiques {decision}` lists one decision's rows (an id or a unique start). The row's whole
+  title, prompt and all, stays on `list_critiques {critique}` and `{take}`, never cut (SNAP-R58). *Why:* F-U06: compact
+  rows had no take id and each title carried the ~600-character edit prompt; with 125 rows due the critic found its rows
+  by "seed 9401".
+- **SNAP-R196: One detail of a Cast picture is fixed as a new Cast version.** `use_take {take, as: "cast", cast,
+  replace: n}` puts the take's picture in place of the Cast's picture n (its role kept unless one is given) as a new
+  version; the version before keeps the old picture, and what pinned it still reads it until rerun_dependents re-makes
+  it. The route for a detail: a region edit of the Cast picture (`edit_from_context {pictures: [{cast, ref, crop}],
+  purpose: "edit", paste_back: true}`), then `use_take … replace`; from an agent with `propose: true`, since the Cast is
+  the person's. For a person: the New view tray offers "edit only the marked region, then paste it back" when Picture 1
+  is a marked region on P-H3-Image, and a take's Send to lists "Cast: <name>, in place of picture n (<role>)" for each
+  Cast it pins. *Why:* F-U01: Kuroe's Cast front picture draws a bar across the nose that every edit copied; use_take
+  could only add a picture, so fixing one meant restating every picture in save_cast.
+
+Next free ID after this batch: SNAP-R197 (R160-R164 stay free).

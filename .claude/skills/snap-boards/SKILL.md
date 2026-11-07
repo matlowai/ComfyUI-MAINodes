@@ -41,6 +41,13 @@ Re-boarding from a fixed board (G10, short05 C2):
   cheapest sure fix is a context that already agrees: edit it at the source first, every field it differs on.
 - To change one detail of a board (the eyewear), edit a crop and paste it back (`edit_from_context {paste_back: true}`,
   SNAP-R190): a whole-board edit with the Cast's front picture turned a face that looked away from camera (2/2).
+- Prefer the region edit for any face-area change (F-U02): whole-picture edits turned a face that looked away 4/4 over
+  two tries, with or without the Cast's front picture. Crop only what changes (a whole-head crop turned the head 2/2; an
+  eye crop kept it 2/2), and past where a thin thing crossing the crop ends (the monocle's chain broke at an eye crop's
+  bottom edge). Read each candidate's seam note; on "seam breaks", edit again with its `crop_to_try` or a crop set where
+  the thing ends (SNAP-R191).
+- A flaw born in the Cast picture itself is fixed there, not in every board: a region edit of the Cast picture, then
+  `use_take {as: "cast", replace: n, propose: true}` (SNAP-R196), then rerun_dependents.
 
 ## 3. Animatic and checks
 

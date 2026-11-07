@@ -579,6 +579,9 @@ for t in test_g9_room.js test_g9_book.js; do park; timeout 900 nice -n 19 node "
 # room says what shows, plate owners by whole name, a board says absent what its pictures may show, a region edit pastes
 # back; prints "g10 n/m" last; screens in ui/g10/
 for t in test_g10.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
+# G11 (SNAP-R191..R196; F-U findings, F-T02): a region edit's seam note, a packet's crops as the model got them, its
+# cut's Cast, zooms, compact critique rows, a Cast picture replaced as a new version; prints "g11 n/m" last; screens in ui/g11/
+for t in test_g11.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
 nice -n 19 "$py" -I "$T"/test_iris.py >test_iris.py.out 2>&1; tail -1 test_iris.py.out
 # SNAP-R109: the shipped critic prompt's last real run on the fixtures holds the floor (fixtures.json: r5b, 27/31, 0 FA;
 # a real-agent check, re-scored from its saved notes). critic = r6, the shipped prompt (r5b + metres from the record's

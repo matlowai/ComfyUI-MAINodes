@@ -105,6 +105,10 @@ Every call in Snap runs under one resolved stack of agent instructions. Read it 
 - Before installing a node pack, read its code (the person's code-review setting, SNAP-R28) and grep the installed
   packs for its node ids. Weights are safetensors only.
 - Warn, never block; marks inform (SNAP-R11).
+- **A change to part of a picture is a region edit** (SNAP-R190, R191): for a face, eyewear, a hand or a prop, crop that
+  part of Picture 1 and paste it back (`edit_from_context {paste_back: true}`); a whole-picture edit turns heads (a face
+  looking away turned 4/4). Take the crop past where a thin thing crossing it ends, and read each candidate's seam note.
+  A flaw in a Cast's own picture is fixed the same way and saved with `use_take … replace` as a proposal (SNAP-R196).
 - **Keep the GPU working toward the goal.** The operator, 2026-11-06: "find useful things to keep GPU busy and working
   towards a goal or learning". When the GPU is idle and the main job waits (on a person, a review, a list), start the
   next useful GPU work toward the goal; do the parts of a fix that are already known instead of waiting for the whole

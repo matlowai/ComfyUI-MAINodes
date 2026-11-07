@@ -419,7 +419,11 @@ them). It works on stills: masters, plates, boards.
 - **A region edit** keeps everything outside the region by construction: Picture 1 with a `crop` (the face) and
   `paste_back: true` (`ph3_view`): the crop is edited at about 1 MP and pasted back with a feathered edge, so a face
   edit can't turn the body (F-S04, SNAP-R190). For a face turned away from camera, give the item's crop as Picture 2,
-  not the Cast's front picture (it pulls the head round).
+  not the Cast's front picture (it pulls the head round). Use it for every face-area change: whole-picture edits turned
+  a face that looked away 4/4 (F-U02). Crop only what changes, but past where a thin thing that crosses the crop ends (a
+  chain, a strap): each candidate's seam note (`list_candidates` notes.seam, a chip on its tile) lists where the edit
+  doesn't meet the picture outside, with `crop_to_try` (half the crop again past that side); on "seam breaks", edit
+  again with a crop set where the thing ends (F-T02, SNAP-R191).
 - In the take viewer the same route is "New view from these pictures": add this picture, a marked region of it, or a
   Cast's picture, move them up or down, and pick the model.
 - A small change to one detail (eyes, a prop): `ph3_view` with the still (or a crop of the part, e.g. the face) as
@@ -484,10 +488,13 @@ thumbnail in Snap opens the same viewer on a click; nothing changes by viewing.
 
 Snap puts a critique row on the docket for every landed take, board, sheet, candidate, location version and cut pair,
 and waits for an agent; it never judges a picture itself. When you are on duty (between your own renders too), work
-it with the `snap-critic` skill: `list_critiques {"state": "due"}` (add `"compact": true` to scan a long docket),
+it with the `snap-critic` skill: `list_critiques {"state": "due"}` (add `"compact": true` to scan a long docket: each row has the take id's start, its decision and a title without
+the job's prompt; `{"decision": "<id>"}` lists one edit's candidates' rows, SNAP-R195),
 `claim_critique {"critique": "<id>"}`, `critique_packet {"critique": "<id>"}` (the subject whole at native size, then
-100 % tiles, then the context pictures and the words; pictures saved by snapcall in the order its `pictures[].image`
-says), then `write_critique {"critique", "verdict": "clean" | "flaws", "passes": {...}, "notes": [{"severity",
+100 % tiles, then the context pictures (a picture the model got cropped as that crop, then its whole; the cut's Cast
+too, SNAP-R192, R194), then zooms (a region edit's crop or where an edit changed its Picture 1, at 100 % and 2x when
+small; ask for more with `"zoom": [{"region": [x, y, w, h]}, {"find": "eyes"}]`, SNAP-R193), and the words; pictures
+saved by snapcall in the order its `pictures[].image` says), then `write_critique {"critique", "verdict": "clean" | "flaws", "passes": {...}, "notes": [{"severity",
 "pass", "text", "picture", "region": [x, y, w, h], "owner", "fix"}]}`. The notes land on the take with masks; nothing
 is blocked by them. An owner names the part it was born in ("plate Pb", "plan", "location master", "location notes",
 "camera marks"): Snap stores that part and lists words it can't map in `owners_unmapped` (SNAP-R156). "camera marks"
@@ -518,6 +525,9 @@ of a shot's tab): check it before opening more, and tell the person which scratc
   tag, "<Picture 2> is Maren" (SNAP-R137; `set_setting` answers `cites` when a tag holds more). `describe_recipe.references[].named` says whether the prompt
   cites each picture. "Missing" means the file is gone (subfolder files count as there).
 - **Where a picture goes:** `use_take {as: "cast", cast, role}` makes a frame a Cast's next picture (a new version);
+  with `replace: n` it takes the place of picture n, role kept: a flaw in a Cast picture itself (a bar across the nose)
+  is fixed by a region edit of that picture (`{cast, ref, crop}` as Picture 1, `paste_back: true`, purpose edit) and
+  then `use_take {take, as: "cast", cast, replace: ref, propose: true}`, since the Cast is the person's (SNAP-R196);
   `{as: "plate", location, name}` makes it a location's plate; `{as: "voice", cast, at, length}` makes a stretch of its
   sound the Cast's voice reference (SNAP-R143).
 - **A Cast's pictures per shot:** `apply_cast {cast, pictures: ["state A"]}` (roles). The pin keeps the choice. An update
