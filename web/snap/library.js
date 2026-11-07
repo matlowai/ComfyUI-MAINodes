@@ -6,7 +6,7 @@
 // SNAP-R59 Cast by reference (applyCast) · SNAP-R60 the person's cards are world records (world.js) ·
 // SNAP-R73 a Cast's voice reference goes in as an <Audio n> · SNAP-R84 a location by reference: its master, plan and named
 // plates (applyLocation), in one order on every apply · SNAP-R143 a take's sound as a Cast's voice (takeToVoice) · SNAP-R115 under Ref2V the First frame opens the shot as <Picture 1> (syncOpening) ·
-// SNAP-R148 one plate or camera mark changes alone (addPlate) · SNAP-R155 a place's scale anchors (scaleOf) · SNAP-R165 a Cast line folds through the story state (applyCast line) · see docs/snap/SNAP_RULES.md
+// SNAP-R148 one plate or camera mark changes alone (addPlate) · SNAP-R177 a dry run writes nothing (saveLocation dry) · SNAP-R155 a place's scale anchors (scaleOf) · SNAP-R165 a Cast line folds through the story state (applyCast line) · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
@@ -507,12 +507,13 @@ function poseOf(p, what) {
 }
 // a picture of a location: an input/ file as it is, or a take's frame (frame; a still has one) saved into input/ with
 // where it came from; {file, from} as the record keeps it
-async function locationPicture(p, what) {
+async function locationPicture(p, what, dry = false) {
   if (p == null) return null;
   if (p.take) {
     await T.load();
     const t = T.find(p.take);
     if (!t) throw new Error(`${what}: no take ${p.take} (list_takes lists them)`);
+    if (dry) return { file: `(take ${t.number}'s frame, saved into input/ by the real call)`, from: { take: t.id, frame: p.frame ?? (t.media.some((m) => m.kind === "video") ? "last" : 0) } }; // SNAP-R177: nothing pulled
     const { file, frame } = await T.frameAt(t, "last", { frame: p.frame ?? (t.media.some((m) => m.kind === "video") ? undefined : 0) });
     return { file, from: { take: t.id, frame } };
   }
@@ -540,33 +541,49 @@ function scaleOf(list) {
   });
 }
 export const scaleText = (scale) => (scale?.length ? scale.map((a) => `${a.name} ${a.height_m} m`).join(", ") : "");
+// camera marks as a location keeps them: each named, its pose checked
+export function camerasOf(list) {
+  return (list ?? []).map((c, i) => {
+    if (!c?.name?.trim()) throw new Error(`cameras[${i}]: a camera mark needs a name (C1, P01, …)`);
+    return { name: c.name.trim(), ...poseOf(Object.fromEntries(POSE.filter((k) => c[k] != null).map((k) => [k, c[k]])), `camera ${c.name}`), ...(c.note?.trim() ? { note: c.note.trim() } : {}) };
+  });
+}
+// a location's change in words (SNAP-R177 dry runs): plates and camera marks by name ("plate P1 added", "plate P1.pose.eye_height
+// 1.6 → 1.7", "camera mark C2 taken out"), every other field as diff_record says it
+export function locationDiff(a, b) {
+  const byName = (list) => new Map((list ?? []).map((x) => [x.name, x])), out = [], rest = (x) => Object.fromEntries(Object.entries(x ?? {}).filter(([k]) => !["plates", "cameras"].includes(k)));
+  for (const [k, what] of [["plates", "plate"], ["cameras", "camera mark"]]) {
+    const was = byName(a?.[k]), now = byName(b?.[k]);
+    for (const [n, x] of now) out.push(...(was.has(n) ? W.diff(was.get(n), x, `${what} ${n}.`) : [`${what} ${n} added: ${JSON.stringify(x)}`]));
+    for (const n of was.keys()) if (!now.has(n)) out.push(`${what} ${n} taken out`);
+  }
+  return [...W.diff(rest(a), rest(b)), ...out];
+}
 // a new version of a location (a new record when id is null): {id, ref, n, made}. The whole place each time; a picture
-// given as a take's frame is saved into input/ first
-export async function saveLocation(id, body, { note = "", by = "person" } = {}) {
+// given as a take's frame is saved into input/ first. dry (SNAP-R177): every check runs, nothing is pulled or saved, and
+// the answer is the would-be version with its diff
+export async function saveLocation(id, body, { note = "", by = "person", dry = false } = {}) {
   await ready();
   if (!body?.name?.trim()) throw new Error("A location needs a name");
-  const names = new Set(), cameras = [], plates = [], scale = scaleOf(body.scale);
+  const names = new Set(), cameras = camerasOf(body.cameras), plates = [], scale = scaleOf(body.scale);
   // F-K05: a picture given by its file alone keeps the take and frame it came from when the newest version had that file
   const prev = id && W.record("location", id) ? W.headOf(W.record("location", id)).body : null;
   const was = (file) => [prev?.master, prev?.plan, prev?.map, ...(prev?.plates ?? [])].find((x) => x?.file === file && x.from)?.from;
   const sourced = (p) => (p && p.file && !p.take && !p.from && was(p.file) ? { ...p, from: was(p.file) } : p);
-  for (const [i, c] of (body.cameras ?? []).entries()) {
-    if (!c?.name?.trim()) throw new Error(`cameras[${i}]: a camera mark needs a name (C1, P01, …)`);
-    cameras.push({ name: c.name.trim(), ...poseOf(Object.fromEntries(POSE.filter((k) => c[k] != null).map((k) => [k, c[k]])), `camera ${c.name}`), ...(c.note?.trim() ? { note: c.note.trim() } : {}) });
-  }
   for (const [i, p] of (body.plates ?? []).entries()) {
     const name = p?.name?.trim();
     if (!name) throw new Error(`plates[${i}]: a plate needs a name (it is cited by it)`);
     if (names.has(name)) throw new Error(`Two plates are named "${name}": a plate is cited by its name, so each name once`);
     names.add(name);
     if (p.camera && !cameras.some((c) => c.name === p.camera)) throw new Error(`plate ${name}: no camera mark "${p.camera}"; the marks are ${cameras.map((c) => c.name).join(", ") || "none"}`);
-    plates.push({ name, ...await locationPicture(sourced(p), `plate ${name}`), ...roleIn(p.role, `plate ${name}`), pose: poseOf(p.pose, `plate ${name}`), ...(p.camera ? { camera: p.camera } : {}), ...(p.use?.trim() ? { use: p.use.trim() } : {}), ...(p.note?.trim() ? { note: p.note.trim() } : {}) });
+    plates.push({ name, ...await locationPicture(sourced(p), `plate ${name}`, dry), ...roleIn(p.role, `plate ${name}`), pose: poseOf(p.pose, `plate ${name}`), ...(p.camera ? { camera: p.camera } : {}), ...(p.use?.trim() ? { use: p.use.trim() } : {}), ...(p.note?.trim() ? { note: p.note.trim() } : {}) });
   }
-  const master = await locationPicture(sourced(body.master), "master");
-  const plan = await locationPicture(sourced(body.plan), "plan"), shapes = body.plan?.shapes; // SNAP-R133: a plan drawn in Snap keeps its shapes beside its picture
-  const map = await locationPicture(sourced(body.map), "map");
+  const master = await locationPicture(sourced(body.master), "master", dry);
+  const plan = await locationPicture(sourced(body.plan), "plan", dry), shapes = body.plan?.shapes; // SNAP-R133: a plan drawn in Snap keeps its shapes beside its picture
+  const map = await locationPicture(sourced(body.map), "map", dry);
   const clean = { name: body.name.trim(), notes: body.notes?.trim() ?? "", master: master && { ...master, ...roleIn(body.master.role, "master") }, plan: plan && shapes ? { ...plan, shapes, ...(body.plan.render ? { render: body.plan.render } : {}) } : plan, ...(map ? { map } : {}), cameras, plates, ...(scale.length ? { scale } : {}), rating: body.rating ?? null,
     ...(body.from_cast ? { from_cast: body.from_cast } : {}) };
+  if (dry) { const n = id ? W.record("location", id)?.head ?? 0 : 0, diff = locationDiff(prev, clean); return { id, dry_run: true, from_version: prev ? n : null, would_be: !prev || diff.length ? n + 1 : n, made: !prev || diff.length > 0, diff, note, body: clean }; }
   id ??= locationStamp();
   const out = await W.save("location", id, clean, { note, by });
   rebuild();
@@ -585,7 +602,7 @@ export function locationOf(ref) {
 // F-G03 (SNAP-R148): a plate already there keeps every field the call leaves out, its picture too (so one pose or note
 // changes alone); camera may be a mark {name, x, y, heading, eye_height, lens, note}, added to the place or moved, the
 // rest of the marks kept. Returns kept: per plate, what it kept
-export async function addPlate(ref, plate, { note, by = "person" } = {}) {
+export async function addPlate(ref, plate, { note, by = "person", dry = false } = {}) {
   const { id, body } = locationOf(W.refOf("location", W.parse(ref).id)), cameras = [...(body.cameras ?? [])], kept = {};
   const list = [plate].flat().map((p) => {
     let x = { ...p, ...(typeof p.name === "string" ? { name: p.name.trim() } : {}) };
@@ -603,7 +620,7 @@ export async function addPlate(ref, plate, { note, by = "person" } = {}) {
     return { ...Object.fromEntries(left.map((k) => [k, was[k]])), ...Object.fromEntries(Object.entries(x).filter(([, v]) => v !== undefined)) };
   });
   const names = new Set(list.map((p) => p.name)), plates = [...(body.plates ?? []).filter((p) => !names.has(p.name)), ...list];
-  return { ...await saveLocation(id, { ...body, cameras, plates }, { note: note ?? `plate${list.length > 1 ? "s" : ""} ${list.map((p) => p.name).join(", ")}`, by }), kept };
+  return { ...await saveLocation(id, { ...body, cameras, plates }, { note: note ?? `plate${list.length > 1 ? "s" : ""} ${list.map((p) => p.name).join(", ")}`, by, dry }), kept };
 }
 // F-K05: take plates out of a location as a new version; the others keep everything, their provenance too
 export async function removePlate(ref, names, { note, by = "person" } = {}) {

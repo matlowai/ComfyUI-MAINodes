@@ -568,8 +568,9 @@ for t in test_g6.js; do park; timeout 600 nice -n 19 node "$T/$t" "$port" "$SNAP
 # each prints "g7<name> n/m" last; screens in ui/g7/
 for t in test_g7_verdicts.js test_g7_room.js test_g7_book.js test_g7_misc.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
 # G8 (SNAP-R178, R179; F-N01): a wardrobe state folds the items it names out of the Cast line, and the lint says what
-# stays; the Room asks each question as one plain sentence naming its thing; each prints "g8<name> n/m" last; screens in ui/g8/
-for t in test_g8_wardrobe.js test_g8_room.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
+# stays; the Room asks each question as one plain sentence naming its thing; dry_run on add_plate, draw_set_plan and
+# delete_record (SNAP-R177); each prints "g8<name> n/m" last; screens in ui/g8/
+for t in test_g8_wardrobe.js test_g8_room.js test_g8_dryrun.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
 nice -n 19 "$py" -I "$T"/test_iris.py >test_iris.py.out 2>&1; tail -1 test_iris.py.out
 # SNAP-R109: the shipped critic prompt's last real run on the fixtures holds the floor (fixtures.json: r5b, 27/31, 0 FA;
 # a real-agent check, re-scored from its saved notes). critic = r6, the shipped prompt (r5b + metres from the record's

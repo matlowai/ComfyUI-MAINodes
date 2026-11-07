@@ -13,7 +13,7 @@
 // pick waits as a proposal for agents · SNAP-R24 scenes own the work (the scene tools call scenes.js, as the navigator
 // does) · SNAP-R25 onboarding: the sheet's functions; propose_downloads never downloads; SFW only filters the lists ·
 // SNAP-R59 Cast by reference (list_cast, save_cast, apply_cast) · SNAP-R60/R61 records, pins, retake, update_pins ·
-// SNAP-R62 clean-up: delete_record waits for the person · SNAP-R63 rerun: any pinned reference swapped · SNAP-R65 list_activity, list_docket, wait_for read the Work card ·
+// SNAP-R62 clean-up: delete_record waits for the person · SNAP-R177 dry_run writes nothing and waits for no one (add_plate, delete_record) · SNAP-R63 rerun: any pinned reference swapped · SNAP-R65 list_activity, list_docket, wait_for read the Work card ·
 // SNAP-R71/R72 edit_from_context (a new view from ordered context pictures) · SNAP-R77 make_character_sheet · SNAP-R80 open_view (a picture full size) · SNAP-R81/R82/R113 upscale_take · SNAP-R114 check_voice · SNAP-R73 add_audio_ref, remove_audio_ref, a Cast's voice ·
 // SNAP-R84 list_locations, save_location, add_plate, remove_plate, apply_location, dependents; SNAP-R155 scale anchors; add_ref / remove_ref; check_identity on any take · SNAP-R83 screenshot of the agents' window · SNAP-R118 move_ref, cites follow the pictures · see docs/snap/SNAP_RULES.md
 // SNAP-R93-R95 agent instructions and skills (instructions.js): describe_recipe, get_take and get_scene carry the stack, the pack's notes end each description · see docs/snap/SNAP_RULES.md
@@ -96,6 +96,14 @@ async function defaultPrompt() {
 // what a full run of the open recipe took before
 const recipeEta = async () => T.eta((await T.hashes(await T.live())).hash);
 const takeOf = async (id) => { await T.load(); const t = T.find(id); if (!t) throw new Error(`No take ${id} (list_takes lists the open shot's; find_take finds any by file, seed or the start of its id)`); return t; }; // F-E12: a unique start of an id works
+// what delete_record would delete and keep (its plan, and its dry run's answer)
+async function deletePlan({ ref }) {
+  const { kind, id, n } = W.parse(ref), row = (await W.sizes()).records.find((r) => r.kind === kind && r.id === id);
+  if (!row) throw new Error(`No ${kind} record ${id}`);
+  const pinned = n == null ? row.pinned_by : row.versions.find((v) => v.n === n)?.pinned_by ?? [];
+  return { deletes: n == null ? `${row.name}: the record and its ${row.versions.length} version(s)` : `${row.name} v${n}`, pinned_by: pinned, keeps: "its input/ pictures; the takes, which still run as they were" };
+}
+const DRY_RUN = { dry_run: { type: "boolean", description: "answer what this would write (the diff, the version it would make) and write nothing; it never waits as a proposal (SNAP-R177)" } };
 // F-E12: what a picture in input/ is, to compare with the one meant: its size and sha256
 async function pictureFacts(file) {
   const at = await (await api.fetchApi(`/mainodes/snap/info?input=${encodeURIComponent(file)}`)).json(), img = new Image(), cut = file.lastIndexOf("/");
@@ -643,13 +651,14 @@ export const TOOLS = [
   },
   {
     name: "add_plate",
-    description: "Add a plate to a location, or change the plate of the same name, as a new version (G1, F-C17: 'save this frame as plate <name> at <pose>'): location (location:<id>), name, the picture as take + frame (a take's frame, e.g. a walkthrough's; a still needs no frame) or file (input/), pose {x, y, heading, eye_height, lens} (x, y fractions of the plan from its top left; heading degrees clockwise from its up; eye_height m; lens mm), camera (a camera mark's name, or a mark {name, x, y, heading, eye_height, lens, note}: added to the place, or moved when the place has one of that name; F-G03), use (which cuts it serves), note (the plate's own note); or plates: several at once, one version (build a place from a list this way: one version per plate floods the critic's docket, F-E14). version_note says what changed in the version list (default \"plate <names>\"). A plate already there keeps every field the call leaves out, its picture too, so {location, name, pose} changes one plate's pose alone and null clears a field (SNAP-R148); kept says what each kept. Returns the new version's reference; pictures: each saved plate's file, size (width x height), sha256 and the take and frame it came from, to compare with the picture you meant (F-E12); and eye_gaps for the plates this call saved (F-D10, F-E13: typed numbers, not a measure of the picture; list_locations lists every plate's).",
-    inputSchema: { type: "object", properties: { location: { type: "string" }, name: { type: "string" }, take: { type: "string" }, frame: { type: "integer", minimum: 0 }, file: { type: "string" }, role: { type: "string", enum: ["camera", "place"] }, pose: { type: ["object", "null"], properties: { x: { type: "number", minimum: 0, maximum: 1 }, y: { type: "number", minimum: 0, maximum: 1 }, heading: { type: "number" }, eye_height: { type: "number" }, lens: { type: "number" } } }, camera: { type: ["string", "object"], properties: { name: { type: "string" }, x: { type: "number", minimum: 0, maximum: 1 }, y: { type: "number", minimum: 0, maximum: 1 }, heading: { type: "number" }, eye_height: { type: "number" }, lens: { type: "number" }, note: { type: "string" } } }, use: { type: "string" }, note: { type: "string" }, plates: { type: "array", items: { type: "object" }, description: "instead of one plate: several, each {name, take, frame, file, role, pose, camera, use, note}, saved as one version" }, version_note: { type: "string", description: "what changed, shown in the version list (F-E10)" } }, required: ["location"] },
-    run: async ({ location: place, plates, version_note, ...plate }) => {
+    description: "Add a plate to a location, or change the plate of the same name, as a new version (G1, F-C17: 'save this frame as plate <name> at <pose>'): location (location:<id>), name, the picture as take + frame (a take's frame, e.g. a walkthrough's; a still needs no frame) or file (input/), pose {x, y, heading, eye_height, lens} (x, y fractions of the plan from its top left; heading degrees clockwise from its up; eye_height m; lens mm), camera (a camera mark's name, or a mark {name, x, y, heading, eye_height, lens, note}: added to the place, or moved when the place has one of that name; F-G03), use (which cuts it serves), note (the plate's own note); or plates: several at once, one version (build a place from a list this way: one version per plate floods the critic's docket, F-E14). version_note says what changed in the version list (default \"plate <names>\"). A plate already there keeps every field the call leaves out, its picture too, so {location, name, pose} changes one plate's pose alone and null clears a field (SNAP-R148); kept says what each kept. Returns the new version's reference; pictures: each saved plate's file, size (width x height), sha256 and the take and frame it came from, to compare with the picture you meant (F-E12); and eye_gaps for the plates this call saved (F-D10, F-E13: typed numbers, not a measure of the picture; list_locations lists every plate's). dry_run: true runs every check the real call runs and answers the version it would make with its diff (plates and camera marks by name, kept), pulling no frame and saving nothing (SNAP-R177).",
+    inputSchema: { type: "object", properties: { location: { type: "string" }, name: { type: "string" }, take: { type: "string" }, frame: { type: "integer", minimum: 0 }, file: { type: "string" }, role: { type: "string", enum: ["camera", "place"] }, pose: { type: ["object", "null"], properties: { x: { type: "number", minimum: 0, maximum: 1 }, y: { type: "number", minimum: 0, maximum: 1 }, heading: { type: "number" }, eye_height: { type: "number" }, lens: { type: "number" } } }, camera: { type: ["string", "object"], properties: { name: { type: "string" }, x: { type: "number", minimum: 0, maximum: 1 }, y: { type: "number", minimum: 0, maximum: 1 }, heading: { type: "number" }, eye_height: { type: "number" }, lens: { type: "number" }, note: { type: "string" } } }, use: { type: "string" }, note: { type: "string" }, plates: { type: "array", items: { type: "object" }, description: "instead of one plate: several, each {name, take, frame, file, role, pose, camera, use, note}, saved as one version" }, version_note: { type: "string", description: "what changed, shown in the version list (F-E10)" }, ...DRY_RUN }, required: ["location"] },
+    run: async ({ location: place, plates, version_note, dry_run, ...plate }) => {
       await L.ready();
       if (!plates?.length && !plate.name) throw new Error("add_plate needs name (one plate) or plates (several, one version), e.g. {location, plates: [{name: \"P1\", take, frame, pose: {eye_height: 1.6}}]}");
-      const list = plates?.length ? plates : [plate], out = await L.addPlate(place, plates?.length ? plates : plate, { by: "agent", ...(version_note?.trim() ? { note: version_note.trim() } : {}) }), b = W.get(out.ref)?.version.body ?? {};
+      const list = plates?.length ? plates : [plate], out = await L.addPlate(place, plates?.length ? plates : plate, { by: "agent", dry: !!dry_run, ...(version_note?.trim() ? { note: version_note.trim() } : {}) }), b = dry_run ? out.body : W.get(out.ref)?.version.body ?? {};
       const names = list.map((p) => p.name?.trim()), gaps = L.eyeGaps(b, names); // F-E13: this call's plates, not every plate again
+      if (dry_run) return { dry_run: true, location: `location:${out.id}`, from_version: out.from_version, would_be: out.would_be, diff: out.diff, ...(Object.keys(out.kept).length ? { kept: out.kept } : {}), ...(Object.keys(gaps).length ? { eye_gaps: gaps } : {}), said: out.made ? `nothing was written: the real call saves ${b.name} v${out.would_be} (${out.note})${list.some((p) => p.take) ? `, pulling each take's frame into input/` : ""}` : `nothing was written, and the real call would change nothing: ${b.name} stays v${out.from_version}` }; // SNAP-R177
       const pictures = Object.fromEntries(await Promise.all((b.plates ?? []).filter((p) => names.includes(p.name)).map(async (p) => [p.name, { file: p.file, ...await pictureFacts(p.file), ...(p.from ? { from: p.from } : {}) }])));
       return { location: `location:${out.id}`, ref: out.ref, version: out.n, made: out.made, ...(Object.keys(out.kept).length ? { kept: out.kept } : {}), pictures, ...(Object.keys(gaps).length ? { eye_gaps: gaps } : {}) };
     },
@@ -862,14 +871,14 @@ export const TOOLS = [
   },
   {
     name: "delete_record",
-    description: "Delete a record (ref kind:id) or one version (kind:id@n). It can't be undone: always the person's call, so unless they let agents run this waits as a proposal; say why in reason, and offer export_records first. Takes that pinned it keep what it put in (they still run as they were); its pictures stay in input/.",
-    inputSchema: { type: "object", properties: { ref: { type: "string" } }, required: ["ref"] },
+    description: "Delete a record (ref kind:id) or one version (kind:id@n). It can't be undone: always the person's call, so unless they let agents run this waits as a proposal; say why in reason, and offer export_records first. Takes that pinned it keep what it put in (they still run as they were); its pictures stay in input/. dry_run: true answers what it would delete and keep, and which takes pinned it, at once and without a proposal (SNAP-R177).",
+    inputSchema: { type: "object", properties: { ref: { type: "string" }, ...DRY_RUN }, required: ["ref"] },
     decides: true,
-    plan: async ({ ref }) => { const { kind, id, n } = W.parse(ref), row = (await W.sizes()).records.find((r) => r.kind === kind && r.id === id);
-      if (!row) throw new Error(`No ${kind} record ${id}`);
-      const pinned = n == null ? row.pinned_by : row.versions.find((v) => v.n === n)?.pinned_by ?? [];
-      return { deletes: n == null ? `${row.name}: the record and its ${row.versions.length} version(s)` : `${row.name} v${n}`, pinned_by: pinned, keeps: "its input/ pictures; the takes, which still run as they were" }; },
-    run: async ({ ref }) => { const { kind, id, n } = W.parse(ref); return W.remove(kind, id, n); },
+    plan: deletePlan,
+    run: async ({ ref, dry_run }) => {
+      if (dry_run) { const p = await deletePlan({ ref }); return { dry_run: true, ref, ...p, said: `nothing was deleted: the real call deletes ${p.deletes}${p.pinned_by.length ? ` (${p.pinned_by.length} take${p.pinned_by.length === 1 ? "" : "s"} pinned it and still run as they were)` : ""} and waits for the person unless agents may run` }; } // SNAP-R177
+      const { kind, id, n } = W.parse(ref); return W.remove(kind, id, n);
+    },
   },
   {
     name: "check_continuity",
@@ -1759,15 +1768,16 @@ export async function callTool(name, args = {}, { confirmed } = {}) {
     if (now !== if_revision) throw new Error(`The recipe changed since revision ${if_revision} (now ${now})${was ? `: ${T.changes(was, seen.get(now)).join(", ") || "seeds"}` : ""}. Read describe_recipe again and decide with what is there now`);
   }
   if ("reason" in (tool.inputSchema.properties ?? {})) rest.reason = reason; // the tool's own argument too (set_lora_category), kept when it waits as a proposal
-  const plan = tool.plan ? await tool.plan(rest) : null, warning = plan?.warning ? { warning: plan.warning } : {}; // a plan's warning (run: a default prompt) is said at the top too
+  const dry = rest.dry_run === true && "dry_run" in (tool.inputSchema.properties ?? {}); // SNAP-R177: a dry run writes nothing, so nothing waits for the person
+  const plan = tool.plan && !dry ? await tool.plan(rest) : null, warning = plan?.warning ? { warning: plan.warning } : {}; // a plan's warning (run: a default prompt) is said at the top too
   // dogfood F-D14: a long job holds the GPU's queue (core runs one prompt at a time): the plan says so, never blocks
   if (plan?.eta_s > 600) plan.holds_queue = `about ${Math.round(plan.eta_s / 60)} min on this GPU: every prompt queued after it waits that long (queue it when the queue is empty, or say so to the person)`;
-  if ((tool.consequential || tool.decides) && !confirmed && !(B.allows(name, mayRun()) ?? mayRun())) { // SNAP-R67: inside a Book its dial decides per stage
+  if (!dry && (tool.consequential || tool.decides) && !confirmed && !(B.allows(name, mayRun()) ?? mayRun())) { // SNAP-R67: inside a Book its dial decides per stage
     const why = tool.decides ? "the person's pick" : "uses the GPU";
     const p = await P.add(name, rest, reason ?? `${name.replaceAll("_", " ")} (${why})`, for_note, plan);
     return { proposed: p.id, ...warning, ...(plan ? { plan } : {}), status: `${why}: waiting for the person to accept (or to allow agents to run in ComfyUI's settings)` };
   }
-  if (propose && proposable(name)) {
+  if (!dry && propose && proposable(name)) {
     const p = await P.add(name, rest, reason, for_note, plan);
     return { proposed: p.id, ...warning, ...(plan ? { plan } : {}), status: "waiting for the person to accept or reject; see list_proposals" };
   }

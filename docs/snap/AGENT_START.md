@@ -592,9 +592,10 @@ it on the Library rail's **Book** row (lenses Beat sheet, Settei, Boards, Cut ba
   A wardrobe state leaves the Cast line's clauses that are its items out of the prompt ("green apron" under "no
   apron"), named in `left_out`; a clause that still disagrees comes back as `lint` (SNAP-R178): read both before the
   GPU spends on it.
-- **dry_run** (SNAP-R177): the story edits, `save_style` and `save_cast_state` take `"dry_run": true`: the answer is the
-  would-be diff (a story edit also its reversal cost and `needs`) and nothing is written. Read it before proposing a
-  big edit. A stacked proposal's `reversal_cost` is its own; the whole stack's is in `with_waiting` (F-L06).
+- **dry_run** (SNAP-R177): the story edits, `save_style`, `save_cast_state`, `add_plate`, `draw_set_plan` and
+  `delete_record` take `"dry_run": true`: the answer is the would-be diff (a story edit also its reversal cost and
+  `needs`; a location write the version it would make, by plate and camera mark; a delete what goes and what pinned it)
+  and nothing is written, with no proposal. Read it before proposing a big edit. A stacked proposal's `reversal_cost` is its own; the whole stack's is in `with_waiting` (F-L06).
 - **Set plan**: `draw_set_plan {"location", "shapes": [{"kind": "rect", "x": 0.5, "y": 0.1, "w": 0.3, "h": 0.14,
   "label": "Hall"}, ...], "cameras": [{"name": "C1", "x": 0.5, "y": 0.86, "heading": 0, "lens": 35}]}` saves the
   plan picture (shapes and labels only) and the marks on the location; the person draws the same in "Draw the plan".

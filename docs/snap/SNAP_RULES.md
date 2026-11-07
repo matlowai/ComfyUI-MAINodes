@@ -1657,3 +1657,11 @@ SNAP-R178 on. R160-R164 stay free.
   or nothing (never "a scratch tab"). *Why:* the G7 Room read "Which lantern? an edit of it for it", "Does the take hold
   the gate? (it, the picture)" and "So: an earlier suggestion: …"; the person should read each at a glance. *More:*
   tests/snap/test_g8_room.js.
+- **SNAP-R177 (amended, G8): the location and clean-up writes dry-run too.** `add_plate`, `draw_set_plan` and
+  `delete_record` take `dry_run: true`. add_plate runs every check the real call runs (a missing picture, a camera mark
+  that isn't there) and answers the version it would make with its diff by plate and camera mark name and what each
+  plate keeps; a take's frame is named, never pulled into input/. draw_set_plan answers its preview (picture, labels)
+  plus the would-be version and the plan's diff, with no picture saved. delete_record answers what it would delete and
+  keep and which takes pinned it. A dry run never waits as a proposal, even on a tool that waits for the person: it
+  writes nothing, so there is nothing to accept. *Why:* G7 left these three without one (Astrid interop map, write
+  safety). *More:* tests/snap/test_g8_dryrun.js.

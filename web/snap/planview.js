@@ -6,7 +6,7 @@
 // render picture (plan.render) holds the shapes alone, cropped to the drawing: a render that cites the plan gets that one,
 // so no label is drawn as a disc on the street and no blank paper reads as a surface (short05 F-F04).
 // Coordinates are fractions of the plan from its top left (the same as camera marks and plate poses, SNAP-R84).
-// SNAP-R133 a set plan drawn in Snap, and its render picture · SNAP-R154 a preview costs no version, and labels in trouble are named · SNAP-R84 locations · SNAP-R60 versions · see docs/snap/SNAP_RULES.md
+// SNAP-R133 a set plan drawn in Snap, and its render picture · SNAP-R154 a preview costs no version, and labels in trouble are named · SNAP-R177 a dry run gives the diff and writes nothing · SNAP-R84 locations · SNAP-R60 versions · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as L from "./library.js";
 import * as W from "./world.js";
@@ -116,16 +116,19 @@ function labelTrouble(placed) {
 // draw and save: the picture into input/snap/location/<id>/ (named by what it shows), then a new location version with
 // plan {file, shapes} and the camera marks (kept as they were when none are given)
 // preview: draw only, no upload and no version: the picture comes back (images) with the label trouble (F-G04)
-export async function drawPlan(ref, { shapes, cameras, size: long = 1024, aspect = 1.4, by = "person", note, preview = false } = {}) {
+// dry (SNAP-R177): the preview plus the version it would make and its diff (the plan's file and shapes, the camera marks)
+export async function drawPlan(ref, { shapes, cameras, size: long = 1024, aspect = 1.4, by = "person", note, preview = false, dry = false } = {}) {
   await L.ready();
-  const { id, body } = L.locationOf(W.refOf("location", W.parse(ref).id)), clean = checkShapes(shapes), placed = [];
-  if (preview) {
-    const blob = await render(clean, { size: long, aspect, placed }), data = (await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(blob); })).split(",")[1];
-    const trouble = labelTrouble(placed);
-    return { preview: true, shapes: clean.length, size: placed.size, labels: trouble, images: [{ mimeType: "image/png", data, label: "the plan as it would be saved (labels drawn; marks are drawn by the Location sheet, not into it)" }],
-      said: `nothing saved; ${trouble.length ? `${trouble.length} label${trouble.length === 1 ? "" : "s"} run off the plan or over another (labels): move them, shorten them, or break a line with \\n` : "every label sits inside the plan and clear of the others"}` };
-  }
+  const { id, n, body } = L.locationOf(W.refOf("location", W.parse(ref).id)), clean = checkShapes(shapes), placed = [];
   const hash = W.short(await W.sha({ clean, long, aspect }));
+  if (preview || dry) {
+    const blob = await render(clean, { size: long, aspect, placed }), data = (await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(blob); })).split(",")[1];
+    const trouble = labelTrouble(placed), labels = trouble.length ? `${trouble.length} label${trouble.length === 1 ? "" : "s"} run off the plan or over another (labels): move them, shorten them, or break a line with \\n` : "every label sits inside the plan and clear of the others";
+    const shown = { shapes: clean.length, size: placed.size, labels: trouble, images: [{ mimeType: "image/png", data, label: "the plan as it would be saved (labels drawn; marks are drawn by the Location sheet, not into it)" }] };
+    if (!dry) return { preview: true, ...shown, said: `nothing saved; ${labels}` };
+    const dir = `snap/location/${id}`, now = { ...body, plan: { file: `${dir}/plan-${hash}.png`, shapes: clean, render: `${dir}/plan-${hash}-render.png` }, cameras: cameras ? L.camerasOf(cameras) : body.cameras ?? [] }, diff = L.locationDiff(body, now);
+    return { dry_run: true, location: `location:${id}`, from_version: n, would_be: diff.length ? n + 1 : n, diff, ...shown, said: `nothing was written: ${diff.length ? `the real call saves the picture into input/ and ${body.name} v${n + 1} (${note ?? `plan drawn in Snap (${clean.length} shapes)`})` : `the real call would change nothing (${body.name} stays v${n})`}; ${labels}` };
+  }
   const upload = async (blob, name) => {
     const form = new FormData();
     form.append("image", blob, name);
