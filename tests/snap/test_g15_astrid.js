@@ -1,9 +1,9 @@
 // Batch G15, Astrid's agents drive Snap (SNAP-R211) on the CPU test server, through the pack's Astrid pack
-// (integrations/astrid) exactly as Astrid runs an action: run.py with --out, SNAP_BASE / SNAP_AGENT / SNAP_PACK:
+// (integrations/astrid) exactly as Astrid runs an action: run.py with --out, SNAP_BASE / SNAP_AGENT:
 // - snap.pages lists this page; snap.call use_page binds it (driven by the agent), describe_recipe answers there whole,
 //   use_page null lets it go; an idempotency_key comes back as given; pictures land beside the answer (a stub bridge);
 // - a SNAP_BASE that isn't this machine is refused with nothing sent; a copy of the pack (Astrid installs copies) finds
-//   Snap's client through SNAP_PACK, and says so when it is missing;
+//   nothing beside it (SNAP-R220: self-contained, no SNAP_PACK);
 // - snap_mcp.py serves the pack's skills as MCP prompts (prompts/list, prompts/get snap-core whole);
 // - with SNAP_TEST_ASTRID_PY (a Python with Astrid installed), Astrid's own pack validator accepts the manifest.
 // usage: node test_g15_astrid.js [port]   prints "g15astrid n/m" last
@@ -35,11 +35,11 @@ const act = (args, env = {}, action = ACTION) => new Promise((done) => {
     R.after = await act(["--tool", "list_pages"]);
     R.remote = await act(["--tool", "list_pages"], { SNAP_BASE: "http://10.0.0.5:8188" });
     R.named = await act(["--tool", "list_pages"], { SNAP_BASE: "http://snap.example.com:8188" });
-    // Astrid installs a copy of the pack: run.py finds Snap's client through SNAP_PACK
+    // Astrid installs a copy of the pack: run.py carries what it runs (SNAP-R220), nothing found beside it
     const copy = path.join(tmp, "installed", "snap"); fs.cpSync(path.join(PACK, "integrations", "astrid"), copy, { recursive: true });
     const copied = path.join(copy, "actions", "call", "run.py");
     R.copyNoPack = await act(["--tool", "list_pages"], {}, copied);
-    R.copyPack = await act(["--tool", "list_pages"], { SNAP_PACK: PACK }, copied);
+    R.copySource = fs.readFileSync(copied, "utf8");
     R.errors = A.errors;
   } catch (e) { R.crash = e.stack; } finally { await b.close(); }
   // pictures: a stub bridge on loopback answers one call with two pictures (a test page can't screenshot itself)
@@ -63,8 +63,7 @@ const act = (args, env = {}, action = ACTION) => new Promise((done) => {
     "R211 pictures land beside the answer (a stub bridge)": S.shot?.code === 0 && (S.shot.answer?.result?.saved ?? []).length >= 1 && S.shot.answer.result.saved.every((f) => f.startsWith(S.shot.out) && fs.existsSync(f)),
     "R211 use_page null lets it go": S.free?.code === 0 && !(S.after?.answer?.result?.pages ?? []).some((p) => p.driven_by === "astrid-g15"),
     "R211 a SNAP_BASE off this machine is refused, nothing sent": S.remote?.code === 1 && /isn't this machine.*nothing was sent/.test(S.remote.answer?.error ?? "") && S.named?.code === 1,
-    "R211 an installed copy without SNAP_PACK says to set it": S.copyNoPack?.code === 1 && /set SNAP_PACK/.test(S.copyNoPack.answer?.error ?? ""),
-    "R211 an installed copy with SNAP_PACK works": S.copyPack?.code === 0 && Array.isArray(S.copyPack.answer?.result?.pages),
+    "R220 an installed copy works with no SNAP_PACK and nothing beside it": S.copyNoPack?.code === 0 && Array.isArray(S.copyNoPack.answer?.result?.pages) && !/snapcall|SNAP_PACK/.test(S.copySource ?? "snapcall"),
     "R211 snap_mcp lists the skills as prompts": (S.mcp?.[1]?.result?.capabilities?.prompts !== undefined) && (S.mcp?.[2]?.result?.prompts ?? []).some((p) => p.name === "snap-core" && p.description),
     "R211 prompts/get gives a skill whole; an unknown one is an error naming the skills": Buffer.byteLength(S.mcp?.[3]?.result?.messages?.[0]?.content?.text ?? "") === S.skillBytes && /snap-core/.test(S.mcp?.[4]?.error?.message ?? ""),
     [`R211 Astrid's own pack validator accepts the manifest${process.env.SNAP_TEST_ASTRID_PY ? "" : " (skipped: SNAP_TEST_ASTRID_PY unset)"}`]: !process.env.SNAP_TEST_ASTRID_PY || (S.validator?.code === 0 && S.validator.out === "CanonicalPackEntry"),

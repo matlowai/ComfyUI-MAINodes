@@ -1,10 +1,11 @@
 # Snap for Astrid's agent (schema v3, the shape Astrid's own integration packs use). It lets an Astrid agent
 # (astrid_invoke -> a Runtime task -> this pack's subprocess) call Snap's tool table on a ComfyUI on this machine.
 # It reaches Snap only through the existing bridge (POST /mainodes/snap/call on loopback); nothing here enters ComfyUI
-# core or Snap's page. Install: astrid packs install <ComfyUI-MAINodes>/integrations/astrid, and set SNAP_PACK to the
-# ComfyUI-MAINodes folder (Astrid copies the pack, so its actions find Snap's client through it).
+# core or Snap's page. Install: astrid packs install <ComfyUI-MAINodes>/integrations/astrid; the copy Astrid installs
+# carries all it runs (actions/call/run.py calls the bridge itself).
 # SNAP-R18 local only · SNAP-R19 the tool table is the API · SNAP-R30 front door · SNAP-R83/R135 page binding and
-# release · SNAP-R16 GPU tools wait as proposals unless the person lets agents run · SNAP-R211 · see docs/snap/SNAP_RULES.md
+# release · SNAP-R16 GPU tools wait as proposals unless the person lets agents run · SNAP-R211 · SNAP-R220 self-contained ·
+# see docs/snap/SNAP_RULES.md
 schema_version: 3
 id: snap
 name: Snap (ComfyUI-MAINodes)
@@ -17,7 +18,7 @@ permissions:
 - id: network
   reason: Calls the Snap bridge of a ComfyUI on this machine (loopback only; run.py refuses any other address).
 - id: subprocess
-  reason: Runs Snap's own client, tools/snapcall.py, with this interpreter.
+  reason: Its actions run actions/call/run.py, which calls the bridge itself (nothing outside the pack).
 description: 'Drive Snap, the snap-together view over a local ComfyUI graph: recipes and bricks, takes, scenes and
   shots, Cast and location records, the critic docket and the Book (beats, cuts, boards, the Cut). One generic action
   calls any Snap tool by name; GET <SNAP_BASE>/mainodes/snap/tools lists them with their schemas. GPU-spending tools
@@ -58,7 +59,7 @@ actions:
     name: Pages
     version: '0.1'
     short_description: List this person's Snap pages on the ComfyUI (ids, names, who drives each, where calls go).
-    description: 'Snap''s list_pages through tools/snapcall.py: every open Snap page of this ComfyUI user with its id,
+    description: 'Snap''s list_pages over the bridge: every open Snap page of this ComfyUI user with its id,
       name, who drives it, and which one calls go to now. Pick one for snap.call''s page.'
     invocation:
       kind: command
@@ -71,12 +72,12 @@ actions:
     isolation:
       mode: subprocess
       network: true
-      env_passthrough: [SNAP_BASE, SNAP_AGENT, SNAP_TOKEN, SNAP_PACK]
+      env_passthrough: [SNAP_BASE, SNAP_AGENT, SNAP_TOKEN]
   call:
     name: Call a Snap tool
     version: '0.1'
     short_description: Call one Snap tool by name with JSON arguments on the bound page; the answer comes back whole.
-    description: 'Wraps tools/snapcall.py. `page` binds this agent (SNAP_AGENT) to a page first (use_page); later calls
+    description: 'One call over Snap''s bridge. `page` binds this agent (SNAP_AGENT) to a page first (use_page); later calls
       with the same SNAP_AGENT keep going there. When the job ends call tool use_page with {"page": null}. A GPU tool
       answers {proposed, status} while it waits for the person: read that as waiting, not failing. Pictures
       (take_frames, screenshot) come back as files listed in the result. The answer is never cut.'
@@ -99,4 +100,4 @@ actions:
     isolation:
       mode: subprocess
       network: true
-      env_passthrough: [SNAP_BASE, SNAP_AGENT, SNAP_TOKEN, SNAP_PAGE, SNAP_PACK]
+      env_passthrough: [SNAP_BASE, SNAP_AGENT, SNAP_TOKEN, SNAP_PAGE]

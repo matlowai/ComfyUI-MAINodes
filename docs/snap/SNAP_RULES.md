@@ -2058,6 +2058,11 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
   agent whose call made it) and, when that wasn't the page's driver, `driven_by` apart. *Why:* F-SQ08: the critic, and
   an Astrid-side agent asking for a re-take, couldn't read while the studio held the agents' window (PROTOCOL_V1 §7.17).
   *More:* tests/snap/test_g16_guest.js.
+- **SNAP-R220: The Astrid pack carries what it runs.** `integrations/astrid/actions/call/run.py` calls Snap's bridge
+  itself (POST /mainodes/snap/call: the agent name, a page, an Idempotency-Key retried on a timeout or `in_flight`,
+  pictures saved beside the answer), so the copy Astrid installs needs only SNAP_BASE (loopback) and SNAP_AGENT; no
+  SNAP_PACK, nothing looked up beside it. Amends SNAP-R211. *Why:* the G15 note: SNAP_PACK had to be set by hand because
+  Astrid copies a pack on install. *More:* tests/snap/test_g15_astrid.js.
 - **SNAP-R221: What Snap puts in Astrid's project are projections of its records, by Snap's ids and the takes' own
   pins.** `tools/astrid_push.py context` makes or updates one Astrid reference per Cast and place (canonical = the
   front picture or the master; `metadata.snap {record, version}`; every version the Cut's active takes ran on as a

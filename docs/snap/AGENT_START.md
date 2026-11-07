@@ -103,7 +103,7 @@ You can also run the tools as an MCP server (Claude Code); it also serves Snap's
   `claude mcp add comfy-snap -e SNAP_AGENT=astrid-<session> -- python3 $PACK/tools/snap_mcp.py --base-url $BASE`.
   Beside it, Astrid's own MCP (`astrid`) edits the timeline; neither renames the other's tools.
 - **Astrid's own agent:** install the pack's Astrid pack, `astrid packs install $PACK/integrations/astrid`, and give it
-  `SNAP_BASE` (loopback only), `SNAP_AGENT` and `SNAP_PACK=$PACK`. It calls `snap.pages` and `snap.call {tool, args,
+  `SNAP_BASE` (loopback only) and `SNAP_AGENT` (the installed copy carries all it runs). It calls `snap.pages` and `snap.call {tool, args,
   page, idempotency_key}`; its `docs/SKILL.md` is the short version of this page.
 - **Either way** you are an agent here: GPU calls answer `{proposed, status}` and wait for the person unless they let
   agents run; read that as waiting, not failing. Bind a page (`use_page`) and let it go (`use_page {"page": null}`).

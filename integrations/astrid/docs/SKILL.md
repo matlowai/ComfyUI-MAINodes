@@ -13,8 +13,6 @@ a pointer, and Snap's own skills say how to use it well.
 
 - `SNAP_BASE`: the ComfyUI, on this machine only, e.g. `http://127.0.0.1:8188` (anything else is refused).
 - `SNAP_AGENT`: your name to Snap, e.g. `astrid-<session>`. Without it your calls can't hold a page.
-- `SNAP_PACK`: the ComfyUI-MAINodes folder (`<ComfyUI>/custom_nodes/ComfyUI-MAINodes`); Astrid copies this pack on install,
-  and its actions find Snap's client there.
 - `SNAP_TOKEN`: only when a snap-gate stands in front of ComfyUI.
 
 ## Work
@@ -36,6 +34,11 @@ a pointer, and Snap's own skills say how to use it well.
 
 ## From a Cut to Astrid and back
 
-`export_cut {book}` writes the Cut as a `.astrid` archive and prints the `astrid timelines import` command. Each clip's
-`generation.snap` names its take, cut, beat and pins: re-take that cut in Snap, then swap the new take's file into the
-Astrid timeline in place (the import makes a new timeline each time).
+The Cut reaches Astrid by the person's Push (or their Book's auto-push) on Snap's Cut lens, or by
+`tools/astrid_push.py push --book <book>` from a shell: one timeline per Book in its production's project, clip ids =
+the cut ids (`C7`), the dialogue on A2 with its words (`timelines words --published`). Each clip's `generation.snap`
+names its take, cut, Book and pins. To ask for a re-take: `snap.call` the Book's tools (`get_book` → the unit →
+`compile_unit` → `apply_unit` → `run`): it waits as a proposal in the Room; after the person accepts the new active take,
+`tools/astrid_push.py swap --book <book> --cut C7` puts it into the same clip in place (same id, its new file, its
+`generation.snap` and words). Reads (`get_book`, `get_take`, `list_proposals`) answer even while another agent drives the
+page; `withdraw_proposal` takes back your own out-of-date proposal, saying why.
