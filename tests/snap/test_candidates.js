@@ -114,7 +114,7 @@ const inp = (name) => ({ filename: name, subfolder: "snaptest", type: "input" })
   await page.screenshot({ path: path.join(out, "100-u55-plate-candidates-preview.png") });
   R.revPreview = (await call("describe_recipe")).result.revision;
   R.nullText = await page.$eval(".snap-set-plates", (e) => /\bnull\b/.test(e.textContent));
-  R.tiles = await page.$$eval(`.snap-cands[data-decision="${decision}"] .snap-cand`, (els) => els.map((e) => [e.dataset.candidate, [...e.querySelectorAll(".snap-cand-note")].map((n) => n.textContent), [...e.querySelectorAll("button")].map((x) => x.textContent)]));
+  R.tiles = await page.$$eval(`.snap-cands[data-decision="${decision}"] .snap-cand`, (els) => els.map((e) => [e.dataset.candidate, [...e.querySelectorAll(".snap-cand-note")].map((n) => n.textContent), [...e.querySelectorAll(".snap-cand-actions button")].map((x) => x.textContent)])); // the tile's actions (its Nearby press sits by its line, SNAP-R198)
 
   // an agent's apply waits as a proposal (the recommendation shows on the tile); the person applies, undoes, applies again
   R.agentApply = (await call("apply_candidate", { decision, candidate: "c1", reason: "c1 moved off the wide plate (copy 0.58) and its door is on the right as planned" })).result;
