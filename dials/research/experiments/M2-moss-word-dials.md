@@ -35,4 +35,21 @@ on calm/chaos.
 at the right pair dials (rank 1 for night, storm, cold). They need about twice a pair dial's strength, and each word acts
 literally, so the list must not contain words with an unwanted literal reading. One seed: a hint.
 
-**Next.** Lists of purely visual words; a second seed; compare with centered J-lens dials on H3 (where centering was needed).
+## Round 2: purely visual word lists (+8, seed 7)
+
+| list | what the image shows |
+|---|---|
+| snow, snowy, frost, icicles | **snow on the rail and path**, the keeper trudging in boots |
+| rain, raindrops, wet, puddles | **a wet path, and the keeper now holds an umbrella** |
+| moon, moonlight, starry, midnight | a bluer dusk, moonlight glinting on the water, a wet reflective boardwalk |
+| golden, sunset, amber, glow | warmer light (mild) |
+| fog, mist, haze, overcast | flatter, hazier, greyer (mild) |
+| neon, glowing, magenta, cyan | no neon; a deeper blue-magenta sea |
+| table, number, between, also (placebo) | restaging only |
+
+Visual-only lists work much better: weather words (snow, rain) come through clearly at +8; light words (moonlit,
+golden, fog) partly; colour words for a light source (neon) do not. Offline, related lists agree with each other as
+expected (moonlit vs night +0.73, golden vs warm +0.82, fog vs foggy +0.73), and the placebo matches only itself.
+
+**Next.** A second seed and a held-out scene for snow and rain; compare with centered J-lens dials on H3 (where centering
+was needed).
