@@ -6,8 +6,8 @@ description: >
   whenever you set up or work on a short, an episode or any multi-cut piece in a Book, write or extract beats (the
   writers' room, the script supervisor), check continuity of who holds or wears what, plan cuts, make boards, play an
   animatic or assemble the edit.
-scope: [tool:create_book, tool:add_beat, tool:add_change, tool:add_cut, tool:compile_unit, tool:apply_unit, tool:make_board, tool:animatic, tool:export_cut, tool:draw_set_plan]
-rules: [SNAP-R67, SNAP-R68, SNAP-R69, SNAP-R130, SNAP-R131, SNAP-R132, SNAP-R133, SNAP-R165, SNAP-R166, SNAP-R168, SNAP-R169, SNAP-R170, SNAP-R171, SNAP-R172, SNAP-R16, SNAP-R11]
+scope: [tool:create_book, tool:add_beat, tool:add_change, tool:add_group, tool:set_colour_frame, tool:design_state, tool:add_cut, tool:compile_unit, tool:apply_unit, tool:make_board, tool:animatic, tool:export_cut, tool:draw_set_plan]
+rules: [SNAP-R67, SNAP-R68, SNAP-R69, SNAP-R130, SNAP-R131, SNAP-R132, SNAP-R133, SNAP-R165, SNAP-R166, SNAP-R168, SNAP-R169, SNAP-R170, SNAP-R171, SNAP-R172, SNAP-R70, SNAP-R173, SNAP-R175, SNAP-R176, SNAP-R177, SNAP-R16, SNAP-R11]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-book"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -42,12 +42,16 @@ until the person accepts it. Tool calls: `docs/snap/AGENT_START.md` ("The Book")
    - what someone puts on or takes off (`wardrobe`, `carried.worn`), hair, injuries, dirt;
    - where each person stands and faces (`position`, `facing`): blocking is state, carried from cut to cut;
    - mood when the beat turns on it; `knows` and `wants` for the prose packet (they never reach a picture).
-   Use the entity ids from `get_book` (cast:<id>, prop:<name>); a prop gets a name in the story's `props`. Never invent
+   Use the entity ids from `get_book` (cast:<id>, prop:<name>); give a new prop its name with the change (`name`).
+   A prop's `holder` and the person carrying it must agree (the lint and the Beat sheet's flags say where not).
+   Group the beats into scenes (`add_group`, with the place), and before a big edit read its `dry_run`. Never invent
    a change the text doesn't support; ask instead. A take that shows something the story didn't say (a torn sleeve
    the person likes) becomes canon only through `keep_as_canon`.
-5. **Settei per state.** For each state the changes create that a picture must show (a new outfit), make its pictures
-   (`snap-turnaround`, New view from the base sheet) and `save_cast_state` with `covers` matching the change's value.
-   Until then the compile marks it "words only": pictures win over words, so fill the gaps before video.
+5. **Settei per state.** For each state the changes create that a picture must show (a new outfit), make its pictures:
+   `design_state {book, cast, state, view}` (a New view from the Cast's own pictures with the style and the state's
+   words; the Settei lens's Design it does the same), then `save_cast_state` with the picked take and `covers` matching
+   the change's value. Until then the compile marks it "words only": pictures win over words, so fill the gaps before
+   video. A Cast line's outfit words aren't folded for a wardrobe state yet: read the design prompt (F-N01).
 6. **Cuts** (`add_cut`): beats, Cast, props, location and the plate whose framing is the camera, seconds, sound,
    the transition to the next cut. Read `compile_unit` for each: who holds what, which picture backs each field,
    what is words only, the reference budget, and `board` (the prompt and pictures `make_board` will send). A lint
@@ -63,6 +67,8 @@ until the person accepts it. Tool calls: `docs/snap/AGENT_START.md` ("The Book")
    board, so the blocking holds (SNAP-R170). Boards pin the story, so `story_stale` names a board made before the
    story moved (SNAP-R169). Play
    `animatic {book}` and run the cut-pair checks on the boards (`snap-critic`). Fixes cost seconds here.
+   Once a scene's boards are in, propose its colour frame (`set_colour_frame`: the board whose colour and light the
+   scene keeps; the colour script strip on the Beat sheet).
 8. **Video.** `apply_unit` then `run` per approved cut. `story_stale {book}` after any story or style edit tells which
    takes moved, by field and beat. To try a cut at a story moment without touching the Cut, copy its shot
    (`add_shot {scene, from: {scene, shot}}`: the copy carries no story pin) and `apply_unit {scene, shot, land: {scene,

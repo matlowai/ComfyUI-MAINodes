@@ -636,7 +636,7 @@ byte for byte (proto/snapbox/test_vault_off.py).
 
 ## Context and references (U101)
 
-R67-R69 are the Book's (see "The Book" below) and R70 stays reserved for the Room; U101's rules start at R71.
+R67-R69 are the Book's (see "The Book" below) and R70 is the Room (G7); U101's rules start at R71.
 
 - **SNAP-R71: A new view of a known place is an edit from context pictures, in the asker's words.** "New view from these
   pictures" (the take viewer's tray; `edit_from_context`) makes a still with an H3 model from 1 or more context
@@ -1071,8 +1071,8 @@ R67-R69 are the Book's (see "The Book" below) and R70 stays reserved for the Roo
 
 Snap's production layer (layer 3 in the same app): `web/snap/book.js` (records, the story clock, compile, stale, the dial,
 assembly), `booktools.js` (the tools), `bookview.js` (the Book sheet), `planview.js` (a set plan drawn in Snap),
-`snap_book.py` (the assembly node and the OTIO route). R67-R69 and R130-R133 are the Book's; R70 stays reserved for
-the Room.
+`snap_book.py` (the assembly node and the OTIO route). R67-R69 and R130-R133 are the Book's; R70 is the Room
+(G7, below with R173-R177).
 
 - **SNAP-R67: The Book holds a production on two clocks, and its canon is the person's.** A `book` record (story,
   production style, autonomy dial, Cast, locations, scenes in order) and one `story` record (beats in story order, each
@@ -1137,7 +1137,7 @@ the Room.
 
 ## Accounts and the gate (snap-gate)
 
-IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (the Book took R67-R69 and R130-R133 and keeps R134-R139; R70 is reserved for the Room; G1 took R83-R87, the docs migration R88-R92, the agent library R93-R95, the vault R96-R100; U93/U94 took R101-R110; G1b took R111-R117; G2 took R118-R125; the tests move R126; the next free ID is R127, then R140 after R129).
+IDs R40+ were reserved for the gate while R28-R39 were open for other work (renumber at merge only if they collide). R50-R55 and R58-R66 went to the pack; the gate has R56 and R57. New rules from either side take the next free ID (the Book took R67-R69 and R130-R133 and keeps R134-R139; R70 is the Room (G7); G1 took R83-R87, the docs migration R88-R92, the agent library R93-R95, the vault R96-R100; U93/U94 took R101-R110; G1b took R111-R117; G2 took R118-R125; the tests move R126; the next free ID is R127, then R140 after R129).
 
 - **SNAP-R40: The org layer is a wrapper, never core.** `snap_gate/gate.py` is a separate service on the port people
   use; an unmodified ComfyUI listens on 127.0.0.1 behind it (with `--multi-user`), and the gate speaks only HTTP and
@@ -1479,7 +1479,7 @@ Next free ID after this batch: SNAP-R155.
 
 ## Batch G6 (2026-11-06)
 
-Next free ID after this batch: SNAP-R160 (the G6 Book part took R165-R172; R160-R164 and R173 on are free).
+Next free ID after this batch: SNAP-R160 (the G6 Book part took R165-R172; R160-R164 and R173 on are free; G7 took R70 and R173-R177, so the next free is R178).
 
 - **SNAP-R155: A location keeps its scale, and the critic measures against it.** A location record holds `scale`, a
   list of anchors `{name, height_m, note}`: things its pictures show whose real height the person decides (a house door
@@ -1567,3 +1567,64 @@ SNAP-R165..R172 (the Book's share of G6; G6's other rules take SNAP-R155..R164).
   which fields, the takes and boards it newly flags, and the takes already stale that it flags again ("already stale,
   now also for Kuroe.mood"); "nothing" only when nothing moves. *Why:* F-L03: two b1 mood edits said "re-flags
   nothing" while they changed C1 and C2's compiles, because those takes were already stale.
+
+## Batch G7 (2026-11-07): the Book's steps 7 and 10, the colour script, settei design it
+
+SNAP-R70 (reserved for the Room since U97) and SNAP-R173..R177. R160-R164 stay free; the next free ID is SNAP-R178.
+
+- **SNAP-R70: The Room is the person's front door, never a restriction, and its verdicts are the record's.** The Room
+  (`web/snap/room.js`; `/?room`, The Room on the Work card, `open_view {view: "room"}`) renders the Work card's landed
+  rows one question at a time, newest first: pictures full width, one verdict and a sentence ("neither, same
+  problem" among them), a reply saying what the verdict moved, the next questions, and "earlier" with "actually, no".
+  It is a second renderer of the same rows, never its own data: a verdict there is the take's (`by: person`), a pick
+  is the candidate's apply, a yes is the proposal's Accept, a blind pair is judged on the server. Machinery is not
+  rendered (not hidden): no ids, file names, model names, state words, counts or progress; every agent-written text
+  passes `plain()`, and the leak test (`BANNED`) asserts none shows. It works at phone (390×844) and tablet (820×1180)
+  widths with no sideways scroll. On the person's own install it is a localhost page; a phone door (pairing link,
+  server-sent events) belongs to snap-gate. Agents write for it: no ids, paths, status words or counts in a question
+  or a proposal's reason; grounded or silent. *Why:* CONCEPT_PRODUCTION §11.2 (box1's role-true Room and its jargon
+  leak test); DECISIONS 2026-11-05 09:15 (the Room on main is a view; the phone door only behind snap-gate).
+  *More:* tests/snap/test_g7_room.js.
+- **SNAP-R173: A verdict is one key, and a turned-down option keeps why.** `p` keep, `x` reject, `n` neither on a
+  focused take card, in the take viewer and on the Work card's landed rows, the same record the viewer's buttons
+  write (`verdict`, `verdict_by`, `verdict_at`); "neither" (the same problem in every take so far) is a value. A
+  reject, a declined candidate, a rejected proposal and a parked Work card row may carry `because` (a line) and
+  `revive_if` (when it is worth another look): the option cemetery, read with the `cemetery` tool. A verdict replaced
+  or taken back ("actually, no") stays on the take in `verdicts_past`, struck through, with a reason that names what
+  failed, never the person: misfire (the interface), evidence, changed_mind, superseded. *Why:* CONCEPT_PRODUCTION
+  §11.2 (one-key verdicts, the option cemetery, retractions; box1:42, 67, 71). *More:* tests/snap/test_g7_verdicts.js.
+- **SNAP-R174: A blind pair's labels stay on the server until the person judges it.** `setup_ab` sends the two takes'
+  files to `/mainodes/snap/blind`, which shuffles the sides and keeps which take is A in `user/snap_blind.json` (not
+  served by /userdata). The page lists pairs by id and shows each side from `/blind/media?pair&side`; the Work card,
+  Dailies and the Room name no take; `/blind/judge` writes the judgment first, then answers the labels. *Why:*
+  CONCEPT_PRODUCTION §11.2 (server-side blind A/B, box1:70: nothing in devtools reveals them). *More:*
+  tests/snap/test_g7_verdicts.js.
+- **SNAP-R175: The colour script is one chosen frame per scene group.** A story group may hold `colour` {file or take,
+  from}; the Beat sheet draws the strip over the spine, and a group with none offers its cuts' approved boards and
+  active takes to choose from. Choosing is a story version (`set_colour_frame` from an agent waits as a proposal, like
+  every story edit). Scene groups come in with `add_group` / `set_group` (F-L16) or "+ Scene group". The compile does
+  not yet cite the colour frame (open question for the operator). *Why:* CONCEPT_PRODUCTION §4.1.4b and §11.5 step 11
+  (the colour script strip). *More:* tests/snap/test_g7_book.js.
+- **SNAP-R176: A state's settei is designed from the Cast's own pictures, and approval writes the Cast.**
+  `design_state` (and Design it on a state in the Settei lens) makes candidates by a New view from the Cast's pictures
+  with the production style paragraph first, the Cast line as the state tells it, the state's sentences and words and
+  the view; they land in the scene "Settei · <Book>" pinned `{role: settei, cast, state, view}`. Use this (or
+  `save_cast_state` with the take) saves the picture as the state's view in a new Cast version naming the take, by the
+  person when pressed in the lens. GPU follows the Book's dial at the settei stage. *Why:* CONCEPT_PRODUCTION §4.1.4b
+  ("design it" cells) and §11.5 step 6. *More:* tests/snap/test_g7_book.js.
+- **SNAP-R177: dry_run answers what a write would do and writes nothing.** The story edits (`add_beat`, `edit_beat`,
+  `move_beat`, `add_change`, `remove_change`, `save_story`, `import_fountain`, `keep_as_canon`, `add_group`,
+  `set_group`, `set_colour_frame`), `save_style` and `save_cast_state` take `dry_run: true`: the answer gives the
+  would-be diff (a story edit also its reversal cost and `needs`) and nothing is written: no proposal, no version, the
+  world rev unchanged. *Why:* Astrid interop map, write safety step (commit after a dry run). *More:*
+  tests/snap/test_g7_misc.js.
+- **SNAP-R172 (amended, G7): a stacked proposal's cost is its own.** On top of waiting proposals, `reversal_cost` is
+  the edit's own delta over the story they would leave, with the whole stack's cost apart in `with_waiting` (F-L06).
+- **SNAP-R67 (amended, G7): a story version says who accepted it.** A version made by an accepted proposal carries
+  `accepted_by` {by, where (a person's tab or the agents' window), page, driven_by} and says it in its note (F-L17).
+  Proposal titles and version notes keep beat text, lines and fields whole, with people by name (F-L12, SNAP-R58).
+- **SNAP-R68 (amended, G7): props follow the people.** A prop's holder and the people whose `carried.*` names it agree,
+  or the compile (for the cut's props and Cast) and the Beat sheet's flags say where they don't; `state_at` of a prop
+  gives `carried_by` and `disagree` (F-L11). The Beat sheet reads a change by its op (`→` set, `+` add, `−` remove), has
+  a lane per prop, a beat's lines on its card, a payoff by its plant's words, and waiting changes as ghosts under their
+  beat (F-L08, F-L15).

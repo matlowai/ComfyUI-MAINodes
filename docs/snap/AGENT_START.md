@@ -578,9 +578,40 @@ it on the Library rail's **Book** row (lenses Beat sheet, Settei, Boards, Cut ba
 - **Pages**: `export_fountain {"book"}` gives the story as a Fountain script (scene headings, action, `=` intents,
   dialogue under each name); `import_fountain {"book", "text"}` proposes a story from one. A beat keeps its id (and its
   changes) when its text is unchanged or edited in place in its scene; moving a scene changes telling order only.
+- **Scene groups and the colour script** (SNAP-R175): `add_group {"book", "name", "beats": ["b1", "b2"], "place"}` and
+  `set_group {"book", "group", ...}` group beats into scenes (proposals, like every story edit). The colour script is
+  one frame per scene group: `set_colour_frame {"book", "group", "take" or "file"}` (the board or take that sets the
+  scene's colour and light); the Beat sheet's strip offers the group's cuts' boards until one is chosen.
+- **Props by name** (F-L16): `add_change {..., "value": "prop:rag", "name": "the rag"}` keeps the prop's name in the
+  story. A prop's `holder` and the people whose `carried.*` names it must agree: the compile's lint and the Beat
+  sheet's flags say where they don't; `state_at {"entity": "prop:<id>"}` gives `carried_by` (F-L11).
+- **Settei: design it** (SNAP-R176): `design_state {"book", "cast", "state", "view": "front"}` makes candidates of a
+  Cast in a state from its own pictures, with the style paragraph first and the state's words (covers and words come
+  from the Cast's state of that name). They land in "Settei · <Book>"; pick with `save_cast_state {"cast", "state",
+  "covers", "pictures": [{"take", "view"}]}`, which writes the Cast version (the person's Use this does the same).
+- **dry_run** (SNAP-R177): the story edits, `save_style` and `save_cast_state` take `"dry_run": true`: the answer is the
+  would-be diff (a story edit also its reversal cost and `needs`) and nothing is written. Read it before proposing a
+  big edit. A stacked proposal's `reversal_cost` is its own; the whole stack's is in `with_waiting` (F-L06).
 - **Set plan**: `draw_set_plan {"location", "shapes": [{"kind": "rect", "x": 0.5, "y": 0.1, "w": 0.3, "h": 0.14,
   "label": "Hall"}, ...], "cameras": [{"name": "C1", "x": 0.5, "y": 0.86, "heading": 0, "lens": 35}]}` saves the
   plan picture (shapes and labels only) and the marks on the location; the person draws the same in "Draw the plan".
+
+### Verdicts, the option cemetery and blind pairs (SNAP-R173, R174)
+
+The person judges with one key (`p` keep, `x` reject, `n` neither) on a take card, in the viewer, on the Work card and in
+the Room; a reject, a declined candidate, a rejected proposal or a parked row may say why (`because`) and when to look
+again (`revive_if`). Before proposing something again, read `cemetery` (scope `scene` + `shot`, `group` or `book`): what
+was turned down and why. A verdict taken back stays in `verdict_detail.retracted`. `setup_ab {take_a, take_b}` asks
+the person a blind question: the server keeps which take is A until they judge it (the page never sees it), so don't
+name the takes when you tell them it waits.
+
+### The Room (SNAP-R70)
+
+The person's front door: `open_view {"view": "room"}` (or `/?room`) shows what waits for them, one question at a time,
+pictures full width, with no machinery. Your words reach it as job questions (`run {question}`) and proposal reasons:
+write them for a person: no ids, file paths, model names, status words or counts; say what you want to know ("does the
+gate hold through the turn?"), and when you can't find something, say so plainly. A verdict there is the same record as
+anywhere else.
 
 ## When Snap can't do it
 
