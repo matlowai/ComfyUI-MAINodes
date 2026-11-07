@@ -356,6 +356,17 @@ export async function setPurpose(t, purpose) {
 // how big a picture is, in pixels (a crop is asked for in fractions of it)
 const sizeOf = (src) => new Promise((done, fail) => { const i = new Image(); i.onload = () => done({ width: i.naturalWidth, height: i.naturalHeight }); i.onerror = () => fail(new Error(`couldn't read ${src}`)); i.src = src; });
 const inputUrl = (file) => { const cut = file.lastIndexOf("/"); return K.url({ filename: file.slice(cut + 1), subfolder: file.slice(0, Math.max(cut, 0)), type: "input" }); };
+// F-AC02: a file that is a record's own picture (a Cast's picture or state picture, a location's master, plan or plate)
+// pins that record at the newest version holding it, as {cast} and {location} pictures do, so dependents, rerun and
+// story_stale see a board or view made from it (make_board sends the compile's Cast pictures as files)
+function holderOf(file) {
+  const quoted = JSON.stringify(file);
+  for (const r of [...W.all("cast"), ...W.all("location")]) {
+    const v = [...r.versions].sort((a, b) => b.n - a.n).find((x) => JSON.stringify(x.body).includes(quoted));
+    if (v) return [W.refOf(r.kind, r.id), { n: v.n, hash: W.short(v.hash), name: v.body.name }];
+  }
+  return null;
+}
 // one context picture: the nodes that load it (keys prefixed `c<i>`), its output, and what the provenance says
 async function contextPicture(p, i) {
   const k = (x) => `c${i}${x}`, nodes = {}, said = { n: i + 1 };
@@ -399,7 +410,8 @@ async function contextPicture(p, i) {
     if (!at.input_exists) throw new Error(`Picture ${i + 1}: "${p.file}" isn't in this server's input folder (${at.input}); upload it with POST /upload/image (subfolder=snap) and give "snap/<its name>"`);
     nodes[k("l")] = { class_type: "LoadImage", inputs: { image: p.file } };
     out = [k("l"), 0]; size = p.crop && await sizeOf(inputUrl(p.file));
-    Object.assign(said, { file: p.file, label: p.label ?? p.file.split("/").pop() });
+    world = holderOf(p.file);
+    Object.assign(said, { file: p.file, label: p.label ?? p.file.split("/").pop(), ...(world ? { pins: `${world[0]}@${world[1].n}` } : {}) });
   } else throw new Error(`Picture ${i + 1}: give take (and frame for a video), file (in input/), cast (cast:<id>, ref: its picture's number from 0) or location (location:<id>, plate: a plate's name, master or plan)`);
   if (p.crop) { // fractions of the picture, as the take viewer's marked region holds them
     const [x, y, w, hgt] = p.crop;
