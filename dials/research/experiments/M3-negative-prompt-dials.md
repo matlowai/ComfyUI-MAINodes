@@ -104,3 +104,20 @@ that is orthogonal to the working dial has to be pushed back actively, and the p
 the real negative removes. A dial is one fixed shift of the text conditioning; a negative prompt steers at every step
 through a second branch. A picture-pair dial does the job (above). Next: a second seed and other prompts; more varied stamp pairs (the
 dress pattern may come from the crops' content). One seed: a hint.
+
+## Held-out prompts (the watermark picture dial v2 at −8, nothing else)
+
+Three new prompts, seeds 201-206, KroMoss DMD2, CFG 1, 8 steps, 1024², one render per seed and arm:
+
+| prompt | control | v2 −8 |
+|---|---|---|
+| a stock photo of a businessman shaking hands | no watermark on any seed | not run (nothing to remove) |
+| an anime fan-art girl hugging a black cat | **3 of 6 marked**: an "@name" signature, an "@handle" plus a large faint name across the middle, a small red seal | **all 3 removed**; the 3 clean seeds stay clean |
+| a mountain lake at sunrise, "award-winning nature photography" | **6 of 6 become award posters**: black caption bands, titles, badges, dates | **all 6 are plain landscapes**: no text, no badge, the same lake, mountains and sunrise |
+
+Side effects on the fan art: outfits change on 4 of 6 (two hoodies become sleeveless tops, one a striped T-shirt), and two
+backgrounds turn light blue or aqua: the same blue lean as on the beach. The landscapes keep their scene.
+
+**What it changes.** The dial generalizes beyond the prompt family it was tested on, and to a kind of text it was not made
+from (whole caption layouts, not corner stamps): it reads as "no overlaid text or branding". The blue lean travels with it;
+the dress push from above is the known fix when the subject has a dress to push. Held-out: 2 prompts × 6 seeds.
