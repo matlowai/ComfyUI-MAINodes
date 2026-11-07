@@ -422,7 +422,7 @@ them). It works on stills: masters, plates, boards.
   not the Cast's front picture (it pulls the head round). Use it for every face-area change: whole-picture edits turned
   a face that looked away 4/4 (F-U02). Crop only what changes, but past where a thin thing that crosses the crop ends (a
   chain, a strap): each candidate's seam note (`list_candidates` notes.seam, a chip on its tile) lists where the edit
-  doesn't meet the picture outside, with `crop_to_try` (half the crop again past that side); on "seam breaks", edit
+  doesn't meet the picture outside, with `crop_to_try` (one and a half crops past that side, G12: half again still broke on the measured chain); on "seam breaks", edit
   again with a crop set where the thing ends (F-T02, SNAP-R191).
 - In the take viewer the same route is "New view from these pictures": add this picture, a marked region of it, or a
   Cast's picture, move them up or down, and pick the model.

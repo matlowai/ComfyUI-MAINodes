@@ -1,7 +1,7 @@
 // Batch G11 (the short05 C2 findings F-U01..F-U06 and the G10 builder's F-T02) on the CPU test server:
 // - SNAP-R191 (F-T02): a region edit's candidates get a seam note: the graph's MAISnapSeam reads each edge of the crop
 //   past the feather; a thin strip redrawn inside (the chain) breaks the top and bottom edges only, with crop_to_try
-//   half a crop further on those sides; an edit that keeps the crop's pixels says "no break". The P-H3 model is swapped
+//   one and a half crops further on those sides (G12; half in G11); an edit that keeps the crop's pixels says "no break". The P-H3 model is swapped
 //   for core nodes (a red strip composited over Picture 1's crop), so the crop, scale, feather, paste and seam nodes run;
 //   the chip on the candidate tile says it;
 // - SNAP-R192 (F-U03): a packet shows a cropped picture as the model got it (the crop's pixels, its px box), then the
@@ -148,7 +148,7 @@ const shots = path.join(CFG.out, "ui", "g11");
     // SNAP-R191 (F-T02)
     seamGraph: S.pasteStates?.every((x) => x === "ready") && !S.paste?.error,
     seamBreaksTopBottom: JSON.stringify([...new Set((c1?.notes?.seam?.breaks ?? []).map((x) => x.side))].sort()) === '["bottom","top"]' && c1.notes.seam.checked.length === 4,
-    seamCropToTry: (() => { const t = c1?.notes?.seam?.crop_to_try; return !!t && Math.abs(t[0] - 614 / 2048) < 0.001 && Math.abs(t[2] - 819 / 2048) < 0.001 && t[1] === 0 && Math.abs(t[3] - (461 + 173) / 1152) < 0.001; })(), // the 2048x1152 crop is 614,115,819,346: half again up (to 0) and down
+    seamCropToTry: (() => { const t = c1?.notes?.seam?.crop_to_try; return !!t && Math.abs(t[0] - 614 / 2048) < 0.001 && Math.abs(t[2] - 819 / 2048) < 0.001 && t[1] === 0 && Math.abs(t[3] - (461 + 519) / 1152) < 0.001; })(), // the 2048x1152 crop is 614,115,819,346: 1.5 crops up (to 0) and down (G12)
     seamSaysWhere: /^the edit breaks at the crop's top and bottom edges \(x \d+-\d+, x \d+-\d+ px\): something drawn inside doesn't meet the picture outside/.test(c1?.notes?.seam?.said ?? ""),
     seamWholeChangeBreaksAll: JSON.stringify([...new Set((c2?.notes?.seam?.breaks ?? []).map((x) => x.side))].sort()) === '["bottom","left","right","top"]',
     seamCleanSaysNoBreak: (c3?.notes?.seam?.breaks ?? [1]).length === 0 && /^no break along the crop's top, bottom, left and right edges$/.test(c3?.notes?.seam?.said ?? ""),

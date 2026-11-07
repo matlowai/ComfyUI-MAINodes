@@ -666,20 +666,23 @@ async function contextCopies(d, c) {
   } catch (e) { return { error: e.message }; }
 }
 // F-T02 (SNAP-R191): a region edit's seam: each run along the crop's edge where the edit doesn't meet the picture
-// outside, and the crop to try next (half the crop again past each side that breaks), never a gate (SNAP-R23)
+// outside, and the crop to try next, never a gate (SNAP-R23). SNAP-R191 (amended, G12): crop_to_try reaches one and a half
+// crops past each side that breaks: on C2 key s9221 half again still broke 2/2 (the redraw hung a longer chain below
+// the new edge) and the eye crop (0.13 high) held 2/2 only taken down to the lapel (0.33 high), 1.5 crops further
+const REACH = 1.5;
 export function seamNote(pasted, out) {
   if (!out?.seam) return { error: "the seam check didn't run (a server from before G11: restart it)" };
   const { box, size } = pasted, sides = [...new Set(out.seam.map((b) => b.side))];
   let [x, y, x2, y2] = [box.x, box.y, box.x + box.width, box.y + box.height];
-  if (sides.includes("top")) y = Math.max(0, y - box.height / 2);
-  if (sides.includes("bottom")) y2 = Math.min(size.height, y2 + box.height / 2);
-  if (sides.includes("left")) x = Math.max(0, x - box.width / 2);
-  if (sides.includes("right")) x2 = Math.min(size.width, x2 + box.width / 2);
+  if (sides.includes("top")) y = Math.max(0, y - box.height * REACH);
+  if (sides.includes("bottom")) y2 = Math.min(size.height, y2 + box.height * REACH);
+  if (sides.includes("left")) x = Math.max(0, x - box.width * REACH);
+  if (sides.includes("right")) x2 = Math.min(size.width, x2 + box.width * REACH);
   const f = (v) => +v.toFixed(4), along = (b) => `${["top", "bottom"].includes(b.side) ? "x" : "y"} ${b.from}-${b.to}`;
   const edges = (l) => (l.length > 1 ? `${l.slice(0, -1).join(", ")} and ${l.at(-1)} edges` : `${l[0]} edge`);
   return { breaks: out.seam, checked: out.seam_checked, box,
     ...(sides.length ? { crop_to_try: [f(x / size.width), f(y / size.height), f((x2 - x) / size.width), f((y2 - y) / size.height)] } : {}),
-    said: sides.length ? `the edit breaks at the crop's ${edges(sides)} (${out.seam.map(along).join(", ")} px): something drawn inside doesn't meet the picture outside. Look at the seam; to fix it, edit again with the crop past where that thing ends (crop_to_try reaches half the crop further on that side; set it where the thing ends)`
+    said: sides.length ? `the edit breaks at the crop's ${edges(sides)} (${out.seam.map(along).join(", ")} px): something drawn inside doesn't meet the picture outside. Look at the seam; to fix it, edit again with the crop past where that thing ends (crop_to_try reaches one and a half crops further on that side, enough on the measured chain; set it where the thing ends when you can see it)`
       : `no break along the crop's ${edges(out.seam_checked.map((c) => c.side))}` };
 }
 C.kind("view", { ...RT.takeCandidate, finish: (d, c, h) => { RT.takeCandidate.finish(d, c, h);
