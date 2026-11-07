@@ -13,7 +13,7 @@ rules: [SNAP-R101, SNAP-R102, SNAP-R103, SNAP-R104, SNAP-R105, SNAP-R106, SNAP-R
 
 SNAP-R101 the critic is a docket job an agent claims · SNAP-R109 this file is the prompt's one home, and a change ships
 only after the fixtures run holds the floor (tests/snap/critic/run_fixtures.py; floor 24/29 caught, 0 false alarms; r4
-measured 26/31 with X31; r5, the garment line, 27/31 with X02's coat split).
+measured 26/31 with X31; r5b, the garment line and what a duplicate is, 27/31 with X02's coat split, 0 false alarms).
 If a Snap server is reachable, `read_skill {"name": "snap-critic"}` returns the person's version of this skill (their
 edits over the pack's); this file is the pack's. What each checklist adds is in `reference.md`
 (`read_skill {"name": "snap-critic", "file": "reference.md"}`). The fixtures and the known misses are in the pack's
@@ -52,7 +52,7 @@ When the docket is done (or your run ends), let go of your page: `use_page {"pag
 keeps its hold leaves the agents' window "Driven by" it for the next agent. Name every call (SNAP_AGENT), so the page
 knows the caller is you.
 
-# The critic prompt (r5: r4 plus the garment line in the cross-view pass; measured 27/31 caught on the fixtures)
+# The critic prompt (r5b: r4 plus the garment line and what a duplicate is; measured 27/31 caught, 0 false alarms)
 
 In the output below, `<id>` is the packet's critique id; write it with write_critique as step 5 says.
 

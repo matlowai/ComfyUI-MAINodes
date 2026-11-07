@@ -563,6 +563,8 @@ nice -n 19 python3 -I "$T/critic/run_fixtures.py" score --results "$T/critic/run
 nice -n 19 python3 -I "$T/critic/run_fixtures.py" score --results "$T/critic/runs/2026-11-06-r4-colour/results.jsonl" --confirm "$T/critic/runs/2026-11-06-r4-colour/confirm.json" | tail -1 | sed 's/^/critic4  /'
 # G5 (SNAP-R153): r5, the garment cross-view line, on all 32 with X02 positive (one false alarm: see critic/README.md)
 nice -n 19 python3 -I "$T/critic/run_fixtures.py" score --results "$T/critic/runs/2026-11-06-r5-garment/results.jsonl" --confirm "$T/critic/runs/2026-11-06-r5-garment/confirm.json" | tail -1 | sed 's/^/critic5  /'
+# G5: r5b, the shipped prompt (r5 + what a duplicate is): the 9 clean and X02/X03/X11/X27 run again, the rest from r5
+nice -n 19 python3 -I "$T/critic/run_fixtures.py" score --results "$T/critic/runs/2026-11-06-r5b-duplicate/results.jsonl" --confirm "$T/critic/runs/2026-11-06-r5b-duplicate/confirm.json" | tail -1 | sed 's/^/critic5b /'
 # U79 (SNAP-R96, R97, R99): the vault container and keys, pure Python on the pack this server loads; prints "vaultfmt n/m" last
 timeout 600 nice -n 19 "$py" -I "$T"/test_vault_format.py "$SNAP_TEST_PACK" >test_vault_format.py.out 2>&1; tail -1 test_vault_format.py.out
 # U79 server, migrate, gate and page suites need the gatetest pair (gate in front of the gatetest ComfyUI, --multi-user, privacy on)

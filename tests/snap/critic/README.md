@@ -58,6 +58,12 @@ polarity once checked by eye. `packets` writes the same blind packets to disk fo
   Liesl" (medium). Settled by eye: X15's reddish-brown iris against the Cast's pale grey and X32's monocle on the wrong
   eye after the turn are real (ok); X09's tile step is its allowed minor. The scan pass now says a duplicate is the same
   person twice, not two people in the same dress (after this run).
+- `runs/2026-11-06-r5b-duplicate/`: the shipped prompt (r5 plus that line), run blind by a fresh Opus 5.5 critic on the
+  9 clean fixtures and on X02, X03, X11 and X27 (the coat split, the duplicate and extra people, the dress); `subset.jsonl`
+  is that run, `results.jsonl` the 32 with the other 19 taken from r5 (the line bears only on people counts):
+  **27/31 caught, 0 false alarms on 9 clean: holds the floor**. X02's split caught again; X03's duplicate Brann and
+  X11's extra knight still caught; X27 has no duplicate note. The clean set's medium notes are real by the r3 rounds'
+  calls (low walls, the well beside the gate, the beat items, the v1 greatsword) and were settled ok.
 
 ## The fixtures
 
