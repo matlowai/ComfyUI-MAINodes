@@ -68,7 +68,18 @@ composition far better than the word dial. A small signature remains, as it does
 watermark on **8 of 12** controls (seven logo-style marks, one "@handle"). With the picture dial at −8: **6 of 8 fully
 removed**, one reduced, one survives (smaller); the 3 clean controls stay clean, and **one clean control gains a tiny new
 mark** (a false positive). Side effect: the white dress turns light blue, aqua or mint in most seeds (pose, composition and
-face stay close). Next: re-make the pairs from more varied crops and stamp colours, and re-run the same seeds.
+face stay close).
+
+**v2: 32 more varied pairs** (more crop content, stamp colours including blue), the same 12 seeds at −8: **the same
+removal** (6 of 8 gone, seed 109 reduced to a small signature, seed 106's logo survives smaller; seed 110 again gains a tiny
+mark). Blue drift slightly lower by eye (7 of 12 dresses visibly blue/aqua/mint vs 8 of 12). So the blue does not come from
+the stamp colours.
+
+**v2 + a colour hold** (the Dial Rack's `hold` row: the summed shift is projected off the warm↔cold grade dial, so the rack
+cannot move along that direction): **no help.** The dresses stay just as blue, if anything a little bluer (mean blue − red
+over the figure rose on 9 of 12 seeds); removal got slightly worse (seed 112 keeps a small signature that v2 alone removed;
+106 and 110 as before). My guess (untested): the drift is an object colour ("a blue dress"), not a lighting grade, so a grade
+dial is the wrong thing to hold. Next candidate: hold a dial made from "a white dress ||| a light blue dress" pairs.
 
 **What it shows.** A negative-prompt dial pushes in the right direction but only part of the way: it fades a watermark
 the real negative removes. A dial is one fixed shift of the text conditioning; a negative prompt steers at every step
