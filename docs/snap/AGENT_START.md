@@ -156,7 +156,9 @@ nested pack → install → person → book → scene → shot → take. Read th
      `set_setting` on `first_frame`). A first frame and references combine: when the setup reads references (Ref2V,
      which reads no first frame), the First frame's picture is also `<Picture 1>` in References, the opening frame,
      ahead of the rest (SNAP-R115); the answers say so. A walkthrough's camera height comes from its first frame, never
-     from words: start it from an eye-level still (skill `snap-location`).
+     from words: start it from an eye-level still (skill `snap-location`). There is no last frame yet: core's H3 node
+     takes one, but the pack's H3 setups don't wire it, and `use_take {as: "last_frame"}` says so (F-F20); end on a
+     picture by citing it as a reference ("the shot ends on <Picture 2>").
    - Upscale starts off when RelayVSR isn't installed.
 2. Set the prompt: `set_setting {"brick": "render", "name": "prompt", "value": "..."}`.
    - `render` names the recipe's Render in every family (the stills recipe's brick id is `image`). Titles such as
