@@ -1888,4 +1888,14 @@ SNAP-R197 on. R160-R164 stay free.
   row. *Why:* dogfood F-Y11: Kuroe's Cast fix (save_cast v5 with a new front) sorted last in the docket and showed no
   picture, so the person couldn't see what they were saying yes to. *More:* tests/snap/test_g12.js.
 
-Next free ID after this batch: SNAP-R202 (R160-R164 stay free).
+- **SNAP-R202: A still's stage 2 redraws the whole still, whatever made it.** `upscale_take {method: "stage2"}` on a
+  still runs the still's own graph at the asked size from the still itself (Lanczos, VAE-encoded) at `denoise`. A region
+  edit (paste_back, SNAP-R190) is redrawn as an edit of its whole picture: Picture 1 is the edited still, not the crop,
+  and the decode is saved as it is, with no crop, paste back, mask or seam check (`edits.js` `unpaste`). An H3 still's
+  latent carries sound, so the encoded still is its video half (the method's `run.av_latents` name the nodes that make
+  such a latent); any other model's still (MOSS, Krea) starts from the encoded still alone, a KSampler at `denoise`.
+  *Why:* dogfood F-Y04: stage 2 of Kuroe's region-edit fixes re-ran the crop and the paste with the whole picture as the
+  crop and came back at 1x with a small whole-body copy in the head box (2/2); F-Y05: stage 2 of the MOSS still his Cast
+  front came from crashed in LTXVSeparateAVLatent. *More:* tests/snap/test_g13.js.
+
+Next free ID after this batch: SNAP-R203 (R160-R164 stay free).

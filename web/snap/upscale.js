@@ -9,11 +9,12 @@
 // the upscaled take tile by tile with the take as <Video 1>, a hero tile on the face (SAM 3.1) and a first-frame still as
 // <Picture 1>. What each runs (files, words, sigmas, tiling) is registry data, the method's `run` and `options`.
 // Stage 2 runs on stills too (G1): a New view or sheet still's own graph at the bigger size, its sampler starting from the
-// still itself (VAE-encoded, the empty AV latent's audio kept) at `denoise`. A take whose purpose is a reference (a Cast
+// still itself (VAE-encoded, the empty AV latent's audio kept) at `denoise`; any model's still made by one sampler (G13:
+// MOSS, Krea), and a region edit as an edit of its whole picture (G13). A take whose purpose is a reference (a Cast
 // picture, a turnaround, a location's master or plate, settei) is redrawn this way by default, and the answer says why.
 // Stage 2's `speed` (G1b) is time against softness: "quality" keeps the take's own cfg, "fast" samples at cfg 1 (one model
 // pass per step: 1.7x faster, a touch softer); quality stays the default.
-// SNAP-R85 a reference is redrawn, never only sharpened · SNAP-R113 stage 2 fast is a choice, never the default ·
+// SNAP-R85 a reference is redrawn, never only sharpened · SNAP-R202 a still's stage 2 redraws the whole still, from any model · SNAP-R113 stage 2 fast is a choice, never the default ·
 // SNAP-R134 a reference's redraw says to compare the eyes with the Cast (keep eye colour is a separate, optional step) ·
 // SNAP-R81 a take's upscale is a second pass of its own recipe · SNAP-R82 Tessera tiles a take · SNAP-R13 data, not code
 // branches · SNAP-R14 method slots · SNAP-R16 GPU work waits for the person · SNAP-R60 pins · see docs/snap/SNAP_RULES.md
@@ -59,9 +60,13 @@ function sendable(prompt) {
 
 // the speed's cfg on the guider of every sampler in the recipe, as the A/B set the Render Preset's cfg for both passes
 // (null: the take's own)
+const SAMPLERS = ["SamplerCustomAdvanced", "KSampler"];
 function guide(g, cfg) {
   if (cfg == null) return;
-  for (const n of Object.values(g)) if (n.class_type === "SamplerCustomAdvanced") { const gd = g[n.inputs.guider[0]]; if ("cfg" in gd.inputs) gd.inputs.cfg = cfg; }
+  for (const n of Object.values(g)) {
+    if (n.class_type === "KSampler") n.inputs.cfg = cfg;
+    if (n.class_type === "SamplerCustomAdvanced") { const gd = g[n.inputs.guider[0]]; if ("cfg" in gd.inputs) gd.inputs.cfg = cfg; }
+  }
 }
 
 // stage 2 and h3_latent: the take's own prompt, its empty H3 latent replaced by the take's frames at the target (`plate`
@@ -97,25 +102,29 @@ function secondPass(take, m, t, denoise, plate, cfg) {
   return g;
 }
 
-// stage 2 of a still (a New view or sheet still: P-H3-Image or the Fizgig H3 still): its own graph at the target size, the
-// sampler starting from the still itself, upscaled and VAE-encoded with the graph's own VAE as the video half of the
-// empty AV latent (its audio half kept), at `denoise` on its own sigmas; saved as a new still
+// stage 2 of a still (a New view or sheet still, a region edit, any model's still made by one sampler): its own graph at
+// the target size, the sampler starting from the still itself, upscaled and VAE-encoded with the graph's own VAE, at
+// `denoise` on its own sigmas; saved as a new still. An H3 still's latent carries sound (the method's `av_latents` make
+// it), so the encoded still is its video half with the audio half kept; any other model's latent is the encoded still
+// (F-Y05: a MOSS still crashed in LTXVSeparateAVLatent). A region edit is redrawn whole (F-Y04, SNAP-R202)
 function stillPass(take, m, t, denoise, upscaler, cfg) {
-  const g = sendable(take.prompt), samplers = Object.keys(g).filter((k) => g[k].class_type === "SamplerCustomAdvanced");
+  const g = sendable(take.prompt);
+  if (take.parent?.options?.pasted) ED.unpaste(g, ["u2i", 0]);
+  const samplers = Object.keys(g).filter((k) => SAMPLERS.includes(g[k].class_type));
   const decode = Object.values(g).find((n) => ["VAEDecode", "FizgigH3StillDecode"].includes(n.class_type) && samplers.includes(n.inputs.samples?.[0]));
-  if (samplers.length !== 1 || !decode) throw new Error(`Take ${take.number}: its prompt has no one sampler decoded to a still (${m.title} runs on H3 stills made in Snap)`);
+  if (samplers.length !== 1 || !decode) throw new Error(`Take ${take.number}: its prompt has no one sampler decoded to a still (${m.title} runs on stills made by one sampler)`);
   for (const n of Object.values(g)) if ("width" in (n.inputs ?? {}) && "height" in n.inputs && n.class_type !== "ImageScale") Object.assign(n.inputs, { width: t.width, height: t.height });
-  const s = g[samplers[0]].inputs;
-  g.u2s = { class_type: "H3DeropeSigmas", inputs: { model: g[s.guider[0]].inputs.model, sigmas: s.sigmas, inject: denoise, steps: 0 } };
+  const k = g[samplers[0]], s = k.inputs, av = m.run.av_latents.includes(g[s.latent_image[0]]?.class_type);
   Object.assign(g, {
     u2i: { class_type: "LoadImage", inputs: { image: K.annotated(still(take)) } },
     ...(upscaler ? { u2ml: { class_type: "UpscaleModelLoader", inputs: { model_name: upscaler } }, u2mu: { class_type: "ImageUpscaleWithModel", inputs: { upscale_model: ["u2ml", 0], image: ["u2i", 0] } } } : {}),
     u2up: { class_type: "ImageScale", inputs: { image: upscaler ? ["u2mu", 0] : ["u2i", 0], upscale_method: "lanczos", width: t.width, height: t.height, crop: "disabled" } },
     u2e: { class_type: "VAEEncode", inputs: { pixels: ["u2up", 0], vae: decode.inputs.vae } },
-    u2sep: { class_type: "LTXVSeparateAVLatent", inputs: { av_latent: s.latent_image } },
-    u2l: { class_type: "LTXVConcatAVLatent", inputs: { video_latent: ["u2e", 0], audio_latent: ["u2sep", 1] } },
+    ...(av ? { u2sep: { class_type: "LTXVSeparateAVLatent", inputs: { av_latent: s.latent_image } }, u2l: { class_type: "LTXVConcatAVLatent", inputs: { video_latent: ["u2e", 0], audio_latent: ["u2sep", 1] } } } : {}),
   });
-  s.sigmas = ["u2s", 0]; s.latent_image = ["u2l", 0];
+  s.latent_image = av ? ["u2l", 0] : ["u2e", 0];
+  if (k.class_type === "KSampler") s.denoise = denoise;
+  else { g.u2s = { class_type: "H3DeropeSigmas", inputs: { model: g[s.guider[0]].inputs.model, sigmas: s.sigmas, inject: denoise, steps: 0 } }; s.sigmas = ["u2s", 0]; }
   guide(g, cfg);
   for (const n of Object.values(g)) if (n.class_type === "SaveImage") n.inputs.filename_prefix = `snap_upscale/${take.id}`;
   return g;

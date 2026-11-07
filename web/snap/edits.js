@@ -431,6 +431,14 @@ function pasteBack(g, pic) {
   g.o.inputs.images = ["rc", 0];
   return { box, feather: f };
 }
+// F-Y04 (SNAP-R202): a region edit's graph as an edit of its whole still (its stage 2): Picture 1 is `whole`, the edited
+// still, not the crop, and the decode is saved as it is. Re-running the crop and the paste pasted the whole picture, small,
+// into the crop at 1x. Picture 1's own nodes (c0…: its loader and crop) are read by nothing then
+export function unpaste(g, whole) {
+  for (const n of Object.values(g)) for (const [k, v] of Object.entries(n.inputs ?? {})) if (Array.isArray(v) && v[0] === "r0s") n.inputs[k] = whole;
+  g.o.inputs.images = ["d", 0];
+  for (const k of Object.keys(g)) if (["r0s", "rb", "rm", "rf", "rc", "rs"].includes(k) || /^c0[a-z]$/.test(k)) delete g[k];
+}
 // F-S02 (SNAP-R186): a new view whose Picture 1 is a location's picture (or a Cast's picture it edits) lands with that
 // record: the shot of the take the picture came from, else (a place) the newest take that pins it outside a Book's cuts
 // (a cut's shot is that production's, and a still there is a board); null when no shot holds the record's work
