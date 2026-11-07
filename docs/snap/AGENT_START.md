@@ -86,6 +86,11 @@ says how to start one.
     python3 $PACK/tools/snapcall.py $BASE get_profile        # one call; pictures go to a new folder under <temp>/snapcall-pictures/ (saved_in), paths printed
     python3 $PACK/tools/snapcall.py $BASE run_status '{"wait_s": 25}'
 
+Every call carries an `Idempotency-Key` (SNAP-R159): snapcall and snap_mcp make one per call and retry a bridge timeout
+or a dropped connection with it, and the bridge answers the first call's answer (`replayed: true`) instead of running it
+twice. snapcall prints the key (`idempotency_key`); to retry a whole command, run it again with
+`SNAP_IDEMPOTENCY_KEY=<that key>`. With curl, send your own `-H 'Idempotency-Key: <one per call>'`.
+
 You can also run the tools as an MCP server (Claude Code):
 
     claude mcp add comfy-snap -- python3 $PACK/tools/snap_mcp.py --base-url $BASE
@@ -270,8 +275,9 @@ they used (`cast:<id>@2`).
 3. Put it in the recipe: `apply_cast {"cast": "cast:<id>"}`. The Cast row, the details sentence and the pictures go in;
    `describe_recipe` → `world` shows `n` (the version the recipe holds).
 4. Render as usual (`run`, `run_status`).
-5. Change the character: `save_cast` again with `"cast": "cast:<id>"` and the whole character (say what changed in
-   `note`). The recipe does not change by itself: `describe_recipe.world` says `moved: true`, and `list_takes` shows
+5. Change the character: `save_cast` again with `"cast": "cast:<id>"` and only the fields that change (the rest is kept
+   and `kept` names it, F-K02; null clears one; say what changed in `note`). Read one Cast with `get_cast {"cast":
+   "cast:<id>"}` (or `@n` for a version). The recipe does not change by itself: `describe_recipe.world` says `moved: true`, and `list_takes` shows
    `stale.world` ("Kon v1 → v2").
 6. Re-take: `retake {"take": "<id>", "world": "latest"}` updates each moved record first ("today's world");
    `"world": "pinned"` runs it exactly as it was. It spends GPU time, so it waits as a proposal unless agents may run.
@@ -312,6 +318,9 @@ cameras → master → a people-free walkthrough → plates from its frames), th
     add_plate {"location": "location:<id>", "name": "Pb gate inside", "pose": {"eye_height": 1.5}}   # one plate's pose; its picture and the rest kept
     add_plate {"location": "location:<id>", "name": "Pc N row", "camera": {"name": "Pc N", "x": 0.4, "y": 0.2, "heading": 0, "eye_height": 1.6}}
                                                        # a camera mark added (or moved, by name) with the plate (SNAP-R148)
+    save_location {"location": "location:<id>", "scale": [{"name": "house door", "height_m": 2.0}, {"name": "gate door", "height_m": 3.7}]}
+                                                       # scale anchors: the critic measures eye and wall heights against them (SNAP-R155)
+    remove_plate {"location": "location:<id>", "name": "Parch"}   # a plate out; the others keep their from (F-K05)
 
 - A pose's `x`, `y` are fractions of the plan picture from its top left; `heading` is degrees clockwise from the
   plan's up (north); `eye_height` in metres; `lens` in mm. `list_locations` gives every place whole;
@@ -472,7 +481,10 @@ it with the `snap-critic` skill: `list_critiques {"state": "due"}` (add `"compac
 100 % tiles, then the context pictures and the words; pictures saved by snapcall in the order its `pictures[].image`
 says), then `write_critique {"critique", "verdict": "clean" | "flaws", "passes": {...}, "notes": [{"severity",
 "pass", "text", "picture", "region": [x, y, w, h], "owner", "fix"}]}`. The notes land on the take with masks; nothing
-is blocked by them. `critique {"location": "location:<id>", "part": "views"}` asks for one (every view of a place side
+is blocked by them. An owner names the part it was born in ("plate Pb", "plan", "location master", "location notes",
+"camera marks"): Snap stores that part and lists words it can't map in `owners_unmapped` (SNAP-R156). A mistake in a
+row you wrote: `write_critique {"critique", "amend": true, ...}` writes it again as a new row that supersedes it
+(SNAP-R157). `critique {"location": "location:<id>", "part": "views"}` asks for one (every view of a place side
 by side); `critic_report` says how the critic agreed with the person. Only a record's newest version
 gets rows; a row of an older version holds while the picture it read is unchanged, and an unwritten row whose picture
 changed is `stale` (off the due list; `list_critiques {"state": "stale"}`). The packet's record notes are claims to

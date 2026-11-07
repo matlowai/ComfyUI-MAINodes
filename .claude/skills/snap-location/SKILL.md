@@ -5,8 +5,8 @@ description: >
   people-free H3 walkthrough, plates pulled from its frames with their camera pose, then boards placed on plates. Use
   it whenever a short, scene or shot needs a place (a village, a room, a street), when views of one place disagree
   (a gate that changes between cuts), or before making plates or boards of a set.
-scope: [tool:save_location, tool:add_plate, tool:apply_location, tool:use_take, tool:draw_set_plan]
-rules: [SNAP-R21, SNAP-R22, SNAP-R71, SNAP-R84, SNAP-R115, SNAP-R133, SNAP-R136, SNAP-R147, SNAP-R148, SNAP-R154]
+scope: [tool:save_location, tool:add_plate, tool:remove_plate, tool:apply_location, tool:use_take, tool:draw_set_plan]
+rules: [SNAP-R21, SNAP-R22, SNAP-R71, SNAP-R84, SNAP-R115, SNAP-R133, SNAP-R136, SNAP-R147, SNAP-R148, SNAP-R154, SNAP-R155]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-location"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -24,6 +24,11 @@ gates). Tool calls are in `docs/snap/AGENT_START.md` ("A new view of a place").
    the sheet draws them as wedges, never into the plan picture (marks in the picture leak into renders that cite it).
    Try the layout with `preview: true` first: it answers the picture and every label that runs off it or over another,
    and saves no version (SNAP-R154); break a long label with `\n`.
+   **Give the place a scale** (SNAP-R155): `save_location {location, scale: [{name: "house door", height_m: 2.0},
+   {name: "gate door", height_m: 3.7}]}`, the things every view shows whose real height you decide. The critic measures
+   eye heights and wall heights against them; without a scale its metres are guesses at a door's size (village v21:
+   plates read "~2 m" on an assumed 2.7 m gate door were ~2.7 m on the houses' own doors). Keep the plan's proportions
+   and the anchors in step (a palisade 1.4 gate doors high is 5.2 m on a 3.7 m door).
 2. **Master:** one establishing picture that shows how the parts connect (road → wall → gate → square). Run the
    critic's logic check on it now (`snap-critic`): does the wall enclose what it should, does the road reach the gate.
    A flaw here reaches every plate.
@@ -55,6 +60,11 @@ gates). Tool calls are in `docs/snap/AGENT_START.md` ("A new view of a place").
 
 - **Forward dollies work; turns don't.** "Turn around" / "turn right" swung the camera back to the master's aerial
   pose in 4 of 4 attempts. Make each plate with a forward dolly toward it.
+- **A view through the gate needs the far side's own plate.** A forward dolly from outside the gate (the Pab plate as
+  first frame + master + plan) drew the far house row under a far palisade twice their eave height, 2/2 seeds, and words
+  ("full size, roofs above the palisade's tips") didn't move it: the far wall came out at the near wall's scale. Cite the
+  far side's plate as a place picture (Pd), or draw the view from inside; check far-row eaves against far-wall tips before
+  pulling a frame (F-K07).
 - **Never cite the next place.** A reference picture of the next place on the path made H3 hard-cut to it mid-take in
   3 of 8 takes. Carry the next place by the next cut's board.
 - **Wides need a foreground anchor.** "Wide, from inside the square" with the master as Picture 1 came back as the
@@ -67,7 +77,10 @@ gates). Tool calls are in `docs/snap/AGENT_START.md` ("A new view of a place").
 - **Seats and anchors belong in the plate.** Put the bench and the lantern pole in the plate, then stage "sit on the
   bench, legs and feet visible". People staged on a ledge that isn't drawn sank into the roof or got a second ledge.
 - **A pose's eye height is a number you typed.** `eye_gaps` compares typed numbers, not the picture: read the horizon
-  against a door before trusting either, and fix the one that's wrong (a plate typed 2 m sat at eye height).
+  against a scale anchor before trusting either (the critic's note says "measured against the record's scale"), and
+  fix the one that's wrong with `add_plate {location, name, pose}` (a plate typed 2 m sat at eye height).
+- **Dropping a plate:** `remove_plate {location, name}`; the other plates keep their `from` (F-K05). A plate given by
+  `file` alone keeps the take and frame the record had for that file.
 - **Doors and windows are said from the camera** (SNAP-R22), and each camera gets 2-3 plate candidates; one orbit
   render per camera is unreliable (SNAP-R21).
 

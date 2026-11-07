@@ -1476,3 +1476,51 @@ Next free ID after this batch: SNAP-R155.
   as PNG, and the plan with marks drawn names the file it was drawn over (`drawn_over`). *Why:* village v11: v3-v5 rows
   of unchanged plates stayed due at v16, a notes-only save asked nothing, and every height came from the critic's own
   crops (F-G06, F-G07).
+
+## Batch G6 (2026-11-06)
+
+Next free ID after this batch: SNAP-R160 (the G6 Book part took R165-R172; R160-R164 and R173 on are free).
+
+- **SNAP-R155: A location keeps its scale, and the critic measures against it.** A location record holds `scale`, a
+  list of anchors `{name, height_m, note}`: things its pictures show whose real height the person decides (a house door
+  2.0 m, the gate door 3.7 m). save_location keeps it when left out; the Location sheet shows and edits it; a critique
+  packet sends it with a `scale_rule`, and the critic measures camera (eye) and wall heights against the anchors and
+  says "measured against the record's scale (house door 2.0 m)", or "no scale on record" and gives ratios. *Why:* the
+  village v21 critic read the eye-level plates as ~2 m on an assumed 2.7 m gate door, then ~2.2-2.8 m on the houses'
+  own doors: a height with no anchor is a guess at a door's size (critic round village_v11_r4). *More:* SNAP-R84,
+  SNAP-R102.
+- **SNAP-R156: A critic note is owned by the part it names.** The owner words map to that part of the record: a plate
+  by its whole name or its label ("plate Pb"; several plates: the first is the part, `parts` lists all), the plan, the
+  master, the record's notes, its camera marks and plate poses (`marks`). Words that name no part are kept with part
+  null and said in the write's `owners_unmapped`, never read as the master. Fix at source opens that part: a picture
+  gets a New view with the fix; notes and marks (typed words and numbers) open the Location sheet with the call that
+  changes them. *Why:* village v21: every owner the critic wrote ("plate Pb", "plate Pa / plate Pab", "location record
+  (plate poses and camera marks)") was stored as the master, so Fix at source opened the wrong record (F-K09).
+  *More:* SNAP-R105.
+- **SNAP-R157: A critic amends its own written critique as a new row.** `write_critique {critique, amend: true, ...}`
+  by the row's author writes the whole critique again as a new row that `supersedes` the old one; the old row stays,
+  marked `superseded_by`, and its notes leave the take's list. Nobody else amends it (they ask for it again), and an
+  amended row isn't amended twice (amend the new one). *Why:* the village v21 critic found a scale error in its own Pb
+  note after writing, and the correction could live only in another row and a report (F-K10). *More:* SNAP-R103.
+- **SNAP-R158: The Work card says what waits for the person first.** Critique rows waiting for a critic fold into one
+  row ("38 critiques due", whether a critic is on duty) with an explicit press that lists every one; the pill counts
+  them apart from the jobs in flight; in a group, the agents' proposals come before other rows. A row's buttons are
+  real buttons (a nested list of elements is flattened, never printed). *Why:* short05: the Work card opened on "In
+  flight 104", mostly critique rows, with the 24 proposals far below, each showing "[object HTMLButtonElement]" where
+  Accept and Reject should be (F-L01, F-M01). *More:* SNAP-R65.
+- **SNAP-R159: A retried call never runs twice.** `POST /mainodes/snap/call` takes an `Idempotency-Key` header (or
+  `idempotency_key` in the body): the bridge keeps the first call's answer per user, agent and key for an hour (memory
+  only); the same key with the same tool and args answers that answer with `replayed: true`, waiting for the page's
+  late answer when the first call timed out, and never sends the call to the page again; the same key with other args
+  is refused (409); a read-only tool's answer isn't kept. snapcall.py and snap_mcp.py send a key with every call and
+  retry a timeout (504) or a dropped connection with the same key; snapcall prints it, and `SNAP_IDEMPOTENCY_KEY`
+  reuses it for a whole command run again. *Why:* a run whose answer timed out at the bridge was run again by a retry
+  (Astrid interop map §6, the Runtime's mutation rule). *More:* SNAP-R30.
+- **SNAP-R84 (amended, G6): every record save keeps what it leaves out.** save_cast, like save_location and add_plate,
+  keeps every field a version leaves out and says so (`kept`; F-K02); a picture given by its file alone keeps the take
+  and frame the record had for that file (F-K05), and remove_plate takes plates out with the others' provenance kept.
+  diff_record lists a file hash stamped onto a picture that had none as `sha_recorded`, not as a change (F-K03).
+- **SNAP-R104 (amended, G6): a walkthrough is read as a walk.** A video that pins a location and no Cast gets the
+  `walk` checklist (the set holds frame to frame, the camera keeps its first frame's height, nobody appears), not a
+  story cut's (F-K06). Every view of a location gets measuring copies, and a packet with no tiles says why (each
+  subject picture is within the tile size, so its whole is already at 100 %; F-K11).
