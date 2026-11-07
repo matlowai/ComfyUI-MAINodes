@@ -1,0 +1,38 @@
+# M2: word dials on MOSS-Image, read straight off the encoder's output head (2026-11-07)
+
+**Question.** On H3 a plain logit lens gave no usable word direction (J2), because H3 reads its text encoder at layer 50
+of 64 and the file has no output head. **MOSS reads the last layer of its Qwen3.5-9B encoder after the final norm, and the
+file keeps the output head (`lm_head`)**, so there the logit lens *is* the exact lens: a word's direction is simply its
+`lm_head` row. Do word dials made that way work on MOSS?
+
+**Setup.** Same method as J2/J3 (`dials_word_dial.py --te-file`): each word's `lm_head` row (int8 ConvRot rows dequantized
+with comfy_kitchen's own routine), averaged over the list, pushed through MOSS's `text_embedder` on 8 base prompts, debiased,
+scaled to the size of `moss_day_night_hook`; also a centered version (minus the mean of the 13 lists). Made on MOSS SFT
+DeBand. Renders: the lighthouse prompt, **one seed (7)**, 1024², 25 steps, cfg 3.
+
+**Offline check (raw, no centering needed)**, cosine with the existing MOSS pair dials:
+
+| list | best match |
+|---|---|
+| night, moonlight, dark, stars | day/night pair dial +0.21 (rank 1) |
+| storm, rain, thunder, clouds | calm/storm pair dial +0.20 (rank 1) |
+| cold, blue, steel, icy | warm/cold grade pair dial +0.30 (rank 1) |
+| neon, cyberpunk, hologram, electric | ukiyo-e/cyberpunk +0.14 (the cyberpunk side) |
+| lava, molten, magma, volcanic | solid/melting +0.10 (the melting side) |
+| table, number, between, also (placebo) | nothing above 0.07 |
+
+Misses: "warm, golden, amber, sunset" did not land on the warm side of the grade dial; "ukiyo, woodblock, edo, print" landed
+on calm/chaos.
+
+**Renders.**
+- At **+4** (where MOSS pair dials work) nothing shows for night, storm, neon, lava or underwater: small reframings like
+  the placebo's.
+- **Night at +8:** a moon, a deeper dusk, a glowing wet path. **At +12:** a full moonlit night with a lantern-lit cottage,
+  starting to break into framed inset panels.
+- **Neon at +8 / +12:** no glow; fences, wire and a pier appear. My guess is that "electric" was read literally.
+
+**What it shows.** On MOSS, word dials come straight off the output head with no Jacobian and no centering, and they point
+at the right pair dials (rank 1 for night, storm, cold). They need about twice a pair dial's strength, and each word acts
+literally, so the list must not contain words with an unwanted literal reading. One seed: a hint.
+
+**Next.** Lists of purely visual words; a second seed; compare with centered J-lens dials on H3 (where centering was needed).
