@@ -52,3 +52,24 @@ lighthouse prompt and on an already-animated prompt (a young woman walking on a 
 through as such, and the breakdown point is a property of strength, not of resolution or prompt. Next: a second seed and
 a held-out scene for the six best; MOSS word dials from the encoder's own output head (the exact lens on MOSS, which reads
 its last layer); picture-pair dials for MOSS (being built for the high-resolution LoRA work).
+
+## Replication: a second seed and a held-out scene (2026-11-07)
+
+The six best dials on MOSS SFT DeBand (same settings: ER-SDE 25 steps, cfg 3, the default negative), at −4 / control / +4,
+on the **lighthouse at seed 8** and a **held-out scene at seed 7** (an old man reading a newspaper on a park bench in autumn;
+no pair mentions it). One render per arm.
+
+| dial | lighthouse, seed 8 (−4 / +4) | park bench, held out (−4 / +4) |
+|---|---|---|
+| ukiyo-e ↔ cyberpunk | a woodblock painting with calligraphy and a seal / a neon lighthouse, glowing light-trail path | an ink painting of the man reading on a mat / a neon city at night, leather jacket |
+| contrast: flat ↔ punchy | pale and hazy / dark, dramatic, a wave crashing | softer and flatter / darker, a wilder beard (mild) |
+| detail: minimal ↔ ornate | a bare headland / gear on the keeper, crowds, many gulls | a plain sweater / an ornate scarf, an iron bench, a busier park |
+| calm ↔ chaos | a quiet path / the keeper scrambling, other people, gulls | calm / newspapers scattered, a slouched, windblown reader (mild) |
+| film: digital ↔ 70s | crisp / faded, muted, grainy dusk | crisp / warmer, muted (mild) |
+| tiny ↔ colossal | a smaller, nearer lighthouse / a monumental rock, huge waves | no visible scale change either way |
+
+- **Five of six replicate on the second seed, and the same five carry to the held-out scene** (contrast, calm/chaos and film
+  more mildly there). Tiny ↔ colossal needs something with a scale to change; a man on a bench has none.
+- Ukiyo-e ↔ cyberpunk is the strongest dial: a full change of medium on both scenes, both sides.
+- **Identity drift:** on the park bench the control draws an East Asian man; most ±4 arms draw a different, European-looking
+  man (the ukiyo-e side keeps an East Asian man). At ±4 these dials restage the person, so they are not identity-safe.
