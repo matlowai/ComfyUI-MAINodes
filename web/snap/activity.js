@@ -84,7 +84,7 @@ function fromDecision(d, byId) {
   const state = d.status === "applied" || d.status === "closed" ? "done" : states.includes("rendering") ? (queued.length === prompts.length ? "queued" : "running") : checking ? "checking" : ready ? "waiting" : states.every((s) => s === "failed") ? "failed" : "done";
   const running = prompts.map((id) => byId.get(id)).find((p) => p?.state === "running");
   return { id: `d:${d.id}`, decision: d.id, source: "decision", kind: { edit: "paint", view: "paint", sheet: "paint", rerun: "rerun", plate: "plate" }[d.kind] ?? d.kind, title: d.title, by: d.by, owner: d.by === "agent" ? "agents" : "you",
-    state, about: { take: d.take ?? (d.kind === "plate" ? undefined : d.target), decision: d.id, set: d.set, camera: d.camera }, where: where({ take: d.take, set: d.set, camera: d.camera }),
+    state, about: { take: d.take ?? (d.kind === "plate" ? undefined : d.target), decision: d.id, set: d.set, camera: d.camera }, where: where({ take: d.take, shot: d.land?.shot, group: d.candidates.map((c) => T.get(c.take)?.group).find(Boolean), set: d.set, camera: d.camera }), // F-K08: the shot its candidates land in
     candidates: { count: d.candidates.length, ready, rendering: states.filter((s) => s === "rendering").length, failed: states.filter((s) => s === "failed").length, rejected: states.filter((s) => s === "rejected").length },
     prompts, queued_at: d.created, started_at: running?.started ?? null, eta_s: null, ...(running ? { progress: progressOf(running.id) } : {}), ...(queued.length ? { ahead: Math.min(...queued.map((p) => p.ahead)) } : {}),
     ...(state === "failed" ? { error: d.candidates.map((c) => `${c.id}: ${c.error ?? "failed"}`).join("; ") } : {}),
