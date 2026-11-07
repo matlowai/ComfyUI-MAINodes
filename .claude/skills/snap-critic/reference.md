@@ -55,6 +55,15 @@ A Cast picture, character sheet or turnaround. Carried items need a visible hold
 - Reading rule "Projection": a diagonal scabbard reads near-vertical in profile; that alone is not a flaw.
 - Cast pass: the sheet against the Cast's details line in `words.pins`.
 
+## walk
+
+A people-free walkthrough of a location (a video that pins the place and no Cast; its frames become plates; F-K06).
+- The set holds from the first frame to the last against the master and the plan: the same gate, walls and rows, no
+  wall growing or shrinking as the camera moves, no hard cut to another place.
+- The camera stays at the height its first frame set: read the horizon against a scale anchor in the first and the
+  last frame (plate section: "measured against the record's scale" or "no scale on record").
+- No people, no figures popping in. No beat or Cast pass: nobody is meant to be here.
+
 ## board
 
 A board or still in a shot (people in the place). Every pass.

@@ -11,6 +11,7 @@
     "sheet": { "label": "a Cast picture, sheet or turnaround", "passes": ["scan", "support", "cast", "cross_view"], "context": ["cast"], "tiles": "views" },
     "board": { "label": "a board or still in a shot", "passes": ["scan", "map", "support", "cast", "beat", "cross_view", "cut_pair"], "context": ["master", "plates", "cast", "previous"], "tiles": "all" },
     "cut": { "label": "a video take in a shot", "passes": ["scan", "map", "support", "cast", "beat", "cross_view", "cut_pair"], "context": ["board", "plates", "cast", "previous"], "tiles": "ends", "frames": 5 },
+    "walk": { "label": "a people-free walkthrough of a location: a video whose frames become plates (F-K06)", "passes": ["scan", "map", "support", "cross_view"], "context": ["master", "plan", "plates"], "tiles": "ends", "frames": 5 },
     "cut_pair": { "label": "a cut pair: the last frame of one cut and the first of the next", "passes": ["cut_pair"], "context": ["boards"], "tiles": "none" },
     "upscale": { "label": "an upscaled take", "passes": ["scan", "cross_view"], "context": ["source"], "tiles": "all" },
     "edit": { "label": "a targeted edit", "passes": ["scan", "cross_view"], "context": ["source"], "tiles": "all" },
