@@ -268,24 +268,59 @@ async def sizes(request):
     return web.json_response(await asyncio.to_thread(find))
 
 
+# F-Q12 (SNAP-R183): a record that can't open without others carries them: a Book its story and look (every version's);
+# its Cast and places are offered, not carried (they are the person's to share)
+PARTS = {"book": ("story", "style")}
+OFFERS = {"book": ("cast", "locations")}
+
+
+def refs_in(r, keys, versions):
+    out = []
+    for v in versions:
+        for k in keys:
+            for ref in (lambda x: x if isinstance(x, list) else [x])((v.get("body") or {}).get(k)):
+                if isinstance(ref, str) and ":" in ref and ref.split("@")[0] not in out:
+                    out.append(ref.split("@")[0])
+    return out
+
+
 @routes.post("/mainodes/snap/world/export")
 async def export(request):
-    """a zip in output/snap_exports/: manifest.json, the records' files, the input/ media they name, and with with_takes
-    the takes that pin them with their output media"""
+    """a zip in output/snap_exports/: manifest.json, the records' files (with the records each needs to open: a Book's story
+    and look), the input/ media they name, and with with_takes the takes that pin them with their output media"""
     q = await request.json()
     refs, with_takes, decrypt = q.get("refs") or [], bool(q.get("with_takes")), bool(q.get("decrypt_private"))
     snap = user_snap(request)
     wanted = {tuple(r.split("@")[0].split(":", 1)) for r in refs}
     def make():
-        found = [(p, r) for p, r in records_of(snap) if (r["kind"], r["id"]) in wanted]
-        missing = sorted(f"{k}:{i}" for k, i in wanted - {(r["kind"], r["id"]) for _, r in found})
+        every = {(r["kind"], r["id"]): (p, r) for p, r in records_of(snap)}
+        found = [every[k] for k in sorted(wanted) if k in every]
+        missing = sorted(f"{k}:{i}" for k, i in wanted - set(every))
         if missing:
             raise web.HTTPNotFound(text=json.dumps({"error": f"No record {', '.join(missing)}"}), content_type="application/json")
+        carried, absent, offered = [], [], []
+        for _, r in list(found):
+            own = f"{r['kind']}:{r['id']}"
+            for ref in refs_in(r, PARTS.get(r["kind"], ()), r["versions"]):
+                k = tuple(ref.split(":", 1))
+                if k in wanted:
+                    continue
+                if k in every:
+                    wanted.add(k)
+                    found.append(every[k])
+                    carried.append({"ref": ref, "for": own, "name": name_of(every[k][1])})
+                else:
+                    absent.append({"ref": ref, "for": own, "said": f"{own} names {ref}, which isn't on this install"})
+            head = [v for v in r["versions"] if v["n"] == r.get("head")]
+            for ref in refs_in(r, OFFERS.get(r["kind"], ()), head):
+                k = tuple(ref.split(":", 1))
+                if k not in wanted and ref not in [o["ref"] for o in offered]:
+                    offered.append({"ref": ref, "for": own, "name": name_of(every[k][1]) if k in every else None, **({} if k in every else {"said": "not on this install"})})
         iroot, oroot = folder_paths.get_input_directory(), folder_paths.get_output_directory()
         stamp = time.strftime("%Y%m%d-%H%M%S")
         out = os.path.join(oroot, "snap_exports", f"snap-world-{stamp}.zip")
         os.makedirs(os.path.dirname(out), exist_ok=True)
-        manifest = {"made": stamp, "records": [], "takes": [], "files": [], "kept_encrypted": []}
+        manifest = {"made": stamp, "records": [], "takes": [], "files": [], "kept_encrypted": [], "carried": carried}
         user = os.path.basename(os.path.dirname(snap))
 
         def put(z, path, name, take):
@@ -315,7 +350,9 @@ async def export(request):
                             put(z, os.path.join(oroot, m), f"media/output/{m}", t)
                             manifest["files"].append(f"output/{m}")
             z.writestr("manifest.json", json.dumps(manifest, indent=1))
-        return {"file": os.path.basename(out), "subfolder": "snap_exports", "type": "output", "bytes": size(out), "manifest": manifest}
+        return {"file": os.path.basename(out), "subfolder": "snap_exports", "type": "output", "bytes": size(out), "manifest": manifest,
+                **({"absent": absent} if absent else {}), **({"offered": offered, "offer": "its Cast and places stay out unless named: export again with these refs added to carry them"} if offered else {}),
+                "to_another_install": "copy the zip into that install's output/snap_exports/, or POST it to its /upload/image (field image, type input, subfolder snap_imports), then import_records {file, subfolder: \"snap_imports\", type: \"input\"} there"}
     return web.json_response(await asyncio.to_thread(make))
 
 
