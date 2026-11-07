@@ -9,7 +9,8 @@
 // as ghost cards on the spine, and the answered ones stay listed (SNAP-R139, F-F10/F-F19).
 // SNAP-R67 the Book and the story clock · SNAP-R68 compile with provenance · SNAP-R69 settei per state · SNAP-R130 the
 // production style · SNAP-R131 boards and the animatic · SNAP-R132 the Cut · SNAP-R133 the plan drawn here · SNAP-R80
-// every picture full size · SNAP-R58 nothing trimmed · SNAP-R8 judged from screenshots · see docs/snap/SNAP_RULES.md
+// every picture full size · SNAP-R58 nothing trimmed · SNAP-R8 judged from screenshots · SNAP-R165 Cast lines folded ·
+// SNAP-R168 a cut opens before its beat · see docs/snap/SNAP_RULES.md
 import * as B from "./book.js";
 import * as W from "./world.js";
 import * as SC from "./scenes.js";
@@ -214,6 +215,9 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
           h("div", { className: "snap-book-thumbs small" }, ...s.package.map((p) => h("figure", {}, pic(p.file, p.role, p.why, `book-pkg-${shot.id}`), h("figcaption", { textContent: p.role })))),
           h("div", { className: "snap-quiet", textContent: `References: ${s.budget.used} of ${s.budget.of}${s.budget.over ? ` · over the budget: ${s.budget.over.join(", ")}` : ""}` }),
           h("ol", { className: "snap-book-sentences" }, ...(s.style ? [h("li", {}, h("span", { textContent: "[style paragraph] " }), h("span", { className: "snap-quiet", textContent: s.style.ref }))] : []), ...s.prompt.sentences.map((x) => h("li", {}, h("span", { textContent: x.text }), h("span", { className: "snap-quiet", textContent: ` ← ${x.from}` })))),
+          // F-L02, F-L09 (SNAP-R165, R168): what the state left out of each Cast line, and the state the cut opens on
+          ...s.entities.filter((e) => e.cast_line?.left_out?.length).map((e) => h("div", { className: "snap-quiet snap-book-leftout" }, ...e.cast_line.left_out.map((x) => h("div", { textContent: `${e.name}: ${x.said}` })))),
+          s.opens ? h("div", { className: "snap-quiet", textContent: `Opens: ${s.opens.said}` }) : null,
           s.lint.length ? h("div", { className: "snap-book-flags" }, s.lint.map((x) => h("div", { textContent: `⚑ ${x}` }))) : null,
           st.length ? h("div", { className: "snap-book-flags" }, st.map((x) => h("div", { textContent: `take ${x.number}: ${x.reasons.join("; ")}` }))) : null] : h("div", { className: "snap-quiet", textContent: "compiling…" }));
     });

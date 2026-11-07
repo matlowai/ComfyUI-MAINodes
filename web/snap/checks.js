@@ -39,15 +39,16 @@ export async function needs() {
 // take is made from it into the take group `group` names (the workflow id it carries) unless the job says `takes: false`
 // (takes.js). `extra` goes into extra_data (takes.js reads snap_parent from there); `world` is the record pins the take
 // will carry (a re-run's recast pins the Cast it painted in, SNAP-R63)
-export async function queue(prompt, { group, extra, world, job } = {}) {
+// story (SNAP-R169): the Book pin a board candidate carries ({book, ref, beat, unit, from}), as a cut's take does
+export async function queue(prompt, { group, extra, world, story, job } = {}) {
   const snap_job = J.job(job);
-  const workflow = group || !MD.on() ? MD.mark({ ...(group ? { id: group } : {}), nodes: [], links: [], extra: world ? { snap: { world } } : {} }) : null; // SNAP-R20: metadata off reaches these saves too
+  const workflow = group || !MD.on() ? MD.mark({ ...(group ? { id: group } : {}), nodes: [], links: [], extra: world || story ? { snap: { ...(world ? { world } : {}), ...(story ? { story } : {}) } } : {} }) : null; // SNAP-R20: metadata off reaches these saves too
   const r = await api.fetchApi("/prompt", { method: "POST", body: JSON.stringify({ client_id: api.clientId, prompt,
     extra_data: { ...extra, snap_job, ...(workflow ? { extra_pnginfo: { workflow } } : {}) } }) });
   const out = await r.json();
   if (r.status !== 200) {
     const why = `${out.error?.message ?? ""} ${JSON.stringify(out.node_errors ?? {})}`.trim();
-    J.refuse(job, why, () => queue(prompt, { group, extra, world, job }));
+    J.refuse(job, why, () => queue(prompt, { group, extra, world, story, job }));
     throw new Error(`Not queued: ${why}`);
   }
   J.sent(snap_job, out.prompt_id);

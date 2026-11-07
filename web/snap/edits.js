@@ -559,7 +559,7 @@ const GRAPHS = { ph3: ph3Graph, fizgig: fizgigGraph, h3: fizgigGraph, contact: c
 // words, one candidate per seed (`seeds`, else `count` new ones), on the view slot's `method` (ph3_view, fizgig_still; by
 // default the first the registry lists).
 // Returns at once; each candidate is a take in the shot it lands in once its paint finishes
-export async function fromContext(pictures, prompt, { method, purpose, seeds, count = 2, width, height, land, by = "person" } = {}) {
+export async function fromContext(pictures, prompt, { method, purpose, seeds, count = 2, width, height, land, story = null, by = "person" } = {}) {
   await Promise.all([S.load(), M.load(), T.load(), W.load()]);
   const P = purposes();
   if (purpose != null && !P[purpose]) throw new Error(`purpose is one of ${Object.keys(P).join(", ")}; not ${JSON.stringify(purpose)}`);
@@ -584,7 +584,7 @@ export async function fromContext(pictures, prompt, { method, purpose, seeds, co
   for (const [i, seed] of list.entries()) {
     const g = await build(m.anchors, pics, { prompt: prompt.trim() }, seed, size, prefix);
     const job = { kind: "paint", title: `New view (${label}), candidate ${i + 1} of ${list.length}`, about: { take: first, group: where.group, scene: where.scene, shot: where.shot }, by, eta_s: [m.cost?.local_s].flat().at(-1) ?? null };
-    made.push({ prompt_id: await K.queue(g, { group: where.group, world, job, extra: { snap_parent: { take: first, method: `view/${id}`, options: { label, prompt: prompt.trim(), context: said, purpose: aim } } } }),
+    made.push({ prompt_id: await K.queue(g, { group: where.group, world, ...(story ? { story } : {}), job, extra: { snap_parent: { take: first, method: `view/${id}`, options: { label, prompt: prompt.trim(), context: said, purpose: aim } } } }),
       seed, made: { model: m.anchors.unet.split("/").pop() }, label: "new view" }); // a take, no check to wait for (its tile's chips)
   }
   const d = await C.create({ kind: "view", target: first ?? where.group, title: `New view · ${m.title.replace(/^New view\s*·\s*/, "")} ×${list.length} (${label}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: first, method: id,
@@ -654,7 +654,7 @@ export async function sheet(cast, { method, ref = 0, pictures = [], design, seed
   for (const [i, seed] of list.entries()) {
     const g = await GRAPHS[m.anchors.kind](m.anchors, pics, values, seed, size, prefix);
     const job = { kind: "paint", title: `Character sheet of ${b.name} (${m.title}), candidate ${i + 1} of ${list.length}`, about: { entity: cast, group: where.group, scene: where.scene, shot: where.shot }, by, eta_s: [m.cost?.local_s].flat().at(-1) ?? null };
-    made.push({ prompt_id: await K.queue(g, { group: where.group, world, job, extra: { snap_parent: { take: null, method: `sheet/${id}`, options: { cast, prompt, context: said, purpose: "turnaround" } } } }),
+    made.push({ prompt_id: await K.queue(g, { group: where.group, world, ...(story ? { story } : {}), job, extra: { snap_parent: { take: null, method: `sheet/${id}`, options: { cast, prompt, context: said, purpose: "turnaround" } } } }),
       seed, made: { model: m.anchors.unet.split("/").pop(), lora: m.anchors.lora?.split("/").pop() ?? m.anchors.turbo?.lora.split("/").pop() ?? null }, label: "sheet" });
   }
   const d = await C.create({ kind: "sheet", target: cast, title: `Character sheet of ${b.name} (${m.title}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: null, method: id,

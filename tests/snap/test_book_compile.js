@@ -8,7 +8,7 @@
 //   package cites it as "state: oilskin" and Kon's new Cast version names the take it came from;
 // - stale on the story clock: apply_unit + run on C5; editing b4's intent flags nothing; editing b4's change (Ferro
 //   holds the map) flags the take "Ferro.carried.right_hand changed at b4"; the reversal cost of that edit, asked
-//   before it is saved, is "re-flags 1 take";
+//   before it is saved, names the cut whose compile moves and "re-flags 1 take" (F-L03);
 // - the script supervisor: a beat pasted with no changes gets two add_change proposals (the docket shows them), Accept
 //   lands them with the proposal ids; keep_as_canon from a take proposes a change on that take's beat;
 // - the Beat sheet's Kon lane shows the oilskin picture at b6, its cells under their beats.
@@ -139,7 +139,7 @@ const park = (dir) => { const p = path.join(base, "user", "default", "snap", dir
     beatSlot: R.atB3?.at?.beat === "b3" && R.atB3.prompt.sentences.some((x) => x.text === "Kon holds the letter in the right hand."),
     nothingStaleAtFirst: S.stale0?.stale?.length === 0,
     intentFlagsNothing: S.staleIntent?.stale?.length === 0,
-    costBeforeSave: S.cost?.takes === 1 && S.cost?.said === "re-flags 1 take",
+    costBeforeSave: S.cost?.takes === 1 && /^changes the compile of C\d+ \(Ferro\.carried\.right_hand\); re-flags 1 take$/.test(S.cost?.said ?? ""), // F-L03: what moves, then what it flags
     changeFlagsTake: S.staleChange?.stale?.length === 1 && S.staleChange.stale[0].reasons.some((r) => r === "story: Ferro.carried.right_hand changed at b4") && S.staleChange.stale[0].take === S.take5,
     supervisorDocket: S.supDocket?.filter((t) => /^The lamp room: b8: /.test(t)).length === 2,
     supervisorAccepted: S.supAccept?.every((x) => x === "accepted") && S.b8 === 2,

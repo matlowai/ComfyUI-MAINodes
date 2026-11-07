@@ -7,7 +7,7 @@ description: >
   writers' room, the script supervisor), check continuity of who holds or wears what, plan cuts, make boards, play an
   animatic or assemble the edit.
 scope: [tool:create_book, tool:add_beat, tool:add_change, tool:add_cut, tool:compile_unit, tool:apply_unit, tool:make_board, tool:animatic, tool:export_cut, tool:draw_set_plan]
-rules: [SNAP-R67, SNAP-R68, SNAP-R69, SNAP-R130, SNAP-R131, SNAP-R132, SNAP-R133, SNAP-R16, SNAP-R11]
+rules: [SNAP-R67, SNAP-R68, SNAP-R69, SNAP-R130, SNAP-R131, SNAP-R132, SNAP-R133, SNAP-R165, SNAP-R166, SNAP-R168, SNAP-R169, SNAP-R170, SNAP-R171, SNAP-R172, SNAP-R16, SNAP-R11]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-book"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -52,13 +52,22 @@ until the person accepts it. Tool calls: `docs/snap/AGENT_START.md` ("The Book")
    the transition to the next cut. Read `compile_unit` for each: who holds what, which picture backs each field,
    what is words only, the reference budget, and `board` (the prompt and pictures `make_board` will send). A lint
    "waiting in proposal pN" means that beat isn't canon yet: the cut compiles from its blocking and camera only.
+   Read each Cast's `cast_line`: a clause the state overrides ("a steel ladle in her right hand" once her hand is
+   empty) is left out and named (SNAP-R165); a lint line "the blocking says … while …" is a real contradiction: fix the
+   blocking or propose the change, don't render past it. A cut whose own beats move something has `opens` (SNAP-R168):
+   the board draws that opening state, the key drawing the end.
 7. **Boards → animatic.** `make_board` per cut (`snap-boards` for the craft), pick with `set_board` and approve. The
    board is the frame the cut opens on (calm, before the peak); a beat's peak is a key drawing (`make_board {role:
    "key"}`, `set_board {role: "key"}`), cited as what the cut builds to. A cut that shares another's camera takes
-   that cut's board as context (`context: [{cut}]`). Play
+   that cut's board as context (`context: [{cut}]`); re-boarding a cut that has an approved board starts from that
+   board, so the blocking holds (SNAP-R170). Boards pin the story, so `story_stale` names a board made before the
+   story moved (SNAP-R169). Play
    `animatic {book}` and run the cut-pair checks on the boards (`snap-critic`). Fixes cost seconds here.
 8. **Video.** `apply_unit` then `run` per approved cut. `story_stale {book}` after any story or style edit tells which
-   takes moved, by field and beat.
+   takes moved, by field and beat. To try a cut at a story moment without touching the Cut, copy its shot
+   (`add_shot {scene, from: {scene, shot}}`: the copy carries no story pin) and `apply_unit {scene, shot, land: {scene,
+   shot: <the copy>}}`: the takes there pin the cut they came from (SNAP-R166). Before proposing a story edit, read its
+   `reversal_cost.said`: it names the cuts whose compile moves, not only the takes it newly flags (SNAP-R172).
 9. **The Cut.** Make the best take of each cut active, trim and level them (`set_unit {trim}`), `export_cut {book}`:
    one mp4 as a take of the Book, plus OTIO for an editing program.
 

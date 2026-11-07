@@ -340,6 +340,7 @@ export async function addShot(sceneId, { name, card = null, adopt = null, at, st
     if (from) { const s = need(from.scene), x = shotOf(s, from.shot); graph = x.workflow ? await read(x.workflow) : null; what = `${shotTitle(s, x)} of ${s.name}`; if (!graph) throw new Error(`${what} has no workflow yet (open_shot opens it once)`); }
     graph = structuredClone(graph); graph.id = crypto.randomUUID();
     delete graph.extra?.snap_scene; delete graph.extra?.snap?.notes; // notes were about that shot
+    delete graph.extra?.snap?.story; // F-L10 (SNAP-R166): the story pin names the unit it was compiled for; a copy isn't that cut (apply_unit {land} pins one here)
     Object.assign(shot, { workflow: workflowFile(scene.id, shot.id), groups: [graph.id], copied_from: what });
     delete shot.start;
     await api.storeUserData(shot.workflow, graph);

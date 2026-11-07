@@ -6,7 +6,7 @@
 // SNAP-R59 Cast by reference (applyCast) · SNAP-R60 the person's cards are world records (world.js) ·
 // SNAP-R73 a Cast's voice reference goes in as an <Audio n> · SNAP-R84 a location by reference: its master, plan and named
 // plates (applyLocation), in one order on every apply · SNAP-R143 a take's sound as a Cast's voice (takeToVoice) · SNAP-R115 under Ref2V the First frame opens the shot as <Picture 1> (syncOpening) ·
-// SNAP-R148 one plate or camera mark changes alone (addPlate) · SNAP-R155 a place's scale anchors (scaleOf) · see docs/snap/SNAP_RULES.md
+// SNAP-R148 one plate or camera mark changes alone (addPlate) · SNAP-R155 a place's scale anchors (scaleOf) · SNAP-R165 a Cast line folds through the story state (applyCast line) · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
@@ -402,7 +402,9 @@ export async function takeToPlate(t, ref, { frame, name, by = "person" } = {}) {
 // put one Cast version into the open recipe, replacing what an earlier apply of the same record put there: its LoRA row
 // on the Cast brick (snapped in when missing), its sentence in the prompt's first line, its pictures in References.
 // `strength` overrides the record's for this recipe (the pin says so). Returns what happened
-export async function applyCast(ref, { strength, pictures } = {}) {
+// line (F-L02, SNAP-R165): the details line as a Book cut tells it (the Cast's clauses its story state overrides left out);
+// the pin keeps it, so a re-apply takes that text back out
+export async function applyCast(ref, { strength, pictures, line: told = null } = {}) {
   await ready();
   const { kind, id, n } = W.parse(ref);
   if (kind !== "cast") throw new Error(`${ref} isn't a Cast reference (cast:<id> or cast:<id>@n)`);
@@ -413,7 +415,7 @@ export async function applyCast(ref, { strength, pictures } = {}) {
   const all = got.version.body, pick = pictures?.length ? pictures : pictures ? null : pinOf(`cast:${id}`)?.placed?.pictures ?? null; // [] = every picture again
   const absent = (pick ?? []).filter((x) => !all.refs.some((r) => r.role === x));
   if (absent.length) throw new Error(`${all.name} v${got.version.n} has no picture ${absent.map((x) => `"${x}"`).join(", ")}; its pictures: ${all.refs.map((r) => `"${r.role}"`).join(", ") || "none"}`);
-  const b = pick ? { ...all, refs: all.refs.filter((r) => pick.includes(r.role)) } : all, key = `cast:${id}`, was = pinOf(key)?.placed ?? {}, placed = pick ? { pictures: pick } : {}, line = castLine(b);
+  const b = pick ? { ...all, refs: all.refs.filter((r) => pick.includes(r.role)) } : all, key = `cast:${id}`, was = pinOf(key)?.placed ?? {}, placed = pick ? { pictures: pick } : {}, line = told ?? castLine(b);
   let preset = null, opening = null;
   if (!E.state().bricks.some((x) => x.key === "render")) throw new Error(`${b.name} goes into the Render prompt: add the Render brick first`);
   const keys = () => E.state().bricks.map((x) => x.key);
