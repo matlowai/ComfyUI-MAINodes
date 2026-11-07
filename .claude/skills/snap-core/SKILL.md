@@ -7,7 +7,7 @@ description: >
   setups, takes, scenes and shots, Cast and world versions, locations and plates, candidates, the Work card, the Book,
   pages and the agents' window, and the instruction stack (pack, install, person, Book, scene, shot, take).
 scope: [global]
-rules: [SNAP-R1, SNAP-R2, SNAP-R9, SNAP-R11, SNAP-R14, SNAP-R16, SNAP-R17, SNAP-R19, SNAP-R23, SNAP-R24, SNAP-R25, SNAP-R28, SNAP-R30, SNAP-R58, SNAP-R59, SNAP-R60, SNAP-R61, SNAP-R63, SNAP-R65, SNAP-R67, SNAP-R68, SNAP-R73, SNAP-R83, SNAP-R84, SNAP-R90, SNAP-R135, SNAP-R146, SNAP-R149, SNAP-R150, SNAP-R151, SNAP-R152]
+rules: [SNAP-R1, SNAP-R2, SNAP-R9, SNAP-R11, SNAP-R14, SNAP-R16, SNAP-R17, SNAP-R19, SNAP-R23, SNAP-R24, SNAP-R25, SNAP-R28, SNAP-R30, SNAP-R58, SNAP-R59, SNAP-R60, SNAP-R61, SNAP-R63, SNAP-R65, SNAP-R67, SNAP-R68, SNAP-R73, SNAP-R83, SNAP-R84, SNAP-R90, SNAP-R135, SNAP-R146, SNAP-R149, SNAP-R150, SNAP-R151, SNAP-R152, SNAP-R197, SNAP-R198, SNAP-R199, SNAP-R200]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-core"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -43,6 +43,12 @@ the map; the task skills (`snap-location`, `snap-turnaround`, `snap-new-view`, `
 | **decision** | N candidates of one "make N, keep one" step, each with provenance and notes (SNAP-R23) | `apply_candidate` makes one a shot's take; agents' picks wait as proposals unless agents may run (SNAP-R16) |
 | **job** | every asynchronous run, edit, check, proposal (SNAP-R65) | the Work card (`list_activity`, `wait_for`); its take's card; its shot |
 | **book → story, look** | a production: the story's beats with state changes (story and telling order), the production style, the dial per stage (SNAP-R67, R130) | its scenes' shots are its cuts (`shot.unit`); takes of a cut carry `story` {ref, beat, from} beside `world` (SNAP-R68) |
+
+**Walk it with `nearby {ref}`** (SNAP-R197..R199): for any take, record or picture path it says what the thing is (a
+still or a frame of a video, its kind, its cut, active or approved, the model and the pictures it was made from) and
+lists its neighbours both ways (the cut's boards and video takes, the other candidates, what it was made from and what
+was made from it, the Cast and location versions it cites, its beat, its critiques), each a tile with a ref to step to.
+Read it before judging or reusing a picture you didn't make; the person has the same as the Nearby modal.
 
 Every save of a world record is a new version, kept forever; a take re-runs as it was, with today's world, or with
 swaps (SNAP-R60, R61, R63). A fix to an upstream record re-runs what pinned it (SNAP-R90, `snap-critic`).
@@ -118,6 +124,11 @@ Every call in Snap runs under one resolved stack of agent instructions. Read it 
   might be worth doing it both ways or several options"). Still ask first for anything outward or irreversible
   (publishing, deleting, downloads, installs). Run it on the visible page. (A short once drew plans on the CPU while both GPUs
   sat idle, waiting on a critic list it partly didn't need.)
+- **When seeds keep failing, change the approach, not the seed** (SNAP-R200; the operator, 2026-11-07: "if you fail
+  with reroll seeds it's a sign the approach is wrong"). Two or three failed seeds of one recipe stop that recipe; don't
+  roll more or ask yet. Step up the chain: wording → references or crop → method or tool → the source record that carries
+  the flaw → a missing Snap capability (a finding, then a build). Try a few genuinely different approaches side by side
+  before giving up; only a taste choice between working results goes to the person.
 - **Due critiques are idle work too.** When your renders run, claim the critic's due rows (`list_critiques {"state":
   "due"}`, skill `snap-critic`): the Work card says "no critic on duty" while nobody does (SNAP-R101).
 - **Pika at 6 steps is the quality standard** (SNAP-R149). Video takes run on the Pika setups at 6 steps; more steps

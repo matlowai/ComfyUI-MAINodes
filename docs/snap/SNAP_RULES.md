@@ -1784,7 +1784,7 @@ SNAP-R191 on. R160-R164 stay free.
   over; a run along an edge where they differ far more than that edge does elsewhere (above 40 of 255 and three times
   the edge's median, or above 100: an edge redrawn all along) is a break: something drawn inside that doesn't meet the
   picture outside. A side on the picture's border is not read. Each candidate gets a seam note (`breaks` with side,
-  pixel run and peak; `crop_to_try`, the crop reaching half again past each side that breaks; a sentence) and a chip on
+  pixel run and peak; `crop_to_try`, the crop reaching past each side that breaks (half again; 1.5 crops since G12); a sentence) and a chip on
   its tile ("seam breaks · bottom" or "seam ok"). It informs and never blocks (SNAP-R23). *Why:* F-T02: the monocle's
   chain crossed the eye crop's bottom edge, was redrawn inside and kept outside, and broke at the seam; a wider feather
   would only cross-fade two offset chains, and a named-feature extension needs the agent to foresee the feature. The
@@ -1826,4 +1826,57 @@ SNAP-R191 on. R160-R164 stay free.
   Cast it pins. *Why:* F-U01: Kuroe's Cast front picture draws a bar across the nose that every edit copied; use_take
   could only add a picture, so fixing one meant restating every picture in save_cast.
 
-Next free ID after this batch: SNAP-R197 (R160-R164 stay free).
+## Batch G12 (2026-11-07): what a picture is, and what is near it (U106)
+
+SNAP-R197 on. R160-R164 stay free.
+
+- **SNAP-R197: Every picture says what it is, from its records.** `nearby.js` `what()` gives one line and a second:
+  a still ("A still, not a frame of a video") or a frame of a video (which take, which second and frame) or a video
+  take; a still's kind (the key drawing of a cut, the picture its video builds to; the board, the frame its video opens
+  on; a board or key candidate; a settei of a Cast in a state; a New view; a region edit; a character sheet; a bigger,
+  changed, re-run or continued version of take n); the cut (or scene › shot) it belongs to; where it stands (the cut's
+  active take, its approved board, picked, turned down or not picked yet, kept or set aside, and every Cast picture, plate,
+  master, board or key drawing kept from it, with the frame and the record's version); then "Made by <model> from
+  Picture 1 …, Audio 1 …", the model being the method's (P-H3-Image, Stage 2 …) or, for a run, the diffusion model and
+  LoRAs its prompt loaded, and the pictures as the model got them (a New view's context labels, a render's References,
+  its opening picture, its sounds). Only stored metadata: a take's story pin, parent, context and prompt, the cut slots
+  and the records' pictures with their `from`. It shows in the Room (under the picture, and above a pick's candidates
+  once for what they share; no model named and every word through `plain()`, so the leak test holds), the take viewer,
+  the full-size viewer (under its bar), candidate tiles and the Work card's rows with a take. Never on a blind pair
+  (SNAP-R174). *Why:* the operator, 2026-11-07, on the Room's first question: "is that image a frame from a video or is
+  it a seed image for making a video? Things like this should be generally clearer through metadata". *More:*
+  DECISIONS 2026-11-07 07:59, PLAN U106, tests/snap/test_g12.js.
+- **SNAP-R198: Nearby is one press from any picture, and it only reads.** The "Nearby" press beside every what-line
+  (and `m` in the take viewer and the full-size viewer) opens a modal over the page: the picture full size with its two
+  lines, then its neighbours as tiles, each with its own line: the cut's board and key drawing and its video takes
+  (playable, sound on, the active one and the approved board marked), the other candidates of the same pick, the other
+  takes of its shot, what it was made from and what was made from it (takes, frames, record pictures and boards kept
+  from it), the Cast and location versions it cites with their pictures ("the newest is n" when one moved on), the story
+  beat it is pinned to and whether that pin is stale (with why), and its critiques (each note's severity in words, the
+  note and its fix). A tile's name (or its picture) re-centres the modal on that tile; Back (or Backspace) walks back;
+  Esc closes only the modal. It writes nothing: no take is marked opened, nothing is applied or judged, and no key
+  reaches what is under it (the take viewer's p / x / n). From the Room it speaks the Room's words. A phone (390 px)
+  stacks the picture over two tiles a row with no sideways scroll. *Why:* the operator, 2026-11-07: "there should be a
+  way to get a modal to pop up to look at nearby things or other takes and related things nearby in the data model".
+  *More:* SNAP-R5, R80; tests/snap/test_g12.js (records hashed before and after).
+- **SNAP-R199: `nearby {ref}` answers the same neighbourhood as data, whole.** ref: a take (id or a unique start, with
+  or without "take-"), a record (kind:id, @n for a version) or a picture's path (input/…, output/…, or a /view address).
+  The answer: `what` {line, more, form}, `subject`, `cut` {boards, takes}, `candidates`, `shot`, `made_from`,
+  `made_into`, `records`, `beat`, `critiques` and `counts`; every neighbour is a tile {ref, kind, path, name, marks,
+  what}, so an agent walks the model by passing a tile's ref back. Never trimmed; `part` with `offset` / `limit` pages
+  one list with its `total` and the `next` page (SNAP-R58). `open_view {view: "nearby"}` opens the modal on the person's
+  page. *Why:* agents get the same view as the person (DECISIONS 2026-11-07 07:59). *More:* tests/snap/test_g12.js.
+- **SNAP-R200: When seeds keep failing, change the approach, not the seed.** Two or three failed seeds of one recipe
+  stop that recipe: no more seeds and no question to the person yet. Step up the chain in order: the wording, the
+  references or the crop, the method or tool, the source record that carries the flaw (remake the Cast picture from its
+  design), and a missing Snap capability (a finding, then a build). Try a few genuinely different approaches, measured
+  side by side, before giving up; only a taste choice between results that work goes to the person. *Why:* the
+  operator, 2026-11-07, on Kuroe's nose bar: "if you fail with reroll seeds it's a sign the approach is wrong, and the
+  agent should take a few approaches before giving up". *More:* DECISIONS 2026-11-07 08:26; skills snap-core and
+  snap-boards; AGENT_START "Working habits".
+- **SNAP-R191 (amended, G12): crop_to_try reaches one and a half crops.** Past each side that breaks, the next crop
+  reaches 1.5 times the crop's size (it was half): on C2 key s9221 half again broke 2/2 (the redraw hung a longer chain
+  below the new edge), and the eye crop (0.13 of the height) held 2/2 only when taken down to the lapel (0.33), 1.5 crops
+  further. Read the seam note after every retry; set the crop where the thing ends when you can see it.
+
+Next free ID after this batch: SNAP-R201 (R160-R164 stay free).

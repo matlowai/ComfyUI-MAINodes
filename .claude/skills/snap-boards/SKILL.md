@@ -6,7 +6,7 @@ description: >
   sound. Use it whenever you make a short, a scene with several cuts, a trailer, or any multi-shot video in Snap, or
   when cuts don't connect (wrong positions, jumps in light, weak climax).
 scope: [tool:run, tool:compile_shot, tool:make_board, tool:set_board, tool:animatic]
-rules: [SNAP-R36, SNAP-R67, SNAP-R131, SNAP-R132, SNAP-R185, SNAP-R189, SNAP-R190]
+rules: [SNAP-R36, SNAP-R67, SNAP-R131, SNAP-R132, SNAP-R185, SNAP-R189, SNAP-R190, SNAP-R191, SNAP-R197, SNAP-R200]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-boards"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -48,6 +48,21 @@ Re-boarding from a fixed board (G10, short05 C2):
   the thing ends (SNAP-R191), and read the note again: a redraw can make the thing longer. On C2 key s9221 the eye crop
   broke 2/2, crop_to_try still broke 2/2 (the new chain hung lower), and a crop down to the lapel held 2/2 with the head
   kept in all six.
+- **The face-area recipe** (short05 C2's monocle on a head turned away, four tries, 12 candidates; dogfood F-W11). All
+  four parts were needed: dropping 2 or 3 turned the face, dropping 4 drew the lens face-on.
+  1. a region edit (`paste_back: true`), so nothing outside the box can move;
+  2. a crop that takes in the back of the head and runs past the thing to where it ends (the lapel for a chain): a
+     narrow crop that starts at the ear shows the model only cheek and jaw, and it draws a face there;
+  3. the head's direction named in the prompt ("his head stays turned away from camera, back three-quarter");
+  4. the item's angle from this camera named ("the lens seen nearly edge-on from behind: a narrow gold ellipse").
+  The seed still decides the angle (1/2 with all four): make 2-3 and read each.
+- `crop_to_try` now reaches one and a half crops past a side that breaks (G12): on s9221 half again broke 2/2 and the
+  crop that held ran to the lapel, about 1.5 crops further. `nearby {ref}` on a board says what it is and where it came
+  from (a still, or a frame of a video take) before you edit or reuse it (SNAP-R197).
+- **When seeds keep failing, change the approach, not the seed** (SNAP-R200). Two or three failed seeds of one recipe
+  stop it: step up to the wording, then the references or crop, then the method, then the source record (a flaw in the
+  Cast picture is fixed there), then a missing Snap capability; try a few different approaches side by side before
+  asking. Only a taste choice between working results goes to the person.
 - A flaw born in the Cast picture itself is fixed there, not in every board: a region edit of the Cast picture, then
   `use_take {as: "cast", replace: n, propose: true}` (SNAP-R196), then rerun_dependents.
 

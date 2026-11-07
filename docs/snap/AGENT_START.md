@@ -442,6 +442,21 @@ them). It works on stills: masters, plates, boards.
 full size on the page you drive, for its person: fit / 100 %, zoom, arrows through its row, Esc closes. Every
 thumbnail in Snap opens the same viewer on a click; nothing changes by viewing.
 
+### What a picture is, and what is near it (SNAP-R197..R199)
+
+`nearby {"ref": "<take id or its start | cast:…/location:… | input/… or output/… path>"}` says what a picture is and
+walks the data model around it, reading only. `what.line` answers "a still, or a frame of a video?" (which take, which
+second), its kind (the key drawing or board of a cut, a candidate, a settei, a New view, a plate, a Cast picture, a
+bigger or changed version), its cut and whether it is the active take or approved board; `what.more` names the model and
+the Picture n / Audio n it was made from. Then `cut` (the cut's boards and video takes), `candidates` (the other
+candidates of its pick), `shot` (the shot's other takes), `made_from` / `made_into` (provenance both ways), `records`
+(the Cast and location versions it cites, with their pictures), `beat` (the story beat it is pinned to, stale or not)
+and `critiques`. Every neighbour is a tile with its own `ref` and line: pass a tile's ref back to step to it. The answer
+is whole; `part` + `offset` / `limit` pages one list. Use it before you judge or reuse a picture you didn't make ("is
+this board a frame of the video or the still it was made from?"), and `open_view {"view": "nearby", "take": "<id>"}`
+(or `path`, `cast`, `location`) to show the person the same modal. The person gets it from the Nearby press beside
+every picture's line, or `m` in the take viewer and the full-size viewer.
+
 ### Character sheets (turnarounds)
 
 `make_character_sheet` draws a Cast as a sheet with one method of the sheet slot (`list_methods {"slot": "sheet"}`):
@@ -649,6 +664,14 @@ wrote it when it is one, and makes one from the row otherwise (SNAP-R179), so a 
 verdict there is the same record as anywhere else. A critic's row asks its worst note ("…: keep it anyway?") with every
 note listed under the picture, boxed on it, and where it was born in words, so write notes a person can read: the flaw
 first, in a sentence (SNAP-R180).
+
+## Working habits
+
+- **When seeds keep failing, change the approach, not the seed** (SNAP-R200). Two or three failed seeds of one recipe
+  stop that recipe: don't roll more and don't ask the person yet. Step up the chain: the wording → the references or the
+  crop → the method or tool → the source record that carries the flaw (remake the Cast picture from its design) → a
+  missing Snap capability (a finding, then a build). Try a few genuinely different approaches, measured side by side,
+  before giving up; only a taste choice between results that work goes to the person.
 
 ## When Snap can't do it
 
