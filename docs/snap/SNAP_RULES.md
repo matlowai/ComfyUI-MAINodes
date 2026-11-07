@@ -1570,7 +1570,7 @@ SNAP-R165..R172 (the Book's share of G6; G6's other rules take SNAP-R155..R164).
 
 ## Batch G7 (2026-11-07): the Book's steps 7 and 10, the colour script, settei design it
 
-SNAP-R70 (reserved for the Room since U97) and SNAP-R173..R177. R160-R164 stay free; the next free ID is SNAP-R178.
+SNAP-R70 (reserved for the Room since U97) and SNAP-R173..R177. R160-R164 stay free; the next free ID was SNAP-R178 (G8 took it on).
 
 - **SNAP-R70: The Room is the person's front door, never a restriction, and its verdicts are the record's.** The Room
   (`web/snap/room.js`; `/?room`, The Room on the Work card, `open_view {view: "room"}`) renders the Work card's landed
@@ -1628,3 +1628,20 @@ SNAP-R70 (reserved for the Room since U97) and SNAP-R173..R177. R160-R164 stay f
   gives `carried_by` and `disagree` (F-L11). The Beat sheet reads a change by its op (`→` set, `+` add, `−` remove), has
   a lane per prop, a beat's lines on its card, a payoff by its plant's words, and waiting changes as ghosts under their
   beat (F-L08, F-L15).
+
+## Batch G8 (2026-11-07)
+
+SNAP-R178 on. R160-R164 stay free.
+
+- **SNAP-R178: A wardrobe state folds the items it names out of the Cast line.** Beside SNAP-R165's hands and worn
+  things: a clause of a Cast's details line that is an item a wardrobe change of that person names (its head word:
+  "green apron" is an apron) is left out of a cut's compile, its still and board prompts, apply_unit's prompt and
+  design_state's prompt when the wardrobe at that moment doesn't say that item the same way ("no apron", "a blue apron"),
+  named in `left_out` with the beat and change (a settei state's as `settei <state>`). A clause the wardrobe says the
+  same way stays, look words and all ("oilskin coat" under "the oilskin"); every other clause stays. What stays but
+  disagrees is lint, never a silent drop: a clause that mentions the item ("white blouse with long sleeves" under
+  "sleeves rolled up"), a garment of the same kind worded otherwise ("green coat" under "the oilskin"), and a beat's text
+  or the blocking that still uses an item the wardrobe takes off ("wipes her hands on her apron"; the words that take it
+  off are not a clash). Only the named items fold until the operator rules on dropping every clothing clause. *Why:*
+  F-N01: Aya's "apron off" settei prompt said "green apron" and "Aya wears no apron" in one breath. *More:*
+  tests/snap/test_g8_wardrobe.js.

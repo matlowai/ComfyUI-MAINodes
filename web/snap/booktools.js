@@ -7,6 +7,7 @@
 // SNAP-R139 story proposals stack and outlive the page · SNAP-R142 opening board and key drawing · SNAP-R19 the tool table is the API · SNAP-R58 nothing trimmed ·
 // SNAP-R165 a Cast line folds through the state · SNAP-R166 apply_unit lands off the Cut · SNAP-R168 a cut opens before its beat · SNAP-R169 boards pin the story ·
 // SNAP-R170 a re-board keeps its own board · SNAP-R172 the reversal cost says what moves · SNAP-R175 the colour script · SNAP-R176 settei design it · SNAP-R177 dry_run writes nothing ·
+// SNAP-R178 a wardrobe state folds the items it names out of the Cast line ·
 // see docs/snap/SNAP_RULES.md
 import * as B from "./book.js";
 import * as W from "./world.js";
@@ -320,7 +321,7 @@ export const BOOK_TOOLS = [
   },
   {
     name: "design_state",
-    description: "Settei 'design it' (SNAP-R176): candidate pictures of a Cast in one of its states, made by a New view from the Cast's own pictures (identity), with the Book's production style paragraph first, then the Cast line as the state tells it (clauses the state overrides left out), the state's sentences and words, and the view (front by default; three-quarter, side, back, expression…). state is the state's name; covers (the story fields it stands for, e.g. {wardrobe: \"the oilskin\"}) and words come from the Cast's state of that name when left out. Candidates land in the scene \"Settei · <Book>\", shot <the Cast's name>, each pinned {role: settei, cast, state, view}; the Book's Settei lens shows them under the state with Use this, which is save_cast_state with that take: approval writes the Cast version (SNAP-R69). GPU: follows the Book's dial at the settei stage.",
+    description: "Settei 'design it' (SNAP-R176): candidate pictures of a Cast in one of its states, made by a New view from the Cast's own pictures (identity), with the Book's production style paragraph first, then the Cast line as the state tells it (clauses the state overrides left out: a hand or a worn thing it moves, and for a wardrobe state the clauses naming an item its wardrobe names, e.g. 'green apron' under 'no apron'; left_out names each, and lint a clause of the same kind of garment the state words otherwise, SNAP-R178), the state's sentences and words, and the view (front by default; three-quarter, side, back, expression…). state is the state's name; covers (the story fields it stands for, e.g. {wardrobe: \"the oilskin\"}) and words come from the Cast's state of that name when left out. Candidates land in the scene \"Settei · <Book>\", shot <the Cast's name>, each pinned {role: settei, cast, state, view}; the Book's Settei lens shows them under the state with Use this, which is save_cast_state with that take: approval writes the Cast version (SNAP-R69). GPU: follows the Book's dial at the settei stage.",
     inputSchema: { type: "object", properties: { book: { type: "string" }, cast: { type: "string" }, state: { type: "string" }, covers: { type: "object" }, words: { type: "string" }, view: { type: "string" }, method: { type: "string" }, seeds: { type: "array", items: { type: "integer", minimum: 0 } }, count: { type: "integer", minimum: 1 }, extra: { type: "string", description: "words added at the end" } }, required: ["book", "cast", "state"] },
     annotations: { consequentialHint: true },
     consequential: true,
@@ -333,7 +334,7 @@ export const BOOK_TOOLS = [
       covers ??= known?.covers ?? {}; words ??= known?.words ?? "";
       if (!Object.keys(covers).length && !words) throw new Error(`Say what the state ${state} is: covers (the story fields it stands for, e.g. {wardrobe: "the oilskin"}) or words`);
       const story = b.body.story ? B.storyOf(b.body).body : B.cleanStory({}), style = B.styleOf(b.body), ref = `cast:${id}`;
-      const line = B.foldCastLine(story, ref, L.castLine(body), Object.fromEntries(Object.entries(covers).map(([path, value]) => [path, { value, beat: "settei", change: state }]))).line;
+      const fold = B.foldCastLine(story, ref, L.castLine(body), Object.fromEntries(Object.entries(covers).map(([path, value]) => [path, { value, beat: "settei", change: state }]))), line = fold.line; // F-N01: a wardrobe state folds its items out of the line too
       const said = Object.entries(covers).map(([path, value]) => B.stateSentence(story, body.name, path, value)).filter(Boolean).map((x) => `${x.replace(/[.\s]+$/, "")}.`);
       const subject = [`<Picture 1> is ${body.name}${line ? `, ${line}` : ""}.`, ...said, words, `A settei (model sheet) view of ${body.name} in this state: ${view} view, full body, standing, on a plain light background.`, extra].filter(Boolean).join(" ");
       const prompt = style?.body.paragraph ? `${style.body.paragraph}\n\n${subject}` : subject;
@@ -343,7 +344,7 @@ export const BOOK_TOOLS = [
       const shot = here.shots.find((x) => x.name === body.name) ?? (await SC.addShot(sc.id, { name: body.name, by: "agent" })).shot;
       const pictures = body.refs.map((r, i) => ({ cast: ref, ref: i }));
       const out = await ED.fromContext(pictures, prompt, { method, purpose: method ? undefined : "character", seeds, count, land: { scene: sc.id, shot: shot.id }, story: { book: `book:${b.id}`, role: "settei", cast: ref, state, view, covers }, by: "agent" });
-      return { ...out, cast: ref, state, view, covers, prompt, landed: { scene: sc.id, shot: shot.id, where: `${sceneName} › ${body.name}` }, next: `wait_for {job: decision, until: waiting}, look at the candidates, then save_cast_state {cast: "${ref}", state: "${state}", covers, pictures: [{take, view: "${view}"}]} (the person's Use this in the Settei lens does the same)` };
+      return { ...out, cast: ref, state, view, covers, prompt, ...(fold.left_out.length ? { left_out: fold.left_out } : {}), ...(fold.lint.length ? { lint: fold.lint } : {}), landed: { scene: sc.id, shot: shot.id, where: `${sceneName} › ${body.name}` }, next: `wait_for {job: decision, until: waiting}, look at the candidates, then save_cast_state {cast: "${ref}", state: "${state}", covers, pictures: [{take, view: "${view}"}]} (the person's Use this in the Settei lens does the same)` };
     },
   },
   {

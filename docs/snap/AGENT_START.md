@@ -589,6 +589,9 @@ it on the Library rail's **Book** row (lenses Beat sheet, Settei, Boards, Cut ba
   Cast in a state from its own pictures, with the style paragraph first and the state's words (covers and words come
   from the Cast's state of that name). They land in "Settei · <Book>"; pick with `save_cast_state {"cast", "state",
   "covers", "pictures": [{"take", "view"}]}`, which writes the Cast version (the person's Use this does the same).
+  A wardrobe state leaves the Cast line's clauses that are its items out of the prompt ("green apron" under "no
+  apron"), named in `left_out`; a clause that still disagrees comes back as `lint` (SNAP-R178): read both before the
+  GPU spends on it.
 - **dry_run** (SNAP-R177): the story edits, `save_style` and `save_cast_state` take `"dry_run": true`: the answer is the
   would-be diff (a story edit also its reversal cost and `needs`) and nothing is written. Read it before proposing a
   big edit. A stacked proposal's `reversal_cost` is its own; the whole stack's is in `with_waiting` (F-L06).

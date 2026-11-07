@@ -7,7 +7,7 @@ description: >
   writers' room, the script supervisor), check continuity of who holds or wears what, plan cuts, make boards, play an
   animatic or assemble the edit.
 scope: [tool:create_book, tool:add_beat, tool:add_change, tool:add_group, tool:set_colour_frame, tool:design_state, tool:add_cut, tool:compile_unit, tool:apply_unit, tool:make_board, tool:animatic, tool:export_cut, tool:draw_set_plan]
-rules: [SNAP-R67, SNAP-R68, SNAP-R69, SNAP-R130, SNAP-R131, SNAP-R132, SNAP-R133, SNAP-R165, SNAP-R166, SNAP-R168, SNAP-R169, SNAP-R170, SNAP-R171, SNAP-R172, SNAP-R70, SNAP-R173, SNAP-R175, SNAP-R176, SNAP-R177, SNAP-R16, SNAP-R11]
+rules: [SNAP-R67, SNAP-R68, SNAP-R69, SNAP-R130, SNAP-R131, SNAP-R132, SNAP-R133, SNAP-R165, SNAP-R166, SNAP-R168, SNAP-R169, SNAP-R170, SNAP-R171, SNAP-R172, SNAP-R70, SNAP-R173, SNAP-R175, SNAP-R176, SNAP-R177, SNAP-R178, SNAP-R16, SNAP-R11]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-book"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -51,13 +51,15 @@ until the person accepts it. Tool calls: `docs/snap/AGENT_START.md` ("The Book")
    `design_state {book, cast, state, view}` (a New view from the Cast's own pictures with the style and the state's
    words; the Settei lens's Design it does the same), then `save_cast_state` with the picked take and `covers` matching
    the change's value. Until then the compile marks it "words only": pictures win over words, so fill the gaps before
-   video. A Cast line's outfit words aren't folded for a wardrobe state yet: read the design prompt (F-N01).
+   video. A wardrobe state folds the items it names out of the Cast line ("green apron" under "no apron", SNAP-R178):
+   read the answer's `left_out` and `lint`; a clause it keeps that still disagrees (another garment of the same kind) is
+   lint, and the fix is the person's (the Cast line or the state's words), not yours to drop.
 6. **Cuts** (`add_cut`): beats, Cast, props, location and the plate whose framing is the camera, seconds, sound,
    the transition to the next cut. Read `compile_unit` for each: who holds what, which picture backs each field,
    what is words only, the reference budget, and `board` (the prompt and pictures `make_board` will send). A lint
    "waiting in proposal pN" means that beat isn't canon yet: the cut compiles from its blocking and camera only.
    Read each Cast's `cast_line`: a clause the state overrides ("a steel ladle in her right hand" once her hand is
-   empty) is left out and named (SNAP-R165); a lint line "the blocking says … while …" is a real contradiction: fix the
+   empty, "green apron" once she wears no apron) is left out and named (SNAP-R165, R178); a lint line "the blocking says … while …" is a real contradiction: fix the
    blocking or propose the change, don't render past it. A cut whose own beats move something has `opens` (SNAP-R168):
    the board draws that opening state, the key drawing the end.
 7. **Boards → animatic.** `make_board` per cut (`snap-boards` for the craft), pick with `set_board` and approve. The

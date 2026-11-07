@@ -129,7 +129,7 @@ const park = (dir) => { const p = path.join(base, "user", "default", "snap", dir
     colourChosen: S.groupAfter?.[0]?.colour?.file === "snaptest_book/g7_board_c1.png" && S.colourChosen === 1,
     agentColourWaits: !!S.agentColour?.proposed && /waiting/.test(S.agentColour.status ?? ""),
     propNamed: S.accRag === "accepted" && S.props?.some((p) => p.id === "rag" && p.name === "the rag"),
-    designLands: !!S.design?.candidates?.length && S.designTake?.story?.role === "settei" && S.designTake.story.state === "apron off" && /Settei · Bowl › Aya/.test(S.design.landed?.where ?? "") && /Aya wears no apron, sleeves rolled up\./.test(S.design.prompt ?? ""), // the line's own outfit clause stays (F-N01)
+    designLands: !!S.design?.candidates?.length && S.designTake?.story?.role === "settei" && S.designTake.story.state === "apron off" && /Settei · Bowl › Aya/.test(S.design.landed?.where ?? "") && /Aya wears no apron, sleeves rolled up\./.test(S.design.prompt ?? "") && !/green apron/.test(S.design.prompt) && S.design.left_out?.[0]?.clause === "green apron", // F-N01: the state folds its item out of the line
     designUse: (S.useButtons ?? []).some((x) => /Use this \(front\)/.test(x)) && S.castAfter?.state?.pictures?.[0]?.from?.take === S.designTake?.id && S.castAfter.by === "person",
     noErrors: !S.crash && !(S.errors ?? []).length,
   };

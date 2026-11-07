@@ -16,7 +16,8 @@
 // the Cut · SNAP-R139 canon proposals stack · SNAP-R141 apply cites References as they stand · SNAP-R142 opening board
 // and key drawing · SNAP-R165 a Cast line folds through the state · SNAP-R166 apply_unit lands off the Cut · SNAP-R167 holder and
 // mood sentences · SNAP-R168 a cut opens before its beat · SNAP-R169 boards pin the story · SNAP-R170 a re-board keeps its own
-// board · SNAP-R172 the reversal cost says what moves · SNAP-R60 versions · SNAP-R11 nothing blocks · see docs/snap/SNAP_RULES.md
+// board · SNAP-R172 the reversal cost says what moves · SNAP-R178 a wardrobe state folds the items it names · SNAP-R60 versions ·
+// SNAP-R11 nothing blocks · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as W from "./world.js";
 import * as SC from "./scenes.js";
@@ -332,29 +333,59 @@ const cap = (s) => s && s[0].toUpperCase() + s.slice(1);
 const HANDS = { right: "carried.right_hand", left: "carried.left_hand" };
 const escaped = (s) => s.replace(/[.*+?^$()|[\]\\{}]/g, "\\$&");
 const nounOf = (story, v) => String(nameOf(story, v) ?? "").toLowerCase().replace(/^(the|a|an)\s+/, "").trim().split(/\s+/).at(-1) ?? "";
+// F-N01 (SNAP-R178): a wardrobe value read as items: its parts ("no apron", "sleeves rolled up"), each with its head (the
+// garment it names: the last word before a preposition or a participle, never a colour), its words, and whether it takes
+// the item off. The operator hasn't ruled on dropping every clothing clause, so only clauses naming these items fold
+const STOP = new Set(["a", "an", "the", "no", "not", "without", "bare", "her", "his", "their", "its", "and", "or", "up", "down", "off", "out", "now"]);
+const PREP = new Set(["with", "of", "over", "under", "on", "in", "at", "from", "to", "into", "across", "around", "wearing"]);
+const unplural = (w) => w.replace(/(?<=[^s])s$/, "");
+const wordsOf = (text) => (String(text).toLowerCase().match(/[a-z]+/g) ?? []).filter((w) => !STOP.has(w)).map(unplural);
+const headOf = (part) => { const ws = part.toLowerCase().match(/[a-z]+/g) ?? [], cut = ws.findIndex((w, i) => i > 0 && (PREP.has(w) || (/ed$/.test(w) && w.length > 4 && !COLOURS.includes(w)))); return wordsOf((cut < 0 ? ws : ws.slice(0, cut)).join(" ")).filter((w) => !COLOURS.includes(w)).at(-1) ?? null; };
+const GARMENTS = [["coat", "jacket", "cloak", "oilskin", "parka", "cape", "overcoat", "raincoat", "poncho", "haori", "mantle"], ["dress", "gown", "robe", "kimono", "yukata", "frock"], ["shirt", "blouse", "tunic", "sweater", "jumper", "top", "hoodie", "vest", "waistcoat"], ["trouser", "pant", "skirt", "short", "jean", "hakama", "legging"], ["boot", "shoe", "sandal", "geta", "slipper", "clog"], ["hat", "cap", "hood", "helmet", "bonnet", "headband", "bandana", "kerchief"], ["apron", "smock", "pinafore"], ["armour", "armor", "breastplate"], ["suit"], ["scarf", "shawl", "stole"], ["glove", "gauntlet", "mitten"]];
+const garmentClass = (w) => GARMENTS.findIndex((g) => g.includes(w));
+export function wardrobeItems(story, value) {
+  const text = [value].flat().filter(Boolean).map((v) => nameOf(story, v)).join(", ");
+  return text.split(/\s*(?:[,;]|\band\b)\s*/i).filter(Boolean).map((part) => {
+    const off = /^(no|without|not wearing|bare)\b/i.test(part) || /\b(off|removed)$/i.test(part), item = part.replace(/^(no|without|not wearing)\s+/i, "");
+    return { part, off, head: headOf(item), words: wordsOf(item) };
+  }).filter((x) => x.head);
+}
 export function foldCastLine(story, ref, line, fields) {
-  if (!line) return { line: line ?? "", left_out: [] };
+  if (!line) return { line: line ?? "", left_out: [], lint: [] };
   const things = new Set();
-  for (const b of story.beats) for (const c of b.changes.filter((x) => x.entity === ref && /^(carried\.|wardrobe$)/.test(x.path))) for (const v of [c.value].flat()) if (v && typeof v === "string") things.add(nounOf(story, v));
+  for (const b of story.beats) for (const c of b.changes.filter((x) => x.entity === ref && /^carried\./.test(x.path))) for (const v of [c.value].flat()) if (v && typeof v === "string") things.add(nounOf(story, v));
   for (const b of story.beats) for (const c of b.changes.filter((x) => x.entity.startsWith("prop:") && x.path === "holder" && x.value === ref)) things.add(nounOf(story, c.entity));
   const holds = (path, noun) => [fields[path]?.value].flat().some((v) => v && typeof v === "string" && nounOf(story, v) === noun);
-  const where = (noun) => Object.keys(fields).filter((p) => /^(carried\.|wardrobe$)/.test(p) && holds(p, noun));
-  const keep = [], left_out = [];
+  const where = (noun) => Object.keys(fields).filter((p) => /^carried\./.test(p) && holds(p, noun));
+  // F-N01: the items a wardrobe change of this person names anywhere in the story, and the wardrobe at this moment
+  const ward = fields.wardrobe?.value != null ? wardrobeItems(story, fields.wardrobe.value) : [], items = new Set(ward.map((x) => x.head));
+  for (const b of story.beats) for (const c of b.changes.filter((x) => x.entity === ref && x.path === "wardrobe")) for (const x of wardrobeItems(story, c.value)) items.add(x.head);
+  const keep = [], left_out = [], lint = [];
   for (const clause of line.split(/\s*[,;]\s*/).filter(Boolean)) {
     const side = clause.match(/\b(right|left) hand\b/i)?.[1]?.toLowerCase(), hand = side && HANDS[side];
-    const noun = [...things].find((n) => n && new RegExp(`\\b${escaped(n)}e?s?\\b`, "i").test(clause));
+    const noun = [...things].find((n) => n && new RegExp(`\\b${escaped(n)}e?s?\\b`, "i").test(clause)), said = new Set(wordsOf(clause)), head = headOf(clause);
     let by = null;
     if (noun) {
-      const now = where(noun), agree = hand ? now.includes(hand) : now.some((p) => p === "carried.worn" || p === "wardrobe");
+      const now = where(noun), agree = hand ? now.includes(hand) : now.includes("carried.worn");
       if (!agree && hand && fields[hand]) by = hand;
       else if (!agree && now.length) by = now[0];
       else if (!agree && !hand && (fields["carried.worn"] || fields.wardrobe)) by = fields["carried.worn"] ? "carried.worn" : "wardrobe";
     } else if (hand && fields[hand]) by = hand;
-    if (!by) { keep.push(clause); continue; }
+    // F-N01: a clause that is an item the story's wardrobe moves goes, unless the wardrobe here says that item the same way
+    // ("green apron" under "no apron": out; "oilskin coat" under "the oilskin": kept, look words and all)
+    else if (fields.wardrobe && items.has(head) && !ward.some((x) => !x.off && x.head === head && x.words.every((w) => said.has(w)))) by = "wardrobe";
+    if (!by) {
+      keep.push(clause);
+      // what the narrow fold leaves, as lint: a clause that mentions an item the wardrobe words otherwise ("white blouse with
+      // long sleeves" under "sleeves rolled up"), or a garment of the same kind ("green coat" under "the oilskin")
+      const clash = fields.wardrobe && ward.find((x) => (said.has(x.head) && (x.off || !x.words.every((w) => said.has(w)))) || (!x.off && !said.has(x.head) && garmentClass(x.head) >= 0 && [...said].some((w) => garmentClass(w) === garmentClass(x.head))));
+      if (clash) lint.push(`${nameOf(story, ref)}'s Cast line says '${clause}' while the wardrobe is ${clash.part} (${fields.wardrobe.beat} ${fields.wardrobe.change}): check they agree (a wardrobe change leaves out only the clauses that are its items)`);
+      continue;
+    }
     const f = fields[by];
     left_out.push({ clause, path: by, value: f.value ?? null, beat: f.beat, change: f.change, said: `Cast line '${clause}' left out: ${f.beat} ${f.change} (${by} ${f.value == null || (Array.isArray(f.value) && !f.value.length) ? "is empty" : `is ${[f.value].flat().map((v) => nameOf(story, v)).join(", ")}`})` });
   }
-  return { line: keep.join(", "), left_out };
+  return { line: keep.join(", "), left_out, lint };
 }
 // F-L02 / F-L09 (SNAP-R165, SNAP-R168): words of a beat or the blocking that put a thing in a hand where the state puts
 // it elsewhere ("the bowl raised to his lips" while the bowl is on the counter; "the ladle in her right hand" while that
@@ -372,6 +403,14 @@ function stateLint(story, unit, present, entities) {
     for (const e of people.filter((x) => people.length === 1 || new RegExp(`\\b${escaped(x.name.split(" ")[0])}\\b`, "i").test(clause))) for (const f of e.fields.filter((x) => /^carried\.(right|left)_hand$/.test(x.path))) {
       const side = f.path.includes("right") ? "right" : "left", noun = [...things].find((n) => names(clause, n));
       if (new RegExp(`\\b${side} hand\\b`, "i").test(clause) && noun && !(f.value && nounOf(story, f.value) === noun)) out.push(`${where} says "${clause.trim()}" while ${f.sentence} (${f.beat} ${f.change}): check they agree`);
+    }
+  }
+  // F-N01: the beat's words or the blocking still putting on an item the wardrobe takes off ("wipes her hands on her apron"
+  // while Aya wears no apron); the words that take it off, and the beat that does, aren't a contradiction
+  const OFF_WORDS = /\b(takes? off|took off|taking off|removes?|removing|unties?|untying|sheds?|shedding|drops?|without|no)\b/i;
+  for (const e of people) for (const f of e.fields.filter((x) => x.path === "wardrobe" && x.value != null)) for (const x of wardrobeItems(story, f.value).filter((x) => x.off)) {
+    for (const [text, where] of [...present.filter((b) => b.id !== f.beat).map((b) => [b.text, `${b.id}'s text`]), ...(unit.blocking ? [[unit.blocking, "the blocking"]] : [])]) for (const clause of String(text ?? "").split(/(?<=[.;!?])\s+|,\s+/).filter((c) => !OFF_WORDS.test(c))) {
+      if (names(clause, x.head) && (people.length === 1 || new RegExp(`\\b${escaped(e.name.split(" ")[0])}\\b`, "i").test(clause))) out.push(`${where} says "${clause.trim()}" while ${f.sentence ?? `${e.name} wears ${f.value}`} (${f.beat} ${f.change}): check they agree`);
     }
   }
   return out;
@@ -468,6 +507,7 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
     }
     // F-L02: the Cast's details line as this cut tells it, at its end and at its opening
     const line = body ? L.castLine(body) : "", endLine = foldCastLine(story, ref, line, fields), openLine = foldCastLine(story, ref, line, opening);
+    lint.push(...endLine.lint, ...openLine.lint.filter((x) => !endLine.lint.includes(x))); // F-N01: what the narrow wardrobe fold leaves
     if (endLine.line) whoEnd.push(`${name} is ${endLine.line}.`);
     if (openLine.line) whoOpen.push(`${name} is ${openLine.line}.`);
     if (body?.refs?.length) for (const [i, r] of body.refs.entries()) package_.push({ file: r.file, role: `cast: ${body.name}, ${r.role}`, why: `identity, ${ref}@${got.version.n}`, from: ref, order: state ? 2 : 1, i });
