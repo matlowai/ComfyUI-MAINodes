@@ -6,7 +6,7 @@
 // merge vs LoRA · SNAP-R11 warn, never block · SNAP-R12 LoRA roles · SNAP-R13 family rules from the model graph
 // SNAP-R25 SFW only hides what the graph tags nsfw · SNAP-R26 a name files a turbo LoRA only on strong signals ·
 // SNAP-R27 a lock on LoRAs the private rules match · SNAP-R35 a rating from move to…, the admin's on a gated install ·
-// see docs/snap/SNAP_RULES.md
+// SNAP-R149 the no-turbo presets are opt-in, never offered as better · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -480,13 +480,14 @@ function quality(was) {
   return out;
 }
 
-// the Render Preset's quality setup per conditioning: what "Turbo off" puts on when the turbo rides on the preset and no
-// setup card says what came before (render.py's "… quality (no turbo)" presets; short03 F-C11)
-const QUALITY = { "FL2V (first frame)": "First frame, quality (no turbo)", "Ref2V (reference pictures)": "Reference pictures, quality (no turbo)" };
+// the Render Preset's no-turbo setup per conditioning: what "Turbo off" puts on when the turbo rides on the preset and no
+// setup card says what came before (render.py's "… no turbo (20 steps)" presets; short03 F-C11). Opt-in only: Pika at 6
+// steps is the quality standard, and nothing here offers these as better (SNAP-R149)
+const NO_TURBO = { "FL2V (first frame)": "First frame, no turbo (20 steps)", "Ref2V (reference pictures)": "Reference pictures, no turbo (20 steps)" };
 export function setTurbo(name) {
   const key = turboHost(), stack = coreStack(), one = !stack && single(), was = turbo();
   if (!key || (!stack && !one)) throw new Error("This recipe has no Render brick with a core LoRA stack or a Render Preset LoRA (the image and H3 recipes have one)");
-  const plain = (!name || name === "off") && one && was && setups().find((s) => s.source === "preset" && s.name === QUALITY[String(E.getValue(one.brick, one.node, "conditioning"))]);
+  const plain = (!name || name === "off") && one && was && setups().find((s) => s.source === "preset" && s.name === NO_TURBO[String(E.getValue(one.brick, one.node, "conditioning"))]);
   if (plain) { apply(plain.name); return { turbo: null, setup: plain.name, sampling: Object.fromEntries(Object.entries(sampling()).map(([k, v]) => [k, v.value])), warnings: warnings().map((w) => w.text) }; }
   const t = name && name !== "off" ? turbos().find((x) => x.file === name || x.name === name || base(x.file) === base(name)) : null;
   if (name && name !== "off" && !t) throw new Error(`No turbo "${name}" for ${family() ?? "this recipe"}; there are: ${turbos().map((x) => x.name).join(", ") || "none installed"}`);

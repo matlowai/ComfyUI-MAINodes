@@ -1,7 +1,7 @@
 // G1 item 5 (short03 friction) and F-C26 on the CPU test server:
 // - add_lora finds a LoRA put in models/loras after the page loaded (the folders are read again before a refusal);
 // - a core LoRA on an H3 recipe goes on Style LoRAs after the preset's, with a note (was: refused);
-// - set_method {turbo: off} on the Ref2V preset puts on "Reference pictures, quality (no turbo)" (F-C11; was: refused);
+// - set_method {turbo: off} on the Ref2V preset puts on "Reference pictures, no turbo (20 steps)" (F-C11; was: refused; SNAP-R149 renamed it);
 // - set_setting length takes "124" as 124;
 // - apply_setup "Pika H3 Flex" in a MOSS shot switches family into a new tab that becomes the shot (F-C18);
 // - F-C26: with Upscale on past the GPU's memory (a 32 GiB card reported), the Upscale brick warns before the run; a run
@@ -79,7 +79,7 @@ const LATE = path.join(base, "models", "loras", "g1_late_task_lora.safetensors")
   const checks = {
     "add_lora finds a LoRA put there after the page loaded": R.late?.brick === "style" && R.late.rows?.some((r) => /g1_late_task_lora/.test(r.file)),
     "a core LoRA on H3 goes on Style LoRAs, saying why": R.core?.brick === "style" && /core LoRA; this recipe's core LoRA rides on its Render Preset/.test(R.core.note ?? ""),
-    "turbo off on Ref2V: the quality preset, 20 steps cfg 5, LoRA at 0": !R.off?.error && R.off?.setup === "Reference pictures, quality (no turbo)" && JSON.stringify(R.offValues?.slice(0, 5)) === JSON.stringify([20, 5, "euler", "simple", 0]) && /^Ref2V/.test(R.offValues[5]),
+    "turbo off on Ref2V: the no-turbo preset, 20 steps cfg 5, LoRA at 0": !R.off?.error && R.off?.setup === "Reference pictures, no turbo (20 steps)" && JSON.stringify(R.offValues?.slice(0, 5)) === JSON.stringify([20, 5, "euler", "simple", 0]) && /^Ref2V/.test(R.offValues[5]),
     "set_setting length takes \"124\"": R.len?.value === 124,
     "the Upscale brick warns past the GPU's memory, before the run": /RelayVSR at 4096×2048 needs about \d+ GiB/.test(R.warn ?? "") && /this GPU has 32 GiB/.test(R.warn ?? ""),
     "a failed Upscale: the render is queued again without it, as the failed take's child": R.rescueGraph && !R.rescueGraph.upscale && R.rescueGraph.fed.flat().includes(R.rescue.source.join(":")) && R.rescueGraph.parent?.take === "take-g1-failed" && /Keep the render of take 970: the Upscale failed/.test(R.rescueGraph.title ?? ""),
