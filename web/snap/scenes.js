@@ -232,8 +232,11 @@ export async function openShot(sceneId, shotId) {
   }
   await retitle(get(scene.id), get(scene.id).shots.find((x) => x.id === shot.id));
   const where = inPlace ? (switched ? " in the scene's tab" : "") : " in a new tab (the open one is scratch work, left as it was)";
-  return { scene: scene.id, shot: shot.id, tab: inPlace ? (switched ? "scene tab" : "same") : "new", built, ...(card ? { card } : {}),
-    said: `${title} of ${scene.name}${where}${shot.workflow ? "" : `: ${built}`}${card ? ` · ${card}` : ""}` };
+  // F-G09: a shot built now says when its recipe upscales every take (the recommended recipe has Upscale on), so a walk or
+  // a draft that doesn't want it can switch it off before the first run
+  const upscale = !shot.workflow && E.state().bricks.some((b) => b.key === "upscale") && S.on("upscale") ? 'Upscale is on: every take is upscaled after it renders (set_method {slot: "upscale", method: "off"} for a walkthrough, a plate or a draft)' : null;
+  return { scene: scene.id, shot: shot.id, tab: inPlace ? (switched ? "scene tab" : "same") : "new", built, ...(card ? { card } : {}), ...(upscale ? { upscale } : {}),
+    said: `${title} of ${scene.name}${where}${shot.workflow ? "" : `: ${built}`}${card ? ` · ${card}` : ""}${upscale ? ` · ${upscale}` : ""}` };
 }
 
 // F-D12 / UI-02 (SNAP-R120): what a new shot keeps of the open shot it was made from is the setup (models, Render Preset,
