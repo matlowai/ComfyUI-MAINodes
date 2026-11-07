@@ -557,13 +557,10 @@ nice -n 19 python3 -I "$T"/test_g3_cards.py >test_g3_cards.py.out 2>&1; tail -1 
 # take ids, the replaced active take, one record's critique rows, a repeated note once; prints "g5 n/m" last
 for t in test_g5.js; do park; timeout 600 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
 nice -n 19 "$py" -I "$T"/test_iris.py >test_iris.py.out 2>&1; tail -1 test_iris.py.out
-# SNAP-R109: the last real critic run on the fixtures still holds the floor (a real-agent check; this only re-scores its saved notes)
-nice -n 19 python3 -I "$T/critic/run_fixtures.py" score --results "$T/critic/runs/2026-11-06-r4/results.jsonl" --confirm "$T/critic/runs/2026-11-06-r4/confirm.json" | tail -1 | sed 's/^/critic   /'
-# G4: the r4 colour delta's run on all 32 (X02 is positive since G5: its coat split is missed here)
-nice -n 19 python3 -I "$T/critic/run_fixtures.py" score --results "$T/critic/runs/2026-11-06-r4-colour/results.jsonl" --confirm "$T/critic/runs/2026-11-06-r4-colour/confirm.json" | tail -1 | sed 's/^/critic4  /'
-# G5 (SNAP-R153): r5, the garment cross-view line, on all 32 with X02 positive (one false alarm: see critic/README.md)
-nice -n 19 python3 -I "$T/critic/run_fixtures.py" score --results "$T/critic/runs/2026-11-06-r5-garment/results.jsonl" --confirm "$T/critic/runs/2026-11-06-r5-garment/confirm.json" | tail -1 | sed 's/^/critic5  /'
-# G5: r5b, the shipped prompt (r5 + what a duplicate is): the 9 clean and X02/X03/X11/X27 run again, the rest from r5
+# SNAP-R109: the shipped critic prompt's last real run on the fixtures holds the floor (fixtures.json: r5b, 27/31, 0 FA;
+# a real-agent check, re-scored from its saved notes). critic = r6, the shipped prompt (r5b + metres from the record's
+# scale, SNAP-R155); critic5b = the floor's own run. The r3/r4/r5 runs stay in critic/runs/ as history (critic/README.md)
+nice -n 19 python3 -I "$T/critic/run_fixtures.py" score --results "$T/critic/runs/2026-11-06-r6-scale/results.jsonl" --confirm "$T/critic/runs/2026-11-06-r6-scale/confirm.json" | tail -1 | sed 's/^/critic   /'
 nice -n 19 python3 -I "$T/critic/run_fixtures.py" score --results "$T/critic/runs/2026-11-06-r5b-duplicate/results.jsonl" --confirm "$T/critic/runs/2026-11-06-r5b-duplicate/confirm.json" | tail -1 | sed 's/^/critic5b /'
 # U79 (SNAP-R96, R97, R99): the vault container and keys, pure Python on the pack this server loads; prints "vaultfmt n/m" last
 timeout 600 nice -n 19 "$py" -I "$T"/test_vault_format.py "$SNAP_TEST_PACK" >test_vault_format.py.out 2>&1; tail -1 test_vault_format.py.out

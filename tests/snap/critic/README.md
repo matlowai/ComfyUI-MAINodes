@@ -6,7 +6,10 @@ home, and a prompt change ships only when the fixtures run holds the floor.
 `fixtures.json` is the manifest: 32 pictures the operator judged by eye (22 with flaws, 31 expected flaws counted, plus
 X30; 9 clean), each with what it is, its context words and pictures, the expected flaws (with the keys the auto-scorer
 matches), the allowed minor flaws, the must-not-flag readings and the operator's words. `floor` is the last accepted
-round (r3: 24/29 caught, 0 false alarms, run by Opus 5.5).
+round: r5b, 27/31 caught, 0 false alarms on 9 clean, run by Opus 5.5 (G6 raised it from r3's 24/29: r5b is the first
+round that caught X02's coat split with no false alarm, and a prompt change that drops below it is a step back, so the
+gate holds every later round to it). r4 (25/29, 26/31) and r5 (1 false alarm) score below it now and stay here as
+history; run_all scores the shipped prompt's run (`critic`) and the floor's own run (`critic5b`).
 
 The pictures (69 MB of renders) are not in the repo. They live in a local fixtures folder with this layout:
 
@@ -65,6 +68,16 @@ polarity once checked by eye. `packets` writes the same blind packets to disk fo
   X11's extra knight still caught; X27 has no duplicate note. The clean set's medium notes are real by the r3 rounds'
   calls (low walls, the well beside the gate, the beat items, the v1 greatsword) and were settled ok.
 
+- `runs/2026-11-06-r6-scale/`: r6 = r5b plus "metres come from the record's scale" (SNAP-R155: measure eye and wall
+  heights against the location's scale anchors and say so, or say "no scale on record" and give ratios), plus the walk
+  checklist and the owner words in reference.md. A fresh Opus 5.5 critic on packets on disk (13 min) for the 9 clean
+  fixtures and the scale ones (X05, X06, X18, X26) plus X02; `subset.jsonl` is that run, `results.jsonl` the 32 with the
+  other 18 taken from r5b. **27/31 caught, 0 false alarms: holds the r5b floor.** The packets carry no record, so every
+  height came as a ratio ("no scale on record"); the giants X06/X18/X26 caught high, X29's low camera read clean, X02's
+  split caught again. Settled by eye as before: X27's well against the palisade (an allowed minor) and the clean set's
+  low-wall, beat and Cast notes (r3 rounds' calls). Not fully blind: the subset manifest's own note named its makeup
+  (clean / scale / X02), which the critic saw before judging.
+
 ## The fixtures
 
 - X01 master v1: the palisade only across the front; the village is not enclosed.
@@ -83,7 +96,7 @@ polarity once checked by eye. `packets` writes the same blind packets to disk fo
 - X12 board: clean.
 - X13 Cast front picture: the greatsword held by nothing.
 - X14 video frame: bodies sunk into the roof; lantern wires from nowhere; the kite crossing the wire (low).
-- X15 board: clean.
+- X15 board: clean (allowed minor since G6: the reddish-brown iris against the Cast's pale grey, a real note).
 - X16 board: an inner palisade; a second gatehouse and a watch tower.
 - X17 4K upscale frame: ghost copies of the subject in the backdrop tiles.
 - X18 walk frame: far too big for the houses.
@@ -100,7 +113,8 @@ polarity once checked by eye. `packets` writes the same blind packets to disk fo
 - X29 walk frame: clean.
 - X30 master v2: a house outside the ring (not counted).
 - X31 clip sheet (short05 C3 burst): Cast colour drift, grey hair goes dark and the suit olive (medium).
-- X32 clip sheet (short05 C4): the clean colour twin (hair stays grey); a real second monocle in the last two frames.
+- X32 clip sheet (short05 C4): the clean colour twin (hair stays grey); a real second monocle in the last two frames
+  (allowed minor since G6: the monocle on the wrong eye after the turn).
 
 ## Known misses (r3)
 

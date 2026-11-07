@@ -8,12 +8,12 @@ description: >
   picture good or show results to the person, after a batch of candidates lands, and whenever a flaw comes back after a
   re-roll.
 scope: [tool:list_critiques, tool:claim_critique, tool:critique_packet, tool:write_critique, tool:critique, tool:critic_report, tool:rerun_dependents, tool:judge_takes, tool:take_frames]
-rules: [SNAP-R101, SNAP-R102, SNAP-R103, SNAP-R104, SNAP-R105, SNAP-R106, SNAP-R107, SNAP-R108, SNAP-R109, SNAP-R110, SNAP-R23, SNAP-R63, SNAP-R135, SNAP-R146, SNAP-R153]
+rules: [SNAP-R101, SNAP-R102, SNAP-R103, SNAP-R104, SNAP-R105, SNAP-R106, SNAP-R107, SNAP-R108, SNAP-R109, SNAP-R110, SNAP-R23, SNAP-R63, SNAP-R135, SNAP-R146, SNAP-R153, SNAP-R155, SNAP-R156, SNAP-R157]
 ---
 
 SNAP-R101 the critic is a docket job an agent claims · SNAP-R109 this file is the prompt's one home, and a change ships
-only after the fixtures run holds the floor (tests/snap/critic/run_fixtures.py; floor 24/29 caught, 0 false alarms; r4
-measured 26/31 with X31; r5b, the garment line and what a duplicate is, 27/31 with X02's coat split, 0 false alarms).
+only after the fixtures run holds the floor (tests/snap/critic/run_fixtures.py; floor r5b: 27/31 caught, 0 false
+alarms, X02's coat split caught; r6, this prompt, adds metres from the record's scale: 27/31, 0 false alarms).
 If a Snap server is reachable, `read_skill {"name": "snap-critic"}` returns the person's version of this skill (their
 edits over the pack's); this file is the pack's. What each checklist adds is in `reference.md`
 (`read_skill {"name": "snap-critic", "file": "reference.md"}`). The fixtures and the known misses are in the pack's
@@ -41,10 +41,14 @@ loop, or between your own renders), work it:
    - `passes`: one line per pass (scan, map, support, cast, beat, cross_view; cut_pair for a cut pair);
    - one note per `- [sev] ...` line: `severity`, `pass` (the pass that found it), `text` (the flaw), `picture` (the
      packet `#index` you drew the region on: a whole frame, a tile, or a context picture), `region` [x, y, w, h] as
-     fractions of that picture, `owner` (the record it was born in, e.g. "location master", "plate Pb", "Cast record",
-     "board", "take", "prompt"), `fix` (one line).
+     fractions of that picture, `owner` (the record it was born in, e.g. "location master", "plate Pb" (the plate's
+     name as the record has it; one note per plate when several own it), "plan", "location notes", "camera marks" (a
+     plate's typed pose or a mark), "Cast record", "board", "take", "prompt"), `fix` (one line). Snap stores the part
+     you name and says when it can't map the words; Fix at source opens that part (SNAP-R156).
    Notes inform; they never reject or block (SNAP-R23). A clean verdict with no notes is a valid answer.
 6. If you can't read it (a test pattern, a picture that won't open), `skip_critique` with why.
+7. Found a mistake in a row you wrote? `write_critique {critique, amend: true, verdict, passes, notes}` writes the whole
+   critique again as a new row that supersedes yours (SNAP-R157); the old row stays, marked superseded.
 
 Then the next row. A critique of a private take keeps its words on the take (sealed by the vault).
 
@@ -52,7 +56,7 @@ When the docket is done (or your run ends), let go of your page: `use_page {"pag
 keeps its hold leaves the agents' window "Driven by" it for the next agent. Name every call (SNAP_AGENT), so the page
 knows the caller is you.
 
-# The critic prompt (r5b: r4 plus the garment line and what a duplicate is; measured 27/31 caught, 0 false alarms)
+# The critic prompt (r6: r5b plus metres from the record's scale; see the floor line at the top)
 
 In the output below, `<id>` is the packet's critique id; write it with write_critique as step 5 says.
 
@@ -72,6 +76,13 @@ Look at the WHOLE frame first at full size, then crop. Never judge from a thumbn
   Eyes far below it mean too small, or a high camera. Measure how far above, in body heights. Only then judge a wall
   or a gate: put a person-sized mark at the wall's base and compare. If the person is right and the wall looks low,
   the flaw is the wall height (owner: the plate or master), not the person.
+- **Metres come from the record's scale.** When the packet's words carry `scale` (the place's scale anchors, e.g. a
+  house door 2.0 m) and `scale_rule`, measure against them on the measuring copy: anchor heights from the ground to the
+  horizon give the camera's eye height, and to a wall's top its height. Write "measured against the record's scale
+  (house door 2.0 m)" in the note. With `scale: []` or no place pinned, give heights as ratios of a thing in the picture
+  (the horizon at 0.7 gate doors), call any metres a guess, and write "no scale on record". Check the anchors against
+  each other first: anchors that disagree in the picture (a gate door 1.9 house doors high where the record's numbers
+  make it 1.4) are a note on the record (owner: location notes).
 - **Projection.** In a side (profile) view, a scabbard or blade worn diagonally across the back looks nearly vertical
   and narrow, and its crossguard seen end-on is a short bar or a disc. Its lower part may be hidden by the body or the
   coat. None of that is a flaw by itself. A flaw is an end (hilt or tip) at a body landmark that disagrees with the

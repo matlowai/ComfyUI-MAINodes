@@ -21,6 +21,10 @@ A location plate: one camera on the set, cited by name by boards and cuts.
 - Support: seats and ledges people will sit on later (a twin parapet is high: the C17 double wall was in its plate).
 - Scale from the horizon: a plate at eye height puts every standing adult's eyes on the horizon; a wall that is low
   against that mark is the plate's flaw.
+- Eye height in metres (SNAP-R155): the horizon's height over the ground in scale anchors (`scale` in the words), read
+  on the measuring copy, against the pose's typed `eye_height`. Say which: "measured against the record's scale (house
+  door 2.0 m)" or "no scale on record". A gap of more than 0.3 m is a note owned by "camera marks" (the typed pose),
+  or by the plate when the plate was meant to be at that height.
 
 ## location
 
@@ -30,6 +34,9 @@ Every view of one location version side by side (master, plan, plates): a cross-
 - Then the plan against the master's compass (the gate side, the rows), and enclosure on the master.
 - Own each difference to the view that disagrees with the master; when the master disagrees with the plan, the plan or
   the master owns it (say which, and why).
+- Scale across views (SNAP-R155): the same anchor (a door, the palisade) in every view in the record's metres, and each
+  plate's eye height measured against `scale` as the plate section says; one note per plate, owned by that plate (or by
+  "camera marks" when the typed numbers are what's wrong), never one note for all of them owned by the master.
 
 ## plan
 

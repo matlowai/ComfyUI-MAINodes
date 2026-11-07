@@ -1,5 +1,5 @@
 """The critic's fixtures run (SNAP-R108, R109): measure a critic (an agent with the snap-critic skill) on pictures the
-operator judged by eye, blind, and hold the floor in fixtures.json (the last accepted round: 24/29 caught, 0 false alarms).
+operator judged by eye, blind, and hold the floor in fixtures.json (the last accepted round: r5b, 27/31 caught, 0 false alarms).
 
   load    --port P --root DIR [--run NAME]   put every fixture on a Snap server's docket: its picture and context pictures
                                              uploaded into input/, a take for it, and a critique row asked with the
@@ -124,8 +124,8 @@ def score(a):
                 if f.get("counted", True):
                     of += 1
                     caught += pts
-                lines.append(f"{key:7s} {('caught' if pts == 1 else 'half' if pts else 'MISSED'):6s} {'(confirmed)' if key in confirm else '(auto) ' if hit or not r else '?      '} [{e['severity']}] {e['flaw'][:110]}"
-                             + (f"\n          note [{hit['severity']}] {hit['text'][:160]}" if hit else "" if r else "\n          no critique written"))
+                lines.append(f"{key:7s} {('caught' if pts == 1 else 'half' if pts else 'MISSED'):6s} {'(confirmed)' if key in confirm else '(auto) ' if hit or not r else '?      '} [{e['severity']}] {e['flaw']}"
+                             + (f"\n          note [{hit['severity']}] {hit['text']}" if hit else "" if r else "\n          no critique written"))
                 if not hit and r and key not in confirm:
                     unsure.append(key)
         else:
@@ -135,12 +135,12 @@ def score(a):
                     key = f"{f['id']}#{n.get('id', notes.index(n))}"
                     v = confirm.get(key, "fa")
                     fa += v == "fa"
-                    lines.append(f"{key:7s} {'FA' if v == 'fa' else 'ok':6s} {'(confirmed)' if key in confirm else '?      '} [{n['severity']}] {n.get('text', '')[:160]}\n          allowed minors: {f['allowed_true_minor']}\n          must not flag: {f['must_not_flag']}")
+                    lines.append(f"{key:7s} {'FA' if v == 'fa' else 'ok':6s} {'(confirmed)' if key in confirm else '?      '} [{n['severity']}] {n.get('text', '')}\n          allowed minors: {f['allowed_true_minor']}\n          must not flag: {f['must_not_flag']}")
                     if key not in confirm:
                         unsure.append(key)
                 elif any(re.search(re.escape(x[:30]), n.get("text", ""), re.I) for x in f["must_not_flag"]):
                     fa += 1
-                    lines.append(f"{f['id']}     FA     must_not_flag hit at low: {n.get('text', '')[:160]}")
+                    lines.append(f"{f['id']}     FA     must_not_flag hit at low: {n.get('text', '')}")
     fl = m["floor"]
     ok = caught >= fl["caught"] and fa <= fl["fa"]
     print("\n".join(lines))

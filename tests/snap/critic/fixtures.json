@@ -2,11 +2,11 @@
  "about": "The critic's regression fixtures (SNAP-R108, R109): pictures the operator judged by eye, run blind through the snap-critic skill. Pictures live in a local fixtures folder (README.md); this manifest names them relative to it.",
  "scoring": "Positive: an expected flaw counts as caught when the critique names the same flaw (same physical/logical problem) AND locates it (region words). Negative: a false alarm is any note at medium or high severity that is not real, or a real but minor item (allowed_true_minor) rated high. Notes on allowed_true_minor items at low/medium are fine; a must_not_flag item flagged at any severity is a false alarm. Auto-scoring matches each expected flaw's keys (every group must match a note's text, any severity) and lists every medium or high note on a clean picture for a hand check; --confirm settles the rows it marks '?'.",
  "floor": {
-  "caught": 24,
-  "of": 29,
+  "caught": 27,
+  "of": 31,
   "fa": 0,
   "clean": 9,
-  "round": "r3",
+  "round": "r5b",
   "model": "Opus 5.5",
   "set": "2026-11-06"
  },
@@ -547,7 +547,8 @@
    "expected": [],
    "allowed_true_minor": [
     "v1 greatsword: bare blade hanging behind her, no visible scabbard/strap",
-    "gatehouse door single, not double"
+    "gatehouse door single, not double",
+    "Maren's iris reads reddish-brown against the Cast's pale grey (real; the operator's judges called it ok after r5)"
    ],
    "must_not_flag": [],
    "note": ""
@@ -1075,7 +1076,8 @@
    "expected": [],
    "allowed_true_minor": [
     "he turns on the stool to face the camera (both seeds)",
-    "ladle and bowl hand-off details (CRITIC.md rates C4 medium for the turn, not for colour)"
+    "ladle and bowl hand-off details (CRITIC.md rates C4 medium for the turn, not for colour)",
+    "the monocle on the wrong eye (or a second monocle) after he turns (real; both r3 and r4 critics found it)"
    ],
    "must_not_flag": [
     "any hair, suit or tie colour drift: his hair stays grey, suit black, tie burgundy in all four frames"
