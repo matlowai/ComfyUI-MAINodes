@@ -273,10 +273,10 @@ export const TOOLS = [
   },
   {
     name: "list_setups",
-    description: "The setups the recipe can switch to in one step: the Render Preset's presets (Pika H3 Flex, Pika + reference pictures, DMAD speed LoRA, the person's own) and every family's recipe cards (MOSS-Image Base / SFT DeBand / Kromoss, Krea 2, and 'Last used' cards): family, output, `about` (how its models fit together), which one is current, the model files each loads with sizes and readiness (installed, cant_load), and its sampling values.",
+    description: "The setups the recipe can switch to in one step: the Render Preset's presets (Pika H3 Flex, Pika + reference pictures, DMAD speed LoRA, the no-turbo presets, the person's own; each with reads: the pictures its conditioning reads, and about: its conditioning, steps and turbo; Pika at 6 steps is the quality standard, SNAP-R149) and every family's recipe cards (MOSS-Image Base / SFT DeBand / Kromoss, Krea 2, and 'Last used' cards): family, output, `about` (how its models fit together), which one is current, the model files each loads with sizes and readiness (installed, cant_load), and its sampling values.",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
-    run: async () => { await M.load(); await L.ready(); return M.setups().map(({ name, family, source, output, about, current, edited, models, values }) => ({ name, family, source, output, about, current, edited, models: models.map(sized), values })); },
+    run: async () => { await M.load(); await L.ready(); return M.setups().map(({ name, family, source, output, reads, about, current, edited, models, values }) => ({ name, family, source, output, ...(reads ? { reads } : {}), about, current, edited, models: models.map(sized), values })); },
   },
   {
     name: "apply_setup",

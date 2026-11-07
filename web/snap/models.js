@@ -260,7 +260,7 @@ export function setups() {
       const values = n.presets.values(name);
       const models = Object.entries(values).map(([setting, v]) => [setting, v, n.widgets.find((w) => w.name === setting)]).filter(([, , w]) => isModel(w))
         .map(([setting, v, w]) => ({ setting, ...readiness(v), installed: choices(w).includes(v) && readable(v) }));
-      return { name, family: familyOf(values) ?? family(), source: "preset", brick: b.key, node: nodeKey, current: now.name === name, edited: now.name === name && now.edited, models, values };
+      return { name, family: familyOf(values) ?? family(), source: "preset", brick: b.key, node: nodeKey, current: now.name === name, edited: now.name === name && now.edited, ...presetSays(values), models, values };
     });
   }));
   // family recipe cards: every model file their bricks name, with readiness (✓ / missing / can't load)
@@ -274,6 +274,13 @@ export function setups() {
   return [...presets, ...cards];
 }
 
+// UI-13 (G2 item 11): what a preset reads and is, from its own values: its conditioning says which pictures it reads, its
+// LoRA and steps say whether it runs the turbo (SNAP-R149: no turbo is opt-in, never a quality step up)
+function presetSays(v) {
+  const cond = String(v.conditioning ?? ""), turbo = v.lora && v.lora_strength !== 0;
+  const reads = /^Ref2V/.test(cond) ? ["reference pictures (<Picture n>, a First frame opens the shot as <Picture 1>)", "audio references (<Audio n>)"] : /^FL2V/.test(cond) ? ["the First frame picture (References are not read)"] : [];
+  return { ...(reads.length ? { reads } : {}), about: [cond && `${cond.replace(/ \(.*/, "")}: ${reads.join("; ")}`, v.steps != null && (turbo ? `${v.steps} steps with ${short(v.lora)} at ${v.lora_strength}` : `${v.steps} steps, no turbo: opt-in, slower, not a quality step up (Pika at 6 steps is the standard)`)].filter(Boolean).join(" · ") };
+}
 // a Models value fits a family when it is installed and the model graph puts it in that family (or in none); an encoder
 // type fits when it is the family's own (the type the dials know for it), as warnings() says
 function fits(w, fam) {
