@@ -8,7 +8,8 @@
 // critique has no high note and the scene's note says "approval: critic" (else it waits for the person). `through`
 // says where the chain stops: boards by default (stop before video), cuts to run through. A batch is the person's
 // record in snap/dependents/<id>.json; its plan says each stage's takes, swap and time from their own runs.
-// SNAP-R106 staged candidates with plan, time and cost · SNAP-R140 a record's own takes are not its dependents; lineage follows · SNAP-R105 fix at the source · SNAP-R107 approval · SNAP-R23 the
+// SNAP-R106 staged candidates with plan, time and cost · SNAP-R140 a record's own takes are not its dependents; lineage follows · SNAP-R147
+// a location's dependents include what used it as a Cast and the takes its pictures came from · SNAP-R105 fix at the source · SNAP-R107 approval · SNAP-R23 the
 // old take stays until a pick · SNAP-R16 GPU time waits for the person (rerun_dependents is consequential) · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as T from "./takes.js";
@@ -55,9 +56,22 @@ function decisionOf(id) {
   for (const d of C.all()) { const c = d.candidates.find((x) => takeOfCandidate(x) === id); if (c) return { d, c }; }
   return null;
 }
+// F-G01: the version of a record a take used, and the swap that re-makes it on the newest. Its pin, else for a location:
+// a take that pinned the Cast the place was kept as before location records (cast_to_location's from_cast) used the
+// version made from it, and re-runs with that Cast swapped for the location; a take a picture of the place came `from`
+// that pins nothing used the version that first held that picture, and has no slot to swap (swap null: re-make it in
+// a shot that applies the location). -> (take) => {n, via, swap} | null
+export function pinner(r, key) {
+  const cast = r.versions.find((v) => v.body.from_cast), castKey = cast && W.refOf("cast", W.parse(cast.body.from_cast).id), born = new Map();
+  for (const v of r.versions) for (const p of [v.body.master, ...(v.body.plates ?? [])]) if (p?.from?.take && !born.has(p.from.take)) born.set(p.from.take, v.n);
+  return (t) => (t.world?.[key] ? { n: t.world[key].n, swap: { [key]: { to: "latest" } } }
+    : castKey && t.world?.[castKey] ? { n: cast.n, via: `pinned the Cast ${cast.body.from_cast} this place was made from`, swap: { [castKey]: { to: key } } }
+    : born.has(t.id) ? { n: born.get(t.id), via: `a picture of v${born.get(t.id)} came from it; it pins nothing of the place, so re-make it in a shot that applies ${key}`, swap: null } : null);
+}
 export function staleOf(ref) {
   const { kind, id } = W.parse(ref), key = W.refOf(kind, id), r = W.record(kind, id);
   if (!r) throw new Error(`No ${kind} record ${id} (list_world lists them)`);
+  const pinOf = pinner(r, key);
   const source = new Set(), up = (tid) => { for (let t = T.get(tid); t && !source.has(t.id); t = T.get(t.parent?.take)) { source.add(t.id); for (const c of decisionOf(t.id)?.d.candidates ?? []) source.add(takeOfCandidate(c)); } };
   for (const v of r.versions) if (v.body.master?.from?.take) up(v.body.master.from.take);
   const unpicked = (t) => { const x = decisionOf(t.id); return !x ? null : x.c.state === "rejected" ? "a rejected candidate" : x.d.applied && x.d.applied.candidate !== x.c.id ? "a candidate that wasn't picked" : null; };
@@ -65,8 +79,8 @@ export function staleOf(ref) {
   // a take the newest version holds as its own picture (a plate) moved only when what a plate is made from moved
   // (master, plan, notes), not when sibling plates did
   const head = W.headOf(r).body, own = new Set([head.master, ...(head.plates ?? [])].map((p) => p?.from?.take).filter(Boolean));
-  const core = (b) => JSON.stringify({ ...b, plates: null }), moved = (t) => !own.has(t.id) || core(W.get(W.refOf(kind, id, t.world[key].n))?.version.body ?? {}) !== core(head);
-  const stale = T.all().filter((t) => t.world?.[key] && t.world[key].n < r.head && t.status === "success" && keep(t)
+  const core = (b) => JSON.stringify({ ...b, plates: null }), moved = (t) => !own.has(t.id) || core(W.get(W.refOf(kind, id, pinOf(t).n))?.version.body ?? {}) !== core(head);
+  const stale = T.all().filter((t) => pinOf(t) && pinOf(t).n < r.head && t.status === "success" && keep(t)
     && (moved(t) || !left_out.push({ take: t.id, number: t.number, why: "the newest version holds it as its own picture, and nothing its plates are made from moved" })));
   const ids = new Set(stale.map((t) => t.id)), follows = [];
   for (let grew = true; grew;) {
@@ -79,17 +93,17 @@ export function staleOf(ref) {
       follows.push({ take: t.id, number: t.number, via: { take: via, number: T.get(via)?.number ?? null }, why: `made from take ${T.get(via)?.number ?? via}, which is stale: re-make it from that take's re-made pick` });
     }
   }
-  return { key, record: r, stale, follows, left_out };
+  return { key, record: r, stale, follows, left_out, pinOf };
 }
 export function stagesOf(ref) {
-  const { key, stale: list0 } = staleOf(ref);
+  const { key, stale: list0, pinOf } = staleOf(ref);
   const plates = plateTakes(key), order = (t) => { const h = RT.shotOf(t); return h ? SC.all().indexOf(h.scene) * 1000 + h.scene.shots.indexOf(h.shot) : 1e9 + t.created; };
   // a re-run batch skips what was already re-made on a newer version (dependents still lists it)
-  const remade = (t) => T.all().some((k) => k.parent?.take === t.id && (k.world?.[key]?.n ?? 0) > t.world[key].n);
-  const stale = list0.filter((t) => !remade(t)).sort((a, b) => order(a) - order(b));
+  const remade = (t) => T.all().some((k) => k.parent?.take === t.id && (pinOf(k)?.n ?? 0) > pinOf(t).n);
+  const stale = list0.filter((t) => !remade(t) && pinOf(t).swap).sort((a, b) => order(a) - order(b));
   const stageOf = (t) => (plates.has(t.id) || PLATE_PURPOSES.has(ED.purposeOf(t)?.purpose) ? "plates" : isVideo(t) ? "cuts" : "boards");
   return STAGES.map((name) => {
-    const list = stale.filter((t) => stageOf(t) === name).map((t) => { const h = RT.shotOf(t); return { take: t.id, number: t.number, n: t.world[key].n, ...(h ? { scene: h.scene.name, shot: SC.shotTitle(h.scene, h.shot) } : {}), seconds: t.seconds > 0 ? t.seconds : null }; });
+    const list = stale.filter((t) => stageOf(t) === name).map((t) => { const h = RT.shotOf(t); return { take: t.id, number: t.number, n: pinOf(t).n, swap: pinOf(t).swap, ...(pinOf(t).via ? { via: pinOf(t).via } : {}), ...(h ? { scene: h.scene.name, shot: SC.shotTitle(h.scene, h.shot) } : {}), seconds: t.seconds > 0 ? t.seconds : null }; });
     const known = list.filter((x) => x.seconds != null), eta = known.reduce((s, x) => s + x.seconds, 0);
     return { name, takes: list, eta_s: known.length ? Math.round(eta) : null, from: !list.length ? "nothing to re-run" : known.length === list.length ? "the sum of their own times" : known.length ? `${known.length} of ${list.length} timed; the others: no estimate yet` : "no estimate yet" };
   });
@@ -98,8 +112,9 @@ export function stagesOf(ref) {
 export function plan(ref, { through = "boards", chain = "ask" } = {}) {
   const { kind, id } = W.parse(ref), r = W.record(kind, id), stages = stagesOf(ref), stop = STAGES.indexOf(through), name = W.headOf(r)?.body.name ?? id;
   const lines = stages.map((s, i) => ({ stage: s.name, takes: s.takes, swap: { [W.refOf(kind, id)]: { to: "latest" } }, eta_s: s.eta_s, from: s.from, runs: !s.takes.length ? "nothing" : i > stop ? `waits: the chain stops before ${s.name} (through: ${through}); rerun_dependents {through: "${s.name}"} runs them` : i === stages.findIndex((x) => x.takes.length) ? "first" : `after the ${stages.slice(0, i).filter((x) => x.takes.length).at(-1)?.name}' picks${s.name === "boards" ? " (a board cites the plate's new file)" : ""}` }));
-  const go = lines.filter((l, i) => l.takes.length && i <= stop), eta = go.reduce((n, l) => n + (l.eta_s ?? 0), 0), { follows, left_out } = staleOf(ref);
-  return { ...(follows.length ? { follows } : {}), ...(left_out.length ? { left_out } : {}), runs: `re-run what still uses an older ${name} than v${r.head}: ${lines.filter((l) => l.takes.length).map((l) => `${l.stage} (${l.takes.length})`).join(", ") || "nothing"}; each re-made take lands as a candidate beside the old one; chain ${chain}${chain === "run" ? " (the critic's clean pick applies where the scene says approval: critic)" : " (each stage waits for the picks)"}`,
+  const go = lines.filter((l, i) => l.takes.length && i <= stop), eta = go.reduce((n, l) => n + (l.eta_s ?? 0), 0), { follows, left_out, stale, pinOf } = staleOf(ref);
+  const by_hand = stale.filter((t) => !pinOf(t).swap).map((t) => ({ take: t.id, number: t.number, why: pinOf(t).via }));
+  return { ...(follows.length ? { follows } : {}), ...(left_out.length ? { left_out } : {}), ...(by_hand.length ? { by_hand } : {}), runs: `re-run what still uses an older ${name} than v${r.head}: ${lines.filter((l) => l.takes.length).map((l) => `${l.stage} (${l.takes.length})`).join(", ") || "nothing"}; each re-made take lands as a candidate beside the old one; chain ${chain}${chain === "run" ? " (the critic's clean pick applies where the scene says approval: critic)" : " (each stage waits for the picks)"}`,
     stages: lines, eta_s: go.some((l) => l.eta_s != null) ? eta : null, from: go.length ? `about ${Math.round(eta / 60)} min of GPU for ${go.reduce((n, l) => n + l.takes.length, 0)} takes, from their own times` : "nothing runs" };
 }
 
@@ -111,7 +126,7 @@ async function runStage(b, i) {
   for (const x of s.takes) {
     const t = T.get(x.take);
     if (!t) { s.missing = [...(s.missing ?? []), x.take]; continue; }
-    const out = await RR.rerun(t, { swaps: { [key]: { to: "latest" } }, seed: b.seed, by: b.by });
+    const out = await RR.rerun(t, { swaps: x.swap ?? { [key]: { to: "latest" } }, seed: b.seed, by: b.by });
     const d = await C.create({ kind: "rerun", target: t.id, title: `Re-run dependents of ${b.name}: ${s.name}, take ${t.number}`, by: b.by, take: t.id, route: "regenerate", seed: b.seed, dependents: { batch: b.id, stage: s.name } }, [{ prompt_id: out.run, label: `on ${b.name} v${b.head}` }]);
     s.decisions.push(d.id);
     await save(b);
@@ -178,7 +193,7 @@ export async function start(ref, { chain = "ask", through = "boards", seed = "sa
   const b = { id: `deps-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, record: W.refOf(kind, id), head: r.head, name: W.headOf(r).body.name ?? id, chain, through, seed, by, created: Date.now(), state: "running",
     stages: stages.map((s) => ({ name: s.name, takes: s.takes, eta_s: s.eta_s, state: s.takes.length ? "waiting" : "empty", decisions: [] })) };
   const first = b.stages.findIndex((s) => s.takes.length);
-  if (first < 0) return { batch: null, said: `nothing uses an older ${b.name} than v${r.head}` };
+  if (first < 0) { const hand = plan(ref).by_hand ?? []; return { batch: null, ...(hand.length ? { by_hand: hand } : {}), said: hand.length ? `nothing to re-run by swap; ${hand.length} take${hand.length === 1 ? "" : "s"} pin nothing of ${b.name} (its pictures came from them): re-make them in a shot that applies it (by_hand)` : `nothing uses an older ${b.name} than v${r.head}` }; }
   if (first > STAGES.indexOf(through)) return { batch: null, said: `only ${b.stages[first].name} use an older version, and the chain stops before them (through: ${through})` };
   await save(b);
   await runStage(b, first);

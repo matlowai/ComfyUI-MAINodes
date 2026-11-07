@@ -15,7 +15,7 @@
 // A slot may take a list ("this shot with each of these 3 characters"): every combination is one re-run. Re-generate
 // makes them one candidates decision whose candidates are the queued takes (Apply makes one the shot's active take,
 // Reject marks its take rejected by whoever pressed it); Reuse the motion makes one decision per combination.
-// SNAP-R63 re-run with swaps · SNAP-R61 as it was / today's world · SNAP-R60 pins · SNAP-R24 where it lands · SNAP-R11
+// SNAP-R63 re-run with swaps · SNAP-R147 a Cast kept as a place swaps to its location · SNAP-R61 as it was / today's world · SNAP-R60 pins · SNAP-R24 where it lands · SNAP-R11
 // warn, never block · SNAP-R58 every choice listed in full · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as ACC from "./account.js";
@@ -59,7 +59,7 @@ export async function slots(take) {
     const others = W.all(kind).filter((x) => x.id !== id && (kind !== "card" || W.headOf(x).body.kind === body?.kind));
     out.push({ slot: ref, kind, name: kind === "cast" && r ? recordName(r) : p.name ?? id, n: p.n, head: p.n === 0 ? 0 : r?.head ?? null, ...(p.n && !r ? { missing: true } : {}),
       versions: r ? r.versions.map(({ n, at, note }) => ({ n, at: new Date(at).toISOString(), note })) : [], others: others.map((x) => ({ ref: W.refOf(kind, x.id), name: recordName(x), head: x.head })),
-      ...(kind === "cast" ? { out: "{to: \"out\"} takes them out of the re-run (UI-15)" } : {}) });
+      ...(kind === "cast" ? { out: "{to: \"out\"} takes them out of the re-run (UI-15)", ...placeOf(id) } : {}) });
   }
   const home = RT.shotOf(take);
   out.push({ slot: "scene", kind: "scene", name: home?.scene.name ?? null, n: null, not_a_record: "a different scene brings its set into the recipe; where the new take lands is chosen apart (land)",
@@ -69,10 +69,12 @@ export async function slots(take) {
   return out;
 }
 
+// F-G01 (SNAP-R147): a place kept as a Cast before location records swaps to the location made from it (cast_to_location)
+const placeOf = (castId) => { const r = W.all("location").find((x) => x.versions.some((v) => v.body.from_cast && W.parse(v.body.from_cast).id === castId)); return r ? { location: W.refOf("location", r.id) } : {}; };
 // every choice a slot takes, written out in full for an error (SNAP-R58)
 const choices = (s) => (s.kind === "scene" ? `pinned (the scene it is in), or another scene: ${s.others.map((o) => `${o.ref} (${o.name})`).join(", ") || "there are no others"}`
   : s.kind === "setup" ? `pinned (${s.name}), or another setup of this family: ${s.others.map((o) => JSON.stringify(o.ref)).join(", ") || "there are no others"}`
-  : `pinned, latest${s.versions.length ? `, ${s.versions.map((v) => `@${v.n}`).join(", ")} (its versions)` : ""}, or another ${s.kind}: ${s.others.map((o) => `${o.ref} (${o.name})`).join(", ") || "there are no others"}${s.kind === "cast" ? "; or out (take them out of the re-run)" : ""}`);
+  : `pinned, latest${s.versions.length ? `, ${s.versions.map((v) => `@${v.n}`).join(", ")} (its versions)` : ""}, or another ${s.kind}: ${s.others.map((o) => `${o.ref} (${o.name})`).join(", ") || "there are no others"}${s.kind === "cast" ? "; or out (take them out of the re-run)" : ""}${s.location ? `; or ${s.location} (the location made from this Cast)` : ""}`);
 
 // one asked swap as {slot, to, ref, text, fields, warning, into_run}; keep: true when it leaves the slot as it was
 function one(take, s, to) {
@@ -89,6 +91,12 @@ function one(take, s, to) {
   const { kind, id } = W.parse(s.slot);
   // UI-15 (SNAP-R124): a Cast taken out of the re-run: its LoRA row, words, pictures and voice go (remove_from_world)
   if (to === "out" || to === null) return kind === "cast" ? { slot: s.slot, to: "out", out: true, text: `${s.name} taken out`, into_run: true } : no();
+  if (s.location && typeof to === "string" && to.startsWith("location:") && W.parse(to).id === W.parse(s.location).id) {
+    // its pictures, words and LoRA go; the place goes in: master, plan, and the plates the Cast's pictures became (by role)
+    const x = W.parse(to), ref = W.refOf("location", x.id, x.n ?? W.record("location", x.id).head), b = W.get(ref)?.version.body ?? no();
+    const roles = take.world[s.slot].placed?.roles ?? [], plates = (b.plates ?? []).map((p) => p.name).filter((nm) => roles.some((r) => r.endsWith(`, ${nm}`)));
+    return { slot: s.slot, to, ref, place: { plates }, text: `${s.name} (kept as a Cast) → location ${b.name} v${W.parse(ref).n}`, into_run: true };
+  }
   if (to === "latest" && s.n === 0) return { slot: s.slot, to, latest: true, text: `${s.name}: today's pack card`, into_run: true }; // a pack card moves with the pack
   let ref;
   if (to === "latest") ref = W.refOf(kind, id);
@@ -156,6 +164,7 @@ async function put(s) {
     return held ? L.swapPin(held, ref) : L.applySet(card);
   }
   if (s.out) return L.removePin(s.slot);
+  if (s.place) { await L.removePin(s.slot); return (await L.applyLocation(s.ref, s.place)).said; }
   return s.latest ? L.updatePin(s.slot) : L.swapPin(s.slot, s.ref);
 }
 
@@ -164,6 +173,7 @@ export async function motionOf(take, s, who) {
   const no = (why) => ({ slot: s.slot, text: s.text, not_possible: why, instead: "regenerate" });
   if (s.out) return no(`taking ${s.text.replace(/ taken out$/, "")} out of the picture is a new render, not a repaint of this motion`);
   if (s.slot === "setup") return no("Viggle Remake and Ripple run their own H3 model on the take, so another Setup can't apply: Re-generate does that");
+  if (s.place) return no("a location swapped in for a Cast is a new render of the place: Re-generate does that");
   const rerun = { slot: s.slot, to: s.ref ?? s.to, text: s.text }, base = { slot: s.slot, text: s.text, rerun, label: s.text };
   if (s.slot === "scene") return { ...base, method: "remake_edit", args: { change: `the place to: ${setBlock(L.get(s.set).brick.snapshot)}` } };
   const { kind, id } = W.parse(s.slot), was = W.get(W.refOf(kind, id, take.world[s.slot].n))?.version.body, now = W.get(s.ref).version.body;
