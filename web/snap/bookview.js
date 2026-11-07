@@ -74,7 +74,7 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
     const b = bookRef && B.bookOf(bookRef), mine = b ? P.pending().filter(ofBook(b)) : [], answered = b ? P.all().filter((p) => p.status !== "waiting" && p.status !== "running" && ofBook(b)(p)) : [];
     fill(docket, mine.length ? [h("div", { className: "snap-rail-title", textContent: `Waiting for you (${mine.length})` }), ...mine.map((p) => h("div", { className: "snap-book-prop" },
       h("span", { className: "snap-agent", textContent: "agent" }), h("strong", { textContent: p.id }), h("span", { className: "snap-book-prop-what", textContent: p.reason || p.tool.replaceAll("_", " ") }),
-      p.needs?.length ? h("span", { className: "snap-al-chip", title: "accepting this accepts these first", textContent: `needs ${p.needs.join(", ")}` }) : null,
+      (() => { const open = (p.needs ?? []).filter((n) => P.get(n)?.status === "waiting"); return open.length ? h("span", { className: "snap-al-chip", title: "accepting this accepts these first", textContent: `needs ${open.join(", ")}` }) : null; })(),
       h("button", { className: "snap-accept", textContent: "Accept", onclick: accept(p) }), h("button", { className: "snap-reject", textContent: "Reject", onclick: reject(p) })))] : [],
       answered.length ? h("details", { className: "snap-book-answered" }, h("summary", { className: "snap-quiet", textContent: `Answered (${answered.length})` }),
         answered.map((p) => h("div", { className: "snap-quiet", textContent: `${p.id} ${p.status}: ${p.reason || p.tool.replaceAll("_", " ")}${p.status !== "accepted" && typeof p.result === "string" ? ` · ${p.result}` : ""}` }))) : null);
