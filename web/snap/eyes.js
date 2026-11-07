@@ -5,8 +5,10 @@
 // Cast picture with the same words, no hand seeding; MAISnapEyeColour moves Lab a/b inside the iris only, lightness never,
 // and passes a frame with no iris (a profile, a back) through untouched. It lands as a new take beside the redraw, made
 // only when asked (a GPU step: a proposal unless the person lets agents run).
-// SNAP-R134 optional, after stage 2, SAM-located, never the default · SNAP-R203 on any take, saying what it ran on · SNAP-R85 references are redrawn · SNAP-R16 GPU work
+// SNAP-R134 optional, after stage 2, SAM-located, never the default · SNAP-R203 on any take, saying what it ran on ·
+// SNAP-R207 what it did (or why it skipped) on the take and in the answer · SNAP-R85 references are redrawn · SNAP-R16 GPU work
 // waits for the person · SNAP-R60 the new take keeps the redraw's pins · see docs/snap/SNAP_RULES.md
+import { api } from "../../../scripts/api.js";
 import * as ED from "./edits.js";
 import * as K from "./checks.js";
 import * as N from "./nearby.js";
@@ -52,6 +54,23 @@ export function castFor(t, cast) {
   if (casts.length !== 1) throw new Error(casts.length ? `Take ${t.number} pins ${casts.length} Casts: name one (cast: ${casts.map((c) => c.ref).join(" or ")})` : `Take ${t.number} pins no Cast with a picture: give cast (cast:<id>)`);
   return casts[0];
 }
+// F-Z02 (SNAP-R207): the node's report in words: what it did to the frames, or why the new take is the picture as it was
+// (Kuroe's grey Cast iris made a byte-identical take and nothing said why)
+export function said(r) {
+  const whys = (fs) => [...new Set(fs.filter((f) => !f.touched).map((f) => f.why))].join("; ");
+  if (r.skipped) return `skipped, so the new take is the picture as it was: ${r.skipped}${/grey/.test(r.skipped) ? ". Keep eye colour moves hue only (decision 5), never lightness, so it can't bring back grey irises a redraw darkened" : ""}`;
+  if (!r.touched) return `changed nothing, so the new take is the picture as it was: no iris on ${r.frames > 1 ? `any of the ${r.frames} frames` : "the still"} (${whys(r.per_frame)})`;
+  return `re-tinted the irises on ${r.frames > 1 ? `${r.touched} of ${r.frames} frames` : "the still"} toward the Cast's (a ${r.target.a}, b ${r.target.b}; mean shift a ${r.mean_shift[0]}, b ${r.mean_shift[1]})${r.touched < r.frames ? `; ${r.frames - r.touched} untouched (${whys(r.per_frame)})` : ""}`;
+}
+// the report onto the take when it lands, from the run's history (the node's UI output); a run ComfyUI served whole from
+// its cache keeps no UI output, so it carries the report of the take it repeats (cached_from)
+T.onLanded(async (t) => {
+  if (t.parent?.method !== "eyecolour" || t.eye_colour) return;
+  const r = (await (await api.fetchApi(`/history/${t.prompt_id}`)).json())[t.prompt_id]?.outputs?.e?.eye_colour?.[0] ?? (t.cached_from && T.get(t.cached_from)?.eye_colour?.report);
+  t.eye_colour = r ? { said: said(r), report: r } : { error: "the step's report didn't reach the page (a server from before G14: restart it)" };
+  await T.save(t);
+});
+const WAIT_S = 25; // a bridge call ends after 30 s
 export async function start(t, { cast, ref, strength = 1, by = "person" } = {}) {
   need(t);
   if (!(strength >= 0 && strength <= 1)) throw new Error(`strength is how far toward the Cast's colour, 0 to 1 (1: all the way); not ${strength}`);
@@ -83,6 +102,14 @@ export async function start(t, { cast, ref, strength = 1, by = "person" } = {}) 
   const job = { kind: "eyes", title: `Keep eye colour on take ${t.number}: its irises toward ${pick.name}'s (${front.role ?? "picture"})${strength < 1 ? `, strength ${strength}` : ""}`, about: { take: t.id, group: t.group }, by, eta_s: null };
   const id = await K.queue(g, { group: t.group, world: t.graph?.extra?.snap?.world, job, extra: { snap_parent: { take: t.id, method: "eyecolour", options: { ...options, label: "eye colour" }, by } } });
   await N.load();
-  const on = N.what(t.id).line;
-  return { prompt_id: id, take: `take-${id}`, ...options, ran_on: on, said: `Keep eye colour is running on take ${t.number} (${on.replace(/\.$/, "")}): a new take beside it (take ${t.number} stays); look at the eyes at 100 % against ${pick.name}'s picture before keeping it` };
+  const on = N.what(t.id).line, until = Date.now() + WAIT_S * 1000; // a still's step takes seconds: wait for what it did
+  let done = null;
+  while (!(done = T.get(`take-${id}`)?.eye_colour) && Date.now() < until) await new Promise((ok) => setTimeout(ok, 500));
+  const on1 = on.replace(/\.$/, "");
+  return { prompt_id: id, take: `take-${id}`, ...options, ran_on: on, ...(done ? { eye_colour: done } : {}),
+    said: done?.said ? `Keep eye colour on take ${t.number} (${on1}) ${done.said}. The new take is beside it (take ${t.number} stays)${done.report.touched ? `; look at the eyes at 100 % against ${pick.name}'s picture before keeping it` : ""}`
+      : done ? `Keep eye colour ran on take ${t.number} (${on1}), but ${done.error}; look at the eyes at 100 % against ${pick.name}'s picture before keeping it`
+        : `Keep eye colour is running on take ${t.number} (${on1}): a new take beside it (take ${t.number} stays). When it lands, get_take's eye_colour says what it did to every frame, or why it skipped (wait_for {job: "${id}"}); look at the eyes at 100 % against ${pick.name}'s picture before keeping it` };
 }
+// the line a take made by the step shows: what it did, or why it is the picture as it was
+export const doneLine = (t) => t.parent?.method === "eyecolour" ? t.eye_colour?.said ?? t.eye_colour?.error ?? "what keep eye colour did isn't on this take yet" : null;

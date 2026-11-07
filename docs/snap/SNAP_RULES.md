@@ -1938,4 +1938,14 @@ SNAP-R197 on. R160-R164 stay free.
   whole box back also kept the bar off but put the 1x head back; editing the redraw again kept the bar 2/2 (its
   Picture 1 shows it). *More:* tests/snap/test_g14.js, test_g14_nodes.py; study proto/ui/g14.
 
-Next free ID after this batch: SNAP-R207 (R160-R164 stay free).
+- **SNAP-R207: Keep eye colour says what it did.** MAISnapEyeColour's report (the target, every frame touched or why
+  not, the mean shift, or why it skipped) is also its UI output; Snap writes it on the new take (`eye_colour` {said,
+  report}, in get_take and as a line in the take viewer), and `keep_eye_colour` waits up to 25 s for the step so its
+  answer says it: "skipped, so the new take is the picture as it was: <why>" (a grey Cast iris also says the step moves
+  hue only, never lightness), "changed nothing … no iris on the still (<why>)", or "re-tinted the irises on n of m
+  frames …"; past 25 s it says where to read it. A repeat ComfyUI serves whole from its cache keeps no UI output, so its take
+  carries the report of the take it repeats (`cached_from`). No lightness matching (decision 5: hue only; the operator hasn't ruled
+  on more). *Why:* dogfood F-Z02: on Kuroe's grey Cast iris the new take was byte-identical and nothing said why (the
+  report was an unconnected STRING output). *More:* tests/snap/test_g14.js, test_iris.py.
+
+Next free ID after this batch: SNAP-R208 (R160-R164 stay free).

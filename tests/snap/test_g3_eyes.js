@@ -63,7 +63,7 @@ const park = (d) => { const p = path.join(snap, d); if (fs.existsSync(p)) { fs.m
     "keep_eye_colour on a take that pins no Cast asks for one": /pins no Cast with a picture: give cast/.test(R.refused?.error ?? ""),
     "SAM 3.1 runs on the redraw and on the Cast front with the same words (eye:2 AND the iris words)": sams.length === 4 && JSON.stringify(words) === JSON.stringify(["eye:2", "eye:2", "pupil:2, iris of the eye:2", "pupil:2, iris of the eye:2"]) && masked(e?.inputs.masks[0]) && masked(e?.inputs.reference_mask[0]) && nodes.some((x) => x.class_type === "LoadImage" && x.inputs.image === "snaptest/g3_cast_front.png") && nodes.some((x) => x.class_type === "CheckpointLoaderSimple" && /sam3/.test(x.inputs.ckpt_name)),
     "the re-tint gets the frames' masks, the Cast front and its mask, at the strength asked": e?.inputs.strength === 0.6 && g[e.inputs.masks[0]]?.class_type === "MaskComposite" && g[e.inputs.reference_mask[0]]?.class_type === "MaskComposite" && g[e.inputs.reference[0]]?.inputs.image === "snaptest/g3_cast_front.png",
-    "it saves a new take whose parent is the redraw (eyecolour), with the redraw's pins": R.graph?.extra_data?.snap_parent?.method === "eyecolour" && R.landed?.parent?.take === "take-g3eyes-redraw" && R.landed.parent.method === "eyecolour" && /keep eye colour is running on take/i.test(R.run?.said ?? ""),
+    "it saves a new take whose parent is the redraw (eyecolour), with the redraw's pins": R.graph?.extra_data?.snap_parent?.method === "eyecolour" && R.landed?.parent?.take === "take-g3eyes-redraw" && R.landed.parent.method === "eyecolour" && /keep eye colour (is running|ran) on take/i.test(R.run?.said ?? ""),
     "no page errors": !R.errors?.length,
   };
   R.checks = checks;

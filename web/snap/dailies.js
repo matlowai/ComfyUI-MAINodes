@@ -29,7 +29,7 @@ import * as C from "./candidates.js";
 import * as ED from "./edits.js";
 import * as EX from "./extend.js";
 import * as UP from "./upscale.js";
-import * as EY from "./eyes.js"; // SNAP-R134 the redraw's eye line and the optional Keep eye colour
+import * as EY from "./eyes.js"; // SNAP-R134 the redraw's eye line and the optional Keep eye colour · SNAP-R207 what it did
 import * as VO from "./voices.js";
 import * as S from "./slots.js";
 import * as W from "./world.js";
@@ -367,6 +367,8 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
       ...eyes.casts.map((c) => h("button", { className: "snap-link snap-quiet-btn", textContent: `${c.name}'s picture`, title: "open it full size beside this take's frames", onclick: () => LB.show([{ src: mediaUrl({ filename: c.picture.split("/").pop(), subfolder: c.picture.split("/").slice(0, -1).join("/"), type: "input" }), name: `${c.name}, Cast picture`, source: `input/${c.picture}` }]) })),
       eyes.casts.length ? h("button", { className: "snap-link snap-quiet-btn", textContent: "Keep eye colour", title: "re-tint only the irises toward the Cast picture, found by SAM on every frame; a new take beside this one (GPU time)",
         onclick: async (e) => { const btn = e.currentTarget; btn.disabled = true; try { say((await EY.start(t, { cast: eyes.casts.length > 1 ? eyes.casts[0].cast : undefined, by: "person" })).said); } catch (err) { say(err.message, true); btn.disabled = false; } } }) : null)) : null;
+    // F-Z02 (SNAP-R207): a take made by keep eye colour says what the step did, or why it is the picture as it was
+    const eyeDone = EY.doneLine(t), eyeDoneLine = eyeDone ? h("div", { className: "snap-take-copyline" }, h("div", { className: "snap-quiet", textContent: `Keep eye colour ${eyeDone}` })) : null;
     // SNAP-R114: the voice note (a take that cites a Cast voice): one line per cited voice, amber when it says check
     const voiceLine = h("div", { className: "snap-take-copyline" });
     const voiceRow = () => {
@@ -590,7 +592,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
           list,
           h("div", { className: "snap-rail-title", textContent: prev ? `Changed since take ${prev.number}` : "First take of this workflow" }),
           changes.length ? h("ul", { className: "snap-take-delta" }, changes.slice(0, 10).map((c) => h("li", {}, h("b", { textContent: `${c.node} · ${c.input}` }), ` ${String(c.from).slice(0, 40)} → ${String(c.to).slice(0, 60)}`))) : prev ? h("div", { className: "snap-quiet", textContent: "same settings" }) : null,
-          copyLine, voiceLine, eyeLine,
+          copyLine, voiceLine, eyeLine, eyeDoneLine,
           t.text ? h("details", {}, h("summary", { textContent: "Prompt" }), h("p", { className: "snap-take-text", textContent: t.text })) : null,
           useRow,
           isVideo ? [h("div", { className: "snap-rail-title", textContent: "Change something" }), ...paintRow("edit"), h("div", { className: "snap-rail-title", textContent: "Recast a person" }), ...paintRow("recast"), editNote,

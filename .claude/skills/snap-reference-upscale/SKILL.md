@@ -52,7 +52,9 @@ The front was also the take's Picture 1, so a redraw toward it is expected: read
    helps (0.20 still grey). If they drifted, `keep_eye_colour {take: <the redraw>, cast}` (optional, never default,
    SNAP-R134) re-tints only the irises toward the Cast front, found by SAM on every frame; profiles and backs pass
    through. It runs on any take (SNAP-R203: a redraw made another way too) and its `ran_on` says which; it moves hue
-   only, so a grey iris that went dark stays dark. Look at it at 100 % before keeping it.
+   only, so a grey iris that went dark stays dark. Its answer waits for the step and says what it did, or why the new
+   take is the picture as it was (a grey Cast iris, no pair of irises found), with the node's whole report
+   (`eye_colour`, also on the new take: SNAP-R207). Look at it at 100 % before keeping it.
 5. Use the frames you keep as Cast pictures or plates (a new Cast version).
 
 ## Traps

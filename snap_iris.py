@@ -6,8 +6,8 @@ no seeding; Snap ANDs "eye:2" at 0.6 with "pupil:2, iris of the eye:2" at 0.3: o
 iris disc and "iris of the eye" fills in where it is only the dark centre). Only a pair of irises side by side counts:
 a profile, a back or a lone eye-like thing (a gold hair bell was found as an eye at 0.6) passes through untouched; a
 Cast whose iris is grey or not found skips the whole step rather than invent a colour. The report says what was done
-to every frame.
-SNAP-R134 keep eye colour is optional, after stage 2, SAM-located · SNAP-R85 a reference is redrawn · SNAP-R11 warn,
+to every frame; it is also the node's UI output, which Snap writes on the new take (F-Z02, SNAP-R207).
+SNAP-R134 keep eye colour is optional, after stage 2, SAM-located · SNAP-R207 its report reaches the take · SNAP-R85 a reference is redrawn · SNAP-R11 warn,
 never block · SNAP-R18 local only · see docs/snap/SNAP_RULES.md"""
 import json
 
@@ -140,7 +140,7 @@ class MAISnapEyeColour(io.ComfyNode):
     @classmethod
     def execute(cls, images, masks, reference, reference_mask, strength) -> io.NodeOutput:
         out, report = keep_eye_colour(images, masks, reference, reference_mask, strength)
-        return io.NodeOutput(out, json.dumps(report))
+        return io.NodeOutput(out, json.dumps(report), ui={"eye_colour": [report]})  # F-Z02: Snap puts the report on the take
 
 
 NODE_CLASS_MAPPINGS = {"MAISnapEyeColour": MAISnapEyeColour}

@@ -115,7 +115,7 @@ const KS = {
     "F-Y05: stage 2 of a MOSS still starts from the encoded still, no AV split": M.r?.still === true && M.lat === "VAEEncode" && M.pix === "ImageScale" && !M.classes.some((c) => /^LTXV/.test(c)) && M.sig === "H3DeropeSigmas" && M.inject === 0.3 && M.empty?.width === 2560,
     "F-Y05: a KSampler still: the encoded still at denoise 0.3, fast at cfg 1": K.r?.still === true && K.r.speed === "fast" && K.lat === "VAEEncode" && K.denoise === 0.3 && K.cfg === 1 && !K.classes.some((c) => /^LTXV|H3Derope/.test(c)),
     "F-Y08: upscale_take, set_purpose and check_identity take a unique start of the id": R.startUp?.width === 1920 && R.startPurpose?.take === "take-g13-ksam-0003" && !/No take/.test(R.startIdentity?.error ?? "") && !/No take/.test(R.startEyesPlan?.error ?? "") && /the still of take 972/.test(R.startEyesPlan?.runs ?? ""),
-    "F-Y07: keep_eye_colour runs on a still that isn't a stage 2 redraw, saying what it ran on": /^A still, not a frame of a video: take 972/.test(R.eyesMoss?.ran_on ?? "") && /running on take 972 \(A still, not a frame of a video/.test(R.eyesMoss?.said ?? "") && front(R.eyesMossGraph),
+    "F-Y07: keep_eye_colour runs on a still that isn't a stage 2 redraw, saying what it ran on": /^A still, not a frame of a video: take 972/.test(R.eyesMoss?.ran_on ?? "") && /(running|ran) on take 972 \(A still, not a frame of a video/.test(R.eyesMoss?.said ?? "") && front(R.eyesMossGraph),
     "F-Y07: a still that pins no Cast asks for one, and runs with the one given": /pins no Cast with a picture: give cast/.test(R.eyesNoCast?.error ?? "") && R.eyesGiven?.cast?.startsWith(cast) && front(R.eyesGivenGraph),
     "no page errors": !R.errors?.length,
   };

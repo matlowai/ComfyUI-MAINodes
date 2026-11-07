@@ -1,4 +1,4 @@
-// Batch G14 (dogfood F-Z01, F-Z03) on the CPU test server, the page side (test_g14_nodes.py has the nodes on real pictures):
+// Batch G14 (dogfood F-Z01..F-Z03) on the CPU test server, the page side (test_g14_nodes.py has the nodes on real pictures):
 // - SNAP-R205 (F-Z03): a region edit's seam check reads the box as pasted (a crop of the composite), and a box pasted
 //   darker than the picture around it gets box_shows on every edge, a "the box shows" line and a "box shows" chip; an
 //   edit that changes nothing still says "no break" and "seam ok". The P-H3 sampler is swapped for core nodes (Picture 1's
@@ -6,10 +6,15 @@
 // - SNAP-R206 (F-Z01): stage 2 of that region edit redraws the whole still, then MAISnapKeepEdit puts the edit's change
 //   back: redraw = the decode, edit = the still, before = Picture 1's own loader (its crop gone), the edit's feather; the
 //   answer and the plan say `keeps`. Run on core nodes with a "redraw" that is Picture 1 again (the flaw back
-//   everywhere): the box comes back darker, the picture outside it stays the redraw, at 2x.
+//   everywhere): the box comes back darker, the picture outside it stays the redraw, at 2x;
+// - SNAP-R207 (F-Z02): keep_eye_colour's answer waits for the step and says what it did: skipped for a grey Cast iris
+//   (and why), changed nothing when no iris is found, re-tinted otherwise; the node's whole report is on the new take
+//   (get_take eye_colour) and in the answer, and the take viewer's line says it. SAM is swapped for two drawn iris
+//   squares (core SolidMask / MaskComposite), so MAISnapEyeColour itself runs; a repeat ComfyUI serves from its cache
+//   carries the report of the run it repeats when its history keeps no UI output (as on :8194; stripped here).
 // usage: node test_g14.js [port] [base]   prints "g14 n/m" last
 const { chromium } = require("playwright");
-const fs = require("fs"), path = require("path");
+const fs = require("fs"), path = require("path"), { execFile } = require("child_process");
 const CFG = require("./snaptest_config.js");
 const F = require("./fwork.js");
 const port = process.argv[2] || CFG.port, base = process.argv[3] || CFG.base, R = {};
@@ -18,16 +23,31 @@ const park = (d) => { const p = path.join(snap, d); if (fs.existsSync(p)) { fs.m
 const FILES = ["diffusion_models/h3/p-h3-image_int8_convrot.safetensors", "text_encoders/h3/p-h3-image_text_encoder_int8_convrot.safetensors", "vae/h3/p-h3-image_vae_int8_convrot.safetensors"];
 const PH3 = ["1", "2", "3", "4", "p", "g", "r", "s", "m", "k"];
 const shots = path.join(CFG.out, "ui", "g14");
+// a face drawn for the eye step (skin, two iris discs side by side with pupils), and Cast fronts whose irises are grey or green
+const DRAW = `
+import sys
+from PIL import Image, ImageDraw
+def face(path, iris):
+    im = Image.new("RGB", (400, 300), (236, 200, 170)); d = ImageDraw.Draw(im)
+    for cx in (150, 250):
+        d.ellipse((cx - 10, 140, cx + 10, 160), fill=iris); d.ellipse((cx - 3, 147, cx + 3, 153), fill=(20, 20, 20))
+    im.save(path)
+face(sys.argv[1], (120, 82, 60)); face(sys.argv[2], (100, 100, 100)); face(sys.argv[3], (60, 125, 75))
+`;
 (async () => {
   ["takes", "cast", "candidates"].forEach(park); // moved, never deleted
   const fx = path.join(base, "input", "snaptest_g14");
   for (const d of [fx, path.join(base, "output", "snaptest"), shots]) fs.mkdirSync(d, { recursive: true });
   fs.copyFileSync(CFG.fixture("short04", "bible", "hiyori_front_v1.png"), path.join(fx, "front.png")); // 832x1216
+  await new Promise((ok, fail) => execFile(CFG.python, ["-I", "-c", DRAW, path.join(base, "output", "snaptest", "g14_face.png"), path.join(fx, "eyes_grey.png"), path.join(fx, "eyes_green.png")], (e) => (e ? fail(e) : ok())));
+  fs.copyFileSync(path.join(fx, "eyes_green.png"), path.join(fx, "eyes_green_nomask.png"));
   const made = FILES.map((f) => path.join(base, "models", f)).filter((f) => !fs.existsSync(f));
   for (const f of made) { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, ""); }
   const b = await chromium.launch({ executablePath: CFG.chrome, headless: true });
   try {
-    const A = await F.open(b, port), page = A.page, prompts = [];
+    const ctx = await b.newContext({ viewport: { width: 1600, height: 1000 } });
+    await ctx.route(/\/api\/experiment\/models\/checkpoints$/, async (r) => { const res = await r.fetch(), list = await res.json(); r.fulfill({ response: res, json: [...list, { name: "sam3.1_multiplex_fp16.safetensors", pathIndex: 0, modified: 0, size: 1e9 }] }); }); // SAM listed as a GPU machine lists it
+    const A = await F.open(b, port, { context: ctx }), page = A.page, prompts = [];
     const call = (name, args) => page.evaluate(([n, a]) => window.__X.callTool(n, a).catch((e) => ({ error: e.message })), [name, args]);
     const waitReady = (d) => page.evaluate(async (d) => { for (let i = 0; i < 240; i++) { await window.__C.load(); const x = window.__C.get(d); if (x?.candidates.every((c) => c.state === "ready" || c.state === "failed")) return x.candidates.map((c) => c.state); await new Promise((r) => setTimeout(r, 500)); } return null; }, d);
     const waitTake = (id) => page.evaluate(async (id) => { for (let i = 0; i < 240 && !window.__T.get(id); i++) await new Promise((r) => setTimeout(r, 500)); return !!window.__T.get(id); }, id);
@@ -45,6 +65,12 @@ const shots = path.join(CFG.out, "ui", "g14");
         if (seed === 9541) Object.assign(g, { bk: { class_type: "EmptyImage", inputs: { width: 64, height: 64, batch_size: 1, color: 0 } }, d: { class_type: "ImageBlend", inputs: { image1: ["r0s", 0], image2: ["bk", 0], blend_factor: 0.25, blend_mode: "normal" } } });
         else Object.assign(g, { d0: { class_type: "ImageInvert", inputs: { image: ["r0s", 0] } }, d: { class_type: "ImageInvert", inputs: { image: ["d0", 0] } } });
         g.o.inputs.filename_prefix = "snaptest/g14_edit";
+      } else if (Object.values(g ?? {}).some((x) => x.class_type === "MAISnapEyeColour")) { // keep eye colour: drawn irises for SAM's
+        const front = g.cf.inputs.image, irises = (k, empty) => ({ [`${k}0`]: { class_type: "SolidMask", inputs: { value: 0, width: 400, height: 300 } }, [`${k}q`]: { class_type: "SolidMask", inputs: { value: 1, width: 18, height: 18 } },
+          [`${k}a`]: { class_type: "MaskComposite", inputs: { destination: [`${k}0`, 0], source: [`${k}q`, 0], x: 141, y: 141, operation: "add" } },
+          [k]: empty ? { class_type: "SolidMask", inputs: { value: 0, width: 400, height: 300 } } : { class_type: "MaskComposite", inputs: { destination: [`${k}a`, 0], source: [`${k}q`, 0], x: 241, y: 141, operation: "add" } } });
+        for (const k of Object.keys(g)) if (/^(sam|cfme?t?|cfmi?t?|fme?t?|fmi?t?)$/.test(k)) delete g[k];
+        Object.assign(g, irises("cfm", false), irises("fm", /nomask/.test(front)));
       } else return r.fallback();
       delete body.partial_execution_targets;
       return r.continue({ postData: JSON.stringify({ ...body, prompt: g }) });
@@ -91,6 +117,26 @@ const shots = path.join(CFG.out, "ui", "g14");
       return { size: [out.canvas.width, out.canvas.height], inOut: mean(out, ...inner.map((v) => v * 2)), inFront: mean(front, ...inner), farOut: mean(out, ...far.map((v) => v * 2)), farFront: mean(front, ...far) };
     }, [R.up.take, [250, 182, 333, 365]]);
 
+    // ---- F-Z02: keep eye colour says what it did ----
+    const grey = (await call("save_cast", { name: "G14 Grey", details: "grey eyes", refs: [{ file: "snaptest_g14/eyes_grey.png", role: "identity: front" }] })).cast;
+    const green = (await call("save_cast", { name: "G14 Green", details: "green eyes", refs: [{ file: "snaptest_g14/eyes_green.png", role: "identity: front" }] })).cast;
+    const blind = (await call("save_cast", { name: "G14 Unseen", details: "green eyes", refs: [{ file: "snaptest_g14/eyes_green_nomask.png", role: "identity: front" }] })).cast;
+    await page.evaluate(async () => { const T = window.__T;
+      await T.save({ id: "take-g14-face-0001", kind: "run", prompt_id: "g14-face-0001", created: Date.now(), finished: Date.now(), seconds: 1, group: app.graph.id, number: 941, status: "success", text: "g14", seed: 1,
+        media: [{ kind: "image", filename: "g14_face.png", subfolder: "snaptest", type: "output" }], prompt: {}, graph: { extra: { snap: { world: {} } } }, world: {}, verdict: null, notes: [] }); });
+    // a run served whole from the cache: :8194 kept no UI output for it in /history (this CPU server keeps one), as here
+    let stripCached = false;
+    await page.route(/\/history\/[\w-]+$/, async (r) => { const res = await r.fetch(), h = await res.json();
+      if (stripCached) for (const x of Object.values(h)) if (x.status?.messages?.some((m) => m[0] === "execution_cached" && m[1]?.nodes?.includes("e")) && x.outputs?.e) delete x.outputs.e;
+      r.fulfill({ response: res, json: h }); });
+    for (const [k, cast] of [["grey", grey], ["again", grey], ["green", green], ["blind", blind]]) { // again: the same graph right after, served from ComfyUI's cache
+      stripCached = k === "again";
+      R[`eyes_${k}`] = await call("keep_eye_colour", { take: "take-g14-face-0001", cast });
+      const id = R[`eyes_${k}`]?.take;
+      R[`eyesTake_${k}`] = id && (await call("get_take", { take: id }))?.eye_colour;
+      R[`eyesLine_${k}`] = id && await page.evaluate(async (id) => (await import("/extensions/ComfyUI-MAINodes/snap/eyes.js")).doneLine(window.__T.get(id)), id);
+      if (k === "again") R.againCached = id && await page.evaluate((id) => window.__T.get(id)?.cached_from ?? null, id);
+    }
     R.errors = A.errors;
   } finally { await fetch(`http://127.0.0.1:${port}/settings/MAINodes.Snap.AgentsMayRun`, { method: "POST", body: "false" }).catch(() => {}); await b.close(); }
   for (const f of made) { const to = path.join(base, "models", "_parked_g14", path.relative(path.join(base, "models"), f)); fs.mkdirSync(path.dirname(to), { recursive: true }); fs.renameSync(f, to); } // placeholders moved, never deleted
@@ -105,6 +151,11 @@ const shots = path.join(CFG.out, "ui", "g14");
     "F-Z01: no crop, paste or seam check in stage 2": G.classes?.length && !G.classes.some((c) => ["ImageCropV2", "ImageCompositeMasked", "MAISnapSeam", "SolidMask", "FeatherMask"].includes(c)),
     "F-Z01: the answer and the plan say what stage 2 keeps of the edit": /is a region edit: the redraw is of its whole picture, then the edit's change .* goes back over the redraw/.test(R.up?.keeps ?? "") && R.plan?.keeps === R.up?.keeps,
     "F-Z01: run: 2x, the box darker than Picture 1 (the edit kept over a redraw that brought it back), outside it the redraw": X && X.size[0] === 1664 && X.inFront - X.inOut > 10 && Math.abs(X.farOut - X.farFront) < 2,
+    "F-Z02: a grey Cast iris: the answer says it skipped and why, with the report": /Keep eye colour on take 941 \(.*\) skipped, so the new take is the picture as it was: the Cast's iris is grey \(chroma 0\.0 < 6\)/.test(R.eyes_grey?.said ?? "") && /moves hue only/.test(R.eyes_grey?.said ?? "") && /grey/.test(R.eyes_grey?.eye_colour?.report?.skipped ?? ""),
+    "F-Z02: no iris found on the still: the answer says it changed nothing, and why": /changed nothing, so the new take is the picture as it was: no iris on the still \(no iris found\)/.test(R.eyes_blind?.said ?? "") && R.eyes_blind?.eye_colour?.report?.per_frame?.[0]?.why === "no iris found",
+    "F-Z02: a green Cast: re-tinted, the per-frame report in the answer": /re-tinted the irises on the still toward the Cast's \(a -?[\d.]+, b -?[\d.]+; mean shift/.test(R.eyes_green?.said ?? "") && R.eyes_green?.eye_colour?.report?.per_frame?.[0]?.touched === true,
+    "F-Z02: a repeat served whole from ComfyUI's cache carries the report of the run it repeats": R.againCached && R.eyes_again?.eye_colour?.said === R.eyes_grey?.eye_colour?.said && /skipped, so the new take is the picture as it was/.test(R.eyes_again?.said ?? ""),
+    "F-Z02: the report is on the new take (get_take eye_colour) and the viewer's line says it": ["grey", "green", "blind"].every((k) => R[`eyesTake_${k}`]?.said && R[`eyesTake_${k}`].said === R[`eyes_${k}`]?.eye_colour?.said && R[`eyesLine_${k}`] === R[`eyesTake_${k}`].said),
     "no page errors": !R.errors?.length,
   };
   fs.writeFileSync(path.join(CFG.out, "ui", "test_g14_result.json"), JSON.stringify({ result: R, checks }, null, 1));

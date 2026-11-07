@@ -64,7 +64,8 @@ monocle, where a gold bar across the nose came back from every wording (dogfood 
   pass) has no such step: look at the fixed part at 100 %; if the flaw is back, fix the redraw (the remove-then-add
   pair above), not the other way round.
 - Then compare the eyes with the Cast: a redraw darkened Kuroe's grey irises. `keep_eye_colour` runs on any take
-  (SNAP-R203) but moves only the hue, so it leaves a grey iris as it is (the picture comes back unchanged).
+  (SNAP-R203) but moves only the hue, so it leaves a grey iris as it is; its answer says what it did or why it skipped
+  (SNAP-R207).
 - A seam note that says **"the box shows"** means the pasted box is lighter or darker than the picture around it
   (SNAP-R205): redo it with `mask`, or with the crop's edges on the thing rather than open background.
 
