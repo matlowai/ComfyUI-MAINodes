@@ -75,7 +75,9 @@ def read_all(root):
 
 
 def write(root, row):
-    row["updated"] = now_ms()
+    # strictly later than the row's last write: a claim, update and write in one millisecond read as three versions, so
+    # a page merging by `updated` keeps the newest (F-G10 under a fast gate)
+    row["updated"] = max(now_ms(), row.get("updated", 0) + 1)
     path = os.path.join(root, f"{row['id']}.json")
     tmp = f"{path}.{os.getpid()}.tmp"
     with open(tmp, "w", encoding="utf-8") as f:

@@ -255,7 +255,9 @@ SC.onChange(() => scan());
 Promise.all([T.load(), C.load(), W.load(), SC.load()]).then(() => scan(), () => {});
 
 // ---- claim, write, skip (the agent's side) -----------------------------------------------------------------------------
-async function put(out) { const mine = get(out.critique.id); if (mine) Object.assign(mine, out.critique); else rows.push(out.critique); changed(); wake(); return mine ?? out.critique; }
+// a route's answer can be older than a read that came back first (another writer's claim, update and write in a row):
+// the newer `updated` wins, as in read()
+async function put(out) { const mine = get(out.critique.id); if (!mine) rows.push(out.critique); else if ((out.critique.updated ?? 0) >= (mine.updated ?? 0)) Object.assign(mine, out.critique); changed(); wake(); return mine ?? out.critique; }
 export async function claim(id, by, { release = false } = {}) { await load(); return put(await call("/mainodes/snap/critique/claim", { id, by, release })); }
 export async function skip(id, by, why) { await load(); return put(await call("/mainodes/snap/critique/update", { id, set: { skipped: { by, why, at: now() } } })); }
 export const pin = async (id, packet) => put(await call("/mainodes/snap/critique/update", { id, set: { packet } }));
