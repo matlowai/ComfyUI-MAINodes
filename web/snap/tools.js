@@ -641,7 +641,7 @@ export const TOOLS = [
   },
   {
     name: "dependents",
-    description: "What uses a record's versions (G1, F-C22): ref is kind:id (every version) or kind:id@n (one), for a Cast, a location, a set or a card. For each version: the takes pinned to it (stills, boards, New view candidates and video takes alike): take, number, still or video, its scene and shot, whether it is the shot's active take, what made it (parent method) and when. stale lists the takes on a version older than the newest, with the rerun call that re-makes each on the newest version; rerun_dependents (SNAP-R106) re-makes them all upstream first, in stages. Nothing changes.",
+    description: "What uses a record's versions (G1, F-C22): ref is kind:id (every version) or kind:id@n (one), for a Cast, a location, a set or a card. For each version: the takes pinned to it (stills, boards, New view candidates and video takes alike): take, number, still or video, its scene and shot, whether it is the shot's active take, what made it (parent method) and when. stale lists the takes on a version older than the newest, with the rerun call that re-makes each on the newest version (not the record's own pictures: its masters, the takes they were edited from and their candidates; not rejected or unpicked candidates: left_out names them); follows lists takes made from a stale take (an edit, a first frame), which pin nothing of the record but carry its old picture; rerun_dependents (SNAP-R106) re-makes them all upstream first, in stages. Nothing changes.",
     inputSchema: { type: "object", properties: { ref: { type: "string" } }, required: ["ref"] },
     annotations: { readOnlyHint: true },
     run: async ({ ref }) => {
@@ -650,8 +650,11 @@ export const TOOLS = [
       const where = (t) => { const h = RT.shotOf(t); return h && { scene: h.scene.id, scene_name: h.scene.name, shot: h.shot.id, shot_title: SC.shotTitle(h.scene, h.shot), active: h.shot.active === t.id }; };
       const used = T.all().filter((t) => t.world?.[key]).map((t) => ({ take: t.id, number: t.number, n: t.world[key].n, kind: t.media.some((m) => m.kind === "video") ? "video" : "still", ...(where(t) ?? {}), made_by: t.parent?.method ?? "a run", at: new Date(t.created).toISOString() }));
       const versions = r.versions.filter((v) => n == null || v.n === n).map((v) => ({ n: v.n, newest: v.n === r.head, note: v.note, takes: used.filter((u) => u.n === v.n) }));
-      const stale = used.filter((u) => u.n < r.head && (n == null || u.n === n)).map((u) => ({ ...u, rerun: { take: u.take, swaps: { [key]: { to: "latest" } } } }));
-      return { ref: key, head: r.head, versions, stale, ...(stale.length ? { rerun_dependents: { ref: key, chain: "ask", through: "boards" } } : {}), said: stale.length ? `${stale.length} take${stale.length === 1 ? "" : "s"} still use${stale.length === 1 ? "s" : ""} an older version than v${r.head}: rerun each with its rerun arguments to make it on v${r.head}` : `nothing uses an older version than v${r.head}` };
+      // F-F07: the record's own takes and unpicked candidates are left out (named); takes made from a stale take follow it
+      const { stale: due, follows, left_out } = kind === "scene" ? { stale: T.all().filter((t) => t.world?.[key]), follows: [], left_out: [] } : (await C.load(), DP.staleOf(key)), ids = new Set(due.map((t) => t.id));
+      const stale = used.filter((u) => u.n < r.head && (n == null || u.n === n) && ids.has(u.take)).map((u) => ({ ...u, rerun: { take: u.take, swaps: { [key]: { to: "latest" } } } }));
+      return { ref: key, head: r.head, versions, stale, ...(follows.length ? { follows } : {}), ...(left_out.length ? { left_out } : {}), ...(stale.length ? { rerun_dependents: { ref: key, chain: "ask", through: "boards" } } : {}),
+        said: stale.length ? `${stale.length} take${stale.length === 1 ? "" : "s"} still use${stale.length === 1 ? "s" : ""} an older version than v${r.head}: rerun each with its rerun arguments to make it on v${r.head}${follows.length ? `; ${follows.length} more made from them follow (re-make each from its parent's pick)` : ""}${left_out.length ? `; ${left_out.length} left out (the record's own pictures, unpicked candidates)` : ""}` : `nothing uses an older version than v${r.head}` };
     },
   },
   {

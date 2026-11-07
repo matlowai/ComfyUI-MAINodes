@@ -8,7 +8,7 @@
 // critique has no high note and the scene's note says "approval: critic" (else it waits for the person). `through`
 // says where the chain stops: boards by default (stop before video), cuts to run through. A batch is the person's
 // record in snap/dependents/<id>.json; its plan says each stage's takes, swap and time from their own runs.
-// SNAP-R106 staged candidates with plan, time and cost · SNAP-R105 fix at the source · SNAP-R107 approval · SNAP-R23 the
+// SNAP-R106 staged candidates with plan, time and cost · SNAP-R140 a record's own takes are not its dependents; lineage follows · SNAP-R105 fix at the source · SNAP-R107 approval · SNAP-R23 the
 // old take stays until a pick · SNAP-R16 GPU time waits for the person (rerun_dependents is consequential) · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as T from "./takes.js";
@@ -46,16 +46,45 @@ function plateTakes(key) {
   for (const v of r?.versions ?? []) for (const p of [v.body.master, ...(v.body.plates ?? [])]) if (p?.from?.take) ids.add(p.from.take);
   return ids;
 }
-export function stagesOf(ref) {
+// F-F07: what a record's new version leaves behind. Not a dependent: the record itself (each version's master take, the
+// takes it was edited from, and the other candidates of the decision that made each), and a candidate that was rejected
+// or not picked. A take made from a stale take (an edit, a first frame, a reference) follows it, even when it pins
+// nothing of the record: `follows` names it and its parent, to re-make from the parent's pick
+const takeOfCandidate = (c) => c.take ?? `take-${c.prompt_id}`;
+function decisionOf(id) {
+  for (const d of C.all()) { const c = d.candidates.find((x) => takeOfCandidate(x) === id); if (c) return { d, c }; }
+  return null;
+}
+export function staleOf(ref) {
   const { kind, id } = W.parse(ref), key = W.refOf(kind, id), r = W.record(kind, id);
   if (!r) throw new Error(`No ${kind} record ${id} (list_world lists them)`);
-  const plates = plateTakes(key), order = (t) => { const h = RT.shotOf(t); return h ? SC.all().indexOf(h.scene) * 1000 + h.scene.shots.indexOf(h.shot) : 1e9 + t.created; };
+  const source = new Set(), up = (tid) => { for (let t = T.get(tid); t && !source.has(t.id); t = T.get(t.parent?.take)) { source.add(t.id); for (const c of decisionOf(t.id)?.d.candidates ?? []) source.add(takeOfCandidate(c)); } };
+  for (const v of r.versions) if (v.body.master?.from?.take) up(v.body.master.from.take);
+  const unpicked = (t) => { const x = decisionOf(t.id); return !x ? null : x.c.state === "rejected" ? "a rejected candidate" : x.d.applied && x.d.applied.candidate !== x.c.id ? "a candidate that wasn't picked" : null; };
+  const left_out = [], keep = (t) => { const why = source.has(t.id) ? `the ${W.headOf(r).body.name ?? id} record's own picture (a master, the take it was edited from, or a candidate beside it)` : unpicked(t); if (why) left_out.push({ take: t.id, number: t.number, why }); return !why; };
   // already re-made on a newer version; and a take the newest version holds as its own picture (a plate) moved only
   // when what a plate is made from moved (master, plan, notes), not when sibling plates did
   const remade = (t) => T.all().some((k) => k.parent?.take === t.id && (k.world?.[key]?.n ?? 0) > t.world[key].n);
   const head = W.headOf(r).body, own = new Set([head.master, ...(head.plates ?? [])].map((p) => p?.from?.take).filter(Boolean));
   const core = (b) => JSON.stringify({ ...b, plates: null }), moved = (t) => !own.has(t.id) || core(W.get(W.refOf(kind, id, t.world[key].n))?.version.body ?? {}) !== core(head);
-  const stale = T.all().filter((t) => t.world?.[key] && t.world[key].n < r.head && t.status === "success" && !remade(t) && moved(t)).sort((a, b) => order(a) - order(b));
+  const stale = T.all().filter((t) => t.world?.[key] && t.world[key].n < r.head && t.status === "success" && keep(t) && !remade(t) && moved(t));
+  const ids = new Set(stale.map((t) => t.id)), follows = [];
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const t of T.all()) {
+      if (ids.has(t.id) || t.status !== "success" || source.has(t.id) || unpicked(t)) continue;
+      const via = [t.parent?.take, ...(t.made_from ?? [])].find((x) => ids.has(x));
+      if (!via) continue;
+      ids.add(t.id); grew = true;
+      follows.push({ take: t.id, number: t.number, via: { take: via, number: T.get(via)?.number ?? null }, why: `made from take ${T.get(via)?.number ?? via}, which is stale: re-make it from that take's re-made pick` });
+    }
+  }
+  return { key, record: r, stale, follows, left_out };
+}
+export function stagesOf(ref) {
+  const { key, stale: list0 } = staleOf(ref);
+  const plates = plateTakes(key), order = (t) => { const h = RT.shotOf(t); return h ? SC.all().indexOf(h.scene) * 1000 + h.scene.shots.indexOf(h.shot) : 1e9 + t.created; };
+  const stale = [...list0].sort((a, b) => order(a) - order(b));
   const stageOf = (t) => (plates.has(t.id) || PLATE_PURPOSES.has(ED.purposeOf(t)?.purpose) ? "plates" : isVideo(t) ? "cuts" : "boards");
   return STAGES.map((name) => {
     const list = stale.filter((t) => stageOf(t) === name).map((t) => { const h = RT.shotOf(t); return { take: t.id, number: t.number, n: t.world[key].n, ...(h ? { scene: h.scene.name, shot: SC.shotTitle(h.scene, h.shot) } : {}), seconds: t.seconds > 0 ? t.seconds : null }; });
@@ -67,8 +96,8 @@ export function stagesOf(ref) {
 export function plan(ref, { through = "boards", chain = "ask" } = {}) {
   const { kind, id } = W.parse(ref), r = W.record(kind, id), stages = stagesOf(ref), stop = STAGES.indexOf(through), name = W.headOf(r)?.body.name ?? id;
   const lines = stages.map((s, i) => ({ stage: s.name, takes: s.takes, swap: { [W.refOf(kind, id)]: { to: "latest" } }, eta_s: s.eta_s, from: s.from, runs: !s.takes.length ? "nothing" : i > stop ? `waits: the chain stops before ${s.name} (through: ${through}); rerun_dependents {through: "${s.name}"} runs them` : i === stages.findIndex((x) => x.takes.length) ? "first" : `after the ${stages.slice(0, i).filter((x) => x.takes.length).at(-1)?.name}' picks${s.name === "boards" ? " (a board cites the plate's new file)" : ""}` }));
-  const go = lines.filter((l, i) => l.takes.length && i <= stop), eta = go.reduce((n, l) => n + (l.eta_s ?? 0), 0);
-  return { runs: `re-run what still uses an older ${name} than v${r.head}: ${lines.filter((l) => l.takes.length).map((l) => `${l.stage} (${l.takes.length})`).join(", ") || "nothing"}; each re-made take lands as a candidate beside the old one; chain ${chain}${chain === "run" ? " (the critic's clean pick applies where the scene says approval: critic)" : " (each stage waits for the picks)"}`,
+  const go = lines.filter((l, i) => l.takes.length && i <= stop), eta = go.reduce((n, l) => n + (l.eta_s ?? 0), 0), { follows, left_out } = staleOf(ref);
+  return { ...(follows.length ? { follows } : {}), ...(left_out.length ? { left_out } : {}), runs: `re-run what still uses an older ${name} than v${r.head}: ${lines.filter((l) => l.takes.length).map((l) => `${l.stage} (${l.takes.length})`).join(", ") || "nothing"}; each re-made take lands as a candidate beside the old one; chain ${chain}${chain === "run" ? " (the critic's clean pick applies where the scene says approval: critic)" : " (each stage waits for the picks)"}`,
     stages: lines, eta_s: go.some((l) => l.eta_s != null) ? eta : null, from: go.length ? `about ${Math.round(eta / 60)} min of GPU for ${go.reduce((n, l) => n + l.takes.length, 0)} takes, from their own times` : "nothing runs" };
 }
 
