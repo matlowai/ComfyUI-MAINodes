@@ -15,7 +15,7 @@
 // SNAP-R101 the critic is a docket job · SNAP-R103 notes: severity, pass, region as a mask, owner, fix; they inform · SNAP-R156 the owner's part as written ·
 // SNAP-R104 checks by purpose · SNAP-R107 approval: the person's, or the critic's where a note says so · SNAP-R110 stale ·
 // SNAP-R17 by: person|agent · SNAP-R58 whole lists, explicit paging · SNAP-R65 the Work card · SNAP-R136 a row holds
-// while its part's picture holds; stale rows leave the docket · SNAP-R180 owners name their target · see docs/snap/SNAP_RULES.md
+// while its part's picture holds; stale rows leave the docket · SNAP-R180 owners name their target · SNAP-R188 a plate by its whole name, a label only when one plate has it · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as T from "./takes.js";
 import * as C from "./candidates.js";
@@ -143,11 +143,15 @@ function boardOf(r, text) {
   if (!t) return null;
   const h = RT.shotOf(t), unit = h?.shot.unit ?? {}, key = /\b(key(?:frame| drawing)?|peak)\b/i.test(text ?? "");
   const made = /^view\//.test(t.parent?.method ?? "") ? (t.parent.options?.context ?? []).find((c) => /\bboard\b/i.test(c.label ?? "")) : null;
-  const slot = made ? [unit.board, unit.key].find((b) => b?.file && b.file === made.file) : key ? unit.key : unit.board;
+  // G10 (SNAP-R180 amended): a context board is the cut's whose board or key drawing holds that picture, this cut's
+  // first, else another cut's (make_board's "the previous cut's board"); a picture no cut holds now keeps its own label
+  const units = made ? [h?.shot.unit, ...SC.all().flatMap((scene) => scene.shots.map((x) => x.unit))].filter(Boolean) : [];
+  const own = units.map((u) => ({ u, slot: [u.board, u.key].find((b) => b?.file && b.file === made.file) })).find((x) => x.slot);
+  const u = own?.u ?? unit, slot = made ? own?.slot : key ? unit.key : unit.board;
   const from = made ?? slot;
   if (!from) return null;
-  const take = made?.take ?? slot?.from?.take ?? null, role = slot === unit.key && slot ? "key" : "board";
-  return { ...(take ? { take } : {}), ...(from.file ? { file: from.file } : {}), ...(unit.cut ? { cut: unit.cut } : {}), role, label: made?.label ?? `${unit.cut ?? "the cut"}'s ${role === "key" ? "key drawing" : `${slot?.approved ? "approved " : ""}board`}` };
+  const take = made?.take ?? slot?.from?.take ?? null, role = slot && slot === u.key ? "key" : "board";
+  return { ...(take ? { take } : {}), ...(from.file ? { file: from.file } : {}), ...(made && !own ? {} : u.cut ? { cut: u.cut } : {}), role, label: made && !own ? made.label : `${u.cut ?? "the cut"}'s ${role === "key" ? "key drawing" : `${slot?.approved ? "approved " : ""}board`}` };
 }
 export function ownerOf(r, owner, text = "") {
   if (owner && typeof owner === "object") return owner;
@@ -160,8 +164,16 @@ export function ownerOf(r, owner, text = "") {
   // the record's notes; its camera marks and plate poses (typed numbers, no picture). Words that name none of these are
   // said to be unmapped, never read as the master
   const partOf = (ref) => { const plates = W.get(ref)?.version.body.plates ?? [];
-    const word = (x, flags) => new RegExp(`(^|[^\\w])${x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w])`, flags).exec(words), at = (p) => { const tag = p.name.split(/[\s,]/)[0], m = word(p.name, "i") ?? (tag !== p.name ? word(tag, "") : null); return m ? m.index + m[1].length : -1; };
-    const named = plates.map((p) => [p.name, at(p)]).filter(([, i]) => i >= 0).sort((a, b) => a[1] - b[1]).map(([n]) => `plate ${n}`);
+    const word = (x, flags) => new RegExp(`(^|[^\\w])${x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w])`, flags).exec(words), tagOf = (p) => p.name.split(/[\s,]/)[0];
+    // F-S12 (SNAP-R188): whole names first (the longest where two overlap: "Pc square from gate eye" over "Pc square"),
+    // then a label only where one plate has it and no whole name covers it; a label several plates share is ambiguous
+    const whole = plates.map((p) => { const m = word(p.name, "i"); return m && { p, at: m.index + m[1].length, end: m.index + m[1].length + p.name.length }; }).filter(Boolean)
+      .filter((x, _, all) => !all.some((y) => y !== x && y.p.name.length > x.p.name.length && y.at <= x.at && y.end >= x.end));
+    const inWhole = (i) => whole.some((x) => i >= x.at && i < x.end), byTag = new Map();
+    for (const p of plates) if (!whole.some((x) => x.p === p) && tagOf(p) !== p.name) { const m = word(tagOf(p), ""); if (m && !inWhole(m.index + m[1].length)) byTag.set(tagOf(p), [...(byTag.get(tagOf(p)) ?? []), { p, at: m.index + m[1].length }]); }
+    const ambiguous = [...byTag].filter(([, xs]) => xs.length > 1);
+    const named = [...whole, ...[...byTag.values()].filter((xs) => xs.length === 1).flat()].sort((a, b) => a.at - b.at).map((x) => `plate ${x.p.name}`);
+    const unsure = ambiguous.length ? `"${ambiguous.map(([t]) => t).join('", "')}" starts several plates (${ambiguous.flatMap(([, xs]) => xs.map((x) => x.p.name)).join(", ")}): name the whole plate` : null;
     // F-Q24 (SNAP-R180): the marks name the plate whose typed pose is wrong: one the words name, else the note's text, else
     // the plate the row reads; the plate's own camera mark with it
     if (/\b(poses?|camera marks?|marks?|eye heights?)\b/i.test(words)) {
@@ -169,7 +181,8 @@ export function ownerOf(r, owner, text = "") {
       const plate = named.length ? plates.find((p) => `plate ${p.name}` === named[0]) : inText ?? plates.find((p) => `plate ${p.name}` === r.subject.part);
       return { part: "marks", ...(plate ? { plate: plate.name, ...(plate.camera ? { mark: plate.camera } : {}) } : {}) };
     }
-    if (named.length) return { part: named[0], ...(named.length > 1 ? { parts: named } : {}) };
+    if (named.length) return { part: named[0], ...(named.length > 1 ? { parts: named } : {}), ...(unsure ? { ambiguous: unsure } : {}) };
+    if (unsure) return { part: null, unmapped: `${unsure}; Fix at source opens the Location sheet` };
     if (/\bplan\b/i.test(words) && !/\bmaster\b/i.test(words)) return { part: "plan" };
     if (/\bmaster\b/i.test(words)) return { part: "master" };
     if (/\b(notes?|scale)\b/i.test(words)) return { part: "notes" }; // F-E19: "location notes" is the record's words, no picture
