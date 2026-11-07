@@ -400,6 +400,15 @@ export function pipeline() {
   return /^Ref2V/.test(cond) ? "ref2v" : nodesOf("first_frame").some(([, n]) => n.mode !== 4) ? "fl2v" : "t2v";
 }
 
+// the same for a saved graph (a take's): the first conditioning value any node holds, and its First frame brick's mode
+export function pipelineOf(graph) {
+  const nodes = [...(graph?.nodes ?? []), ...(graph?.definitions?.subgraphs ?? []).flatMap((g) => g.nodes ?? [])];
+  const cond = nodes.flatMap((n) => (Array.isArray(n.widgets_values) ? n.widgets_values : Object.values(n.widgets_values ?? {}))).find((v) => typeof v === "string" && /^(Ref2V|FL2V) \(/.test(v));
+  if (!cond) return null;
+  const ff = Object.values(graph.extra?.snap?.bricks?.find((b) => b.key === "first_frame")?.nodes ?? {}).map(String);
+  return /^Ref2V/.test(cond) ? "ref2v" : nodes.some((n) => ff.includes(String(n.id)) && n.mode !== 4) ? "fl2v" : "t2v";
+}
+
 // what doesn't fit, as one line each on the brick it concerns; never blocks anything (SNAP-R11)
 // warnings other modules add (slots.js: an upscale sized past this GPU's memory), each a function giving [{brick, text}]
 const sources = [];

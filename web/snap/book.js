@@ -18,7 +18,7 @@
 // mood sentences · SNAP-R168 a cut opens before its beat · SNAP-R169 boards pin the story · SNAP-R170 a re-board keeps its own
 // board · SNAP-R172 the reversal cost says what moves · SNAP-R178 a wardrobe state folds the items it names · SNAP-R60 versions ·
 // SNAP-R11 nothing blocks · SNAP-R230 a cut owns its dial rows · SNAP-R231 their defaults · SNAP-R236 an insert cites a frame of its master ·
-// SNAP-R237 a Cast's voice only where it speaks · SNAP-R181 a held-prop cut is boarded at its key · SNAP-R189 a board says absent what its
+// SNAP-R237 a Cast's voice only where it speaks · SNAP-R233 the export carries each clip's dial rows · SNAP-R181 a held-prop cut is boarded at its key · SNAP-R189 a board says absent what its
 // pictures may still show · SNAP-R212 the Cut opens in Astrid, private takes stay out · SNAP-R213 a cut's take may come from another shot ·
 // SNAP-R215 the archive Astrid can edit, its clips named by cut · SNAP-R216 a speaking cut's sound on its own lane · SNAP-R217 a pushed Book
 // changes in place, its diff says what moved · SNAP-R223 a production is the record above the Book · SNAP-R224 the push is the person's (button,
@@ -1056,8 +1056,15 @@ async function madeOf(c, bookRef, unit, story) {
   const t = T.get(c.take), ids = { take: c.take, cut: c.cut, book: bookRef };
   if (!t) return { snap: ids, private: true };
   const pin = t.story ?? t.graph?.extra?.snap?.story, stack = t.graph?.extra?.snap?.instructions;
+  // SNAP-R233: the dial rows that ran, read from the take's own graph, each with what the rack ran it at (its defaults
+  // filled: steps 2, audio follow, normalized keys when a hand-set row left them out); the server puts the keys in the
+  // take's seconds
+  const rack = (RT.rackOf(t.graph) ?? []).filter((r) => r.dial);
+  const dials = rack.length ? { pipeline: M.pipelineOf(t.graph), rows: rack.map((r) => ({ dial: r.dial, strength: r.strength, on: r.on !== false, ...(r.solo ? { solo: true } : {}),
+    curve: r.time?.type === "keys" ? { interp: r.time.interp ?? "linear", smooth: r.time.smooth ?? 0, unit: r.time.unit ?? "normalized", keys: r.time.points } : r.time ? { follows: `the ${r.time.feature ?? "onset"} of the rack's curve_audio` } : null,
+    ...(r.time ? { steps: r.time.steps ?? 2, audio: r.time.audio ?? "follow" } : {}) })) } : null;
   const snap = t.metadata === false ? { ...ids, metadata: false } : { ...ids, ...(pin?.beat ? { beat: pin.beat } : {}), ...(pin?.beats?.length ? { beats: pin.beats } : {}),
-    world: Object.fromEntries(Object.entries(t.world ?? {}).map(([ref, x]) => [ref, x.n])), ...(stack?.refs ? { instructions: await I.hashOf(stack) } : {}), ...(await T.digestOf(t) ? { recipe_digest: await T.digestOf(t) } : {}) };
+    world: Object.fromEntries(Object.entries(t.world ?? {}).map(([ref, x]) => [ref, x.n])), ...(stack?.refs ? { instructions: await I.hashOf(stack) } : {}), ...(await T.digestOf(t) ? { recipe_digest: await T.digestOf(t) } : {}), ...(dials ? { dials } : {}) };
   const beats = (unit?.beats ?? []).map((id) => story.beats.find((b) => b.id === id)).filter(Boolean), group = story.groups.find((g) => beats.some((b) => g.beats.includes(b.id)))?.name || null;
   const lines = beats.flatMap((b) => (b.lines ?? []).map((l) => ({ who: l.who, name: nameOf(story, l.who), text: l.text })));
   const voiced = lines.map((l) => { const n = t.world?.[l.who]?.n; return W.get(n ? `${l.who}@${n}` : l.who)?.version.body.voice?.file; }).find(Boolean);

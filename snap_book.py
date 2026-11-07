@@ -17,7 +17,8 @@ each take's file, plus the bundle and an asset list beside it to read. Nothing i
 `astrid timelines import` command. A take kept private (sealed by the vault, or marked by the page) is left out: its
 bytes never enter the archive and its cut stays a gap.
 SNAP-R131 the animatic · SNAP-R132 the Cut · SNAP-R98 RAM scratch for sealed takes · SNAP-R212 the Cut opens in Astrid,
-private takes stay out (fails closed) · SNAP-R18 local only · see docs/snap/SNAP_RULES.md
+private takes stay out (fails closed) · SNAP-R18 local only · SNAP-R233 each clip's dial rows in the take's seconds ·
+see docs/snap/SNAP_RULES.md
 """
 import asyncio
 import contextlib
@@ -152,10 +153,27 @@ def tr(start, duration, rate):
     return {"OTIO_SCHEMA": "TimeRange.1", "start_time": rt(start, rate), "duration": rt(duration, rate)}
 
 
+def dials_in_seconds(snap, length):
+    """SNAP-R233: a clip's dial rows (generation.snap.dials) with every key in the take's own seconds, the clock of its
+    words: normalized keys times the take's length, and that length as clip_seconds."""
+    dials = (snap or {}).get("dials")
+    if not dials:
+        return snap
+    rows = []
+    for r in dials["rows"]:
+        c = r.get("curve")
+        if c and "keys" in c:
+            scale = length if c.get("unit") == "normalized" else 1.0
+            c = {k: v for k, v in c.items() if k != "unit"} | {"keys": [[round(t * scale, 4), m] for t, m in c["keys"]]}
+        rows.append({**r, "curve": c})
+    return {**snap, "dials": {**dials, "clip_seconds": round(length, 3), "rows": rows}}
+
+
 def timeline(name, book, fps, rows):
     """An OTIO Timeline.1 dict: rows [{cut, take, path, in_s, dur_s, length_s, gain_db, private}] in order."""
     def clip(r, kind):
-        return {"OTIO_SCHEMA": "Clip.1", "name": r["cut"], "metadata": {"snap": {"take": r.get("take"), "cut": r["cut"], "gain_db": r.get("gain_db", 0), **({"private": True} if r.get("private") else {})}},
+        return {"OTIO_SCHEMA": "Clip.1", "name": r["cut"], "metadata": {"snap": {"take": r.get("take"), "cut": r["cut"], "gain_db": r.get("gain_db", 0), **({"private": True} if r.get("private") else {}),
+                                                                                  **({"dials": r["snap"]["dials"]} if (r.get("snap") or {}).get("dials") else {})}},
                 "source_range": tr(round(r["in_s"] * fps), round(r["dur_s"] * fps), fps), "effects": [], "markers": [], "enabled": True,
                 "media_reference": {"OTIO_SCHEMA": "ExternalReference.1", "name": os.path.basename(r["path"]), "metadata": {}, "target_url": "file://" + r["path"],
                                     "available_range": tr(0, round(r["length_s"] * fps), fps)}}
@@ -258,7 +276,7 @@ async def otio(request):
             start = float(c.get("in_s") or 0)
             end = min(length, float(c["out_s"])) if c.get("out_s") is not None else length
             rows.append({"cut": c["cut"], "take": c.get("take"), "path": os.path.abspath(path), "in_s": start, "dur_s": max(0.0, end - start), "length_s": length, "gain_db": c.get("gain_db", 0), "private": private,
-                         **{k: c.get(k) for k in ("snap", "label", "lines", "words", "voice_reference", "group")}})
+                         **{k: c.get(k) for k in ("snap", "label", "lines", "words", "voice_reference", "group")}, "snap": dials_in_seconds(c.get("snap"), length)})
         if not rows:
             raise ValueError("The Cut has no clips yet (each unit needs an active take)")
         out_dir = os.path.join(folder_paths.get_output_directory(), "snap_book")
