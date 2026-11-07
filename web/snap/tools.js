@@ -1715,7 +1715,7 @@ export const TOOLS = [
   },
   {
     name: "list_proposals",
-    description: "Proposals made with propose: true, with the person's answer: waiting, accepted (with the result), rejected or failed; withdrawn (with a note) when what they were about is gone, e.g. a deleted scene.",
+    description: "Proposals made with propose: true, with the person's answer: waiting, accepted (with the result), rejected or failed; withdrawn (with a note) when what they were about is gone, e.g. a deleted scene, or re-made. A proposal that writes a record or a Book's story keeps base {ref, version} (SNAP-R209): once that record moves on it carries stale {ref, from, to, by, said} and can't be accepted (the person re-makes it against the new version; or call the tool again with propose: true); either_or names the waiting proposals that change the same record from the same version (a yes to one leaves the others stale). expires_at / expired: only with the person's expiry setting on; an expired one is parked, never deleted (SNAP-R210).",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
     run: () => P.all(),

@@ -4,7 +4,7 @@ inside; a version is appended, never edited. The hash is sha-256 of the body as 
 SNAP-R60 world versions and pins · SNAP-R62 clean-up is the person's choice · SNAP-R18 local only · SNAP-R58 results are
 never trimmed · SNAP-R96 a private take's record and media stay containers in the export unless the person
 includes them decrypted · SNAP-R93/R94 instruction and skill records · SNAP-R95 imported ones land off · SNAP-R183 an export carries what its records need to open · SNAP-R116 every
-write is told to open pages, and /world/rev says when the files changed · see docs/snap/SNAP_RULES.md"""
+write is told to open pages, and /world/rev says when the files changed · SNAP-R209 a version names the proposal that made it · see docs/snap/SNAP_RULES.md"""
 import asyncio
 import hashlib
 import json
@@ -107,7 +107,8 @@ async def save(request):
         same = next((v for v in r["versions"] if v["hash"] == h), None) if q.get("if_absent") else next((v for v in r["versions"] if v["n"] == r["head"] and v["hash"] == h), None)
         if same is None:
             same = {"n": (r["versions"][-1]["n"] if r["versions"] else 0) + 1, "hash": h, "at": int(q.get("at") or time.time() * 1000), "by": by, "note": q.get("note", ""),
-                    **({"listed": bool(q["listed"])} if q.get("listed") is not None else {}), **({"accepted_by": q["accepted_by"]} if isinstance(q.get("accepted_by"), dict) else {}), "body": body}
+                    **({"listed": bool(q["listed"])} if q.get("listed") is not None else {}), **({"accepted_by": q["accepted_by"]} if isinstance(q.get("accepted_by"), dict) else {}),
+                    **({"proposal": q["proposal"]} if isinstance(q.get("proposal"), str) else {}), "body": body}  # SNAP-R209: the proposal whose accept made it
             r["versions"].append(same)
             r["head"] = same["n"]
             made = True

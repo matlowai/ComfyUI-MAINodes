@@ -1509,8 +1509,8 @@ Next free ID after this batch: SNAP-R160 (the G6 Book part took R165-R172; R160-
   flight 104", mostly critique rows, with the 24 proposals far below, each showing "[object HTMLButtonElement]" where
   Accept and Reject should be (F-L01, F-M01). *More:* SNAP-R65.
 - **SNAP-R159: A retried call never runs twice.** `POST /mainodes/snap/call` takes an `Idempotency-Key` header (or
-  `idempotency_key` in the body): the bridge keeps the first call's answer per user, agent and key for an hour (memory
-  only); the same key with the same tool and args answers that answer with `replayed: true`, waiting for the page's
+  `idempotency_key` in the body): the bridge keeps the first call's answer per user, agent and key for a day (SNAP-R208;
+  an hour in memory only before G15); the same key with the same tool and args answers that answer with `replayed: true`, waiting for the page's
   late answer when the first call timed out, and never sends the call to the page again; the same key with other args
   is refused (409); a read-only tool's answer isn't kept. snapcall.py and snap_mcp.py send a key with every call and
   retry a timeout (504) or a dropped connection with the same key; snapcall prints it, and `SNAP_IDEMPOTENCY_KEY`
@@ -1948,4 +1948,31 @@ SNAP-R197 on. R160-R164 stay free.
   on more). *Why:* dogfood F-Z02: on Kuroe's grey Cast iris the new take was byte-identical and nothing said why (the
   report was an unconnected STRING output). *More:* tests/snap/test_g14.js, test_iris.py.
 
-Next free ID after this batch: SNAP-R208 (R160-R164 stay free).
+## Batch G15 (2026-11-07): Astrid interop, phase B (files, MCP, write safety)
+
+Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_LOG).
+
+- **SNAP-R208: A retried call's answer is kept a day, survives a restart, and says when it is still running.** The
+  bridge owns the Idempotency-Key store (SNAP-R159): memory plus the user's `snap/idempotency.json` (written when the
+  page answers, rows older than 24 h dropped; nothing else reads or writes it). A retry while the first call still
+  runs on its page answers 202 `{in_flight: true, tool, call, since}` and is not run again; snapcall.py and snap_mcp.py
+  ask again with the same key. A timeout never cancels the answer a retry waits for. *Why:* an Astrid agent retries
+  after its own timeouts (the Runtime's mutation rule), and the first call's timeout cancelled the shared answer, so a
+  retry got an empty reply (F-AD01). *More:* tests/snap/test_g15_safety.js.
+- **SNAP-R209: A proposal keeps the version it was made against, and goes out of date when that moves.** A waiting
+  write to a record (save_cast, save_cast_state, save_location, add_plate, remove_plate, draw_set_plan, use_take as
+  cast or plate, delete_record) keeps `base {ref, version}`; a Book story edit keeps the story's head plus `on`, the
+  waiting story edits it was drafted over (their accepts don't move it; a story version names the proposal that made it).
+  Once the record has a newer version, list_proposals gives `stale {from, to, by, said}`, Accept refuses, and the
+  Room, the Work card and the Book docket offer "re-make against vN": the same call made again as a new proposal on
+  the record as it is now, the old one withdrawn naming it. Two waiting writes on one record at one version are
+  `either_or`; the Room says a yes to one leaves the other out of date. *Why:* F-AB03 (two proposals for Kuroe's
+  front would have made v5 then v6), and the Astrid App's proposals (`baseVersion` → stale): the person never accepts a
+  change against something that moved. *More:* tests/snap/test_g15_safety.js.
+- **SNAP-R210: Proposal expiry parks, and is off by default.** With the person's setting "Park agents' proposals nobody
+  answered after this many hours" above 0, a new proposal carries `expires_at`; past it the Work card shows it under
+  Parked ("expired"), still waiting and still acceptable, never deleted. *Why:* the operator's open question on
+  expiry (INTEROP_MAP §9): stale yes, time expiry only as an opt-in (no artificial limits). *More:*
+  tests/snap/test_g15_safety.js.
+
+Next free ID after this batch: SNAP-R211 (R160-R164 stay free).

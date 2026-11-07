@@ -7,13 +7,14 @@
 // stops only that prompt), Retry on a failure, Park / Unpark; a landed take takes a verdict with one key (p keep, x
 // reject, n neither) and an optional sentence, the same verdict the take viewer writes.
 // SNAP-R5 only a press moves the person · SNAP-R158 critiques due fold into one row, proposals first · SNAP-R7 lists rebuilt only when their content changes, never under a pointer ·
-// SNAP-R17 by: person|agent · SNAP-R58 nothing cut · SNAP-R65 the Work card · SNAP-R197 a row with a take says what it is, with Nearby (SNAP-R198) · see docs/snap/SNAP_RULES.md
+// SNAP-R17 by: person|agent · SNAP-R58 nothing cut · SNAP-R65 the Work card · SNAP-R197 a row with a take says what it is, with Nearby (SNAP-R198) · SNAP-R209 an out-of-date proposal offers Re-make, not Accept · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as A from "./activity.js";
 import * as T from "./takes.js";
 import * as ACC from "./account.js";
 import * as CR from "./critiques.js"; // SNAP-R101 the critic's rows and its foot line
 import * as N from "./nearby.js";
+import * as P from "./proposals.js";
 
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat(Infinity).filter((k) => k != null && k !== false)); return el; }; // F-L01: a row's buttons nest a list (Accept, Reject): a string of it printed "[object HTMLButtonElement]"
 const OWNERS = [["you", "You"], ["agents", "Agents"], ["others", "Others on this server"]];
@@ -28,7 +29,8 @@ export function stateText(r) {
     return `${r.candidates ? `painting ${r.candidates.rendering} of ${r.candidates.count}` : "running"}${node}${p?.nodes ? ` · ${p.finished} of ${p.nodes} nodes done` : ""} · ${r.eta}`;
   }
   if (r.state === "checking") return r.result?.saving ? "rendered · writing its take" : "checking each candidate (identity notes)";
-  if (r.state === "waiting") return r.source === "proposal" ? `waiting for your yes${r.plan?.eta_s ? ` · about ${Math.round(r.plan.eta_s)} s of GPU` : ""}` : r.source === "blind_pair" ? "waiting for your judgment"
+  if (r.state === "waiting" && r.stale) return `out of date: ${r.stale.said}`; // SNAP-R209
+  if (r.state === "waiting") return r.source === "proposal" ? `${r.either_or ? `either this or ${r.either_or.join(" or ")} · ` : ""}waiting for your yes${r.plan?.eta_s ? ` · about ${Math.round(r.plan.eta_s)} s of GPU` : ""}` : r.source === "blind_pair" ? "waiting for your judgment"
     : `${r.candidates.ready} candidate${r.candidates.ready === 1 ? "" : "s"} ready: pick one`;
   if (r.state === "done") return r.result?.take ? `done · take ${r.result.number}` : r.result?.applied ? `done · ${r.result.applied} applied` : r.result?.note ? `done · ${r.result.note}` : "done";
   if (r.state === "gone") return "the server has no record of it any more (restarted?)";
@@ -81,7 +83,8 @@ export function openWork(host, { say, open, decide }) {
       mine && r.state === "queued" && (r.source === "prompt" || r.source === "decision") ? h("button", { className: "snap-link", textContent: "Cancel", title: "take it off the queue", onclick: act(async () => { await cancel(r); return `Cancelled: ${r.title}`; }) }) : null,
       mine && r.state === "running" && (r.owner === "you" || admin()) ? h("button", { className: "snap-link", textContent: "Stop the running render", title: "stops this job on the GPU now (only this one; the rest of the queue goes on)", onclick: act(async () => { await stop(r); return `Stopped: ${r.title}`; }) }) : null,
       mine && r.state === "failed" && (r.source === "prompt" || r.source === "refusal") ? h("button", { className: "snap-link", textContent: "Retry", onclick: act(async () => { await retry(r); return `Queued again: ${r.title}`; }) }) : null,
-      mine && r.source === "proposal" ? [h("button", { className: "snap-accept", textContent: "Accept", onclick: act(() => decide(r.proposal, true)) }), h("button", { className: "snap-reject", textContent: "Reject", onclick: act(() => decide(r.proposal, false)) })] : null,
+      mine && r.source === "proposal" ? [r.stale ? h("button", { className: "snap-accept", textContent: `Re-make against v${r.stale.to}`, title: "the same change again as a new proposal on the record as it is now; this one is withdrawn", onclick: act(async () => { const out = await P.remake(r.proposal); return `Re-made as ${out.remade} against v${out.against}`; }) })
+        : h("button", { className: "snap-accept", textContent: "Accept", onclick: act(() => decide(r.proposal, true)) }), h("button", { className: "snap-reject", textContent: "Reject", onclick: act(() => decide(r.proposal, false)) })] : null,
       LIVE(r) ? null : h("button", { className: "snap-link snap-quiet-btn", textContent: r.zone === "parked" ? "Unpark" : "Park", title: r.zone === "parked" ? "back where it was" : "out of the way, kept, never counted", onclick: act(() => A.park(r.id, r.zone !== "parked").then(() => "")) }),
     ];
     const el = h("div", { className: `snap-work-row ${r.state}`, tabIndex: 0, role: "listitem" },

@@ -115,9 +115,9 @@ async function post(route, q) {
   return out;
 }
 // save is versioning: returns {ref, n, made, record}; made is false when the body equals the head's (if_absent: any version's)
-export function save(kind, id, body, { note = "", by = "person", listed, at, if_absent, accepted_by } = {}) {
+export function save(kind, id, body, { note = "", by = "person", listed, at, if_absent, accepted_by, proposal } = {}) {
   if (!KINDS.includes(kind)) throw new Error(`No record kind ${kind}; the kinds are ${KINDS.join(", ")}`);
-  return post("save", { kind, id, body, note, by, listed, at, if_absent, accepted_by });
+  return post("save", { kind, id, body, note, by, listed, at, if_absent, accepted_by, proposal });
 }
 // a record's fields outside its versions (a set's working copy and plates); null clears one
 export const fields = (kind, id, set, by = "person") => post("fields", { kind, id, fields: set, by });

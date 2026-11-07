@@ -7,7 +7,7 @@
 // On the person's own install the Room is the page at /?room (localhost); a phone door belongs to snap-gate.
 // SNAP-R70 the Room never restricts, renders no machinery, and its verdicts are the record's · SNAP-R197 each picture says
 // what it is (a still or a frame of a video, its kind and cut), in plain() words; a record change shows its pictures now
-// and after (SNAP-R201) · SNAP-R198 Nearby opens on it · SNAP-R179 each question one
+// and after (SNAP-R201) · SNAP-R209 out of date offers a re-make, either/or says so · SNAP-R198 Nearby opens on it · SNAP-R179 each question one
 // plain sentence naming the thing · SNAP-R180 a critic's row asks its finding, with each note's words and where it was born · SNAP-R173 one verdict and why · SNAP-R174 blind pairs from the server · SNAP-R65 the Work card's rows · SNAP-R7 rebuilt only when its
 // content changes, never under a pointer · see docs/snap/SNAP_RULES.md
 import * as A from "./activity.js";
@@ -143,10 +143,14 @@ export function openRoom({ say } = {}) {
       const p = P.get(r.proposal), ch = N.changeOf(p); // F-Y11: a record change shows each picture now and after
       const side = (ref, label) => { const m = ref && N.srcOf(ref); return h("figure", {}, m ? (m.kind === "video" ? h("video", { src: m.src, controls: true, playsInline: true, className: "snap-room-pic" }) : h("img", { src: m.src, className: "snap-room-pic", alt: "" })) : h("div", { className: "snap-room-pic snap-room-none", textContent: "no picture" }),
         h("figcaption", { textContent: label }), ref ? N.whatEl(ref, { room: true, words: plain, say, more: false }) : null); };
-      return h("section", { className: "snap-room-q" }, h("h2", { textContent: asked }), said, where,
+      // SNAP-R209: out of date offers a re-make, never a yes; either/or says what a yes does to the other
+      const moved = r.stale ? h("p", { className: "snap-room-stakes", textContent: plain(`${r.stale.name} has changed since this was asked (v${r.stale.from} → v${r.stale.to}), so it would be made again on v${r.stale.to}.`) }) : null;
+      const other = !r.stale && r.either_or ? h("p", { className: "snap-room-stakes", textContent: plain(`Either this or ${r.either_or.length > 1 ? `${r.either_or.length} other suggestions` : "another suggestion"} for ${ch?.name ?? "the same thing"}: a yes to one leaves the other out of date.`) }) : null;
+      return h("section", { className: "snap-room-q" }, h("h2", { textContent: asked }), said, where, moved, other,
         ch ? [N.whatEl(ch.ref, { room: true, words: plain, say, more: false }), ch.pairs.map((x) => h("div", { className: "snap-room-pics two" }, side(x.before, plain(`${cap(x.part)} now`)), side(x.after, plain(`${cap(x.part)} after`))))] : null,
         p?.plan?.eta_s ? h("p", { className: "snap-room-stakes", textContent: `About ${Math.max(1, Math.round(p.plan.eta_s / 60))} minute${Math.round(p.plan.eta_s / 60) > 1 ? "s" : ""} on the GPU.` }) : null, why,
         h("div", { className: "snap-room-verdict" },
+          r.stale ? h("button", { className: "snap-primary", textContent: `Make it again on v${r.stale.to}`, onclick: act(async () => { await P.remake(r.proposal); await answered(asked, `It will be asked again, made on v${r.stale.to}.`); }) }) :
           h("button", { className: "snap-primary", textContent: "Yes", onclick: act(async () => { const out = await P.decide(r.proposal, true, run); await answered(asked, out?.status === "accepted" ? `Done: ${plain(typeof out.result === "object" ? out.result?.said ?? asked : asked)}.` : `It couldn't be done: ${plain(out?.result ?? "answered elsewhere")}.`); }) }),
           h("button", { className: "snap-link", textContent: "No", onclick: act(async () => { await P.decide(r.proposal, false, run, { because: why.value.trim() }); await answered(asked, `Left as it is${why.value.trim() ? `: ${why.value.trim()}` : ""}.`); }) })));
     }

@@ -15,7 +15,7 @@ encrypted (snap_vault_server.py) · SNAP-R98 their ffmpeg steps work in RAM scra
 the bridge tools' descriptions, /info names the docs and skills, a call names its agent · SNAP-R135 a hold on a page ends
 with its job: use_page null, the MCP connection closing, or 10 idle minutes; the page shows the idle time · SNAP-R146 an
 agent's claimed critique or queued run keeps its hold · SNAP-R159 a retried call with the same Idempotency-Key answers the
-first call's answer and never runs twice · SNAP-R191 a region edit's seam is checked (MAISnapSeam) · SNAP-R205 and its tone ·
+first call's answer and never runs twice · SNAP-R208 for a day, across a restart, in_flight while it runs · SNAP-R191 a region edit's seam is checked (MAISnapSeam) · SNAP-R205 and its tone ·
 SNAP-R206 a region edit's stage 2 keeps its change (MAISnapKeepEdit) · see docs/snap/SNAP_RULES.md"""
 import asyncio
 import glob
@@ -165,9 +165,12 @@ lapsed = {}    # (user, agent) -> (what its hold lapsed on, that page's client i
 bound = {}     # (user, agent) -> page client id
 released = {}  # (user, agent) -> the page name the person released from it (said once, on its next call)
 # SNAP-R159 a retried call never runs twice: (user, agent, Idempotency-Key) -> the first call's tool and args digest, when,
-# the page, and its answer's future (kept past the bridge's timeout, so a retry gets the page's late answer). Memory only,
-# for IDEM_S; a read-only tool's answer is not kept (re-reading is harmless and packets are big)
-IDEM_S = 3600
+# the page, and its answer's future (kept past the bridge's timeout, so a retry gets the page's late answer); a read-only
+# tool's answer is not kept (re-reading is harmless and packets are big). SNAP-R208: the bridge owns this store for
+# IDEM_S; a call's answer is also written to the user's snap/idempotency.json when its page gives it, so a retry after a
+# ComfyUI restart still gets it (nothing else reads or writes that file)
+IDEM_S = 86400
+IDEM_FILE = "snap/idempotency.json"
 idem = {}
 
 
@@ -175,6 +178,24 @@ def idem_prune():
     now = time.time()
     for k in [k for k, v in idem.items() if now - v["at"] > IDEM_S]:
         pending.pop(idem.pop(k)["call"], None)
+
+
+def idem_read(path):
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8") as f:
+        return [r for r in json.load(f) if time.time() - r["at"] <= IDEM_S]
+
+
+def idem_keep(path, row, future):
+    """the page answered a kept call: its answer joins the user's file (rows past IDEM_S go)"""
+    if future.cancelled():
+        return
+    rows = [r for r in idem_read(path) if (r["agent"], r["key"]) != (row["agent"], row["key"])] + [{**row, "answer": future.result()}]
+    tmp = f"{path}.{os.getpid()}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(rows, f, ensure_ascii=False)
+    os.replace(tmp, path)
 
 
 
@@ -390,14 +411,22 @@ async def call(request):
     if key:
         idem_prune()
         digest = hashlib.sha256(json.dumps([body.get("tool"), body.get("args") or {}], sort_keys=True).encode()).hexdigest()
+        path = PromptServer.instance.user_manager.get_request_user_filepath(request, IDEM_FILE)
         was = idem.get((user, agent, key))
+        if not was:  # answered before a restart: the kept answer from the file
+            row = next((r for r in idem_read(path) if (r["agent"], r["key"]) == (agent, key)), None)
+            if row:
+                future = asyncio.get_running_loop().create_future()
+                future.set_result(row["answer"])
+                was = idem[(user, agent, key)] = {**row, "future": future, "call": None}
         if was and was["digest"] != digest:
             return error(f"Idempotency-Key {key!r} was used at {time.strftime('%H:%M:%S', time.localtime(was['at']))} for a different call ({was['tool']}): a key names one call; give this one a new key", 409)
         if was:  # the same call again: the first call's answer, never a second run
             try:
                 out = await asyncio.wait_for(asyncio.shield(was["future"]), TIMEOUT)
-            except TimeoutError:
-                return error(f"The first {was['tool']} call with Idempotency-Key {key!r} (at {time.strftime('%H:%M:%S', time.localtime(was['at']))}) has no answer from its page yet: it was not run again. Retry later with the same key.", 504)
+            except TimeoutError:  # SNAP-R208: still running on its page; not an error, and not run again
+                return web.json_response({"in_flight": True, "tool": was["tool"], "call": was["call"], "since": was["at"], "page": was["page"], "idempotency_key": key,
+                                          "said": f"The first {was['tool']} call with this key (at {time.strftime('%H:%M:%S', time.localtime(was['at']))}) has no answer from its page yet; it was not run again. Retry later with the same key for its answer."}, status=202)
             return web.json_response({**out, "page": was["page"], "replayed": True, "idempotency_key": key})
     if (user, agent) in released:
         return error(f"The person pressed Release on {released.pop((user, agent))}, so {agent} drives no page now: pick one (list_pages, use_page) and call again.", 409)
@@ -429,9 +458,10 @@ async def call(request):
     page = {"id": client, "name": page_name(client), "headless": pages[client]["headless"], "sees": pages[client]["sees"], "driven_by": drivers.get(client), "code_current": not stale}
     read_only = next((t for t in pages[client]["tools"] if t["name"] == body["tool"]), {}).get("annotations", {}).get("readOnlyHint")
     if key and not read_only:
-        idem[(user, agent, key)] = {"tool": body["tool"], "digest": digest, "at": time.time(), "page": page, "future": pending[call_id][0], "call": call_id}
+        idem[(user, agent, key)] = row = {"agent": agent, "key": key, "tool": body["tool"], "digest": digest, "at": time.time(), "page": page, "future": pending[call_id][0], "call": call_id}
+        pending[call_id][0].add_done_callback(lambda f, row={k: v for k, v in row.items() if k not in ("future", "call")}: idem_keep(path, row, f))
     try:
-        out = await asyncio.wait_for(pending[call_id][0], TIMEOUT)
+        out = await asyncio.wait_for(asyncio.shield(pending[call_id][0]), TIMEOUT)  # F-AD01: a timeout must not cancel the answer a retry waits for
         if stale:  # said inside the answer, where every client shows it
             note = stale_note(client, base)
             if "error" in out:

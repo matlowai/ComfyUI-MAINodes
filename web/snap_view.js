@@ -18,6 +18,7 @@ import * as sight from "./snap/sight.js";
 import * as ACC from "./snap/account.js";
 import * as SC from "./snap/scenes.js";
 import * as I from "./snap/instructions.js";
+import * as P from "./snap/proposals.js";
 import { STYLE as AL_STYLE } from "./snap/agentlibrary.js";
 import { BOOK_STYLE } from "./snap/bookview.js";
 import { PLAN_STYLE } from "./snap/planview.js";
@@ -109,6 +110,8 @@ app.registerExtension({
     options: Object.keys(PLACES), defaultValue: "Side panel", onChange: () => view?.openInChanged() },
     { id: AGENTS_RUN, category: ["MAINodes", "Snap", "Agents run"], name: "Let agents run renders and make dials without asking", type: "boolean", defaultValue: false,
       tooltip: "Off: an agent's run or make_dial waits as a proposal you accept. On: it starts right away (it uses GPU time)." },
+    { id: P.EXPIRY, category: ["MAINodes", "Snap", "Proposal expiry"], name: "Park agents' proposals nobody answered after this many hours (0: never)", type: "number", defaultValue: 0, attrs: { min: 0, step: 1 },
+      tooltip: "Off by default. A parked proposal is kept (the Work card's Parked), never deleted, and can still be accepted (SNAP-R210)." },
     { id: MD.SETTING, category: ["MAINodes", "Snap", "Metadata"], name: "Save the prompt and workflow (metadata) in every saved picture and video", type: "boolean", defaultValue: true,
       tooltip: "On: files keep their recipe, LoRA names included, so you can reproduce them. Off: this browser's runs save without it. Also the switch next to Run in Snap.",
       onChange: () => view?.metadataChanged() },

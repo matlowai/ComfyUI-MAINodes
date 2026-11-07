@@ -137,7 +137,7 @@ export async function saveStory(id, body, { note = "", by = "person", proposal =
   id ??= stamp("story");
   // F-L17: the version says who accepted the proposal and where (`accepted_by`), not only the agent that wrote it
   const who = accepted_by ? ` by ${accepted_by.by === "person" ? "the person" : accepted_by.by} on ${accepted_by.where}${accepted_by.driven_by ? ` (driven by ${accepted_by.driven_by})` : ""}` : "";
-  const out = await W.save("story", id, clean, { note: proposal ? `${note ? `${note} · ` : ""}accepted proposal ${proposal}${who}` : note, by, ...(accepted_by ? { accepted_by } : {}) });
+  const out = await W.save("story", id, clean, { note: proposal ? `${note ? `${note} · ` : ""}accepted proposal ${proposal}${who}` : note, by, ...(accepted_by ? { accepted_by } : {}), ...(proposal ? { proposal } : {}) });
   return { id, ref: out.ref, n: out.n, made: out.made };
 }
 export async function saveLook(id, body, { note = "", by = "person" } = {}) {
@@ -800,7 +800,7 @@ export function allows(tool, letAgentsRun) {
 
 // ---- proposals for canon (SNAP-R67): story, style and the dial wait for the person at every dial position -----------
 // they belong to the Book, not a graph (SNAP-R139); the accept names its id in the version it makes
-export const propose = (tool, args, reason, { book, needs = [], makes = [], stacked = null }) => P.add(tool, args, reason, null, null, { book, needs, makes, stacked });
+export const propose = (tool, args, reason, { book, needs = [], makes = [], stacked = null, base = null }) => P.add(tool, args, reason, null, null, { book, needs, makes, stacked, base });
 // the beats waiting in a Book's story proposals: beat id -> the proposal that would add it
 export const waitingBeats = (book) => new Map(P.all().filter((p) => p.status === "waiting" && p.book === `book:${book.id}`).flatMap((p) => (p.makes ?? []).map((id) => [id, p.id])));
 

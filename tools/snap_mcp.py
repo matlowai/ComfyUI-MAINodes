@@ -14,7 +14,7 @@ Example Claude Code config entry (not installed by the pack):
 Each tool call carries an Idempotency-Key of its own; a call the bridge timed out on (504) or a dropped connection is
 retried with the same key, so the bridge answers the first call's answer and never runs it twice (SNAP-R159).
 SNAP-R30 the agent front door · SNAP-R135 a page this connection bound is released when the connection closes ·
-SNAP-R159 retries reuse the call's key · see docs/snap/SNAP_RULES.md
+SNAP-R159 retries reuse the call's key · SNAP-R208 in_flight is asked again · see docs/snap/SNAP_RULES.md
 """
 import argparse
 import json
@@ -59,7 +59,10 @@ def http(base, path, body=None, key=None):
             time.sleep(2)
         try:
             with urllib.request.urlopen(request, timeout=40) as response:
-                return json.load(response)
+                out = json.load(response)
+            if not out.get("in_flight"):  # SNAP-R208: the first call still runs on its page: ask again for its answer
+                return out
+            continue
         except urllib.error.HTTPError as e:  # the bridge answers JSON; anything else (a plain 404, a 500 page) is passed on as text
             text = e.read().decode(errors="replace")
             try:
@@ -97,7 +100,7 @@ def handle(base, message):
             rest = {k: v for k, v in result.items() if k not in ("image", "images")}
             return {"content": [{"type": "image", "data": i["data"], "mimeType": i["mimeType"]} for i in images]
                     + [{"type": "text", "text": json.dumps(rest, indent=1) if rest else f"{images[0]['width']}x{images[0]['height']} screenshot of the person's tab"}], "isError": False}
-        text = answer["error"] if failed else json.dumps(result, indent=1)
+        text = answer["error"] if failed else json.dumps(result if "result" in answer else answer, indent=1)  # an in_flight answer has no result yet
         return {"content": [{"type": "text", "text": text}], "isError": failed}
     if method == "ping":
         return {}

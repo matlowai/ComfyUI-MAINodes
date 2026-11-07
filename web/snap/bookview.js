@@ -9,7 +9,7 @@
 // as ghost cards on the spine, and the answered ones stay listed (SNAP-R139, F-F10/F-F19).
 // SNAP-R67 the Book and the story clock · SNAP-R68 compile with provenance · SNAP-R69 settei per state · SNAP-R175 the colour script · SNAP-R176 settei design it · SNAP-R130 the
 // production style · SNAP-R131 boards and the animatic · SNAP-R132 the Cut · SNAP-R133 the plan drawn here · SNAP-R80
-// every picture full size · SNAP-R58 nothing trimmed · SNAP-R8 judged from screenshots · SNAP-R165 Cast lines folded ·
+// every picture full size · SNAP-R58 nothing trimmed · SNAP-R8 judged from screenshots · SNAP-R165 Cast lines folded · SNAP-R209 an out-of-date story proposal offers a re-make ·
 // SNAP-R168 a cut opens before its beat · SNAP-R183 a record this install lacks is named, with how to bring it · see docs/snap/SNAP_RULES.md
 import * as B from "./book.js";
 import * as W from "./world.js";
@@ -78,7 +78,8 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
     fill(docket, mine.length ? [h("div", { className: "snap-rail-title", textContent: `Waiting for you (${mine.length})` }), ...mine.map((p) => h("div", { className: "snap-book-prop" },
       h("span", { className: "snap-agent", textContent: "agent" }), h("strong", { textContent: p.id }), h("span", { className: "snap-book-prop-what", textContent: P.reasonNow(p) || p.tool.replaceAll("_", " ") }),
       (() => { const open = (p.needs ?? []).filter((n) => P.get(n)?.status === "waiting"); return open.length ? h("span", { className: "snap-al-chip", title: "accepting this accepts these first", textContent: `needs ${open.join(", ")}` }) : null; })(),
-      h("button", { className: "snap-accept", textContent: "Accept", onclick: accept(p) }), h("button", { className: "snap-reject", textContent: "Reject", onclick: reject(p) })))] : [],
+      (() => { const st = P.staleOf(p); return st ? [h("span", { className: "snap-al-chip", textContent: `out of date: ${st.said}` }), h("button", { className: "snap-accept", textContent: `Re-make against v${st.to}`, onclick: act(async () => { const out = await P.remake(p.id); return `Re-made ${p.id} as ${out.remade} against v${out.against}`; }) })]
+        : h("button", { className: "snap-accept", textContent: "Accept", onclick: accept(p) }); })(), h("button", { className: "snap-reject", textContent: "Reject", onclick: reject(p) })))] : [],
       answered.length ? h("details", { className: "snap-book-answered" }, h("summary", { className: "snap-quiet", textContent: `Answered (${answered.length})` }),
         answered.map((p) => h("div", { className: "snap-quiet", textContent: `${p.id} ${p.status}: ${P.reasonNow(p) || p.tool.replaceAll("_", " ")}${p.status !== "accepted" && typeof p.result === "string" ? ` · ${p.result}` : ""}` }))) : null);
   }

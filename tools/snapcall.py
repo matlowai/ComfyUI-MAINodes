@@ -11,9 +11,9 @@ usage: python3 snapcall.py <port or base URL> [--page <id|name>] <tool> ['<json 
        python3 snapcall.py 8188 run_status '{"wait_s": 25}'
 Every call carries an Idempotency-Key (SNAP-R159; SNAP_IDEMPOTENCY_KEY names one, else a new one per call, printed as
 idempotency_key): a call the bridge timed out on, or a dropped connection, is retried here with the same key, and the bridge
-answers the first call's answer instead of running it twice. To retry a whole command yourself, run it again with
-SNAP_IDEMPOTENCY_KEY=<the key it printed>.
-SNAP-R30 the agent front door · SNAP-R159 retries reuse the call's key · see docs/snap/SNAP_RULES.md
+answers the first call's answer instead of running it twice (`in_flight: true` while it still runs: asked again here). To retry
+a whole command yourself, run it again with SNAP_IDEMPOTENCY_KEY=<the key it printed> (the bridge keeps answers a day).
+SNAP-R30 the agent front door · SNAP-R159 retries reuse the call's key · SNAP-R208 in_flight is asked again · see docs/snap/SNAP_RULES.md
 """
 import base64
 import json
@@ -53,7 +53,8 @@ for attempt in range(3):  # SNAP-R159: a timeout or a dropped connection is retr
     try:
         with urllib.request.urlopen(request, timeout=60) as r:
             out = json.load(r)
-        break
+        if not out.get("in_flight") or attempt == 2:  # SNAP-R208: the first call still runs on its page: ask again for its answer
+            break
     except urllib.error.HTTPError as e:  # the bridge answers errors as JSON too: print them as they are
         text = e.read().decode(errors="replace")
         try:
