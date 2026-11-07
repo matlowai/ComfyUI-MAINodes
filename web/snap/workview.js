@@ -55,14 +55,12 @@ export async function retry(r) {
   await A.park(r.id);
   return out.prompt_id;
 }
-// p / x / n on a landed take: the viewer's verdict, with the sentence as its note
+// p / x / n on a landed take: the viewer's verdict (T.setVerdict), with the sentence as its why (SNAP-R173)
 export async function verdict(r, v, why) {
   await T.load();
   const t = T.get(r.result?.take);
   if (!t) throw new Error("This job's take isn't here yet");
-  t.verdict = v;
-  if (why) t.verdict_note = why;
-  await T.save(t);
+  await T.setVerdict(t, v, { because: why });
   await A.opened(t.id);
   return `Take ${t.number}: ${v}${why ? ` (${why})` : ""}`;
 }

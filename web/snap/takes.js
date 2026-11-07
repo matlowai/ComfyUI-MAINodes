@@ -21,7 +21,7 @@
 // A private take on an install with privacy on is kept encrypted (U79): the server reads its record to the page as is,
 // or as a stub (kept_encrypted, locked; no prompt, graph or notes) while the vault is locked; reopen() reads them again after an unlock.
 // SNAP-R96 kept encrypted · SNAP-R54 takes above the account's cap are left out · SNAP-R60 a take keeps the world pins it ran with (`world`) and its
-// stale flag names the records that moved on · SNAP-R65 a paint or check (takes: false) is no take; catchUp writes the takes of runs that finished during a reload · see docs/snap/SNAP_RULES.md
+// stale flag names the records that moved on · SNAP-R173 one-key verdicts, the option cemetery, retractions kept · SNAP-R174 blind pairs held on the server · SNAP-R65 a paint or check (takes: false) is no take; catchUp writes the takes of runs that finished during a reload · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -415,20 +415,42 @@ export async function setRanking(order, group = groupOf(), by = "person") {
   await store(rankFile(group, by), { group, order, by, updated: Date.now() });
 }
 
-// a blind A/B an agent sets up for the person to judge (only a person judges it); judging it takes it off the list
-const PENDING = "snap/ab_pending.json";
-export const pending = () => readJson(PENDING, []);
+// a blind A/B an agent sets up for the person to judge (only a person judges it). The server holds which take is A and
+// which is B until the verdict (SNAP-R174): the page lists pairs by id and shows their two sides from /blind/media
+async function blindCall(route, body) {
+  const r = await api.fetchApi(route, body ? { method: "POST", body: JSON.stringify(body) } : undefined), out = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(out.error ?? `${route} answered ${r.status}`);
+  return out;
+}
+export const pending = async () => (await blindCall("/mainodes/snap/blind")).pairs;
+export const blindUrl = (pair, side) => api.apiURL(`/mainodes/snap/blind/media?pair=${encodeURIComponent(pair)}&side=${side}`);
 export async function setupAB(a, b, by = "agent") {
-  const list = (await pending()).filter((p) => !(p.a === a && p.b === b));
-  list.push({ a, b, by, at: new Date().toISOString() });
-  await store(PENDING, list);
+  const side = (id) => { const t = get(id), m = t?.media.find((x) => x.kind === "video") ?? t?.media[0]; if (!m) throw new Error(`Take ${t?.number ?? id} has no picture or clip to show`); return { take: id, media: { filename: m.filename, subfolder: m.subfolder, type: m.type } }; };
+  const out = await blindCall("/mainodes/snap/blind", { a: side(a), b: side(b), group: get(a).group, by });
   changed();
-  return list.length;
+  return out;
 }
-export async function settleAB(a, b) {
-  await store(PENDING, (await pending()).filter((p) => !((p.a === a && p.b === b) || (p.a === b && p.b === a))));
-  changed();
+// the person's verdict on a blind pair: written on the server first, then the labels come back
+export async function judgeBlind(pair, side, why = "") { const out = await blindCall("/mainodes/snap/blind/judge", { pair, side, why }); changed(); return out; }
+api.addEventListener("mainodes-snap-blind", () => changed());
+
+// a verdict on a take (SNAP-R173): keep, reject or neither ("neither, same problem" is a value, not the absence of one),
+// with the one line why (`because`) and when it is worth another look (`revive_if`): the option cemetery. A verdict
+// replaced or taken back stays on the take, struck through, with the reason that names what failed, never the person
+export const RETRACT = { misfire: "a misfire (the interface took the wrong press)", evidence: "new evidence", changed_mind: "changed mind", superseded: "superseded" };
+export async function setVerdict(take, verdict, { because, revive_if, by = "person", reason } = {}) {
+  if (verdict != null && !["keep", "reject", "neither"].includes(verdict)) throw new Error(`verdict is keep, reject or neither; not ${JSON.stringify(verdict)}`);
+  if (reason != null && !RETRACT[reason]) throw new Error(`a retraction's reason is one of ${Object.keys(RETRACT).join(", ")}`);
+  const at = new Date().toISOString();
+  if (take.verdict) (take.verdicts_past ??= []).push({ verdict: take.verdict, ...(take.verdict_note ? { because: take.verdict_note } : {}), ...(take.revive_if ? { revive_if: take.revive_if } : {}), by: take.verdict_by ?? "person", ...(take.verdict_at ? { at: take.verdict_at } : {}), retracted: { reason: reason ?? (verdict ? "superseded" : "changed_mind"), at } });
+  take.verdict = verdict;
+  for (const k of ["verdict_note", "revive_if", "verdict_by", "verdict_at"]) delete take[k];
+  if (verdict) Object.assign(take, { verdict_by: by, verdict_at: at, ...(because ? { verdict_note: because } : {}), ...(revive_if ? { revive_if } : {}) });
+  await save(take);
+  return take;
 }
+// what a take's verdicts say to an agent: the current one and every one taken back (the option cemetery)
+export const verdictOf = (t) => ({ verdict: t.verdict ?? null, ...(t.verdict ? { by: t.verdict_by ?? "person", ...(t.verdict_note ? { because: t.verdict_note } : {}), ...(t.revive_if ? { revive_if: t.revive_if } : {}), ...(t.verdict_at ? { at: t.verdict_at } : {}) } : {}), ...(t.verdicts_past?.length ? { retracted: t.verdicts_past } : {}) });
 
 // a preference between two takes (blind or not), with the reason: the pairwise rows a judge model learns from
 export async function judge(a, b, winner, { blind, why, by = "person" }) {

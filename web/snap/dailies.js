@@ -10,6 +10,9 @@
 // In a scene tab the strip is the open shot's takes as a tree (U59): versions (a night version, a continued take) sit
 // in a bracket after the take they came from, the shot's active take wears a star, and ☆ makes another take the
 // active one; the viewer's title is where the take sits in the scene (Platform › Shot 1 › Take 2 › Night version).
+// A take is judged with one key (p keep, x reject, n neither) on its card or in the viewer, with a line why and when it
+// is worth another look; a verdict taken back stays, struck through, with its reason (SNAP-R173). An agent's blind pair
+// shows its two sides from the server, which says which take was A only after the verdict (SNAP-R174).
 // SNAP-R7 pointer-down lists · SNAP-R17 blind pairs from agents are judged by the person · SNAP-R20 the lock on private
 // takes (SNAP-R27: by the current rules) · SNAP-R21 copies flagged · SNAP-R23 candidates · SNAP-R24 scenes own the work ·
 // SNAP-R36 quiet sound: a note and two actions, never applied by itself · SNAP-R54 takes above the account's cap are
@@ -55,6 +58,7 @@ const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.crea
 const clock = (t) => `${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, "0")}`;
 const ago = (ms) => { const s = (Date.now() - ms) / 1000; return s < 90 ? "just now" : s < 5400 ? `${Math.round(s / 60)} min ago` : s < 129600 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} d ago`; };
 const FPS = 24;
+const KEYS = WV.VERDICT_KEYS; // SNAP-R173 p keep · x reject · n neither, the same keys as the Work card
 
 // the take's pictures and videos for the full-size viewer (SNAP-R80): a sheet take steps through the sheet and its views
 const fullItems = (t) => t.media.filter((m) => m.kind !== "audio").map((m, i, all) => ({ src: T.url(m), name: `Take ${t.number}${all.length > 1 ? ` · ${i + 1} of ${all.length}` : ""}`, source: [m.type ?? "output", m.subfolder, m.filename].filter(Boolean).join("/"), kind: m.kind }));
@@ -86,7 +90,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
   const count = h("span", { className: "snap-quiet" }), heading = h("strong", { textContent: "Takes" });
   const compareBtn = h("button", { className: "snap-link snap-quiet-btn", textContent: "Compare", disabled: true, onclick: () => compare([...picked]) });
   // blind pairs an agent set up for the person (setup_ab): one click opens the next, blind
-  const waiting = h("button", { className: "snap-link snap-ab-waiting", hidden: true, onclick: async () => { const p = (await waitingHere())[0]; if (p) compare([p.a, p.b], { forced: true }); } });
+  const waiting = h("button", { className: "snap-link snap-ab-waiting", hidden: true, onclick: async () => { const p = (await waitingHere())[0]; if (p) blind(p.id); } });
   const el = h("section", { className: "snap-takes" },
     h("header", {}, heading, count, waiting, h("span", { className: "snap-spacer" }),
       h("span", { className: "snap-quiet snap-takes-hint", textContent: "drag to rank · tick two to compare" }), compareBtn),
@@ -101,7 +105,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
   CV.watch(strip);
   T.load().then(render, () => {});
   // the blind pairs waiting in this workflow (a pair set up in another workflow waits there)
-  const waitingHere = async () => (await T.pending()).filter((p) => T.get(p.a)?.group === T.groupOf() && T.get(p.b)?.group === T.groupOf());
+  const waitingHere = async () => (await T.pending()).filter((p) => p.group === T.groupOf());
 
   // where a take sits in the open shot's scene, or null outside one: [scene, shot, take, version...]
   const crumbs = (t) => { const here = SC.current(), p = here && SC.path(here.shot, t.id); return p?.length ? [here.scene.name, SC.shotTitle(here.scene, here.shot), ...p.map((id) => SC.shortLabel(T.get(id)))] : null; };
@@ -163,7 +167,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
     const c = h("figure", { className: `snap-take ${t.status}${t.verdict ? ` ${t.verdict}` : ""}${active ? " active" : ""}${version ? " version" : ""}`, draggable: true, tabIndex: 0, title: (t.text ?? "").slice(0, 300), onclick: () => view(t) },
       h("div", { className: "snap-take-media" }, mediaEl(m), tick, m ? fullBtn(t) : null,
         h("span", { className: "snap-take-rank", textContent: r >= 0 ? `#${r + 1}` : "" }),
-        t.verdict ? h("span", { className: "snap-take-verdict", textContent: { keep: "✓", reject: "✗", neither: "neither" }[t.verdict] ?? t.verdict, title: t.verdict_note ?? "" }) : null,
+        t.verdict ? h("span", { className: "snap-take-verdict", textContent: { keep: "✓", reject: "✗", neither: "–" }[t.verdict] ?? t.verdict, title: [{ keep: "kept", reject: "rejected", neither: "neither (same problem)" }[t.verdict], t.verdict_note, t.revive_if ? `look again if ${t.revive_if}` : null].filter(Boolean).join(": ") }) : null,
         t.prior ? h("span", { className: "snap-take-prior", textContent: "prior", title: "in the Library as a prior" }) : null),
       h("figcaption", {}, star, h("b", { textContent: version ? SC.shortLabel(t) : `Take ${t.number}` }), version ? h("span", { className: "snap-quiet snap-take-of", textContent: `⟵ take ${T.get(t.parent.take)?.number ?? "?"}` }) : t.seed != null ? ` · seed ${t.seed}` : "", t.status !== "success" ? h("em", { textContent: ` · ${t.status}` }) : "",
         h("span", { className: "snap-take-stale", hidden: true }),
@@ -188,7 +192,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
     if (v && t.locked) v.poster = T.url(m); // U79: the server answers a picture with the lock tile while the vault is locked
     c.addEventListener("pointerenter", () => { v?.play().catch(() => {}); onHover?.(t); });
     c.addEventListener("pointerleave", () => { if (v) { v.pause(); v.currentTime = 0; } onHover?.(null); });
-    c.addEventListener("keydown", (e) => { if (e.key === "Enter") view(t); });
+    c.addEventListener("keydown", async (e) => { if (e.key === "Enter") view(t); else if (KEYS[e.key] && e.target === c) { e.preventDefault(); await T.setVerdict(t, t.verdict === KEYS[e.key] ? null : KEYS[e.key]); say(`Take ${t.number}: ${t.verdict ?? "no verdict"}`); } });
     // rank by dragging: dropped on a ranked take it goes just before it, on an unranked one to the end of the ranking
     c.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/snap-take", t.id); e.dataTransfer.effectAllowed = "move"; c.classList.add("dragging"); });
     c.addEventListener("dragend", () => c.classList.remove("dragging"));
@@ -287,8 +291,14 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
     });
 
     // verdict, rank, prior
-    const verdict = (v) => h("button", { className: `snap-verdict ${v}${t.verdict === v ? " on" : ""}`, textContent: v === "keep" ? "✓ Keep" : "✗ Reject",
-      onclick: async () => { t.verdict = t.verdict === v ? null : v; await T.save(t); refresh(); } });
+    const because = h("input", { className: "snap-lib-q snap-verdict-why", placeholder: "why, in a line (optional)", ariaLabel: "why this verdict" });
+    const revive = h("input", { className: "snap-lib-q snap-verdict-revive", placeholder: "worth another look if… (optional)", ariaLabel: "revive if" });
+    const judge = async (v) => { await T.setVerdict(t, t.verdict === v ? null : v, { because: because.value.trim(), revive_if: revive.value.trim() }); because.value = revive.value = ""; refresh(); };
+    const verdict = (v) => h("button", { className: `snap-verdict ${v}${t.verdict === v ? " on" : ""}`, textContent: { keep: "✓ Keep (p)", reject: "✗ Reject (x)", neither: "Neither (n)" }[v], title: v === "neither" ? "neither: the same problem in every take so far" : "", onclick: () => judge(v) });
+    // a verdict taken back: struck through, with the reason (a misfire blames the interface, not the person)
+    const past = () => (t.verdicts_past ?? []).slice().reverse().map((x) => h("div", { className: "snap-quiet snap-verdict-past" }, h("s", { textContent: `${x.verdict}${x.because ? `: ${x.because}` : ""}` }), ` · taken back: ${T.RETRACT[x.retracted.reason] ?? x.retracted.reason}`));
+    const retract = () => h("details", { className: "snap-verdict-retract" }, h("summary", { className: "snap-link snap-quiet-btn", textContent: "actually, no" }),
+      ...Object.entries(T.RETRACT).filter(([k]) => k !== "superseded").map(([k, words]) => h("button", { className: "snap-link snap-quiet-btn", textContent: words, onclick: async () => { await T.setVerdict(t, null, { reason: k }); refresh(); } })));
     const rankLine = h("div", { className: "snap-take-rankline" });
     async function rankRow() {
       const order = (await T.ranking()).filter((id) => T.get(id)?.group === t.group), i = order.indexOf(t.id);
@@ -327,7 +337,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
         n.tags.map((x) => h("span", { className: `snap-tag ${n.sentiment} on`, textContent: x })), h("span", { textContent: ` ${n.text}` }), n.region ? h("em", { className: "snap-quiet", textContent: " ▭" }) : null,
         n.by !== "person" ? h("span", { className: "snap-agent", textContent: n.by }) : null)));
       markers.replaceChildren(...(isVideo && player.duration ? t.notes.map((n) => h("i", { className: n.sentiment, style: `left:${(100 * n.t) / player.duration}%`, title: `${clock(n.t)} ${n.tags.join(", ")} ${n.text}` })) : []));
-      verdicts.replaceChildren(verdict("keep"), verdict("reject"));
+      verdicts.replaceChildren(h("div", { className: "snap-verdict-row" }, verdict("keep"), verdict("reject"), verdict("neither")), because, revive, t.verdict ? h("div", { className: "snap-quiet" }, `${t.verdict_by === "agent" ? "an agent's" : "your"} verdict${t.verdict_note ? `: ${t.verdict_note}` : ""}${t.revive_if ? ` · look again if ${t.revive_if}` : ""} `, retract()) : null, ...past());
       priorBtn.textContent = t.prior ? "★ In the Library as a prior" : "☆ Keep as a prior";
     }
     const verdicts = h("div", { className: "snap-verdicts" });
@@ -556,6 +566,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
       if (e.key === "Escape") { e.stopPropagation(); close(); }
       else if (isVideo && (e.key === "," || e.key === ".")) { e.preventDefault(); player.pause(); player.currentTime = Math.max(0, player.currentTime + (e.key === "," ? -1 : 1) / FPS); }
       else if (isVideo && e.key === " ") { e.preventDefault(); player.paused ? player.play() : player.pause(); }
+      else if (KEYS[e.key] && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); judge(KEYS[e.key]); }
     };
     document.addEventListener("keydown", keys, true);
 
@@ -613,14 +624,13 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
   }
 
   // ---- blind A/B ------------------------------------------------------------------------------------------------
-  function compare([x, y], { forced } = {}) {
+  function compare([x, y]) {
     const a0 = T.get(x), b0 = T.get(y);
     let blind = true, flipped = Math.random() < 0.5;
     const close = () => { sheet.remove(); host.focus({ preventScroll: true }); };
     const why = h("input", { className: "snap-lib-q", placeholder: "Why? one sentence (what made it better)" });
     const panes = h("div", { className: "snap-compare" });
-    const blindBox = forced ? h("span", { className: "snap-quiet", textContent: "Blind pair set up by an agent: sides shuffled, settings hidden" })
-      : h("label", { className: "snap-check" }, h("input", { type: "checkbox", checked: blind, onchange: (e) => { blind = e.target.checked; flipped = Math.random() < 0.5; draw(); } }), "Blind (sides shuffled, settings hidden)");
+    const blindBox = h("label", { className: "snap-check" }, h("input", { type: "checkbox", checked: blind, onchange: (e) => { blind = e.target.checked; flipped = Math.random() < 0.5; draw(); } }), "Blind (sides shuffled, settings hidden)");
     const pair = () => (flipped ? [b0, a0] : [a0, b0]);
     function draw() {
       const [l, r] = pair();
@@ -636,7 +646,6 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
     const pick = async (side) => {
       const [l, r] = pair();
       await T.judge(l.id, r.id, side === "tie" ? "tie" : side === "a" ? l.id : r.id, { blind, why: why.value.trim() });
-      if (forced) await T.settleAB(l.id, r.id); // a compare of the same two takes the person opened leaves the agent's blind pair waiting
       say(side === "tie" ? "Recorded: a tie" : `Recorded: ${blind ? "the" : `take ${(side === "a" ? l : r).number}`} ${side.toUpperCase()} side${blind ? ` was take ${(side === "a" ? l : r).number}` : ""}`);
       close();
     };
@@ -649,5 +658,26 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
     host.append(sheet);
   }
 
-  return { el, render, refresh, view, compare };
+  // an agent's blind pair (SNAP-R174): the two sides come from the server by side, and the server says which take was A
+  // only after the verdict is written
+  function blind(pair) {
+    const close = () => { sheet.remove(); host.focus({ preventScroll: true }); };
+    const why = h("input", { className: "snap-lib-q", placeholder: "Why? one sentence (what made it better)" }), vids = [];
+    const side = (s) => { const v = h("video", { src: T.blindUrl(pair, s), controls: true, loop: true, muted: s === "B", playsInline: true, className: "snap-compare-media" }); v.addEventListener("error", () => v.replaceWith(h("img", { src: T.blindUrl(pair, s), className: "snap-compare-media", alt: s })), { once: true }); vids.push(v); return h("figure", {}, v, h("figcaption", { textContent: s })); };
+    const panes = h("div", { className: "snap-compare" }, side("A"), side("B"));
+    for (const v of vids) for (const ev of ["play", "pause"]) v.addEventListener(ev, () => { for (const o of vids) if (o !== v && o.paused !== v.paused) (v.paused ? o.pause() : o.play().catch(() => {})); });
+    const pick = async (s) => {
+      try { const out = await T.judgeBlind(pair, s, why.value.trim()); say(s === "tie" ? `Recorded: a tie (A was take ${T.get(out.labels.A)?.number ?? "?"}, B take ${T.get(out.labels.B)?.number ?? "?"})` : `Recorded: ${s} was take ${T.get(out.labels[s])?.number ?? "?"}`); close(); render(); }
+      catch (e) { say(e.message, true); }
+    };
+    const sheet = h("div", { className: "snap-sheet snap-take-sheet", role: "dialog", ariaLabel: "A blind pair" },
+      h("header", {}, h("strong", { textContent: "Which is better?" }), h("span", { className: "snap-quiet", textContent: "Blind pair set up by an agent: which take is which is told after you judge" }), h("span", { className: "snap-spacer" }), h("button", { className: "snap-x", textContent: "×", onclick: close })),
+      panes,
+      h("div", { className: "snap-compare-pick" }, h("button", { className: "snap-primary", textContent: "A is better", onclick: () => pick("A") }), why,
+        h("button", { className: "snap-link", textContent: "Tie", onclick: () => pick("tie") }), h("button", { className: "snap-primary", textContent: "B is better", onclick: () => pick("B") })));
+    host.append(sheet);
+    return sheet;
+  }
+
+  return { el, render, refresh, view, compare, blind };
 }

@@ -922,7 +922,7 @@ export const TOOLS = [
       const order = await T.ranking();
       const now = await T.live();
       return Promise.all(T.inGroup().filter((t) => !T.aboveCap(t)).sort((a, b) => (order.includes(a.id) ? order.indexOf(a.id) : 1e9 + a.created) - (order.includes(b.id) ? order.indexOf(b.id) : 1e9 + b.created))
-        .map(async (t) => ({ id: t.id, number: t.number, rank: order.includes(t.id) ? order.indexOf(t.id) + 1 : null, seed: t.seed, status: t.status, verdict: t.verdict, prior: t.prior, notes: t.notes.length, media: t.media.map((m) => `${m.type}/${m.subfolder ? `${m.subfolder}/` : ""}${m.filename}`), prompt: t.text,
+        .map(async (t) => ({ id: t.id, number: t.number, rank: order.includes(t.id) ? order.indexOf(t.id) + 1 : null, seed: t.seed, status: t.status, verdict: t.verdict, ...(t.verdict || t.verdicts_past?.length ? { verdict_detail: T.verdictOf(t) } : {}), prior: t.prior, notes: t.notes.length, media: t.media.map((m) => `${m.type}/${m.subfolder ? `${m.subfolder}/` : ""}${m.filename}`), prompt: t.text,
           stale: await T.stale(t, now), copy: t.copy ?? null, ...(t.voice ? { voice: t.voice } : {}), ...(t.cached_from ? { cached_from: t.cached_from } : {}), ...(t.sound ? { sound: { mean_db: t.sound.mean_db, quiet: T.quiet(t), quiet_below_db: T.QUIET_DB } } : {}), ...(t.metadata_kept ? { metadata_kept: t.metadata_kept } : {}), rating: T.ratingOf(t), ...(T.locked(t) ? { private: true } : {}), ...(t.kept_encrypted ? { kept_encrypted: true, ...(t.locked ? { locked: true } : {}) } : {}) })));
     },
   },
@@ -937,8 +937,25 @@ export const TOOLS = [
       const t = T.find(take);
       if (!t || T.aboveCap(t)) throw new Error(`No take ${take} (find_take finds any take by file, seed or the start of its id)`);
       const prev = T.inGroup(t.group).filter((x) => x.created < t.created).at(-1);
-      return { id: t.id, number: t.number, seed: t.seed, status: t.status, error: t.error, verdict: t.verdict, prior: t.prior, seconds: t.seconds, prompt: t.text, prompts: promptsOf(t.prompt), notes: t.notes, media: t.media, copy: t.copy ?? null, ...(t.voice ? { voice: t.voice } : {}), ...(t.sound ? { sound: { mean_db: t.sound.mean_db, max_db: t.sound.max_db, quiet: T.quiet(t), quiet_below_db: T.QUIET_DB } } : {}), rating: T.ratingOf(t), rating_why: t.rating_set ? ["rated by the person"] : t.rating_why ?? [], changed_since_previous: prev ? T.delta(prev, t) : [],
+      return { id: t.id, number: t.number, seed: t.seed, status: t.status, error: t.error, verdict: t.verdict, ...(t.verdict || t.verdicts_past?.length ? { verdict_detail: T.verdictOf(t) } : {}), prior: t.prior, seconds: t.seconds, prompt: t.text, prompts: promptsOf(t.prompt), notes: t.notes, media: t.media, copy: t.copy ?? null, ...(t.voice ? { voice: t.voice } : {}), ...(t.sound ? { sound: { mean_db: t.sound.mean_db, max_db: t.sound.max_db, quiet: T.quiet(t), quiet_below_db: T.QUIET_DB } } : {}), rating: T.ratingOf(t), rating_why: t.rating_set ? ["rated by the person"] : t.rating_why ?? [], changed_since_previous: prev ? T.delta(prev, t) : [],
         world: await worldOf(t.world), parent: t.parent ?? null, purpose: (await S.load(), await W.load(), ED.purposeOf(t)), ...(EY.note(t) ? { eyes: EY.note(t) } : {}), instructions: await I.ofTake(t), ...(t.kept_encrypted ? { kept_encrypted: true, ...(t.locked ? { locked: true, said: "kept encrypted and the vault is locked: its prompt, notes and frames open once the person signs in" } : {}) } : {}) };
+    },
+  },
+  {
+    name: "cemetery",
+    description: "The option cemetery (SNAP-R173): what the person (or an agent) turned down and why, so nobody re-proposes it blind. Takes with verdict reject or neither (because, revive_if: when it is worth another look, by, at), verdicts taken back (struck through, with the reason: misfire, evidence, changed_mind, superseded), rejected candidates of edits and re-runs, rejected proposals (because, revive_if, who answered) and parked Work card rows. Scope with scene + shot (that shot's takes), group (a workflow's takes) or book (its proposals and its cuts' takes); nothing = everything on this server. Whole, never trimmed.",
+    inputSchema: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" }, group: { type: "string" }, book: { type: "string" } } },
+    annotations: { readOnlyHint: true },
+    run: async ({ scene, shot, group, book }) => {
+      await Promise.all([T.load(), C.load(), P.load(), SC.load(), W.load()]);
+      const bookRef = book ? `book:${B.bookOf(book).id}` : null;
+      const pool = scene && shot ? SC.takesOf(SC.shotOf(scene, shot)).map((e) => T.get(e.take)).filter(Boolean) : group ? T.inGroup(group) : bookRef ? B.units(B.bookOf(bookRef)).flatMap((u) => SC.takesOf(u.shot).map((e) => T.get(e.take))).filter(Boolean) : T.all();
+      const takes = pool.filter((t) => t.verdict === "reject" || t.verdict === "neither" || t.verdicts_past?.length).map((t) => ({ take: t.id, number: t.number, group: t.group, ...T.verdictOf(t) }));
+      const ids = new Set(pool.map((t) => t.id));
+      const candidates = C.all().filter((d) => !scene && !group && !bookRef ? true : ids.has(d.target)).flatMap((d) => d.candidates.filter((c) => c.state === "rejected").map((c) => ({ decision: d.id, title: d.title, candidate: c.id, ...c.rejected })));
+      const proposals = P.all().filter((p) => p.status === "rejected" && (!bookRef || p.book === bookRef) && !(scene || group)).map(({ id, tool, reason, because, revive_if, answered_by }) => ({ proposal: id, tool, reason, ...(because ? { because } : {}), ...(revive_if ? { revive_if } : {}), ...(answered_by ? { answered_by } : {}) }));
+      const parked = scene || group || bookRef ? [] : A.all().filter((r) => r.zone === "parked").map((r) => ({ job: r.id, title: r.title, ...(typeof r.parked === "object" ? r.parked : { at: r.parked }) }));
+      return { takes, candidates, proposals, parked, said: `${takes.length} take${takes.length === 1 ? "" : "s"}, ${candidates.length} candidate${candidates.length === 1 ? "" : "s"}, ${proposals.length} proposal${proposals.length === 1 ? "" : "s"}, ${parked.length} parked` };
     },
   },
   {
@@ -1099,7 +1116,8 @@ export const TOOLS = [
       await T.load();
       for (const id of [take_a, take_b]) if (!T.get(id)) throw new Error(`No take ${id}`);
       if (take_a === take_b) throw new Error("Pick two different takes");
-      return { waiting: await T.setupAB(take_a, take_b) };
+      const out = await T.setupAB(take_a, take_b);
+      return { pair: out.pair, waiting: out.waiting, said: "Set up: the server shuffled the sides and holds which take is A until the person judges it (SNAP-R174)" };
     },
   },
   {

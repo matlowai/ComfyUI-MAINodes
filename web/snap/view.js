@@ -131,7 +131,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // opens the blind compare; a proposal scrolls to its chip
   async function openJob(r) {
     await A.opened(r.id);
-    if (r.source === "blind_pair") return dailies.compare(r.pair, { forced: true });
+    if (r.source === "blind_pair") return dailies.blind(r.pair);
     if (r.source === "proposal") { for (const s of root.querySelectorAll(".snap-work-sheet")) s.remove(); return root.querySelector(".snap-proposal, .snap-ghost-brick")?.scrollIntoView({ block: "center" }); }
     if (r.kind === "plate" && r.about.set) { const card = L.get(r.about.set); if (!card) throw new Error(`The set ${r.about.set} isn't in the Library any more`); for (const s of root.querySelectorAll(".snap-work-sheet")) s.remove(); return editSet(card); }
     await T.load();

@@ -508,7 +508,9 @@ export const STYLE = `
 .snap-take-markers i { position: absolute; top: 0; width: 3px; height: 10px; margin-left: -1px; border-radius: 2px; background: #f0b445; }
 .snap-take-markers i.right { background: #57c785; }
 .snap-take-sheet aside { display: flex; flex-direction: column; gap: 8px; overflow: auto; min-height: 0; }
-.snap-verdicts { display: flex; gap: 8px; }
+.snap-verdicts { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.snap-verdict-row { display: flex; gap: 8px; } .snap-verdicts .snap-lib-q { width: 100%; box-sizing: border-box; min-height: 0; }
+.snap-verdict-past s { opacity: .8; } .snap-verdict-retract { display: inline; } .snap-verdict-retract[open] summary { margin-right: 6px; }
 .snap-verdict { all: unset; cursor: pointer; flex: 1; text-align: center; padding: 9px; border-radius: 10px; font-weight: 600; background: var(--s-card); box-shadow: inset 0 0 0 1px var(--s-line); }
 .snap-verdict.keep.on { background: #57c78533; color: #8fe3b0; box-shadow: inset 0 0 0 1px #57c785; }
 .snap-verdict.reject.on { background: #f08f8f2b; color: #f6b0b0; box-shadow: inset 0 0 0 1px #f08f8f; }

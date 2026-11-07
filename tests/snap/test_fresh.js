@@ -37,7 +37,7 @@ const out = path.join(CFG.out, "ui"); const R = {};
   // takes: two in this workflow, ranked by an agent (its own file), a blind pair it sets up, judged by the person
   const group = await page.evaluate(() => window.__T.groupOf());
   await page.evaluate(async (group) => { const { api } = await import("/scripts/api.js");
-    for (const [i, id] of ["fresh-a", "fresh-b"].entries()) await api.storeUserData(`snap/takes/take-${id}.json`, { id: `take-${id}`, kind: "run", prompt_id: id, created: Date.now() - 1000 * (2 - i), group, workflow: "t", number: i + 1, status: "success", text: "a test take", seed: 7, media: [], verdict: null, prior: false, notes: [] });
+    for (const [i, id] of ["fresh-a", "fresh-b"].entries()) await api.storeUserData(`snap/takes/take-${id}.json`, { id: `take-${id}`, kind: "run", prompt_id: id, created: Date.now() - 1000 * (2 - i), group, workflow: "t", number: i + 1, status: "success", text: "a test take", seed: 7, media: [{ kind: "image", filename: `snaptest_${id}.png`, subfolder: "", type: "output" }], verdict: null, prior: false, notes: [] });
   }, group);
   await page.evaluate(async () => { const w = app.graph.serialize(); window.__keep = w; });
   // save_workflow is the frontend's Save As (L7): the unsaved tab becomes the workflow; saving it again is Save; from a

@@ -155,7 +155,8 @@ export function reconcile() {
     restarted = false;
     if (gone.length || server.some((p) => before.has(p.id) && !LIVE.has(p.state)) || rows.some((r) => r.result?.saving)) await Promise.all([T.reload(), C.reload()]); // something left the queue: another page may have written its take or decision
     if (server.some((p) => p.state === "running")) progress = await (await api.fetchApi("/mainodes/snap/progress")).json().catch(() => progress);
-    pairs = (await T.pending()).map((p) => ({ id: `ab:${p.a}|${p.b}`, source: "blind_pair", kind: "blind_pair", title: `Blind pair: take ${T.get(p.a)?.number ?? "?"} or take ${T.get(p.b)?.number ?? "?"}?`, by: p.by, owner: p.by === "agent" ? "agents" : "you", state: "waiting", about: { take: p.a }, where: where({ take: p.a }), queued_at: Date.parse(p.at) || null, pair: [p.a, p.b] }));
+    // SNAP-R174: a blind pair's row names no take until it is judged (which is A is the server's)
+    pairs = (await T.pending()).map((p) => ({ id: `ab:${p.id}`, source: "blind_pair", kind: "blind_pair", title: "A blind pair: which is better, A or B?", by: p.by, owner: p.by === "agent" ? "agents" : "you", state: "waiting", about: {}, where: p.group === T.groupOf() ? "this workflow's takes" : "takes in another workflow", queued_at: p.at ?? null, pair: p.id }));
     await C.settle();
     const finished = server.filter((p) => p.job?.takes !== false && p.job && ["success", "error", "interrupted"].includes(p.state));
     await T.catchUp(finished.filter((p) => p.client === api.clientId));
@@ -170,10 +171,10 @@ export function reconcile() {
 async function loadMarks() { const r = await api.getUserData(WORK); if (r.status === 200) marks = { parked: {}, opened: {}, ...await r.json() }; }
 const saveMarks = () => api.storeUserData(WORK, marks);
 // Park (the sheet's button, SNAP-R65): out of In flight and Landed, kept in Parked with no count; Unpark puts it back
-export async function park(id, on = true) {
+export async function park(id, on = true, { because, revive_if } = {}) {
   const r = get(id);
   if (!r) throw new Error(`No job ${id} on the Work card`);
-  if (on) marks.parked[r.id] = new Date().toISOString(); else delete marks.parked[r.id];
+  if (on) marks.parked[r.id] = { at: new Date().toISOString(), ...(because ? { because } : {}), ...(revive_if ? { revive_if } : {}) }; else delete marks.parked[r.id]; // SNAP-R173: why it was parked, when to look again
   build();
   await saveMarks();
   return { job: r.id, parked: on };

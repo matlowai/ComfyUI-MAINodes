@@ -9,7 +9,7 @@ proposes, never downloads · SNAP-R27 locks follow the current rules · SNAP-R30
 health listing, errors that say what to do · SNAP-R33 the rating cap's second line · SNAP-R36 quiet sound ·
 SNAP-R37 privacy per install · SNAP-R38 metadata off writes none, the rest is named · SNAP-R39 ratings from how a thing
 was made · SNAP-R65 the Work card's jobs and progress, an agent page's own screenshot · SNAP-R74 Load Audio lists input/snap/ ·
-SNAP-R139 proposals kept on the server · SNAP-R78 a stale tab says so, agents ask (request_reload), the person reloads · SNAP-R83 the agents' window: one visible
+SNAP-R139 proposals kept on the server · SNAP-R174 blind pairs' labels stay on the server until judged · SNAP-R78 a stale tab says so, agents ask (request_reload), the person reloads · SNAP-R83 the agents' window: one visible
 Chrome agents drive, reload and restart, the default with the person's tab; never headless · SNAP-R96 private takes saved
 encrypted (snap_vault_server.py) · SNAP-R98 their ffmpeg steps work in RAM scratch · SNAP-R93/R94 the pack's notes end
 the bridge tools' descriptions, /info names the docs and skills, a call names its agent · SNAP-R135 a hold on a page ends
@@ -550,13 +550,111 @@ async def proposals_write(request):
                 return web.json_response({"error": f"status is running or one of {', '.join(ANSWERS)}; not {status!r}"}, status=400)
             if row["status"] not in (("waiting",) if status == "running" else ("waiting", "running")):
                 return web.json_response({"error": f"{row['id']} is {row['status']} already", "row": row}, status=409)
-            row.update({"status": status, "answered": int(time.time() * 1000), **({"result": q["result"]} if "result" in q else {})})
+            # who pressed it (F-L17) and, on a reject, the option cemetery's why and when to look again (CONCEPT §11.2)
+            row.update({"status": status, "answered": int(time.time() * 1000), **({"result": q["result"]} if "result" in q else {}),
+                        **{k: q[k] for k in ("answered_by", "because", "revive_if") if q.get(k)}})
         tmp = f"{path}.{os.getpid()}.tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(rows, f, ensure_ascii=False)
         os.replace(tmp, path)
     PromptServer.instance.send_sync("mainodes-snap-proposals", {"id": row["id"], "status": row["status"]})
     return web.json_response({"row": row})
+
+
+# ---- blind pairs (CONCEPT §11.2, box1:70): which take is A and which is B stays here until the person has judged ------
+# The page sees a pair's id, its group and who set it up; the two pictures come through /blind/media by side, so nothing
+# in the page (or devtools) names a take before the verdict. The labels are in user/snap_blind.json, which /userdata
+# doesn't serve (it serves user/<user>/ only).
+BLIND = Path(folder_paths.get_user_directory()) / "snap_blind.json"
+blind_lock = asyncio.Lock()
+
+
+def read_blind():
+    return json.loads(BLIND.read_text(encoding="utf-8")) if BLIND.exists() else {}
+
+
+def write_blind(rows):
+    tmp = BLIND.with_name(f"{BLIND.name}.{os.getpid()}.tmp")
+    tmp.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, BLIND)
+
+
+def blind_user(request):
+    return PromptServer.instance.user_manager.get_request_user_id(request)
+
+
+@routes.get("/mainodes/snap/blind")
+async def blind_list(request):
+    async with blind_lock:
+        mine = [r for r in read_blind().get(blind_user(request), []) if not r.get("judged")]
+    return web.json_response({"pairs": [{k: r[k] for k in ("id", "group", "by", "at")} for r in mine]})
+
+
+@routes.post("/mainodes/snap/blind")
+async def blind_add(request):
+    """{a: {take, media: {filename, subfolder, type}}, b: {...}, group, by} -> {pair}: the sides are shuffled here"""
+    q = await request.json()
+    sides = [q.get("a") or {}, q.get("b") or {}]
+    for s in sides:
+        m = s.get("media") or {}
+        if not s.get("take") or not m.get("filename") or m.get("type", "output") not in ("output", "input", "temp"):
+            return web.json_response({"error": "a and b are {take, media: {filename, subfolder, type}} of two takes"}, status=400)
+    if sides[0]["take"] == sides[1]["take"]:
+        return web.json_response({"error": "Pick two different takes"}, status=400)
+    if secrets.randbelow(2):
+        sides.reverse()
+    user = blind_user(request)
+    async with blind_lock:
+        rows = read_blind()
+        mine = [r for r in rows.get(user, []) if r.get("judged") or {r["A"]["take"], r["B"]["take"]} != {sides[0]["take"], sides[1]["take"]}]
+        row = {"id": f"ab{secrets.token_hex(4)}", "group": q.get("group"), "by": q.get("by", "agent"), "at": int(time.time() * 1000), "A": sides[0], "B": sides[1]}
+        rows[user] = [*mine, row]
+        write_blind(rows)
+    PromptServer.instance.send_sync("mainodes-snap-blind", {"pair": row["id"]})
+    return web.json_response({"pair": row["id"], "waiting": sum(1 for r in rows[user] if not r.get("judged"))})
+
+
+@routes.get("/mainodes/snap/blind/media")
+async def blind_media(request):
+    pair, side = request.query.get("pair"), request.query.get("side")
+    async with blind_lock:
+        row = next((r for r in read_blind().get(blind_user(request), []) if r["id"] == pair), None)
+    if row is None or side not in ("A", "B"):
+        return web.json_response({"error": f"No blind pair {pair} side {side}"}, status=404)
+    m = row[side]["media"]
+    root = os.path.abspath(folder_paths.get_directory_by_type(m.get("type", "output")))
+    path = os.path.abspath(os.path.join(root, m.get("subfolder", ""), m["filename"]))
+    if os.path.commonpath([root, path]) != root:
+        return web.json_response({"error": "outside its folder"}, status=403)
+    if not os.path.isfile(path):
+        return web.json_response({"error": "This take's file isn't readable as a plain file (kept encrypted, or moved): judge it in the take viewer"}, status=404)
+    return web.FileResponse(path, headers={"Cache-Control": "no-store"})
+
+
+@routes.post("/mainodes/snap/blind/judge")
+async def blind_judge(request):
+    """{pair, side: A|B|tie, why} -> {a, b, winner, labels}: the verdict is written first, then the labels are said"""
+    q = await request.json()
+    if q.get("side") not in ("A", "B", "tie"):
+        return web.json_response({"error": "side is A, B or tie"}, status=400)
+    user = blind_user(request)
+    async with blind_lock:
+        rows = read_blind()
+        row = next((r for r in rows.get(user, []) if r["id"] == q.get("pair") and not r.get("judged")), None)
+        if row is None:
+            return web.json_response({"error": f"No blind pair {q.get('pair')} waiting (judged already, or never set up)"}, status=404)
+        a, b = row["A"]["take"], row["B"]["take"]
+        verdict = {"at": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()), "a": a, "b": b, "winner": "tie" if q["side"] == "tie" else row[q["side"]]["take"], "blind": True, "why": q.get("why") or "", "by": "person", "pair": row["id"]}
+        path = PromptServer.instance.user_manager.get_request_user_filepath(request, f"snap/judgments/{time.strftime('%Y-%m-%d', time.gmtime())}.json")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        judged = json.load(open(path, encoding="utf-8")) if os.path.exists(path) else []
+        judged.append(verdict)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(judged, f, ensure_ascii=False)
+        row["judged"] = verdict["at"]
+        write_blind(rows)
+    PromptServer.instance.send_sync("mainodes-snap-blind", {"pair": row["id"], "judged": True})
+    return web.json_response({**verdict, "labels": {"A": a, "B": b}})
 
 
 @routes.get("/mainodes/snap/progress")

@@ -95,12 +95,12 @@ export async function undo(id, by = "person") {
   await save(d);
   return { decision: id, undone: true, by };
 }
-export async function reject(id, cid, by = "person") {
+export async function reject(id, cid, by = "person", { because, revive_if } = {}) {
   const d = get(id), c = candidate(d, cid);
   if (!c) throw new Error(`No candidate ${cid} in ${id}`);
   if (c.state === "applied") throw new Error(`${d.title}: candidate ${cid} is applied; undo it first`);
   c.state = "rejected";
-  c.rejected = { by, at: new Date().toISOString() };
+  c.rejected = { by, at: new Date().toISOString(), ...(because ? { because } : {}), ...(revive_if ? { revive_if } : {}) }; // the option cemetery (SNAP-R173)
   await kinds.get(d.kind)?.reject?.(d, c, by); // a kind whose candidates are takes marks the take (rerun: verdict reject, SNAP-R17)
   if (d.candidates.every((x) => x.state === "rejected" || x.state === "failed")) d.status = "closed";
   await save(d);
