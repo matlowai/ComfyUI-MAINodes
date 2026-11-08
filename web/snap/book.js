@@ -631,6 +631,14 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
   if (cited.length) lint.push(`the action cites a picture ("${cited[0]}"): citing a key board inside the action made H3 jump-cut to it and stall the clash (F-SQ20); write the motion out, and the key stays in the closing hint apply_unit writes`);
   // every speaking Cast needs a voice reference, or its voice can't be checked (SNAP-R237)
   for (const who of new Set(lines.map((l) => l.who))) if (who.startsWith("cast:") && !W.get(who)?.version.body.voice?.file) lint.push(`${nameOf(story, who)} speaks here and has no Cast voice reference: the voice can't be held or checked (snap-voice: use_take {as: "voice"} on a take of theirs)`);
+  // SNAP-R241 (F-SQ12): H3 copies a voice reference's words, so a speaker's reference that says a line of the script
+  // puts that line into this cut too
+  const said = (t) => String(t ?? "").toLowerCase().replace(/[^\p{L}\p{N}' ]+/gu, " ").split(/\s+/).filter(Boolean).join(" ");
+  for (const who of new Set(lines.map((l) => l.who))) {
+    const ref = W.get(who)?.version.body.voice?.words, r = said(ref);
+    const same = r ? story.beats.flatMap((b) => (b.lines ?? []).map((l) => ({ ...l, beat: b.id }))).filter((l) => { const x = said(l.text); return x === r || (x.split(" ").length >= 3 && r.includes(x)) || (r.split(" ").length >= 3 && x.includes(r)); }) : [];
+    if (same.length) lint.push(`${nameOf(story, who)}'s voice reference says "${ref}", which is ${same.map((l) => `${l.who === who ? "their own" : `${nameOf(story, l.who)}'s`} line at ${l.beat} ("${l.text}")`).join(" and ")}: H3 copies a reference's words (F-SQ12), so this cut may say it too; record the reference on a line the script doesn't use (SNAP-R241)`);
+  }
   // SNAP-R230/R231: the cut's dial rows, what they give over the clip, and what to look at
   let dials = null;
   if (unit.dials) {

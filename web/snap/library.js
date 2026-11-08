@@ -347,7 +347,7 @@ export async function saveCast(id, body, { note = "", by = "person" } = {}) {
   const clean = { name: body.name.trim(), alias: body.alias?.trim() ?? "", trigger: body.trigger?.trim() ?? "", details: body.details?.trim() ?? "",
     lora: body.lora?.file ? { file: body.lora.file, strength: +(body.lora.strength ?? 1) } : null, refs: (body.refs ?? []).map((r) => ({ file: r.file, role: r.role || "identity" })),
     lore: body.lore?.trim() ?? "", rating: body.rating ?? null,
-    ...(body.voice?.file ? { voice: { file: body.voice.file, casting: body.voice.casting?.trim() ?? "" } } : {}), // U101: a voice reference only when given, so older records save unchanged
+    ...(body.voice?.file ? { voice: { file: body.voice.file, casting: body.voice.casting?.trim() ?? "", ...(body.voice.words?.trim() ? { words: body.voice.words.trim() } : {}) } } : {}), // U101: a voice reference only when given, so older records save unchanged; SNAP-R241 the words it says
     ...(body.states?.length ? { states: body.states } : {}) }; // SNAP-R69: settei per state, only when there are some
   // F-C30: each file's hash goes on the record (the exact file it used), and a newer upload of the same name is said
   const newer = [];
@@ -387,7 +387,9 @@ export async function takeToCast(t, ref, { at = "last", frame, crop, role, repla
   return { cast: `cast:${id}`, version: out.n, file: got.file, role: what, ...(was ? { replaced: { picture: replace, file: was.file, kept_in: `v${out.n - 1}` } } : {}),
     said: was ? `${b.name} v${out.n}: picture ${replace} ("${what}") is now frame ${got.frame} of take ${t.number}; v${out.n - 1} keeps the old one, and what pinned v${out.n - 1} still reads it (rerun_dependents re-makes them)` : `${b.name} v${out.n}: frame ${got.frame} of take ${t.number} is picture ${b.refs.length + 1} ("${what}")${role ? "" : "; say what it shows in the Cast sheet"}` };
 }
-// F-F06 (SNAP-R143): a stretch of a take's sound becomes the Cast's voice reference, a new version naming the take
+// F-F06 (SNAP-R143): a stretch of a take's sound becomes the Cast's voice reference, a new version naming the take;
+// SNAP-R241: with the words the stretch says, from the take's Voice QA words (take seconds), so a reference that says a
+// line of the script can be linted (F-SQ12: H3 copies a reference's words)
 export async function takeToVoice(t, ref, { at = 0, length, casting, by = "person" } = {}) {
   await ready();
   const { kind, id } = W.parse(ref), r = kind === "cast" && W.record("cast", id), video = t.media.find((m) => m.kind === "video" || m.kind === "audio");
@@ -396,8 +398,10 @@ export async function takeToVoice(t, ref, { at = 0, length, casting, by = "perso
   const b = W.headOf(r).body, name = `${b.name}_voice_take${t.number}_${String(at).replace(".", "p")}s`;
   const res = await api.fetchApi("/mainodes/snap/take_voice", { method: "POST", body: JSON.stringify({ video: `${video.subfolder ? `${video.subfolder}/` : ""}${video.filename} [${video.type ?? "output"}]`, at, ...(length ? { length } : {}), name }) }), got = await res.json();
   if (!res.ok) throw new Error(got.error ?? `cutting the sound failed (${res.status})`);
-  const out = await saveCast(id, { ...b, voice: { file: got.file, casting: casting ?? b.voice?.casting ?? "" } }, { note: `voice from take ${t.number}, ${at} s${length ? ` for ${length} s` : " to the end"}`, by });
-  return { cast: `cast:${id}`, version: out.n, voice: got.file, seconds: got.seconds, said: `${b.name} v${out.n}: the voice is ${got.seconds} s of take ${t.number}'s sound from ${at} s (${got.file})` };
+  const end = at + got.seconds, said = (t.voice?.words ?? []).filter(([s, e]) => (s + e) / 2 >= at && (s + e) / 2 <= end).map((w) => w[2]).join(" ");
+  const out = await saveCast(id, { ...b, voice: { file: got.file, casting: casting ?? b.voice?.casting ?? "", ...(said ? { words: said } : {}) } }, { note: `voice from take ${t.number}, ${at} s${length ? ` for ${length} s` : " to the end"}`, by });
+  return { cast: `cast:${id}`, version: out.n, voice: got.file, seconds: got.seconds, ...(said ? { words: said } : {}),
+    said: `${b.name} v${out.n}: the voice is ${got.seconds} s of take ${t.number}'s sound from ${at} s (${got.file}); ${said ? `it says "${said}" (the take's Voice QA words): a line of the script that says the same is linted (SNAP-R241)` : t.voice?.words ? "no words heard in that stretch" : `its words aren't known: check_voice on take ${t.number} first (the Voice QA hears them), or save_cast voice {words}`}` };
 }
 export async function takeToPlate(t, ref, { frame, name, by = "person" } = {}) {
   await ready();

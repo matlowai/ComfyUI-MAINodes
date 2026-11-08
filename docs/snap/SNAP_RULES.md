@@ -2237,3 +2237,10 @@ Next free ID after this batch: SNAP-R240 (R160-R164 stay free; G16 reserved R215
   setting, English barks); the ship rule: Nemotron for what was said and when, ECAPA for who, unsure below 0.08
   (the Nemotron study, 5 voices / 1344 swaps); F-SQ11/F-SQ12 (two shipped leaks). *More:* study DESIGN_G17 §4.8, LAB_G17
   L6; tests/snap/test_g17b_voice_qa.js (GPU).
+- **SNAP-R241: A Cast's voice reference keeps its words, and a reference that says a line of the script is a lint.**
+  `use_take {as: "voice"}` stores the words the stretch says (`voice.words`, from the take's Voice QA words in take
+  seconds; the answer says when they aren't known and how to get them), `save_cast voice {words}` sets them by hand;
+  `compile_unit` lints a speaker whose reference says a line anywhere in the story ("Hiyori's voice reference says
+  'Tomoshi, I just swept that.', which is their own line at b4"). *Why:* F-SQ12 (H3 spoke the reference's words, so the
+  short said her one line twice); the operator's rule "every speaking character needs a Cast voice reference".
+  *More:* study DESIGN_G17 §4.8; tests/snap/test_g17b_misc.js.
