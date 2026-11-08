@@ -30,6 +30,7 @@ const beatFields = { text: { type: "string" }, intent: { type: "string" }, time:
   lines: { type: "array", items: line }, plants: { type: "array", items: { type: "object", properties: { id: { type: "string" }, what: { type: "string" }, window: { type: "integer", minimum: 1 } }, required: ["what"] } }, pays_off: { type: "array", items: { type: "string" } } };
 const unitFields = { beats: { type: "array", items: { type: "string" } }, cast: { type: "array", items: { type: "string" } }, props: { type: "array", items: { type: "string" } }, location: { type: "string" }, plate: { type: "string" },
   seconds: { type: "number", exclusiveMinimum: 0 }, sound: { type: "string" }, music: { type: "string" }, transition: { type: "string" }, camera: { type: "string" }, blocking: { type: "string" }, note: { type: "string" },
+  opens_on: { type: ["object", "null"], description: "a cut that continues another cut's action opens on its out-frame (SNAP-R252): {cut, at?}: that cut's active take's frame at its trim out-point (at: \"out\", the default) or at `at` seconds into the take goes into References first, cited as the first frame, in place of this cut's own board; the location's pictures stay out (the frame holds the set); the cut reads stale when that take or trim moves", properties: { cut: { type: "string" }, at: { type: ["string", "number"] } }, required: ["cut"] },
   hold: { type: ["boolean", "null"], description: "the cut ends on a held pose (SNAP-R242): only then does apply_unit put its key drawing in References (the take reaches it by about 2 s and holds it); on an action cut a key picture makes the take freeze on it (M6)" },
   cite_master: { type: ["boolean", "null"], description: "put the location's master in References beside this cut's camera plate (SNAP-R242): left out by default, because takes cut to its framing (M2, M7)" },
   master: { type: ["object", "null"], description: "an insert or close-up's master shot (SNAP-R236): {cut, at_s, crop?}: that cut's active take's frame at at_s seconds (crop [x, y, width, height] in fractions) goes into the board's context and References as continuity, so light, colours and background match", properties: { cut: { type: "string" }, at_s: { type: "number", minimum: 0 }, crop: { type: "array", items: { type: "number", minimum: 0, maximum: 1 }, minItems: 4, maxItems: 4 } }, required: ["cut", "at_s"] } };
@@ -452,6 +453,43 @@ question: { type: "string", description: "what the person is asked about these c
       const out = await ED.fromContext(pictures, prompt, { method, purpose: "character", seeds, count, land: { scene: sc.id, shot: shot.id }, story: { book: `book:${b.id}`, role: "settei", cast: ref, state, view, covers }, question, by: "agent" });
       return { ...out, cast: ref, state, view, covers, prompt, ...(fold.left_out.length ? { left_out: fold.left_out } : {}), ...(ground.length ? { style_left_out: ground.map((x) => ({ sentence: x, said: `style '${x}' left out: a settei stands on a plain background` })) } : {}),
         ...(fold.left_out.length && !from ? { if_kept: `<Picture 1> (the Cast's own picture) still shows ${fold.left_out.map((x) => `'${x.clause}'`).join(", ")}: if the candidates keep it, take it out of that picture first (edit_from_context {pictures: [{cast: "${ref}", ref: 0}], prompt: "remove only …"}), then design_state again with from: {take} (F-Q13)` } : {}), ...(fold.lint.length ? { lint: fold.lint } : {}), landed: { scene: sc.id, shot: shot.id, where: `${sceneName} › ${body.name}` }, next: `wait_for {job: decision, until: waiting}, look at the candidates, then save_cast_state {cast: "${ref}", state: "${state}", covers, pictures: [{take, view: "${view}"}]} (the person's Use this in the Settei lens does the same)` };
+    },
+  },
+  {
+    name: "make_set_reference",
+    description: "The set reference for a cut's camera side (SNAP-R253: every cut plays from its side's set reference, made from the picked look; the operator, 2026-11-07 19:51). Two calls. (1) {book, cut}: the cut's active take at its trim out-point (the last frame the Cut shows) with every person removed: a New view on P-H3-Image (purpose plate, an edit of that frame), `count` candidates (default 2) landing in a design lane outside the Book (scene \"<Book> · set references\", shot \"<location> · <side>\"), never in the cut's own shot. (2) {book, cut, pick: <a candidate's take>}: saves the picked still as a plate of the cut's location (a new location version): `name` (default \"<side> set\"), `side` (default the cut's plate's side, else its camera mark, else its name), set: true, role camera, the cut's plate's camera mark and pose, provenance (the candidate take, made from the cut's take and frame); the walkthrough plates stay. The answer names the cuts on that side that don't play from it yet (set_unit {plate}); compile_unit lints them. Pick the cut whose take's look the person chose first.",
+    inputSchema: { type: "object", properties: { book: { type: "string" }, cut: { type: "string" }, side: { type: "string" }, name: { type: "string" }, count: { type: "integer", minimum: 1, maximum: 4 }, seeds: { type: "array", items: { type: "integer", minimum: 0 } }, pick: { type: "string", description: "the candidate take to save as the side's set reference" } }, required: ["book", "cut"] },
+    annotations: { consequentialHint: true },
+    consequential: true,
+    run: async ({ book, cut, side, name, count = 2, seeds, pick }) => {
+      await ready();
+      const b = B.bookOf(book), u = B.units(b).find((x) => x.unit.cut === cut);
+      if (!u) throw new Error(`No cut ${cut} in ${b.body.name}; the cuts: ${B.units(b).map((x) => x.unit.cut).filter(Boolean).join(", ")}`);
+      if (!u.unit.location) throw new Error(`${cut} has no location: set_unit {location, plate} first`);
+      const got = W.get(u.unit.location), loc = got.version.body, plate = u.unit.plate ? loc.plates?.find((p) => p.name === u.unit.plate) : null, s = side?.trim() || (plate ? L.sideOf(plate) : "main"), plateName = name?.trim() || `${s} set`;
+      if (pick) {
+        const t = T.find(pick);
+        if (!t) throw new Error(`No take ${pick} (the candidate's take from make_set_reference's answer)`);
+        const src = t.parent?.options?.context?.[0]?.label ?? `take ${t.number}`;
+        const out = await L.addPlate(u.unit.location, { name: plateName, take: t.id, role: "camera", side: s, set: true, ...(plate?.camera ? { camera: plate.camera } : {}), ...(plate?.pose ? { pose: plate.pose } : {}),
+          use: `the set reference for side ${s}: ${src} with the people removed (SNAP-R253)` }, { note: `set reference ${plateName} for side ${s} from ${cut}'s look`, by: "agent" });
+        const others = B.units(b).filter((x) => x.unit.location === u.unit.location && x.unit.plate !== plateName && (x.unit.plate ? L.sideOf(loc.plates?.find((p) => p.name === x.unit.plate)) === s : false)).map((x) => x.unit.cut);
+        return { location: out.ref ?? `${u.unit.location}@${out.n}`, version: out.n, plate: plateName, side: s, set: true, from: { take: t.id, made_from: src },
+          said: `${loc.name} v${out.n}: plate "${plateName}" is side ${s}'s set reference (${src}, people removed); the walkthrough plates stay`, ...(others.length ? { next: `cuts on side ${s} that don't play from it yet: ${others.join(", ")}: set_unit {plate: "${plateName}"} on each (compile_unit lints them)` } : {}) };
+      }
+      const t = u.shot.active && T.get(u.shot.active);
+      if (!t) throw new Error(`${cut} has no active take: set the take whose look is the set first (set_active_take), then make its set reference`);
+      const out_s = u.unit.trim?.out_s, f = await T.frameAt(t, "last", out_s != null && t.media.some((m) => m.kind === "video") ? { frame: Math.ceil(out_s * 24 - 1e-6) - 1 } : {});
+      // the design lane: a plain scene beside the Book (a still in a cut's shot would be its board), one shot per side
+      await SC.load();
+      const laneName = `${b.body.name} · set references`, shotName = `${loc.name} · ${s}`;
+      const scene = SC.all().find((x) => x.name === laneName && !x.book) ?? await SC.create({ name: laneName, by: "agent" });
+      const lane = scene.shots.find((x) => x.name === shotName) ?? (await SC.addShot(scene.id, { name: shotName, by: "agent" })).shot;
+      const label = `${cut}'s out-frame (take ${t.number}, frame ${f.frame})`;
+      const made = await ED.fromContext([{ file: f.file, label }], `<Picture 1> with every person removed: the same camera, framing, set, light and colours. Where each person stood or sat, the set behind them continues (the counter, the walls, the floor, the street), and nothing else changes. No people.`,
+        { purpose: "plate", count, seeds, land: { scene: scene.id, shot: lane.id }, question: `Which one is ${loc.name}'s set for side ${s}, with nobody in it?`, by: "agent" });
+      return { ...made, cut, side: s, name: plateName, from: { take: t.id, frame: f.frame, ...(out_s != null ? { out_s } : {}) }, lane: { scene: scene.id, shot: lane.id },
+        next: `wait_for {job: decision, until: waiting}; look at the candidates (every person gone, the set kept); then make_set_reference {book, cut: "${cut}", pick: "<its take>"} saves it as plate "${plateName}" on side ${s}` };
     },
   },
   {

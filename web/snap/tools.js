@@ -1414,7 +1414,8 @@ export const TOOLS = [
     run: async ({ decision, candidate, pin }) => {
       await C.load();
       if (pin != null) { const d = C.get(decision); await ED.pin(d, C.candidate(d, candidate), pin); }
-      return C.apply(decision, candidate, "agent");
+      const out = await C.apply(decision, candidate, "agent"), land = C.get(decision)?.land, offer = land && B.setReferenceOffer(land.scene, land.shot);
+      return offer && out && typeof out === "object" ? { ...out, set_reference: offer } : out;
     },
   },
   {
@@ -1611,7 +1612,7 @@ export const TOOLS = [
     name: "use_take",
     description: "Use a frame of a take as an input (U32): as first_frame it goes on the First frame brick (FL2V's start picture), as reference into References as a picture (the answer gives its <Picture n> as cite). Which frame: frame (a frame number, as take_frames counts them), else at (the moment in seconds, or 'last', the default, for its end); a still has one. crop [x, y, width, height] in fractions keeps a part of it (the front and the back of one sheet are two pictures). Another frame or part of the same take is another picture; the same one again says it is already there. One undo step; the brick remembers the take and frame it came from. An input/ file goes in with add_ref. UI-03 (SNAP-R123): as cast (with cast, role) makes the frame that Cast's next picture (a new version), or with replace (a picture's number from 0) puts it in that picture's place, its role kept: to fix one detail of a Cast picture, region-edit it (edit_from_context {pictures: [{cast, ref, crop}], purpose: \"edit\", paste_back: true}), then use_take {take: <the candidate>, as: \"cast\", cast, replace: ref} (the Cast is the person's: from an agent, call it with propose: true, so it waits for their yes; F-U01, SNAP-R196); as plate (with location, name) makes it a plate of that location (a new version). as last_frame is refused with why (F-F20: the H3 node takes one, the pack's setups don't wire it yet). as voice (F-F06, SNAP-R143, with cast; at the start in seconds, default 0; length in seconds, default to the end; casting, default the Cast's) cuts the take's sound into input/snap/voice/ and makes it that Cast's voice reference (a new version naming the take); a private take is refused.",
     inputSchema: { type: "object", properties: { take: { type: "string" }, as: { type: "string", enum: ["first_frame", "last_frame", "reference", "cast", "plate", "voice"] }, frame: { type: "integer", minimum: 0 }, at: { type: ["number", "string"] }, length: { type: "number", exclusiveMinimum: 0, description: "as voice: seconds of sound from at" }, casting: { type: "string", description: "as voice: the casting line (default the Cast's)" },
-      crop: { type: "array", items: { type: "number", minimum: 0, maximum: 1 }, minItems: 4, maxItems: 4 }, cast: { type: "string", description: "as cast: the Cast (cast:<id>) it becomes a picture of" }, role: { type: "string", description: "as cast: what the picture shows" }, replace: { type: "integer", minimum: 0, description: "as cast (F-U01, SNAP-R196): the Cast picture (its number from 0) this frame replaces, keeping its role unless role is given; the old picture stays in the version before" },
+      crop: { type: "array", items: { type: "number", minimum: 0, maximum: 1 }, minItems: 4, maxItems: 4 }, cast: { type: "string", description: "as cast: the Cast (cast:<id>) it becomes a picture of" }, role: { type: "string", description: "as cast: what the picture shows; as reference: the picture's job, e.g. \"opening: C1's out-frame\" (F-SQ49; default \"take N, frame F\")" }, replace: { type: "integer", minimum: 0, description: "as cast (F-U01, SNAP-R196): the Cast picture (its number from 0) this frame replaces, keeping its role unless role is given; the old picture stays in the version before" },
       location: { type: "string", description: "as plate: the location (location:<id>)" }, name: { type: "string", description: "as plate: the plate's name" } }, required: ["take", "as"] },
     run: async ({ take, as, frame, at, crop, cast, role, replace, location: place, name, length, casting }) => {
       await T.load(); const t = T.find(take); if (!t) throw new Error(`No take ${take}`);
@@ -1621,7 +1622,7 @@ export const TOOLS = [
       at ??= "last";
       if (as === "cast") { if (!cast) throw new Error('as cast needs cast (cast:<id>, list_cast lists them) and, if you can, role: what the picture shows'); return L.takeToCast(t, cast, { at, frame, crop, role, replace, by: "agent" }); }
       if (as === "plate") { if (!place) throw new Error("as plate needs location (location:<id>, list_locations lists them) and, if you can, name"); return L.takeToPlate(t, place, { frame, name, by: "agent" }); }
-      return T.use(t, { as, t: at, frame, crop, by: "agent" });
+      return T.use(t, { as, t: at, frame, crop, role, by: "agent" });
     },
   },
   {
@@ -1718,7 +1719,7 @@ export const TOOLS = [
     description: "Make a take (a version too) the shot's active take: the one that stands for the shot in the scene (its tile, the breadcrumb, a later cut). take: its id or a unique start of it; a take of another shot or scene (a Book cut reusing an earlier take) joins this shot as it is, keeping its provenance and pins, and the answer says brought_from (SNAP-R213). Choosing it is the person's call: unless they let agents run, this waits as a proposal; say why in reason (which take reads best, by frame).",
     inputSchema: { type: "object", properties: { scene: { type: "string" }, shot: { type: "string" }, take: { type: "string" } }, required: ["scene", "shot", "take"] },
     decides: true,
-    run: async ({ scene, shot, take }) => SC.setActive(scene, shot, take, "agent"),
+    run: async ({ scene, shot, take }) => { const out = await SC.setActive(scene, shot, take, "agent"), offer = B.setReferenceOffer(scene, shot); return offer && out && typeof out === "object" ? { ...out, set_reference: offer } : out; },
   },
   {
     name: "move_shot",

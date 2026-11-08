@@ -605,13 +605,40 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
       if (unit.plate && !plate) lint.push(`${b.name} v${got.version.n} has no plate "${unit.plate}"`);
       place = { ref: W.refOf("location", W.parse(unit.location).id, got.version.n), name: b.name, ...(plate ? { plate: plate.name, pose: plate.pose ?? null } : {}), master: !!b.master };
       if (plate) package_.push({ file: plate.file, role: `location: ${b.name}, plate ${plate.name} (camera)`, why: `this cut's camera`, from: unit.location, order: 0 });
+      // SNAP-R253 (the operator, 2026-11-07 19:51): every cut plays from its side's set reference, made from the picked look
+      const side = plate && L.sideOf(plate), set = side && L.setPlateOf(b, side);
+      if (set && set.name !== plate.name) lint.push(`plate ${plate.name} is on side ${side}, and ${set.name} is that side's set reference (made from the picked look): set_unit {plate: "${set.name}"} plays ${unit.cut ?? "this cut"} from it (SNAP-R253)`);
+      else if (plate && !set && !unit.opens_on) lint.push(`side ${side} of ${b.name} has no set reference yet: once a cut on it has the take whose look you keep, make_set_reference {book, cut} makes one from it (people removed), and the cuts on this side play from it (SNAP-R253)`);
       // SNAP-R242 (M2, M7): the master is where a one-camera cut's takes cut to; with a camera plate it stays out unless asked
       if (b.master && (!plate || unit.cite_master)) package_.push({ file: b.master.file, role: `location: ${b.name}, master (place)`, why: "the place's topology", from: unit.location, order: 3 });
       else if (b.master) left_out.push({ role: `location: ${b.name}, master (place)`, why: `${C.MASTER_TARGET}; set_unit {cite_master: true} puts it in` });
       from[`${unit.location}`] = got.version.hash;
     }
   }
-  if (unit.board?.file) package_.unshift({ file: unit.board.file, role: `board: ${unit.cut ?? "this cut"}${unit.board.approved ? "" : " (not approved yet)"}`, why: "the cut opens on its board frame", from: "board", order: -1 });
+  // SNAP-R252 (the operator, 2026-11-07 19:49): a cut that continues the previous cut's action opens on its out-frame,
+  // the active take's frame at its trim out-point, in place of its own board
+  let opening = null;
+  if (unit.opens_on) {
+    const list = units(book), m = list.find((x) => x.unit.cut === unit.opens_on.cut), t = m?.shot.active && T.get(m.shot.active), out = m?.unit.trim?.out_s;
+    if (!m) lint.push(`opens_on ${unit.opens_on.cut}: no such cut in this Book; the cuts: ${list.map((x) => x.unit.cut).filter(Boolean).join(", ")}`);
+    else if (!t) lint.push(`opens_on ${unit.opens_on.cut}: it has no active take yet: the opening frame comes in when it has one (until then the cut opens on its own board)`);
+    else {
+      // the last frame the Cut shows: frame k plays from k/24 s, so an out-point of 3.75 s ends on frame 89 (v3a2's C2)
+      const at = unit.opens_on.at ?? "out", frame = at === "out" ? (out != null ? Math.ceil(out * 24 - 1e-6) - 1 : undefined) : Math.floor(at * 24 + 1e-6);
+      const f = await T.frameAt(t, "last", frame != null ? { frame } : {}).catch((e) => ({ error: e.message }));
+      if (f.error) lint.push(`opens_on ${unit.opens_on.cut}: its take ${t.number}'s frame can't be read: ${f.error}`);
+      else {
+        opening = { cut: unit.opens_on.cut, take: t.id, number: t.number, at: at === "out" ? (out != null ? `out ${out} s` : "its last frame (no trim out-point)") : `${at} s`, frame: f.frame, file: f.file };
+        package_.push({ file: f.file, role: `opening: ${unit.opens_on.cut}'s out-frame (take ${t.number}, frame ${f.frame})`, why: "a cut that continues the previous cut's action opens on its out-frame (the operator, 2026-11-07 19:49)", from: "opens_on", order: -1 });
+        from.opens_on = `${t.id}@${f.frame}`;
+      }
+    }
+  }
+  if (unit.board?.file && !opening) package_.unshift({ file: unit.board.file, role: `board: ${unit.cut ?? "this cut"}${unit.board.approved ? "" : " (not approved yet)"}`, why: "the cut opens on its board frame", from: "board", order: -1 });
+  else if (unit.board?.file) left_out.push({ role: `board: ${unit.cut ?? "this cut"}`, why: `the cut opens on ${opening.cut}'s out-frame instead (SNAP-R252)` });
+  // SNAP-R252: the previous cut in telling order on the same plate, with no opens_on: say how to continue its action
+  { const list = units(book), k = list.findIndex((x) => x.shot.id === shot.id), before = k > 0 ? list[k - 1].unit : null;
+    if (!unit.opens_on && !unit.master && unit.plate && before?.plate === unit.plate && before.location === unit.location) lint.push(`${unit.cut ?? "this cut"} follows ${before.cut} on the same plate (${unit.plate}): if it continues ${before.cut}'s action, set_unit {opens_on: {cut: "${before.cut}"}} opens it on ${before.cut}'s out-frame, so the cut doesn't jump in set, light and pose (SNAP-R252)`); }
   // SNAP-R236 (the operator, 2026-11-07; F-SQ23): an insert cites a frame of its master: that cut's active take at at_s
   let master = null;
   const closeUp = /\b(ECU|MCU|CU|close[- ]?up|insert|detail)\b/i.test(unit.camera ?? "");
@@ -685,7 +712,7 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
     still_prompt: still(ends, whoEnd),
     ...(moved ? { opens: { after: prev?.id ?? null, said: `the cut opens on the state ${prev ? `after ${prev.id}` : "before any beat"} and ends on the state after ${at.id}: the opening board draws the start, the key drawing the end`, still_prompt: still(opens, whoOpen), ...(held.length ? { held, board_role: "key" } : {}) } } : {}),
     ends: at ? { beat: at.id } : null,
-    speakers: [...new Set(lines.map((l) => l.who))], transition: unit.transition ?? null, timing: unit.timing ?? null, ...(dials ? { dials } : {}), ...(master ? { master } : {}), lint,
+    speakers: [...new Set(lines.map((l) => l.who))], transition: unit.transition ?? null, timing: unit.timing ?? null, ...(dials ? { dials } : {}), ...(master ? { master } : {}), ...(opening ? { opening } : {}), lint,
     from: Object.fromEntries(await Promise.all(Object.entries(from).map(async ([k, v]) => [k, W.short(await W.sha(v))]))),
   };
   out.board = await boardPackage(out).catch((e) => ({ error: e.message }));
@@ -715,6 +742,10 @@ export function cleanUnit(u, was = {}) {
   if (u.board !== undefined) out.board = u.board;
   if (u.key !== undefined) out.key = u.key; // F-F16: the beat's peak, a reference the cut builds to (the board is what it opens on)
   for (const k of ["dials", "master"]) if (u[k] !== undefined) { if (u[k] === null) delete out[k]; else out[k] = u[k]; } // SNAP-R230 rows; SNAP-R236 the insert's master
+  if (u.opens_on !== undefined) { if (u.opens_on === null) delete out.opens_on; else out.opens_on = u.opens_on; } // SNAP-R252
+  if (out.opens_on && (typeof out.opens_on.cut !== "string" || !(out.opens_on.at === undefined || out.opens_on.at === "out" || (Number.isFinite(out.opens_on.at) && out.opens_on.at >= 0))))
+    throw new Error(`opens_on is {cut: "C1", at?: "out" (default: its trim out-point) or seconds into its active take}; not ${JSON.stringify(out.opens_on)}`);
+  if (out.opens_on && out.opens_on.cut === out.cut) throw new Error(`opens_on names ${out.cut} itself: name the cut it continues`);
   for (const k of ["hold", "cite_master"]) if (u[k] !== undefined) { if (u[k] === null || u[k] === false) delete out[k]; else if (u[k] === true) out[k] = true; else throw new Error(`${k} is true or false; not ${JSON.stringify(u[k])}`); } // SNAP-R242
   if (out.master && (typeof out.master.cut !== "string" || !Number.isFinite(out.master.at_s) || out.master.at_s < 0 || (out.master.crop != null && !(Array.isArray(out.master.crop) && out.master.crop.length === 4 && out.master.crop.every((v) => typeof v === "number" && v >= 0 && v <= 1)))))
     throw new Error(`master is {cut: "C8", at_s: <seconds into its active take>, crop?: [x, y, width, height] in fractions}; not ${JSON.stringify(out.master)}`);
@@ -736,6 +767,13 @@ export async function addCut(bookRef, { scene, scene_name, name, ...u }, { by = 
   const out = await SC.addShot(sceneId, { name: name ?? cut, by });
   await SC.setUnit(sceneId, out.shot.id, unit, by, `${cut} planned`);
   return { book: `book:${book.id}`, scene: sceneId, shot: out.shot.id, cut, unit };
+}
+// SNAP-R253: once a Book cut has a picked take and its side has no set reference yet, the answer that picked it offers one
+export function setReferenceOffer(sceneId, shotId) {
+  const scene = SC.get(sceneId), shot = scene?.shots.find((x) => x.id === shotId), unit = shot?.unit, book = scene && bookOfScene(scene);
+  const loc = unit?.location && W.get(unit.location)?.version.body, plate = unit?.plate && loc?.plates?.find((p) => p.name === unit.plate);
+  if (!book || !plate || !shot.active || unit.opens_on || L.setPlateOf(loc, L.sideOf(plate))) return null;
+  return `side ${L.sideOf(plate)} of ${loc.name} has no set reference yet: if this take's look is the set, make_set_reference {book: "book:${book.id}", cut: "${unit.cut}"} makes one from it (people removed) for every cut on that side to play from (SNAP-R253)`;
 }
 export async function setUnit(sceneId, shotId, u, { by = "person" } = {}) {
   await SC.load();
@@ -821,10 +859,15 @@ export async function apply(sceneId, shotId, { by = "agent", beats = null, land 
   for (const p of refs()?.pictures ?? []) if (p.source === `book-state:${shotId}`) E.removePicture(p.node);
   for (const p of sheet.package.filter((x) => x.role.startsWith("state: "))) E.addPicture(p.file, { role: p.role, reason: p.why, source: `book-state:${shotId}` });
   // SNAP-R242 (M2, M7): the master stays out of a cut that has its camera plate, said, unless set_unit {cite_master: true}
-  if (unit.location) said.push((await L.applyLocation(unit.location, { plates: unit.plate ? [unit.plate] : [], plan: false, master: !unit.plate || !!unit.cite_master, ...(unit.plate ? { camera: unit.plate } : {}) })).said.replace(/ as <Picture \d+>/g, ""));
+  // SNAP-R252: a continuing cut opens on the previous cut's out-frame, which holds the set: no place pictures (v3a2's C2)
+  if (unit.location && sheet.opening) { for (const p of refs()?.pictures ?? []) if (p.source === `location:${W.parse(unit.location).id}`) E.removePicture(p.node); said.push(`the location's pictures are left out: ${sheet.opening.cut}'s out-frame holds the set, its light and its camera (SNAP-R252)`); }
+  else if (unit.location) said.push((await L.applyLocation(unit.location, { plates: unit.plate ? [unit.plate] : [], plan: false, master: !unit.plate || !!unit.cite_master, ...(unit.plate ? { camera: unit.plate } : {}) })).said.replace(/ as <Picture \d+>/g, ""));
   for (const x of sheet.left_out ?? []) if (x.role.startsWith("location: ")) said.push(`the location's master is left out of References: ${x.why} (SNAP-R242)`);
-  for (const p of refs()?.pictures ?? []) if (p.source === `book-board:${shotId}` || p.source === `book-key:${shotId}`) E.removePicture(p.node);
-  if (unit.board?.file && unit.board.approved) {
+  for (const p of refs()?.pictures ?? []) if (p.source === `book-board:${shotId}` || p.source === `book-key:${shotId}` || p.source === `book-opening:${shotId}`) E.removePicture(p.node);
+  if (sheet.opening) {
+    E.addPicture(sheet.opening.file, { role: `opening: ${sheet.opening.cut}'s out-frame`, reason: `take ${sheet.opening.number}, frame ${sheet.opening.frame} (${sheet.opening.at}): the cut continues ${sheet.opening.cut}'s action (SNAP-R252)`, source: `book-opening:${shotId}`, first: true });
+    said.push(`opens on ${sheet.opening.cut}'s out-frame (take ${sheet.opening.number}, frame ${sheet.opening.frame}, ${sheet.opening.at}) as the first reference picture, in place of ${unit.cut}'s own board (SNAP-R252)`);
+  } else if (unit.board?.file && unit.board.approved) {
     E.addPicture(unit.board.file, { role: `board: ${unit.cut}, the cut opens on it`, reason: "the approved board frame (SNAP-R131)", source: `book-board:${shotId}`, first: true });
     said.push("the approved board as a reference picture (Ref2V reads no first frame: for an exact opening, run FL2V with the board as the First frame)");
   }
@@ -845,10 +888,10 @@ export async function apply(sceneId, shotId, { by = "agent", beats = null, land 
   if (E.state().bricks.some((b) => b.key === "upscale")) said.push("the Upscale brick is in this recipe: its takes come out bigger than the Cut (take it out for the Cut's size)"); // F-F15
   // F-F09: every cite from References as they stand now, after the last picture went in
   const pics = E.references()?.pictures ?? [], heard = E.references()?.audio ?? [], cite = (test) => pics.filter((p) => p.role && test(p.role)).map((p) => p.cite);
-  const board = cite((r) => r.startsWith(`board: ${unit.cut}`)), key = cite((r) => r.startsWith(`key: ${unit.cut}`)), cam = cite((r) => r.startsWith("location: ") && r.endsWith("(camera)")),
+  const opens = cite((r) => r.startsWith(`opening: ${unit.opens_on?.cut}'s out-frame`)), board = cite((r) => r.startsWith(`board: ${unit.cut}`)), key = cite((r) => r.startsWith(`key: ${unit.cut}`)), cam = cite((r) => r.startsWith("location: ") && r.endsWith("(camera)")),
     place = cite((r) => r.startsWith("location: ") && r.endsWith("(place)"));
   const who = casts.map((e) => [e.name, pics.filter((p) => p.role?.startsWith(`cast: ${e.name},`) || (p.role?.startsWith("state: ") && sheet.package.some((x) => x.from === e.ref && x.file === p.file))).map((p) => p.cite)]).filter(([, c]) => c.length);
-  const hint = [board.length && `The cut opens on ${board[0]}: keep its framing and blocking.`, cam.length && `${cam.join(" and ")} ${cam.length > 1 ? "are" : "is"} this cut's camera on the place${board.length ? "" : ": keep its framing"}.`,
+  const hint = [opens.length && `${opens[0]} is the first frame: the shot opens exactly on it and keeps its camera, framing, set and light.`, board.length && `The cut opens on ${board[0]}: keep its framing and blocking.`, cam.length && `${cam.join(" and ")} ${cam.length > 1 ? "are" : "is"} this cut's camera on the place${board.length ? "" : ": keep its framing"}.`,
     place.length && `${place.join(", ")} show${place.length > 1 ? "" : "s"} the place (the same set, its buildings and layout), not this cut's framing.`,
     key.length && `${key[0]} is the beat's peak (a key drawing): the cut builds to it and does not open on it.`, ...who.map(([n, c]) => `${n} is ${c.join(" and ")}.`),
     ...cite((r) => r.startsWith(`continuity: ${unit.master?.cut} at`)).map((c) => `${c} is ${unit.master.cut}'s frame at ${unit.master.at_s} s, the shot this cuts in from: keep its light, colours and background.`)].filter(Boolean).join(" ");
@@ -884,6 +927,7 @@ export async function storyStale(take, { story = null, compiled = new Map() } = 
     const f = fields.get(k), [head, ...rest] = k.split(".");
     if (k === "style") reasons.push(`the production style ${s.from[k] ? "changed" : "was added"}`);
     else if (k === "dials") reasons.push(`dial rows ${!(k in s.from) ? "were planned" : !(k in now.from) ? "were taken out of the plan" : "changed"}`); // SNAP-R230
+    else if (k === "opens_on") reasons.push(`its opening frame ${k in now.from ? `changed (${now.opening?.cut ?? "the cut it continues"}'s active take or trim moved)` : "is no longer cited"}`); // SNAP-R252
     else if (k === "master") reasons.push(`its master's frame ${k in now.from ? "changed (the master cut's active take or the frame moved)" : "is no longer cited"}`); // SNAP-R236
     else if (/^b\d+$/.test(head)) reasons.push(`story: ${head}'s ${rest.join(" ")} changed`);
     else if (head.startsWith("location:") && !rest.length) reasons.push(`its place ${head} changed`);

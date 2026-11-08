@@ -577,7 +577,8 @@ export async function frameAt(take, t = "last", { frame: want, crop } = {}) {
 // follows it (library.js: under Ref2V it is also <Picture 1>, the opening frame, F-C32), which says what it did
 const firstFrames = new Set();
 export const onFirstFrame = (fn) => firstFrames.add(fn);
-export async function use(take, { as = "first_frame", t = "last", frame: want, crop, by = "person" } = {}) {
+// F-SQ49: `role` says a reference picture's job ("opening: C1's out-frame"), so References and the cites name it
+export async function use(take, { as = "first_frame", t = "last", frame: want, crop, role, by = "person" } = {}) {
   if (!["first_frame", "reference"].includes(as)) throw new Error(`Use a take as first_frame or reference, not ${as}`);
   const key = as === "first_frame" ? "first_frame" : "refs";
   if (!E.state().bricks.some((b) => b.key === key)) throw new Error(`Add the ${BRICKS[key].title} brick to use a take ${as === "first_frame" ? "as its first frame" : "as a reference"}`);
@@ -586,7 +587,7 @@ export async function use(take, { as = "first_frame", t = "last", frame: want, c
   let opening = null;
   app.canvas.emitBeforeChange();
   try {
-    if (as === "reference") E.addPicture(file, { role: `take ${take.number}, frame ${frame}${part}`, reason: `frame ${frame} of take ${take.number} (${take.id})${part}`, source: take.id });
+    if (as === "reference") E.addPicture(file, { role: role?.trim() || `take ${take.number}, frame ${frame}${part}`, reason: `frame ${frame} of take ${take.number} (${take.id})${part}`, source: take.id });
     else {
       const w = E.nodeFor("first_frame", "image").widgets.find((x) => x.name === "image");
       if (!w.options.values.includes(file)) w.options.values.push(file); // uploaded after the page loaded

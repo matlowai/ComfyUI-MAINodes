@@ -183,6 +183,9 @@ function words(r, tb) {
     const st = t.story ?? null, cast = castOf(t);
     for (const c of cast.filter((x) => x.from !== "pinned")) { const b = W.get(c.ref)?.version.body ?? {}; out.pins.push({ ref: c.ref, name: b.name, ...(b.details ? { details: b.details } : {}), not_pinned: `not pinned by this take: ${c.from}` }); }
     out.who_should_be_here = [...new Set(cast.map((c) => W.get(c.ref)?.version.body.name).filter(Boolean))];
+    // SNAP-R252: a cut that continues another's action opens on its out-frame; the cut-pair pass checks the join
+    const u = unitOf(t);
+    if (u?.opens_on) out.continuity = `${u.cut ?? "this cut"} continues ${u.opens_on.cut}'s action (opens_on, SNAP-R252): its frame 0 should equal ${u.opens_on.cut}'s active take at its trim out-point (the picture its References cite as "opening: ${u.opens_on.cut}'s out-frame") in camera, framing, set, light, pose and every prop's count and holder; name each difference`;
     // F-S05 (SNAP-R189): what the board's state takes away while a context picture may show it: a note when it is drawn
     if (st?.absent?.length) out.should_be_absent = { said: "the story's state at this frame leaves each of these out, though a picture it was made from may show it: a board that draws one back is a mismatch with the state (beat pass, high when it is in a hand the beat empties)", things: st.absent.map((a) => ({ who: a.who, thing: a.thing, beat: a.beat, shown_in: a.shows })) };
   }

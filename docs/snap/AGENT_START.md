@@ -679,6 +679,18 @@ it on the Library rail's **Book** row (lenses Beat sheet, Settei, Boards, Cut ba
   the Book: `wait_for` its run), then video per cut from its approved board (`apply_unit` opens it on the board), and
   `export_cut {"book"}` (the active takes in telling order with their trims and levels: one mp4 plus an OTIO file
   under output/snap_book/).
+- **Continuity across cuts** (SNAP-R252, R253; the operator, 2026-11-07 19:49 and 19:51):
+  - A cut that continues the previous cut's action opens on its out-frame: `set_unit {"scene", "shot", "opens_on":
+    {"cut": "C1"}}`. apply_unit puts C1's active take at its trim out-point first in References ("<Picture 1> is the
+    first frame: the shot opens exactly on it…") in place of the cut's own board, and leaves the location's pictures
+    out (the frame holds the set). Re-pick or re-trim C1 and C2 reads stale. A cut that follows another on the same
+    plate with no opens_on gets a lint. By hand: `use_take {"take", "as": "reference", "frame", "role": "opening: C1's
+    out-frame"}`.
+  - A new angle carries pose, props and timing in words and plays from its side's **set reference**: once the person
+    picks the take whose look is the set, `make_set_reference {"book", "cut"}` makes candidates from its out-frame with
+    the people removed (in a design lane beside the Book); `make_set_reference {"book", "cut", "pick": "<take>"}` saves
+    the picked one as the side's set plate; then `set_unit {plate}` on each cut of that side (compile_unit lints the
+    ones that don't yet). The location's master stays out of a cut that has its camera plate (SNAP-R242).
 - **Pages**: `export_fountain {"book"}` gives the story as a Fountain script (scene headings, action, `=` intents,
   dialogue under each name); `import_fountain {"book", "text"}` proposes a story from one. A beat keeps its id (and its
   changes) when its text is unchanged or edited in place in its scene; moving a scene changes telling order only.

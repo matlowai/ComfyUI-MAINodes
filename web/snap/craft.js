@@ -55,7 +55,7 @@ export function timingLint(text) {
 export function inclusion(pictures, unit = {}) {
   const out = [], role = (p) => p.role ?? "";
   for (const p of pictures.filter((x) => role(x).startsWith("key: ") && !unit.hold)) out.push(`error: ${p.cite} is a key drawing in References and this cut doesn't end on a held pose: ${KEY_TARGET}; take it out (set_unit {key: null}, or remove_ref), or set_unit {hold: true} when a 2 s build then a hold is what the cut wants (SNAP-R242)`);
-  const camera = pictures.some((x) => /\(camera\)$/.test(role(x)) || role(x).startsWith("set: "));
+  const camera = pictures.some((x) => /\(camera\)$/.test(role(x)) || role(x).startsWith("opening: "));
   if (camera) for (const p of pictures.filter((x) => /^location: .*\(place\)$/.test(role(x)))) out.push(`error: ${p.cite} (${role(p).replace(/^location: /, "")}) is in References beside this cut's camera picture: ${MASTER_TARGET}; leave it out (apply_unit does unless set_unit {cite_master: true}) (SNAP-R242)`);
   return out;
 }

@@ -74,6 +74,11 @@ until the person accepts it. Tool calls: `docs/snap/AGENT_START.md` ("The Book")
    `animatic {book}` and run the cut-pair checks on the boards (`snap-critic`). Fixes cost seconds here.
    Once a scene's boards are in, propose its colour frame (`set_colour_frame`: the board whose colour and light the
    scene keeps; the colour script strip on the Beat sheet).
+7b. **Continuity across cuts** (SNAP-R252, R253). A cut that continues the previous cut's action:
+   `set_unit {opens_on: {cut}}` (it opens on that cut's out-frame; its own board and the place pictures stay out).
+   A new angle: words carry pose, props and timing, and it plays from its side's set reference. After the person picks
+   the first cut's take on a side, `make_set_reference {book, cut}` → pick → `make_set_reference {book, cut, pick}`,
+   then `set_unit {plate}` on the side's cuts. Render the continuing cut after the one it continues is picked.
 8. **Video.** `apply_unit` then `run` per approved cut. `story_stale {book}` after any story or style edit tells which
    takes moved, by field and beat. To try a cut at a story moment without touching the Cut, copy its shot
    (`add_shot {scene, from: {scene, shot}}`: the copy carries no story pin) and `apply_unit {scene, shot, land: {scene,

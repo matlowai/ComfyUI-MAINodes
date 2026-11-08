@@ -2263,3 +2263,27 @@ Next free ID after this batch: SNAP-R240 (R160-R164 stay free; G16 reserved R215
   clash like <Picture 4>" made H3 jump-cut into the key's framing at ~2 s on 2/2 seeds and stall (motion 2.6 against
   ~10.8); G17a's own test story wrote "Corvin holds like <Picture 4>" and only a soft lint caught it. *More:* study
   PROMPT_CRAFT_RULES PC-06; tests/snap/test_g17b_craft.js.
+- **SNAP-R252: A cut that continues the previous cut's action opens on that cut's out-frame.** `set_unit {opens_on:
+  {cut, at?}}`: the named cut's ACTIVE take at its trim out-point (the last frame the Cut shows: frame ceil(out_s × 24)
+  − 1, so an out of 3.75 s is frame 89; `at` seconds picks another frame) goes into the cut's package and References as
+  `opening: <cut>'s out-frame`, first, cited "<Picture 1> is the first frame: the shot opens exactly on it and keeps
+  its camera, framing, set and light"; the cut's own board and the location's pictures stay out (the frame holds the
+  set), said; `from.opens_on` makes the cut stale ("its opening frame changed") when that take or its trim moves; a cut
+  that follows another on the same plate with no opens_on gets a lint; `use_take {as: "reference", role}` names a hand-
+  pulled frame's job (F-SQ49); the critic packet's `continuity` sentence asks the cut-pair pass to compare the join.
+  *Why:* the operator, 2026-11-07 19:49: "the jump between the 2 scenes is a bit rough; it needs that last frame as a
+  reference in Ref2V, talking about it being the first frame of the next ... also that needs to be a rule"; short05
+  v3a2's C2, made this way by hand, joined C1 seamlessly (RERUN_V3 "C1 → C2"). *More:* study DESIGN_WORLD_STATE §4.3,
+  §8.1 item 1; dogfood F-SQ49; tests/snap/test_g17b_continuity.js.
+- **SNAP-R253: Every cut plays from its side's set reference, made from the picked look; the walkthrough plates stay.**
+  A location's plates may carry `side` (a camera side; without it a plate's side is its camera mark, else its name) and
+  `set: true` (that side's set reference). `make_set_reference {book, cut}` makes candidates from the cut's active
+  take at its trim out-point with every person removed (a New view on P-H3-Image, purpose plate), landing in a design
+  lane beside the Book ("<Book> · set references", one shot per side), never in the cut's own shot; `make_set_reference
+  {book, cut, pick}` saves the picked still as a plate (set, role camera, the cut's plate's camera mark and pose, its
+  provenance) as a new location version and names the cuts on that side that don't play from it. `compile_unit` lints
+  a cut whose plate isn't its side's set reference when one exists, and a side with none; `set_active_take` and
+  `apply_candidate` on a Book cut whose side has none offer the call. *Why:* the operator, 2026-11-07 19:51: "that
+  scene needs a proper 'this is the set' type reference for each of the shots to play from"; short05 v3a2's P1b, made
+  by hand this way from C1's out-frame, held the stall for C4 (RERUN_V3 "Set reference"); F-SQ50 (plates made before
+  the look was picked made the set jump). *More:* study DESIGN_WORLD_STATE §4.3, §8.1 item 2; tests/snap/test_g17b_continuity.js.

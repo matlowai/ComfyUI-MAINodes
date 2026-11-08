@@ -581,6 +581,10 @@ export function camerasOf(list) {
     return { name: c.name.trim(), ...poseOf(Object.fromEntries(POSE.filter((k) => c[k] != null).map((k) => [k, c[k]])), `camera ${c.name}`), ...(c.note?.trim() ? { note: c.note.trim() } : {}) };
   });
 }
+// SNAP-R253: the camera side a plate stands for: its side, else its camera mark, else its own name; and a side's set
+// reference (the newest plate marked set on that side)
+export const sideOf = (p) => p?.side ?? p?.camera ?? p?.name ?? null;
+export const setPlateOf = (b, side) => [...(b?.plates ?? [])].reverse().find((p) => p.set && sideOf(p) === side) ?? null;
 // a location's change in words (SNAP-R177 dry runs): plates and camera marks by name ("plate P1 added", "plate P1.pose.eye_height
 // 1.6 → 1.7", "camera mark C2 taken out"), every other field as diff_record says it
 export function locationDiff(a, b) {
@@ -609,7 +613,9 @@ export async function saveLocation(id, body, { note = "", by = "person", dry = f
     if (names.has(name)) throw new Error(`Two plates are named "${name}": a plate is cited by its name, so each name once`);
     names.add(name);
     if (p.camera && !cameras.some((c) => c.name === p.camera)) throw new Error(`plate ${name}: no camera mark "${p.camera}"; the marks are ${cameras.map((c) => c.name).join(", ") || "none"}`);
-    plates.push({ name, ...await locationPicture(sourced(p), `plate ${name}`, dry), ...roleIn(p.role, `plate ${name}`), pose: poseOf(p.pose, `plate ${name}`), ...(p.camera ? { camera: p.camera } : {}), ...(p.use?.trim() ? { use: p.use.trim() } : {}), ...(p.note?.trim() ? { note: p.note.trim() } : {}) });
+    if (p.set != null && typeof p.set !== "boolean") throw new Error(`plate ${name}: set is true (this side's set reference, SNAP-R253) or false; not ${JSON.stringify(p.set)}`);
+    plates.push({ name, ...await locationPicture(sourced(p), `plate ${name}`, dry), ...roleIn(p.role, `plate ${name}`), pose: poseOf(p.pose, `plate ${name}`), ...(p.camera ? { camera: p.camera } : {}), ...(p.use?.trim() ? { use: p.use.trim() } : {}), ...(p.note?.trim() ? { note: p.note.trim() } : {}),
+      ...(p.side?.trim() ? { side: p.side.trim() } : {}), ...(p.set ? { set: true } : {}) }); // SNAP-R253: the camera side a plate belongs to, and whether it is that side's set reference
   }
   const master = await locationPicture(sourced(body.master), "master", dry);
   const plan = await locationPicture(sourced(body.plan), "plan", dry), shapes = body.plan?.shapes; // SNAP-R133: a plan drawn in Snap keeps its shapes beside its picture
