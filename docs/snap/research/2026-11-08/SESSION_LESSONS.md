@@ -25,3 +25,13 @@ Relevant complete current entries, including historical gate caveats; geometry c
 - **Crash recovery (2026-11-08):** GNOME Shell SIGSEGV killed desktop/agent control but surviving Comfy services finished queued assets. Reconcile history/files/queue before restarting or rerendering. Saved assets and reports recovered all six runs; no regeneration had queued. Elevated health checks distinguished sandbox GPU access failure from driver failure. Recreate only unfinished agents, recover visible Chrome/page ids and serialize heavy runs.
 
 - **Do not promote a generated geometry error into canon (2026-11-08):** the first aerial became square despite the original rectangular terrace, and its repair prompt then explicitly said “preserve square terrace.” Coordinator review noted a rough proxy but still overstated aerial-transfer feasibility. Correcting duplicate landmarks was insufficient. Check footprint, proportions, ring scale and landmark relationships against original sources before using a derived aerial; distinguish image canvas from floor shape. An existing camera plate and explicit words can explain a nice output, so a matching no-plate/aerial-only arm is needed before attributing continuity to the map.
+
+
+## Native Director integration follow-up
+
+- A strategy preview is a proposal over existing native records. Its `ok` flag does not establish generation readiness, accepted geometry or completed criticism. Reconcile actual native reference order before a render.
+- Read method-specific instruction scopes for the selected method, including inherited native purpose choices. A tool-only stack can omit the person's guidance. Preserve Book/shot isolation and make genuine cycles visible.
+- Put an extension's entry in the actual Snap view. A ComfyUI action-bar registration alone is hidden by the Snap overlay. Scoped preferences should follow the selected Book; preserve an explicit global choice.
+- Remove arbitrary text/candidate/reference ceilings in imported code. Keep real native limits and caller-supplied budgets; return every omission, and report when a required first canvas was excluded.
+- Qualify read-only previews on initialized native storage by comparing graph and user-file hashes. Synthetic fixture scene shots must carry their native `takes` arrays; fixture errors are not product defects.
+- Keep the full gate, pure-module checks, visible UI checks, GPU checks and fresh critic results separate. A successful runner exit is insufficient when it does not aggregate per-suite failures.

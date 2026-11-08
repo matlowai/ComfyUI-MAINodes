@@ -27,7 +27,10 @@ cards=$SNAP_TEST_BASE/user/default/snap/cards
 real=$SNAP_TEST_REAL_MODELS; stamp=_debug/run_all_start.stamp
 IFS=: read -ra extra_models <<< "${SNAP_TEST_MODEL_DIRS:-}"
 bash "$T/real_models_guard.sh" before "$stamp" "$real" "$SNAP_TEST_BASE/models" "$SNAP_TEST_FRESH_BASE/models" "${extra_models[@]}" ${SNAP_TEST_GATETEST_BASE:+"$SNAP_TEST_GATETEST_BASE/models"} || exit 1
-park() { for d in cards cast card set_snapshot location instruction skill book story look instructions.json critiques dependents proposals.json critic_fixtures critic_report _migrated _archived crew rules.json takes candidates scenes rankings judgments models.json ../../snap_blind.json private.json profile.json ../workflows/snap\ fresh\ test.json ../workflows/snap\ fresh\ copy.json; do src="$(dirname "$cards")/$d"; [ -e "$src" ] && mkdir -p "$(dirname "$cards")/_parked" && mv "$src" "$(dirname "$cards")/_parked/$(basename "$d")-$(date +%H%M%S)-$RANDOM"; done; onboarded; curl -s -o /dev/null -X POST "http://127.0.0.1:$port/settings/MAINodes.Snap.AgentsMayRun" -d false; curl -s -o /dev/null -X POST "http://127.0.0.1:$port/history" -H 'Content-Type: application/json' -d '{"clear": true}'; true; }  # G1: an earlier suite's finished jobs would be adopted as takes (F-C25) by the next page; G3: Let agents run goes back off (a suite that turned it on would hand the next one runs instead of proposals)
+park_records() { local cards=$1; for d in cards cast card set_snapshot location instruction skill book story look instructions.json critiques dependents proposals.json critic_fixtures critic_report _migrated _archived crew rules.json takes candidates scenes rankings judgments models.json ../../snap_blind.json private.json profile.json ../workflows/snap\ fresh\ test.json ../workflows/snap\ fresh\ copy.json; do src="$(dirname "$cards")/$d"; [ -e "$src" ] && mkdir -p "$(dirname "$cards")/_parked" && mv "$src" "$(dirname "$cards")/_parked/$(basename "$d")-$(date +%H%M%S)-$RANDOM"; done; true; }
+park() { park_records "$cards"; onboarded; curl -s -o /dev/null -X POST "http://127.0.0.1:$port/settings/MAINodes.Snap.AgentsMayRun" -d false; curl -s -o /dev/null -X POST "http://127.0.0.1:$port/history" -H 'Content-Type: application/json' -d '{"clear": true}'; true; }  # G1: an earlier suite's finished jobs would be adopted as takes (F-C25) by the next page; G3: Let agents run goes back off (a suite that turned it on would hand the next one runs instead of proposals)
+# SNAP-R126: each GPU proof gets its own Cast voices; library distractors from another suite change the QA margins.
+park_gpu() { if [ -n "${SNAP_TEST_GPU_BASE:-}" ]; then park_records "$SNAP_TEST_GPU_BASE/user/default/snap/cards"; curl -s -o /dev/null -X POST "http://127.0.0.1:$gpu_port/history" -H 'Content-Type: application/json' -d '{"clear": true}'; fi; true; }
 # a parked profile would make Snap open onboarding by itself on the next suite's first visit: start from an answered one
 onboarded() { curl -s -o /dev/null -X POST "http://127.0.0.1:$port/userdata/snap%2Fprofile.json" -H 'Content-Type: application/json' -d '{"intents":[],"sfw_only":false,"api_tasks":[],"answered":["intent","scan","metadata","sfw","local","code","kit"],"done":true}'; }
 # U79 (SNAP-R96..R98): with privacy on, a private take is saved encrypted, and saving one needs the person's vault key.
@@ -535,10 +538,10 @@ if gpu_up; then for t in test_g1b_id_copy.py test_g1b_voice.py; do nice -n 19 "$
 # G16 words timed in Snap (SNAP-R227; G17b: by the Voice QA's Nemotron Transcribe, SNAP-R240) on the GPU test unit with
 # the AudioCPP fork: a real line read, Nemotron exact against the cut's line, the words on the dialogue clip and in
 # Astrid's timelines words (with SNAP_TEST_ASTRID_LAUNCHER/_ROOT); prints "g16words n/m"
-if gpu_up; then for t in test_g16_words.js; do timeout 900 node "$T/$t" >$t.out 2>&1; tail -1 $t.out; done; else echo "g16words skipped: no server on :$gpu_port"; fi
+if gpu_up; then for t in test_g16_words.js; do park_gpu; timeout 900 node "$T/$t" >$t.out 2>&1; tail -1 $t.out; done; else echo "g16words skipped: no server on :$gpu_port"; fi
 # G17b the Voice QA in the voice note (SNAP-R240) on the GPU test unit with the AudioCPP fork: F-SQ11's leak listed as
 # unscripted, short05 C4's line ok by voice against four Cast voices, a silent Book cut checked too; prints "g17bvoiceqa n/m"
-if gpu_up; then for t in test_g17b_voice_qa.js; do timeout 1500 node "$T/$t" >$t.out 2>&1; tail -1 $t.out; done; else echo "g17bvoiceqa skipped: no server on :$gpu_port"; fi
+if gpu_up; then for t in test_g17b_voice_qa.js; do park_gpu; timeout 1500 node "$T/$t" >$t.out 2>&1; tail -1 $t.out; done; else echo "g17bvoiceqa skipped: no server on :$gpu_port"; fi
 # library marks + remove_lora by file + cache_hit, the shot's truth line + no-write browsing, Send to + Cast pictures +
 # re-run out, Play scene + stills door + phone; each prints "g2<name> n/m" last (port and base)
 for t in test_g2_refs.js test_g2_shots.js test_g2_fd.js test_g2_misc.js test_g2_truth.js test_g2_send.js test_g2_polish.js; do park; timeout 600 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
@@ -689,4 +692,6 @@ park; nice -n 19 python3 -I "$T"/test_private_files.py "$port"
 nice -n 19 python3 -I "$T"/test_privacy_switch.py "$port"
 nice -n 19 python3 -I "$T"/test_identity_notes.py "$port"
 python3 -I "$T"/test_dataset.py; node "$T"/test_continuity.mjs | head -1; node "$T"/test_continuity_heldout.mjs | head -1; node "$T"/test_coverage.mjs | head -1; node "$T"/test_eyeline_heldout.mjs | head -1
+# SNAP-R272: dependency-free Director contracts; retain every test result in the gate output folder.
+if nice -n 19 node --test "$T"/director/*.test.mjs >director.out 2>&1; then echo "director PASS (complete results: director.out)"; else echo "director FAIL (complete results: director.out)"; fi
 bash "$T/real_models_guard.sh" after "$stamp" "$real"

@@ -2413,4 +2413,24 @@ Next free ID after this batch: SNAP-R254 (G18 reserved R254-R262, G19 R263-R266)
   *More:* study SCENE_REFERENCE_MINIMUM_2026-11-08.md; `snap-location`, `snap-new-view`, `snap-set-design`,
   `snap-model-choice`.
 
-Next free ID after this batch: SNAP-R272 (G18 reserved R254-R262, G19 R263-R266).
+- **SNAP-R272: Production strategies preview native work and retain native authority.** A strategy resolves exact
+  versioned data into an inspectable plan over existing tools. Preview does not create records, materialize frames,
+  change graphs, queue work or grant permission. Variants use existing versioned cards; parameter preferences use
+  native instruction notes and their scope, supersession and pins. Resolve each cut/tool independently, including its
+  selected method's notes; expose an actual method-choice cycle. Default a saved preference to the selected production
+  or narrower target, with global available explicitly. Replan after accepted changes, picks and trims. Keep all
+  diagnostics and supplied inputs; limits come from the actual native capability or an explicit helper profile.
+  Reference-role and duration helpers remain proposals; native compilers own final sockets, prompts and schedules.
+  R270 and R271 still govern initialization and scene preparation. Strategies are visible in Snap's Library rail and
+  use the same command/dialog and tool boundary as the ordinary frontend. *Why:* customizable directing must preserve
+  existing work, per-production choices and the measured native generation paths. *More:* `director/README.md`;
+  `snap-director`; `tests/snap/director/`.
+
+- **SNAP-R273: Book instructions match their explicit Book and its scene contexts.** Book-scoped notes apply to an
+  explicit Book context, a Book pin, or a shot/scene listed by that Book. Other Books retain their own notes. The
+  normal resolver's precedence, off marks, conflicts and queued instruction pins remain authoritative. Treat
+  activation of previously unmatched Book notes as a behavior change and inspect existing stacks before rendering.
+  *Why:* the declared Book scope formerly fell through the matcher, silently omitting production guidance.
+  *More:* `director/README.md`; `tests/snap/director/native-instructions.test.mjs`.
+
+Next free ID after this batch: SNAP-R274 (G18 reserved R254-R262, G19 R263-R266).

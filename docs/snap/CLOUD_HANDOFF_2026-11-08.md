@@ -1,5 +1,7 @@
 # Cloud pickup — 2026-11-08
 
+> **CURRENT WIP ADDITION:** Native Director was integrated after this original checkpoint. Start its [integration evidence](director/INTEGRATION_2026-11-08.md) and [Astra consultation](director/ASTRA_REVIEW_2026-11-08.md). The latest WIP remains the working branch. Full final-code regression is being qualified separately; no live deployment is claimed.
+
 > **READ FIRST:** Use the [current session evidence and corrections](research/2026-11-08/README.md), then [canonical Snap rules](SNAP_RULES.md) and the relevant [portable snap-core entrypoint](../../.agents/skills/snap-core/SKILL.md). Read the task skill before driving Snap. All source, reports and tests are WIP; no full G17b gate or production readiness is claimed. Main serving pack remains G17a `8542b92` at this capture.
 
 Checkpoint branch: `snap-research-2026-11-08`, based on `28a4351`. This is a research WIP for cloud code review, not the gated `snap` branch.

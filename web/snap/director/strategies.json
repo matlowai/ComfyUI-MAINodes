@@ -1,0 +1,308 @@
+{
+  "schema": "snap.strategy-catalogue/v1",
+  "strategies": [
+    {
+      "schema": "snap.production-strategy/v1",
+      "id": "script-to-film",
+      "version": "1.0.0",
+      "name": "Script to Film",
+      "summary": "An editable Book, source-grounded boards, native takes, review and Cut/OTIO. The plan proposes work; it never executes it.",
+      "status": "ready",
+      "parameters": {
+        "candidate_count": 2,
+        "reuse_approved": true,
+        "coverage": "natural",
+        "review": "full",
+        "export_cut": true
+      },
+      "skills": [
+        "snap-core",
+        "snap-book",
+        "snap-director",
+        "snap-boards",
+        "snap-critic"
+      ],
+      "stages": [
+        {
+          "id": "orient",
+          "kind": "orient",
+          "after": []
+        },
+        {
+          "id": "book",
+          "kind": "book",
+          "after": [
+            "orient"
+          ]
+        },
+        {
+          "id": "story",
+          "kind": "story",
+          "after": [
+            "book"
+          ]
+        },
+        {
+          "id": "assets",
+          "kind": "assets",
+          "after": [
+            "story"
+          ]
+        },
+        {
+          "id": "location",
+          "kind": "location",
+          "after": [
+            "assets"
+          ]
+        },
+        {
+          "id": "coverage",
+          "kind": "coverage",
+          "after": [
+            "location"
+          ]
+        },
+        {
+          "id": "boards",
+          "kind": "boards",
+          "after": [
+            "coverage"
+          ]
+        },
+        {
+          "id": "animatic",
+          "kind": "animatic",
+          "after": [
+            "boards"
+          ]
+        },
+        {
+          "id": "generate",
+          "kind": "generate",
+          "after": [
+            "animatic"
+          ]
+        },
+        {
+          "id": "critique",
+          "kind": "critique",
+          "after": [
+            "generate"
+          ]
+        },
+        {
+          "id": "sequence",
+          "kind": "sequence_review",
+          "after": [
+            "critique"
+          ]
+        },
+        {
+          "id": "export",
+          "kind": "export",
+          "after": [
+            "sequence"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "snap.production-strategy/v1",
+      "id": "dialogue-director",
+      "version": "1.0.0",
+      "name": "Dialogue Director",
+      "summary": "Speaker-aware voices, deliberate coverage and same-camera versus new-angle continuity; no automatic camera cut on each spoken line.",
+      "status": "ready",
+      "extends": "pack:script-to-film@1.0.0",
+      "parameters": {
+        "coverage": "cinematic",
+        "continuation": "auto"
+      },
+      "skills": [
+        "snap-voice",
+        "snap-location"
+      ],
+      "stages": [
+        {
+          "id": "voices",
+          "kind": "voices",
+          "after": [
+            "assets"
+          ]
+        },
+        {
+          "id": "location",
+          "kind": "location",
+          "after": [
+            "voices"
+          ]
+        },
+        {
+          "id": "coverage",
+          "kind": "coverage",
+          "after": [
+            "location"
+          ],
+          "guidance": "Choose two-shot, reverse, reaction and insert coverage for intention, not a formula. Keep eyelines consistent; never infer calibrated geometry from a camera label."
+        }
+      ]
+    },
+    {
+      "schema": "snap.production-strategy/v1",
+      "id": "transform-footage",
+      "version": "1.0.0",
+      "name": "Transform Footage",
+      "summary": "Version an existing video take through native edit/recast tools, candidate review and optional upscale. Unsupported temporal masking is a visible gap.",
+      "status": "ready",
+      "parameters": {
+        "edit_mode": "edit",
+        "edit_method": "remake_edit",
+        "upscale": false,
+        "export_cut": false
+      },
+      "skills": [
+        "snap-core",
+        "snap-director",
+        "snap-model-choice",
+        "snap-critic"
+      ],
+      "stages": [
+        {
+          "id": "orient",
+          "kind": "orient",
+          "after": []
+        },
+        {
+          "id": "source",
+          "kind": "source",
+          "after": [
+            "orient"
+          ]
+        },
+        {
+          "id": "transform",
+          "kind": "transform",
+          "after": [
+            "source"
+          ]
+        },
+        {
+          "id": "critique",
+          "kind": "critique",
+          "after": [
+            "transform"
+          ]
+        },
+        {
+          "id": "upscale",
+          "kind": "upscale",
+          "after": [
+            "critique"
+          ],
+          "optional": true
+        }
+      ]
+    },
+    {
+      "schema": "snap.production-strategy/v1",
+      "id": "character-world",
+      "version": "0.1.0",
+      "name": "Character and World Builder",
+      "summary": "Future specialized reuse and approval workflow for Cast and complete location packets.",
+      "status": "draft",
+      "skills": [
+        "snap-core",
+        "snap-director"
+      ],
+      "stages": [
+        {
+          "id": "orient",
+          "kind": "orient",
+          "after": [],
+          "guidance": "Design example only. Do not advertise this as a functioning production preset."
+        }
+      ]
+    },
+    {
+      "schema": "snap.production-strategy/v1",
+      "id": "action-continuity",
+      "version": "0.1.0",
+      "name": "Action Continuity",
+      "summary": "Future action-phase and intended/observed/accepted state reconciliation.",
+      "status": "draft",
+      "skills": [
+        "snap-core",
+        "snap-director"
+      ],
+      "stages": [
+        {
+          "id": "orient",
+          "kind": "orient",
+          "after": [],
+          "guidance": "Design example only. Do not advertise this as a functioning production preset."
+        }
+      ]
+    },
+    {
+      "schema": "snap.production-strategy/v1",
+      "id": "episodic",
+      "version": "0.1.0",
+      "name": "Episodic Production",
+      "summary": "Future multi-Book dependency planning; not a new scheduler.",
+      "status": "draft",
+      "skills": [
+        "snap-core",
+        "snap-director"
+      ],
+      "stages": [
+        {
+          "id": "orient",
+          "kind": "orient",
+          "after": [],
+          "guidance": "Design example only. Do not advertise this as a functioning production preset."
+        }
+      ]
+    },
+    {
+      "schema": "snap.production-strategy/v1",
+      "id": "music-video",
+      "version": "0.1.0",
+      "name": "Music Video Director",
+      "summary": "Future lyric/beat-grid consumer using clip seconds, not diffusion steps.",
+      "status": "draft",
+      "skills": [
+        "snap-core",
+        "snap-director"
+      ],
+      "stages": [
+        {
+          "id": "orient",
+          "kind": "orient",
+          "after": [],
+          "guidance": "Design example only. Do not advertise this as a functioning production preset."
+        }
+      ]
+    },
+    {
+      "schema": "snap.production-strategy/v1",
+      "id": "production-lab",
+      "version": "0.1.0",
+      "name": "Production Lab",
+      "summary": "Future controlled native-method experiments with existing candidates and critique records.",
+      "status": "draft",
+      "skills": [
+        "snap-core",
+        "snap-director"
+      ],
+      "stages": [
+        {
+          "id": "orient",
+          "kind": "orient",
+          "after": [],
+          "guidance": "Design example only. Do not advertise this as a functioning production preset."
+        }
+      ]
+    }
+  ]
+}

@@ -4,7 +4,7 @@
 // tabs for new work · SNAP-R7 pointer-down lists · SNAP-R19 actions call their tools' functions · SNAP-R20 the metadata
 // switch · SNAP-R9 the Setup brick · SNAP-R24 the scene navigator above the chain · SNAP-R25 onboarding, SFW only ·
 // SNAP-R29 onboarding opens by itself only for a person · SNAP-R30 a recipe opens runnable (seconds on the Render face) ·
-// SNAP-R34 the gate's account in the top bar, a lock that keeps the page · SNAP-R65 the Work pill · SNAP-R66 arrivals announce, Open moves · SNAP-R73 References shows each <Audio n> · SNAP-R93/R94 the Agent library row and the Agent instructions button · see docs/snap/SNAP_RULES.md
+// SNAP-R34 the gate's account in the top bar, a lock that keeps the page · SNAP-R65 the Work pill · SNAP-R66 arrivals announce, Open moves · SNAP-R73 References shows each <Audio n> · SNAP-R93/R94 the Agent library row and instructions · SNAP-R272 production strategies · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -271,7 +271,9 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   const newCast = h("button", { className: "snap-link snap-quiet-btn snap-new-cast", textContent: "+ New cast member", title: "a character kept once on a Cast record: name, trigger words, details, identity LoRA, reference pictures" , onclick: () => editCast() });
   const worldBtn = h("button", { className: "snap-link snap-quiet-btn snap-new-cast", textContent: "World: versions and sizes", title: "every record and version you keep, with sizes and the takes that pin them: archive, export or delete (your choice)",
     onclick: () => openWorld(root, { say, onChange: () => { render(null); renderLibrary(); } }).catch((err) => say(err.message, true)) });
-  rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libSfw, h("div", { className: "snap-rail-sub", textContent: "LoRAs by kind" }), libLoras, h("div", { className: "snap-rail-actions" }, newCast, newLocation, worldBtn, AL.railButton({ say }), BV.railButton({ say })), libResults); // SNAP-R67 the Book
+  const strategies = h("button", { className: "snap-link snap-quiet-btn snap-new-cast", textContent: "Production strategies", title: "preview and customize a native production plan",
+    onclick: () => app.extensionManager.command.execute("MAINodes.Snap.Director.Open").catch((err) => say(err.message, true)) });
+  rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libSfw, h("div", { className: "snap-rail-sub", textContent: "LoRAs by kind" }), libLoras, h("div", { className: "snap-rail-actions" }, newCast, newLocation, worldBtn, AL.railButton({ say }), BV.railButton({ say }), strategies), libResults); // SNAP-R67 the Book
   T.onChange(() => renderLibrary());
   PF.onChange(() => { render(null); renderLibrary(); }); // SFW only changes what the pickers and the Library list
   PF.load().then(() => { render(null); renderLibrary(); });

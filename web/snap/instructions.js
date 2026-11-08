@@ -1,7 +1,7 @@
 // Agent instructions and skills (U103/U104, DESIGN_U103_U104_AGENT_LIBRARY §4). A note is one scoped line an agent
 // reads: kind note (text) or model_choice (job → choice, why), with one scope: global, tool:<name>, brick:<key>,
-// method:<id>, a pinned record (cast:/location:/card:<id>), scene:<id>, shot:<scene>/<shot>, take:<id> (book:<id> is
-// kept for the Book). Three layers hold notes: the pack (snap_cards/pack_notes.json, version 0 with a hash), the install
+// method:<id>, a pinned record (cast:/location:/card:<id>), book:<id>, scene:<id>, shot:<scene>/<shot>, take:<id>.
+// Three layers hold notes: the pack (snap_cards/pack_notes.json, version 0 with a hash), the install
 // (admins' shared records on a gated install, from the server) and the person (their `instruction` world records,
 // SNAP-R60). For a context (the open recipe, a tool, a take) the stack is the fold pack → install → person → book →
 // scene → shot → take, general targets before specific, oldest first; a note adds unless its `supersedes` names an
@@ -11,7 +11,7 @@
 // person's version is a `skill` record over one, its body keeping the pack text it started from.
 // SNAP-R93 layered instructions resolved per scope and pinned per run · SNAP-R94 skills: pack files with a person's
 // version over them · SNAP-R95 an agent's note applies at once, marked, one click off; an agent turning off a person's
-// or the pack's note is a proposal (SNAP-R23) · SNAP-R58 never trimmed · SNAP-R17 by person / agent · see docs/snap/SNAP_RULES.md
+// or the pack's note is a proposal (SNAP-R23) · SNAP-R58 never trimmed · SNAP-R17 by person / agent · SNAP-R273 Book scope · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as W from "./world.js";
 import * as E from "./engine.js";
@@ -94,10 +94,16 @@ function matches(scope, c) {
   if (kind === "brick") return c.bricks.includes(rest);
   if (kind === "method") return c.methods.includes(rest);
   if (kind === "cast" || kind === "location" || kind === "card") return c.pins.includes(scope);
+  if (kind === "book") {
+    // SNAP-R273: explicit Book context or native scene ownership; unrelated Books stay separate.
+    if (c.book != null) return c.book === rest;
+    if (c.pins.includes(scope)) return true;
+    return !!c.scene && (W.get(scope)?.version.body.scenes ?? []).includes(c.scene);
+  }
   if (kind === "scene") return c.scene === rest;
   if (kind === "shot") return `${c.scene}/${c.shot}` === rest;
   if (kind === "take") return c.take === rest;
-  return false; // book: kept for the Book (U97)
+  return false;
 }
 
 // the open recipe as a context: its bricks, the methods wired, the records it pins, the tab's scene and shot
@@ -116,7 +122,7 @@ function takeContext(t) {
 // a scope string as the context it asks about: "what applies to Render in this shot", "to this scene", "to this Cast"
 export async function contextOf(scope) {
   if (scope == null) return here();
-  if (!SCOPE.test(scope)) throw new Error(`"${scope}" isn't a scope: global, tool:<name>, brick:<key>, method:<id>, cast:<id>, location:<id>, card:<id>, scene:<id>, shot:<scene>/<shot> or take:<id>`);
+  if (!SCOPE.test(scope)) throw new Error(`"${scope}" isn't a scope: global, tool:<name>, brick:<key>, method:<id>, cast:<id>, location:<id>, card:<id>, book:<id>, scene:<id>, shot:<scene>/<shot> or take:<id>`);
   const [kind, rest] = [scope.split(":")[0], scope.slice(scope.indexOf(":") + 1)], h = here();
   if (kind === "tool") return { ...h, tool: rest };
   if (kind === "brick") return { ...empty, bricks: [rest], methods: [S.method(rest)].filter(Boolean), scene: h.scene, shot: h.shot };
@@ -205,7 +211,7 @@ export async function save(id, fields, { note = "", by: who = caller } = {}) {
   if (id && !was) throw new Error(`No note ${id}; list_instructions shows them (a pack note is changed by a note that replaces it: supersedes [its ref], mode "replace")`);
   const body = bodyOf({ ...(was ? W.headOf(was).body : {}), ...fields });
   body.kind ??= "note";
-  if (!SCOPE.test(body.scope ?? "")) throw new Error(`scope "${body.scope}" isn't one: global, tool:<name>, brick:<key>, method:<id>, cast:<id>, location:<id>, card:<id>, scene:<id>, shot:<scene>/<shot> or take:<id>`);
+  if (!SCOPE.test(body.scope ?? "")) throw new Error(`scope "${body.scope}" isn't one: global, tool:<name>, brick:<key>, method:<id>, cast:<id>, location:<id>, card:<id>, book:<id>, scene:<id>, shot:<scene>/<shot> or take:<id>`);
   if (!["note", "model_choice"].includes(body.kind)) throw new Error(`kind is "note" or "model_choice", not ${JSON.stringify(body.kind)}`);
   if (body.kind === "note" && !String(body.text ?? "").trim()) throw new Error("a note needs text: the line an agent reads");
   if (body.kind === "model_choice" && !(body.job && body.choice)) throw new Error("a model_choice needs job (what it is for) and choice (the model or method), and says why");
@@ -268,7 +274,7 @@ export function lineDiff(a, b) {
 }
 
 // ---- the tools (spread into tools.js TOOLS): one table, two transports (SNAP-R15)
-const SCOPE_ARG = { type: "string", description: "global, tool:<name>, brick:<key>, method:<id>, cast:<id>, location:<id>, card:<id>, scene:<id>, shot:<scene>/<shot> or take:<id>" };
+const SCOPE_ARG = { type: "string", description: "global, tool:<name>, brick:<key>, method:<id>, cast:<id>, location:<id>, card:<id>, book:<id>, scene:<id>, shot:<scene>/<shot> or take:<id>" };
 const known = async () => (await get("/mainodes/snap/tools").catch(() => ({ tools: [] }))).tools.map((t) => t.name);
 const STATUS = ["active", "off", "overridden", "archived"];
 export const TOOLS = [
@@ -297,7 +303,7 @@ export const TOOLS = [
   },
   {
     name: "save_instruction",
-    description: "Write an agent instruction (SNAP-R93, R95): leave out `id` for a new note, or give `id` (instruction:<id>) to save a new version of one (only the fields you give change; the old versions stay). It applies at once, in every later stack, and the person's Agent library shows it 'new from <you>' with one click to turn it off. When the person says 'change that' about one of their notes, save a version of it rather than a second note. scope: one target (global, tool:<name>, brick:<key>, method:<id>, cast:<id>, location:<id>, card:<id>, scene:<id>, shot:<scene>/<shot>, take:<id>); kind: note (text: the line an agent reads) or model_choice (job: what it is for, choice: the model or method, why); mode replace with supersedes [refs] takes the named outer notes' place (a pack note is changed this way); source {from, quote, date} says where it came from (the person's words, typos fixed); rule (SNAP-Rn), more (a skill or doc), tags; shared: true makes an admin's note the install's on a gated install. Returns the ref and the stack hash for the open recipe.",
+    description: "Write an agent instruction (SNAP-R93, R95): leave out `id` for a new note, or give `id` (instruction:<id>) to save a new version of one (only the fields you give change; the old versions stay). It applies at once, in every later stack, and the person's Agent library shows it 'new from <you>' with one click to turn it off. When the person says 'change that' about one of their notes, save a version of it rather than a second note. scope: one target (global, tool:<name>, brick:<key>, method:<id>, cast:<id>, location:<id>, card:<id>, book:<id>, scene:<id>, shot:<scene>/<shot>, take:<id>); kind: note (text: the line an agent reads) or model_choice (job: what it is for, choice: the model or method, why); mode replace with supersedes [refs] takes the named outer notes' place (a pack note is changed this way); source {from, quote, date} says where it came from (the person's words, typos fixed); rule (SNAP-Rn), more (a skill or doc), tags; shared: true makes an admin's note the install's on a gated install. Returns the ref and the stack hash for the open recipe.",
     inputSchema: { type: "object", properties: { id: { type: "string" }, scope: SCOPE_ARG, kind: { type: "string", enum: ["note", "model_choice"] }, text: { type: "string" }, job: { type: "string" }, choice: { type: "string" }, why: { type: "string" },
       mode: { type: "string", enum: ["add", "replace"] }, supersedes: { type: "array", items: { type: "string" } }, source: { type: "object", properties: { from: { type: "string" }, quote: { type: "string" }, date: { type: "string" } } },
       rule: { type: "string" }, more: { type: "string" }, tags: { type: "array", items: { type: "string" } }, shared: { type: "boolean" }, note: { type: "string", description: "what changed, shown in the version list" } } },

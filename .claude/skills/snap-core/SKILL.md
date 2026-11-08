@@ -16,7 +16,7 @@ If a Snap server is reachable, `read_skill {"name": "snap-core"}` returns the pe
 
 How to call each tool is in `docs/snap/AGENT_START.md` (start there for setup, pages and the call shape). This skill is
 the map; the task skills (`snap-location`, `snap-turnaround`, `snap-new-view`, `snap-reference-upscale`,
-`snap-boards`, `snap-voice`, `snap-critic`, `snap-set-design`, `snap-model-choice`, `snap-book`) say how to do each job well. Rules are
+`snap-boards`, `snap-voice`, `snap-critic`, `snap-set-design`, `snap-model-choice`, `snap-book`, `snap-director`) say how to do each job well. Rules are
 `docs/snap/SNAP_RULES.md` (SNAP-Rn).
 
 Before planning shots on a location, use `snap-set-design` for a whole-place review of staging, design and coverage
@@ -34,6 +34,8 @@ across its existing views (SNAP-R269); landed-picture docket verdicts remain wit
   same tool table and record store. Story, style and the dial are the person's: your edits to them are proposals.
 - **One tool table** drives all of it: Snap's own UI, WebMCP in the page, and MCP / snapcall from outside call the
   same functions (SNAP-R19, R30).
+- **Production strategies** (`snap-director`, SNAP-R272) preview an approach over these same tools. They keep variants
+  in native cards and scoped preferences in instruction notes; authorized agents execute and replan through Snap.
 
 ## The records and how they link
 

@@ -63,6 +63,7 @@ import * as DP from "./dependents.js";
 import * as CV from "./critiqueview.js";
 import * as B from "./book.js";
 import { BOOK_TOOLS } from "./booktools.js";
+import { directorTools } from "./director/native.mjs";
 import * as N from "./nearby.js";
 import * as CF from "./craft.js";
 import { api } from "../../../scripts/api.js";
@@ -1780,6 +1781,7 @@ export const TOOLS = [
   ...CR.TOOLS, // SNAP-R101-R110 list_critiques, claim_critique, critique_packet, write_critique, skip_critique, critique, critic_report, add_fixture
   ...DP.TOOLS, // SNAP-R106 rerun_dependents, list_dependents
   ...BOOK_TOOLS, // U97 the Book (booktools.js)
+  ...directorTools(() => TOOLS), // Native production planners; construct before byName.
 ];
 
 // a card shot opened with no plate for its camera offers that camera's plate candidates (U55): GPU time nobody asked for

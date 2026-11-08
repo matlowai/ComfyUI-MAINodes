@@ -11,6 +11,7 @@ ComfyUI graph with agent tools. People start at [`README.md`](README.md).
 | use Snap skills in Codex, including a cloud checkout | `.agents/skills/snap-*` (portable entrypoints to the canonical `.claude/skills/` guidance); [`docs/snap/CLOUD_HANDOFF_2026-11-08.md`](docs/snap/CLOUD_HANDOFF_2026-11-08.md) |
 | understand how Snap links together and how agent instructions nest | skill `snap-core` (`.claude/skills/snap-core/SKILL.md`) |
 | make something well with Snap (locations, turnarounds, new views, upscales, boards, voices, the critic, model per job) | the task skills beside it: `snap-location`, `snap-turnaround`, `snap-new-view`, `snap-reference-upscale`, `snap-boards`, `snap-voice`, `snap-critic`, `snap-model-choice` |
+| preview or customize a production strategy | `.claude/skills/snap-director/SKILL.md`; [`docs/snap/director/README.md`](docs/snap/director/README.md) |
 | see or change what agents are told (the instruction stack, the person's versions of skills) | the Agent library in Snap (Library rail), or the `instructions` / `list_skills` tools (`docs/snap/AGENT_START.md` §2) |
 | use the Snap skills from a Claude Code session outside the pack | `bash tools/snap_skills.sh link` (symlinks into `~/.claude/skills/`; `unlink`, `status`) |
 | change Snap's code | [`docs/snap/SNAP_RULES.md`](docs/snap/SNAP_RULES.md) (rule IDs), then `docs/snap/` (DECISIONS, LESSONS, PLAN) |
