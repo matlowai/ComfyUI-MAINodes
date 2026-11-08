@@ -466,15 +466,16 @@ question: { type: "string", description: "what the person is asked about these c
       const b = B.bookOf(book), u = B.units(b).find((x) => x.unit.cut === cut);
       if (!u) throw new Error(`No cut ${cut} in ${b.body.name}; the cuts: ${B.units(b).map((x) => x.unit.cut).filter(Boolean).join(", ")}`);
       if (!u.unit.location) throw new Error(`${cut} has no location: set_unit {location, plate} first`);
-      const got = W.get(u.unit.location), loc = got.version.body, plate = u.unit.plate ? loc.plates?.find((p) => p.name === u.unit.plate) : null, s = side?.trim() || (plate ? L.sideOf(plate) : "main"), plateName = name?.trim() || `${s} set`;
+      const got = W.get(u.unit.location), loc = got.version.body, plate = u.unit.plate ? loc.plates?.find((p) => p.name === u.unit.plate) : null, s = side?.trim() || (plate ? L.sideOf(plate) : "main"), plateName = name?.trim() || `${plate?.name ?? s} set`;
       if (pick) {
         const t = T.find(pick);
         if (!t) throw new Error(`No take ${pick} (the candidate's take from make_set_reference's answer)`);
         const src = t.parent?.options?.context?.[0]?.label ?? `take ${t.number}`;
         const out = await L.addPlate(u.unit.location, { name: plateName, take: t.id, role: "camera", side: s, set: true, ...(plate?.camera ? { camera: plate.camera } : {}), ...(plate?.pose ? { pose: plate.pose } : {}),
           use: `the set reference for side ${s}: ${src} with the people removed (SNAP-R253)` }, { note: `set reference ${plateName} for side ${s} from ${cut}'s look`, by: "agent" });
-        const others = B.units(b).filter((x) => x.unit.location === u.unit.location && x.unit.plate !== plateName && (x.unit.plate ? L.sideOf(loc.plates?.find((p) => p.name === x.unit.plate)) === s : false)).map((x) => x.unit.cut);
-        return { location: out.ref ?? `${u.unit.location}@${out.n}`, version: out.n, plate: plateName, side: s, set: true, from: { take: t.id, made_from: src },
+        // the cuts on this side still on another plate: not the cut the look came from, nor one that opens on another's out-frame
+        const others = B.units(b).filter((x) => x.unit.cut !== cut && !x.unit.opens_on && x.unit.location && W.parse(x.unit.location).id === W.parse(u.unit.location).id && x.unit.plate !== plateName && (x.unit.plate ? L.sideOf(loc.plates?.find((p) => p.name === x.unit.plate)) === s : false)).map((x) => x.unit.cut);
+        return { location: W.refOf("location", W.parse(u.unit.location).id, out.n), version: out.n, plate: plateName, side: s, set: true, from: { take: t.id, made_from: src },
           said: `${loc.name} v${out.n}: plate "${plateName}" is side ${s}'s set reference (${src}, people removed); the walkthrough plates stay`, ...(others.length ? { next: `cuts on side ${s} that don't play from it yet: ${others.join(", ")}: set_unit {plate: "${plateName}"} on each (compile_unit lints them)` } : {}) };
       }
       const t = u.shot.active && T.get(u.shot.active);

@@ -606,7 +606,7 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
       place = { ref: W.refOf("location", W.parse(unit.location).id, got.version.n), name: b.name, ...(plate ? { plate: plate.name, pose: plate.pose ?? null } : {}), master: !!b.master };
       if (plate) package_.push({ file: plate.file, role: `location: ${b.name}, plate ${plate.name} (camera)`, why: `this cut's camera`, from: unit.location, order: 0 });
       // SNAP-R253 (the operator, 2026-11-07 19:51): every cut plays from its side's set reference, made from the picked look
-      const side = plate && L.sideOf(plate), set = side && L.setPlateOf(b, side);
+      const side = plate && L.sideOf(plate), set = side && L.setPlateOf(W.headOf(W.record("location", W.parse(unit.location).id))?.body, side); // the newest version's: a cut pins the version it was planned on
       if (set && set.name !== plate.name) lint.push(`plate ${plate.name} is on side ${side}, and ${set.name} is that side's set reference (made from the picked look): set_unit {plate: "${set.name}"} plays ${unit.cut ?? "this cut"} from it (SNAP-R253)`);
       else if (plate && !set && !unit.opens_on) lint.push(`side ${side} of ${b.name} has no set reference yet: once a cut on it has the take whose look you keep, make_set_reference {book, cut} makes one from it (people removed), and the cuts on this side play from it (SNAP-R253)`);
       // SNAP-R242 (M2, M7): the master is where a one-camera cut's takes cut to; with a camera plate it stays out unless asked
@@ -771,7 +771,7 @@ export async function addCut(bookRef, { scene, scene_name, name, ...u }, { by = 
 // SNAP-R253: once a Book cut has a picked take and its side has no set reference yet, the answer that picked it offers one
 export function setReferenceOffer(sceneId, shotId) {
   const scene = SC.get(sceneId), shot = scene?.shots.find((x) => x.id === shotId), unit = shot?.unit, book = scene && bookOfScene(scene);
-  const loc = unit?.location && W.get(unit.location)?.version.body, plate = unit?.plate && loc?.plates?.find((p) => p.name === unit.plate);
+  const loc = unit?.location && W.headOf(W.record("location", W.parse(unit.location).id))?.body, plate = unit?.plate && loc?.plates?.find((p) => p.name === unit.plate);
   if (!book || !plate || !shot.active || unit.opens_on || L.setPlateOf(loc, L.sideOf(plate))) return null;
   return `side ${L.sideOf(plate)} of ${loc.name} has no set reference yet: if this take's look is the set, make_set_reference {book: "book:${book.id}", cut: "${unit.cut}"} makes one from it (people removed) for every cut on that side to play from (SNAP-R253)`;
 }
