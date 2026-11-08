@@ -535,6 +535,8 @@ park; timeout 600 nice -n 19 node "$T"/test_g1b_fresh.js "$port" >test_g1b_fresh
 park; timeout 600 nice -n 19 node "$T"/test_g1b_lost.js "$port" >test_g1b_lost.js.out 2>&1; tail -1 test_g1b_lost.js.out
 # G1b measures through the pack's own nodes on the GPU test unit ($SNAP_TEST_GPU_PORT, DINOv3 at 1024 px and WavLM): the scout's fixtures
 if gpu_up; then for t in test_g1b_id_copy.py test_g1b_voice.py; do nice -n 19 "$py" -I "$T/$t" "$gpu_port" >$t.out 2>&1; tail -1 $t.out; done; else echo "g1bgpu   skipped: no server on :$gpu_port"; fi
+nice -n 19 node "$T"/test_voice_qa_discovery.js >test_voice_qa_discovery.js.out 2>&1 || echo "voice_qa_discovery FAIL (see test_voice_qa_discovery.js.out)"
+cat test_voice_qa_discovery.js.out
 # G16 words timed in Snap (SNAP-R227; G17b: by the Voice QA's Nemotron Transcribe, SNAP-R240) on the GPU test unit with
 # the AudioCPP fork: a real line read, Nemotron exact against the cut's line, the words on the dialogue clip and in
 # Astrid's timelines words (with SNAP_TEST_ASTRID_LAUNCHER/_ROOT); prints "g16words n/m"

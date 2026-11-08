@@ -46,8 +46,10 @@ export function qaKit() {
     const info = await (await api.fetchApi("/object_info/AudioCPPH3VoiceQA")).json().catch(() => ({}));
     if (!info.AudioCPPH3VoiceQA) return { missing: "the AudioCPP fork's nodes aren't on this server (matlowai/ComfyUI-AudioCPP, branch nemotron-diarization)" };
     await M.load();
-    const own = (folder, role) => (M.folders().get(folder) ?? []).find((n) => M.entry(n)?.voice_qa?.role === role);
-    const transcribe = own("audiocpp_gguf", "transcribe"), speaker = own("audio_encoders", "speaker");
+    // SNAP-R240: the native loader lists GGUFs that core's experimental model inventory omits.
+    const loader = await (await api.fetchApi("/object_info/AudioCPPLocalServer")).json();
+    const transcribe = (loader.AudioCPPLocalServer?.input?.required?.model?.[1]?.options ?? []).find((n) => M.entry(n)?.voice_qa?.role === "transcribe");
+    const speaker = (M.folders().get("audio_encoders") ?? []).find((n) => M.entry(n)?.voice_qa?.role === "speaker");
     const gone = [!transcribe && "the Nemotron Transcribe GGUF (models/audio_encoders/nemotron/)", !speaker && "the WavLM-large ECAPA voice model (models/audio_encoders/wavlm_large_ecapa_sv/model.safetensors)"].filter(Boolean);
     return gone.length ? { missing: `the model graph's ${gone.join(" and ")} isn't installed` } : { transcribe, speaker, margin: M.entry(speaker).voice_qa.margin };
   })().catch((e) => { kit = null; return { missing: e.message }; });
