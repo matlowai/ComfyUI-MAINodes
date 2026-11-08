@@ -35,7 +35,7 @@ const sh = (cmd, args) => new Promise((done, fail) => execFile(cmd, args, (e) =>
     R.cast = await call("save_cast", { name: "Maren", details: "a tall swordswoman", lora: null, refs: [{ file: "snap/snaptest_full_front.png", role: "identity: front" }, { file: "snap/snaptest_full_back.png", role: "back" }],
       voice: { file: "snap/snaptest_full_voice.wav", casting: "low cool alto" } });
     await call("start_recipe", {});
-    await call("apply_cast", { cast: R.cast.cast });
+    await call("apply_cast", { cast: R.cast.cast, voice: true }); // SNAP-R237: no line in this prompt, so the voice goes in only when asked
     await page.evaluate(async () => { const m = await import("/extensions/ComfyUI-MAINodes/snap_view.js"); m.snap.view?.render?.(); }); await settle();
     // 1. References: the first Cast picture
     const refImg = page.locator(".snap-pics figure img").first();
