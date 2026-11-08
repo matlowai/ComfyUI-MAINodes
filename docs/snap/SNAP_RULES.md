@@ -2339,3 +2339,5 @@ Next free ID after this batch: SNAP-R240 (R160-R164 stay free; G16 reserved R215
   *Why:* the operator, 2026-11-07 18:46: "this should be a harness change for the agentic stuff in terms of prompting
   lessons ... 'remember these things'". *More:* study PROMPT_CRAFT_RULES §0, §6 (each contradiction with an older rule
   resolved in LESSONS "Batch G17b").
+
+Next free ID after this batch: SNAP-R254 (G18 reserved R254-R262, G19 R263-R266).
