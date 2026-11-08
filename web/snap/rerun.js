@@ -256,7 +256,7 @@ export async function rerun(take, { swaps = {}, route = "regenerate", seed = "sa
   const all = combos(swaps);
   if (all.length > 1) return batch(take, all, { route, seed, land, go, count, who, by });
   if (route === "reuse_motion") { if (!take.id) throw new Error("Reuse the motion needs a take (its video is the motion): this file isn't one here"); return reuse(take, await resolve(take, swaps), { count, who, by }); }
-  if (take.id && /^view\//.test(take.parent?.method ?? "") && go) return rerunView(take, await resolve(take, swaps), { seed, by });
+  if (take.id && /^view\//.test(take.parent?.method ?? "") && take.parent.options?.context?.length && go) return rerunView(take, await resolve(take, swaps), { seed, by }); // its own call is kept with it
   if (!take.graph) throw new Error(`${named(take)} has no workflow saved with it`);
   const asked = await resolve(take, swaps), home = landing(land);
   if (take.id) ready(take, asked);
