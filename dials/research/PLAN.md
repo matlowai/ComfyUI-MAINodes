@@ -151,3 +151,7 @@ release, or more budget waits for a decision.
   [Write-up](experiments/M3-negative-prompt-dials.md).
 - **2026-11-07** M1 replication (DeBand, lighthouse seed 8 + a held-out park-bench scene): 5 of 6 dials replicate and carry
   to the held-out scene; tiny ↔ colossal needs a subject with scale; at ±4 the dials restage the person (identity drift).
+- **2026-11-08** M1 on KroMoss at its designed settings (DMD2, 8 steps, CFG 1): all six pair dials work both ways from ±2;
+  M2 word dials on KroMoss need +8 as on DeBand (snow, rain transfer). M4 (new): dial pairs on KroMoss, 2 of 3 combine
+  (ukiyo-e + snow, detail + rain); film + snow loses the snow; the pixel interaction residual is as large as the effects
+  and cannot rank combinations. [M4](experiments/M4-moss-dial-combinations.md).
