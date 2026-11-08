@@ -7,7 +7,7 @@ Relevant complete current entries, including historical gate caveats; geometry c
   df30beb): a policy change (the key and master out of References) breaks every older suite that relied on the old
   default (g4book), so grep the suites for the old behaviour before the gate, as G17a's voice lesson already said; a
   new branch placed before an old refusal (the F-AC05 re-run path) has to keep the refusal's guard (g15cut, SNAP-R214);
-  a placeholder like "<Audio k>" in a comment trips g3cards' cite rule. The three timing suites (ui, adopt, f2model) were
+  a non-numeric audio placeholder in a comment trips g3cards' cite rule. The three timing suites (ui, adopt, f2model) were
   full when re-run alone: load while the U46h lab ran.
 - **Final rev df30beb is not gated whole.** The next coordinator gate should run on a new snapshot of df30beb, with
   :8194 restarted only once GPU0 is free and its unit given `AUDIOCPP_SERVER` (u101base already has the fork and the two
