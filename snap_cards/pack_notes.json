@@ -101,7 +101,7 @@
    "id": "run/never-cite-next-place",
    "scope": "tool:run",
    "kind": "note",
-   "text": "Never cite the next place on a path as a reference: H3 hard-cut to it in 3 of 8 takes. Cite the cut's own plate, the master and the Cast.",
+   "text": "Never cite the next place on a path as a reference: H3 hard-cut to it in 3 of 8 takes. Cite the cut's own plate (its side's set reference once there is one) and the Cast; the master stays out of a cut that has its camera plate (takes cut to its framing, SNAP-R242).",
    "rule": "SNAP-R84",
    "more": "skill snap-location"
   },
@@ -597,6 +597,118 @@
    "text": "Fix the source record first (a new master or plate version), then re-run its dependents; the chain stops before video unless through: cuts.",
    "rule": "SNAP-R106",
    "more": "skill snap-critic"
+  },
+  {
+   "id": "global/prompt-pictures-beat-words",
+   "scope": "global",
+   "kind": "note",
+   "text": "Pictures beat words. Before video, count each story prop and person on every picture (opening frame, board, each reference) against the beat and fix the picture: no wording removes what a picture shows (old two-bowl board kept the bowl 3/3; a clean board drew one bowl 6/6 with the bowl named four times).",
+   "rule": "SNAP-R244",
+   "more": "PROMPT_CRAFT_RULES §0 item 1; skill snap-core"
+  },
+  {
+   "id": "global/prompt-references-are-targets",
+   "scope": "global",
+   "kind": "note",
+   "text": "A picture in References is a target whatever its syntax: a key picture on an action cut is reached by 1.5-2.5 s and frozen on (4/4, 'the shot ends on <Picture n>' too); a location master is where takes cut to (3/10 at 1280, 13/18 at 640, 0/3 without; a <Subject N> wrapper doesn't stop it). Leave out any picture whose framing you don't want reached.",
+   "rule": "SNAP-R242",
+   "more": "PROMPT_CRAFT_RULES §0 item 2; §8 M2, M6, M7"
+  },
+  {
+   "id": "global/prompt-continuity-from-pictures",
+   "scope": "global",
+   "kind": "note",
+   "text": "Continuity across a cut comes from pictures: a continuing camera opens on the previous cut's out-frame (set_unit opens_on); a new angle plays from its side's set reference (make_set_reference) and carries pose, props and timing in words, never the old image.",
+   "rule": "SNAP-R252",
+   "more": "PROMPT_CRAFT_RULES §0 item 3; skill snap-book"
+  },
+  {
+   "id": "global/prompt-one-ordered-action",
+   "scope": "global",
+   "kind": "note",
+   "text": "Write the action as one ordered sentence with its counts ('ladles into a white bowl, pouring twice, then lifts the full bowl'); time a hit with a written wind-up and 'then': 'at the middle of the shot' put the hit at 0.9 s, the wind-up at 2.0 s.",
+   "rule": "SNAP-R250",
+   "more": "PROMPT_CRAFT_RULES §0 item 4"
+  },
+  {
+   "id": "global/prompt-named-gets-drawn",
+   "scope": "global",
+   "kind": "note",
+   "text": "Anything the prompt names gets drawn, even as a measure ('a standing person's eye height' drew a man 2/2): give heights in metres, describe spaces by their parts, and don't name a thing that must stay out (not even 'no cars').",
+   "rule": "SNAP-R251",
+   "more": "PROMPT_CRAFT_RULES §0 item 5, §8 M4"
+  },
+  {
+   "id": "global/prompt-no-two-lines-disagree",
+   "scope": "global",
+   "kind": "note",
+   "text": "No two lines may disagree (hand, worn item, open/closed, position, facing, holder): the model draws the wrong one (2/2). Read compile_unit's lint before any GPU.",
+   "rule": "SNAP-R250",
+   "more": "PROMPT_CRAFT_RULES §0 item 6"
+  },
+  {
+   "id": "global/prompt-remove-by-editing-picture",
+   "scope": "global",
+   "kind": "note",
+   "text": "To remove something a picture shows, edit the picture (a mask or region edit: 2/2; words: 0/4); otherwise write what is there instead ('bare skin, nothing across the nose').",
+   "rule": "SNAP-R251",
+   "more": "PROMPT_CRAFT_RULES §0 item 7"
+  },
+  {
+   "id": "global/prompt-name-what-holds",
+   "scope": "global",
+   "kind": "note",
+   "text": "Seen from another side, name what holds ('his head stays turned away', 'the lens seen edge-on'): without it the head turned 5/6.",
+   "rule": "SNAP-R251",
+   "more": "PROMPT_CRAFT_RULES §0 item 8"
+  },
+  {
+   "id": "global/prompt-tidiness-not-a-fix",
+   "scope": "global",
+   "kind": "note",
+   "text": "Measured as tidiness, not fixes: naming a prop once, joining a Cast line to its name, wrapping pictures in <Subject N>, and 'the street stays empty'. Keep them tidy if you like; never re-roll on them: change the pictures.",
+   "rule": "SNAP-R251",
+   "more": "PROMPT_CRAFT_RULES §0 'Demoted'; §8 M1, M4, M5, M7"
+  },
+  {
+   "id": "apply_unit/no-key-on-action-cut",
+   "scope": "tool:apply_unit",
+   "kind": "note",
+   "text": "An action cut gets no key picture in References: apply_unit leaves it out and says so; set_unit {hold: true} keeps it only for a cut that ends on a held pose (a 2 s build, then a hold). Its errors name a key or master put back.",
+   "rule": "SNAP-R242",
+   "more": "PROMPT_CRAFT_RULES PC-06b, §8 M6"
+  },
+  {
+   "id": "run/cite-pictures-by-job",
+   "scope": "tool:run",
+   "kind": "note",
+   "text": "Cite a picture for its job only (the opening, this cut's camera, who someone is, a continuity frame); never 'like <Picture n>' in the action: it jump-cut into that picture's framing and stalled (2/2). run's lint says it.",
+   "rule": "SNAP-R243",
+   "more": "PROMPT_CRAFT_RULES PC-06"
+  },
+  {
+   "id": "run/burst-beats-bring-booms",
+   "scope": "tool:run",
+   "kind": "note",
+   "text": "Burst and impact beats bring booms and stings: judge with sound on, read get_take's sound.onset (a sub-bass hit is said) and prefer the softer take; don't name a deep whoosh or rumble in the soundscape.",
+   "rule": "SNAP-R249",
+   "more": "PROMPT_CRAFT_RULES §0 item 9; dogfood F-SQ46"
+  },
+  {
+   "id": "judge_takes/count-props-people-every-half-second",
+   "scope": "tool:judge_takes",
+   "kind": "note",
+   "text": "Before framing arguments, count each story prop and person every half second against the beat and the board; a second bowl is high on a take and on a board alike. Then read where the take goes (check_copies: copy.reaches).",
+   "rule": "SNAP-R245",
+   "more": "PROMPT_CRAFT_RULES §0 item 11, §3 CC-1, CC-4"
+  },
+  {
+   "id": "check_voice/unscripted-is-a-leak",
+   "scope": "tool:check_voice",
+   "kind": "note",
+   "text": "Unscripted speech in a cut where nobody speaks is a leaked voice reference (H3 speaks a reference's own words): take the voice out of that cut and re-run; record references on lines the script doesn't use.",
+   "rule": "SNAP-R240",
+   "more": "skill snap-voice; dogfood F-SQ11, F-SQ12"
   }
  ]
 }

@@ -89,8 +89,16 @@ the setup's steps (6 on the Pika turbo). Prompt sections: AGENT_START §4.2.
 - Say off states literally ("the lantern head stays completely dark the whole time": fixed 2/2 on the same seed), and
   describe a design by its silhouette ("shaped like a white lighthouse tower").
 
-**Sound** (SNAP-R36)
-- Lead `overall_soundscape:` with the discrete sounds the action makes; ambience last.
+**Pictures in References** (SNAP-R242, R243, R244)
+- Count each story prop and person on the board against the beat before approving it: a second bowl on an approved
+  board was in every take made from it, whatever the prompt said (0/3 recovered); the critic writes it high.
+- A board is the frame a cut opens on; a key drawing guides the boards and goes into a video's References only on a
+  cut that ends on a held pose (on an action cut the take freezes on it by 2 s). The location master stays out of a
+  cut that has its camera plate (takes cut to its framing). Never cite a picture as a look-alike ("like <Picture 4>").
+
+**Sound** (SNAP-R36, R248, R249)
+- Lead `overall_soundscape:` with the discrete sounds the action makes; ambience last (the compile lints a soft,
+  ambient or tonal first clause). Burst and impact beats bring booms: get_take's `sound.onset` says a sub-bass hit.
 - Tonal words become drones: "a ship's horn sounding twice" came out as one held 4 s tone, "neon signs buzzing" a
   steady ~450 Hz hum. Use percussive events (thumps, clicks, crunching snow) unless the tone is the point. A Long
   extend stayed clean for 34 s once the tonal words left; with them a tone grew from ~9 s on.

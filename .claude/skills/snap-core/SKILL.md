@@ -116,11 +116,37 @@ Every call in Snap runs under one resolved stack of agent instructions. Read it 
   (SNAP-R233): a dial's peak moves onto a word with `set_cut_dials {book, cut, move_key: {dial, key: "peak", to_s}}`
   and a `retake {take, dials: "cut"}` (on a trimmed cut the picture shows a key at key − in_s).
 
+## Writing a prompt (measured 2026-11-07; SNAP-R242-R251)
+
+Remember these things; each line has a measured case behind it (the Agent library's `global/prompt-*` notes say the
+same, with the numbers):
+1. **Pictures beat words.** Before video, count each story prop and person on every picture (opening frame, board,
+   each reference) against the beat, and fix the picture: no wording removes what a picture shows.
+2. **A picture in References is a target**, whatever its syntax: a key picture on an action cut is reached by
+   1.5-2.5 s and frozen on; a location master is where takes cut to. Leave out any picture whose framing you don't
+   want reached (apply_unit does by default and says so; `set_unit {hold: true}` / `{cite_master: true}` override).
+3. **Continuity across a cut comes from pictures:** a continuing cut opens on the previous out-frame (`opens_on`); a
+   new angle plays from its side's set reference (`make_set_reference`) and carries pose, props and timing in words.
+4. **One ordered action sentence with its counts;** time a hit with a written wind-up and "then".
+5. **Anything you name gets drawn,** even as a measure; don't name what must stay out.
+6. **No two lines may disagree** (hand, worn item, open/closed, position, facing).
+7. **To remove something a picture shows, edit the picture** (mask or region edit); else say what is there instead.
+8. **Seen from another side, name what holds** ("his head stays turned away", "the lens edge-on").
+9. **Sound:** lead with hard, countable events of the action; burst beats bring booms, so judge with sound on.
+10. **A voice reference goes only where that character speaks,** and its words are never a line of the script.
+11. **After every take:** count props and people every half second against the beat and board, read where the take
+    goes (`check_copies`), listen with sound on (the voice note's Voice QA).
+12. **Two or three failed seeds of one recipe: change the pictures, the wording or the method,** not the seed.
+
+Tidiness only (measured, never a fix): naming a prop once, joining a Cast line to its name, `<Subject N>` wrapping,
+"the street stays empty".
+
 ## Working rules
 
 - **Consistency is data, not prompting.** Words make a new place and a new design every render. Carry pictures and
   state: a location's master and plates, Cast records with turnarounds, positions and facing from cut to cut. One
-  continuous H3 video holds a place or a character together; separate stills guess each view again.
+  continuous H3 video holds a place or a character together; separate stills guess each view again. Inside one prompt,
+  the pictures and the prompt's own counts decide what is drawn: read "Writing a prompt" below.
 - **Look before you say.** A version number says what Snap put in, not what the model drew: look at frames
   (`take_frames`, whole frames at 100 %) before telling the person how a take looks (`snap-critic`).
 - **Results are never trimmed** (SNAP-R58); if one is too big, save it and hand it to a subagent.

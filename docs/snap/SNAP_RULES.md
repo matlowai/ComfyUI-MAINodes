@@ -2287,3 +2287,55 @@ Next free ID after this batch: SNAP-R240 (R160-R164 stay free; G16 reserved R215
   scene needs a proper 'this is the set' type reference for each of the shots to play from"; short05 v3a2's P1b, made
   by hand this way from C1's out-frame, held the stall for C4 (RERUN_V3 "Set reference"); F-SQ50 (plates made before
   the look was picked made the set jump). *More:* study DESIGN_WORLD_STATE §4.3, §8.1 item 2; tests/snap/test_g17b_continuity.js.
+- **SNAP-R244: Pictures beat words: a duplicated story prop or person is high on a board as on a take.** A critique note
+  with `count {thing, expected, seen}` where seen is above expected is written high whatever severity it was given
+  (`raised` says so), so the "no high note" approval (SNAP-R107) never passes a board that would put a second bowl into
+  every take made from it; the snap-critic skill's severity list says the same. *Why:* the operator, 2026-11-07 18:43:
+  "the answer is 11-6 preset C ... because it's clear and there's only 1 bowl, not a duplicate bowl"; M1: on a clean
+  one-bowl board every prompt drew one bowl (6/6, the bowl named four times), on the old two-bowl board no wording
+  removed it (0/3): the approved board's "low" second bowl made the duplicate. *More:* study PROMPT_CRAFT_RULES §3
+  CC-3, §6 item 2, §8 M1; tests/snap/test_g17b_critic.js.
+- **SNAP-R245: The critic counts story props and people every half second, on takes and boards.** The `cut` checklist
+  reads a frame every half second and the last ("every 12"); `board` and `cut` gain the `count` pass; the packet's
+  `count_these` lists a Book cut's story props (the unit's props and what its Cast carries) with the expected count
+  and the holder at the opening and the end, its people and its dial rows. *Why:* short05 C1's second bowl was missed
+  by the critic and the coordinator on 5 spread frames (LESSONS "Count the props"); PROMPT_CRAFT_RULES §0 item 11.
+  *More:* §3 CC-1, CC-2; tests/snap/test_g17b_critic.js. The skill's new passes ship before a fixtures re-run (an
+  open item for the coordinator under SNAP-R109).
+- **SNAP-R246: The copy check names where a take goes.** `check_copies` scores a take's frames every half second and
+  its last against every cited picture; `copy.reaches` names a picture the take didn't open on and turns into later,
+  staying at 0.85 or more (its role, from_s, score), and `copy.said` says to leave it out of References; the packet
+  carries it so the beat pass names the destination instead of "prompt ignored". *Why:* M2/M6/M7 found every cut,
+  dissolve and freeze this way at 0.92-0.99 (the master, the key); F-AC12 counted 3/11 takes ending on the master
+  unnamed. *More:* §3 CC-4; tests/snap/test_g17b_critic.js.
+- **SNAP-R247: The critic packet carries the prompt that ran and what to hold it to.** `words.prompt` is the executed
+  prompt; a Book cut's take adds `count_these` (SNAP-R245), `copy` (R246), `voice` (R240), `continuity` (a continuing
+  cut's join, R252) and the sound onset (R249). *Why:* CC-5: the beat pass reads verbs, counts and negations against the
+  frames and can name "prompt" as an owner with the sentence that caused it. *More:* tests/snap/test_g17b_critic.js.
+- **SNAP-R248: The soundscape leads with hard events.** `compile_unit` and run's `lint` flag a soundscape whose first
+  clause is soft, ambient or a steady/tonal source (soft, gentle, faint, distant, ambience; hiss, hum, buzz, drone,
+  rumble, horn, engine), and a music line other than N/A; the tail is not linted. *Why:* U78 (controlled): an
+  ambience-only soundscape rendered -57.8 dB against -39 to -42 with events; tonal words became drones; M3: the tail
+  neither helped nor hurt, and the "low hiss cost 16 dB" claim did not reproduce (withdrawn). *More:* §2 PC-13, §8 M3;
+  tests/snap/test_g17b_craft.js.
+- **SNAP-R249: A take's biggest short transient is measured, and a sub-bass hit is said.** At capture the loudness route
+  also measures the biggest 10 ms transient: its time, level, dB over the sound within a second around it, and its
+  share below 150 Hz; 20 dB over with half or more below 150 Hz is a `hit` (an impact boom), in get_take's `sound.onset`
+  and the packet's sound words; the critic's `sound` pass judges it with sound on. *Why:* F-SQ46: AST's 2 s windows
+  averaged short05 C3's 0.1 s boom away (Explosion 0.04) while the blind critic measured -6.9 dBFS, 62 % below 150 Hz;
+  on the fixtures this measure flags that take (21.3 dB over, 63 %) and not the softer pick (16.8 dB). *More:*
+  tests/snap/test_g17b_misc.js.
+- **SNAP-R250: One ordered action, and no two lines disagree.** `compile_unit` and run's `lint` flag a hit placed by a
+  place-word ("at the middle of the shot") with no "then", and one prop put in two places in one prompt ("the monocle
+  in his left hand" and "the monocle hanging on his lapel"). *Why:* PC-02: "at the middle of the shot" put the hit at
+  0.9 s, a written wind-up and "then" at 2.0 s (2/2); PC-09: two disagreeing lines drew the wrong one (2/2, several
+  cases). *More:* tests/snap/test_g17b_craft.js.
+- **SNAP-R251: The measured "remember these things" list lives in the Agent library, the skills and AGENT_START.** The
+  list of PROMPT_CRAFT_RULES §0 is the snap-core skill's "Writing a prompt" section and one pack note each in
+  pack_notes.json (global and per tool), cited by snap-book, snap-boards and AGENT_START §4. Demoted by the measurements
+  to tidiness, never linted: name a prop once (M1: the board made the duplicate, not the wording), a bare Cast line vs
+  one joined to its name (M5: no difference), `<Subject N>` wrapping (M7: neutral; it does not stop a cited master
+  pulling cuts), and "the street stays empty: no cars" (M4: seed-specific, may name the vehicle into the shot).
+  *Why:* the operator, 2026-11-07 18:46: "this should be a harness change for the agentic stuff in terms of prompting
+  lessons ... 'remember these things'". *More:* study PROMPT_CRAFT_RULES §0, §6 (each contradiction with an older rule
+  resolved in LESSONS "Batch G17b").
