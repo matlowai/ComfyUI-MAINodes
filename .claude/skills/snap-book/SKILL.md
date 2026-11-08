@@ -7,7 +7,7 @@ description: >
   writers' room, the script supervisor), check continuity of who holds or wears what, plan cuts, make boards, play an
   animatic or assemble the edit.
 scope: [tool:create_book, tool:add_beat, tool:add_change, tool:add_group, tool:set_colour_frame, tool:design_state, tool:add_cut, tool:compile_unit, tool:apply_unit, tool:make_board, tool:animatic, tool:export_cut, tool:draw_set_plan]
-rules: [SNAP-R67, SNAP-R68, SNAP-R69, SNAP-R130, SNAP-R131, SNAP-R132, SNAP-R133, SNAP-R165, SNAP-R166, SNAP-R168, SNAP-R169, SNAP-R170, SNAP-R171, SNAP-R172, SNAP-R70, SNAP-R173, SNAP-R175, SNAP-R176, SNAP-R177, SNAP-R178, SNAP-R16, SNAP-R11]
+rules: [SNAP-R67, SNAP-R68, SNAP-R69, SNAP-R130, SNAP-R131, SNAP-R132, SNAP-R133, SNAP-R165, SNAP-R166, SNAP-R168, SNAP-R169, SNAP-R170, SNAP-R171, SNAP-R172, SNAP-R70, SNAP-R173, SNAP-R175, SNAP-R176, SNAP-R177, SNAP-R178, SNAP-R16, SNAP-R11, SNAP-R267, SNAP-R268]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-book"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -47,6 +47,10 @@ until the person accepts it. Tool calls: `docs/snap/AGENT_START.md` ("The Book")
    Group the beats into scenes (`add_group`, with the place), and before a big edit read its `dry_run`. Never invent
    a change the text doesn't support; ask instead. A take that shows something the story didn't say (a torn sleeve
    the person likes) becomes canon only through `keep_as_canon`.
+   Include terrain and item-placement consequences: accepted cracks, debris or a dropped object remain at the same
+   plan marks in later cuts (SNAP-R268). Reconcile the picked take's end positions, facing and hands against the plan
+   before proposing the next state; a moved camera does not move the floor pattern beneath the actors. A versioned
+   overhead image can help carry that state (`snap-location`), but its effectiveness with H3 is still experimental.
 5. **Settei per state.** For each state the changes create that a picture must show (a new outfit), make its pictures:
    `design_state {book, cast, state, view}` (a New view from the Cast's own pictures with the style and the state's
    words; the Settei lens's Design it does the same), then `save_cast_state` with the picked take and `covers` matching
@@ -94,6 +98,11 @@ until the person accepts it. Tool calls: `docs/snap/AGENT_START.md` ("The Book")
    has no line in a cut gets no voice there (SNAP-R237).
 9. **The Cut.** Make the best take of each cut active, trim and level them (`set_unit {trim}`), `export_cut {book}`:
    one mp4 as a take of the Book, plus OTIO for an editing program.
+   Review the assembled file, not only its source takes (SNAP-R267): action phases connect without a repeated
+   wind-up, accepted damage and item placements persist, and adjacent views match in grade and apparent detail.
+   Compare the audio and video start/end times; explain an intentional silent tail. Listen across splices and the
+   ending for repeated effects, stray vocals, missing music and abrupt cutoffs. ASR, loudness and stream durations
+   support this check but cannot replace listening; report any unperformed review plainly.
 
 ## The dial
 

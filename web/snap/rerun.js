@@ -15,7 +15,7 @@
 // A slot may take a list ("this shot with each of these 3 characters"): every combination is one re-run. Re-generate
 // makes them one candidates decision whose candidates are the queued takes (Apply makes one the shot's active take,
 // Reject marks its take rejected by whoever pressed it); Reuse the motion makes one decision per combination.
-// SNAP-R63 re-run with swaps · SNAP-R214 a refusal comes before the graph opens · SNAP-R147 a Cast kept as a place swaps to its location · SNAP-R61 as it was / today's world · SNAP-R60 pins · SNAP-R24 where it lands · SNAP-R11
+// SNAP-R270 partial denoise replays its init and canvas · SNAP-R63 re-run with swaps · SNAP-R214 a refusal comes before the graph opens · SNAP-R147 a Cast kept as a place swaps to its location · SNAP-R61 as it was / today's world · SNAP-R60 pins · SNAP-R24 where it lands · SNAP-R11
 // warn, never block · SNAP-R58 every choice listed in full · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as ACC from "./account.js";
@@ -245,6 +245,7 @@ async function rerunView(take, asked, { seed, by }) {
     return { cast: to, ref: k, ...keep, label: `${now.name}, ${now.refs[k].role}` };
   });
   const home = RT.shotOf(take), out = await ED.fromContext(pictures, o.prompt ?? take.text, { method: take.parent.method.split("/")[1], purpose: o.purpose, seeds: seed === "same" && take.seed != null ? [take.seed] : undefined, count: 1, paste: !!o.pasted, mask: o.pasted?.mask ?? null,
+    ...(o.init ? { denoise: o.init.denoise, width: o.width, height: o.height } : {}),
     ...(home ? { land: { scene: home.scene.id, shot: home.shot.id } } : { land: "tab" }), ...(take.story ? { story: take.story } : {}), by });
   return { take: take.id, route: "regenerate", seed, decision: out.decision, candidates: out.candidates, said: `${named(take)} made again with edit_from_context (its own call) and ${[...swap].map(([id, to]) => `${W.get(to)?.version.body.name ?? id} v${W.parse(to).n ?? W.record("cast", id)?.head}`).join(", ")} in place of the pinned pictures: a candidate lands beside it (F-AC05)` };
 }

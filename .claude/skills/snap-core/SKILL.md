@@ -16,8 +16,11 @@ If a Snap server is reachable, `read_skill {"name": "snap-core"}` returns the pe
 
 How to call each tool is in `docs/snap/AGENT_START.md` (start there for setup, pages and the call shape). This skill is
 the map; the task skills (`snap-location`, `snap-turnaround`, `snap-new-view`, `snap-reference-upscale`,
-`snap-boards`, `snap-voice`, `snap-critic`, `snap-model-choice`, `snap-book`) say how to do each job well. Rules are
+`snap-boards`, `snap-voice`, `snap-critic`, `snap-set-design`, `snap-model-choice`, `snap-book`) say how to do each job well. Rules are
 `docs/snap/SNAP_RULES.md` (SNAP-Rn).
+
+Before planning shots on a location, use `snap-set-design` for a whole-place review of staging, design and coverage
+across its existing views (SNAP-R269); landed-picture docket verdicts remain with `snap-critic`.
 
 ## The layers
 

@@ -1,0 +1,12 @@
+{
+  "id": "instruction:note-mw83pojv9vuc",
+  "text": "Before planning shots for a new or changed location, make a whole-set design review using its exact record version, overhead plan, all distinct available native views, scale anchors and intended light/camera directions. Assess usable staging and routes, architecture/material/prop coherence, focal landmarks, scale, light and camera coverage. Keep fixed floor patterns relative to actor marks. Separate evidenced factual flaws from optional design advice and unresolved questions; rule out camera reversal, crop, occlusion and motivated exposure before flagging a mismatch. Name unseen coverage and the earliest source that owns each issue. This adds no approval gate and does not replace the measured critic. Existing production autonomy applies. The scene reference packet MUST include at least one textured top/bird's-eye and at least one genuine side/elevation of the same set, preferably two distinct informative sides (SNAP-R271). Label each picture's camera, role and source version; repeated crops are not distinct views. The top supplies placement and footprint; sides supply vertical geometry, height, proportions, architecture and occlusion. Resolve conflicts against authoritative originals. Obtain missing views under existing authorized scope or report the coverage gap, with no new approval flow or API rejection. Aerial-only remains an explicitly requested ablation, not the normal production minimum. Any cited side reference precludes an aerial-only claim. A side used for geometry need not match the desired output camera; keep geometry and composition roles distinct.",
+  "rule": "SNAP-R269 / SNAP-R271",
+  "more": "skills snap-set-design, snap-location and snap-new-view",
+  "note": "Add mandatory top plus side scene reference minimum; preserve whole-set design review",
+  "source": {
+    "from": "person",
+    "quote": "make that mandatory at least top and at least one side view ... preferably2",
+    "date": "2026-11-08"
+  }
+}

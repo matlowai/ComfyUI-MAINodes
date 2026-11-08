@@ -1,0 +1,20 @@
+# Blind visual review — 2026-11-08
+
+Scope: all 16 complete contact sheets, covering all 96 half-second samples from 0.0–47.5 s. Candidate issues checked in the supplied native 1280×704 JPEGs using original-resolution viewing. No project memories, prior findings, user notes, or audio consulted. This is a sampled visual review, not continuous playback or an audio review. Frame numbering below is the supplied `frames/frame_NNN.jpg`; timestamp = (NNN − 1) × 0.5 s.
+
+## Findings
+
+1. **High confidence / clear continuity error: damage to the floor disappears during the same sustained clash.** At 20.5 s, dark branching fractures form beneath the barrier and spread left across the circular paving. They remain conspicuous at 23.5 s. On returning to essentially the same side-wide composition at 31.5 s, the floor is intact, although the beam and barrier are still active. It remains intact through the aftermath at 33.5–35.5 s and the closing wide. There is no visible repair beat. Native evidence: `frame_042.jpg` (20.5), `frame_048.jpg` (23.5) versus `frame_064.jpg` (31.5), `frame_068.jpg` (33.5), `frame_072.jpg` (35.5), `frame_087.jpg` (43.0). The fracture shape and persistence before the cut make this read as physical damage, not simply an anime light streak.
+
+2. **Medium-high confidence / action connection: the girl's preparation repeats across the cut around 12 s.** In the frontal view she has already thrust the wand forward by 10.0 s and holds the extended aim through 12.0 s. At 12.5 s the side-wide restores the wand upright beside her face, then she thrusts it forward again at 13.0 s. This reads as a reset/replay of the ready-to-aim movement rather than one continuous action. Native evidence: `frame_025.jpg` (12.0), `frame_026.jpg` (12.5), `frame_027.jpg` (13.0); sheets 04–05 establish the earlier hold. A deliberate second attempt could explain it, but the sampled edit does not establish that distinction.
+
+3. **Medium confidence / image consistency: the side-wide material is visibly softer than adjacent singles.** The two-character views around 12.5–16.0 s, 19.5–23.5 s and 31.5–35.5 s have soft/pixelated faces, costume outlines and background balusters compared with the crisp teacher and girl close-ups. This is conspicuous at native size, not solely contact-sheet reduction. Examples: `frame_026.jpg`, `frame_033.jpg`, `frame_042.jpg`, `frame_064.jpg`, `frame_072.jpg` versus `frame_009.jpg` and `frame_073.jpg`. This is a visual quality discontinuity, not a claim about its technical cause.
+
+## Lower-confidence observations, not established errors
+
+- The smoke source becomes vague after the clash. It rises from the raised fist at 33.5 s, remains suspended as that arm lowers at 35.0–35.5 s, then appears in front of the teacher's upper torso at 36.0 s before being explicitly attached to his upturned palm again in the 43.0 s wide. Native `frame_068.jpg`, `frame_071.jpg`, `frame_072.jpg`, `frame_073.jpg`, `frame_087.jpg`. Residual smoke drifting after his hand moves can explain much of this; I would not call it a definite physical error from the supplied samples.
+- The armillary changes screen side relative to the teacher between the opening wide and early teacher single, then is on the opening side in the late teacher single. Native `frame_001.jpg`, `frame_009.jpg`, `frame_073.jpg`. Different camera positions and depth/parallax could explain this, so no categorical set-continuity claim.
+
+## Intentional-looking choices and limits
+
+The large sweat drop, smiling while under pressure, magical rings, beam, exaggerated wind in coats/hair, and exhausted kneeling read as ordinary anime staging. I did not count these as defects. The main left-girl/right-teacher action axis remains readable in the side-wide sequence. I found no high-confidence gross extra-limb or character-identity failure in the inspected samples. Half-second sampling can miss brief glitches, exact cut boundaries, foot contact/sliding, and motion cadence; those are not certified. No audio listening or lip-sync judgment performed.

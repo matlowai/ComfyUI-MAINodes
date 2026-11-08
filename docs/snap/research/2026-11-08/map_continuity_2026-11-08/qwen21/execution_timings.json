@@ -1,0 +1,65 @@
+[
+  {
+    "case": "map_final_placement",
+    "execution_s": 24.23,
+    "prompt_id": "5fbcbd0c-9ca2-4fbe-9f7e-29484899286b",
+    "outputs": {
+      "o": {
+        "images": [
+          {
+            "filename": "d5f559df_00001_.png",
+            "subfolder": "snap_views",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 1216,
+              "height": 1728
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "case": "guided_W",
+    "execution_s": 36.702,
+    "prompt_id": "649aee10-0983-4183-99b4-bff662293523",
+    "outputs": {
+      "o": {
+        "images": [
+          {
+            "filename": "d5f559df_00002_.png",
+            "subfolder": "snap_views",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 1920,
+              "height": 1088
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "case": "guided_S",
+    "execution_s": 37.193,
+    "prompt_id": "9d0c481f-d224-4be2-9bb7-f345f0186f45",
+    "outputs": {
+      "o": {
+        "images": [
+          {
+            "filename": "d5f559df_00003_.png",
+            "subfolder": "snap_views",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 1920,
+              "height": 1088
+            }
+          }
+        ]
+      }
+    }
+  }
+]

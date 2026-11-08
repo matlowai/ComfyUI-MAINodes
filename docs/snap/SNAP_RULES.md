@@ -671,11 +671,14 @@ R67-R69 are the Book's (see "The Book" below) and R70 is the Room (G7); U101's r
   audio under input/snap/ and the page adds it to Load Audio's choices; the node's own validation already accepts any
   input file. Snap's audio tools put the file on the node's widget whatever its folder. *Why:* F-C08. *More:* PLAN
   U101.
-- **SNAP-R75: The new view's model is the person's pick, among H3 models.** The view slot holds its models as registry
+- **SNAP-R75: The new view's model is the person's pick, among registered view models.** The view slot holds its models as registry
   data: `ph3_view` (PrunaAI's P-H3-Image on core `PH3ImageConditioning`, an edit of Picture 1 with the rest as
   references, 8 steps, no negative) and `fizgig_still` (stock H3 Reference to Video on the Fizgig H3 Still pack's
   one-frame latent, which says it needs that pack when it isn't installed). The tray's model menu and the tool's
-  `method` choose; the first listed is used when none is named. MOSS Image Edit is not a New view model: on short03's C2
+  `method` choose; the first listed is used when none is named. Explicit `qwen21_view` adds native Qwen Image 2.1
+  editing, using its encoder's first-reference canvas and ordered reference sockets; existing H3 purpose defaults
+  stay unchanged. The operator requested both H3 image paths before this editing fallback (2026-11-08).
+  MOSS Image Edit is not a New view model: on short03's C2
   it copied Picture 1 or redesigned the set and the people across views (the operator, 2026-11-05: "Not any moss edit those were
   bad"); Change something on video takes still uses it. *Why:* the operator, 2026-11-05 14:0x-15:0x after the C2 sheets.
   *More:* PLAN U101, U17, PROGRESS 2026-11-05 13:57-14:55.
@@ -2341,3 +2344,73 @@ Next free ID after this batch: SNAP-R240 (R160-R164 stay free; G16 reserved R215
   resolved in LESSONS "Batch G17b").
 
 Next free ID after this batch: SNAP-R254 (G18 reserved R254-R262, G19 R263-R266).
+
+## Sequence review and provisional map continuity (2026-11-08)
+
+- **SNAP-R267: Review continuity across the assembled sequence, including the action phase and the export.** Before
+  video, compare the previous out-pose with the next opening: hands and props, position, facing, and whether the
+  action has already happened. A changed camera does not justify repeating a wind-up or clearing accepted damage.
+  After assembly, compare adjacent views at playback size for grade and detail changes, accounting for camera
+  direction and exposure, and inspect the whole piece
+  for things the named checks missed. Check audio/video start and end times, then listen across splices and the
+  ending; ASR and levels cannot certify the sound, and a sampled review must say what it did not watch or hear.
+  *Why:* seq02 cut1f repeated a wand thrust and lost floor fractures between views; its wide/single grade and detail
+  were flagged as perceived mismatches, and its audio ended before its picture. *More:* dogfood seq02/review_2026-11-08/REVIEW.md; `snap-boards`,
+  `snap-book`. This adds planning and assembly guidance; the measured critic prompt stays under SNAP-R109.
+- **SNAP-R268: Preserve a textured overhead collage separately from schematic state metadata.** A visual layout
+  reference is the actual textured bird's-eye set with genuine overhead RGBA actor cutouts placed at explicit
+  positions, scales, orientations and overlap order; rotated front portraits and symbolic dots are not substitutes.
+  Inspect the raw collage and retain source layers, clean references and placement metadata. In image editing, the
+  collage supplies layout, original references supply appearance, and the model reconciles light, shadows and edges.
+  Original set references govern footprint, proportions and landmark relations; check generated aerials against them.
+  Canvas aspect is not floor footprint: repair a square-for-rectangle error from sources, never stretch the image
+  and its circular ring. Use the scene reference minimum in SNAP-R271 for new-camera work; distinguish side geometry
+  references from a target-camera composition plate. Aerial + actors only is an explicitly selected ablation,
+  not the default preparation. Test H3 and explicitly selected Qwen2.1 with a few guided seeds;
+  schematic-map failures do not test this route or exclude a model globally. Prior two-seed frames looked good but
+  used a conflicting square aerial, a clean camera plate and strong placement words; they validate neither same-world
+  aerial continuity nor its contribution. Use a matched no-aerial control when attributing benefit. Retain observed
+  H3/Qwen same-camera image-finishing results without a reliability claim. Keep landmarks fixed
+  across state versions; update intended or accepted damage, items and actor placements under existing production
+  canon/autonomy policy without an extra approval step. Generated errors do not become canon. First-frame image
+  editing is a separate test from video: overhead collages and annotations are not default video References because
+  of framing-target and mark-leakage risks (SNAP-R242, R133). *Why:* the operator clarified actual textured overhead
+  set/actor cutouts, regeneration for cohesive lighting and proportions, then a starting frame and a few seeds;
+  schematic dots/arrows tested a different proposal. *More:* study VISUAL_COLLAGE_PLAN_2026-11-08.md;
+  LAYERCRAFT_COLLAGE_SCOUT_2026-11-08.md; MAP_CONTINUITY_EXPERIMENT_2026-11-08.md;
+  visual_collage_2026-11-08/AERIAL_GEOMETRY_CORRECTION.md; `snap-location`, `snap-new-view`.
+
+- **SNAP-R269: Review the whole location's design and staging across existing views before choosing shots.** Read the
+  pinned plan, notes, scale, camera marks and accepted state; inspect whole native views before details. Assess usable
+  ground and circulation, fixed landmarks, architectural/material coherence, scale, light and camera coverage. Keep
+  advisory design preferences apart from evidenced physical or continuity flaws. Test camera, projection, occlusion
+  and accepted-state explanations before declaring a difference wrong; name unseen areas and source ownership.
+  *Why:* a shot-by-shot continuity check does not establish that a set works as a whole place for the story, and
+  changing cameras can explain screen-side differences. *More:* skill `snap-set-design`; study
+  SET_DESIGN_REVIEW_2026-11-08.md. Instruction-only workflow, not a change to the measured critic under SNAP-R109.
+
+- **SNAP-R270: Partial New view denoise initializes from Picture 1's pixels, not an empty target.** Omitting
+  `denoise` or giving 1 preserves the existing reference-only graph. A partial P-H3 or Qwen 2.1 edit encodes the
+  first picture at the native target canvas with the same VAE and keeps the ordered references as conditioning.
+  P-H3 retains its empty audio through the native AV split/join and uses a model-aware H3DeropeSigmas tail;
+  Qwen uses its native KSampler denoise schedule. Their numeric strengths are different schedule conventions.
+  Record the init picture, schedule and requested canvas, and preserve them on a New view rerun. Blurring a
+  reference changes conditioning; it does not itself supply a sampled init. *Why:* the collage experiment needs
+  a real partial redraw, while both native conditioners return empty target latents. *More:* study
+  visual_collage_2026-11-08/PARTIAL_DENOISE_SCOUT.md; tests/snap/test_view_init.js.
+
+- **SNAP-R271: Prepare a scene reference packet with a textured top and genuine sides.** Before generating views of
+  a known scene, agents must prepare at least one textured top/bird's-eye view and at least one genuine side/elevation
+  of the same set; prefer two distinct informative sides. The top establishes layout and footprint; sides establish
+  height, proportions, architecture and occlusion. Repeated crops do not count as distinct views. Label each picture's
+  camera, role and source version; resolve conflicts against authoritative originals, never blend incompatible
+  geometry. Obtain missing views within existing authorized scene work, otherwise report the coverage gap without
+  claiming a complete packet. A side geometry reference need not match the requested output camera: distinguish its
+  geometry role from copied composition. Any cited side frame means the run is not aerial-only. Omitting sides is
+  only an explicitly selected ablation, not a normal preparation step. This is agent guidance; native tools remain
+  permissive, with no new node/server validation, model parameter or approval gate. *Why:* the operator, 2026-11-08:
+  "we need the side view...for the geometry...make that mandatory at least top and at least one side view...preferably2".
+  *More:* study SCENE_REFERENCE_MINIMUM_2026-11-08.md; `snap-location`, `snap-new-view`, `snap-set-design`,
+  `snap-model-choice`.
+
+Next free ID after this batch: SNAP-R272 (G18 reserved R254-R262, G19 R263-R266).

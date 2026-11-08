@@ -1,0 +1,17 @@
+[
+  {
+    "source": "local-evidence/snap-session/visual_collage_2026-11-08/rectangular_aerial/candidate2.png",
+    "file": "snap/aerial_only/aerial_candidate2.png",
+    "sha256": "54e72cd060d9d48522d25e53b93983267762d9ce69ab3f9edded1e794261e571"
+  },
+  {
+    "source": "local-evidence/snap-session/gpubase/input/snap/take-9873668c-826b-49aa-9005-083465fe9564_f0.png",
+    "file": "snap/aerial_only/liora.png",
+    "sha256": "d622a8d4236b25cb3ef271ec70a6deb7d99fdbbe23dbdac1353cafff4642b4c5"
+  },
+  {
+    "source": "local-evidence/snap-session/gpubase/input/snap/dials_image_00253_.png",
+    "file": "snap/aerial_only/corvin.png",
+    "sha256": "d66edb3e2817b5d8ffc2fc9e844893f7c3ea8f2b94e79609a8c3e9aeb86859ee"
+  }
+]

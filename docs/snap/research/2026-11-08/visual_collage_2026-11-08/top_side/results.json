@@ -1,0 +1,685 @@
+[
+  {
+    "name": "ph3_top_w",
+    "seed": 887101,
+    "width": 2016,
+    "height": 1152,
+    "seconds": 31.682,
+    "images": [
+      "snap/aerial_only/aerial_candidate2.png",
+      "snap/take-6af5bc8e-e50e-41bb-a9d7-74e5f3040faf_f0.png",
+      "snap/aerial_only/liora.png",
+      "snap/aerial_only/corvin.png"
+    ],
+    "nodes": {
+      "1": {
+        "class_type": "UNETLoader",
+        "inputs": {
+          "unet_name": "h3/p-h3-image_int8_convrot.safetensors",
+          "weight_dtype": "default"
+        }
+      },
+      "2": {
+        "class_type": "CLIPLoader",
+        "inputs": {
+          "clip_name": "h3/p-h3-image_text_encoder_int8_convrot.safetensors",
+          "type": "minimax",
+          "device": "default"
+        }
+      },
+      "3": {
+        "class_type": "VAELoader",
+        "inputs": {
+          "vae_name": "h3/p-h3-image_vae_int8_convrot.safetensors"
+        }
+      },
+      "4": {
+        "class_type": "MiniMaxH3SigmaShift",
+        "inputs": {
+          "model": [
+            "1",
+            0
+          ],
+          "shift_video": 1.0,
+          "shift_audio": 1.0
+        }
+      },
+      "c0l": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "snap/aerial_only/aerial_candidate2.png"
+        }
+      },
+      "c1l": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "snap/take-6af5bc8e-e50e-41bb-a9d7-74e5f3040faf_f0.png"
+        }
+      },
+      "c2l": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "snap/aerial_only/liora.png"
+        }
+      },
+      "c3l": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "snap/aerial_only/corvin.png"
+        }
+      },
+      "p": {
+        "class_type": "PH3ImageConditioning",
+        "inputs": {
+          "clip": [
+            "2",
+            0
+          ],
+          "vae": [
+            "3",
+            0
+          ],
+          "prompt": "Create one cohesive anime frame of the same terrace shown in <Picture 1>, viewed from the EAST long edge looking WEST at standing eye height, with a level horizon: a side-on full-body two-shot across the terrace, showing both figures and the engraved floor ring between their feet. <Picture 1> supplies general overhead layout and footprint. <Picture 2> supplies the original side geometry, paving, railing and terrain structure and the desired WEST-facing camera composition. Preserve the authoritative original side's proportions and vertical geometry where the generated top view differs; do not invent a blended new set. <Picture 3> supplies only Liora's appearance: the young red-haired woman in the green coat; <Picture 4> supplies only Corvin's appearance: the older white-haired bearded man in the dark robe. Exactly two people stand just outside opposite NORTH and SOUTH edges of the floor ring: Liora on the SOUTH side, screen LEFT, facing NORTH toward Corvin; Corvin on the NORTH side, screen RIGHT, facing SOUTH toward Liora. Both keep their heads and bodies turned inward in profile, with one lowered wand in each person's right hand, and natural proportions, grounded feet and coherent contact shadows. Frame the two figures from the original side camera.",
+          "width": 2016,
+          "height": 1152,
+          "images.image_1": [
+            "c0l",
+            0
+          ],
+          "images.image_2": [
+            "c1l",
+            0
+          ],
+          "images.image_3": [
+            "c2l",
+            0
+          ],
+          "images.image_4": [
+            "c3l",
+            0
+          ]
+        }
+      },
+      "g": {
+        "class_type": "BasicGuider",
+        "inputs": {
+          "model": [
+            "4",
+            0
+          ],
+          "conditioning": [
+            "p",
+            0
+          ]
+        }
+      },
+      "r": {
+        "class_type": "RandomNoise",
+        "inputs": {
+          "noise_seed": 887101
+        }
+      },
+      "s": {
+        "class_type": "KSamplerSelect",
+        "inputs": {
+          "sampler_name": "euler"
+        }
+      },
+      "m": {
+        "class_type": "ManualSigmas",
+        "inputs": {
+          "sigmas": "1.0, 0.984753, 0.967905, 0.951688, 0.925372, 0.881923, 0.810083, 0.528718, 0.0"
+        }
+      },
+      "k": {
+        "class_type": "SamplerCustomAdvanced",
+        "inputs": {
+          "noise": [
+            "r",
+            0
+          ],
+          "guider": [
+            "g",
+            0
+          ],
+          "sampler": [
+            "s",
+            0
+          ],
+          "sigmas": [
+            "m",
+            0
+          ],
+          "latent_image": [
+            "p",
+            1
+          ]
+        }
+      },
+      "d": {
+        "class_type": "VAEDecode",
+        "inputs": {
+          "samples": [
+            "k",
+            0
+          ],
+          "vae": [
+            "3",
+            0
+          ]
+        }
+      },
+      "o": {
+        "class_type": "SaveImage",
+        "inputs": {
+          "images": [
+            "d",
+            0
+          ],
+          "filename_prefix": "snap_views/db0898bb"
+        }
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "88786d41-09d4-460f-ab40-9b23a9bd2674",
+            "timestamp": 1794165921526
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [
+              "c0l",
+              "c2l",
+              "c3l"
+            ],
+            "prompt_id": "88786d41-09d4-460f-ab40-9b23a9bd2674",
+            "timestamp": 1794165921532
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "88786d41-09d4-460f-ab40-9b23a9bd2674",
+            "timestamp": 1794165953208
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "name": "ph3_top_w_s",
+    "seed": 887101,
+    "width": 2016,
+    "height": 1152,
+    "seconds": 37.184,
+    "images": [
+      "snap/aerial_only/aerial_candidate2.png",
+      "snap/take-6af5bc8e-e50e-41bb-a9d7-74e5f3040faf_f0.png",
+      "snap/take-1af2ec3b-44eb-4e01-a9b4-951b6dd40900_f0.png",
+      "snap/aerial_only/liora.png",
+      "snap/aerial_only/corvin.png"
+    ],
+    "nodes": {
+      "1": {
+        "class_type": "UNETLoader",
+        "inputs": {
+          "unet_name": "h3/p-h3-image_int8_convrot.safetensors",
+          "weight_dtype": "default"
+        }
+      },
+      "2": {
+        "class_type": "CLIPLoader",
+        "inputs": {
+          "clip_name": "h3/p-h3-image_text_encoder_int8_convrot.safetensors",
+          "type": "minimax",
+          "device": "default"
+        }
+      },
+      "3": {
+        "class_type": "VAELoader",
+        "inputs": {
+          "vae_name": "h3/p-h3-image_vae_int8_convrot.safetensors"
+        }
+      },
+      "4": {
+        "class_type": "MiniMaxH3SigmaShift",
+        "inputs": {
+          "model": [
+            "1",
+            0
+          ],
+          "shift_video": 1.0,
+          "shift_audio": 1.0
+        }
+      },
+      "c0l": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "snap/aerial_only/aerial_candidate2.png"
+        }
+      },
+      "c1l": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "snap/take-6af5bc8e-e50e-41bb-a9d7-74e5f3040faf_f0.png"
+        }
+      },
+      "c2l": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "snap/take-1af2ec3b-44eb-4e01-a9b4-951b6dd40900_f0.png"
+        }
+      },
+      "c3l": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "snap/aerial_only/liora.png"
+        }
+      },
+      "c4l": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "snap/aerial_only/corvin.png"
+        }
+      },
+      "p": {
+        "class_type": "PH3ImageConditioning",
+        "inputs": {
+          "clip": [
+            "2",
+            0
+          ],
+          "vae": [
+            "3",
+            0
+          ],
+          "prompt": "Create one cohesive anime frame of the same terrace shown in <Picture 1>, viewed from the EAST long edge looking WEST at standing eye height, with a level horizon: a side-on full-body two-shot across the terrace, showing both figures and the engraved floor ring between their feet. <Picture 1> supplies general overhead layout and footprint. <Picture 2> supplies the original side geometry, paving, railing and terrain structure and the desired WEST-facing camera composition. Preserve the authoritative original side's proportions and vertical geometry where the generated top view differs; do not invent a blended new set. <Picture 3> supplies the same original terrace from its SOUTH cross-side for geometry and height only; its composition is not the requested output camera. <Picture 4> supplies only Liora's appearance: the young red-haired woman in the green coat; <Picture 5> supplies only Corvin's appearance: the older white-haired bearded man in the dark robe. Exactly two people stand just outside opposite NORTH and SOUTH edges of the floor ring: Liora on the SOUTH side, screen LEFT, facing NORTH toward Corvin; Corvin on the NORTH side, screen RIGHT, facing SOUTH toward Liora. Both keep their heads and bodies turned inward in profile, with one lowered wand in each person's right hand, and natural proportions, grounded feet and coherent contact shadows. Frame the two figures from the original side camera.",
+          "width": 2016,
+          "height": 1152,
+          "images.image_1": [
+            "c0l",
+            0
+          ],
+          "images.image_2": [
+            "c1l",
+            0
+          ],
+          "images.image_3": [
+            "c2l",
+            0
+          ],
+          "images.image_4": [
+            "c3l",
+            0
+          ],
+          "images.image_5": [
+            "c4l",
+            0
+          ]
+        }
+      },
+      "g": {
+        "class_type": "BasicGuider",
+        "inputs": {
+          "model": [
+            "4",
+            0
+          ],
+          "conditioning": [
+            "p",
+            0
+          ]
+        }
+      },
+      "r": {
+        "class_type": "RandomNoise",
+        "inputs": {
+          "noise_seed": 887101
+        }
+      },
+      "s": {
+        "class_type": "KSamplerSelect",
+        "inputs": {
+          "sampler_name": "euler"
+        }
+      },
+      "m": {
+        "class_type": "ManualSigmas",
+        "inputs": {
+          "sigmas": "1.0, 0.984753, 0.967905, 0.951688, 0.925372, 0.881923, 0.810083, 0.528718, 0.0"
+        }
+      },
+      "k": {
+        "class_type": "SamplerCustomAdvanced",
+        "inputs": {
+          "noise": [
+            "r",
+            0
+          ],
+          "guider": [
+            "g",
+            0
+          ],
+          "sampler": [
+            "s",
+            0
+          ],
+          "sigmas": [
+            "m",
+            0
+          ],
+          "latent_image": [
+            "p",
+            1
+          ]
+        }
+      },
+      "d": {
+        "class_type": "VAEDecode",
+        "inputs": {
+          "samples": [
+            "k",
+            0
+          ],
+          "vae": [
+            "3",
+            0
+          ]
+        }
+      },
+      "o": {
+        "class_type": "SaveImage",
+        "inputs": {
+          "images": [
+            "d",
+            0
+          ],
+          "filename_prefix": "snap_views/db0898bb"
+        }
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "5df869ab-f022-4a4e-8c4c-e331d9eb3d75",
+            "timestamp": 1794165971928
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [
+              "c0l",
+              "c1l",
+              "c3l",
+              "c4l"
+            ],
+            "prompt_id": "5df869ab-f022-4a4e-8c4c-e331d9eb3d75",
+            "timestamp": 1794165971935
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "5df869ab-f022-4a4e-8c4c-e331d9eb3d75",
+            "timestamp": 1794166009112
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "name": "fizgig_top_w_s",
+    "seed": 887101,
+    "width": 2016,
+    "height": 1152,
+    "seconds": 129.022,
+    "images": [
+      "snap/aerial_only/aerial_candidate2.png",
+      "snap/take-6af5bc8e-e50e-41bb-a9d7-74e5f3040faf_f0.png",
+      "snap/take-1af2ec3b-44eb-4e01-a9b4-951b6dd40900_f0.png",
+      "snap/aerial_only/liora.png",
+      "snap/aerial_only/corvin.png"
+    ],
+    "nodes": {
+      "1": {
+        "class_type": "UNETLoader",
+        "inputs": {
+          "unet_name": "h3/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+          "weight_dtype": "default"
+        }
+      },
+      "2": {
+        "class_type": "CLIPLoader",
+        "inputs": {
+          "clip_name": "h3/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+          "type": "minimax",
+          "device": "default"
+        }
+      },
+      "3": {
+        "class_type": "VAELoader",
+        "inputs": {
+          "vae_name": "h3/minimax_h3_video_vae_fp16.safetensors"
+        }
+      },
+      "4": {
+        "class_type": "LoraLoaderModelOnly",
+        "inputs": {
+          "model": [
+            "1",
+            0
+          ],
+          "lora_name": "h3/minimax_h3_turbo_v4_step600_ema.safetensors",
+          "strength_model": 0.38
+        }
+      },
+      "c0l": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "snap/aerial_only/aerial_candidate2.png"
+        }
+      },
+      "c1l": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "snap/take-6af5bc8e-e50e-41bb-a9d7-74e5f3040faf_f0.png"
+        }
+      },
+      "c2l": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "snap/take-1af2ec3b-44eb-4e01-a9b4-951b6dd40900_f0.png"
+        }
+      },
+      "c3l": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "snap/aerial_only/liora.png"
+        }
+      },
+      "c4l": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "snap/aerial_only/corvin.png"
+        }
+      },
+      "p": {
+        "class_type": "MiniMaxH3ReferenceToVideo",
+        "inputs": {
+          "clip": [
+            "2",
+            0
+          ],
+          "vae": [
+            "3",
+            0
+          ],
+          "prompt": "Create one cohesive anime frame of the same terrace shown in <Picture 1>, viewed from the EAST long edge looking WEST at standing eye height, with a level horizon: a side-on full-body two-shot across the terrace, showing both figures and the engraved floor ring between their feet. <Picture 1> supplies general overhead layout and footprint. <Picture 2> supplies the original side geometry, paving, railing and terrain structure and the desired WEST-facing camera composition. Preserve the authoritative original side's proportions and vertical geometry where the generated top view differs; do not invent a blended new set. <Picture 3> supplies the same original terrace from its SOUTH cross-side for geometry and height only; its composition is not the requested output camera. <Picture 4> supplies only Liora's appearance: the young red-haired woman in the green coat; <Picture 5> supplies only Corvin's appearance: the older white-haired bearded man in the dark robe. Exactly two people stand just outside opposite NORTH and SOUTH edges of the floor ring: Liora on the SOUTH side, screen LEFT, facing NORTH toward Corvin; Corvin on the NORTH side, screen RIGHT, facing SOUTH toward Liora. Both keep their heads and bodies turned inward in profile, with one lowered wand in each person's right hand, and natural proportions, grounded feet and coherent contact shadows. Frame the two figures from the original side camera.",
+          "width": 2016,
+          "height": 1152,
+          "length": 5,
+          "ref_image_size": "match",
+          "ref_images.ref_image_0": [
+            "c0l",
+            0
+          ],
+          "ref_images.ref_image_1": [
+            "c1l",
+            0
+          ],
+          "ref_images.ref_image_2": [
+            "c2l",
+            0
+          ],
+          "ref_images.ref_image_3": [
+            "c3l",
+            0
+          ],
+          "ref_images.ref_image_4": [
+            "c4l",
+            0
+          ]
+        }
+      },
+      "g": {
+        "class_type": "BasicGuider",
+        "inputs": {
+          "model": [
+            "4",
+            0
+          ],
+          "conditioning": [
+            "p",
+            0
+          ]
+        }
+      },
+      "r": {
+        "class_type": "RandomNoise",
+        "inputs": {
+          "noise_seed": 887101
+        }
+      },
+      "s": {
+        "class_type": "KSamplerSelect",
+        "inputs": {
+          "sampler_name": "er_sde"
+        }
+      },
+      "m": {
+        "class_type": "BasicScheduler",
+        "inputs": {
+          "model": [
+            "4",
+            0
+          ],
+          "scheduler": "simple",
+          "steps": 20,
+          "denoise": 1.0
+        }
+      },
+      "l": {
+        "class_type": "FizgigH3StillLatent",
+        "inputs": {
+          "width": 2016,
+          "height": 1152,
+          "batch_size": 1
+        }
+      },
+      "k": {
+        "class_type": "SamplerCustomAdvanced",
+        "inputs": {
+          "noise": [
+            "r",
+            0
+          ],
+          "guider": [
+            "g",
+            0
+          ],
+          "sampler": [
+            "s",
+            0
+          ],
+          "sigmas": [
+            "m",
+            0
+          ],
+          "latent_image": [
+            "l",
+            0
+          ]
+        }
+      },
+      "d": {
+        "class_type": "FizgigH3StillDecode",
+        "inputs": {
+          "samples": [
+            "k",
+            0
+          ],
+          "vae": [
+            "3",
+            0
+          ]
+        }
+      },
+      "o": {
+        "class_type": "SaveImage",
+        "inputs": {
+          "images": [
+            "d",
+            0
+          ],
+          "filename_prefix": "snap_views/db0898bb"
+        }
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "abae259d-763b-4410-9f79-abc738d48d0e",
+            "timestamp": 1794166043132
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [
+              "c0l",
+              "c1l",
+              "c2l",
+              "c3l",
+              "c4l"
+            ],
+            "prompt_id": "abae259d-763b-4410-9f79-abc738d48d0e",
+            "timestamp": 1794166043139
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "abae259d-763b-4410-9f79-abc738d48d0e",
+            "timestamp": 1794166172154
+          }
+        ]
+      ]
+    }
+  }
+]

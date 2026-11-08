@@ -593,6 +593,38 @@
       "credit": "Fizgig H3 Still by shootthesound (https://github.com/shootthesound/ComfyUI-Fizgig-H3-Still, MIT) · turbo LoRA larryvrh/MiniMax-H3-Turbo-Lora · MiniMax H3"
     },
     {
+      "id": "qwen21_view",
+      "slot": "view",
+      "kind": "take",
+      "title": "New view · Qwen Image 2.1",
+      "picture_one": { "label": "is the picture edited", "tip": "the first reference sets the canvas; write <image1>, <image2>, … in the prompt" },
+      "face": "an edit from ordered pictures and your words (Qwen Image 2.1)",
+      "does": "edit",
+      "anchors": {
+        "kind": "qwen21",
+        "prompt": "{prompt}",
+        "unet": "qwen21/qwen_image_2.1_int8_convrot.safetensors",
+        "clip": "qwen21/qwen3vl_8b_int8_convrot.safetensors",
+        "vae": "qwen21/qwen_image_2.1_vae_bf16.safetensors",
+        "steps": 25,
+        "cfg": 1,
+        "sampler": "euler",
+        "scheduler": "simple"
+      },
+      "packs": ["TextEncodeQwenImage21", "QwenImage21Cache"],
+      "needs": [{ "folder": "diffusion_models", "match": "qwen_image_2.1_int8_convrot" }, { "folder": "text_encoders", "match": "qwen3vl_8b_int8_convrot" }, { "folder": "vae", "match": "qwen_image_2.1_vae_bf16" }],
+      "local_or_api": "local",
+      "constraints": [
+        "explicit method qwen21_view; existing purpose defaults stay on H3",
+        "first picture is edited, others are references on separate native image sockets; prompt references are <image1>, <image2>, …, passed unchanged",
+        "the first reference sets the encoder latent: width and height resize that picture before encoding; dimensions round to multiples of 32",
+        "25 steps, CFG 1, Euler/simple, denoise 1; native model shift unchanged; cache auto with lossless default storage"
+      ],
+      "guidance": { "line": "native 2.1 editing integration; spatial continuity remains an experiment", "evidence": "documented", "source": "Comfy-Org image_qwen_image_2_1_image_edit workflow", "n": 0 },
+      "cost": { "community_s": null, "local_s": null, "per": "one still; not measured", "vram_gb": null },
+      "credit": "Qwen Image 2.1 · Comfy-Org native edit workflow"
+    },
+    {
       "id": "contact_sheet",
       "slot": "sheet",
       "kind": "take",

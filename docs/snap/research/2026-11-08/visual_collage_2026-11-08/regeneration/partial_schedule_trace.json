@@ -1,0 +1,63 @@
+{
+  "provenance": "CPU reconstruction from executed history graph and exact native sampler/helper classes; not a live tensor capture. No weights loaded, no diffusion run.",
+  "h3": {
+    "shift_video": 1.0,
+    "shift_audio": 1.0,
+    "inject": 0.7,
+    "manual_input": [
+      1.0,
+      0.9847530126571655,
+      0.9679049849510193,
+      0.9516879916191101,
+      0.9253720045089722,
+      0.8819230198860168,
+      0.8100829720497131,
+      0.5287179946899414,
+      0.0
+    ],
+    "sigmas": [
+      0.699999988079071,
+      0.5287179946899414,
+      0.0
+    ],
+    "steps": 2,
+    "target_trace": "k.latent_image -> il=LTXVConcatAVLatent(video ie=VAEEncode(ip=ImageScale(P1)), audio ia[1]=LTXVSeparateAVLatent(p[1]))"
+  },
+  "qwen": {
+    "sampling_class": "ModelSamplingFlux",
+    "shift": 0.69,
+    "scheduler": "simple",
+    "denoise": 0.7,
+    "steps": 25,
+    "expanded_steps": 35,
+    "sigmas": [
+      0.8329054117202759,
+      0.813141942024231,
+      0.7926282286643982,
+      0.771396815776825,
+      0.7494094371795654,
+      0.7267059683799744,
+      0.7030831575393677,
+      0.6785716414451599,
+      0.653211236000061,
+      0.6267688870429993,
+      0.5992724299430847,
+      0.5706576704978943,
+      0.5409612059593201,
+      0.509899377822876,
+      0.4774921238422394,
+      0.4437711536884308,
+      0.40840259194374084,
+      0.3713958263397217,
+      0.3326343595981598,
+      0.2921357750892639,
+      0.2494758814573288,
+      0.2046384960412979,
+      0.157621830701828,
+      0.10790703445672989,
+      0.055444516241550446,
+      0.0
+    ],
+    "target_trace": "k.latent_image -> ie=VAEEncode(ip=ImageScale(ib=ImageFromBatch(q=ImageScale(P1))))"
+  }
+}

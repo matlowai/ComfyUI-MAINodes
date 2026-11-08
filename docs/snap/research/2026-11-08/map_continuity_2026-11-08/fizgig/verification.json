@@ -1,0 +1,65 @@
+{
+  "only_argument_changed": "method",
+  "rows": [
+    {
+      "cell": "control_W",
+      "take": "take-3b80818b-8d09-4eb3-86d0-1a0726b94b3c",
+      "seed": 880101,
+      "graph_wall_s": 54.885,
+      "start_ms": 1794158151127,
+      "end_ms": 1794158206012,
+      "sha256": "2c75aed260a463babd56b28feee57616a43d81bf46ebbac11c41feb92abf6048",
+      "reference_files": [
+        "snap/take-6af5bc8e-e50e-41bb-a9d7-74e5f3040faf_f0.png",
+        "snap/take-9873668c-826b-49aa-9005-083465fe9564_f0.png",
+        "snap/dials_image_00253_.png"
+      ]
+    },
+    {
+      "cell": "guided_W",
+      "take": "take-0e82d4a2-b9fe-41cd-8ea7-544adb5f069e",
+      "seed": 880101,
+      "graph_wall_s": 77.046,
+      "start_ms": 1794158216907,
+      "end_ms": 1794158293953,
+      "sha256": "b2db6cd9f058eb6d4dac2dca6395cc6646a083f58a6a9affdd74c254b1e21b1c",
+      "reference_files": [
+        "snap/take-6af5bc8e-e50e-41bb-a9d7-74e5f3040faf_f0.png",
+        "snap/take-9873668c-826b-49aa-9005-083465fe9564_f0.png",
+        "snap/dials_image_00253_.png",
+        "snap_views/1b7d78a4_00003_.png [output]"
+      ]
+    },
+    {
+      "cell": "control_S",
+      "take": "take-1386dbb2-63cf-4df3-81fc-a39c5c1c0683",
+      "seed": 880102,
+      "graph_wall_s": 46.879,
+      "start_ms": 1794158294711,
+      "end_ms": 1794158341590,
+      "sha256": "635359f6d6af881706a0304be5412683fd81446583988b03c617b980c273f6ee",
+      "reference_files": [
+        "snap/take-1af2ec3b-44eb-4e01-a9b4-951b6dd40900_f0.png",
+        "snap/take-9873668c-826b-49aa-9005-083465fe9564_f0.png",
+        "snap/dials_image_00253_.png"
+      ]
+    },
+    {
+      "cell": "guided_S",
+      "take": "take-e2406e08-963d-4a76-bc5c-c5fcd25fee42",
+      "seed": 880102,
+      "graph_wall_s": 65.703,
+      "start_ms": 1794158342263,
+      "end_ms": 1794158407966,
+      "sha256": "0e54cebee3ce5963b4253797be5eae0c392ab18103718c4a1f7fa277dce5b364",
+      "reference_files": [
+        "snap/take-1af2ec3b-44eb-4e01-a9b4-951b6dd40900_f0.png",
+        "snap/take-9873668c-826b-49aa-9005-083465fe9564_f0.png",
+        "snap/dials_image_00253_.png",
+        "snap_views/1b7d78a4_00003_.png [output]"
+      ]
+    }
+  ],
+  "graph_wall_sum_s": 244.513,
+  "first_start_to_last_end_s": 256.839
+}

@@ -1,0 +1,75 @@
+{
+  "kind": "authored layered construction, not measured reconstruction",
+  "source": "candidate2.png",
+  "source_sha256": "54e72cd060d9d48522d25e53b93983267762d9ce69ab3f9edded1e794261e571",
+  "canvas": [
+    1152,
+    1308
+  ],
+  "removed_empty_paving_intervals_y": [
+    [
+      400,
+      640
+    ],
+    [
+      1140,
+      1640
+    ]
+  ],
+  "layers": [
+    {
+      "source_box": [
+        0,
+        0,
+        1152,
+        400
+      ],
+      "paste": [
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1
+      ]
+    },
+    {
+      "source_box": [
+        0,
+        640,
+        1152,
+        1140
+      ],
+      "paste": [
+        0,
+        400
+      ],
+      "scale": [
+        1,
+        1
+      ]
+    },
+    {
+      "source_box": [
+        0,
+        1640,
+        1152,
+        2048
+      ],
+      "paste": [
+        0,
+        900
+      ],
+      "scale": [
+        1,
+        1
+      ]
+    }
+  ],
+  "whole_image_stretch": false,
+  "limits": [
+    "Generated ring still has slight N-S projection distortion; construction not yet validated or a proper final reference.",
+    "Approximate terrace ratio2:1 chosen as artist estimate from long rectangle requirement, not recovered dimensions.",
+    "Horizontal strip joins remain visible and require review."
+  ]
+}

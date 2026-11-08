@@ -173,7 +173,7 @@ const sh = (cmd, args) => new Promise((done, fail) => execFile(cmd, args, (e) =>
     const checks = {
       "Change something on a still points to the new route": /edit_from_context/.test(R.editStill?.error ?? ""),
       "edit_from_context returns a decision and says what Picture 1 is (P-H3-Image, listed first)": !!R.view?.decision && /^Picture 1 \(is the picture edited\): old C2 board/.test(pics[0] ?? ""),
-      "the view slot holds only H3 models, each saying what Picture 1 is": JSON.stringify(R.viewMethods) === JSON.stringify([["ph3_view", "is the picture edited"], ["fizgig_still", "is the first reference"]]),
+      "the view slot keeps H3 first and adds explicit Qwen, each saying what Picture 1 is": JSON.stringify(R.viewMethods) === JSON.stringify([["ph3_view", "is the picture edited"], ["fizgig_still", "is the first reference"], ["qwen21_view", "is the picture edited"]]),
       "one prompt per seed, seeds as given": R.graph?.count === 2 && JSON.stringify(R.graph.seeds) === "[901,902]",
       "four pictures on images.image_1..4 in the order given": JSON.stringify(R.graph?.images) === JSON.stringify(["images.image_1", "images.image_2", "images.image_3", "images.image_4"]),
       "Picture 1 the still, 2 a crop, 3 a video frame, 4 the Cast picture": R.graph?.chain?.[0]?.[0] === "LoadImage" && R.graph.chain[1][0] === "ImageCropV2" && R.graph.chain[2][0] === "ImageFromBatch" && R.graph.chain[3][0] === "LoadImage",
@@ -186,7 +186,7 @@ const sh = (cmd, args) => new Promise((done, fail) => execFile(cmd, args, (e) =>
       "ph3_view refuses more than 9 pictures, saying why": /up to 9 pictures; 10 given/.test(R.ph3Many?.error ?? ""),
       "fizgig_still without its pack is refused naming the nodes, nothing queued; list_methods says so": /needs the nodes FizgigH3StillLatent, FizgigH3StillDecode/.test(R.fizgig?.error ?? "") && R.fizgigQueued === 0 && /needs the nodes Fizgig/.test(R.fizgigListed?.find(([id]) => id === "fizgig_still")?.[1] ?? ""),
       "what Picture 1 is follows the model (P-H3-Image: the picture edited; Fizgig: the first reference)": /^Picture 1 is the first reference · /.test(R.firstOnFizgig ?? "") && /^Picture 1 is the picture edited · /.test(R.rows?.[0] ?? ""),
-      "the tray picks among the H3 models, with no LoRA menu": JSON.stringify(R.models?.map(([v]) => v)) === JSON.stringify(["ph3_view", "fizgig_still"]) && /needs the nodes/.test(R.models?.[1]?.[1] ?? "") && R.loraMenu === 0,
+      "the tray picks among the view models, with no LoRA menu": JSON.stringify(R.models?.map(([v]) => v)) === JSON.stringify(["ph3_view", "fizgig_still", "qwen21_view"]) && /needs the nodes/.test(R.models?.[1]?.[1] ?? "") && R.loraMenu === 0,
       "refusals say what to give": /at least one picture/.test(R.refusals.none.error ?? "") && /say what the new still shows/.test(R.refusals.words.error ?? "") && /crop is \[x, y, width, height\]/.test(R.refusals.crop.error ?? "")
         && /width and height together/.test(R.refusals.half.error ?? "") && /isn't in this server's input folder/.test(R.refusals.missing.error ?? ""),
       "the candidates land as takes in Picture 1's shot, labelled New view": R.landed?.states?.every((s) => s === "ready") && R.landed.inShot && R.landed.takes.length === 2 && R.landed.takes.every((t) => t.method === "view/ph3_view" && /^New view · /.test(t.label) && t.context.length === 4),

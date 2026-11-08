@@ -1,0 +1,128 @@
+[
+  {
+    "name": "background1",
+    "take": "take-e8dcc67b-92f5-4c30-b202-757fe07d66bf",
+    "seed": 84101,
+    "model": "p-h3-image_int8_convrot.safetensors",
+    "execution_wall_s": 31.86,
+    "history_timestamps": [
+      [
+        "execution_start",
+        1794159960611
+      ],
+      [
+        "execution_cached",
+        1794159960660
+      ],
+      [
+        "execution_success",
+        1794159992471
+      ]
+    ]
+  },
+  {
+    "name": "liora1",
+    "take": "take-b12f5697-0790-4517-88fb-206a877c3159",
+    "seed": 84111,
+    "model": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+    "execution_wall_s": 35.59,
+    "history_timestamps": [
+      [
+        "execution_start",
+        1794159993169
+      ],
+      [
+        "execution_cached",
+        1794159993186
+      ],
+      [
+        "execution_success",
+        1794160028759
+      ]
+    ]
+  },
+  {
+    "name": "corvin1",
+    "take": "take-249a2604-4f86-4348-a31a-4540ce14ed78",
+    "seed": 84121,
+    "model": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+    "execution_wall_s": 33.197,
+    "history_timestamps": [
+      [
+        "execution_start",
+        1794160033168
+      ],
+      [
+        "execution_cached",
+        1794160033170
+      ],
+      [
+        "execution_success",
+        1794160066365
+      ]
+    ]
+  },
+  {
+    "name": "background2",
+    "take": "take-535658a1-eb1b-4bdb-8545-017221063eec",
+    "seed": 84102,
+    "model": "p-h3-image_int8_convrot.safetensors",
+    "execution_wall_s": 19.407,
+    "history_timestamps": [
+      [
+        "execution_start",
+        1794160071296
+      ],
+      [
+        "execution_cached",
+        1794160071302
+      ],
+      [
+        "execution_success",
+        1794160090703
+      ]
+    ]
+  },
+  {
+    "name": "background3",
+    "take": "take-7cfb3308-534b-40b1-a835-a390748b5797",
+    "seed": 84103,
+    "model": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+    "execution_wall_s": 58.597,
+    "history_timestamps": [
+      [
+        "execution_start",
+        1794160123330
+      ],
+      [
+        "execution_cached",
+        1794160123338
+      ],
+      [
+        "execution_success",
+        1794160181927
+      ]
+    ]
+  },
+  {
+    "name": "background4",
+    "take": "take-e0d5270a-e064-4d7e-a456-c5d327d74660",
+    "seed": 84104,
+    "model": "p-h3-image_int8_convrot.safetensors",
+    "execution_wall_s": 24.558,
+    "history_timestamps": [
+      [
+        "execution_start",
+        1794160220204
+      ],
+      [
+        "execution_cached",
+        1794160220210
+      ],
+      [
+        "execution_success",
+        1794160244762
+      ]
+    ]
+  }
+]

@@ -6,7 +6,7 @@ description: >
   a still of a known place or character, edit one detail of a still, or a New view candidate came back wrong (copied
   the master, turned the head, lost the set).
 scope: [tool:edit_from_context]
-rules: [SNAP-R72, SNAP-R76, SNAP-R79, SNAP-R86, SNAP-R190, SNAP-R200, SNAP-R202, SNAP-R203, SNAP-R204]
+rules: [SNAP-R72, SNAP-R76, SNAP-R79, SNAP-R86, SNAP-R190, SNAP-R200, SNAP-R202, SNAP-R203, SNAP-R204, SNAP-R268, SNAP-R271]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-new-view"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -18,6 +18,11 @@ Tool shape and every argument: `docs/snap/AGENT_START.md` ("A new view of a plac
 
 ## Making a view
 
+- **Prepare scene geometry first** (SNAP-R271, `snap-location`): at least one textured top/bird's-eye and one genuine
+  side/elevation of the same set, preferably two distinct informative sides. Label camera, role and source version;
+  crops do not add viewpoints. Top supplies layout; sides supply height, proportions, architecture and occlusion.
+  Resolve conflicts against authoritative originals. Obtain missing views under existing authorization or report
+  incomplete coverage. A geometry side need not match the output camera; keep its role distinct from composition.
 - **Order the pictures on purpose.** What Picture 1 is depends on the model (`picture_one`); for both H3 still models
   the words set the camera, so the location's master can go first (SNAP-R72).
 - **Size, not tricks.** Make a board frame at 2-4 MP; Fizgig is soft under 2-3 MP, and P-H3 at 2.5 MP costs no more
@@ -31,6 +36,43 @@ Tool shape and every argument: `docs/snap/AGENT_START.md` ("A new view of a plac
 - **The same words give the same composition** on both H3 still models; compare them on detail, design holds and
   speed, not framing.
 - Land each cut's board in that cut's shot (`land`; the answer's `land_hint` says when it would land elsewhere).
+
+## Finish a visual collage (SNAP-R268)
+
+Start with the inspected textured overhead set and actual overhead actor cutouts described in `snap-location`.
+Check generated aerial geometry against the original set references: footprint, proportions and landmark relations
+remain governed by those sources. Canvas aspect is not floor shape; repair a square-for-rectangle error from the sources rather
+than stretching the image and deforming its circular ring.
+Keep the collage as Picture 1 for `ph3_view`, followed by clean original set and identity references with explicit
+roles. The collage supplies positions, facing, scale and overlap; originals supply appearance. Ask for one cohesive
+image that preserves landmarks, actor relationships and prop ownership while reconciling cut edges, contact shadows
+and lighting. If the collage is assembled in the target camera, preserve that camera and image-space footprints.
+If it is an overhead general reference for an eye-level/side-camera frame, request that output camera; judge
+projected layout against source landmarks rather than overhead pixel coordinates. Include the packet's side geometry
+references, even when their camera differs from the requested output. A clean target-camera plate may separately
+supply composition. Aerial + actors only is an explicitly selected ablation, not a required first arm or a complete
+scene packet. Any cited side frame rules out an aerial-only claim. Use a matched no-aerial control to attribute the
+aerial's benefit, holding the side references fixed.
+Polishing the overhead alone does not establish new-camera control. Pass explicit output dimensions. This is a
+first-frame image-edit test; the video-reference framing caution does not block it.
+
+Compare a few matched seeds with `qwen21_view` when selected, using its `<image1>`, `<image2>` syntax and the same
+collage/reference roles; H3 uses `<Picture 1>`, `<Picture 2>`. Check outputs against the raw collage for count,
+identity, footprint, facing, relative scale, props and fixed landmarks in the requested camera before judging polish. Preserve inputs,
+placement metadata, prompts, seeds, method and all failures. A beautiful redraw with displaced actors fails layout.
+If whole-picture regeneration repeatedly moves them, change the approach (SNAP-R200): integrate actors by region
+in overlap order, then clean seams with the existing masked P-H3 paste-back route. The unchanged area outside the
+paste-back mask is protected; content inside still needs inspection. A missing collage assembly tool is a Snap gap
+to report/build at its owner, not a reason to queue an untracked side graph. Prior two-seed P-H3 frames looked
+finished and inward-facing, but used a conflicting square aerial, an existing clean S camera plate and strong
+placement words; the aerial's contribution and same-world continuity remain untested. H3/Qwen same-camera finishing
+results remain useful. Symbolic dot/arrow-map failures test a different input and do not settle this route.
+
+For a partial redraw on P-H3 or Qwen 2.1, `denoise` below 1 encodes Picture 1 as the sampled target (SNAP-R270);
+omitting it keeps the normal reference-only generation. It preserves pasted appearance as well as layout, which
+can oppose rebuilding blurred characters from clean references. Keep blur-only conditioning and encoded-target
+tests separate. Record the native schedule: P-H3's partial tail can contain only a few updates, and its strength
+number is not equivalent to Qwen's KSampler denoise.
 
 ## A targeted edit
 

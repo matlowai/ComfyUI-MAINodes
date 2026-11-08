@@ -1,0 +1,58 @@
+{
+  "background": "empty_overhead.png",
+  "background_take": "take-e0d5270a-e064-4d7e-a456-c5d327d74660",
+  "ring": {
+    "center_px": [
+      896,
+      872
+    ],
+    "outer_radius_px": 300,
+    "coordinate_frame": "image top=north/orrrery, bottom=south/stairhouse, x right=east"
+  },
+  "placements": [
+    {
+      "actor": "liora",
+      "source": "liora_overhead_rgba.png",
+      "rotation_degrees_ccw": -90,
+      "size_px": [
+        124,
+        124
+      ],
+      "center_px": [
+        515,
+        872
+      ],
+      "paste_xy": [
+        453,
+        810
+      ],
+      "facing": "east/right",
+      "anchor": "centre of visible overhead silhouette, approximate body/footprint rather than feet centroid"
+    },
+    {
+      "actor": "corvin",
+      "source": "corvin_overhead_rgba.png",
+      "rotation_degrees_ccw": -90,
+      "size_px": [
+        130,
+        141
+      ],
+      "center_px": [
+        1277,
+        872
+      ],
+      "paste_xy": [
+        1212,
+        802
+      ],
+      "facing": "west/left",
+      "anchor": "centre of visible overhead silhouette, approximate body/footprint rather than feet centroid"
+    }
+  ],
+  "limitations": [
+    "Hand chosen visual scale and footprint anchors; no measured 3D reconstruction.",
+    "Square overhead geometry is a model interpretation of the original longer terrace.",
+    "Corvin is steep overhead with slightly visible face; Liora is true crown-down.",
+    "Cutouts are deterministic magenta mattes, not SAM; shadows and lighting not harmonized."
+  ]
+}

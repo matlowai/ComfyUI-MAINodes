@@ -1,0 +1,425 @@
+{
+  "89f2c030-96a3-43cb-9be4-7a79a126e73f": {
+    "prompt": [
+      4,
+      "89f2c030-96a3-43cb-9be4-7a79a126e73f",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "h3/p-h3-image_int8_convrot.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "h3/p-h3-image_text_encoder_int8_convrot.safetensors",
+            "type": "minimax",
+            "device": "default"
+          }
+        },
+        "3": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "h3/p-h3-image_vae_int8_convrot.safetensors"
+          }
+        },
+        "4": {
+          "class_type": "MiniMaxH3SigmaShift",
+          "inputs": {
+            "model": [
+              "1",
+              0
+            ],
+            "shift_video": 1.0,
+            "shift_audio": 1.0
+          }
+        },
+        "c0l": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "snap/collage_recovery/target_camera_B_actor_rgb_blur12.png"
+          }
+        },
+        "c1l": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "snap/take-9873668c-826b-49aa-9005-083465fe9564_f0.png"
+          }
+        },
+        "c2l": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "snap/dials_image_00253_.png"
+          }
+        },
+        "c3l": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "snap/collage_recovery/overhead_A_sharp.png"
+          }
+        },
+        "p": {
+          "class_type": "PH3ImageConditioning",
+          "inputs": {
+            "clip": [
+              "2",
+              0
+            ],
+            "vae": [
+              "3",
+              0
+            ],
+            "prompt": "Finish <Picture 1> as one cohesive anime frame, keeping its eye-level wide camera, floor circle, general positions, spacing and relative scale of the two people. <Picture 2> is the clean appearance reference for the young woman on the left, and <Picture 3> for the older man on the right; <Picture 4> is the overhead layout and facing guide only. Keep both standing just outside opposite sides of the floor circle, turn the woman toward screen right and the man toward screen left so they face each other, retain one wand in each right hand, and unify sunset lighting, ground contact shadows and clean silhouette edges.",
+            "width": 2016,
+            "height": 1152,
+            "images.image_1": [
+              "c0l",
+              0
+            ],
+            "images.image_2": [
+              "c1l",
+              0
+            ],
+            "images.image_3": [
+              "c2l",
+              0
+            ],
+            "images.image_4": [
+              "c3l",
+              0
+            ]
+          }
+        },
+        "g": {
+          "class_type": "BasicGuider",
+          "inputs": {
+            "model": [
+              "4",
+              0
+            ],
+            "conditioning": [
+              "p",
+              0
+            ]
+          }
+        },
+        "r": {
+          "class_type": "RandomNoise",
+          "inputs": {
+            "noise_seed": 881101
+          }
+        },
+        "s": {
+          "class_type": "KSamplerSelect",
+          "inputs": {
+            "sampler_name": "euler"
+          }
+        },
+        "m": {
+          "class_type": "ManualSigmas",
+          "inputs": {
+            "sigmas": "1.0, 0.984753, 0.967905, 0.951688, 0.925372, 0.881923, 0.810083, 0.528718, 0.0"
+          }
+        },
+        "k": {
+          "class_type": "SamplerCustomAdvanced",
+          "inputs": {
+            "noise": [
+              "r",
+              0
+            ],
+            "guider": [
+              "g",
+              0
+            ],
+            "sampler": [
+              "s",
+              0
+            ],
+            "sigmas": [
+              "is",
+              0
+            ],
+            "latent_image": [
+              "il",
+              0
+            ]
+          }
+        },
+        "d": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": [
+              "k",
+              0
+            ],
+            "vae": [
+              "3",
+              0
+            ]
+          }
+        },
+        "o": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": [
+              "d",
+              0
+            ],
+            "filename_prefix": "snap_views/5263f5b0"
+          }
+        },
+        "iz": {
+          "class_type": "GetLatentSize",
+          "inputs": {
+            "latent": [
+              "p",
+              1
+            ]
+          }
+        },
+        "iw": {
+          "class_type": "ComfyMathExpression",
+          "inputs": {
+            "expression": "a * 16",
+            "values.a": [
+              "iz",
+              0
+            ]
+          }
+        },
+        "ih": {
+          "class_type": "ComfyMathExpression",
+          "inputs": {
+            "expression": "a * 16",
+            "values.a": [
+              "iz",
+              1
+            ]
+          }
+        },
+        "ib": {
+          "class_type": "ImageFromBatch",
+          "inputs": {
+            "image": [
+              "c0l",
+              0
+            ],
+            "batch_index": 0,
+            "length": 1
+          }
+        },
+        "ip": {
+          "class_type": "ImageScale",
+          "inputs": {
+            "image": [
+              "ib",
+              0
+            ],
+            "upscale_method": "lanczos",
+            "width": [
+              "iw",
+              1
+            ],
+            "height": [
+              "ih",
+              1
+            ],
+            "crop": "disabled"
+          }
+        },
+        "ie": {
+          "class_type": "VAEEncode",
+          "inputs": {
+            "pixels": [
+              "ip",
+              0
+            ],
+            "vae": [
+              "3",
+              0
+            ]
+          }
+        },
+        "ia": {
+          "class_type": "LTXVSeparateAVLatent",
+          "inputs": {
+            "av_latent": [
+              "p",
+              1
+            ]
+          }
+        },
+        "il": {
+          "class_type": "LTXVConcatAVLatent",
+          "inputs": {
+            "video_latent": [
+              "ie",
+              0
+            ],
+            "audio_latent": [
+              "ia",
+              1
+            ]
+          }
+        },
+        "is": {
+          "class_type": "H3DeropeSigmas",
+          "inputs": {
+            "model": [
+              "4",
+              0
+            ],
+            "sigmas": [
+              "m",
+              0
+            ],
+            "inject": 0.7,
+            "steps": 0
+          }
+        }
+      },
+      {
+        "snap_parent": {
+          "take": null,
+          "method": "view/ph3_view",
+          "options": {
+            "label": "Finish <Picture 1> as one cohesive anime frame, keeping its eye-level wide camera, floor circle, general positions, spacing and relative scale of the two people. <Picture 2> is the clean appearance reference for the young woman on the left, and <Picture 3> for the older man on the right; <Picture 4> is the overhead layout and facing guide only. Keep both standing just outside opposite sides of the floor circle, turn the woman toward screen right and the man toward screen left so they face each other, retain one wand in each right hand, and unify sunset lighting, ground contact shadows and clean silhouette edges.",
+            "prompt": "Finish <Picture 1> as one cohesive anime frame, keeping its eye-level wide camera, floor circle, general positions, spacing and relative scale of the two people. <Picture 2> is the clean appearance reference for the young woman on the left, and <Picture 3> for the older man on the right; <Picture 4> is the overhead layout and facing guide only. Keep both standing just outside opposite sides of the floor circle, turn the woman toward screen right and the man toward screen left so they face each other, retain one wand in each right hand, and unify sunset lighting, ground contact shadows and clean silhouette edges.",
+            "context": [
+              {
+                "n": 1,
+                "file": "snap/collage_recovery/target_camera_B_actor_rgb_blur12.png",
+                "label": "target camera edit canvas and approximate placement"
+              },
+              {
+                "n": 2,
+                "file": "snap/take-9873668c-826b-49aa-9005-083465fe9564_f0.png",
+                "label": "clean original Liora appearance"
+              },
+              {
+                "n": 3,
+                "file": "snap/dials_image_00253_.png",
+                "label": "clean original Corvin appearance"
+              },
+              {
+                "n": 4,
+                "file": "snap/collage_recovery/overhead_A_sharp.png",
+                "label": "actual overhead layout and inward facing only"
+              }
+            ],
+            "purpose": "edit",
+            "init": {
+              "picture": 1,
+              "denoise": 0.7,
+              "schedule": "H3DeropeSigmas continuous inject, original tail (steps 0)"
+            },
+            "width": 2016,
+            "height": 1152
+          }
+        },
+        "snap_job": {
+          "kind": "paint",
+          "title": "New view (Finish <Picture 1> as one cohesive anime frame, keeping its eye-level wide camera, floor circle, general positions, spacing and relative scale of the two people. <Picture 2> is the clean appearance reference for the young woman on the left, and <Picture 3> for the older man on the right; <Picture 4> is the overhead layout and facing guide only. Keep both standing just outside opposite sides of the floor circle, turn the woman toward screen right and the man toward screen left so they face each other, retain one wand in each right hand, and unify sunset lighting, ground contact shadows and clean silhouette edges.), candidate 1 of 1",
+          "about": {
+            "group": "5263f5b0-6006-4816-a8b3-b88ba19afffc",
+            "scene": "scene-mw84ntl6wulp",
+            "shot": "shot-mw84nxyg9jmo"
+          },
+          "by": "agent",
+          "agent": "visual-collage-recovery",
+          "eta_s": 10,
+          "at": 1794161522619
+        },
+        "extra_pnginfo": {
+          "workflow": {
+            "id": "5263f5b0-6006-4816-a8b3-b88ba19afffc",
+            "nodes": [],
+            "links": [],
+            "extra": {
+              "snap": {
+                "world": {}
+              }
+            }
+          }
+        },
+        "snap_marks": {
+          "private": false,
+          "nsfw": false,
+          "why": [],
+          "metadata": true,
+          "swapped": {},
+          "rating": "pg",
+          "rating_why": []
+        },
+        "client_id": "cbddcb37f9a54ef88b3f88c0d29f3bbd",
+        "workflow_metadata": {
+          "workflow_id": "5263f5b0-6006-4816-a8b3-b88ba19afffc"
+        },
+        "create_time": 1794161522628
+      },
+      [
+        "o"
+      ]
+    ],
+    "outputs": {
+      "o": {
+        "images": [
+          {
+            "filename": "5263f5b0_00004_.png",
+            "subfolder": "snap_views",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 2016,
+              "height": 1152
+            }
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "89f2c030-96a3-43cb-9be4-7a79a126e73f",
+            "timestamp": 1794161558671
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [
+              "c0l",
+              "c1l",
+              "c2l",
+              "c3l"
+            ],
+            "prompt_id": "89f2c030-96a3-43cb-9be4-7a79a126e73f",
+            "timestamp": 1794161558679
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "89f2c030-96a3-43cb-9be4-7a79a126e73f",
+            "timestamp": 1794161574086
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "o": {
+        "node_id": "o",
+        "display_node": "o",
+        "parent_node": null,
+        "real_node_id": "o"
+      }
+    }
+  }
+}

@@ -6,7 +6,7 @@ description: >
   you choose a `method`, setup or slot in Snap, compare models for a job, or the person asks "which model should do
   this". These are pack defaults; the person's own model-per-job notes override them.
 scope: [tool:edit_from_context, tool:make_character_sheet, tool:upscale_take, tool:apply_setup, tool:edit_take]
-rules: [SNAP-R51, SNAP-R64, SNAP-R75, SNAP-R77, SNAP-R82, SNAP-R85, SNAP-R86, SNAP-R88, SNAP-R149, SNAP-R150]
+rules: [SNAP-R51, SNAP-R64, SNAP-R75, SNAP-R77, SNAP-R82, SNAP-R85, SNAP-R86, SNAP-R88, SNAP-R149, SNAP-R150, SNAP-R268, SNAP-R271]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-model-choice"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -22,6 +22,7 @@ row you used and why when you pick.
 | a set, a wide shot, a targeted edit ("change only X") | `edit_from_context` `ph3_view` (P-H3-Image) | | moves the camera from words: 6/6 into the square with the master's own gate; ~7 s a still, 8 steps (SNAP-R75, R86) |
 | character shots, two-shots, finished board frames | `edit_from_context` `fizgig_still` | | closest two-shots; reads every picture as a reference, so it draws back views (6/6); soft under 2-3 MP (SNAP-R86) |
 | a new view of a known place | an H3 still model | MOSS Image Edit | MOSS copied Picture 1 or redesigned the set and the people (SNAP-R75) |
+| explicit editing comparison or fallback, including guided collage tests | `edit_from_context` `qwen21_view` | a silent change of the default | native Qwen Image 2.1; first picture is the edit canvas, `<image1>` reference syntax, 25 steps CFG 1 Euler/simple; H3 purpose defaults stay unchanged (SNAP-R75) |
 | a board still above 4 MP | SeedVR2 after the still | H3 latent refine | ~5 s; the latent refine is softer and 7x slower |
 | a turnaround | one continuous H3 orbit: an orbit LoRA such as [ORB360](https://huggingface.co/MATLOWAI/MiniMax-H3-ORB360-CardSpin) on Ref2VA | per-view stills | one video keeps carried objects consistent; passed every per-view check (`snap-turnaround`) |
 | a turnaround without an orbit LoRA | `make_character_sheet` `contact_sheet` | | Picture 1 padded square orbits front to back 9/9, ~39 s a sheet (SNAP-R77) |
@@ -42,4 +43,24 @@ to a quieter one whatever the frames say.
 
 When you compare models for a job, run them at the same size, quote time as "first seed / each more seed" (the first
 pays the prompt and reference encoding), and judge on design holds and detail: the same words give the same
-composition on both H3 still models.
+composition on both H3 still models in the original camera comparison. That result does not establish exact blocking.
+The earlier 15-still overhead trial used schematic dots/arrows: both H3 paths gave partial position/damage guidance;
+Qwen followed the side camera better but missed ring-relative feet and damage placement. Those are task-specific
+results, not evidence against textured visual collages or a global Qwen exclusion. For the clarified collage trial
+(SNAP-R268), compare H3 and explicitly selected `qwen21_view` with the same inspected collage as starting canvas,
+clean original references, explicit image roles and a few matched seeds. Original references determine appearance;
+the collage guides layout; the editor reconciles light, shadows and edges. Check generated aerial footprint,
+proportions and landmark relations against original set references first; canvas aspect is distinct from floor
+shape, and stretching a square aerial also deforms its circle. Prepare the scene packet before choosing a method:
+at least one textured top/bird's-eye and one genuine side/elevation, preferably two distinct informative sides
+(SNAP-R271, `snap-location`). Top supplies layout; sides supply height, proportions, architecture and occlusion.
+Label camera, role and source version; repeated crops are not distinct views. Resolve conflicts against authoritative
+originals. Obtain missing views under existing authorization or report the gap without claiming a complete packet.
+Keep side geometry references distinct from a target-camera composition plate: the side need not match the output
+camera. Distinguish same-camera harmonization from new-camera generation with this packet. Aerial + actors only
+remains an explicitly selected ablation; any cited side frame means the run is not aerial-only. Judge each requested
+camera separately before video. Prior two-seed P-H3 frames looked good
+and faced inward, but used a square aerial conflicting with the rectangular source, a clean S camera plate and
+strong placement words. They do not validate same-world aerial continuity or its causal contribution; use a matched
+no-aerial control when attributing benefit. H3 and Qwen target-camera edits worked with sharp cutouts, a useful
+image-finishing result with no placement-reliability claim. Heavy actor blur and partial target initialization answer different questions; retain their failures as well as the attractive frames.

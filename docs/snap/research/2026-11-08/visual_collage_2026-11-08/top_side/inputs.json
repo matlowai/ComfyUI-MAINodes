@@ -1,0 +1,29 @@
+[
+  {
+    "source": "local-evidence/snap-session/visual_collage_2026-11-08/rectangular_aerial/candidate2.png",
+    "file": "snap/aerial_only/aerial_candidate2.png",
+    "sha256": "54e72cd060d9d48522d25e53b93983267762d9ce69ab3f9edded1e794261e571"
+  },
+  {
+    "source": "local-evidence/snap-session/gpubase/input/snap/take-9873668c-826b-49aa-9005-083465fe9564_f0.png",
+    "file": "snap/aerial_only/liora.png",
+    "sha256": "d622a8d4236b25cb3ef271ec70a6deb7d99fdbbe23dbdac1353cafff4642b4c5"
+  },
+  {
+    "source": "local-evidence/snap-session/gpubase/input/snap/dials_image_00253_.png",
+    "file": "snap/aerial_only/corvin.png",
+    "sha256": "d66edb3e2817b5d8ffc2fc9e844893f7c3ea8f2b94e79609a8c3e9aeb86859ee"
+  },
+  {
+    "source": "local-evidence/snap-session/gpubase/input/snap/take-6af5bc8e-e50e-41bb-a9d7-74e5f3040faf_f0.png",
+    "file": "snap/take-6af5bc8e-e50e-41bb-a9d7-74e5f3040faf_f0.png",
+    "role": "original W side: vertical geometry and requested W camera composition",
+    "sha256": "644421080c77f0438048b371a4c758bc824d78165f9fc40e8468d348e7a914fe"
+  },
+  {
+    "source": "local-evidence/snap-session/gpubase/input/snap/take-1af2ec3b-44eb-4e01-a9b4-951b6dd40900_f0.png",
+    "file": "snap/take-1af2ec3b-44eb-4e01-a9b4-951b6dd40900_f0.png",
+    "role": "original S cross-side: geometry/height only, not output composition",
+    "sha256": "9017515d8c9b9dae1dcbec62c512474c99590c4b3cc13604abe237be8916e631"
+  }
+]

@@ -6,15 +6,15 @@
 // they were painted from (remake_edit, remake_swap, U69). Night, rain and snow are examples of a change, not features: any
 // change can be written. A recast swaps the identity notes for a "new person" note, and nothing is refused. The render
 // lands as a new take in the same group whose parent is the original. What a method runs is registry data.
-// New view from these pictures (U101, the "view" slot) is the stills' route: an H3 model from ordered context pictures
+// New view from these pictures (U101, the "view" slot) is the stills' route: an image model from ordered context pictures
 // and free words, each seed a candidate take in a shot (fromContext, below). A character sheet of a Cast (the "sheet"
 // slot, sheet below) rides the same pictures, landing and candidates.
 // SNAP-R13 data, not code branches · SNAP-R14 method slots · SNAP-R16 GPU work waits for the person · SNAP-R17 by ·
 // SNAP-R23 candidates · SNAP-R51 change something, recast, pins · SNAP-R71 a new view from context, in the asker's words ·
-// SNAP-R72 what Picture 1 is, per model · SNAP-R75 the view slot's models are data (P-H3-Image, H3 still) ·
+// SNAP-R72 what Picture 1 is, per model · SNAP-R75 the view slot's models are data (P-H3-Image, H3 still, explicit Qwen 2.1) ·
 // SNAP-R77 a character sheet is a sheet-slot method whose candidates are takes · SNAP-R79 a new view says which
 // picture it copied · SNAP-R186 a record's picture's new view lands with the record · SNAP-R190 a region edit pastes back · SNAP-R202 its stage 2 is the whole still · SNAP-R204 its SAM mask ·
-// SNAP-R191 its seam is checked · SNAP-R205 and its tone · SNAP-R206 its stage 2 keeps its change · see docs/snap/SNAP_RULES.md
+// SNAP-R270 partial denoise encodes Picture 1 as the sampled target · SNAP-R191 its seam is checked · SNAP-R205 and its tone · SNAP-R206 its stage 2 keeps its change · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as C from "./candidates.js";
 import * as K from "./checks.js";
@@ -527,6 +527,25 @@ async function ph3Graph(a, pics, values, seed, size, prefix) {
   });
   return g;
 }
+// SNAP-R72/R75: Qwen 2.1 keeps the encoder's empty first-reference canvas: a different canvas shifts the edit.
+async function qwen21Graph(a, pics, values, seed, size, prefix) {
+  const files = { unet: await M.choice("UNETLoader", "unet_name", a.unet), clip: await M.choice("CLIPLoader", "clip_name", a.clip), vae: await M.choice("VAELoader", "vae_name", a.vae) };
+  const g = {
+    1: { class_type: "UNETLoader", inputs: { unet_name: files.unet, weight_dtype: "default" } },
+    2: { class_type: "CLIPLoader", inputs: { clip_name: files.clip, type: "qwen_image", device: "default" } },
+    3: { class_type: "VAELoader", inputs: { vae_name: files.vae } },
+    4: { class_type: "QwenImage21Cache", inputs: { model: ["1", 0], device: "auto", dtype: "default" } },
+  };
+  pics.forEach((p) => Object.assign(g, p.nodes));
+  if (size) g.q = { class_type: "ImageScale", inputs: { image: pics[0].out, upscale_method: "lanczos", width: size.width, height: size.height, crop: "disabled" } };
+  Object.assign(g, {
+    p: { class_type: "TextEncodeQwenImage21", inputs: { clip: ["2", 0], vae: ["3", 0], prompt: fill(a.prompt, values), negative_prompt: "", resolution: 0, ...Object.fromEntries(pics.map((x, i) => [`images.image_${i + 1}`, i === 0 && size ? ["q", 0] : x.out])) } },
+    k: { class_type: "KSampler", inputs: { model: ["4", 0], seed, steps: a.steps, cfg: a.cfg, sampler_name: a.sampler, scheduler: a.scheduler, positive: ["p", 0], negative: ["p", 1], latent_image: ["p", 2], denoise: 1.0 } },
+    d: { class_type: "VAEDecode", inputs: { samples: ["k", 0], vae: ["3", 0] } },
+    o: { class_type: "SaveImage", inputs: { images: ["d", 0], filename_prefix: prefix } },
+  });
+  return g;
+}
 // one H3 still (the Fizgig H3 Still pack's edit graph): core MiniMax H3 Reference to Video with the pictures as
 // <Picture n>, the pack's one-frame latent and its decode, the turbo LoRA at the pack's strength, er_sde. The still is
 // Picture 1's size at the method's megapixels unless a size is given. A method with `frames: 5` (the five-reference
@@ -630,12 +649,33 @@ async function mossRefGraph(a, pics, values, seed, size, prefix) {
   return g;
 }
 // the graph each method kind runs (the registry's anchors.kind)
-const GRAPHS = { ph3: ph3Graph, fizgig: fizgigGraph, h3: fizgigGraph, contact: contactGraph, krea2edit: kreaGraph, moss_ref: mossRefGraph };
+const GRAPHS = { ph3: ph3Graph, qwen21: qwen21Graph, fizgig: fizgigGraph, h3: fizgigGraph, contact: contactGraph, krea2edit: kreaGraph, moss_ref: mossRefGraph };
+// SNAP-R270: references are conditioning, not an init. Read the native empty target's dimensions so the encoded
+// first picture uses the same canvas, including the encoder's grid rounding and default size policy. P-H3 and Qwen
+// 2.1 both use 16 pixels per spatial latent; this transform is only called for those two kinds.
+function initFirst(g, picture, kind, denoise) {
+  const s = g.k.inputs, latent = s.latent_image, av = kind === "ph3";
+  Object.assign(g, {
+    iz: { class_type: "GetLatentSize", inputs: { latent } },
+    iw: { class_type: "ComfyMathExpression", inputs: { expression: "a * 16", "values.a": ["iz", 0] } },
+    ih: { class_type: "ComfyMathExpression", inputs: { expression: "a * 16", "values.a": ["iz", 1] } },
+    ib: { class_type: "ImageFromBatch", inputs: { image: picture, batch_index: 0, length: 1 } },
+    ip: { class_type: "ImageScale", inputs: { image: ["ib", 0], upscale_method: "lanczos", width: ["iw", 1], height: ["ih", 1], crop: "disabled" } },
+    ie: { class_type: "VAEEncode", inputs: { pixels: ["ip", 0], vae: g.d.inputs.vae } },
+    ...(av ? {
+      ia: { class_type: "LTXVSeparateAVLatent", inputs: { av_latent: latent } },
+      il: { class_type: "LTXVConcatAVLatent", inputs: { video_latent: ["ie", 0], audio_latent: ["ia", 1] } },
+      is: { class_type: "H3DeropeSigmas", inputs: { model: g[s.guider[0]].inputs.model, sigmas: s.sigmas, inject: denoise, steps: 0 } },
+    } : {}),
+  });
+  s.latent_image = av ? ["il", 0] : ["ie", 0];
+  if (av) s.sigmas = ["is", 0]; else s.denoise = denoise;
+}
 // make a new view: `pictures` in order (what Picture 1 is: the method's `picture_one`), `prompt` the person's or agent's
 // words, one candidate per seed (`seeds`, else `count` new ones), on the view slot's `method` (ph3_view, fizgig_still; by
 // default the first the registry lists).
 // Returns at once; each candidate is a take in the shot it lands in once its paint finishes
-export async function fromContext(pictures, prompt, { method, purpose, seeds, count = 2, width, height, land, story = null, question = null, paste = false, mask = null, by = "person" } = {}) {
+export async function fromContext(pictures, prompt, { method, purpose, seeds, count = 2, width, height, land, story = null, question = null, paste = false, mask = null, denoise, by = "person" } = {}) {
   await Promise.all([S.load(), M.load(), T.load(), W.load()]);
   const P = purposes();
   if (purpose != null && !P[purpose]) throw new Error(`purpose is one of ${Object.keys(P).join(", ")}; not ${JSON.stringify(purpose)}`);
@@ -644,6 +684,11 @@ export async function fromContext(pictures, prompt, { method, purpose, seeds, co
   const id = method ?? P[aim]?.method ?? S.list("view")[0]?.id, m = S.list("view").find((x) => x.id === id);
   const chosen = { method: id, purpose: aim, why: method ? "the method asked for" : `${P[aim]?.label ?? aim}${purpose ? "" : pictures?.some((p) => p.cast) ? " (no purpose given; a Cast picture is among the pictures)" : " (no purpose given; no Cast picture among them)"} → ${m?.title ?? id}; give purpose or method to choose another` };
   if (!m) throw new Error(`No method "${id}" for a new view; there are: ${S.list("view").map((x) => x.id).join(", ")}`);
+  if (denoise != null && !(typeof denoise === "number" && denoise >= 0 && denoise <= 1)) throw new Error("denoise must be from 0 to 1");
+  const partial = denoise != null && denoise < 1;
+  if (partial && !["ph3", "qwen21"].includes(m.anchors.kind)) throw new Error(`${m.title}: partial denoise from Picture 1 is supported by ph3_view and qwen21_view`);
+  if (partial && m.anchors.kind === "ph3" && denoise < 0.05) throw new Error("P-H3 partial denoise uses H3DeropeSigmas: inject must be at least 0.05");
+  const init = partial ? { picture: 1, denoise, schedule: m.anchors.kind === "ph3" ? "H3DeropeSigmas continuous inject, original tail (steps 0)" : "KSampler denoise (expanded schedule suffix)" } : null;
   if (paste && (width != null || m.anchors.kind !== "ph3")) throw new Error(`paste_back runs on P-H3-Image (method ph3_view: an edit of Picture 1), at the crop's own size; ${width != null ? "leave width and height out" : `${m.title} draws a new picture from references`}`);
   if (m.install_state !== "ready") throw new Error(`${m.title} ${m.install_state}`);
   if (!pictures?.length) throw new Error(`${m.title}: give at least one picture (Picture 1 ${m.picture_one?.label ?? "comes first"})`);
@@ -660,20 +705,21 @@ export async function fromContext(pictures, prompt, { method, purpose, seeds, co
   const list = seeds?.length ? seeds : Array.from({ length: count }, () => Math.floor(Math.random() * 2 ** 32));
   const label = prompt.trim(), first = said.find((x) => x.take)?.take ?? null;
   // F-F04 (SNAP-R133): a set plan is context, never a subject: say so with its plain cite (SNAP-R137)
-  const plans = said.filter((x) => x.plate === "plan").map((x) => `<Picture ${x.n}>`);
+  const plans = said.filter((x) => x.plate === "plan").map((x) => m.anchors.kind === "qwen21" ? `<image${x.n}>` : `<Picture ${x.n}>`);
   if (plans.length) prompt = `${label} ${plans.join(" and ")} ${plans.length > 1 ? "are set plans" : "is the set plan"} seen from above: the layout only (where things stand), not a picture to draw; no paper, lines or labels from it.`;
   const made = [], size = width != null ? { width, height } : null, prefix = `snap_views/${where.group.slice(0, 8)}`, build = GRAPHS[m.anchors.kind];
   for (const [i, seed] of list.entries()) {
     const g = await build(m.anchors, pics, { prompt: prompt.trim() }, seed, size, prefix), pasted = paste ? pasteBack(g, pics[0], mask, detector) : null;
+    if (partial) initFirst(g, g.p.inputs["images.image_1"], m.anchors.kind, denoise);
     const job = { kind: "paint", title: `New view (${label}), candidate ${i + 1} of ${list.length}`, about: { take: first, group: where.group, scene: where.scene, shot: where.shot }, by, eta_s: [m.cost?.local_s].flat().at(-1) ?? null };
-    made.push({ prompt_id: await K.queue(g, { group: where.group, world, ...(story ? { story } : {}), job, extra: { snap_parent: { take: first, method: `view/${id}`, options: { label, prompt: prompt.trim(), context: said, purpose: aim, ...(pasted ? { pasted } : {}) } } } }),
+    made.push({ prompt_id: await K.queue(g, { group: where.group, world, ...(story ? { story } : {}), job, extra: { snap_parent: { take: first, method: `view/${id}`, options: { label, prompt: prompt.trim(), context: said, purpose: aim, ...(init ? { init, ...(size ?? {}) } : {}), ...(pasted ? { pasted } : {}) } } } }),
       seed, made: { model: m.anchors.unet.split("/").pop() }, label: "new view" }); // a take, no check to wait for (its tile's chips)
   }
   const d = await C.create({ kind: "view", target: first ?? where.group, title: `New view · ${m.title.replace(/^New view\s*·\s*/, "")} ×${list.length} (${label}) from ${said.map((x) => `Picture ${x.n} ${x.label}`).join(", ")}`, by, take: first, method: id,
-    options: { prompt: prompt.trim(), context: said, purpose: aim, ...(size ?? {}), ...(paste ? { pasted: { box: pics[0].box, size: pics[0].size, ...(mask ? { mask } : {}) } } : {}) }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}), ...(question?.trim() ? { question: question.trim() } : {}) }, made); // F-Q21: the agent's question for the person
+    options: { prompt: prompt.trim(), context: said, purpose: aim, ...(init ? { init } : {}), ...(size ?? {}), ...(paste ? { pasted: { box: pics[0].box, size: pics[0].size, ...(mask ? { mask } : {}) } } : {}) }, land: where.shot ? { scene: where.scene, shot: where.shot } : null, ...(Object.keys(world).length ? { world } : {}), ...(question?.trim() ? { question: question.trim() } : {}) }, made); // F-Q21: the agent's question for the person
   // F-C15: landed away from the shot a context board belongs to: say where it would sit beside that board
   const board = land && land !== "tab" ? said.map((x) => x.take && T.get(x.take)).map((t) => t && { t, home: RT.shotOf(t) }).find((x) => x?.home && x.home.shot.id !== where.shot) : null;
-  return { decision: d.id, chosen, pictures: said.map((x) => `Picture ${x.n}${x.n === 1 && m.picture_one ? ` (${m.picture_one.label})` : ""}: ${x.label}`), lands: where.where,
+  return { decision: d.id, chosen, ...(init ? { init } : {}), pictures: said.map((x) => `Picture ${x.n}${x.n === 1 && m.picture_one ? ` (${m.picture_one.label})` : ""}: ${x.label}`), lands: where.where,
     ...(board ? { land_hint: `take ${board.t.number} among the pictures is in ${SC.shotTitle(board.home.scene, board.home.shot)} of ${board.home.scene.name}: to put this view beside it (each cut's shot holds its own board), land {scene: "${board.home.scene.id}", shot: "${board.home.shot.id}"}, or leave land out` } : {}),
     candidates: d.candidates.map((c) => ({ id: c.id, prompt_id: c.prompt_id, take: `take-${c.prompt_id}`, seed: c.seed, ...c.made })), seconds_each: [m.cost?.local_s].flat().at(-1) ?? null };
 }

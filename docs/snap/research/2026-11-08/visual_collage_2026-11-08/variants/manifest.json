@@ -1,0 +1,197 @@
+{
+  "purpose": "CPU-only independent collage input variants; no diffusion or generation.",
+  "radii_units": "output canvas pixels",
+  "variants": {
+    "A_sharp": "Original cutout RGB and alpha, no extra filter.",
+    "B_actor_rgb_blur12": "Gaussian sigma 12 on alpha-weighted actor RGB only. Original alpha unchanged; floor untouched.",
+    "C_alpha_feather3p5": "Inward-only alpha feather: min(original alpha, Gaussian radius 3.5 alpha). RGB unchanged; avoids exposing hidden source-backdrop RGB. Original silhouette support and anchors retained.",
+    "D_local_boundary_blur6": "A sharp composite blurred radius 6 only in silhouette-boundary ring (6px dilation minus 6px erosion, feather 3.5). Independent of B and C; local floor seam may change; no shadow invented."
+  },
+  "orientation_limit": "Target-camera actors are front-facing proxies. Asked-for inward-facing bodies/eyelines require model inference; orientation failure is not a pure placement failure.",
+  "jobs": [
+    {
+      "name": "target_camera",
+      "canvas": [
+        2016,
+        1152
+      ],
+      "native_canvas": [
+        1344,
+        768
+      ],
+      "native_reconstruction_matches_saved_collage": true,
+      "transform": "Reconstruct native layers exactly; Lanczos-resize full-canvas layers and background identically; no aspect warp.",
+      "background_source": "local-evidence/snap-session/gpubase/input/snap/take-1af2ec3b-44eb-4e01-a9b4-951b6dd40900_f0.png",
+      "background_sha256": "9017515d8c9b9dae1dcbec62c512474c99590c4b3cc13604abe237be8916e631",
+      "placement_source": "target_camera_placement.json",
+      "placements": [
+        {
+          "actor": "liora",
+          "source": "liora_front_rgba.png",
+          "foot_anchor_px": [
+            350,
+            545
+          ],
+          "paste_xy": [
+            294,
+            215
+          ],
+          "size": [
+            111,
+            330
+          ],
+          "facing": "toward source camera, not opposing; harmonization must turn figure",
+          "source_sha256": "de6bf6e47a425426db82eef4464d8afd7873c1cbbc16fc96e61330e87fdb69b3",
+          "output_paste_xy": [
+            441.0,
+            322.5
+          ],
+          "output_size": [
+            166.5,
+            495.0
+          ],
+          "output_anchor": [
+            525.0,
+            817.5
+          ]
+        },
+        {
+          "actor": "corvin",
+          "source": "corvin_front_rgba.png",
+          "foot_anchor_px": [
+            990,
+            545
+          ],
+          "paste_xy": [
+            926,
+            180
+          ],
+          "size": [
+            128,
+            365
+          ],
+          "facing": "toward source camera, not opposing; harmonization must turn figure",
+          "source_sha256": "ecbde560cf70cae702b44657a10c28b0aff9cb802fcb203ea7aa026ae0512629",
+          "output_paste_xy": [
+            1389.0,
+            270.0
+          ],
+          "output_size": [
+            192.0,
+            547.5
+          ],
+          "output_anchor": [
+            1485.0,
+            817.5
+          ]
+        }
+      ],
+      "outputs": {
+        "A_sharp": "target_camera_A_sharp.png",
+        "B_actor_rgb_blur12": "target_camera_B_actor_rgb_blur12.png",
+        "C_alpha_feather3p5": "target_camera_C_alpha_feather3p5.png",
+        "D_local_boundary_blur6": "target_camera_D_local_boundary_blur6.png"
+      },
+      "changed_pixels_outside_support": {
+        "A_sharp": 0,
+        "B_actor_rgb_blur12": 0,
+        "C_alpha_feather3p5": 0,
+        "D_local_boundary_blur6": 0
+      }
+    },
+    {
+      "name": "overhead",
+      "canvas": [
+        1792,
+        1792
+      ],
+      "native_canvas": [
+        1792,
+        1792
+      ],
+      "native_reconstruction_matches_saved_collage": true,
+      "transform": "Reconstruct native layers exactly; Lanczos-resize full-canvas layers and background identically; no aspect warp.",
+      "background_source": "local-evidence/snap-session/visual_collage_2026-11-08/assets/empty_overhead.png",
+      "background_sha256": "3c34e478d00248932d11bf75c6a5e278aee43389bff501608ff3977ef5be716c",
+      "placement_source": "overhead_placement.json",
+      "placements": [
+        {
+          "actor": "liora",
+          "source": "liora_overhead_rgba.png",
+          "rotation_degrees_ccw": -90,
+          "size_px": [
+            124,
+            124
+          ],
+          "center_px": [
+            515,
+            872
+          ],
+          "paste_xy": [
+            453,
+            810
+          ],
+          "facing": "east/right",
+          "anchor": "centre of visible overhead silhouette, approximate body/footprint rather than feet centroid",
+          "source_sha256": "88c66796fbbf659fab71f8efb538e0f08f8a06abdc8160e8c09c7afe94f318bb",
+          "output_paste_xy": [
+            453.0,
+            810.0
+          ],
+          "output_size": [
+            124.0,
+            124.0
+          ],
+          "output_anchor": [
+            515.0,
+            872.0
+          ]
+        },
+        {
+          "actor": "corvin",
+          "source": "corvin_overhead_rgba.png",
+          "rotation_degrees_ccw": -90,
+          "size_px": [
+            130,
+            141
+          ],
+          "center_px": [
+            1277,
+            872
+          ],
+          "paste_xy": [
+            1212,
+            802
+          ],
+          "facing": "west/left",
+          "anchor": "centre of visible overhead silhouette, approximate body/footprint rather than feet centroid",
+          "source_sha256": "58bfc9a53303ae818b864962393883666aba61406e5348b980669e199a2c31e2",
+          "output_paste_xy": [
+            1212.0,
+            802.0
+          ],
+          "output_size": [
+            130.0,
+            141.0
+          ],
+          "output_anchor": [
+            1277.0,
+            872.0
+          ]
+        }
+      ],
+      "outputs": {
+        "A_sharp": "overhead_A_sharp.png",
+        "B_actor_rgb_blur12": "overhead_B_actor_rgb_blur12.png",
+        "C_alpha_feather3p5": "overhead_C_alpha_feather3p5.png",
+        "D_local_boundary_blur6": "overhead_D_local_boundary_blur6.png"
+      },
+      "changed_pixels_outside_support": {
+        "A_sharp": 0,
+        "B_actor_rgb_blur12": 0,
+        "C_alpha_feather3p5": 0,
+        "D_local_boundary_blur6": 0
+      }
+    }
+  ]
+}

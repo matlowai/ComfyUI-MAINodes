@@ -1,0 +1,18 @@
+{
+ "result": {
+  "ref": "instruction:note-mw83pojv9vuc@2",
+  "made": true,
+  "version": 2,
+  "said": "instruction:note-mw83pojv9vuc@2 applies now; the person sees it as new from codex-top-side",
+  "stack_hash": "f2d5fec965a6"
+ },
+ "page": {
+  "id": "60bbe56211654fae8151179068514b95",
+  "name": "agents' window 60bbe5 \u00b7 Top plus side geometry lab 2026-11-08 \u203a Shot 1 \u00b7 Top plus W output side",
+  "headless": false,
+  "sees": true,
+  "driven_by": "codex-top-side",
+  "code_current": true
+ },
+ "idempotency_key": "snapcall-ede3e601ec8ecf73"
+}

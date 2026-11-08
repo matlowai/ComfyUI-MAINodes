@@ -1,0 +1,36 @@
+{
+  "kind": "authored reference; not inferred exact geometry",
+  "source": "candidate3.png",
+  "canvas": [
+    1152,
+    1312
+  ],
+  "central_floor_band": {
+    "source_box": [
+      350,
+      400,
+      815,
+      900
+    ],
+    "output_size": [
+      465,
+      450
+    ],
+    "paste": [
+      350,
+      425
+    ],
+    "purpose": "remove generated N-S circle distortion only; perimeter unchanged",
+    "local_scale": [
+      1,
+      0.9
+    ]
+  },
+  "background_only": "candidate2 continuous dark valley backdrop resized to canvas, masked off rooftop",
+  "limitations": [
+    "Central floor band local tile proportions change by10%; no exact paver metric inferred.",
+    "Floor ring remains large relative to clear width; original perspectives do not establish a precise ratio.",
+    "Tiny strip joins may remain on the paving.",
+    "Slight pedestal/rail vertical faces inherited; near-orthographic authored reference, not exact orthographic reconstruction."
+  ]
+}

@@ -1,0 +1,378 @@
+{
+  "76d74d3f-ad73-4e16-b339-27b516d259b9": {
+    "prompt": [
+      3,
+      "76d74d3f-ad73-4e16-b339-27b516d259b9",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "qwen21/qwen_image_2.1_int8_convrot.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen21/qwen3vl_8b_int8_convrot.safetensors",
+            "type": "qwen_image",
+            "device": "default"
+          }
+        },
+        "3": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "qwen21/qwen_image_2.1_vae_bf16.safetensors"
+          }
+        },
+        "4": {
+          "class_type": "QwenImage21Cache",
+          "inputs": {
+            "model": [
+              "1",
+              0
+            ],
+            "device": "auto",
+            "dtype": "default"
+          }
+        },
+        "c0l": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "snap/collage_recovery/target_camera_B_actor_rgb_blur12.png"
+          }
+        },
+        "c1l": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "snap/take-9873668c-826b-49aa-9005-083465fe9564_f0.png"
+          }
+        },
+        "c2l": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "snap/dials_image_00253_.png"
+          }
+        },
+        "c3l": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "snap/collage_recovery/overhead_A_sharp.png"
+          }
+        },
+        "q": {
+          "class_type": "ImageScale",
+          "inputs": {
+            "image": [
+              "c0l",
+              0
+            ],
+            "upscale_method": "lanczos",
+            "width": 2016,
+            "height": 1152,
+            "crop": "disabled"
+          }
+        },
+        "p": {
+          "class_type": "TextEncodeQwenImage21",
+          "inputs": {
+            "clip": [
+              "2",
+              0
+            ],
+            "vae": [
+              "3",
+              0
+            ],
+            "prompt": "Finish <image1> as one cohesive anime frame, keeping its eye-level wide camera, floor circle, general positions, spacing and relative scale of the two people. <image2> is the clean appearance reference for the young woman on the left, and <image3> for the older man on the right; <image4> is the overhead layout and facing guide only. Keep both standing just outside opposite sides of the floor circle, turn the woman toward screen right and the man toward screen left so they face each other, retain one wand in each right hand, and unify sunset lighting, ground contact shadows and clean silhouette edges.",
+            "negative_prompt": "",
+            "resolution": 0,
+            "images.image_1": [
+              "q",
+              0
+            ],
+            "images.image_2": [
+              "c1l",
+              0
+            ],
+            "images.image_3": [
+              "c2l",
+              0
+            ],
+            "images.image_4": [
+              "c3l",
+              0
+            ]
+          }
+        },
+        "k": {
+          "class_type": "KSampler",
+          "inputs": {
+            "model": [
+              "4",
+              0
+            ],
+            "seed": 881101,
+            "steps": 25,
+            "cfg": 1.0,
+            "sampler_name": "euler",
+            "scheduler": "simple",
+            "positive": [
+              "p",
+              0
+            ],
+            "negative": [
+              "p",
+              1
+            ],
+            "latent_image": [
+              "ie",
+              0
+            ],
+            "denoise": 0.7
+          }
+        },
+        "d": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": [
+              "k",
+              0
+            ],
+            "vae": [
+              "3",
+              0
+            ]
+          }
+        },
+        "o": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": [
+              "d",
+              0
+            ],
+            "filename_prefix": "snap_views/5263f5b0"
+          }
+        },
+        "iz": {
+          "class_type": "GetLatentSize",
+          "inputs": {
+            "latent": [
+              "p",
+              2
+            ]
+          }
+        },
+        "iw": {
+          "class_type": "ComfyMathExpression",
+          "inputs": {
+            "expression": "a * 16",
+            "values.a": [
+              "iz",
+              0
+            ]
+          }
+        },
+        "ih": {
+          "class_type": "ComfyMathExpression",
+          "inputs": {
+            "expression": "a * 16",
+            "values.a": [
+              "iz",
+              1
+            ]
+          }
+        },
+        "ib": {
+          "class_type": "ImageFromBatch",
+          "inputs": {
+            "image": [
+              "q",
+              0
+            ],
+            "batch_index": 0,
+            "length": 1
+          }
+        },
+        "ip": {
+          "class_type": "ImageScale",
+          "inputs": {
+            "image": [
+              "ib",
+              0
+            ],
+            "upscale_method": "lanczos",
+            "width": [
+              "iw",
+              1
+            ],
+            "height": [
+              "ih",
+              1
+            ],
+            "crop": "disabled"
+          }
+        },
+        "ie": {
+          "class_type": "VAEEncode",
+          "inputs": {
+            "pixels": [
+              "ip",
+              0
+            ],
+            "vae": [
+              "3",
+              0
+            ]
+          }
+        }
+      },
+      {
+        "snap_parent": {
+          "take": null,
+          "method": "view/qwen21_view",
+          "options": {
+            "label": "Finish <image1> as one cohesive anime frame, keeping its eye-level wide camera, floor circle, general positions, spacing and relative scale of the two people. <image2> is the clean appearance reference for the young woman on the left, and <image3> for the older man on the right; <image4> is the overhead layout and facing guide only. Keep both standing just outside opposite sides of the floor circle, turn the woman toward screen right and the man toward screen left so they face each other, retain one wand in each right hand, and unify sunset lighting, ground contact shadows and clean silhouette edges.",
+            "prompt": "Finish <image1> as one cohesive anime frame, keeping its eye-level wide camera, floor circle, general positions, spacing and relative scale of the two people. <image2> is the clean appearance reference for the young woman on the left, and <image3> for the older man on the right; <image4> is the overhead layout and facing guide only. Keep both standing just outside opposite sides of the floor circle, turn the woman toward screen right and the man toward screen left so they face each other, retain one wand in each right hand, and unify sunset lighting, ground contact shadows and clean silhouette edges.",
+            "context": [
+              {
+                "n": 1,
+                "file": "snap/collage_recovery/target_camera_B_actor_rgb_blur12.png",
+                "label": "target camera edit canvas and approximate placement"
+              },
+              {
+                "n": 2,
+                "file": "snap/take-9873668c-826b-49aa-9005-083465fe9564_f0.png",
+                "label": "clean original Liora appearance"
+              },
+              {
+                "n": 3,
+                "file": "snap/dials_image_00253_.png",
+                "label": "clean original Corvin appearance"
+              },
+              {
+                "n": 4,
+                "file": "snap/collage_recovery/overhead_A_sharp.png",
+                "label": "actual overhead layout and inward facing only"
+              }
+            ],
+            "purpose": "edit",
+            "init": {
+              "picture": 1,
+              "denoise": 0.7,
+              "schedule": "KSampler denoise (expanded schedule suffix)"
+            },
+            "width": 2016,
+            "height": 1152
+          }
+        },
+        "snap_job": {
+          "kind": "paint",
+          "title": "New view (Finish <image1> as one cohesive anime frame, keeping its eye-level wide camera, floor circle, general positions, spacing and relative scale of the two people. <image2> is the clean appearance reference for the young woman on the left, and <image3> for the older man on the right; <image4> is the overhead layout and facing guide only. Keep both standing just outside opposite sides of the floor circle, turn the woman toward screen right and the man toward screen left so they face each other, retain one wand in each right hand, and unify sunset lighting, ground contact shadows and clean silhouette edges.), candidate 1 of 1",
+          "about": {
+            "group": "5263f5b0-6006-4816-a8b3-b88ba19afffc",
+            "scene": "scene-mw84ntl6wulp",
+            "shot": "shot-mw84nxyg9jmo"
+          },
+          "by": "agent",
+          "agent": "visual-collage-recovery",
+          "eta_s": null,
+          "at": 1794161505117
+        },
+        "extra_pnginfo": {
+          "workflow": {
+            "id": "5263f5b0-6006-4816-a8b3-b88ba19afffc",
+            "nodes": [],
+            "links": [],
+            "extra": {
+              "snap": {
+                "world": {}
+              }
+            }
+          }
+        },
+        "snap_marks": {
+          "private": false,
+          "nsfw": false,
+          "why": [],
+          "metadata": true,
+          "swapped": {},
+          "rating": "pg",
+          "rating_why": []
+        },
+        "client_id": "cbddcb37f9a54ef88b3f88c0d29f3bbd",
+        "workflow_metadata": {
+          "workflow_id": "5263f5b0-6006-4816-a8b3-b88ba19afffc"
+        },
+        "create_time": 1794161505126
+      },
+      [
+        "o"
+      ]
+    ],
+    "outputs": {
+      "o": {
+        "images": [
+          {
+            "filename": "5263f5b0_00003_.png",
+            "subfolder": "snap_views",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 2016,
+              "height": 1152
+            }
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "76d74d3f-ad73-4e16-b339-27b516d259b9",
+            "timestamp": 1794161531180
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "c0l",
+              "c1l",
+              "c2l",
+              "c3l",
+              "q",
+              "p"
+            ],
+            "prompt_id": "76d74d3f-ad73-4e16-b339-27b516d259b9",
+            "timestamp": 1794161531187
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "76d74d3f-ad73-4e16-b339-27b516d259b9",
+            "timestamp": 1794161558282
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "o": {
+        "node_id": "o",
+        "display_node": "o",
+        "parent_node": null,
+        "real_node_id": "o"
+      }
+    }
+  }
+}

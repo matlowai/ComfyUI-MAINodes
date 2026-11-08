@@ -1,0 +1,48 @@
+{
+  "runs": [
+    {
+      "name": "background1",
+      "history_success": true,
+      "seed_matches_request": true,
+      "execution_wall_s": 31.86,
+      "saved_image_matches_original_output": true
+    },
+    {
+      "name": "liora1",
+      "history_success": true,
+      "seed_matches_request": true,
+      "execution_wall_s": 35.59,
+      "saved_image_matches_original_output": true
+    },
+    {
+      "name": "corvin1",
+      "history_success": true,
+      "seed_matches_request": true,
+      "execution_wall_s": 33.197,
+      "saved_image_matches_original_output": true
+    },
+    {
+      "name": "background2",
+      "history_success": true,
+      "seed_matches_request": true,
+      "execution_wall_s": 19.407,
+      "saved_image_matches_original_output": true
+    },
+    {
+      "name": "background3",
+      "history_success": true,
+      "seed_matches_request": true,
+      "execution_wall_s": 58.597,
+      "saved_image_matches_original_output": true
+    },
+    {
+      "name": "background4",
+      "history_success": true,
+      "seed_matches_request": true,
+      "execution_wall_s": 24.558,
+      "saved_image_matches_original_output": true
+    }
+  ],
+  "all_four_cutout_source_sha256_match": true,
+  "original_assets_regenerated": false
+}

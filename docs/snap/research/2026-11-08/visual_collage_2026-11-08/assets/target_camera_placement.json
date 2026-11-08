@@ -1,0 +1,44 @@
+{
+  "background": "snap/take-1af2ec3b-44eb-4e01-a9b4-951b6dd40900_f0.png",
+  "background_size": [
+    1344,
+    768
+  ],
+  "placements": [
+    {
+      "actor": "liora",
+      "source": "liora_front_rgba.png",
+      "foot_anchor_px": [
+        350,
+        545
+      ],
+      "paste_xy": [
+        294,
+        215
+      ],
+      "size": [
+        111,
+        330
+      ],
+      "facing": "toward source camera, not opposing; harmonization must turn figure"
+    },
+    {
+      "actor": "corvin",
+      "source": "corvin_front_rgba.png",
+      "foot_anchor_px": [
+        990,
+        545
+      ],
+      "paste_xy": [
+        926,
+        180
+      ],
+      "size": [
+        128,
+        365
+      ],
+      "facing": "toward source camera, not opposing; harmonization must turn figure"
+    }
+  ],
+  "limit": "Front-facing original Cast cutouts. Exact desired side view/eyelines must be generated, not claimed by this collage."
+}

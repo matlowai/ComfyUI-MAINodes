@@ -6,7 +6,7 @@ description: >
   it whenever a short, scene or shot needs a place (a village, a room, a street), when views of one place disagree
   (a gate that changes between cuts), or before making plates or boards of a set.
 scope: [tool:save_location, tool:add_plate, tool:remove_plate, tool:apply_location, tool:use_take, tool:draw_set_plan]
-rules: [SNAP-R21, SNAP-R22, SNAP-R71, SNAP-R84, SNAP-R115, SNAP-R133, SNAP-R136, SNAP-R147, SNAP-R148, SNAP-R154, SNAP-R155]
+rules: [SNAP-R21, SNAP-R22, SNAP-R71, SNAP-R84, SNAP-R115, SNAP-R133, SNAP-R136, SNAP-R147, SNAP-R148, SNAP-R154, SNAP-R155, SNAP-R268, SNAP-R271]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-location"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -16,6 +16,19 @@ If a Snap server is reachable, `read_skill {"name": "snap-location"}` returns th
 A location is one topology (SNAP-R71, R84). Build it once, then make every view of it from that context; a text-only
 render of a known place gives a new place each time (three cuts of one village gate came back as three different
 gates). Tool calls are in `docs/snap/AGENT_START.md` ("A new view of a place").
+
+## Scene reference minimum (SNAP-R271)
+
+Before making views of a known scene, prepare at least one textured top/bird's-eye view and at least one genuine
+side/elevation view of that same set; prefer two distinct, informative sides. The top establishes layout and
+footprint; sides establish height, proportions, architecture and occlusion. Repeated crops of one view do not count
+as distinct views. Label each picture's camera, role and source version, and resolve conflicts against authoritative
+originals rather than merging incompatible geometry. Obtain missing views within the existing authorized scene work;
+otherwise report the coverage gap and do not call the packet complete. This preparation rule adds no tool validation
+or approval step.
+
+A side used for geometry need not be the desired output camera. Name its geometry role and the requested camera
+separately; judge whether the result copied its composition. A run citing any side frame is not aerial-only.
 
 ## Steps
 
@@ -95,6 +108,52 @@ gates). Tool calls are in `docs/snap/AGENT_START.md` ("A new view of a place").
   `file` alone keeps the take and frame the record had for that file.
 - **Doors and windows are said from the camera** (SNAP-R22), and each camera gets 2-3 plate candidates; one orbit
   render per camera is unreliable (SNAP-R21).
+
+## Textured overhead collage and state (SNAP-R268)
+
+Keep two distinct artifacts: a schematic plan with coordinates, actor marks, facing and camera metadata; and a
+textured bird's-eye picture of the actual place, showing its floor patterns, materials and fixed landmarks. Dots,
+arrows and labels help plan and check state; they do not substitute for the visual overhead reference.
+
+Original set references govern footprint, proportions and landmark relationships. Check any generated aerial against
+those sources before using it: an attractive square terrace cannot replace a rectangular source terrace. Canvas
+aspect ratio and floor footprint are different; a square canvas may show a rectangle. Rebuild incorrect geometry
+from the sources rather than stretching the image (which also turns a circular floor ring into an ellipse). General
+placement needs these basic relationships, not invented exact metres.
+
+For the visual experiment, obtain genuine overhead views of the actors in their current costume, pose and carried
+props. Cut out each silhouette as RGBA, then compose it on the textured set at the intended position, relative scale,
+facing and overlap order. Rotating a front portrait on the page does not make an overhead view. Inspect the raw
+collage before generation: count people and props, check footprints against landmarks, and reject rectangular
+backgrounds or mismatched camera elevations. Preserve the clean plate, source images, cutout layers and placement
+metadata (position, scale, rotation, overlap order and coordinate frame) alongside every collage version.
+
+Use that collage as the image-edit starting canvas, with clean original set and actor references separately:
+appearance comes from those originals, layout from the collage. The collage can be a general reference for a
+requested eye-level or side-camera starting frame: name that output camera and include the side geometry references
+from the scene packet. A target-camera plate is a separate composition reference. Only an explicitly selected
+ablation omits the side references; label its exact inputs and do not treat it as the normal preparation minimum.
+A collage assembled in the target camera tests same-camera harmonization of lighting, edges, contact shadows and proportions. Do not confuse polishing an overhead image with solving a new view.
+Compare a few seeds with an explicitly selected Qwen2.1 edit with the same guidance (`snap-new-view`, `snap-model-choice`). Inspect what the model actually keeps. The earlier
+15-still dot/arrow-map trial did not test this pipeline and is not evidence against textured collage guidance or a
+global exclusion of Qwen. Two prior P-H3 outputs were good-looking inward-facing frames, but their square aerial
+conflicted with the rectangular source set; they also used a clean S camera plate and strong placement words.
+Without a matched no-aerial control, those frames do not establish the aerial's benefit or same-world continuity.
+H3 and Qwen did finish target-camera collages; retain that image-finishing observation separately. Compare a matched
+no-aerial control when attributing a benefit to aerial guidance. Neither result establishes usual reliability,
+exact geometry or a guarantee that every softening/denoise recipe works.
+
+After a picked take, compare end positions, carried items and terrain changes with the intended state. Update
+intended or accepted state under the production's existing canon/autonomy policy, keeping proposals where that
+policy requires them without adding an approval step. Change affected terrain, items and actor placements in a new
+version; compare unchanged landmarks before reuse. Accidental damage or a misplaced actor is a finding to fix, not
+state to preserve. This is a visual continuity experiment, not a 3D/4D reconstruction.
+
+Test the first-frame image edit before downstream video. Once a clean frame is checked, it can be tried as the
+video's starting frame under the selected method's contract. Do not automatically add overhead collages or annotated
+plans to video References: marks can leak (SNAP-R133), and a cited picture can become a framing target (SNAP-R242).
+That video risk does not prohibit using the collage as an image-edit canvas. Direct overhead-reference video
+conditioning remains a separate experiment, checked for top-down cuts and frozen poses.
 
 ## Heavier tools, only when needed
 

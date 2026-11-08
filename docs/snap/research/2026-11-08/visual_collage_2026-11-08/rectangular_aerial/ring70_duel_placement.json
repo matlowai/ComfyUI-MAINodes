@@ -1,0 +1,139 @@
+{
+  "kind": "one additional authored variant; no model render",
+  "canvas": [
+    1152,
+    1312
+  ],
+  "coordinate_frame": "north top, south bottom, east right",
+  "source": "empty_aerial_authored.png",
+  "rectangle_and_landmark_pixels": "preserved; edits only central ring/floor and actor layers",
+  "ring": {
+    "centre_px": [
+      590,
+      650
+    ],
+    "source_box": [
+      370,
+      430,
+      810,
+      870
+    ],
+    "source_patch_size": [
+      440,
+      440
+    ],
+    "output_patch_size": [
+      354,
+      354
+    ],
+    "paste_xy": [
+      413,
+      473
+    ],
+    "uniform_scale": 0.8045454545454546,
+    "estimated_visible_diameter_px": 320,
+    "clear_floor_width_px_estimate": 470,
+    "target_ratio": 0.7,
+    "ratio_status": "artist estimate informed by original S/N views, not recovered measurement",
+    "alpha_ellipse_in_patch": [
+      16,
+      16,
+      338,
+      338
+    ],
+    "source_sha256": "dac794be7ac2ed8e2c32330d75787c2c1329ca23b86f1aa3d413698a69ed8458"
+  },
+  "paving_fill": {
+    "source_box": [
+      400,
+      310,
+      790,
+      410
+    ],
+    "source_scale": [
+      1,
+      1
+    ],
+    "repeat_xy": {
+      "x": [
+        200,
+        590
+      ],
+      "y": [
+        410,
+        510,
+        610,
+        710,
+        810
+      ]
+    },
+    "old_ring_mask_bbox": [
+      365,
+      425,
+      815,
+      875
+    ],
+    "feather_px": 3,
+    "new_ring_alpha_feather_px": 1.5
+  },
+  "actors": [
+    {
+      "actor": "liora",
+      "source": "local-evidence/snap-session/visual_collage_2026-11-08/assets/liora_overhead_rgba.png",
+      "sha256": "88c66796fbbf659fab71f8efb538e0f08f8a06abdc8160e8c09c7afe94f318bb",
+      "size_px": [
+        60,
+        60
+      ],
+      "paste_xy": [
+        560,
+        825
+      ],
+      "centre_px": [
+        590.0,
+        855.0
+      ],
+      "rotation_degrees_ccw": 0,
+      "facing": "north / image up",
+      "anchor": "visible overhead silhouette centre; hand-chosen scale, not metric"
+    },
+    {
+      "actor": "corvin",
+      "source": "local-evidence/snap-session/visual_collage_2026-11-08/assets/corvin_overhead_rgba.png",
+      "sha256": "58bfc9a53303ae818b864962393883666aba61406e5348b980669e199a2c31e2",
+      "size_px": [
+        60,
+        55
+      ],
+      "paste_xy": [
+        560,
+        423
+      ],
+      "centre_px": [
+        590.0,
+        450.5
+      ],
+      "rotation_degrees_ccw": 0,
+      "facing": "south / image down",
+      "anchor": "visible overhead silhouette centre; hand-chosen scale, not metric"
+    }
+  ],
+  "limitations": [
+    "Paving fill repeats adjacent texture; local seams and tile misalignment remain.",
+    "Circle size and actor scale are authored approximations; no exact metric reconstruction.",
+    "Overhead cutouts retain original magenta-matte fringes and lighting; contact shadows unharmonized.",
+    "Corvin source slightly less vertical than Liora.",
+    "Only aerial collage and separate character refs should enter downstream test; no camera plate."
+  ],
+  "verification": {
+    "empty_edit_difference_bbox": [
+      357,
+      419,
+      823,
+      882
+    ],
+    "original_rectangle_and_landmark_pixels_preserved": true,
+    "whole_image_inspection": "empty and collage viewed whole; 2people one wand each; Liora south, Corvin north, inward-facing",
+    "preserved_regions": "north y<419; south y>=882; west x<357; east x>=823. Outer rail footprint and both end landmarks unchanged. Feather can touch inner walkway shadow."
+  }
+}

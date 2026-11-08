@@ -6,7 +6,7 @@ description: >
   sound. Use it whenever you make a short, a scene with several cuts, a trailer, or any multi-shot video in Snap, or
   when cuts don't connect (wrong positions, jumps in light, weak climax).
 scope: [tool:run, tool:compile_shot, tool:make_board, tool:set_board, tool:animatic]
-rules: [SNAP-R36, SNAP-R67, SNAP-R131, SNAP-R132, SNAP-R185, SNAP-R189, SNAP-R190, SNAP-R191, SNAP-R197, SNAP-R200]
+rules: [SNAP-R36, SNAP-R67, SNAP-R131, SNAP-R132, SNAP-R185, SNAP-R189, SNAP-R190, SNAP-R191, SNAP-R197, SNAP-R200, SNAP-R267, SNAP-R268]
 ---
 
 If a Snap server is reachable, `read_skill {"name": "snap-boards"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.
@@ -32,6 +32,11 @@ One board per cut, made with New view on the cut's plate (`snap-new-view`) and l
 - scale drawn, not worded: tiny people beside the big thing, low angle, wide lens;
 - the planned transition to the next cut: match on action, eyeline, screen direction, the 180° line;
 - the beat's intensity, by the genre's playbook (a climax stands and delivers; horror holds).
+
+Keep positions relative to fixed landmarks, not just to the frame (SNAP-R268): a floor circle does not move under the
+actors when the camera changes. Use the location's plan and stable marks for each actor's position and facing; the
+provisional overhead-map workflow is in `snap-location`. Carry only accepted damage and prop placements into the
+next board. A render's accidental crack is a proposed state change, not automatically a new fact.
 
 An insert or close-up cites a frame of its master shot (SNAP-R236; the operator: "take a frame of the blocking as a
 reference"): `set_unit {master: {cut: "C8", at_s: 1.92, crop: [0.5, 0, 0.5, 1]}}` makes that frame of C8's active
@@ -77,6 +82,14 @@ Re-boarding from a fixed board (G10, short05 C2):
 
 Time the boards in order (`animatic {book}`: each board held for its cut's seconds; a kept take replaces its board). Run the cut-pair checks on boards (`snap-critic`): the previous cut's last
 frame against this cut's first (position, facing, eyeline, light, props). Stop for the person's look before video.
+
+Also check the action's phase across the join (SNAP-R267): an aimed wand must not reset upright and repeat its
+thrust unless the beat asks for another attack. Track each hand and its prop, accepted terrain damage and moved
+items, including on a return to an earlier camera. After video, compare the adjoining shots at the same playback
+size for exposure, palette and line/detail changes; account for camera direction, exposure, tighter framing and
+motivated flashes before calling a difference drift.
+Finish with an open whole-sequence look for anything that does not belong, not only the named checks. State which
+parts were sampled and which were watched or heard; measurements alone do not certify sound or continuous motion.
 
 ## 4. Video cuts from boards
 
