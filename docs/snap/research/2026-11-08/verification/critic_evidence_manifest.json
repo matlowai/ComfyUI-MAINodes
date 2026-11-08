@@ -1,0 +1,38 @@
+[
+  {
+    "file": "fresh_critic_results.jsonl",
+    "source_sha256": "a049d11e0dd0f31d0912c004ad036e3f56e30d45596273d7c49e773393b0b2cc",
+    "copy_sha256": "a049d11e0dd0f31d0912c004ad036e3f56e30d45596273d7c49e773393b0b2cc",
+    "structural_path_sanitization": false
+  },
+  {
+    "file": "fresh_critic_score_auto.json",
+    "source_sha256": "d518894b7dc2058322db83efc003f545590135103ef9883f6ce6a53a0d3764f4",
+    "copy_sha256": "e3b87fb2927a602ce5254d593ce89371cda2a7fa336eeb93694a14a002208c1e",
+    "structural_path_sanitization": true
+  },
+  {
+    "file": "fresh_critic_score_confirmed.json",
+    "source_sha256": "ccf4c79aad05bda97f5da857ed86aede70a766c22fcf8c0f9737687736066558",
+    "copy_sha256": "67adddacb72881a1e0f0751fc89208ac78ba6b617e8a862ee7a95daa450e44ac",
+    "structural_path_sanitization": true
+  },
+  {
+    "file": "FRESH_CRITIC_FROZEN.md",
+    "source_sha256": "f83c31276a3ba864b24334a5ed41aeedd3b196f36bcd4c8550955c74126d8562",
+    "copy_sha256": "f83c31276a3ba864b24334a5ed41aeedd3b196f36bcd4c8550955c74126d8562",
+    "structural_path_sanitization": false
+  },
+  {
+    "file": "FRESH_CRITIC_SCORER_NOTES.md",
+    "source_sha256": "c0763e202d175308a867883a0fd89dec840cdda32d8e0733c876625f6166a5ff",
+    "copy_sha256": "c0763e202d175308a867883a0fd89dec840cdda32d8e0733c876625f6166a5ff",
+    "structural_path_sanitization": false
+  },
+  {
+    "file": "CRITIC_DIAGNOSIS_ASTRA.md",
+    "source_sha256": "e0228127c7746aaec2243b8aa6e38e4361b045daadefd938fc4388a5d984f2e1",
+    "copy_sha256": "e0228127c7746aaec2243b8aa6e38e4361b045daadefd938fc4388a5d984f2e1",
+    "structural_path_sanitization": false
+  }
+]

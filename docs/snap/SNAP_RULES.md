@@ -2383,11 +2383,13 @@ Next free ID after this batch: SNAP-R254 (G18 reserved R254-R262, G19 R263-R266)
 - **SNAP-R269: Review the whole location's design and staging across existing views before choosing shots.** Read the
   pinned plan, notes, scale, camera marks and accepted state; inspect whole native views before details. Assess usable
   ground and circulation, fixed landmarks, architectural/material coherence, scale, light and camera coverage. Keep
+  recognizable structures grounded in original references that establish function and access. Derived angles can
+  share an incorrect master premise; distinguish building levels and dated states before combining their views. Keep
   advisory design preferences apart from evidenced physical or continuity flaws. Test camera, projection, occlusion
   and accepted-state explanations before declaring a difference wrong; name unseen areas and source ownership.
   *Why:* a shot-by-shot continuity check does not establish that a set works as a whole place for the story, and
   changing cameras can explain screen-side differences. *More:* skill `snap-set-design`; study
-  SET_DESIGN_REVIEW_2026-11-08.md. Instruction-only workflow, not a change to the measured critic under SNAP-R109.
+  SET_DESIGN_REVIEW_2026-11-08.md; `research/2026-11-08/lighthouse/`. Instruction-only workflow, not a change to the measured critic under SNAP-R109.
 
 - **SNAP-R270: Partial New view denoise initializes from Picture 1's pixels, not an empty target.** Omitting
   `denoise` or giving 1 preserves the existing reference-only graph. A partial P-H3 or Qwen 2.1 edit encodes the

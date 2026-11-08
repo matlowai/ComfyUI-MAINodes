@@ -1,6 +1,8 @@
 ---
 name: snap-set-design
 description: Review a Snap location across its existing views before planning shots, assessing staging, visual design and camera coverage while distinguishing design advice from evidenced geometry or continuity flaws. Use for a set-design review or when a location needs a whole-place assessment; use snap-critic for landed-picture docket verdicts.
+scope: [global]
+rules: [SNAP-R268, SNAP-R269, SNAP-R271]
 ---
 
 SNAP-R269 whole-location design review · SNAP-R268 fixed landmarks and accepted state · SNAP-R271 scene reference minimum · see docs/snap/SNAP_RULES.md.
@@ -28,6 +30,11 @@ let a new shot redefine the floor around its actors. Unaccepted generated damage
 
 Review what matters for this story:
 
+- **Function and source grounding:** use original architectural or photographic references to establish how a
+  recognizable structure works, including access, circulation and its essential physical route. A lighthouse's
+  optic needs an evidenced light path through its enclosure; its clockwork room and upper lantern are separate
+  spaces in the Point Reyes reference case. Keep levels and restoration states labeled. Several generated angles
+  can inherit one incorrect master premise, so matching those angles alone does not validate the design.
 - **Use of the space:** can entrances, movement and action connect through visible usable ground? Which zones support
   confrontation, retreat, rest or a reveal? Name actual obstructions and level changes; an unseen route is unknown.
 - **Design:** do architecture, materials and props form a coherent place and support the story? Identify useful

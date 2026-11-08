@@ -1,0 +1,1467 @@
+{
+  "title": "Point Reyes Lighthouse lantern-room source packet",
+  "created_at": "2026-11-08T18:09:23.859258-05:00",
+  "scope": "Read-only primary-source research and local reference downloads. No generation, demo/source/runtime edits, picks, canon changes, pushes, installs or model downloads.",
+  "selected_installation": "Point Reyes Lighthouse, Point Reyes National Seashore, California. Original 1867 French lens installed1870; restoration state/dates retained separately.",
+  "same_place_proof": [
+    "All HABS drawings/photos share survey CA-2250 and collection ca1357; original caption PDF identifies May1982 photos.",
+    "The official NPS 1990 HSR describes this same lighthouse and reproduces its architectural documentation.",
+    "NPS virtual-visit page explicitly identifies Point Reyes, Fresnel lens and clockwork; post-restoration2020date retained.",
+    "NPS restoration album FC56DEFA-F3A2-49F0-B843-1BF44212F1A3 identifies each selected asset as Point Reyes; exact dates and construction states remain labeled."
+  ],
+  "coverage": {
+    "measured_plan": true,
+    "genuine_elevation_section": true,
+    "distinct_exterior_sides": 2,
+    "interior_ground_stair": true,
+    "interior_clockwork_level": true,
+    "installed_lens_interior": true,
+    "installed_lens_and_lantern_glazing_side": true,
+    "textured_roofless_lantern_top": false,
+    "two_wide_finished_lantern_interior_reverse_sides": false,
+    "snap_r271_scene_generation_packet_complete": false
+  },
+  "rights_line": "LOC: no known restrictions on U.S. Government images, with caveats for copied sources; selected NPS album metadata: public domain, full granting rights; the NPS video is credited NPS/A. Kopshever and its page says multimedia should not automatically be presumed public domain.",
+  "sources": [
+    {
+      "id": "HABS-D1",
+      "title": "Ground, first-gallery and second-gallery plans; east elevation; section; clockwork arrangement",
+      "place": "Point Reyes Lighthouse, Marin County, California",
+      "survey": "HABS CA-2250",
+      "call_number": "HABS CAL,21-POREY,1-",
+      "identifier": "sheet 1 of 5; 00001a",
+      "page_url": "https://www.loc.gov/resource/hhh.ca1357.sheet/?sp=1",
+      "original_download_url": "https://tile.loc.gov/storage-services/master/pnp/habshaer/ca/ca1300/ca1357/sheet/00001a.tif",
+      "file": "00001a.tif",
+      "display_file": "00001a_review.png",
+      "display_transform": "Lossless TIFF-to-PNG conversion at full original dimensions; no crop, rotation, retouch or generated content.",
+      "date": "Associated with 1982 restoration; exact original drafting date not established. Sheet notes distinguish proposed 1982 work.",
+      "authors": [
+        "B. Santos",
+        "N. Camarena"
+      ],
+      "role": "Measured architectural source drawing; not a textured overhead image.",
+      "camera": "Orthographic plans/section/elevation, as individually labeled on sheet.",
+      "counts_as_textured_top": false,
+      "caveat": "All five scans carry an editorial warning about insufficient information and possible nonconformance with HABS/HAER standards. Proposed 1982 restoration elements are not proof of current as-built state."
+    },
+    {
+      "id": "HABS-D2",
+      "title": "Roof section; crown-piece and cornice plans",
+      "place": "Point Reyes Lighthouse, Marin County, California",
+      "survey": "HABS CA-2250",
+      "call_number": "HABS CAL,21-POREY,1-",
+      "identifier": "sheet 2 of 5; 00002a",
+      "page_url": "https://www.loc.gov/resource/hhh.ca1357.sheet/?sp=2",
+      "original_download_url": "https://tile.loc.gov/storage-services/master/pnp/habshaer/ca/ca1300/ca1357/sheet/00002a.tif",
+      "file": "00002a.tif",
+      "display_file": "00002a_review.png",
+      "display_transform": "Lossless TIFF-to-PNG conversion at full original dimensions; no crop, rotation, retouch or generated content.",
+      "date": "Associated with 1982 restoration; exact original drafting date not established. Sheet notes distinguish proposed 1982 work.",
+      "authors": [
+        "B. Santos",
+        "N. Camarena"
+      ],
+      "role": "Measured architectural source drawing; not a textured overhead image.",
+      "camera": "Orthographic plans/section/elevation, as individually labeled on sheet.",
+      "counts_as_textured_top": false,
+      "caveat": "All five scans carry an editorial warning about insufficient information and possible nonconformance with HABS/HAER standards. Proposed 1982 restoration elements are not proof of current as-built state."
+    },
+    {
+      "id": "HABS-D3",
+      "title": "Glazing and cornice joint details",
+      "place": "Point Reyes Lighthouse, Marin County, California",
+      "survey": "HABS CA-2250",
+      "call_number": "HABS CAL,21-POREY,1-",
+      "identifier": "sheet 3 of 5; 00003a",
+      "page_url": "https://www.loc.gov/resource/hhh.ca1357.sheet/?sp=3",
+      "original_download_url": "https://tile.loc.gov/storage-services/master/pnp/habshaer/ca/ca1300/ca1357/sheet/00003a.tif",
+      "file": "00003a.tif",
+      "display_file": "00003a_review.png",
+      "display_transform": "Lossless TIFF-to-PNG conversion at full original dimensions; no crop, rotation, retouch or generated content.",
+      "date": "Associated with 1982 restoration; exact original drafting date not established. Sheet notes distinguish proposed 1982 work.",
+      "authors": [
+        "B. Santos",
+        "N. Camarena"
+      ],
+      "role": "Measured architectural source drawing; not a textured overhead image.",
+      "camera": "Orthographic plans/section/elevation, as individually labeled on sheet.",
+      "counts_as_textured_top": false,
+      "caveat": "All five scans carry an editorial warning about insufficient information and possible nonconformance with HABS/HAER standards. Proposed 1982 restoration elements are not proof of current as-built state."
+    },
+    {
+      "id": "HABS-D4",
+      "title": "Vent baseplate/shutter, hatch grate and gallery section",
+      "place": "Point Reyes Lighthouse, Marin County, California",
+      "survey": "HABS CA-2250",
+      "call_number": "HABS CAL,21-POREY,1-",
+      "identifier": "sheet 4 of 5; 00004a",
+      "page_url": "https://www.loc.gov/resource/hhh.ca1357.sheet/?sp=4",
+      "original_download_url": "https://tile.loc.gov/storage-services/master/pnp/habshaer/ca/ca1300/ca1357/sheet/00004a.tif",
+      "file": "00004a.tif",
+      "display_file": "00004a_review.png",
+      "display_transform": "Lossless TIFF-to-PNG conversion at full original dimensions; no crop, rotation, retouch or generated content.",
+      "date": "Associated with 1982 restoration; exact original drafting date not established. Sheet notes distinguish proposed 1982 work.",
+      "authors": [
+        "B. Santos",
+        "N. Camarena"
+      ],
+      "role": "Measured architectural source drawing; not a textured overhead image.",
+      "camera": "Orthographic plans/section/elevation, as individually labeled on sheet.",
+      "counts_as_textured_top": false,
+      "caveat": "All five scans carry an editorial warning about insufficient information and possible nonconformance with HABS/HAER standards. Proposed 1982 restoration elements are not proof of current as-built state."
+    },
+    {
+      "id": "HABS-D5",
+      "title": "Lantern parts: curtain, glazed panel, ladders, stair and supporting plates",
+      "place": "Point Reyes Lighthouse, Marin County, California",
+      "survey": "HABS CA-2250",
+      "call_number": "HABS CAL,21-POREY,1-",
+      "identifier": "sheet 5 of 5; 00005a",
+      "page_url": "https://www.loc.gov/resource/hhh.ca1357.sheet/?sp=5",
+      "original_download_url": "https://tile.loc.gov/storage-services/master/pnp/habshaer/ca/ca1300/ca1357/sheet/00005a.tif",
+      "file": "00005a.tif",
+      "display_file": "00005a_review.png",
+      "display_transform": "Lossless TIFF-to-PNG conversion at full original dimensions; no crop, rotation, retouch or generated content.",
+      "date": "Associated with 1982 restoration; exact original drafting date not established. Sheet notes distinguish proposed 1982 work.",
+      "authors": [
+        "B. Santos",
+        "N. Camarena"
+      ],
+      "role": "Measured architectural source drawing; not a textured overhead image.",
+      "camera": "Orthographic plans/section/elevation, as individually labeled on sheet.",
+      "counts_as_textured_top": false,
+      "caveat": "All five scans carry an editorial warning about insufficient information and possible nonconformance with HABS/HAER standards. Proposed 1982 restoration elements are not proof of current as-built state."
+    },
+    {
+      "id": "HABS-P1",
+      "title": "General view of lighthouse and associated structures",
+      "place": "Point Reyes Light Station, with separate-building exclusions labeled",
+      "survey": "HABS CA-2250",
+      "identifier": "CA-2250-1; 013082p",
+      "date": "May 1982",
+      "photographer": "Richard Frear (caption PDF); catalog name Richard K. Frear",
+      "date_source": "ca1357cap.pdf, single caption page",
+      "page_url": "https://www.loc.gov/resource/hhh.ca1357.photos/?sp=1",
+      "original_download_url": "https://tile.loc.gov/storage-services/service/pnp/habshaer/ca/ca1300/ca1357/photos/013082pv.jpg",
+      "file": "013082pv.jpg",
+      "role": "External high oblique site context; roof hides lantern interior.",
+      "camera": "As described in source caption; no invented camera coordinates",
+      "original_master_url": "https://tile.loc.gov/storage-services/master/pnp/habshaer/ca/ca1300/ca1357/photos/013082pu.tif",
+      "download_quality": "Official LOC 1024px-long-side JPEG derivative, downloaded unchanged and uncropped. 20MB TIFF masters not downloaded."
+    },
+    {
+      "id": "HABS-P2",
+      "title": "Lighthouse, equipment shed and oil house, looking west",
+      "place": "Point Reyes Light Station, with separate-building exclusions labeled",
+      "survey": "HABS CA-2250",
+      "identifier": "CA-2250-2; 013083p",
+      "date": "May 1982",
+      "photographer": "Richard Frear (caption PDF); catalog name Richard K. Frear",
+      "date_source": "ca1357cap.pdf, single caption page",
+      "page_url": "https://www.loc.gov/resource/hhh.ca1357.photos/?sp=2",
+      "original_download_url": "https://tile.loc.gov/storage-services/service/pnp/habshaer/ca/ca1300/ca1357/photos/013083pv.jpg",
+      "file": "013083pv.jpg",
+      "role": "External high oblique site context and bridge relation; not a roofless lantern overhead.",
+      "camera": "As described in source caption; no invented camera coordinates",
+      "original_master_url": "https://tile.loc.gov/storage-services/master/pnp/habshaer/ca/ca1300/ca1357/photos/013083pu.tif",
+      "download_quality": "Official LOC 1024px-long-side JPEG derivative, downloaded unchanged and uncropped. 20MB TIFF masters not downloaded."
+    },
+    {
+      "id": "HABS-P3",
+      "title": "First order Fresnel lens, looking south",
+      "place": "Point Reyes Light Station, with separate-building exclusions labeled",
+      "survey": "HABS CA-2250",
+      "identifier": "CA-2250-3; 013084p",
+      "date": "May 1982",
+      "photographer": "Richard Frear (caption PDF); catalog name Richard K. Frear",
+      "date_source": "ca1357cap.pdf, single caption page",
+      "page_url": "https://www.loc.gov/resource/hhh.ca1357.photos/?sp=3",
+      "original_download_url": "https://tile.loc.gov/storage-services/service/pnp/habshaer/ca/ca1300/ca1357/photos/013084pv.jpg",
+      "file": "013084pv.jpg",
+      "role": "Distinct genuine exterior lantern/tower side looking south; not an interior photo.",
+      "camera": "Looking south, per source caption",
+      "original_master_url": "https://tile.loc.gov/storage-services/master/pnp/habshaer/ca/ca1300/ca1357/photos/013084pu.tif",
+      "download_quality": "Official LOC 1024px-long-side JPEG derivative, downloaded unchanged and uncropped. 20MB TIFF masters not downloaded."
+    },
+    {
+      "id": "HABS-P4",
+      "title": "First order Fresnel lens, looking west",
+      "place": "Point Reyes Light Station, with separate-building exclusions labeled",
+      "survey": "HABS CA-2250",
+      "identifier": "CA-2250-4; 013085p",
+      "date": "May 1982",
+      "photographer": "Richard Frear (caption PDF); catalog name Richard K. Frear",
+      "date_source": "ca1357cap.pdf, single caption page",
+      "page_url": "https://www.loc.gov/resource/hhh.ca1357.photos/?sp=4",
+      "original_download_url": "https://tile.loc.gov/storage-services/service/pnp/habshaer/ca/ca1300/ca1357/photos/013085pv.jpg",
+      "file": "013085pv.jpg",
+      "role": "Distinct genuine exterior lantern/tower side looking west; not an interior photo.",
+      "camera": "Looking west, per source caption",
+      "original_master_url": "https://tile.loc.gov/storage-services/master/pnp/habshaer/ca/ca1300/ca1357/photos/013085pu.tif",
+      "download_quality": "Official LOC 1024px-long-side JPEG derivative, downloaded unchanged and uncropped. 20MB TIFF masters not downloaded."
+    },
+    {
+      "id": "HABS-P5",
+      "title": "Interior of lower level, showing stair",
+      "place": "Point Reyes Light Station, with separate-building exclusions labeled",
+      "survey": "HABS CA-2250",
+      "identifier": "CA-2250-5; 013086p",
+      "date": "May 1982",
+      "photographer": "Richard Frear (caption PDF); catalog name Richard K. Frear",
+      "date_source": "ca1357cap.pdf, single caption page",
+      "page_url": "https://www.loc.gov/resource/hhh.ca1357.photos/?sp=5",
+      "original_download_url": "https://tile.loc.gov/storage-services/service/pnp/habshaer/ca/ca1300/ca1357/photos/013086pv.jpg",
+      "file": "013086pv.jpg",
+      "role": "Ground-level stair interior, below clockwork and lantern.",
+      "camera": "As described in source caption; no invented camera coordinates",
+      "original_master_url": "https://tile.loc.gov/storage-services/master/pnp/habshaer/ca/ca1300/ca1357/photos/013086pu.tif",
+      "download_quality": "Official LOC 1024px-long-side JPEG derivative, downloaded unchanged and uncropped. 20MB TIFF masters not downloaded."
+    },
+    {
+      "id": "HABS-P6",
+      "title": "Door to drive mechanism showing manufacturing information",
+      "place": "Point Reyes Light Station, with separate-building exclusions labeled",
+      "survey": "HABS CA-2250",
+      "identifier": "CA-2250-6; 013087p",
+      "date": "May 1982",
+      "photographer": "Richard Frear (caption PDF); catalog name Richard K. Frear",
+      "date_source": "ca1357cap.pdf, single caption page",
+      "page_url": "https://www.loc.gov/resource/hhh.ca1357.photos/?sp=6",
+      "original_download_url": "https://tile.loc.gov/storage-services/service/pnp/habshaer/ca/ca1300/ca1357/photos/013087pv.jpg",
+      "file": "013087pv.jpg",
+      "role": "Clockwork-case detail; not a wide room.",
+      "camera": "As described in source caption; no invented camera coordinates",
+      "original_master_url": "https://tile.loc.gov/storage-services/master/pnp/habshaer/ca/ca1300/ca1357/photos/013087pu.tif",
+      "download_quality": "Official LOC 1024px-long-side JPEG derivative, downloaded unchanged and uncropped. 20MB TIFF masters not downloaded."
+    },
+    {
+      "id": "HABS-P7",
+      "title": "Drive mechanism that turns light",
+      "place": "Point Reyes Light Station, with separate-building exclusions labeled",
+      "survey": "HABS CA-2250",
+      "identifier": "CA-2250-7; 013088p",
+      "date": "May 1982",
+      "photographer": "Richard Frear (caption PDF); catalog name Richard K. Frear",
+      "date_source": "ca1357cap.pdf, single caption page",
+      "page_url": "https://www.loc.gov/resource/hhh.ca1357.photos/?sp=7",
+      "original_download_url": "https://tile.loc.gov/storage-services/service/pnp/habshaer/ca/ca1300/ca1357/photos/013088pv.jpg",
+      "file": "013088pv.jpg",
+      "role": "Clockwork mechanism detail; not a wide room.",
+      "camera": "As described in source caption; no invented camera coordinates",
+      "original_master_url": "https://tile.loc.gov/storage-services/master/pnp/habshaer/ca/ca1300/ca1357/photos/013088pu.tif",
+      "download_quality": "Official LOC 1024px-long-side JPEG derivative, downloaded unchanged and uncropped. 20MB TIFF masters not downloaded."
+    },
+    {
+      "id": "HABS-P8",
+      "title": "First order Fresnel lens looking up from interior of lighthouse",
+      "place": "Point Reyes Light Station, with separate-building exclusions labeled",
+      "survey": "HABS CA-2250",
+      "identifier": "CA-2250-8; 013089p",
+      "date": "May 1982",
+      "photographer": "Richard Frear (caption PDF); catalog name Richard K. Frear",
+      "date_source": "ca1357cap.pdf, single caption page",
+      "page_url": "https://www.loc.gov/resource/hhh.ca1357.photos/?sp=8",
+      "original_download_url": "https://tile.loc.gov/storage-services/service/pnp/habshaer/ca/ca1300/ca1357/photos/013089pv.jpg",
+      "file": "013089pv.jpg",
+      "role": "Low upward interior view through installed Fresnel lens; not a wide side/reverse of the whole lantern.",
+      "camera": "Looking upward, per source caption",
+      "original_master_url": "https://tile.loc.gov/storage-services/master/pnp/habshaer/ca/ca1300/ca1357/photos/013089pu.tif",
+      "download_quality": "Official LOC 1024px-long-side JPEG derivative, downloaded unchanged and uncropped. 20MB TIFF masters not downloaded."
+    },
+    {
+      "id": "HABS-P9",
+      "title": "Interior of fog signal building showing fog warning equipment",
+      "place": "Point Reyes Light Station, with separate-building exclusions labeled",
+      "survey": "HABS CA-2250",
+      "identifier": "CA-2250-9; 013090p",
+      "date": "May 1982",
+      "photographer": "Richard Frear (caption PDF); catalog name Richard K. Frear",
+      "date_source": "ca1357cap.pdf, single caption page",
+      "page_url": "https://www.loc.gov/resource/hhh.ca1357.photos/?sp=9",
+      "original_download_url": "https://tile.loc.gov/storage-services/service/pnp/habshaer/ca/ca1300/ca1357/photos/013090pv.jpg",
+      "file": "013090pv.jpg",
+      "role": "Separate fog-signal equipment building; excluded from lantern geometry.",
+      "camera": "As described in source caption; no invented camera coordinates",
+      "original_master_url": "https://tile.loc.gov/storage-services/master/pnp/habshaer/ca/ca1300/ca1357/photos/013090pu.tif",
+      "download_quality": "Official LOC 1024px-long-side JPEG derivative, downloaded unchanged and uncropped. 20MB TIFF masters not downloaded."
+    },
+    {
+      "id": "HABS-P10",
+      "title": "Interior of fog signal building",
+      "place": "Point Reyes Light Station, with separate-building exclusions labeled",
+      "survey": "HABS CA-2250",
+      "identifier": "CA-2250-10; 013091p",
+      "date": "May 1982",
+      "photographer": "Richard Frear (caption PDF); catalog name Richard K. Frear",
+      "date_source": "ca1357cap.pdf, single caption page",
+      "page_url": "https://www.loc.gov/resource/hhh.ca1357.photos/?sp=10",
+      "original_download_url": "https://tile.loc.gov/storage-services/service/pnp/habshaer/ca/ca1300/ca1357/photos/013091pv.jpg",
+      "file": "013091pv.jpg",
+      "role": "Separate fog-signal equipment building; excluded from lantern geometry.",
+      "camera": "As described in source caption; no invented camera coordinates",
+      "original_master_url": "https://tile.loc.gov/storage-services/master/pnp/habshaer/ca/ca1300/ca1357/photos/013091pu.tif",
+      "download_quality": "Official LOC 1024px-long-side JPEG derivative, downloaded unchanged and uncropped. 20MB TIFF masters not downloaded."
+    },
+    {
+      "id": "NPS-HSR",
+      "title": "The History and Architecture of the Point Reyes Light Station",
+      "authors": [
+        "Dewey Livingston",
+        "Dave Snow"
+      ],
+      "date": "1990",
+      "page_url": "https://irma.nps.gov/DataStore/Reference/Profile/631767",
+      "original_download_url": "https://irma.nps.gov/DataStore/FileSource/Get/631767?filename=Livingstone_and_Snow_1990_-_The_History_and_Architecture_of_the_Point_Reyes_Light_Station.pdf",
+      "file": "nps_hsr_1990.pdf",
+      "text_file": "nps_hsr_1990.txt",
+      "role": "Architectural analysis: printed pp.95–101 = PDF one-based pages103–109; distinguishes three levels, glazing, inner stairs and exterior galleries. Pre-2018 restoration state.",
+      "caveat": "Official NPS report, retained whole; do not treat 1990 finishes or removed ladder as evidence of the 2020 appearance."
+    },
+    {
+      "id": "NPS-V2020",
+      "title": "A Quick Visit to the Point Reyes Lighthouse",
+      "date": "November 28, 2020 (page Date Created)",
+      "page_url": "https://www.nps.gov/media/video/view.htm?id=1C39A62C-E911-4AFC-B485-146D89E65517",
+      "original_download_url": "https://www.nps.gov/nps-audiovideo/audiovideo/eab69bd6-fe42-48e7-b7c7-3ad83ec7dd98720p.mp4",
+      "file": "nps_quick_visit_720p.mp4",
+      "credit": "National Park Service / A. Kopshever",
+      "duration_s": 116.382933,
+      "video_dimensions": [
+        1280,
+        720
+      ],
+      "frame_rate": "30000/1001",
+      "role": "Actual post-restoration visit, including bridge entry, clockwork room, upward lens views and lantern glazing. Edited video with cuts/dissolves, not one unbroken architectural survey.",
+      "sample_files": [
+        "quick_visit_t000s.png",
+        "quick_visit_t005s.png",
+        "quick_visit_t010s.png",
+        "quick_visit_t015s.png",
+        "quick_visit_t020s.png",
+        "quick_visit_t025s.png",
+        "quick_visit_t030s.png",
+        "quick_visit_t031s.png",
+        "quick_visit_t032s.png",
+        "quick_visit_t033s.png",
+        "quick_visit_t034s.png",
+        "quick_visit_t035s.png",
+        "quick_visit_t036s.png",
+        "quick_visit_t037s.png",
+        "quick_visit_t038s.png",
+        "quick_visit_t039s.png",
+        "quick_visit_t040s.png",
+        "quick_visit_t041s.png",
+        "quick_visit_t042s.png",
+        "quick_visit_t043s.png",
+        "quick_visit_t044s.png",
+        "quick_visit_t045s.png",
+        "quick_visit_t046s.png",
+        "quick_visit_t047s.png",
+        "quick_visit_t048s.png",
+        "quick_visit_t050s.png",
+        "quick_visit_t055s.png",
+        "quick_visit_t060s.png",
+        "quick_visit_t065s.png",
+        "quick_visit_t070s.png",
+        "quick_visit_t073s.png",
+        "quick_visit_t074s.png",
+        "quick_visit_t075s.png",
+        "quick_visit_t076s.png",
+        "quick_visit_t077s.png",
+        "quick_visit_t078s.png",
+        "quick_visit_t079s.png",
+        "quick_visit_t080s.png",
+        "quick_visit_t081s.png",
+        "quick_visit_t082s.png",
+        "quick_visit_t083s.png",
+        "quick_visit_t084s.png",
+        "quick_visit_t085s.png",
+        "quick_visit_t086s.png",
+        "quick_visit_t087s.png",
+        "quick_visit_t088s.png",
+        "quick_visit_t089s.png",
+        "quick_visit_t090s.png",
+        "quick_visit_t091s.png",
+        "quick_visit_t092s.png",
+        "quick_visit_t093s.png",
+        "quick_visit_t094s.png",
+        "quick_visit_t095s.png",
+        "quick_visit_t096s.png",
+        "quick_visit_t097s.png",
+        "quick_visit_t100s.png",
+        "quick_visit_t105s.png",
+        "quick_visit_t110s.png",
+        "quick_visit_t115s.png"
+      ],
+      "sampling": "Entire video sampled at 0,5,...115 seconds, plus every integer second31–48 and73–97. All samples retained, uncropped.",
+      "extraction": "ffmpeg -nostdin -loglevel error -n -ss SECONDS -i nps_quick_visit_720p.mp4 -frames:v 1 -threads 1 quick_visit_tNNNs.png",
+      "time_precision": "Filenames record requested input seek time in whole seconds. No source frame index, exact camera pose, or metric calibration is asserted."
+    },
+    {
+      "id": "NPS-V30",
+      "title": "Official virtual-visit frame at requested seek time 30s",
+      "parent_source": "NPS-V2020",
+      "file": "quick_visit_t030s.png",
+      "page_url": "https://www.nps.gov/media/video/view.htm?id=1C39A62C-E911-4AFC-B485-146D89E65517",
+      "date": "November 28, 2020 source video creation date",
+      "seek_s": 30,
+      "role": "Exterior bridge approach showing gallery door beneath the glazed lantern.",
+      "camera": "As seen in source frame; cardinal heading and eye height not calibrated",
+      "counts_as_textured_top": false
+    },
+    {
+      "id": "NPS-V35",
+      "title": "Official virtual-visit frame at requested seek time 35s",
+      "parent_source": "NPS-V2020",
+      "file": "quick_visit_t035s.png",
+      "page_url": "https://www.nps.gov/media/video/view.htm?id=1C39A62C-E911-4AFC-B485-146D89E65517",
+      "date": "November 28, 2020 source video creation date",
+      "seek_s": 35,
+      "role": "Wide interior clockwork level: central red mechanism case, room perimeter, stair upward. This is below the lantern.",
+      "camera": "As seen in source frame; cardinal heading and eye height not calibrated",
+      "counts_as_textured_top": false
+    },
+    {
+      "id": "NPS-V40",
+      "title": "Official virtual-visit frame at requested seek time 40s",
+      "parent_source": "NPS-V2020",
+      "file": "quick_visit_t040s.png",
+      "page_url": "https://www.nps.gov/media/video/view.htm?id=1C39A62C-E911-4AFC-B485-146D89E65517",
+      "date": "November 28, 2020 source video creation date",
+      "seek_s": 40,
+      "role": "Upward view inside the actual installed Fresnel lens; close/detail geometry, not a second wide side.",
+      "camera": "As seen in source frame; cardinal heading and eye height not calibrated",
+      "counts_as_textured_top": false
+    },
+    {
+      "id": "NPS-V46",
+      "title": "Official virtual-visit frame at requested seek time 46s",
+      "parent_source": "NPS-V2020",
+      "file": "quick_visit_t046s.png",
+      "page_url": "https://www.nps.gov/media/video/view.htm?id=1C39A62C-E911-4AFC-B485-146D89E65517",
+      "date": "November 28, 2020 source video creation date",
+      "seek_s": 46,
+      "role": "Another moving upward view of lens, access and surrounding glazing; not an independent wide reverse.",
+      "camera": "As seen in source frame; cardinal heading and eye height not calibrated",
+      "counts_as_textured_top": false
+    },
+    {
+      "id": "NPS-V93",
+      "title": "Official virtual-visit frame at requested seek time 93s",
+      "parent_source": "NPS-V2020",
+      "file": "quick_visit_t093s.png",
+      "page_url": "https://www.nps.gov/media/video/view.htm?id=1C39A62C-E911-4AFC-B485-146D89E65517",
+      "date": "November 28, 2020 source video creation date",
+      "seek_s": 93,
+      "role": "Lantern-level side: installed Fresnel lens at left, glazing/handholds at right, exterior gallery and ocean beyond. Does not show the entire interior floor or aisle width.",
+      "camera": "As seen in source frame; cardinal heading and eye height not calibrated",
+      "counts_as_textured_top": false
+    },
+    {
+      "id": "NPS-A1",
+      "title": "Point Reyes Lighthouse Restoration Project: Lighthouse Tower from the Oil Storage House/Transformer Building - October 21, 2019",
+      "identifier": "3d0a37ab-9b32-4644-931c-7d145c90b995",
+      "date": "10/21/2019",
+      "page_url": "https://npgallery.nps.gov/AssetDetail/3d0a37ab-9b32-4644-931c-7d145c90b995",
+      "original_download_url": "https://www.nps.gov/npgallery/GetAsset/3d0a37ab-9b32-4644-931c-7d145c90b995/original",
+      "file": "nps_album_01_3d0a37ab-9b32-4644-931c-7d145c90b995.jpg",
+      "credit": "NPS Photo",
+      "rights": {
+        "Constraint": "Public domain",
+        "GrantingRights": "Full"
+      },
+      "role": "Finished restored exterior; architecture/color context.",
+      "camera": "As photographed; no invented coordinates"
+    },
+    {
+      "id": "NPS-A14",
+      "title": "Point Reyes Lighthouse Restoration Project: Recently Painted Upper Pedestal - June 15, 2019",
+      "identifier": "87b79674-d136-473d-bbf0-95c16870a6da",
+      "date": "06/15/2019",
+      "page_url": "https://npgallery.nps.gov/AssetDetail/87b79674-d136-473d-bbf0-95c16870a6da",
+      "original_download_url": "https://www.nps.gov/npgallery/GetAsset/87b79674-d136-473d-bbf0-95c16870a6da/original",
+      "file": "nps_album_14_87b79674-d136-473d-bbf0-95c16870a6da.jpg",
+      "credit": "NPS Photo",
+      "rights": {
+        "Constraint": "Public domain",
+        "GrantingRights": "Full"
+      },
+      "role": "Restoration state: upper pedestal from clockwork room; lens removed, scaffolding present.",
+      "camera": "As photographed; no invented coordinates"
+    },
+    {
+      "id": "NPS-A15",
+      "title": "Point Reyes Lighthouse Restoration Project: Newly Installed Lantern Window Frames- June 15, 2019",
+      "identifier": "0afbda2c-d3d9-49d3-9b1f-5211f6b4337f",
+      "date": "06/15/2019",
+      "page_url": "https://npgallery.nps.gov/AssetDetail/0afbda2c-d3d9-49d3-9b1f-5211f6b4337f",
+      "original_download_url": "https://www.nps.gov/npgallery/GetAsset/0afbda2c-d3d9-49d3-9b1f-5211f6b4337f/original",
+      "file": "nps_album_15_0afbda2c-d3d9-49d3-9b1f-5211f6b4337f.jpg",
+      "credit": "NPS Photo",
+      "rights": {
+        "Constraint": "Public domain",
+        "GrantingRights": "Full"
+      },
+      "role": "Restoration state: lantern window frames and scaffolding; lens absent; not a clean finished interior.",
+      "camera": "As photographed; no invented coordinates"
+    },
+    {
+      "id": "NPS-A74",
+      "title": "Point Reyes Lighthouse Restoration Project: Lens-less lantern – September 14, 2018",
+      "identifier": "39fe4e0c-7dec-450b-8f89-1e54d430e034",
+      "date": "09/14/2018",
+      "page_url": "https://npgallery.nps.gov/AssetDetail/39fe4e0c-7dec-450b-8f89-1e54d430e034",
+      "original_download_url": "https://www.nps.gov/npgallery/GetAsset/39fe4e0c-7dec-450b-8f89-1e54d430e034/original",
+      "file": "nps_album_74_39fe4e0c-7dec-450b-8f89-1e54d430e034.jpg",
+      "credit": "NPS Photo",
+      "rights": {
+        "Constraint": "Public domain",
+        "GrantingRights": "Full"
+      },
+      "role": "Restoration state: lens-less lantern, upward view of roof/glazing and remaining lens support; do not draw a missing lens in a finished scene.",
+      "camera": "As photographed; no invented coordinates"
+    }
+  ],
+  "file_inventory": [
+    {
+      "file": "00001a.tif",
+      "bytes": 962290,
+      "sha256": "804e6f56c3e2768fb1c81878a320880ea2bdb81534f548e733e6ee918f66f520",
+      "dimensions": [
+        9632,
+        14450
+      ]
+    },
+    {
+      "file": "00001a_review.png",
+      "bytes": 1260440,
+      "sha256": "dbebeab3f0f4447f58f6bc9f55cd66812b6cbe5bf9647ebe66d51fc5903c9367",
+      "dimensions": [
+        9632,
+        14450
+      ]
+    },
+    {
+      "file": "00002a.tif",
+      "bytes": 799824,
+      "sha256": "2e889c2dcbd41f98e0b58719951289f7b5888e8d0590ac032aff0643a77b4570",
+      "dimensions": [
+        9632,
+        14432
+      ]
+    },
+    {
+      "file": "00002a_review.png",
+      "bytes": 1049037,
+      "sha256": "390439498e0a71f1c93cd00b91939bb81a66a1de3e6139f85822a404ff9187e0",
+      "dimensions": [
+        9632,
+        14432
+      ]
+    },
+    {
+      "file": "00003a.tif",
+      "bytes": 690906,
+      "sha256": "113df12e057325877d5f2fc93b7c297e65454eed243475c797e1bb5c88f157e5",
+      "dimensions": [
+        14442,
+        9632
+      ]
+    },
+    {
+      "file": "00003a_review.png",
+      "bytes": 819348,
+      "sha256": "c452fbb9ac178d73f5bd7542246b1e3def51aeb39ed17eecb7ea01e52a36148e",
+      "dimensions": [
+        14442,
+        9632
+      ]
+    },
+    {
+      "file": "00004a.tif",
+      "bytes": 851214,
+      "sha256": "1a9de245fa9445a45b5795435d0c85afcd342436ac4ae4686399ce5f10ec266c",
+      "dimensions": [
+        14444,
+        9632
+      ]
+    },
+    {
+      "file": "00004a_review.png",
+      "bytes": 1001665,
+      "sha256": "51b6f90086a46da7fccdada6f5ddc9224b08d0649a8b0d07c4fe18458d3d69a0",
+      "dimensions": [
+        14444,
+        9632
+      ]
+    },
+    {
+      "file": "00005a.tif",
+      "bytes": 799848,
+      "sha256": "77d38329cd04e4964050b06a25665423e1c11cef384a8bfa805cb4a8d38f6bf5",
+      "dimensions": [
+        14436,
+        9632
+      ]
+    },
+    {
+      "file": "00005a_review.png",
+      "bytes": 962427,
+      "sha256": "3cea98ed52626b9b84b5fa2aa395fec8fd123b897ccd09a8b7ebac969ff25ba1",
+      "dimensions": [
+        14436,
+        9632
+      ]
+    },
+    {
+      "file": "013082pv.jpg",
+      "bytes": 131561,
+      "sha256": "28d9a6f206665d597e16b66cac141106285486e6ba8fdbe608623316881588e7",
+      "dimensions": [
+        1024,
+        822
+      ]
+    },
+    {
+      "file": "013083pv.jpg",
+      "bytes": 121044,
+      "sha256": "242956ba7c1e2c5110e446ec719a1e78a333637c949259ddddd00aeacf53b8d7",
+      "dimensions": [
+        1024,
+        826
+      ]
+    },
+    {
+      "file": "013084pv.jpg",
+      "bytes": 126480,
+      "sha256": "e88cc275583e5328867ad2dbf779e6ca0470e322519c8edd8dd613e024b18782",
+      "dimensions": [
+        830,
+        1024
+      ]
+    },
+    {
+      "file": "013085pv.jpg",
+      "bytes": 81082,
+      "sha256": "b568fce49ca237525dc4f9e004a0c0107238d3238823419f308455ac98b12e6c",
+      "dimensions": [
+        827,
+        1024
+      ]
+    },
+    {
+      "file": "013086pv.jpg",
+      "bytes": 112340,
+      "sha256": "f0b38c0ed379afc7b0c623383272aab4a5064d676de7dffbe43e57c8a2744db0",
+      "dimensions": [
+        819,
+        1024
+      ]
+    },
+    {
+      "file": "013087pv.jpg",
+      "bytes": 121529,
+      "sha256": "d9bf8c2ec95129f43f41657b5d4ac7ef29e0da30244bfc96fb35a33738594531",
+      "dimensions": [
+        825,
+        1024
+      ]
+    },
+    {
+      "file": "013088pv.jpg",
+      "bytes": 152054,
+      "sha256": "f4c4d73a506858abcdc802708c4e8fee7d8091eb26e197f4886981c9a1bca7cb",
+      "dimensions": [
+        825,
+        1024
+      ]
+    },
+    {
+      "file": "013089pv.jpg",
+      "bytes": 151613,
+      "sha256": "ef01b8b2523506786dcea4ddb45fd90e83947725bf0c4fc25da4729e2dbd47d7",
+      "dimensions": [
+        819,
+        1024
+      ]
+    },
+    {
+      "file": "013090pv.jpg",
+      "bytes": 99461,
+      "sha256": "43aaa3079a5a0a54ce85dd9e019d48703e1e7a688b7bea4dbb7f1c53ed4c23da",
+      "dimensions": [
+        1024,
+        824
+      ]
+    },
+    {
+      "file": "013091pv.jpg",
+      "bytes": 100061,
+      "sha256": "6738672ccaf7c067a3bf0ce922f161a1625f746c7ab526dcc7302bb23ae2efc3",
+      "dimensions": [
+        1024,
+        820
+      ]
+    },
+    {
+      "file": "DOWNLOADS_initial.json",
+      "bytes": 8665,
+      "sha256": "63c266b45055197ebf1bd1c690a2dfa59730a67b310c9565c8579b06cf54e056"
+    },
+    {
+      "file": "DOWNLOADS_nps_photos.json",
+      "bytes": 12531,
+      "sha256": "0e500953ea04f4ac963ee5978d09c207a9bee9e96d53635e56533adfb40ac10f"
+    },
+    {
+      "file": "SET_REVIEW_ASTRA.md",
+      "bytes": 11080,
+      "sha256": "8dc449b94011d77e4e8b86e30d8b72ebfd4cbfbf4ac29e5394d7ec8ec36f1a23"
+    },
+    {
+      "file": "ca1357cap.pdf",
+      "bytes": 22814,
+      "sha256": "3c6711e9243c43fb970cf7d859b70d5d74c9ef5fdf25bc58fa723e9fa71798d3"
+    },
+    {
+      "file": "ca1357data.pdf",
+      "bytes": 39016,
+      "sha256": "de5fba748e2442d10785785737be3e9e6a1b9e296f02eddd5648966cd72dff72"
+    },
+    {
+      "file": "loc_ca1357.json",
+      "bytes": 82641,
+      "sha256": "e87230030e67621d228619307a1706ad3d89f5ff72cd904bc7166c4d3cdafe8e"
+    },
+    {
+      "file": "loc_ca1357_sheet.json",
+      "bytes": 70512,
+      "sha256": "20b46ecdd9579007ab7597b5f779f7e72c794cf8d990a81c5298225cac877054"
+    },
+    {
+      "file": "loc_photos_01.json",
+      "bytes": 70270,
+      "sha256": "4873427f39af45ff754c47c2656206b8253247f1c28b9fdc18f7b469a140b459"
+    },
+    {
+      "file": "loc_photos_02.json",
+      "bytes": 70679,
+      "sha256": "d096d62de926a77a1a4b6882dee5bf79156990e8fe3c15f50e232004b0f27644"
+    },
+    {
+      "file": "loc_photos_03.json",
+      "bytes": 70819,
+      "sha256": "4a7f96bede3d632d95d296c70a39fca6137cc4353a584ce84fa052f9c62de362"
+    },
+    {
+      "file": "loc_photos_04.json",
+      "bytes": 70989,
+      "sha256": "74c6f65ce1b58334cd4bbbdabe3c2426068ab46e81935bded2b19611e0a7e210"
+    },
+    {
+      "file": "loc_photos_05.json",
+      "bytes": 71173,
+      "sha256": "4345a5ea427a615b95221a5aac3d8b6894a35d69df1bacde9b2fcf8a7b086ef9"
+    },
+    {
+      "file": "loc_photos_06.json",
+      "bytes": 71213,
+      "sha256": "7f8769650f0edf0f55aafe62cf779bd81583d11c44e7d18be08ecde347b5c1a9"
+    },
+    {
+      "file": "loc_photos_07.json",
+      "bytes": 71164,
+      "sha256": "fffade76dbf19b8220a377706dd7e67c197fa247d8d593b7bd814285855055a3"
+    },
+    {
+      "file": "loc_photos_08.json",
+      "bytes": 71235,
+      "sha256": "fe364b1efb5ac551a32c4150b5af26b9091d439fabcdbf167e61e7f2fd8a637b"
+    },
+    {
+      "file": "loc_photos_09.json",
+      "bytes": 71061,
+      "sha256": "55bffb2d8d46a9fe736a94b72b41f6becdb4fec8c646095b3c675db7aff923aa"
+    },
+    {
+      "file": "loc_photos_10.json",
+      "bytes": 58898,
+      "sha256": "7d0c04e2ecc12a93641e7126a2325e517363806e0e2a572c737e676ca4fa610e"
+    },
+    {
+      "file": "loc_sheet_01.json",
+      "bytes": 70385,
+      "sha256": "56265e675d1807161338ad7a0259048eb9eb086c9b35cd06102d28e9572e6323"
+    },
+    {
+      "file": "loc_sheet_02.json",
+      "bytes": 70588,
+      "sha256": "0d3b80f91dc0818314809eb20f8a4173b0a835ceb1bc27c2aba9dfb124e145e0"
+    },
+    {
+      "file": "loc_sheet_03.json",
+      "bytes": 70874,
+      "sha256": "3e9a976311e3b4b6b765f6107cb5fb0ca1cd4e492d66a01a542d22ea99edb5d4"
+    },
+    {
+      "file": "loc_sheet_04.json",
+      "bytes": 70932,
+      "sha256": "0c59130ab382813f3499ed61398a427e717efcd0828feafa830f44a9586d5b38"
+    },
+    {
+      "file": "loc_sheet_05.json",
+      "bytes": 67478,
+      "sha256": "72104b9e65f4641baa8f68a0c9bd989d3bbb281a24cd31f7b59ff37b50e1744d"
+    },
+    {
+      "file": "nps_album_01_3d0a37ab-9b32-4644-931c-7d145c90b995.jpg",
+      "bytes": 2473935,
+      "sha256": "3ed6d08ef759b52e32a07938d5fd6a5ec5e240edd3d3cf7dd01a6419c5f419dd",
+      "dimensions": [
+        3264,
+        2448
+      ]
+    },
+    {
+      "file": "nps_album_14_87b79674-d136-473d-bbf0-95c16870a6da.jpg",
+      "bytes": 2695140,
+      "sha256": "7c35e4c02d8332f0ebe3ece7969c535ce3ab8d354d28cc186a5dbd3e9f3b4305",
+      "dimensions": [
+        3264,
+        2448
+      ]
+    },
+    {
+      "file": "nps_album_15_0afbda2c-d3d9-49d3-9b1f-5211f6b4337f.jpg",
+      "bytes": 2647034,
+      "sha256": "f5e566f67fe2aa2b2fd1b9cb9b8ad82844a4374f8a1695eb42c42abd280bbcb5",
+      "dimensions": [
+        3264,
+        2448
+      ]
+    },
+    {
+      "file": "nps_album_74_39fe4e0c-7dec-450b-8f89-1e54d430e034.jpg",
+      "bytes": 1540889,
+      "sha256": "e005d016c47fe15964c723e891e108621eb3fb947de6ad678f558d3cb72ee8bc",
+      "dimensions": [
+        3264,
+        2448
+      ]
+    },
+    {
+      "file": "nps_history.html",
+      "bytes": 59866,
+      "sha256": "cb7fe22e323dd5e0735fef13d40f3233e4d1a9cb6f65e5e89e86ffbd952fcf31"
+    },
+    {
+      "file": "nps_hsr_1990.pdf",
+      "bytes": 30859124,
+      "sha256": "5c69b19cbc3e34beb08df7e83a458c07b1c1c1cb1c0fe29f7954da06a694b222"
+    },
+    {
+      "file": "nps_hsr_1990.txt",
+      "bytes": 512436,
+      "sha256": "f15d09f3fd61087cf7acf3e00665e09d504b830b5fe40abc226314016a52639f"
+    },
+    {
+      "file": "nps_quick_visit.html",
+      "bytes": 40337,
+      "sha256": "9673c2b48387c0eaf8cd5b1fb805033bf702101ab4ce7e07da96c26cbc08b291"
+    },
+    {
+      "file": "nps_quick_visit_720p.mp4",
+      "bytes": 48588759,
+      "sha256": "920c6543fc61a60936b40211ee27dca30761b9f5f911d93e3c13c63b3724ebc4"
+    },
+    {
+      "file": "nps_restoration_album.html",
+      "bytes": 38620,
+      "sha256": "c50bb4b2de70aba624ca0d0950dec6dd634d8e70f8bfb92bb1888369dc8173c0"
+    },
+    {
+      "file": "nps_restoration_album.json",
+      "bytes": 266634,
+      "sha256": "86f8726fd3e66a3dd850a5349d9a7dbbde7281302abf69b5df04d232993717c2"
+    },
+    {
+      "file": "nps_restoration_gallery.html",
+      "bytes": 40659,
+      "sha256": "deec1f9d65155d48e2059fe8ae7baf579c36d651ac4b519a7bcf355524f2d818"
+    },
+    {
+      "file": "nps_visit.html",
+      "bytes": 149282,
+      "sha256": "f24706c84adba740b03b8d508332be4444ccbf7133bf29511b1529eb3a153c7b"
+    },
+    {
+      "file": "quick_visit_all_5s_contact.png",
+      "bytes": 2084042,
+      "sha256": "7eba085439dc4bbefba636d505419ddc50c4fd3062147e83123e963b8c020310",
+      "dimensions": [
+        1280,
+        1260
+      ]
+    },
+    {
+      "file": "quick_visit_clockwork_all_1s_contact.png",
+      "bytes": 1787614,
+      "sha256": "cf7cca69fb3727c844b174112b89b5451792bf2fa93c5a57c485d39230671b3c",
+      "dimensions": [
+        1280,
+        1054
+      ]
+    },
+    {
+      "file": "quick_visit_lantern_all_1s_contact.png",
+      "bytes": 1951886,
+      "sha256": "f507b8a50c74b4f625fa350d1da0f9fedd9a61a44a54d8c0e9ff386a5039f91f",
+      "dimensions": [
+        1280,
+        1466
+      ]
+    },
+    {
+      "file": "quick_visit_t000s.png",
+      "bytes": 2856,
+      "sha256": "0dc36252ffc650a3346900357d85c6072e0598074a004e22ffb2e513d8e1268f",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t005s.png",
+      "bytes": 1787592,
+      "sha256": "750464f8b1a79a7020720abf4ae7609da109a9e85115d100b78e10539a8446c0",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t010s.png",
+      "bytes": 1828769,
+      "sha256": "89f6aad1381db0fef3a034d40df6273bd359be28111fdc9195cdafd2d9d28659",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t015s.png",
+      "bytes": 865071,
+      "sha256": "0aafcbc174bf0dc0d378cf9d077294af7ce1332132a7e6f62ddeef5708fb555c",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t020s.png",
+      "bytes": 1063262,
+      "sha256": "09f8071d757f60bb646da88d84884ae3a4a7aed087084738580ffaac6257a805",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t025s.png",
+      "bytes": 1100495,
+      "sha256": "f8f9ac81f0e3fd68a07bcf3f36ef5bc349ca059903845cf8fbdb601084d02320",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t030s.png",
+      "bytes": 979203,
+      "sha256": "02cb3e9da387416c5db3a722bc2c017b19dd2066542bba5c7022786cabb8571c",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t031s.png",
+      "bytes": 1077610,
+      "sha256": "ffa35d92495c412e4166300f7c904a04061179fe5f2853b8e47e4c8afce9009f",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t032s.png",
+      "bytes": 966695,
+      "sha256": "9bce30ce62299276a172505bec097c7167d38edee80b5aea871824c6ecf600cd",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t033s.png",
+      "bytes": 679872,
+      "sha256": "03860ed31c94e3e919625c32022ab4d843bbbd1611ee4c2dc5c2ee0fdc36f048",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t034s.png",
+      "bytes": 464983,
+      "sha256": "62fa6b5148d130296ca2a0bd6a4ef799f7a6e72e25e07c62670a2af43f399380",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t035s.png",
+      "bytes": 935077,
+      "sha256": "4fa9ccf594c2c1ee2294a3b2324e2f3cfbbd275427599b144cd94bf132534854",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t036s.png",
+      "bytes": 1191261,
+      "sha256": "693659bd966e18cc242df4a106843a8bc084c29abda0c8c51c410fc3917aa108",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t037s.png",
+      "bytes": 1064515,
+      "sha256": "b82b6d44549fb1eef6173539aec08806e2215ed96828dd85a53e714d08a6c1ba",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t038s.png",
+      "bytes": 1305827,
+      "sha256": "409aac22d30d59cba7089bd4a611e5585d3b3df6c291b4965744fa1aa7eff2a2",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t039s.png",
+      "bytes": 1876695,
+      "sha256": "bec4e38d78a56545aa37e782bad7b8dbc73995d64577e164f903bb7010e9ca71",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t040s.png",
+      "bytes": 1979441,
+      "sha256": "2eb3c107679ae493322ea2ef659c34043abad9a38666c53e301ac7e49cf21ef4",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t041s.png",
+      "bytes": 1941909,
+      "sha256": "bfd29ee396c667545da6db1ac24acb784d4857ec49775abef256b03df6b49ddd",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t042s.png",
+      "bytes": 1803691,
+      "sha256": "a449b1f24330979cc61182bfccd07e5ed39f2fbfb1db4890c0b7a8fc5a0329c9",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t043s.png",
+      "bytes": 1828075,
+      "sha256": "0ec2e744e6606c6380a6156d8c3264e6a8025e6bf00d61e82c28cf579d56a394",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t044s.png",
+      "bytes": 1857191,
+      "sha256": "bf1ddc4d79817a80083c4d852fcef3f3ec26e2e70c7263313784d179c5d07736",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t045s.png",
+      "bytes": 1794917,
+      "sha256": "97acdcb9c45f8704d6046c302a50947c1da40c91a1b34d45f55fbf8861f14196",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t046s.png",
+      "bytes": 1624722,
+      "sha256": "0429a42a4358ad8b334a26b2a9eb32bb61624255ff153c4ee0939ea971d13fbc",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t047s.png",
+      "bytes": 1624034,
+      "sha256": "94a61010b5863b8dcf9215d2354bdb4f0d663eb839b8a9eac4d2ce0f863678aa",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t048s.png",
+      "bytes": 1411589,
+      "sha256": "89e2f2ab60df8fe80bcb08da2145898117ef594af18fefb38428f9fa1f7438ea",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t050s.png",
+      "bytes": 1229902,
+      "sha256": "5a4993f0be212b7675d45502dac740a7ac033aed3fb7f1e68082a7f294332452",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t055s.png",
+      "bytes": 1316367,
+      "sha256": "af60cc36babb80b5c0b8d257f7cd4c833a968b82b17d3f38ad4099bb1532f17c",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t060s.png",
+      "bytes": 1476009,
+      "sha256": "602dc04cbaabcb7749a5d90bbdfad184348a9b0ef6ef03d6b030787a7324e657",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t065s.png",
+      "bytes": 1531884,
+      "sha256": "f51e282707e658457ec499a43bd158ca192acbbeb9db3d2ebd853e6be1a6e671",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t070s.png",
+      "bytes": 1219414,
+      "sha256": "ba5907ef79027eba7c02d11f8b933f14385417d67372afa7e4a15bc36a0a82f5",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t073s.png",
+      "bytes": 1475499,
+      "sha256": "b03044d3a17c689e65cfca6a4592bb9b71b4eb65e95a8f274ea2ca64a681a5fc",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t074s.png",
+      "bytes": 916817,
+      "sha256": "59c2027678e7d610ee94ab517cdd6090e239c5faf3ca766bfe5f959fa0b598a5",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t075s.png",
+      "bytes": 906684,
+      "sha256": "a6ba4221030aa3254f301cc6ed3754214ee9ac6c3ec7e782fbe7412c608ba578",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t076s.png",
+      "bytes": 1014042,
+      "sha256": "69134b64f3d6e4aee82923785881a4a22e157f182636f2837b08879dcc91ace3",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t077s.png",
+      "bytes": 985182,
+      "sha256": "f76a6560e2c2cc296022235da783a5de053f18a1e4e1f7b572fca0b5eaccc0d1",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t078s.png",
+      "bytes": 994996,
+      "sha256": "f66e7ce2a513e1a494978492cd2009e990ddb34dd7b24114d03567ce4fa1f60c",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t079s.png",
+      "bytes": 1033838,
+      "sha256": "3256e77c35b5c74fab61a4212854914b1f1c4b4557a112f75315520108b8d0e1",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t080s.png",
+      "bytes": 1168647,
+      "sha256": "dcdbf82d53edd4ee69803731e16965241f8dcd4269340422d8c64067900e359f",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t081s.png",
+      "bytes": 1166402,
+      "sha256": "9114bb2b8d805c50fad7e7130555b2fecefb04a9994fe35f9b5a4cd95d6325d4",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t082s.png",
+      "bytes": 1086321,
+      "sha256": "3ada8a73b2bb8b2fd28b31e87f98e7c2bc48a48d4f2fcab29d2a27d34e237068",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t083s.png",
+      "bytes": 1273032,
+      "sha256": "594966fc4e62f56c309d0756c621fed8c23d554a6f38622cdd77970452722770",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t084s.png",
+      "bytes": 1225890,
+      "sha256": "f9a2aee29eff53333c538fcca00e7d0e0e3737c9671219e801f792ea45df840b",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t085s.png",
+      "bytes": 1074022,
+      "sha256": "1c3ed278b635862e2e7f4b868e06a49309907414cc2334e6778f25c9303f2fb5",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t086s.png",
+      "bytes": 1077336,
+      "sha256": "1fb1bafd36ec05069a7d880c2fc49980440bd406986e4aecf6e30986aa81275b",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t087s.png",
+      "bytes": 1032837,
+      "sha256": "684ca86e8649cec98705d01c9208dd9c37226b8ef00e26b58c4b6c4eb7bbc0ad",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t088s.png",
+      "bytes": 973353,
+      "sha256": "b3bce0efb11983b286421cee2ab538efd883c71bfe4cf82064ac2ec826f5514e",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t089s.png",
+      "bytes": 939591,
+      "sha256": "cc1cbdd4f4d088d4a3bb2830cc55f4b3ad2a5c55545778f70234fb59ac90d07e",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t090s.png",
+      "bytes": 891121,
+      "sha256": "afe33caee6fe1a01a4ad64fe092c80d4925359071b4a21e8df81e87310628280",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t091s.png",
+      "bytes": 877203,
+      "sha256": "3a9d1c90948b1704490539093f4e54091ab6bbc57c6dc2b3b23510c75e4f8f44",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t092s.png",
+      "bytes": 941231,
+      "sha256": "dd6b78cd4be7c2c03b51b2e95ef3fefd966a1ff618a4320281f6250603bd4776",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t093s.png",
+      "bytes": 980733,
+      "sha256": "7415eccca437e6f1b58772f049ad4cd62875865af0d705734a4bfed5ea2041ee",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t094s.png",
+      "bytes": 863212,
+      "sha256": "b1fb7ea02d8aab938cad202ac21f591f53f58f7c05a7cb7a03f96c58e2726365",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t095s.png",
+      "bytes": 880814,
+      "sha256": "04b25f95954230aa2a7fcb786d2cb75b9c2711034c34cdf3e0c18efbdaff7f0d",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t096s.png",
+      "bytes": 849673,
+      "sha256": "5fcdcf966fbb2862f59c8cb15dddd24fbf1c29d686be6a90e5372ab8a5c35fde",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t097s.png",
+      "bytes": 1109706,
+      "sha256": "7d6209f9490715254018dabf57cfe907babcbdb25df113dc5679b2ba113730e5",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t100s.png",
+      "bytes": 1385768,
+      "sha256": "ed343c3cc975b2a5606f94b6aecb482d64e9be331693cc7c9731980424d0bba5",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t105s.png",
+      "bytes": 1569378,
+      "sha256": "c70f4dd843a39a4516d1519ff7b9ede6999f00c098ab51e0e71922f53f49fba5",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t110s.png",
+      "bytes": 1710965,
+      "sha256": "8540f472b5bab14269a1b2da6d4d6aa2d89bd18a98375b9b52156b7643857e20",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "file": "quick_visit_t115s.png",
+      "bytes": 433037,
+      "sha256": "84d2a27b4ad71734b810e921c376f72cb0602fbed75ce620ed9592db8f338cd9",
+      "dimensions": [
+        1280,
+        720
+      ]
+    }
+  ],
+  "rejected_example": {
+    "file": "../gpubase/input/snap/u21_plate.png",
+    "role": "Old fictional example, rejected architectural premise; excluded from selected physical references. Original unchanged.",
+    "bytes": 1518977,
+    "sha256": "e484cb29a1216804d5430d72ccfe728b5d9f2472935f57f3f6651cc4c0c1ba4e",
+    "dimensions": [
+      1280,
+      704
+    ]
+  }
+}

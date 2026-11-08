@@ -1,0 +1,15 @@
+{
+  "checked_at": "2026-11-08T18:10:54.108814-05:00",
+  "local_html_targets": 86,
+  "missing_local_targets": [],
+  "inventory_files_verified": 117,
+  "lossless_tiff_png_pairs": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "retained_full_frame_video_samples": 59,
+  "scene_generation_packet_complete": false
+}

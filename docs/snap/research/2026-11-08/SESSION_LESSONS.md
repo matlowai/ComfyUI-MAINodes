@@ -35,3 +35,17 @@ Relevant complete current entries, including historical gate caveats; geometry c
 - Remove arbitrary text/candidate/reference ceilings in imported code. Keep real native limits and caller-supplied budgets; return every omission, and report when a required first canvas was excluded.
 - Qualify read-only previews on initialized native storage by comparing graph and user-file hashes. Synthetic fixture scene shots must carry their native `takes` arrays; fixture errors are not product defects.
 - Keep the full gate, pure-module checks, visible UI checks, GPU checks and fresh critic results separate. A successful runner exit is insufficient when it does not aggregate per-suite failures.
+
+
+## Lighthouse source correction
+
+- More consistent generated angles can preserve the same wrong source premise. Ground recognizable architecture in original references showing its function and access before accepting a master. The old lighthouse example enclosed its optic in a domestic plaster room.
+- Keep physical levels and source dates distinct: Point Reyes clockwork below and glazed lantern above are different spaces; lens-less restoration photographs are construction evidence. Source role labels must reflect what a picture actually shows.
+- Measured monochrome plans supply geometry, while a textured top remains a separate asset. The new research packet does not claim R271 completion or adopt the real building into fictional canon. Complete reports and source/hash ledger are in `lighthouse/`.
+
+
+## Native Voice QA qualification
+
+- A model can exist on disk and be advertised by its native loader while the core experimental inventory omits its format. AudioCPP GGUF discovery belongs at its integration boundary: read the loader's declared combo and retain model-graph role metadata. Keep the shared inventory unchanged.
+- Successful silence is a valid Voice QA result. An empty transcript with an `ok` QA report should pass; preserve legacy `no voice` when QA did not run, and retain `check`/`listen` for leaked or uncertain speech. The focused regression suite covers these distinct paths.
+- Keep original failed GPU results and rerun the affected cases against the exact corrected snapshot. Distinguish broad-gate source, focused-fix source and human listening evidence.
