@@ -76,3 +76,14 @@ first as the equivalent of DeBand's +8.
 - **The "twice as strong at CFG 1" rule does not hold for these word dials**: they need +8 on KroMoss just as on DeBand.
   At +8 KroMoss reacts harder (it restages the whole scene for snow on the park bench), so the working window is narrow.
 - Snow and rain transfer from DeBand to KroMoss at +8. One seed per scene: a hint.
+
+**Light words on KroMoss at +8** (the round-2 lists that were only partial on DeBand; seed 7, same setup, one render each):
+
+| list | lighthouse | park bench |
+|---|---|---|
+| moon, moonlight, starry, midnight | **a deep blue dusk, the lamp lit and glowing**, a purple sky | darker, dusk light (moderate) |
+| golden, sunset, amber, glow | **an orange sunset**, warm light everywhere | **warm, backlit golden light**; a different man (long hair) |
+| fog, mist, haze, overcast | **grey, overcast, flat and misty** | overcast, desaturated (no visible fog) |
+
+On KroMoss the light words come through more clearly than on DeBand (where golden and fog were mild), most strongly on the
+lighthouse. The park-bench man changes identity under golden (as with the M1 dials at ±4 on DeBand). One seed per scene.
