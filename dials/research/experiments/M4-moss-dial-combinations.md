@@ -37,3 +37,9 @@ The pattern holds on both seeds: the two good pairs combine, and film + snow los
 **Side finding:** the snow word dial at +8 on KroMoss draws a signature or logo in the corner on both seeds (a small one on
 seed 7, a large "studio" logo on seed 8), and the pairs with it keep a small signature. A word dial for a "picture-like"
 scene can pull in the trappings of posted art; the watermark picture dial from M3 is the obvious thing to add (untested here).
+
+**Snow +8 together with the M3 watermark picture dial at −8** (seeds 7 and 8): the marks shrink but the snow suffers.
+Seed 7: the corner signature is gone; snow remains on the walls and path, but the scene is restaged under a blue day sky.
+Seed 8: the circular logo is gone but a faint script line remains (reduced, not removed), and the snow is mostly lost (white
+walls, brown grass). So the watermark dial is not a free add-on to a word dial: like the film dial, it can cancel a weather
+word whose visual signature is mostly colour. Two seeds.
