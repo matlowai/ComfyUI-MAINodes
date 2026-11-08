@@ -64,6 +64,7 @@ import * as CV from "./critiqueview.js";
 import * as B from "./book.js";
 import { BOOK_TOOLS } from "./booktools.js";
 import * as N from "./nearby.js";
+import * as CF from "./craft.js";
 import { api } from "../../../scripts/api.js";
 
 // a widget as an agent reads it: value, kind, every choice, limits, and whether a wire drives it
@@ -92,6 +93,12 @@ const keys = () => E.state().bricks.map((b) => b.key);
 const brickKey = (b) => (typeof b !== "string" || has(b) ? b : keys().find((k) => BRICKS[k]?.title?.toLowerCase() === b.toLowerCase()) ?? b);
 const inRecipe = (b) => { if (!has(b)) throw new Error(`No brick "${b}" in this recipe; its bricks: ${keys().join(", ")}`); };
 // a prompt still at its blueprint's text runs, with a warning (U72 F11: set_setting failed, the agent ran anyway)
+// SNAP-R242, R243, R248, R250: the prompt craft lints on what a run sends (References against its cut, the prompt's three
+// sections), said in run's plan and answer, never enforced (SNAP-R11)
+function craftLint() {
+  const st = app.graph?.extra?.snap?.story, unit = st?.unit && SC.get(st.unit.scene)?.shots.find((x) => x.id === st.unit.shot)?.unit;
+  return [...CF.inclusion(E.references()?.pictures ?? [], unit ?? {}), ...CF.promptLint(E.getValue("render", "render", "prompt"))];
+}
 async function defaultPrompt() {
   for (const k of keys()) {
     const f = BRICKS[k]?.face?.find(([, name]) => name === "prompt");
@@ -1104,11 +1111,11 @@ export const TOOLS = [
   },
   {
     name: "run",
-    description: "Queue the recipe (as the Run button does; nodes outside the recipe are left out). Returns at once with the run's id (always: when ComfyUI refuses it, the error says why); follow it with run_status {run, wait_s: 25} or wait_for {job: run} until its state is done (it then names the take and the output files), and the finished run appears in list_takes. `question` is what the run answers, in the person's words (\"does the jacket hold through the turn?\"): the Work card names the job by it (default: Run <where>). Uses GPU time: unless the person lets agents run (set_agent_permissions, as they say), this waits as a proposal they accept.",
+    description: "Queue the recipe (as the Run button does; nodes outside the recipe are left out). Returns at once with the run's id (always: when ComfyUI refuses it, the error says why); follow it with run_status {run, wait_s: 25} or wait_for {job: run} until its state is done (it then names the take and the output files), and the finished run appears in list_takes. `question` is what the run answers, in the person's words (\"does the jacket hold through the turn?\"): the Work card names the job by it (default: Run <where>). Uses GPU time: unless the person lets agents run (set_agent_permissions, as they say), this waits as a proposal they accept. The answer (and the proposal's plan) carries `lint`, the prompt-craft lints on what it sends, said and never enforced: 'error:' a key drawing in References on a cut that doesn't end on a held pose, a place picture beside this cut's camera (SNAP-R242: a take freezes on, or cuts to, a picture of another framing), a look-alike cite \"like <Picture n>\" in the action (SNAP-R243); a timing place-word, one prop in two places (SNAP-R250); a soft or tonal soundscape opening (SNAP-R248).",
     inputSchema: { type: "object", properties: { question: { type: "string", description: "what this run answers, in the person's words; the Work card shows it" } } },
     annotations: { consequentialHint: true },
     consequential: true,
-    plan: async () => { const warning = await defaultPrompt(); return { runs: E.state().bricks.map((b) => BRICKS[b.key].title).join(" → ") || "the open workflow", ...await recipeEta(), ...(warning ? { warning } : {}) }; },
+    plan: async () => { const warning = await defaultPrompt(), lint = craftLint(); return { runs: E.state().bricks.map((b) => BRICKS[b.key].title).join(" → ") || "the open workflow", ...await recipeEta(), ...(warning ? { warning } : {}), ...(lint.length ? { lint } : {}) }; },
     run: async ({ question } = {}) => {
       const job = { kind: "run", title: question?.trim() || `Run ${J.where()}`, about: J.here(), by: "agent", eta_s: (await recipeEta()).eta_s };
       // dogfood F-D13: the same recipe and seed as an earlier take come back from ComfyUI's cache, the same file; say so
@@ -1116,7 +1123,8 @@ export const TOOLS = [
       const id = await J.queueRun(job, () => app.queuePrompt(0, 1, { queueNodeIds: E.targets() }));
       const errors = Object.entries(app.lastNodeErrors ?? {}).map(([id, e]) => ({ node: id, brick: brickOf(id), error: e.errors?.[0]?.message, details: e.errors?.[0]?.details }));
       if (errors.length || !id) throw new Error(`Not queued: ${JSON.stringify(errors)}`);
-      return { queued: true, run: id, title: job.title, state: "queued", next: "run_status {run, wait_s: 25} (or wait_for {job: run}) until state is done",
+      const lint = craftLint();
+      return { queued: true, run: id, title: job.title, state: "queued", next: "run_status {run, wait_s: 25} (or wait_for {job: run}) until state is done", ...(lint.length ? { lint } : {}),
         ...(twin ? { cache_hit: `the same recipe and seed as take ${twin.number} (${twin.id}): ComfyUI may serve that take's file from its cache (while that run is still cached; after other jobs or a restart it renders again, and run_status says which); new_seed (or a change) makes a fresh one` } : {}), ...truth };
     },
   },

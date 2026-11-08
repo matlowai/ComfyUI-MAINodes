@@ -64,7 +64,10 @@ until the person accepts it. Tool calls: `docs/snap/AGENT_START.md` ("The Book")
    the board draws that opening state, the key drawing the end.
 7. **Boards → animatic.** `make_board` per cut (`snap-boards` for the craft), pick with `set_board` and approve. The
    board is the frame the cut opens on (calm, before the peak); a beat's peak is a key drawing (`make_board {role:
-   "key"}`, `set_board {role: "key"}`), cited as what the cut builds to. A cut that shares another's camera takes
+   "key"}`, `set_board {role: "key"}`): it guides the boards, and goes into the video's References only on a cut that
+   ends on a held pose (`set_unit {hold: true}`): on an action cut a key picture is reached by 1.5-2.5 s and the take
+   freezes on it (SNAP-R242, M6). Likewise the location's master stays out of a cut that has its camera plate (takes
+   cut to its framing, M2/M7); `apply_unit` says both, and its `errors` name any put back. A cut that shares another's camera takes
    that cut's board as context (`context: [{cut}]`); re-boarding a cut that has an approved board starts from that
    board, so the blocking holds (SNAP-R170). Boards pin the story, so `story_stale` names a board made before the
    story moved (SNAP-R169). Play

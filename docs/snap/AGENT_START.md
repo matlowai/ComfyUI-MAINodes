@@ -190,8 +190,11 @@ nested pack → install → person → book → scene → shot → take. Read th
      which reads no first frame), the First frame's picture is also `<Picture 1>` in References, the opening frame,
      ahead of the rest (SNAP-R115); the answers say so. A walkthrough's camera height comes from its first frame, never
      from words: start it from an eye-level still (skill `snap-location`). There is no last frame yet: core's H3 node
-     takes one, but the pack's H3 setups don't wire it, and `use_take {as: "last_frame"}` says so (F-F20); end on a
-     picture by citing it as a reference ("the shot ends on <Picture 2>").
+     takes one, but the pack's H3 setups don't wire it, and `use_take {as: "last_frame"}` says so (F-F20). Citing a
+     picture as the ending does NOT work: a key or end picture in References is reached by 1.5-2.5 s and the take
+     freezes on it, with or without "the shot ends on <Picture 2>" (M6: 4/4; motion 3.3-6.5 against 12.7-13.3 without
+     it). Write the motion out to its end state; keep a key picture only when a 2 s build and a hold is what the cut
+     wants (`set_unit {hold: true}` in a Book, SNAP-R242).
    - Upscale starts off when RelayVSR isn't installed, and on when it is: `open_shot` on a new shot says so
      (`upscale`); switch it off (`set_method {"slot": "upscale", "method": "off"}`) for a walkthrough, a plate or a
      draft (F-G09).
@@ -665,8 +668,10 @@ it on the Library rail's **Book** row (lenses Beat sheet, Settei, Boards, Cut ba
   board and its Cast; candidates land in the shot; `context: [{"cut": "C2"}]` picks the prior view, e.g. the cut that
   shares this camera; `role: "key"` draws the beat's peak instead of the opening; a cut whose own beat changes what a hand
   holds is boarded at its key by default, said in `role_why`, SNAP-R181; `question` is what the Room asks about the
-  candidates), `set_board {"scene", "shot", "take" or "file", "approved": true}` (`role: "key"` sets the key drawing: a
-  reference the cut builds to, SNAP-R142; a key candidate is set as the key by default; a take id's start is enough),
+  candidates), `set_board {"scene", "shot", "take" or "file", "approved": true}` (`role: "key"` sets the key drawing,
+  SNAP-R142: the boards' guide; video takes it into References only with `set_unit {hold: true}`, a cut that ends on a
+  held pose, because a key picture freezes an action cut by 2 s, SNAP-R242; a key candidate is set as the key by
+  default; a take id's start is enough),
   A board whose state takes a thing out of a hand says it absent "even where <Picture n> shows it" and lints it
   (`lint`; SNAP-R189); still, fix every field a context board differs on (or start from a board that already agrees):
   pictures beat words.

@@ -2244,3 +2244,22 @@ Next free ID after this batch: SNAP-R240 (R160-R164 stay free; G16 reserved R215
   'Tomoshi, I just swept that.', which is their own line at b4"). *Why:* F-SQ12 (H3 spoke the reference's words, so the
   short said her one line twice); the operator's rule "every speaking character needs a Cast voice reference".
   *More:* study DESIGN_G17 §4.8; tests/snap/test_g17b_misc.js.
+- **SNAP-R242: A picture in References is a target, whatever its citation syntax: the inclusion policy is the rule.**
+  `apply_unit` leaves the cut's key drawing out of References unless the cut ends on a held pose (`set_unit {hold:
+  true}`), and leaves the location's master out of a cut that has its camera plate unless asked (`set_unit
+  {cite_master: true}`); each is said with its measurement, and `compile_unit` lists them in `left_out`. A key picture
+  on a cut without hold, or a place picture beside this cut's camera picture, is an error-level lint in apply_unit's
+  `errors` and run's `lint`, whatever the prompt says about it (said, never enforced: SNAP-R11). AGENT_START's old
+  advice "end on a picture by citing it as a reference" is withdrawn. *Why:* M6: a key picture in References turned an
+  action cut into a near-still of the key by 1.5-2.5 s in 4/4 takes, with no sentence or with "the shot ends on
+  <Picture 4>" (motion after 2.5 s 3.3-6.5 against 12.7-13.3 without it; lab L8 first); M2/M7: every end-of-take cut
+  landed on the cited master (13/18 at 640, 3/10 at 1280, 0/3 without it), and wrapping it in a `<Subject N>` did not
+  stop it; the operator, 2026-11-07 19:0x: prompting lessons are "a harness change for the agentic stuff". *More:*
+  study PROMPT_CRAFT_RULES §0 items 1-2, §8 M2/M6/M7; DESIGN_WORLD_STATE §8.1 item 5; tests/snap/test_g17b_craft.js.
+- **SNAP-R243: A cited picture has a job; a look-alike cite in the action is an error.** A sentence that cites a picture
+  as something to look like ("like <Picture n>", "as in", "similar to") is an error-level lint in `compile_unit` (beats,
+  blocking, camera), apply_unit's `errors` and run's `lint`; any other picture cite inside the action is a lint. Cite a
+  picture for its job only: the opening, this cut's camera, who someone is, a continuity frame. *Why:* F-SQ20: "a power
+  clash like <Picture 4>" made H3 jump-cut into the key's framing at ~2 s on 2/2 seeds and stall (motion 2.6 against
+  ~10.8); G17a's own test story wrote "Corvin holds like <Picture 4>" and only a soft lint caught it. *More:* study
+  PROMPT_CRAFT_RULES PC-06; tests/snap/test_g17b_craft.js.
