@@ -97,7 +97,7 @@ const R = {};
     "list_instructions pages explicitly with the count": R.page1.notes.length === 5 && R.page1.count === R.all.count && R.page1.next_offset === 5 && R.all.notes.length === R.all.count && R.all.count >= 75,
     "the pack tail ends edit_from_context's description, not list_bricks'": /Pack notes \(SNAP-R93\): .*Pass width and height/.test(R.schema.edit_from_context) && !/Pack notes/.test(R.schema.list_bricks),
     "the bridge's use_page carries its pack notes": /Pack notes \(SNAP-R93\): Drive the person's main tab/.test(R.listing ?? ""),
-    "list_skills: ten (U97 snap-book); read_skill whole": R.listSkills.length === 10 && Buffer.byteLength(R.core.text) === R.core.bytes && /How instructions nest/.test(R.core.text) && R.core.yours === null,
+    "list_skills: twelve; read_skill whole": R.listSkills.length === 12 && Buffer.byteLength(R.core.text) === R.core.bytes && /How instructions nest/.test(R.core.text) && R.core.yours === null,
     "save_skill makes the person's version, by the agent": R.saveSkill.result?.version === 1 && R.yours.yours === 1 && /Learned in a test/.test(R.yours.text) && R.yours.by === "agent:studio-a" && R.yours.pack_updated === false,
     "an agent's own skill version goes off at once; off reads the pack's again": R.skillOffProposal.result?.status === "off" && R.packAgain.yours === null && !/Learned in a test/.test(R.packAgain.text),
     "the agent's skill version shows as unseen": R.unseen.some((r) => r.startsWith("skill:snap-voice@1")),
