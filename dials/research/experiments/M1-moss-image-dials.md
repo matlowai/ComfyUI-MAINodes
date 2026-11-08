@@ -73,3 +73,23 @@ no pair mentions it). One render per arm.
 - Ukiyo-e ↔ cyberpunk is the strongest dial: a full change of medium on both scenes, both sides.
 - **Identity drift:** on the park bench the control draws an East Asian man; most ±4 arms draw a different, European-looking
   man (the ukiyo-e side keeps an East Asian man). At ±4 these dials restage the person, so they are not identity-safe.
+
+## KroMoss at its designed settings (2026-11-08)
+
+The KroMoss rows above used 25 steps at cfg 3, which turned out to be the wrong setup for KroMoss (it ships with an 8-step
+DMD2 LoRA and is meant for CFG 1; at 25 steps / cfg 3 renders look burnt). Re-run: the same six DeBand-made dials on
+**KroMoss + DMD2 LoRA, 8 steps, CFG 1, euler / simple**, lighthouse prompt, seed 7, at −4 / −2 / control / +2 / +4.
+
+| dial | −4 | −2 | +2 | +4 |
+|---|---|---|---|---|
+| ukiyo-e ↔ cyberpunk | a woodblock print on paper, calligraphy, a seal | a painted illustration | blue light, red rails | full neon: red and blue light trails |
+| contrast | pale, hazy | softer | punchier | night, dramatic, glowing lights |
+| detail | a bare headland, a lone lighthouse | plainer | more buildings, greenery | a castle-like mansion on the rock |
+| calm ↔ chaos | a flat, quiet headland | calm | waves breaking | the keeper scrambling over rocks |
+| film | crisp, cool | crisp | warm, golden | a red-magenta faded print (close to overcooked) |
+| tiny ↔ colossal | **a toy-like cottage lighthouse, shallow focus** | smaller | a taller rock | a monumental rock spire |
+
+- **All six work on KroMoss at its designed settings, on both sides**, with a visible effect already at ±2 and a strong one
+  at ±4 (film +4 is at the edge). The tiny side, absent on DeBand, is clear here.
+- So for these **pair dials** the CFG 1 rule of thumb holds: about twice DeBand's effect, start near ±2. For the M2 **word
+  dials** it did not (they needed +8 on both). One seed.
