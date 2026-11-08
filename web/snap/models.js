@@ -120,7 +120,9 @@ function infer(name) {
 }
 export function entry(name) {
   if (!name) return null;
-  const e = relations.get(base(name)), { inferred, ...guess } = infer(name);
+  // an entry whose file names its folder too (wavlm_large_ecapa_sv/model.safetensors) is that file only, never another
+  // model.safetensors
+  const hit = relations.get(base(name)), e = hit && (!String(hit.file).includes("/") || String(name).replace(/\\/g, "/").endsWith(hit.file)) ? hit : null, { inferred, ...guess } = infer(name);
   return e ? { ...guess, ...e } : { ...guess, inferred };
 }
 // the person files a file ("what is this?"): kept in their snap/models.json, so the answer is remembered

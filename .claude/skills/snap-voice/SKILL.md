@@ -39,8 +39,16 @@ actress" came out at 97-138 Hz, "clearly a woman's voice" at 112-145 Hz, and the
    `ok` = own at least 0.90, ahead of every other Cast by 0.05, F0 within 3 semitones; `check` says why; `no voice`
    when nothing is voiced. Two similar voices overlap (short03's two young women 0.81-0.95, same speaker 0.89-1.00),
    so `check` means listen, not "wrong person". Casting words add nothing once the reference is cited (scout: cuts
-   with and without them matched within 0.01 and 2 Hz): cite the reference alone. Whisper text against the line is
-   still yours to run.
+   with and without them matched within 0.01 and 2 Hz): cite the reference alone.
+6. **The Voice QA** (SNAP-R240, on a server with the AudioCPP fork): the same note hears the words (Nemotron), who
+   said each line (WavLM-large ECAPA, unsure under 0.08: listen, never "wrong person") and any speech nobody
+   scripted, on every take of a Book cut, silent cuts too. Read `voice.qa.why` before ranking takes: `unscripted` in a
+   cut where nobody speaks is a leaked voice reference (F-SQ11). `voice.line_match` says "Nemotron exact" or how many
+   of the line's words were heard.
+7. **Reference words** (SNAP-R241): H3 copies a voice reference's words (F-SQ12). `use_take {as: "voice"}` keeps the
+   words the stretch says when the take has them (`voice.words`), or give them yourself (`save_cast` `voice {file,
+   casting, words}`); the compile lints a reference whose words are a line of the script. Record references on a line
+   the script doesn't use.
 
 H3 reads audio references only with a reference setup (Ref2V).
 

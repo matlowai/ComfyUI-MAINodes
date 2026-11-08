@@ -1420,10 +1420,10 @@
    "notes": "Snap's voice note on takes (MAISnapVoiceModelLoader + MAISnapVoice, snap_voice.py): WavLM-SV speaker embedding and YIN F0 of a take's sound against the Cast voice reference it cited"
   },
   {
-   "file": "whisper_large_v3.safetensors",
-   "folder": "audio_encoders",
-   "family": null,
+   "file": "nemotron/nemotron-transcribe-30b-a4b-experts-Q4_K_S.gguf",
+   "folder": "audiocpp_gguf",
    "kind": "encoder",
+   "family": null,
    "rating": "pg",
    "trained_on": null,
    "turbo": null,
@@ -1431,16 +1431,45 @@
    "recommended": null,
    "stacks_with": null,
    "do_not_stack_with": null,
-   "source_url": "https://huggingface.co/openai/whisper-large-v3",
-   "download": "model.safetensors with its config.json, generation_config.json, preprocessor_config.json and tokenizer files beside it: link audio_encoders/whisper_large_v3.safetensors to the snapshot's model.safetensors (a Hugging Face cache folder already has them all)",
-   "size_gb": 3.1,
-   "quant_format": null,
-   "loads_in_core": true,
-   "word_timing": {
+   "source_url": "https://huggingface.co/Jmica/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-GGUF",
+   "download": "the matlowai/ComfyUI-AudioCPP fork (branch nemotron-diarization): scripts/download_nemotron_transcribe.sh models/audio_encoders/nemotron (the Q4_K_S decoder GGUF, the mmproj-...-Encoder-F16.gguf beside it, the licence files); GGUF only",
+   "size_gb": 23.3,
+   "quant_format": "gguf",
+   "loads_in_core": false,
+   "license": "OpenMDW-1.1 (NVIDIA Nemotron 3.5 Transcribe; notices beside the GGUFs)",
+   "voice_qa": {
+    "role": "transcribe",
+    "margin": 0.08,
     "evidence": "measured",
-    "source": "G16 (2026-11-07): transformers 5.10 in ComfyUI's venv, word timestamps from cross-attention alignment; Maren's voice reference (5.6 s) read word for word, 10 s on CPU"
+    "source": "the Nemotron study (2026-11-07) RESULTS round 3: words, word times and unscripted speech on H3 takes; it merges same-sex H3 voices, so who said a line is the voice model's (margin 0.08 held on 5 voices, 40 real lines + 314 derived clips); lab check L6: the QA's report through /history, verdict ok on short05 C4"
    },
-   "notes": "Snap's word timing (MAISnapWordsModelLoader + MAISnapWords, snap_voice.py): the take's words with their times, run with the voice note; the Cut's export puts them on the dialogue clip (app.astrid.words)"
+   "notes": "Snap's Voice QA and word timing (SNAP-R227, R240): the AudioCPP fork's Local Server + Nemotron Transcribe + H3 Voice QA nodes, queued with the voice note; the words land on the take in its own seconds and the Cut's export puts them on the dialogue clip (app.astrid.words). The server runs on the Voice QA GPU setting (the other card by default)"
+  },
+  {
+   "file": "wavlm_large_ecapa_sv/model.safetensors",
+   "folder": "audio_encoders",
+   "kind": "encoder",
+   "family": null,
+   "rating": "pg",
+   "trained_on": null,
+   "turbo": null,
+   "deband": "none",
+   "recommended": null,
+   "stacks_with": null,
+   "do_not_stack_with": null,
+   "source_url": "https://huggingface.co/prj-beatrice/unispeech-wavlm-large-ecapa-tdnn-torch-native",
+   "download": "the matlowai/ComfyUI-AudioCPP fork: scripts/download_voice_model.sh models/audio_encoders/wavlm_large_ecapa_sv (model.safetensors only, revision 13ad4fcc; the repository's Python file is not downloaded)",
+   "size_gb": 1.3,
+   "quant_format": null,
+   "loads_in_core": false,
+   "license": "CC BY-SA 3.0 (UniSpeech WavLM-large + ECAPA-TDNN)",
+   "voice_qa": {
+    "role": "speaker",
+    "margin": 0.08,
+    "evidence": "measured",
+    "source": "the Nemotron study rounds 2-3: WavLM-large + ECAPA on each line's span named 12/12 lines and 48/48 swaps with 0 false alarms; unsure below the pack's 0.08 margin (never reused across models)"
+   },
+   "notes": "who said each line in the Voice QA (AudioCPPVoiceModelLoader -> the H3 Voice QA's voice_model)"
   },
   {
    "file": "pika_h3_flex_fl2va_v1_bf16.safetensors",

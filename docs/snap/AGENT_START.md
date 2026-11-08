@@ -533,6 +533,15 @@ every picture's line, or `m` in the take viewer and the full-size viewer.
   `voice` with `status` ok, check (with `why`) or no voice, and per voice its line ("voice matches Maren 0.98, next
   closest Liesl 0.91 (+0.07), F0 184 Hz vs ref 184 Hz"). `check_voice {"take": "<id>"}` runs it again. It needs
   `models/audio_encoders/wavlm_base_plus_sv.safetensors`; a note without it says so. It never blocks: check = listen.
+- **The Voice QA** (SNAP-R240): with the AudioCPP fork's nodes (matlowai/ComfyUI-AudioCPP, branch
+  nemotron-diarization) and the model graph's Nemotron Transcribe GGUF and WavLM-large ECAPA file on the server, the
+  voice note also hears the take: Nemotron for the words, their times and any speech nobody scripted, ECAPA for who
+  said each line, against every Cast voice of the Book. Every take of a Book cut gets it, a silent cut too (a leaked
+  voice reference shows as `voice.qa.unscripted`). `voice.qa.lines` give each line's verdict (ok, wrong_voice,
+  unsure_voice = listen, no_reference, missing, wrong_time); `voice.words` are the take's words in its own seconds
+  (SNAP-R227), the ones the Cut's export gives Astrid. The QA's server runs on the other GPU by default (Settings ›
+  MAINodes › Snap › Voice QA). A Cast's voice reference keeps the words it says (`voice.words`), and a reference that
+  says a line of the script is a compile lint (SNAP-R241): record references on lines the script doesn't use.
 
 ### The critic (SNAP-R101..R110)
 

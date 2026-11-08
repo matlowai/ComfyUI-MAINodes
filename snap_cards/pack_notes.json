@@ -481,7 +481,7 @@
    "id": "add_audio_ref/measure-voice-before-calling",
    "scope": "tool:add_audio_ref",
    "kind": "note",
-   "text": "Measure a voice before calling it cast: Whisper text, F0 median and range, speaker similarity against the reference.",
+   "text": "Measure a voice before calling it cast: the Voice QA's words and who said each line (check_voice, SNAP-R240), F0 median and range, speaker similarity against the reference.",
    "rule": "SNAP-R88",
    "more": "skill snap-voice"
   },

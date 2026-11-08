@@ -110,7 +110,7 @@ Every call in Snap runs under one resolved stack of agent instructions. Read it 
   syncs back as a write: an Astrid-side wish is a Snap proposal (it waits in the Room), a fact is a take note (SNAP-R222).
 - **Asking Snap from Astrid:** reads (`get_book`, `get_take`, `list_proposals`) answer on a page another agent drives;
   writes there go as proposals (`propose: true`) or wait for the driver (SNAP-R219). Take back your own stale proposal
-  with `withdraw_proposal {id, because}` (SNAP-R228). Words come from Snap (check_voice's `voice.words`, SNAP-R227):
+  with `withdraw_proposal {id, because}` (SNAP-R228). Words come from Snap (check_voice's `voice.words`, Nemotron's word times in the Voice QA, SNAP-R227/R240):
   read them in Astrid with `timelines words --published` (without `--published` it leaves a working copy that blocks
   trims). A clip's `generation.snap.dials.rows[*].curve.keys` are in the same seconds as its `app.astrid.words`
   (SNAP-R233): a dial's peak moves onto a word with `set_cut_dials {book, cut, move_key: {dial, key: "peak", to_s}}`

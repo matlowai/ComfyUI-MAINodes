@@ -2121,16 +2121,15 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
   the person's own text outside it stays. *Why:* the operator, 2026-11-07: "this should be a configuration item and
   needs better explaining". *More:* tests/snap/test_g16_settings.js.
 
-- **SNAP-R227: A take with a line gets its words timed in Snap.** With a Whisper in the model graph (an
-  audio_encoders entry with `word_timing`: whisper_large_v3.safetensors, linked to its Hugging Face snapshot so its
-  config and tokenizer sit beside it; read from disk, nothing downloaded), the voice note's prompt also runs
-  MAISnapWords on the take's sound: `voice.words [[start s, end s, word]]` in the take's own seconds (the first word
-  starts where the sound first gets loud: Whisper's alignment starts it at 0), `voice.text`, and `voice.line_match`
-  against the cut's line as the take's story pin says it ("Whisper exact", or how many of its words were heard, in
-  order). get_take / list_takes carry them; the Cut's export puts them on the dialogue clip's `app.astrid.words`
-  (SNAP-R216), which Astrid's `timelines words` lists. *Why:* lab check A4: Astrid's `editorial.transcribe` is OpenAI
-  whisper-1 and needs a key, so word times are Snap's (PROTOCOL_V1_1 §6); "Whisper exact" was done by hand in the
-  dogfood. *More:* tests/snap/test_g16_words.js (GPU).
+- **SNAP-R227: A take with a line gets its words timed in Snap.** The Voice QA's Nemotron Transcribe (SNAP-R240) hears
+  the take's words with their times in the same pass as the voice note: `voice.words [[start s, end s, word]]` in the
+  take's own seconds, `voice.text`, and `voice.line_match` against the cut's line as the take's story pin says it
+  ("Nemotron exact", or how many of its words were heard, in order). get_take / list_takes carry them; the Cut's
+  export puts them on the dialogue clip's `app.astrid.words` (SNAP-R216), which Astrid's `timelines words` lists. One
+  speech model: the G16 Whisper path (MAISnapWords) is gone, with no fallback kept. *Why:* lab check A4: Astrid's
+  `editorial.transcribe` is OpenAI whisper-1 and needs a key, so word times are Snap's (PROTOCOL_V1_1 §6); the
+  operator, 2026-11-07 18:41: "why are you contemplating Whisper... we are using Nemotron for diarization". *More:*
+  tests/snap/test_g16_words.js (GPU, on Nemotron since G17b), tests/snap/test_g17b_voice_qa.js (GPU).
 - **SNAP-R228: An agent may withdraw its own out-of-date proposal, and says why; the person's answered ones and other
   agents' stay.** `withdraw_proposal {id, because}` withdraws a waiting proposal whose `by` is the calling agent (the
   bridge names it; the server checks the maker again), recorded `withdrawn by agent:<name>: <because>`; list_proposals
@@ -2217,3 +2216,24 @@ Study: the Astrid interop study (INTEROP_MAP §6, CONTRACT_SNAP_EXPORT, INTEROP_
   sound good to me"); the gate's realmodels guard. *More:* tests/snap/test_g17_dials.js.
 
 Next free ID after this batch: SNAP-R240 (R160-R164 stay free; G16 reserved R215-R229).
+
+## Batch G17b (2026-11-07): the Voice QA, prompt craft from the measurements, continuity across cuts, the set reference
+
+- **SNAP-R240: The voice note hears words, times, who, and what nobody scripted.** With the AudioCPP fork's nodes
+  (matlowai/ComfyUI-AudioCPP, branch nemotron-diarization) and the model graph's two `voice_qa` files on the server
+  (the Nemotron Transcribe GGUF, the WavLM-large ECAPA voice model), `check_voice` and the check on landing also run the
+  H3 Voice QA in the same prompt as the voice note: Local Server → Reference Speakers (every Cast voice of the take's
+  Book, the cited ones first, others from the Cast library filling in to two, at most seven) → Nemotron Transcribe
+  (English) → the voice model → H3 Voice QA → a core PreviewAny on its `report` (lab check L6: the JSON reaches
+  /history only that way). The QA's prompt is Snap's, written in H3's dialogue grammar from the cut's lines
+  (`[Shot 1] <Audio k> <d>line</d>` with `cast` "Audio k: Name"; a plain shot uses its prompt's `Name says "…"`
+  lines), because the fork's parser reads only `<d>` lines. `voice.qa` keeps each line's verdict, the unscripted
+  speech, `why` and `listen`; `voice.status` is check on a wrong voice, a missing or mistimed line, or unscripted
+  speech, and listen on a voice under the pack's 0.08 margin (never "wrong person"); the critic packet carries it as a
+  measured claim, the Cut lens and the take viewer show it amber; every take of a Book cut is checked, a silent cut too.
+  The QA's server runs on the Voice QA setting: the other GPU by its UUID (GET /mainodes/snap/gpus), or ComfyUI's own
+  with the experts in RAM, or off. Never a block. *Why:* the operator, 2026-11-07 17:51: "all of these sound good to
+  me and yes you can install audio.cpp fork on the main ComfyUI" (GPU 0 by default, the slower same-card mode as a
+  setting, English barks); the ship rule: Nemotron for what was said and when, ECAPA for who, unsure below 0.08
+  (the Nemotron study, 5 voices / 1344 swaps); F-SQ11/F-SQ12 (two shipped leaks). *More:* study DESIGN_G17 §4.8, LAB_G17
+  L6; tests/snap/test_g17b_voice_qa.js (GPU).

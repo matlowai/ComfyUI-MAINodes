@@ -174,8 +174,8 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
         h("span", { className: "snap-take-stale", hidden: true }),
         t.copy?.copied ? h("span", { className: "snap-take-copy", textContent: `copied its reference view ${Math.max(...t.copy.against.map((a) => a.last)).toFixed(2)}`,
           title: `This take ends on the view of its reference picture (last frame's copy score at or above ${t.copy.threshold}): right when that picture is this camera's own plate, wrong when it shows another camera's view.\n${t.copy.against.map((a) => `${a.image}: ${a.frames.join(" → ")}`).join("\n")}` }) : null,
-        t.voice?.status ? h("span", { className: t.voice.status === "ok" ? "snap-take-parent" : "snap-take-copy", textContent: t.voice.status === "no voice" ? "no voice found" : `voice ${t.voice.status} · ${t.voice.voices.map((x) => `${x.name} ${x.own.toFixed(2)}`).join(", ")}`,
-          title: t.voice.voices.map((x) => `${x.said}${x.why ? ` (${x.why.join("; ")})` : ""}`).join("\n") }) : null, // SNAP-R114
+        t.voice?.status ? h("span", { className: t.voice.status === "ok" ? "snap-take-parent" : "snap-take-copy", textContent: t.voice.status === "no voice" ? "no voice found" : `voice ${t.voice.status}${t.voice.voices.length ? ` · ${t.voice.voices.map((x) => `${x.name} ${x.own.toFixed(2)}`).join(", ")}` : ""}${t.voice.qa?.unscripted?.length ? ` · ${t.voice.qa.unscripted.length} unscripted` : ""}`,
+          title: [...t.voice.voices.map((x) => `${x.said}${x.why ? ` (${x.why.join("; ")})` : ""}`), ...(t.voice.qa?.why ?? []), ...(t.voice.qa?.listen ?? [])].join("\n") }) : null, // SNAP-R114, R240
         t.parent && !version ? h("span", { className: "snap-take-parent", textContent: `↳ ${T.versionOf(t.parent.options) ?? t.parent.method.split("/").pop()} of take ${T.get(t.parent.take)?.number ?? "?"}`, title: `made from ${t.parent.take} by ${t.parent.method}` }) : null,
         ...Object.entries(t.world ?? {}).map(([ref, p]) => [p, unplaced(p, ref)]).filter(([, m]) => m.length).map(([p, m]) => h("span", { className: "snap-take-unplaced", textContent: `${p.name} v${p.n}: ${m[0]}${m.length > 1 ? ` +${m.length - 1}` : ""}`,
           title: `Parts of ${p.name} v${p.n} (Cast) that didn't reach this take:\n${m.join("\n")}` })), // U72 F25, in plain words (the operator, 2026-11-05)
@@ -373,13 +373,17 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
     const voiceLine = h("div", { className: "snap-take-copyline" });
     const voiceRow = () => {
       const v = t.voice, lines = !v ? [["not checked yet", false, ""]] : v.pending ? [["checking…", false, ""]] : v.error ? [[`not checked: ${v.error}`, false, ""]]
-        : v.voices.map((x) => [`${x.status === "ok" ? "ok" : x.status === "check" ? "check" : "no voice"} · ${x.said}${x.why ? ` (${x.why.join("; ")})` : ""}`, x.status !== "ok",
-          `${x.name}'s reference ${x.cite}: WavLM-SV ${x.own}; ${x.others.map((o) => `${o.name} ${o.score}`).join(", ") || "no other Cast voice"}; F0 ${x.f0 ?? "–"} Hz vs ${x.ref_f0 ?? "–"} Hz${x.semitones != null ? ` (${x.semitones} st)` : ""}. ok = at least ${v.thresholds.ok}, ahead of every other Cast by ${v.thresholds.margin}, F0 within ${v.thresholds.f0_semitones} semitones. Similar voices overlap (two young women 0.81-0.95): listen before you recast`]);
+        : [...v.voices.map((x) => [`${x.status === "ok" ? "ok" : x.status === "check" ? "check" : "no voice"} · ${x.said}${x.why ? ` (${x.why.join("; ")})` : ""}`, x.status !== "ok",
+          `${x.name}'s reference ${x.cite}: WavLM-SV ${x.own}; ${x.others.map((o) => `${o.name} ${o.score}`).join(", ") || "no other Cast voice"}; F0 ${x.f0 ?? "–"} Hz vs ${x.ref_f0 ?? "–"} Hz${x.semitones != null ? ` (${x.semitones} st)` : ""}. ok = at least ${v.thresholds.ok}, ahead of every other Cast by ${v.thresholds.margin}, F0 within ${v.thresholds.f0_semitones} semitones. Similar voices overlap (two young women 0.81-0.95): listen before you recast`]),
+          // SNAP-R240: the Voice QA's lines and unscripted speech, amber on check and listen
+          ...(v.qa ? [...v.qa.lines.map((l) => [`${l.verdict === "ok" ? "ok" : l.verdict === "unsure_voice" ? "listen" : l.verdict.replace("_", " ")} · "${l.text}" ${l.voice ? `${l.voice}${l.margin != null ? ` (margin ${l.margin})` : ""}` : l.expected}${l.start != null ? ` at ${l.start}-${l.end} s` : ""}`, l.verdict !== "ok" || l.wrong_time != null, `expected ${l.expected ?? "nobody named"}; heard "${l.heard ?? ""}"`]),
+            ...v.qa.unscripted.map((u) => [`unscripted · "${u.text}" by ${u.voice} at ${u.start}-${u.end} s`, true, "speech nobody scripted: in a silent cut, often a voice reference's own words (F-SQ11)"]),
+            ...(v.qa.lines.length || v.qa.unscripted.length ? [] : [["Voice QA: nobody speaks, as written", false, `Nemotron heard nothing ${v.qa.gpu ?? ""}`]])] : [])];
       voiceLine.replaceChildren(...h("div", {}, ...lines.map(([text, warn, title]) => h("span", { className: warn ? "snap-take-copy" : "snap-quiet", textContent: `Voice: ${text}`, title })),
         h("button", { className: "snap-link snap-quiet-btn", textContent: v && !v.pending ? "Check again" : "Check voice", disabled: !!v?.pending, title: "the take's voice against its Cast voice reference and every other Cast's voice (a few seconds on the queue)",
           onclick: async () => { try { await VO.check(t, "person"); voiceRow(); } catch (err) { say(err.message, true); } } })).childNodes);
     };
-    if (isVideo && VO.referenceAudios(t.prompt).length) { voiceRow(); T.onChange(() => { if (voiceLine.isConnected) voiceRow(); }); }
+    if (isVideo && (VO.referenceAudios(t.prompt).length || t.voice)) { voiceRow(); T.onChange(() => { if (voiceLine.isConnected) voiceRow(); }); }
 
     // SNAP-R36: a quiet take says so and offers two ways out; neither runs unless the person presses it
     const quietRow = T.quiet(t) ? h("div", { className: "snap-take-quietrow" },

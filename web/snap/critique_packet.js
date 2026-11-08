@@ -173,6 +173,8 @@ function words(r, tb) {
     out.prompt = t.text ?? "";
     const h = RT.shotOf(t); if (h) out.shot = { scene: h.scene.name, shot: SC.shotTitle(h.scene, h.shot), set: h.scene.set ?? null };
     if (t.sound?.mean_db != null) out.sound = { mean_db: t.sound.mean_db, quiet_below_db: T.QUIET_DB };
+    // SNAP-R240: the Voice QA's lines and unscripted speech are measured claims beside the loudness, read with sound on
+    if (t.voice?.qa) out.voice = { measured: "the Voice QA (Nemotron words and times, WavLM-large ECAPA for who): read these as measurements, then listen", status: t.voice.status, lines: t.voice.qa.lines, unscripted: t.voice.qa.unscripted, ...(t.voice.qa.why ? { why: t.voice.qa.why } : {}), ...(t.voice.qa.listen ? { listen: t.voice.qa.listen } : {}), words: t.voice.words ?? [] };
     out.pins = Object.entries(t.world ?? {}).map(([ref, p]) => { const b = W.get(W.refOf(W.parse(ref).kind, W.parse(ref).id, p.n))?.version.body ?? {};
       return { ref: W.refOf(W.parse(ref).kind, W.parse(ref).id, p.n), name: b.name ?? p.name, ...(b.details ? { details: b.details } : {}), ...(b.notes ? { notes: b.notes } : {}), ...(W.parse(ref).kind === "location" ? { scale: b.scale ?? [] } : {}), ...(p.placed?.plates ? { plates_cited: p.placed.plates, cameras: (b.plates ?? []).filter((x) => p.placed.plates.includes(x.name)).map((x) => ({ plate: x.name, ...(x.pose ?? {}), ...(x.camera ? { mark: x.camera } : {}) })) } : {}), ...(p.placed?.missing ? { missing: p.placed.missing } : {}) }; });
     // F-Q26: a board's Cast are in its cut (its story pin's unit, or the shot it landed in), not in its pins: a New view

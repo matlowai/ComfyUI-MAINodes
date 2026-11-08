@@ -9,10 +9,11 @@ peft that doesn't match the installed transformers breaks that import. Notes onl
 POST /mainodes/snap/take_voice cuts a take's sound into input/snap/voice/ for use_take {as: "voice"} (F-F06): a stretch
 of the take, 48 kHz mono wav, the Cast's next voice reference. A take kept encrypted is refused (its sound would land
 in input/ in the clear; privacy fails closed).
-Words (SNAP-R227): a Whisper (one safetensors file in models/audio_encoders, its config and tokenizer beside it, read from
-disk only) times the take's words with the voice note: [[start, end, word]] in the take's own seconds.
+Words and the Voice QA (SNAP-R227, R240) come from the AudioCPP fork's nodes (Nemotron Transcribe, H3 Voice QA) that the
+page queues; GET /mainodes/snap/gpus names the cards (nvidia-smi -L) and ComfyUI's own, so the QA's server runs on the
+other card by default.
 SNAP-R18 local only · SNAP-R23 checks are notes · SNAP-R114 the voice note · SNAP-R143 a take's sound becomes a Cast's voice ·
-SNAP-R227 a take with a line gets its words timed · see docs/snap/SNAP_RULES.md"""
+SNAP-R227 a take with a line gets its words timed · SNAP-R240 the Voice QA · see docs/snap/SNAP_RULES.md"""
 import asyncio
 import os
 import re
@@ -21,7 +22,7 @@ import subprocess
 import torch
 from aiohttp import web
 from server import PromptServer
-from transformers import GenerationConfig, WavLMConfig, WavLMForXVector, WhisperConfig, WhisperForConditionalGeneration, WhisperProcessor
+from transformers import WavLMConfig, WavLMForXVector
 
 import comfy.audio
 import comfy.model_management
@@ -115,99 +116,22 @@ class MAISnapVoice(io.ComfyNode):
         return io.NodeOutput(ui={"voices": [[round(v, 5) for v in e.tolist()]], "f0": [pitch(wave)], "seconds": [round(wave.shape[0] / RATE, 2)]})
 
 
-# ---- words (SNAP-R227): a Whisper from one safetensors file in models/audio_encoders times a take's words -------------
-WordsModel = io.Custom("WORDS_MODEL")
+# ---- the Voice QA's GPU (SNAP-R240): the cards on this computer and the one ComfyUI computes on, by UUID --------------
+def gpu_list():
+    """[{index, name, uuid}] from nvidia-smi -L (none without it), and ComfyUI's own card as GPU-<uuid> (None off CUDA)"""
+    try:
+        r = subprocess.run(["nvidia-smi", "-L"], capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.TimeoutExpired):
+        return [], None
+    cards = [{"index": int(m[1]), "name": m[2], "uuid": m[3]} for m in re.finditer(r"GPU (\d+): (.*?) \(UUID: (GPU-[0-9a-f-]+)\)", r.stdout)]
+    device = comfy.model_management.get_torch_device()
+    return cards, f"GPU-{torch.cuda.get_device_properties(device).uuid}" if device.type == "cuda" else None
 
 
-def beside(path):
-    """the folder that holds the safetensors' config.json, generation config and tokenizer: the file's own folder, or the
-    folder a link to it names (a link into a Hugging Face snapshot), one link at a time"""
-    while True:
-        folder = os.path.dirname(path)
-        if os.path.isfile(os.path.join(folder, "config.json")):
-            return folder
-        if not os.path.islink(path):
-            raise FileNotFoundError(f"{path}: Whisper needs config.json, generation_config.json and its tokenizer files beside the safetensors (as its Hugging Face folder has them)")
-        path = os.path.join(folder, os.readlink(path))
-
-
-class MAISnapWordsModelLoader(io.ComfyNode):
-    @classmethod
-    def define_schema(cls):
-        return io.Schema(
-            node_id="MAISnapWordsModelLoader",
-            display_name="Load Words Model (Snap)",
-            category="MAINodes/snap",
-            description="Loads a Whisper (e.g. whisper-large-v3: one safetensors file in models/audio_encoders, its config and tokenizer beside it) for Snap's word timing.",
-            inputs=[io.Combo.Input("model_name", options=folder_paths.get_filename_list("audio_encoders"))],
-            outputs=[WordsModel.Output()],
-        )
-
-    @classmethod
-    def execute(cls, model_name) -> io.NodeOutput:
-        path = folder_paths.get_full_path_or_raise("audio_encoders", model_name)
-        folder, device = beside(path), comfy.model_management.get_torch_device()
-        net = WhisperForConditionalGeneration(WhisperConfig.from_pretrained(folder)).eval()
-        missing, unexpected = net.load_state_dict(comfy.utils.load_torch_file(path, safe_load=True), strict=False)
-        if set(missing) - {"proj_out.weight"} or unexpected:  # proj_out is tied to the decoder's embedding, so the file has none
-            raise ValueError(f"{model_name} isn't a Whisper checkpoint for this config: missing {missing}, unexpected {unexpected}")
-        net.tie_weights()
-        net.generation_config = GenerationConfig.from_pretrained(folder)
-        net.to(torch.float16 if comfy.model_management.should_use_fp16(device) else torch.float32)
-        holder = torch.nn.Module()  # the patcher sets .device, which transformers' model keeps read-only
-        holder.whisper, holder.processor = net, WhisperProcessor.from_pretrained(folder)
-        return io.NodeOutput(comfy.model_patcher.CoreModelPatcher(holder, load_device=device, offload_device=comfy.model_management.unet_offload_device()))
-
-
-def words_of(model, wave):
-    """[[start s, end s, word]] and the whole text of one 16 kHz mono clip: Whisper's token timestamps (cross-attention
-    alignment), a word starting at each token that opens with a space"""
-    net, processor = model.whisper, model.processor
-    feats = processor(wave.cpu().numpy(), sampling_rate=RATE, return_tensors="pt", return_attention_mask=True)
-    out = net.generate(feats.input_features.to(net.device, net.dtype), attention_mask=feats.attention_mask.to(net.device), return_token_timestamps=True, task="transcribe")
-    tokens, times, special = out["sequences"][0].tolist(), out["token_timestamps"][0].tolist(), set(processor.tokenizer.all_special_ids)
-    words = []
-    for i, t in enumerate(tokens):
-        if t in special or t >= processor.tokenizer.convert_tokens_to_ids("<|0.00|>"):
-            continue
-        piece = processor.tokenizer.decode([t])
-        end = round(times[i + 1] if i + 1 < len(times) else times[i], 3)
-        if piece.startswith(" ") or not words:
-            words.append([round(times[i], 3), end, piece.strip()])
-        else:
-            words[-1][1], words[-1][2] = end, words[-1][2] + piece
-    words = [w for w in words if w[2]]
-    # Whisper's alignment starts the first word at the window's start (0 s) whatever silence comes before it; its start is
-    # where the sound first gets loud (the voice note's loudness rule) before that word ends
-    if words:
-        frame = RATE // 50
-        rms = wave[: wave.shape[0] // frame * frame].view(-1, frame).pow(2).mean(-1).sqrt()
-        loud = (rms > 0.3 * torch.quantile(rms, 0.95)).nonzero().flatten().tolist() if rms.numel() else []
-        onset = next((k / 50 for k in loud if k / 50 >= words[0][0]), None)
-        if onset is not None and onset < words[0][1]:
-            words[0][0] = round(onset, 3)
-    return words, processor.tokenizer.decode(tokens, skip_special_tokens=True).strip()
-
-
-class MAISnapWords(io.ComfyNode):
-    @classmethod
-    def define_schema(cls):
-        return io.Schema(
-            node_id="MAISnapWords",
-            display_name="Words (Snap)",
-            category="MAINodes/snap",
-            description="One clip's words with their times (Whisper word timestamps at 16 kHz mono), for Snap's voice note and the Cut's dialogue lane.",
-            inputs=[WordsModel.Input("words_model"), io.Audio.Input("audio")],
-            outputs=[],
-            is_output_node=True,
-        )
-
-    @classmethod
-    def execute(cls, words_model, audio) -> io.NodeOutput:
-        comfy.model_management.load_model_gpu(words_model)
-        wave = comfy.audio.resample(audio["waveform"][0].float().mean(0), audio["sample_rate"], RATE)
-        words, text = words_of(words_model.model, wave)
-        return io.NodeOutput(ui={"words": words, "text": [text]})
+@PromptServer.instance.routes.get("/mainodes/snap/gpus")
+async def gpus(request):
+    cards, comfy_gpu = await asyncio.to_thread(gpu_list)
+    return web.json_response({"gpus": cards, "comfy": comfy_gpu})
 
 
 try:
@@ -237,5 +161,5 @@ async def take_voice(request):
     return web.json_response({"file": f"snap/voice/{name}.wav", "seconds": round(seconds, 2)})
 
 
-NODE_CLASS_MAPPINGS = {"MAISnapVoiceModelLoader": MAISnapVoiceModelLoader, "MAISnapVoice": MAISnapVoice, "MAISnapWordsModelLoader": MAISnapWordsModelLoader, "MAISnapWords": MAISnapWords}
-NODE_DISPLAY_NAME_MAPPINGS = {"MAISnapVoiceModelLoader": "Load Voice Model (Snap)", "MAISnapVoice": "Voice (Snap)", "MAISnapWordsModelLoader": "Load Words Model (Snap)", "MAISnapWords": "Words (Snap)"}
+NODE_CLASS_MAPPINGS = {"MAISnapVoiceModelLoader": MAISnapVoiceModelLoader, "MAISnapVoice": MAISnapVoice}
+NODE_DISPLAY_NAME_MAPPINGS = {"MAISnapVoiceModelLoader": "Load Voice Model (Snap)", "MAISnapVoice": "Voice (Snap)"}

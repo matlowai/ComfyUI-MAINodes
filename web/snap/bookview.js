@@ -320,6 +320,8 @@ export async function openBook(host, { book: ref = null, lens = "beat_sheet", sa
       return h("div", { className: "snap-book-cutrow" }, h("strong", { textContent: unit.cut ?? shot.name }),
         video ? h("video", { src: K.url(video), preload: "metadata", muted: true, className: "snap-book-cutthumb" }) : h("div", { className: "snap-cast-missing snap-book-cutthumb", textContent: t ? "the active take is a still" : "no active take" }),
         h("span", { className: "snap-quiet", textContent: t ? `take ${t.number}${t.verdict ? ` · ${t.verdict}` : ""}${t.sound ? ` · ${Math.round(t.sound.mean_db)} dB` : ""}` : "" }),
+        // SNAP-R240: the voice note's check / listen in amber on the cut's row, why in its title
+        t?.voice?.status === "check" || t?.voice?.status === "listen" ? h("span", { className: "snap-take-copy", textContent: `voice ${t.voice.status}`, title: [...(t.voice.qa?.why ?? []), ...(t.voice.qa?.listen ?? []), ...t.voice.voices.filter((x) => x.why).map((x) => `${x.said} (${x.why.join("; ")})`)].join("\n") }) : null,
         num("in_s", "in (s)", 0.05), num("out_s", "out (s)", 0.05), num("gain_db", "sound (dB)", 0.5),
         diff ? h("span", { className: `snap-quiet snap-book-astrid-cut${diff.cuts[unit.cut ?? shot.name]?.state === "in sync" ? " ok" : diff.cuts[unit.cut ?? shot.name]?.state === "changed here since the push" ? " moved" : ""}`, textContent: `Astrid: ${diff.cuts[unit.cut ?? shot.name]?.clip ?? unit.cut ?? shot.name} · ${diff.cuts[unit.cut ?? shot.name]?.state ?? "not in Astrid"}` }) : null); });
     return [h("div", { className: "snap-book-row" }, h("div", { className: "snap-rail-title", textContent: "The Cut (telling order)" }), h("span", { className: "snap-spacer" }),

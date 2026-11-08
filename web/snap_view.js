@@ -119,6 +119,10 @@ app.registerExtension({
       tooltip: "The folder of the Astrid Runtime Snap talks to. It must be a Runtime on this computer: Snap refuses one whose address isn't this machine." },
     { id: "MAINodes.Snap.AstridApp", category: ["MAINodes", "Snap", "Astrid"], name: "Astrid on this machine: the App's address (Open in Astrid)", type: "text", defaultValue: "http://127.0.0.1:5180",
       tooltip: "Where the Cut lens's Open in Astrid goes. It must be this computer (127.0.0.1 or localhost)." },
+    // SNAP-R240 (the operator, 2026-11-07 17:51): the Voice QA's Nemotron server on the other card by default
+    { id: "MAINodes.Snap.VoiceQAGPU", category: ["MAINodes", "Snap", "Voice QA"], name: "Voice QA: where its Nemotron server runs", type: "combo",
+      options: ["the other GPU", "this GPU, experts in RAM", "off"], defaultValue: "the other GPU",
+      tooltip: "The voice check hears each take's words and who said them (audio.cpp's Nemotron Transcribe, about 22 GB on a card). The other GPU: fast, and your renders keep this one. This GPU, experts in RAM: about 7 GB of video memory and 17 GB of RAM, about 3x slower, and it unloads ComfyUI's models before each check. Off: only the voice-match note runs." },
     { id: MD.SETTING, category: ["MAINodes", "Snap", "Metadata"], name: "Save the prompt and workflow (metadata) in every saved picture and video", type: "boolean", defaultValue: true,
       tooltip: "On: files keep their recipe, LoRA names included, so you can reproduce them. Off: this browser's runs save without it. Also the switch next to Run in Snap.",
       onChange: () => view?.metadataChanged() },

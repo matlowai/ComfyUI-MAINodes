@@ -1,6 +1,7 @@
-// Batch G16 S10, words timed in Snap (SNAP-R227), a GPU proof on the builders' GPU server (SNAP_TEST_GPU_PORT and
-// SNAP_TEST_GPU_BASE, a base whose models/audio_encoders has whisper_large_v3.safetensors linked to the Hugging Face
-// snapshot; skipped, said, without them) and, with SNAP_TEST_ASTRID_LAUNCHER/_ROOT, through to Astrid:
+// Batch G16 S10, words timed in Snap (SNAP-R227; since G17b by the Voice QA's Nemotron Transcribe, SNAP-R240), a GPU
+// proof on the builders' GPU server (SNAP_TEST_GPU_PORT and SNAP_TEST_GPU_BASE, a base with the AudioCPP fork in its
+// custom_nodes and models/audio_encoders/nemotron/ holding the Transcribe GGUF; skipped, said, without them) and, with
+// SNAP_TEST_ASTRID_LAUNCHER/_ROOT, through to Astrid:
 // - a speaking cut (Maren: "It's you." on its beat) whose take carries a real line read (the lab's C3 dialogue) and cites
 //   Maren's voice; check_voice times its words in the same prompt as the voice note: voice.words [[start, end, word]],
 //   voice.text and voice.line_match (exact: "It's you.");
@@ -18,7 +19,8 @@ const run = (cmd, args, env = {}) => new Promise((done) => { const p = spawn(cmd
 const json = (r) => { try { return JSON.parse(r.out.slice(r.out.indexOf("{"))); } catch { return { unparsed: r.out + r.err }; } };
 const ZIP = "import json,sys,zipfile\nz=zipfile.ZipFile(sys.argv[1])\nprint(json.dumps(json.loads(z.read('timeline.json'))['parent']['clips']))";
 (async () => {
-  if (!(port && base && fs.existsSync(path.join(base, "models", "audio_encoders", "whisper_large_v3.safetensors")))) { console.log("SKIP SNAP_TEST_GPU_PORT / SNAP_TEST_GPU_BASE unset, or no whisper_large_v3.safetensors in its audio_encoders"); console.log("g16words 0/0 (skipped)"); return; }
+  const qa = port && await fetch(`http://127.0.0.1:${port}/object_info/AudioCPPH3VoiceQA`).then((r) => r.json()).catch(() => ({}));
+  if (!(port && base && qa?.AudioCPPH3VoiceQA && fs.existsSync(path.join(base, "models", "audio_encoders", "nemotron", "nemotron-transcribe-30b-a4b-experts-Q4_K_S.gguf")))) { console.log("SKIP SNAP_TEST_GPU_PORT / SNAP_TEST_GPU_BASE unset, the AudioCPP fork's nodes not on that server, or no Nemotron Transcribe GGUF in its audio_encoders/nemotron"); console.log("g16words 0/0 (skipped)"); return; }
   const fin = path.join(base, "input", "snap", "g16words"), fout = path.join(base, "output", "snaptest_g16words");
   fs.mkdirSync(fin, { recursive: true }); fs.mkdirSync(fout, { recursive: true });
   // the lab's real line read ("It's you.") from the A3 archive, as a take with picture and sound; Maren's voice reference
@@ -59,9 +61,9 @@ const ZIP = "import json,sys,zipfile\nz=zipfile.ZipFile(sys.argv[1])\nprint(json
   } catch (e) { R.crash = e.stack; } finally { await b.close(); }
   const S = R, dlg = (S.clips ?? []).find((c) => c.id === "C1-dialogue"), heard = (S.voice?.words ?? []).map((w) => w[2]).join(" ");
   const checks = {
-    "check_voice says the words are timed by the Whisper": /timed by whisper_large_v3\.safetensors/.test(S.check?.words ?? ""),
+    "check_voice says the words are timed by Nemotron Transcribe in the Voice QA": /timed by Nemotron Transcribe \(nemotron\/nemotron-transcribe/.test(S.check?.words ?? ""),
     "the take's words come back with their times, in order": /it's you/i.test(heard) && (S.voice?.words ?? []).every((w, i, all) => w[0] <= w[1] && (!i || all[i - 1][0] <= w[0])),
-    "line_match: Whisper exact against the cut's line": S.voice?.line_match?.exact === true && S.voice.line_match.line === "It's you.",
+    "line_match: Nemotron exact against the cut's line": S.voice?.line_match?.exact === true && S.voice.line_match.said === "Nemotron exact" && S.voice.line_match.line === "It's you.",
     "the voice note itself still runs beside it": ["ok", "check", "no voice"].includes(S.voice?.status),
     "the export puts the words on the dialogue clip": (S.voice?.words?.length ?? 0) > 0 && JSON.stringify(dlg?.app?.astrid?.words) === JSON.stringify(S.voice?.words) && dlg.app.astrid.text === "It's you.",
     [`Astrid's timelines words lists them after a push${LAUNCHER ? "" : " (skipped: SNAP_TEST_ASTRID_LAUNCHER unset)"}`]: !LAUNCHER || (S.push?.ok === true && /It's/.test(S.words?.out ?? "") && /line-C1/.test(S.words?.out ?? "")),
