@@ -6,7 +6,7 @@
 // SNAP-R59 Cast by reference (applyCast) · SNAP-R196 a Cast picture replaced as a new version · SNAP-R60 the person's cards are world records (world.js) ·
 // SNAP-R73 a Cast's voice reference goes in as an <Audio n> · SNAP-R84 a location by reference: its master, plan and named
 // plates (applyLocation), in one order on every apply · SNAP-R143 a take's sound as a Cast's voice (takeToVoice) · SNAP-R115 under Ref2V the First frame opens the shot as <Picture 1> (syncOpening) ·
-// SNAP-R148 one plate or camera mark changes alone (addPlate) · SNAP-R177 a dry run writes nothing (saveLocation dry) · SNAP-R155 a place's scale anchors (scaleOf) · SNAP-R165 a Cast line folds through the story state (applyCast line) · SNAP-R237 a Cast's voice only where that Cast speaks (voiceWanted) · see docs/snap/SNAP_RULES.md
+// SNAP-R148 one plate or camera mark changes alone (addPlate) · SNAP-R177 a dry run writes nothing (saveLocation dry) · SNAP-R155 a place's scale anchors (scaleOf) · SNAP-R165 a Cast line folds through the story state (applyCast line) · SNAP-R237 a Cast's voice only where that Cast speaks (voiceWanted) · SNAP-R241 a voice reference keeps its words (takeToVoice) · SNAP-R253 a plate's side and set reference (sideOf, setPlateOf) · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
@@ -645,6 +645,12 @@ export async function addPlate(ref, plate, { note, by = "person", dry = false } 
   const { id, body } = locationOf(W.refOf("location", W.parse(ref).id)), cameras = [...(body.cameras ?? [])], kept = {};
   const list = [plate].flat().map((p) => {
     let x = { ...p, ...(typeof p.name === "string" ? { name: p.name.trim() } : {}) };
+    // F-SQ10: camera "same" moves the plate's own camera mark to its (new) pose in the same call
+    if (x.camera === "same") {
+      const had = (body.plates ?? []).find((q) => q.name === x.name), pose = { ...(had?.pose ?? {}), ...(x.pose ?? {}) };
+      if (!had?.camera) throw new Error(`plate ${x.name}: camera "same" moves the plate's own camera mark with its pose, and ${had ? "it has no mark" : "there is no such plate yet"}: name a mark ({name, x, y, heading, eye_height, lens})`);
+      x.camera = { name: had.camera, ...Object.fromEntries(POSE.filter((k) => pose[k] != null).map((k) => [k, pose[k]])) };
+    }
     if (x.camera && typeof x.camera === "object") {
       const c = { ...x.camera, name: x.camera.name?.trim() };
       if (!c.name) throw new Error(`plate ${x.name}: a camera mark needs a name`);

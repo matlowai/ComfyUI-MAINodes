@@ -174,7 +174,7 @@ export async function castIdentity(take, casts, { frames, ref = 0 } = {}) {
   const who = casts.map((c) => {
     const got = W.get(c), { id } = W.parse(c), b = got?.version.body, r = b?.refs?.[ref];
     if (!got) throw new Error(`No Cast ${c} (list_cast shows them)`);
-    if (!r) throw new Error(`${b.name} v${got.version.n} has no picture ${ref}; it has ${b.refs.length}`);
+    if (!r) throw new Error(`${b.name} v${got.version.n} has no picture ref ${ref}: refs count from 0, so its ${b.refs.length} picture${b.refs.length === 1 ? " is ref 0" : `s are refs 0 to ${b.refs.length - 1}`} (F-SQ04)`);
     return { cast: W.refOf("cast", id, got.version.n), name: b.name, file: r.file, role: r.role };
   });
   let list, srcs;
@@ -391,7 +391,7 @@ async function contextPicture(p, i) {
   } else if (p.cast) {
     const got = W.get(p.cast), { id } = W.parse(p.cast), b = got?.version.body, r = b?.refs?.[p.ref ?? 0];
     if (!got) throw new Error(`Picture ${i + 1}: no Cast ${p.cast} (list_cast shows them)`);
-    if (!r) throw new Error(`Picture ${i + 1}: ${b.name} v${got.version.n} has no picture ${p.ref ?? 0}; it has ${b.refs.length}`);
+    if (!r) throw new Error(`Picture ${i + 1}: ${b.name} v${got.version.n} has no picture ref ${p.ref ?? 0}: refs count from 0, so its ${b.refs.length} picture${b.refs.length === 1 ? " is ref 0" : `s are refs 0 to ${b.refs.length - 1}`} (F-SQ04)`);
     nodes[k("l")] = { class_type: "LoadImage", inputs: { image: r.file } };
     out = [k("l"), 0]; size = p.crop && await sizeOf(inputUrl(r.file));
     Object.assign(said, { cast: W.refOf("cast", id, got.version.n), file: r.file, label: p.label ?? `${b.name}, ${r.role}` });
@@ -450,12 +450,13 @@ function pasteBack(g, pic, mask, detector) {
     rdm: { class_type: "SAM3_Detect", inputs: { model: ["rd", 0], image: pic.crop, conditioning: ["rdt", 0], threshold: MASK.threshold, refine_iterations: MASK.refine, individual_masks: false } },
     rdg: { class_type: "GrowMask", inputs: { mask: ["rdm", 0], expand: f, tapered_corners: true } },
     rdi: { class_type: "MaskToImage", inputs: { mask: ["rdg", 0] } },
-    rdb: { class_type: "ImageBlur", inputs: { image: ["rdi", 0], blur_radius: Math.min(31, f), sigma: f / 2 } },
+    // F-SQ45: core ImageBlur takes sigma up to 10; a big crop's feather (6 % of its side) asked for more and was refused
+    rdb: { class_type: "ImageBlur", inputs: { image: ["rdi", 0], blur_radius: Math.min(31, f), sigma: Math.min(10, f / 2) } },
     rdk: { class_type: "ImageToMask", inputs: { image: ["rdb", 0], channel: "red" } },
     rx: { class_type: "MaskComposite", inputs: { destination: ["rf", 0], source: ["rdk", 0], x: 0, y: 0, operation: "multiply" } },
   });
   g.o.inputs.images = ["rc", 0];
-  return { box, feather: f, ...(mask ? { mask } : {}) };
+  return { box, feather: f, ...(mask ? { mask, ...(f / 2 > 10 ? { mask_soften: `the mask is grown ${f} px and softened at sigma 10, the blur node's most (asked ${f / 2}: F-SQ45)` } : {}) } : {}) };
 }
 // F-Y04 (SNAP-R202): a region edit's graph as an edit of its whole still (its stage 2): Picture 1 is `whole`, the edited
 // still, not the crop. Re-running the crop and the paste pasted the whole picture, small, into the crop at 1x.

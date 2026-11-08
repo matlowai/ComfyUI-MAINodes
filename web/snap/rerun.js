@@ -230,6 +230,24 @@ function ready(take, asked) {
       throw new Error(`${named(take)}: ${s.slot === "setup" ? `no setup ${s.to} here` : s.slot === "scene" ? `the set ${s.set} isn't in the Library any more` : `${s.slot} isn't pinned in the take's own recipe (its pins: ${Object.keys(pins).join(", ") || "none"})`}. Nothing was opened or saved`);
   }
 }
+// F-AC05: a New view still (a board, a region edit, a set reference) was made by edit_from_context from context pictures,
+// not from a recipe with References: its re-run with a Cast swap is the same call again, each picture of the swapped
+// Cast taken from the version it is swapped to (the same picture number), the rest as they were; it lands beside the take
+async function rerunView(take, asked, { seed, by }) {
+  const o = take.parent.options ?? {}, swap = new Map(asked.filter((s) => !s.keep && s.slot.startsWith("cast:")).map((s) => [W.parse(s.slot).id, s.ref ?? s.to]));
+  const other = asked.filter((s) => !s.keep && !s.slot.startsWith("cast:"));
+  if (other.length) throw new Error(`${named(take)} is a New view still: its re-run swaps its Cast pictures; ${other.map((s) => s.text ?? s.slot).join(", ")} can't be swapped in it (make it again with edit_from_context)`);
+  const pictures = (o.context ?? []).map((c) => {
+    const pin = c.cast ?? c.pins, id = pin && W.parse(pin).id, to = id && swap.get(id), keep = { ...(c.crop ? { crop: c.crop } : {}) };
+    if (!to) return { ...(c.take ? { take: c.take, ...(c.frame != null ? { frame: c.frame } : {}) } : c.location ? { location: c.location, plate: c.plate } : { file: c.file }), ...keep, label: c.label };
+    const was = W.get(pin)?.version.body, k = (was?.refs ?? []).findIndex((r) => r.file === c.file), now = W.get(to)?.version.body;
+    if (k < 0 || !now?.refs?.[k]) throw new Error(`Picture ${c.n} of ${named(take)} (${c.label}) is ${was?.name ?? pin}'s picture, and ${now?.name ?? to} has no picture ${k < 0 ? "matching it" : `ref ${k}`}: re-make it with edit_from_context {pictures: [{cast, ref}]}`);
+    return { cast: to, ref: k, ...keep, label: `${now.name}, ${now.refs[k].role}` };
+  });
+  const home = RT.shotOf(take), out = await ED.fromContext(pictures, o.prompt ?? take.text, { method: take.parent.method.split("/")[1], purpose: o.purpose, seeds: seed === "same" && take.seed != null ? [take.seed] : undefined, count: 1, paste: !!o.pasted, mask: o.pasted?.mask ?? null,
+    ...(home ? { land: { scene: home.scene.id, shot: home.shot.id } } : { land: "tab" }), ...(take.story ? { story: take.story } : {}), by });
+  return { take: take.id, route: "regenerate", seed, decision: out.decision, candidates: out.candidates, said: `${named(take)} made again with edit_from_context (its own call) and ${[...swap].map(([id, to]) => `${W.get(to)?.version.body.name ?? id} v${W.parse(to).n ?? W.record("cast", id)?.head}`).join(", ")} in place of the pinned pictures: a candidate lands beside it (F-AC05)` };
+}
 // Re-generate: the take's recipe again with the swaps, the same seed unless `seed` is new; queue: false only opens it.
 // An opened file (opened()) runs in place, unmarked
 export async function rerun(take, { swaps = {}, route = "regenerate", seed = "same", land, queue: go = true, count, who, by = "person" } = {}) {
@@ -238,6 +256,7 @@ export async function rerun(take, { swaps = {}, route = "regenerate", seed = "sa
   const all = combos(swaps);
   if (all.length > 1) return batch(take, all, { route, seed, land, go, count, who, by });
   if (route === "reuse_motion") { if (!take.id) throw new Error("Reuse the motion needs a take (its video is the motion): this file isn't one here"); return reuse(take, await resolve(take, swaps), { count, who, by }); }
+  if (take.id && /^view\//.test(take.parent?.method ?? "") && go) return rerunView(take, await resolve(take, swaps), { seed, by });
   if (!take.graph) throw new Error(`${named(take)} has no workflow saved with it`);
   const asked = await resolve(take, swaps), home = landing(land);
   if (take.id) ready(take, asked);

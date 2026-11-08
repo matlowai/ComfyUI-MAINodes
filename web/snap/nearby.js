@@ -72,7 +72,8 @@ function keptFrom(t) {
 }
 
 // ---- what made it ---------------------------------------------------------------------------------------------------
-const methodTitle = (id) => { const [slot, m] = String(id ?? "").split("/"); return (m && S.list(slot).find((x) => x.id === m)?.title) || null; };
+// F-AC01: a parent method that names no registry slot (a re-run's "rerun/...", a louder copy) has no title: never a throw
+const methodTitle = (id) => { const [slot, m] = String(id ?? "").split("/"); return (m && S.slots().includes(slot) && S.list(slot).find((x) => x.id === m)?.title) || null; };
 // the model a run loaded, from the prompt that ran: its diffusion model and LoRAs by file name, with the model graph's family
 function modelOf(t, seen = new Set()) {
   const title = t.parent?.method && methodTitle(t.parent.method);

@@ -10,7 +10,8 @@
 // SNAP-R178 a wardrobe state folds the items it names out of the Cast line ·
 // SNAP-R181 a held-prop cut is boarded at its key · SNAP-R189 what the state takes away is said absent · SNAP-R182 a settei on a plain ground, without what its state takes off ·
 // SNAP-R217 a pushed Book's diff · SNAP-R223 a production above the Book · SNAP-R225 the receipt of where a Cut went ·
-// SNAP-R230 set_cut_dials: a cut owns its dial rows · SNAP-R231 their defaults, said · SNAP-R236 set_unit master · see docs/snap/SNAP_RULES.md
+// SNAP-R230 set_cut_dials: a cut owns its dial rows · SNAP-R231 their defaults, said · SNAP-R236 set_unit master · SNAP-R242
+// set_unit hold / cite_master, apply_unit errors · SNAP-R252 set_unit opens_on · SNAP-R253 make_set_reference · see docs/snap/SNAP_RULES.md
 import * as B from "./book.js";
 import * as W from "./world.js";
 import * as SC from "./scenes.js";
@@ -476,7 +477,7 @@ question: { type: "string", description: "what the person is asked about these c
         // the cuts on this side still on another plate: not the cut the look came from, nor one that opens on another's out-frame
         const others = B.units(b).filter((x) => x.unit.cut !== cut && !x.unit.opens_on && x.unit.location && W.parse(x.unit.location).id === W.parse(u.unit.location).id && x.unit.plate !== plateName && (x.unit.plate ? L.sideOf(loc.plates?.find((p) => p.name === x.unit.plate)) === s : false)).map((x) => x.unit.cut);
         return { location: W.refOf("location", W.parse(u.unit.location).id, out.n), version: out.n, plate: plateName, side: s, set: true, from: { take: t.id, made_from: src },
-          said: `${loc.name} v${out.n}: plate "${plateName}" is side ${s}'s set reference (${src}, people removed); the walkthrough plates stay`, ...(others.length ? { next: `cuts on side ${s} that don't play from it yet: ${others.join(", ")}: set_unit {plate: "${plateName}"} on each (compile_unit lints them)` } : {}) };
+          said: `${loc.name} v${out.n}: plate "${plateName}" is side ${s}'s set reference (${src}, people removed); the walkthrough plates stay`, ...(others.length ? { next: `cuts on side ${s} that don't play from it yet: ${others.join(", ")}: set_unit {location: "${W.refOf("location", W.parse(u.unit.location).id, out.n)}", plate: "${plateName}"} on each (a cut reads the location version it names; compile_unit lints them)` } : {}) };
       }
       const t = u.shot.active && T.get(u.shot.active);
       if (!t) throw new Error(`${cut} has no active take: set the take whose look is the set first (set_active_take), then make its set reference`);

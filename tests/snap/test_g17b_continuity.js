@@ -79,6 +79,8 @@ const sh = (cmd, args) => new Promise((done) => execFile(cmd, args, { maxBuffer:
     R.saved = await call("make_set_reference", { book, cut: "C1", pick: R.candTake });
     R.loc2 = await page.evaluate(async (ref) => { const W = await import("/extensions/ComfyUI-MAINodes/snap/world.js"); await W.load(); const r = W.record("location", W.parse(ref).id); return W.headOf(r).body.plates; }, locRef);
     R.sheet3 = await call("compile_unit", { scene: c3.scene, shot: c3.shot });
+    R.switch = await call("set_unit", { scene: c3.scene, shot: c3.shot, location: R.saved?.location, plate: "P1 street set" });
+    R.sheet3b = await call("compile_unit", { scene: c3.scene, shot: c3.shot });
     R.errors = A.errors;
   } catch (e) { R.crash = e.stack; } finally { await b.close(); }
   const op = R.sheet?.opening, mf = op?.file && path.join(base, "input", op.file);
@@ -98,9 +100,10 @@ const sh = (cmd, args) => new Promise((done) => execFile(cmd, args, { maxBuffer:
     "use_take as reference takes the frame's role (F-SQ49)": /a reference picture, <Picture \d+>/.test(S.useRole?.said ?? "") && (S.refsUse ?? []).some((p) => p.role === "opening: C1's out-frame (by hand)"),
     "picking C1's take offers make_set_reference (R253)": /side street of Yatai g17bc has no set reference yet: .*make_set_reference \{book: "book:[^"]+", cut: "C1"\}/.test(S.pick?.set_reference ?? ""),
     "make_set_reference lands its candidates in a design lane beside the Book, not C1's shot": !!S.make?.decision && S.make.candidates?.length === 2 && /G17b Continuity · set references/.test(S.make.lands ?? "") && /Yatai g17bc · street/.test(S.make.lands ?? "") && S.make.from?.frame === 89,
-    "the pick is saved as the side's set plate with the camera mark and pose": set?.set === true && set.side === "street" && set.camera === "street" && set.pose?.eye_height === 1.5 && set.role === "camera" && S.saved?.plate === "P1 street set" && /: C3: set_unit \{plate: "P1 street set"\}/.test(S.saved?.next ?? ""),
+    "the pick is saved as the side's set plate with the camera mark and pose": set?.set === true && set.side === "street" && set.camera === "street" && set.pose?.eye_height === 1.5 && set.role === "camera" && S.saved?.plate === "P1 street set" && /: C3: set_unit \{location: "location:[^"]+@2", plate: "P1 street set"\}/.test(S.saved?.next ?? ""),
     "the walkthrough plate stays": (S.loc2 ?? []).some((p) => p.name === "P1 street" && !p.set),
-    "compile_unit lints a cut on the side that doesn't play from its set reference": (S.sheet3?.lint ?? []).some((w) => /plate P1 street is on side street, and P1 street set is that side's set reference .*set_unit \{plate: "P1 street set"\}/.test(w)),
+    "compile_unit lints a cut on the side that doesn't play from its set reference": (S.sheet3?.lint ?? []).some((w) => /plate P1 street is on side street, and P1 street set is that side's set reference .*set_unit \{location: "location:[^"]+@2", plate: "P1 street set"\}/.test(w)),
+    "C3 switched to the set plate plays from it, with no set-reference lint": (S.sheet3b?.package ?? []).some((p) => p.role === "location: Yatai g17bc, plate P1 street set (camera)") && !(S.sheet3b?.lint ?? []).some((w) => /SNAP-R253/.test(w)),
     "no page errors": !S.crash && !(S.errors ?? []).length,
   };
   for (const [k, v] of Object.entries(checks)) console.log(`${v ? "PASS" : "FAIL"} ${k}`);

@@ -22,7 +22,9 @@
 // pictures may still show · SNAP-R212 the Cut opens in Astrid, private takes stay out · SNAP-R213 a cut's take may come from another shot ·
 // SNAP-R215 the archive Astrid can edit, its clips named by cut · SNAP-R216 a speaking cut's sound on its own lane · SNAP-R217 a pushed Book
 // changes in place, its diff says what moved · SNAP-R223 a production is the record above the Book · SNAP-R224 the push is the person's (button,
-// auto-push) · SNAP-R225 Snap remembers where a Cut went · SNAP-R226 the style shared with Astrid is the person's switch · see docs/snap/SNAP_RULES.md
+// auto-push) · SNAP-R225 Snap remembers where a Cut went · SNAP-R226 the style shared with Astrid is the person's switch · SNAP-R241 a reference that says a script line is lint ·
+// SNAP-R242 a picture in References is a target (key and master left out) · SNAP-R243 a look-alike cite is an error · SNAP-R250
+// timing and two-places lints · SNAP-R252 a continuing cut opens on the previous out-frame · SNAP-R253 the side's set reference · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as W from "./world.js";
 import * as SC from "./scenes.js";
@@ -199,7 +201,14 @@ export async function saveLook(id, body, { note = "", by = "person" } = {}) {
 // ---- story edits (pure: a new body from the head's) ------------------------------------------------------------------
 const beatIn = (story, id) => { const b = story.beats.find((x) => x.id === id); if (!b) throw new Error(`No beat ${id}; the beats: ${story.beats.map((x) => x.id).join(", ") || "none yet"}`); return b; };
 const nextBeat = (story) => `b${Math.max(0, ...story.beats.map((x) => +x.id.replace(/^b/, "") || 0)) + 1}`;
+// F-SQ01: a change value that names a record is the reference alone; words after it ("cast:x (right hand)") once stored
+// broke open_view and remove_change, so they are refused when the change is made, never when it is taken back
+function refAlone(c, where) {
+  for (const v of [c?.value].flat()) if (typeof v === "string" && /^[a-z_]+:\S/.test(v) && !/^[a-z_]+:[\w.|-]+(@\d+)?$/.test(v))
+    throw new Error(`${where}: the value "${v}" names a record and has more after it: give the reference alone ("${v.split(/[\s(]/)[0]}") and put the words in why (F-SQ01)`);
+}
 export function withBeat(story, { text, after, ...rest }) {
+  for (const [k, c] of (rest.changes ?? []).entries()) refAlone(c, `change ${k + 1}`);
   const s = clone(story), id = rest.id ?? nextBeat(s), at = after ? beatIn(s, after) : s.beats.at(-1), order = at ? at.order + 0.5 : 0.5, told = at ? at.told + 0.5 : 0.5;
   s.beats.push({ id, order, told, text: text ?? "", ...rest, id });
   return { story: cleanStory(s), beat: id };
@@ -216,6 +225,7 @@ export function withEdit(story, beat, fields) {
   return cleanStory(s);
 }
 export function withChange(story, beat, change) {
+  refAlone(change, `${beat}'s change`);
   const s = clone(story);
   beatIn(s, beat).changes.push({ ...change, id: undefined });
   const out = cleanStory(s);
@@ -339,7 +349,7 @@ const PROSE_ONLY = new Set(["knows", "wants", "relationships", "location"]); // 
 const COLOURS = ["red", "orange", "yellow", "green", "blue", "teal", "cyan", "purple", "violet", "magenta", "pink", "brown", "amber", "gold", "golden", "silver", "crimson", "scarlet", "navy", "turquoise", "beige", "maroon", "olive", "lime", "indigo", "blonde", "auburn"];
 const colourWords = (text) => [...new Set((String(text ?? "").toLowerCase().match(/[a-z]+/g) ?? []).filter((w) => COLOURS.includes(w)))];
 export function nameOf(story, ref) {
-  if (!ref || typeof ref !== "string" || !/^[a-z_]+:/.test(ref)) return ref;
+  if (!ref || typeof ref !== "string" || !/^[a-z_]+:[\w.|-]+(@\d+)?$/.test(ref)) return ref; // F-SQ01: an old row with words after its reference reads as written
   if (ref.startsWith("cast:")) return W.get(ref)?.version.body.name ?? words(ref);
   if (ref.startsWith("prop:")) return story.props?.find((p) => `prop:${p.id}` === ref)?.name ?? `the ${words(ref)}`;
   if (ref.startsWith("location:")) return W.get(ref)?.version.body.name ?? words(ref);
@@ -607,7 +617,8 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
       if (plate) package_.push({ file: plate.file, role: `location: ${b.name}, plate ${plate.name} (camera)`, why: `this cut's camera`, from: unit.location, order: 0 });
       // SNAP-R253 (the operator, 2026-11-07 19:51): every cut plays from its side's set reference, made from the picked look
       const side = plate && L.sideOf(plate), set = side && L.setPlateOf(W.headOf(W.record("location", W.parse(unit.location).id))?.body, side); // the newest version's: a cut pins the version it was planned on
-      if (set && set.name !== plate.name) lint.push(`plate ${plate.name} is on side ${side}, and ${set.name} is that side's set reference (made from the picked look): set_unit {plate: "${set.name}"} plays ${unit.cut ?? "this cut"} from it (SNAP-R253)`);
+      const head = W.record("location", W.parse(unit.location).id)?.head;
+      if (set && set.name !== plate.name) lint.push(`plate ${plate.name} is on side ${side}, and ${set.name} is that side's set reference (made from the picked look): set_unit {location: "${W.refOf("location", W.parse(unit.location).id, head)}", plate: "${set.name}"} plays ${unit.cut ?? "this cut"} from it (SNAP-R253)`);
       else if (plate && !set && !unit.opens_on) lint.push(`side ${side} of ${b.name} has no set reference yet: once a cut on it has the take whose look you keep, make_set_reference {book, cut} makes one from it (people removed), and the cuts on this side play from it (SNAP-R253)`);
       // SNAP-R242 (M2, M7): the master is where a one-camera cut's takes cut to; with a camera plate it stays out unless asked
       if (b.master && (!plate || unit.cite_master)) package_.push({ file: b.master.file, role: `location: ${b.name}, master (place)`, why: "the place's topology", from: unit.location, order: 3 });
@@ -701,7 +712,11 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
   const description = [style?.body.paragraph, ...sentences.map((s) => s.text)].filter(Boolean).join(" ");
   // a still has no Cast brick to add each Cast's line (apply_unit's applyCast does it for video): the subject says who each
   // one is, so a board doesn't draw a lantern spirit with a girl's body (U97 GPU board, C2); the line folded at its moment
-  const still = (fieldsSaid, who) => [style?.body.paragraph, [...head, ...fieldsSaid, ...tail, ...who].join(" ")].filter(Boolean).join("\n\n");
+  // F-SQ06: the opening still draws the state before the beat, so it leaves the beat's own action words out (a gate drawn
+  // open 2/2 under "The gate leaves swing inward" for an opening whose state is closed)
+  const beatWords = new Set(present.map((b) => b.text && S(b.text)).filter(Boolean));
+  const still = (fieldsSaid, who, opening = false) => { const rest = [...head.filter((x) => !opening || !beatWords.has(x)), ...fieldsSaid, ...tail, ...who];
+    return [style?.body.paragraph, (rest.length ? rest : [...head, ...tail, ...who]).join(" ")].filter(Boolean).join("\n\n"); };
   const out = {
     book: book.ref ?? `book:${book.id}`, scene: scene.id, shot: shot.id, cut: unit.cut ?? null, unit_kind: unit.kind ?? "cut",
     story: st ? { ref: st.ref, n: st.n } : null, at: at ? { beat: at.id, order: at.order, told: at.told, text: at.text, ...(at.intent ? { intent: at.intent } : {}), ...(at.intensity ? { intensity: at.intensity } : {}) } : null,
@@ -710,7 +725,7 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
     entities, place, package: pictures, ...(left_out.length ? { left_out } : {}), budget: { used: Math.min(pictures.length, budget), of: budget, ...(dropped.length ? { over: dropped } : {}) },
     prompt: { description, sentences, soundscape: unit.sound ?? "", music: unit.music ?? "N/A" },
     still_prompt: still(ends, whoEnd),
-    ...(moved ? { opens: { after: prev?.id ?? null, said: `the cut opens on the state ${prev ? `after ${prev.id}` : "before any beat"} and ends on the state after ${at.id}: the opening board draws the start, the key drawing the end`, still_prompt: still(opens, whoOpen), ...(held.length ? { held, board_role: "key" } : {}) } } : {}),
+    ...(moved ? { opens: { after: prev?.id ?? null, said: `the cut opens on the state ${prev ? `after ${prev.id}` : "before any beat"} and ends on the state after ${at.id}: the opening board draws the start, the key drawing the end`, still_prompt: still(opens, whoOpen, true), ...(held.length ? { held, board_role: "key" } : {}) } } : {}),
     ends: at ? { beat: at.id } : null,
     speakers: [...new Set(lines.map((l) => l.who))], transition: unit.transition ?? null, timing: unit.timing ?? null, ...(dials ? { dials } : {}), ...(master ? { master } : {}), ...(opening ? { opening } : {}), lint,
     from: Object.fromEntries(await Promise.all(Object.entries(from).map(async ([k, v]) => [k, W.short(await W.sha(v))]))),
@@ -796,7 +811,9 @@ export async function boardPackage(sheet, { context = null, role = boardRole(she
   const own = unit.board?.file && unit.board.approved ? [{ file: unit.board.file, label: `${unit.cut ?? "this cut"}'s approved board`, keep: "keep its blocking: who stands or sits where, facing which way" }] : null;
   // SNAP-R236: an insert's master frame is its nearest prior view, unless it has its own approved board or context says
   const master = sheet.master ? [{ file: sheet.master.file, label: `${sheet.master.cut} at ${sheet.master.at_s} s, the shot this insert cuts in from`, keep: "keep its light, colours and background" }] : null;
-  for (const c of context ?? own ?? master ?? (list[i - 1]?.unit.board?.file ? [{ file: list[i - 1].unit.board.file, label: "the previous cut's board" }] : [])) {
+  // F-SQ07: by default the nearest earlier board on this cut's plate (another place's view is a cut target, SNAP-R84)
+  const prior = list.slice(0, Math.max(0, i)).reverse().find((x) => x.unit.board?.file && (x.unit.location ? W.parse(x.unit.location).id : null) === (unit.location ? W.parse(unit.location).id : null) && (x.unit.plate ?? null) === (unit.plate ?? null));
+  for (const c of context ?? own ?? master ?? (prior ? [{ file: prior.unit.board.file, label: prior === list[i - 1] ? "the previous cut's board" : `${prior.unit.cut}'s board, the nearest earlier one on this plate` }] : [])) {
     if (c.cut) { const u = list.find((x) => x.unit.cut === c.cut); if (!u?.unit.board?.file) throw new Error(`context: ${u ? `${c.cut} has no board yet` : `no cut ${c.cut}; the cuts: ${list.map((x) => x.unit.cut).join(", ")}`}`); near.push({ file: u.unit.board.file, label: c.cut === unit.cut ? `${c.cut}'s own board` : `${c.cut}'s board`, ...(c.cut === unit.cut ? { keep: "keep its blocking: who stands or sits where, facing which way" } : {}) }); }
     else if (c.take) { const t = T.find(c.take); if (!t) throw new Error(`context: no take ${c.take}`); const f = await T.frameAt(t, "last", { frame: c.frame ?? (t.media.some((m) => m.kind === "video") ? undefined : 0) }); near.push({ file: f.file, label: c.label ?? `take ${t.number}`, ...(c.keep ? { keep: c.keep } : {}) }); }
     else if (c.file) near.push({ file: c.file, label: c.label ?? c.file, ...(c.keep ? { keep: c.keep } : {}) });
@@ -886,6 +903,9 @@ export async function apply(sceneId, shotId, { by = "agent", beats = null, land 
     said.push(`dial rows from ${name}'s plan: ${unit.dials.length ? unit.dials.map((r) => `${D.label(D.find(r.dial) ?? r)} at ${r.strength}${r.time ? " with its time curve" : ""}`).join(", ") : "none"}${off.length ? `; took off the rack: ${off.map((r) => `${D.label(D.find(r.dial) ?? r)} at ${r.strength >= 0 ? "+" : ""}${r.strength}`).join(", ")} (not in ${name}'s plan; set_cut_dials {from_rack: true} adopts the rack into the plan)` : ""}`);
   }
   if (E.state().bricks.some((b) => b.key === "upscale")) said.push("the Upscale brick is in this recipe: its takes come out bigger than the Cut (take it out for the Cut's size)"); // F-F15
+  // F-AC09 (SNAP-R149): a cut's H3 recipe off the quality standard (a preset test left it at 20 steps with no turbo) is said
+  const steps = M.sampling().steps?.value;
+  if (D.family() === "MiniMax H3" && (!M.turbo() || steps > 6)) said.push(`this cut's recipe runs ${steps ?? "its"} steps${M.turbo() ? "" : " without the Pika turbo LoRA"}: the quality standard is Pika at 6 steps (SNAP-R149); apply_setup a Pika setup unless this cut is a deliberate test`);
   // F-F09: every cite from References as they stand now, after the last picture went in
   const pics = E.references()?.pictures ?? [], heard = E.references()?.audio ?? [], cite = (test) => pics.filter((p) => p.role && test(p.role)).map((p) => p.cite);
   const opens = cite((r) => r.startsWith(`opening: ${unit.opens_on?.cut}'s out-frame`)), board = cite((r) => r.startsWith(`board: ${unit.cut}`)), key = cite((r) => r.startsWith(`key: ${unit.cut}`)), cam = cite((r) => r.startsWith("location: ") && r.endsWith("(camera)")),
