@@ -78,10 +78,16 @@ A board or still in a shot (people in the place). Every pass.
 - Beat: the prompt's verbs and negations, literally ("she does not take it").
 - Who should be here: `words.who_should_be_here`; anyone else is an extra person.
 - When the previous cut's last frame is in the context, the cut-pair checks too (below).
+- Count (SNAP-R244, R245): every story prop in `count_these` and every person, against the beat; a second bowl on a
+  board is high (it is in every take made from it). Write `count {thing, expected, seen}` on the note.
 
 ## cut
 
-A video take in a shot: 5 spread frames whole, the first and last also tiled.
+A video take in a shot: a frame every half second and the last, whole; the first and last also tiled (SNAP-R245).
+- Count first: each story prop and person in every frame against `count_these` and the board (one line per thing:
+  "bowl ×1 expected; f0-f72 ×2; f88 ×1"); a duplicate is a note with `count`, written high.
+- Where it goes: `copy.reaches` names a cited picture the take turns into (a key drawing, the master): say so as the
+  destination and fix the picture's inclusion (SNAP-R246, R242).
 - Scan each frame: duplicates, people popping in or out between frames, ghost figures.
 - Cast colour (r4): each person's colour line from the Cast (hair, eyes, skin, main outfit, accent), read again in every
   sampled frame, the frames inside a burst or glow included; a colour that leaves the Cast and stays off is a medium
@@ -90,13 +96,17 @@ A video take in a shot: 5 spread frames whole, the first and last also tiled.
   has an anchor at BOTH ends (the coincidence rule never excuses a wire;
   added after r3, measured from the r4 fixtures run on).
 - Cross-view against the board it was made from and the plates it cites; cut pair against the previous cut's last frame.
-- Sound is not this pass's job (Snap's quiet-sound note and the voice checks cover it); mention `words.sound` only when
-  it bears on the beat.
+- Sound (SNAP-R249, F-SQ47): the `sound` pass judges it with sound on: `sound.onset` (a sub-bass hit: the impact boom
+  SNAP-R150 rules out), `voice` (the Voice QA's lines and unscripted speech, SNAP-R240) and the quiet note; write one
+  line in `passes.sound`.
 
 ## cut_pair
 
 The last frame of one cut and the first frame of the next. Only the cut-pair checks, as one line each: position,
 facing, eyeline, screen direction (the 180-degree line), light (time of day), props and costume (goggles on and off).
+When `words.continuity` says the later cut continues the earlier one's action (opens_on, SNAP-R252), its frame 0 should
+equal the earlier cut's out-frame: compare camera, framing, set, light, pose and every prop's count and holder, and name
+each difference. Otherwise it is a new angle: the set, light and props carry, the framing doesn't.
 Owner: the later cut's board or prompt.
 
 ## upscale

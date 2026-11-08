@@ -957,7 +957,7 @@ export const TOOLS = [
       const now = await T.live();
       return Promise.all(T.inGroup().filter((t) => !T.aboveCap(t)).sort((a, b) => (order.includes(a.id) ? order.indexOf(a.id) : 1e9 + a.created) - (order.includes(b.id) ? order.indexOf(b.id) : 1e9 + b.created))
         .map(async (t) => ({ id: t.id, number: t.number, rank: order.includes(t.id) ? order.indexOf(t.id) + 1 : null, seed: t.seed, status: t.status, verdict: t.verdict, ...(t.verdict || t.verdicts_past?.length ? { verdict_detail: T.verdictOf(t) } : {}), prior: t.prior, notes: t.notes.length, media: t.media.map((m) => `${m.type}/${m.subfolder ? `${m.subfolder}/` : ""}${m.filename}`), prompt: t.text,
-          stale: await T.stale(t, now), copy: t.copy ?? null, ...(t.voice ? { voice: t.voice } : {}), ...(t.cached_from ? { cached_from: t.cached_from } : {}), ...(t.sound ? { sound: { mean_db: t.sound.mean_db, quiet: T.quiet(t), quiet_below_db: T.QUIET_DB } } : {}), ...(t.metadata_kept ? { metadata_kept: t.metadata_kept } : {}), rating: T.ratingOf(t), ...(T.locked(t) ? { private: true } : {}), ...(t.kept_encrypted ? { kept_encrypted: true, ...(t.locked ? { locked: true } : {}) } : {}) })));
+          stale: await T.stale(t, now), copy: t.copy ?? null, ...(t.voice ? { voice: t.voice } : {}), ...(t.cached_from ? { cached_from: t.cached_from } : {}), ...(t.sound ? { sound: { mean_db: t.sound.mean_db, quiet: T.quiet(t), quiet_below_db: T.QUIET_DB, ...(t.sound.onset?.hit ? { onset: t.sound.onset } : {}) } } : {}), ...(t.loudness ? { loudness: t.loudness } : {}), ...(t.metadata_kept ? { metadata_kept: t.metadata_kept } : {}), rating: T.ratingOf(t), ...(T.locked(t) ? { private: true } : {}), ...(t.kept_encrypted ? { kept_encrypted: true, ...(t.locked ? { locked: true } : {}) } : {}) })));
     },
   },
   {
@@ -971,7 +971,7 @@ export const TOOLS = [
       const t = T.find(take);
       if (!t || T.aboveCap(t)) throw new Error(`No take ${take} (find_take finds any take by file, seed or the start of its id)`);
       const prev = T.inGroup(t.group).filter((x) => x.created < t.created).at(-1);
-      return { id: t.id, number: t.number, seed: t.seed, status: t.status, error: t.error, verdict: t.verdict, ...(t.verdict || t.verdicts_past?.length ? { verdict_detail: T.verdictOf(t) } : {}), prior: t.prior, seconds: t.seconds, prompt: t.text, prompts: promptsOf(t.prompt), notes: t.notes, media: t.media, copy: t.copy ?? null, ...(t.voice ? { voice: t.voice } : {}), ...(t.sound ? { sound: { mean_db: t.sound.mean_db, max_db: t.sound.max_db, quiet: T.quiet(t), quiet_below_db: T.QUIET_DB } } : {}), rating: T.ratingOf(t), rating_why: t.rating_set ? ["rated by the person"] : t.rating_why ?? [], changed_since_previous: prev ? T.delta(prev, t) : [],
+      return { id: t.id, number: t.number, seed: t.seed, status: t.status, error: t.error, verdict: t.verdict, ...(t.verdict || t.verdicts_past?.length ? { verdict_detail: T.verdictOf(t) } : {}), prior: t.prior, seconds: t.seconds, prompt: t.text, prompts: promptsOf(t.prompt), notes: t.notes, media: t.media, copy: t.copy ?? null, ...(t.voice ? { voice: t.voice } : {}), ...(t.sound ? { sound: { mean_db: t.sound.mean_db, max_db: t.sound.max_db, quiet: T.quiet(t), quiet_below_db: T.QUIET_DB, ...(t.sound.onset ? { onset: t.sound.onset } : {}) } } : {}), ...(t.loudness ? { loudness: t.loudness } : {}), rating: T.ratingOf(t), rating_why: t.rating_set ? ["rated by the person"] : t.rating_why ?? [], changed_since_previous: prev ? T.delta(prev, t) : [],
         world: await worldOf(t.world), parent: t.parent ?? null, purpose: (await S.load(), await W.load(), ED.purposeOf(t)), ...(EY.note(t) ? { eyes: EY.note(t) } : {}), ...(t.eye_colour ? { eye_colour: t.eye_colour } : {}), instructions: await I.ofTake(t), ...(t.kept_encrypted ? { kept_encrypted: true, ...(t.locked ? { locked: true, said: "kept encrypted and the vault is locked: its prompt, notes and frames open once the person signs in" } : {}) } : {}) };
     },
   },
@@ -1166,7 +1166,7 @@ export const TOOLS = [
   },
   {
     name: "make_louder",
-    description: "A new version of a take with its sound normalised to -23 LUFS (EBU R128, true peak -2 dB) and the picture copied as it is, as the take's 'Make it louder' does: for a take list_takes says is quiet, when the person wants it. It lands in Takes as a version of that take: follow `run` with run_status. A quiet take usually comes from a soundscape of only soft ambience: naming the sounds the action makes in the prompt and rendering again fixes the cause.",
+    description: "A new version of a take with its sound normalised to -23 LUFS (EBU R128, true peak -2 dB) and the picture copied as it is, as the take's 'Make it louder' does: for a take list_takes says is quiet, when the person wants it. It lands in Takes as a version of that take: follow `run` with run_status; the new take's `loudness` says what it reached (LUFS and true peak) and when it fell short of -23 (F-SQ41: a lone click at frame 0 is faded out first, said). A quiet take usually comes from a soundscape of only soft ambience: naming the sounds the action makes in the prompt and rendering again fixes the cause.",
     inputSchema: { type: "object", properties: { take: { type: "string" } }, required: ["take"] },
     run: async ({ take }) => { const r = await ED.louder(await takeOf(take), "agent"); return { run: r.prompt_id, take: r.take, next: "run_status {run, wait_s: 25} until state is done" }; },
   },
@@ -1363,11 +1363,11 @@ export const TOOLS = [
   },
   {
     name: "check_copies",
-    description: "The copy check on a take (U48): score every frame against each of the take's own reference pictures (DINOv3 patches by grid position) and flag it when the mean reaches the threshold: the take re-rendered its reference's view instead of its own camera's. Returns at once; list_takes / get_take show `copy` when it is done (a few seconds). Uses GPU time: unless the person lets agents run, this waits as a proposal they accept.",
+    description: "The copy check on a take (U48, SNAP-R246): score its frames every half second and its last against each of the take's own reference pictures (DINOv3 patches by grid position) and flag it when the last frame reaches the threshold: the take re-rendered its reference's view instead of its own camera's. `copy.reaches` names any cited picture the take didn't open on and turns into later, staying there (score 0.85 or more from from_s on; M6/M2 measured 0.92-0.99): a cut, dissolve or freeze onto that picture, with its role (a key drawing, the master), and `copy.said` says to leave it out (SNAP-R242). Returns at once; list_takes / get_take show `copy` when it is done (a few seconds). Uses GPU time: unless the person lets agents run, this waits as a proposal they accept.",
     inputSchema: { type: "object", properties: { take: { type: "string" } }, required: ["take"] },
     annotations: { consequentialHint: true },
     consequential: true,
-    plan: async () => ({ runs: "DINOv3 on 5 frames of the take against each of its reference pictures", eta_s: 4, from: "U52: 3.5-4.5 s a take on a 5090" }),
+    plan: async () => ({ runs: "DINOv3 on the take's frames every half second against each of its reference pictures", eta_s: 8, from: "U52: 3.5-4.5 s for 5 frames on a 5090; every half second is about twice that" }),
     run: async ({ take }) => PL.checkTake(await takeOf(take), "agent"),
   },
   {

@@ -131,7 +131,21 @@ Look at the WHOLE frame first at full size, then crop. Never judge from a thumbn
    profile at 0.06. Neither decides: the head crops do (SNAP-R23, R76).
 5. **Beat check.** Read the beat literally. List every verb and negation ("does not take it", "the gate is closed",
    "alone"). Check the picture shows each one, and does not show its opposite.
-6. **Cross-view check** (when other views are given: master, plan, turnaround views, the source frame of an upscale).
+6. **Count pass** (boards and video takes; SNAP-R244, R245). Before any framing argument, count each story prop and
+   each person in every sampled frame (a video's packet has a frame every half second) against the packet's
+   `count_these` (each prop with its expected count and holder at the cut's opening and end) and the board it was made
+   from. Write the pass as one line per thing: "bowl ×1 expected; f0-f72 ×2 (counter + her hands); f88 ×1". A second
+   of a single story prop or person is a note with `count {thing, expected, seen, frames}`: it is written high on a
+   board as on a take (a board's duplicate is in every take made from it; the operator picked the take "because it's
+   clear and there's only 1 bowl"). A prop that changes holder off the beat, vanishes or pops in is medium.
+7. **Where a take goes** (video; SNAP-R246). Read `copy.reaches`: a cited picture the take didn't open on and turns
+   into later (a key drawing, the master) is a cut, dissolve or freeze onto it. Name it ("dissolves at 2.5 s into
+   Picture 3, the master") and put the fix on the picture (leave it out of References, SNAP-R242), never "the prompt
+   was ignored" and never "put the hold line first" (measured: no effect).
+8. **Sound pass** (video; SNAP-R249, R240). Judge with sound on. Read `sound.onset` (a sub-bass hit: an impact boom,
+   high when it is a game-style hit in a quiet beat, SNAP-R150), `voice` (the Voice QA: a line wrong, missing or
+   mistimed; unscripted speech in a silent cut is a leaked voice reference) and the quiet note.
+9. **Cross-view check** (when other views are given: master, plan, turnaround views, the source frame of an upscale).
    Put them side by side. The same object must have the same design, size, side, and attachment in every view: the
    same gate, the same number of towers, the same wall, the same scabbard length and position. For an upscale, every
    thing in the upscale must exist in the source.
@@ -146,6 +160,8 @@ Look at the WHOLE frame first at full size, then crop. Never judge from a thumbn
     extra gate or tower, a house outside the wall;
   - the beat contradicted, against a verb or negation in the script;
   - duplicated, ghost or extra people;
+  - a duplicated story prop (two bowls where the beat has one) on a take, a board or any reference picture (SNAP-R244);
+  - a take that turns into a cited picture inside the cut's planned seconds (a cut or freeze onto the key or master);
   - a carried item floating or unheld in a Cast reference sheet or turnaround;
   - an item passing through a body;
   - a person far too big or small for the set.
@@ -153,7 +169,7 @@ Look at the WHOLE frame first at full size, then crop. Never judge from a thumbn
   for example costume off the Cast, a Cast colour drift in hair, eyes or main outfit colour (also inside an effect), a
   prop design change between views, a garment's construction that disagrees between views (a split or opening in one
   view that another view sees through to and doesn't show), a well in the wrong place, a wall too low, or an unheld
-  item in a board or take.
+  item in a board or take, a story prop that changes holder off the beat, vanishes or pops in.
 - **low**: cosmetic, such as stray small objects, small fires or embers, colour shifts of props or background, labels
   or crops.
 

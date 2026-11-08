@@ -4,7 +4,7 @@
 //   pictures; the words carry the prompt, the pins with the Cast's details and the location's notes, who_should_be_here;
 // - a 4K still (3328x4096) gives 9 tiles of 1536 px with overlap covering the whole frame, each with its cell and box;
 //   part/offset/limit page the images with `next`; packet bytes are measured (A9);
-// - a note drawn on a tile is stored in the subject's own fractions; a video take's packet has 5 spread frames whole and
+// - a note drawn on a tile is stored in the subject's own fractions; a video take's packet has its frames every half second and its last whole (G17b) and
 //   tiles only of its first and last;
 // - the location's own rows (master, plan, plates, every view side by side) were made when the record was saved; the
 //   views packet has every picture of the version as a subject.
@@ -84,7 +84,7 @@ const park = (d) => { const p = path.join(snap, d); if (fs.existsSync(p)) { fs.m
     R.big.pictures.filter((p) => p[0] === "tile").every((p) => p[3] === 1536 && p[4] === 1536),
     R.page.n === 4 && R.page.next?.offset === 4 && R.page.labels?.every((l) => /tile r\dc\d/.test(l)),
     JSON.stringify(R.mapped) === JSON.stringify(R.expect),
-    R.video.pictures?.filter((p) => p[0] === "subject").length === 5 && R.video.pictures.filter((p) => p[0] === "tile").length === 0, // a 64 px video needs no tiles
+    ((f) => f.length >= 3 && f.slice(0, -1).every((x, i) => x === i * 12) && f.at(-1) > f.at(-2))(R.video.pictures?.filter((p) => p[0] === "subject").map((p) => p[1]) ?? []) && R.video.pictures.filter((p) => p[0] === "tile").length === 0, // G17b SNAP-R245: every half second and the last; a 64 px video needs no tiles
     R.locRows?.filter(([, c]) => c === "plate").length === 6 && R.locRows.some(([p, c]) => p === "master" && c === "master") && R.locRows.some(([p, c]) => p === "views" && c === "location"),
     R.views.subjects?.length === 8 && R.views.context === 1 && R.views.record === 6, // G3 F-E17: the plan with its marks drawn is the one context picture
     !R.errors.length,

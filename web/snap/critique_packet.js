@@ -21,6 +21,7 @@ import * as W from "./world.js";
 import * as SC from "./scenes.js";
 import * as RT from "./retake.js";
 import * as K from "./checks.js";
+import * as B from "./book.js";
 
 const FPS = 24, Q = 0.9;
 export const PARTS = ["all", "whole", "tiles", "context", "zoom"];
@@ -35,7 +36,9 @@ async function canvases(m, frames) {
   if (!isVideo(m)) { const img = new Image(); img.src = T.url(m); await img.decode(); return [{ frame: null, canvas: draw(img, img.naturalWidth, img.naturalHeight) }]; }
   const v = Object.assign(document.createElement("video"), { src: T.url(m), muted: true, preload: "auto" });
   await new Promise((done, fail) => { v.onloadedmetadata = done; v.onerror = () => fail(new Error(`couldn't read ${pathOf(m)}`)); });
-  const last = Math.max(0, Math.floor(v.duration * FPS) - 1), want = typeof frames === "number" ? Array.from({ length: Math.max(1, frames) }, (_, i) => Math.round((last * i) / Math.max(1, frames - 1))) : frames.map((f) => (f === "last" ? last : Math.max(0, Math.min(last, f))));
+  // SNAP-R245: "every 12" reads every 12th frame (half a second) and the last; a number spreads that many frames
+  const last = Math.max(0, Math.floor(v.duration * FPS) - 1), every = typeof frames === "string" && +frames.match(/^every (\d+)$/)?.[1];
+  const want = every ? [...Array.from({ length: Math.ceil(last / every) }, (_, i) => i * every), last] : typeof frames === "number" ? Array.from({ length: Math.max(1, frames) }, (_, i) => Math.round((last * i) / Math.max(1, frames - 1))) : frames.map((f) => (f === "last" ? last : Math.max(0, Math.min(last, f))));
   const out = [];
   for (const frame of [...new Set(want)]) {
     await new Promise((done) => { v.onseeked = done; v.currentTime = Math.min(v.duration - 0.01, (frame + 0.5) / FPS); });
@@ -172,7 +175,11 @@ function words(r, tb) {
   if (t) {
     out.prompt = t.text ?? "";
     const h = RT.shotOf(t); if (h) out.shot = { scene: h.scene.name, shot: SC.shotTitle(h.scene, h.shot), set: h.scene.set ?? null };
-    if (t.sound?.mean_db != null) out.sound = { mean_db: t.sound.mean_db, quiet_below_db: T.QUIET_DB };
+    if (t.sound?.mean_db != null) out.sound = { mean_db: t.sound.mean_db, quiet_below_db: T.QUIET_DB,
+      // SNAP-R249 (F-SQ46): the biggest short transient, measured; a sub-bass hit is the game-style impact SNAP-R150 rules out
+      ...(t.sound.onset ? { onset: { ...t.sound.onset, said: t.sound.onset.hit ? `a sub-bass hit at ${t.sound.onset.at_s} s: ${t.sound.onset.peak_db} dBFS, ${t.sound.onset.over_db} dB over the sound around it, ${Math.round(t.sound.onset.low_share * 100)} % below 150 Hz: an impact boom (SNAP-R150, F-SQ46); listen, and judge it in the sound pass` : `the biggest transient is at ${t.sound.onset.at_s} s, ${t.sound.onset.over_db} dB over the sound around it, ${Math.round(t.sound.onset.low_share * 100)} % below 150 Hz: no sub-bass hit` } } : {}) };
+    // SNAP-R246 (CC-4): the copy check's reach, so the beat pass names a cut's destination instead of "prompt ignored"
+    if (t.copy?.against) out.copy = { measured: "DINOv3 copy scores of the frames against each cited picture (0.85 or more from a frame on: the take turned into it)", ...(t.copy.reaches ? { reaches: t.copy.reaches, said: t.copy.said } : { reaches: "no cited picture is turned into" }), frames_scored: t.copy.frames_scored ?? null };
     // SNAP-R240: the Voice QA's lines and unscripted speech are measured claims beside the loudness, read with sound on
     if (t.voice?.qa) out.voice = { measured: "the Voice QA (Nemotron words and times, WavLM-large ECAPA for who): read these as measurements, then listen", status: t.voice.status, lines: t.voice.qa.lines, unscripted: t.voice.qa.unscripted, ...(t.voice.qa.why ? { why: t.voice.qa.why } : {}), ...(t.voice.qa.listen ? { listen: t.voice.qa.listen } : {}), words: t.voice.words ?? [] };
     out.pins = Object.entries(t.world ?? {}).map(([ref, p]) => { const b = W.get(W.refOf(W.parse(ref).kind, W.parse(ref).id, p.n))?.version.body ?? {};
@@ -201,6 +208,22 @@ function words(r, tb) {
   return out;
 }
 
+// SNAP-R245 (CC-1, CC-2): what to count in every sampled frame of a take or board of a Book cut: each story prop the cut
+// names or its Cast carries, one unless the story says more, with its holder at the cut's opening and end, and the
+// people; a second of one story prop or person is high on a take and on a board alike (SNAP-R244)
+async function countThese(t) {
+  const pin = t.story ?? t.graph?.extra?.snap?.story;
+  if (!pin?.unit) return null;
+  const sheet = await B.compile(pin.unit.scene, pin.unit.shot, { beats: pin.beats ?? null }).catch(() => null), story = sheet?.story && W.get(sheet.story.ref)?.version.body;
+  if (!sheet) return null;
+  const name = (v) => (story ? B.nameOf(story, v) : v), things = new Map(), put = (v, k, where) => { if (typeof v !== "string") return; const x = things.get(v) ?? { thing: name(v), expected: 1 }; x[k] = where; things.set(v, x); };
+  for (const e of sheet.entities) for (const f of e.fields) {
+    if (/^carried\./.test(f.path)) { for (const v of [f.value].flat()) put(v, "at_end", `${e.name}, ${f.path.slice(8).replace(/_/g, " ")}`); for (const v of [f.opens?.value].flat()) put(v, "at_opening", `${e.name}, ${f.path.slice(8).replace(/_/g, " ")}`); }
+    if (!e.ref.startsWith("cast:") && f.path === "holder") { put(e.ref, "at_end", f.value ? name(f.value) : "nobody"); if (f.opens) put(e.ref, "at_opening", f.opens.value ? name(f.opens.value) : "nobody"); }
+  }
+  for (const e of sheet.entities.filter((x) => !x.ref.startsWith("cast:"))) if (!things.has(e.ref)) things.set(e.ref, { thing: e.name, expected: 1 });
+  return { rule: "count each story prop and each person in every sampled frame (every half second) against these and the beat; a second of a single story prop or person is high, on a board as on a take (SNAP-R244, R245): write one note with count {thing, expected, seen, frames}", props: [...things.values()], people: sheet.entities.filter((e) => e.ref.startsWith("cast:")).map((e) => e.name), cut: sheet.cut, ...(sheet.dials ? { dials: sheet.dials.rows } : {}) };
+}
 // F-U05 (SNAP-R193): a zoom is a 100 % tile around a small region (a 60 px monocle is lost in a 1536 px tile), with a
 // 2x copy when it is small, each mapped like a tile so a note drawn on it lands on the subject
 const ZOOM = { pad: 0.25, min: 160, twice: 512, changed: 28, cell: 8, most: 4 };
@@ -233,6 +256,8 @@ function changed(a, b) {
 // row so a later call keeps their numbers
 export async function build(r, tb, { zoom = [] } = {}) {
   const pics = [], images = [], tile = tb.tile, rule = (tb.checklists[r.checklist] ?? tb.checklists.still).tiles, ctx = contextOf(r, tb), w = words(r, tb);
+  const counted = r.subject.kind === "take" && T.get(r.subject.take) ? await countThese(T.get(r.subject.take)) : null;
+  if (counted) w.count_these = counted;
   if (r.checklist !== "cut_pair" && !ctx.some((x) => /previous cut/.test(x.what))) w.passes = w.passes.filter((x) => x !== "cut_pair"); // no previous cut in the packet: nothing to pair
   const subs = subjects(r, tb);
   const wholes = [];

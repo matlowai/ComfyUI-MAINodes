@@ -302,10 +302,13 @@ async function captureRun(id, started, status, error, failedNode) {
   const twin = files.length ? takes.find((t) => t.status === "success" && t.media.length === files.length && t.media.every((m, i) => m.filename === files[i].filename && m.subfolder === files[i].subfolder && m.type === files[i].type)) : null;
   const read = video && await api.fetchApi(`/mainodes/snap/loudness?filename=${encodeURIComponent(video.filename)}&subfolder=${encodeURIComponent(video.subfolder)}&type=${video.type}`);
   const sound = read?.ok ? await read.json() : null; // no ffmpeg here: no note, the take is saved all the same
+  // F-SQ41: make it louder says the loudness it reached, and when that fell short of the -23 LUFS asked
+  const loud = Object.values(h.outputs ?? {}).find((o) => o?.loudness)?.loudness?.[0];
+  const loudness = loud?.lufs != null ? { ...loud, said: `reached ${loud.lufs} LUFS (true peak ${loud.true_peak_db} dBFS) for ${loud.asked_lufs} asked${loud.declicked ? ", after a short fade-in took a click off its first frame" : ""}${loud.lufs < loud.asked_lufs - 1.5 ? `: short by ${+(loud.asked_lufs - loud.lufs).toFixed(1)} dB (a peak holds it down); raise it in the Cut instead (set_unit {trim: {gain_db}})` : ""}` } : null;
   await save({
     id: `take-${id}`, kind: "run", prompt_id: id, created: started, finished: Date.now(), seconds: Math.round((Date.now() - started) / 100) / 10,
     group, workflow: app.extensionManager.workflow.activeWorkflow?.filename ?? "", number: n,
-    status, ...(error ? { error, failed_node: failedNode } : {}), text, seed, media: files, ...(sound?.sound ? { sound: { mean_db: sound.mean_db, max_db: sound.max_db } } : {}),
+    status, ...(error ? { error, failed_node: failedNode } : {}), text, seed, media: files, ...(sound?.sound ? { sound: { mean_db: sound.mean_db, max_db: sound.max_db, ...(sound.onset ? { onset: sound.onset } : {}) } } : {}), ...(loudness ? { loudness } : {}),
     ...(extra?.snap_marks?.private ? { private: true } : {}), ...(extra?.snap_marks?.nsfw ? { nsfw: true } : {}), ...(extra?.snap_marks?.encrypted ? { kept_encrypted: true } : {}),
     ...rated(extra?.snap_marks, graph, parent), ...madeFrom(graph, parent),
     ...(extra?.snap_marks?.metadata === false ? { metadata: false } : {}), ...(extra?.snap_marks?.kept ? { metadata_kept: extra.snap_marks.kept } : {}), ...(Object.keys(swapped).length ? { swapped } : {}), ...(parent ? { parent } : {}), ...await hashes(canonical(prompt, swapped)), recipe_digest: `sha256:${await W.sha(prompt)}`,

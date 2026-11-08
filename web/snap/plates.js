@@ -239,8 +239,19 @@ export function referencePictures(prompt) {
   }
   return out;
 }
-const FRAMES = [0, 24, 48, 72, -1]; // the frames scored (U48 §3's, ending on the last); a shorter clip repeats its last
 const annotated = K.annotated;
+// SNAP-R246 (CC-4): a video's frames scored every half second (every 12th frame at 24 fps) and its last, so a cut or a
+// freeze onto a cited picture is found where it happens; a still is its one picture
+const REACHED = 0.85; // M6 / M2: a take that turned into a cited picture scores 0.92-0.99 against it from that frame on
+async function frameList(m) {
+  const v = Object.assign(document.createElement("video"), { src: K.url(m), muted: true, preload: "metadata" });
+  const seconds = await new Promise((done) => { v.onloadedmetadata = () => done(v.duration); v.onerror = () => done(null); });
+  const last = seconds ? Math.max(0, Math.floor(seconds * 24) - 1) : 106, out = [];
+  for (let f = 0; f < last; f += 12) out.push(f);
+  return [...out, last];
+}
+// what each reference picture was for, from the take's own References brick (its role), by file
+const rolesOf = (take) => new Map((take.graph?.extra?.snap?.bricks?.find((b) => b.key === "refs")?.pictures ?? []).map((p) => [p.file, p.role ?? null]));
 
 // score five frames of a take against each of its reference pictures; the take is flagged when its last frame reaches
 // the threshold for any of them: a Ref2V take often starts on its reference's view (0.98 at frame 0 in U52's orbit
@@ -253,24 +264,29 @@ export async function checkTake(take, by = "person") {
   if (!m) throw new Error(`Take ${take.number} has no picture or video`);
   const { encoder, threshold } = await copyCheck();
   const g = { 1: { class_type: "CLIPVisionLoader", inputs: { clip_name: encoder } } };
+  const frames = m.kind === "video" ? await frameList(m) : [0];
   if (m.kind === "video") {
     Object.assign(g, { 2: { class_type: "LoadVideo", inputs: { file: annotated(m) } }, 4: { class_type: "GetVideoComponents", inputs: { video: ["2", 0] } } });
-    FRAMES.forEach((f, i) => { g[5 + i] = { class_type: "ImageFromBatch", inputs: { image: ["4", 0], batch_index: f, length: 1 } }; });
-    g[3] = { class_type: "BatchImagesNode", inputs: Object.fromEntries(FRAMES.map((_, i) => [`images.image${i}`, [String(5 + i), 0]])) };
+    frames.forEach((f, i) => { g[`f${i}`] = { class_type: "ImageFromBatch", inputs: { image: ["4", 0], batch_index: f, length: 1 } }; });
+    g[3] = { class_type: "BatchImagesNode", inputs: Object.fromEntries(frames.map((_, i) => [`images.image${i}`, [`f${i}`, 0]])) };
   } else g[3] = { class_type: "LoadImage", inputs: { image: annotated(m) } };
   refs.forEach((image, i) => { g[20 + 2 * i] = { class_type: "LoadImage", inputs: { image } }; g[21 + 2 * i] = { class_type: "MAISnapCopyScore", inputs: { clip_vision: ["1", 0], reference: [String(20 + 2 * i), 0], images: ["3", 0] } }; });
   const id = await K.queue(g, { job: { kind: "check", title: `Copy check: did take ${take.number} re-render its reference picture's view?`, about: { take: take.id, group: take.group }, by, takes: false } });
-  take.copy = { pending: true, by, prompt_id: id, refs, threshold };
+  take.copy = { pending: true, by, prompt_id: id, refs, threshold, frames };
   await T.save(take);
   copied(take);
   return { queued: true, references: refs.length, threshold };
 }
 // a copy check's scores onto its take, once its prompt is done
 function copied(take) {
-  const { by, prompt_id, refs, threshold } = take.copy;
+  const { by, prompt_id, refs, threshold, frames = [] } = take.copy, roles = rolesOf(take);
   K.checked(prompt_id).then((h) => {
-    const against = refs.map((image, i) => { const s = h.outputs?.[String(21 + 2 * i)]?.copy_scores ?? []; return { image, last: s.at(-1) ?? null, frames: s.map((x) => +x.toFixed(3)) }; });
-    return { against, threshold, copied: against.some((a) => a.last >= threshold), by, at: new Date().toISOString() };
+    const against = refs.map((image, i) => { const s = h.outputs?.[String(21 + 2 * i)]?.copy_scores ?? []; return { image, picture: `<Picture ${i + 1}>`, role: roles.get(image) ?? null, last: s.at(-1) ?? null, frames: s.map((x) => +x.toFixed(3)) }; });
+    // SNAP-R246 (CC-4): a picture the take didn't open on and turns into later, staying there: a cut, a dissolve or a
+    // freeze onto it; the note names it, so the fix is "leave that picture out" (SNAP-R242), not "the prompt was ignored"
+    const reached = against.map((a) => { const k = a.frames.findIndex((x, j) => j > 0 && a.frames.slice(j).every((y) => y >= REACHED)); return a.frames.length > 1 && a.frames[0] < REACHED && k > 0 ? { ...a, from_s: +((frames[k] ?? 0) / 24).toFixed(2), score: a.frames.at(-1) } : null; }).filter(Boolean);
+    return { against, threshold, copied: against.some((a) => a.last >= threshold), ...(frames.length ? { frames_scored: frames } : {}),
+      ...(reached.length ? { reaches: reached.map((a) => ({ picture: a.picture, image: a.image, role: a.role, from_s: a.from_s, score: a.score })), said: reached.map((a) => `the take turns into ${a.picture}${a.role ? ` (${a.role})` : ""} from ${a.from_s} s (${a.score}): a cut, dissolve or freeze onto a cited picture; leave that picture out of References (SNAP-R242) rather than re-rolling`).join("; ") } : {}), by, at: new Date().toISOString() };
   }, (e) => ({ error: e.message, by, at: new Date().toISOString() })).then((copy) => { take.copy = copy; return T.save(take); }).catch((e) => console.warn(`copy check: ${e.message}`));
 }
 // copy checks still pending when the page loaded (a reload while one ran): finish them from the server's history; one

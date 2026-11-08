@@ -1325,6 +1325,37 @@ def volume(path):
     return (float(mean[1]), float(peak[1])) if mean and peak else None
 
 
+# SNAP-R249 (F-SQ46): the AST tagger's 2 s windows average a 0.1 s hit away, so the take's biggest short transient is
+# measured on its own: its time, its 10 ms level, how far it stands over the sound around it (the median of the 10 ms
+# levels within a second either side, the 0.1 s around it left out) and the share of its energy below 150 Hz. short05
+# C3's boom: -6.9 dBFS, ~35 dB over the slurp, 62 % below 150 Hz, which the critic heard and the tagger missed
+HIT_OVER_DB, HIT_LOW_SHARE = 20.0, 0.5
+
+
+def onset(path):
+    """The biggest 10 ms transient of a file's sound: {at_s, peak_db, over_db, low_share, hit}, or None without sound."""
+    r = subprocess.run(["nice", "-n", "10", "ffmpeg", "-v", "error", "-i", path, "-vn", "-ac", "1", "-ar", "16000", "-f", "f32le", "-"], capture_output=True, timeout=120)
+    x = np.frombuffer(r.stdout, np.float32)
+    w = 160  # 10 ms at 16 kHz
+    n = x.size // w
+    if n < 20:
+        return None
+    db = 20 * np.log10(np.sqrt((x[:n * w].reshape(n, w).astype(np.float64) ** 2).mean(1)) + 1e-9)
+    k = int(db.argmax())
+    around = np.concatenate([db[max(0, k - 100):max(0, k - 10)], db[k + 10:k + 100]])
+    over = float(db[k] - np.median(around)) if around.size else 0.0
+    seg = x[max(0, (k - 5) * w):(k + 5) * w].astype(np.float64)
+    spec, freq = np.abs(np.fft.rfft(seg * np.hanning(seg.size))) ** 2, np.fft.rfftfreq(seg.size, 1 / 16000)
+    low = float(spec[freq < 150].sum() / max(spec.sum(), 1e-12))
+    return {"at_s": round(k * w / 16000, 2), "peak_db": round(float(db[k]), 1), "over_db": round(over, 1), "low_share": round(low, 2),
+            "hit": bool(over >= HIT_OVER_DB and low >= HIT_LOW_SHARE)}
+
+
+def measure_sound(path):
+    found = volume(path)
+    return None if found is None else (*found, onset(path))
+
+
 @routes.get("/mainodes/snap/loudness")
 async def loudness(request):
     q = request.query
@@ -1335,21 +1366,36 @@ async def loudness(request):
     if snap_vault_server is not None and snap_vault_server.on():
         def measure():
             with snap_vault_server.plain_copy(path, snap_vault_server.requester(request)) as p:
-                return volume(p)
+                return measure_sound(p)
         try:
             found = await asyncio.to_thread(measure)
         except snap_vault_server.snap_vault.Locked as e:
             return web.json_response({"error": str(e), "locked": True}, status=423)
     else:
-        found = await asyncio.to_thread(volume, path)
-    return web.json_response({"sound": False} if found is None else {"sound": True, "mean_db": found[0], "max_db": found[1]})
+        found = await asyncio.to_thread(measure_sound, path)
+    return web.json_response({"sound": False} if found is None else {"sound": True, "mean_db": found[0], "max_db": found[1], **({"onset": found[2]} if found[2] else {})})
+
+
+# F-SQ41: a lone click in the first 0.1 s (short05 C1's frame 0 at -3.1 dBFS against a body near -17) holds loudnorm's true
+# peak down, so the take came out at -30.9 LUFS for -23 asked; a short fade-in takes the click off first, and the result
+# is measured (EBU R128) so the take says what it reached
+def louder_filter(path):
+    o = onset(path)
+    return ("afade=t=in:d=0.08," if o and o["at_s"] < 0.1 and o["over_db"] >= HIT_OVER_DB else "") + "loudnorm=I=-23:TP=-2", bool(o and o["at_s"] < 0.1 and o["over_db"] >= HIT_OVER_DB)
+
+
+def reached(path):
+    """The integrated loudness and true peak a file's sound reached (ffmpeg ebur128), or None."""
+    r = subprocess.run(["nice", "-n", "10", "ffmpeg", "-hide_banner", "-nostats", "-i", path, "-vn", "-af", "ebur128=peak=true", "-f", "null", "-"], capture_output=True, text=True, timeout=120)
+    i, p = re.findall(r"I:\s+(-?[\d.]+) LUFS", r.stderr), re.findall(r"Peak:\s+(-?[\d.]+) dBFS", r.stderr)
+    return {"lufs": float(i[-1]), "true_peak_db": float(p[-1])} if i and p else None
 
 
 class MAISnapLouder(io.ComfyNode):
     @classmethod
     def define_schema(cls):
         return io.Schema(node_id="MAISnapLouder", display_name="Make the sound louder (Snap)", category="MAINodes/snap",
-                         description="Loudness-normalises a video's sound to EBU R128 (ffmpeg loudnorm I=-23, TP=-2); the picture is copied as it is.",
+                         description="Loudness-normalises a video's sound to EBU R128 (ffmpeg loudnorm I=-23, TP=-2), after a short fade-in when a lone click opens it; the picture is copied as it is. Says the loudness it reached.",
                          inputs=[io.Video.Input("video")], outputs=[io.Video.Output()])
 
     @classmethod
@@ -1358,14 +1404,16 @@ class MAISnapLouder(io.ComfyNode):
         if isinstance(src, BytesIO) and snap_vault_server is not None:  # a take kept encrypted, opened in memory: work in RAM scratch (SNAP-R98)
             with snap_vault_server.scratch("in.mp4") as a, snap_vault_server.scratch("out.mp4") as b:
                 a.write_bytes(src.getbuffer())
-                subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(a), "-c:v", "copy", "-af", "loudnorm=I=-23:TP=-2", "-ar", "48000", "-c:a", "aac", "-b:a", "192k", str(b)], check=True, timeout=600)
-                return io.NodeOutput(InputImpl.VideoFromFile(BytesIO(b.read_bytes())))
+                af, declicked = louder_filter(str(a))
+                subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(a), "-c:v", "copy", "-af", af, "-ar", "48000", "-c:a", "aac", "-b:a", "192k", str(b)], check=True, timeout=600)
+                return io.NodeOutput(InputImpl.VideoFromFile(BytesIO(b.read_bytes())), ui={"loudness": [{**(reached(str(b)) or {}), "asked_lufs": -23, "declicked": declicked}]})
         if not isinstance(src, str):  # a video made in this run (CreateVideo) has no file yet
             src = os.path.join(temp, f"snap_louder_in_{uuid.uuid4().hex}.mp4")
             video.save_to(src)
         out = os.path.join(temp, f"snap_louder_{uuid.uuid4().hex}.mp4")
-        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", src, "-c:v", "copy", "-af", "loudnorm=I=-23:TP=-2", "-ar", "48000", "-c:a", "aac", "-b:a", "192k", out], check=True, timeout=600)
-        return io.NodeOutput(InputImpl.VideoFromFile(out))
+        af, declicked = louder_filter(src)
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", src, "-c:v", "copy", "-af", af, "-ar", "48000", "-c:a", "aac", "-b:a", "192k", out], check=True, timeout=600)
+        return io.NodeOutput(InputImpl.VideoFromFile(out), ui={"loudness": [{**(reached(out) or {}), "asked_lufs": -23, "declicked": declicked}]})
 
 
 class MAISnapCopyScore(io.ComfyNode):

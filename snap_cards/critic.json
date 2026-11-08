@@ -1,7 +1,7 @@
 {
   "about": "What the critic reads for each kind of picture (SNAP-R104): the passes it runs, the context pictures the packet carries and how big pictures are tiled. A builder adds a subject by adding a row. The words an agent reads for each row live in the snap-critic skill's reference.md, under the same name.",
   "tile": { "size": 1536, "overlap": 0.1, "why": "a vision read covers about 1.15 MP (long side ~1568 px), so a bigger picture is read again as 100% tiles after the whole frame (SNAP-R102)" },
-  "passes": ["scan", "map", "support", "cast", "beat", "cross_view", "cut_pair", "scale"],
+  "passes": ["scan", "map", "support", "cast", "beat", "cross_view", "cut_pair", "scale", "count", "sound"],
   "checklists": {
     "master": { "label": "a location's master", "passes": ["scan", "map", "support", "cross_view", "scale"], "context": ["plan", "cameras"], "tiles": "all" },
     "plate": { "label": "a location plate", "passes": ["scan", "map", "support", "cross_view", "scale"], "context": ["master", "plan", "plates"], "tiles": "all" },
@@ -9,8 +9,8 @@
     "plan": { "label": "a location's set plan", "passes": ["map", "cross_view"], "context": ["master"], "tiles": "none" },
     "settei": { "label": "settei: a design reference of a place or prop", "passes": ["scan", "support", "cross_view"], "context": ["record"], "tiles": "all" },
     "sheet": { "label": "a Cast picture, sheet or turnaround", "passes": ["scan", "support", "cast", "cross_view"], "context": ["cast"], "tiles": "views" },
-    "board": { "label": "a board or still in a shot", "passes": ["scan", "map", "support", "cast", "beat", "cross_view", "cut_pair", "scale"], "context": ["master", "plates", "cast", "previous"], "tiles": "all" },
-    "cut": { "label": "a video take in a shot", "passes": ["scan", "map", "support", "cast", "beat", "cross_view", "cut_pair"], "context": ["board", "plates", "cast", "previous"], "tiles": "ends", "frames": 5 },
+    "board": { "label": "a board or still in a shot", "passes": ["scan", "map", "support", "cast", "beat", "cross_view", "cut_pair", "scale", "count"], "context": ["master", "plates", "cast", "previous"], "tiles": "all" },
+    "cut": { "label": "a video take in a shot", "passes": ["scan", "map", "support", "cast", "beat", "cross_view", "cut_pair", "count", "sound"], "context": ["board", "plates", "cast", "previous"], "tiles": "ends", "frames": "every 12", "frames_why": "SNAP-R245 (CC-1): every half second (every 12th frame at 24 fps) and the last; 5 spread frames missed short05 C1's second bowl" },
     "walk": { "label": "a people-free walkthrough of a location: a video whose frames become plates (F-K06)", "passes": ["scan", "map", "support", "cross_view"], "context": ["master", "plan", "plates"], "tiles": "ends", "frames": 5 },
     "cut_pair": { "label": "a cut pair: the last frame of one cut and the first of the next", "passes": ["cut_pair"], "context": ["boards"], "tiles": "none" },
     "upscale": { "label": "an upscaled take", "passes": ["scan", "cross_view"], "context": ["source"], "tiles": "all" },
