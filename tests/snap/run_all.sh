@@ -53,7 +53,7 @@ checks = {
  "ui": lambda r: [r["drag"]["move"]["long"] <= 1 and r["drag"]["move"]["worstMs"] <= 34, r["drag"]["lift"]["long"] <= 1 and r["drag"]["lift"]["worstMs"] <= 34, r["upscaleAfterRemove"]["from"] == "Dials - H3 + De-rope" and "upscale" not in r["upscaleAfterRemove"]["bricks"], r["upscaleAfterInsert"]["from"] == "RelayVSR", r["drawsWhileSnap"]["draws"] == 0, r["graphUnchanged"], r["reverse"]["stuck"] == 0, r["overrideChip"] == 1, r["vue"]["bricks"] == 7, not r["errors"]],
  "ui2": lambda r: [r["paletteOpenMs"] < 50, len(r["appMode"]) == 11, 290 - 30 <= r["switchMsNormal"]["looksDone"] <= 350, r["switchMsReduced"]["looksDone"] <= 150, r["touchOrder"][0] == "refs", r["touchScroll"]["before"] == r["touchScroll"]["after"], all(v <= 0 for v in r["phone"].values()), not r["errorsA"], not r["errorsT"],
    r["groupMidDrag"], r["groupOrder"][:2] == ["render", "models"] and r["groupOrder"][-2:] == ["upscale", "save_video"], r["groupDom"] == [k for k in r["groupOrder"] if k != "preset"], not r["errorsG"]],
- "agent": lambda r: [len(r["mcpTools"]) == 189, [c["isError"] for c in r["calls"]] == [False] * 6 + [True] + [False] * 6 + [True], r["lengthInGraph"] == 97, r["unknownTool"]["isError"], not r["errors"]],
+ "agent": lambda r: [len(r["mcpTools"]) == 190, [c["isError"] for c in r["calls"]] == [False] * 6 + [True] + [False] * 6 + [True], r["lengthInGraph"] == 97, r["unknownTool"]["isError"], not r["errors"]],
  "seteditor": lambda r: [len(r["applied"]) == 2, r["editorOpen"] == 1, "line between Ferro and Kon" in r["warn"], "Bare walls only" in r["blockAfter"],
    len(r["afterApply"]) == 2 and all("-mine_" in x for x in r["afterApply"]) and [x.split("|")[0] for x in r["afterApply"]] == [x.split("|")[0] for x in r["applied"]],
    r["editorClosed"], r["myEdit"][0] == "set-lamp-room-end-s3-mine", r["reopenedShot"] == "shot 4", "screen direction flips" in r["reopenedWarn"], len([t for t in r["savedCards"] if "bridge" not in t]) == 1, r["escClosed"], not r["errors"],
@@ -107,10 +107,10 @@ checks = {
    r["row"]["ends"] == ["frozen", "zoomies"] and r["row"]["bands"], [s for _, s in r["afterSlide"]["widget"]] == [1.25] and r["afterSlide"]["panel"] == [1.25], r["libraryDials"]["n"] >= 1,
    r["make"]["posted"] == 1 and len(r["make"]["targets"]) == 1 and r["make"]["name"] == "calm_sea_stormy_sea" and r["make"]["labels"] == ["calm sea", "stormy sea"] and r["make"]["useful"] == 0,
    r["make"]["pairs"].count("|||") == 2, r["make"]["nodeRemoved"], "didn't take" in r["make"]["status"], not r["errors"]],
- "agentfull": lambda r: [r["mcpTools"]["n"] == 189 and not r["mcpTools"]["has"], r["setSeed"] == 1234, "wired from Render Preset" in r["setWired"], "takes one of" in r["badChoice"] and bool(r["goodChoice"]),
+ "agentfull": lambda r: [r["mcpTools"]["n"] == 190 and not r["mcpTools"]["has"], r["setSeed"] == 1234, "wired from Render Preset" in r["setWired"], "takes one of" in r["badChoice"] and bool(r["goodChoice"]),
    "dials/h3_motion_hook.safetensors" in r["dialsFound"], r["setDial"]["strength"] == 1.5, r["uiSelect"]["selected"] == "rack", r["uiDials"] == "Dials" and r["uiClose"] is None,
    r["upload"]["set"]["value"] == r["upload"]["name"], bool(r["run"].get("proposed") and r["makeDial"].get("proposed")), [p["tool"] for p in r["proposals"]] == ["run", "make_dial"],
-   r["undo"]["after"] != r["undo"]["before"] and r["undo"]["redone"] == r["undo"]["before"], r["webmcp"].get("count") == 184 and r["webmcp"].get("strength") == -0.75 and r["webmcp"]["consequential"]["consequentialHint"], r["queue"] == 0, not r["errors"]],
+   r["undo"]["after"] != r["undo"]["before"] and r["undo"]["redone"] == r["undo"]["before"], r["webmcp"].get("count") == 185 and r["webmcp"].get("strength") == -0.75 and r["webmcp"]["consequential"]["consequentialHint"], r["queue"] == 0, not r["errors"]],
  "sight": lambda r: [r["before"]["isError"] and "Let agents see" in r["before"]["text"], r["button"].endswith("Agents can see"), not r["after"]["isError"] and r["after"]["types"] == ["image", "text"] and r["after"]["mime"] == "image/jpeg" and r["after"]["bytes"] > 10000,
    r["stopped"].endswith("Let agents see"), r["queue"] == 0, not r["errors"]],
  "models": lambda r: [r["created"]["model"].startswith("h3/") and r["created"]["lora"].startswith("h3/pika") and r["created"]["current"] == {"name": "Pika H3 Flex", "edited": False},
@@ -339,7 +339,7 @@ checks = {
    r["run"]["proposed"] and r["run"]["plan"]["eta_s"] == 70 and "same recipe" in r["run"]["plan"]["from"] and "about 70 s" in (r["chip"] or "") and r["listed"],
    r["runFrom"]["tabs"] == r["tabsBefore"] + 1 and r["runFrom"]["length"] == 73 and r["runFrom"]["selected"] == "render" and r["runFrom"]["showing"] and "nothing is queued" in r["runFrom"]["toast"] and not r["runFrom"]["sheet"],
    r["listsNotStale"], r["queue"] == 0 and r["sam"] == 1, not r["errors"]],
- "newcomer": lambda r: [len(r["tools"]) == 189 and "set_agent_permissions" in r["tools"], r["profile"]["agents"]["run"] is False,
+ "newcomer": lambda r: [len(r["tools"]) == 190 and "set_agent_permissions" in r["tools"], r["profile"]["agents"]["run"] is False,
    r["allowRun"]["value"]["run"] is True and r["afterRun"]["setting"] is True and r["afterRun"]["profile"]["run"] is True,
    not r["allowSee"]["error"] and "screenshot shows this page" in r["allowSee"]["value"].get("note", ""), r["screenshot"]["error"] and "take_frames" in r["screenshot"]["value"],
    r["firstFrame"]["on"] is False and "text to video" in r["firstFrame"]["off"], r["renderLength"]["fps"] == 24 and r["renderLength"]["seconds"] == round(r["renderLength"]["value"] / 24, 2),
@@ -652,6 +652,17 @@ for t in test_g17_export.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port
 # G17a a shot has one tab (SNAP-R235, F-SQ18): the bake-off's MOSS → Pika sequence never saves the stale tab over the
 # shot; two claimants open the one holding the saved workflow; retake open_only restores; prints "g17shots n/m"
 for t in test_g17_shots.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
+# G17b prompt craft (SNAP-R242, R243, R248, R250) on short05 v3's frames: the key and master left out and said, the
+# inclusion errors, the look-alike / timing / two-places / soundscape lints; prints "g17bcraft n/m"
+for t in test_g17b_craft.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
+# G17b continuity across cuts (SNAP-R252, R253) on short05 v3a2's C1/C2: opens_on frame 89 and its staleness, the
+# packet's continuity sentence, the set reference from C1's look and a cut switched to it; prints "g17bcontinuity n/m"
+for t in test_g17b_continuity.js; do park; timeout 1200 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
+# G17b the critic (SNAP-R244-R247, R249; F-SQ41, F-SQ46) on the M6 clash takes and short05's C1/C3: where a take goes,
+# the boom, make_louder's click, a packet every half second with count_these, a duplicate written high; prints "g17bcritic n/m"
+for t in test_g17b_critic.js; do park; timeout 2400 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
+# G17b the voice reference's words (SNAP-R241) and the small findings (F-SQ01/04/06/07/10/45, F-AC01/05/09); prints "g17bmisc n/m"
+for t in test_g17b_misc.js; do park; timeout 900 nice -n 19 node "$T/$t" "$port" "$SNAP_TEST_BASE" >$t.out 2>&1; tail -1 $t.out; done
 # SNAP-R109: the shipped critic prompt's last real run on the fixtures holds the floor (fixtures.json: r5b, 27/31, 0 FA;
 # a real-agent check, re-scored from its saved notes). critic = r6, the shipped prompt (r5b + metres from the record's
 # scale, SNAP-R155); critic5b = the floor's own run. The r3/r4/r5 runs stay in critic/runs/ as history (critic/README.md)

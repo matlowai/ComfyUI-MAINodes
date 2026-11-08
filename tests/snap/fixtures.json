@@ -19,7 +19,9 @@
   "voice_timbre": "the voice timbre scout's clips, embeddings and rounds (G1b voice note)",
   "short05": "the anime dogfood short05 'One More Bowl': the live C2 board s9221 (Kuroe in spectacles, the critic's finding F-Q20) the G9 Room suite shows",
   "g14": "real region edits cropped to the box and 24 px around it (picture and pasted box), with each box's place and feather (seam_cases.json), and fix B s9912's Picture 1, edit and two stage 2 redraws around the head (G14 seam tone and keep-edit suites)",
-  "seq02_bakeoff": "the anime dogfood seq02 dials bake-off: the dramatic-light clash w05 (take-7eb0036f: its clip, its take record with the graph that ran, and the frame-46 crop the continuity insert used), test_g17_dials.js and test_g17_export.js"
+  "seq02_bakeoff": "the anime dogfood seq02 dials bake-off: the dramatic-light clash w05 (take-7eb0036f: its clip, its take record with the graph that ran, and the frame-46 crop the continuity insert used), test_g17_dials.js and test_g17_export.js",
+  "short05_v3": "the anime dogfood short05 'One More Bowl' v3a2: C1 preset C (take-00767c8d, trimmed 0.125-3.75 s in the Cut, a click at frame 0), C2 opened on C1's out-frame (take-f2da44fb), C3's boom (take-6f3e2b88) and its softer pick (take-b02bee92), C4 'One more bowl.' (take-b80dc620), short03 v4 C1's voice leak (take-0d77cb14, F-SQ11), Kuroe's voice reference and the takes' records; the G17b suites (continuity, craft, critic, misc, voice QA)",
+  "seq02_m6": "the seq02 clash measurement M6 (PROMPT_CRAFT_RULES §8): the take with the key drawing in References (take-ec21712e, s4242: it freezes on the key by 2.5 s) and the one without (take-05ac2594), their four reference pictures and the key take's record; test_g17b_critic.js"
  },
  "files": [
   {
@@ -2096,6 +2098,101 @@
    "path": "seq02_bakeoff/w05_take.json",
    "bytes": 79673,
    "sha256": "4415b51c173e5ff795913797d13eebe19d111db906e2b9d2099529c6dce0c2ea"
+  },
+  {
+   "path": "short05_v3/c1_take-00767c8d.mp4",
+   "bytes": 10684300,
+   "sha256": "b7fcb03dd17c8c5160697d8aca76cb537b9f00057782a7e32e32b293a005a296"
+  },
+  {
+   "path": "short05_v3/c2_take-f2da44fb.mp4",
+   "bytes": 10366019,
+   "sha256": "410b8b0b78cb2a4eb05f334fd60ec90a4109f3cf7cbed0bc30e30ce40c6a9ad2"
+  },
+  {
+   "path": "short05_v3/c3_take-6f3e2b88_boom.mp4",
+   "bytes": 12454642,
+   "sha256": "a5d716e58e7cfbba17d0c3e35e55286ef553fe0b7595282c8d73b493250a3551"
+  },
+  {
+   "path": "short05_v3/c3_take-b02bee92_softer.mp4",
+   "bytes": 12624289,
+   "sha256": "f1223b99079ae2aaa5deab11cb76b4d8033708119d73a754e253b7b4ce4087be"
+  },
+  {
+   "path": "short05_v3/c4_take-b80dc620_one_more_bowl.mp4",
+   "bytes": 10371404,
+   "sha256": "88556a5bbf71ea644dd7bb7f39d0848330dd6a00d531378ce0c16eb7c3b2343a"
+  },
+  {
+   "path": "short05_v3/kuroe_voice_ref.wav",
+   "bytes": 120910,
+   "sha256": "92c6b331db14a004946d602e2b97dde22cdf677aa592672bae2220b6fca498cb"
+  },
+  {
+   "path": "short05_v3/short03_c1_take-0d77cb14_leak.mp4",
+   "bytes": 791731,
+   "sha256": "d4da5cb72371d4ceb93e7d661cc6ba345d9ee0a387c29e1ab1dde1fe22f4905e"
+  },
+  {
+   "path": "short05_v3/take-00767c8d-eec4-4b95-82ff-944875c68ffb.json",
+   "bytes": 85849,
+   "sha256": "f66b341b8e1cb453070f233e1474303f07909df987ec42f2ef76a6cf9dd82d6f"
+  },
+  {
+   "path": "short05_v3/take-0d77cb14-6cf0-48ec-883a-f7f1d4d96df5.json",
+   "bytes": 78485,
+   "sha256": "6b971939a0dc0d9d767b142b59e017494bf5b03cb344f744674e29a12a26bba4"
+  },
+  {
+   "path": "short05_v3/take-6f3e2b88-1812-4428-86ab-07767172e516.json",
+   "bytes": 105678,
+   "sha256": "ea18d9a6deb54149d8be28a00155a20fd30e6605c6f145b2bd3cc6902b7b3938"
+  },
+  {
+   "path": "short05_v3/take-b80dc620-60fc-4a66-bebb-e11b50c939a5.json",
+   "bytes": 94740,
+   "sha256": "9954eedf8a949165b7ba0a6152481d15300285aa4f304ce93f884ca0940bc173"
+  },
+  {
+   "path": "short05_v3/take-f2da44fb-5603-4677-913e-5a906f1e15e1.json",
+   "bytes": 84013,
+   "sha256": "386e02654a9feebed3c2c881415e8a2b519c870c24929bc42625798be7c1a67f"
+  },
+  {
+   "path": "seq02_m6/m6_a_nokey_s4242_take-05ac2594.mp4",
+   "bytes": 1011117,
+   "sha256": "ec97e64b6315de2e54142b569c56ee2a518b8bbb26280b19e45ae744c8bed170"
+  },
+  {
+   "path": "seq02_m6/m6_c_key_s4242_take-ec21712e.mp4",
+   "bytes": 929798,
+   "sha256": "8278ba1e5011397361dfb14d62c5c811a5463e629ef48a2253c5a15c593a5bd9"
+  },
+  {
+   "path": "seq02_m6/take-92e5c048-f235-431e-9563-3be2e6690116_f0.png",
+   "bytes": 4466521,
+   "sha256": "d72d8449e9da0cfe646a149f839365808000b0757a19e0a11fc300c2ed47b601"
+  },
+  {
+   "path": "seq02_m6/take-9873668c-826b-49aa-9005-083465fe9564_f0.png",
+   "bytes": 905280,
+   "sha256": "d622a8d4236b25cb3ef271ec70a6deb7d99fdbbe23dbdac1353cafff4642b4c5"
+  },
+  {
+   "path": "seq02_m6/take-b71e146d-85c2-4426-b84d-360faf21fd78_f0.png",
+   "bytes": 4634233,
+   "sha256": "ba9fecad095399f6ff339679a1d6b49aaded4d709cde2e9e6d3af095939d2cb3"
+  },
+  {
+   "path": "seq02_m6/take-dd21dc6d-e66d-445e-9a5f-7dc3ea619850_f0.png",
+   "bytes": 1005726,
+   "sha256": "209938165ac3a68474e7b82d30dc9f0431e4ceaa7fc221c07168467442dff548"
+  },
+  {
+   "path": "seq02_m6/take-ec21712e-bfae-43c6-87d1-c3b1c0b3f4aa.json",
+   "bytes": 78869,
+   "sha256": "7e69ce437d13660dac169d54d078374ec0fa380bce1b300596e5f99da38110c0"
   }
  ]
 }

@@ -48,7 +48,13 @@ gates). Tool calls are in `docs/snap/AGENT_START.md` ("A new view of a place").
    quotes the wrong take saves the wrong picture. Keep the camera map (wedges for every walk) as `map`, not as the plan.
    Cite a frame with `use_take {take, as: reference, at}` or `{take, frame}` instead of exporting a file.
 5. **Boards:** plate + people with New view (`snap-new-view`); land each cut's board in its shot.
-6. **Cuts** cite their plate, the master and the Cast (`snap-boards`).
+6. **Cuts** cite their plate and the Cast (`snap-boards`); the master stays out of a cut that has its camera plate
+   (takes cut to its framing: M2 13/18 at 640, M7 3/10 at 1280, 0/3 without; SNAP-R242).
+6b. **The set reference per side** (SNAP-R253): once the person picks the first cut's take on a side, its look is the
+   set. `make_set_reference {book, cut}` makes people-free candidates from that take's out-frame, `{book, cut, pick}`
+   saves the pick as the side's set plate (`side`, `set: true`, the camera plate's mark and pose); the walkthrough
+   plates stay. The cuts on that side then play from it (`set_unit {location: <the new version>, plate}`).
+   `add_plate {camera: "same"}` moves a plate's own mark with its pose (F-SQ10).
 
 7. **Fixes after a critique:** change one plate alone with `add_plate {location, name, pose}` (its picture and the
    rest are kept; `camera: {name, x, y, heading, eye_height}` adds or moves its mark, SNAP-R148) and the notes with

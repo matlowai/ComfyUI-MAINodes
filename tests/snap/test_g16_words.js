@@ -66,7 +66,7 @@ const ZIP = "import json,sys,zipfile\nz=zipfile.ZipFile(sys.argv[1])\nprint(json
     "line_match: Nemotron exact against the cut's line": S.voice?.line_match?.exact === true && S.voice.line_match.said === "Nemotron exact" && S.voice.line_match.line === "It's you.",
     "the voice note itself still runs beside it": ["ok", "check", "no voice"].includes(S.voice?.status),
     "the export puts the words on the dialogue clip": (S.voice?.words?.length ?? 0) > 0 && JSON.stringify(dlg?.app?.astrid?.words) === JSON.stringify(S.voice?.words) && dlg.app.astrid.text === "It's you.",
-    [`Astrid's timelines words lists them after a push${LAUNCHER ? "" : " (skipped: SNAP_TEST_ASTRID_LAUNCHER unset)"}`]: !LAUNCHER || (S.push?.ok === true && /It's/.test(S.words?.out ?? "") && /line-C1/.test(S.words?.out ?? "")),
+    [`Astrid's timelines words lists them after a push${LAUNCHER ? "" : " (skipped: SNAP_TEST_ASTRID_LAUNCHER unset)"}`]: !LAUNCHER || (S.push?.ok === true && /it's/i.test(S.words?.out ?? "") && /line-C1/.test(S.words?.out ?? "")),
     "no page errors": !S.crash && !(S.errors ?? []).length,
   };
   for (const [k, v] of Object.entries(checks)) console.log(`${v ? "PASS" : "FAIL"} ${k}`);

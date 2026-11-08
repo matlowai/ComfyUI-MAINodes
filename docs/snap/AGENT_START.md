@@ -201,7 +201,9 @@ nested pack → install → person → book → scene → shot → take. Read th
    - **Pika at 6 steps is the quality standard** (SNAP-R149): video takes run on a Pika setup at its 6 steps. The
      "no turbo (20 steps)" presets that Turbo off puts on are opt-in, not a quality step up (20 and 30 steps drifted
      off the plate and the Cast); never reach for them to improve a take. Voice references take 12+ steps (below).
-2. Set the prompt: `set_setting {"brick": "render", "name": "prompt", "value": "..."}`.
+2. Set the prompt: `set_setting {"brick": "render", "name": "prompt", "value": "..."}`. Before writing one, read the
+   measured "Writing a prompt" list in skill `snap-core` (SNAP-R251; the Agent library's `global/prompt-*` notes):
+   pictures beat words, a picture in References is a target, one ordered action, no two lines disagree.
    - `render` names the recipe's Render in every family (the stills recipe's brick id is `image`). Titles such as
      `save`, `models` and `upscale` work the same way. A brick that isn't there is refused with the recipe's brick ids.
    - For H3 video, write the three sections, each on its own line:

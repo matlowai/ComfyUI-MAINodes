@@ -7,7 +7,8 @@
 // - short05 C4 (take-b80dc620, Kuroe: "One more bowl."), its cut's line from the story pin: the line ok by voice,
 //   margin above 0.08 against Maren, Liesl and Brann, its words in take seconds, "Nemotron exact";
 // - short05 C1 (take-00767c8d, nobody speaks, no voice cited): checked anyway (a Book cut), nothing unscripted, ok;
-// - the QA's server runs on the other GPU (the setting's default), named in the answer.
+// - the QA's server runs where the setting says, named in the answer: here ComfyUI's own card with the experts in RAM,
+//   because the dev server is on GPU 0 and "the other GPU" would be the operator's GPU 1 (the default suits :8193).
 // usage: node test_g17b_voice_qa.js   prints "g17bvoiceqa n/m" last
 const { chromium } = require("playwright");
 const fs = require("fs"), path = require("path");
@@ -31,7 +32,7 @@ const port = process.env.SNAP_TEST_GPU_PORT, base = process.env.SNAP_TEST_GPU_BA
     const A = await F.open(b, port), page = A.page;
     await page.unroute(/\/(api\/)?prompt$/); // the GPU proof runs the real prompts (fwork rewrites them for the CPU server)
     const call = (name, args) => page.evaluate(([n, a]) => window.__X.callTool(n, a).catch((e) => ({ error: e.message })), [name, args]);
-    await page.evaluate(async () => { await app.extensionManager.setting.set("MAINodes.Snap.VoiceQAGPU", "the other GPU"); const W = await import("/extensions/ComfyUI-MAINodes/snap/world.js"); await W.load(); });
+    await page.evaluate(async () => { await app.extensionManager.setting.set("MAINodes.Snap.VoiceQAGPU", "this GPU, experts in RAM"); const W = await import("/extensions/ComfyUI-MAINodes/snap/world.js"); await W.load(); });
     const cast = {};
     for (const [n, d] of [["Kuroe", "a gaunt baron in a dark coat"], ["Maren", "a tall swordswoman"], ["Liesl", "a young village mother"], ["Brann", "an old headman"]])
       cast[n] = (await call("save_cast", { name: `${n} g17b`, details: d, voice: { file: `snap/g17bqa/${n.toLowerCase()}.wav`, casting: "" } })).cast;
@@ -59,7 +60,7 @@ const port = process.env.SNAP_TEST_GPU_PORT, base = process.env.SNAP_TEST_GPU_BA
     "the QA prompt was written in H3's dialogue grammar from the cut's line": S.c4Check?.qa?.prompt === "[Shot 1] <Audio 1> <d>One more bowl.</d>" && line?.expected === "Kuroe g17b",
     "four Cast voices as references, the voice model on (two or more)": S.c4Check?.qa?.speakers?.length === 4 && /WavLM-large ECAPA/.test(S.c4Check.qa.by_voice ?? ""),
     "a silent Book cut citing no voice is checked too: nothing unscripted, ok": S.c1Check?.queued === true && S.c1?.qa && S.c1.qa.unscripted.length === 0 && S.c1.status === "ok" && /no line: nobody should speak/.test(S.c1Check.qa.lines),
-    "the QA ran on the other GPU, named in the answer": !!other && S.c4Check?.words?.includes(`on GPU ${other.index}`),
+    "the QA ran where the setting says, named in the answer (ComfyUI's own card here, never GPU 1)": /on ComfyUI's own GPU with the experts in RAM \(the Voice QA setting\)/.test(S.c4Check?.words ?? "") && !!other,
     "no page errors": !S.crash && !(S.errors ?? []).length,
   };
   for (const [k, v] of Object.entries(checks)) console.log(`${v ? "PASS" : "FAIL"} ${k}`);
