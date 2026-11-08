@@ -9,7 +9,8 @@
 // (`<set>-mine`), each with its provenance: take, frame, copy score, seed, the camera it was made for, who made it.
 // The same score flags takes that copied their own reference picture (U48 §3: DINOv3's room score can't see it).
 // SNAP-R16 GPU work waits as a proposal for agents · SNAP-R17 by: person|agent · SNAP-R18 local only ·
-// SNAP-R21 a reference shows the shot's own camera · SNAP-R23 candidates · see docs/snap/SNAP_RULES.md
+// SNAP-R21 a reference shows the shot's own camera · SNAP-R23 candidates · SNAP-R246 the copy check names where a take goes ·
+// see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as L from "./library.js";
 import * as M from "./models.js";
@@ -242,7 +243,6 @@ export function referencePictures(prompt) {
 const annotated = K.annotated;
 // SNAP-R246 (CC-4): a video's frames scored every half second (every 12th frame at 24 fps) and its last, so a cut or a
 // freeze onto a cited picture is found where it happens; a still is its one picture
-const REACHED = 0.85; // M6 / M2: a take that turned into a cited picture scores 0.92-0.99 against it from that frame on
 async function frameList(m) {
   const v = Object.assign(document.createElement("video"), { src: K.url(m), muted: true, preload: "metadata" });
   const seconds = await new Promise((done) => { v.onloadedmetadata = () => done(v.duration); v.onerror = () => done(null); });
@@ -284,7 +284,8 @@ function copied(take) {
     const against = refs.map((image, i) => { const s = h.outputs?.[String(21 + 2 * i)]?.copy_scores ?? []; return { image, picture: `<Picture ${i + 1}>`, role: roles.get(image) ?? null, last: s.at(-1) ?? null, frames: s.map((x) => +x.toFixed(3)) }; });
     // SNAP-R246 (CC-4): a picture the take didn't open on and turns into later, staying there: a cut, a dissolve or a
     // freeze onto it; the note names it, so the fix is "leave that picture out" (SNAP-R242), not "the prompt was ignored"
-    const reached = against.map((a) => { const k = a.frames.findIndex((x, j) => j > 0 && a.frames.slice(j).every((y) => y >= REACHED)); return a.frames.length > 1 && a.frames[0] < REACHED && k > 0 ? { ...a, from_s: +((frames[k] ?? 0) / 24).toFixed(2), score: a.frames.at(-1) } : null; }).filter(Boolean);
+    // reached = at the copy threshold from a frame to the end, not at frame 0 (the M6 key take: 0.63 at 0 s, 0.85 from 2.5 s)
+    const reached = against.map((a) => { const k = a.frames.findIndex((x, j) => j > 0 && a.frames.slice(j).every((y) => y >= threshold)); return a.frames.length > 1 && a.frames[0] < threshold && k > 0 ? { ...a, from_s: +((frames[k] ?? 0) / 24).toFixed(2), score: a.frames.at(-1) } : null; }).filter(Boolean);
     return { against, threshold, copied: against.some((a) => a.last >= threshold), ...(frames.length ? { frames_scored: frames } : {}),
       ...(reached.length ? { reaches: reached.map((a) => ({ picture: a.picture, image: a.image, role: a.role, from_s: a.from_s, score: a.score })), said: reached.map((a) => `the take turns into ${a.picture}${a.role ? ` (${a.role})` : ""} from ${a.from_s} s (${a.score}): a cut, dissolve or freeze onto a cited picture; leave that picture out of References (SNAP-R242) rather than re-rolling`).join("; ") } : {}), by, at: new Date().toISOString() };
   }, (e) => ({ error: e.message, by, at: new Date().toISOString() })).then((copy) => { take.copy = copy; return T.save(take); }).catch((e) => console.warn(`copy check: ${e.message}`));

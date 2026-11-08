@@ -13,7 +13,8 @@
 // reads is cut: part, offset and limit page it · SNAP-R136 what the sheet shows, the packet shows · SNAP-R155 the place's
 // scale anchors and how to measure against them (scale_rule) · SNAP-R184 a board's packet: its Cast, its pictures by number, a
 // measuring copy · SNAP-R189 what a board's state takes away (should_be_absent) · SNAP-R192 a cropped picture as the model
-// got it · SNAP-R193 zoom tiles at 100 % · SNAP-R194 an edit's or New view's packet carries its cut's Cast · see docs/snap/SNAP_RULES.md
+// got it · SNAP-R193 zoom tiles at 100 % · SNAP-R194 an edit's or New view's packet carries its cut's Cast · SNAP-R245 frames every half second, count_these ·
+// SNAP-R246 copy · SNAP-R247 what the prompt is held to · SNAP-R249 the sound onset · SNAP-R240 the Voice QA · SNAP-R252 continuity · see docs/snap/SNAP_RULES.md
 import * as L from "./library.js";
 import * as T from "./takes.js";
 import * as C from "./candidates.js";
@@ -179,7 +180,7 @@ function words(r, tb) {
       // SNAP-R249 (F-SQ46): the biggest short transient, measured; a sub-bass hit is the game-style impact SNAP-R150 rules out
       ...(t.sound.onset ? { onset: { ...t.sound.onset, said: t.sound.onset.hit ? `a sub-bass hit at ${t.sound.onset.at_s} s: ${t.sound.onset.peak_db} dBFS, ${t.sound.onset.over_db} dB over the sound around it, ${Math.round(t.sound.onset.low_share * 100)} % below 150 Hz: an impact boom (SNAP-R150, F-SQ46); listen, and judge it in the sound pass` : `the biggest transient is at ${t.sound.onset.at_s} s, ${t.sound.onset.over_db} dB over the sound around it, ${Math.round(t.sound.onset.low_share * 100)} % below 150 Hz: no sub-bass hit` } } : {}) };
     // SNAP-R246 (CC-4): the copy check's reach, so the beat pass names a cut's destination instead of "prompt ignored"
-    if (t.copy?.against) out.copy = { measured: "DINOv3 copy scores of the frames against each cited picture (0.85 or more from a frame on: the take turned into it)", ...(t.copy.reaches ? { reaches: t.copy.reaches, said: t.copy.said } : { reaches: "no cited picture is turned into" }), frames_scored: t.copy.frames_scored ?? null };
+    if (t.copy?.against) out.copy = { measured: "DINOv3 copy scores of the frames against each cited picture (at the copy threshold or more from a frame to the end: the take turned into it)", ...(t.copy.reaches ? { reaches: t.copy.reaches, said: t.copy.said } : { reaches: "no cited picture is turned into" }), frames_scored: t.copy.frames_scored ?? null };
     // SNAP-R240: the Voice QA's lines and unscripted speech are measured claims beside the loudness, read with sound on
     if (t.voice?.qa) out.voice = { measured: "the Voice QA (Nemotron words and times, WavLM-large ECAPA for who): read these as measurements, then listen", status: t.voice.status, lines: t.voice.qa.lines, unscripted: t.voice.qa.unscripted, ...(t.voice.qa.why ? { why: t.voice.qa.why } : {}), ...(t.voice.qa.listen ? { listen: t.voice.qa.listen } : {}), words: t.voice.words ?? [] };
     out.pins = Object.entries(t.world ?? {}).map(([ref, p]) => { const b = W.get(W.refOf(W.parse(ref).kind, W.parse(ref).id, p.n))?.version.body ?? {};

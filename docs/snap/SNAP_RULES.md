@@ -2304,7 +2304,7 @@ Next free ID after this batch: SNAP-R240 (R160-R164 stay free; G16 reserved R215
   open item for the coordinator under SNAP-R109).
 - **SNAP-R246: The copy check names where a take goes.** `check_copies` scores a take's frames every half second and
   its last against every cited picture; `copy.reaches` names a picture the take didn't open on and turns into later,
-  staying at 0.85 or more (its role, from_s, score), and `copy.said` says to leave it out of References; the packet
+  staying at the copy threshold or more to the end (its role, from_s, score; the M6 key take scored 0.63 at 0 s and 0.85 from 2.5 s), and `copy.said` says to leave it out of References; the packet
   carries it so the beat pass names the destination instead of "prompt ignored". *Why:* M2/M6/M7 found every cut,
   dissolve and freeze this way at 0.92-0.99 (the master, the key); F-AC12 counted 3/11 takes ending on the master
   unnamed. *More:* §3 CC-4; tests/snap/test_g17b_critic.js.

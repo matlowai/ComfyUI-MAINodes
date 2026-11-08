@@ -16,7 +16,8 @@
 // SNAP-R104 checks by purpose · SNAP-R107 approval: the person's, or the critic's where a note says so · SNAP-R110 stale ·
 // SNAP-R17 by: person|agent · SNAP-R58 whole lists, explicit paging · SNAP-R65 the Work card · SNAP-R136 a row holds
 // while its part's picture holds; stale rows leave the docket · SNAP-R180 owners name their target · SNAP-R188 a plate by its whole name, a label only when one plate has it · SNAP-R195 a compact row names its take and how it
-// was made, never the job's prompt · see docs/snap/SNAP_RULES.md
+// was made, never the job's prompt · SNAP-R244 a duplicated story prop or person is high · SNAP-R245 the count pass ·
+// SNAP-R249 the sound pass · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as T from "./takes.js";
 import * as C from "./candidates.js";
