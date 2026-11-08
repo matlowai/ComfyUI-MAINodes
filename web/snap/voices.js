@@ -209,7 +209,7 @@ export function note({ voices, others, files, thresholds: c, line, qa }, outputs
   const text = qa && at("qp").text?.[0], report = text ? JSON.parse(text) : null, q = report ? qaNote(report, qa) : null, words = report ? allWords(report) : null;
   const heardText = words ? words.map((w) => w[2]).join(" ") : null, match = heardText != null && line ? lineMatch(heardText, line) : null;
   const sv = rows.some((r) => r.status === "check") ? "check" : rows.length && rows.every((r) => r.status === "no voice") ? "no voice" : "ok";
-  const status = sv === "check" || q?.status === "check" ? "check" : q?.status === "listen" ? "listen" : rows.length ? sv : words?.length ? "ok" : "no voice";
+  const status = sv === "check" || q?.status === "check" ? "check" : q?.status === "listen" ? "listen" : rows.length ? sv : q ? "ok" : "no voice";
   return { status, voices: rows, f0, thresholds: c, by, at: new Date().toISOString(), ...(q ? { qa: q, words, text: heardText, ...(match ? { line_match: match } : {}) } : {}) };
 }
 // a voice check's outputs onto its take, once its prompt is done
