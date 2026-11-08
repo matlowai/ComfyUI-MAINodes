@@ -58,3 +58,21 @@ the bland placebo only restages (a sunny sky, a jumper). So snow is a finding (2
 
 **Next.** compare with centered J-lens dials on H3 (where centering
 was needed).
+
+## Transfer to KroMoss (2026-11-08)
+
+The same DeBand-made word dials on **KroMoss with its 8-step DMD2 LoRA, CFG 1** (euler, simple), seed 7, the lighthouse and
+the park-bench scenes, one render per arm. Pair dials act about twice as strong at CFG 1 (M1, LESSONS), so +4 was tried
+first as the equivalent of DeBand's +8.
+
+| arm | lighthouse | park bench |
+|---|---|---|
+| snow +4 | no snow; restaging only | no snow; restaging only |
+| rain +4 | a faint rainbow; no rain | restaging only |
+| placebo +4 | restaging only | restaging only |
+| **snow +8** | **a snow-covered headland under a pink winter sky** (and a small signature appears in the corner) | **snowfall, the man in a fur-hooded parka** (the bench and park are replaced by a snowy street) |
+| **rain +8** | **a wet path, a hooded long raincoat, overcast** | a misty, grey-green park, wet path, the man now standing |
+
+- **The "twice as strong at CFG 1" rule does not hold for these word dials**: they need +8 on KroMoss just as on DeBand.
+  At +8 KroMoss reacts harder (it restages the whole scene for snow on the park bench), so the working window is narrow.
+- Snow and rain transfer from DeBand to KroMoss at +8. One seed per scene: a hint.
