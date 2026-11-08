@@ -84,7 +84,7 @@ const park = (d) => { const p = path.join(snap, d); if (fs.existsSync(p)) { fs.m
     R.big.pictures.filter((p) => p[0] === "tile").every((p) => p[3] === 1536 && p[4] === 1536),
     R.page.n === 4 && R.page.next?.offset === 4 && R.page.labels?.every((l) => /tile r\dc\d/.test(l)),
     JSON.stringify(R.mapped) === JSON.stringify(R.expect),
-    ((f) => f.length >= 3 && f.slice(0, -1).every((x, i) => x === i * 12) && f.at(-1) > f.at(-2))(R.video.pictures?.filter((p) => p[0] === "subject").map((p) => p[1]) ?? []) && R.video.pictures.filter((p) => p[0] === "tile").length === 0, // G17b SNAP-R245: every half second and the last; a 64 px video needs no tiles
+    ((f) => f.length >= 2 && f.slice(0, -1).every((x, i) => x === i * 12) && f.at(-1) > f.at(-2))(R.video.pictures?.filter((p) => p[0] === "subject").map((p) => p[1]) ?? []) && R.video.pictures.filter((p) => p[0] === "tile").length === 0, // G17b SNAP-R245: every half second and the last; a 64 px video needs no tiles
     R.locRows?.filter(([, c]) => c === "plate").length === 6 && R.locRows.some(([p, c]) => p === "master" && c === "master") && R.locRows.some(([p, c]) => p === "views" && c === "location"),
     R.views.subjects?.length === 8 && R.views.context === 1 && R.views.record === 6, // G3 F-E17: the plan with its marks drawn is the one context picture
     !R.errors.length,

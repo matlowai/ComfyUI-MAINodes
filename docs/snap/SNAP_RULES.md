@@ -2226,7 +2226,7 @@ Next free ID after this batch: SNAP-R240 (R160-R164 stay free; G16 reserved R215
   Book, the cited ones first, others from the Cast library filling in to two, at most seven) → Nemotron Transcribe
   (English) → the voice model → H3 Voice QA → a core PreviewAny on its `report` (lab check L6: the JSON reaches
   /history only that way). The QA's prompt is Snap's, written in H3's dialogue grammar from the cut's lines
-  (`[Shot 1] <Audio k> <d>line</d>` with `cast` "Audio k: Name"; a plain shot uses its prompt's `Name says "…"`
+  (`[Shot 1] <Audio n> <d>line</d>` with `cast` "Audio n: Name"; a plain shot uses its prompt's `Name says "…"`
   lines), because the fork's parser reads only `<d>` lines. `voice.qa` keeps each line's verdict, the unscripted
   speech, `why` and `listen`; `voice.status` is check on a wrong voice, a missing or mistimed line, or unscripted
   speech, and listen on a voice under the pack's 0.08 margin (never "wrong person"); the critic packet carries it as a

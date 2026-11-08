@@ -118,7 +118,7 @@ function speakersFor(take, voices) {
   for (const v of [...voices, ...newest.filter((x) => ids.includes(x.id)), ...newest]) if (!out.some((o) => o.id === v.id || o.name === v.name) && out.length < MAX_SPEAKERS) out.push({ id: v.id, name: v.name, file: v.file });
   return { list: out, left: newest.filter((x) => !out.some((o) => o.id === x.id)).map((x) => x.name) };
 }
-// the prompt the QA parses (the fork finds scripted lines only as <d>…</d>), written from the cut's lines: <Audio k> for
+// the prompt the QA parses (the fork finds scripted lines only as <d>…</d>), written from the cut's lines: <Audio n> for
 // a speaker among the references, the name otherwise (no reference: the QA says no_reference); one [Shot 1]
 export function qaPrompt(take, speakers) {
   const cut = cutOf(take), lines = cut.pinned ? cut.lines : /<d>/.test(take.text ?? "") ? null : promptLines(take.text);

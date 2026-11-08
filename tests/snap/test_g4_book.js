@@ -82,6 +82,9 @@ const park = (dir) => { const p = path.join(base, "user", "default", "snap", dir
     R.board = await call("set_board", { scene: c2.scene, shot: c2.shot, file: "snaptest_book/g4_board_c2.png", approved: true });
     R.key = await call("set_board", { scene: c2.scene, shot: c2.shot, file: "snaptest_book/g4_key_c2.png", role: "key" });
     R.compile2 = await call("compile_unit", { scene: c2.scene, shot: c2.shot });
+    // G17b SNAP-R242: the key and the master go into References only when asked (a held-pose cut, cite_master); this case
+    // checks how they are cited when they are in
+    await call("set_unit", { scene: c2.scene, shot: c2.shot, hold: true, cite_master: true });
     await call("open_shot", { scene: c2.scene, shot: c2.shot }); await page.waitForTimeout(1200);
     await call("start_recipe", {}); await page.waitForTimeout(2500);
     R.apply = await call("apply_unit", { scene: c2.scene, shot: c2.shot });
