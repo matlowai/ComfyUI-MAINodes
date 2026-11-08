@@ -23,3 +23,17 @@ pixel residual does not separate good from bad combinations; it needs a feature-
 plus "snow" lost the snow and made the buildings white instead, so a colour or grade dial can absorb a weather word that is
 mostly a colour change (snow ≈ white). One seed, one scene: hints. Next: the same three pairs on a second seed; a
 feature-space residual (for example image-embedding distances) instead of pixels.
+
+## Second seed (seed 8; control, all single dials and pairs re-rendered)
+
+| pair | a + b on seed 8 |
+|---|---|
+| ukiyo-e −2 + snow +8 | **both**: a painted, snow-covered path and headland |
+| film +2 + snow +8 | **film, snow lost again**: a faded painted look, brown grass, no snow on the ground; only the keeper's winter beanie and the white spray remain |
+| detail +2 + rain +8 | **both**: a castle on the headland, lanterns, a waterfall, a wet path, the keeper in rain hat and coat |
+
+The pattern holds on both seeds: the two good pairs combine, and film + snow loses the snow both times.
+
+**Side finding:** the snow word dial at +8 on KroMoss draws a signature or logo in the corner on both seeds (a small one on
+seed 7, a large "studio" logo on seed 8), and the pairs with it keep a small signature. A word dial for a "picture-like"
+scene can pull in the trappings of posted art; the watermark picture dial from M3 is the obvious thing to add (untested here).
