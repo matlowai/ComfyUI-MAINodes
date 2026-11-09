@@ -161,7 +161,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
       const listeners = C.onChange(draw), observer = new MutationObserver(() => { if (!sheet.isConnected) cleanup(); });
       observer.observe(document.body, { childList: true, subtree: true });
-      root.append(sheet); draw();
+      root.append(sheet); draw(); sheet.focus({ preventScroll: true });
       if (c) [...body.querySelectorAll("[data-candidate]")].find((el) => el.dataset.candidate === c.id)?.focus();
       return;
     }
