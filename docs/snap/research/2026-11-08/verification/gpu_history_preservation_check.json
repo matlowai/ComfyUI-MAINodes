@@ -1,0 +1,25 @@
+{
+  "checks": {
+    "success": {
+      "pass": true,
+      "history_cleared": true,
+      "exit_code": 0,
+      "existing_parked_preserved": true
+    },
+    "failed_read": {
+      "pass": true,
+      "history_cleared": false,
+      "exit_code": 1,
+      "existing_parked_preserved": true
+    },
+    "no_gpu_base": {
+      "pass": true,
+      "history_cleared": false,
+      "exit_code": 0,
+      "existing_parked_preserved": true
+    }
+  },
+  "pass": true,
+  "source_helper_sha256": "98a24c4aa5a2f79699f65953ce2190238a2e6e205e95f687da5758420dd178c9",
+  "scope": "Actual extracted shell helpers, mocked curl; no real services or records touched. Archives and temporary fixtures retained locally."
+}

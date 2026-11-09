@@ -1,4 +1,4 @@
-"""U61 identity notes on the CPU server (default :8195): MAISnapFaceModelLoader + MAISnapIdentity on U56b's frames and its
+"""U61 identity notes on an isolated server (default :8195): MAISnapFaceModelLoader + MAISnapIdentity on U56b's frames and its
 SAM 3.1 face / hair masks (gpubase input/u56b_*, output/u56b/), with the real ArcFace weights. Checks:
   the port's hair L* p90 matches U56b's metrics2.json (OpenCV) within 0.5 on every frame;
   the notes Snap's page makes from these numbers (checks.js identityCheck: the character score (DINOv3 CLS on the head
@@ -88,4 +88,4 @@ ok = hair_diff < 0.5 and not bad and heads and all(len(looks[n]["face"] or []) =
 json.dump({"hair_max_diff_vs_u56b": round(hair_diff, 3), "cases": {k: v[0] for k, v in cases.items()}, "seconds": round(time.time() - t0, 1), "thresholds": [DIFF, LIGHTER]},
           open(C.out("ui", "test_identity_notes_result.json"), "w"), indent=1)
 print(f"identity notes: {'PASS' if ok else 'FAIL'} (hair L90 vs U56b max {hair_diff:.2f} L*, {len(cases) - len(bad)}/{len(cases)} cases"
-      f"{'; wrong: ' + ', '.join(bad) if bad else ''}; " + "; ".join(f"{k}: character {v[0]['character_low']} face {v[0]['face_low']} hair {v[0]['hair_up']:+}" for k, v in cases.items()) + f"; {time.time() - t0:.0f} s CPU)")
+      f"{'; wrong: ' + ', '.join(bad) if bad else ''}; " + "; ".join(f"{k}: character {v[0]['character_low']} face {v[0]['face_low']} hair {v[0]['hair_up']:+}" for k, v in cases.items()) + f"; {time.time() - t0:.0f} s)")
