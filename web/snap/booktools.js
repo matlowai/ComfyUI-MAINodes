@@ -310,7 +310,7 @@ export const BOOK_TOOLS = [
   {
     name: "set_book_style",
     direct: true, // canon: its own proposal path (the proposal id goes into the story version), never the generic one
-    description: "Point a Book at another production style (look:<id>): canon, so from an agent it waits as a proposal.",
+    description: "Point a Book at a production style (look:<id>): when the Book has no style, its first style is set directly; changing an existing style is canon and from an agent waits as a proposal.",
     inputSchema: { type: "object", properties: { book: { type: "string" }, look: { type: "string" }, proposal: { type: "string" } }, required: ["book", "look"] },
     run: async ({ book, look }, { confirmed } = {}) => {
       await ready();

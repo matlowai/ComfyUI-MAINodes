@@ -27,6 +27,8 @@ import * as M from "./models.js";
 import * as S from "./slots.js";
 import * as PL from "./plates.js";
 import * as C from "./candidates.js";
+import { candidatesEl } from "./candidateview.js";
+import { result as appliedResult } from "./edits.js";
 import * as MD from "./metadata.js";
 import * as PF from "./profile.js";
 import * as ACC from "./account.js";
@@ -128,7 +130,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   A.onChange(renderWork);
   // Open on a Work card row (or an arrival's toast): the result where it belongs, only on this press (SNAP-R5, SNAP-R66).
   // A take opens in its viewer, after its shot when it belongs to another shot of a scene (the open shot is saved
-  // first, SNAP-R24); a decision opens its take's viewer at the candidates, or the set editor at its camera; a blind pair
+  // first, SNAP-R24); a decision opens its applied result or its candidates, or the set editor at its camera; a blind pair
   // opens the blind compare; a proposal scrolls to its chip
   async function openJob(r) {
     await A.opened(r.id);
@@ -136,11 +138,36 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     if (r.source === "astrid") { for (const s of root.querySelectorAll(".snap-work-sheet")) s.remove(); return (await import("./bookview.js")).openBook(root, { book: r.about.book, lens: "the_cut", say }); } // SNAP-R224: a push opens on its Cut lens
     if (r.source === "proposal") { for (const s of root.querySelectorAll(".snap-work-sheet")) s.remove(); return root.querySelector(".snap-proposal, .snap-ghost-brick")?.scrollIntoView({ block: "center" }); }
     if (r.kind === "plate" && r.about.set) { const card = L.get(r.about.set); if (!card) throw new Error(`The set ${r.about.set} isn't in the Library any more`); for (const s of root.querySelectorAll(".snap-work-sheet")) s.remove(); return editSet(card); }
-    await T.load();
-    const t = T.get(r.result?.take) ?? T.get(r.about.take);
+    const decision = r.decision ?? (r.kind === "check" ? r.about?.decision : null);
+    await Promise.all([T.load(), decision ? C.load() : null]);
+    const d = decision && C.get(decision);
+    if (decision && !d) throw new Error(`${r.title}: its candidates aren't here`);
+    const c = d && C.candidate(d, r.about?.candidate ?? d.applied?.candidate);
+    if (d && r.about?.candidate && !c) throw new Error(`${r.title}: its candidate isn't here`);
+    // SNAP-R66: a check opens its own candidate; a decision opens the applied result, never its source take.
+    const t = d ? (r.about?.candidate ? T.get(c?.take) : appliedResult(d) ?? T.get(c?.take)) : T.get(r.result?.take) ?? T.get(r.about.take);
+    if (d && !t) {
+      for (const s of root.querySelectorAll(".snap-work-sheet, .snap-take-sheet, .snap-work-candidates")) s.remove();
+      const body = h("div"), sheet = h("div", { className: "snap-sheet snap-setup-sheet snap-work-candidates", role: "dialog", ariaLabel: "Candidates", tabIndex: -1 });
+      const cleanup = () => { listeners.delete(draw); removeEventListener("pointerup", release, true); removeEventListener("pointercancel", release, true); clearTimeout(timer); observer.disconnect(); C.preview(null); };
+      const close = () => { cleanup(); sheet.remove(); root.focus({ preventScroll: true }); };
+      let pressed = false, sig = "", timer = 0;
+      const draw = () => { if (!sheet.isConnected) return cleanup(); const now = JSON.stringify([d.applied, d.candidates]); if (pressed || now === sig) return; sig = now; body.replaceChildren(candidatesEl(d, { say, crops: true })); };
+      const release = () => { if (!pressed) return; pressed = false; timer = setTimeout(draw, 0); };
+      body.addEventListener("pointerdown", () => { pressed = true; });
+      addEventListener("pointerup", release, true);
+      addEventListener("pointercancel", release, true);
+      sheet.append(h("header", {}, h("strong", { textContent: d.question ?? "Candidates", title: d.title }), h("span", { className: "snap-spacer" }), h("button", { className: "snap-x", textContent: "×", title: "close (Esc)", onclick: close })), body);
+      sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
+      const listeners = C.onChange(draw), observer = new MutationObserver(() => { if (!sheet.isConnected) cleanup(); });
+      observer.observe(document.body, { childList: true, subtree: true });
+      root.append(sheet); draw();
+      if (c) [...body.querySelectorAll("[data-candidate]")].find((el) => el.dataset.candidate === c.id)?.focus();
+      return;
+    }
     if (!t) throw new Error(r.result?.saving ? `${r.title}: the take is being written, open it in a moment` : r.kind === "make_dial" ? `${r.title}: done, it's on the rack` : `${r.title}: its take isn't here`);
     const home = RT.shotOf(t), here = SC.current();
-    for (const s of root.querySelectorAll(".snap-work-sheet, .snap-take-sheet")) s.remove();
+    for (const s of root.querySelectorAll(".snap-work-sheet, .snap-take-sheet, .snap-work-candidates")) s.remove();
     if (home && here?.shot.id !== home.shot.id) { await SC.openShot(home.scene.id, home.shot.id); say(`Opened ${home.scene.name} › ${SC.shotTitle(home.scene, home.shot)} (the shot you were on is saved)`); }
     dailies.view(t);
     if (r.decision) document.getElementById(`snap-decision-${r.decision}`)?.scrollIntoView({ block: "center" });

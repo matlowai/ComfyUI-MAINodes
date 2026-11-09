@@ -7,7 +7,7 @@
 // stops only that prompt), Retry on a failure, Park / Unpark; a landed take takes a verdict with one key (p keep, x
 // reject, n neither) and an optional sentence, the same verdict the take viewer writes.
 // SNAP-R5 only a press moves the person · SNAP-R158 critiques due fold into one row, proposals first · SNAP-R7 lists rebuilt only when their content changes, never under a pointer ·
-// SNAP-R17 by: person|agent · SNAP-R58 nothing cut · SNAP-R65 the Work card · SNAP-R197 a row with a take says what it is, with Nearby (SNAP-R198) · SNAP-R209 an out-of-date proposal offers Re-make, not Accept · SNAP-R229 an either/or pair is one row · see docs/snap/SNAP_RULES.md
+// SNAP-R17 by: person|agent · SNAP-R58 nothing cut · SNAP-R65 the Work card · SNAP-R66 checks open their results · SNAP-R197 a row with a take says what it is, with Nearby (SNAP-R198) · SNAP-R209 an out-of-date proposal offers Re-make, not Accept · SNAP-R229 an either/or pair is one row · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import * as A from "./activity.js";
 import * as T from "./takes.js";
@@ -79,7 +79,7 @@ export function openWork(host, { say, open, decide }) {
     const mine = r.owner !== "others", why = h("input", { className: "snap-work-why", placeholder: "why, in a sentence (optional)", ariaLabel: "verdict note" });
     const take = r.zone === "landed" && r.result?.take;
     const buttons = [
-      mine && (r.result?.take || r.about?.take || r.decision || r.pair || r.source === "astrid" || (r.kind === "plate" && r.about?.set)) ? h("button", { className: "snap-link snap-work-open", textContent: "Open", title: "go to the result where it belongs (nothing runs)", onclick: act(() => open(r)) }) : null,
+      mine && (r.result?.take || r.about?.take || r.decision || (r.kind === "check" && r.about?.decision) || r.pair || r.source === "astrid" || (r.kind === "plate" && r.about?.set)) ? h("button", { className: "snap-link snap-work-open", textContent: "Open", title: "go to the result where it belongs (nothing runs)", onclick: act(() => open(r)) }) : null,
       mine && r.state === "queued" && (r.source === "prompt" || r.source === "decision") ? h("button", { className: "snap-link", textContent: "Cancel", title: "take it off the queue", onclick: act(async () => { await cancel(r); return `Cancelled: ${r.title}`; }) }) : null,
       mine && r.state === "running" && (r.owner === "you" || admin()) ? h("button", { className: "snap-link", textContent: "Stop the running render", title: "stops this job on the GPU now (only this one; the rest of the queue goes on)", onclick: act(async () => { await stop(r); return `Stopped: ${r.title}`; }) }) : null,
       mine && r.state === "failed" && (r.source === "prompt" || r.source === "refusal") ? h("button", { className: "snap-link", textContent: "Retry", onclick: act(async () => { await retry(r); return `Queued again: ${r.title}`; }) }) : null,

@@ -11,6 +11,7 @@
 // slot, sheet below) rides the same pictures, landing and candidates.
 // SNAP-R13 data, not code branches · SNAP-R14 method slots · SNAP-R16 GPU work waits for the person · SNAP-R17 by ·
 // SNAP-R23 candidates · SNAP-R51 change something, recast, pins · SNAP-R71 a new view from context, in the asker's words ·
+// SNAP-R4 check titles use the person's question · SNAP-R65 checks stay visible · SNAP-R179 candidate questions ·
 // SNAP-R72 what Picture 1 is, per model · SNAP-R75 the view slot's models are data (P-H3-Image, H3 still, explicit Qwen 2.1) ·
 // SNAP-R77 a character sheet is a sheet-slot method whose candidates are takes · SNAP-R79 a new view says which
 // picture it copied · SNAP-R186 a record's picture's new view lands with the record · SNAP-R190 a region edit pastes back · SNAP-R202 its stage 2 is the whole still · SNAP-R204 its SAM mask ·
@@ -748,7 +749,7 @@ async function contextCopies(d, c) {
       const p = await contextPicture(x.cast || x.location ? { file: x.file, crop: x.crop } : { take: x.take, frame: x.frame, file: x.file, crop: x.crop }, i);
       Object.assign(g, p.nodes, { [`q${i}`]: { class_type: "MAISnapCopyScore", inputs: { clip_vision: ["e", 0], reference: p.out, images: ["s", 0] } } });
     }
-    const h = await K.screen(g, { title: `Copy check: did ${c.id} of ${d.title} copy one of its pictures?`, about: { decision: d.id, candidate: c.id }, by: d.by === "agent" ? "agent" : "person" });
+    const h = await K.screen(g, { title: `Checking reference matches${d.question ? ` · ${d.question}` : ""}`, about: { decision: d.id, candidate: c.id }, by: d.by === "agent" ? "agent" : "person" });
     const against = d.options.context.map((x, i) => ({ n: x.n, label: x.label, score: h.outputs?.[`q${i}`]?.copy_scores?.[0] ?? null, soft: h.outputs?.[`q${i}`]?.soft_scores?.[0] ?? null }));
     const framing = against.filter((a) => a.score != null && a.score >= threshold).map((a) => a.n);
     return { threshold, soft_threshold: soft, against, copied: against.filter((a) => framing.includes(a.n) || (a.soft != null && a.soft >= soft)).map((a) => a.n), framing };
