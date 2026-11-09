@@ -462,18 +462,38 @@ export function foldCastLine(story, ref, line, fields) {
 // it elsewhere ("the bowl raised to his lips" while the bowl is on the counter; "the ladle in her right hand" while that
 // hand is empty), as lint lines: the compile says it, and the person or the writer settles it
 const HAND_WORDS = /\b(hands?|holds?|holding|raised?|raising|lifts?|lifting|grips?|gripping|carr(?:y|ies|ying)|lips)\b/i;
+const HAND_MOVE = /\b(lowers?|lowering|puts?|putting|sets?|setting|drops?|dropping|withdraws?|withdrawing|hands? over|passes?|passing|takes?|taking|picks? up|raises?|raising|lifts?|lifting|removes?|removing)\b/i;
 function stateLint(story, unit, present, entities) {
   const out = [], people = entities.filter((e) => e.ref.startsWith("cast:")), things = new Set();
   for (const b of story.beats) for (const c of b.changes) { if (c.entity.startsWith("prop:")) things.add(nounOf(story, c.entity)); if (/^carried\./.test(c.path)) for (const v of [c.value].flat()) if (v && typeof v === "string") things.add(nounOf(story, v)); }
   const names = (clause, noun) => noun && new RegExp(`\\b${escaped(noun)}e?s?\\b`, "i").test(clause), low = (x) => x.replace(/^(The|A|An) /, (m) => m.toLowerCase());
-  for (const [text, where] of [...present.map((b) => [b.text, `${b.id}'s text`]), ...(unit.blocking ? [[unit.blocking, "the blocking"]] : [])]) for (const clause of String(text ?? "").split(/(?<=[.;!?])\s+|,\s+/).filter((x) => HAND_WORDS.test(x))) {
-    for (const e of entities.filter((x) => x.ref.startsWith("prop:"))) {
-      const holder = e.fields.find((f) => f.path === "holder");
-      if (holder?.value && !String(holder.value).startsWith("cast:") && names(clause, nounOf(story, e.ref))) out.push(`${where} says "${clause.trim()}" while ${low(holder.sentence ?? `${e.name} is ${holder.value}`)} (${holder.beat} ${holder.change}): check they agree`);
+  const own = new Set(present.map((b) => b.id)), first = present.reduce((a, b) => !a || b.order < a.order ? b : a, null);
+  const before = (b) => story.beats.filter((x) => x.order < b.order).reduce((a, x) => !a || x.order > a.order ? x : a, null);
+  // SNAP-R168: an opening or a field's own transition uses the prior state, never its end ledger; unknown stays unknown.
+  const fieldAtPhase = (e, f, beat, start, end, clause) => {
+    let at = beat ? stateAt(story, e.ref, beat.id)[f.path] : f;
+    if (!at) return null;
+    if (!end && (start || (HAND_MOVE.test(clause) && (beat ? at.beat === beat.id : own.has(at.beat))))) {
+      const prev = before(beat ?? first);
+      at = prev ? stateAt(story, e.ref, prev.id)[f.path] : null;
     }
-    for (const e of people.filter((x) => people.length === 1 || new RegExp(`\\b${escaped(x.name.split(" ")[0])}\\b`, "i").test(clause))) for (const f of e.fields.filter((x) => /^carried\.(right|left)_hand$/.test(x.path))) {
-      const side = f.path.includes("right") ? "right" : "left", noun = [...things].find((n) => names(clause, n));
-      if (new RegExp(`\\b${side} hand\\b`, "i").test(clause) && noun && !(f.value && nounOf(story, f.value) === noun)) out.push(`${where} says "${clause.trim()}" while ${f.sentence} (${f.beat} ${f.change}): check they agree`);
+    if (!at) return null;
+    const text = sentence(story, e.name, f.path, at.value);
+    return { ...at, sentence: text ? `${cap(text)}.` : null };
+  };
+  for (const [text, where, beat] of [...present.map((b) => [b.text, `${b.id}'s text`, b]), ...(unit.blocking ? [[unit.blocking, "the blocking", null]] : [])]) for (const part of String(text ?? "").split(/(?<=[.;!?])\s+/)) {
+    const start = /^\s*(opening\b|at the start\b|before the beat\b)/i.test(part), end = /^\s*(by the end\b|at the end\b|after the beat\b)/i.test(part) || /\b(throughout|the whole cut|the entire cut)\b/i.test(part);
+    for (const clause of part.split(/,\s+/).filter((x) => HAND_WORDS.test(x))) {
+      for (const e of entities.filter((x) => x.ref.startsWith("prop:"))) {
+        const f = e.fields.find((f) => f.path === "holder"), holder = f && fieldAtPhase(e, f, beat, start, end, clause);
+        if (holder?.value && !String(holder.value).startsWith("cast:") && names(clause, nounOf(story, e.ref))) out.push(`${where} says "${clause.trim()}" while ${low(holder.sentence ?? `${e.name} is ${holder.value}`)} (${holder.beat} ${holder.change}): check they agree`);
+      }
+      for (const e of people.filter((x) => people.length === 1 || new RegExp(`\\b${escaped(x.name.split(" ")[0])}\\b`, "i").test(clause))) for (const row of e.fields.filter((x) => /^carried\.(right|left)_hand$/.test(x.path))) {
+        const f = fieldAtPhase(e, row, beat, start, end, clause);
+        if (!f) continue;
+        const side = row.path.includes("right") ? "right" : "left", noun = [...things].find((n) => names(clause, n));
+        if (new RegExp(`\\b${side} hand\\b`, "i").test(clause) && noun && !(f.value && nounOf(story, f.value) === noun)) out.push(`${where} says "${clause.trim()}" while ${f.sentence} (${f.beat} ${f.change}): check they agree`);
+      }
     }
   }
   // F-N01: the beat's words or the blocking still putting on an item the wardrobe takes off ("wipes her hands on her apron"
@@ -549,7 +569,7 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
   // F-L09 (SNAP-R168): a cut opens on the state before its own beats (the beat before them in story order) and ends on
   // the state after; the still parts are kept apart so the opening board draws the start and the key drawing the end
   const own = new Set(present.map((b) => b.id)), prev = at ? story.beats.filter((b) => b.order < at.order && !own.has(b.id)).reduce((x, b) => (!x || b.order > x.order ? b : x), null) : null;
-  const head = [], tail = [], ends = [], opens = [], whoEnd = [], whoOpen = [], held = [];
+  const head = [], ends = [], opens = [], whoEnd = [], whoOpen = [], held = [];
   let moved = false;
   for (const b of present) { say(b.text, `story ${b.id} text`); if (b.text) head.push(S(b.text)); from[`${b.id}.text`] = b.text; }
   // F-F09: the unit's own blocking and camera are the cut's action too (a cut whose beats wait as proposals still moves)
@@ -604,7 +624,7 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
   if (at) lint.push(...propMismatch(story, at.id).filter((m) => (unit.props ?? []).includes(m.prop) || carriersOf(story, m.prop, at.id).some((c) => castRefs.includes(c.who))).map((m) => `${m.text}: check they agree (F-L11)`));
   // dialogue on the unit's beats, each line citing the speaker's voice reference (voice scout 2026-11-06: no voice words)
   const lines = present.flatMap((b) => (b.lines ?? []).map((l) => ({ ...l, beat: b.id })));
-  for (const l of lines) { const who = nameOf(story, l.who), text = `${who} says "${l.text}"${words.some((x) => x.cast === l.who) ? ` in the voice of {voice:${l.who}}` : ""}`; from[`${l.beat}.line.${l.who}`] = l.text; say(text, `story ${l.beat} line`); tail.push(S(text)); }
+  for (const l of lines) { const who = nameOf(story, l.who), text = `${who} says "${l.text}"${words.some((x) => x.cast === l.who) ? ` in the voice of {voice:${l.who}}` : ""}`; from[`${l.beat}.line.${l.who}`] = l.text; say(text, `story ${l.beat} line`); }
   // the place: the unit's location at its plate (camera) and the master
   let place = null;
   if (unit.location) {
@@ -715,8 +735,16 @@ export async function compile(sceneId, shotId, { story: draft = null, beats: at_
   // F-SQ06: the opening still draws the state before the beat, so it leaves the beat's own action words out (a gate drawn
   // open 2/2 under "The gate leaves swing inward" for an opening whose state is closed)
   const beatWords = new Set(present.map((b) => b.text && S(b.text)).filter(Boolean));
-  const still = (fieldsSaid, who, opening = false) => { const rest = [...head.filter((x) => !opening || !beatWords.has(x)), ...fieldsSaid, ...tail, ...who];
-    return [style?.body.paragraph, (rest.length ? rest : [...head, ...tail, ...who]).join(" ")].filter(Boolean).join("\n\n"); };
+  // SNAP-R68: dialogue belongs to video; remove a line from still prose only where it is spoken, keeping visible action/text.
+  const stillWords = (text) => {
+    for (const l of lines) text = text.replace(new RegExp(`\\b(says?|asks?|whispers?|shouts?|replies?|answers?|murmurs?|calls?|yells?)\\s*[:,]?\\s*["“‘']?${escaped(l.text)}["”’']?\\.?`, "gi"), (match, verb, at) => {
+      const prefix = text.slice(0, at).split(/(?<=[.!?])\s+/).at(-1);
+      return /\b(sign|caption|subtitle|label|screen|letter|written text)\b[^.!?]*$/i.test(prefix) ? match : `${verb}.`;
+    });
+    return text;
+  };
+  const still = (fieldsSaid, who, opening = false) => { const rest = [...head.filter((x) => !opening || !beatWords.has(x)).map(stillWords), ...fieldsSaid, ...who];
+    return [style?.body.paragraph, (rest.length ? rest : [...head.map(stillWords), ...who]).join(" ")].filter(Boolean).join("\n\n"); };
   const out = {
     book: book.ref ?? `book:${book.id}`, scene: scene.id, shot: shot.id, cut: unit.cut ?? null, unit_kind: unit.kind ?? "cut",
     story: st ? { ref: st.ref, n: st.n } : null, at: at ? { beat: at.id, order: at.order, told: at.told, text: at.text, ...(at.intent ? { intent: at.intent } : {}), ...(at.intensity ? { intensity: at.intensity } : {}) } : null,
