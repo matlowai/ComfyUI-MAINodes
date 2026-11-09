@@ -1,0 +1,26 @@
+{
+  "at": "2026-11-09T02:38:30.441Z",
+  "target": "EFB0573A93928BBC6D45D8E98E365757",
+  "action": "eval",
+  "calls": [
+    {
+      "method": "Runtime.evaluate",
+      "params": {
+        "expression": "({fallbackCount:document.querySelectorAll('.snap-work-candidates').length,active:{tag:document.activeElement.tagName,class:document.activeElement.className}})",
+        "returnByValue": true
+      }
+    }
+  ],
+  "result": {
+    "result": {
+      "type": "object",
+      "value": {
+        "fallbackCount": 0,
+        "active": {
+          "tag": "DIV",
+          "class": "snap-root open"
+        }
+      }
+    }
+  }
+}

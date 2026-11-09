@@ -1,6 +1,6 @@
 # Cloud pickup — 2026-11-08
 
-> **LATEST LOCAL DOGFOOD CHECKPOINT:** [On the House](director/dogfood-2026-11-08/README.md) is unfinished. Story5/style2 is approved; C1 boards passed review, C2 needs a visible region seam repaired, and no board is picked. Local commits `1c976ee`/`476d4f2` plus these notes are newer than published `c641cf2`; no new push or deployment is claimed. Terra raw-session audit, complete reports, exact next steps and pending native browser checks are included.
+> **CURRENT WIP PICKUP:** Stay on `snap-research-2026-11-08`. [Dogfood follow-up](director/dogfood-2026-11-08/FOLLOWUP_2026-11-08.md) records actual native Work/result checks and the verified candidate-panel Escape fix (`28260fa`), following compiler/UI fixes `1c976ee`/`476d4f2` and context notes `634f479`. The tiny short is still in progress; no final film or production landing is claimed. [Post-Director intake](director/post-director-2026-11-08/README.md) contains both complete supplied addenda, Astra’s source review and proposed next slices. The earlier context snapshots retain their historical status wording.
 
 > **EARLIER PUBLISHED VERIFICATION:** Work on `snap-research-2026-11-08`, the desired WIP branch. Begin with the [complete verification matrix](research/2026-11-08/verification/FINAL_VERIFICATION_2026-11-08.md), [Native Director integration](director/INTEGRATION_2026-11-08.md), and [session evidence](research/2026-11-08/README.md). This is a reviewed WIP, with explicit unresolved findings. Live remains G17a `8542b92`; no production landing is claimed.
 

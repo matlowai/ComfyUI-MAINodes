@@ -1,0 +1,26 @@
+{
+  "at": "2026-11-09T02:38:29.959Z",
+  "target": "EFB0573A93928BBC6D45D8E98E365757",
+  "action": "key",
+  "calls": [
+    {
+      "method": "Input.dispatchKeyEvent",
+      "params": {
+        "type": "keyDown",
+        "key": "Escape",
+        "code": "Escape",
+        "windowsVirtualKeyCode": 27
+      }
+    },
+    {
+      "method": "Input.dispatchKeyEvent",
+      "params": {
+        "type": "keyUp",
+        "key": "Escape",
+        "code": "Escape",
+        "windowsVirtualKeyCode": 27
+      }
+    }
+  ],
+  "result": {}
+}

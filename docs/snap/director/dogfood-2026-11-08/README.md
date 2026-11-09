@@ -1,5 +1,7 @@
 # On the House — Director dogfood checkpoint
 
+**Latest:** [follow-up verification and current work](FOLLOWUP_2026-11-08.md). The original context snapshot below predates these follow-up checks and the candidate-panel focus fix; its publication/pending statements describe that capture.
+
 This production is unfinished. Its approved brief survives the context reset; no second story approval is needed. Use the latest WIP `snap-research-2026-11-08`. The published baseline is `c641cf2`; two later local commits are `1c976ee` (Book compiler) and `476d4f2` (check notifications and result navigation). This checkpoint does not publish or deploy them. Main remains `8542b92`.
 
 ## Approved brief and authority

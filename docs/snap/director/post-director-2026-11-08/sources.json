@@ -1,0 +1,26 @@
+{
+  "inputs": [
+    {
+      "name": "SNAP_Post_Director_Creative_Intake_Self_Improving_Agent_Flows_Addendum_2026-11-08.md",
+      "lines": 657,
+      "copy": "complete text; Markdown two-space hard breaks expressed as backslash hard breaks",
+      "source_sha256": "42dffeab9b1000763292d14b79465efed2e6290c336a28be957f6234bfb7900f",
+      "source_bytes": 57670,
+      "normalized_hard_breaks": 11,
+      "copy_sha256": "5bcbbdf65bb7bf1abb469a0e8a6c6488d4e37db032166e7296700ee421568fa2",
+      "copy_bytes": 57659
+    },
+    {
+      "name": "SNAP_Post_Director_Nodes2_ComfyMCP_Accessibility_Voice_Audio_Codex_Addendum_2026-11-08.md",
+      "lines": 700,
+      "copy": "complete text; Markdown two-space hard breaks expressed as backslash hard breaks",
+      "source_sha256": "ed702c18cbc047f4141894fc4ec352e89d3aea70606f576ebf43caa57d0a9126",
+      "source_bytes": 74669,
+      "normalized_hard_breaks": 5,
+      "copy_sha256": "c09f05b510bb859cb8fa1bf835432dcb2666c9a46bf26ca228135ca4f58aef20",
+      "copy_bytes": 74664
+    }
+  ],
+  "review_sha256": "87a02914b80b2d13852611839b9bab499b7970fac03a30add6abae60cb489f2e",
+  "scope": "Review and planning only; source inventory with local paths remains local."
+}

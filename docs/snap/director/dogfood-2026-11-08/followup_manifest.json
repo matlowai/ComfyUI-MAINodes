@@ -1,0 +1,57 @@
+{
+  "captured_at": "2026-11-08T21:46:28.169210-05:00",
+  "source_application_commit": "28260fa",
+  "application_code": "fa82fc1568a0",
+  "report_sha256": "b74705b2b2da8a54bb64653d70ec71a8b7a2983a1687e92c61cb73aad4694856",
+  "evidence": [
+    {
+      "source_relative": "native_work_check/retest_focused_state.json",
+      "copy_relative": "evidence/retest_focused_state.json",
+      "sha256": "87e24bea779a838d8a352a99168bccd6abcc39c6d0899f70cdcbbce0f1993257",
+      "bytes": 743,
+      "copy": "byte-exact; screenshots retain only standard ICC color profile metadata"
+    },
+    {
+      "source_relative": "native_work_check/retest_fresh_escape.json",
+      "copy_relative": "evidence/retest_fresh_escape.json",
+      "sha256": "9503016f380e9430800becfa055c13d6455b6fb4b57c1632dc01caa2d2701047",
+      "bytes": 526,
+      "copy": "byte-exact; screenshots retain only standard ICC color profile metadata"
+    },
+    {
+      "source_relative": "native_work_check/retest_after_escape_state.json",
+      "copy_relative": "evidence/retest_after_escape_state.json",
+      "sha256": "48bf5840eefee24737024c0d5901a938067941e85d694a4e68de2edf9e39f66d",
+      "bytes": 620,
+      "copy": "byte-exact; screenshots retain only standard ICC color profile metadata"
+    },
+    {
+      "source_relative": "native_work_check/retest_final_dom_state.json",
+      "copy_relative": "evidence/retest_final_dom_state.json",
+      "sha256": "1de503eb6791fe49cf355d56c1d224d5c5564a805726afb9677b2016500ba6a0",
+      "bytes": 794,
+      "copy": "byte-exact; screenshots retain only standard ICC color profile metadata"
+    },
+    {
+      "source_relative": "native_work_check/retest_source_hash.json",
+      "copy_relative": "evidence/retest_source_hash.json",
+      "sha256": "6994c7fc760c0480e8417656b46303e4fc68cf4e8b4bcc9cb4798e754c953609",
+      "bytes": 167,
+      "copy": "byte-exact; screenshots retain only standard ICC color profile metadata"
+    },
+    {
+      "source_relative": "native_work_check/retest_fallback_focused.png",
+      "copy_relative": "evidence/retest_fallback_focused.png",
+      "sha256": "6f9e8c99896b8c21e4d094a2ab95bdde8c2381173a7066cdfa577045b1970dab",
+      "bytes": 631854,
+      "copy": "byte-exact; screenshots retain only standard ICC color profile metadata"
+    },
+    {
+      "source_relative": "native_work_check/retest_after_escape.png",
+      "copy_relative": "evidence/retest_after_escape.png",
+      "sha256": "771a126b78f0f6704ce1ee37ccbb2458ca7bb362b788628461c30fddf8395cf2",
+      "bytes": 535466,
+      "copy": "byte-exact; screenshots retain only standard ICC color profile metadata"
+    }
+  ]
+}

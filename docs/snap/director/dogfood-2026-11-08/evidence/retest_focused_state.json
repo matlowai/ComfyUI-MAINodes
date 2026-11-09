@@ -1,0 +1,27 @@
+{
+  "at": "2026-11-09T02:38:10.425Z",
+  "target": "EFB0573A93928BBC6D45D8E98E365757",
+  "action": "eval",
+  "calls": [
+    {
+      "method": "Runtime.evaluate",
+      "params": {
+        "expression": "({fallbackCount:document.querySelectorAll('.snap-work-candidates').length,active:{tag:document.activeElement.tagName,class:document.activeElement.className,label:document.activeElement.getAttribute('aria-label')}})",
+        "returnByValue": true
+      }
+    }
+  ],
+  "result": {
+    "result": {
+      "type": "object",
+      "value": {
+        "fallbackCount": 1,
+        "active": {
+          "tag": "DIV",
+          "class": "snap-sheet snap-setup-sheet snap-work-candidates",
+          "label": "Candidates"
+        }
+      }
+    }
+  }
+}
