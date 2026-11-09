@@ -1,5 +1,7 @@
 # Post-Director addenda intake
 
+Start with the [consolidated implementation plan](IMPLEMENTATION_PLAN.md) and [paired testing pickup](PAIRED_TEST_PICKUP.md). These include the latest human-led testing priority and dogfood findings.
+
 Both user-supplied addenda were read in full by Astra: **1,357 lines / 132,339 bytes**. The [complete source review](ASTRA_REVIEW.md) maps 23 proposed capabilities to existing code, identifies conflicts and supplies acceptance gates. The [source manifest](sources.json) records original and copy hashes; both complete Markdown inputs are in `sources/` (hard line breaks use backslashes to pass the repository whitespace check).
 
 The user requested this analysis while the tiny dogfood test runs, with implementation to follow the test. This checkpoint adds planning material. The separate dogfood source fixes are already implemented; the proposed intake, learning, accessibility and speech features below are not claimed implemented by this document.
