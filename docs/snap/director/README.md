@@ -38,3 +38,5 @@ The first command exercises the new CPU code. The latter two are existing experi
 
 The Director lane is included in `tests/snap/run_all.sh`; its complete output is `director.out` in the gate output folder.
 See [local integration evidence](INTEGRATION_2026-11-08.md) for the source baseline, adaptations and test boundaries.
+
+The [On the House dogfood checkpoint](dogfood-2026-11-08/README.md) records the approved tiny-short brief, source fixes, real UI findings, failed board attempts and exact unfinished resume state.

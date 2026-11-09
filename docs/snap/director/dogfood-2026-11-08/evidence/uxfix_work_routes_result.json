@@ -1,0 +1,37 @@
+{
+  "mode": "fixed",
+  "actual_take_numbers": [
+    6,
+    7,
+    8
+  ],
+  "actual_check_jobs": [
+    "736b7344-676c-4a68-a298-16de4d935b3f",
+    "bbdec3a1-e5cd-4ccb-8660-70429a07d277"
+  ],
+  "passed": 20,
+  "results": [
+    "applied parent",
+    "explicit c1 check",
+    "explicit c2 check",
+    "unpicked decision opens candidate choices",
+    "painted candidate opens its focused tile",
+    "candidate choices redraw only changed content after pointer release",
+    "outside pointerup defers redraw until the Apply click can run",
+    "outside pointercancel resumes candidate refresh",
+    "close unregisters callbacks, clears preview and cancels queued redraw",
+    "sheet disconnect releases callback and global handlers",
+    "root disconnect releases callback and global handlers",
+    "Escape uses the same complete panel cleanup",
+    "applied edit opens propagated result",
+    "missing decision never falls back to source",
+    "missing candidate never falls back to source",
+    "ordinary run prefers result take",
+    "ordinary propagation keeps its own result despite decision/candidate context",
+    "result opens its owning shot first",
+    "blind/proposal/plate routes unchanged",
+    "actual Work renderer exposes check Open and passes the original row; other-account guard retained"
+  ],
+  "native_writes": false,
+  "network": false
+}

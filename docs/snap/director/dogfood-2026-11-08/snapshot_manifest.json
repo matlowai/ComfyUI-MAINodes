@@ -1,0 +1,91 @@
+{
+  "scope": "complete reports and two bounded receipts; raw media/session logs/native runtime are retained locally and not shipped",
+  "source_application_commit": "476d4f280cda6786609f18e74a5e180694a39a19",
+  "published_baseline": "c641cf2118587e8cc80e0e259f884aa7cc5d1e2e",
+  "files": [
+    {
+      "source_relative": "HANDOFF.md",
+      "source_sha256": "7bef20cb338aee7ca4d1027ef8d15c164939ebb511fb75809678d6de816e05b0",
+      "copy_relative": "reports/HANDOFF.md",
+      "copy_sha256": "7bef20cb338aee7ca4d1027ef8d15c164939ebb511fb75809678d6de816e05b0",
+      "sanitization": "local path roots replaced with role placeholders; full report text retained"
+    },
+    {
+      "source_relative": "PROGRESS.md",
+      "source_sha256": "b2f1e4e19efee56603544781930d54d358869763c40794d0713da23ade4fb1d4",
+      "copy_relative": "reports/PROGRESS.md",
+      "copy_sha256": "b2f1e4e19efee56603544781930d54d358869763c40794d0713da23ade4fb1d4",
+      "sanitization": "local path roots replaced with role placeholders; full report text retained"
+    },
+    {
+      "source_relative": "LESSONS.md",
+      "source_sha256": "a66c16e0a48fa76c6319c691b3a6eb2cfd4af3358bea2174c2b64e2e36359274",
+      "copy_relative": "reports/LESSONS.md",
+      "copy_sha256": "a66c16e0a48fa76c6319c691b3a6eb2cfd4af3358bea2174c2b64e2e36359274",
+      "sanitization": "local path roots replaced with role placeholders; full report text retained"
+    },
+    {
+      "source_relative": "FINDINGS.md",
+      "source_sha256": "d3e26dfe065780160b49ec655995e96f747c8cdb1cd3c6cbb68da0af217656ba",
+      "copy_relative": "reports/FINDINGS.md",
+      "copy_sha256": "d3e26dfe065780160b49ec655995e96f747c8cdb1cd3c6cbb68da0af217656ba",
+      "sanitization": "local path roots replaced with role placeholders; full report text retained"
+    },
+    {
+      "source_relative": "STORY_REVIEW.md",
+      "source_sha256": "beddbf0baa65aff184b96c6576be8a3898c9bbe7a3177a7b000c3533ad982e70",
+      "copy_relative": "reports/STORY_REVIEW.md",
+      "copy_sha256": "beddbf0baa65aff184b96c6576be8a3898c9bbe7a3177a7b000c3533ad982e70",
+      "sanitization": "local path roots replaced with role placeholders; full report text retained"
+    },
+    {
+      "source_relative": "ASSET_SCOUT.md",
+      "source_sha256": "b20830e0fe3cf5c13568a2f35e9a186c2a2b06d8370761c909b2af624a3070ac",
+      "copy_relative": "reports/ASSET_SCOUT.md",
+      "copy_sha256": "8f98fe4a270417463ffe9a4ea5b72c0b9e03e06ad7c3d8402282240820f37bb8",
+      "sanitization": "local path roots replaced with role placeholders; full report text retained"
+    },
+    {
+      "source_relative": "UX_CRITIC.md",
+      "source_sha256": "1b52f089b7167c8a0fec45709a2a985b905cbc7d1235cce1bb16dad03477c536",
+      "copy_relative": "reports/UX_CRITIC.md",
+      "copy_sha256": "1b52f089b7167c8a0fec45709a2a985b905cbc7d1235cce1bb16dad03477c536",
+      "sanitization": "local path roots replaced with role placeholders; full report text retained"
+    },
+    {
+      "source_relative": "UX_FIX_REPORT.md",
+      "source_sha256": "b74d5b9f1387385864476607be890bd4bcb7df3f4520e6124f491e89610c4556",
+      "copy_relative": "reports/UX_FIX_REPORT.md",
+      "copy_sha256": "b74d5b9f1387385864476607be890bd4bcb7df3f4520e6124f491e89610c4556",
+      "sanitization": "local path roots replaced with role placeholders; full report text retained"
+    },
+    {
+      "source_relative": "BOOK_COMPILE_FIX_REPORT.md",
+      "source_sha256": "22b74617ec169ccb026265868438be76b1287fc0255a84e656636ed468230945",
+      "copy_relative": "reports/BOOK_COMPILE_FIX_REPORT.md",
+      "copy_sha256": "22b74617ec169ccb026265868438be76b1287fc0255a84e656636ed468230945",
+      "sanitization": "local path roots replaced with role placeholders; full report text retained"
+    },
+    {
+      "source_relative": "CONTEXT_AUDIT_TERRA.md",
+      "source_sha256": "7bbe85ec495da50e173c5e4caba13ddc019645bf908c6914fd84472235f7de72",
+      "copy_relative": "reports/CONTEXT_AUDIT_TERRA.md",
+      "copy_sha256": "3f0cecade28017dce97d2d8818089495e09331c6218be8401ccc1a25ad2dcce4",
+      "sanitization": "local path roots replaced with role placeholders; full report text retained"
+    },
+    {
+      "source_relative": "evidence/context_checkpoint_runtime.json",
+      "source_sha256": "05048f9613d54a9363d6a24105935b856f1723f7f91f02a880b433508a1b4ee8",
+      "copy_relative": "evidence/context_checkpoint_runtime.json",
+      "copy_sha256": "05048f9613d54a9363d6a24105935b856f1723f7f91f02a880b433508a1b4ee8",
+      "sanitization": "local path roots replaced if present"
+    },
+    {
+      "source_relative": "uxfix_work_routes_result.json",
+      "source_sha256": "74e45a0128dc179284b15f387bcf968ff0e84e4962b086c7b598093ddc3d4b6f",
+      "copy_relative": "evidence/uxfix_work_routes_result.json",
+      "copy_sha256": "74e45a0128dc179284b15f387bcf968ff0e84e4962b086c7b598093ddc3d4b6f",
+      "sanitization": "local path roots replaced if present"
+    }
+  ]
+}

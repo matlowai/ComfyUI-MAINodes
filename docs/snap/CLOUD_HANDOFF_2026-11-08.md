@@ -1,6 +1,10 @@
 # Cloud pickup — 2026-11-08
 
-> **READ FIRST:** Work on `snap-research-2026-11-08`, the desired WIP branch. Begin with the [complete verification matrix](research/2026-11-08/verification/FINAL_VERIFICATION_2026-11-08.md), [Native Director integration](director/INTEGRATION_2026-11-08.md), and [session evidence](research/2026-11-08/README.md). This is a reviewed WIP, with explicit unresolved findings. Live remains G17a `8542b92`; no production landing is claimed.
+> **LATEST LOCAL DOGFOOD CHECKPOINT:** [On the House](director/dogfood-2026-11-08/README.md) is unfinished. Story5/style2 is approved; C1 boards passed review, C2 needs a visible region seam repaired, and no board is picked. Local commits `1c976ee`/`476d4f2` plus these notes are newer than published `c641cf2`; no new push or deployment is claimed. Terra raw-session audit, complete reports, exact next steps and pending native browser checks are included.
+
+> **EARLIER PUBLISHED VERIFICATION:** Work on `snap-research-2026-11-08`, the desired WIP branch. Begin with the [complete verification matrix](research/2026-11-08/verification/FINAL_VERIFICATION_2026-11-08.md), [Native Director integration](director/INTEGRATION_2026-11-08.md), and [session evidence](research/2026-11-08/README.md). This is a reviewed WIP, with explicit unresolved findings. Live remains G17a `8542b92`; no production landing is claimed.
+
+The following source qualification describes the pre-dogfood published checkpoint. Later Book/UI patches have focused and bounded native checks, with no new full-gate claim.
 
 The original published research checkpoint is `eb8cc3a`. Director application code landed in `2830523`; native Voice QA fixes are `e95b1a7` and `a7dd97b`. Final affected-lane verification used `032876c`. Subsequent checkpoint additions contain reports, screenshots, device-neutral identity-test wording and a test-history preservation guard; application and canonical skill bytes remain those qualified at `032876c`.
 
