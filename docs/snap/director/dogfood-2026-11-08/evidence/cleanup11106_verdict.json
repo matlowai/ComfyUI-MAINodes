@@ -1,0 +1,67 @@
+{
+ "result": {
+  "critique": "crit-1a1be369236-411f",
+  "title": "Critic: A small kindness \u203a Shot 2 \u00b7 For me \u203a take 4 (seed 11106) \u00b7 New view \u00b7 P-H3-Image \u00d71 (Clean up only the leftover outlines in <Picture 1>: erase the faint empty bowl contour on the wooden shutter to the left of the apron, and reconcile the doubled contours on the cook's screen-right rolled sleeve and upper left arm into one continuous sleeve edge joined to one bare left arm. Preserve the existing pose, exact colors and continuous fabric shading: her empty left hand stays beside her hip, the single finished double-blue-rim soup bowl keeps its foot touching the counter, and the right hand and its one ladle keep their current position and design. Match every crop edge to the original image; all other people, clothing, wood, counter and pot stay exactly as they are.) from Picture 1 Correct-state C2 canvas; all ghost contours and full left sleeve/arm to counter",
+  "subject": {
+   "kind": "take",
+   "take": "take-444137b8-cd14-47de-a7af-8722d75bcff9"
+  },
+  "about": {
+   "take": "take-444137b8-cd14-47de-a7af-8722d75bcff9",
+   "decision": "cand-mw8ny1o0-qju1",
+   "scene": "scene-mw8khsydsspo",
+   "shot": "shot-mw8kic4gqbh2"
+  },
+  "purpose": "edit",
+  "checklist": "edit",
+  "trigger": "landed",
+  "state": "done",
+  "created": "2026-11-09T02:50:09.846Z",
+  "claimed": {
+   "by": "agent:director-ux-critic",
+   "at": "2026-11-09T02:52:24.151Z"
+  },
+  "done": {
+   "by": "agent:director-ux-critic",
+   "at": "2026-11-09T02:55:28.704Z"
+  },
+  "verdict": "clean",
+  "passes": {
+   "scan": "Whole before both native tiles, crop-edge zoom and all five context images. 3x3: lantern/beams, Kuroe head/shutter, Mio head/steam; post/street, Kuroe/ladle, Mio torso/arm and pot; counter/stools, seated Kuroe, right stool. Former raised-bowl ghost is gone and left sleeve/arm reads as one continuous construction. No new figures, duplicate story props, text or visible box-tone seam found.",
+   "map": "Same fixed front customer-side camera; Kuroe centre-left facing Mio frame-right, lantern left and pot right. No new landmark displacement observed.",
+   "support": "One finished bowl upright with foot meeting counter. Empty left hand separated beside hip; right hand grips single ladle. Rolled sleeve joins one bare left arm without the earlier doubled contour. Pot/burner support and Kuroe visible hand/seat relationship preserved in visible areas.",
+   "cast": "Mio orange hair/amber eyes/light skin/black shirt/dark-green apron/white headband retained. Kuroe silver hair/light tan skin/black suit and edge-on monocle retained; eyes/tie largely hidden by protected rear-facing pose. No new wardrobe or colour discontinuity established.",
+   "beat": "After-set-down pause holds: bowl on counter, left hand clear, right ladle retained, both heads and Kuroe facing unchanged. Requested ghost cleanup succeeds without resetting the bowl to her hand.",
+   "count": "People2 expected/seen; bowl1 expected/seen on counter, no old raised-bowl remnant; ladle1 right, pot1,lantern1; two outer stool tops and occupied centre stool partly visible. No ghost arm remains.",
+   "cross_view": "Compared with11105 source crop/whole: raised-bowl outline and duplicate sleeve/arm outlines removed; pose, bowl location, clothing construction and background maintain the requested state. Actual pixels at crop edges and bowl/counter contact inspected; no visible flaw established by the tiny reported bottom-edge detector hit alone. Pixel identity is not claimed for the regenerated crop.",
+   "scale": "No scale on record or calibrated horizon; no metric clearance assertion.",
+   "sound": "Still-only review; no motion, speech, audio listening or exact C1-video-trim continuity qualification."
+  },
+  "notes": [],
+  "counts": {
+   "high": 0,
+   "medium": 0,
+   "low": 0
+  },
+  "verdict_set": {
+   "take": "take-444137b8-cd14-47de-a7af-8722d75bcff9",
+   "verdict": null,
+   "because": "approval is the person's (the pack default)"
+  },
+  "packet": {
+   "pictures": 9,
+   "at": 1794192861129
+  },
+  "stale": null,
+  "said": "Critic: A small kindness \u203a Shot 2 \u00b7 For me \u203a take 4 (seed 11106) \u00b7 New view \u00b7 P-H3-Image \u00d71 (Clean up only the leftover outlines in <Picture 1>: erase the faint empty bowl contour on the wooden shutter to the left of the apron, and reconcile the doubled contours on the cook's screen-right rolled sleeve and upper left arm into one continuous sleeve edge joined to one bare left arm. Preserve the existing pose, exact colors and continuous fabric shading: her empty left hand stays beside her hip, the single finished double-blue-rim soup bowl keeps its foot touching the counter, and the right hand and its one ladle keep their current position and design. Match every crop edge to the original image; all other people, clothing, wood, counter and pot stay exactly as they are.) from Picture 1 Correct-state C2 canvas; all ghost contours and full left sleeve/arm to counter: clean, 9 passes"
+ },
+ "page": {
+  "id": "b2cbcc78828c416c854eba377cd94c21",
+  "name": "agents' window b2cbcc \u00b7 A small kindness \u203a Shot 2 \u00b7 For me",
+  "headless": false,
+  "sees": true,
+  "driven_by": "director-ux-critic",
+  "code_current": true
+ },
+ "idempotency_key": "snapcall-dc084e8dc5ba3375"
+}

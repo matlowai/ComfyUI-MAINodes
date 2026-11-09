@@ -1,0 +1,35 @@
+[
+  {
+    "cut": "C1",
+    "selected_input_pixel_equal_qualified_output": true,
+    "size": [
+      2560,
+      1408
+    ],
+    "output_sha256": "a8620d93701c33a429491acaa97395ebcea4c7fb1a5f7e8ac136b59a2513c31a",
+    "selected_input_sha256": "6cc79732efff97ce6285bc1b95eb027ba4798294548358e4f7b9705908ea0922"
+  },
+  {
+    "cut": "C2",
+    "selected_input_pixel_equal_qualified_output": true,
+    "size": [
+      2560,
+      1408
+    ],
+    "output_sha256": "c9969f7a8aeccc06d4eae165f211e4d8696dbe9683ccacbc93047efd3ad46ef9",
+    "selected_input_sha256": "7ebf0e5a9e8a86f96094ef8222b3b5ef52a3353eb66e0a885a1be81deda36230"
+  },
+  {
+    "approved_story_object_unchanged": true,
+    "approved_style_object_unchanged": true,
+    "autonomy_unchanged": true,
+    "active_video_takes": [
+      null,
+      null
+    ]
+  },
+  {
+    "native_animatic_sha256": "50853cf7aa1e5c21d8a45983a5c450429b5fe24e398f1d53f4a95c5e0dd5925f",
+    "bytes": 149327
+  }
+]

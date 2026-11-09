@@ -1,0 +1,57 @@
+{
+ "result": {
+  "critique": "crit-1a1be404e11-4207",
+  "title": "Critic: cut take 2 \u2192 take 4",
+  "subject": {
+   "kind": "pair",
+   "pair": [
+    "take-679dd7cc-e75c-4017-bee7-df2cf31569dd",
+    "take-444137b8-cd14-47de-a7af-8722d75bcff9"
+   ]
+  },
+  "about": {
+   "take": "take-444137b8-cd14-47de-a7af-8722d75bcff9"
+  },
+  "purpose": null,
+  "checklist": "cut_pair",
+  "trigger": "asked",
+  "state": "done",
+  "created": "2026-11-09T03:00:47.761Z",
+  "claimed": {
+   "by": "agent:director-ux-critic",
+   "at": "2026-11-09T03:05:34.928Z"
+  },
+  "done": {
+   "by": "agent:director-ux-critic",
+   "at": "2026-11-09T03:07:41.888Z"
+  },
+  "context": {
+   "text": "Planning opening-board pair only: C1 begins with bowl in Mio LEFT hand before b1 set-down; C2 begins after that action, bowl on counter and Mio LEFT clear. Same front camera, two people, one bowl, one RIGHT-hand ladle, Kuroe rear three-quarter. C1 video does not yet exist, so this pair cannot prove selected C1 trim-out/frame equality. Person-look on actual boards/animatic is still pending before video."
+  },
+  "verdict": "clean",
+  "passes": {
+   "cut_pair": "Selected opening-board pair only, as explicit context specifies. Position: Kuroe centre-left seated and Mio frame-right behind counter persist. Facing/eyeline: Kuroe stays rear three-quarter toward Mio; Mio keeps her facing. Screen direction/camera: same fixed front customer-side view, no axis swap or framing jump. Light/grade: warm stall versus cool street, shutter, lantern, pot and counter hold. Props: one bowl moves from Mio LEFT hand in C1 opening to counter in C2 opening with left hand clear; this is the intended b1 set-down phase, not a duplicate or unexplained transfer. Ladle1 remains RIGHT, monocle1 remains on Kuroe; no new prop. Costume: same shirt/apron, headband, hair and suit; apron folds follow the changed arm pose. Clean at the planning-board level. No C1 generated-video trim-out exists yet, so exact future opens_on frame equality and continuous action are NOT qualified; these are two different intended opening moments."
+  },
+  "notes": [],
+  "counts": {
+   "high": 0,
+   "medium": 0,
+   "low": 0
+  },
+  "packet": {
+   "pictures": 5,
+   "at": 1794193603720
+  },
+  "stale": null,
+  "said": "Critic: cut take 2 \u2192 take 4: clean, 1 passes"
+ },
+ "page": {
+  "id": "b2cbcc78828c416c854eba377cd94c21",
+  "name": "agents' window b2cbcc \u00b7 A small kindness \u203a Shot 2 \u00b7 For me",
+  "headless": false,
+  "sees": true,
+  "driven_by": "director-ux-critic",
+  "code_current": true
+ },
+ "idempotency_key": "snapcall-ffe05aba4c2a6949"
+}

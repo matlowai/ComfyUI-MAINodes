@@ -1,0 +1,552 @@
+{
+  "full_response_bytes": 114600,
+  "full_response_sha256": "e6e879667c6867ed443fd5eb4f37e9d0b47140c249cffc6135fc32f681aff017",
+  "plan_sha256": "b1984e2fd1c25b6768c90b496ae9fce367342a28ec2df4d2e0e458aa39ba0634",
+  "stack_row_occurrences": 77,
+  "stack_unique_rows": 16,
+  "canonical_stack_bytes_including_repeats": 31730,
+  "canonical_stack_bytes_unique": 6787,
+  "all_rows_byte_identical_to_read_current_stack": true,
+  "new_rows": [],
+  "occurrences": [
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx.instructions.stack[0]",
+      "ref": "pack:global/consistency-data-prompting-carry@0:29c99117a6b7",
+      "bytes": 396,
+      "match_read_stack": true,
+      "sha256": "6a9649360fd91128df14a2b254d343eaf60a547bfd749e760b7f881e003989ca"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx.instructions.stack[1]",
+      "ref": "pack:global/results-never-trimmed@0:fb4c8136f5ec",
+      "bytes": 297,
+      "match_read_stack": true,
+      "sha256": "3090a0cd3c004c0e1a2aef2397b603119da6dda53478bb3acca2daea1d40091a"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx.instructions.stack[2]",
+      "ref": "pack:global/snap-gap-report@0:2b63a10f94db",
+      "bytes": 335,
+      "match_read_stack": true,
+      "sha256": "275a56ceadf2503d05a4d5865a69e14941d26b1c50e80cb6c4b83ce45964b7bd"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx.instructions.stack[3]",
+      "ref": "pack:global/warn-never-block@0:4ea187e5873b",
+      "bytes": 221,
+      "match_read_stack": true,
+      "sha256": "0eff122b45f3c13ea023793c29bf85518af7db98e9356fd5c68de501b25ab708"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx.instructions.stack[4]",
+      "ref": "pack:global/storyboard-before-video-boards@0:cfc60dab6cc6",
+      "bytes": 336,
+      "match_read_stack": true,
+      "sha256": "034502a0fc06d7d08c63609aa9a3618776934153dbd5a7fd23c11ea8d0093e45"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx.instructions.stack[5]",
+      "ref": "pack:global/when-gpu-idle-main@0:4032e9d21af1",
+      "bytes": 428,
+      "match_read_stack": true,
+      "sha256": "8025375f7c6932892ce047ba88d2231e043238737e024065d3b9bcc92470dbe7"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx.instructions.stack[6]",
+      "ref": "pack:global/prompt-pictures-beat-words@0:ad2d32873f3c",
+      "bytes": 530,
+      "match_read_stack": true,
+      "sha256": "ae027946f462ff7cb50fc4955fcdb27bdc03b3202f1cf7990816662e3641c40e"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx.instructions.stack[7]",
+      "ref": "pack:global/prompt-references-are-targets@0:e82e77a6749b",
+      "bytes": 581,
+      "match_read_stack": true,
+      "sha256": "e46b42b0b2dc2d068f8d947211cc357ee3f65c9586f3f1734ebcbc4d381df142"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx.instructions.stack[8]",
+      "ref": "pack:global/prompt-continuity-from-pictures@0:a478bc24ffb9",
+      "bytes": 488,
+      "match_read_stack": true,
+      "sha256": "b0f02328bb486102260e8685b4a57604218a3e08561aa8388c3d5c7c76301f87"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx.instructions.stack[9]",
+      "ref": "pack:global/prompt-one-ordered-action@0:3d9c0e079b56",
+      "bytes": 452,
+      "match_read_stack": true,
+      "sha256": "9a88ba935fe78c80013c8c24dfb1831c42e3825fd009f7355f75eb5ec0706ee4"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx.instructions.stack[10]",
+      "ref": "pack:global/prompt-named-gets-drawn@0:04e639b4bcf1",
+      "bytes": 443,
+      "match_read_stack": true,
+      "sha256": "9fcde8db715c6ab1498c2479d09061af5803d8b969b592142b73eb2e60de1ed5"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx.instructions.stack[11]",
+      "ref": "pack:global/prompt-no-two-lines-disagree@0:a425892ea104",
+      "bytes": 371,
+      "match_read_stack": true,
+      "sha256": "2e69bff4511fddb7c42c9ed7630d585381f0f9c3b1073a56a545466c71fdb3da"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx.instructions.stack[12]",
+      "ref": "pack:global/prompt-remove-by-editing-picture@0:49e1314f1dad",
+      "bytes": 387,
+      "match_read_stack": true,
+      "sha256": "e05243bc947aaf9d752c629829a6a41f936d61da145d1307e1b666179d14ec65"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx.instructions.stack[13]",
+      "ref": "pack:global/prompt-name-what-holds@0:21b18b9feecc",
+      "bytes": 332,
+      "match_read_stack": true,
+      "sha256": "10a9a8ed0db95a4a1adb1ea3f803f22b41518435ffe22b2b31b595144d82dbd9"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx.instructions.stack[14]",
+      "ref": "pack:global/prompt-tidiness-not-a-fix@0:c0565d131e84",
+      "bytes": 455,
+      "match_read_stack": true,
+      "sha256": "c3a50badcdcdfd31036172fc6115bfe69c2ed66e1f999558e42770a0d1db3cfd"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2.instructions.stack[0]",
+      "ref": "pack:global/consistency-data-prompting-carry@0:29c99117a6b7",
+      "bytes": 396,
+      "match_read_stack": true,
+      "sha256": "6a9649360fd91128df14a2b254d343eaf60a547bfd749e760b7f881e003989ca"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2.instructions.stack[1]",
+      "ref": "pack:global/results-never-trimmed@0:fb4c8136f5ec",
+      "bytes": 297,
+      "match_read_stack": true,
+      "sha256": "3090a0cd3c004c0e1a2aef2397b603119da6dda53478bb3acca2daea1d40091a"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2.instructions.stack[2]",
+      "ref": "pack:global/snap-gap-report@0:2b63a10f94db",
+      "bytes": 335,
+      "match_read_stack": true,
+      "sha256": "275a56ceadf2503d05a4d5865a69e14941d26b1c50e80cb6c4b83ce45964b7bd"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2.instructions.stack[3]",
+      "ref": "pack:global/warn-never-block@0:4ea187e5873b",
+      "bytes": 221,
+      "match_read_stack": true,
+      "sha256": "0eff122b45f3c13ea023793c29bf85518af7db98e9356fd5c68de501b25ab708"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2.instructions.stack[4]",
+      "ref": "pack:global/storyboard-before-video-boards@0:cfc60dab6cc6",
+      "bytes": 336,
+      "match_read_stack": true,
+      "sha256": "034502a0fc06d7d08c63609aa9a3618776934153dbd5a7fd23c11ea8d0093e45"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2.instructions.stack[5]",
+      "ref": "pack:global/when-gpu-idle-main@0:4032e9d21af1",
+      "bytes": 428,
+      "match_read_stack": true,
+      "sha256": "8025375f7c6932892ce047ba88d2231e043238737e024065d3b9bcc92470dbe7"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2.instructions.stack[6]",
+      "ref": "pack:global/prompt-pictures-beat-words@0:ad2d32873f3c",
+      "bytes": 530,
+      "match_read_stack": true,
+      "sha256": "ae027946f462ff7cb50fc4955fcdb27bdc03b3202f1cf7990816662e3641c40e"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2.instructions.stack[7]",
+      "ref": "pack:global/prompt-references-are-targets@0:e82e77a6749b",
+      "bytes": 581,
+      "match_read_stack": true,
+      "sha256": "e46b42b0b2dc2d068f8d947211cc357ee3f65c9586f3f1734ebcbc4d381df142"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2.instructions.stack[8]",
+      "ref": "pack:global/prompt-continuity-from-pictures@0:a478bc24ffb9",
+      "bytes": 488,
+      "match_read_stack": true,
+      "sha256": "b0f02328bb486102260e8685b4a57604218a3e08561aa8388c3d5c7c76301f87"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2.instructions.stack[9]",
+      "ref": "pack:global/prompt-one-ordered-action@0:3d9c0e079b56",
+      "bytes": 452,
+      "match_read_stack": true,
+      "sha256": "9a88ba935fe78c80013c8c24dfb1831c42e3825fd009f7355f75eb5ec0706ee4"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2.instructions.stack[10]",
+      "ref": "pack:global/prompt-named-gets-drawn@0:04e639b4bcf1",
+      "bytes": 443,
+      "match_read_stack": true,
+      "sha256": "9fcde8db715c6ab1498c2479d09061af5803d8b969b592142b73eb2e60de1ed5"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2.instructions.stack[11]",
+      "ref": "pack:global/prompt-no-two-lines-disagree@0:a425892ea104",
+      "bytes": 371,
+      "match_read_stack": true,
+      "sha256": "2e69bff4511fddb7c42c9ed7630d585381f0f9c3b1073a56a545466c71fdb3da"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2.instructions.stack[12]",
+      "ref": "pack:global/prompt-remove-by-editing-picture@0:49e1314f1dad",
+      "bytes": 387,
+      "match_read_stack": true,
+      "sha256": "e05243bc947aaf9d752c629829a6a41f936d61da145d1307e1b666179d14ec65"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2.instructions.stack[13]",
+      "ref": "pack:global/prompt-name-what-holds@0:21b18b9feecc",
+      "bytes": 332,
+      "match_read_stack": true,
+      "sha256": "10a9a8ed0db95a4a1adb1ea3f803f22b41518435ffe22b2b31b595144d82dbd9"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2.instructions.stack[14]",
+      "ref": "pack:global/prompt-tidiness-not-a-fix@0:c0565d131e84",
+      "bytes": 455,
+      "match_read_stack": true,
+      "sha256": "c3a50badcdcdfd31036172fc6115bfe69c2ed66e1f999558e42770a0d1db3cfd"
+    },
+    {
+      "path": "result.scoped_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2.instructions.stack[15]",
+      "ref": "instruction:note-mw8kjhmu6xpz@1",
+      "bytes": 735,
+      "match_read_stack": true,
+      "sha256": "75cdd538784ba2f0a2b99021821d0347c494111b8e71b072207e9e126cecd753"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx:make_board.instructions.stack[0]",
+      "ref": "pack:global/consistency-data-prompting-carry@0:29c99117a6b7",
+      "bytes": 396,
+      "match_read_stack": true,
+      "sha256": "6a9649360fd91128df14a2b254d343eaf60a547bfd749e760b7f881e003989ca"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx:make_board.instructions.stack[1]",
+      "ref": "pack:global/results-never-trimmed@0:fb4c8136f5ec",
+      "bytes": 297,
+      "match_read_stack": true,
+      "sha256": "3090a0cd3c004c0e1a2aef2397b603119da6dda53478bb3acca2daea1d40091a"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx:make_board.instructions.stack[2]",
+      "ref": "pack:global/snap-gap-report@0:2b63a10f94db",
+      "bytes": 335,
+      "match_read_stack": true,
+      "sha256": "275a56ceadf2503d05a4d5865a69e14941d26b1c50e80cb6c4b83ce45964b7bd"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx:make_board.instructions.stack[3]",
+      "ref": "pack:global/warn-never-block@0:4ea187e5873b",
+      "bytes": 221,
+      "match_read_stack": true,
+      "sha256": "0eff122b45f3c13ea023793c29bf85518af7db98e9356fd5c68de501b25ab708"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx:make_board.instructions.stack[4]",
+      "ref": "pack:global/storyboard-before-video-boards@0:cfc60dab6cc6",
+      "bytes": 336,
+      "match_read_stack": true,
+      "sha256": "034502a0fc06d7d08c63609aa9a3618776934153dbd5a7fd23c11ea8d0093e45"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx:make_board.instructions.stack[5]",
+      "ref": "pack:global/when-gpu-idle-main@0:4032e9d21af1",
+      "bytes": 428,
+      "match_read_stack": true,
+      "sha256": "8025375f7c6932892ce047ba88d2231e043238737e024065d3b9bcc92470dbe7"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx:make_board.instructions.stack[6]",
+      "ref": "pack:global/prompt-pictures-beat-words@0:ad2d32873f3c",
+      "bytes": 530,
+      "match_read_stack": true,
+      "sha256": "ae027946f462ff7cb50fc4955fcdb27bdc03b3202f1cf7990816662e3641c40e"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx:make_board.instructions.stack[7]",
+      "ref": "pack:global/prompt-references-are-targets@0:e82e77a6749b",
+      "bytes": 581,
+      "match_read_stack": true,
+      "sha256": "e46b42b0b2dc2d068f8d947211cc357ee3f65c9586f3f1734ebcbc4d381df142"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx:make_board.instructions.stack[8]",
+      "ref": "pack:global/prompt-continuity-from-pictures@0:a478bc24ffb9",
+      "bytes": 488,
+      "match_read_stack": true,
+      "sha256": "b0f02328bb486102260e8685b4a57604218a3e08561aa8388c3d5c7c76301f87"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx:make_board.instructions.stack[9]",
+      "ref": "pack:global/prompt-one-ordered-action@0:3d9c0e079b56",
+      "bytes": 452,
+      "match_read_stack": true,
+      "sha256": "9a88ba935fe78c80013c8c24dfb1831c42e3825fd009f7355f75eb5ec0706ee4"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx:make_board.instructions.stack[10]",
+      "ref": "pack:global/prompt-named-gets-drawn@0:04e639b4bcf1",
+      "bytes": 443,
+      "match_read_stack": true,
+      "sha256": "9fcde8db715c6ab1498c2479d09061af5803d8b969b592142b73eb2e60de1ed5"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx:make_board.instructions.stack[11]",
+      "ref": "pack:global/prompt-no-two-lines-disagree@0:a425892ea104",
+      "bytes": 371,
+      "match_read_stack": true,
+      "sha256": "2e69bff4511fddb7c42c9ed7630d585381f0f9c3b1073a56a545466c71fdb3da"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx:make_board.instructions.stack[12]",
+      "ref": "pack:global/prompt-remove-by-editing-picture@0:49e1314f1dad",
+      "bytes": 387,
+      "match_read_stack": true,
+      "sha256": "e05243bc947aaf9d752c629829a6a41f936d61da145d1307e1b666179d14ec65"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx:make_board.instructions.stack[13]",
+      "ref": "pack:global/prompt-name-what-holds@0:21b18b9feecc",
+      "bytes": 332,
+      "match_read_stack": true,
+      "sha256": "10a9a8ed0db95a4a1adb1ea3f803f22b41518435ffe22b2b31b595144d82dbd9"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8khsyq37mx:make_board.instructions.stack[14]",
+      "ref": "pack:global/prompt-tidiness-not-a-fix@0:c0565d131e84",
+      "bytes": 455,
+      "match_read_stack": true,
+      "sha256": "c3a50badcdcdfd31036172fc6115bfe69c2ed66e1f999558e42770a0d1db3cfd"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2:make_board.instructions.stack[0]",
+      "ref": "pack:global/consistency-data-prompting-carry@0:29c99117a6b7",
+      "bytes": 396,
+      "match_read_stack": true,
+      "sha256": "6a9649360fd91128df14a2b254d343eaf60a547bfd749e760b7f881e003989ca"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2:make_board.instructions.stack[1]",
+      "ref": "pack:global/results-never-trimmed@0:fb4c8136f5ec",
+      "bytes": 297,
+      "match_read_stack": true,
+      "sha256": "3090a0cd3c004c0e1a2aef2397b603119da6dda53478bb3acca2daea1d40091a"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2:make_board.instructions.stack[2]",
+      "ref": "pack:global/snap-gap-report@0:2b63a10f94db",
+      "bytes": 335,
+      "match_read_stack": true,
+      "sha256": "275a56ceadf2503d05a4d5865a69e14941d26b1c50e80cb6c4b83ce45964b7bd"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2:make_board.instructions.stack[3]",
+      "ref": "pack:global/warn-never-block@0:4ea187e5873b",
+      "bytes": 221,
+      "match_read_stack": true,
+      "sha256": "0eff122b45f3c13ea023793c29bf85518af7db98e9356fd5c68de501b25ab708"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2:make_board.instructions.stack[4]",
+      "ref": "pack:global/storyboard-before-video-boards@0:cfc60dab6cc6",
+      "bytes": 336,
+      "match_read_stack": true,
+      "sha256": "034502a0fc06d7d08c63609aa9a3618776934153dbd5a7fd23c11ea8d0093e45"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2:make_board.instructions.stack[5]",
+      "ref": "pack:global/when-gpu-idle-main@0:4032e9d21af1",
+      "bytes": 428,
+      "match_read_stack": true,
+      "sha256": "8025375f7c6932892ce047ba88d2231e043238737e024065d3b9bcc92470dbe7"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2:make_board.instructions.stack[6]",
+      "ref": "pack:global/prompt-pictures-beat-words@0:ad2d32873f3c",
+      "bytes": 530,
+      "match_read_stack": true,
+      "sha256": "ae027946f462ff7cb50fc4955fcdb27bdc03b3202f1cf7990816662e3641c40e"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2:make_board.instructions.stack[7]",
+      "ref": "pack:global/prompt-references-are-targets@0:e82e77a6749b",
+      "bytes": 581,
+      "match_read_stack": true,
+      "sha256": "e46b42b0b2dc2d068f8d947211cc357ee3f65c9586f3f1734ebcbc4d381df142"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2:make_board.instructions.stack[8]",
+      "ref": "pack:global/prompt-continuity-from-pictures@0:a478bc24ffb9",
+      "bytes": 488,
+      "match_read_stack": true,
+      "sha256": "b0f02328bb486102260e8685b4a57604218a3e08561aa8388c3d5c7c76301f87"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2:make_board.instructions.stack[9]",
+      "ref": "pack:global/prompt-one-ordered-action@0:3d9c0e079b56",
+      "bytes": 452,
+      "match_read_stack": true,
+      "sha256": "9a88ba935fe78c80013c8c24dfb1831c42e3825fd009f7355f75eb5ec0706ee4"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2:make_board.instructions.stack[10]",
+      "ref": "pack:global/prompt-named-gets-drawn@0:04e639b4bcf1",
+      "bytes": 443,
+      "match_read_stack": true,
+      "sha256": "9fcde8db715c6ab1498c2479d09061af5803d8b969b592142b73eb2e60de1ed5"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2:make_board.instructions.stack[11]",
+      "ref": "pack:global/prompt-no-two-lines-disagree@0:a425892ea104",
+      "bytes": 371,
+      "match_read_stack": true,
+      "sha256": "2e69bff4511fddb7c42c9ed7630d585381f0f9c3b1073a56a545466c71fdb3da"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2:make_board.instructions.stack[12]",
+      "ref": "pack:global/prompt-remove-by-editing-picture@0:49e1314f1dad",
+      "bytes": 387,
+      "match_read_stack": true,
+      "sha256": "e05243bc947aaf9d752c629829a6a41f936d61da145d1307e1b666179d14ec65"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2:make_board.instructions.stack[13]",
+      "ref": "pack:global/prompt-name-what-holds@0:21b18b9feecc",
+      "bytes": 332,
+      "match_read_stack": true,
+      "sha256": "10a9a8ed0db95a4a1adb1ea3f803f22b41518435ffe22b2b31b595144d82dbd9"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2:make_board.instructions.stack[14]",
+      "ref": "pack:global/prompt-tidiness-not-a-fix@0:c0565d131e84",
+      "bytes": 455,
+      "match_read_stack": true,
+      "sha256": "c3a50badcdcdfd31036172fc6115bfe69c2ed66e1f999558e42770a0d1db3cfd"
+    },
+    {
+      "path": "result.tool_parameters.scene-mw8khsydsspo/shot-mw8kic4gqbh2:make_board.instructions.stack[15]",
+      "ref": "instruction:note-mw8kjhmu6xpz@1",
+      "bytes": 735,
+      "match_read_stack": true,
+      "sha256": "75cdd538784ba2f0a2b99021821d0347c494111b8e71b072207e9e126cecd753"
+    },
+    {
+      "path": "result.instructions.stack[0]",
+      "ref": "pack:global/consistency-data-prompting-carry@0:29c99117a6b7",
+      "bytes": 396,
+      "match_read_stack": true,
+      "sha256": "6a9649360fd91128df14a2b254d343eaf60a547bfd749e760b7f881e003989ca"
+    },
+    {
+      "path": "result.instructions.stack[1]",
+      "ref": "pack:global/results-never-trimmed@0:fb4c8136f5ec",
+      "bytes": 297,
+      "match_read_stack": true,
+      "sha256": "3090a0cd3c004c0e1a2aef2397b603119da6dda53478bb3acca2daea1d40091a"
+    },
+    {
+      "path": "result.instructions.stack[2]",
+      "ref": "pack:global/snap-gap-report@0:2b63a10f94db",
+      "bytes": 335,
+      "match_read_stack": true,
+      "sha256": "275a56ceadf2503d05a4d5865a69e14941d26b1c50e80cb6c4b83ce45964b7bd"
+    },
+    {
+      "path": "result.instructions.stack[3]",
+      "ref": "pack:global/warn-never-block@0:4ea187e5873b",
+      "bytes": 221,
+      "match_read_stack": true,
+      "sha256": "0eff122b45f3c13ea023793c29bf85518af7db98e9356fd5c68de501b25ab708"
+    },
+    {
+      "path": "result.instructions.stack[4]",
+      "ref": "pack:global/storyboard-before-video-boards@0:cfc60dab6cc6",
+      "bytes": 336,
+      "match_read_stack": true,
+      "sha256": "034502a0fc06d7d08c63609aa9a3618776934153dbd5a7fd23c11ea8d0093e45"
+    },
+    {
+      "path": "result.instructions.stack[5]",
+      "ref": "pack:global/when-gpu-idle-main@0:4032e9d21af1",
+      "bytes": 428,
+      "match_read_stack": true,
+      "sha256": "8025375f7c6932892ce047ba88d2231e043238737e024065d3b9bcc92470dbe7"
+    },
+    {
+      "path": "result.instructions.stack[6]",
+      "ref": "pack:global/prompt-pictures-beat-words@0:ad2d32873f3c",
+      "bytes": 530,
+      "match_read_stack": true,
+      "sha256": "ae027946f462ff7cb50fc4955fcdb27bdc03b3202f1cf7990816662e3641c40e"
+    },
+    {
+      "path": "result.instructions.stack[7]",
+      "ref": "pack:global/prompt-references-are-targets@0:e82e77a6749b",
+      "bytes": 581,
+      "match_read_stack": true,
+      "sha256": "e46b42b0b2dc2d068f8d947211cc357ee3f65c9586f3f1734ebcbc4d381df142"
+    },
+    {
+      "path": "result.instructions.stack[8]",
+      "ref": "pack:global/prompt-continuity-from-pictures@0:a478bc24ffb9",
+      "bytes": 488,
+      "match_read_stack": true,
+      "sha256": "b0f02328bb486102260e8685b4a57604218a3e08561aa8388c3d5c7c76301f87"
+    },
+    {
+      "path": "result.instructions.stack[9]",
+      "ref": "pack:global/prompt-one-ordered-action@0:3d9c0e079b56",
+      "bytes": 452,
+      "match_read_stack": true,
+      "sha256": "9a88ba935fe78c80013c8c24dfb1831c42e3825fd009f7355f75eb5ec0706ee4"
+    },
+    {
+      "path": "result.instructions.stack[10]",
+      "ref": "pack:global/prompt-named-gets-drawn@0:04e639b4bcf1",
+      "bytes": 443,
+      "match_read_stack": true,
+      "sha256": "9fcde8db715c6ab1498c2479d09061af5803d8b969b592142b73eb2e60de1ed5"
+    },
+    {
+      "path": "result.instructions.stack[11]",
+      "ref": "pack:global/prompt-no-two-lines-disagree@0:a425892ea104",
+      "bytes": 371,
+      "match_read_stack": true,
+      "sha256": "2e69bff4511fddb7c42c9ed7630d585381f0f9c3b1073a56a545466c71fdb3da"
+    },
+    {
+      "path": "result.instructions.stack[12]",
+      "ref": "pack:global/prompt-remove-by-editing-picture@0:49e1314f1dad",
+      "bytes": 387,
+      "match_read_stack": true,
+      "sha256": "e05243bc947aaf9d752c629829a6a41f936d61da145d1307e1b666179d14ec65"
+    },
+    {
+      "path": "result.instructions.stack[13]",
+      "ref": "pack:global/prompt-name-what-holds@0:21b18b9feecc",
+      "bytes": 332,
+      "match_read_stack": true,
+      "sha256": "10a9a8ed0db95a4a1adb1ea3f803f22b41518435ffe22b2b31b595144d82dbd9"
+    },
+    {
+      "path": "result.instructions.stack[14]",
+      "ref": "pack:global/prompt-tidiness-not-a-fix@0:c0565d131e84",
+      "bytes": 455,
+      "match_read_stack": true,
+      "sha256": "c3a50badcdcdfd31036172fc6115bfe69c2ed66e1f999558e42770a0d1db3cfd"
+    }
+  ]
+}

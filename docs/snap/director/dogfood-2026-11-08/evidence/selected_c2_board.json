@@ -1,0 +1,23 @@
+{
+ "result": {
+  "cut": "C2",
+  "role": "opening",
+  "board": {
+   "file": "snap/take-444137b8-cd14-47de-a7af-8722d75bcff9_f0.png",
+   "from": {
+    "take": "take-444137b8-cd14-47de-a7af-8722d75bcff9",
+    "frame": 0
+   },
+   "approved": true
+  }
+ },
+ "page": {
+  "id": "b2cbcc78828c416c854eba377cd94c21",
+  "name": "agents' window b2cbcc \u00b7 A small kindness \u203a Shot 2 \u00b7 For me",
+  "headless": false,
+  "sees": true,
+  "driven_by": "director-resume",
+  "code_current": true
+ },
+ "idempotency_key": "snapcall-94a2ff7cde17899d"
+}

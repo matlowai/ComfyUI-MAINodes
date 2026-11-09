@@ -1,0 +1,85 @@
+{
+  "captured_at": "2026-11-08T22:20:31.355273-05:00",
+  "application_source_commit": "28260fa",
+  "previous_published_checkpoint": "097102b",
+  "files": [
+    {
+      "source_relative": "RESUME_2026-11-08.md",
+      "copy_relative": "reports/RESUME_2026-11-08.md",
+      "source_sha256": "8d7630df889f6ff32eab80aa4676debafe98ac392b9b3396e7e84deb167fd33c",
+      "copy_sha256": "8d7630df889f6ff32eab80aa4676debafe98ac392b9b3396e7e84deb167fd33c",
+      "transform": "local path roots replaced if present; complete contents retained"
+    },
+    {
+      "source_relative": "RESUME_CRITIC.md",
+      "copy_relative": "reports/RESUME_CRITIC.md",
+      "source_sha256": "feda3dfe24edb227295bc86586e99b0b4b89c34378d39a80e9d23fd9890505ce",
+      "copy_sha256": "feda3dfe24edb227295bc86586e99b0b4b89c34378d39a80e9d23fd9890505ce",
+      "transform": "local path roots replaced if present; complete contents retained"
+    },
+    {
+      "source_relative": "resume/selected_c1_board.json",
+      "copy_relative": "evidence/selected_c1_board.json",
+      "source_sha256": "fceca7504502940e6759ea8e5a005e1e7d5c2fa74379e65dcf4940b848b80f12",
+      "copy_sha256": "fceca7504502940e6759ea8e5a005e1e7d5c2fa74379e65dcf4940b848b80f12",
+      "transform": "local path roots replaced if present; complete contents retained"
+    },
+    {
+      "source_relative": "resume/selected_c2_board.json",
+      "copy_relative": "evidence/selected_c2_board.json",
+      "source_sha256": "ab2e9f19eccc7b1abe79f628ec8324314a0fcbc1a122b176fbfbbf04886f8167",
+      "copy_sha256": "ab2e9f19eccc7b1abe79f628ec8324314a0fcbc1a122b176fbfbbf04886f8167",
+      "transform": "local path roots replaced if present; complete contents retained"
+    },
+    {
+      "source_relative": "resume/selection_history_integrity.json",
+      "copy_relative": "evidence/selection_history_integrity.json",
+      "source_sha256": "15f2b03fa7643334d61fcfc321bc6eeb2b8cffd0c1d301e793fd436f3b93ced6",
+      "copy_sha256": "15f2b03fa7643334d61fcfc321bc6eeb2b8cffd0c1d301e793fd436f3b93ced6",
+      "transform": "local path roots replaced if present; complete contents retained"
+    },
+    {
+      "source_relative": "resume/plan_stack_measurement.json",
+      "copy_relative": "evidence/plan_stack_measurement.json",
+      "source_sha256": "a3e55bdc0882f0077bf82929e301d6be47d7bb1342007ad227a569fc8ea1e7bb",
+      "copy_sha256": "a3e55bdc0882f0077bf82929e301d6be47d7bb1342007ad227a569fc8ea1e7bb",
+      "transform": "local path roots replaced if present; complete contents retained"
+    },
+    {
+      "source_relative": "resume/selected_artifact_checks.json",
+      "copy_relative": "evidence/selected_artifact_checks.json",
+      "source_sha256": "aec90587f4fe4cb0ca0ecf1b027a1c2c934e72e68abf24abed9b76897975e1a9",
+      "copy_sha256": "aec90587f4fe4cb0ca0ecf1b027a1c2c934e72e68abf24abed9b76897975e1a9",
+      "transform": "local path roots replaced if present; complete contents retained"
+    },
+    {
+      "source_relative": "resume_critic/cleanup11106_verdict.json",
+      "copy_relative": "evidence/cleanup11106_verdict.json",
+      "source_sha256": "517a03f151203d3090fd5c4fe5aefe0072d62fb4dd74adca38cbf2158e5c3185",
+      "copy_sha256": "517a03f151203d3090fd5c4fe5aefe0072d62fb4dd74adca38cbf2158e5c3185",
+      "transform": "local path roots replaced if present; complete contents retained"
+    },
+    {
+      "source_relative": "resume_critic/pair_verdict.json",
+      "copy_relative": "evidence/pair_verdict.json",
+      "source_sha256": "b5845eb33e44b94a335d1c9840b6c1162259fd8353973bc067b04658d613c350",
+      "copy_sha256": "b5845eb33e44b94a335d1c9840b6c1162259fd8353973bc067b04658d613c350",
+      "transform": "local path roots replaced if present; complete contents retained"
+    },
+    {
+      "source_relative": "resume_critic/animatic_verdict.json",
+      "copy_relative": "evidence/animatic_verdict.json",
+      "source_sha256": "08b405d0160d42831b38c0996d9fdd280674d1102cc7208d22582106c7d11722",
+      "copy_sha256": "08b405d0160d42831b38c0996d9fdd280674d1102cc7208d22582106c7d11722",
+      "transform": "local path roots replaced if present; complete contents retained"
+    },
+    {
+      "source_relative": "evidence/board_look_approval.json",
+      "copy_relative": "evidence/board_look_approval.json",
+      "source_sha256": "ef590a4c22997bda5c1a9b2ca7d0051bc47d998b7a678ebc357c8f8bf0ffa278",
+      "copy_sha256": "ef590a4c22997bda5c1a9b2ca7d0051bc47d998b7a678ebc357c8f8bf0ffa278",
+      "transform": "local path roots replaced if present; complete contents retained"
+    }
+  ],
+  "scope": "selected boards, native animatic, formal visual reviews and actual user render authorization; generated film is a subsequent phase"
+}

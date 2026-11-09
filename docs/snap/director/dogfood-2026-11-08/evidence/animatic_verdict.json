@@ -1,0 +1,64 @@
+{
+ "result": {
+  "critique": "crit-1a1be3fedcb-41f9",
+  "title": "Critic: take 1",
+  "subject": {
+   "kind": "take",
+   "take": "take-f0103aeb-c89e-4294-8422-c13beae5231f"
+  },
+  "about": {
+   "take": "take-f0103aeb-c89e-4294-8422-c13beae5231f"
+  },
+  "purpose": null,
+  "checklist": "cut",
+  "trigger": "landed",
+  "state": "done",
+  "created": "2026-11-09T03:00:23.115Z",
+  "claimed": {
+   "by": "agent:director-ux-critic",
+   "at": "2026-11-09T03:07:49.541Z"
+  },
+  "done": {
+   "by": "agent:director-ux-critic",
+   "at": "2026-11-09T03:12:23.751Z"
+  },
+  "verdict": "clean",
+  "passes": {
+   "scan": "Actual animatic packet whole frames0,12,24,36,48,60,72,84,96,108,120,132,144,156,168,179 all inspected at1280x704 before empty tiles/context responses; native join frames89,90,91 additionally read. Each frame shows the selected C1 or C2 board. No sampled black gap, extra figure, ghost bowl, added text or framing fault.",
+   "map": "Same front camera and stage across both holds: Kuroe centre-left facing Mio frame-right, lantern left,pot right, original counter/shutter. No unexpected relocation.",
+   "support": "First hold bowl supported by LEFT hand; second hold bowl foot meets counter and left hand is clear. RIGHT ladle remains held throughout sampled frames; one seated Kuroe and existing stools maintain visible support.",
+   "cast": "Compared with the separately reviewed selected boards: Mio orange hair/amber eyes/light skin/black shirt/green apron/white headband; Kuroe silver hair/light tan skin/black suit/edge-on monocle. Visible colour, costume and facing hold across both displayed states.",
+   "beat": "Correct planning animatic, deliberately two still holds3.75s each. Frame89 shows pre-set-down C1 opening; frame90 at3.75s switches to after-set-down C2 opening, frame91 agrees. This illustrates intended phase change; it does not render set-down motion, speech or nodding, and those omissions are not defects of the stated animatic job.",
+   "count": "Every sampled frame: people2,bowl1,ladle1 RIGHT,pot1,lantern1. Bowl in Mio LEFT through sampled frame89; bowl COUNTER and left empty from frame90 through179. No duplicate or ghost bowl remains at the join.",
+   "cross_view": "Matches selected C1 take679dd7cc and C2 take444137b8 in correct order. Independent file probe:180frames24fps,1280x704,7.500s video and7.500s audio both start0. No actual C1 generated-video trim-out exists, so future opens_on equality/continuous-action continuity remains unqualified. Generic animatic packet has no Cast/beat context; selected-board receipts and separately reviewed pair supply that context.",
+   "sound": "Planned blank animatic audio. Packet analysis reports mean-91dB and no sub-bass hit; stream duration matches picture. Perceptual listening was NOT performed and neither dialogue, acting sound nor future production audio is approved by these measurements.",
+   "scale": "No scale anchors/calibrated horizon; no metric claim. CLEAN verdict is bounded to the sampled visual planning animatic, not a completed production film."
+  },
+  "notes": [],
+  "counts": {
+   "high": 0,
+   "medium": 0,
+   "low": 0
+  },
+  "verdict_set": {
+   "take": "take-f0103aeb-c89e-4294-8422-c13beae5231f",
+   "verdict": null,
+   "because": "approval is the person's (not in a scene: the person approves)"
+  },
+  "packet": {
+   "pictures": 16,
+   "at": 1794193778748
+  },
+  "stale": null,
+  "said": "Critic: take 1: clean, 9 passes"
+ },
+ "page": {
+  "id": "b2cbcc78828c416c854eba377cd94c21",
+  "name": "agents' window b2cbcc \u00b7 A small kindness \u203a Shot 2 \u00b7 For me",
+  "headless": false,
+  "sees": true,
+  "driven_by": "director-ux-critic",
+  "code_current": true
+ },
+ "idempotency_key": "snapcall-bad6d6605333be93"
+}

@@ -1,0 +1,12 @@
+[
+  {
+    "prompt": "679dd7cc-e75c-4017-bee7-df2cf31569dd",
+    "complete_history_equal_before_after_set_board": true,
+    "canonical_sha256": "da5dfa07d57f8bfacb4a6953dfcc2cf128ef83930d176efd872d07e0a978c322"
+  },
+  {
+    "prompt": "444137b8-cd14-47de-a7af-8722d75bcff9",
+    "complete_history_equal_before_after_set_board": true,
+    "canonical_sha256": "755e1d606291c227de70f860993c87b36400d43a61bc3d532c0d78653461ebe2"
+  }
+]

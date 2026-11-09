@@ -1,0 +1,49 @@
+{
+  "captured_at": "2026-11-08T22:07:10.779092-05:00",
+  "files": [
+    {
+      "source_relative": "base/output/snap_views/f4295406_00002_.png",
+      "copy": "C1_opening.png",
+      "source_sha256": "a8620d93701c33a429491acaa97395ebcea4c7fb1a5f7e8ac136b59a2513c31a",
+      "copy_sha256": "3af81eaffb4f4c59469604309a665131558e1827ce396deaa9b35fd9c4d716e8",
+      "pixel_sha256": "ff2249ee367b265b83ad8c03f3929149e05b3635ce6d56e81c5a6bf02852a6b6",
+      "dimensions": [
+        2560,
+        1408
+      ],
+      "removed_chunks": [
+        "tEXt",
+        "tEXt"
+      ],
+      "transform": "PNG container metadata removed; image chunks/pixels unchanged"
+    },
+    {
+      "source_relative": "base/output/snap_views/95b54bac_00004_.png",
+      "copy": "C2_opening.png",
+      "source_sha256": "c9969f7a8aeccc06d4eae165f211e4d8696dbe9683ccacbc93047efd3ad46ef9",
+      "copy_sha256": "8133b8fe94a06dd5a113a259ce3fff2727437a9916200ecf234d60a5d3c755d3",
+      "pixel_sha256": "3f307dc2ce821eda8a2e8650e7975e7676f250006bcd498134347bb514fe60ba",
+      "dimensions": [
+        2560,
+        1408
+      ],
+      "removed_chunks": [
+        "tEXt",
+        "tEXt"
+      ],
+      "transform": "PNG container metadata removed; image chunks/pixels unchanged"
+    },
+    {
+      "source_relative": "base/output/video/snap_book/book-mw8ji71lvzcx_animatic_00001_.mp4",
+      "copy": "On_the_House_animatic.mp4",
+      "source_sha256": "50853cf7aa1e5c21d8a45983a5c450429b5fe24e398f1d53f4a95c5e0dd5925f",
+      "copy_sha256": "8bfacfb05f8a57bb18270a20b10be0d905f1f1edf9dda40e8c19101ccf544f2c",
+      "identical_encoded_stream_hashes": {
+        "0:v:0": "SHA256=cfc193c5eb6c3eebbd0514038ed2c1f8a9129dc98e31a601fee9fd43d969c1c6",
+        "0:a:0": "SHA256=d08825648a2f59a946841e81bb90ae8c2bf6e7d146d93dab558bd4efb99b6a98"
+      },
+      "transform": "container metadata removed by stream copy; no audio/video re-encoding"
+    }
+  ],
+  "scope": "two selected still boards and silent storyboard animatic; no generated motion/dialogue approval"
+}

@@ -26,6 +26,6 @@ These are small independent changes with dependencies, not one combined implemen
 - Candidate/take verdict buttons in Room have source-level attribution inconsistencies. They need disposable native reproduction before using picks as human learning labels. This does not invalidate the already explicit Story5/style2 chat approval.
 - Collaboration style changes interaction preferences within existing authority. Existing permission and canon decisions persist across modalities and context resets.
 - The new candidate-panel Escape fix belongs to `view.js`; it does not qualify the broader Room accessibility slice.
-- Existing blind critic and instruction-pin qualifications remain open under their owners.
+- Existing blind critic and instruction-pin qualifications remain open under their owners. The resumed test also confirmed selected adapted boards lack story pins used by staleness checks; a future Book-owned adoption-state record must remain distinct from creation history.
 
 See the [active dogfood follow-up](../dogfood-2026-11-08/FOLLOWUP_2026-11-08.md) for current production and verification status.
