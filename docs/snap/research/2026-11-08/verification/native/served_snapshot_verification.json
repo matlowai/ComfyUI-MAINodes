@@ -1,0 +1,86 @@
+[
+  {
+    "port": 8195,
+    "module": "snap_director.js",
+    "pack_resolves_to": "worktrees/snap-2830523-gate-20261108",
+    "sha256": "9163641b2c5a0a6beaa2a3d4d9c2650401c8d0d5e8abcab371da9e50fef2677d",
+    "matches_snapshot": true
+  },
+  {
+    "port": 8195,
+    "module": "snap/director/service.mjs",
+    "pack_resolves_to": "worktrees/snap-2830523-gate-20261108",
+    "sha256": "7fe51de4fb132222da7d07ee6572d85ebf4239095171e0a4a1cdd2914b17e5ed",
+    "matches_snapshot": true
+  },
+  {
+    "port": 8195,
+    "module": "snap/voices.js",
+    "pack_resolves_to": "worktrees/snap-2830523-gate-20261108",
+    "sha256": "6038fbb9aa0b0ce34ebd00dee3d8326ed0fbae31131c1ee14ad0e855c3df82d8",
+    "matches_snapshot": true
+  },
+  {
+    "port": 8196,
+    "module": "snap_director.js",
+    "pack_resolves_to": "worktrees/snap-2830523-gate-20261108",
+    "sha256": "9163641b2c5a0a6beaa2a3d4d9c2650401c8d0d5e8abcab371da9e50fef2677d",
+    "matches_snapshot": true
+  },
+  {
+    "port": 8196,
+    "module": "snap/director/service.mjs",
+    "pack_resolves_to": "worktrees/snap-2830523-gate-20261108",
+    "sha256": "7fe51de4fb132222da7d07ee6572d85ebf4239095171e0a4a1cdd2914b17e5ed",
+    "matches_snapshot": true
+  },
+  {
+    "port": 8196,
+    "module": "snap/voices.js",
+    "pack_resolves_to": "worktrees/snap-2830523-gate-20261108",
+    "sha256": "6038fbb9aa0b0ce34ebd00dee3d8326ed0fbae31131c1ee14ad0e855c3df82d8",
+    "matches_snapshot": true
+  },
+  {
+    "port": 8199,
+    "module": "snap_director.js",
+    "pack_resolves_to": "worktrees/snap-2830523-gate-20261108",
+    "sha256": "9163641b2c5a0a6beaa2a3d4d9c2650401c8d0d5e8abcab371da9e50fef2677d",
+    "matches_snapshot": true
+  },
+  {
+    "port": 8199,
+    "module": "snap/director/service.mjs",
+    "pack_resolves_to": "worktrees/snap-2830523-gate-20261108",
+    "sha256": "7fe51de4fb132222da7d07ee6572d85ebf4239095171e0a4a1cdd2914b17e5ed",
+    "matches_snapshot": true
+  },
+  {
+    "port": 8199,
+    "module": "snap/voices.js",
+    "pack_resolves_to": "worktrees/snap-2830523-gate-20261108",
+    "sha256": "6038fbb9aa0b0ce34ebd00dee3d8326ed0fbae31131c1ee14ad0e855c3df82d8",
+    "matches_snapshot": true
+  },
+  {
+    "port": 8194,
+    "module": "snap_director.js",
+    "pack_resolves_to": "worktrees/snap-2830523-gate-20261108",
+    "sha256": "9163641b2c5a0a6beaa2a3d4d9c2650401c8d0d5e8abcab371da9e50fef2677d",
+    "matches_snapshot": true
+  },
+  {
+    "port": 8194,
+    "module": "snap/director/service.mjs",
+    "pack_resolves_to": "worktrees/snap-2830523-gate-20261108",
+    "sha256": "7fe51de4fb132222da7d07ee6572d85ebf4239095171e0a4a1cdd2914b17e5ed",
+    "matches_snapshot": true
+  },
+  {
+    "port": 8194,
+    "module": "snap/voices.js",
+    "pack_resolves_to": "worktrees/snap-2830523-gate-20261108",
+    "sha256": "6038fbb9aa0b0ce34ebd00dee3d8326ed0fbae31131c1ee14ad0e855c3df82d8",
+    "matches_snapshot": true
+  }
+]

@@ -1,0 +1,38 @@
+[
+  {
+    "file": "director_desktop.png",
+    "sha256": "d57cde41b02b6490e1706e5786ab161d51790bf4d57a04911a6aa7d75f011d8c",
+    "dimensions": [
+      1828,
+      1921
+    ],
+    "metadata_keys": [
+      "icc_profile"
+    ],
+    "metadata_review": "standard browser RGB color profile only; no workflow, EXIF or text metadata"
+  },
+  {
+    "file": "director_mobile.png",
+    "sha256": "789713aa623c0eef9909c6f8c62e3d9cb000bf27989e67f84de6c7c668da2194",
+    "dimensions": [
+      390,
+      844
+    ],
+    "metadata_keys": [
+      "icc_profile"
+    ],
+    "metadata_review": "standard browser RGB color profile only; no workflow, EXIF or text metadata"
+  },
+  {
+    "file": "director_preferences.png",
+    "sha256": "80ba496434794c8b0b9f3e34150df901a3aaac5ed071df36fe3ea5a44a4521df",
+    "dimensions": [
+      1828,
+      1921
+    ],
+    "metadata_keys": [
+      "icc_profile"
+    ],
+    "metadata_review": "standard browser RGB color profile only; no workflow, EXIF or text metadata"
+  }
+]

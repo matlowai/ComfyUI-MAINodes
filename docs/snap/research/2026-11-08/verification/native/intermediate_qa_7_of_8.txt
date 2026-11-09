@@ -1,0 +1,198 @@
+PASS the leak (a silent cut citing Maren's voice): unscripted speech by Maren, status check (F-SQ11)
+PASS C4's line from its story pin: ok by voice, Kuroe, margin above 0.08
+PASS C4's words in take seconds, in order, Nemotron exact against the line
+PASS the QA prompt was written in H3's dialogue grammar from the cut's line
+PASS four Cast voices as references, the voice model on (two or more)
+FAIL a silent Book cut citing no voice is checked too: nothing unscripted, ok
+PASS the QA ran where the setting says, named in the answer (ComfyUI's own card here, never GPU 1)
+PASS no page errors
+{
+ "leak": {
+  "status": "check",
+  "summary": {
+   "ok": 0,
+   "wrong_voice": 0,
+   "unsure_voice": 0,
+   "no_reference": 0,
+   "missing": 0,
+   "wrong_time": 0,
+   "unscripted": 1,
+   "lines": 0
+  },
+  "lines": [],
+  "unscripted": [
+   {
+    "text": "i don't need your thanks tell me where it",
+    "start": 0.144,
+    "end": 4.474,
+    "voice": "Maren g17b",
+    "margin": 0.4791
+   }
+  ],
+  "why": [
+   "unscripted: \"i don't need your thanks tell me where it\" by Maren g17b 0.144-4.474 s: nobody speaks in this cut, so a voice reference may have leaked into it (H3 speaks a reference's own words)"
+  ],
+  "speakers": [
+   "Maren g17b",
+   "Kuroe g17b",
+   "Brann g17b",
+   "Liesl g17b"
+  ],
+  "gpu": "on ComfyUI's own GPU with the experts in RAM (the Voice QA setting)"
+ },
+ "c4": {
+  "qa": {
+   "status": "ok",
+   "summary": {
+    "ok": 1,
+    "wrong_voice": 0,
+    "unsure_voice": 0,
+    "no_reference": 0,
+    "missing": 0,
+    "wrong_time": 0,
+    "unscripted": 0,
+    "lines": 1
+   },
+   "lines": [
+    {
+     "shot": 1,
+     "text": "One more bowl.",
+     "expected": "Kuroe g17b",
+     "verdict": "ok",
+     "heard": "one more bowl",
+     "start": 2.384,
+     "end": 3.694,
+     "voice": "Kuroe g17b",
+     "margin": 0.5297
+    }
+   ],
+   "unscripted": [],
+   "speakers": [
+    "Kuroe g17b",
+    "Brann g17b",
+    "Maren g17b",
+    "Liesl g17b"
+   ],
+   "gpu": "on ComfyUI's own GPU with the experts in RAM (the Voice QA setting)"
+  },
+  "words": [
+   [
+    2.384,
+    2.722,
+    "one"
+   ],
+   [
+    2.722,
+    3.122,
+    "more"
+   ],
+   [
+    3.122,
+    3.694,
+    "bowl"
+   ]
+  ],
+  "line_match": {
+   "exact": true,
+   "heard": "one more bowl",
+   "line": "One more bowl.",
+   "words": "3 of 3",
+   "said": "Nemotron exact"
+  },
+  "status": "ok"
+ },
+ "c1": {
+  "status": "ok",
+  "summary": {
+   "ok": 0,
+   "wrong_voice": 0,
+   "unsure_voice": 0,
+   "no_reference": 0,
+   "missing": 0,
+   "wrong_time": 0,
+   "unscripted": 0,
+   "lines": 0
+  },
+  "lines": [],
+  "unscripted": [],
+  "speakers": [
+   "Kuroe g17b",
+   "Brann g17b",
+   "Maren g17b",
+   "Liesl g17b"
+  ],
+  "gpu": "on ComfyUI's own GPU with the experts in RAM (the Voice QA setting)"
+ },
+ "seconds": [
+  11.233,
+  15.289,
+  10.166
+ ],
+ "checks": [
+  {
+   "queued": true,
+   "voices": [
+    "Maren g17b (<Audio 1>)"
+   ],
+   "against": [
+    "Kuroe g17b",
+    "Brann g17b",
+    "Liesl g17b"
+   ],
+   "words": "timed by Nemotron Transcribe (nemotron/nemotron-transcribe-30b-a4b-experts-Q4_K_S.gguf) in the Voice QA, on ComfyUI's own GPU with the experts in RAM (the Voice QA setting)",
+   "qa": {
+    "speakers": [
+     "Maren g17b",
+     "Kuroe g17b",
+     "Brann g17b",
+     "Liesl g17b"
+    ],
+    "by_voice": "WavLM-large ECAPA scores each line against every reference",
+    "lines": "no line: nobody should speak",
+    "prompt": "[Shot 1] Nobody speaks."
+   }
+  },
+  {
+   "queued": true,
+   "voices": [
+    "Kuroe g17b (<Audio 1>)"
+   ],
+   "against": [
+    "Brann g17b",
+    "Maren g17b",
+    "Liesl g17b"
+   ],
+   "words": "timed by Nemotron Transcribe (nemotron/nemotron-transcribe-30b-a4b-experts-Q4_K_S.gguf) in the Voice QA, on ComfyUI's own GPU with the experts in RAM (the Voice QA setting)",
+   "qa": {
+    "speakers": [
+     "Kuroe g17b",
+     "Brann g17b",
+     "Maren g17b",
+     "Liesl g17b"
+    ],
+    "by_voice": "WavLM-large ECAPA scores each line against every reference",
+    "lines": "1 line from the cut's story",
+    "prompt": "[Shot 1] <Audio 1> <d>One more bowl.</d>"
+   }
+  },
+  {
+   "queued": true,
+   "voices": [],
+   "against": [],
+   "words": "timed by Nemotron Transcribe (nemotron/nemotron-transcribe-30b-a4b-experts-Q4_K_S.gguf) in the Voice QA, on ComfyUI's own GPU with the experts in RAM (the Voice QA setting)",
+   "qa": {
+    "speakers": [
+     "Kuroe g17b",
+     "Brann g17b",
+     "Maren g17b",
+     "Liesl g17b"
+    ],
+    "by_voice": "WavLM-large ECAPA scores each line against every reference",
+    "lines": "no line: nobody should speak",
+    "prompt": "[Shot 1] Nobody speaks."
+   }
+  }
+ ],
+ "errors": []
+}
+g17bvoiceqa 7/8

@@ -1,0 +1,386 @@
+{
+  "take-g17bqa-c4.json": {
+    "id": "take-g17bqa-c4",
+    "kind": "run",
+    "prompt_id": "take-g17bqa-c4",
+    "created": 1794180514349,
+    "seconds": 60,
+    "group": "take-g17bqa-c4-g",
+    "number": 1,
+    "status": "success",
+    "text": "",
+    "seed": 1,
+    "verdict": null,
+    "notes": [],
+    "media": [
+      {
+        "kind": "video",
+        "filename": "c4.mp4",
+        "subfolder": "snaptest_g17bqa",
+        "type": "output"
+      }
+    ],
+    "graph": {},
+    "world": {},
+    "prompt": {
+      "1": {
+        "class_type": "LoadAudio",
+        "inputs": {
+          "audio": "snap/g17bqa/kuroe.wav"
+        }
+      },
+      "2": {
+        "class_type": "H3Refs",
+        "inputs": {
+          "ref_audios.audio1": [
+            "1",
+            0
+          ]
+        }
+      }
+    },
+    "story": {
+      "book": "book:book-mw8gr4xngdoz",
+      "ref": "story:story-mw8gr4xf4apo@2",
+      "beat": "b2",
+      "unit": {
+        "scene": "scene-mw8gr4z0futw",
+        "shot": "shot-mw8gr50dpk5g",
+        "cut": "C2"
+      }
+    },
+    "updated": 1794180542062,
+    "voice": {
+      "status": "ok",
+      "voices": [
+        {
+          "name": "Kuroe g17b",
+          "cast": "cast:cast-mw8gr4rin25a@1",
+          "cite": "<Audio 1>",
+          "own": 0.981,
+          "others": [
+            {
+              "name": "Brann g17b",
+              "score": 0.772
+            },
+            {
+              "name": "Liesl g17b",
+              "score": 0.375
+            },
+            {
+              "name": "Maren g17b",
+              "score": 0.359
+            }
+          ],
+          "margin": 0.209,
+          "f0": 97.6,
+          "ref_f0": 99.4,
+          "semitones": -0.3,
+          "status": "ok",
+          "said": "voice matches Kuroe g17b 0.98, next closest Brann g17b 0.77 (+0.21), F0 98 Hz vs ref 99 Hz"
+        }
+      ],
+      "f0": 97.6,
+      "thresholds": {
+        "ok": 0.9,
+        "margin": 0.05,
+        "f0_semitones": 3,
+        "evidence": "measured",
+        "source": "G1b, scout/voice_timbre_2026-11-06.md on short03's voices: the same speaker 0.89-1.00 across 15 talking anchors, Maren against Liesl 0.81-0.95 (two young women), against Brann 0.39-0.65. Cuts citing a reference: own 0.97-0.99, the other woman 0.86-0.93, F0 within 1-8 Hz of the reference. ok = own at least `ok` and ahead of every other Cast by `margin`, F0 within `f0_semitones`; the next closest Cast is named with the margin. WavLM can't separate two similar voices alone, so the note gives numbers and the margin, never 'the same person'. n = 3 voices, 12 cuts, one production"
+      },
+      "by": "agent",
+      "at": "2026-11-08T23:29:02.062Z",
+      "qa": {
+        "status": "ok",
+        "summary": {
+          "ok": 1,
+          "wrong_voice": 0,
+          "unsure_voice": 0,
+          "no_reference": 0,
+          "missing": 0,
+          "wrong_time": 0,
+          "unscripted": 0,
+          "lines": 1
+        },
+        "lines": [
+          {
+            "shot": 1,
+            "text": "One more bowl.",
+            "expected": "Kuroe g17b",
+            "verdict": "ok",
+            "heard": "one more bowl",
+            "start": 2.384,
+            "end": 3.694,
+            "voice": "Kuroe g17b",
+            "margin": 0.5297
+          }
+        ],
+        "unscripted": [],
+        "speakers": [
+          "Kuroe g17b",
+          "Liesl g17b",
+          "Brann g17b",
+          "Maren g17b"
+        ],
+        "gpu": "on ComfyUI's own GPU with the experts in RAM (the Voice QA setting)"
+      },
+      "words": [
+        [
+          2.384,
+          2.722,
+          "one"
+        ],
+        [
+          2.722,
+          3.122,
+          "more"
+        ],
+        [
+          3.122,
+          3.694,
+          "bowl"
+        ]
+      ],
+      "text": "one more bowl",
+      "line_match": {
+        "exact": true,
+        "heard": "one more bowl",
+        "line": "One more bowl.",
+        "words": "3 of 3",
+        "said": "Nemotron exact"
+      }
+    }
+  },
+  "take-g17bqa-c1.json": {
+    "id": "take-g17bqa-c1",
+    "kind": "run",
+    "prompt_id": "take-g17bqa-c1",
+    "created": 1794180514354,
+    "seconds": 60,
+    "group": "take-g17bqa-c1-g",
+    "number": 1,
+    "status": "success",
+    "text": "",
+    "seed": 1,
+    "verdict": null,
+    "notes": [],
+    "media": [
+      {
+        "kind": "video",
+        "filename": "c1.mp4",
+        "subfolder": "snaptest_g17bqa",
+        "type": "output"
+      }
+    ],
+    "graph": {},
+    "world": {},
+    "prompt": {},
+    "story": {
+      "book": "book:book-mw8gr4xngdoz",
+      "ref": "story:story-mw8gr4xf4apo@2",
+      "beat": "b1",
+      "unit": {
+        "scene": "scene-mw8gr4z0futw",
+        "shot": "shot-mw8gr4zin6yg",
+        "cut": "C1"
+      }
+    },
+    "updated": 1794180549178,
+    "voice": {
+      "status": "ok",
+      "voices": [],
+      "f0": null,
+      "thresholds": null,
+      "by": "agent",
+      "at": "2026-11-08T23:29:09.178Z",
+      "qa": {
+        "status": "ok",
+        "summary": {
+          "ok": 0,
+          "wrong_voice": 0,
+          "unsure_voice": 0,
+          "no_reference": 0,
+          "missing": 0,
+          "wrong_time": 0,
+          "unscripted": 0,
+          "lines": 0
+        },
+        "lines": [],
+        "unscripted": [],
+        "speakers": [
+          "Kuroe g17b",
+          "Liesl g17b",
+          "Brann g17b",
+          "Maren g17b"
+        ],
+        "gpu": "on ComfyUI's own GPU with the experts in RAM (the Voice QA setting)"
+      },
+      "words": [],
+      "text": ""
+    }
+  },
+  "take-g17bqa-leak.json": {
+    "id": "take-g17bqa-leak",
+    "kind": "run",
+    "prompt_id": "take-g17bqa-leak",
+    "created": 1794180514345,
+    "seconds": 60,
+    "group": "take-g17bqa-leak-g",
+    "number": 1,
+    "status": "success",
+    "text": "Maren walks toward the gate. Nobody speaks.",
+    "seed": 1,
+    "verdict": null,
+    "notes": [],
+    "media": [
+      {
+        "kind": "video",
+        "filename": "leak.mp4",
+        "subfolder": "snaptest_g17bqa",
+        "type": "output"
+      }
+    ],
+    "graph": {},
+    "world": {},
+    "prompt": {
+      "1": {
+        "class_type": "LoadAudio",
+        "inputs": {
+          "audio": "snap/g17bqa/maren.wav"
+        }
+      },
+      "2": {
+        "class_type": "H3Refs",
+        "inputs": {
+          "ref_audios.audio1": [
+            "1",
+            0
+          ]
+        }
+      }
+    },
+    "updated": 1794180528509,
+    "voice": {
+      "status": "check",
+      "voices": [
+        {
+          "name": "Maren g17b",
+          "cast": "cast:cast-mw8gr4t6ol24@1",
+          "cite": "<Audio 1>",
+          "own": 0.996,
+          "others": [
+            {
+              "name": "Liesl g17b",
+              "score": 0.884
+            },
+            {
+              "name": "Brann g17b",
+              "score": 0.472
+            },
+            {
+              "name": "Kuroe g17b",
+              "score": 0.33
+            }
+          ],
+          "margin": 0.112,
+          "f0": 186,
+          "ref_f0": 186,
+          "semitones": 0,
+          "status": "ok",
+          "said": "voice matches Maren g17b 1.00, next closest Liesl g17b 0.88 (+0.11), F0 186 Hz vs ref 186 Hz"
+        }
+      ],
+      "f0": 186,
+      "thresholds": {
+        "ok": 0.9,
+        "margin": 0.05,
+        "f0_semitones": 3,
+        "evidence": "measured",
+        "source": "G1b, scout/voice_timbre_2026-11-06.md on short03's voices: the same speaker 0.89-1.00 across 15 talking anchors, Maren against Liesl 0.81-0.95 (two young women), against Brann 0.39-0.65. Cuts citing a reference: own 0.97-0.99, the other woman 0.86-0.93, F0 within 1-8 Hz of the reference. ok = own at least `ok` and ahead of every other Cast by `margin`, F0 within `f0_semitones`; the next closest Cast is named with the margin. WavLM can't separate two similar voices alone, so the note gives numbers and the margin, never 'the same person'. n = 3 voices, 12 cuts, one production"
+      },
+      "by": "agent",
+      "at": "2026-11-08T23:28:48.509Z",
+      "qa": {
+        "status": "check",
+        "summary": {
+          "ok": 0,
+          "wrong_voice": 0,
+          "unsure_voice": 0,
+          "no_reference": 0,
+          "missing": 0,
+          "wrong_time": 0,
+          "unscripted": 1,
+          "lines": 0
+        },
+        "lines": [],
+        "unscripted": [
+          {
+            "text": "i don't need your thanks tell me where it",
+            "start": 0.144,
+            "end": 4.474,
+            "voice": "Maren g17b",
+            "margin": 0.4791
+          }
+        ],
+        "why": [
+          "unscripted: \"i don't need your thanks tell me where it\" by Maren g17b 0.144-4.474 s: nobody speaks in this cut, so a voice reference may have leaked into it (H3 speaks a reference's own words)"
+        ],
+        "speakers": [
+          "Maren g17b",
+          "Kuroe g17b",
+          "Liesl g17b",
+          "Brann g17b"
+        ],
+        "gpu": "on ComfyUI's own GPU with the experts in RAM (the Voice QA setting)"
+      },
+      "words": [
+        [
+          0.144,
+          0.325,
+          "i"
+        ],
+        [
+          0.325,
+          0.565,
+          "don't"
+        ],
+        [
+          0.565,
+          0.884,
+          "need"
+        ],
+        [
+          0.884,
+          1.204,
+          "your"
+        ],
+        [
+          1.204,
+          1.794,
+          "thanks"
+        ],
+        [
+          3.524,
+          3.761,
+          "tell"
+        ],
+        [
+          3.761,
+          3.921,
+          "me"
+        ],
+        [
+          3.921,
+          4.08,
+          "where"
+        ],
+        [
+          4.08,
+          4.474,
+          "it"
+        ]
+      ],
+      "text": "i don't need your thanks tell me where it"
+    }
+  }
+}

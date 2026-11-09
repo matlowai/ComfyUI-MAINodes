@@ -1,0 +1,12 @@
+PASS the M6 key take turns into the key drawing (its Picture 2 here) from 1.5-2.5 s (R246)
+PASS the copy check scored every half second and the last
+PASS the M6 take without the key turns into no cited picture
+PASS C3's boom is a sub-bass hit; the softer pick is not (R249, F-SQ46)
+PASS make_louder fades C1's frame-0 click and reaches about -23 LUFS, said on the take (F-SQ41)
+PASS the cut packet reads a frame every half second and the last (R245)
+PASS count_these lists the story's white bowl with its holder (R245, R247)
+PASS the packet's sound says the boom (R249)
+PASS a duplicated story prop written low is stored high, raised said (R244)
+PASS the count and sound passes are accepted
+PASS no page errors
+g17bcritic 11/11

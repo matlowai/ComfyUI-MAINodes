@@ -1,0 +1,183 @@
+{
+ "schema_version": 1,
+ "parent": {
+  "name": "G16 Words",
+  "config": {
+   "clips": [
+    {
+     "id": "C1",
+     "clipType": "media",
+     "track": "V1",
+     "asset": "take-g16w1",
+     "at": 0.0,
+     "from": 0.0,
+     "to": 3.072,
+     "speed": 1,
+     "volume": 0,
+     "label": "C1 · take 1",
+     "generation": {
+      "snap": {
+       "take": "take-g16w1",
+       "cut": "C1",
+       "book": "book:book-mw8gjreov9bb@2",
+       "beat": "b1",
+       "world": {
+        "cast:cast-mw8gjr46d1we": 1
+       },
+       "recipe_digest": "sha256:7d1ea60288566f89d41d6f706725ae75793e0038b2b0ce5757b2f007653546d2"
+      }
+     }
+    },
+    {
+     "id": "C1-dialogue",
+     "clipType": "media",
+     "track": "A2",
+     "asset": "take-g16w1-sound",
+     "at": 0.0,
+     "from": 0.0,
+     "to": 3.072,
+     "speed": 1,
+     "label": "Maren: It's you.",
+     "app": {
+      "astrid": {
+       "segment": "line-C1",
+       "text": "It's you.",
+       "words": [
+        [
+         1.881,
+         1.968,
+         "it's"
+        ],
+        [
+         1.968,
+         2.588,
+         "you"
+        ]
+       ]
+      }
+     },
+     "generation": {
+      "snap": {
+       "take": "take-g16w1",
+       "audio_of": "C1",
+       "speaker": "Maren",
+       "line": "It's you.",
+       "voice_reference": "snap/g16words/maren_voice.wav"
+      }
+     }
+    }
+   ],
+   "tracks": [
+    {
+     "id": "V1",
+     "kind": "visual",
+     "label": "Picture"
+    },
+    {
+     "id": "A1",
+     "kind": "audio",
+     "label": "A1"
+    },
+    {
+     "id": "A2",
+     "kind": "audio",
+     "label": "Dialogue"
+    }
+   ],
+   "output": {
+    "file": "G16_Words_20261108-182309.mp4",
+    "fps": 24.0,
+    "resolution": "1280x704"
+   },
+   "theme_overrides": {
+    "visual": {
+     "canvas": {
+      "fps": 24.0,
+      "width": 1280,
+      "height": 704
+     }
+    }
+   }
+  },
+  "clips": [
+   {
+    "id": "C1",
+    "clipType": "media",
+    "track": "V1",
+    "asset": "take-g16w1",
+    "at": 0.0,
+    "from": 0.0,
+    "to": 3.072,
+    "speed": 1,
+    "volume": 0,
+    "label": "C1 · take 1",
+    "generation": {
+     "snap": {
+      "take": "take-g16w1",
+      "cut": "C1",
+      "book": "book:book-mw8gjreov9bb@2",
+      "beat": "b1",
+      "world": {
+       "cast:cast-mw8gjr46d1we": 1
+      },
+      "recipe_digest": "sha256:7d1ea60288566f89d41d6f706725ae75793e0038b2b0ce5757b2f007653546d2"
+     }
+    }
+   },
+   {
+    "id": "C1-dialogue",
+    "clipType": "media",
+    "track": "A2",
+    "asset": "take-g16w1-sound",
+    "at": 0.0,
+    "from": 0.0,
+    "to": 3.072,
+    "speed": 1,
+    "label": "Maren: It's you.",
+    "app": {
+     "astrid": {
+      "segment": "line-C1",
+      "text": "It's you.",
+      "words": [
+       [
+        1.881,
+        1.968,
+        "it's"
+       ],
+       [
+        1.968,
+        2.588,
+        "you"
+       ]
+      ]
+     }
+    },
+    "generation": {
+     "snap": {
+      "take": "take-g16w1",
+      "audio_of": "C1",
+      "speaker": "Maren",
+      "line": "It's you.",
+      "voice_reference": "snap/g16words/maren_voice.wav"
+     }
+    }
+   }
+  ],
+  "registry": {
+   "assets": {
+    "take-g16w1": {
+     "media_id": "sha256:b3ace6838a9d41449c5b58028bbb5b48d7c5aea50c4218e1482a07fe397b39ba",
+     "type": "video",
+     "duration": 3.072
+    },
+    "take-g16w1-sound": {
+     "media_id": "sha256:e99dc39390a1078d4a40ccc967276c45eb74cfb0a7327812f61cb251db33ca39",
+     "type": "audio",
+     "duration": 3.072
+    }
+   }
+  }
+ },
+ "placements": [],
+ "shots": {}
+}

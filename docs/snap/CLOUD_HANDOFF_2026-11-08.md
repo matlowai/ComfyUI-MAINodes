@@ -1,22 +1,42 @@
 # Cloud pickup — 2026-11-08
 
-> **CURRENT WIP ADDITION:** Native Director was integrated after this original checkpoint. Start its [integration evidence](director/INTEGRATION_2026-11-08.md) and [Astra consultation](director/ASTRA_REVIEW_2026-11-08.md). The latest WIP remains the working branch. Full final-code regression is being qualified separately; no live deployment is claimed.
+> **READ FIRST:** Work on `snap-research-2026-11-08`, the desired WIP branch. Begin with the [complete verification matrix](research/2026-11-08/verification/FINAL_VERIFICATION_2026-11-08.md), [Native Director integration](director/INTEGRATION_2026-11-08.md), and [session evidence](research/2026-11-08/README.md). This is a reviewed WIP, with explicit unresolved findings. Live remains G17a `8542b92`; no production landing is claimed.
 
-> **READ FIRST:** Use the [current session evidence and corrections](research/2026-11-08/README.md), then [canonical Snap rules](SNAP_RULES.md) and the relevant [portable snap-core entrypoint](../../.agents/skills/snap-core/SKILL.md). Read the task skill before driving Snap. All source, reports and tests are WIP; no full G17b gate or production readiness is claimed. Main serving pack remains G17a `8542b92` at this capture.
+The original published research checkpoint is `eb8cc3a`. Director application code landed in `2830523`; native Voice QA fixes are `e95b1a7` and `a7dd97b`. Final affected-lane verification used `032876c`. Subsequent checkpoint additions contain reports, screenshots, device-neutral identity-test wording and a test-history preservation guard; application and canonical skill bytes remain those qualified at `032876c`.
 
-Checkpoint branch: `snap-research-2026-11-08`, based on `28a4351`. This is a research WIP for cloud code review, not the gated `snap` branch.
+## What changed
 
-The original terrace is rectangular. Earlier square-aerial and camera-plate-conditioned “transfer” successes were confounded. Current R271 requires a textured top view plus at least one genuine side/elevation, preferably two; aerial-only was an explicitly requested ablation. Preserve the person's raw candidate2 choice and all negative results. Check the evidence README for the bounded top/side trial's current result/status.
+- Three native production planners: Script to Film, Dialogue Director and Transform Footage. Seven tools, versioned private strategies, native scoped preferences, duration packing and reference-role proposals. Five other presets remain explicit drafts. The graph, Book, Work card, proposals and critic keep their existing ownership; there is no new executor.
+- Method-specific instruction resolution and matching for the already-declared Book scope. The dialog is reachable in Snap's Library, uses the selected Book, and preserves explicit global scope. Inspect old productions' actual stacks before rendering: previously unmatched Book notes can now apply.
+- Native Voice QA discovers installed GGUF models from the AudioCPP loader's declared combo, leaving the shared experimental inventory unchanged. Successful clean silence reports `ok`; legacy no-QA and uncertain/leaked speech retain their distinct results.
+- Portable Codex entrypoints remain under `.agents/skills/`; canonical guidance is `.claude/skills/`. Set-design metadata now declares its scope. Rules R269/R271 govern architecture grounding and scene-reference preparation; R272/R273 cover Director/native instruction behavior.
 
-From the repository root:
+## Verified and unresolved
+
+Director CPU **79/79**, Voice QA regression **9/9**, native Qwen and encoded-init checks pass. Actual GPU word/export **7/7**, Voice QA **8/8**, critic mechanics **11/11**, identity **7/7**, and native set-reference checks **10/10** passed on the exact sources listed in the matrix. Actual native UI/preview purity, Book/shot isolation, proposal behavior and all seven tool dispatches were checked on a disposable project. [UI captures](director/COORDINATOR_ACCEPTANCE_2026-11-08.md) and [complete native evidence/hash inventory](research/2026-11-08/verification/native_evidence_copies.json) are included.
+
+The original broad run reported 215 numeric lines, no skips, and real-model guards passed. It was **not wholly green**. Corrected census/metadata/citation cases and quiet UI reruns pass; the report retains all original failures. Two expensive CPU vision cases were interrupted and separately qualified on GPU. Browser timing modes are explicit. Shell exit zero is not an all-suite pass.
+
+Remaining findings:
+
+- Fresh visual critic: **26/31 caught, one false alarm**, below the declared **27/31, zero false alarms** floor. Complete frozen notes, raw/confirmed scores and independent diagnosis are preserved. Reconcile the real duplicated-monocle severity conflict and prospectively qualify the critic; do not alter frozen results or repeat until green.
+- Saved-workflow instruction pins remain **9/10**; the same historical predicate still fails. New-view helper takes also lack a complete saved instruction stack. Captured resolved instructions do not substitute for pinned provenance.
+- The planner has not been qualified as a complete newly generated film or propagated footage transformation, and no final-export listening approval is claimed. Strategies and reference-role metadata do not establish correct geometry or output quality.
+
+## Scene evidence
+
+The original terrace is rectangular. Earlier square-overhead and camera-plate-conditioned successes were confounded. R271 requires a textured top plus at least one genuine side, preferably two; retain the chosen raw candidate2 and negative camera/blocking results. Top/side trials still failed outside-ring staging. See [current research conclusions](research/2026-11-08/README.md).
+
+The user also flagged the old mocked lighthouse example. [Point Reyes research](research/2026-11-08/lighthouse/README.md) now has measured plans, genuine sides, distinct clockwork/lantern interiors and exact dated sources. This does not adopt a real building as fictional canon or repair the old demo automatically. Textured overhead and wider upper-lantern reverse coverage remain incomplete. Several derived angles can share an incorrect master premise.
+
+## Local checks
 
 ```sh
-git diff 28a4351..HEAD
+node --test tests/snap/director/*.test.mjs
+node tests/snap/test_voice_qa_discovery.js
 node tests/snap/test_qwen21_graph.js
 node tests/snap/test_view_init.js
 git diff --check
 ```
 
-Before the WIP is committed, `git diff 28a4351` includes the working-tree changes. The two Node tests run without weights or a GPU server; they verify native graph contracts, not image quality or full UI/regression behavior. The README lists open GPU, critic-fixture and production-landing gates, complete sanitized reports, exact partial-init histories, selected images and media hashes.
-
-Runtime addresses and local evidence names in historical reports are capture facts. Recheck the serving pack, live tool schemas, scoped instructions, page ownership and queue before runtime work. Cloud-only access cannot certify missing native media, listening or GPU behavior. Keep machine-specific installation/configuration and original assets local. Coordinator owns final review, commit and any outward action.
+For broader checks, read `tests/snap/README.md` and the full matrix first. Use isolated test instances; never run placeholder-model fixtures against production. Recheck the serving pack, tool schemas, scoped instructions, page ownership and queues before runtime work. Preserve native canon/proposal boundaries. Keep original media, machine configuration and weights local; the public evidence labels unshipped originals and structural path sanitization explicitly.

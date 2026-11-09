@@ -1,0 +1,16 @@
+{
+ "take-g16w1": {
+  "media_id": "sha256:b3ace6838a9d41449c5b58028bbb5b48d7c5aea50c4218e1482a07fe397b39ba",
+  "type": "video",
+  "duration": 3.072,
+  "file": "test-runtime/15eb9e6e-cdca-47fd-82ff-7718f1ad2b6b/scratchpad/u101base/output/snaptest_g16words/C3_line.mp4",
+  "content_sha256": "b3ace6838a9d41449c5b58028bbb5b48d7c5aea50c4218e1482a07fe397b39ba"
+ },
+ "take-g16w1-sound": {
+  "media_id": "sha256:e99dc39390a1078d4a40ccc967276c45eb74cfb0a7327812f61cb251db33ca39",
+  "type": "audio",
+  "duration": 3.072,
+  "sound_of": "take-g16w1",
+  "content_sha256": "e99dc39390a1078d4a40ccc967276c45eb74cfb0a7327812f61cb251db33ca39"
+ }
+}

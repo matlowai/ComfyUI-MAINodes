@@ -1,0 +1,346 @@
+{
+  "format": 1,
+  "latest_qualified_source": "032876c889192c0694f5aa8126f98cf1ecd4e8d6",
+  "scope": "Complete selected local verification artifacts; absolute paths are local-only. No production/main landing or whole-CPU-green claim.",
+  "words": {
+    "source_revision": "e95b1a74c4354fafb5f20eda558405828408c000",
+    "result": "7/7 PASS, actual GPU0 Nemotron words, export and published Astrid words",
+    "files": [
+      {
+        "role": "complete native test stdout",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/gpu_fix_e95b1a7/test_g16_words.js.out",
+        "bytes": 842,
+        "sha256": "46193cddff17bda16d7e9839c4911cc3ad94d1dde101f93612af447ba539b58d"
+      },
+      {
+        "role": "exact test environment",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/gpu_fix_e95b1a7/gpu.env",
+        "bytes": 2210,
+        "sha256": "36be417ffc49358c670186d72bd698cab28cb4e586b3733063b8cd9bc6270af3"
+      },
+      {
+        "role": "complete editable archive including media",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/gpu_fix_e95b1a7/export_evidence/G16_Words_20261108-182309.astrid",
+        "bytes": 648972,
+        "sha256": "824a169bb527b2c5c696c9fcc4cfd71322ec3babff37c67e67c98e30251a45b2"
+      },
+      {
+        "role": "complete exported timeline with word times",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/gpu_fix_e95b1a7/export_evidence/G16_Words_20261108-182309.timeline.json",
+        "bytes": 3469,
+        "sha256": "a5128603d1a8c5df4a8e2d043c181b4ee90fdcbf130417f2c611e6dbf2deddaf"
+      },
+      {
+        "role": "complete exported asset registry",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/gpu_fix_e95b1a7/export_evidence/G16_Words_20261108-182309.assets.json",
+        "bytes": 676,
+        "sha256": "05883c2b5ca8371496073c8e8a934d4c33fb59662be5d10ac7f5c4daf9246a32"
+      },
+      {
+        "role": "complete OTIO export",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/gpu_fix_e95b1a7/export_evidence/G16_Words_20261108-182309.otio",
+        "bytes": 4495,
+        "sha256": "4ebeaa78260d8d74f100874e7377c04bd49b8f7b504e4ed5f5a948f847573d90"
+      }
+    ],
+    "word_times": [
+      [
+        1.881,
+        1.968,
+        "it's"
+      ],
+      [
+        1.968,
+        2.588,
+        "you"
+      ]
+    ],
+    "history_files": [],
+    "history_limit": "The per-suite GPU park cleared this passing run history before the custom history collector retained it. Do not treat legacy gpu_histories files as this passing run. Complete real test output plus actual exported archive/timeline and published-word CLI output are retained. No re-run was done just to manufacture a missing history.",
+    "final_source_equivalence": "Later a7dd97b changes only successful empty-speech status fallback; word extraction/export code unchanged. Final032 voices bytes equal a7."
+  },
+  "voice_qa": {
+    "source_revision": "a7dd97bf58c411d77e9bd7caf0e0619835271919",
+    "result": "8/8 PASS on actual GPU0, this GPU/experts in RAM",
+    "files": [
+      {
+        "role": "complete native test stdout",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/gpu_fix_a7dd97b/test_g17b_voice_qa.js.out",
+        "bytes": 4640,
+        "sha256": "56e97af09475cf89a6d73f22e5f5c114f891290233525c4d490843e8fa7ab12d"
+      },
+      {
+        "role": "all three complete actual execution histories",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/gpu_fix_a7dd97b/complete_history_after_qa.json",
+        "bytes": 141285,
+        "sha256": "3654a8c9ef16339b4c4fce8557b58f1a929b1cb722a9d6fa730b05094f6b22d6"
+      },
+      {
+        "role": "all three complete take records and QA results",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/gpu_fix_a7dd97b/native_qa_takes.json",
+        "bytes": 9741,
+        "sha256": "4db86c3debf8c2ffe7393ce56d55bf0d66081335689474100ba87b935d81d7e9"
+      },
+      {
+        "role": "exact test environment",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/gpu_fix_a7dd97b/gpu.env",
+        "bytes": 2210,
+        "sha256": "a22d3fffd6d46f8e33c8e3e874be11a27d0683b2d82e9915759be096cb0c4cda"
+      },
+      {
+        "role": "start timestamp",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/gpu_fix_a7dd97b/started.txt",
+        "bytes": 26,
+        "sha256": "50b5f0e45affdeeccefaeb7b8749c53d8ad58105c4c474a6bf6c6222b0313dc2"
+      },
+      {
+        "role": "finish timestamp",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/gpu_fix_a7dd97b/finished.txt",
+        "bytes": 26,
+        "sha256": "7d2edd1e4a20def58005a3fd2afa78bd1c9274482dc32cf6f6539e1c623da65b"
+      }
+    ],
+    "measurements": {
+      "leaked_maren_margin": 0.4791,
+      "correct_kuroe_margin": 0.5297,
+      "kuroe_word_times": [
+        [
+          2.384,
+          2.722,
+          "one"
+        ],
+        [
+          2.722,
+          3.122,
+          "more"
+        ],
+        [
+          3.122,
+          3.694,
+          "bowl"
+        ]
+      ],
+      "silent_cut_unscripted": 0,
+      "silent_cut_overall_status": "ok"
+    },
+    "prior_failure_files": [
+      {
+        "role": "original missing-decoder discovery failure2/7",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/gate_out/test_g16_words.js.out",
+        "bytes": 6780,
+        "sha256": "9064cc7c566f12e6b0f2f759c2519e9e0521ecbb4f52a4a3118883bf8f563d11"
+      },
+      {
+        "role": "original interrupted missing-kit failure0/8",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/gate_out/test_g17b_voice_qa.js.out",
+        "bytes": 1835,
+        "sha256": "22def39a3d7f049a6771e102f5181695b56bc99f25a1fba42f8c26cd9edb7650"
+      },
+      {
+        "role": "exact original interruption evidence",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/native_qa_original_interrupted.json",
+        "bytes": 10673,
+        "sha256": "72eb9cd15902e82953fbaf53e320aced631f8eee959330e78dab4efe2f326ed0"
+      },
+      {
+        "role": "intermediate7/8 before clean-silence status fix",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/gpu_fix_e95b1a7/test_g17b_voice_qa.js.out",
+        "bytes": 4641,
+        "sha256": "41d86cd13b390a6abf9117fc0468e56d5aeca86afa4fd9356891e3f7ad1cc0a9"
+      }
+    ]
+  },
+  "set_reference": {
+    "runtime_revision": "2830523b2ffbbc6bbb4dd4c66c0c2cb631136c71",
+    "result": "2real people-removal candidates, formal visual critiques;10/10 saved-side/provenance/isolation checks",
+    "source_provenance": "Root-level native_set_reference.json is an earlier eb8cc3a read-only preflight with no generation. Actual jobs and media are under final_2830523. Hardcoded snapshot labels are annotation only; use raw execution times, served-source verification and byte-identical helper components.",
+    "execution_times_utc": [
+      [
+        "2026-11-08T22:47:27.584Z",
+        "2026-11-08T22:47:48.755Z"
+      ],
+      [
+        "2026-11-08T22:47:49.364Z",
+        "2026-11-08T22:47:59.463Z"
+      ]
+    ],
+    "files": [
+      {
+        "role": "complete actual runtime trace with candidate IDs",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/native_set_reference.json",
+        "bytes": 93533,
+        "sha256": "4177209b6f0ede68c307d558a6a7eb2ac734718c5598df331ccdf84704e4df0d"
+      },
+      {
+        "role": "all10 qualification results",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/native_set_reference_checks.json",
+        "bytes": 374,
+        "sha256": "b058753ba495b2ce839a5f54fb1d59a027daa0185f6ecfafdbb32024d76fe430"
+      },
+      {
+        "role": "complete formal verdicts, picked plate, before/after lint and source-active state",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/native_set_reference_pick.json",
+        "bytes": 12970,
+        "sha256": "cb9526fd046b759ce8ea516446b939029a97c68223b9b7fb7476aa0cb7c14f39"
+      },
+      {
+        "role": "input/output dimensions and media hashes",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/native_set_reference_media.json",
+        "bytes": 579,
+        "sha256": "5f134c23737ad71fabd72b5233ca2ea2dd0fabb2b727f49bdaecc80a74bbbbe4"
+      },
+      {
+        "role": "served module byte equality across all4isolated services",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/served_snapshot_verification.json",
+        "bytes": 3259,
+        "sha256": "557d3b0d9b20b4381144d8ffa99fa9a84e6a8e482e8bd2a0e690bd2be211f30f"
+      },
+      {
+        "role": "booktools,edits,methods byte equality eb8/283/final032",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/setref_component_provenance.json",
+        "bytes": 1105,
+        "sha256": "5a5f83c3d2ab4f0549223a5767c760c7304846364b8828c98bcd57d46f43f1c4"
+      },
+      {
+        "role": "complete input frame89",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/set_ref_source_f89.png",
+        "bytes": 4240960,
+        "sha256": "aa3d284ea61ae14ab4fd47ab1f22d1bb363a6dc5cd8c0fb3e85ca88fb485b544"
+      },
+      {
+        "role": "complete output seed917301",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/aa7f6555_00001_.png",
+        "bytes": 3779130,
+        "sha256": "c39deb8f7bac5477f49f2959f983adf2645485ea0cfa70edf88da41584b4470c"
+      },
+      {
+        "role": "complete output seed917302",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/aa7f6555_00002_.png",
+        "bytes": 3580386,
+        "sha256": "e878782819303418a603a8217e0b5cb6488b2a949e88db6258e91f41dfda68f1"
+      },
+      {
+        "role": "complete actual first generation history",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/history_f824d1c0-ee23-4736-a2b9-c81d7cd48776.json",
+        "bytes": 6910,
+        "sha256": "9336397511872343df01e8627abf65b6336fba08387fc03d3f75c61af4469f75"
+      },
+      {
+        "role": "complete actual second generation history",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/history_d4f9f125-0684-4bab-8934-f54cf9ec1a63.json",
+        "bytes": 7095,
+        "sha256": "d2bad2533627c438e387a3beb160a82ba2aa76876723a2016f2a344234b98682"
+      }
+    ],
+    "limitations": [
+      "same camera and major fixtures, not calibrated scene geometry",
+      "faint inherited wall tone/colour patches remain",
+      "helper take has no saved instruction-pin provenance; resolved stack recorded separately",
+      "test-only pick; original production/duel untouched"
+    ]
+  },
+  "additional_device_qualification": {
+    "critic": {
+      "source_revision": "032876c889192c0694f5aa8126f98cf1ecd4e8d6",
+      "result": "11/11 PASS in25s onGPU0; originalCPU analysis interrupted/resource-limited, notPASS",
+      "files": [
+        {
+          "role": "complete critic mechanics/destination/sound stdout",
+          "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_032876c/gpu_critic/test_g17b_critic.js.out",
+          "bytes": 728,
+          "sha256": "06daacaecf916271a75944767eb62bb0abd596dc36b4067bfd29448fb91aeb0c"
+        },
+        {
+          "role": "complete actual GPU analysis histories",
+          "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_032876c/gpu_critic/complete_histories.json",
+          "bytes": 16423,
+          "sha256": "d9923cb116704dcee29cbcb64c674e0f50d41a70070cf1e44738ff6f8572cd09"
+        },
+        {
+          "role": "original CPU graph/progress/interruption record",
+          "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/cpu_critic_interrupted.json",
+          "bytes": 10705,
+          "sha256": "93a2962f0abb09608df5612fd297ff05cddab3ee982b1f34a9cc5d52dac76212"
+        }
+      ]
+    },
+    "identity": {
+      "source_revision": "032876c889192c0694f5aa8126f98cf1ecd4e8d6",
+      "result": "14frames/7of7cases PASS, maxhairL90delta0.23,10s onGPU0; originalCPU duplicate interrupted, notPASS",
+      "files": [
+        {
+          "role": "complete actual identity test stdout; hardcodedCPU label is inaccurate for this adapted device lane",
+          "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_032876c/gpu_identity/test_identity_notes.py.out",
+          "bytes": 519,
+          "sha256": "3565c75554c05999462738e1e28156f20d60fce267fafff95d9113ca377e8ca1"
+        },
+        {
+          "role": "actual CUDA0device proof",
+          "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_032876c/gpu_identity/device_system_stats.json",
+          "bytes": 1828,
+          "sha256": "39c6a8220f8dc0634a52241766e7ab053450a51f20f6a146492c790afd6dad7f"
+        },
+        {
+          "role": "complete actual analysis histories",
+          "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_032876c/gpu_identity/complete_histories.json",
+          "bytes": 631598,
+          "sha256": "77e76e8e52ae9f3ef36e202cd9a56b1bc149270b5ffff3599294fb298458a370"
+        },
+        {
+          "role": "complete metrics and expected-case results",
+          "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_032876c/gpu_identity/out/ui/test_identity_notes_result.json",
+          "bytes": 1134,
+          "sha256": "26ea1d3143f20eba1b4aeac3ea903b3bade9e3eb0fe1b27b1c54f4e856879856"
+        },
+        {
+          "role": "original CPU exact graph/interruption record",
+          "path": "local-evidence/snap-study/wip_finish_2026-11-08/final_2830523/cpu_identity_interrupted.json",
+          "bytes": 17372,
+          "sha256": "12407266202ead6e84b427a758aaa0486197d578b7ffac1214d2ad6dc6c4c76c"
+        }
+      ]
+    }
+  },
+  "fresh_visual_critic": {
+    "result": "26/31caught,1FA on9clean,32/32written; BELOW27/31,0FAfloor",
+    "files": [
+      {
+        "role": "frozen complete blind notes",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/fresh_critic/results.jsonl",
+        "bytes": 45384,
+        "sha256": "a049d11e0dd0f31d0912c004ad036e3f56e30d45596273d7c49e773393b0b2cc"
+      },
+      {
+        "role": "raw automatic score",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/fresh_critic/score_auto.json",
+        "bytes": 13080,
+        "sha256": "d518894b7dc2058322db83efc003f545590135103ef9883f6ce6a53a0d3764f4"
+      },
+      {
+        "role": "confirmed score",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/fresh_critic/score_confirmed.json",
+        "bytes": 13002,
+        "sha256": "ccf4c79aad05bda97f5da857ed86aede70a766c22fcf8c0f9737687736066558"
+      },
+      {
+        "role": "all manual decisions",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/fresh_critic/confirm.json",
+        "bytes": 214,
+        "sha256": "f702fe1c43690017a2347f55699e626f956ac698081945c54e862cb0a4613bad"
+      },
+      {
+        "role": "complete reasons and media limits",
+        "path": "local-evidence/snap-study/wip_finish_2026-11-08/fresh_critic/SCORER_NOTES.md",
+        "bytes": 2826,
+        "sha256": "c0763e202d175308a867883a0fd89dec840cdda32d8e0733c876625f6166a5ff"
+      }
+    ],
+    "limits": "Still/clip-sheet pixels only: no sound playback/full half-second stream/copy.reaches/VoiceQA measurements in these blind packets. No new-prompt causal claim versus historical Opus run."
+  },
+  "cleanup": {
+    "role": "final restored links, services, queues, unchanged main and retained authorized test prerequisites",
+    "path": "local-evidence/snap-study/wip_finish_2026-11-08/cleanup_status.json",
+    "bytes": 4520,
+    "sha256": "1095b94817bbdc76f8d90d59992c9dc73587ac41bd3858ef777de1f5815d4ce9"
+  }
+}

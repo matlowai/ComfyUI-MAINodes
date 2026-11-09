@@ -1,0 +1,760 @@
+{
+  "ea065c6a-c651-4782-8462-8d13ebc6dfc9": {
+    "prompt": [
+      0,
+      "ea065c6a-c651-4782-8462-8d13ebc6dfc9",
+      {
+        "1": {
+          "class_type": "CLIPVisionLoader",
+          "inputs": {
+            "clip_name": "dino_v3_vit_h_bf16.safetensors"
+          }
+        },
+        "2": {
+          "class_type": "LoadVideo",
+          "inputs": {
+            "file": "snaptest_g17bcritic/m6_key.mp4 [output]"
+          }
+        },
+        "3": {
+          "class_type": "BatchImagesNode",
+          "inputs": {
+            "images.image0": [
+              "f0",
+              0
+            ],
+            "images.image1": [
+              "f1",
+              0
+            ],
+            "images.image2": [
+              "f2",
+              0
+            ],
+            "images.image3": [
+              "f3",
+              0
+            ],
+            "images.image4": [
+              "f4",
+              0
+            ],
+            "images.image5": [
+              "f5",
+              0
+            ],
+            "images.image6": [
+              "f6",
+              0
+            ]
+          }
+        },
+        "4": {
+          "class_type": "GetVideoComponents",
+          "inputs": {
+            "video": [
+              "2",
+              0
+            ]
+          }
+        },
+        "20": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "snap/g17bm6/take-b71e146d-85c2-4426-b84d-360faf21fd78_f0.png"
+          }
+        },
+        "21": {
+          "class_type": "MAISnapCopyScore",
+          "inputs": {
+            "clip_vision": [
+              "1",
+              0
+            ],
+            "reference": [
+              "20",
+              0
+            ],
+            "images": [
+              "3",
+              0
+            ]
+          }
+        },
+        "22": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "snap/g17bm6/take-92e5c048-f235-431e-9563-3be2e6690116_f0.png"
+          }
+        },
+        "23": {
+          "class_type": "MAISnapCopyScore",
+          "inputs": {
+            "clip_vision": [
+              "1",
+              0
+            ],
+            "reference": [
+              "22",
+              0
+            ],
+            "images": [
+              "3",
+              0
+            ]
+          }
+        },
+        "f0": {
+          "class_type": "ImageFromBatch",
+          "inputs": {
+            "image": [
+              "4",
+              0
+            ],
+            "batch_index": 0,
+            "length": 1
+          }
+        },
+        "f1": {
+          "class_type": "ImageFromBatch",
+          "inputs": {
+            "image": [
+              "4",
+              0
+            ],
+            "batch_index": 12,
+            "length": 1
+          }
+        },
+        "f2": {
+          "class_type": "ImageFromBatch",
+          "inputs": {
+            "image": [
+              "4",
+              0
+            ],
+            "batch_index": 24,
+            "length": 1
+          }
+        },
+        "f3": {
+          "class_type": "ImageFromBatch",
+          "inputs": {
+            "image": [
+              "4",
+              0
+            ],
+            "batch_index": 36,
+            "length": 1
+          }
+        },
+        "f4": {
+          "class_type": "ImageFromBatch",
+          "inputs": {
+            "image": [
+              "4",
+              0
+            ],
+            "batch_index": 48,
+            "length": 1
+          }
+        },
+        "f5": {
+          "class_type": "ImageFromBatch",
+          "inputs": {
+            "image": [
+              "4",
+              0
+            ],
+            "batch_index": 60,
+            "length": 1
+          }
+        },
+        "f6": {
+          "class_type": "ImageFromBatch",
+          "inputs": {
+            "image": [
+              "4",
+              0
+            ],
+            "batch_index": 71,
+            "length": 1
+          }
+        }
+      },
+      {
+        "snap_job": {
+          "kind": "check",
+          "title": "Copy check: did take 1 re-render its reference picture's view?",
+          "about": {
+            "take": "take-g17bm6-key",
+            "group": "take-g17bm6-key-g"
+          },
+          "by": "agent",
+          "eta_s": null,
+          "takes": false,
+          "at": 1794181774389
+        },
+        "snap_marks": {
+          "private": false,
+          "nsfw": false,
+          "why": [],
+          "metadata": true,
+          "swapped": {},
+          "rating": "pg",
+          "rating_why": []
+        },
+        "client_id": "42fba6f024c74e6d901486605c8e26ba",
+        "create_time": 1794181774425
+      },
+      [
+        "23",
+        "21"
+      ]
+    ],
+    "outputs": {
+      "2": {
+        "images": [
+          {
+            "filename": "m6_key.mp4",
+            "subfolder": "snaptest_g17bcritic",
+            "type": "input"
+          }
+        ],
+        "animated": [
+          true
+        ]
+      },
+      "23": {
+        "copy_scores": [
+          0.6295,
+          0.6214,
+          0.6044,
+          0.5726,
+          0.5998,
+          0.8473,
+          0.8244
+        ],
+        "soft_scores": [
+          0.8004,
+          0.8067,
+          0.8002,
+          0.7852,
+          0.7891,
+          0.9031,
+          0.8776
+        ]
+      },
+      "21": {
+        "copy_scores": [
+          0.8891,
+          0.9569,
+          0.9341,
+          0.8512,
+          0.8461,
+          0.6075,
+          0.5713
+        ],
+        "soft_scores": [
+          0.9363,
+          0.9707,
+          0.9636,
+          0.936,
+          0.9352,
+          0.7673,
+          0.7572
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "ea065c6a-c651-4782-8462-8d13ebc6dfc9",
+            "timestamp": 1794181774430
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [],
+            "prompt_id": "ea065c6a-c651-4782-8462-8d13ebc6dfc9",
+            "timestamp": 1794181774463
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "ea065c6a-c651-4782-8462-8d13ebc6dfc9",
+            "timestamp": 1794181782281
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "2": {
+        "node_id": "2",
+        "display_node": "2",
+        "parent_node": null,
+        "real_node_id": "2"
+      },
+      "23": {
+        "node_id": "23",
+        "display_node": "23",
+        "parent_node": null,
+        "real_node_id": "23"
+      },
+      "21": {
+        "node_id": "21",
+        "display_node": "21",
+        "parent_node": null,
+        "real_node_id": "21"
+      }
+    }
+  },
+  "87823a09-665b-43cd-975f-ddd66ec989d6": {
+    "prompt": [
+      1,
+      "87823a09-665b-43cd-975f-ddd66ec989d6",
+      {
+        "1": {
+          "class_type": "CLIPVisionLoader",
+          "inputs": {
+            "clip_name": "dino_v3_vit_h_bf16.safetensors"
+          }
+        },
+        "2": {
+          "class_type": "LoadVideo",
+          "inputs": {
+            "file": "snaptest_g17bcritic/m6_nokey.mp4 [output]"
+          }
+        },
+        "3": {
+          "class_type": "BatchImagesNode",
+          "inputs": {
+            "images.image0": [
+              "f0",
+              0
+            ],
+            "images.image1": [
+              "f1",
+              0
+            ],
+            "images.image2": [
+              "f2",
+              0
+            ],
+            "images.image3": [
+              "f3",
+              0
+            ],
+            "images.image4": [
+              "f4",
+              0
+            ],
+            "images.image5": [
+              "f5",
+              0
+            ],
+            "images.image6": [
+              "f6",
+              0
+            ]
+          }
+        },
+        "4": {
+          "class_type": "GetVideoComponents",
+          "inputs": {
+            "video": [
+              "2",
+              0
+            ]
+          }
+        },
+        "20": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "snap/g17bm6/take-b71e146d-85c2-4426-b84d-360faf21fd78_f0.png"
+          }
+        },
+        "21": {
+          "class_type": "MAISnapCopyScore",
+          "inputs": {
+            "clip_vision": [
+              "1",
+              0
+            ],
+            "reference": [
+              "20",
+              0
+            ],
+            "images": [
+              "3",
+              0
+            ]
+          }
+        },
+        "f0": {
+          "class_type": "ImageFromBatch",
+          "inputs": {
+            "image": [
+              "4",
+              0
+            ],
+            "batch_index": 0,
+            "length": 1
+          }
+        },
+        "f1": {
+          "class_type": "ImageFromBatch",
+          "inputs": {
+            "image": [
+              "4",
+              0
+            ],
+            "batch_index": 12,
+            "length": 1
+          }
+        },
+        "f2": {
+          "class_type": "ImageFromBatch",
+          "inputs": {
+            "image": [
+              "4",
+              0
+            ],
+            "batch_index": 24,
+            "length": 1
+          }
+        },
+        "f3": {
+          "class_type": "ImageFromBatch",
+          "inputs": {
+            "image": [
+              "4",
+              0
+            ],
+            "batch_index": 36,
+            "length": 1
+          }
+        },
+        "f4": {
+          "class_type": "ImageFromBatch",
+          "inputs": {
+            "image": [
+              "4",
+              0
+            ],
+            "batch_index": 48,
+            "length": 1
+          }
+        },
+        "f5": {
+          "class_type": "ImageFromBatch",
+          "inputs": {
+            "image": [
+              "4",
+              0
+            ],
+            "batch_index": 60,
+            "length": 1
+          }
+        },
+        "f6": {
+          "class_type": "ImageFromBatch",
+          "inputs": {
+            "image": [
+              "4",
+              0
+            ],
+            "batch_index": 71,
+            "length": 1
+          }
+        }
+      },
+      {
+        "snap_job": {
+          "kind": "check",
+          "title": "Copy check: did take 1 re-render its reference picture's view?",
+          "about": {
+            "take": "take-g17bm6-nokey",
+            "group": "take-g17bm6-nokey-g"
+          },
+          "by": "agent",
+          "eta_s": null,
+          "takes": false,
+          "at": 1794181783776
+        },
+        "snap_marks": {
+          "private": false,
+          "nsfw": false,
+          "why": [],
+          "metadata": true,
+          "swapped": {},
+          "rating": "pg",
+          "rating_why": []
+        },
+        "client_id": "42fba6f024c74e6d901486605c8e26ba",
+        "create_time": 1794181783802
+      },
+      [
+        "21"
+      ]
+    ],
+    "outputs": {
+      "2": {
+        "images": [
+          {
+            "filename": "m6_nokey.mp4",
+            "subfolder": "snaptest_g17bcritic",
+            "type": "input"
+          }
+        ],
+        "animated": [
+          true
+        ]
+      },
+      "21": {
+        "copy_scores": [
+          0.8835,
+          0.945,
+          0.9188,
+          0.8864,
+          0.7458,
+          0.6997,
+          0.6892
+        ],
+        "soft_scores": [
+          0.9314,
+          0.9565,
+          0.9521,
+          0.9298,
+          0.8489,
+          0.8269,
+          0.8192
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "87823a09-665b-43cd-975f-ddd66ec989d6",
+            "timestamp": 1794181783803
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [
+              "1",
+              "20"
+            ],
+            "prompt_id": "87823a09-665b-43cd-975f-ddd66ec989d6",
+            "timestamp": 1794181783812
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "87823a09-665b-43cd-975f-ddd66ec989d6",
+            "timestamp": 1794181787869
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "2": {
+        "node_id": "2",
+        "display_node": "2",
+        "parent_node": null,
+        "real_node_id": "2"
+      },
+      "21": {
+        "node_id": "21",
+        "display_node": "21",
+        "parent_node": null,
+        "real_node_id": "21"
+      }
+    }
+  },
+  "f3d427a3-1d9b-4c99-915e-c736b415923b": {
+    "prompt": [
+      2,
+      "f3d427a3-1d9b-4c99-915e-c736b415923b",
+      {
+        "1": {
+          "class_type": "LoadVideo",
+          "inputs": {
+            "file": "snaptest_g17bcritic/c1.mp4 [output]"
+          }
+        },
+        "2": {
+          "class_type": "MAISnapLouder",
+          "inputs": {
+            "video": [
+              "1",
+              0
+            ]
+          }
+        },
+        "3": {
+          "class_type": "SaveVideo",
+          "inputs": {
+            "filename_prefix": "video/snap_louder/take-g17bc1",
+            "format": "auto",
+            "format.codec": "auto",
+            "codec": "auto",
+            "video": [
+              "2",
+              0
+            ]
+          }
+        }
+      },
+      {
+        "snap_parent": {
+          "take": "take-g17bc1",
+          "method": "louder",
+          "options": {
+            "loudnorm": "I=-23:TP=-2"
+          }
+        },
+        "snap_job": {
+          "kind": "louder",
+          "title": "Make take 1 louder",
+          "about": {
+            "take": "take-g17bc1",
+            "group": "take-g17bc1-g"
+          },
+          "by": "agent",
+          "eta_s": null,
+          "at": 1794181789035
+        },
+        "extra_pnginfo": {
+          "workflow": {
+            "id": "take-g17bc1-g",
+            "nodes": [],
+            "links": [],
+            "extra": {}
+          }
+        },
+        "snap_marks": {
+          "private": false,
+          "nsfw": false,
+          "why": [],
+          "metadata": true,
+          "swapped": {},
+          "rating": "pg",
+          "rating_why": []
+        },
+        "client_id": "42fba6f024c74e6d901486605c8e26ba",
+        "workflow_metadata": {
+          "workflow_id": "take-g17bc1-g"
+        },
+        "create_time": 1794181789047
+      },
+      [
+        "3"
+      ]
+    ],
+    "outputs": {
+      "1": {
+        "images": [
+          {
+            "filename": "c1.mp4",
+            "subfolder": "snaptest_g17bcritic",
+            "type": "input"
+          }
+        ],
+        "animated": [
+          true
+        ]
+      },
+      "2": {
+        "loudness": [
+          {
+            "lufs": -23.8,
+            "true_peak_db": -2.3,
+            "asked_lufs": -23,
+            "declicked": true
+          }
+        ]
+      },
+      "3": {
+        "images": [
+          {
+            "filename": "take-g17bc1_00001_.mp4",
+            "subfolder": "video/snap_louder",
+            "type": "output",
+            "metadata": {
+              "kind": "video",
+              "width": 2560,
+              "height": 1408,
+              "duration": 3.75,
+              "fps": 24.0,
+              "frame_count": 90
+            }
+          }
+        ],
+        "animated": [
+          true
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "f3d427a3-1d9b-4c99-915e-c736b415923b",
+            "timestamp": 1794181789048
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [],
+            "prompt_id": "f3d427a3-1d9b-4c99-915e-c736b415923b",
+            "timestamp": 1794181789050
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "f3d427a3-1d9b-4c99-915e-c736b415923b",
+            "timestamp": 1794181789573
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "1": {
+        "node_id": "1",
+        "display_node": "1",
+        "parent_node": null,
+        "real_node_id": "1"
+      },
+      "2": {
+        "node_id": "2",
+        "display_node": "2",
+        "parent_node": null,
+        "real_node_id": "2"
+      },
+      "3": {
+        "node_id": "3",
+        "display_node": "3",
+        "parent_node": null,
+        "real_node_id": "3"
+      }
+    }
+  }
+}

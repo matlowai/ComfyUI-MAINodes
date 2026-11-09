@@ -1,0 +1,29 @@
+[
+  {
+    "component": "web/snap/booktools.js",
+    "sha256_by_revision": {
+      "eb8cc3a": "4f877f653c23b57b5c0ca9dd1cceae6e5448ffd5773a71cced8a94e45b17ced0",
+      "2830523": "4f877f653c23b57b5c0ca9dd1cceae6e5448ffd5773a71cced8a94e45b17ced0",
+      "032876c": "4f877f653c23b57b5c0ca9dd1cceae6e5448ffd5773a71cced8a94e45b17ced0"
+    },
+    "all_bytes_equal": true
+  },
+  {
+    "component": "web/snap/edits.js",
+    "sha256_by_revision": {
+      "eb8cc3a": "54de735c7c8235211bf9e8ffde4d38fbd6a13a8c07cf4f9e1aec7cff07803396",
+      "2830523": "54de735c7c8235211bf9e8ffde4d38fbd6a13a8c07cf4f9e1aec7cff07803396",
+      "032876c": "54de735c7c8235211bf9e8ffde4d38fbd6a13a8c07cf4f9e1aec7cff07803396"
+    },
+    "all_bytes_equal": true
+  },
+  {
+    "component": "snap_cards/methods.json",
+    "sha256_by_revision": {
+      "eb8cc3a": "b81d5f07453af9ebfe41bffce91812564a49cc20b3cff183ba767ad050da4fd5",
+      "2830523": "b81d5f07453af9ebfe41bffce91812564a49cc20b3cff183ba767ad050da4fd5",
+      "032876c": "b81d5f07453af9ebfe41bffce91812564a49cc20b3cff183ba767ad050da4fd5"
+    },
+    "all_bytes_equal": true
+  }
+]

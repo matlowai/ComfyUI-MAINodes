@@ -1,0 +1,348 @@
+{
+  "rows": [
+    {
+      "critique": "crit-1a1bd58b3bf-3792",
+      "title": "Critic: WIP native set-reference verification · set references › Shot 1 · WIP native set-reference verification · street › take 1 (seed 917301) · New view · P-H3-Image ×2 (<Picture 1> with every person removed: the same camera, framing, set, light and colours. Where each person stood or sat, the set behind them continues (the counter, the walls, the floor, the street), and nothing else changes. No people.) from Picture 1 C1's out-frame (take 1, frame 89)",
+      "subject": {
+        "kind": "take",
+        "take": "take-f824d1c0-ee23-4736-a2b9-c81d7cd48776"
+      },
+      "about": {
+        "take": "take-f824d1c0-ee23-4736-a2b9-c81d7cd48776",
+        "decision": "cand-mw8fa9ox-ytyl",
+        "scene": "scene-mw8fa9ltuxaa",
+        "shot": "shot-mw8fa9lwfpod"
+      },
+      "purpose": "plate",
+      "checklist": "plate",
+      "trigger": "landed",
+      "state": "done",
+      "created": "2026-11-08T22:47:49.439Z",
+      "claimed": {
+        "by": "agent",
+        "at": "2026-11-08T22:50:21.102Z"
+      },
+      "done": {
+        "by": "agent",
+        "at": "2026-11-08T22:51:23.649Z"
+      },
+      "verdict": "clean",
+      "passes": {
+        "scan": "Whole subject and both 100% tiles read: zero people or ghost body fragments. One lantern, one ceiling bulb, one pot, one counter, three stools (middle seat revealed by removed sitter).",
+        "map": "Same frontal counter camera; left street/post/lantern, upper beams and right pot retain their normalized placement against source frame89.",
+        "support": "Pot sits on stove/counter, seats on stool bodies; no unsupported carried bowl or ladle remains.",
+        "cast": "No people expected or seen.",
+        "scale": "No scale anchors on record; the typed1.5m camera eye height cannot be verified from these pictures alone.",
+        "beat": "Both people removed; formerly occluded wall/counter/stool background reconstructed.",
+        "count": "People expected0 seen0; pot1, lantern1, bulb1. No duplicated story prop.",
+        "cross_view": "Compared with the original C1 out-frame; framing, fixed landmarks and warm interior/blue street hold. No scale anchors on record; typed1.5m camera height is unverified."
+      },
+      "notes": [],
+      "counts": {
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "verdict_set": {
+        "take": "take-f824d1c0-ee23-4736-a2b9-c81d7cd48776",
+        "verdict": null,
+        "because": "approval is the person's (the pack default)"
+      },
+      "packet": {
+        "pictures": 5,
+        "at": 1794178221746
+      },
+      "stale": null,
+      "said": "Critic: WIP native set-reference verification · set references › Shot 1 · WIP native set-reference verification · street › take 1 (seed 917301) · New view · P-H3-Image ×2 (<Picture 1> with every person removed: the same camera, framing, set, light and colours. Where each person stood or sat, the set behind them continues (the counter, the walls, the floor, the street), and nothing else changes. No people.) from Picture 1 C1's out-frame (take 1, frame 89): clean, 8 passes"
+    },
+    {
+      "critique": "crit-1a1bd58dd9d-9892",
+      "title": "Critic: WIP native set-reference verification · set references › Shot 1 · WIP native set-reference verification · street › take 2 (seed 917302) · New view · P-H3-Image ×2 (<Picture 1> with every person removed: the same camera, framing, set, light and colours. Where each person stood or sat, the set behind them continues (the counter, the walls, the floor, the street), and nothing else changes. No people.) from Picture 1 C1's out-frame (take 1, frame 89)",
+      "subject": {
+        "kind": "take",
+        "take": "take-d4f9f125-0684-4bab-8934-f54cf9ec1a63"
+      },
+      "about": {
+        "take": "take-d4f9f125-0684-4bab-8934-f54cf9ec1a63",
+        "decision": "cand-mw8fa9ox-ytyl",
+        "scene": "scene-mw8fa9ltuxaa",
+        "shot": "shot-mw8fa9lwfpod"
+      },
+      "purpose": "plate",
+      "checklist": "plate",
+      "trigger": "landed",
+      "state": "done",
+      "created": "2026-11-08T22:48:00.157Z",
+      "claimed": {
+        "by": "agent",
+        "at": "2026-11-08T22:50:22.333Z"
+      },
+      "done": {
+        "by": "agent",
+        "at": "2026-11-08T22:51:23.780Z"
+      },
+      "verdict": "clean",
+      "passes": {
+        "scan": "Whole subject and both 100% tiles read: zero people or ghost body fragments. One lantern, one ceiling bulb, one pot, one counter, three stools (middle seat revealed by removed sitter).",
+        "map": "Same frontal counter camera; left street/post/lantern, upper beams and right pot retain their normalized placement against source frame89.",
+        "support": "Pot sits on stove/counter, seats on stool bodies; no unsupported carried bowl or ladle remains.",
+        "cast": "No people expected or seen.",
+        "scale": "No scale anchors on record; the typed1.5m camera eye height cannot be verified from these pictures alone.",
+        "beat": "Both people removed; formerly occluded wall/counter/stool background reconstructed.",
+        "count": "People expected0 seen0; pot1, lantern1, bulb1. No duplicated story prop.",
+        "cross_view": "Compared with the original C1 out-frame; framing, fixed landmarks and warm interior/blue street hold. No scale anchors on record; typed1.5m camera height is unverified."
+      },
+      "notes": [],
+      "counts": {
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "verdict_set": {
+        "take": "take-d4f9f125-0684-4bab-8934-f54cf9ec1a63",
+        "verdict": null,
+        "because": "approval is the person's (the pack default)"
+      },
+      "packet": {
+        "pictures": 5,
+        "at": 1794178222829
+      },
+      "stale": null,
+      "said": "Critic: WIP native set-reference verification · set references › Shot 1 · WIP native set-reference verification · street › take 2 (seed 917302) · New view · P-H3-Image ×2 (<Picture 1> with every person removed: the same camera, framing, set, light and colours. Where each person stood or sat, the set behind them continues (the counter, the walls, the floor, the street), and nothing else changes. No people.) from Picture 1 C1's out-frame (take 1, frame 89): clean, 8 passes"
+    }
+  ],
+  "pick": {
+    "location": "location:location-mw8fa8zv632j@2",
+    "version": 2,
+    "plate": "P1 street set",
+    "side": "street",
+    "set": true,
+    "from": {
+      "take": "take-d4f9f125-0684-4bab-8934-f54cf9ec1a63",
+      "made_from": "C1's out-frame (take 1, frame 89)"
+    },
+    "said": "WIP native set-reference verification v2: plate \"P1 street set\" is side street's set reference (C1's out-frame (take 1, frame 89), people removed); the walkthrough plates stay",
+    "next": "cuts on side street that don't play from it yet: C2: set_unit {location: \"location:location-mw8fa8zv632j@2\", plate: \"P1 street set\"} on each (a cut reads the location version it names; compile_unit lints them)"
+  },
+  "before": {
+    "book": "book:book-mw8fa954lamt",
+    "scene": "scene-mw8fa96tsfj3",
+    "shot": "shot-mw8fa98igsmk",
+    "cut": "C2",
+    "unit_kind": "cut",
+    "story": {
+      "ref": "story:story-mw8fa94wtshd@2",
+      "n": 2
+    },
+    "at": {
+      "beat": "b2",
+      "order": 2,
+      "told": 2,
+      "text": "The empty counter holds the same set."
+    },
+    "style": null,
+    "entities": [],
+    "place": {
+      "ref": "location:location-mw8fa8zv632j@1",
+      "name": "WIP native set-reference verification",
+      "plate": "P1 street",
+      "pose": {
+        "x": 0.5,
+        "y": 0.8,
+        "heading": 0,
+        "eye_height": 1.5,
+        "lens": 35
+      },
+      "master": false
+    },
+    "package": [
+      {
+        "file": "snap/wip_setref/plate.png",
+        "role": "location: WIP native set-reference verification, plate P1 street (camera)",
+        "why": "this cut's camera",
+        "from": "location:location-mw8fa8zv632j@1"
+      }
+    ],
+    "budget": {
+      "used": 1,
+      "of": 9
+    },
+    "prompt": {
+      "description": "The empty counter holds the same set.",
+      "sentences": [
+        {
+          "text": "The empty counter holds the same set.",
+          "from": "story b2 text"
+        }
+      ],
+      "soundscape": "",
+      "music": "N/A"
+    },
+    "still_prompt": "The empty counter holds the same set.",
+    "ends": {
+      "beat": "b2"
+    },
+    "speakers": [],
+    "transition": null,
+    "timing": {
+      "seconds": 3,
+      "fps": 24
+    },
+    "lint": [
+      "plate P1 street is on side street, and P1 street set is that side's set reference (made from the picked look): set_unit {location: \"location:location-mw8fa8zv632j@2\", plate: \"P1 street set\"} plays C2 from it (SNAP-R253)",
+      "C2 follows C1 on the same plate (P1 street): if it continues C1's action, set_unit {opens_on: {cut: \"C1\"}} opens it on C1's out-frame, so the cut doesn't jump in set, light and pose (SNAP-R252)"
+    ],
+    "from": {
+      "b2.text": "726e9147e442",
+      "location:location-mw8fa8zv632j@1": "aa7e3d97921f"
+    },
+    "board": {
+      "role": "opening",
+      "pictures": [
+        {
+          "location": "location:location-mw8fa8zv632j@1",
+          "plate": "P1 street",
+          "label": "C2's camera"
+        }
+      ],
+      "prompt": "The empty counter holds the same set. <Picture 1> is this cut's camera on the place: keep its framing. This frame is the moment the cut starts, before the beat's peak."
+    }
+  },
+  "set": {
+    "scene": "scene-mw8fa96tsfj3",
+    "shot": "shot-mw8fa98igsmk",
+    "unit": {
+      "cut": "C2",
+      "beats": [
+        "b2"
+      ],
+      "location": "location:location-mw8fa8zv632j@2",
+      "plate": "P1 street set",
+      "kind": "cut",
+      "timing": {
+        "seconds": 3,
+        "fps": 24
+      }
+    }
+  },
+  "after": {
+    "book": "book:book-mw8fa954lamt",
+    "scene": "scene-mw8fa96tsfj3",
+    "shot": "shot-mw8fa98igsmk",
+    "cut": "C2",
+    "unit_kind": "cut",
+    "story": {
+      "ref": "story:story-mw8fa94wtshd@2",
+      "n": 2
+    },
+    "at": {
+      "beat": "b2",
+      "order": 2,
+      "told": 2,
+      "text": "The empty counter holds the same set."
+    },
+    "style": null,
+    "entities": [],
+    "place": {
+      "ref": "location:location-mw8fa8zv632j@2",
+      "name": "WIP native set-reference verification",
+      "plate": "P1 street set",
+      "pose": {
+        "x": 0.5,
+        "y": 0.8,
+        "heading": 0,
+        "eye_height": 1.5,
+        "lens": 35
+      },
+      "master": false
+    },
+    "package": [
+      {
+        "file": "snap/take-d4f9f125-0684-4bab-8934-f54cf9ec1a63_f0.png",
+        "role": "location: WIP native set-reference verification, plate P1 street set (camera)",
+        "why": "this cut's camera",
+        "from": "location:location-mw8fa8zv632j@2"
+      }
+    ],
+    "budget": {
+      "used": 1,
+      "of": 9
+    },
+    "prompt": {
+      "description": "The empty counter holds the same set.",
+      "sentences": [
+        {
+          "text": "The empty counter holds the same set.",
+          "from": "story b2 text"
+        }
+      ],
+      "soundscape": "",
+      "music": "N/A"
+    },
+    "still_prompt": "The empty counter holds the same set.",
+    "ends": {
+      "beat": "b2"
+    },
+    "speakers": [],
+    "transition": null,
+    "timing": {
+      "seconds": 3,
+      "fps": 24
+    },
+    "lint": [],
+    "from": {
+      "b2.text": "726e9147e442",
+      "location:location-mw8fa8zv632j@2": "16eefad3861b"
+    },
+    "board": {
+      "role": "opening",
+      "pictures": [
+        {
+          "location": "location:location-mw8fa8zv632j@2",
+          "plate": "P1 street set",
+          "label": "C2's camera"
+        }
+      ],
+      "prompt": "The empty counter holds the same set. <Picture 1> is this cut's camera on the place: keep its framing. This frame is the moment the cut starts, before the beat's peak."
+    }
+  },
+  "state": {
+    "plates": [
+      {
+        "name": "P1 street",
+        "file": "snap/wip_setref/plate.png",
+        "role": "camera",
+        "pose": {
+          "x": 0.5,
+          "y": 0.8,
+          "heading": 0,
+          "eye_height": 1.5,
+          "lens": 35
+        },
+        "camera": "street"
+      },
+      {
+        "name": "P1 street set",
+        "file": "snap/take-d4f9f125-0684-4bab-8934-f54cf9ec1a63_f0.png",
+        "from": {
+          "take": "take-d4f9f125-0684-4bab-8934-f54cf9ec1a63",
+          "frame": 0
+        },
+        "role": "camera",
+        "pose": {
+          "x": 0.5,
+          "y": 0.8,
+          "heading": 0,
+          "eye_height": 1.5,
+          "lens": 35
+        },
+        "camera": "street",
+        "use": "the set reference for side street: C1's out-frame (take 1, frame 89) with the people removed (SNAP-R253)",
+        "side": "street",
+        "set": true
+      }
+    ],
+    "source_active": "take-wip-native-setref-source"
+  },
+  "errors": []
+}

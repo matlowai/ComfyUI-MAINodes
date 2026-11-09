@@ -1,6 +1,6 @@
 # Snap session evidence — 2026-11-08
 
-> **QUALIFICATION FOLLOW-UP:** Native Director is integrated on the same WIP branch; see [integration evidence](../../director/INTEGRATION_2026-11-08.md). The [fresh critic review](verification/README.md) remains below its acceptance floor. Full final-code regression is tracked separately; no live landing is claimed.
+> **QUALIFICATION FOLLOW-UP:** Native Director is integrated on the same WIP branch; see [integration evidence](../../director/INTEGRATION_2026-11-08.md). The [fresh critic review](verification/README.md) remains below its acceptance floor. The [completed verification matrix](verification/FINAL_VERIFICATION_2026-11-08.md) records corrected focused/native results and remaining limits; no whole green CPU gate or live landing is claimed.
 
 > **READ FIRST:** The original terrace is rectangular. The first generated aerial became square, and a later prompt reinforced that error. Attractive outputs conditioned on an existing camera plate did not establish aerial control. Current preparation requires a textured top view **and at least one genuine side/elevation; prefer two distinct informative sides** (SNAP-R271). The four aerial-only tests were an explicitly selected ablation, and all four failed camera/set mapping and outside-ring placement. They are not the standing workflow.
 

@@ -1,0 +1,49 @@
+FAIL the leak (a silent cut citing Maren's voice): unscripted speech by Maren, status check (F-SQ11)
+FAIL C4's line from its story pin: ok by voice, Kuroe, margin above 0.08
+FAIL C4's words in take seconds, in order, Nemotron exact against the line
+FAIL the QA prompt was written in H3's dialogue grammar from the cut's line
+FAIL four Cast voices as references, the voice model on (two or more)
+FAIL a silent Book cut citing no voice is checked too: nothing unscripted, ok
+FAIL the QA ran where the setting says, named in the answer (ComfyUI's own card here, never GPU 1)
+FAIL no page errors
+{
+ "c4": {
+  "status": "ok"
+ },
+ "seconds": [
+  2.074,
+  13.203,
+  null
+ ],
+ "checks": [
+  {
+   "queued": true,
+   "voices": [
+    "Maren g17b (<Audio 1>)"
+   ],
+   "against": [
+    "Kuroe g17b",
+    "Brann g17b",
+    "Liesl g17b"
+   ],
+   "words": "not timed: the model graph's the Nemotron Transcribe GGUF (models/audio_encoders/nemotron/) isn't installed"
+  },
+  {
+   "queued": true,
+   "voices": [
+    "Kuroe g17b (<Audio 1>)"
+   ],
+   "against": [
+    "Brann g17b",
+    "Liesl g17b",
+    "Maren g17b"
+   ],
+   "words": "not timed: the model graph's the Nemotron Transcribe GGUF (models/audio_encoders/nemotron/) isn't installed"
+  },
+  {
+   "error": "Take 1 cites no Cast voice reference (a Cast with a voice, applied, puts it in References as <Audio n>), and the Voice QA can't run: the model graph's the Nemotron Transcribe GGUF (models/audio_encoders/nemotron/) isn't installed"
+  }
+ ],
+ "crash": "page.waitForTimeout: Target page, context or browser has been closed\n    at wait (worktrees/snap-2830523-gate-20261108/tests/snap/test_g17b_voice_qa.js:50:172)\n    at async worktrees/snap-2830523-gate-20261108/tests/snap/test_g17b_voice_qa.js:51:199"
+}
+g17bvoiceqa 0/8

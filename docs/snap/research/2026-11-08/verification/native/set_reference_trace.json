@@ -1,0 +1,649 @@
+{
+  "snapshot": "2830523",
+  "port": "8194",
+  "started": "2026-11-08T22:47:21.943Z",
+  "instructions": {
+    "hash": "5897c236a3c3",
+    "context": {
+      "tool": "make_set_reference",
+      "bricks": [],
+      "methods": [],
+      "pins": [],
+      "scene": null,
+      "shot": null,
+      "take": null
+    },
+    "stack": [
+      {
+        "ref": "pack:global/consistency-data-prompting-carry@0:29c99117a6b7",
+        "layer": "pack",
+        "level": "pack",
+        "scope": "global",
+        "kind": "note",
+        "text": "Consistency is data, not prompting: carry pictures and state (location master + plates, Cast records with turnarounds, positions cut to cut); words alone make a new place and a new design every render.",
+        "by": "pack",
+        "rule": "SNAP-R71",
+        "more": "skill snap-core"
+      },
+      {
+        "ref": "pack:global/results-never-trimmed@0:fb4c8136f5ec",
+        "layer": "pack",
+        "level": "pack",
+        "scope": "global",
+        "kind": "note",
+        "text": "Results are never trimmed; if one is too big for your context, save it to a file and hand it to a subagent.",
+        "by": "pack",
+        "rule": "SNAP-R58",
+        "more": "AGENT_START.md Limits"
+      },
+      {
+        "ref": "pack:global/snap-gap-report@0:2b63a10f94db",
+        "layer": "pack",
+        "level": "pack",
+        "scope": "global",
+        "kind": "note",
+        "text": "When Snap can't do a job, it is a Snap gap: report what you tried and the tool's answer; a take queued outside Snap never shows in its shot or the Work card.",
+        "by": "pack",
+        "rule": "SNAP-R30",
+        "more": "skill snap-core"
+      },
+      {
+        "ref": "pack:global/warn-never-block@0:4ea187e5873b",
+        "layer": "pack",
+        "level": "pack",
+        "scope": "global",
+        "kind": "note",
+        "text": "Warn and explain, never block; marks inform.",
+        "by": "pack",
+        "rule": "SNAP-R11",
+        "more": "SNAP_RULES.md"
+      },
+      {
+        "ref": "pack:global/storyboard-before-video-boards@0:cfc60dab6cc6",
+        "layer": "pack",
+        "level": "pack",
+        "scope": "global",
+        "kind": "note",
+        "text": "Storyboard before video: boards per cut (camera, lens, positions, facing, scale, transition) and an animatic, with cut-pair checks on boards.",
+        "by": "pack",
+        "rule": "SNAP-R89",
+        "more": "skill snap-boards"
+      },
+      {
+        "ref": "pack:global/when-gpu-idle-main@0:4032e9d21af1",
+        "layer": "pack",
+        "level": "pack",
+        "scope": "global",
+        "kind": "note",
+        "text": "When the GPU is idle and the main job waits, start the next useful GPU work toward the goal (the known parts of a fix first), else a cheap experiment that teaches something; record it; never decide what is the person's; run it on the visible page.",
+        "by": "pack",
+        "rule": "SNAP-R16",
+        "more": "skill snap-core"
+      },
+      {
+        "ref": "pack:global/prompt-pictures-beat-words@0:ad2d32873f3c",
+        "layer": "pack",
+        "level": "pack",
+        "scope": "global",
+        "kind": "note",
+        "text": "Pictures beat words. Before video, count each story prop and person on every picture (opening frame, board, each reference) against the beat and fix the picture: no wording removes what a picture shows (old two-bowl board kept the bowl 3/3; a clean board drew one bowl 6/6 with the bowl named four times).",
+        "by": "pack",
+        "rule": "SNAP-R244",
+        "more": "PROMPT_CRAFT_RULES §0 item 1; skill snap-core"
+      },
+      {
+        "ref": "pack:global/prompt-references-are-targets@0:e82e77a6749b",
+        "layer": "pack",
+        "level": "pack",
+        "scope": "global",
+        "kind": "note",
+        "text": "A picture in References is a target whatever its syntax: a key picture on an action cut is reached by 1.5-2.5 s and frozen on (4/4, 'the shot ends on <Picture n>' too); a location master is where takes cut to (3/10 at 1280, 13/18 at 640, 0/3 without; a <Subject N> wrapper doesn't stop it). Leave out any picture whose framing you don't want reached.",
+        "by": "pack",
+        "rule": "SNAP-R242",
+        "more": "PROMPT_CRAFT_RULES §0 item 2; §8 M2, M6, M7"
+      },
+      {
+        "ref": "pack:global/prompt-continuity-from-pictures@0:a478bc24ffb9",
+        "layer": "pack",
+        "level": "pack",
+        "scope": "global",
+        "kind": "note",
+        "text": "Continuity across a cut comes from pictures: a continuing camera opens on the previous cut's out-frame (set_unit opens_on); a new angle plays from its side's set reference (make_set_reference) and carries pose, props and timing in words, never the old image.",
+        "by": "pack",
+        "rule": "SNAP-R252",
+        "more": "PROMPT_CRAFT_RULES §0 item 3; skill snap-book"
+      },
+      {
+        "ref": "pack:global/prompt-one-ordered-action@0:3d9c0e079b56",
+        "layer": "pack",
+        "level": "pack",
+        "scope": "global",
+        "kind": "note",
+        "text": "Write the action as one ordered sentence with its counts ('ladles into a white bowl, pouring twice, then lifts the full bowl'); time a hit with a written wind-up and 'then': 'at the middle of the shot' put the hit at 0.9 s, the wind-up at 2.0 s.",
+        "by": "pack",
+        "rule": "SNAP-R250",
+        "more": "PROMPT_CRAFT_RULES §0 item 4"
+      },
+      {
+        "ref": "pack:global/prompt-named-gets-drawn@0:04e639b4bcf1",
+        "layer": "pack",
+        "level": "pack",
+        "scope": "global",
+        "kind": "note",
+        "text": "Anything the prompt names gets drawn, even as a measure ('a standing person's eye height' drew a man 2/2): give heights in metres, describe spaces by their parts, and don't name a thing that must stay out (not even 'no cars').",
+        "by": "pack",
+        "rule": "SNAP-R251",
+        "more": "PROMPT_CRAFT_RULES §0 item 5, §8 M4"
+      },
+      {
+        "ref": "pack:global/prompt-no-two-lines-disagree@0:a425892ea104",
+        "layer": "pack",
+        "level": "pack",
+        "scope": "global",
+        "kind": "note",
+        "text": "No two lines may disagree (hand, worn item, open/closed, position, facing, holder): the model draws the wrong one (2/2). Read compile_unit's lint before any GPU.",
+        "by": "pack",
+        "rule": "SNAP-R250",
+        "more": "PROMPT_CRAFT_RULES §0 item 6"
+      },
+      {
+        "ref": "pack:global/prompt-remove-by-editing-picture@0:49e1314f1dad",
+        "layer": "pack",
+        "level": "pack",
+        "scope": "global",
+        "kind": "note",
+        "text": "To remove something a picture shows, edit the picture (a mask or region edit: 2/2; words: 0/4); otherwise write what is there instead ('bare skin, nothing across the nose').",
+        "by": "pack",
+        "rule": "SNAP-R251",
+        "more": "PROMPT_CRAFT_RULES §0 item 7"
+      },
+      {
+        "ref": "pack:global/prompt-name-what-holds@0:21b18b9feecc",
+        "layer": "pack",
+        "level": "pack",
+        "scope": "global",
+        "kind": "note",
+        "text": "Seen from another side, name what holds ('his head stays turned away', 'the lens seen edge-on'): without it the head turned 5/6.",
+        "by": "pack",
+        "rule": "SNAP-R251",
+        "more": "PROMPT_CRAFT_RULES §0 item 8"
+      },
+      {
+        "ref": "pack:global/prompt-tidiness-not-a-fix@0:c0565d131e84",
+        "layer": "pack",
+        "level": "pack",
+        "scope": "global",
+        "kind": "note",
+        "text": "Measured as tidiness, not fixes: naming a prop once, joining a Cast line to its name, wrapping pictures in <Subject N>, and 'the street stays empty'. Keep them tidy if you like; never re-roll on them: change the pictures.",
+        "by": "pack",
+        "rule": "SNAP-R251",
+        "more": "PROMPT_CRAFT_RULES §0 'Demoted'; §8 M1, M4, M5, M7"
+      }
+    ],
+    "overridden": [],
+    "conflicts": [],
+    "off": [],
+    "refs": [
+      "pack:global/consistency-data-prompting-carry@0:29c99117a6b7",
+      "pack:global/results-never-trimmed@0:fb4c8136f5ec",
+      "pack:global/snap-gap-report@0:2b63a10f94db",
+      "pack:global/warn-never-block@0:4ea187e5873b",
+      "pack:global/storyboard-before-video-boards@0:cfc60dab6cc6",
+      "pack:global/when-gpu-idle-main@0:4032e9d21af1",
+      "pack:global/prompt-pictures-beat-words@0:ad2d32873f3c",
+      "pack:global/prompt-references-are-targets@0:e82e77a6749b",
+      "pack:global/prompt-continuity-from-pictures@0:a478bc24ffb9",
+      "pack:global/prompt-one-ordered-action@0:3d9c0e079b56",
+      "pack:global/prompt-named-gets-drawn@0:04e639b4bcf1",
+      "pack:global/prompt-no-two-lines-disagree@0:a425892ea104",
+      "pack:global/prompt-remove-by-editing-picture@0:49e1314f1dad",
+      "pack:global/prompt-name-what-holds@0:21b18b9feecc",
+      "pack:global/prompt-tidiness-not-a-fix@0:c0565d131e84"
+    ],
+    "skills": [
+      {
+        "name": "snap-core",
+        "description": "How Snap (the MAINodes view over the ComfyUI graph) fits together and how its agent instructions nest. Read this first whenever you drive Snap's tools (WebMCP, MCP, snapcall), make anything in Snap (a take, a scene, a Cast, a location, a board, a short), or change Snap's code, and before any other snap-* skill. Covers graph, bricks and setups, takes, scenes and shots, Cast and world versions, locations and plates, candidates, the Work card, the Book, pages and the agents' window, and the instruction stack (pack, install, person, Book, scene, shot, take).",
+        "yours": null
+      }
+    ],
+    "count": 15
+  },
+  "skills": {
+    "snap-core": {
+      "name": "snap-core",
+      "file": "SKILL.md",
+      "text": "---\nname: snap-core\ndescription: >\n  How Snap (the MAINodes view over the ComfyUI graph) fits together and how its agent instructions nest. Read this\n  first whenever you drive Snap's tools (WebMCP, MCP, snapcall), make anything in Snap (a take, a scene, a Cast, a\n  location, a board, a short), or change Snap's code, and before any other snap-* skill. Covers graph, bricks and\n  setups, takes, scenes and shots, Cast and world versions, locations and plates, candidates, the Work card, the Book,\n  pages and the agents' window, and the instruction stack (pack, install, person, Book, scene, shot, take).\nscope: [global]\nrules: [SNAP-R1, SNAP-R2, SNAP-R9, SNAP-R11, SNAP-R14, SNAP-R16, SNAP-R17, SNAP-R19, SNAP-R23, SNAP-R24, SNAP-R25, SNAP-R28, SNAP-R30, SNAP-R58, SNAP-R59, SNAP-R60, SNAP-R61, SNAP-R63, SNAP-R65, SNAP-R67, SNAP-R68, SNAP-R73, SNAP-R83, SNAP-R84, SNAP-R90, SNAP-R135, SNAP-R146, SNAP-R149, SNAP-R150, SNAP-R151, SNAP-R152, SNAP-R197, SNAP-R198, SNAP-R199, SNAP-R200]\n---\n\nIf a Snap server is reachable, `read_skill {\"name\": \"snap-core\"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.\n\n# Snap core: how the pieces link\n\nHow to call each tool is in `docs/snap/AGENT_START.md` (start there for setup, pages and the call shape). This skill is\nthe map; the task skills (`snap-location`, `snap-turnaround`, `snap-new-view`, `snap-reference-upscale`,\n`snap-boards`, `snap-voice`, `snap-critic`, `snap-set-design`, `snap-model-choice`, `snap-book`, `snap-director`) say how to do each job well. Rules are\n`docs/snap/SNAP_RULES.md` (SNAP-Rn).\n\nBefore planning shots on a location, use `snap-set-design` for a whole-place review of staging, design and coverage\nacross its existing views (SNAP-R269); landed-picture docket verdicts remain with `snap-critic`.\n\n## The layers\n\n- **Graph.** Plain ComfyUI nodes and links. A saved workflow is plain ComfyUI plus `extra.snap`, and edits round-trip\n  both ways (SNAP-R2). Snap reads what each node exposes, generically (SNAP-R1).\n- **Snap.** Bricks over that graph: a recipe is a chain of bricks; a **setup** owns the whole model set (SNAP-R9);\n  **method slots** (upscale, turbo, extend, edit, view, sheet) are chips over interchangeable methods from the\n  registry (SNAP-R14).\n- **The Book** (layer 3, SNAP-R67-R69, R130-R133; skill `snap-book`): a production's story as beats on the story\n  clock, its production style, settei per state, cuts compiled at their beat, boards, the animatic and the Cut, on the\n  same tool table and record store. Story, style and the dial are the person's: your edits to them are proposals.\n- **One tool table** drives all of it: Snap's own UI, WebMCP in the page, and MCP / snapcall from outside call the\n  same functions (SNAP-R19, R30).\n- **Production strategies** (`snap-director`, SNAP-R272) preview an approach over these same tools. They keep variants\n  in native cards and scoped preferences in instruction notes; authorized agents execute and replan through Snap.\n\n## The records and how they link\n\n| record | holds | links to |\n|---|---|---|\n| **take** | what ran (workflow, executed prompt, outputs), read from ComfyUI's history | its shot; its parent take (a version: an edit, an upscale, a longer take); the world versions it pinned |\n| **scene → shot** | a scene is a document: its set, its shots in order; each shot has its workflow, its takes, one active take (SNAP-R24) | takes by id; tabs are only scratch |\n| **Cast** | name, trigger, details, identity LoRA, reference pictures, voice (SNAP-R59, R73) | versioned; recipes and takes pin `cast:<id>@n` (SNAP-R60) |\n| **location** | plan, master, camera map, named plates with camera pose (SNAP-R84) | shots cite plates; plates come from takes' frames |\n| **decision** | N candidates of one \"make N, keep one\" step, each with provenance and notes (SNAP-R23) | `apply_candidate` makes one a shot's take; agents' picks wait as proposals unless agents may run (SNAP-R16) |\n| **job** | every asynchronous run, edit, check, proposal (SNAP-R65) | the Work card (`list_activity`, `wait_for`); its take's card; its shot |\n| **book → story, look** | a production: the story's beats with state changes (story and telling order), the production style, the dial per stage (SNAP-R67, R130) | its scenes' shots are its cuts (`shot.unit`); takes of a cut carry `story` {ref, beat, from} beside `world` (SNAP-R68) |\n\n**Walk it with `nearby {ref}`** (SNAP-R197..R199): for any take, record or picture path it says what the thing is (a\nstill or a frame of a video, its kind, its cut, active or approved, the model and the pictures it was made from) and\nlists its neighbours both ways (the cut's boards and video takes, the other candidates, what it was made from and what\nwas made from it, the Cast and location versions it cites, its beat, its critiques), each a tile with a ref to step to.\nRead it before judging or reusing a picture you didn't make; the person has the same as the Nearby modal.\n\nEvery save of a world record is a new version, kept forever; a take re-runs as it was, with today's world, or with\nswaps (SNAP-R60, R61, R63). A fix to an upstream record re-runs what pinned it (SNAP-R90, `snap-critic`).\nLabels by person and by agent stay apart (SNAP-R17).\n\n## How instructions nest (SNAP-R93-R95)\n\nEvery call in Snap runs under one resolved stack of agent instructions. Read it before you act, and read all of it\n(SNAP-R58):\n\n- `instructions {}` gives the stack for the open recipe; `instructions {\"scope\": \"tool:edit_from_context\"}` (or\n  `brick:render`, `scene:<id>`, `shot:<scene>/<shot>`, `take:<id>`, `cast:<id>`, `location:<id>`) for one target.\n  `describe_recipe.instructions` and `get_take.instructions` carry it too, and each tool's description ends with the\n  pack's notes for that tool.\n- **Layers, outer to inner:** pack (ships with Snap: `snap_cards/pack_notes.json` and these skills) → install (notes an\n  admin shared, on a gated install) → person (their own notes, including which model does which job) → Book → scene →\n  shot → take, plus notes on any record the recipe pins (a Cast, a location).\n- **Scope** is one target at one level: `global`, `tool:<name>`, `brick:<key>`, `method:<id>`, a record\n  (`cast:<id>`, `location:<id>`, `card:<id>`), `scene:<id>`, `shot:<scene>/<shot>`, `take:<id>`. A rule for the\n  whole project (until the Book has its own scope) is `global`, or `scene:<id>` for one scene; a rule for one job\n  is `tool:<name>`.\n- **Kinds:** `note` (a line you read whole) and `model_choice` (job → choice, why). Inner notes add to outer ones; a\n  note `replace`s an outer one only by naming it in `supersedes`. Two `model_choice` notes for the same job: the inner\n  layer wins (the outer is listed under `overridden`); in the same layer they are a `conflict`: ask the person or take\n  the newer.\n- **Writing:** `save_instruction` makes or changes a note; it applies at once, marked \"new from <you>\" in the person's\n  Agent library until they look, with one click to turn it off (SNAP-R95). When the person says \"change that\", save a\n  new version of their note (`id`) instead of adding another. Turning off a note the person or the pack wrote waits as\n  a proposal (`set_instruction_status`); your own notes go off at once. Imported notes land off.\n- **Provenance:** every queued run pins the stack (`extra.snap.instructions`: refs and the off list); `get_take`\n  says what it ran under, what applies now and what changed (`same`, `diff`), so a bad take can be traced to its\n  instructions. The stack hash ignores skills (read on demand).\n- **Skills:** `list_skills` and `read_skill {\"name\"}` return the whole text, the person's version when they have one\n  (`yours`); `save_skill` saves your edit of a skill as their new version. What you learn about using Snap goes into a\n  skill or a note this way, not into your own memory.\n- The person sees all of it in the **Agent library** (Library rail, and the \"Agent instructions\" button on bricks,\n  scenes, shots, takes and Cast records): skills, every note with its author and source, and what applies here.\n\n## Pages and who drives\n\n- Work in the person's main tab (they turned \"Let agents see\" on) or the agents' window: one visible Chrome that\n  agents attach to and reload; never headless; another tab only with the person's yes (SNAP-R83, AGENT_START §1).\n- Bind your page with `use_page`; one agent drives a page at a time (SNAP-R30). Name every call (SNAP_AGENT). When your\n  job ends, let go: `use_page {\"page\": null}`; a hold with no call for 10 minutes lapses by itself (SNAP-R135), unless\n  you hold a claimed critique or a run of yours is on the queue (SNAP-R146).\n- GPU-spending tools wait as proposals unless the person lets agents run (SNAP-R16). Downloads and installs always\n  wait for the person's yes; Snap itself never downloads (SNAP-R25).\n\n## To Astrid and from Astrid (SNAP-R215-R229)\n\n- **The tree:** a production (`create_production`; a Book alone has one of its own name) is one Astrid project; each\n  Book is one timeline in it; a cut is a clip whose id is the cut id (`C7`), kept across re-takes (SNAP-R223, R215).\n- **The push is the person's:** the Cut lens's Push button or the Book's \"Push the Cut to Astrid by itself\" setting;\n  agents and the dial never turn either on. From your shell: `tools/astrid_push.py push --book <book>` (cut + context),\n  `swap --book <book> --cut C7` after a re-take, `render`, `proposal-note`; SNAP_BASE on loopback, SNAP_AGENT named\n  (SNAP-R224). Snap's receipt (`get_book.astrid`, the Cut lens) is the only record of where a Cut went (SNAP-R225).\n- **What goes over:** projections only: the Cut (archive v2, probed editable before the answer), references per Cast\n  and place from the takes' own pins, the Book's documents, the style as words when the person shared it. Nothing\n  syncs back as a write: an Astrid-side wish is a Snap proposal (it waits in the Room), a fact is a take note (SNAP-R222).\n- **Asking Snap from Astrid:** reads (`get_book`, `get_take`, `list_proposals`) answer on a page another agent drives;\n  writes there go as proposals (`propose: true`) or wait for the driver (SNAP-R219). Take back your own stale proposal\n  with `withdraw_proposal {id, because}` (SNAP-R228). Words come from Snap (check_voice's `voice.words`, Nemotron's word times in the Voice QA, SNAP-R227/R240):\n  read them in Astrid with `timelines words --published` (without `--published` it leaves a working copy that blocks\n  trims). A clip's `generation.snap.dials.rows[*].curve.keys` are in the same seconds as its `app.astrid.words`\n  (SNAP-R233): a dial's peak moves onto a word with `set_cut_dials {book, cut, move_key: {dial, key: \"peak\", to_s}}`\n  and a `retake {take, dials: \"cut\"}` (on a trimmed cut the picture shows a key at key − in_s).\n\n## Writing a prompt (measured 2026-11-07; SNAP-R242-R251)\n\nRemember these things; each line has a measured case behind it (the Agent library's `global/prompt-*` notes say the\nsame, with the numbers):\n1. **Pictures beat words.** Before video, count each story prop and person on every picture (opening frame, board,\n   each reference) against the beat, and fix the picture: no wording removes what a picture shows.\n2. **A picture in References is a target**, whatever its syntax: a key picture on an action cut is reached by\n   1.5-2.5 s and frozen on; a location master is where takes cut to. Leave out any picture whose framing you don't\n   want reached (apply_unit does by default and says so; `set_unit {hold: true}` / `{cite_master: true}` override).\n3. **Continuity across a cut comes from pictures:** a continuing cut opens on the previous out-frame (`opens_on`); a\n   new angle plays from its side's set reference (`make_set_reference`) and carries pose, props and timing in words.\n4. **One ordered action sentence with its counts;** time a hit with a written wind-up and \"then\".\n5. **Anything you name gets drawn,** even as a measure; don't name what must stay out.\n6. **No two lines may disagree** (hand, worn item, open/closed, position, facing).\n7. **To remove something a picture shows, edit the picture** (mask or region edit); else say what is there instead.\n8. **Seen from another side, name what holds** (\"his head stays turned away\", \"the lens edge-on\").\n9. **Sound:** lead with hard, countable events of the action; burst beats bring booms, so judge with sound on.\n10. **A voice reference goes only where that character speaks,** and its words are never a line of the script.\n11. **After every take:** count props and people every half second against the beat and board, read where the take\n    goes (`check_copies`), listen with sound on (the voice note's Voice QA).\n12. **Two or three failed seeds of one recipe: change the pictures, the wording or the method,** not the seed.\n\nTidiness only (measured, never a fix): naming a prop once, joining a Cast line to its name, `<Subject N>` wrapping,\n\"the street stays empty\".\n\n## Working rules\n\n- **Consistency is data, not prompting.** Words make a new place and a new design every render. Carry pictures and\n  state: a location's master and plates, Cast records with turnarounds, positions and facing from cut to cut. One\n  continuous H3 video holds a place or a character together; separate stills guess each view again. Inside one prompt,\n  the pictures and the prompt's own counts decide what is drawn: read \"Writing a prompt\" below.\n- **Look before you say.** A version number says what Snap put in, not what the model drew: look at frames\n  (`take_frames`, whole frames at 100 %) before telling the person how a take looks (`snap-critic`).\n- **Results are never trimmed** (SNAP-R58); if one is too big, save it and hand it to a subagent.\n- **When Snap can't do it, it's a Snap gap.** A take queued outside Snap (raw API, a side graph) never shows in its\n  shot, its Cast pins or the Work card. Tell the person what you tried, the tool and its answer, so the route gets\n  built into Snap; don't route around it.\n- Before installing a node pack, read its code (the person's code-review setting, SNAP-R28) and grep the installed\n  packs for its node ids. Weights are safetensors only.\n- Warn, never block; marks inform (SNAP-R11).\n- **A change to part of a picture is a region edit** (SNAP-R190, R191): for a face, eyewear, a hand or a prop, crop that\n  part of Picture 1 and paste it back (`edit_from_context {paste_back: true}`); a whole-picture edit turns heads (a face\n  looking away turned 4/4). Take the crop past where a thin thing crossing it ends, and read each candidate's seam note.\n  A flaw in a Cast's own picture is fixed the same way and saved with `use_take … replace` as a proposal (SNAP-R196).\n- **Keep the GPU working toward the goal.** The operator, 2026-11-06: \"find useful things to keep GPU busy and working\n  towards a goal or learning\". When the GPU is idle and the main job waits (on a person, a review, a list), start the\n  next useful GPU work toward the goal; do the parts of a fix that are already known instead of waiting for the whole\n  list; otherwise run a cheap experiment that teaches something, and write down what it taught. When the open question\n  is the person's, make the options: render each (or the likely 2-3) side by side with a recommendation, so they\n  pick from results; nothing becomes active until they pick (the operator: \"even decisions that are mine to make, it\n  might be worth doing it both ways or several options\"). Still ask first for anything outward or irreversible\n  (publishing, deleting, downloads, installs). Run it on the visible page. (A short once drew plans on the CPU while both GPUs\n  sat idle, waiting on a critic list it partly didn't need.)\n- **When seeds keep failing, change the approach, not the seed** (SNAP-R200; the operator, 2026-11-07: \"if you fail\n  with reroll seeds it's a sign the approach is wrong\"). Two or three failed seeds of one recipe stop that recipe; don't\n  roll more or ask yet. Step up the chain: wording → references or crop → method or tool → the source record that carries\n  the flaw → a missing Snap capability (a finding, then a build). Try a few genuinely different approaches side by side\n  before giving up; only a taste choice between working results goes to the person.\n- **Due critiques are idle work too.** When your renders run, claim the critic's due rows (`list_critiques {\"state\":\n  \"due\"}`, skill `snap-critic`): the Work card says \"no critic on duty\" while nobody does (SNAP-R101).\n- **Pika at 6 steps is the quality standard** (SNAP-R149). Video takes run on the Pika setups at 6 steps; more steps\n  is not a quality step up (20/30 steps drifted off the plate and the Cast). The \"no turbo (20 steps)\" presets are\n  opt-in: never reach for them to \"improve\" a take, and never offer them as better. Voice references (12+ steps,\n  `snap-voice`) and the audio pass in post are the exceptions.\n- **Judge a take with its sound on** (SNAP-R150). A pick, a recommendation or an options page plays the takes with\n  sound, not only frame sheets, and says what the audio does. Ask for subtle, diegetic sound; a sting, a \"tada\" hit,\n  a clash burst or a game-style effect sinks a take whatever its picture does, so it is a finding.\n- **Music is a reference input** (SNAP-R151): the production supplies it as an `<Audio n>` held across cuts; a take's\n  prompt never asks for a score. Sound effects come after picture lock.\n- **Parallel agents get disjoint finding ranges** (SNAP-R152): when you start agents that log findings side by side,\n  give each its own ID range up front (F-H01..F-H49, F-H50..F-H99), so their rows never collide.\n",
+      "bytes": 17638,
+      "hash": "ae4a8cd3ee37a35c74b746e7efd4c61a2cdd1ae9d6f5387d7b16b44e07f9cfc4",
+      "yours": null,
+      "pack_hash": "ae4a8cd3ee37a35c74b746e7efd4c61a2cdd1ae9d6f5387d7b16b44e07f9cfc4"
+    },
+    "snap-new-view": {
+      "name": "snap-new-view",
+      "file": "SKILL.md",
+      "text": "---\nname: snap-new-view\ndescription: >\n  Make a new still from context pictures in Snap (`edit_from_context`, \"New view from these pictures\"): a board, a\n  plate, a two-shot, a callout, or a targeted edit such as changing only the eyes or a prop. Use it whenever you make\n  a still of a known place or character, edit one detail of a still, or a New view candidate came back wrong (copied\n  the master, turned the head, lost the set).\nscope: [tool:edit_from_context]\nrules: [SNAP-R72, SNAP-R76, SNAP-R79, SNAP-R86, SNAP-R190, SNAP-R200, SNAP-R202, SNAP-R203, SNAP-R204, SNAP-R268, SNAP-R271]\n---\n\nIf a Snap server is reachable, `read_skill {\"name\": \"snap-new-view\"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.\n\n# New views and targeted edits\n\nTool shape and every argument: `docs/snap/AGENT_START.md` (\"A new view of a place\"). Which model: `snap-model-choice`\n(P-H3 for sets, wides and edits; Fizgig for characters; SNAP-R86).\n\n## Making a view\n\n- **Prepare scene geometry first** (SNAP-R271, `snap-location`): at least one textured top/bird's-eye and one genuine\n  side/elevation of the same set, preferably two distinct informative sides. Label camera, role and source version;\n  crops do not add viewpoints. Top supplies layout; sides supply height, proportions, architecture and occlusion.\n  Resolve conflicts against authoritative originals. Obtain missing views under existing authorization or report\n  incomplete coverage. A geometry side need not match the output camera; keep its role distinct from composition.\n- **Order the pictures on purpose.** What Picture 1 is depends on the model (`picture_one`); for both H3 still models\n  the words set the camera, so the location's master can go first (SNAP-R72).\n- **Size, not tricks.** Make a board frame at 2-4 MP; Fizgig is soft under 2-3 MP, and P-H3 at 2.5 MP costs no more\n  than at 1 MP (6.8 s vs ~8 s). Always pass `width` and `height` to `ph3_view`: with 0 it makes Picture 1's own size,\n  so a crop as Picture 1 gives a small odd-shaped still.\n- **Write the board, not the mood.** Say what is behind each person (or a wide grows a second door), write an eyeline\n  as a frame direction (\"face turned to the LOWER LEFT, empty space on the left\"), and say \"indoors, <what is behind\n  them>\" for a close-up (or it drifts outdoors). One word fix each, first try.\n- **Callouts come from a crop.** \"A close-up of her boots\" with the whole picture gave a full figure 24/24; the\n  picture cropped to the boots (`{cast, crop}`) gave the callout 29/30.\n- **The same words give the same composition** on both H3 still models; compare them on detail, design holds and\n  speed, not framing.\n- Land each cut's board in that cut's shot (`land`; the answer's `land_hint` says when it would land elsewhere).\n\n## Finish a visual collage (SNAP-R268)\n\nStart with the inspected textured overhead set and actual overhead actor cutouts described in `snap-location`.\nCheck generated aerial geometry against the original set references: footprint, proportions and landmark relations\nremain governed by those sources. Canvas aspect is not floor shape; repair a square-for-rectangle error from the sources rather\nthan stretching the image and deforming its circular ring.\nKeep the collage as Picture 1 for `ph3_view`, followed by clean original set and identity references with explicit\nroles. The collage supplies positions, facing, scale and overlap; originals supply appearance. Ask for one cohesive\nimage that preserves landmarks, actor relationships and prop ownership while reconciling cut edges, contact shadows\nand lighting. If the collage is assembled in the target camera, preserve that camera and image-space footprints.\nIf it is an overhead general reference for an eye-level/side-camera frame, request that output camera; judge\nprojected layout against source landmarks rather than overhead pixel coordinates. Include the packet's side geometry\nreferences, even when their camera differs from the requested output. A clean target-camera plate may separately\nsupply composition. Aerial + actors only is an explicitly selected ablation, not a required first arm or a complete\nscene packet. Any cited side frame rules out an aerial-only claim. Use a matched no-aerial control to attribute the\naerial's benefit, holding the side references fixed.\nPolishing the overhead alone does not establish new-camera control. Pass explicit output dimensions. This is a\nfirst-frame image-edit test; the video-reference framing caution does not block it.\n\nCompare a few matched seeds with `qwen21_view` when selected, using its `<image1>`, `<image2>` syntax and the same\ncollage/reference roles; H3 uses `<Picture 1>`, `<Picture 2>`. Check outputs against the raw collage for count,\nidentity, footprint, facing, relative scale, props and fixed landmarks in the requested camera before judging polish. Preserve inputs,\nplacement metadata, prompts, seeds, method and all failures. A beautiful redraw with displaced actors fails layout.\nIf whole-picture regeneration repeatedly moves them, change the approach (SNAP-R200): integrate actors by region\nin overlap order, then clean seams with the existing masked P-H3 paste-back route. The unchanged area outside the\npaste-back mask is protected; content inside still needs inspection. A missing collage assembly tool is a Snap gap\nto report/build at its owner, not a reason to queue an untracked side graph. Prior two-seed P-H3 frames looked\nfinished and inward-facing, but used a conflicting square aerial, an existing clean S camera plate and strong\nplacement words; the aerial's contribution and same-world continuity remain untested. H3/Qwen same-camera finishing\nresults remain useful. Symbolic dot/arrow-map failures test a different input and do not settle this route.\n\nFor a partial redraw on P-H3 or Qwen 2.1, `denoise` below 1 encodes Picture 1 as the sampled target (SNAP-R270);\nomitting it keeps the normal reference-only generation. It preserves pasted appearance as well as layout, which\ncan oppose rebuilding blurred characters from clean references. Keep blur-only conditioning and encoded-target\ntests separate. Record the native schedule: P-H3's partial tail can contain only a few updates, and its strength\nnumber is not equivalent to Qwen's KSampler denoise.\n\n## A targeted edit\n\nUse `ph3_view` with the still (or a crop of the part) as Picture 1. Name only the change, describe its shape, say\nwhat it is not, and say what holds:\n\n> Change only her eyes: gold irises, each with a single thin black vertical slit pupil like a cat's, no round pupil.\n> Her head stays in profile. Everything else stays.\n\nThat drew true slits 3/3; \"slit pupils\" alone gave round ones, and without the line on what holds 5 of 6 candidates\nturned the head to show the eyes. A Fizgig \"edit\" is a re-render (mean change 23-25 outside the target, vs 3-8 for\nP-H3); P-H3's floor for \"regenerated, nothing changed\" is SSIM 0.94-0.96.\n\nWhen the words don't take after two or three seeds, change the approach (SNAP-R200). Four that worked on Kuroe's\nmonocle, where a gold bar across the nose came back from every wording (dogfood F-Y01..F-Y06, G13):\n\n- **Mask the thing out** (F-Y09, SNAP-R204). For a removal (a stray bar, a ghost line, a prop that shouldn't be\n  there), add `mask: \"<the thing>:1\"` to the region edit: SAM finds it in the crop and only it changes. Kuroe's nose\n  bar came off 2/2 this way on his original front, with his eyes and lens untouched (a faint 1 px trace showed at 6x).\n  Say in the prompt what is there instead (\"bare skin, nothing across it\").\n- **Show the item, don't describe it** (F-Y02). To change how a thing is built, give a settei of the item alone as\n  Picture 2: make it from a crop of the record's own picture (\"drawn alone … only one lens, no bridge, no face\"), then\n  region-edit (`paste_back`, SNAP-R190) with it. Words over the bar: 0/4; the same region edit with the settei: 2/2.\n- **Remove the whole item, then add the right one** (F-Y03). \"Remove only the bar\" failed; \"he wears no eyewear at\n  all\" gave a bare face 2/2, then adding the monocle from its settei 2/2. An edit whose Picture 1 still shows the flaw\n  tends to keep it: the settei edit on a redraw that had the bar back kept the bar 2/2 (G13, s9961/s9962).\n- **Redraw first, region-edit last** (F-Y06). A redraw draws the model's prior again. Stage 2 of a region edit does\n  this order for you: it redraws the whole still (SNAP-R202), then puts the edit's change back over the redraw where\n  the edit differs from its Picture 1 (SNAP-R206, G14: Kuroe's fix B kept its bar off at 0.30 and 0.20, 2/2 seeds,\n  where the plain redraw drew it back). Any other redraw of a fixed picture (a whole-picture P-H3 redraw, a turnaround\n  pass) has no such step: look at the fixed part at 100 %; if the flaw is back, fix the redraw (the remove-then-add\n  pair above), not the other way round.\n- Then compare the eyes with the Cast: a redraw darkened Kuroe's grey irises. `keep_eye_colour` runs on any take\n  (SNAP-R203) but moves only the hue, so it leaves a grey iris as it is; its answer says what it did or why it skipped\n  (SNAP-R207).\n- A seam note that says **\"the box shows\"** means the pasted box is lighter or darker than the picture around it\n  (SNAP-R205): redo it with `mask`, or with the crop's edges on the thing rather than open background.\n\n## Reading the notes\n\nEach candidate carries identity notes per Cast and a copy note per context picture (SNAP-R76, R79, R111, R112). The\nidentity note reads the character score (DINOv3 on a head crop): \"probably not <name>\" below 0.45, and it holds on\nprofiles and bowed heads, where ArcFace (shown beside it) drops near 0. The copy note reads the soft score: at 0.82 or\nmore it says \"copied Picture n\", \"· same framing\" when the view itself was re-rendered, \"· same composition\" when the\npicture was drawn again from another viewpoint (the turned aerials of the master, 0.84). Look at the candidates beside\nthe master yourself as well. Notes inform, never block.\n",
+      "bytes": 10047,
+      "hash": "6412fcb55bd4fcf10b9b8181697fa0def20f124eebebcce06c132ffb008cca66",
+      "yours": null,
+      "pack_hash": "6412fcb55bd4fcf10b9b8181697fa0def20f124eebebcce06c132ffb008cca66"
+    },
+    "snap-location": {
+      "name": "snap-location",
+      "file": "SKILL.md",
+      "text": "---\nname: snap-location\ndescription: >\n  Build a location in Snap that stays the same place in every shot: set plan, master establishing picture, a\n  people-free H3 walkthrough, plates pulled from its frames with their camera pose, then boards placed on plates. Use\n  it whenever a short, scene or shot needs a place (a village, a room, a street), when views of one place disagree\n  (a gate that changes between cuts), or before making plates or boards of a set.\nscope: [tool:save_location, tool:add_plate, tool:remove_plate, tool:apply_location, tool:use_take, tool:draw_set_plan]\nrules: [SNAP-R21, SNAP-R22, SNAP-R71, SNAP-R84, SNAP-R115, SNAP-R133, SNAP-R136, SNAP-R147, SNAP-R148, SNAP-R154, SNAP-R155, SNAP-R268, SNAP-R271]\n---\n\nIf a Snap server is reachable, `read_skill {\"name\": \"snap-location\"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.\n\n# A location from a walkthrough\n\nA location is one topology (SNAP-R71, R84). Build it once, then make every view of it from that context; a text-only\nrender of a known place gives a new place each time (three cuts of one village gate came back as three different\ngates). Tool calls are in `docs/snap/AGENT_START.md` (\"A new view of a place\").\n\n## Scene reference minimum (SNAP-R271)\n\nBefore making views of a known scene, prepare at least one textured top/bird's-eye view and at least one genuine\nside/elevation view of that same set; prefer two distinct, informative sides. The top establishes layout and\nfootprint; sides establish height, proportions, architecture and occlusion. Repeated crops of one view do not count\nas distinct views. Label each picture's camera, role and source version, and resolve conflicts against authoritative\noriginals rather than merging incompatible geometry. Obtain missing views within the existing authorized scene work;\notherwise report the coverage gap and do not call the packet complete. This preparation rule adds no tool validation\nor approval step.\n\nA side used for geometry need not be the desired output camera. Name its geometry role and the requested camera\nseparately; judge whether the result copied its composition. A run citing any side frame is not aerial-only.\n\n## Steps\n\n1. **Set plan:** an overhead map. Draw it in Snap (`draw_set_plan {location, shapes, cameras}`, or \"Draw the plan\" on\n   the Location sheet, SNAP-R133): boxes, rounds, lines for roads and walls, labels; camera marks stay on the record and\n   the sheet draws them as wedges, never into the plan picture (marks in the picture leak into renders that cite it).\n   Try the layout with `preview: true` first: it answers the picture and every label that runs off it or over another,\n   and saves no version (SNAP-R154); break a long label with `\\n`.\n   **Give the place a scale** (SNAP-R155): `save_location {location, scale: [{name: \"house door\", height_m: 2.0},\n   {name: \"gate door\", height_m: 3.7}]}`, the things every view shows whose real height you decide. The critic measures\n   eye heights and wall heights against them; without a scale its metres are guesses at a door's size (village v21:\n   plates read \"~2 m\" on an assumed 2.7 m gate door were ~2.7 m on the houses' own doors). Keep the plan's proportions\n   and the anchors in step (a palisade 1.4 gate doors high is 5.2 m on a 3.7 m door).\n2. **Master:** one establishing picture that shows how the parts connect (road → wall → gate → square). Run the\n   critic's logic check on it now (`snap-critic`): does the wall enclose what it should, does the road reach the gate.\n   A flaw here reaches every plate.\n3. **Walkthrough: start it from an eye-level first frame.** The walk's camera height is set by its first frame, never\n   by words (\"1.6 m, never rises, never flies\": 0/2; one craned over the wall, one stayed at the master's aerial pose).\n   Make an eye-level still first (New view, the horizon at a standing person's eyes), check the horizon against the\n   door, then `use_take {take, as: first_frame}` and `apply_location` (master + plan): under Ref2V Snap puts the First\n   frame in as `<Picture 1>`, the opening frame, ahead of the master and the map (SNAP-R115), and the hint says so.\n   A walk that starts from a plate instead: `apply_location {plates: [P], camera: P}` puts that plate first as\n   `<Picture 1>` (the camera), the master and the map after it (F-D06).\n   Run one people-free H3 Ref2V video: \"camera carried at head height, dollies forward …\". With the still first it\n   held ~2-2.5 m 2/2 and kept the set; the same still as a pure FL2V first frame (no references) kept the height but\n   invented the set (half-timbered houses, no wall).\n4. **Plates:** frames of the walkthrough, each kept with its camera pose in the location record. Save them as one\n   version: `add_plate {location, plates: [...], version_note}` (a version per plate makes a critic row set per plate,\n   stale at once, SNAP-R136). Check each answer's `size` / `sha256` / `from` against the frame you meant: a note that\n   quotes the wrong take saves the wrong picture. Keep the camera map (wedges for every walk) as `map`, not as the plan.\n   Cite a frame with `use_take {take, as: reference, at}` or `{take, frame}` instead of exporting a file.\n5. **Boards:** plate + people with New view (`snap-new-view`); land each cut's board in its shot.\n6. **Cuts** cite their plate and the Cast (`snap-boards`); the master stays out of a cut that has its camera plate\n   (takes cut to its framing: M2 13/18 at 640, M7 3/10 at 1280, 0/3 without; SNAP-R242).\n6b. **The set reference per side** (SNAP-R253): once the person picks the first cut's take on a side, its look is the\n   set. `make_set_reference {book, cut}` makes people-free candidates from that take's out-frame, `{book, cut, pick}`\n   saves the pick as the side's set plate (`side`, `set: true`, the camera plate's mark and pose); the walkthrough\n   plates stay. The cuts on that side then play from it (`set_unit {location: <the new version>, plate}`).\n   `add_plate {camera: \"same\"}` moves a plate's own mark with its pose (F-SQ10).\n\n7. **Fixes after a critique:** change one plate alone with `add_plate {location, name, pose}` (its picture and the\n   rest are kept; `camera: {name, x, y, heading, eye_height}` adds or moves its mark, SNAP-R148) and the notes with\n   `save_location {location, notes}`; never rewrite the whole place to move one pose. After a master fix,\n   `dependents {ref: location:<id>}` lists what used the older place, the walks made on the Cast it was kept as too\n   (SNAP-R147); `rerun_dependents` re-makes them, and names `by_hand` the takes that pin nothing of it.\n\n## Traps\n\n- **Forward dollies work; turns don't.** \"Turn around\" / \"turn right\" swung the camera back to the master's aerial\n  pose in 4 of 4 attempts. Make each plate with a forward dolly toward it.\n- **A view through the gate needs the far side's own plate.** A forward dolly from outside the gate (the Pab plate as\n  first frame + master + plan) drew the far house row under a far palisade twice their eave height, 2/2 seeds, and words\n  (\"full size, roofs above the palisade's tips\") didn't move it: the far wall came out at the near wall's scale. Cite the\n  far side's plate as a place picture (Pd), or draw the view from inside; check far-row eaves against far-wall tips before\n  pulling a frame (F-K07).\n- **Never cite the next place.** A reference picture of the next place on the path made H3 hard-cut to it mid-take in\n  3 of 8 takes. Carry the next place by the next cut's board.\n- **Wides need a foreground anchor.** \"Wide, from inside the square\" with the master as Picture 1 came back as the\n  master's high aerial 6/6; close two-shots land at eye height every time. Give a wide something at head height in\n  the foreground, or use a walkthrough plate.\n- **Plate prompts describe the place only.** A plate prompt that names a character draws it: add \"no figures\". Say\n  what is not there (\"dry desert, no grass, no trees, no water\"): a close-view plate grew grass and a lake 2/2.\n- **Keep establishing plates people-free**, or put the people in the plate: \"tiny figures\" on an empty plate pop in\n  mid-shot.\n- **Seats and anchors belong in the plate.** Put the bench and the lantern pole in the plate, then stage \"sit on the\n  bench, legs and feet visible\". People staged on a ledge that isn't drawn sank into the roof or got a second ledge.\n- **A pose's eye height is a number you typed.** `eye_gaps` compares typed numbers, not the picture: read the horizon\n  against a scale anchor before trusting either (the critic's note says \"measured against the record's scale\"), and\n  fix the one that's wrong with `add_plate {location, name, pose}` (a plate typed 2 m sat at eye height). Type a height\n  from two readings that agree, never one (village Pa: one critic read 2.8 m, two later readings 1.9 m).\n- **Read a horizon from lines that are parallel in the world.** Wall runs, roof lines, kerbs and a paving's rows meet\n  on the horizon; a road that narrows into a gate or bends does not, so its edges meet below or above it (Pa's road dots\n  bent inward to the gate: a lower bound). Use the measuring copy's 1 % ruler, name the lines you met, and give a range\n  when the only lines bend (F-Q06). A plate whose only receding lines are a funnelling road wants a scale anchor near\n  the horizon (a door, a person-high post) before its height is typed.\n- **Dropping a plate:** `remove_plate {location, name}`; the other plates keep their `from` (F-K05). A plate given by\n  `file` alone keeps the take and frame the record had for that file.\n- **Doors and windows are said from the camera** (SNAP-R22), and each camera gets 2-3 plate candidates; one orbit\n  render per camera is unreliable (SNAP-R21).\n\n## Textured overhead collage and state (SNAP-R268)\n\nKeep two distinct artifacts: a schematic plan with coordinates, actor marks, facing and camera metadata; and a\ntextured bird's-eye picture of the actual place, showing its floor patterns, materials and fixed landmarks. Dots,\narrows and labels help plan and check state; they do not substitute for the visual overhead reference.\n\nOriginal set references govern footprint, proportions and landmark relationships. Check any generated aerial against\nthose sources before using it: an attractive square terrace cannot replace a rectangular source terrace. Canvas\naspect ratio and floor footprint are different; a square canvas may show a rectangle. Rebuild incorrect geometry\nfrom the sources rather than stretching the image (which also turns a circular floor ring into an ellipse). General\nplacement needs these basic relationships, not invented exact metres.\n\nFor the visual experiment, obtain genuine overhead views of the actors in their current costume, pose and carried\nprops. Cut out each silhouette as RGBA, then compose it on the textured set at the intended position, relative scale,\nfacing and overlap order. Rotating a front portrait on the page does not make an overhead view. Inspect the raw\ncollage before generation: count people and props, check footprints against landmarks, and reject rectangular\nbackgrounds or mismatched camera elevations. Preserve the clean plate, source images, cutout layers and placement\nmetadata (position, scale, rotation, overlap order and coordinate frame) alongside every collage version.\n\nUse that collage as the image-edit starting canvas, with clean original set and actor references separately:\nappearance comes from those originals, layout from the collage. The collage can be a general reference for a\nrequested eye-level or side-camera starting frame: name that output camera and include the side geometry references\nfrom the scene packet. A target-camera plate is a separate composition reference. Only an explicitly selected\nablation omits the side references; label its exact inputs and do not treat it as the normal preparation minimum.\nA collage assembled in the target camera tests same-camera harmonization of lighting, edges, contact shadows and proportions. Do not confuse polishing an overhead image with solving a new view.\nCompare a few seeds with an explicitly selected Qwen2.1 edit with the same guidance (`snap-new-view`, `snap-model-choice`). Inspect what the model actually keeps. The earlier\n15-still dot/arrow-map trial did not test this pipeline and is not evidence against textured collage guidance or a\nglobal exclusion of Qwen. Two prior P-H3 outputs were good-looking inward-facing frames, but their square aerial\nconflicted with the rectangular source set; they also used a clean S camera plate and strong placement words.\nWithout a matched no-aerial control, those frames do not establish the aerial's benefit or same-world continuity.\nH3 and Qwen did finish target-camera collages; retain that image-finishing observation separately. Compare a matched\nno-aerial control when attributing a benefit to aerial guidance. Neither result establishes usual reliability,\nexact geometry or a guarantee that every softening/denoise recipe works.\n\nAfter a picked take, compare end positions, carried items and terrain changes with the intended state. Update\nintended or accepted state under the production's existing canon/autonomy policy, keeping proposals where that\npolicy requires them without adding an approval step. Change affected terrain, items and actor placements in a new\nversion; compare unchanged landmarks before reuse. Accidental damage or a misplaced actor is a finding to fix, not\nstate to preserve. This is a visual continuity experiment, not a 3D/4D reconstruction.\n\nTest the first-frame image edit before downstream video. Once a clean frame is checked, it can be tried as the\nvideo's starting frame under the selected method's contract. Do not automatically add overhead collages or annotated\nplans to video References: marks can leak (SNAP-R133), and a cited picture can become a framing target (SNAP-R242).\nThat video risk does not prohibit using the collage as an image-edit canvas. Direct overhead-reference video\nconditioning remains a separate experiment, checked for top-down cuts and frozen poses.\n\n## Heavier tools, only when needed\n\nA blockout depth render per camera driving an H3 ControlNet for exact cameras; splats for a hero location that\nrecurs. Neither is in Snap yet.\n",
+      "bytes": 14274,
+      "hash": "d844db60028132c32f058cea842c8320a913809001ea61c974dd835eeea1967e",
+      "yours": null,
+      "pack_hash": "d844db60028132c32f058cea842c8320a913809001ea61c974dd835eeea1967e"
+    },
+    "snap-model-choice": {
+      "name": "snap-model-choice",
+      "file": "SKILL.md",
+      "text": "---\nname: snap-model-choice\ndescription: >\n  Which model or method to pick for each job in Snap (new views, targeted edits, turnarounds and sheets, making a\n  reference bigger, 4K, video cuts, longer takes, Change something), with the measured reason for each. Use it whenever\n  you choose a `method`, setup or slot in Snap, compare models for a job, or the person asks \"which model should do\n  this\". These are pack defaults; the person's own model-per-job notes override them.\nscope: [tool:edit_from_context, tool:make_character_sheet, tool:upscale_take, tool:apply_setup, tool:edit_take]\nrules: [SNAP-R51, SNAP-R64, SNAP-R75, SNAP-R77, SNAP-R82, SNAP-R85, SNAP-R86, SNAP-R88, SNAP-R149, SNAP-R150, SNAP-R268, SNAP-R271]\n---\n\nIf a Snap server is reachable, `read_skill {\"name\": \"snap-model-choice\"}` returns the person's version of this skill (their edits over the pack's); this file is the pack's.\n\n# Which model for which job\n\nThese are the pack's defaults (SNAP-R86 and the rules cited). In the instruction stack (`snap-core`) each row is a\nnote of kind `model_choice` the person can change (\"use Fizgig for sets in this workflow\"); their note wins. Say which\nrow you used and why when you pick.\n\n| job | pick | instead of | why (measured) |\n|---|---|---|---|\n| a set, a wide shot, a targeted edit (\"change only X\") | `edit_from_context` `ph3_view` (P-H3-Image) | | moves the camera from words: 6/6 into the square with the master's own gate; ~7 s a still, 8 steps (SNAP-R75, R86) |\n| character shots, two-shots, finished board frames | `edit_from_context` `fizgig_still` | | closest two-shots; reads every picture as a reference, so it draws back views (6/6); soft under 2-3 MP (SNAP-R86) |\n| a new view of a known place | an H3 still model | MOSS Image Edit | MOSS copied Picture 1 or redesigned the set and the people (SNAP-R75) |\n| explicit editing comparison or fallback, including guided collage tests | `edit_from_context` `qwen21_view` | a silent change of the default | native Qwen Image 2.1; first picture is the edit canvas, `<image1>` reference syntax, 25 steps CFG 1 Euler/simple; H3 purpose defaults stay unchanged (SNAP-R75) |\n| a board still above 4 MP | SeedVR2 after the still | H3 latent refine | ~5 s; the latent refine is softer and 7x slower |\n| a turnaround | one continuous H3 orbit: an orbit LoRA such as [ORB360](https://huggingface.co/MATLOWAI/MiniMax-H3-ORB360-CardSpin) on Ref2VA | per-view stills | one video keeps carried objects consistent; passed every per-view check (`snap-turnaround`) |\n| a turnaround without an orbit LoRA | `make_character_sheet` `contact_sheet` | | Picture 1 padded square orbits front to back 9/9, ~39 s a sheet (SNAP-R77) |\n| an 8-panel reference sheet with close-ups | `h3_ref_sheet`, given views or crops | | kept a carried scabbard on the back in profile 5/6 |\n| a sheet that must keep carried props | not `krea2_quadview` (drops props), not `moss_charref` (off-model) | | `krea2_dynamic` only for pitch sheets (garbled labels) |\n| making a reference bigger (Cast picture, turnaround, plate, settei) | `upscale_take` `stage2`, denoise 0.3 | RelayVSR | redraws the face the VAE smeared: ArcFace vs the Cast front 0.91 / 0.86 / 0.89, vs 0.79 / 0.68 / 0.80 sharpen-only (SNAP-R85) |\n| 4K | `upscale_take` `tessera` after `stage2` | Tessera on the raw take | carries the redrawn face up; flat backdrop tiles skipped at 8 (SNAP-R82) |\n| every video cut | a Pika setup at its 6 steps (`Pika H3 Flex`, `Pika + reference pictures`) | the \"no turbo (20 steps)\" presets, more steps | the quality standard (the operator, 2026-11-06); 20 and 30 steps drifted off the plate and the Cast (SNAP-R149) |\n| a cut whose first frame is the point (a wide, a light igniting in place) | FL2V from the key still | | copies the still exactly, but invents the set as the camera moves |\n| acting in a known set | Ref2V with the plate and Cast pictures | | holds the plate's set, draws the character from the sheets; ignores a First frame left over from FL2V |\n| a longer take | Standard up to ~40 s, Long beyond; Strong only as a pick | | Standard grows a mosaic past ~40 s; Long's re-anchor holds 2 minutes, face and sound (SNAP-R64) |\n| Change something on a video take | MOSS Image Edit paints the frames, then Ripple or Remake | | the in-place video edit route (SNAP-R51); Ripple re-renders the sound, Remake keeps it |\n| a voice reference | Ref2V at 12+ steps, low resolution | the setup's 6 turbo steps | audio needs the steps; the picture is thrown away (SNAP-R88, `snap-voice`) |\n\nThe no-turbo presets are opt-in only (Turbo off puts them on): never pick them to \"improve\" a take or offer them as the\nbetter choice. Judge video candidates with their sound on (SNAP-R150): a take with a corny sting or clash burst loses\nto a quieter one whatever the frames say.\n\nWhen you compare models for a job, run them at the same size, quote time as \"first seed / each more seed\" (the first\npays the prompt and reference encoding), and judge on design holds and detail: the same words give the same\ncomposition on both H3 still models in the original camera comparison. That result does not establish exact blocking.\nThe earlier 15-still overhead trial used schematic dots/arrows: both H3 paths gave partial position/damage guidance;\nQwen followed the side camera better but missed ring-relative feet and damage placement. Those are task-specific\nresults, not evidence against textured visual collages or a global Qwen exclusion. For the clarified collage trial\n(SNAP-R268), compare H3 and explicitly selected `qwen21_view` with the same inspected collage as starting canvas,\nclean original references, explicit image roles and a few matched seeds. Original references determine appearance;\nthe collage guides layout; the editor reconciles light, shadows and edges. Check generated aerial footprint,\nproportions and landmark relations against original set references first; canvas aspect is distinct from floor\nshape, and stretching a square aerial also deforms its circle. Prepare the scene packet before choosing a method:\nat least one textured top/bird's-eye and one genuine side/elevation, preferably two distinct informative sides\n(SNAP-R271, `snap-location`). Top supplies layout; sides supply height, proportions, architecture and occlusion.\nLabel camera, role and source version; repeated crops are not distinct views. Resolve conflicts against authoritative\noriginals. Obtain missing views under existing authorization or report the gap without claiming a complete packet.\nKeep side geometry references distinct from a target-camera composition plate: the side need not match the output\ncamera. Distinguish same-camera harmonization from new-camera generation with this packet. Aerial + actors only\nremains an explicitly selected ablation; any cited side frame means the run is not aerial-only. Judge each requested\ncamera separately before video. Prior two-seed P-H3 frames looked good\nand faced inward, but used a square aerial conflicting with the rectangular source, a clean S camera plate and\nstrong placement words. They do not validate same-world aerial continuity or its causal contribution; use a matched\nno-aerial control when attributing benefit. H3 and Qwen target-camera edits worked with sharp cutouts, a useful\nimage-finishing result with no placement-reliability claim. Heavy actor blur and partial target initialization answer different questions; retain their failures as well as the attractive frames.\n",
+      "bytes": 7466,
+      "hash": "8b0aa16a3d259c09ec7161f48299d20ddcc0987b1c3adf07391e8b85f5a34ff8",
+      "yours": null,
+      "pack_hash": "8b0aa16a3d259c09ec7161f48299d20ddcc0987b1c3adf07391e8b85f5a34ff8"
+    },
+    "snap-critic": {
+      "name": "snap-critic",
+      "file": "SKILL.md",
+      "text": "---\nname: snap-critic\ndescription: >\n  The critic in Snap: claim the critique rows Snap puts on the docket for every landed take, board, sheet, plate, master,\n  location version and cut pair, read each packet (whole frames first, then tiles, then context) with the measured r4\n  prompt below, and write the verdict and notes (severity, pass, region, owner, fix) back; then fix a flaw at its source\n  record and re-run what depended on it. Use it whenever critiques are due (list_critiques), before you call any\n  picture good or show results to the person, after a batch of candidates lands, and whenever a flaw comes back after a\n  re-roll.\nscope: [tool:list_critiques, tool:claim_critique, tool:critique_packet, tool:write_critique, tool:critique, tool:critic_report, tool:rerun_dependents, tool:judge_takes, tool:take_frames]\nrules: [SNAP-R101, SNAP-R102, SNAP-R103, SNAP-R104, SNAP-R105, SNAP-R106, SNAP-R107, SNAP-R108, SNAP-R109, SNAP-R110, SNAP-R23, SNAP-R63, SNAP-R135, SNAP-R146, SNAP-R153, SNAP-R155, SNAP-R156, SNAP-R157]\n---\n\nSNAP-R101 the critic is a docket job an agent claims · SNAP-R109 this file is the prompt's one home, and a change ships\nonly after the fixtures run holds the floor (tests/snap/critic/run_fixtures.py; floor r5b: 27/31 caught, 0 false\nalarms, X02's coat split caught; r6, this prompt, adds metres from the record's scale: 27/31, 0 false alarms).\nIf a Snap server is reachable, `read_skill {\"name\": \"snap-critic\"}` returns the person's version of this skill (their\nedits over the pack's); this file is the pack's. What each checklist adds is in `reference.md`\n(`read_skill {\"name\": \"snap-critic\", \"file\": \"reference.md\"}`). The fixtures and the known misses are in the pack's\n`tests/snap/critic/README.md`, for scorers: a critic being measured doesn't read them.\n\n# Working the docket\n\nSnap never judges a picture itself. It puts one critique row on the docket for each landed picture and waits for an\nagent; the Work card says \"critique due · no critic on duty\" when nobody claims them. When you are on duty (a critic\nloop, or between your own renders), work it:\n\n1. `list_critiques {\"state\": \"due\"}`: the rows nobody holds. Oldest first is fine.\n2. `claim_critique {\"critique\": \"<id>\"}` (or no id for the oldest due row). One agent holds a row; a second is refused.\n   Claim before you read: a claimed row keeps your page hold through a long read (SNAP-R146), and each packet you fetch\n   renews the claim (it lapses after 30 untouched minutes).\n3. `critique_packet {\"critique\": \"<id>\"}`: the subject WHOLE at its native size first, then 100% tiles (cell and pixel\n   box in each label), then the context pictures whole, then `words` (checklist, passes, purpose, prompt = the beat,\n   pins with each Cast's details and the location's notes, who should be here). Read every whole frame before any\n   tile. A big packet pages with `part` / `offset` / `limit`.\n4. Read the section of `reference.md` named by the packet's `skill.section` (the checklist: master, plate, location,\n   board, cut, cut_pair, sheet, upscale, ...), then run the prompt below on the packet: the subject pictures are the\n   pictures to judge; the context pictures are the master, plan, other views, the Cast, the previous cut.\n5. `write_critique` with your answer, mapped from the output format below:\n   - `verdict`: clean or flaws;\n   - `passes`: one line per pass (scan, map, support, cast, beat, cross_view; cut_pair for a cut pair);\n   - one note per `- [sev] ...` line: `severity`, `pass` (the pass that found it), `text` (the flaw), `picture` (the\n     packet `#index` you drew the region on: a whole frame, a tile, or a context picture), `region` [x, y, w, h] as\n     fractions of that picture, `owner` (the record it was born in, e.g. \"location master\", \"plate Pb\" (the plate's\n     name as the record has it; one note per plate when several own it), \"plan\", \"location notes\", \"camera marks\" (a\n     plate's typed pose or a mark), \"Cast record\", \"board\", \"take\", \"prompt\"), `fix` (one line). Snap stores the part\n     you name and says when it can't map the words; Fix at source opens that part (SNAP-R156).\n   Notes inform; they never reject or block (SNAP-R23). A clean verdict with no notes is a valid answer.\n6. If you can't read it (a test pattern, a picture that won't open), `skip_critique` with why.\n7. Found a mistake in a row you wrote? `write_critique {critique, amend: true, verdict, passes, notes}` writes the whole\n   critique again as a new row that supersedes yours (SNAP-R157); the old row stays, marked superseded.\n\nThen the next row. A critique of a private take keeps its words on the take (sealed by the vault).\n\nWhen the docket is done (or your run ends), let go of your page: `use_page {\"page\": null}` (SNAP-R135). A critic that\nkeeps its hold leaves the agents' window \"Driven by\" it for the next agent. Name every call (SNAP_AGENT), so the page\nknows the caller is you.\n\n# The critic prompt (r6: r5b plus metres from the record's scale; see the floor line at the top)\n\nIn the output below, `<id>` is the packet's critique id; write it with write_critique as step 5 says.\n\n### System\nYou are the continuity and set-logic critic of an anime production. Your job is to find what a sharp director would\ncatch by eye: things that cannot exist, cannot stand, cannot hold, or disagree with the script, the Cast, or the other\nviews of the same place. Assume every picture has at least one problem until each pass below comes back clean. Do not\njudge taste, style or \"quality\"; judge whether the picture is physically and logically consistent with itself and\nits context. A clean picture is a valid answer: say so when the passes find nothing, and do not invent flaws.\n\nLook at the WHOLE frame first at full size, then crop. Never judge from a thumbnail or from face crops alone.\n\n### Reading rules (check each flaw against these before you write it)\n- **Scale comes from the horizon.** Find the horizon: the line where receding wall tops and bases, or the road edges,\n  meet, or the far ground line. With a camera at eye height (walk tests and boards: 1.6 m), a standing adult's eyes\n  sit ON the horizon at any distance. Eyes far above the horizon mean the person is too big for the set (a giant).\n  Eyes far below it mean too small, or a high camera. Measure how far above, in body heights. Only then judge a wall\n  or a gate: put a person-sized mark at the wall's base and compare. If the person is right and the wall looks low,\n  the flaw is the wall height (owner: the plate or master), not the person.\n- **Metres come from the record's scale.** When the packet's words carry `scale` (the place's scale anchors, e.g. a\n  house door 2.0 m) and `scale_rule`, measure against them on the measuring copy: anchor heights from the ground to the\n  horizon give the camera's eye height, and to a wall's top its height. Write \"measured against the record's scale\n  (house door 2.0 m)\" in the note. With `scale: []` or no place pinned, give heights as ratios of a thing in the picture\n  (the horizon at 0.7 gate doors), call any metres a guess, and write \"no scale on record\". Check the anchors against\n  each other first: anchors that disagree in the picture (a gate door 1.9 house doors high where the record's numbers\n  make it 1.4) are a note on the record (owner: location notes).\n- **Projection.** In a side (profile) view, a scabbard or blade worn diagonally across the back looks nearly vertical\n  and narrow, and its crossguard seen end-on is a short bar or a disc. Its lower part may be hidden by the body or the\n  coat. None of that is a flaw by itself. A flaw is an end (hilt or tip) at a body landmark that disagrees with the\n  other views, or a long strip of background between the item and the back.\n- **Occlusion is for body parts and props, never for holders.** A second hand behind a pouch is present: don't write\n  \"one hand\" when the other could be behind it. A carried item still needs a VISIBLE holder (strap, scabbard, hand). \"The strap could be\n  hidden\" does not count: no visible holder is a flaw.\n- **Coincidence.** A line that ends where another object begins (an arch moulding meeting a pouch, a roof edge\n  meeting a head) is an overlap in depth, not a string or a join.\n- **Corners before names.** On high three-quarter views, find the wall corners from the wall's top edge (peaks and\n  kinks) before you name walls or house rows. Then use the gate side from the plan to fix N/E/S/W, and write the\n  compass down.\n\n### Passes (do them in order; write a line for each)\n1. **Full-frame scan.** Divide the frame into a 3x3 grid. For each cell, list what is in it. Look specifically for\n   duplicated people or objects, small ghost figures or faces in backgrounds/backdrops, half-drawn objects, text, tile\n   seams. Count the people and compare with who should be there. A duplicate is the same person twice (face, hair,\n   build); two villagers in the same village dress are a crowd, not a duplicate.\n2. **Top-down map.** For any picture with a place in it, sketch the place as a top-down map in words: where the camera\n   is, which way it looks, and where every wall, fence, gate, building, road, well and person sits. Then check the map:\n   - **Enclosures close.** A wall/palisade/fence that guards something must ring it. Follow every wall to both ends:\n     where does it end, turn, or leave the frame? Is there any side of the guarded area (back, left, right) where the\n     wall should be visible but houses back straight onto open ground or forest? A wall along one side only is a flaw.\n   - **Walls don't double.** No two parallel walls/parapets/fences a step apart unless the plan says so; no wall that\n     runs through the middle of what it is supposed to enclose; nothing (houses) outside a wall that should be inside.\n   - **Inner wall or gap?** When people stand between two wall runs, follow each run to its end. A run that stands\n     between the square and a house row, or has houses on both sides of it, is an INNER wall. Name it that way, even\n     when it also looks like a gap or a gate.\n   - **Gates sit in walls; roads lead to gates or somewhere.** One gatehouse means one; count gates/towers.\n   - **Counts are consistent** with the plan and the other views (one well, one gatehouse, rows of houses where the\n     plan has them).\n3. **Support inventory.** List every carried, worn, hung or seated thing and what holds it: sword (scabbard? strap?\n   hand?), bag, lantern (wire to what?), kite (string to whom?), sign, person sitting (on what? legs and seat visible?).\n   Anything with no visible holder, with a gap between it and its holder, or sunk into a surface is a flaw.\n   For each seat or ledge someone sits or stands on, name it and list every other surface parallel to it within a few steps\n   (a twin parapet behind, a step in front): a twin is a set-topology flaw. Also\n   check intersections: things passing through each other.\n4. **Cast check.** Compare each person to their Cast description/picture: count, identity, outfit, carried items\n   (with the same attachment as the Cast), extra people not in the beat or the Cast. Write a colour line per person\n   from the Cast picture: hair, eyes, skin, main outfit colour, accent colour (tie, sash). Then read the same five in\n   EVERY sampled frame of a clip, and in the frames inside a flash, glow, burst or ray effect too. Light may tint a\n   colour; it does not turn grey hair dark or a black suit olive. A hair, eye or main-outfit colour that differs from\n   the Cast and stays different across frames is a Cast colour drift. State the baseline before reading\n   a face score: the identity notes' character score (SNAP-R111) reads the same character 0.55-0.94 and others\n   0.07-0.52 on the anime fixtures (below 0.45 says \"probably a different person\"); ArcFace beside it reads a bowed\n   profile at 0.06. Neither decides: the head crops do (SNAP-R23, R76).\n5. **Beat check.** Read the beat literally. List every verb and negation (\"does not take it\", \"the gate is closed\",\n   \"alone\"). Check the picture shows each one, and does not show its opposite.\n6. **Count pass** (boards and video takes; SNAP-R244, R245). Before any framing argument, count each story prop and\n   each person in every sampled frame (a video's packet has a frame every half second) against the packet's\n   `count_these` (each prop with its expected count and holder at the cut's opening and end) and the board it was made\n   from. Write the pass as one line per thing: \"bowl ×1 expected; f0-f72 ×2 (counter + her hands); f88 ×1\". A second\n   of a single story prop or person is a note with `count {thing, expected, seen, frames}`: it is written high on a\n   board as on a take (a board's duplicate is in every take made from it; the operator picked the take \"because it's\n   clear and there's only 1 bowl\"). A prop that changes holder off the beat, vanishes or pops in is medium.\n7. **Where a take goes** (video; SNAP-R246). Read `copy.reaches`: a cited picture the take didn't open on and turns\n   into later (a key drawing, the master) is a cut, dissolve or freeze onto it. Name it (\"dissolves at 2.5 s into\n   Picture 3, the master\") and put the fix on the picture (leave it out of References, SNAP-R242), never \"the prompt\n   was ignored\" and never \"put the hold line first\" (measured: no effect).\n8. **Sound pass** (video; SNAP-R249, R240). Judge with sound on. Read `sound.onset` (a sub-bass hit: an impact boom,\n   high when it is a game-style hit in a quiet beat, SNAP-R150), `voice` (the Voice QA: a line wrong, missing or\n   mistimed; unscripted speech in a silent cut is a leaked voice reference) and the quiet note.\n9. **Cross-view check** (when other views are given: master, plan, turnaround views, the source frame of an upscale).\n   Put them side by side. The same object must have the same design, size, side, and attachment in every view: the\n   same gate, the same number of towers, the same wall, the same scabbard length and position. For an upscale, every\n   thing in the upscale must exist in the source.\n   **Garment construction agrees too:** every slit, split, vent, hem line, opening, closure and layer of a costume is in\n   the same place in every view that can see it. Look *through* the gaps of one view (between the legs, under an arm,\n   past the hair) at the far side of the costume, and check it against the view that shows that side: a centre-back\n   split in BACK must show through the legs in FRONT, unless something in FRONT covers it.\n\n### Severity\n- **high**:\n  - set topology wrong: an open enclosure, a doubled wall or parapet (including one people sit on), an inner wall, an\n    extra gate or tower, a house outside the wall;\n  - the beat contradicted, against a verb or negation in the script;\n  - duplicated, ghost or extra people;\n  - a duplicated story prop (two bowls where the beat has one) on a take, a board or any reference picture (SNAP-R244);\n  - a take that turns into a cited picture inside the cut's planned seconds (a cut or freeze onto the key or master);\n  - a carried item floating or unheld in a Cast reference sheet or turnaround;\n  - an item passing through a body;\n  - a person far too big or small for the set.\n- **medium**: a clear physical or continuity error that a viewer would notice but that doesn't break the picture's job,\n  for example costume off the Cast, a Cast colour drift in hair, eyes or main outfit colour (also inside an effect), a\n  prop design change between views, a garment's construction that disagrees between views (a split or opening in one\n  view that another view sees through to and doesn't show), a well in the wrong place, a wall too low, or an unheld\n  item in a board or take, a story prop that changes holder off the beat, vanishes or pops in.\n- **low**: cosmetic, such as stray small objects, small fires or embers, colour shifts of props or background, labels\n  or crops.\n\n### Output (per picture)\n```\n<id>: verdict CLEAN | FLAWS\n- [sev] <flaw> | where: <region words: top-left, behind her right shoulder, ...> | owner: <location master/plan |\n  Cast record | board | take | prompt> | fix: <one line>\npasses: scan … / map … / support … / cast … / beat … / cross-view …\n```\nThe cast line names each person's colour line and where it moved, e.g. `cast: Kuroe hair grey, suit black, tie\nburgundy; hair grey -> dark f24-f56` (or `… : matches in every frame`).\nThe owner is where the flaw was born (fix at the source): a flaw already in the location master or plan is owned by\nthe master/plan, even when you see it in a board; a flaw in a Cast picture is owned by the Cast record.\n\n\n# Fix at the source, then re-run dependents (SNAP-R105, SNAP-R106)\n\nA re-roll keeps a flaw that lives upstream: a new seed brought the double wall back because it was in the plate; a new\nplate fixed it. So:\n\n1. The note's owner is where the flaw was born. \"Fix at source\" on the note (the take viewer) opens that record with\n   the mask drawn and a New view of the owner's picture with the fix line as the prompt; its candidates land beside\n   the old picture, and a pick makes the record's next version (a plan change by an agent waits as a proposal).\n2. `dependents {\"ref\": \"location:<id>\"}` lists what pinned the old version; `rerun_dependents {\"ref\": ...}` re-makes\n   it upstream first, in stages: plates, then boards, then cuts, each stage one batch of candidates with its plan and\n   time; the old takes stay active until a pick. It stops before video unless told `through: \"cuts\"`.\n3. A critique whose subject was re-made, or whose owner moved past the version it named, reads stale: re-run it.\n\n# Growing the critic (SNAP-R108, SNAP-R109)\n\nEvery flaw the person catches that a critique missed is one press from a fixture (\"Add as fixture\", or `add_fixture`);\n`critic_report` says how often the critic agreed with the person's verdicts and picks, and lists the misses. A prompt\nchange is a new round on the fixtures (`run_fixtures.py`), shipped only when it holds the floor; the known misses are\nin `tests/snap/critic/README.md`.\n",
+      "bytes": 18057,
+      "hash": "568de014c564cbe0a552734da0e0d06acefe62101f0c41e466279400c0961eb5",
+      "yours": null,
+      "pack_hash": "568de014c564cbe0a552734da0e0d06acefe62101f0c41e466279400c0961eb5"
+    }
+  },
+  "location": {
+    "location": "location:location-mw8fa8zv632j",
+    "ref": "location:location-mw8fa8zv632j@1",
+    "version": 1,
+    "made": true,
+    "said": "WIP native set-reference verification v1 saved",
+    "next": "apply_location {location, plates: [names]} puts it in the open recipe; open_view {view: \"location\", location} shows it to the person"
+  },
+  "book": {
+    "book": "book:book-mw8fa954lamt",
+    "story": "story:story-mw8fa94wtshd",
+    "version": 1,
+    "production": "production:of-book-mw8fa954lamt",
+    "autonomy": {
+      "default": "collaborate",
+      "stages": {
+        "beat_sheet": "assist",
+        "pages": "assist",
+        "settei": "collaborate",
+        "boards": "collaborate",
+        "cut_bag": "collaborate",
+        "dailies": "collaborate",
+        "the_cut": "assist"
+      }
+    },
+    "next": "add_beat proposes the beats; save_style the production style; add_cut plans cuts; open_view {view: \"book\", book} shows it"
+  },
+  "cut": {
+    "book": "book:book-mw8fa954lamt",
+    "scene": "scene-mw8fa96tsfj3",
+    "shot": "shot-mw8fa9751brq",
+    "cut": "C1",
+    "unit": {
+      "cut": "C1",
+      "beats": [
+        "b1"
+      ],
+      "location": "location:location-mw8fa8zv632j@1",
+      "plate": "P1 street",
+      "kind": "cut",
+      "timing": {
+        "seconds": 3.8,
+        "fps": 24
+      }
+    },
+    "next": "compile_unit {scene, shot} shows its compiled state sheet; make_board makes its board"
+  },
+  "other": {
+    "book": "book:book-mw8fa954lamt",
+    "scene": "scene-mw8fa96tsfj3",
+    "shot": "shot-mw8fa98igsmk",
+    "cut": "C2",
+    "unit": {
+      "cut": "C2",
+      "beats": [
+        "b2"
+      ],
+      "location": "location:location-mw8fa8zv632j@1",
+      "plate": "P1 street",
+      "kind": "cut",
+      "timing": {
+        "seconds": 3,
+        "fps": 24
+      }
+    },
+    "next": "compile_unit {scene, shot} shows its compiled state sheet; make_board makes its board"
+  },
+  "active": {
+    "scene": "scene-mw8fa96tsfj3",
+    "shot": "shot-mw8fa9751brq",
+    "active": "take-wip-native-setref-source",
+    "by": "agent",
+    "path": [
+      "WIP set-reference source",
+      "Shot 1 · C1",
+      "Take 1"
+    ],
+    "set_reference": "side street of WIP native set-reference verification has no set reference yet: if this take's look is the set, make_set_reference {book: \"book:book-mw8fa954lamt\", cut: \"C1\"} makes one from it (people removed) for every cut on that side to play from (SNAP-R253)"
+  },
+  "trim": {
+    "scene": "scene-mw8fa96tsfj3",
+    "shot": "shot-mw8fa9751brq",
+    "unit": {
+      "cut": "C1",
+      "beats": [
+        "b1"
+      ],
+      "location": "location:location-mw8fa8zv632j@1",
+      "plate": "P1 street",
+      "kind": "cut",
+      "timing": {
+        "seconds": 3.8,
+        "fps": 24
+      },
+      "trim": {
+        "in_s": 0.125,
+        "out_s": 3.75,
+        "gain_db": 15
+      }
+    }
+  },
+  "make": {
+    "decision": "cand-mw8fa9ox-ytyl",
+    "chosen": {
+      "method": "ph3_view",
+      "purpose": "plate",
+      "why": "a location plate → New view · P-H3-Image; give purpose or method to choose another"
+    },
+    "pictures": [
+      "Picture 1 (is the picture edited): C1's out-frame (take 1, frame 89)"
+    ],
+    "lands": "Shot 1 · WIP native set-reference verification · street of WIP native set-reference verification · set references",
+    "candidates": [
+      {
+        "id": "c1",
+        "prompt_id": "f824d1c0-ee23-4736-a2b9-c81d7cd48776",
+        "take": "take-f824d1c0-ee23-4736-a2b9-c81d7cd48776",
+        "seed": 917301,
+        "model": "p-h3-image_int8_convrot.safetensors"
+      },
+      {
+        "id": "c2",
+        "prompt_id": "d4f9f125-0684-4bab-8934-f54cf9ec1a63",
+        "take": "take-d4f9f125-0684-4bab-8934-f54cf9ec1a63",
+        "seed": 917302,
+        "model": "p-h3-image_int8_convrot.safetensors"
+      }
+    ],
+    "seconds_each": 10,
+    "cut": "C1",
+    "side": "street",
+    "name": "P1 street set",
+    "from": {
+      "take": "take-wip-native-setref-source",
+      "frame": 89,
+      "out_s": 3.75
+    },
+    "lane": {
+      "scene": "scene-mw8fa9ltuxaa",
+      "shot": "shot-mw8fa9lwfpod"
+    },
+    "next": "wait_for {job: decision, until: waiting}; look at the candidates (every person gone, the set kept); then make_set_reference {book, cut: \"C1\", pick: \"<its take>\"} saves it as plate \"P1 street set\" on side street"
+  },
+  "decision": {
+    "id": "cand-mw8fa9ox-ytyl",
+    "kind": "view",
+    "target": "aa7f6555-25c1-45a9-b75a-4b212d6943df",
+    "title": "New view · P-H3-Image ×2 (<Picture 1> with every person removed: the same camera, framing, set, light and colours. Where each person stood or sat, the set behind them continues (the counter, the walls, the floor, the street), and nothing else changes. No people.) from Picture 1 C1's out-frame (take 1, frame 89)",
+    "by": "agent",
+    "created": 1794178047633,
+    "status": "open",
+    "applied": null,
+    "take": null,
+    "method": "ph3_view",
+    "options": {
+      "prompt": "<Picture 1> with every person removed: the same camera, framing, set, light and colours. Where each person stood or sat, the set behind them continues (the counter, the walls, the floor, the street), and nothing else changes. No people.",
+      "context": [
+        {
+          "n": 1,
+          "file": "snap/take-wip-native-setref-source_f89.png",
+          "label": "C1's out-frame (take 1, frame 89)"
+        }
+      ],
+      "purpose": "plate"
+    },
+    "land": {
+      "scene": "scene-mw8fa9ltuxaa",
+      "shot": "shot-mw8fa9lwfpod"
+    },
+    "question": "Which one is WIP native set-reference verification's set for side street, with nobody in it?",
+    "candidates": [
+      {
+        "id": "c1",
+        "state": "ready",
+        "by": "agent",
+        "notes": {},
+        "pictures": [
+          {
+            "label": "new view",
+            "media": {
+              "kind": "image",
+              "filename": "aa7f6555_00001_.png",
+              "subfolder": "snap_views",
+              "type": "output",
+              "node": "o"
+            }
+          }
+        ],
+        "prompt_id": "f824d1c0-ee23-4736-a2b9-c81d7cd48776",
+        "seed": 917301,
+        "made": {
+          "model": "p-h3-image_int8_convrot.safetensors"
+        },
+        "label": "new view",
+        "take": "take-f824d1c0-ee23-4736-a2b9-c81d7cd48776"
+      },
+      {
+        "id": "c2",
+        "state": "ready",
+        "by": "agent",
+        "notes": {},
+        "pictures": [
+          {
+            "label": "new view",
+            "media": {
+              "kind": "image",
+              "filename": "aa7f6555_00002_.png",
+              "subfolder": "snap_views",
+              "type": "output",
+              "node": "o"
+            }
+          }
+        ],
+        "prompt_id": "d4f9f125-0684-4bab-8934-f54cf9ec1a63",
+        "seed": 917302,
+        "made": {
+          "model": "p-h3-image_int8_convrot.safetensors"
+        },
+        "label": "new view",
+        "take": "take-d4f9f125-0684-4bab-8934-f54cf9ec1a63"
+      }
+    ],
+    "updated": 1794178080095
+  },
+  "elapsed_s": 33.126,
+  "takes": [
+    {
+      "id": "take-f824d1c0-ee23-4736-a2b9-c81d7cd48776",
+      "number": 1,
+      "seed": 917301,
+      "status": "success",
+      "verdict": null,
+      "prior": false,
+      "seconds": 21.8,
+      "prompt": "<Picture 1> with every person removed: the same camera, framing, set, light and colours. Where each person stood or sat, the set behind them continues (the counter, the walls, the floor, the street), and nothing else changes. No people.",
+      "prompts": {
+        "positive": null,
+        "negative": null
+      },
+      "notes": [],
+      "media": [
+        {
+          "kind": "image",
+          "filename": "aa7f6555_00001_.png",
+          "subfolder": "snap_views",
+          "type": "output",
+          "node": "o"
+        }
+      ],
+      "copy": null,
+      "rating": "pg",
+      "rating_why": [],
+      "changed_since_previous": [],
+      "world": [],
+      "parent": {
+        "take": null,
+        "method": "view/ph3_view",
+        "options": {
+          "label": "<Picture 1> with every person removed: the same camera, framing, set, light and colours. Where each person stood or sat, the set behind them continues (the counter, the walls, the floor, the street), and nothing else changes. No people.",
+          "prompt": "<Picture 1> with every person removed: the same camera, framing, set, light and colours. Where each person stood or sat, the set behind them continues (the counter, the walls, the floor, the street), and nothing else changes. No people.",
+          "context": [
+            {
+              "n": 1,
+              "file": "snap/take-wip-native-setref-source_f89.png",
+              "label": "C1's out-frame (take 1, frame 89)"
+            }
+          ],
+          "purpose": "plate"
+        }
+      },
+      "purpose": {
+        "purpose": "plate",
+        "label": "a location plate",
+        "method": "ph3_view",
+        "reference": true,
+        "from": "what it was made for (view/ph3_view)"
+      },
+      "instructions": {
+        "ran": null,
+        "why": "this take pinned no instructions (made before they were pinned, or not from a Snap recipe)",
+        "now": {
+          "hash": "5897c236a3c3",
+          "refs": [
+            "pack:global/consistency-data-prompting-carry@0:29c99117a6b7",
+            "pack:global/results-never-trimmed@0:fb4c8136f5ec",
+            "pack:global/snap-gap-report@0:2b63a10f94db",
+            "pack:global/warn-never-block@0:4ea187e5873b",
+            "pack:global/storyboard-before-video-boards@0:cfc60dab6cc6",
+            "pack:global/when-gpu-idle-main@0:4032e9d21af1",
+            "pack:global/prompt-pictures-beat-words@0:ad2d32873f3c",
+            "pack:global/prompt-references-are-targets@0:e82e77a6749b",
+            "pack:global/prompt-continuity-from-pictures@0:a478bc24ffb9",
+            "pack:global/prompt-one-ordered-action@0:3d9c0e079b56",
+            "pack:global/prompt-named-gets-drawn@0:04e639b4bcf1",
+            "pack:global/prompt-no-two-lines-disagree@0:a425892ea104",
+            "pack:global/prompt-remove-by-editing-picture@0:49e1314f1dad",
+            "pack:global/prompt-name-what-holds@0:21b18b9feecc",
+            "pack:global/prompt-tidiness-not-a-fix@0:c0565d131e84"
+          ],
+          "off": []
+        }
+      }
+    },
+    {
+      "id": "take-d4f9f125-0684-4bab-8934-f54cf9ec1a63",
+      "number": 2,
+      "seed": 917302,
+      "status": "success",
+      "verdict": null,
+      "prior": false,
+      "seconds": 10.8,
+      "prompt": "<Picture 1> with every person removed: the same camera, framing, set, light and colours. Where each person stood or sat, the set behind them continues (the counter, the walls, the floor, the street), and nothing else changes. No people.",
+      "prompts": {
+        "positive": null,
+        "negative": null
+      },
+      "notes": [],
+      "media": [
+        {
+          "kind": "image",
+          "filename": "aa7f6555_00002_.png",
+          "subfolder": "snap_views",
+          "type": "output",
+          "node": "o"
+        }
+      ],
+      "copy": null,
+      "rating": "pg",
+      "rating_why": [],
+      "changed_since_previous": [
+        {
+          "node": "RandomNoise",
+          "input": "noise_seed",
+          "from": 917301,
+          "to": 917302
+        }
+      ],
+      "world": [],
+      "parent": {
+        "take": null,
+        "method": "view/ph3_view",
+        "options": {
+          "label": "<Picture 1> with every person removed: the same camera, framing, set, light and colours. Where each person stood or sat, the set behind them continues (the counter, the walls, the floor, the street), and nothing else changes. No people.",
+          "prompt": "<Picture 1> with every person removed: the same camera, framing, set, light and colours. Where each person stood or sat, the set behind them continues (the counter, the walls, the floor, the street), and nothing else changes. No people.",
+          "context": [
+            {
+              "n": 1,
+              "file": "snap/take-wip-native-setref-source_f89.png",
+              "label": "C1's out-frame (take 1, frame 89)"
+            }
+          ],
+          "purpose": "plate"
+        }
+      },
+      "purpose": {
+        "purpose": "plate",
+        "label": "a location plate",
+        "method": "ph3_view",
+        "reference": true,
+        "from": "what it was made for (view/ph3_view)"
+      },
+      "instructions": {
+        "ran": null,
+        "why": "this take pinned no instructions (made before they were pinned, or not from a Snap recipe)",
+        "now": {
+          "hash": "5897c236a3c3",
+          "refs": [
+            "pack:global/consistency-data-prompting-carry@0:29c99117a6b7",
+            "pack:global/results-never-trimmed@0:fb4c8136f5ec",
+            "pack:global/snap-gap-report@0:2b63a10f94db",
+            "pack:global/warn-never-block@0:4ea187e5873b",
+            "pack:global/storyboard-before-video-boards@0:cfc60dab6cc6",
+            "pack:global/when-gpu-idle-main@0:4032e9d21af1",
+            "pack:global/prompt-pictures-beat-words@0:ad2d32873f3c",
+            "pack:global/prompt-references-are-targets@0:e82e77a6749b",
+            "pack:global/prompt-continuity-from-pictures@0:a478bc24ffb9",
+            "pack:global/prompt-one-ordered-action@0:3d9c0e079b56",
+            "pack:global/prompt-named-gets-drawn@0:04e639b4bcf1",
+            "pack:global/prompt-no-two-lines-disagree@0:a425892ea104",
+            "pack:global/prompt-remove-by-editing-picture@0:49e1314f1dad",
+            "pack:global/prompt-name-what-holds@0:21b18b9feecc",
+            "pack:global/prompt-tidiness-not-a-fix@0:c0565d131e84"
+          ],
+          "off": []
+        }
+      }
+    }
+  ],
+  "errors": [],
+  "finished": "2026-11-08T22:48:00.870Z"
+}

@@ -1,0 +1,10 @@
+{
+  "scope": "all new/modified checkpoint files since eb8cc3a, including uncommitted final evidence",
+  "text_files": 89,
+  "png_files": 3,
+  "private_path_or_credential_or_email_hits": [],
+  "broken_relative_markdown_links": [],
+  "non_noreply_commits": [],
+  "public_primary_source_URLs_retained": true,
+  "whole_cpu_green": false
+}

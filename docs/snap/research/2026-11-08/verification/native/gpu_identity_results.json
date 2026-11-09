@@ -1,0 +1,59 @@
+{
+ "hair_max_diff_vs_u56b": 0.227,
+ "cases": {
+  "silver edit (U53b A akhaliq)": {
+   "character_low": 0.579,
+   "face_low": 0.309,
+   "hair_up": 39.6,
+   "different": false,
+   "lighter": true
+  },
+  "another woman (seed A vs B)": {
+   "character_low": 0.405,
+   "face_low": 0.214,
+   "hair_up": 15.1,
+   "different": true,
+   "lighter": true
+  },
+  "same take, later frame": {
+   "character_low": 0.537,
+   "face_low": 0.701,
+   "hair_up": -1.0,
+   "different": false,
+   "lighter": false
+  },
+  "U54 kept c1": {
+   "character_low": 0.523,
+   "face_low": 0.286,
+   "hair_up": -5.5,
+   "different": false,
+   "lighter": false
+  },
+  "U54 kept c1 as a relight": {
+   "character_low": 0.523,
+   "face_low": 0.286,
+   "hair_up": -5.5,
+   "different": false,
+   "lighter": false
+  },
+  "silver edit as a relight": {
+   "character_low": 0.579,
+   "face_low": 0.309,
+   "hair_up": 39.6,
+   "different": false,
+   "lighter": true
+  },
+  "U54 blonder c2 (known miss)": {
+   "character_low": 0.305,
+   "face_low": 0.126,
+   "hair_up": 4.1,
+   "different": true,
+   "lighter": false
+  }
+ },
+ "seconds": 10.0,
+ "thresholds": [
+  0.45,
+  10
+ ]
+}

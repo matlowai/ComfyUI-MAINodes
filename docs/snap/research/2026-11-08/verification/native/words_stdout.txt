@@ -1,0 +1,31 @@
+PASS check_voice says the words are timed by Nemotron Transcribe in the Voice QA
+PASS the take's words come back with their times, in order
+PASS line_match: Nemotron exact against the cut's line
+PASS the voice note itself still runs beside it
+PASS the export puts the words on the dialogue clip
+PASS Astrid's timelines words lists them after a push
+PASS no page errors
+{
+ "words": [
+  [
+   1.881,
+   1.968,
+   "it's"
+  ],
+  [
+   1.968,
+   2.588,
+   "you"
+  ]
+ ],
+ "text": "it's you",
+ "line_match": {
+  "exact": true,
+  "heard": "it's you",
+  "line": "It's you.",
+  "words": "2 of 2",
+  "said": "Nemotron exact"
+ },
+ "astrid": "  1.881–1.968  it's  [line-C1:0]  cut 1\n  1.968–2.588  you  [line-C1:1]  cut 1\nnext: timelines edit 1748bc4758b24f6f96b3f57eb51d1b8f --project g16-words-mw8gjr57 --clip QUERY --at-word WORD\n"
+}
+g16words 7/7

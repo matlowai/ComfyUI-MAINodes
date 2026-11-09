@@ -1,0 +1,208 @@
+FAIL check_voice says the words are timed by Nemotron Transcribe in the Voice QA
+FAIL the take's words come back with their times, in order
+FAIL line_match: Nemotron exact against the cut's line
+PASS the voice note itself still runs beside it
+FAIL the export puts the words on the dialogue clip
+FAIL Astrid's timelines words lists them after a push
+PASS no page errors
+{
+ "slug": "g16-words-mw8g79ay",
+ "check": {
+  "queued": true,
+  "voices": [
+   "Maren (<Audio 1>)"
+  ],
+  "against": [],
+  "words": "not timed: the model graph's the Nemotron Transcribe GGUF (models/audio_encoders/nemotron/) isn't installed"
+ },
+ "voice": {
+  "status": "ok",
+  "voices": [
+   {
+    "name": "Maren",
+    "cast": "cast:cast-mw8g79an373n@1",
+    "cite": "<Audio 1>",
+    "own": 0.994,
+    "others": [],
+    "margin": null,
+    "f0": 181.8,
+    "ref_f0": 181.8,
+    "semitones": 0,
+    "status": "ok",
+    "said": "voice matches Maren 0.99, F0 182 Hz vs ref 182 Hz"
+   }
+  ],
+  "f0": 181.8,
+  "thresholds": {
+   "ok": 0.9,
+   "margin": 0.05,
+   "f0_semitones": 3,
+   "evidence": "measured",
+   "source": "G1b, scout/voice_timbre_2026-11-06.md on short03's voices: the same speaker 0.89-1.00 across 15 talking anchors, Maren against Liesl 0.81-0.95 (two young women), against Brann 0.39-0.65. Cuts citing a reference: own 0.97-0.99, the other woman 0.86-0.93, F0 within 1-8 Hz of the reference. ok = own at least `ok` and ahead of every other Cast by `margin`, F0 within `f0_semitones`; the next closest Cast is named with the margin. WavLM can't separate two similar voices alone, so the note gives numbers and the margin, never 'the same person'. n = 3 voices, 12 cuts, one production"
+  },
+  "by": "agent",
+  "at": "2026-11-08T23:13:08.000Z"
+ },
+ "cut": {
+  "mp4": false,
+  "otio": {
+   "file": "snap_book/G16_Words_20261108-181308.otio [output]",
+   "clips": 1,
+   "seconds": 3.072,
+   "astrid": {
+    "archive": "test-runtime/15eb9e6e-cdca-47fd-82ff-7718f1ad2b6b/scratchpad/u101base/output/snap_book/G16_Words_20261108-181308.astrid",
+    "timeline": "test-runtime/15eb9e6e-cdca-47fd-82ff-7718f1ad2b6b/scratchpad/u101base/output/snap_book/G16_Words_20261108-181308.timeline.json",
+    "assets": "test-runtime/15eb9e6e-cdca-47fd-82ff-7718f1ad2b6b/scratchpad/u101base/output/snap_book/G16_Words_20261108-181308.assets.json",
+    "clips": 2,
+    "media": 2,
+    "left_out": [],
+    "import": "astrid timelines import test-runtime/15eb9e6e-cdca-47fd-82ff-7718f1ad2b6b/scratchpad/u101base/output/snap_book/G16_Words_20261108-181308.astrid --project g16-words-mw8g79ay --name 'G16 Words'",
+    "said": "An Astrid timeline of 2 clips, 2 files inside. Each import makes a new timeline in the project: a pushed Book is changed in place by the next push (tools/astrid_push.py), not imported again.",
+    "probe": {
+     "ok": true,
+     "stage": "done",
+     "project": "snap-probe",
+     "archive": "test-runtime/15eb9e6e-cdca-47fd-82ff-7718f1ad2b6b/scratchpad/u101base/output/snap_book/G16_Words_20261108-181308.astrid",
+     "timeline_id": "3c337e20d4af425c9c0be3594e8c740b",
+     "clip": "C1",
+     "from_before": 0,
+     "status": "accepted",
+     "accepted_revision_id": "authoring-parent-revision-a7d3b83256a8ed3b4cd8ebfd9cc1d5018f7e27fc81a2bd8e04adbbed16960634",
+     "from_after": 0.1,
+     "error": null,
+     "message": "editable in Astrid: an import, a trim, a commit and the trim read back"
+    }
+   },
+   "gaps": []
+  }
+ },
+ "clips": [
+  {
+   "id": "C1",
+   "clipType": "media",
+   "track": "V1",
+   "asset": "take-g16w1",
+   "at": 0,
+   "from": 0,
+   "to": 3.072,
+   "speed": 1,
+   "volume": 0,
+   "label": "C1 · take 1",
+   "generation": {
+    "snap": {
+     "take": "take-g16w1",
+     "cut": "C1",
+     "book": "book:book-mw8g79cizrhw@2",
+     "beat": "b1",
+     "world": {
+      "cast:cast-mw8g79an373n": 1
+     },
+     "recipe_digest": "sha256:7d1ea60288566f89d41d6f706725ae75793e0038b2b0ce5757b2f007653546d2"
+    }
+   }
+  },
+  {
+   "id": "C1-dialogue",
+   "clipType": "media",
+   "track": "A2",
+   "asset": "take-g16w1-sound",
+   "at": 0,
+   "from": 0,
+   "to": 3.072,
+   "speed": 1,
+   "label": "Maren: It's you.",
+   "app": {
+    "astrid": {
+     "segment": "line-C1",
+     "text": "It's you."
+    }
+   },
+   "generation": {
+    "snap": {
+     "take": "take-g16w1",
+     "audio_of": "C1",
+     "speaker": "Maren",
+     "line": "It's you.",
+     "voice_reference": "snap/g16words/maren_voice.wav"
+    }
+   }
+  }
+ ],
+ "push": {
+  "ok": true,
+  "did": "imported",
+  "project": {
+   "project_id": "f4d8365b5c7e43b68b66bb15cfc26232",
+   "slug": "g16-words-mw8g79ay",
+   "name": "G16 Words"
+  },
+  "timeline": {
+   "timeline_id": "e4fe2583a33948bba537ee22ae770bcf",
+   "name": "G16 Words"
+  },
+  "head": "authoring-parent-revision-a26aed6f16da5b21292fb371fd087e4bfffceae7a2b5df8489eacdc6117176c4",
+  "clips": [
+   "C1",
+   "C1-dialogue"
+  ],
+  "left_out": [],
+  "said": "In Astrid: G16 Words › G16 Words (1 cuts); In Astrid: G16 Words: 0 references, 5 documents, the style section not there (off)",
+  "context": {
+   "ok": true,
+   "did": "context",
+   "project": {
+    "project_id": "f4d8365b5c7e43b68b66bb15cfc26232",
+    "slug": "g16-words-mw8g79ay",
+    "name": "G16 Words"
+   },
+   "references": {},
+   "documents": {
+    "snap.story.g16-words-mw8g79ay.book-mw8g79cizrhw": {
+     "kind": "snap.story",
+     "version": 1,
+     "made": true
+    },
+    "snap.beat-sheet.g16-words-mw8g79ay.book-mw8g79cizrhw": {
+     "kind": "snap.beat-sheet",
+     "version": 1,
+     "made": true
+    },
+    "snap.style.g16-words-mw8g79ay.book-mw8g79cizrhw": {
+     "kind": "snap.style",
+     "version": 1,
+     "made": true
+    },
+    "snap.voices.g16-words-mw8g79ay.book-mw8g79cizrhw": {
+     "kind": "snap.voices",
+     "version": 1,
+     "made": true
+    },
+    "snap.production.g16-words-mw8g79ay": {
+     "kind": "snap.production",
+     "version": 1,
+     "made": true
+    }
+   },
+   "style": {
+    "state": "not there (off)",
+    "on": false
+   },
+   "skipped": [
+    {
+     "ref": "cast:cast-mw8g79an373n",
+     "name": "Maren",
+     "why": "no picture to stand for it (an Astrid reference needs one)"
+    }
+   ],
+   "links": "none: Snap has no clothing, sub-place or prop records with pictures yet, so there is nothing to link (wears, located_in, belongs_to)",
+   "said": "In Astrid: G16 Words: 0 references, 5 documents, the style section not there (off)"
+  }
+ },
+ "words": {
+  "code": 0,
+  "out": "next: timelines edit e4fe2583a33948bba537ee22ae770bcf --project g16-words-mw8g79ay --clip QUERY --at-word WORD\n",
+  "err": ""
+ },
+ "errors": []
+}
+g16words 2/7

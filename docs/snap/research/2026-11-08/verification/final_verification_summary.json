@@ -1,0 +1,80 @@
+{
+  "full_source": "2830523b2ffbbc6bbb4dd4c66c0c2cb631136c71",
+  "final_affected_source": "032876c889192c0694f5aa8126f98cf1ecd4e8d6",
+  "raw_numeric_lines": 215,
+  "raw_partials": 14,
+  "skips": [],
+  "director": {
+    "tests": 79,
+    "pass": 79,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "focused": {
+    "instrstore": [
+      14,
+      14
+    ],
+    "instrresolve": [
+      22,
+      22
+    ],
+    "agentlib": [
+      20,
+      20
+    ],
+    "g3cards": [
+      6,
+      6
+    ],
+    "voice_qa_discovery": [
+      9,
+      9
+    ],
+    "ui": [
+      10,
+      10
+    ],
+    "adopt": [
+      14,
+      14
+    ],
+    "ui2_unlimited": [
+      12,
+      13
+    ],
+    "ui2_normal": [
+      13,
+      13
+    ]
+  },
+  "native": {
+    "words": [
+      7,
+      7
+    ],
+    "voice_qa": [
+      8,
+      8
+    ],
+    "set_reference": [
+      10,
+      10
+    ],
+    "gpu_critic": [
+      11,
+      11
+    ],
+    "gpu_identity": [
+      7,
+      7
+    ]
+  },
+  "open": [
+    "instrpins saved-fileworkflowpin9/10",
+    "freshvisualcritic26/31+1FA belowfloor",
+    "originalCPUvisioncases interrupted/notnumericallyqualified"
+  ],
+  "whole_cpu_green": false
+}
