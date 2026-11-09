@@ -1,0 +1,110 @@
+{
+ "result": {
+  "critique": "crit-1a1be694ab4-8918",
+  "title": "Critic: A small kindness \u203a Shot 2 \u00b7 For me \u203a take 1 (seed 42)",
+  "subject": {
+   "kind": "take",
+   "take": "take-b2eaaec4-a3e5-4b13-8e1d-6efe3f58446f"
+  },
+  "about": {
+   "take": "take-b2eaaec4-a3e5-4b13-8e1d-6efe3f58446f",
+   "scene": "scene-mw8khsydsspo",
+   "shot": "shot-mw8kic4gqbh2"
+  },
+  "purpose": null,
+  "checklist": "cut",
+  "trigger": "landed",
+  "state": "done",
+  "created": "2026-11-09T03:45:33.876Z",
+  "claimed": {
+   "by": "agent:director-ux-critic",
+   "at": "2026-11-09T03:53:15.483Z"
+  },
+  "done": {
+   "by": "agent:director-ux-critic",
+   "at": "2026-11-09T03:54:42.496Z"
+  },
+  "verdict": "flaws",
+  "passes": {
+   "scan": "Whole actual frames0,12,24,36,48,60,72,84,89 before empty tiles and four contexts. No blank frame, extra person/prop, seam or lettering established. Sampled motion only, no continuous playback.",
+   "map": "Camera/set/light and rear-facing Kuroe/forward Mio remain stable. C2 frame0 matches C1 actual89 in visible pose, bowl/ladle holders and framing; pixel equality is not claimed.",
+   "support": "Every sampled frame: people2, bowl1 resting on counter, ladle1 held RIGHT, pot1, lantern1. Mio LEFT stays clear. Kuroe moves arm toward counter then lap; bowl does not transfer.",
+   "cast": "Mio costume/hair/eyes and Kuroe silver hair/suit/visible monocle retain identity design. Kuroe mouth is occluded; source front-face detail cannot establish who speaks.",
+   "beat": "FLAWS: native ASR detects intended question0.544-1.204 and extra late speech2.234-3.674; Mio visibly opens mouth at12/24 during question interval. One silent nod after question is not clearly established by samples. Audio is not perceptually heard; exact late wording, speaker identity and reference-word leak cause remain unverified.",
+   "cross_view": "Raw copied:true at0.72: opening reference scores0.996,0.985,0.982,0.980,0.976,0.975,0.975,0.978,0.980; Cast about0.32-0.34. Similar from opening, with actual small movement; no late reference takeover established.",
+   "cut_pair": "Actual C1frame89 compared with native context and C2frame0. No material camera, light, facing, holder or prop-count jump established; join-specific native review follows.",
+   "scale": "No metric scale claim; visible relative proportions stable. Sound measured mean-40.4dB/transient1.0s/no sub-bass hit. SV0.898 versus0.900 and F0+1.3semitones are borderline evidence, not proof of wrong identity."
+  },
+  "notes": [
+   {
+    "id": "cn1",
+    "severity": "high",
+    "pass": "beat",
+    "text": "Native Voice QA reports extra unscripted speech at2.234-3.674s beyond the sole intended For me? line; this is measured ASR evidence, not a perceptually verified transcript. The exact late words and their origin remain uncertain.",
+    "picture": 5,
+    "frame": 60,
+    "take": "take-b2eaaec4-a3e5-4b13-8e1d-6efe3f58446f",
+    "owner": {
+     "what": "take",
+     "words": "take"
+    },
+    "fix": "Preserve this full test take and failure evidence; qualify dialogue as failed/unverified, with no reroll or hiding trim in this run.",
+    "tags": [
+     "prompt ignored"
+    ],
+    "by": "agent:director-ux-critic",
+    "at": "2026-11-09T03:54:42.397Z"
+   },
+   {
+    "id": "cn2",
+    "severity": "medium",
+    "pass": "beat",
+    "text": "Mio visibly opens her mouth in frames12/24 during the measured For me? question interval, while her intended response is a later silent smile/nod; QA assigns the question to an unassigned speaker. This makes the intended speaker/performance unclear, without proving Mio's voice is heard.",
+    "picture": 2,
+    "frame": 24,
+    "take": "take-b2eaaec4-a3e5-4b13-8e1d-6efe3f58446f",
+    "region": [
+     0.65,
+     0.255,
+     0.065,
+     0.07
+    ],
+    "owner": {
+     "what": "take",
+     "words": "take"
+    },
+    "fix": "Retain as test output with the performance limitation stated; validate by listening before any future clean dialogue claim.",
+    "tags": [
+     "prompt ignored"
+    ],
+    "by": "agent:director-ux-critic",
+    "at": "2026-11-09T03:54:42.397Z"
+   }
+  ],
+  "counts": {
+   "high": 1,
+   "medium": 1,
+   "low": 0
+  },
+  "verdict_set": {
+   "take": "take-b2eaaec4-a3e5-4b13-8e1d-6efe3f58446f",
+   "verdict": null,
+   "because": "approval is the person's (the pack default)"
+  },
+  "packet": {
+   "pictures": 13,
+   "at": 1794196436471
+  },
+  "stale": null,
+  "said": "Critic: A small kindness \u203a Shot 2 \u00b7 For me \u203a take 1 (seed 42): 1 high \u00b7 1 medium"
+ },
+ "page": {
+  "id": "b2cbcc78828c416c854eba377cd94c21",
+  "name": "agents' window b2cbcc \u00b7 A small kindness \u203a Shot 2 \u00b7 For me",
+  "headless": false,
+  "sees": true,
+  "driven_by": "director-ux-critic",
+  "code_current": true
+ },
+ "idempotency_key": "snapcall-0ca3ec647ccb018b"
+}

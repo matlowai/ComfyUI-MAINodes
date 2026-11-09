@@ -1,0 +1,108 @@
+{
+ "result": {
+  "critique": "crit-1a1be73fd38-827c",
+  "title": "Critic: take 2",
+  "subject": {
+   "kind": "take",
+   "take": "take-3bc90b8a-7fc6-4ca2-8229-ab376b6b4cf0"
+  },
+  "about": {
+   "take": "take-3bc90b8a-7fc6-4ca2-8229-ab376b6b4cf0"
+  },
+  "purpose": null,
+  "checklist": "cut",
+  "trigger": "landed",
+  "state": "done",
+  "created": "2026-11-09T03:57:14.936Z",
+  "claimed": {
+   "by": "agent:director-ux-critic",
+   "at": "2026-11-09T04:01:03.175Z"
+  },
+  "done": {
+   "by": "agent:director-ux-critic",
+   "at": "2026-11-09T04:02:48.675Z"
+  },
+  "verdict": "flaws",
+  "passes": {
+   "scan": "Actual exported file: whole frames0,12,24,36,48,60,72,84,96,108,120,132,144,156,168,179 read before empty native tiles/context; actual89/90/91 additionally inspected. No sampled blank gap or new visual assembly defect. Not continuous perceptual playback.",
+   "map": "C1 set-down then C2 same camera/set/light/character positions. Selected C1\u2192C2 join is frame89\u219290 at3.75s; counts and holders preserved; no material visual jump established, no pixel equality claim.",
+   "support": "People2, soup bowl1, RIGHT ladle1, pot1 and lantern1 in every sampled frame. Bowl LEFT\u2192counter in first cut, remains counter across join and second cut; Mio LEFT clear after withdrawal.",
+   "cast": "Visible costume/hair/facing remain consistent with separately reviewed source takes. C2 source performance limitation persists: Mio open mouth at export108/4.5s while the intended question belongs to Kuroe.",
+   "beat": "Full untrimmed7.5s test/review cut, not a clean brief or voice pass. C2 source critique crit-1a1be694ab4-8918 retains HIGH measured extra speech and MEDIUM unclear speaker/performance. Source QA maps intended question to export4.294-4.954s and extra speech5.984-7.424s. These times/transcript are source analysis, not new listening of export.",
+   "cross_view": "Source takes and reviewed join supply story context because generic exported packet prompt/pins/who list are empty. Exported visual states match those sources; no additional source claim from empty metadata.",
+   "cut_pair": "Actual assembled frames89/90/91 preserve after-set-down pose, one counter bowl, right ladle, left clear, warm/cool grade and framing. No sampled gap or reversed ordering.",
+   "scale": "Independent ffprobe: H2641280x704,180frames24fps, video7.500s; AAC48kHz stereo7.500s; both start0. Native sound mean-41.6dB, transient1.19s/no sub-bass hit. Streams/timing are verified; perceptual hearing, dialogue identity, exact extra words and reference-leak cause remain unverified."
+  },
+  "notes": [
+   {
+    "id": "cn1",
+    "severity": "high",
+    "pass": "beat",
+    "text": "This full test export preserves C2's measured unscripted-speech finding (source2.234-3.674s, export5.984-7.424s), beyond the sole intended For me? line. Exact late words/origin are not perceptually verified; source native QA and prior HIGH critique remain negative evidence.",
+    "picture": 12,
+    "frame": 144,
+    "take": "take-3bc90b8a-7fc6-4ca2-8229-ab376b6b4cf0",
+    "owner": {
+     "what": "take",
+     "words": "C2 source take take-b2eaaec4-a3e5-4b13-8e1d-6efe3f58446f"
+    },
+    "fix": "Keep the full test export with this limitation; no reroll or hiding trim authorized for this closing review.",
+    "tags": [
+     "prompt ignored"
+    ],
+    "by": "agent:director-ux-critic",
+    "at": "2026-11-09T04:02:48.606Z"
+   },
+   {
+    "id": "cn2",
+    "severity": "medium",
+    "pass": "beat",
+    "text": "Mio's open-mouth performance remains visible at exportframe108/4.5s during the source-QA question interval; intended Kuroe question followed by her silent nod is unclear. This does not prove her voice is heard; source unassigned speaker and borderline SV0.898 do not prove identity.",
+    "picture": 9,
+    "frame": 108,
+    "take": "take-3bc90b8a-7fc6-4ca2-8229-ab376b6b4cf0",
+    "region": [
+     0.65,
+     0.255,
+     0.065,
+     0.07
+    ],
+    "owner": {
+     "what": "take",
+     "words": "C2 source take take-b2eaaec4-a3e5-4b13-8e1d-6efe3f58446f"
+    },
+    "fix": "Report as flawed test performance, retaining the source MEDIUM note and listening uncertainty.",
+    "tags": [
+     "prompt ignored"
+    ],
+    "by": "agent:director-ux-critic",
+    "at": "2026-11-09T04:02:48.606Z"
+   }
+  ],
+  "counts": {
+   "high": 1,
+   "medium": 1,
+   "low": 0
+  },
+  "verdict_set": {
+   "take": "take-3bc90b8a-7fc6-4ca2-8229-ab376b6b4cf0",
+   "verdict": null,
+   "because": "approval is the person's (not in a scene: the person approves)"
+  },
+  "packet": {
+   "pictures": 16,
+   "at": 1794196912152
+  },
+  "stale": null,
+  "said": "Critic: take 2: 1 high \u00b7 1 medium"
+ },
+ "page": {
+  "id": "b2cbcc78828c416c854eba377cd94c21",
+  "name": "agents' window b2cbcc \u00b7 A small kindness \u203a Shot 2 \u00b7 For me",
+  "headless": false,
+  "sees": true,
+  "driven_by": "director-ux-critic",
+  "code_current": true
+ },
+ "idempotency_key": "snapcall-61d1badd6c77fc8f"
+}

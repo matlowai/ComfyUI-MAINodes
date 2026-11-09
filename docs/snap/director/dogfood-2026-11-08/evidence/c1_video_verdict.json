@@ -1,0 +1,64 @@
+{
+ "result": {
+  "critique": "crit-1a1be560c26-2deb",
+  "title": "Critic: A small kindness \u203a Shot 1 \u00b7 The bowl \u203a take 1 (seed 42)",
+  "subject": {
+   "kind": "take",
+   "take": "take-cd791192-1252-48ca-b436-816b03fc68ce"
+  },
+  "about": {
+   "take": "take-cd791192-1252-48ca-b436-816b03fc68ce",
+   "scene": "scene-mw8khsydsspo",
+   "shot": "shot-mw8khsyq37mx"
+  },
+  "purpose": null,
+  "checklist": "cut",
+  "trigger": "landed",
+  "state": "done",
+  "created": "2026-11-09T03:24:32.678Z",
+  "claimed": {
+   "by": "agent:director-ux-critic",
+   "at": "2026-11-09T03:35:13.268Z"
+  },
+  "done": {
+   "by": "agent:director-ux-critic",
+   "at": "2026-11-09T03:41:32.761Z"
+  },
+  "verdict": "clean",
+  "passes": {
+   "scan": "Whole native frames 0,12,24,36,48,60,72,84,89 read before native empty tiles and five context pictures. No visible seam, stray lettering, doubled contour or blank frame. Coverage is half-second samples and final frame, not continuous playback.",
+   "map": "Fixed front customer-side camera; Kuroe remains back three-quarter center-left facing Mio. Lantern left, stockpot/burner right, shutter and counter retain layout and warm/cool grade.",
+   "support": "One bowl in Mio LEFT hand at opening, lowers to counter by frames24-36, foot visibly rests on counter; LEFT hand withdraws and is clear by48, lowered by60-89. One ladle remains gripped RIGHT throughout. No visible duplicate bowl or unsupported prop.",
+   "cast": "Exactly two people in every sampled frame. Mio ponytail/headband/apron and Kuroe silver hair/black suit/right-profile monocle detail remain coherent with source Cast. Hidden facial/front details not certified.",
+   "beat": "B1 set-down and hand withdrawal read in ordered actual generated frames; final89 supplies actual after-state for C2. Sound analysis only: mean -43.2dB, transient1.19s peak-15.3dB, no sub-bass hit; Voice QA words/unscripted empty. Ceramic/cloth Foley expected, but perceptual listening unavailable and sound identity/quality not certified.",
+   "cross_view": "Counts at every sampled frame: people2, soup bowl1, RIGHT ladle1, stockpot1, red lantern1. No reference takeover established by actual trajectory; native copy result says none. Final small hold follows completed action. C2 boundary remains untested until generated.",
+   "scale": "No scale on record; visible counter/body/pot proportions stable across sampled frames; no metric claim."
+  },
+  "notes": [],
+  "counts": {
+   "high": 0,
+   "medium": 0,
+   "low": 0
+  },
+  "verdict_set": {
+   "take": "take-cd791192-1252-48ca-b436-816b03fc68ce",
+   "verdict": null,
+   "because": "approval is the person's (the pack default)"
+  },
+  "packet": {
+   "pictures": 14,
+   "at": 1794195384666
+  },
+  "stale": null,
+  "said": "Critic: A small kindness \u203a Shot 1 \u00b7 The bowl \u203a take 1 (seed 42): clean, 7 passes"
+ },
+ "page": {
+  "id": "b2cbcc78828c416c854eba377cd94c21",
+  "name": "agents' window b2cbcc \u00b7 A small kindness \u203a Shot 1 \u00b7 The bowl",
+  "headless": false,
+  "sees": true,
+  "driven_by": "director-ux-critic",
+  "code_current": true
+ },
+ "idempotency_key": "snapcall-11ac97f71dd5c3e8"
+}

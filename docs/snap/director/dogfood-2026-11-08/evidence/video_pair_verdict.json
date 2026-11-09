@@ -1,0 +1,57 @@
+{
+ "result": {
+  "critique": "crit-1a1be6fee0d-ef74",
+  "title": "Critic: cut take 1 \u2192 take 1",
+  "subject": {
+   "kind": "pair",
+   "pair": [
+    "take-cd791192-1252-48ca-b436-816b03fc68ce",
+    "take-b2eaaec4-a3e5-4b13-8e1d-6efe3f58446f"
+   ]
+  },
+  "about": {
+   "take": "take-b2eaaec4-a3e5-4b13-8e1d-6efe3f58446f"
+  },
+  "purpose": null,
+  "checklist": "cut_pair",
+  "trigger": "asked",
+  "state": "done",
+  "created": "2026-11-09T03:52:48.909Z",
+  "claimed": {
+   "by": "agent:director-ux-critic",
+   "at": "2026-11-09T03:54:50.274Z"
+  },
+  "done": {
+   "by": "agent:director-ux-critic",
+   "at": "2026-11-09T03:55:40.827Z"
+  },
+  "context": {
+   "text": "Actual generated C1 full frame89 -> C2 frame0 join. C1 selected seed42 is formal visual CLEAN. C2 intended only Kuroe says For me? then Mio smiles/nods, bowl remains counter and left clear/right ladle1. NativeQA reports expected phrase0.544-1.204 unassigned speaker plus late unscripted phrase2.234-3.674; SV0.898 is borderline and no perceptual listening is certified. Root authorizes this as a full untrimmed flawed test/review Cut, not a clean brief/voice pass. Preserve all flaws and cause uncertainty; no reroll or trimming to hide speech. Native input identifies selected C1 frame89; input pixel comparison versus independent decode differsMAE1.23/255; rendered-f0 equality is checked separately."
+  },
+  "verdict": "clean",
+  "passes": {
+   "cut_pair": "CLEAN only for actual visual boundary: selected C1frame89 -> C2frame0 both whole1280x704 inspected, then empty native tiles/context. Same medium two-shot, camera/framing, warm/cool lighting, Mio face/pose/RIGHT ladle and LEFT clear, Kuroe rear-facing pose, one bowl on counter, single pot and lantern; people2 and prop counts stable. Fine raster/shading differs; pixel equality not claimed. No material visual jump established. This pair verdict does not clear C2's separately recorded HIGH extra-speech QA finding or MEDIUM unclear speaker/performance finding. No perceptual listening or continuous playback; full test Cut remains flawed/unverified for dialogue."
+  },
+  "notes": [],
+  "counts": {
+   "high": 0,
+   "medium": 0,
+   "low": 0
+  },
+  "packet": {
+   "pictures": 2,
+   "at": 1794196522065
+  },
+  "stale": null,
+  "said": "Critic: cut take 1 \u2192 take 1: clean, 1 passes"
+ },
+ "page": {
+  "id": "b2cbcc78828c416c854eba377cd94c21",
+  "name": "agents' window b2cbcc \u00b7 A small kindness \u203a Shot 2 \u00b7 For me",
+  "headless": false,
+  "sees": true,
+  "driven_by": "director-ux-critic",
+  "code_current": true
+ },
+ "idempotency_key": "snapcall-902ffc73bb67a140"
+}

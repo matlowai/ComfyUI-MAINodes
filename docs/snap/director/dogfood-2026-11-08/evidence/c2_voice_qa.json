@@ -1,0 +1,117 @@
+{
+  "source_relative": "video/c2_take_checked.json",
+  "source_sha256": "16895a2019f7365faef8c0a3810345992bf48bca97f721ced0421e8319efbe87",
+  "projection": "complete /result/voice object; full original take receipt retained locally",
+  "voice": {
+    "status": "check",
+    "voices": [
+      {
+        "name": "Baron Kuroe",
+        "cast": "cast:cast-mw5ig1ny8ylr@7",
+        "cite": "<Audio 1>",
+        "own": 0.898,
+        "others": [],
+        "margin": null,
+        "f0": 107.4,
+        "ref_f0": 99.4,
+        "semitones": 1.3,
+        "status": "check",
+        "why": [
+          "0.898 is under 0.9"
+        ],
+        "said": "voice vs Baron Kuroe 0.90, F0 107 Hz vs ref 99 Hz"
+      }
+    ],
+    "f0": 107.4,
+    "thresholds": {
+      "ok": 0.9,
+      "margin": 0.05,
+      "f0_semitones": 3,
+      "evidence": "measured",
+      "source": "G1b, scout/voice_timbre_2026-11-06.md on short03's voices: the same speaker 0.89-1.00 across 15 talking anchors, Maren against Liesl 0.81-0.95 (two young women), against Brann 0.39-0.65. Cuts citing a reference: own 0.97-0.99, the other woman 0.86-0.93, F0 within 1-8 Hz of the reference. ok = own at least `ok` and ahead of every other Cast by `margin`, F0 within `f0_semitones`; the next closest Cast is named with the margin. WavLM can't separate two similar voices alone, so the note gives numbers and the margin, never 'the same person'. n = 3 voices, 12 cuts, one production"
+    },
+    "by": "person",
+    "at": "2026-11-09T03:45:39.975Z",
+    "qa": {
+      "status": "check",
+      "summary": {
+        "ok": 0,
+        "wrong_voice": 1,
+        "unsure_voice": 0,
+        "no_reference": 0,
+        "missing": 0,
+        "wrong_time": 0,
+        "unscripted": 1,
+        "lines": 1
+      },
+      "lines": [
+        {
+          "shot": 1,
+          "text": "For me?",
+          "expected": "Baron Kuroe",
+          "verdict": "wrong_voice",
+          "heard": "for me",
+          "start": 0.544,
+          "end": 1.204,
+          "voice": "unassigned (speaker_1)"
+        }
+      ],
+      "unscripted": [
+        {
+          "text": "two more niga bowl",
+          "start": 2.234,
+          "end": 3.674,
+          "voice": "Baron Kuroe"
+        }
+      ],
+      "why": [
+        "\"For me?\" sounds like unassigned (speaker_1), not Baron Kuroe",
+        "unscripted: \"two more niga bowl\" by Baron Kuroe 2.234-3.674 s"
+      ],
+      "speakers": [
+        "Baron Kuroe"
+      ],
+      "gpu": "on ComfyUI's own GPU with the experts in RAM (the Voice QA setting)"
+    },
+    "words": [
+      [
+        0.544,
+        0.899,
+        "for"
+      ],
+      [
+        0.899,
+        1.204,
+        "me"
+      ],
+      [
+        2.234,
+        2.497,
+        "two"
+      ],
+      [
+        2.497,
+        2.737,
+        "more"
+      ],
+      [
+        2.737,
+        3.217,
+        "niga"
+      ],
+      [
+        3.217,
+        3.674,
+        "bowl"
+      ]
+    ],
+    "text": "for me two more niga bowl",
+    "line_match": {
+      "exact": false,
+      "heard": "for me two more niga bowl",
+      "line": "For me?",
+      "words": "2 of 2",
+      "said": "Nemotron heard 2 of the line's 2 words: \"for me two more niga bowl\""
+    }
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "captured_at": "2026-11-08T23:03:15.445705-05:00",
+  "scope": "full flawed dogfood test; C2 unscripted speech preserved; no perceptual listening approval",
+  "files": [
+    {
+      "source_relative": "base/output/video/dials_simple_00001_.mp4",
+      "copy": "C1_video.mp4",
+      "source_sha256": "1994c280b805a1006233c5d8500a000f553741f1d385c36d79952ac1a9061c4a",
+      "copy_sha256": "242fd6d2a9ffaafacfe0f9f5fc2d0bec884ff0f1eee50530e37ec7716c7602f6",
+      "identical_encoded_stream_hashes": {
+        "0:v:0": "SHA256=ba107ff208610b14bc7cae8794f031243f6fd63f967ce78d3a7970750d041129",
+        "0:a:0": "SHA256=c52abb0b5e9a94f59b694dec11652a1036a3ce420f30c107c5344b421daf19ad"
+      },
+      "transform": "container metadata removed; no video/audio re-encoding or content trim"
+    },
+    {
+      "source_relative": "base/output/video/dials_simple_00003_.mp4",
+      "copy": "C2_video.mp4",
+      "source_sha256": "e15ad2a51683c8e69843812fb6eddef0d8e6578389a249c7e7b56653c159f49b",
+      "copy_sha256": "2f9606658c72f793729d160df03c091d4cfd6080f4b79f328b02b6ad096f15c1",
+      "identical_encoded_stream_hashes": {
+        "0:v:0": "SHA256=3a2b6711553f371d3692aca0a1676755e05b0041f2c73f9c24af9df6946e6d84",
+        "0:a:0": "SHA256=ba0de40461fbcaa85716202355fc436b7fcdc0316da32e6e28925189efd3e010"
+      },
+      "transform": "container metadata removed; no video/audio re-encoding or content trim"
+    },
+    {
+      "source_relative": "base/output/video/snap_book/book-mw8ji71lvzcx_cut_00001_.mp4",
+      "copy": "On_the_House_test.mp4",
+      "source_sha256": "acf9d38b1c6dc6bcb015e60b416de0af0aa770f578c7e4f0c0bd31084bc9f759",
+      "copy_sha256": "92992e3a07d0234eee26e8747f079f3b69d13ad98ffcc23443dc9297988d5c2c",
+      "identical_encoded_stream_hashes": {
+        "0:v:0": "SHA256=994030559374bfe06fa0d5270e4ed7439b2f284f10a67b36ad3ad63ab969a7d5",
+        "0:a:0": "SHA256=cd344e30adcaa5b00fe1b66419f3343397a39583e3b3baeb2dc2e7406194106f"
+      },
+      "transform": "container metadata removed; no video/audio re-encoding or content trim"
+    },
+    {
+      "source_relative": "base/output/snap_book/On_the_House_20261108-225708.otio",
+      "copy": "On_the_House_test.otio",
+      "source_sha256": "701efc44f45e112490b96fd07d9706b4b74ac9eec64f59331a55f1266d7f63e8",
+      "copy_sha256": "85f42446bd406d4c28acea0a96dd1f041c222d9aea57ff2c1379f72ec4961872",
+      "transform": "four external media URLs rebound to colocated source clips; all other timeline data preserved",
+      "rebindings": [
+        {
+          "track": "V1",
+          "clip": "C1",
+          "target": "C1_video.mp4"
+        },
+        {
+          "track": "V1",
+          "clip": "C2",
+          "target": "C2_video.mp4"
+        },
+        {
+          "track": "A1",
+          "clip": "C1",
+          "target": "C1_video.mp4"
+        },
+        {
+          "track": "A1",
+          "clip": "C2",
+          "target": "C2_video.mp4"
+        }
+      ],
+      "editor_import_tested": false
+    }
+  ]
+}

@@ -1,0 +1,278 @@
+{
+  "OTIO_SCHEMA": "Timeline.1",
+  "name": "On the House",
+  "metadata": {
+    "snap": {
+      "book": "book:book-mw8ji71lvzcx@6"
+    }
+  },
+  "global_start_time": null,
+  "tracks": {
+    "OTIO_SCHEMA": "Stack.1",
+    "name": "tracks",
+    "metadata": {},
+    "source_range": null,
+    "effects": [],
+    "markers": [
+      {
+        "OTIO_SCHEMA": "Marker.2",
+        "name": "C1",
+        "color": "RED",
+        "comment": "take-cd791192-1252-48ca-b436-816b03fc68ce",
+        "metadata": {
+          "snap": {
+            "cut": "C1"
+          }
+        },
+        "marked_range": {
+          "OTIO_SCHEMA": "TimeRange.1",
+          "start_time": {
+            "OTIO_SCHEMA": "RationalTime.1",
+            "rate": 24.0,
+            "value": 0.0
+          },
+          "duration": {
+            "OTIO_SCHEMA": "RationalTime.1",
+            "rate": 24.0,
+            "value": 0.0
+          }
+        }
+      },
+      {
+        "OTIO_SCHEMA": "Marker.2",
+        "name": "C2",
+        "color": "RED",
+        "comment": "take-b2eaaec4-a3e5-4b13-8e1d-6efe3f58446f",
+        "metadata": {
+          "snap": {
+            "cut": "C2"
+          }
+        },
+        "marked_range": {
+          "OTIO_SCHEMA": "TimeRange.1",
+          "start_time": {
+            "OTIO_SCHEMA": "RationalTime.1",
+            "rate": 24.0,
+            "value": 90.0
+          },
+          "duration": {
+            "OTIO_SCHEMA": "RationalTime.1",
+            "rate": 24.0,
+            "value": 0.0
+          }
+        }
+      }
+    ],
+    "enabled": true,
+    "children": [
+      {
+        "OTIO_SCHEMA": "Track.1",
+        "name": "V1",
+        "kind": "Video",
+        "metadata": {},
+        "source_range": null,
+        "effects": [],
+        "markers": [],
+        "enabled": true,
+        "children": [
+          {
+            "OTIO_SCHEMA": "Clip.1",
+            "name": "C1",
+            "metadata": {
+              "snap": {
+                "take": "take-cd791192-1252-48ca-b436-816b03fc68ce",
+                "cut": "C1",
+                "gain_db": 0
+              }
+            },
+            "source_range": {
+              "OTIO_SCHEMA": "TimeRange.1",
+              "start_time": {
+                "OTIO_SCHEMA": "RationalTime.1",
+                "rate": 24.0,
+                "value": 0.0
+              },
+              "duration": {
+                "OTIO_SCHEMA": "RationalTime.1",
+                "rate": 24.0,
+                "value": 90.0
+              }
+            },
+            "effects": [],
+            "markers": [],
+            "enabled": true,
+            "media_reference": {
+              "OTIO_SCHEMA": "ExternalReference.1",
+              "name": "dials_simple_00001_.mp4",
+              "metadata": {},
+              "target_url": "C1_video.mp4",
+              "available_range": {
+                "OTIO_SCHEMA": "TimeRange.1",
+                "start_time": {
+                  "OTIO_SCHEMA": "RationalTime.1",
+                  "rate": 24.0,
+                  "value": 0.0
+                },
+                "duration": {
+                  "OTIO_SCHEMA": "RationalTime.1",
+                  "rate": 24.0,
+                  "value": 90.0
+                }
+              }
+            }
+          },
+          {
+            "OTIO_SCHEMA": "Clip.1",
+            "name": "C2",
+            "metadata": {
+              "snap": {
+                "take": "take-b2eaaec4-a3e5-4b13-8e1d-6efe3f58446f",
+                "cut": "C2",
+                "gain_db": 0
+              }
+            },
+            "source_range": {
+              "OTIO_SCHEMA": "TimeRange.1",
+              "start_time": {
+                "OTIO_SCHEMA": "RationalTime.1",
+                "rate": 24.0,
+                "value": 0.0
+              },
+              "duration": {
+                "OTIO_SCHEMA": "RationalTime.1",
+                "rate": 24.0,
+                "value": 90.0
+              }
+            },
+            "effects": [],
+            "markers": [],
+            "enabled": true,
+            "media_reference": {
+              "OTIO_SCHEMA": "ExternalReference.1",
+              "name": "dials_simple_00003_.mp4",
+              "metadata": {},
+              "target_url": "C2_video.mp4",
+              "available_range": {
+                "OTIO_SCHEMA": "TimeRange.1",
+                "start_time": {
+                  "OTIO_SCHEMA": "RationalTime.1",
+                  "rate": 24.0,
+                  "value": 0.0
+                },
+                "duration": {
+                  "OTIO_SCHEMA": "RationalTime.1",
+                  "rate": 24.0,
+                  "value": 90.0
+                }
+              }
+            }
+          }
+        ]
+      },
+      {
+        "OTIO_SCHEMA": "Track.1",
+        "name": "A1",
+        "kind": "Audio",
+        "metadata": {},
+        "source_range": null,
+        "effects": [],
+        "markers": [],
+        "enabled": true,
+        "children": [
+          {
+            "OTIO_SCHEMA": "Clip.1",
+            "name": "C1",
+            "metadata": {
+              "snap": {
+                "take": "take-cd791192-1252-48ca-b436-816b03fc68ce",
+                "cut": "C1",
+                "gain_db": 0
+              }
+            },
+            "source_range": {
+              "OTIO_SCHEMA": "TimeRange.1",
+              "start_time": {
+                "OTIO_SCHEMA": "RationalTime.1",
+                "rate": 24.0,
+                "value": 0.0
+              },
+              "duration": {
+                "OTIO_SCHEMA": "RationalTime.1",
+                "rate": 24.0,
+                "value": 90.0
+              }
+            },
+            "effects": [],
+            "markers": [],
+            "enabled": true,
+            "media_reference": {
+              "OTIO_SCHEMA": "ExternalReference.1",
+              "name": "dials_simple_00001_.mp4",
+              "metadata": {},
+              "target_url": "C1_video.mp4",
+              "available_range": {
+                "OTIO_SCHEMA": "TimeRange.1",
+                "start_time": {
+                  "OTIO_SCHEMA": "RationalTime.1",
+                  "rate": 24.0,
+                  "value": 0.0
+                },
+                "duration": {
+                  "OTIO_SCHEMA": "RationalTime.1",
+                  "rate": 24.0,
+                  "value": 90.0
+                }
+              }
+            }
+          },
+          {
+            "OTIO_SCHEMA": "Clip.1",
+            "name": "C2",
+            "metadata": {
+              "snap": {
+                "take": "take-b2eaaec4-a3e5-4b13-8e1d-6efe3f58446f",
+                "cut": "C2",
+                "gain_db": 0
+              }
+            },
+            "source_range": {
+              "OTIO_SCHEMA": "TimeRange.1",
+              "start_time": {
+                "OTIO_SCHEMA": "RationalTime.1",
+                "rate": 24.0,
+                "value": 0.0
+              },
+              "duration": {
+                "OTIO_SCHEMA": "RationalTime.1",
+                "rate": 24.0,
+                "value": 90.0
+              }
+            },
+            "effects": [],
+            "markers": [],
+            "enabled": true,
+            "media_reference": {
+              "OTIO_SCHEMA": "ExternalReference.1",
+              "name": "dials_simple_00003_.mp4",
+              "metadata": {},
+              "target_url": "C2_video.mp4",
+              "available_range": {
+                "OTIO_SCHEMA": "TimeRange.1",
+                "start_time": {
+                  "OTIO_SCHEMA": "RationalTime.1",
+                  "rate": 24.0,
+                  "value": 0.0
+                },
+                "duration": {
+                  "OTIO_SCHEMA": "RationalTime.1",
+                  "rate": 24.0,
+                  "value": 90.0
+                }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

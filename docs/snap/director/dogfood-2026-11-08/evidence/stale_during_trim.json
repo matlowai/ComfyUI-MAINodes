@@ -1,0 +1,39 @@
+{
+ "result": {
+  "stale": [
+   {
+    "take": "take-3a19aa9a-c2f7-48dd-8a23-937aec206e7b",
+    "number": 1,
+    "cut": "C2",
+    "scene": "scene-mw8khsydsspo",
+    "shot": "shot-mw8kic4gqbh2",
+    "active": false,
+    "board": "board",
+    "reasons": [
+     "its opening frame changed (C1's active take or trim moved)"
+    ]
+   },
+   {
+    "take": "take-b2eaaec4-a3e5-4b13-8e1d-6efe3f58446f",
+    "number": 1,
+    "cut": "C2",
+    "scene": "scene-mw8khsydsspo",
+    "shot": "shot-mw8kic4gqbh2",
+    "active": true,
+    "reasons": [
+     "its opening frame changed (C1's active take or trim moved)"
+    ]
+   }
+  ],
+  "said": "1 take and 1 board made from a story or style that moved"
+ },
+ "page": {
+  "id": "b2cbcc78828c416c854eba377cd94c21",
+  "name": "agents' window b2cbcc \u00b7 A small kindness \u203a Shot 2 \u00b7 For me",
+  "headless": false,
+  "sees": true,
+  "driven_by": "director-video",
+  "code_current": true
+ },
+ "idempotency_key": "snapcall-82d425ac89da0278"
+}

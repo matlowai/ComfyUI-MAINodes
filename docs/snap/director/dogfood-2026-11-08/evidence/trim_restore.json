@@ -1,0 +1,50 @@
+{
+ "result": {
+  "scene": "scene-mw8khsydsspo",
+  "shot": "shot-mw8khsyq37mx",
+  "unit": {
+   "cut": "C1",
+   "beats": [
+    "b1"
+   ],
+   "cast": [
+    "cast:cast-mw5ig1ktoq32",
+    "cast:cast-mw5ig1ny8ylr"
+   ],
+   "props": [
+    "prop:bowl"
+   ],
+   "location": "location:location-mw8kb2x2kc1p@1",
+   "plate": "Front clean",
+   "kind": "cut",
+   "sound": "One light ceramic tap on wood, a short cloth rustle.",
+   "music": "N/A",
+   "transition": "Cut after her left hand clears the bowl; continue from the picked out-frame.",
+   "camera": "Fixed medium two-shot from the original front customer-side camera, Mio facing us behind the counter and Kuroe seated center-left in back three-quarter view.",
+   "blocking": "Opening: exactly two people, one soup bowl with two blue rim stripes held in Mio left hand, one ladle in her right hand, and Kuroe with his one right-eye monocle and lapel chain. Mio lowers the bowl onto the counter before Kuroe, then withdraws only her left hand; the ladle stays in her right hand.",
+   "note": "Draft only while b1 is waiting; do not render. Opening derives from inspected original f89 staging, not the b1 end state. Make opening board explicitly, not automatic key role.",
+   "timing": {
+    "seconds": 3.75,
+    "fps": 24
+   },
+   "board": {
+    "file": "snap/take-679dd7cc-e75c-4017-bee7-df2cf31569dd_f0.png",
+    "from": {
+     "take": "take-679dd7cc-e75c-4017-bee7-df2cf31569dd",
+     "frame": 0
+    },
+    "approved": true
+   },
+   "trim": null
+  }
+ },
+ "page": {
+  "id": "b2cbcc78828c416c854eba377cd94c21",
+  "name": "agents' window b2cbcc \u00b7 A small kindness \u203a Shot 2 \u00b7 For me",
+  "headless": false,
+  "sees": true,
+  "driven_by": "director-video",
+  "code_current": true
+ },
+ "idempotency_key": "snapcall-f2e77302e934dc0d"
+}

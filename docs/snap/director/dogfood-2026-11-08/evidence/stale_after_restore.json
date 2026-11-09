@@ -1,0 +1,28 @@
+{
+ "result": {
+  "stale": [
+   {
+    "take": "take-3a19aa9a-c2f7-48dd-8a23-937aec206e7b",
+    "number": 1,
+    "cut": "C2",
+    "scene": "scene-mw8khsydsspo",
+    "shot": "shot-mw8kic4gqbh2",
+    "active": false,
+    "board": "board",
+    "reasons": [
+     "its opening frame changed (C1's active take or trim moved)"
+    ]
+   }
+  ],
+  "said": "0 takes and 1 board made from a story or style that moved"
+ },
+ "page": {
+  "id": "b2cbcc78828c416c854eba377cd94c21",
+  "name": "agents' window b2cbcc \u00b7 A small kindness \u203a Shot 2 \u00b7 For me",
+  "headless": false,
+  "sees": true,
+  "driven_by": "director-video",
+  "code_current": true
+ },
+ "idempotency_key": "snapcall-fc6f4f64991c9b25"
+}

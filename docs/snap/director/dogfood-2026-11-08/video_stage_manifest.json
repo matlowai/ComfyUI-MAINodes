@@ -1,0 +1,85 @@
+{
+  "captured_at": "2026-11-08T23:10:02.451340-05:00",
+  "application_source_commit": "28260fa",
+  "paired_plan_checkpoint": "85e2f01",
+  "files": [
+    {
+      "source_relative": "VIDEO_RUN.md",
+      "copy_relative": "reports/VIDEO_RUN.md",
+      "source_sha256": "aeb38547783e1b8aec39a58f17d43c3f9dffb3fa9f94cc88b5c053217f53bd78",
+      "copy_sha256": "aeb38547783e1b8aec39a58f17d43c3f9dffb3fa9f94cc88b5c053217f53bd78",
+      "transform": "local path roots replaced if present; full contents retained"
+    },
+    {
+      "source_relative": "VIDEO_CRITIC.md",
+      "copy_relative": "reports/VIDEO_CRITIC.md",
+      "source_sha256": "8e7a2a6d2fdf9c2d948f656a0c8be9f771b4f2138fcb563b086298ff59262a10",
+      "copy_sha256": "8e7a2a6d2fdf9c2d948f656a0c8be9f771b4f2138fcb563b086298ff59262a10",
+      "transform": "local path roots replaced if present; full contents retained"
+    },
+    {
+      "source_relative": "video/RECIPE_SCOUT.md",
+      "copy_relative": "reports/RECIPE_SCOUT.md",
+      "source_sha256": "a6becc285e60d0e821857ab2603e5b7f43281db3578aaf1eb74f3ebf2f9cec9b",
+      "copy_sha256": "a6becc285e60d0e821857ab2603e5b7f43281db3578aaf1eb74f3ebf2f9cec9b",
+      "transform": "local path roots replaced if present; full contents retained"
+    },
+    {
+      "source_relative": "video_critic/c1_42_verdict.json",
+      "copy_relative": "evidence/c1_video_verdict.json",
+      "source_sha256": "d64b421d8df51c7b92f05ddd1bd89221620ba28e29e3bcf477e1cdddd29f4364",
+      "copy_sha256": "d64b421d8df51c7b92f05ddd1bd89221620ba28e29e3bcf477e1cdddd29f4364",
+      "transform": "local path roots replaced if present; full contents retained"
+    },
+    {
+      "source_relative": "video_critic/c2_verdict.json",
+      "copy_relative": "evidence/c2_video_verdict.json",
+      "source_sha256": "dc0b3f43c7b227c9496f90df6509b3f8ff69e297ab89b2c81b00be9bd8fee80a",
+      "copy_sha256": "dc0b3f43c7b227c9496f90df6509b3f8ff69e297ab89b2c81b00be9bd8fee80a",
+      "transform": "local path roots replaced if present; full contents retained"
+    },
+    {
+      "source_relative": "video_critic/pair_verdict.json",
+      "copy_relative": "evidence/video_pair_verdict.json",
+      "source_sha256": "6eb48149d71ca5b7b5bd1b925562f430cbcdc4973ab266d847659483cf282d49",
+      "copy_sha256": "6eb48149d71ca5b7b5bd1b925562f430cbcdc4973ab266d847659483cf282d49",
+      "transform": "local path roots replaced if present; full contents retained"
+    },
+    {
+      "source_relative": "video_critic/final_verdict.json",
+      "copy_relative": "evidence/final_video_verdict.json",
+      "source_sha256": "b26e6f04ddc091e0c6177d470e05561aa3b2c5f8d1fbaeed78ee934c60d5feea",
+      "copy_sha256": "b26e6f04ddc091e0c6177d470e05561aa3b2c5f8d1fbaeed78ee934c60d5feea",
+      "transform": "local path roots replaced if present; full contents retained"
+    },
+    {
+      "source_relative": "video/trim_probe.json",
+      "copy_relative": "evidence/trim_probe.json",
+      "source_sha256": "ba8f3a27dce3a3897c3e4a0b74c592c0a05af8bf6a060e03d50e8aa8d526dfc7",
+      "copy_sha256": "ba8f3a27dce3a3897c3e4a0b74c592c0a05af8bf6a060e03d50e8aa8d526dfc7",
+      "transform": "local path roots replaced if present; full contents retained"
+    },
+    {
+      "source_relative": "video/trim_restore.json",
+      "copy_relative": "evidence/trim_restore.json",
+      "source_sha256": "add46c551449dfe1dc4420c337da0811e230b0e69be1d2ababd86c0928b9f78a",
+      "copy_sha256": "add46c551449dfe1dc4420c337da0811e230b0e69be1d2ababd86c0928b9f78a",
+      "transform": "local path roots replaced if present; full contents retained"
+    },
+    {
+      "source_relative": "video/stale_during_trim.json",
+      "copy_relative": "evidence/stale_during_trim.json",
+      "source_sha256": "44a7dfb5ae74bc7f1355c675ce5cb371dbf4a98598506ba55760959052fdc84c",
+      "copy_sha256": "44a7dfb5ae74bc7f1355c675ce5cb371dbf4a98598506ba55760959052fdc84c",
+      "transform": "local path roots replaced if present; full contents retained"
+    },
+    {
+      "source_relative": "video/stale_after_restore.json",
+      "copy_relative": "evidence/stale_after_restore.json",
+      "source_sha256": "e0e97763988836161dd35d1bdfe129f4dfe3c356f7ceaa0040103b64b0a0123a",
+      "copy_sha256": "e0e97763988836161dd35d1bdfe129f4dfe3c356f7ceaa0040103b64b0a0123a",
+      "transform": "local path roots replaced if present; full contents retained"
+    }
+  ],
+  "scope": "completed flawed dogfood run; no listening/creative-brief pass"
+}

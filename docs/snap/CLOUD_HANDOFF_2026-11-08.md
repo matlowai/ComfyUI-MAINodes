@@ -1,5 +1,7 @@
 # Cloud pickup — 2026-11-08
 
+**Dogfood closed:** [full7.5s test Cut/OTIO and closeout](director/dogfood-2026-11-08/CLOSEOUT_2026-11-08.md). The native workflow completed; C2 failed dialogue/performance and remains explicitly flawed. No further local renders are planned.
+
 For the other-machine trial, start with the [paired testing pickup](director/post-director-2026-11-08/PAIRED_TEST_PICKUP.md) and [consolidated implementation plan](director/post-director-2026-11-08/IMPLEMENTATION_PLAN.md). The current lab continues its approved short separately; no new implementation branch has been created.
 
 > **CURRENT WIP PICKUP:** Stay on `snap-research-2026-11-08`. [Dogfood follow-up](director/dogfood-2026-11-08/FOLLOWUP_2026-11-08.md) records actual native Work/result checks and the verified candidate-panel Escape fix (`28260fa`), following compiler/UI fixes `1c976ee`/`476d4f2` and context notes `634f479`. Both selected opening boards and the native 7.5-second animatic passed visual review; the user answered “Approve and render”, authorizing the separate video phase. The tiny short is still in progress; no final generated film or production landing is claimed. [Post-Director intake](director/post-director-2026-11-08/README.md) contains both complete supplied addenda, Astra’s source review and proposed next slices. The earlier context snapshots retain their historical status wording.
