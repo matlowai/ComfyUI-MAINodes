@@ -47,3 +47,9 @@ Use matched subject/action/style wording and seeds. Establish the effect of one 
 ## Trial cards and current recipes
 
 A new trial defaults to constant steering unless the current rack already has a curve; existing points/interpolation are preserved. The punch preset is an explicit action-specific choice, not the meaning of every dial. Cards belong to their project and recipe settings. Unchanged recipes retain trial edits; changed recipes reload unedited cards or preserve edits visibly as stale until the person reloads current settings. Never apply another project's cached controls. Flat sweeps use the selected clip length and restore the project rack; a chosen project trial leaves its selected constant or timed row visible.
+
+## Loaded recipes and render-stage outputs
+
+After opening or copying a shot, verify the actual prompt, references/first frame, seed, dimensions, rack and processing state before queuing; a request to copy is not proof the intended recipe loaded. Compare actual executed inputs when auditing a result.
+
+For raw versus de-rope comparisons, inspect saved outputs first. Stage 1 may have been computed only as an intermediate while the final saver wrote stage 2. History and a configured CreateVideo node do not establish a retained stage-1 file. Reuse a saved raw clip when available; cache-only recovery must refuse resampling on a miss. If stage 1 must be generated again, disclose that and preserve the user's concrete authorization. Record the de-rope branch and distinguish automatic second-pass steps from disabled de-rope. Preserve and label raw and final files independently when the native workflow supports it; the save-both-stages capability is still pending.

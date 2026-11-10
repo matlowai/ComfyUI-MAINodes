@@ -34,3 +34,7 @@ The full dedicated-server Snap gate was not run: this checkout has no configured
 6. Continue the existing [post-Director plan](director/post-director-2026-11-08/IMPLEMENTATION_PLAN.md): readable Director controls, Room keyboard/attribution, selected-board provenance and accurate disabled-Upscale diagnostics. Agent activation/learning and speech remain separately scoped later work.
 
 The [Director closeout](director/dogfood-2026-11-08/CLOSEOUT_2026-11-08.md) is now complete as a native workflow test, with the C2 dialogue/performance failure explicitly retained. Its critic/instruction-pin limits and this paired trial's results are separate evidence, not interchangeable approvals.
+
+## Lessons and continuity
+
+The consolidated [session lessons](research/2026-11-08/SESSION_LESSONS.md) now include the paired-workflow, dial/state, preview, recipe-verification and stage-output findings. General steering procedure lives in the canonical `snap-dials` skill; project-specific prompts, runs, hashes, invalid attempts and media remain in the operator's local evidence/handoff rather than being duplicated into public demos. The remaining-work list above explicitly separates fixed behavior from unfinished capabilities.
