@@ -2,6 +2,10 @@
 
 The paired human/agent trial produced reusable workflow fixes. The character/sprite examples were test cases; they are not a prerequisite for the UI or a reason to discard the changes.
 
+## Connected conversation follow-up
+
+The subsequent [conversation status and dependency DAG](CONVERSATION_STATUS_2026-11-09.md) is the current pickup for normal chat and Send→wake. It records the backend-journal architecture, measured active/idle delivery, remaining qualification and provider-neutral next work. The earlier validation below describes the paired-workspace baseline; it is not the conversation pilot’s full integration gate.
+
 ## Included
 
 - A movable/resizable, translucent Conversation/Decisions/Results workspace with recorded dependency navigation, multiline messages and saved replies.
@@ -27,7 +31,7 @@ The full dedicated-server Snap gate was not run: this checkout has no configured
 ## Remaining work
 
 1. Run the full dedicated integration gate before merging or production landing; include concurrency and cross-workflow navigation, accessibility and classic/Vue renderer parity.
-2. Add an actual Send-to-agent wake-up/attachment mechanism; saved inbox messages still wait for an agent to read them.
+2. Qualify the new [connected-conversation pilot](CONVERSATION_STATUS_2026-11-09.md): real native questions/permissions, recovery/concurrency and UI session lifecycle; then ACP/other agents. Active and idle Send plus streamed replies are now evidenced for the initial local Codex pilot. Director notes retain their separate annotation path.
 3. Exercise prior-run drop/recipe rehydration with real saved workflows; it was intentionally deferred during current-run UX work.
 4. Offer native stage-1 and stage-2 output preservation, and a genuine cache-only recovery guard. Selecting stage 1 may otherwise resample after cache eviction.
 5. Reproduce and address copied-shot fallback behavior with an unsaved source, without hiding missing recipe state.

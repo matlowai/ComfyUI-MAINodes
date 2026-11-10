@@ -1,0 +1,107 @@
+"""SNAP-R17/R18/R30/R70: CPU-only journal/adapter tests; no model or personal server."""
+import importlib.util
+import json
+import os
+from pathlib import Path
+import tempfile
+import unittest
+
+PACK = Path(__file__).resolve().parents[2]
+def module(name, path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    value = importlib.util.module_from_spec(spec); spec.loader.exec_module(value); return value
+chat = module('snap_chat', PACK / 'tools/snap_chat.py')
+service = module('snap_conversations', PACK / 'snap_conversations.py')
+
+def artifacts():
+    root = Path(os.environ.get('SNAP_CHAT_TEST_ARTIFACTS', str(Path.cwd() / '.scratch/chat-adapter-tests')))
+    root.mkdir(parents=True, exist_ok=True)
+    return Path(tempfile.mkdtemp(dir=root))
+
+class JournalTests(unittest.TestCase):
+    def test_durable_replay_and_idempotent_send(self):
+        path = artifacts() / 'journal.jsonl'; log = service.Journal(path)
+        event = log.append('h1', 'human.message', {'text': 'hello'})
+        self.assertEqual(log.append('h1', 'human.message', {'text': 'hello'}), event)
+        self.assertEqual(len(service.Journal(path).events), 1)
+        with self.assertRaises(ValueError): log.append('h1', 'human.message', {'text': 'changed'})
+
+    def test_project_and_account_isolation(self):
+        root = artifacts(); owner = service.Conversations()
+        aid, a = owner.ensure(root / 'user-a', 'project-a'); bid, b = owner.ensure(root / 'user-a', 'project-b')
+        self.assertNotEqual(aid, bid); self.assertEqual(owner.ensure(root / 'user-a', 'project-a')[0], aid)
+        with self.assertRaises(FileNotFoundError): owner.journal(root / 'user-b', aid)
+        with self.assertRaises(ValueError): owner.journal(root, '../other')
+
+    def test_single_controller_lease_and_disconnect(self):
+        root = artifacts(); owner = service.Conversations(); aid, a = owner.ensure(root, 'a'); bid, b = owner.ensure(root, 'b')
+        binding = {'id': 'one', 'provider': 'Any agent', 'session': 's', 'mode': 'live', 'capabilities': {'liveAttach': True}}
+        token = owner.bind(a, binding); owner.authorize(a, token)
+        with self.assertRaises(ValueError): owner.bind(b, {**binding, 'id': 'two'})
+        with self.assertRaises(ValueError): owner.bind(a, {**binding, 'id': 'two'})
+        owner.disconnect(a)
+        with self.assertRaises(ValueError): owner.authorize(a, token)
+        owner.bind(b, {**binding, 'id': 'two'})
+
+    def test_restart_retains_journal_but_never_fabricates_online_adapter(self):
+        root = artifacts(); owner = service.Conversations(); aid, a = owner.ensure(root, 'a')
+        owner.bind(a, {'id': 'one', 'provider': 'Agent', 'session': 's', 'mode': 'resume', 'capabilities': {}})
+        restarted = service.Conversations(); self.assertFalse(restarted.status(restarted.journal(root, aid))['online'])
+
+class AdapterTests(unittest.IsolatedAsyncioTestCase):
+    async def test_start_and_steer_inherit_existing_runtime(self):
+        provider = chat.Codex('unused', 'existing'); calls = []
+        async def rpc(method, args):
+            calls.append((method, args)); return {'turnId': 'active'} if method == 'turn/steer' else {'turn': {'id': 'new'}}
+        provider.rpc = rpc
+        self.assertEqual(await provider.deliver('hello', None), 'new')
+        self.assertEqual(await provider.deliver('continue', {'id': 'active', 'status': 'inProgress'}), 'active')
+        self.assertEqual(calls[1][1]['expectedTurnId'], 'active')
+        for method, args in calls:
+            self.assertNotIn('model', args); self.assertNotIn('approvalPolicy', args); self.assertNotIn('sandboxPolicy', args)
+
+    async def test_ambiguous_delivery_is_retained_without_retry(self):
+        class Provider:
+            async def deliver(self, *args): raise TimeoutError('lost response')
+        class Ledger:
+            data = {'id': 'connection', 'messages': {}}
+            def save(self): pass
+        class Journal:
+            identity, project = 'conversation', 'project'
+            async def publish(self, *args): return {}
+        adapter = chat.Attachment(Journal(), Provider(), Ledger())
+        await adapter.submit('n', {'text': 'hello'}, None)
+        self.assertEqual(adapter.ledger.data['messages']['n']['state'], 'uncertain')
+
+    async def test_pagination_recovers_older_pending_turn(self):
+        provider = chat.Codex('unused', 'existing'); calls = []
+        async def rpc(method, args):
+            calls.append(args)
+            return {'data': [{'id': 'old'}]} if args.get('cursor') else {'data': [{'id': 'new'}], 'nextCursor': 'next'}
+        provider.rpc = rpc
+        self.assertEqual((await provider.turns({'old'}))['old']['id'], 'old'); self.assertEqual(calls[1]['cursor'], 'next')
+
+    async def test_crash_during_send_becomes_uncertain(self):
+        path = artifacts() / 'state.json'; first = chat.Ledger(path, 't', 'project')
+        first.data['messages']['n'] = {'state': 'sending'}; first.save(); first.lock.close()
+        recovered = chat.Ledger(path, 't', 'project')
+        self.assertEqual(recovered.data['messages']['n']['state'], 'uncertain'); recovered.lock.close()
+
+    async def test_no_blind_file_approval(self):
+        card = chat.request_card({'id': 1, 'method': 'item/fileChange/requestApproval', 'params': {'itemId': 'x'}}, None)
+        self.assertNotIn('choices', card)
+
+    async def test_command_decision_has_no_persistent_permission(self):
+        event = {'id': 2, 'method': 'item/commandExecution/requestApproval', 'params': {'command': 'example'}}
+        self.assertEqual(chat.request_response(event, {'choice': 'accept'}), {'decision': 'accept'})
+        with self.assertRaises(ValueError): chat.request_response(event, {'choice': 'acceptForSession'})
+        with self.assertRaises(ValueError): chat.request_response({'method': 'unknown'}, {})
+
+    async def test_unsolicited_agent_stream_is_journaled_without_human_note(self):
+        class Ledger: data = {'id': 'one', 'messages': {}}
+        class Provider: thread = 't'
+        adapter = chat.Attachment(None, Provider(), Ledger())
+        await adapter.consume({'method': 'item/agentMessage/delta', 'params': {'threadId': 't', 'turnId': 'turn', 'itemId': 'message', 'delta': 'Hi'}})
+        self.assertEqual(adapter.events[0]['type'], 'agent.delta'); self.assertEqual(adapter.events[0]['data']['text'], 'Hi')
+
+if __name__ == '__main__': unittest.main()

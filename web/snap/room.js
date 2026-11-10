@@ -13,6 +13,7 @@
 import { app } from "../../../scripts/app.js";
 import * as A from "./activity.js";
 import * as E from "./engine.js";
+import * as Chat from "./conversation.mjs";
 import { createDraftGuard } from "./draft_guard.js";
 import * as D from "./dials.js";
 import * as T from "./takes.js";
@@ -153,7 +154,9 @@ export function openRoom({ say } = {}) {
   const map = h("nav", { className: "snap-room-map", ariaLabel: "Project needs and decisions" });
   const tabs = h("div", { className: "snap-room-tabs", role: "tablist", ariaLabel: "Project workspace views" });
   const chooseTab = (name) => {
+    map.style.display = name === "decisions" ? "" : "none";
     activeTab = name; body.hidden = name !== "decisions"; messages.hidden = name !== "conversation"; results.hidden = name !== "results";
+    if (name === "conversation") queueMicrotask(() => { messages.scrollTop = messages.scrollHeight; });
     for (const button of tabs.children) { button.setAttribute("aria-selected", String(button.dataset.view === name)); button.tabIndex = button.dataset.view === name ? 0 : -1; }
   };
   for (const [name, label] of [["conversation", "Conversation"], ["decisions", "Decisions"], ["results", "Results"]]) {
@@ -162,16 +165,27 @@ export function openRoom({ say } = {}) {
   tabs.addEventListener("keydown", (e) => { if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return; e.preventDefault(); const choices = [...tabs.children], index = choices.findIndex((b) => b.dataset.view === activeTab), next = e.key === "Home" ? 0 : e.key === "End" ? choices.length - 1 : (index + (e.key === "ArrowRight" ? 1 : -1) + choices.length) % choices.length; chooseTab(choices[next].dataset.view); choices[next].focus(); });
   room.insertBefore(map, replyEl); room.insertBefore(tabs, body); room.append(results);
   room.addEventListener("snap-room-results", () => chooseTab("results"));
-  const close = () => { removeEventListener("resize", fitWorkspace); removeEventListener("pointermove", moveGesture, true); removeEventListener("pointerup", endGesture, true); removeEventListener("pointercancel", endGesture, true); removeEventListener("blur", endGesture); unsubscribeNotes(); activityListeners.delete(draw); room.remove(); off = true; };
+  const close = () => { removeEventListener("resize", fitWorkspace); removeEventListener("pointermove", moveGesture, true); removeEventListener("pointerup", endGesture, true); removeEventListener("pointercancel", endGesture, true); removeEventListener("blur", endGesture); unsubscribeNotes(); unsubscribeConversation(); activityListeners.delete(draw); room.remove(); off = true; };
   room.addEventListener("snap-room-close", close);
   let off = false;
   const answered = async (asked, said, undo = null) => { reply = said; earlier.unshift([asked, said, undo]); sig = ""; await A.reconcile(); draw(); };
-  // SNAP-R70/R7: messages use the existing notes bridge, independently of approvals; typing stays mounted.
+  // SNAP-R70/R7: ordinary chat uses its durable journal; director notes and creative approvals keep their owners.
   let composerProject = app.graph.id;
   const draftKey = (project = app.graph.id) => `snap-conversation:${project}`;
-  const composer = h("textarea", { className: "snap-room-why snap-note-input", rows: 2, placeholder: "Tell your agent what you think…", ariaLabel: "Message your agent", value: sessionStorage.getItem(draftKey()) ?? "" });
-  const delivery = h("p", { className: "snap-room-where", role: "status", textContent: "Enter to send · Shift+Enter for a new line. Messages wait here for your agent to read." });
+  const composer = h("textarea", { className: "snap-room-why snap-note-input", rows: 2, placeholder: "Talk to your agent…", ariaLabel: "Message your agent", value: sessionStorage.getItem(draftKey()) ?? "" });
+  const delivery = h("p", { className: "snap-room-where", role: "status", textContent: "Enter to send · Shift+Enter for a new line." });
   const messages = h("div", { className: "snap-room-messages", role: "log", ariaLabel: "Messages and agent replies" });
+  const connectionStatus = h("p", { className: "snap-room-where", role: "status" });
+  const disconnect = h("button", { className: "snap-link", textContent: "Disconnect agent", onclick: () => {
+    Chat.disconnect(app.graph.id).catch((e) => say?.(e.message, true));
+  } });
+  const requests = h("div", { className: "snap-conversation-requests" });
+  const requestDrafts = new Map(); let requestSig = "";
+  const connectionBar = h("div", { className: "snap-conversation-connection" }, connectionStatus, disconnect);
+  const drawConnection = () => {
+    const c = Chat.snapshot(app.graph.id); connectionStatus.textContent = c.error ? `Conversation connection: ${c.error}` : Chat.connectionLabel(c.connection); disconnect.hidden = !c.connection;
+  };
+  let watchedProject = app.graph.id, unsubscribeConversation = () => {};
   let sentDraft = null, sending = false;
   const grow = () => { composer.style.height = "auto"; composer.style.height = `${composer.scrollHeight}px`; };
   const draftGuard = createDraftGuard({ read: () => composer.value, project: () => app.graph.id,
@@ -179,28 +193,31 @@ export function openRoom({ say } = {}) {
   const syncDraftProject = () => {
     if (composerProject === app.graph.id) return;
     sessionStorage.setItem(draftKey(composerProject), composer.value);
-    composerProject = app.graph.id; composer.value = sessionStorage.getItem(draftKey()) ?? "";
+    composerProject = app.graph.id;
+    unsubscribeConversation(); watchedProject = app.graph.id; unsubscribeConversation = Chat.watch(watchedProject, draw);
+    composer.value = sessionStorage.getItem(draftKey()) ?? "";
     draftGuard.changed(); sentDraft = null; grow();
     for (const card of artifacts.children) card.hidden = true;
   };
-  const sendMessage = async ({ clear = true } = {}) => {
-    if (sending) throw new Error("Your message is still saving; wait before applying another action.");
+  const sendMessage = async ({ clear = true, wake = true } = {}) => {
+    if (sending) throw new Error("Your message is still sending; wait before applying another action.");
     const snapshot = draftGuard.capture(), text = snapshot.value.trim();
     if (!text) return snapshot;
     sending = true; send.disabled = true;
     try {
       if (!sentDraft || sentDraft.snapshot.project !== snapshot.project || sentDraft.snapshot.revision !== snapshot.revision) {
-        sentDraft = { note: E.addNote(text), snapshot };
-        E.updateNote(sentDraft.note.id, { context: { workflow: app.extensionManager.workflow.activeWorkflow?.filename, view: activeTab, decision: top, dial: [...artifacts.children].find((x) => !x.hidden)?.dataset.dial ?? null, trial: [...artifacts.children].find((x) => !x.hidden)?.snapAgentContext?.() ?? null } });
+        sentDraft = { id: crypto.randomUUID(), snapshot, context: { workflow: app.extensionManager.workflow.activeWorkflow?.filename,
+          view: activeTab, decision: top, dial: [...artifacts.children].find((x) => !x.hidden)?.dataset.dial ?? null,
+          trial: [...artifacts.children].find((x) => !x.hidden)?.snapAgentContext?.() ?? null } };
       }
-      const attempt = sentDraft, workflow = app.extensionManager.workflow.activeWorkflow;
-      await app.extensionManager.workflow.saveWorkflow(workflow);
+      const attempt = sentDraft;
+      await Chat.send(snapshot.project, text, attempt.context, attempt.id, wake);
       if (clear && sentDraft === attempt) sentDraft = null;
-      delivery.textContent = "Sent — waiting for agent to read and reply.";
+      delivery.textContent = "Saved in conversation · waiting for delivery to your agent.";
       if (clear) draftGuard.clearIfCurrent(snapshot);
       sig = ""; draw();
       return snapshot;
-    } catch (e) { delivery.textContent = `Not saved yet: ${e.message}. Your text is kept; try Send again.`; throw e; }
+    } catch (e) { delivery.textContent = `Not sent yet: ${e.message}. Your text is kept; try Send again.`; throw e; }
     finally { sending = false; send.disabled = false; }
   };
   const send = h("button", { className: "snap-primary", textContent: "Send", onclick: () => sendMessage().catch(() => {}) });
@@ -209,7 +226,7 @@ export function openRoom({ say } = {}) {
     e.stopPropagation();
     if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendMessage().catch(() => {}); }
   });
-  room.append(messages, h("div", { className: "snap-room-compose" }, composer, h("div", { className: "snap-room-compose-actions" }, delivery, send)));
+  room.append(connectionBar, requests, messages, h("div", { className: "snap-room-compose" }, composer, h("div", { className: "snap-room-compose-actions" }, delivery, send)));
   room.insertBefore(results, messages);
   chooseTab(activeTab);
   let acting = false, actionWhy = null;
@@ -217,7 +234,7 @@ export function openRoom({ say } = {}) {
     if (acting) return;
     acting = true;
     try {
-      const snapshot = await sendMessage({ clear: false });
+      const snapshot = await sendMessage({ clear: false, wake: false });
       actionWhy = snapshot.value;
       await fn();
       if (draftGuard.clearIfCurrent(snapshot)) sentDraft = null;
@@ -308,7 +325,7 @@ export function openRoom({ say } = {}) {
 
   function draw() {
     if (off) return;
-    syncDraftProject();
+    syncDraftProject(); drawConnection();
     context.textContent = app.extensionManager.workflow.activeWorkflow?.filename?.replace(/\.json$/, "") ?? "Open project";
     const list = asks().filter((r) => r.source !== "proposal" || !P.get(r.proposal)?.graph || P.get(r.proposal).graph === app.graph.id);
     if (top && !list.some((r) => r.id === top)) top = null;
@@ -316,7 +333,7 @@ export function openRoom({ say } = {}) {
     // shot read as one line; the next comes up when that one is answered
     const first = list.find((r) => r.id === top) ?? list[0], seen = new Set(first ? [ask(first).q] : []);
     const rest = list.filter((r) => { if (r === first) return false; const q = ask(r).q; return !seen.has(q) && !!seen.add(q); });
-    const conversation = E.notes();
+    const journal = Chat.snapshot(app.graph.id), conversation = journal.messages, connection = journal.connection;
     const openMedia = (row) => {
       const take = T.get(row.result.take);
       for (const card of artifacts.children) card.hidden = true;
@@ -328,14 +345,39 @@ export function openRoom({ say } = {}) {
     const dialResults = proposals.filter((p) => p.status === "accepted" && p.result?.dial);
     const jobs = A.all().filter((r) => r.source === "prompt" && r.about?.group === app.graph.id);
     const landed = jobs.filter((r) => r.result?.take && T.get(r.result.take)?.media?.length);
-    const now = JSON.stringify([conversation, proposals, jobs, reply, earlier.length, first?.id, first?.state, first ? ask(first) : null, rest.map((r) => [r.id, ask(r)])]);
+    const now = JSON.stringify([conversation, journal.requests, journal.activities, E.notes(), connection && { id: connection.id, provider: connection.provider, online: connection.online, phase: connection.phase, error: connection.error, requests: connection.requests }, proposals, jobs, reply, earlier.length, first?.id, first?.state, first ? ask(first) : null, rest.map((r) => [r.id, ask(r)])]);
     if (now === sig) return; // SNAP-R7: never under a typing hand
     sig = now;
     replyEl.textContent = reply;
-    messages.replaceChildren(...conversation.map((n) => h("article", { className: "snap-room-message" },
-      h("strong", { textContent: "You" }), h("p", { textContent: n.text }), n.context?.trial ? h("p", { className: "snap-blurb", textContent: `Attached: ${n.context.trial.frames} frames · ${n.context.trial.label}` }) : null,
-      h("small", { textContent: n.reply ? "Agent replied" : "Sent · waiting for agent" }),
-      n.reply ? h("div", { className: "snap-room-agent-reply" }, h("strong", { textContent: "Agent" }), h("p", { textContent: n.reply })) : null)));
+    const wasAtEnd = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 60;
+    messages.replaceChildren(...conversation.map((m) => h("article", { className: "snap-room-message" },
+      h("strong", { textContent: m.role === "human" ? "You" : m.agent ?? "Agent" }), h("p", { textContent: m.text }),
+      m.context?.trial ? h("p", { className: "snap-blurb", textContent: `Attached: ${m.context.trial.frames} frames · ${m.context.trial.label}` }) : null,
+      m.role === "human" ? h("small", { textContent: m.error ?? ({ saved: "Saved · waiting for agent", recorded: "Recorded with your decision", sending: "Sending…", delivered: "Delivered", completed: "Replied", uncertain: "Delivery uncertain · not resent", failed: "Delivery failed", interrupted: "Interrupted" }[m.state] ?? m.state) }) : null)),
+      ...(journal.activities.length ? [h("details", { className: "snap-room-message" }, h("summary", { textContent: `Agent activity (${journal.activities.length})` }),
+        ...journal.activities.map((a) => h("details", {}, h("summary", { textContent: `${a.title} · ${a.state}` }), h("pre", { textContent: JSON.stringify(a.details, null, 2) }))))] : []),
+      ...(E.notes().length ? [h("details", { className: "snap-room-message" }, h("summary", { textContent: "Project notes" }),
+        ...E.notes().map((n) => h("section", {}, h("p", { textContent: n.text }), n.reply ? h("p", { textContent: n.reply }) : null)))] : []));
+    if (wasAtEnd) messages.scrollTop = messages.scrollHeight;
+    const nextRequestSig = JSON.stringify([journal.requests, connection?.epoch, connection?.online]);
+    if (nextRequestSig !== requestSig) { requestSig = nextRequestSig; requests.replaceChildren(...(journal.requests ?? []).map((request) => {
+      const fields = new Map();
+      const respond = (response) => { try { Chat.respond(app.graph.id, request.id, response).catch((e) => say?.(e.message, true)); } catch (e) { say?.(e.message, true); } };
+      return h("section", { className: "snap-room-message" }, h("h3", { textContent: request.title }),
+        h("p", { textContent: request.body }),
+        request.details ? h("details", {}, h("summary", { textContent: "Request details" }), h("pre", { textContent: JSON.stringify(request.details, null, 2) })) : null,
+        ...(request.questions ?? []).map((q) => {
+          const draftId = `${request.id}:${q.id}`, input = h("textarea", { rows: 2, ariaLabel: q.prompt, value: requestDrafts.get(draftId) ?? "" }); fields.set(q.id, input);
+          input.addEventListener("input", () => requestDrafts.set(draftId, input.value));
+          return h("label", {}, h("span", { textContent: q.prompt }),
+            ...(q.options ?? []).map((o) => h("button", { textContent: o, onclick: () => { input.value = o; requestDrafts.set(draftId, o); } })), input);
+        }),
+        ...(request.choices ?? []).map((c) => h("button", { className: c.id === "accept" ? "snap-accept" : "snap-link", textContent: c.label,
+          disabled: !!request.response || !connection?.online || request.controller !== connection?.epoch, onclick: () => respond({ choice: c.id }) })),
+        request.questions?.length ? h("button", { textContent: "Send answer", disabled: !!request.response || !connection?.online || request.controller !== connection?.epoch,
+          onclick: () => respond({ answers: Object.fromEntries([...fields].map(([id, input]) => [id, input.value])) }) }) : null,
+        request.response ? h("p", { textContent: "Answer sent · waiting for agent" }) : null);
+    })); }
 
     map.replaceChildren(h("strong", { textContent: "Project map" }),
       h("p", { className: "snap-blurb", textContent: "Explore any branch · links show recorded dependencies" }),
@@ -363,6 +405,7 @@ export function openRoom({ say } = {}) {
   }
   const activityListeners = A.onChange(draw);
   const unsubscribeNotes = E.onNotesChange(draw);
+  unsubscribeConversation = Chat.watch(watchedProject, draw);
   Promise.all([T.load(), C.load(), P.load(), W.load(), N.load()]).then(() => A.reconcile()).then(draw, (e) => { reply = plain(e.message); draw(); });
   (document.querySelector(".snap-root") ?? document.body).append(room); // inside Snap's root: its colours, above its sheets
   // SNAP-R70: a single movable, resizable workspace; layout is a browser preference, not project canon.

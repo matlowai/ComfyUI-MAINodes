@@ -13,6 +13,10 @@ Below, `$BASE` is the ComfyUI address (for example `http://127.0.0.1:8188`) and 
 `<ComfyUI>/custom_nodes/ComfyUI-MAINodes`. On a signed-in install (snap-gate), `$BASE` is the gate's address. There you
 `export SNAP_TOKEN=<your account token>`, which every tool below sends as a Bearer header.
 
+## Connected conversation
+
+The Room can use a durable project conversation journal and an optional external agent adapter. See [Connected conversations](CONVERSATION_ADAPTERS.md) for the first Codex adapter, session/recovery boundaries and ACP follow-up. Director notes and the existing MCP/WebMCP creative tools remain independent.
+
 ## 0. Find this server's Snap
 
     curl -s $BASE/mainodes/snap/info

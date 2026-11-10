@@ -570,6 +570,12 @@ export const STYLE = `
 .snap-room-notes { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 10px; }
 .snap-room-notes li p { margin: 0; overflow-wrap: anywhere; } .snap-room-notes li .snap-room-where { font-size: 14px; margin-top: 2px; }
 .snap-room-why { all: unset; display: block; min-height: 64px; max-height: 240px; overflow-y: auto; resize: none; white-space: pre-wrap; box-sizing: border-box; width: 100%; padding: 11px 13px; border-radius: 11px; background: var(--s-card); box-shadow: inset 0 0 0 1px var(--s-line); }
+.snap-conversation-connection { display: flex; align-items: center; gap: 12px; padding: 8px 16px; }
+.snap-conversation-connection p { flex: 1; margin: 0; }
+.snap-conversation-requests { padding: 0 16px; max-height: 40%; overflow: auto; }
+.snap-conversation-requests pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.snap-conversation-requests label { display: block; }
+.snap-conversation-requests textarea { display: block; width: 100%; }
 .snap-room-compose { padding: 14px 16px; border-top: 1px solid var(--s-line); }
 .snap-room-compose-actions { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
 .snap-room-compose-actions p { flex: 1; font-size: 12px; }

@@ -709,5 +709,7 @@ python3 -I "$T"/test_dataset.py; node "$T"/test_continuity.mjs | head -1; node "
 # SNAP-R272: dependency-free Director contracts; retain every test result in the gate output folder.
 if nice -n 19 node --test "$T"/director/*.test.mjs >director.out 2>&1; then echo "director PASS (complete results: director.out)"; else echo "director FAIL (complete results: director.out)"; fi
 # SNAP-R2/R7/R65/R70: paired UI regressions use no server or model fixtures.
-if nice -n 19 node --experimental-vm-modules --test "$T"/test_conversation_draft.mjs "$T"/test_dial_result.mjs "$T"/test_increment_seed.mjs "$T"/test_live_preview.mjs "$T"/test_preview_playback.mjs >paired-units.out 2>&1; then echo "paired-units PASS (complete results: paired-units.out)"; else echo "paired-units FAIL (complete results: paired-units.out)"; fi
+if nice -n 19 node --experimental-vm-modules --test "$T"/test_conversation_attachment.mjs "$T"/test_conversation_draft.mjs "$T"/test_dial_result.mjs "$T"/test_increment_seed.mjs "$T"/test_live_preview.mjs "$T"/test_preview_playback.mjs >paired-units.out 2>&1; then echo "paired-units PASS (complete results: paired-units.out)"; else echo "paired-units FAIL (complete results: paired-units.out)"; fi
+if nice -n 19 python3 -I "$T/test_chat_adapter.py" >chat-adapter.out 2>&1; then echo "chat-adapter PASS (complete results: chat-adapter.out)"; else echo "chat-adapter FAIL (complete results: chat-adapter.out)"; fi
+if nice -n 19 "$py" -I "$T/test_conversation_service.py" >conversation-service.out 2>&1; then echo "conversation-service PASS (complete results: conversation-service.out)"; else echo "conversation-service FAIL (complete results: conversation-service.out)"; fi
 bash "$T/real_models_guard.sh" after "$stamp" "$real"

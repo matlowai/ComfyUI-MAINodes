@@ -52,6 +52,7 @@ from server import PromptServer
 
 from . import snap_critiques, snap_faces, snap_instructions, snap_privacy
 from .dials import core as dial_core
+from .snap_conversations import register as register_conversations
 try:
     from . import snap_vault_server
 except ImportError as e:  # the vault needs the `cryptography` package (pyproject); private takes on a privacy-on install are then refused
@@ -252,6 +253,7 @@ def held_by(client, agent):
 
 
 routes = PromptServer.instance.routes
+register_conversations(routes, PromptServer.instance.user_manager)
 
 
 @routes.post("/mainodes/snap/register")
