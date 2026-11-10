@@ -215,7 +215,7 @@ export const TOOLS = [
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
     run: () => PACK_BRICKS.map((key) => [key, BRICKS[key]]).map(([key, d]) => ({
-      brick: key, title: d.title, does: d.blurb, in_recipe: has(key), takes: Object.keys(d.needs ?? {}), gives: Object.keys(d.provides ?? {}),
+      brick: key, title: d.title, does: d.blurb, instruction_scope: `brick:${key}`, in_recipe: has(key), takes: Object.keys(d.needs ?? {}), gives: Object.keys(d.provides ?? {}),
       settings: d.face.map(([, name, label]) => ({ name, label })), ...(d.optional ? { optional: true } : {}),
     })),
   },
@@ -293,8 +293,8 @@ export const TOOLS = [
   },
   {
     name: "new_seed",
-    description: "Draw a new seed for a brick now (the dice on its face), or with `mode` set its seed mode instead: fixed keeps the seed across runs (the default, so takes differ only by what changed), random draws a new one after each run. brick defaults to the recipe's Render. Returns the seed and the mode.",
-    inputSchema: { type: "object", properties: { brick: { ...brickEnum, description: "default: the recipe's Render (the first brick with a seed)" }, mode: { type: "string", enum: ["fixed", "random"] } } },
+    description: "Draw a new seed for a brick now (the dice on its face), or with `mode` set its seed mode instead: fixed keeps the seed across runs (the default, so takes differ only by what changed), increment advances by one after queueing, and random draws a new one after each run. brick defaults to the recipe's Render. Returns the seed and the mode.",
+    inputSchema: { type: "object", properties: { brick: { ...brickEnum, description: "default: the recipe's Render (the first brick with a seed)" }, mode: { type: "string", enum: ["fixed", "increment", "random"] } } },
     run: ({ brick = E.state().bricks.map((b) => b.key).find((k) => E.seedMode(k)), mode }) => {
       if (!brick) throw new Error("No brick in this recipe has a seed");
       inRecipe(brick);
@@ -933,10 +933,12 @@ export const TOOLS = [
     description: "Reply to a director's note in one or two lines (what you proposed and why). The note stays open until the person closes it.",
     inputSchema: { type: "object", properties: { note: { type: "string" }, reply: { type: "string" } }, required: ["note", "reply"] },
     direct: true,
-    run: ({ note, reply }) => {
+    run: async ({ note, reply }) => {
       const n = E.notes().find((x) => x.id === note);
       if (n && !["open", "answered"].includes(n.status)) throw new Error(`The person already closed note ${note} (${n.status})`);
-      return E.updateNote(note, { status: "answered", reply });
+      const answered = E.updateNote(note, { status: "answered", reply });
+      await app.extensionManager.workflow.saveWorkflow(app.extensionManager.workflow.activeWorkflow);
+      return answered;
     },
   },
   {
@@ -1109,6 +1111,14 @@ export const TOOLS = [
       await D.load(true);
       return { dial, info: saved, file: after.path, tensors_sha256: { before: before.tensors_sha256, after: after.tensors_sha256, unchanged: before.tensors_sha256 === after.tensors_sha256 } };
     },
+  },
+  {
+    name: "preview_dial",
+    description: "Compare an installed dial at chosen strengths on the open video recipe. Defaults to -2 and +2, 22 frames each (about one second); prompt and seed are identical, other dials excluded. Uses the native queue and restores the rack, length and seed mode. Unless agents may run, waits for human approval.",
+    inputSchema: { type: "object", properties: { dial: { type: "string" }, strengths: { type: "array", items: { type: "number" }, minItems: 1 }, time: { type: ["object", "null"], description: "Optional strength-over-clip-time curve as add_dial accepts" }, frames: { type: "integer", description: "Clip frame count; default 22. Use a model-valid length, e.g. 73 for about three seconds." } }, required: ["dial"] },
+    annotations: { consequentialHint: true }, consequential: true,
+    plan: async ({ strengths = [-2, 2], frames = 22, time }) => ({ runs: `${strengths.length} ${time ? "timed" : "flat"} dial comparison clips at ${strengths.join(", ")}, same prompt and seed, ${frames} frames each` }),
+    run: ({ dial, strengths, time, frames }) => D.previewDial(dial, strengths, { by: "agent", time, frames }),
   },
   {
     name: "run",
@@ -1546,11 +1556,11 @@ export const TOOLS = [
   },
   {
     name: "open_view",
-    description: "Open a view on this page for its person (SNAP-R80; F-A27's twin). view \"library\" opens the Agent library (tab: here = Applies here (default), notes = Instructions, skills; scope: e.g. tool:save_location) (F-D09). view \"book\" with book (book:<id>) opens the Book; lens picks its lens (SNAP-R67). view \"room\" opens the Room (SNAP-R70): the person's front door, the newest question first, no machinery. view \"nearby\" with take, path, cast or location opens the Nearby modal on that picture or record (SNAP-R198): what it is and its neighbours, read-only, over what the page shows. view \"location\" with location (location:<id> or @n) opens the Location sheet (its master, the plan with camera marks, the camera map, the plates); masks: true also shows the critic's masks on every picture at once, numbered as in the sheet's list of notes (each with its owner and fix). A sheet or the Book opens in Snap: a page showing the graph switches to Snap first, and the answer's view says what the page shows (F-E02). view \"picture\": a picture full size in Snap's viewer (fit / 100 %, zoom, pan, arrows through its row, Esc closes), on the tab your calls go to, so an agent driving the person's tab can show them a picture. Name it by one of: take (a take id: its pictures and videos, a sheet's views too; index picks one), cast (cast:<id>, ref its picture's number from 0: steps through the Cast's pictures), decision (a candidate decision; candidate picks where it starts: steps through every candidate's pictures), file (a picture in input/), path (output/… or input/…, as candidate_frames and list_candidates give). A location's picture carries the critic's masks for it (numbered boxes; masks: false leaves them off). Nothing changes and the page doesn't navigate; the person closes it. Returns what is showing.",
-    inputSchema: { type: "object", properties: { view: { type: "string", enum: ["picture", "location", "library", "book", "room", "nearby"] }, book: { type: "string", description: "view book: the Book (book:<id>); lens picks its lens (beat_sheet, settei, boards, cut_bag, the_cut)" }, lens: { type: "string" }, tab: { type: "string", enum: ["skills", "notes", "here"] }, scope: { type: "string" }, take: { type: "string" }, index: { type: "integer", minimum: 0 }, cast: { type: "string" }, ref: { type: "integer", minimum: 0 },
-      decision: { type: "string" }, candidate: { type: "string" }, file: { type: "string" }, path: { type: "string" }, location: { type: "string" }, plate: { type: "string", description: "view picture: a plate of location (by name), or master / plan / map" },
+    description: "Open a view on this page for its person (SNAP-R80; F-A27's twin). view \"library\" opens the Agent library (tab: here = Applies here (default), notes = Instructions, skills; scope: e.g. tool:save_location) (F-D09). view \"book\" with book (book:<id>) opens the Book; lens picks its lens (SNAP-R67). view \"dial\" with dial opens the created dial with rack binding and short comparison controls. view \"room\" opens the Room (SNAP-R70): the person's front door, the newest question first, no machinery. view \"nearby\" with take, path, cast or location opens the Nearby modal on that picture or record (SNAP-R198): what it is and its neighbours, read-only, over what the page shows. view \"location\" with location (location:<id> or @n) opens the Location sheet (its master, the plan with camera marks, the camera map, the plates); masks: true also shows the critic's masks on every picture at once, numbered as in the sheet's list of notes (each with its owner and fix). A sheet or the Book opens in Snap: a page showing the graph switches to Snap first, and the answer's view says what the page shows (F-E02). view \"picture\": a picture full size in Snap's viewer (fit / 100 %, zoom, pan, arrows through its row, Esc closes), on the tab your calls go to, so an agent driving the person's tab can show them a picture. Name it by one of: take (a take id: its pictures and videos, a sheet's views too; index picks one), cast (cast:<id>, ref its picture's number from 0: steps through the Cast's pictures), decision (a candidate decision; candidate picks where it starts: steps through every candidate's pictures), file (a picture in input/), path (output/… or input/…, as candidate_frames and list_candidates give). A location's picture carries the critic's masks for it (numbered boxes; masks: false leaves them off). Nothing changes and the page doesn't navigate; the person closes it. Returns what is showing.",
+    inputSchema: { type: "object", properties: { view: { type: "string", enum: ["picture", "location", "library", "book", "room", "nearby", "dial"] }, book: { type: "string", description: "view book: the Book (book:<id>); lens picks its lens (beat_sheet, settei, boards, cut_bag, the_cut)" }, lens: { type: "string" }, tab: { type: "string", enum: ["skills", "notes", "here"] }, scope: { type: "string" }, take: { type: "string" }, index: { type: "integer", minimum: 0 }, cast: { type: "string" }, ref: { type: "integer", minimum: 0 },
+      dial: { type: "string" }, decision: { type: "string" }, candidate: { type: "string" }, file: { type: "string" }, path: { type: "string" }, location: { type: "string" }, plate: { type: "string", description: "view picture: a plate of location (by name), or master / plan / map" },
       masks: { type: "boolean", description: "the critic's masks: view location shows them on the sheet (default off); view picture of a location draws them (default on)" } }, required: ["view"] },
-    run: async ({ view, take, index = 0, cast, ref = 0, decision, candidate, file, path, location: place, plate, tab = "here", scope, book, lens, masks }) => {
+    run: async ({ dial, view, take, index = 0, cast, ref = 0, decision, candidate, file, path, location: place, plate, tab = "here", scope, book, lens, masks }) => {
       if (view !== "picture" && view !== "nearby" && LB.showing()) LB.close(); // F-F14: a full-size picture left open by an earlier agent would cover the sheet
       if (view === "nearby") { // SNAP-R198: over whatever the page shows, which stays as it was
         const of = take ?? path ?? file ?? cast ?? place;
@@ -1558,6 +1568,7 @@ export const TOOLS = [
         await N.load(); N.subjectOf(of);
         return { showing: await N.openNearby(of), said: "the Nearby modal is open on the person's page, over what it showed (nothing changed): its tiles re-centre it, Esc closes it" };
       }
+      if (view === "dial") { await ui.act("snap"); await D.openResult(document.querySelector(".snap-root"), { dial }); return { showing: "dial", dial }; }
       if (view === "library") return { showing: await ui.act("library", `${tab}${scope ? `|${scope}` : ""}`), said: `the Agent library is open on the person's page (${tab === "notes" ? "Instructions" : tab === "skills" ? "Skills" : "Applies here"}${scope ? `, ${scope}` : ""})` }; // F-D09
       if (view === "room") { const showing = await ui.act("room"); // F-S03 (SNAP-R187): said from what the page shows, never assumed
         if (!showing.room || showing.view === "graph") return { showing, said: `the Room did not open where the person can see it (the page shows ${showing.view}${showing.room ? "" : ", no Room"}): try again, or send them to /?room` };

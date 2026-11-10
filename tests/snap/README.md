@@ -71,7 +71,7 @@ setting on (Let agents run) leaves it on. Read the suite's header before trustin
   another's renders (F-C25).
 - **The stale-result guard**: `run` parks a suite's previous result before the suite starts, so a suite that crashes
   prints `FAIL (no ui/<suite>_result.json: the suite wrote no result)`, never the last run's PASS.
-- **Expected totals** live in `summary`'s checks (`agent`, `agentfull`: MCP 182 tools, WebMCP 177 after G12). A branch that adds or
+- **Expected totals** live in `summary`'s checks (`agent`, `agentfull`; use the current branch's tool table and summary predicates). A branch that adds or
   removes tools changes those numbers in the same commit.
 
 ## Timing suites need a quiet box
@@ -104,3 +104,13 @@ failure there is a real one. Only the gatetest and GPU suites may say `skipped`,
 
 Builders on other branches add their suites to their branch's `tests/snap/` the same way; a suite still in the study's
 proto folder moves here with its paths turned into config reads.
+
+## Paired-workspace CPU regressions
+
+These require Node only and neither open a browser nor contact a server. They exercise actual modules with controlled DOM/queue/save boundaries:
+
+```sh
+node --experimental-vm-modules --test tests/snap/test_conversation_draft.mjs tests/snap/test_dial_result.mjs tests/snap/test_increment_seed.mjs tests/snap/test_live_preview.mjs tests/snap/test_preview_playback.mjs
+```
+
+The full gate also records these as `paired-units.out`. RelayVSR readiness has three CPU cases in `relayvsr/tests/test_preflight.py`; run with the ComfyUI Python environment and set `RELAYVSR_TEST_ARTIFACTS` to the retained fixture output directory.

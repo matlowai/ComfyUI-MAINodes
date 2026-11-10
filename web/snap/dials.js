@@ -42,6 +42,7 @@ const short = (f) => f.replace(/^dials\//, "").replace(/\.safetensors$/, "").rep
 // "frozen ↔ zoomies" when the dial says what its sides give, else its file name
 const side = (t) => (t && !/^\?+$/.test(t.trim()) ? t : ""); // "???" means the side was never named
 export const label = (d) => (side(d?.info?.negative) || side(d?.info?.positive) ? `${side(d.info.negative) || "−"} ↔ ${side(d.info.positive) || "+"}` : short(d?.dial ?? ""));
+export const title = (d) => d?.info?.name || short(d?.dial ?? "Dial");
 export const calibrated = (d) => !!(d?.info?.pos?.useful || d?.info?.neg?.useful);
 // how strong a family's dials run, from their own calibrated useful strengths (median), next to MiniMax H3's: a family
 // whose dials need far more strength says so where dials are picked and set (MOSS-Image ≈ ±4 vs H3 ≈ ±1); agents read
@@ -184,12 +185,26 @@ function bands(d, max) { // shaded useful range and amber overcook beyond it, pe
   return `linear-gradient(90deg, ${no ? `${hot} 0 ${at(-no)},` : ""} ${none} ${no ? at(-no) : "0"} ${nu ? at(-nu) : "50%"}, ${ok} ${nu ? at(-nu) : "50%"} ${pu ? at(pu) : "50%"}, ${none} ${pu ? at(pu) : "50%"} ${po ? at(po) : "100%"}${po ? `, ${hot} ${at(po)} 100%` : ""})`;
 }
 
+// SNAP-R2/R230: the brick plots the time curve it will actually run, not a second draft.
+export const curveDrawingKeys = (spec) => spec.interp === "step" ? spec.points.flatMap((key, i) => i ? [[key[0], spec.points[i - 1][1]], key] : [key]) : spec.points;
+
+export function timePlot(row) {
+  const keys = row.time?.points;
+  if (!keys?.length) return null;
+  const plot = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  plot.setAttribute("viewBox", "0 0 240 64"); plot.setAttribute("role", "img"); plot.setAttribute("aria-label", "Active dial strength over clip time"); plot.classList.add("snap-dial-time-plot");
+  const first = keys[0][0], span = keys.at(-1)[0] - first || 1, gain = Math.max(...keys.map(([, level]) => Math.abs(level * row.strength)), 1);
+  const axis = document.createElementNS(plot.namespaceURI, "path"); axis.setAttribute("d", "M0 32H240"); axis.setAttribute("stroke", "currentColor"); axis.setAttribute("opacity", ".25");
+  const line = document.createElementNS(plot.namespaceURI, "polyline"); line.setAttribute("points", curveDrawingKeys(row.time).map(([at, level]) => `${(at - first) / span * 240},${32 - level * row.strength / gain * 27}`).join(" ")); line.setAttribute("fill", "none"); line.setAttribute("stroke", "currentColor"); line.setAttribute("stroke-width", "2");
+  plot.append(axis, line); return plot;
+}
+
 export function face({ onChange, onPick, onMake }) {
   const list = rows().filter((r) => r.dial), fam = family();
   const others = fam ? list.map((r) => find(r.dial)?.family).filter((f) => f && f !== fam) : [];
   const body = list.map((r) => {
     const d = find(r.dial), max = reach(d);
-    const value = h("b", { className: "snap-dial-v", textContent: `${r.strength >= 0 ? "+" : ""}${Number(r.strength).toFixed(2)}` });
+    const value = h("b", { className: "snap-dial-v", textContent: `${r.time ? "peak " : ""}${r.strength >= 0 ? "+" : ""}${Number(r.strength).toFixed(2)}` });
     const range = h("input", { type: "range", min: -max, max, step: 0.05, value: r.strength, className: "snap-dial-range", title: `${d?.info?.description || r.dial}\nuseful ${d?.info?.pos?.useful ?? "?"} · overcooks ${d?.info?.pos?.overcook ?? "?"}` });
     range.style.setProperty("--bands", bands(d, max));
     range.addEventListener("input", () => { value.textContent = `${range.value >= 0 ? "+" : ""}${Number(range.value).toFixed(2)}`; });
@@ -198,11 +213,11 @@ export function face({ onChange, onPick, onMake }) {
     return h("div", { className: `snap-dial${r.on === false ? " off" : ""}` },
       h("div", { className: "snap-dial-top" },
         h("input", { type: "checkbox", checked: r.on !== false, title: "on / off", onchange: (e) => { set(r.dial, { on: e.target.checked }); onChange(); } }),
-        h("span", { className: "snap-dial-name", textContent: label(d ?? r), title: r.dial }),
+        h("span", { className: "snap-dial-name", textContent: title(d ?? r), title: label(d ?? r) }),
         value,
         h("button", { className: "snap-x", textContent: "×", title: "take it off the rack", onclick: (e) => { e.stopPropagation(); remove(r.dial); onChange(); } })),
       range,
-      r.time ? h("div", { className: "snap-quiet snap-dial-curve", title: "a time curve: the strength over the clip (SNAP-R230)", textContent: `over the clip: ${curveWords(r)}` }) : null,
+      r.time ? [timePlot(r), h("details", {}, h("summary", { textContent: "Timed envelope" }), h("p", { className: "snap-quiet", textContent: curveWords(r) }))] : null,
       h("div", { className: "snap-dial-ends" }, h("span", { textContent: side(d?.info?.negative) || "−" }), calibrated(d) ? null : h("em", { textContent: "uncalibrated" }), h("span", { textContent: side(d?.info?.positive) || "+" })));
   });
   return h("div", { className: "snap-dials" }, ...(body.length ? body : [h("div", { className: "snap-quiet", textContent: "No dials yet" })]),
@@ -342,4 +357,161 @@ export function openMaker(host, { say, onChange }) {
   sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
   host.append(sheet);
   neg.focus();
+}
+
+// SNAP-R65/R239: a dial is an artifact with rack actions, not a picture. Preview jobs use the normal queue.
+let previewing = false;
+export async function previewDial(dial, strengths = [-2, 2], { by = "person", time = null, frames = 22 } = {}) {
+  if (previewing) throw new Error("A dial comparison is already being queued");
+  await load();
+  if (!find(dial)) throw new Error(`Dial is not in this server's catalog: ${dial}`);
+  if (!strengths.length || strengths.some((x) => !Number.isFinite(x))) throw new Error("Choose numeric preview strengths");
+  const rack = E.getValue("rack", "rack", "rack"), length = E.getValue("render", "render", "length");
+  const seed = E.getValue("render", "render", "noise_seed"), seedMode = E.seedMode("render");
+  if (rack == null || length == null || seed == null) throw new Error("Open a video recipe with a Dial Rack and Render before making previews");
+  const curve = timeOf(dial, time).time;
+  if (previewing) throw new Error("A dial comparison is already being queued");
+  previewing = true;
+  const runs = [];
+  try {
+    E.setSeedMode("render", "fixed");
+    for (const strength of strengths) {
+      // Each queued prompt captures these values; restore the person's recipe after the batch.
+      E.setValue("rack", "rack", "rack", JSON.stringify([{ dial, strength, on: true, solo: false, ...(curve ? { time: curve } : {}) }]));
+      E.setValue("render", "render", "length", frames);
+      E.setValue("render", "render", "noise_seed", seed);
+      const id = await J.queueRun({ kind: "run", title: `${curve ? strength === 0 ? "Baseline" : "Envelope trial" : `Dial preview ${strength > 0 ? "+" : ""}${strength}`} · ${title(find(dial))}`, about: { ...J.here(), dial }, by, eta_s: null }, () => app.queuePrompt(0, 1, { queueNodeIds: E.targets() }));
+      const errors = Object.values(app.lastNodeErrors ?? {});
+      if (!id || errors.length) throw new Error(`Preview not queued: ${JSON.stringify(errors)}`);
+      runs.push({ run: id, strength, seed, frames, ...(curve ? { time: curve } : {}) });
+    }
+    return { runs, said: `${runs.length} ${curve ? "timed project trials" : "comparison clips"} queued with the same prompt and seed (${frames} frames each).` };
+  } catch (e) { throw new Error(`${e.message}${runs.length ? `; already queued: ${runs.map((x) => x.run).join(", ")}` : ""}`); }
+  finally {
+    E.setValue("rack", "rack", "rack", rack); E.setValue("render", "render", "length", length);
+    E.setValue("render", "render", "noise_seed", seed); E.setSeedMode("render", seedMode); previewing = false;
+  }
+}
+
+// SNAP-R2/R239: a trial belongs to the recipe whose settings it displays.
+export function trialContext() {
+  const state = E.state();
+  const bricks = state.bricks.map((b) => [b.key, Object.entries(b.nodes).map(([key, id]) => [key, id,
+    (app.graph.getNodeById(id)?.widgets ?? []).filter((w) => w.type !== "button" && w.options?.serialize !== false).map((w) => [w.name, w.value])])]);
+  return { project: app.graph.id, signature: JSON.stringify([app.graph.id, bricks, state.bindings,
+    E.getValue("render", "render", "length"), E.getValue("render", "render", "prompt"), rows()]) };
+}
+
+export async function openResult(root, { dial, report = "", refresh = false }) {
+  await load(true);
+  const d = find(dial);
+  if (!d) throw new Error(`Dial not found in this server's catalog: ${dial}`);
+  if (!root.querySelector(".snap-room")) { const { openRoom } = await import("./room.js"); openRoom(); }
+  const room = root.querySelector(".snap-room"), target = room.querySelector(".snap-room-artifacts"), current = trialContext();
+  const existing = [...target.querySelectorAll(".snap-dial-result")];
+  for (const card of target.children) card.hidden = card.dataset.dial !== dial || card.dataset.project !== String(current.project);
+  room.dispatchEvent(new Event("snap-room-results"));
+  const cached = existing.find((card) => card.dataset.dial === dial && card.dataset.project === String(current.project));
+  if (cached && !refresh) {
+    if (cached.snapRecipe === current.signature) { cached.focus({ preventScroll: true }); return cached; }
+    if (cached.snapDirty) { cached.snapStale(); cached.focus({ preventScroll: true }); return cached; }
+  }
+  if (cached) { report ||= cached.snapReport; cached.remove(); }
+  let bound = current;
+  const activeRow = rows().find((row) => row.dial === dial), originalTime = activeRow?.time ? structuredClone(activeRow.time) : null;
+  let preservedCurve = originalTime ? structuredClone(originalTime) : null;
+  const supported = d.family === "MiniMax H3" && d.mode !== "pre";
+  const mode = h("select", { ariaLabel: "Steering mode" }, h("option", { value: "constant", textContent: "Constant" }),
+    originalTime ? h("option", { value: "existing", textContent: "Current rack curve" }) : null,
+    supported ? h("option", { value: "punch", textContent: "Punch preset (wind-up → release)" }) : null);
+  mode.value = originalTime ? "existing" : "constant";
+  const amplitude = activeRow?.strength ?? useful(d), max = Math.max(reach(d), Math.abs(amplitude), 1);
+  const intensity = h("input", { type: "range", min: -max, max, value: amplitude, step: "0.25", ariaLabel: "Dial strength" });
+  const strength = h("input", { type: "number", value: amplitude, step: "0.25", ariaLabel: "Dial strength value", className: "snap-note-input" });
+  const activeFrames = E.getValue("render", "render", "length"), video = activeFrames != null && E.getValue("render", "render", "noise_seed") != null;
+  const duration = h("select", { ariaLabel: "Trial clip length", className: "snap-note-input" }, h("option", { value: "22", textContent: "About 1 second" }), h("option", { value: "73", textContent: "About 3 seconds" }));
+  if (activeFrames != null && ![22, 73].includes(activeFrames)) duration.append(h("option", { value: String(activeFrames), textContent: `${(activeFrames / 24).toFixed(2)} seconds` }));
+  duration.value = String(activeFrames ?? 22);
+  const snapAt = h("input", { type: "range", step: "0.001", ariaLabel: "Curve peak time" });
+  const peakOf = (c) => c.points.reduce((best, key) => key[1] > best[1] ? key : best, c.points[0])[0];
+  const toSeconds = (at, c) => c.unit === "normalized" ? at * Number(duration.value) / 24 : at;
+  const setPeakBounds = () => { const length = Number(duration.value) / 24; snapAt.min = "0"; snapAt.max = String(length); };
+  setPeakBounds(); snapAt.value = String(preservedCurve?.points?.length ? toSeconds(peakOf(preservedCurve), preservedCurve) : Number(duration.value) / 24 * .6);
+  const curve = () => {
+    if (mode.value === "constant") return null;
+    if (mode.value === "existing") return structuredClone(preservedCurve);
+    const peak = Number(snapAt.value), length = Number(duration.value) / 24;
+    // The explicit preset needs space on both sides; existing curves keep their original timing domain.
+    const at = Math.max(length * .3, Math.min(length * .75, peak));
+    return { unit: "seconds", points: [[0, 0], [at - length * .25, -.4], [at - length * .12, -1], [at - length * .035, -.5], [at, 1], [at + length * .1, .3], [length, 0]], smooth: 0, audio: "protect" };
+  };
+  const chart = document.createElementNS("http://www.w3.org/2000/svg", "svg"); chart.setAttribute("viewBox", "0 0 300 100"); chart.setAttribute("role", "img"); chart.setAttribute("aria-label", "Relative curve level over clip time"); chart.classList.add("snap-dial-envelope");
+  const caption = h("span", { className: "snap-blurb" }), status = h("p", { role: "status", className: "snap-blurb" });
+  const peakControl = h("label", {}, "Curve peak time ", snapAt);
+  const draw = () => {
+    const time = curve(), keys = time?.points;
+    chart.style.display = keys?.length ? "" : "none"; peakControl.hidden = !keys?.length;
+    if (keys?.length) {
+      const line = document.createElementNS(chart.namespaceURI, "polyline"); line.setAttribute("points", curveDrawingKeys(time).map(([t, level]) => `${(time.unit === "normalized" ? t : t / (Number(duration.value) / 24)) * 300},${50 - level * 40}`).join(" ")); line.setAttribute("fill", "none"); line.setAttribute("stroke", "currentColor"); line.setAttribute("stroke-width", "2");
+      const axis = document.createElementNS(chart.namespaceURI, "path"); axis.setAttribute("d", "M0 50H300"); axis.setAttribute("stroke", "currentColor"); axis.setAttribute("opacity", ".25"); chart.replaceChildren(axis, line);
+    }
+    caption.textContent = time ? `${mode.value === "punch" ? "Punch preset" : "Current rack curve"} · peak strength ${strength.value}` : `Constant strength ${strength.value}`;
+  };
+  let priorDuration = Number(duration.value);
+  const edited = () => { sheet.snapDirty = true; draw(); };
+  duration.addEventListener("change", () => {
+    if (preservedCurve?.points && preservedCurve.unit !== "normalized") preservedCurve.points = preservedCurve.points.map(([at, level]) => [at * Number(duration.value) / priorDuration, level]);
+    const ratio = Number(snapAt.value) / (priorDuration / 24); setPeakBounds(); snapAt.value = String(Number(duration.value) / 24 * ratio); priorDuration = Number(duration.value); edited();
+  });
+  intensity.addEventListener("input", () => { strength.value = intensity.value; edited(); });
+  strength.addEventListener("input", () => { if (Number.isFinite(Number(strength.value))) { const reach = Math.max(max, Math.abs(Number(strength.value))); intensity.min = String(-reach); intensity.max = String(reach); intensity.value = strength.value; } edited(); });
+  mode.addEventListener("change", edited);
+  snapAt.addEventListener("input", () => {
+    if (mode.value === "existing" && preservedCurve?.points) {
+      const length = Number(duration.value) / 24, old = toSeconds(peakOf(preservedCurve), preservedCurve), next = Number(snapAt.value);
+      if (old > 0 && old < length) preservedCurve.points = preservedCurve.points.map(([at, level]) => { const seconds = toSeconds(at, preservedCurve), moved = seconds <= old ? seconds * next / old : next + (seconds - old) * (length - next) / (length - old); return [preservedCurve.unit === "normalized" ? moved / length : moved, level]; });
+    }
+    edited();
+  });
+  const reload = h("button", { className: "snap-link", textContent: "Reload current project settings", hidden: true, onclick: () => openResult(root, { dial, report, refresh: true }).catch((e) => { status.textContent = e.message; }) });
+  const stale = () => { status.textContent = "The project changed. Your trial edits are kept here; reload current project settings before comparing."; reload.hidden = false; tryProject.disabled = true; compare.disabled = true; };
+  const assertCurrent = () => { if (trialContext().signature !== bound.signature) { stale(); throw new Error("Project settings changed; reload this trial first."); } };
+  const tryProject = h("button", { className: "snap-accept", textContent: "Try it with this project", disabled: !video, onclick: async () => {
+    tryProject.disabled = true;
+    try {
+      assertCurrent(); const value = Number(strength.value);
+      if (!Number.isFinite(value) || strength.value.trim() === "" || value === 0) throw new Error("Choose a finite, non-zero strength to compare with the baseline.");
+      const time = timeOf(dial, curve()).time;
+      if (rows().some((x) => x.dial === dial)) set(dial, { strength: value, time, on: true }); else add(dial, value, time);
+      E.setValue("render", "render", "length", Number(duration.value));
+      const out = await previewDial(dial, [0, value], { time, frames: Number(duration.value) });
+      bound = trialContext(); sheet.snapRecipe = bound.signature; sheet.snapDirty = false;
+      status.textContent = `${out.said} Baseline first, then ${time ? "the selected curve" : "constant steering"}. The selected trial is in the project's rack.`;
+    } catch (e) { status.textContent = e.message; }
+    finally { tryProject.disabled = !video || trialContext().signature !== bound.signature; }
+  } });
+  const tests = h("input", { type: "text", value: "-2, 2", ariaLabel: "Preview strengths", className: "snap-note-input" });
+  tests.addEventListener("input", edited);
+  const compare = h("button", { className: "snap-accept", textContent: "Compare flat strengths", disabled: !video, onclick: async () => {
+    compare.disabled = true;
+    try { assertCurrent(); status.textContent = (await previewDial(dial, tests.value.split(/[,\s]+/).filter(Boolean).map(Number), { frames: Number(duration.value) })).said; }
+    catch (e) { status.textContent = e.message; }
+    finally { compare.disabled = !video || trialContext().signature !== bound.signature; }
+  } });
+  const close = () => { sheet.hidden = true; };
+  const sheet = h("section", { className: "snap-dial-result snap-proposal", role: "region", ariaLabel: "Dial trial", tabIndex: -1 },
+    h("header", {}, h("span", { className: "snap-agent", textContent: "dial" }), h("strong", { className: "snap-proposal-what", textContent: title(d) }), h("span", { className: "snap-spacer" }), h("button", { className: "snap-reject", textContent: "Close", onclick: close })),
+    h("div", { className: "snap-dial-result-body" },
+      h("p", { className: "snap-blurb", textContent: "Compare the baseline with this dial on your current video project. Constant steering is the default; an existing curve is preserved. Choose a punch preset only when it suits the action." }),
+      h("label", {}, "Steering ", mode), h("label", {}, "Clip length ", duration), h("label", {}, "Strength ", intensity, strength), chart, peakControl, caption, tryProject, status, reload,
+      h("details", {}, h("summary", { textContent: "The dial's two ends" }), h("p", { textContent: label(d) }), h("p", { textContent: d.info?.description ?? "" })),
+      h("details", {}, h("summary", { textContent: "Flat strength sweep" }), h("p", { textContent: "Same prompt, seed and selected clip length. This isolated sweep restores the project's rack afterward." }), tests, compare),
+      h("details", {}, h("summary", { textContent: "Project prompt" }), h("p", { style: "white-space:pre-wrap", textContent: E.getValue("render", "render", "prompt") })),
+      h("details", {}, h("summary", { textContent: "Creation report" }), h("pre", { textContent: report }))));
+  sheet.snapRecipe = bound.signature; sheet.snapReport = report; sheet.snapDirty = false; sheet.snapStale = stale;
+  sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
+  sheet.snapAgentContext = () => trialContext().signature === bound.signature ? { dial, project: bound.project, strength: Number(strength.value), frames: Number(duration.value), time: curve(), label: caption.textContent } : null;
+  sheet.dataset.dial = dial; sheet.dataset.project = String(current.project); draw();
+  if (!video) status.textContent = "Open a video recipe with a Dial Rack to run these comparisons.";
+  target.append(sheet); sheet.focus({ preventScroll: true }); return sheet;
 }

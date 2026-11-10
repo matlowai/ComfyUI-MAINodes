@@ -148,6 +148,8 @@ Tidiness only (measured, never a fix): naming a prop once, joining a Cast line t
 
 ## Working rules
 
+- **Every brick has agent context.** Read the resolved recipe stack before operating, and `instructions {"scope":"brick:<key>"}` for a new target. Steering work on the Dial Rack uses `snap-dials`; the Book autonomy dial is a different control. Missing specialized guidance is unknown coverage.
+
 - **Consistency is data, not prompting.** Words make a new place and a new design every render. Carry pictures and
   state: a location's master and plates, Cast records with turnarounds, positions and facing from cut to cut. One
   continuous H3 video holds a place or a character together; separate stills guess each view again. Inside one prompt,

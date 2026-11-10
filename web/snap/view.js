@@ -18,6 +18,8 @@ import * as P from "./proposals.js";
 import * as crew from "./crew.js";
 import * as rules from "./rules.js";
 import { createDailies } from "./dailies.js";
+import { createLivePreviews } from "./live_preview.js";
+import { playPreview, pausePreview } from "./preview_playback.js";
 import { createSceneBar } from "./sceneview.js";
 import * as SC from "./scenes.js";
 import * as T from "./takes.js";
@@ -653,6 +655,39 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   let chainRun = true;
   api.addEventListener("execution_start", ({ detail }) => { chainRun = ["run", "retake", "rerun", "preview"].includes(J.own(detail?.prompt_id)?.kind ?? "run"); });
   const brickOfNode = (id) => { if (!chainRun) return null; const outer = String(id ?? "").split(":")[0], key = E.state().bricks.find((b) => Object.values(b.nodes).some((n) => String(n) === outer))?.key; return key && shown(key); };
+  // SNAP-R2: current frontend live frames arrive with job/node metadata, not through node.imgs.
+  let liveJobId = null;
+  const liveSeen = new Set();
+  const livePreviews = createLivePreviews((data) => {
+    const active = A.get(data.jobId), job = J.own(data.jobId) ?? active;
+    if (job?.about?.group !== app.graph.id) return null;
+    if (data.jobId !== liveJobId) { if (liveJobId || active?.state !== "running") return null; liveJobId = data.jobId; }
+    const ids = [data.displayNodeId, data.parentNodeId, data.nodeId, data.realNodeId].filter((id) => id != null);
+    const key = ids.map((id) => { const outer = String(id).split(":")[0]; return E.state().bricks.find((b) => Object.values(b.nodes).some((n) => String(n) === outer))?.key; }).find(Boolean);
+    if (!key) return null;
+    let node;
+    for (const part of String(data.realNodeId ?? data.nodeId ?? data.displayNodeId).split(":")) { const graph = node?.subgraph ?? app.graph; node = graph.getNodeById?.(part) ?? graph.nodes?.find((n) => String(n.id) === part); }
+    return { brick: shown(key), graph: app.graph.id, job: data.jobId, stage: node?.title ?? "Sampling" };
+  });
+  function fillLiveSlot(el) {
+    const frame = livePreviews.get(el.dataset.brick, app.graph.id);
+    el.hidden = !frame;
+    const [img, caption] = el.children;
+    if (frame) { if (img.dataset.src !== frame.src) img.src = img.dataset.src = frame.src; caption.textContent = `Live sampling · ${frame.stage}`; }
+    else { img.removeAttribute("src"); delete img.dataset.src; }
+  }
+  function updateLiveSlots() {
+    for (const el of root.querySelectorAll(".snap-live-preview")) fillLiveSlot(el);
+    for (const brick of stack.querySelectorAll(".snap-brick")) {
+      const live = !!livePreviews.get(brick.dataset.brick, app.graph.id);
+      for (const snapshots of brick.querySelectorAll(":scope > .snap-thumbs")) snapshots.hidden = live || liveSeen.has(`${app.graph.id}:${brick.dataset.brick}`);
+    }
+  }
+  function liveSlot(key) { const el = h("figure", { className: "snap-live-preview", hidden: true }, h("img", { alt: "Current sampling preview" }), h("figcaption")); el.dataset.brick = key; fillLiveSlot(el); return el; }
+  api.addEventListener("b_preview_with_metadata", ({ detail }) => { const frame = livePreviews.accept(detail); if (frame) { liveSeen.add(`${frame.graph}:${frame.brick}`); updateLiveSlots(); } });
+  api.addEventListener("execution_start", ({ detail }) => { liveJobId = detail?.prompt_id ?? null; livePreviews.clear(); updateLiveSlots(); });
+  for (const event of ["execution_success", "execution_interrupted", "execution_error"]) api.addEventListener(event, ({ detail }) => { livePreviews.clear(detail?.prompt_id); if (!detail?.prompt_id || detail.prompt_id === liveJobId) liveJobId = null; updateLiveSlots(); });
+  api.addEventListener("status", ({ detail }) => { if (detail?.exec_info?.queue_remaining === 0) { liveJobId = null; livePreviews.clear(); updateLiveSlots(); } });
   const mark = (cls, key) => { for (const el of stack.querySelectorAll(`.snap-brick.${cls}`)) if (el.dataset.brick !== key) el.classList.remove(cls); if (key) brickNode(key)?.classList.add(cls); };
   api.addEventListener("executing", ({ detail }) => { const key = detail == null || typeof detail === "object" && detail.node == null ? null : brickOfNode(detail?.node ?? detail); mark("running", key); if (key) brickNode(key)?.style.setProperty("--run-p", 0); });
   api.addEventListener("execution_start", () => { mark("failed", null); for (const el of stack.querySelectorAll(".snap-brick")) el.removeAttribute("data-error"); });
@@ -797,8 +832,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const el = h("div", { className: "snap-fact snap-seed" }, h("span", { textContent: label }),
       h("div", { className: "snap-seed-row" }, h("b", { textContent: text }),
         h("button", { className: "snap-dice", textContent: "⚄", title: "new seed", ariaLabel: "new seed", onclick: press(() => E.newSeed(brick)) }),
-        h("div", { className: "snap-inline", role: "radiogroup", ariaLabel: "seed mode" }, ["fixed", "random"].map((m) => h("button", { className: m === mode ? "on" : "", role: "radio", ariaChecked: String(m === mode), textContent: m,
-          title: m === "fixed" ? "keep this seed for every run" : "a new seed after each run", onclick: press(() => E.setSeedMode(brick, m)) })))));
+        h("div", { className: "snap-inline", role: "radiogroup", ariaLabel: "seed mode" }, ["fixed", "increment", "random"].map((m) => h("button", { className: m === mode ? "on" : "", role: "radio", ariaChecked: String(m === mode), textContent: m,
+          title: m === "fixed" ? "keep this seed for every run" : m === "increment" ? "increase the seed by one after each queued run" : "a new seed after each run", onclick: press(() => E.setSeedMode(brick, m)) })))));
     el.addEventListener("pointerdown", (e) => { if (e.target.closest("button")) e.stopPropagation(); }); // SNAP-R7: a press here must not select or open the brick
     return el;
   }
@@ -1188,16 +1223,16 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const t = hovered ?? T.inGroup().filter((x) => x.media.length).at(-1), m = t && (t.media.find((x) => x.kind === "video") ?? t.media[0]);
     const [img, vid, tag] = el.children;
     el.hidden = !m;
-    if (!m) return vid.pause();
+    if (!m) return pausePreview(vid);
     el.classList.toggle("previewing", !!hovered);
     tag.textContent = `take ${t.number}${hovered ? " · preview" : " · newest"}`;
     const src = T.url(m), video = m.kind === "video";
     img.hidden = video; vid.hidden = !video;
-    if (!video) { vid.pause(); if (img.dataset.src !== src) img.src = img.dataset.src = src; return; }
+    if (!video) { pausePreview(vid); if (img.dataset.src !== src) img.src = img.dataset.src = src; return; }
     if (vid.dataset.src !== src) vid.src = vid.dataset.src = src;
-    vid.play().catch(() => {});
+    playPreview(vid);
   }
-  const outSlot = () => { const el = h("figure", { className: "snap-out" }, h("img", { alt: "" }), h("video", { muted: true, loop: true, playsInline: true }), h("figcaption")); fillOut(el); return el; };
+  const outSlot = () => { const el = h("figure", { className: "snap-out" }, h("img", { alt: "" }), h("video", { muted: true, loop: true, playsInline: true, preload: "metadata" }), h("figcaption")); fillOut(el); return el; };
   function previewTake(t) {
     hovered = t;
     for (const el of stack.querySelectorAll(".snap-out")) fillOut(el);
@@ -1263,6 +1298,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     if (ends(info.brick)) body.push(outSlot());
     // B11: an Off brick loads nothing, so it shows no picture
     else if (pics.length && info.brick !== "refs" && !(def.off && !isOn(info.brick))) body.push(h("div", { className: "snap-thumbs" }, pics.slice(0, 2).map((src) => h("img", { src, alt: "", loading: "lazy" }))));
+    body.push(liveSlot(info.brick));
     if (info.brick === "rack") body.push(D.face({ onChange: () => render(null), onPick: () => D.openPicker(root, { say, onChange: () => render(null), onMake: openMaker, move: (f) => moveControl(f, moved) }), onMake: openMaker }));
     if (info.brick === "refs") body.push(...picturesFace());
     if (info.brick === "image") body.push(sizeChips()); // UI-10
@@ -1284,7 +1320,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
         h("span", { className: "snap-name", textContent: def.title, title: def.blurb }),
         open ? h("button", { className: "snap-mode", textContent: "⇥", title: "open bricks in the side panel instead (remembered; also in Settings › MAINodes)", onclick: (e) => { e.stopPropagation(); setOpenIn("panel"); } }) : null,
         h("button", { className: "snap-x", textContent: "×", title: "remove from the recipe", onclick: (e) => { e.stopPropagation(); const before = rects(); E.batch(() => { for (const k of group(info.brick)) E.unsnap(k); }); if (selected === info.brick) selected = null; if (opened === info.brick) opened = null; render(before); } })),
-      ...(open ? [details(info)] : [faces.length ? h("div", { className: "snap-face" }, faces) : null, ...body]),
+      ...(open ? [details(info), liveSlot(info.brick)] : [faces.length ? h("div", { className: "snap-face" }, faces) : null, ...body]),
       bindingsLine(info.brick, open ? { ...info, bindings: info.bindings.filter((b) => b.rule === "ask") } : info, true), group(info.brick).flatMap(openNotes).map(noteEl)); // open, the details list the wiring; only questions stay as chips
     // in brick mode a press released in place opens it (a drag moves further); on an open brick, its header closes it. Done on
     // pointerup, before ComfyUI's mouseup change check can re-render the chain and drop the click
@@ -1617,7 +1653,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     title.textContent = app.extensionManager.workflow.activeWorkflow?.filename ?? "Snap";
     fold();
     couple();
-    renderRail(); renderInspector(); renderStatus(); renderProposals(); drawLoraChips();
+    renderRail(); renderInspector(); renderStatus(); renderProposals(); drawLoraChips(); updateLiveSlots();
     drawLanes();
     if (!before) return;
     for (const el of stack.querySelectorAll("[data-brick]")) {

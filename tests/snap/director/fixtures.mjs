@@ -19,7 +19,7 @@ export const tools = [
   tool("animatic", { book: s }, ["book"], gpu), tool("open_shot", { scene: s, shot: s }, ["scene", "shot"]),
   tool("set_unit", { scene: s, shot: s, opens_on: { type: ["object", "null"] }, plate: s }, ["scene", "shot"]),
   tool("compile_unit", { scene: s, shot: s, beats: a }, ["scene", "shot"], ro), tool("apply_unit", { scene: s, shot: s, beats: a, land: o }, ["scene", "shot"]),
-  tool("run", { question: s }, [], gpu), tool("new_seed", { brick: s, mode: { type: "string", enum: ["fixed", "random"] } }),
+  tool("run", { question: s }, [], gpu), tool("new_seed", { brick: s, mode: { type: "string", enum: ["fixed", "increment", "random"] } }),
   tool("wait_for", { job: s, until: { type: "string", enum: ["done", "waiting", "failed", "settled"] } }, ["job"], ro),
   tool("set_active_take", { scene: s, shot: s, take: s }, ["scene", "shot", "take"], pick),
   tool("get_take", { take: s }, ["take"], ro), tool("list_critiques", { state: { type: "string", enum: ["due", "claimed", "done", "all"] } }, [], ro),

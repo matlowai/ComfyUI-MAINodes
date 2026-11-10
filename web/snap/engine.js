@@ -591,9 +591,13 @@ export function overrides() {
 // director's notes, pinned to a brick or (brick null) to the whole recipe; they are part of the work, so they live in
 // the recipe record and each change is one undo step. Agents answer (status "answered" + reply); the person closes.
 export const notes = () => state().notes ?? [];
+const noteListeners = new Set();
+export const onNotesChange = (fn) => { noteListeners.add(fn); return () => noteListeners.delete(fn); };
+const notesChanged = () => { for (const fn of noteListeners) fn(); };
 export function addNote(text, brickKey = null) {
   const note = { id: `n${Date.now().toString(36)}`, brick: brickKey, text, status: "open", created: Date.now() };
   transaction(() => { const s = record(); s.notes = [...(s.notes ?? []), note]; });
+  notesChanged();
   return note;
 }
 // a field on the recipe's own record (e.g. the setup card it was built from), one undo step
@@ -607,13 +611,20 @@ export function remember(brickKey, field, value) {
 }
 
 // a new seed on a brick's seed setting (the face field named like `seed`), drawn within its limits; one undo step. A
-// brick in seed mode "random" draws one after each run this page queues, as ComfyUI's control_after_generate does;
+// random draws a seed and increment advances one after each queued run, as control_after_generate does;
 // "fixed" (the default) keeps it, so takes of one chain differ only by what the person changed
 const seedName = (key) => BRICKS[key]?.face?.find(([, name]) => /seed/.test(name));
 export function newSeed(key) {
   const [nodeKey, name] = seedName(key) ?? (() => { throw new Error(`${key} has no seed`); })();
   const w = widget(nodeFor(key, nodeKey), name), lo = w.options?.min ?? 0, hi = Math.min(w.options?.max ?? 2 ** 32 - 1, 2 ** 32 - 1);
   setValue(key, nodeKey, name, lo + Math.floor(Math.random() * (hi - lo + 1)));
+  return getValue(key, nodeKey, name);
+}
+export function incrementSeed(key) {
+  const [nodeKey, name] = seedName(key) ?? (() => { throw new Error(`${key} has no seed`); })();
+  const w = widget(nodeFor(key, nodeKey), name), lo = w.options?.min ?? 0, hi = Math.min(w.options?.max ?? Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
+  const next = Number(w.value) + 1;
+  setValue(key, nodeKey, name, next > hi ? lo : next);
   return getValue(key, nodeKey, name);
 }
 export function setSeed(key, value) {
@@ -623,15 +634,16 @@ export function setSeed(key, value) {
 export const seedMode = (key) => (seedName(key) ? brick(key)?.seed ?? "fixed" : null);
 export function setSeedMode(key, mode) {
   if (!seedName(key)) throw new Error(`${key} has no seed`);
-  if (!["fixed", "random"].includes(mode)) throw new Error("A seed mode is fixed or random");
-  remember(key, "seed", mode === "random" ? "random" : undefined);
+  if (!["fixed", "increment", "random"].includes(mode)) throw new Error("A seed mode is fixed, increment or random");
+  remember(key, "seed", mode === "fixed" ? undefined : mode);
 }
-api.addEventListener("promptQueued", () => { for (const b of state().bricks) if (b.seed === "random") newSeed(b.key); });
+api.addEventListener("promptQueued", () => { for (const b of state().bricks) { if (b.seed === "random") newSeed(b.key); else if (b.seed === "increment") incrementSeed(b.key); } });
 
 export function updateNote(id, changes) {
   const s = state();
   if (!notes().some((n) => n.id === id)) throw new Error(`No note ${id}`);
   transaction(() => { s.notes = s.notes.map((n) => (n.id === id ? { ...n, ...changes } : n)); });
+  notesChanged();
   return s.notes.find((n) => n.id === id);
 }
 

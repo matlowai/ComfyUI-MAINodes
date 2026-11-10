@@ -19,6 +19,9 @@
 // left out · SNAP-R65 a job shows on its take's card and as a ghost card · SNAP-R71/R72 New view from these pictures (its
 // tray: contextview.js) · SNAP-R81/R82/R113 Make it bigger (upscale.js) · SNAP-R114 the voice note (voices.js) · SNAP-R93 the instructions a take ran under · SNAP-R123 Send to · SNAP-R196 a Cast picture in place of the one it fixes · see docs/snap/SNAP_RULES.md
 import * as T from "./takes.js";
+import { playPreview, pausePreview } from "./preview_playback.js";
+import * as D from "./dials.js";
+import { api } from "../../../scripts/api.js";
 import * as V from "./vault.js";
 import * as CV from "./critiqueview.js"; // SNAP-R103 the critic on the take: its chip, masks and notes
 import * as LB from "./lightbox.js";
@@ -77,7 +80,7 @@ const UNPLACED = [[/^its details line isn't in the prompt that ran$/, () => "its
 const unplaced = (p, ref) => (p.placed?.missing ?? []).filter((m) => !(/^its details line/.test(m) && ref?.startsWith("cast:") && W.all("location").some((r) => W.headOf(r)?.body.from_cast?.startsWith(`${ref}@`)))).map((m) => { const hit = UNPLACED.find(([re]) => re.test(m)); return hit && hit[1](m.match(hit[0])); }).filter(Boolean);
 
 function mediaEl(m, { big, muted = true } = {}) {
-  if (!m) return h("div", { className: "snap-take-none", textContent: "no picture" });
+  if (!m) return h("div", { className: "snap-take-none", textContent: "Result · open to inspect" });
   if (m.kind === "video") return h("video", { src: T.url(m), muted, loop: !big, playsInline: true, preload: big ? "auto" : "metadata", controls: !!big });
   if (m.kind === "image") return h("img", { src: T.url(m), alt: "", loading: "lazy" });
   return h("audio", { src: T.url(m), controls: true });
@@ -191,8 +194,8 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
     c.dataset.take = t.id;
     const v = c.querySelector("video");
     if (v && t.locked) v.poster = T.url(m); // U79: the server answers a picture with the lock tile while the vault is locked
-    c.addEventListener("pointerenter", () => { v?.play().catch(() => {}); onHover?.(t); });
-    c.addEventListener("pointerleave", () => { if (v) { v.pause(); v.currentTime = 0; } onHover?.(null); });
+    c.addEventListener("pointerenter", () => { if (v) playPreview(v); onHover?.(t); });
+    c.addEventListener("pointerleave", () => { if (v) { pausePreview(v); v.currentTime = 0; } onHover?.(null); });
     c.addEventListener("keydown", async (e) => { if (e.key === "Enter") view(t); else if (KEYS[e.key] && e.target === c) { e.preventDefault(); await T.setVerdict(t, t.verdict === KEYS[e.key] ? null : KEYS[e.key]); say(`Take ${t.number}: ${t.verdict ?? "no verdict"}`); } });
     // rank by dragging: dropped on a ranked take it goes just before it, on an unranked one to the end of the ranking
     c.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/snap-take", t.id); e.dataTransfer.effectAllowed = "move"; c.classList.add("dragging"); });
@@ -251,7 +254,22 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
   }
 
   // ---- the take viewer -------------------------------------------------------------------------------------------
-  function view(t) {
+  async function view(t) {
+    // SNAP-R1/R65: non-media outputs show their actual report; known dial artifacts open their own controls.
+    if (!t.media.length) {
+      try {
+        const history = await (await api.fetchApi(`/history/${t.prompt_id}`)).json();
+        const report = Object.values(history[t.prompt_id]?.outputs ?? {}).flatMap((o) => o.text ?? []).join("\n");
+        await D.load(true);
+        const saved = report.match(/^saved (.+)$/m)?.[1];
+        const dial = saved && D.all().find((d) => saved.replaceAll("\\", "/").endsWith(`/${d.dial}`));
+        if (dial) { await D.openResult(host, { dial: dial.dial, report }); await A.opened(t.id); return; }
+        const sheet = h("div", { className: "snap-sheet snap-setup-sheet", role: "dialog", ariaLabel: "Result", tabIndex: -1 },
+          h("header", {}, h("strong", { textContent: "Result" }), h("button", { className: "snap-link", textContent: "Close", onclick: () => sheet.remove() })),
+          h("pre", { style: "white-space:pre-wrap;padding:16px", textContent: report || t.error || "This run returned no media or text output." }));
+        host.append(sheet); await A.opened(t.id); return;
+      } catch (e) { say(e.message, true); return; }
+    }
     A.opened(t.id).catch(() => {}); // the Work card's landed row for this take is now seen (SNAP-R65)
     const close = () => { sheet.remove(); document.removeEventListener("keydown", keys, true); host.focus({ preventScroll: true }); };
     const m = t.media.find((x) => x.kind === "video") ?? t.media[0];

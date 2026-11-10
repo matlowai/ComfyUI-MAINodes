@@ -123,7 +123,7 @@ checks = {
  "agentfull": lambda r: [r["mcpTools"]["n"] == 197 and not r["mcpTools"]["has"], r["setSeed"] == 1234, "wired from Render Preset" in r["setWired"], "takes one of" in r["badChoice"] and bool(r["goodChoice"]),
    "dials/h3_motion_hook.safetensors" in r["dialsFound"], r["setDial"]["strength"] == 1.5, r["uiSelect"]["selected"] == "rack", r["uiDials"] == "Dials" and r["uiClose"] is None,
    r["upload"]["set"]["value"] == r["upload"]["name"], bool(r["run"].get("proposed") and r["makeDial"].get("proposed")), [p["tool"] for p in r["proposals"]] == ["run", "make_dial"],
-   r["undo"]["after"] != r["undo"]["before"] and r["undo"]["redone"] == r["undo"]["before"], r["webmcp"].get("count") == 192 and r["webmcp"].get("strength") == -0.75 and r["webmcp"]["consequential"]["consequentialHint"], r["queue"] == 0, not r["errors"]],
+   r["undo"]["after"] != r["undo"]["before"] and r["undo"]["redone"] == r["undo"]["before"], r["webmcp"].get("count") == 193 and r["webmcp"].get("strength") == -0.75 and r["webmcp"]["consequential"]["consequentialHint"], r["queue"] == 0, not r["errors"]],
  "sight": lambda r: [r["before"]["isError"] and "Let agents see" in r["before"]["text"], r["button"].endswith("Agents can see"), not r["after"]["isError"] and r["after"]["types"] == ["image", "text"] and r["after"]["mime"] == "image/jpeg" and r["after"]["bytes"] > 10000,
    r["stopped"].endswith("Let agents see"), r["queue"] == 0, not r["errors"]],
  "models": lambda r: [r["created"]["model"].startswith("h3/") and r["created"]["lora"].startswith("h3/pika") and r["created"]["current"] == {"name": "Pika H3 Flex", "edited": False},
@@ -708,4 +708,6 @@ nice -n 19 python3 -I "$T"/test_identity_notes.py "$port"
 python3 -I "$T"/test_dataset.py; node "$T"/test_continuity.mjs | head -1; node "$T"/test_continuity_heldout.mjs | head -1; node "$T"/test_coverage.mjs | head -1; node "$T"/test_eyeline_heldout.mjs | head -1
 # SNAP-R272: dependency-free Director contracts; retain every test result in the gate output folder.
 if nice -n 19 node --test "$T"/director/*.test.mjs >director.out 2>&1; then echo "director PASS (complete results: director.out)"; else echo "director FAIL (complete results: director.out)"; fi
+# SNAP-R2/R7/R65/R70: paired UI regressions use no server or model fixtures.
+if nice -n 19 node --experimental-vm-modules --test "$T"/test_conversation_draft.mjs "$T"/test_dial_result.mjs "$T"/test_increment_seed.mjs "$T"/test_live_preview.mjs "$T"/test_preview_playback.mjs >paired-units.out 2>&1; then echo "paired-units PASS (complete results: paired-units.out)"; else echo "paired-units FAIL (complete results: paired-units.out)"; fi
 bash "$T/real_models_guard.sh" after "$stamp" "$real"

@@ -2,6 +2,8 @@
 // The widget IS the state (saved with the workflow, read by the backend); this UI only edits it.
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
+import * as dialCatalog from "./snap/dials.js";
+import * as modelCatalog from "./snap/models.js";
 
 const DEFAULT_STRENGTH = 0.5;   // the sane everyday range is +0.5 .. +1
 const SLIDER = [-3, 3];
@@ -297,6 +299,7 @@ async function presetRequest(path = "", options) {
 let dialFiles = null;
 async function listDials(force) {
   if (!dialFiles || force) {
+    await Promise.all([dialCatalog.load(!!force), modelCatalog.load()]);
     const r = await api.fetchApi("/models/loras");
     const all = r.ok ? await r.json() : [];
     // folders starting with "_" hold parked or invalid dials (e.g. dials/_v1_contaminated/): not offered
@@ -305,6 +308,26 @@ async function listDials(force) {
   }
   return dialFiles;
 }
+
+// Follow MODEL wires and shared model metadata; no node-type guesses or filename-family rules here.
+export function connectedFamily(node) {
+  const queue = [node], seen = new Set(), diffusion = new Set(["base", "sft", "finetune", "turbo_merge"]);
+  while (queue.length) {
+    const next = queue.shift();
+    if (!next || seen.has(next)) continue;
+    seen.add(next);
+    const families = new Set((next.widgets ?? []).filter((w) => typeof w.value === "string" && /\.(safetensors|gguf)$/i.test(w.value))
+      .map((w) => modelCatalog.entry(w.value)).filter((m) => m?.family && diffusion.has(m.kind)).map((m) => m.family));
+    if (families.size) return families.size === 1 ? [...families][0] : null;
+    for (let i = 0; i < (next.inputs ?? []).length; i++) if (next.inputs[i].type === "MODEL") queue.push(next.getInputNode(i));
+  }
+  return null;
+}
+export const requiresHook = (row) => !!(row?.time || row?.envelope != null || row?.blocks != null || row?.hold);
+export const compatibleDials = (files, family, row) => files.filter((file) => {
+  const dial = dialCatalog.find(file);
+  return (!family || dial?.family === family) && (!requiresHook(row) || dial?.mode === "post");
+});
 
 const shortName = (f) => f.replace(/\\/g, "/").replace(/^dials\//, "").replace(/\.safetensors$/, "")
   .replace(/^h3_/, "").replace(/_hook$/, "").replace(/_/g, " ");
@@ -1849,7 +1872,7 @@ class DialRackUI {
   }
 
   addRow(row) {
-    const files = dialFiles || [];
+    const files = compatibleDials(dialFiles || [], connectedFamily(this.node));
     this.rows.push(row || { on: true, dial: files.find((f) => /motion/.test(f)) || files[0] || "", strength: DEFAULT_STRENGTH, solo: false });
     this.commit();
     this.render();
@@ -1873,7 +1896,8 @@ class DialRackUI {
     if (this.dialEditor && (!this.rows.includes(this.dialEditor.r) || this.dialEditor.r.dial !== this.dialEditor.file)) this.dialEditor = null;
     if (this.curve) this.curve.refocus = document.activeElement === this.curve.keys;  // keys keep working across rebuilds
     this.list.replaceChildren();
-    const files = dialFiles || [];
+    const ownFamily = connectedFamily(this.node);
+    const files = compatibleDials(dialFiles || [], ownFamily);
     const active = (r) => r.on && (r.hold || Number(r.strength) !== 0);
     const anySolo = this.rows.some((r) => active(r) && r.solo);
     if (!this.rows.length) this.el("div", { color: "#777", padding: "4px 2px" }, this.list, "No dials yet: add one, or wire a dial into a dial_ input.");
@@ -1897,10 +1921,19 @@ class DialRackUI {
         this.el("span", { flex: "1 1 auto", minWidth: "80px", color: "#8fb4ff" }, row, `⇠ ${r.input}`).title = "dial wired into this input";
       } else {
         const sel = this.el("select", { flex: "1 1 auto", minWidth: "80px", background: "#111", color: "#eee", border: "1px solid #333", borderRadius: "3px" }, row);
-        const opts = files.includes(r.dial) || !r.dial ? files : [r.dial, ...files];
-        const label = labels(opts);
-        for (const f of opts) { const o = this.el("option", {}, sel, label(f) + (files.includes(f) ? "" : "  (missing)")); o.value = f; }
-        sel.value = r.dial;
+        const updateChoices = () => {
+          const family = connectedFamily(this.node), choices = compatibleDials(dialFiles || [], family, r);
+          const opts = choices.includes(r.dial) || !r.dial ? choices : [r.dial, ...choices], label = labels(opts);
+          sel.replaceChildren();
+          for (const file of opts) {
+            const selectedElsewhere = !choices.includes(file), known = (dialFiles || []).includes(file);
+            const suffix = selectedElsewhere ? known ? requiresHook(r) && dialCatalog.find(file)?.mode === "pre" ? " (LoRA variant; curve unsupported)" : ` (${dialCatalog.find(file)?.family ?? "unknown family"}; saved selection)` : " (missing)" : "";
+            const option = this.el("option", {}, sel, label(file) + suffix); option.value = file;
+          }
+          sel.value = r.dial; sel.setAttribute("aria-label", family ? `${family} dials` : "Dials (model family unknown)");
+        };
+        updateChoices();
+        sel.addEventListener("pointerdown", updateChoices); sel.addEventListener("focus", updateChoices);
         const about = this.dialInfo(r.dial);
         const range = (v) => `useful ${v.useful ?? "?"}, overcook ${v.overcook ?? "?"}`;
         sel.title = r.dial + (about.description ? "\n\n" + about.description : "") +
@@ -1908,6 +1941,8 @@ class DialRackUI {
           (about.pipeline ? `, ${about.pipeline}` : "") + (about.notes ? `\n${about.notes}` : "");
         sel.onchange = () => { r.dial = sel.value; this.commit(); this.render(); };
       }
+      const pre = !("input" in r) && dialCatalog.find(r.dial)?.mode === "pre";
+      if (pre && requiresHook(r)) this.el("div", { color: "#ffc145", fontSize: "11px", padding: "3px 4px" }, this.list, "This row's curve or hold needs a hook dial; the saved LoRA variant is incompatible.");
       const slider = this.el("input", { width: "110px", accentColor: "#ffc145" }, row);
       Object.assign(slider, { type: "range", min: SLIDER[0], max: SLIDER[1], step: 0.05, value: r.strength });
       const num = this.el("input", { width: "58px", background: "#111", color: "#ffc145", border: "1px solid #333", borderRadius: "3px", textAlign: "right" }, row);
@@ -1922,7 +1957,7 @@ class DialRackUI {
       const envelope = this.el("select", { width: "76px", background: "#111", color: "#ddd", border: "1px solid #333" }, row);
       envelope.title = "Strength over denoising progress: early, late, bell, or manual points (post-refiner dials only)";
       for (const kind of ["constant", "early", "late", "bell", "manual"]) {
-        const option = this.el("option", {}, envelope, kind); option.value = kind;
+        const option = this.el("option", {}, envelope, kind); option.value = kind; option.disabled = pre && kind !== "constant";
       }
       envelope.value = typeof r.envelope === "string" ? r.envelope : r.envelope?.type || "constant";
       if (this.rows.some((x) => x.on && x.hold)) {  // the backend refuses envelopes in a rack with active holds
@@ -1938,6 +1973,7 @@ class DialRackUI {
         () => { this.blocksEditing = this.blocksEditing === i ? null : i; this.render(); },
         Object.assign({ padding: "1px 4px", width: "60px" }, this.blocksEditing === i ? { background: "#3b3220", borderColor: "#ffc145", color: "#ffc145" } : {}));
       if (r.blocks) drawBlocks(this.el("canvas", { display: "block", width: "50px", height: "12px" }, strip), r.blocks, null, 50, 12);
+      if (pre) { strip.disabled = true; strip.title = "Block steering needs a hook dial."; }
       if (r.hold) {
         strip.disabled = true; strip.style.opacity = "0.4";
         strip.title = "Hold rows remove the whole direction; block strengths apply to strength rows.";
@@ -1948,7 +1984,7 @@ class DialRackUI {
       const mini = this.el("canvas", { display: "block", width: "50px", height: "12px" }, clip);
       drawTime(mini, r.time || { type: "keys", points: [[0, 1], [1, 1]], unit: "normalized", interp: "linear" }, this.clipSeconds(), this.curveAudio, 50, 12);
       if (!r.time) mini.style.opacity = "0.45";  // flat: the whole clip at the row's strength
-      const blocker = r.hold ? "Hold rows remove the whole direction; time curves apply to strength rows."
+      const blocker = pre ? "A clip-time curve needs a hook dial; this is a LoRA variant." : r.hold ? "Hold rows remove the whole direction; time curves apply to strength rows."
         : this.rows.some((x) => x.on && x.hold) ? "Time curves and hold rows cannot share a rack: turn the hold rows off."
           : r.envelope || r.blocks ? "A time curve replaces the row's step envelope and block strengths: set them back to constant / all." : "";
       if (blocker && !r.time) { clip.disabled = true; clip.style.opacity = "0.4"; clip.title = blocker; }

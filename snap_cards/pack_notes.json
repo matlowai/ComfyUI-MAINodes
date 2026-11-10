@@ -709,6 +709,174 @@
    "text": "Unscripted speech in a cut where nobody speaks is a leaked voice reference (H3 speaks a reference's own words): take the voice out of that cut and re-run; record references on lines the script doesn't use.",
    "rule": "SNAP-R240",
    "more": "skill snap-voice; dogfood F-SQ11, F-SQ12"
+  },
+  {
+   "id": "global/read-snap-instructions",
+   "scope": "global",
+   "kind": "note",
+   "text": "Before operating a Snap brick, read describe_recipe and its resolved instructions; follow the brick notes and applicable Snap skills. For a target not in the recipe, read instructions with scope brick:<key>. A generic node uses its exposed schema, bindings and node documentation; missing specific guidance is unknown coverage, not permission to guess.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-core"
+  },
+  {
+   "id": "brick/models",
+   "scope": "brick:models",
+   "kind": "note",
+   "text": "Keep the text encoder and VAEs compatible with the active setup family. Read actual installed choices and describe_recipe model checks before changing them; downloads are separate authorized work.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-core"
+  },
+  {
+   "id": "brick/preset",
+   "scope": "brick:preset",
+   "kind": "note",
+   "text": "This brick owns the diffusion model, turbo LoRA, conditioning and sampling schedule together. Prefer an installed setup or method; preserve its intended schedule rather than treating more steps as better quality.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-core"
+  },
+  {
+   "id": "brick/rack",
+   "scope": "brick:rack",
+   "kind": "note",
+   "text": "Dials steer along prompt-pair directions: negative toward A, positive toward B; quality and scale depend on model and pipeline. Read snap-dials. Use the current project brief, keep names short, and distinguish flat strength checks from a creative strength-over-clip-time curve. Show the proposed envelope and compare actual results before calling a direction calibrated.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-dials"
+  },
+  {
+   "id": "brick/first_frame",
+   "scope": "brick:first_frame",
+   "kind": "note",
+   "text": "A supplied first frame pins the opening composition and can reduce motion freedom. Verify the actual image and enabled state against the intended action; without a supplied picture this brick stays off.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-core"
+  },
+  {
+   "id": "brick/refs",
+   "scope": "brick:refs",
+   "kind": "note",
+   "text": "Inspect every reference picture and its role before use. References can become target poses or framings; preserve identity and continuity without adding an unintended endpoint or conflicting props.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-core"
+  },
+  {
+   "id": "brick/render",
+   "scope": "brick:render",
+   "kind": "note",
+   "text": "Render the current project brief, not the starter prompt. Inspect enabled inputs, prompt, seed, duration and lint; keep comparison inputs fixed except the intended variable, and review actual video and sound. Seed modes are fixed, increment (advance by one after queueing), and random; switching mode alone does not change the current seed.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-core"
+  },
+  {
+   "id": "brick/image_models",
+   "scope": "brick:image_models",
+   "kind": "note",
+   "text": "Keep the image model, text encoder and VAE in one compatible installed setup. Verify the family and model checks before changing files or mixing LoRAs.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-core"
+  },
+  {
+   "id": "brick/loras",
+   "scope": "brick:loras",
+   "kind": "note",
+   "text": "Core LoRAs belong to the setup: check family, turbo and fix roles before adding or stacking them. Do not silently replace setup behavior while making a look change.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-core"
+  },
+  {
+   "id": "brick/style",
+   "scope": "brick:style",
+   "kind": "note",
+   "text": "Style LoRAs change the look. Check the model family and measured strengths, keep identity separate, and compare on the same project inputs before adopting a look.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-core"
+  },
+  {
+   "id": "brick/cast",
+   "scope": "brick:cast",
+   "kind": "note",
+   "text": "Character LoRAs carry identity. Preserve the chosen Cast and its trigger/reference provenance; changing identity is a human creative choice and must stay attributable.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-core"
+  },
+  {
+   "id": "brick/image",
+   "scope": "brick:image",
+   "kind": "note",
+   "text": "Use the actual project subject, setting, framing and style. Check whether prompt enhancement is on; it can enrich short prompts or change details. Inspect the generated image before promoting it to a reference.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-core"
+  },
+  {
+   "id": "brick/image_upscale",
+   "scope": "brick:image_upscale",
+   "kind": "note",
+   "text": "Distinguish learned upscaling from plain resizing. Inspect the selected method, installed model and target dimensions; enlarging a picture does not verify identity or correct design errors.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-core"
+  },
+  {
+   "id": "brick/image_resize",
+   "scope": "brick:image_resize",
+   "kind": "note",
+   "text": "This is deterministic resizing, not new detail generation. Preserve aspect ratio and framing unless requested; read the output dimensions rather than treating scale as a quality score.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-core"
+  },
+  {
+   "id": "brick/save_image",
+   "scope": "brick:save_image",
+   "kind": "note",
+   "text": "Save to the intended project destination using the person's metadata and privacy settings. Check the actual file returned; do not call an unsaved preview a delivered image.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-core"
+  },
+  {
+   "id": "brick/upscale",
+   "scope": "brick:upscale",
+   "kind": "note",
+   "text": "Read the selected upscale method, enabled state, output size and installed requirements. Review frames and sound after processing; upscaling does not repair unverified motion or continuity by itself.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-core"
+  },
+  {
+   "id": "brick/save_video",
+   "scope": "brick:save_video",
+   "kind": "note",
+   "text": "Save the intended project video with its sound, destination and metadata/privacy settings. Verify the actual saved result; a successful job or contact sheet alone does not establish a good delivered clip.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-core"
+  },
+  {
+   "id": "dials/make-context",
+   "scope": "tool:make_dial",
+   "kind": "note",
+   "text": "Read snap-dials and brick:rack instructions. Write matched A/B prompts differing in the intended quality, with clear separate endpoint labels. Use a short name. Creating a dial makes a steering artifact, not a video; evaluate with the current project and label unmeasured effects honestly.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-dials"
+  },
+  {
+   "id": "dials/preview-context",
+   "scope": "tool:preview_dial",
+   "kind": "note",
+   "text": "Read snap-dials and the current recipe. Flat -2/+2 short clips are a rough direction check, not proof of useful strength or punchy motion. For action timing propose a strength-over-clip-time curve and compare a baseline at the same seed; do not confuse clip time with denoising progress.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-dials"
+  },
+  {
+   "id": "dials/add-context",
+   "scope": "tool:add_dial",
+   "kind": "note",
+   "text": "Read brick:rack instructions and the dial's family/pipeline evidence. Explain the project effect; rack binding is an implementation detail. For a timed action, plan the curve as well as its peak strength.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-dials"
+  },
+  {
+   "id": "dials/set-context",
+   "scope": "tool:set_dial",
+   "kind": "note",
+   "text": "Read brick:rack instructions. Time keys describe clip seconds or normalized clip time; effective steering is row strength times key level, which may change sign. Preserve the rest of the rack and compare timing and amplitude separately.",
+   "rule": "SNAP-R93",
+   "more": "skill snap-dials"
   }
  ]
 }

@@ -10,7 +10,7 @@
 import { app } from "../../../scripts/app.js";
 
 export const KINDS = ["run", "retake", "rerun", "paint", "propagate", "extend", "upscale", "louder", "eyes", "plate", "check", "preview", "make_dial", "settei", "board", "compile", "prose", "cut", "critique"]; // critique: a critic row (critiques.js, SNAP-R101), never a queued prompt; eyes: keep eye colour after a redraw (SNAP-R134)
-export const ABOUT = ["take", "group", "scene", "shot", "decision", "candidate", "set", "camera", "slot", "book", "beat", "unit", "entity", "state"];
+export const ABOUT = ["take", "group", "scene", "shot", "decision", "candidate", "set", "camera", "slot", "book", "beat", "unit", "entity", "state", "dial"];
 export const BY = ["person", "agent"];
 
 // the agent whose call is running (instructions.setCaller sets it per bridge call): its runs carry its name, so its page

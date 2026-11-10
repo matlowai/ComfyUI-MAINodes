@@ -510,13 +510,49 @@ export const STYLE = `
 .snap-take-markers i.right { background: #57c785; }
 .snap-take-sheet aside { display: flex; flex-direction: column; gap: 8px; overflow: auto; min-height: 0; }
 /* SNAP-R70 the Room: one question at a time, pictures full width, phone first */
-.snap-room { position: absolute; inset: 0; z-index: 400; display: flex; flex-direction: column; background: var(--s-app); overflow: auto; outline: none; font-size: 15px; }
-.snap-room-head { position: sticky; top: 0; display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--s-bg); border-bottom: 1px solid var(--s-line); z-index: 1; }
+.snap-dial-result { display: block; width: 100%; box-sizing: border-box; border: 1px solid var(--s-line); border-radius: 12px; overflow: hidden; }
+.snap-dial-result > header { display: flex; gap: 10px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--s-line); }
+.snap-dial-time-plot { display: block; width: 100%; height: 54px; color: #c4b5fd; background: #a78bfa0c; border-radius: 8px; }
+.snap-dial-envelope { width: 100%; height: 90px; color: #c4b5fd; background: #a78bfa0c; border-radius: 8px; }
+.snap-room-q.snap-proposal { align-items: stretch; }
+.snap-dial-result-body .snap-accept { align-self: flex-start; margin-left: 0; }
+.snap-dial-result-body { min-width: 0; box-sizing: border-box; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.snap-dial-result-body .snap-blurb { white-space: normal; overflow: visible; }
+.snap-dial-result-body pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.snap-live-preview { margin: 8px 0 0; }
+.snap-live-preview img { display: block; width: 100%; max-height: 240px; object-fit: contain; border-radius: 8px; background: #000; }
+.snap-live-preview figcaption { margin-top: 4px; font-size: 11px; color: var(--s-dim); }
+.snap-room { position: absolute; top: 72px; left: 24px; height: min(820px, calc(100% - 96px)); max-height: calc(100% - 96px); width: min(680px, calc(100% - 48px)); z-index: 400; display: flex; flex-direction: column; background: color-mix(in srgb, var(--s-app) 88%, transparent); backdrop-filter: blur(4px); border: 1px solid var(--s-line); border-radius: 12px; box-shadow: 0 16px 56px #0005; overflow: hidden; outline: none; font-size: 13px; }
+.snap-room-resize { position: absolute; z-index: 5; touch-action: none; }
+.snap-room-resize.right { right: 0; top: 54px; bottom: 16px; width: 7px; cursor: ew-resize; }
+.snap-room-resize.bottom { bottom: 0; left: 12px; right: 16px; height: 7px; cursor: ns-resize; }
+.snap-room-resize.corner { right: 0; bottom: 0; width: 18px; height: 18px; cursor: nwse-resize; background: repeating-linear-gradient(135deg, transparent 0 4px, #a78bfa88 4px 5px); clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+.snap-room-resize:focus-visible { outline: 2px solid var(--s-accent); outline-offset: -2px; }
+.snap-room-map { padding: 12px 16px; max-height: 210px; overflow: auto; flex-shrink: 0; border-bottom: 1px solid var(--s-line); }
+.snap-room-map > p { font-size: 12px; margin: 5px 0; }
+.snap-room-map-node { border-left: 2px solid #a78bfa88; margin: 6px 0 0 10px; }
+.snap-room-map-node::before { content: "↳"; color: #c4b5fd; }
+.snap-room-map-pick { all: unset; display: block; cursor: pointer; padding: 5px 0; font-size: 13px; }
+.snap-room-map-pick:hover { color: var(--s-accent); }
+.snap-room-map-deps { font-size: 12px; color: var(--s-dim); }
+.snap-room-tabs { display: flex; gap: 4px; padding: 8px 16px; flex-shrink: 0; border-bottom: 1px solid var(--s-line); }
+.snap-room-tabs button { all: unset; cursor: pointer; padding: 8px 10px; border-radius: 8px; font-size: 13px; }
+.snap-room-tabs button[aria-selected=true] { background: var(--s-card); color: var(--s-accent); }
+.snap-room-tabs button:focus-visible, .snap-room-map button:focus-visible { outline: 2px solid var(--s-accent); }
+.snap-room-results { padding: 12px 16px; }
+.snap-room-result-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.snap-room-result-list summary { cursor: pointer; }
+.snap-room-artifacts:empty { display: none; }
+.snap-room-heading { display: flex; flex-direction: column; min-width: 0; gap: 3px; }
+.snap-room-heading > span { font-size: 12px; }
+.snap-room-context { overflow-wrap: anywhere; }
+@media (max-width: 700px) { .snap-room { top: 64px; left: 10px; height: calc(100% - 74px); max-height: calc(100% - 74px); width: calc(100% - 20px); } }
+.snap-room-head { position: sticky; top: 0; display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: color-mix(in srgb, var(--s-bg) 92%, transparent); border-bottom: 1px solid var(--s-line); z-index: 1; }
 .snap-room-head .snap-link { margin: 0; }
 .snap-room-reply { margin: 0 auto; padding: 10px 16px 0; width: min(760px, 100%); box-sizing: border-box; color: var(--s-dim); min-height: 1.4em; }
 .snap-room-body { width: min(760px, 100%); margin: 0 auto; padding: 8px 16px 40px; box-sizing: border-box; display: flex; flex-direction: column; gap: 22px; }
 .snap-room-q { display: flex; flex-direction: column; gap: 10px; }
-.snap-room-q h2 { margin: 6px 0 0; font-size: 20px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.snap-room-q h2 { margin: 6px 0 0; font-size: 14px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
 .snap-room-q.quiet h2 { color: var(--s-dim); font-weight: 500; }
 .snap-room-where, .snap-room-stakes { margin: 0; color: var(--s-dim); }
 .snap-room-pics { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
@@ -533,7 +569,20 @@ export const STYLE = `
 .snap-room-box b { position: absolute; bottom: 100%; font-style: normal; left: -2px; margin-bottom: 2px; padding: 0 5px; border-radius: 4px; background: var(--c); color: #0b0c0f; font-size: 12px; line-height: 16px; } /* the number sits above its box, never over what it marks */
 .snap-room-notes { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 10px; }
 .snap-room-notes li p { margin: 0; overflow-wrap: anywhere; } .snap-room-notes li .snap-room-where { font-size: 14px; margin-top: 2px; }
-.snap-room-why { all: unset; box-sizing: border-box; width: 100%; padding: 11px 13px; border-radius: 11px; background: var(--s-card); box-shadow: inset 0 0 0 1px var(--s-line); }
+.snap-room-why { all: unset; display: block; min-height: 64px; max-height: 240px; overflow-y: auto; resize: none; white-space: pre-wrap; box-sizing: border-box; width: 100%; padding: 11px 13px; border-radius: 11px; background: var(--s-card); box-shadow: inset 0 0 0 1px var(--s-line); }
+.snap-room-compose { padding: 14px 16px; border-top: 1px solid var(--s-line); }
+.snap-room-compose-actions { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.snap-room-compose-actions p { flex: 1; font-size: 12px; }
+.snap-room-messages { padding: 0 16px; display: flex; flex-direction: column; gap: 12px; }
+.snap-room-message { padding: 12px; border-radius: 12px; background: var(--s-card); }
+.snap-room-message p { margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.snap-room-message small { color: var(--s-dim); }
+.snap-room-agent-reply { margin-top: 12px; border-top: 1px solid var(--s-line); padding-top: 10px; }
+.snap-room-compose { flex-shrink: 0; }
+.snap-room-body, .snap-room-messages, .snap-room-results { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.snap-room-head { flex-shrink: 0; cursor: move; touch-action: none; }
+.snap-room-head button { cursor: pointer; }
+.snap-room-results .snap-room-pic { max-height: 34vh; }
 .snap-room-verdict { display: flex; flex-wrap: wrap; gap: 8px; }
 .snap-room-verdict .snap-primary, .snap-room-verdict .snap-link, .snap-room-pics .snap-primary { margin: 0; padding: 12px 18px; text-align: center; }
 .snap-room-pics .snap-primary { align-self: stretch; }
