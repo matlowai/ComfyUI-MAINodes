@@ -4,6 +4,7 @@
 # it serves where it listens, so the bridge finds its Snap tab (a tab that sees: calls go there by default, beside a
 # person's tab with "Let agents see" on), captures it for screenshot and reloads it after an update (the chrome tool). It
 # can be the person's main tab. Whatever answers on 9222 is that window: it is attached to, never started a second time.
+# Set SNAP_CHROME_SOFTWARE=1 to opt into software rendering/video decode when GPU pressure causes stalls.
 #   start    (default) attach to it when it answers on 9222; open it on <base>/?snap only when nothing does; wait for its
 #            Snap tab. A window with no tab on this ComfyUI gets none by itself: another tab is the person's call (new)
 #   status   whether it runs, its port and its tabs
@@ -79,9 +80,11 @@ start() {
     chrome=${SNAP_CHROME_BIN:-$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)}
     [ -n "$chrome" ] || { echo "No Chrome or Chromium found on PATH." >&2; return 1; }
     mkdir -p "$profile"
+    # SNAP-R83: software rendering is a local fallback, not a default for every machine.
     flags=(--user-data-dir="$profile" --remote-debugging-port="$port" --remote-debugging-address=127.0.0.1 --no-first-run --no-default-browser-check --new-window
       --host-resolver-rules="MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE localhost, EXCLUDE $host"
       --auto-accept-this-tab-capture --auto-select-tab-capture-source-by-title=Snap --enable-features=WebMCP ${extra:+"--window-name=$extra"} "$url")
+    if [ "${SNAP_CHROME_SOFTWARE:-0}" = 1 ]; then flags=(--disable-gpu --disable-accelerated-video-decode "${flags[@]}"); fi
     if command -v systemd-run >/dev/null && systemctl --user show-environment >/dev/null 2>&1; then
       env=(); for v in DISPLAY WAYLAND_DISPLAY XAUTHORITY XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS; do [ -n "${!v:-}" ] && env+=(-E "$v=${!v}"); done
       systemctl --user reset-failed "$unit" 2>/dev/null || true

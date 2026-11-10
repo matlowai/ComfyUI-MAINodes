@@ -33,6 +33,7 @@ never another tab without the person's yes.
     bash $PACK/tools/snap_agent_page.sh $BASE status     # whether it runs, its DevTools port, its tabs
     bash $PACK/tools/snap_agent_page.sh $BASE reload     # reload its Snap tab, e.g. after the ComfyUI restarted
 
+- `SNAP_CHROME_SOFTWARE=1` opts into software rendering and video decode when GPU pressure causes browser stalls. Acceleration remains the default; changing the option applies at the next normal browser start/restart. Do not restart a busy human session just to change it.
 - The agents' window is ONE Chrome (profile `~/.config/snap-agent-chrome`, DevTools on 127.0.0.1:9222). Whatever
   answers on 9222 is it: the script attaches and never starts a second one. It opens it only when nothing answers there,
   and only on a display (it never runs headless). Its tab counts as a tab that sees: your calls go there by default,
