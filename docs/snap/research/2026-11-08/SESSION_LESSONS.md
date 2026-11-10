@@ -84,3 +84,12 @@ Current implementation and qualification: [paired workspace status](../../PAIRED
 - **Backend replay and UI readiness are separate.** An early diagnostic import poisoned ComfyUI’s compatibility module before initialization. A normal reload and readiness-guarded probe restored the page; the durable journal was intact. Wait for the real UI before importing compatibility modules in diagnostics.
 - **Keep the UI ordinary.** Preserve people’s text and full agent answers; put command payloads and activity details behind expandable controls. Expose connection/delivery state without turning the Room into a runtime dashboard.
 - **Write down the supported boundary.** The current lease covers one Snap service/account, not every independent native client or multiple server processes sharing storage. Record unqualified concurrency, long-session, startup, accessibility and native request cases before calling a pilot a universal workspace.
+
+
+## Conversation source-review corrections — 2026-11-09
+
+The [review findings and revised acceptance gates](../../CONVERSATION_REVIEW_2026-11-09.md) retain exact source owners and distinguish isolated reproductions from native runtime tests. No implementation fix is claimed by these planning updates.
+
+- **Guard approval dispatch as well as the button.** A file card withholding Allow without a diff does not protect a shared response helper that still accepts it. Command cards also offered Allow with missing operation text. Require the exact matching operation and action kind at both presentation and outbound acceptance, retaining stale/unknown refusal.
+- **A replay cursor is not a delivery worklist.** Reading startup history advances the subscription cursor. Messages awaiting the same adapter during an outage can then be skipped even when they are not deliberately excluded as pre-attachment history. Reconstruct pending work from durable disposition/receipts; initial-attachment history needs an explicit human choice. Never turn uncertain delivery into an automatic retry.
+- **Context is not an execution guard.** Naming the intended project in a prompt helps reasoning but does not mechanically prevent a write to a newly selected graph. Require and validate the existing project/page association at native mutation/queue and proposal-acceptance owners, including asynchronous boundaries. Journal isolation is a different test.

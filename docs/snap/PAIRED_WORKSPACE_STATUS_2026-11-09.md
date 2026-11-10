@@ -31,7 +31,7 @@ The full dedicated-server Snap gate was not run: this checkout has no configured
 ## Remaining work
 
 1. Run the full dedicated integration gate before merging or production landing; include concurrency and cross-workflow navigation, accessibility and classic/Vue renderer parity.
-2. Qualify the new [connected-conversation pilot](CONVERSATION_STATUS_2026-11-09.md): real native questions/permissions, recovery/concurrency and UI session lifecycle; then ACP/other agents. Active and idle Send plus streamed replies are now evidenced for the initial local Codex pilot. Director notes retain their separate annotation path.
+2. Address the [confirmed conversation review findings and acceptance gates](CONVERSATION_REVIEW_2026-11-09.md), then qualify the [connected-conversation pilot](CONVERSATION_STATUS_2026-11-09.md): real native questions/permissions, recovery/concurrency and UI session lifecycle; then ACP/other agents. Active and idle Send plus streamed replies are now evidenced for the initial local Codex pilot. Director notes retain their separate annotation path.
 3. Exercise prior-run drop/recipe rehydration with real saved workflows; it was intentionally deferred during current-run UX work.
 4. Offer native stage-1 and stage-2 output preservation, and a genuine cache-only recovery guard. Selecting stage 1 may otherwise resample after cache eviction.
 5. Reproduce and address copied-shot fallback behavior with an unsaved source, without hiding missing recipe state.

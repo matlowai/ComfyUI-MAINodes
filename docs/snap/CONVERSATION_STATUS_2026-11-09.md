@@ -28,6 +28,10 @@ Conversation uses an account-scoped backend event journal, independent of graph 
 
 Source and tests: [adapter/service guide](CONVERSATION_ADAPTERS.md), [journal routes](../../snap_conversations.py), [Codex adapter](../../tools/snap_chat.py), [Room](../../web/snap/room.js), [CPU adapter tests](../../tests/snap/test_chat_adapter.py), [HTTP/SSE tests](../../tests/snap/test_conversation_service.py). Complete private session logs, live receipts and screenshots are retained locally; they are not published with the source.
 
+## Source review follow-up
+
+The [review of e80f220 and explicit acceptance subnodes](CONVERSATION_REVIEW_2026-11-09.md) confirms missing-operation approval, pre-attachment backlog handling, an additional outage-queued-message delivery gap, contextual-only execution identity and stale footer wording. Rendering cost is a source-based concern, not a measured slowdown. These are planned fixes; the pilot is not requalified by recording them.
+
 ## Remaining dependency DAG
 
 Planning does not authorize experiments, installs or private-fixture jobs. Each row is a separately reviewable slice; serialize changes to shared owners. The local project handoff retains operational identities and evidence paths.
@@ -35,8 +39,8 @@ Planning does not authorize experiments, installs or private-fixture jobs. Each 
 | Node / priority | Inputs and owned outputs | Blocked by | Status | Acceptance gate |
 |---|---|---|---|---|
 | R0 / P0 | Existing pilot, guide, lessons and this status index; scoped source review/branch commit | — | local pilot evidenced; research-branch publication authorized | Source, tests, decisions and explicit limits recoverable from the branch; no private journals/media/credentials included |
-| R1 / P0 | Runtime request adapter, service response routes and Room request controls | R0 | pending live qualification | Real questions and command/file permissions answered in Snap; pending request survives or is honestly reconciled after refresh/reconnect; external resolution and stale/duplicate answers handled; no policy weakening or creative-approval bypass |
-| R2 / P0 | Service journal/leases, adapter delivery/replay, client stream | R0 | targeted cases pass; broader work pending | Disconnect/process death at delivery boundaries; rapid sends and actual immediate project switching; no lost/duplicate accepted action; partial-response recovery; explicit corrupt-tail behavior; durable backup/recovery; multiple server writers either excluded or serialized; bounded UI cost without silent history truncation |
+| R1 / P0 | Runtime request adapter, service response routes, native mutation owners and Room controls; see R1A–R1G in the review | R0 | confirmed defects/boundary gaps; fixes and live gate pending | Real questions and command/file permissions answered in Snap; pending request survives or is honestly reconciled after refresh/reconnect; external resolution and stale/duplicate answers handled; no policy weakening or creative-approval bypass |
+| R2 / P0 | Service journal/leases, adapter worklist/delivery/replay, client stream; see R2A–R2C | R0 | targeted cases pass; outage-queued input gap confirmed; broader work pending | Disconnect/process death at delivery boundaries; rapid sends and actual immediate project switching; no lost/duplicate accepted action; partial-response recovery; explicit corrupt-tail behavior; durable backup/recovery; multiple server writers either excluded or serialized; bounded UI cost without silent history truncation |
 | R3 / P0 | Existing connection owner and Room controls | R1, R2 | pending | Choose/attach/resume/reconnect a known session from the UI, visible capabilities/mode, startup lifecycle, and a separate intentional Stop action; Disconnect must not imply cancellation; no simultaneous controllers inside the supported boundary |
 | R4 / P1 | Provider-neutral service/Room; one ACP client adapter | R1, R2 | planned | Negotiate real provider capabilities and exercise another supported agent without changing the Room or creative-tool registry; distinguish saved-session loading from live CLI attachment |
 | R5 / P1 | Existing director notes, instructions, decisions and journal reference/context fields | R0 | planned | Explicitly turn selected conversation content into a pinned project note/decision with origin and links; show relevant note/artifact context; preserve human/agent attribution; never silently promote chat into instructions |
@@ -44,7 +48,7 @@ Planning does not authorize experiments, installs or private-fixture jobs. Each 
 | R7 / P2 | Existing take/frame/mask/shot owners plus contextual chat references | R2, R5 | planned | Attach the exact selected artifact/region and provenance; editable voice input/output only as separately scoped work, with cancellation and no duplicate action |
 | R8 / release gate | All selected changes and configured dedicated test servers/fixtures | R1, R2, R3 | pending | Full Snap integration, actual cross-project navigation, keyboard/accessibility, classic/Vue parity and concurrency checks; never use a personal instance as a destructive fixture |
 
-Recommended next implementation slice: **R1, real agent questions/permissions and their recovery**. Basic conversation now works; questions that force the person back to a terminal are the next direct break in the paired workflow. R2 findings should be fixed at their current owners as they are reproduced. ACP follows the proven text/permission flow.
+Recommended next implementation slice: **R1A, refuse acceptance without the exact native operation**, followed by R1C project/page enforcement, R1B/R2A pending-message disposition and outage recovery, and R1D/R1G real native questions/permissions plus the combined live gate. Preserve the parent R1/R2/R3-before-ACP ordering; the review supplies concrete subnodes instead of restructuring the architecture.
 
 ## Notes, continuity and scope
 

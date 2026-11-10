@@ -1,6 +1,6 @@
 # Connected conversations
 
-[Current pilot evidence and prioritized dependency DAG](CONVERSATION_STATUS_2026-11-09.md).
+[Current pilot evidence and prioritized dependency DAG](CONVERSATION_STATUS_2026-11-09.md) · [confirmed review findings and acceptance gates](CONVERSATION_REVIEW_2026-11-09.md).
 
 Conversation in the Room is a durable project journal, separate from graph undo and director notes. The browser subscribes to a local event stream. An optional external adapter connects an agent session and journals its text, delivery receipts, activity and questions. ComfyUI does not call a model, handle model credentials or launch an inference runtime.
 
@@ -18,13 +18,17 @@ python tools/snap_chat.py --base http://127.0.0.1:8188 \
 
 `--socket` selects a nondefault local control socket. `SNAP_TOKEN` and `SNAP_USER` use the existing account boundary. Keep the adapter running; the CLI window can be hidden for ordinary conversation. No new thread, model override, context-setting change or approval-policy override is sent. A currently active thread is marked live; continuation of an idle thread is marked resume. This distinction does not establish hot-attachment support for another provider.
 
+The current source review identifies pending-message disposition and outage-recovery gaps: pre-attachment and outage-queued messages can stay in history without delivery. Explicit Send pending / Keep as history and startup worklist reconstruction are planned in R1B/R2A; do not assume reconnect flushes every saved message.
+
 Send while idle uses `turn/start`. Send while working uses `turn/steer` with its expected active turn id. A stale-turn rejection is reported rather than silently reinterpreted. Stable journal ids make a repeated browser send idempotent. Delivery intent is persisted before invoking the agent; uncertain acceptance after disconnect is recorded and never blindly resent. Recovery uses accepted turn identities and full agent-message snapshots, including older pending turns.
 
-Agent deltas and completed messages enter the journal directly, including unsolicited messages. Neither the browser nor an MCP `answer_note` call is required for each reply. Refreshing the browser replays journal events; switching workflows shows the other project's journal while accepted work and replies remain bound to the original conversation. Graph undo never changes that journal. Existing director notes remain available separately under Project notes.
+Agent deltas and completed messages enter the journal directly, including unsolicited messages. Neither the browser nor an MCP `answer_note` call is required for each reply. The project context in a message is currently an agent instruction, not a mandatory execution guard; R1C plans to enforce the expected project/page at native mutation owners.
+
+Refreshing the browser replays journal events; switching workflows shows the other project's journal while accepted work and replies remain bound to the original conversation. Graph undo never changes that journal. Existing director notes remain available separately under Project notes.
 
 One controller lease per provider session is enforced within this Snap service/account. Disconnect invalidates its transport token; it does not cancel already accepted agent work. An unrelated native CLI client can still send to its runtime. Avoid using both interfaces to control a turn concurrently; Snap does not claim to prevent actions taken outside its lease system. Runtime-resolved approval notifications reconcile answers made elsewhere.
 
-Commands offer Allow once or Decline. File approvals offer approval only when actual changes are available. Structured user questions can be answered in Snap. Unsupported request kinds remain visible and require the runtime's own interface. Responses are tied to their live controller epoch; stale requests cannot grant permission after reconnect. Outstanding approval replay across a native runtime reconnect still requires live qualification. Synthetic HTTP and adapter tests are not evidence that every native permission path works.
+Current command cards offer Allow once or Decline, but review confirmed they can do so even when the operation is absent; the outbound response path also lacks that guard. R1A must require the exact operation before acceptance. This is a known P0 defect, not a qualified approval path. File approvals offer approval only when actual changes are available. Structured user questions can be answered in Snap. Unsupported request kinds remain visible and require the runtime's own interface. Responses are tied to their live controller epoch; stale requests cannot grant permission after reconnect. Outstanding approval replay across a native runtime reconnect still requires live qualification. Synthetic HTTP and adapter tests are not evidence that every native permission path works.
 
 ## Storage and local service
 
