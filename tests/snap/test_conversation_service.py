@@ -61,7 +61,7 @@ class ServiceTests(unittest.IsolatedAsyncioTestCase):
     async def test_approval_response_is_explicit_idempotent_and_not_reused_after_reconnect(self):
         c = await self.create('p'); url = self.prefix + '/' + c['id']; binding = await self.bind(c['id'])
         headers = {'X-Snap-Conversation-Token': binding['token']}
-        request = {'id': 'q', 'type': 'agent.request', 'data': {'id': 'q', 'title': 'Allow?', 'body': 'command', 'choices': [{'id': 'accept', 'label': 'Allow once'}]}}
+        request = {'id': 'q', 'type': 'agent.request', 'data': {'id': 'q', 'title': 'Allow?', 'body': 'command', 'operation': {'kind': 'command', 'command': 'example', 'cwd': '/project'}, 'choices': [{'id': 'accept', 'label': 'Allow once'}]}}
         await self.client.post(url + '/adapter', headers=headers, json={'events': [request]})
         answer = {'request': 'q', 'response': {'choice': 'accept'}}
         for _ in range(2): self.assertEqual((await self.client.post(url + '/respond', json=answer)).status, 200)
@@ -69,5 +69,19 @@ class ServiceTests(unittest.IsolatedAsyncioTestCase):
         await self.bind(c['id'])
         self.assertEqual((await self.client.post(url + '/respond', json=answer)).status, 409)
         self.assertEqual((await self.client.post(url + '/adapter', headers=headers, json={'events': []})).status, 409)
+
+    async def test_http_cannot_invent_acceptance_for_unreviewable_or_unoffered_action(self):
+        c = await self.create('p'); url = self.prefix + '/' + c['id']; binding = await self.bind(c['id'])
+        headers = {'X-Snap-Conversation-Token': binding['token']}
+        for identity, choices in [('unoffered', []), ('no-operation', [{'id': 'accept', 'label': 'Allow once'}])]:
+            request = {'id': identity, 'type': 'agent.request', 'data': {'id': identity, 'title': 'Unresolved operation', 'body': 'No verified action', 'choices': choices}}
+            await self.client.post(url + '/adapter', headers=headers, json={'events': [request]})
+            response = await self.client.post(url + '/respond', json={'request': identity, 'response': {'choice': 'accept'}})
+            self.assertEqual(response.status, 409)
+        request = {'id': 'decline-only', 'type': 'agent.request', 'data': {'id': 'decline-only', 'title': 'Unknown command', 'body': 'Unavailable', 'choices': [{'id': 'decline', 'label': 'Decline'}]}}
+        await self.client.post(url + '/adapter', headers=headers, json={'events': [request]})
+        self.assertEqual((await self.client.post(url + '/respond', json={'request': 'decline-only', 'response': {'choice': 'decline'}})).status, 200)
+        history = await (await self.client.get(url)).json()
+        self.assertFalse(any(e['type'] == 'human.response' and e['data']['response'].get('choice') == 'accept' for e in history['events']))
 
 if __name__ == '__main__': unittest.main()

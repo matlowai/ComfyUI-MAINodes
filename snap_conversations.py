@@ -181,9 +181,21 @@ def register(routes, manager):
             if pending['data'].get('controller') != status.get('epoch'):
                 raise ValueError('This question belongs to an earlier connection; wait for the agent to reconcile it')
             response = body['response']
-            choices = pending['data'].get('choices')
-            if choices and response.get('choice') not in {c['id'] for c in choices}:
-                raise ValueError('Choose one of the offered answers')
+            if not isinstance(response, dict):
+                raise ValueError('A response must contain an offered choice or question answers')
+            choices = pending['data'].get('choices') or []
+            questions = pending['data'].get('questions') or []
+            if set(response) == {'choice'}:
+                if response['choice'] not in {c['id'] for c in choices}:
+                    raise ValueError('Choose one of the offered answers')
+                if response['choice'] == 'accept' and not (isinstance(pending['data'].get('operation'), dict) and pending['data']['operation']):
+                    raise ValueError('The exact reviewed operation is unavailable')
+            elif set(response) == {'answers'} and questions:
+                values = response['answers']
+                if not isinstance(values, dict) or set(values) != {q['id'] for q in questions} or not all(isinstance(v, str) for v in values.values()):
+                    raise ValueError('Every question needs a text answer')
+            else:
+                raise ValueError('This request does not offer that response')
             event = log.append('response:' + body['request'], 'human.response', {'request': body['request'], 'response': response})
             await log.notify()
             return web.json_response(event)

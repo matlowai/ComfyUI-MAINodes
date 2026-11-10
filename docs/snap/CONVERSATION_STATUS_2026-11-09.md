@@ -30,7 +30,7 @@ Source and tests: [adapter/service guide](CONVERSATION_ADAPTERS.md), [journal ro
 
 ## Source review follow-up
 
-The [review of e80f220 and explicit acceptance subnodes](CONVERSATION_REVIEW_2026-11-09.md) confirms missing-operation approval, pre-attachment backlog handling, an additional outage-queued-message delivery gap, contextual-only execution identity and stale footer wording. Rendering cost is a source-based concern, not a measured slowdown. These are planned fixes; the pilot is not requalified by recording them.
+The [review of e80f220 and explicit acceptance subnodes](CONVERSATION_REVIEW_2026-11-09.md) confirms missing-operation approval, pre-attachment backlog handling, an additional outage-queued-message delivery gap, contextual-only execution identity and stale footer wording. Rendering cost is a source-based concern, not a measured slowdown. R1A exact-operation validation is now implemented with focused adapter/HTTP evidence; other findings remain open. New R2D browser-send identity and R2E snapshot/delta tests block the combined reliability gate; recording them does not qualify the pilot.
 
 ## Remaining dependency DAG
 
@@ -48,7 +48,7 @@ Planning does not authorize experiments, installs or private-fixture jobs. Each 
 | R7 / P2 | Existing take/frame/mask/shot owners plus contextual chat references | R2, R5 | planned | Attach the exact selected artifact/region and provenance; editable voice input/output only as separately scoped work, with cancellation and no duplicate action |
 | R8 / release gate | All selected changes and configured dedicated test servers/fixtures | R1, R2, R3 | pending | Full Snap integration, actual cross-project navigation, keyboard/accessibility, classic/Vue parity and concurrency checks; never use a personal instance as a destructive fixture |
 
-Recommended next implementation slice: **R1A, refuse acceptance without the exact native operation**, followed by R1C project/page enforcement, R1B/R2A pending-message disposition and outage recovery, and R1D/R1G real native questions/permissions plus the combined live gate. Preserve the parent R1/R2/R3-before-ACP ordering; the review supplies concrete subnodes instead of restructuring the architecture.
+R1A exact-operation validation now passes focused checks. Recommended next slice: **R1C project/page enforcement**, followed by R1B/R2A pending-message disposition/outage recovery, R2D/R2E send identity and stream reconciliation, and R1D/R1G native questions/permissions plus a positive authorized MCP round-trip and wrong-project refusal. Preserve the parent R1/R2/R3-before-ACP ordering; the review supplies concrete subnodes instead of restructuring the architecture.
 
 ## Notes, continuity and scope
 

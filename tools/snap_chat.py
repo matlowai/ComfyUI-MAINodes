@@ -131,21 +131,65 @@ class Codex:
 
 
 
+def approval_operation(event, turn):
+    """Resolve only the exact pending native action; never infer stdin/network or a parent callback."""
+    p, method = event.get('params', {}), event.get('method')
+    if (not all(isinstance(p.get(k), str) and p[k] for k in ('threadId', 'turnId', 'itemId'))
+            or not turn or turn.get('id') != p['turnId'] or turn.get('status') != 'inProgress'):
+        return None
+    item = next((i for i in turn.get('items', []) if i.get('id') == p['itemId']), None)
+    identity = {k: p[k] for k in ('threadId', 'turnId', 'itemId')}
+    if method == 'item/commandExecution/requestApproval':
+        if p.get('kind', 'command') != 'command' or p.get('networkApprovalContext') is not None:
+            return None
+        if item and (item.get('type') != 'commandExecution' or item.get('status') in ('completed', 'failed', 'declined')):
+            return None
+        callback = p.get('approvalId')
+        command, cwd = p.get('command'), p.get('cwd')
+        # A callback can be for a subcommand of the item; missing callback text must not use its parent.
+        if callback is None and item:
+            if command is not None and item.get('command') is not None and command != item['command']:
+                return None
+            if cwd is not None and item.get('cwd') is not None and cwd != item['cwd']:
+                return None
+            command = command if command is not None else item.get('command')
+            cwd = cwd if cwd is not None else item.get('cwd')
+        if not isinstance(command, str) or not command.strip() or not isinstance(cwd, str) or not cwd.strip():
+            return None
+        return {**identity, 'kind': 'command', 'command': command, 'cwd': cwd,
+            'approvalId': callback, 'environmentId': p.get('environmentId')}
+    if method == 'item/fileChange/requestApproval':
+        if p.get('grantRoot') is not None or not item or item.get('type') != 'fileChange' or item.get('status') in ('completed', 'failed', 'declined'):
+            return None
+        changes = item.get('changes')
+        if not isinstance(changes, list) or not changes or any(not isinstance(c, dict)
+                or not isinstance(c.get('path'), str) or not c['path'].strip()
+                or not isinstance(c.get('diff'), str) or not c['diff'].strip() or not c.get('kind') for c in changes):
+            return None
+        return {**identity, 'kind': 'fileChange', 'changes': json.loads(json.dumps(changes))}
+    return None
+
+
 def request_card(event, turn):
     method, p = event['method'], event.get('params', {})
     card = {'id': str(event['id']), 'title': 'Your agent needs an answer', 'body': p.get('reason') or 'Your agent needs your input before continuing.', 'details': p}
-    if method == 'item/commandExecution/requestApproval':
-        card['title'] = 'Allow this command?'
-        card['body'] += '\n\nCommand:\n' + (p.get('command') or '(see details)') + '\n\nWorking directory:\n' + (p.get('cwd') or '(not specified)')
-        card['choices'] = [{'id': 'accept', 'label': 'Allow once'}, {'id': 'decline', 'label': 'Decline'}]
-    elif method == 'item/fileChange/requestApproval':
-        item = next((i for i in (turn or {}).get('items', []) if i.get('id') == p.get('itemId')), None)
-        if not item or not item.get('changes'):
-            card['title'] = 'File approval needs review in your agent'
-            return card  # Never offer blind file approval without the actual changes.
-        card['body'] += '\n\n' + json.dumps(item['changes'], indent=2, ensure_ascii=False)
-        card['title'] = 'Allow these file changes?'
-        card['choices'] = [{'id': 'accept', 'label': 'Allow once'}, {'id': 'decline', 'label': 'Decline'}]
+    if method in ('item/commandExecution/requestApproval', 'item/fileChange/requestApproval'):
+        operation = approval_operation(event, turn)
+        card['choices'] = [{'id': 'decline', 'label': 'Decline'}]
+        if operation is None:
+            card['title'] = 'Exact operation unavailable · review in your agent'
+            card['body'] += '\n\nAllow is unavailable until the exact pending operation can be verified.'
+            return card
+        card['operation'] = operation
+        card['choices'].insert(0, {'id': 'accept', 'label': 'Allow once'})
+        if operation['kind'] == 'command':
+            card['title'] = 'Allow this command?'
+            card['body'] += '\n\nCommand:\n' + operation['command'] + '\n\nWorking directory:\n' + operation['cwd']
+            if operation['environmentId']:
+                card['body'] += '\n\nEnvironment:\n' + str(operation['environmentId'])
+        else:
+            card['title'] = 'Allow these file changes?'
+            card['body'] += '\n\n' + json.dumps(operation['changes'], indent=2, ensure_ascii=False)
     elif method == 'item/tool/requestUserInput':
         card['questions'] = [{'id': q['id'], 'prompt': q['question'],
             'options': [o['label'] for o in q.get('options') or []]} for q in p['questions']]
@@ -154,19 +198,22 @@ def request_card(event, turn):
     return card
 
 
-def request_response(event, answer):
+def request_response(event, answer, turn=None, reviewed=None):
     if event['method'] in ('item/commandExecution/requestApproval', 'item/fileChange/requestApproval'):
-        if answer.get('choice') not in ('accept', 'decline'):
+        if answer.get('choice') not in ('accept', 'decline') or set(answer) != {'choice'}:
             raise ValueError('Unsupported approval decision')
+        if answer['choice'] == 'accept':
+            operation = approval_operation(event, turn)
+            if operation is None or reviewed is None or operation != reviewed:
+                raise ValueError('The exact operation is unavailable, stale or different from the reviewed action')
         return {'decision': answer['choice']}
     if event['method'] == 'item/tool/requestUserInput':
         ids = {q['id'] for q in event['params']['questions']}
         values = answer.get('answers', {})
-        if set(values) != ids:
-            raise ValueError('Every question needs an answer')
+        if set(answer) != {'answers'} or not isinstance(values, dict) or set(values) != ids or not all(isinstance(v, str) for v in values.values()):
+            raise ValueError('Every question needs a text answer')
         return {'answers': {k: {'answers': [v]} for k, v in values.items()}}
     raise ValueError('This request must be answered in the agent interface')
-
 
 class Ledger:
     def __init__(self, path, thread, page):
@@ -289,13 +336,14 @@ class Attachment:
         if 'id' in event:
             card = request_card(event, await self.provider.latest())
             card['id'] = self.transport + ':' + str(event['id'])
-            self.requests[card['id']] = event
+            self.requests[card['id']] = {'event': event, 'reviewed': card.get('operation')}
             self.events.append(self.event('request:' + card['id'], 'agent.request', card))
             self.phase = 'needs_input'
         elif method == 'serverRequest/resolved':
-            identity = self.transport + ':' + str(p['requestId'])
-            self.requests.pop(identity, None)
-            self.events.append(self.event('resolved:' + identity, 'request.resolved', {'id': identity}))
+            identities = [key for key, record in self.requests.items() if record['event']['id'] == p['requestId']] or [self.transport + ':' + str(p['requestId'])]
+            for identity in identities:
+                self.requests.pop(identity, None)
+                self.events.append(self.event('resolved:' + identity, 'request.resolved', {'id': identity}))
         elif method in ('item/started', 'item/completed'):
             item = p['item']
             if item['type'] == 'agentMessage':
@@ -321,6 +369,32 @@ class Attachment:
                     await self.receipt(identity, receipt)
             self.ledger.save()
 
+    async def answer_request(self, identity, answer):
+        record = self.requests.get(identity)
+        if not record:
+            return False
+        event = record['event']
+        turn = await self.provider.latest() if answer.get('choice') == 'accept' else None
+        try:
+            if event.get('params', {}).get('threadId') != self.provider.thread:
+                raise ValueError('The request belongs to a different agent session')
+            result = request_response(event, answer, turn, record['reviewed'])
+        except ValueError as exc:
+            # An old answer must not authorize a newly resolved or changed operation.
+            self.requests.pop(identity)
+            self.events.append(self.event('resolved:' + identity, 'request.resolved', {'id': identity}))
+            self.counter += 1
+            card = request_card(event, turn)
+            card['id'] = self.transport + ':review:' + str(self.counter)
+            card['body'] += '\n\nYour previous answer was not sent: ' + str(exc)
+            self.requests[card['id']] = {'event': event, 'reviewed': card.get('operation')}
+            self.events.append(self.event('request:' + card['id'], 'agent.request', card))
+            return False
+        await self.provider.respond(event['id'], result)
+        self.requests.pop(identity)
+        self.events.append(self.event('resolved:' + identity, 'request.resolved', {'id': identity}))
+        return True
+
     async def run(self):
         baseline = await self.attach()
         self.phase = 'working' if baseline and baseline['status'] == 'inProgress' else 'idle'
@@ -338,11 +412,7 @@ class Attachment:
                     if event['type'] == 'human.message' and event['id'] not in self.initial and event['data'].get('wake', True) and event['id'] not in self.ledger.data['messages']:
                         await self.submit(event['id'], event['data'], await self.provider.latest())
                     elif event['type'] == 'human.response':
-                        request = self.requests.get(event['data']['request'])
-                        if request:
-                            await self.provider.respond(request['id'], request_response(request, event['data']['response']))
-                            identity = event['data']['request']; self.requests.pop(identity)
-                            self.events.append(self.event('resolved:' + identity, 'request.resolved', {'id': identity}))
+                        await self.answer_request(event['data']['request'], event['data']['response'])
                 while not self.provider.events.empty():
                     await self.consume(self.provider.events.get_nowait())
                 batch, self.events = self.events, []

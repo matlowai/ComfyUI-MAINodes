@@ -1,5 +1,6 @@
 """SNAP-R17/R18/R30/R70: CPU-only journal/adapter tests; no model or personal server."""
 import importlib.util
+import copy
 import json
 import os
 from pathlib import Path
@@ -89,13 +90,112 @@ class AdapterTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_no_blind_file_approval(self):
         card = chat.request_card({'id': 1, 'method': 'item/fileChange/requestApproval', 'params': {'itemId': 'x'}}, None)
-        self.assertNotIn('choices', card)
+        self.assertEqual([c['id'] for c in card['choices']], ['decline'])
 
     async def test_command_decision_has_no_persistent_permission(self):
-        event = {'id': 2, 'method': 'item/commandExecution/requestApproval', 'params': {'command': 'example'}}
-        self.assertEqual(chat.request_response(event, {'choice': 'accept'}), {'decision': 'accept'})
+        event, turn = self.command_fixture()
+        reviewed = chat.request_card(event, turn)['operation']
+        self.assertEqual(chat.request_response(event, {'choice': 'accept'}, turn, reviewed), {'decision': 'accept'})
         with self.assertRaises(ValueError): chat.request_response(event, {'choice': 'acceptForSession'})
         with self.assertRaises(ValueError): chat.request_response({'method': 'unknown'}, {})
+
+    @staticmethod
+    def command_fixture():
+        event = {'id': 2, 'method': 'item/commandExecution/requestApproval', 'params': {
+            'threadId': 't', 'turnId': 'turn', 'itemId': 'cmd', 'kind': 'command', 'command': "printf 'review only'", 'cwd': '/project'}}
+        turn = {'id': 'turn', 'status': 'inProgress', 'items': [{'id': 'cmd', 'type': 'commandExecution',
+            'status': 'inProgress', 'command': "printf 'review only'", 'cwd': '/project'}]}
+        return event, turn
+
+    async def test_missing_command_cannot_be_approved_via_card_or_outbound_helper(self):
+        event, turn = self.command_fixture(); event['params']['command'] = None; turn['items'] = []
+        card = chat.request_card(event, turn)
+        self.assertEqual([c['id'] for c in card['choices']], ['decline'])
+        with self.assertRaises(ValueError): chat.request_response(event, {'choice': 'accept'}, turn, {'forged': True})
+        self.assertEqual(chat.request_response(event, {'choice': 'decline'}), {'decision': 'decline'})
+
+    async def test_matching_item_resolves_exact_command_and_directory(self):
+        event, turn = self.command_fixture(); event['params'].update(command=None, cwd=None)
+        card = chat.request_card(event, turn)
+        self.assertIn("printf 'review only'", card['body']); self.assertIn('/project', card['body'])
+        self.assertEqual(chat.request_response(event, {'choice': 'accept'}, turn, card['operation']), {'decision': 'accept'})
+        with self.assertRaises(ValueError): chat.request_response(event, {'choice': 'accept'}, turn)
+
+    async def test_wrong_turn_item_status_type_and_conflicting_operation_refuse_allow(self):
+        event, original = self.command_fixture()
+        cases = []
+        for field, value in [('id', 'wrong'), ('status', 'completed')]:
+            turn = copy.deepcopy(original); turn[field] = value; cases.append(turn)
+        for field, value in [('type', 'fileChange'), ('status', 'completed'), ('command', 'other'), ('cwd', '/other')]:
+            turn = copy.deepcopy(original); turn['items'][0][field] = value; cases.append(turn)
+        for turn in cases:
+            with self.subTest(turn=turn): self.assertNotIn('operation', chat.request_card(event, turn))
+
+    async def test_stdin_network_and_subcommand_are_never_replaced_by_parent_command(self):
+        event, turn = self.command_fixture()
+        for kind in ['writeStdin', 'humanCommand', 'unknown']:
+            event['params']['kind'] = kind
+            self.assertNotIn('operation', chat.request_card(event, turn))
+        event['params']['kind'] = 'command'; event['params']['networkApprovalContext'] = {'host': 'example.invalid'}
+        self.assertNotIn('operation', chat.request_card(event, turn))
+        event['params'].pop('networkApprovalContext'); event['params'].update(approvalId='callback', command=None)
+        self.assertNotIn('operation', chat.request_card(event, turn))
+        event['params']['command'] = 'exact subcommand'
+        self.assertEqual(chat.request_card(event, turn)['operation']['command'], 'exact subcommand')
+
+    async def test_file_diff_is_reviewed_and_checked_again_before_acceptance(self):
+        event, turn = self.command_fixture(); event['method'] = 'item/fileChange/requestApproval'
+        item = turn['items'][0]; item.update(type='fileChange', changes=[{'path': '/project/file', 'kind': {'type': 'update'}, 'diff': '-old\n+new'}])
+        card = chat.request_card(event, turn); reviewed = card['operation']
+        self.assertIn('+new', card['body'])
+        self.assertEqual(chat.request_response(event, {'choice': 'accept'}, turn, reviewed), {'decision': 'accept'})
+        item['changes'][0]['diff'] = '-old\n+different'
+        with self.assertRaises(ValueError): chat.request_response(event, {'choice': 'accept'}, turn, reviewed)
+        item['changes'] = []
+        with self.assertRaises(ValueError): chat.request_response(event, {'choice': 'accept'}, turn, reviewed)
+        event['params']['grantRoot'] = '/project'
+        self.assertNotIn('operation', chat.request_card(event, turn))
+
+    async def test_actual_adapter_response_path_blocks_stale_accept_and_keeps_decline(self):
+        event, turn = self.command_fixture(); card = chat.request_card(event, turn)
+        class Provider:
+            thread = 't'
+            def __init__(self): self.calls = []
+            async def latest(self): return {'id': 'new-turn', 'status': 'inProgress', 'items': []}
+            async def respond(self, identity, result): self.calls.append((identity, result))
+        class Ledger: data = {'id': 'adapter'}
+        provider = Provider(); adapter = chat.Attachment(None, provider, Ledger())
+        adapter.requests['local'] = {'event': event, 'reviewed': card['operation']}
+        self.assertFalse(await adapter.answer_request('local', {'choice': 'accept'})); self.assertEqual(provider.calls, [])
+        new_id = next(iter(adapter.requests)); new_card = adapter.events[-1]['data']
+        self.assertEqual([c['id'] for c in new_card['choices']], ['decline'])
+        self.assertTrue(await adapter.answer_request(new_id, {'choice': 'decline'}))
+        self.assertEqual(provider.calls, [(event['id'], {'decision': 'decline'})])
+        self.assertFalse(await adapter.answer_request(new_id, {'choice': 'decline'}))
+
+    async def test_actual_adapter_forwards_only_the_displayed_unchanged_operation(self):
+        event, turn = self.command_fixture()
+        class Provider:
+            thread = 't'
+            def __init__(self): self.calls = []
+            async def latest(self): return turn
+            async def respond(self, identity, result): self.calls.append((identity, result))
+        class Ledger: data = {'id': 'adapter'}
+        provider = Provider(); adapter = chat.Attachment(None, provider, Ledger())
+        adapter.requests['local'] = {'event': event, 'reviewed': chat.request_card(event, turn)['operation']}
+        self.assertTrue(await adapter.answer_request('local', {'choice': 'accept'}))
+        self.assertFalse(await adapter.answer_request('local', {'choice': 'accept'}))
+        self.assertEqual(provider.calls, [(event['id'], {'decision': 'accept'})])
+
+    async def test_external_resolution_closes_a_reissued_local_review(self):
+        event, turn = self.command_fixture()
+        class Provider: thread = 't'
+        class Ledger: data = {'id': 'adapter'}
+        adapter = chat.Attachment(None, Provider(), Ledger())
+        adapter.requests['replacement-local-id'] = {'event': event, 'reviewed': None}
+        await adapter.consume({'method': 'serverRequest/resolved', 'params': {'threadId': 't', 'requestId': event['id']}})
+        self.assertEqual(adapter.requests, {})
+        self.assertEqual(adapter.events[-1]['data']['id'], 'replacement-local-id')
 
     async def test_unsolicited_agent_stream_is_journaled_without_human_note(self):
         class Ledger: data = {'id': 'one', 'messages': {}}
