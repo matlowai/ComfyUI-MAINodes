@@ -22,7 +22,7 @@ const brickArg = { type: "string", description: "a brick made from any node or s
 const faceOut = (key) => BRICKS[key].face.map(([node, setting, label]) => ({ node, setting, label }));
 async function named(name) {
   const all = await E.blueprints(), hit = all.find((b) => b.name === name) ?? all.find((b) => b.name.toLowerCase() === String(name ?? "").trim().toLowerCase());
-  if (!hit) throw new Error(`No installed blueprint ${JSON.stringify(name ?? "")}; list_blueprints lists ${all.length}: ${all.map((b) => b.name).join(", ") || "none"}`);
+  if (!hit) throw new Error(`No blueprint ${JSON.stringify(name ?? "")}; list_blueprints lists ${all.length}: ${all.map((b) => b.name).join(", ") || "none"}`);
   return hit;
 }
 
@@ -55,29 +55,29 @@ export const BRICK_TOOLS = [
   },
   {
     name: "list_blueprints",
-    description: "The installed blueprints (ComfyUI's /global_subgraphs: subgraphs custom node packs and ComfyUI ship) a recipe can take as a brick with add_blueprint: name, source, pack, and what each needs (link inputs), gives (outputs) and shows (its promoted widgets, with their labels). The two the Render bricks are made of are left out (they are those bricks).",
+    description: "The blueprints a recipe can take as a brick with add_blueprint: the person's own first (source \"yours\": published with ComfyUI's Publish subgraph, kept in their userdata subgraphs/), then the installed ones (ComfyUI's /global_subgraphs: subgraphs custom node packs and ComfyUI ship); name, source, pack, and what each needs (link inputs), gives (outputs) and shows (its promoted widgets, with their labels). A name in both lists twice; add_blueprint by that name takes the person's. The two the Render bricks are made of are left out (they are those bricks).",
     inputSchema: { type: "object", properties: {} },
     annotations: { readOnlyHint: true },
     run: async () => {
       const all = await E.blueprints();
-      const blueprints = await Promise.all(all.map(async (b) => { try { const f = E.blueprintFace(await E.fetchBlueprintNamed(b.name)); return { ...b, needs: f.needs, gives: f.gives, shows: f.shows }; } catch (err) { return { ...b, error: err.message }; } }));
+      const blueprints = await Promise.all(all.map(async (b) => { try { const f = E.blueprintFace(await E.fetchBlueprintNamed(b.name, { source: b.source === "yours" ? "yours" : "installed" })); return { ...b, needs: f.needs, gives: f.gives, shows: f.shows }; } catch (err) { return { ...b, error: err.message }; } }));
       return { count: blueprints.length, blueprints };
     },
   },
   {
     name: "add_blueprint",
-    description: "Add an installed blueprint to the recipe as a brick (SNAP-R283), by its name (list_blueprints): ComfyUI inserts it as a subgraph node, Snap records it as a brick and wires its inputs by type from the bricks before it, as with any node. One undo step. Returns its id (node:<subgraph id>#<n>) and the bindings made.",
+    description: "Add a blueprint to the recipe as a brick (SNAP-R283), by its name (list_blueprints; the person's own wins over an installed one of that name): ComfyUI inserts it as a subgraph node, Snap records it as a brick and wires its inputs by type from the bricks before it, as with any node. One undo step. Returns its id (node:<subgraph id>#<n>) and the bindings made.",
     inputSchema: { type: "object", properties: { name: { type: "string" }, after: { type: "string", description: "a brick id: the new brick goes after it (default: the end)" } }, required: ["name"] },
     run: async ({ name, after }) => {
       const hit = await named(name), at = after && keys().includes(after) ? keys().indexOf(after) + 1 : undefined;
       if (after && at === undefined) throw new Error(`No brick "${after}" in this recipe for after; its bricks: ${keys().join(", ") || "none"}`);
-      const res = await E.snapBlueprint(hit.name, { at });
+      const res = await E.snapBlueprint(await E.fetchBlueprintNamed(hit.name, { source: hit.source === "yours" ? "yours" : "installed" }), { at });
       return { brick: res.brick, title: BRICKS[res.brick].title, face: faceOut(res.brick), bindings: res.bindings.map(({ role, from, output, rule }) => ({ role, from, output, rule })) };
     },
   },
   {
     name: "make_brick",
-    description: "Group two or more bricks made from any node or subgraph into one subgraph brick (SNAP-R284), through ComfyUI's own Convert to Subgraph, as one undo step: the new brick takes the first one's place, title names it, wires into and out of the group stay and Snap's record of them follows. Pack bricks are refused, by name. Its face starts with the widgets ComfyUI promoted onto it; set_brick_face or promoting in ComfyUI changes that.",
+    description: "Group two or more bricks made from any node or subgraph into one subgraph brick (SNAP-R284), through ComfyUI's own Convert to Subgraph, as one undo step: the new brick takes the first one's place, title names it, wires into and out of the group stay and Snap's record of them follows. Pack bricks are refused, by name. Its face starts with the settings the grouped bricks showed, in brick order under their labels, promoted onto it in the same step; set_brick_face or promoting in ComfyUI changes that.",
     inputSchema: { type: "object", properties: { bricks: { type: "array", items: { type: "string" }, minItems: 2 }, title: { type: "string" } }, required: ["bricks"] },
     run: ({ bricks, title }) => {
       if (!Array.isArray(bricks)) throw new Error("make_brick takes bricks (a list of two or more brick ids or titles) and title");

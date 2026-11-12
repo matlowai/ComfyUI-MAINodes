@@ -583,7 +583,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     // node from the first letter, ranked (title prefix, then a word of it, then anywhere, then type or category)
     const mine = L.search(q, null).filter((c) => c.kind === "brick").map((c) => `card:${c.id}`);
     hits = [...mine, ...PACK_BRICKS.filter((k) => !have.has(k) && fits(k, [...have]) && `${listTitle(k, [...have])} ${BRICKS[k].blurb}`.toLowerCase().includes(q))];
-    hits.push(...(blueprintList ?? []).filter((b) => b.name.toLowerCase().includes(q)).map((b) => `bp:${b.name}`));
+    hits.push(...new Set((blueprintList ?? []).filter((b) => b.name.toLowerCase().includes(q)).map((b) => `bp:${b.name}`))); // one row per name: the person's own wins a shared name (SNAP-R283)
     if (q) hits.push(...rankTypes(nodeTypes(), q).slice(0, 12).map((n) => `node:${n.type}`)); // they are hundreds: only once something is typed
     hit = 0;
     const row = (k, i) => { const x = hitInfo(k, have), el = h("div", { className: `snap-hit${i === hit ? " on" : ""}`, role: "option", onpointerdown: (e) => { e.preventDefault(); pick(k); } },

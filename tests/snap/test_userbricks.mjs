@@ -29,7 +29,8 @@ async function load(context, file, stubs, modules = {}) {
 // ---- a fake of the frontend graph: just what the engine touches
 function frontend() {
   let nextId = 1, nextLink = 1, nextSg = 1;
-  const nodes = [], links = new Map(), subgraphs = new Map(), counts = { inserts: 0, definitions: 0, steps: 0 };
+  const nodes = [], links = new Map(), subgraphs = new Map(), counts = { inserts: 0, definitions: 0, steps: 0, brackets: 0 };
+  let depth = 0;
   const registered = {
     Blur: { nodeData: { display_name: 'Blur', category: 'image/filters', input: { required: { image: ['IMAGE'], radius: ['INT', {}], sigma: ['FLOAT', {}], mode: [['box', 'gauss']], note: ['STRING', {}] } }, output: ['IMAGE'], output_name: ['IMAGE'] } },
     LoadPic: { nodeData: { display_name: 'Load Pic', category: 'image', input: { required: { file: [['a.png', 'b.png']] } }, output: ['IMAGE'], output_name: ['IMAGE'] } },
@@ -38,6 +39,7 @@ function frontend() {
     constructor(type) { Object.assign(this, { type, title: type, pos: [0, 0], size: [200, 100], mode: 0, widgets: [], inputs: [], outputs: [] }); }
     findInputSlot(name) { return this.inputs.findIndex((i) => i.name === name); }
     findOutputSlot(name) { return this.outputs.findIndex((o) => o.name === name); }
+    getSlotFromWidget(w) { return w && this.inputs.find((i) => i.widget?.name === w.name); }
     connect(o, dst, i) {
       if (o < 0 || i < 0 || !dst) return null;
       if (dst.inputs[i].link != null) links.delete(dst.inputs[i].link);
@@ -66,6 +68,7 @@ function frontend() {
       else if (['INT', 'FLOAT', 'STRING'].includes(spec[0])) n.widgets.push({ name, value: spec[0] === 'STRING' ? '' : 1, options: {} });
       else n.inputs.push({ name, type: spec[0], link: null });
     }
+    for (const w of n.widgets) n.inputs.push({ name: w.name, type: 'WIDGET', link: null, widget: { name: w.name } });
     n.outputs = nd.output.map((t, i) => ({ name: nd.output_name[i], type: t, links: [] }));
     return n;
   }
@@ -79,7 +82,7 @@ function frontend() {
     serialize: () => ({ nodes: nodes.map((n) => n.serialize()), links: [...links.values()], extra: JSON.parse(JSON.stringify(graph.extra)) }),
   };
   const canvas = {
-    graph, emitBeforeChange() { counts.steps++; }, emitAfterChange() {}, setDirty() {}, setGraph(g) { this.graph = g; },
+    graph, emitBeforeChange() { counts.steps++; if (!depth++) counts.brackets++; }, emitAfterChange() { depth--; }, setDirty() {}, setGraph(g) { this.graph = g; },
     // the paste path: every pasted definition gets a new id, node types follow; nodes are created and configured
     _deserializeItems(items, { position }) {
       counts.inserts++;
@@ -110,6 +113,23 @@ function frontend() {
     subgraphs.set(id, subgraphOf({ id, name: 'New Subgraph', inputs: ins.map((l) => ({ name: graph.getNodeById(l.target_id).inputs[l.target_slot].name, type: typeOf(l) })),
       outputs: outKeys.map((k) => { const l = outs.find((x) => `${x.origin_id}:${x.origin_slot}` === k); return { name: graph.getNodeById(l.origin_id).outputs[l.origin_slot].name, type: typeOf(l) }; }), promoted: [] }));
     registered[id] = { nodeData: { display_name: 'New Subgraph' } };
+    const sg = subgraphs.get(id), inner = new Map();
+    Object.assign(sg, {
+      inputNode: { id: -10 }, getNodeById: (x) => [...items].find((n) => String(n.id) === String(x)) ?? null, getLink: (x) => inner.get(x) ?? null,
+      // Subgraph.addInput: every instance gets the input ('input-added'); SubgraphInput.connect: the instance shows the widget ('input-connected')
+      addInput(name, type) {
+        const si = { name, type, connect(slot, node) {
+          const w = node.widgets.find((x) => x.name === slot.widget.name), l = { id: nextLink++, origin_id: -10, origin_slot: sg.inputs.indexOf(si), target_id: node.id };
+          inner.set(l.id, l); slot.link = l.id; sg.promoted.push(name); counts.promotions = (counts.promotions ?? 0) + 1;
+          for (const o of nodes.filter((x) => x.type === id)) { o.inputs.find((i) => i.name === name).widget = { name }; o.widgets.push({ name, value: w.value, options: {} }); }
+          return l;
+        } };
+        sg.inputs.push(si);
+        for (const o of nodes.filter((x) => x.type === id)) o.inputs.push({ name, type, link: null });
+        return si;
+      },
+      removeInput(si) { sg.inputs.splice(sg.inputs.indexOf(si), 1); },
+    });
     for (const n of items) { for (const l of all) if (l.origin_id === n.id || l.target_id === n.id) links.delete(l.id); graph.remove(n); }
     const outer = createNode(id);
     graph.add(outer);
@@ -117,7 +137,9 @@ function frontend() {
     for (const l of outs) outer.connect(outKeys.indexOf(`${l.origin_id}:${l.origin_slot}`), graph.getNodeById(l.target_id), l.target_slot);
     return { subgraph: subgraphs.get(id), node: outer };
   };
-  return { graph, canvas, registered, counts, createNode, links };
+  // LiteGraph.createNode for a subgraph type, unconfigured: no promoted widgets (what the palette's node list used to get)
+  const bare = (type) => { const n = createNode(type); if (n && subgraphs.has(type)) { n.widgets = []; for (const i of n.inputs) delete i.widget; } return n; };
+  return { graph, canvas, registered, counts, createNode, bare, links };
 }
 
 // a blueprint as insertBlueprint takes it: one outer node and its definition (one promoted input has a label)
@@ -126,12 +148,17 @@ const BLUR_KIT = {
   definitions: { subgraphs: [{ id: 'def-1', name: 'Soft focus', inputs: [{ name: 'image', type: 'IMAGE' }, { name: 'amount', type: 'INT' }, { name: 'vae', type: 'INT', label: 'video_vae' }], outputs: [{ name: 'IMAGE', type: 'IMAGE' }], promoted: ['amount', 'vae'], nodes: [] }] },
 };
 
-async function fixture() {
+async function fixture({ yours = null } = {}) {
   const fe = frontend();
   const app = { graph: fe.graph, canvas: fe.canvas };
-  const context = vm.createContext({ console, structuredClone, setTimeout, clearTimeout, LiteGraph: { registered_node_types: fe.registered, createNode: fe.createNode } });
+  const context = vm.createContext({ console, structuredClone, setTimeout, clearTimeout, LiteGraph: { registered_node_types: fe.registered, createNode: fe.bare } });
   const served = { '/global_subgraphs': { a1: { name: 'Soft focus', source: 'custom_node', info: { node_pack: 'custom_nodes.x' } }, r1: { name: 'Dials - H3 + De-rope' }, i1: { name: 'Dials - Image' } }, '/global_subgraphs/a1': { data: JSON.stringify(BLUR_KIT) }, '/mainodes/snap/cards': { cards: [] } };
-  const api = { addEventListener() {}, clientId: 'test', fetchApi: async (url) => ({ json: async () => JSON.parse(JSON.stringify(served[url] ?? {})) }) };
+  if (yours) { // the person's published blueprints: the userdata list and each file (as ComfyUI's /userdata routes give them)
+    served['/userdata?dir=subgraphs&recurse=true&split=false&full_info=true'] = Object.keys(yours).map((path) => ({ path, size: 1, modified: 1 }));
+    for (const [path, body] of Object.entries(yours)) served[`/userdata/${encodeURIComponent(`subgraphs/${path}`)}`] = JSON.stringify(body);
+  }
+  const api = { addEventListener() {}, clientId: 'test', fetchApi: async (url) => { const has = Object.hasOwn(served, url), body = served[url];
+    return { status: has ? 200 : 404, ok: has, json: async () => JSON.parse(typeof body === 'string' ? body : JSON.stringify(body ?? {})), text: async () => (typeof body === 'string' ? body : JSON.stringify(body ?? {})) }; } };
   const bricks = await load(context, 'bricks.js', {});
   const engine = await load(context, 'engine.js', { '../../../scripts/app.js': { app }, '../../../scripts/api.js': { api } }, { './bricks.js': bricks });
   const world = (await load(context, 'world.js', { '../../../scripts/api.js': { api } })).namespace;
@@ -346,4 +373,64 @@ test('group: two any-node bricks become one subgraph brick in one step; bindings
   deq(f.E.overrides(), [], 'every recorded binding matches its live wire');
   assert.equal(f.E.notes()[0].brick, 'node:sg-1#1', 'a note on a grouped brick is on the group');
   deq(Object.keys(f.B.BRICKS[out.brick].needs), ['image']);
+});
+
+// a blueprint as ComfyUI's Publish subgraph saves it (frontend 1.57.6 subgraphStore.publishSubgraph: userdata
+// subgraphs/<name>.json holding {revision, last_node_id, last_link_id, nodes: [the instance], links: [], version,
+// definitions: {subgraphs}}); its definition keeps the name it had, the file name names it on load. Built from the source,
+// not from a real published file
+const published = (defName, promoted, extra) => ({ revision: 0, last_node_id: 12, last_link_id: 0, version: 0.4, links: [],
+  nodes: [{ id: 12, type: 'mine-1', title: defName, pos: [40, 40], inputs: [{ name: 'image', type: 'IMAGE', link: null }, ...promoted.map((p) => ({ name: p, type: 'INT', link: null, widget: { name: p } }))], outputs: [{ name: 'IMAGE', type: 'IMAGE', links: [] }], widgets_values: promoted.map(() => 9) }],
+  definitions: { subgraphs: [{ id: 'mine-1', name: defName, inputs: [{ name: 'image', type: 'IMAGE' }, ...promoted.map((p) => ({ name: p, type: 'INT' }))], outputs: [{ name: 'IMAGE', type: 'IMAGE' }], promoted, nodes: [] }] },
+  ...(extra ? { extra } : {}) });
+
+test('the person\'s published blueprints: listed first with source "yours", resolved by name, theirs wins a shared name', async () => {
+  const f = await fixture({ yours: { 'Soft focus.json': published('New Subgraph', ['amount']), 'kits/Glow kit.json': published('Glow', ['glow', 'size'], { note: 'mine' }), 'notes.txt': 'not a blueprint' } });
+  deq((await f.E.blueprints()).map((b) => [b.name, b.source]), [['Glow kit', 'yours'], ['Soft focus', 'yours'], ['Soft focus', 'custom_node']]);
+  const listed = await f.tool('list_blueprints');
+  deq(listed.blueprints.map((b) => [b.name, b.source, b.shows.map((x) => x.name), b.error ?? null]),
+    [['Glow kit', 'yours', ['glow', 'size'], null], ['Soft focus', 'yours', ['amount'], null], ['Soft focus', 'custom_node', ['amount', 'vae'], null]], 'each listed one read from its own source');
+  const mine = await f.E.fetchBlueprintNamed('Glow kit');
+  deq([mine.definitions.subgraphs[0].name, mine.nodes[0].title, mine.definitions.subgraphs[0].extra], ['Glow kit', 'Glow kit', { note: 'mine' }], 'loaded as the frontend loads it');
+  deq((await f.E.fetchBlueprintNamed('Soft focus', { source: 'installed' })).definitions.subgraphs[0].promoted, ['amount', 'vae']);
+  await assert.rejects(f.E.fetchBlueprintNamed('Nope', { source: 'yours' }), /no published blueprint "Nope"/);
+  const added = await f.tool('add_blueprint', { name: 'soft focus' });
+  deq([added.title, added.face.map((x) => x.setting)], ['Soft focus', ['amount']], 'the person\'s, not the installed one');
+  const glow = await f.E.snapBlueprint('Glow kit');
+  deq([f.B.BRICKS[glow.brick].title, f.E.getValue(glow.brick, 'node', 'size')], ['Glow kit', 9]);
+  const none = await fixture();
+  deq((await none.E.blueprints()).map((b) => b.source), ['custom_node'], 'nothing published: the userdata list is a 404');
+});
+
+test('group: the new brick shows the settings the grouped faces showed, in brick order under their labels, in one undo step', async () => {
+  const f = await fixture();
+  for (const k of ['node:LoadPic', 'node:Blur', 'node:Blur']) await f.E.snap(k);
+  f.E.setValue('node:Blur#1', 'node', 'radius', 4);
+  f.E.setFace('node:Blur#2', ['note', ['node', 'radius', 'size']]);
+  const brackets = f.fe.counts.brackets;
+  const out = f.E.group(['node:Blur#1', 'node:Blur#2'], { title: 'Double blur' });
+  assert.equal(f.fe.counts.brackets, brackets + 1, 'one undo step');
+  deq(rows(f.B.BRICKS[out.brick].face), [['node', 'radius', 'radius'], ['node', 'sigma', 'sigma'], ['node', 'mode', 'mode'], ['node', 'note', 'note'], ['node', 'radius_1', 'size']]);
+  assert.equal(f.E.getValue(out.brick, 'node', 'radius'), 4, 'the value it had');
+  assert.equal('face' in f.app.graph.extra.snap.bricks[1], false, 'the default face already reads so: no override kept');
+  deq(Object.keys(f.B.BRICKS[out.brick].needs), ['image'], 'promoted settings are not needs');
+  deq(f.E.describe().map((b) => [b.brick, b.bindings.map((x) => `${x.role}<-${x.from}`)]), [['node:LoadPic#1', []], [out.brick, ['image<-node:LoadPic#1']]]);
+});
+
+test('a subgraph type this graph holds, snapped from the node list, is another instance of its definition with its widgets', async () => {
+  const f = await fixture();
+  const first = await f.E.snapBlueprint(JSON.parse(JSON.stringify(BLUR_KIT)));
+  f.E.setValue(first.brick, 'node', 'amount', 5);
+  const type = f.E.nodeFor(first.brick, 'node').type, defs = f.fe.counts.definitions, inserts = f.fe.counts.inserts;
+  const second = await f.E.snap(`node:${type}`);
+  assert.equal(second.brick, `node:${type}#2`);
+  deq([f.fe.counts.definitions, f.fe.counts.inserts], [defs, inserts + 1], 'no second definition; the paste path, not a bare createNode');
+  deq(rows(f.B.BRICKS[second.brick].face), [['node', 'amount', 'amount'], ['node', 'vae', 'video_vae']]);
+  assert.equal(f.E.getValue(second.brick, 'node', 'amount'), 5, 'the outer node of the instance already here');
+  assert.equal(f.E.nodeFor(second.brick, 'node').type, type);
+  deq(f.E.recipe().map((e) => e.key), ['node:def-1', 'node:def-1'], 'saved under the type the first one was, so a rebuild inserts the definition once');
+  // no instance left at the root: the bare type through the paste path, configured from its definition
+  f.E.unsnap(first.brick); f.E.unsnap(second.brick);
+  const third = await f.E.snap(`node:${type}`);
+  deq([rows(f.B.BRICKS[third.brick].face).map((r) => r[1]), f.fe.counts.definitions], [['amount', 'vae'], defs]);
 });

@@ -234,7 +234,12 @@ export function snap(key, options) {
     key = `${key}#${n}`;
   }
   if (!BRICKS[key]) return Promise.reject(new Error(`No brick or installed node "${key.replace(/^node:/, "").split("#")[0]}"`));
-  if (!inflight.has(key)) inflight.set(key, snapOnce(key, options).finally(() => inflight.delete(key)));
+  // a subgraph type this graph holds (the palette's node list offers it): created bare it would lack its promoted widgets
+  // and values, so it is inserted as snapBlueprint inserts a present definition, as another instance of it, saved under
+  // the type its other bricks were saved as (SNAP-R280, R282)
+  const type = key.slice(5).split("#")[0], sub = key.startsWith("node:") && !brick(key) && app.graph?.subgraphs?.has?.(type);
+  const as = sub ? state().bricks.find((b) => b.subgraph && b.key.slice(5).split("#")[0] === type)?.subgraph : undefined;
+  if (!inflight.has(key)) inflight.set(key, (sub ? snapBlueprint(instanceOf(type), { ...options, as }) : snapOnce(key, options)).finally(() => inflight.delete(key)));
   return inflight.get(key);
 }
 
@@ -275,11 +280,33 @@ async function snapOnce(key, { values, at } = {}) {
 
 // ---- bricks a person makes (SNAP-R280..R284): a subgraph, read generically; its face and title kept on its entry
 
-// the installed blueprints by name (/global_subgraphs; the two the pack bricks are made of are those bricks already)
+// the person's own blueprints: ComfyUI's Publish subgraph saves each as userdata subgraphs/<name>.json (frontend
+// subgraphStore: SubgraphBlueprint.basePath, listed with listUserDataFullInfo), a workflow of one subgraph node and its
+// definitions; it is named by its file name, as the frontend names it (getPathDetails)
+const YOURS = "subgraphs";
+const fileName = (path) => { const f = path.split("/").pop(), dot = f.lastIndexOf("."); return f.toLowerCase().endsWith(".app.json") && f.length > 9 ? f.slice(0, -9) : dot > 0 ? f.slice(0, dot) : f; };
+async function yours() {
+  const r = await api.fetchApi(`/userdata?dir=${YOURS}&recurse=true&split=false&full_info=true`);
+  if (r.status !== 200) return []; // 404: nothing published yet
+  return (await r.json()).filter((f) => f.path?.endsWith(".json")).map((f) => ({ id: `${YOURS}/${f.path}`, name: fileName(f.path), source: "yours", pack: null }));
+}
+// one of them as insertBlueprint takes it, loaded as the frontend loads it (SubgraphBlueprint.load): the definition the
+// node names is renamed to the file name, and the workflow's extra is copied onto it
+async function loadYours(b) {
+  const r = await api.fetchApi(`/userdata/${encodeURIComponent(b.id)}`);
+  if (r.status !== 200) throw new Error(`Your blueprint "${b.name}" could not be read (${r.status})`);
+  const bp = JSON.parse(await r.text()), outer = bp?.nodes?.[0], sg = (bp?.definitions?.subgraphs ?? []).find((g) => g.id == outer?.type);
+  if (bp?.nodes?.length !== 1 || !sg) throw new Error(`Your blueprint "${b.name}" is not one subgraph node with its definition`);
+  sg.name = outer.title = b.name;
+  if (bp.extra) { sg.extra ??= {}; for (const [k, v] of Object.entries(bp.extra)) if (k !== "workflowRendererVersion") sg.extra[k] = v; }
+  return bp;
+}
+// the blueprints a brick can be made from: the person's own first, then the installed ones (/global_subgraphs; the two
+// the pack bricks are made of are those bricks already), each by name. A name in both lists twice; by name, the person's wins
 export async function blueprints() {
-  const list = await (await api.fetchApi("/global_subgraphs")).json();
-  return Object.entries(list).map(([id, v]) => ({ id, name: v.name, source: v.source ?? null, pack: v.info?.node_pack ?? null }))
-    .filter((b) => b.name && ![RENDER_BLUEPRINT, IMAGE_BLUEPRINT].includes(b.name)).sort((a, b) => a.name.localeCompare(b.name));
+  const byName = (a, b) => a.name.localeCompare(b.name), [mine, list] = await Promise.all([yours(), api.fetchApi("/global_subgraphs").then((r) => r.json())]);
+  return [...mine.sort(byName), ...Object.entries(list).map(([id, v]) => ({ id, name: v.name, source: v.source ?? null, pack: v.info?.node_pack ?? null }))
+    .filter((b) => b.name && ![RENDER_BLUEPRINT, IMAGE_BLUEPRINT].includes(b.name)).sort(byName)];
 }
 // what a blueprint needs, gives and shows, read from its one outer node: link inputs, outputs, promoted widgets (labels)
 export function blueprintFace(bp) {
@@ -288,7 +315,14 @@ export function blueprintFace(bp) {
   return { name: def?.name ?? null, needs: (outer?.inputs ?? []).filter((i) => !i.widget).map((i) => ({ name: i.name, label: label(i), type: i.type })),
     gives: (outer?.outputs ?? []).map((o) => ({ name: o.name, type: o.type })), shows: (outer?.inputs ?? []).filter((i) => i.widget).map((i) => ({ name: i.widget.name ?? i.name, label: label(i) })) };
 }
-export const fetchBlueprintNamed = (name) => fetchBlueprint(name);
+// a blueprint by name: the person's own first, then the installed one; `source` "yours" or "installed" asks for one of
+// them (list_blueprints reads each listed one). Pack bricks read only the installed ones (fetchBlueprint)
+export async function fetchBlueprintNamed(name, { source } = {}) {
+  const mine = source === "installed" ? null : (await yours()).find((b) => b.name === name);
+  if (mine) return loadYours(mine);
+  if (source === "yours") throw new Error(`You have no published blueprint "${name}"`);
+  return fetchBlueprint(name);
+}
 
 // a subgraph brick as a blueprint insertBlueprint takes: its outer node (unwired, at 0,0) and its definition with every
 // definition nested in it. Null for a brick that isn't a subgraph
@@ -297,11 +331,22 @@ function blueprintOf(b) {
   if (!n?.isSubgraphNode?.() || !n.subgraph) return null;
   const all = new Map(), walk = (sg) => { if (!sg || all.has(sg.id)) return; all.set(sg.id, sg); for (const x of sg.nodes ?? []) if (x.isSubgraphNode?.()) walk(x.subgraph); };
   walk(n.subgraph);
+  return { nodes: [unwired(n)], definitions: { subgraphs: [...all.values()].map((sg) => JSON.parse(JSON.stringify(sg.asSerialisable()))) } };
+}
+// a node as the paste path takes it: serialized, unwired, at 0,0
+function unwired(n) {
   const outer = JSON.parse(JSON.stringify(n.serialize()));
   outer.pos = [0, 0];
   for (const i of outer.inputs ?? []) i.link = null;
   for (const o of outer.outputs ?? []) o.links = null;
-  return { nodes: [outer], definitions: { subgraphs: [...all.values()].map((sg) => JSON.parse(JSON.stringify(sg.asSerialisable()))) } };
+  return outer;
+}
+// a new instance of a subgraph this graph holds, as the paste path takes it (nodes only, the definition is here): an
+// existing instance's outer node (its promoted widgets and values), else the bare type (configure builds its inputs
+// from the definition)
+function instanceOf(type) {
+  const n = app.graph.nodes.find((x) => x.type === type && x.isSubgraphNode?.());
+  return { nodes: [n ? unwired(n) : { id: -1, type, pos: [0, 0] }] };
 }
 // the key a brick is saved under: node:<Type> for any node, where a subgraph keeps the type it was saved as (`subgraph`:
 // every insert gives a definition a new id, so the saved key would otherwise change on each rebuild)
@@ -324,7 +369,7 @@ export function entryOf(b) {
 // same saved subgraph is inserted as an instance of that definition, never as a second copy of it. A definition this graph
 // already holds under the blueprint's own id is used the same way (instances of one subgraph share it, as in ComfyUI)
 export async function snapBlueprint(bp, { at, title, face, values, as, reuse } = {}) {
-  if (typeof bp === "string") bp = await fetchBlueprint(bp);
+  if (typeof bp === "string") bp = await fetchBlueprintNamed(bp);
   const outer = bp?.nodes?.[0];
   if (bp?.nodes?.length !== 1 || !outer?.type) throw new Error("A blueprint is one subgraph node: {nodes: [its instance], definitions: {subgraphs: [its definition, nested ones]}}");
   const from = as ?? outer.type, have = reuse?.get(from) ?? (app.graph.subgraphs?.has?.(outer.type) ? outer.type : null);
@@ -420,12 +465,18 @@ export function group(keys, { title } = {}) {
   if (list.length < 2) throw new Error("Grouping takes two or more any-node bricks (node:<Type>#<n>)");
   const s = record(), removed = new Set(list), nodes = list.flatMap((k) => Object.values(brick(k).nodes)).map(node).filter(Boolean);
   const at = Math.min(...list.map((k) => s.bricks.findIndex((b) => b.key === k))), name = typeof title === "string" ? title.trim() : "";
+  const shown = list.flatMap((k) => BRICKS[k].face.map(([nk, setting, label]) => ({ id: brick(k).nodes[nk], setting, label: label || setting }))); // what each face showed, read before the nodes move
   const out = transaction(() => {
     const { node: outer, subgraph } = app.graph.convertToSubgraph(new Set(nodes));
     if (name) { try { subgraph.name = name; } catch { /* a read-only name: the brick's own title says it */ } }
+    const carried = promote(outer, subgraph, shown);
     const key = freeKey(outer.type, new Set(s.bricks.filter((b) => !removed.has(b.key)).map((b) => b.key)));
     s.bricks = s.bricks.filter((b) => !removed.has(b.key));
-    s.bricks.splice(at, 0, { key, nodes: { node: outer.id }, placed: {}, ...(name && subgraph.name !== name ? { title: name } : {}) });
+    const entry = { key, nodes: { node: outer.id }, placed: {}, ...(name && subgraph.name !== name ? { title: name } : {}) };
+    s.bricks.splice(at, 0, entry);
+    // the face in brick order; ComfyUI may have promoted other widgets on convert (its recommended ones), so an order or set
+    // that differs from the default face is kept as the brick's own (SNAP-R281)
+    if (carried.length && JSON.stringify(BRICKS[key].face.map((r) => r[1])) !== JSON.stringify(carried)) entry.face = carried.map((x) => ["node", x]);
     const brickOf = new Map(s.bricks.flatMap((b) => Object.values(b.nodes).map((id) => [String(id), b.key])));
     const wire = (dst, input) => app.graph.getLink(dst?.inputs?.[dst.findInputSlot(input)]?.link);
     // bindings elsewhere that read from a grouped brick: the wire now leaves the new node (convertToSubgraph reconnects it)
@@ -446,6 +497,34 @@ export function group(keys, { title } = {}) {
   });
   app.canvas.setDirty(true, true);
   return out;
+}
+// settings promoted onto a new subgraph node, in order, under their labels, by the steps of the frontend's own promote
+// action (promotionUtils promoteValueWidgetViaSubgraphInput, not reachable from an extension): a subgraph input per
+// setting, named uniquely as nextUniqueName does, connected to the widget's slot; the instance then shows it as a widget.
+// A setting ComfyUI already promoted keeps its input and takes the label; one wired inside the group stays wired. Returns
+// the promoted input names
+function promote(outer, sg, rows) {
+  const names = [], hostOf = (si) => outer.inputs?.find((i) => i.name === si.name);
+  for (const { id, setting, label } of rows) {
+    const n = sg.getNodeById?.(id), w = widget(n, setting), slot = w && n.getSlotFromWidget?.(w);
+    if (!slot) continue;
+    let si = null;
+    if (slot.link != null) { const l = sg.getLink(slot.link); if (l && String(l.origin_id) === String(sg.inputNode?.id)) si = sg.inputs[l.origin_slot]; }
+    else {
+      const taken = sg.inputs.map((i) => i.name);
+      let nm = setting, k = 1;
+      while (taken.includes(nm)) nm = `${setting}_${k++}`;
+      si = sg.addInput(nm, String(slot.type ?? "*"));
+      si.label = label;
+      if (hostOf(si)) hostOf(si).label = label; // read when the instance registers the widget, so it shows under this label
+      if (!si.connect(slot, n)) { sg.removeInput(si); si = null; }
+    }
+    if (!si || names.includes(si.name)) continue;
+    si.label = label;
+    if (hostOf(si)) hostOf(si).label = label;
+    names.push(si.name);
+  }
+  return names;
 }
 
 // the recommended recipe on the open graph (Start, and a scene's first shot); an older served blueprint saves its own video.

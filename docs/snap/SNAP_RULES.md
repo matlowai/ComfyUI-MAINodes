@@ -2517,6 +2517,8 @@ Next free ID after this batch: SNAP-R254 (G18 reserved R254-R262, G19 R263-R266)
   engine function that recipes and Library cards share. *Why:* blueprints were only reachable from ComfyUI's node
   library, outside Snap. *More:* `engine.js` `snapBlueprint`, `blueprints`; `view.js` palette; `add_blueprint`,
   `list_blueprints`.
+  Blueprints the person published from ComfyUI (their user data's `subgraphs/` folder) are listed first, marked as
+  theirs, and win when an installed blueprint has the same name.
 
 - **SNAP-R284: Grouping bricks is one undo step and never touches pack bricks.** Two or more any-node bricks become one
   subgraph brick through ComfyUI's Convert to Subgraph; in the same step their entries become one at the first one's
@@ -2524,6 +2526,8 @@ Next free ID after this batch: SNAP-R254 (G18 reserved R254-R262, G19 R263-R266)
   grouped brick read from the new one. A pack brick in the list refuses the whole call, by name. *Why:* making a brick
   from what is already in the recipe should not break its wiring record. *More:* `engine.js` `group`; `make_brick`;
   Inspector "Group with…".
+  The new brick's face carries the settings the grouped bricks showed, in brick order and under their labels, promoted
+  in that same step.
 
 Next free ID after this batch: SNAP-R285 (R274-R277 taken by recipes, R278-R279 reserved for the polish lane,
 R280-R284 taken by bricks; G18 reserved R254-R262, G19 R263-R266).

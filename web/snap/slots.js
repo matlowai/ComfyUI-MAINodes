@@ -37,9 +37,12 @@ const methodOf = (key) => registry.methods.find((m) => m.brick && m.brick === ke
 // a hand-wired step in a media slot: an any-node brick that takes one input of the slot's media, wired in, and gives one
 // output of the same type, and isn't an output node (Save passes its picture on). Decided from the wiring, never from the
 // node's name: RescaleCFG is a MODEL patch, not an upscaler
+// It is in the slot only when a pack brick (the Render, a method brick) feeds it that media: a filter between two of
+// the person's own bricks is their chain, not the slot's step (SNAP-R280)
 function passes(key, media) {
   const n = key.startsWith("node:") && E.nodeFor(key, "node");
-  return !!n && !output(n) && media.some((t) => { const ins = (n.inputs ?? []).filter((i) => i.type === t); return ins.length === 1 && ins[0].link != null && (n.outputs ?? []).filter((o) => o.type === t).length === 1; });
+  const fromPack = (l) => !!l && E.state().bricks.some((b) => !b.key.startsWith("node:") && Object.values(b.nodes).some((id) => String(id) === String(l.origin_id)));
+  return !!n && !output(n) && media.some((t) => { const ins = (n.inputs ?? []).filter((i) => i.type === t); return ins.length === 1 && ins[0].link != null && fromPack(app.graph.getLink(ins[0].link)) && (n.outputs ?? []).filter((o) => o.type === t).length === 1; });
 }
 // the brick that fills a slot now: a method brick, else a hand-wired step (Custom); a delta slot's is the brick it edits
 export function holder(id) {
