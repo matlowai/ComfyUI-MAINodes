@@ -58,7 +58,7 @@ H3_PATH = TextPath("MiniMax H3", "condition_proj", "token_refiner", lambda dm, x
 TEXT_PATHS = {
     "MiniMaxH3Model": H3_PATH,
     # MiniMax-H3-Image: MiniMax's image fine-tune of the same stack without the audio stream. One family with the video
-    # model, so H3 dials load on it (operator, 2026-11-12: "same model. loras even work on it"; not render-tested here).
+    # model, so H3 dials load on it (operator, 2026-11-12: "same model. loras even work on it"; the day-night dial steered it at about 3x the video strength).
     "MiniMaxH3ImageModel": H3_PATH,
     "MOSSImage": TextPath("MOSS-Image", "text_embedder.proj", "text_embedder", _moss_refine, False, "moss_image"),
     # txtfusion has no biased projection up front; txtmlp ends in a Linear, so a post dial equals a txtmlp.3 bias diff
