@@ -4,10 +4,10 @@
 //   checks; when the notes arrive the toast says the candidates are ready, nothing opens by itself, and Open lands on
 //   take A's viewer at that decision's candidates (batch E: notes arrived with no notice);
 // - page B (another browser context) runs in its own tab: A says it started elsewhere and, when it lands, "take N is in";
-// - A in the graph view: B's next run lands as a ComfyUI toast;
+// - A in the graph view: B's next run lands and no toast is raised (operator, 2026-11-12);
 // - a refusal at queue is a failed Work row with the reason and Retry, not only a toast;
 // - the Re-run sheet of a take in no scene says "Scene: none (this take isn't in a scene)".
-// Screens 406 (arrival toast with Open), 407 (viewer at the candidates), 408 (graph-view toast).
+// Screens 406 (arrival toast with Open), 407 (viewer at the candidates), 408 (graph view, no toast).
 // usage: node test_f5_open.js [port 8195]     BEFORE=a166e40 node test_f5_open.js
 const { chromium } = require("playwright");
 const CFG = require("./snaptest_config.js");
@@ -48,7 +48,9 @@ const port = process.argv[2] || CFG.port, R = {}, out = path.join(CFG.out, "ui")
   await A.page.click('.snap-seg button:has-text("Graph")').catch((e) => { R.graphErr = e.message; });
   await A.page.waitForTimeout(500);
   await ev(B, () => window.__J.queueRun({ kind: "run", title: "landing while you are in the graph", about: window.__J.here() }, () => app.queuePrompt(0, 1)));
-  R.graphToast = await A.page.waitForFunction(() => [...document.querySelectorAll("ol > li")].map((x) => x.textContent).find((t) => /landing while you are in the graph/.test(t)), null, { timeout: 30000 }).then((x) => x.jsonValue(), () => null);
+  R.graphLanded = await A.page.waitForFunction(() => window.__arrivals.some(([w, t]) => w === "landed" && t === "landing while you are in the graph"), null, { timeout: 30000 }).then(() => true, () => false);
+  await A.page.waitForTimeout(500);
+  R.graphToast = await A.page.evaluate(() => [...document.querySelectorAll("ol > li, .p-toast-message")].map((x) => x.textContent).find((t) => /landing while you are in the graph|open Snap to see it/.test(t)) ?? null);
   await A.page.screenshot({ path: path.join(out, "408-f-graph-toast.png") });
   await A.page.click('button:has-text("Snap")').catch(() => {});
   R.arrivals = await ev(A, () => window.__arrivals);
@@ -65,7 +67,7 @@ const port = process.argv[2] || CFG.port, R = {}, out = path.join(CFG.out, "ui")
     "Open lands on the take's viewer at the candidates": R.opened.viewer && R.opened.cands,
     "a run from another tab is said when it starts (its landing may replace the toast at once)": !!R.started || (R.arrivals ?? []).some(([w, t]) => w === "start" && t === "a run from another tab"),
     "and when it lands, with its take": !!R.landed,
-    "in the graph view a ComfyUI toast says it": !!R.graphToast,
+    "in the graph view the run lands and no toast is raised": R.graphLanded && !R.graphToast,
     "a refusal at queue is a failed Work row with the reason and Retry": R.refused?.state === "failed" && R.refused.zone === "in_flight" && /refused at queue/.test(R.refused.error) && R.refused.retry,
     "a take in no scene reads 'Scene: none'": /^Scene: none/.test(R.sceneLabel ?? ""),
     "no toast ends in a stray \"null\"": !/null$/.test(R.arrival?.text ?? "") && !/null/.test(R.onLoad ?? ""),

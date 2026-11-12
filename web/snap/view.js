@@ -880,7 +880,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   api.addEventListener("promptQueued", () => { const j = J.lastSent(); say(j ? `Queued: ${j.title} · ${j.eta_s != null ? `about ${Math.round(j.eta_s)} s` : "no estimate yet"}` : "Queued", false, 2500, { label: "Work", run: () => openWork(root, { say, open: openJob, decide }) }); });
   // SNAP-R66: a job that started elsewhere, landed or failed is said with one press to its result; nothing moves until
   // that press. No word when its home is already on screen (that take's viewer: it updates in place), except a failure.
-  // In the graph view Snap's toast is hidden, so ComfyUI's own toast says it (Open waits for Snap)
+  // In the graph view nothing is said (operator, 2026-11-12: a normal workflow run must not raise a Snap toast); the Work card has it
   A.onArrive((what, r) => {
     if (what === "lost") return say(`The server restarted: ${r.count} job${r.count === 1 ? " was" : "s were"} lost (the Work card lists them)`, true, 8000, { label: "Work", run: () => openWork(root, { say, open: openJob, decide }) });
     if (r.source === "critique" && (what !== "landed" || !r.result?.high)) return; // SNAP-R103: only a critique with a high note is said; the rest update their tiles
@@ -890,7 +890,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       : what === "failed" ? `${r.title} failed · ${r.error ?? ""}`
       : r.state === "waiting" ? (r.source === "decision" ? `${r.candidates.ready} candidate${r.candidates.ready === 1 ? "" : "s"} ready to pick: ${r.title}` : `Waiting for you: ${r.title}`)
       : `${r.title}: ${r.source === "critique" ? r.result.said : r.result?.take ? `take ${r.result.number} is in` : "done"}${r.where && r.where !== "a scratch tab" ? ` · ${r.where}` : ""}`;
-    if (root.style.display === "none") return app.extensionManager.toast.add({ severity: what === "failed" ? "error" : "info", summary: "Snap", detail: `${text}${what === "start" ? "" : " · open Snap to see it"}`, life: what === "failed" ? 8000 : 5000 });
+    if (root.style.display === "none") return;
     say(text, what === "failed", what === "start" ? 3000 : 6000, what === "start" ? { label: "Work", run: () => openWork(root, { say, open: openJob, decide }) } : { label: "Open", run: () => openJob(r).catch((err) => say(err.message, true)) });
   });
   api.addEventListener("execution_interrupted", idle);

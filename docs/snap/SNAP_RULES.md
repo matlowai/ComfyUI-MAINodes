@@ -528,7 +528,7 @@ ComfyUI, the operator's included, nothing here restricts anything (SNAP-R11, DEC
   agent, another tab) is said once, with one press to its result in context (Open: the take's viewer after its shot,
   the decision's candidates, the set editor, the blind compare); nothing navigates, opens or switches by itself. Nothing
   is said when the result's home is already on screen (it updates in place), except a failure. In the graph view
-  ComfyUI's own toast says it. *Why:* SNAP-R5 (open work is never touched by itself) applied to every async path.
+  nothing is said (operator, 2026-11-12: a normal workflow run must not raise a Snap toast); the Work card lists it. *Why:* SNAP-R5 (open work is never touched by itself) applied to every async path.
   *More:* DESIGN_REACTIVE_UX_2026-11-05.md §10, `web/snap/view.js` (`openJob`, `A.onArrive`).
 - **SNAP-R39: A rating comes from how a thing was made.** Nothing Snap makes or proposes is unrated. A prompt is rated
   when it is queued, from the files it loads and its words, and the highest wins. Its words count for an account capped
