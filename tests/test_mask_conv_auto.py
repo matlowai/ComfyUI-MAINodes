@@ -151,7 +151,7 @@ FIXTURE_COMMIT = "0d0b6b56"
 with open(FIXTURE) as _fh:
     _pre_src = textwrap.dedent(_fh.read())
 _ns = dict(vars(_h3mod))
-exec(compile(_pre_src, FIXTURE, "exec"), _ns)
+exec(compile(_pre_src, FIXTURE, "exec"), _ns)  # noqa: S102  test-only: runs the repo's own stored fixture of ComfyUI's pre-#15988 forward
 PRE_FORWARD = _ns["forward"]            # unbound: takes self first
 
 

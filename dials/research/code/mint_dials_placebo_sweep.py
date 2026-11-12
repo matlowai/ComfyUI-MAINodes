@@ -7,7 +7,8 @@ Control is dials_evil1106_control (GPU0, same instance).
 """
 import importlib.util, os
 spec = importlib.util.spec_from_file_location("m", os.path.join(os.path.dirname(os.path.abspath(__file__)), "mint_dials_evil_sweep.py"))
-m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
 import json
 ARMS = [("noview_p1", "h3_x_sinister_noview", 1.0), ("noview_p2", "h3_x_sinister_noview", 2.0),
         ("placebo_p4", "h3_x_template_placebo", 4.0), ("placebo_p8", "h3_x_template_placebo", 8.0)]
@@ -20,4 +21,5 @@ for name, dial, s in ARMS:
     g["40"]["inputs"]["rack"] = json.dumps([{"on": True, "dial": f"dials/{dial}.safetensors", "strength": s, "solo": False}])
     g["172:139"]["inputs"]["filename_prefix"] = f"video/dials_evil1106/{name}"
     p = os.path.join(m.OUT, f"dials_evil1106_{name}_v001.api.json")
-    open(p, "x").write(json.dumps(g, indent=1)); print("minted", p)
+    open(p, "x").write(json.dumps(g, indent=1))
+    print("minted", p)

@@ -188,7 +188,8 @@ def foreign_forward(filename, module):
     """A real function object carrying `filename` as its code's origin and
     `module` as its __module__, the two things a rewrite is judged by."""
     ns = {}
-    exec(compile("def forward(self, x, timestep, context, transformer_options={},\n"
+    # test-only: builds a function whose code reports a chosen origin file; the source is the literal below
+    exec(compile("def forward(self, x, timestep, context, transformer_options={},\n"  # noqa: S102
                  "            minimax_payload=None, denoise_mask=None,\n"
                  "            audio_denoise_mask=None, **kwargs):\n"
                  "    return [x[0], x[1]]\n", filename, "exec"), ns)

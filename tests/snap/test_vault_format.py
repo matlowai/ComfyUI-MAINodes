@@ -56,7 +56,8 @@ try:
         except (InvalidTag, ValueError):
             return True
     s, L = c.start, c.chunk + 16
-    flipped = bytearray(raw); flipped[s + 1000] ^= 1
+    flipped = bytearray(raw)
+    flipped[s + 1000] ^= 1
     checks["flipped byte fails"] = fails(bytes(flipped))
     checks["cut last chunk fails"] = fails(raw[:-100])
     swapped = raw[:s] + raw[s + L:s + 2 * L] + raw[s:s + L] + raw[s + 2 * L:]
@@ -93,12 +94,18 @@ try:
     checks["no private key in the clear"] = not any(x in keys for x in privs) and keys.count('"ct"') == len(json.loads(keys)["accounts"])
     # speed
     big = rng.randbytes(64 << 20)
-    t = time.time(); V.seal(d / "speed.bin", big, "owner", pub); ts = time.time() - t
+    t = time.time()
+    V.seal(d / "speed.bin", big, "owner", pub)
+    ts = time.time() - t
     V.unlocked["owner"] = priv
     c, k = V.open_file(d, d / "speed.bin", "owner", set())
-    t = time.time(); out = c.read(k); to = time.time() - t
+    t = time.time()
+    out = c.read(k)
+    to = time.time() - t
     R["seal_MBps"], R["open_MBps"], R["openssl"] = round(64 / ts), round(64 / to), backend.openssl_version_text()
-    t = time.time(); V.unlock(d, "owner", "correct horse", admins=set()); R["unlock_s"] = round(time.time() - t, 3)
+    t = time.time()
+    V.unlock(d, "owner", "correct horse", admins=set())
+    R["unlock_s"] = round(time.time() - t, 3)
     checks["speed above 1 GB/s"] = R["open_MBps"] > 1000 and out == big
 finally:
     R["dir"] = str(d)

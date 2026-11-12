@@ -86,7 +86,8 @@ def main():
                      "top_axes": sorted(beta.items(), key=lambda kv: -abs(kv[1]))[:3]})
     summary = {}
     for k in AXES:
-        pr = np.array([r["pred"][k] for r in rows]); me = np.array([r["meas"][k] for r in rows])
+        pr = np.array([r["pred"][k] for r in rows])
+        me = np.array([r["meas"][k] for r in rows])
         big = np.abs(pr) >= 0.15
         agree = int(np.sum(np.sign(pr[big]) == np.sign(me[big])))
         summary[k] = {"n_confident": int(big.sum()), "sign_agree": agree, "spearman_all": spearman(pr, me)}

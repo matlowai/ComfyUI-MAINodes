@@ -35,14 +35,16 @@ def sound(k):
     x = 0.002 * rng.standard_normal(len(t))
     if k < 3:  # clicks every 0.25 s: footsteps
         for c in np.arange(0.05, t[-1], 0.25):
-            i = int(c * L.SR); x[i:i + 240] += 0.3 * rng.standard_normal(min(240, len(x) - i)) * np.exp(-np.arange(min(240, len(x) - i)) / 60)
+            i = int(c * L.SR)
+            x[i:i + 240] += 0.3 * rng.standard_normal(min(240, len(x) - i)) * np.exp(-np.arange(min(240, len(x) - i)) / 60)
     else:      # the drone: a sustained harmonic stack
         x += sum(0.08 / h * np.sin(2 * np.pi * 220 * h * t) for h in range(1, 5))
     return x
 
 
 def main():
-    d = os.path.join(C.out(), "_debug", "longclip_fixture"); os.makedirs(d, exist_ok=True)   # rewritten each run
+    d = os.path.join(C.out(), "_debug", "longclip_fixture")
+    os.makedirs(d, exist_ok=True)   # rewritten each run
     wav, out = os.path.join(d, "sound.f32"), os.path.join(d, "take.mkv")
     np.concatenate([sound(k) for k in range(N)]).astype(np.float32).tofile(wav)
     enc = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "gray", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",

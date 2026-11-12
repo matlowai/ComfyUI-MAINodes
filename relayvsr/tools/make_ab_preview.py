@@ -26,14 +26,16 @@ def main():
     args=p.parse_args()
     if not shutil.which('ffmpeg') or not shutil.which('ffprobe'):
         p.error('FFmpeg and ffprobe must be on PATH')
-    a=args.baseline.expanduser().resolve();b=args.experiment.expanduser().resolve()
+    a=args.baseline.expanduser().resolve()
+    b=args.experiment.expanduser().resolve()
     m1,m2=probe(a),probe(b)
     for field in ('width','height','avg_frame_rate'):
         if m1.get(field)!=m2.get(field):
             p.error(f'Mismatched {field}; fix your A/B settings before reviewing')
     if m1.get('nb_frames') and m2.get('nb_frames') and m1['nb_frames']!=m2['nb_frames']:
         p.error('Frame counts differ; cannot compare these videos directly')
-    target=args.output.expanduser().resolve();target.parent.mkdir(parents=True,exist_ok=True)
+    target=args.output.expanduser().resolve()
+    target.parent.mkdir(parents=True,exist_ok=True)
     graph=(f'[0:v]scale={args.column_width}:-2:flags=lanczos[left];'
            f'[1:v]scale={args.column_width}:-2:flags=lanczos[right];'
            f'[left][right]hstack=inputs=2[out]')

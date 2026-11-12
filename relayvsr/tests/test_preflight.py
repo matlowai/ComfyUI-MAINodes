@@ -11,7 +11,9 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = 'relay_preflight_test'
-pkg = types.ModuleType(PACKAGE); pkg.__path__ = [str(ROOT)]; sys.modules[PACKAGE] = pkg
+pkg = types.ModuleType(PACKAGE)
+pkg.__path__ = [str(ROOT)]
+sys.modules[PACKAGE] = pkg
 server = types.ModuleType('server')
 server.PromptServer = types.SimpleNamespace(instance=types.SimpleNamespace(routes=types.SimpleNamespace(post=lambda path: lambda fn: fn)))
 sys.modules['server'] = server
@@ -21,9 +23,11 @@ nodes = importlib.import_module(PACKAGE + '.nodes')
 class PreflightTests(unittest.TestCase):
     def setUp(self):
         base = Path(os.environ['RELAYVSR_TEST_ARTIFACTS']) / uuid.uuid4().hex
-        self.root = base / 'LightX2V'; (self.root / 'lightx2v').mkdir(parents=True)
+        self.root = base / 'LightX2V'
+        (self.root / 'lightx2v').mkdir(parents=True)
         (self.root / 'lightx2v' / 'infer.py').write_text('# test fixture\n')
-        self.weights = base / 'weights'; self.weights.mkdir()
+        self.weights = base / 'weights'
+        self.weights.mkdir()
         for name in ['flash.safetensors', 'wan_int8_convrot.safetensors']:
             (self.weights / name).write_bytes(b'fixture' * 40)
         self.body = {'variant': 'X4 original (recommended, also for 2x)', 'lightx2v_root': str(self.root), 'model_dir': str(self.weights), 'vram': '24 GB+: int8 ConvRot weights + int8 KV (fastest)'}

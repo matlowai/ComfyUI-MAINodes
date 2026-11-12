@@ -55,7 +55,8 @@ async def main():
         seen_by_admin = (await r.json())["rows"]
     async with member.get(GATE + "/mainodes/snap/jobs") as r:
         member_after = (await r.json())["rows"]
-    await admin.close(); await member.close()
+    await admin.close()
+    await member.close()
     theirs = [r for r in seen_by_member if r["id"] in ids]
     mine = [r for r in seen_by_admin if r["id"] in ids]
     checks = {

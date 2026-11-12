@@ -193,7 +193,8 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(baseline,4)
         l=spec.LoopSpec.from_value({'mode':'experiment','wan':{
             'indices':'0-1','passes':2,'strength':1.0,'loop_style':'group'}})
-        rt=runtime_module.BlockLoopRuntime(l);rt.activate()
+        rt=runtime_module.BlockLoopRuntime(l)
+        rt.activate()
         try:
             observed=WanModel()(torch.tensor([1.0])).item()
             rt.verify()
@@ -204,7 +205,8 @@ class RuntimeTests(unittest.TestCase):
         # Per-block repetition produces a different result.
         l=spec.LoopSpec.from_value({'mode':'experiment','wan':{
             'indices':'0-1','passes':2,'strength':1.0,'loop_style':'per_block'}})
-        rt=runtime_module.BlockLoopRuntime(l);rt.activate()
+        rt=runtime_module.BlockLoopRuntime(l)
+        rt.activate()
         try:
             independent=WanModel()(torch.tensor([1.0])).item()
         finally:rt.close()
@@ -214,7 +216,8 @@ class RuntimeTests(unittest.TestCase):
         torch=self.torch
         l=spec.LoopSpec.from_value({'mode':'experiment','wan':{
             'indices':'0,2','passes':2,'loop_style':'group'}})
-        rt=runtime_module.BlockLoopRuntime(l);rt.activate()
+        rt=runtime_module.BlockLoopRuntime(l)
+        rt.activate()
         try:
             with self.assertRaisesRegex(ValueError,'consecutive'):
                 self.toy()(torch.tensor([0.0]))
@@ -266,8 +269,10 @@ class WanModel(torch.nn.Module):
         return x
 Path(sys.argv[1]).write_text(str(WanModel()(torch.tensor([0.0])).item()))
 ''')
-            config=tmp/"spec.json"; config.write_text(json.dumps(lab().as_dict()))
-            report=tmp/"report.json"; destination=tmp/"result.txt"
+            config=tmp/"spec.json"
+            config.write_text(json.dumps(lab().as_dict()))
+            report=tmp/"report.json"
+            destination=tmp/"result.txt"
             env=os.environ.copy()
             env["PYTHONPATH"]=os.pathsep.join([str(ROOT),str(root),env.get("PYTHONPATH","")])
             env["RELAYVSR_LOOP_SPEC_PATH"]=str(config)
@@ -312,10 +317,12 @@ Path(a.save_result_path).write_text(f'fake-mp4-value={result}')
             conf=root/"configs"/"relayvsr"
             conf.mkdir(parents=True)
             (conf/"relayvsr_x2.json").write_text(json.dumps({"native_scale":2}))
-            weights=base/"weights";weights.mkdir()
+            weights=base/"weights"
+            weights.mkdir()
             for name in ("wan_x2.safetensors","flash_x2.safetensors"):
                 (weights/name).write_bytes(b'0'*256)
-            infile=base/"input.mp4";infile.write_bytes(b'fake-input')
+            infile=base/"input.mp4"
+            infile.write_bytes(b'fake-input')
             outdir=base/"output"
             with mock.patch.object(bridge,"output_dir",return_value=outdir), mock.patch.object(bridge,"temp_dir",return_value=base/"temp"):
                 settings=bridge.Settings(lightx2v_root=str(root),model_dir=str(weights),
@@ -355,12 +362,15 @@ a=p.parse_args()
 PlainModel()(torch.tensor([0.0]))
 Path(a.save_result_path).write_text('fake-mp4')
 ''')
-            config=root/"configs"/"relayvsr"; config.mkdir(parents=True)
+            config=root/"configs"/"relayvsr"
+            config.mkdir(parents=True)
             (config/"relayvsr_x2.json").write_text(json.dumps({"native_scale":2}))
-            weights=base/"weights"; weights.mkdir()
+            weights=base/"weights"
+            weights.mkdir()
             for filename in ("wan_x2.safetensors","flash_x2.safetensors"):
                 (weights/filename).write_bytes(b"0"*256)
-            video=base/"source.mp4"; video.write_bytes(b"fake-input")
+            video=base/"source.mp4"
+            video.write_bytes(b"fake-input")
             output=base/"output"
             setting=bridge.Settings(lightx2v_root=str(root), model_dir=str(weights),
                 python_executable=sys.executable, preserve_audio=False,

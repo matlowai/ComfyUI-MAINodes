@@ -213,7 +213,8 @@ class FakeExec:
     def __init__(self, wrappers, original):
         self.wrappers, self.original, self.idx = list(wrappers), original, 0
     def __call__(self, *a, **k):
-        nxt = FakeExec(self.wrappers, self.original); nxt.idx = self.idx + 1
+        nxt = FakeExec(self.wrappers, self.original)
+        nxt.idx = self.idx + 1
         return nxt.execute(*a, **k)
     def execute(self, *a, **k):
         if self.idx >= len(self.wrappers):

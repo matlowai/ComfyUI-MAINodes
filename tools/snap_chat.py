@@ -418,7 +418,8 @@ class Attachment:
                 batch, self.events = self.events, []
                 await self.journal.publish(batch, 'needs_input' if self.requests else self.phase)
                 if time.monotonic() - last_recover > 10:
-                    await self.recover(); last_recover = time.monotonic()
+                    await self.recover()
+                    last_recover = time.monotonic()
                 await asyncio.sleep(.15)
         finally:
             await self.provider.close()

@@ -331,7 +331,8 @@ def dry_run():
     rng = np.random.default_rng(0)
     a = rng.random((4, 8, 8, 3), dtype="float32")
     assert psnr(a, a) == float("inf") and abs(ssim(a, a) - 1.0) < 1e-6
-    b = a.copy(); b[2, 0, 0, 0] += 0.5
+    b = a.copy()
+    b[2, 0, 0, 0] += 0.5
     assert psnr(a, b) < 100 and ssim(a, b) < 1.0
     print("   ok: psnr/ssim behave at identity and under a single-pixel change")
     print("\nDRY RUN OK - the plumbing is good; a GPU slot is what is missing.")

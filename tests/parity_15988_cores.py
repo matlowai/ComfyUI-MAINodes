@@ -106,7 +106,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--stock", default="/mnt/work/ai/apps/ComfyUI")
     ap.add_argument("--patched", default="/mnt/work/ai/apps/ComfyUI-15988")
-    ap.add_argument("--child-root"); ap.add_argument("--child-out")
+    ap.add_argument("--child-root")
+    ap.add_argument("--child-out")
     a = ap.parse_args()
     if a.child_root:
         return child(a.child_root, a.child_out)

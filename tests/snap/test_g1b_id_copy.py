@@ -27,7 +27,8 @@ t0 = time.time()
 
 
 def upload(img, name):
-    buf = io.BytesIO(); img.save(buf, "PNG")
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
     boundary = uuid.uuid4().hex
     body = (f"--{boundary}\r\nContent-Disposition: form-data; name=\"subfolder\"\r\n\r\nsnaptest_g1b\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"overwrite\"\r\n\r\ntrue\r\n"
             f"--{boundary}\r\nContent-Disposition: form-data; name=\"image\"; filename=\"{name}\"\r\nContent-Type: image/png\r\n\r\n").encode() + buf.getvalue() + f"\r\n--{boundary}--\r\n".encode()
@@ -60,7 +61,8 @@ ids = fx["identity"]
 p = {"fm": {"class_type": "MAISnapFaceModelLoader", "inputs": {"model_name": face["file"]}}, "e": {"class_type": "CLIPVisionLoader", "inputs": {"clip_name": enc["file"]}}}
 for i, x in enumerate(ids):
     im = Image.open(os.path.join(FIX, x["image"])).convert("RGB")
-    mask = Image.new("L", im.size, 0); mask.paste(255, tuple(x["head_box"]))
+    mask = Image.new("L", im.size, 0)
+    mask.paste(255, tuple(x["head_box"]))
     p[f"i{i}"] = {"class_type": "LoadImage", "inputs": {"image": upload(im, f"{x['id']}.png")}}
     p[f"m{i}"] = {"class_type": "LoadImageMask", "inputs": {"image": upload(mask.convert("RGB"), f"{x['id']}__head.png"), "channel": "red"}}
     p[f"x{i}"] = {"class_type": "MAISnapIdentity", "inputs": {"face_model": ["fm", 0], "image": [f"i{i}", 0], "faces": [f"m{i}", 0], "hair": [f"m{i}", 0], "encoder": ["e", 0]}}
@@ -77,7 +79,8 @@ arc_alarms = [q for q in same if q["arcface"] < 0.35]
 
 # copy: the soft score of each pair, and the two controls against the master
 cps = fx["copy"]
-master = Image.open(os.path.join(FIX, "images/MASTER_village.png")).convert("RGB"); w, h = master.size
+master = Image.open(os.path.join(FIX, "images/MASTER_village.png")).convert("RGB")
+w, h = master.size
 controls = {"control: master, 6% crop + brighter": ImageEnhance.Brightness(master.crop((int(w * .03), int(h * .03), int(w * .97), int(h * .97)))).enhance(1.25), "control: master mirrored": ImageOps.mirror(master)}
 rows = [(c["id"], c["candidate"], c["reference"], c["copied"]) for c in cps] + [(k, k, "images/MASTER_village.png", True) for k in controls]
 files = {}

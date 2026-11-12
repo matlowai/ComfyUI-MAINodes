@@ -14,7 +14,10 @@ class Stub(BaseHTTPRequestHandler):
     def do_POST(self):
         self.rfile.read(int(self.headers["Content-Length"]))
         body = json.dumps({"result": {"take": "t1", "images": [{"mimeType": "image/png", "data": PNG}] * 2}, "page": {"headless": True, "code_current": True}}).encode()
-        self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers(); self.wfile.write(body)
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(body)
 
     def log_message(self, *a):
         pass

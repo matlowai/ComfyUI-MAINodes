@@ -15,7 +15,9 @@ def main():
     p.add_argument('--python',required=True,type=Path)
     p.add_argument('--variant',choices=['X2','X4'],default='X2')
     a=p.parse_args()
-    root=a.root.expanduser().resolve();weights=a.weights.expanduser().resolve();python=a.python.expanduser().resolve()
+    root=a.root.expanduser().resolve()
+    weights=a.weights.expanduser().resolve()
+    python=a.python.expanduser().resolve()
     checks={"lightx2v_infer":(root/'lightx2v'/'infer.py').is_file(),
             "base_config":(root/'configs'/'relayvsr'/f'relayvsr_{a.variant.lower()}.json').is_file(),
             "helper_python":python.is_file(),

@@ -60,7 +60,8 @@ def sound(x):
 def segments(total, first, each):
     out = [[0, min(first, total)]]
     while out[-1][1] < total:
-        a = out[-1][1]; b = a + each
+        a = out[-1][1]
+        b = a + each
         if total - b < each:
             b = total   # the last extend clip keeps more frames (119 for 102): it takes the rest
         out.append([a, b])
@@ -89,8 +90,11 @@ def check(path, first=None, each=102, period=1):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    p.add_argument("video"); p.add_argument("--first", type=int); p.add_argument("--each", type=int, default=102)
-    p.add_argument("--period", type=int, default=1); p.add_argument("--json")
+    p.add_argument("video")
+    p.add_argument("--first", type=int)
+    p.add_argument("--each", type=int, default=102)
+    p.add_argument("--period", type=int, default=1)
+    p.add_argument("--json")
     a = p.parse_args()
     r = check(a.video, a.first, a.each, a.period)
     if a.json:

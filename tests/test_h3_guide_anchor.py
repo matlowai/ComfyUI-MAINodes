@@ -12,7 +12,8 @@ arithmetic rather than against a copy of it.
 """
 import os, sys
 sys.path.insert(0, os.getcwd())
-import comfy.options; comfy.options.enable_args_parsing()
+import comfy.options
+comfy.options.enable_args_parsing()
 sys.path.insert(0, os.path.join(os.getcwd(), "custom_nodes"))
 from importlib import import_module
 
