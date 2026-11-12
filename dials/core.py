@@ -54,8 +54,12 @@ def _moss_refine(dm, x):  # TextEmbedder.forward after its proj; text rope posit
 
 
 # diffusion model class -> its prompt path
+H3_PATH = TextPath("MiniMax H3", "condition_proj", "token_refiner", lambda dm, x: dm.token_refiner(x), True, "minimax")
 TEXT_PATHS = {
-    "MiniMaxH3Model": TextPath("MiniMax H3", "condition_proj", "token_refiner", lambda dm, x: dm.token_refiner(x), True, "minimax"),
+    "MiniMaxH3Model": H3_PATH,
+    # MiniMax-H3-Image: MiniMax's image fine-tune of the same stack without the audio stream. One family with the video
+    # model, so H3 dials load on it (operator, 2026-11-12: "same model. loras even work on it"; not render-tested here).
+    "MiniMaxH3ImageModel": H3_PATH,
     "MOSSImage": TextPath("MOSS-Image", "text_embedder.proj", "text_embedder", _moss_refine, False, "moss_image"),
     # txtfusion has no biased projection up front; txtmlp ends in a Linear, so a post dial equals a txtmlp.3 bias diff
     "SingleStreamDiT": TextPath("Krea 2", None, "txtmlp", lambda dm, x: dm.txtmlp(dm.txtfusion(dm._unpack_context(x[None])))[0], False, "krea2"),
@@ -77,8 +81,12 @@ KEY_SUFFIX = {"pre": "diff_b", "post": "dials_shift"}  # file key: diffusion_mod
 def text_path(model):
     path = TEXT_PATHS.get(type(model.model.diffusion_model).__name__)
     if path is None:
-        raise ValueError(f"Dials support {', '.join(p.family for p in TEXT_PATHS.values())} so far, got {type(model.model.diffusion_model).__name__}")
+        raise ValueError(f"Dials support {', '.join(dict.fromkeys(p.family for p in TEXT_PATHS.values()))} so far, got {type(model.model.diffusion_model).__name__}")
     return path
+
+
+def is_still(model):  # an image model: one latent frame and no audio stream, so nothing for a time curve to vary over
+    return type(model.model.diffusion_model).__name__ == "MiniMaxH3ImageModel"
 
 
 def dial_family(dial):

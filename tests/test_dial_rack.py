@@ -198,7 +198,49 @@ def check_holds(dtype):
                 retained_orthogonal_norm=float(retained["vec"].norm()), report=report)
 
 
+class MiniMaxH3ImageModel(MiniMaxH3Model):  # core's MiniMax-H3-Image class: the same text path, no audio stream
+    pass
+
+
+def check_image_model():
+    """The H3 image model is the H3 family: the same seams, H3 dials load and shift it as they do the video model, and a
+    time curve is refused with a reason."""
+    torch.manual_seed(7)
+    video, image = Fake(), Fake()
+    image.diffusion_model = MiniMaxH3ImageModel()
+    image.diffusion_model.load_state_dict(video.diffusion_model.state_dict())
+    patch = lambda f: comfy.model_patcher.ModelPatcher(f, load_device=torch.device("cpu"), offload_device=torch.device("cpu"))
+    video, image = patch(video), patch(image)
+    assert core.text_path(image) is core.text_path(video) and core.text_path(image).family == "MiniMax H3"
+    assert core.is_still(image) and not core.is_still(video)
+    x = torch.randn(5, H)
+    ins = {"dial_0": dial("post", 1, "a"), "dial_1": dial("pre", 2, "b")}
+    rows = [dict(input="dial_0", strength=1.5), dict(input="dial_1", strength=-0.5)]
+    out = run(rack(image, rows, ins), x)
+    assert torch.equal(out, run(rack(video, rows, ins), x)), "the image model's rack differs from the video model's"
+    assert not torch.equal(out, run(image, x)), "the dials did not reach the image model"
+    try:
+        rack(image, [dict(input="dial_0", strength=1, time={"type": "keys", "points": [[0, 0], [1, 1]]})], ins)
+    except ValueError as exc:
+        assert "time curves need a video model" in str(exc), str(exc)
+    else:
+        raise AssertionError("a time curve on the image model was accepted")
+    names = str(_unsupported())
+    assert names.count("MiniMax H3") == 1, names
+
+
+def _unsupported():
+    other = Fake()
+    other.diffusion_model = torch.nn.Linear(1, 1)
+    try:
+        core.text_path(types.SimpleNamespace(model=other))
+    except ValueError as exc:
+        return exc
+    raise AssertionError("an unsupported model was accepted")
+
+
 def main():
+    check_image_model()
     torch.manual_seed(0)
     base = comfy.model_patcher.ModelPatcher(Fake(), load_device=torch.device("cpu"), offload_device=torch.device("cpu"))
     x = torch.randn(5, H)

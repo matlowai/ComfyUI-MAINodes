@@ -50,14 +50,16 @@ Two kinds of dial file:
 
 | family | post seam (hook) | pre seam (LoRA file) |
 |---|---|---|
-| MiniMax H3 | `token_refiner` output | `condition_proj` bias |
+| MiniMax H3 (video, and the H3 image model) | `token_refiner` output | `condition_proj` bias |
 | MOSS-Image | `text_embedder` output (after its two text blocks) | `text_embedder.proj` bias |
 | Krea 2 | `txtmlp` output | none: `txtfusion` has no biased projection up front |
 
 Make Dial, Dial Rack, Combine Dials, holds and step envelopes work on all three. Make Dial from Pictures / Videos and
 the rack's probe-bank wheel are H3 only, and say so on other models. Each dial file records its family
 (`model_family` metadata), and a dial made for one family fails on another with a short error. Files without the field
-are H3 dials. Strength ranges differ by family. On MOSS-Image (SFT DeBand, cfg 3), text dials need about ±4
+are H3 dials. MiniMax's H3 image model counts as the H3 family, so H3 dials load on it; that pairing has not been
+render-tested yet, so treat the video strengths as a first guess, and time curves are refused there (one frame, no
+audio). Strength ranges differ by family. On MOSS-Image (SFT DeBand, cfg 3), text dials need about ±4
 for a clear effect and overcook near ±8. On Krea 2 (Raw, cfg 4), the post seam is not clean: only the "toward A"
 side of day/night and weather worked (to about −4), and colour grades saturate and break.
 

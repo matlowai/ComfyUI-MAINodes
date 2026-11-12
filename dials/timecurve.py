@@ -230,6 +230,8 @@ def apply_rack(model, rows, specs, curve_audio=None, hold_map=None, node_id=None
     Returns (report lines, UI data for the curves)."""
     if core.text_path(model).family != "MiniMax H3":
         raise ValueError("time curves support MiniMax H3 only (they blend video and audio latent frames); remove the row's time curve")
+    if core.is_still(model):
+        raise ValueError("time curves need a video model (the H3 image model makes one frame and no audio); remove the row's time curve")
     specs = [check_spec(s) for s in specs]
     for (label, dial, _), spec in zip(rows, specs):
         if dial["mode"] != "post":
