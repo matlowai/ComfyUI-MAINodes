@@ -236,7 +236,7 @@ export const listTitle = (key, keys) => [BRICKS[key].title, kitShown(key, keys)]
 
 // every installed node type a person can add as a brick, for the palette
 export function nodeTypes() {
-  return Object.entries(LiteGraph.registered_node_types).filter(([, c]) => c.nodeData && !c.nodeData.deprecated && !c.nodeData.experimental)
+  return Object.entries(LiteGraph.registered_node_types).filter(([type, c]) => c.nodeData && !c.nodeData.deprecated && !c.nodeData.experimental && !globalThis.NodeShelf?.hidden(type)) // Node Shelf (web/node_shelf.js)
     .map(([type, c]) => ({ type, title: graph.subgraph(type)?.name || c.nodeData.display_name || type, category: c.nodeData.category || "" }));
 }
 // the palette's order for node types from the first letter: title prefix, then a word of the title, then the title
