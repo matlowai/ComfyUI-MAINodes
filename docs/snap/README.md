@@ -1,4 +1,4 @@
-# Snap (test branch)
+# Snap (pre-alpha)
 
 Snap is a snap-together view over the real ComfyUI graph. You build a render from bricks (Models, Prompt, References,
 Render, Upscale, ...) and Snap edits the ordinary ComfyUI workflow underneath, so anything you change in the graph
@@ -8,17 +8,15 @@ shows up in Snap and the other way round. The layers are:
 - **Snap:** bricks, recipes, Cast, scenes and takes on top of that graph.
 - **Agents:** the same actions as tools, over WebMCP in the page or MCP / HTTP from outside (see [Agent hooks](#agent-hooks)).
 
-This is the `snap` branch, for testers. It is not on `main` yet. The design rules are in
-[`SNAP_RULES.md`](SNAP_RULES.md) (SNAP-R1, R2, ...); code cites them by ID.
+**Status: pre-alpha.** Snap ships with MAINodes so people can try it, and it already does real work, but it is not
+polished: layouts and tool names still change between commits, some parts were tested by one person on one machine,
+and the [known issues](#known-issues) are real. Keep a copy of work you care about as an ordinary ComfyUI workflow.
+The design rules are in [`SNAP_RULES.md`](SNAP_RULES.md) (SNAP-R1, R2, ...); code cites them by ID.
 
-## Install the branch
+## Install
 
-```
-cd ComfyUI/custom_nodes
-git clone -b snap https://github.com/matlowai/ComfyUI-MAINodes
-```
-
-Already have MAINodes? `git fetch origin && git switch snap`. Restart ComfyUI and reload the page.
+Snap comes with MAINodes: install or update the pack as the [main README](../../README.md) says, restart ComfyUI and
+reload the page. There is nothing separate to install.
 
 Snap downloads nothing by itself. The onboarding sheet lists the files and node packs a setup needs, with sizes,
 sources and licenses, and a command you can run (see [Third-party models and licenses](#third-party-models-and-licenses)).
@@ -46,6 +44,11 @@ The same toggle takes you back to the graph.
   a person. Candidates come back with identity and copy notes; you pick.
 - **Work card:** the pill above the chain shows everything in flight, landed or failed, from the server's own records,
   including runs started from another page or by an agent.
+- **Your own bricks, and sharing** (newest, least tested): make a brick from a subgraph and choose which settings
+  show on its face, keep bricks you made, and send a brick or a recipe to someone as one file. Recipes are versioned
+  and keep the exact workflow they were made with.
+- **Conversation** (newest, least tested): the **Talk** button opens a chat dock on the right, next to the Inspector.
+  It needs a local agent adapter running (Codex is the first; a local pilot so far). Status and limits: [`CONVERSATION_STATUS_2026-11-09.md`](CONVERSATION_STATUS_2026-11-09.md).
 - **Library:** search cards, setups, LoRAs and Cast by words or by meaning (local EmbeddingGemma 2, if installed;
   keyword search otherwise).
 

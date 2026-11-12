@@ -151,8 +151,8 @@ existing installs.
   init and Dials are alpha: [`ALPHA.md`](ALPHA.md) says what each can do and
   where it was tested. Alpha nodes carry `(alpha)` in the menu and load
   behind a guarded loader, so a broken one cannot take the pack down.
-- **Snap** (test branch): a snap-together view over the ComfyUI graph, with agent tools. How to try it, known issues
-  and the third-party model licenses: [`docs/snap/README.md`](docs/snap/README.md).
+- **Snap** (pre-alpha): a snap-together view over the ComfyUI graph, with agent tools. It works but is not polished
+  yet. How to try it, known issues and the third-party model licenses: [`docs/snap/README.md`](docs/snap/README.md).
 - **What's new:** RelayVSR upscaling with quality presets and 16 / 24 GB tiers ([`relayvsr/README.md`](relayvsr/README.md), 2026-11-03). Older notes in
   [`docs/NEWS.md`](docs/NEWS.md); open questions in [`ROADMAP.md`](ROADMAP.md).
 
