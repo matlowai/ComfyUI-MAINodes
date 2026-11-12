@@ -1,0 +1,4 @@
+# continuum between two hugely different styles: A = 1920s black-and-white silent film, B = neon cyberpunk anime
+{subject} stands in the room, shown as a 1920s black-and-white silent film with flickering grain. ||| {subject} stands in the room, shown as a neon cyberpunk anime with glowing magenta and cyan light.
+{subject} looks up at the camera in an old hand-cranked silent movie, grey tones and an iris vignette. ||| {subject} looks up at the camera in a futuristic cel-shaded anime, holographic neon colours.
+{subject} walks slowly toward the viewer in scratched, sepia-grey 1920s film footage. ||| {subject} walks slowly toward the viewer in a glossy, neon-lit cyberpunk anime scene.

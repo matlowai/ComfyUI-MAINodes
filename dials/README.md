@@ -5,6 +5,12 @@ Training-free steering for MiniMax H3 (also MOSS-Image and Krea 2), made from pr
 works like a strength slider. Negative strength moves every generation toward the first prompt, positive toward the
 second. Ported from [ComfyUI-Dials](https://github.com/matlowai/ComfyUI-Dials); this is where new Dials work happens.
 
+**Research:** open, in-progress experiments live in [`dials/research/`](research/README.md): the running plan, one
+page per experiment, the scripts, raw logs, and [word dials](research/word_dials/README.md) made from four words with
+the Jacobian lens. Clips: [Dials Lab](https://matlowai.github.io/ComfyUI-Dials/lab.html),
+[Word Dials](https://matlowai.github.io/ComfyUI-Dials/words.html),
+[Dials on a First Frame](https://matlowai.github.io/ComfyUI-Dials/firstframe.html).
+
 ## Nodes (category MAINodes/Dials)
 
 | node | what it does |

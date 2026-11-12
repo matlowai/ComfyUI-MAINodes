@@ -1,0 +1,5 @@
+integrated_multimodal_description: [Shot 1] Cinematic, natural light. A tawny owl sits on a mossy fence post at the edge of a meadow at dusk, slowly turning its head and blinking at the camera. The camera holds a steady medium close-up.
+
+overall_soundscape: Crickets in the grass, a light breeze through the meadow, the soft rustle of feathers.
+
+non_diegetic_music: N/A

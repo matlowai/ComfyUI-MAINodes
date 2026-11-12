@@ -1,0 +1,4 @@
+# continuum between two hugely different styles: A = Renaissance oil painting, B = 8-bit pixel art
+{subject} stands in the room, painted as a Renaissance oil painting with soft brushwork and a varnished glow. ||| {subject} stands in the room, rendered as 8-bit pixel art from an old video game with a limited palette.
+{subject} looks up at the camera, an old master's portrait in rich oil paint and chiaroscuro. ||| {subject} looks up at the camera, a blocky retro game sprite made of large square pixels.
+{subject} walks slowly toward the viewer in a classical oil painting, brushstrokes visible in the paint. ||| {subject} walks slowly toward the viewer in a chunky 8-bit game, everything made of square pixels.

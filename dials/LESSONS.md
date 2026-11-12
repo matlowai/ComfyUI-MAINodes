@@ -235,9 +235,11 @@ one seed; treat them as starting points.
   always looks full). They are for smaller cards. KJ's sage-attention patch was left out: it changes pixels.
 - **The Dial Rack can't live inside a blueprint:** its rows are a DOM widget drawn by the inner node's script; promoting
   the `rack` widget gives a hidden plain string on the subgraph node. Keep the rack outside, wired to the model input.
-- **Working with several Claude agents:** brief them like peers (goal, files, rules, how to verify); give each its own
-  git worktree and have it fast-forward MAIN under `flock`; give a strong model (Opus) the items that need careful reading
-  of several systems; the auto-mode safety check blocks an agent from a GPU its brief told it never to touch, so tell it
+- **Working with several Claude agents:** brief them like peers (goal, files, rules, how to verify); keep them in one
+  checkout, each on its own branch with disjoint files assigned up front, and integrate one at a time (write down who waits
+  for whom). Separate git worktrees only pay off when wall-clock speed matters more than token burn: they multiply setup,
+  leave copies to inventory and clean up, and let agents drift apart unseen. Give a strong model (Opus) the items that need
+  careful reading of several systems; the auto-mode safety check blocks an agent from a GPU its brief told it never to touch, so tell it
   which servers are its own. Two GPU lanes (study servers on :8288 and :8289) roughly halve wall-clock for render batches.
 - **Review before pushing:** run the full test suite, scan the diff for private paths and names, and look at the
   screenshots yourself; several agents' own checks missed layout and wording problems.

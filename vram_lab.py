@@ -173,12 +173,47 @@ def _balanced_ranges(n, size, min_size):
     return out
 
 
+def _mod_row_range(vec, row, a, lo, hi):
+    """vec[row] for the rows [lo, hi) of a segment that starts at packed row `a`.
+
+    The counterpart of core's ``_mod_row`` (comfy/ldm/minimax/model.py:230) for a
+    CHUNKED consumer. Since ComfyUI #15375 a ``mod_segments`` row is either a
+    scalar mod-row index (all rows of the segment share a timestep) or a per-token
+    LongTensor with one index per row OF THAT SEGMENT, which is what a non-uniform
+    video/audio noise mask produces (model.py:669/671). A whole-segment row tensor
+    cannot broadcast against a chunk-sized slice of `h`, so it is sliced to the same
+    window; `lo - a` / `hi - a` convert packed coordinates to segment-relative ones.
+    Callers whose lo/hi are ALREADY segment-relative pass a=0 (see
+    streamed_final_layer_forward). MAINodes issue #5.
+    """
+    return vec[row[lo - a:hi - a]] if torch.is_tensor(row) else vec[row]
+
+
+def _mod_seg_kind(row):
+    """The modality tag of a segment (row % 3), whichever row form it carries.
+
+    Reading element 0 is exact, not a heuristic: core builds a per-token row as
+    ``rows_to_mod_index(rows_t, tag) = t_row[v] * 3 + tag`` (model.py:649-655) and
+    every call site passes ONE ``tag`` for the whole segment (``seg_tag[kind]``,
+    model.py:669/671). Only the timestep index t_row varies within a segment; the
+    modality tag is constant, so any element answers for all of them. Verified
+    against core 7d2640b3 (h3-fc-vsa-0829).
+    """
+    if torch.is_tensor(row):
+        if row.numel() == 0:
+            raise ValueError("empty per-token modulation row")
+        return int(row.reshape(-1)[0])
+    return int(row)
+
+
 def _mod_scale_shift_range(h, shift, scale, segments, c0, c1):
     """h is norm(x[c0:c1]); apply the per-segment affine restricted to [c0, c1)."""
     for a, b, row in segments:
         lo, hi = max(a, c0), min(b, c1)
         if lo < hi:
-            h[lo - c0:hi - c0].mul_(1.0 + scale[row].to(h.dtype)).add_(shift[row].to(h.dtype))
+            h[lo - c0:hi - c0].mul_(
+                1.0 + _mod_row_range(scale, row, a, lo, hi).to(h.dtype)
+            ).add_(_mod_row_range(shift, row, a, lo, hi).to(h.dtype))
     return h
 
 
@@ -187,7 +222,8 @@ def _mod_gate_range(x, gate, other, segments, c0, c1):
     for a, b, row in segments:
         lo, hi = max(a, c0), min(b, c1)
         if lo < hi:
-            x[lo:hi].addcmul_(other[lo - c0:hi - c0], gate[row].to(x.dtype))
+            x[lo:hi].addcmul_(other[lo - c0:hi - c0],
+                              _mod_row_range(gate, row, a, lo, hi).to(x.dtype))
     return x
 
 
@@ -528,7 +564,7 @@ def _exact_av_rows(o, qc, st, segments, c0, c1, out_dtype):
     global _EXACT_AV_LOGGED
     n = 0
     for sa, sb, row in segments:
-        if row % 3 == 0:                       # video rides the fp4 store
+        if _mod_seg_kind(row) % 3 == 0:        # video rides the fp4 store
             continue
         lo, hi = max(sa, c0), min(sb, c1)
         if lo >= hi:
@@ -820,7 +856,7 @@ def _exact_av_rows_mixed(o, qc, st, segments, c0, c1, out_dtype):
     global _EXACT_AV_LOGGED
     n = 0
     for sa, sb, row in segments:
-        if row % 3 == 0:                       # video rides the quantised stores
+        if _mod_seg_kind(row) % 3 == 0:        # video rides the quantised stores
             continue
         lo, hi = max(sa, c0), min(sb, c1)
         if lo >= hi:
@@ -1037,7 +1073,14 @@ class _PrecProbe:
 
     @staticmethod
     def _seg_kind(row):
-        return ("cond_" if row >= 3 else "") + ("video", "text", "audio")[row % 3]
+        # Diagnostic label only; never feeds the maths. The modality half is exact
+        # for both row forms (see _mod_seg_kind). The "cond_" half is a heuristic
+        # that reads t_row != 0 as a conditioning segment, and under per-token rows
+        # (#15375) a masked TARGET video segment can land on t_row >= 1 and be
+        # labelled cond_video. Left as is on purpose: the label is also the key of
+        # _FakeQuant's `segs` filter, so renaming it would change what that selects.
+        r = _mod_seg_kind(row)
+        return ("cond_" if r >= 3 else "") + ("video", "text", "audio")[r % 3]
 
     def _fq_nvfp4(self, x2d):
         from comfy_kitchen.tensor.nvfp4 import TensorCoreNVFP4Layout
@@ -1459,6 +1502,10 @@ def streamed_final_layer_forward(fl, x, t_emb, video_seg, audio_seg, chunk=16384
     shift, scale = fl.adaln_proj(t_emb)
 
     def head(a, b, row, out_mod):
+        # Since #15375 `row` may be a per-token LongTensor over THIS segment (one
+        # entry per row of [a, b)). c0/c1 below are already segment-relative -- they
+        # index x as x[a + c0:a + c1] -- so the row window is row[c0:c1] and the
+        # segment start `a` must NOT be subtracted again: _mod_row_range takes a=0.
         n = b - a
         if exact_gemm:
             # exact tier: chunk only the norm/mod/fp32 promotion into ONE fp32 buffer,
@@ -1466,7 +1513,9 @@ def streamed_final_layer_forward(fl, x, t_emb, video_seg, audio_seg, chunk=16384
             # Transient: one [n, hidden] fp32 (4.28 GiB at 213k rows) instead of ~10.7.
             hbuf = torch.empty((n, x.shape[1]), dtype=torch.float32, device=x.device)
             for c0, c1 in _ranges(n, chunk):
-                hbuf[c0:c1] = fl.norm(x[a + c0:a + c1]) * (1.0 + scale[row]) + shift[row]
+                hbuf[c0:c1] = (fl.norm(x[a + c0:a + c1])
+                               * (1.0 + _mod_row_range(scale, row, 0, c0, c1))
+                               + _mod_row_range(shift, row, 0, c0, c1))
             out = out_mod(hbuf)
             del hbuf
             return out
@@ -1474,7 +1523,9 @@ def streamed_final_layer_forward(fl, x, t_emb, video_seg, audio_seg, chunk=16384
         # measured max |d| ~5e-6 vs stock on random weights). Transient ~chunk-sized.
         parts = []
         for c0, c1 in _ranges(n, chunk):
-            h = (fl.norm(x[a + c0:a + c1]) * (1.0 + scale[row]) + shift[row]).to(torch.float32)
+            h = (fl.norm(x[a + c0:a + c1])
+                 * (1.0 + _mod_row_range(scale, row, 0, c0, c1))
+                 + _mod_row_range(shift, row, 0, c0, c1)).to(torch.float32)
             parts.append(out_mod(h))
             del h
         return parts[0] if len(parts) == 1 else torch.cat(parts, dim=0)
@@ -1486,6 +1537,61 @@ def streamed_final_layer_forward(fl, x, t_emb, video_seg, audio_seg, chunk=16384
     if probe is not None:
         probe.mark(None, "final")
     return v, a
+
+
+def _final_layer_head_bank(fl):
+    """How many PDD heads FinalLayer's output weights are stacked into, or None
+    if that cannot be read off this model.
+
+    ComfyUI #15908 lets a PDD LoRA stack n heads into video_out/audio_out and
+    blends the ones a step spans, dt-weighted (model.py:317-332).
+    streamed_final_layer_forward predates the bank: it would silently return head
+    0's prediction, which is wrong output with no error. So the rule is prove
+    n == 1 or do not stream -- a quantised or proxy weight whose `.weight.shape`
+    does not divide `out_features` reads as unknown, not as one head.
+    """
+    try:
+        vo = fl.video_out
+        rows, out = int(vo.weight.shape[0]), int(vo.out_features)
+    except Exception:  # noqa: BLE001  (proxy/quantised weight without a plain shape)
+        return None
+    if out <= 0 or rows <= 0 or rows % out:
+        return None
+    return rows // out
+
+
+_FL_STOCK_LOGGED = False
+
+
+def _final_layer_forward_factory(fl, chunk, exact, min_tokens, probe_owner=None):
+    """The object patch installed over `diffusion_model.final_layer.forward`.
+
+    Signature note (MAINodes issue #4): core's FinalLayer.forward grew three
+    positional arguments in #15908 (sigma, sample_sigmas, shifts). The captured
+    values used to sit in the 5th/6th/7th parameter slots, so core's new
+    positionals bound INTO them -- `_fl` became a Tensor and the first
+    dereference raised `'Tensor' object has no attribute 'adaln_proj'`. `*extra`
+    makes the captures keyword-only; `**kwargs` is there for the next time core
+    grows an argument. Everything core passes is forwarded to the stock path.
+    """
+    def _fl_forward(x, t_emb, video_seg, audio_seg, *extra,
+                    _fl=fl, _c=int(chunk), _e=bool(exact), **kwargs):
+        global _FL_STOCK_LOGGED
+        n_heads = _final_layer_head_bank(_fl)
+        if n_heads != 1:                       # >1 head, or unproven: stock, never stream
+            if not _FL_STOCK_LOGGED:
+                _FL_STOCK_LOGGED = True
+                log.warning("H3StreamedBlocks: final-layer streaming OFF (%s); "
+                            "blocks still stream, only the final layer runs stock",
+                            "PDD head bank of %d" % n_heads if n_heads
+                            else "the output head bank could not be read")
+            return type(_fl).forward(_fl, x, t_emb, video_seg, audio_seg, *extra, **kwargs)
+        if x.shape[0] < min_tokens:
+            return type(_fl).forward(_fl, x, t_emb, video_seg, audio_seg, *extra, **kwargs)
+        return streamed_final_layer_forward(_fl, x, t_emb, video_seg, audio_seg, chunk=_c,
+                                            probe=getattr(probe_owner, "_h3_memprobe", None),
+                                            exact_gemm=_e)
+    return _fl_forward
 
 
 # --------------------------------------------------------------------------- node
@@ -1567,18 +1673,28 @@ class H3StreamedBlocks:
         except Exception as _e:  # noqa: BLE001
             log.info("H3StreamedBlocks: collision report skipped (%s)", _e)
         m = model.clone()
+        # #15988 mask-velocity compat (A5, 2026-09-04). A low-VRAM graph that
+        # carries a fractional mask needs the correction too, and the node that
+        # builds the mask (H3TemporalInsert) emits a LATENT and cannot patch a
+        # model. One helper, two entry points; it is keyed and idempotent, so
+        # adding H3 Core Compatibility to the same chain is safe. It installs
+        # only when the capability probe says 'compat_needed'.
+        try:
+            from .h3_mask_conv import apply_h3_mask_velocity_compat
+            m, _mc_rep = apply_h3_mask_velocity_compat(m, "both", "auto")
+            log.info("H3StreamedBlocks: %s", _mc_rep.splitlines()[0])
+        except Exception as _e:  # noqa: BLE001  never block the block patcher
+            log.warning("H3StreamedBlocks: mask-velocity compat skipped (%s: %s)",
+                        type(_e).__name__, _e)
         for i, block in enumerate(blocks):
             m.set_model_patch_replace(_make_replacement(block, cfg, i), "dit", "double_block", i)
         fl = getattr(dm, "final_layer", None)
         if final_layer_chunk and fl is not None and hasattr(fl, "video_out") and hasattr(fl, "audio_out"):
             _exact = str(final_layer_gemm).startswith("exact")
 
-            def _fl_forward(x, t_emb, video_seg, audio_seg, _fl=fl, _c=int(final_layer_chunk), _e=_exact):
-                if x.shape[0] < cfg["min_tokens"]:
-                    return type(_fl).forward(_fl, x, t_emb, video_seg, audio_seg)
-                return streamed_final_layer_forward(_fl, x, t_emb, video_seg, audio_seg, chunk=_c,
-                                                    probe=getattr(dm, "_h3_memprobe", None), exact_gemm=_e)
-            m.add_object_patch("diffusion_model.final_layer.forward", _fl_forward)
+            m.add_object_patch("diffusion_model.final_layer.forward",
+                               _final_layer_forward_factory(fl, final_layer_chunk, _exact,
+                                                            cfg["min_tokens"], dm))
         if trim_forward:
             sha = _stock_forward_sha()
             if sha == _STOCK_FORWARD_SHA and hasattr(dm, "_forward"):

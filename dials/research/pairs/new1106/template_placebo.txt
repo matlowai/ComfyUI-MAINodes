@@ -1,0 +1,5 @@
+# placebo: the three villainy-pack templates with a meaningless slot difference (grey vs blue scarf), same length.
+# Question: do the shared template words ("looks up at the camera", "walks toward the viewer") leak into a dial on their own?
+{subject} stands in the room with a calm presence, a plain grey scarf around their neck. ||| {subject} stands in the room with a calm presence, a plain blue scarf around their neck.
+{subject} looks up at the camera with a grey scarf loosely tied at their collar. ||| {subject} looks up at the camera with a blue scarf loosely tied at their collar.
+{subject} walks slowly toward the viewer wearing a simple grey woollen scarf. ||| {subject} walks slowly toward the viewer wearing a simple blue woollen scarf.

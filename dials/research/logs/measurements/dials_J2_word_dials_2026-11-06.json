@@ -1,0 +1,1176 @@
+{
+ "r": 0.5,
+ "ref_dial": "h3_evil_sinister",
+ "ref_norm": 42.15705490112305,
+ "dials": {
+  "biolum": {
+   "words": [
+    "bioluminescent",
+    "glowing",
+    "phosphorescent",
+    "jellyfish"
+   ],
+   "tokens": {
+    " bioluminescent": [
+     6032,
+     1132,
+     1543,
+     1168
+    ],
+    "bioluminescent": [
+     8221,
+     1132,
+     1543,
+     1168
+    ],
+    " Bioluminescent": [
+     12100,
+     1132,
+     1543,
+     1168
+    ],
+    " glowing": [
+     48492
+    ],
+    "glowing": [
+     6072,
+     23184
+    ],
+    " Glowing": [
+     8280,
+     23184
+    ],
+    " phosphorescent": [
+     31988,
+     4589,
+     1168
+    ],
+    "phosphorescent": [
+     759,
+     23609,
+     4589,
+     1168
+    ],
+    " Phosphorescent": [
+     2350,
+     23609,
+     4589,
+     1168
+    ],
+    " jellyfish": [
+     51341,
+     18170
+    ],
+    "jellyfish": [
+     73,
+     11896,
+     18170
+    ],
+    " Jellyfish": [
+     73139,
+     18170
+    ]
+   },
+   "native_norm": 40.662593841552734,
+   "debias_removed": 0.019173860549926758,
+   "linearity_cos_half_vs_full": 0.9789627194404602,
+   "top5": [
+    [
+     0.1472538709640503,
+     "h3_x_probe_style"
+    ],
+    [
+     0.1151217520236969,
+     "safety_violence_probe_v2_hook"
+    ],
+    [
+     0.1017051711678505,
+     "h3_grade_warm_cold_hook"
+    ],
+    [
+     0.07635773718357086,
+     "h3_evil_dread_hook"
+    ],
+    [
+     0.07635773718357086,
+     "h3_evil_dread"
+    ]
+   ],
+   "bottom3": [
+    [
+     -0.13373932242393494,
+     "h3_x_film_artifact"
+    ],
+    [
+     -0.13375671207904816,
+     "h3_time_feel_v2_hook"
+    ],
+    [
+     -0.17537693679332733,
+     "h3_creature_lizard_squirrel_hook"
+    ]
+   ]
+  },
+  "rust": {
+   "words": [
+    "rust",
+    "corrosion",
+    "decay",
+    "patina"
+   ],
+   "tokens": {
+    " rust": [
+     23071
+    ],
+    "rust": [
+     35788
+    ],
+    " Rust": [
+     33789
+    ],
+    " corrosion": [
+     55388
+    ],
+    "corrosion": [
+     6005,
+     3630,
+     290
+    ],
+    " Corrosion": [
+     4463,
+     3630,
+     290
+    ],
+    " decay": [
+     30715
+    ],
+    "decay": [
+     84499
+    ],
+    " Decay": [
+     97286
+    ],
+    " patina": [
+     3272,
+     2210
+    ],
+    "patina": [
+     4676,
+     2210
+    ],
+    " Patina": [
+     7135,
+     2210
+    ]
+   },
+   "native_norm": 43.9504280090332,
+   "debias_removed": 0.00986635684967041,
+   "linearity_cos_half_vs_full": 0.9907614588737488,
+   "top5": [
+    [
+     0.0647059753537178,
+     "h3_t2_x_memory_present_mean_excl_tok0"
+    ],
+    [
+     0.060167450457811356,
+     "h3_t2_x_memory_present_diff_span"
+    ],
+    [
+     0.05620572343468666,
+     "h3_x_memory_present"
+    ],
+    [
+     0.05446179583668709,
+     "h3_grade_warm_cold_hook"
+    ],
+    [
+     0.04542505741119385,
+     "h3_style_claymation_hook"
+    ]
+   ],
+   "bottom3": [
+    [
+     -0.10570825636386871,
+     "h3_scale_miniature_hook"
+    ],
+    [
+     -0.11442489922046661,
+     "h3_voice_energy_hook"
+    ],
+    [
+     -0.11571282148361206,
+     "h3_voice_energy_v2_hook"
+    ]
+   ]
+  },
+  "stainedglass": {
+   "words": [
+    "stained",
+    "glass",
+    "cathedral",
+    "mosaic"
+   ],
+   "tokens": {
+    " stained": [
+     60052
+    ],
+    "stained": [
+     267,
+     2627
+    ],
+    " Stained": [
+     794,
+     2627
+    ],
+    " glass": [
+     8991
+    ],
+    "glass": [
+     58436
+    ],
+    " Glass": [
+     20734
+    ],
+    " cathedral": [
+     79150
+    ],
+    "cathedral": [
+     66,
+     587,
+     35520
+    ],
+    " Cathedral": [
+     56729
+    ],
+    " mosaic": [
+     70524
+    ],
+    "mosaic": [
+     8631,
+     61388
+    ],
+    " Mosaic": [
+     386,
+     44783
+    ]
+   },
+   "native_norm": 34.68983840942383,
+   "debias_removed": 0.015230655670166016,
+   "linearity_cos_half_vs_full": 0.9862457513809204,
+   "top5": [
+    [
+     0.12701217830181122,
+     "h3_scale_miniature_v2_hook"
+    ],
+    [
+     0.06878955662250519,
+     "h3_x_template_placebo"
+    ],
+    [
+     0.0671304389834404,
+     "h3_x_oil_pixel"
+    ],
+    [
+     0.061801739037036896,
+     "h3_t2_x_oil_pixel_diff_span"
+    ],
+    [
+     0.060074493288993835,
+     "h3_t2_x_oil_pixel_mean_excl_tok0"
+    ]
+   ],
+   "bottom3": [
+    [
+     -0.11256007105112076,
+     "h3_motion_hook"
+    ],
+    [
+     -0.11256007105112076,
+     "h3_motion"
+    ],
+    [
+     -0.11282000690698624,
+     "h3_t2_motion_mean_excl_tok0"
+    ]
+   ]
+  },
+  "honey": {
+   "words": [
+    "honey",
+    "amber",
+    "syrup",
+    "golden"
+   ],
+   "tokens": {
+    " honey": [
+     25744
+    ],
+    "honey": [
+     71,
+     2534
+    ],
+    " Honey": [
+     39615
+    ],
+    " amber": [
+     67605
+    ],
+    "amber": [
+     15221
+    ],
+    " Amber": [
+     46664
+    ],
+    " syrup": [
+     44222
+    ],
+    "syrup": [
+     82,
+     10920,
+     454
+    ],
+    " Syrup": [
+     5718,
+     30622
+    ],
+    " golden": [
+     20748
+    ],
+    "golden": [
+     97235
+    ],
+    " Golden": [
+     17809
+    ]
+   },
+   "native_norm": 41.729705810546875,
+   "debias_removed": 0.00802546739578247,
+   "linearity_cos_half_vs_full": 0.9822672009468079,
+   "top5": [
+    [
+     0.15464633703231812,
+     "h3_x_oil_pixel"
+    ],
+    [
+     0.14989449083805084,
+     "h3_t2_x_oil_pixel_mean_excl_tok0"
+    ],
+    [
+     0.14687447249889374,
+     "h3_t2_x_oil_pixel_diff_span"
+    ],
+    [
+     0.12695276737213135,
+     "h3_evil_creepy_hook"
+    ],
+    [
+     0.12695276737213135,
+     "h3_evil_creepy"
+    ]
+   ],
+   "bottom3": [
+    [
+     -0.09819290041923523,
+     "h3_x_film_artifact"
+    ],
+    [
+     -0.11541277915239334,
+     "h3_time_slowmo_timelapse_hook"
+    ],
+    [
+     -0.12634775042533875,
+     "h3_creature_lizard_squirrel_hook"
+    ]
+   ]
+  },
+  "origami": {
+   "words": [
+    "origami",
+    "folded",
+    "paper",
+    "crease"
+   ],
+   "tokens": {
+    " origami": [
+     2713,
+     10606
+    ],
+    "origami": [
+     4670,
+     10606
+    ],
+    " Origami": [
+     45498,
+     10606
+    ],
+    " folded": [
+     47035
+    ],
+    "folded": [
+     19961,
+     291
+    ],
+    " Folded": [
+     60473,
+     291
+    ],
+    " paper": [
+     5567
+    ],
+    "paper": [
+     19166
+    ],
+    " Paper": [
+     17862
+    ],
+    " crease": [
+     1884,
+     519
+    ],
+    "crease": [
+     19947
+    ],
+    " Crease": [
+     7792,
+     519
+    ]
+   },
+   "native_norm": 42.14454650878906,
+   "debias_removed": 0.022732138633728027,
+   "linearity_cos_half_vs_full": 0.9897981882095337,
+   "top5": [
+    [
+     0.12145311385393143,
+     "h3_x_probe_style"
+    ],
+    [
+     0.11838480830192566,
+     "h3_spacewarp_hook"
+    ],
+    [
+     0.11820954084396362,
+     "h3_evil_corrupted_hook"
+    ],
+    [
+     0.11820954084396362,
+     "h3_evil_corrupted"
+    ],
+    [
+     0.11789625138044357,
+     "h3_gravity_zero_hook"
+    ]
+   ],
+   "bottom3": [
+    [
+     -0.10205933451652527,
+     "h3_light_dramatic_v2_hook"
+    ],
+    [
+     -0.11183452606201172,
+     "h3_light_dramatic_hook"
+    ],
+    [
+     -0.12614823877811432,
+     "h3_voice_energy_hook"
+    ]
+   ]
+  },
+  "static": {
+   "words": [
+    "static",
+    "signal",
+    "broadcast",
+    "interference"
+   ],
+   "tokens": {
+    " static": [
+     1099
+    ],
+    "static": [
+     1978
+    ],
+    " Static": [
+     23105
+    ],
+    " signal": [
+     8286
+    ],
+    "signal": [
+     26622
+    ],
+    " Signal": [
+     27230
+    ],
+    " broadcast": [
+     12899
+    ],
+    "broadcast": [
+     54162
+    ],
+    " Broadcast": [
+     31965
+    ],
+    " interference": [
+     31217
+    ],
+    "interference": [
+     2245,
+     2202
+    ],
+    " Interference": [
+     5665,
+     2202
+    ]
+   },
+   "native_norm": 39.34218215942383,
+   "debias_removed": 0.014024496078491211,
+   "linearity_cos_half_vs_full": 0.9795632362365723,
+   "top5": [
+    [
+     0.12807738780975342,
+     "h3_x_probe_style"
+    ],
+    [
+     0.09223025292158127,
+     "h3_x_oil_pixel"
+    ],
+    [
+     0.08559491485357285,
+     "h3_t2_x_oil_pixel_mean_excl_tok0"
+    ],
+    [
+     0.08149813115596771,
+     "h3_t2_x_oil_pixel_diff_span"
+    ],
+    [
+     0.07844263315200806,
+     "h3_evil_impish_hook"
+    ]
+   ],
+   "bottom3": [
+    [
+     -0.0893903598189354,
+     "h3_time_slowmo_timelapse_hook"
+    ],
+    [
+     -0.09006202220916748,
+     "h3_light_dramatic_hook"
+    ],
+    [
+     -0.09210150688886642,
+     "h3_night_rain_set_hook"
+    ]
+   ]
+  },
+  "hush": {
+   "words": [
+    "whisper",
+    "hush",
+    "silence",
+    "quiet"
+   ],
+   "tokens": {
+    " whisper": [
+     34855
+    ],
+    "whisper": [
+     1312,
+     27370
+    ],
+    " Whisper": [
+     96974
+    ],
+    " hush": [
+     305,
+     1116
+    ],
+    "hush": [
+     71,
+     1116
+    ],
+    " Hush": [
+     472,
+     1116
+    ],
+    " silence": [
+     21162
+    ],
+    "silence": [
+     34804,
+     763
+    ],
+    " Silence": [
+     68088
+    ],
+    " quiet": [
+     11340
+    ],
+    "quiet": [
+     43650
+    ],
+    " Quiet": [
+     67487
+    ]
+   },
+   "native_norm": 37.40705108642578,
+   "debias_removed": 0.018379569053649902,
+   "linearity_cos_half_vs_full": 0.9773635268211365,
+   "top5": [
+    [
+     0.16850794851779938,
+     "h3_grade_warm_cold_hook"
+    ],
+    [
+     0.11231620609760284,
+     "h3_evil_cold_hook"
+    ],
+    [
+     0.11231620609760284,
+     "h3_evil_cold"
+    ],
+    [
+     0.08467856049537659,
+     "h3_t2_x_oil_pixel_diff_span"
+    ],
+    [
+     0.08109419047832489,
+     "h3_evil_creepy_hook"
+    ]
+   ],
+   "bottom3": [
+    [
+     -0.14392420649528503,
+     "h3_perf_reserved_lively_hook"
+    ],
+    [
+     -0.14392420649528503,
+     "h3_face_expressive_hook"
+    ],
+    [
+     -0.16841590404510498,
+     "h3_x_silentfilm_cyberpunk"
+    ]
+   ]
+  },
+  "thunder": {
+   "words": [
+    "thunder",
+    "roar",
+    "crash",
+    "boom"
+   ],
+   "tokens": {
+    " thunder": [
+     36843
+    ],
+    "thunder": [
+     339,
+     7995
+    ],
+    " Thunder": [
+     26691
+    ],
+    " roar": [
+     77624
+    ],
+    "roar": [
+     299,
+     277
+    ],
+    " Roar": [
+     11830,
+     277
+    ],
+    " crash": [
+     9920
+    ],
+    "crash": [
+     5082,
+     988
+    ],
+    " Crash": [
+     50335
+    ],
+    " boom": [
+     29745
+    ],
+    "boom": [
+     95316
+    ],
+    " Boom": [
+     53411
+    ]
+   },
+   "native_norm": 37.010162353515625,
+   "debias_removed": 0.035682737827301025,
+   "linearity_cos_half_vs_full": 0.9804078936576843,
+   "top5": [
+    [
+     0.07509558647871017,
+     "h3_evil_impish_hook"
+    ],
+    [
+     0.07509558647871017,
+     "h3_evil_impish"
+    ],
+    [
+     0.07382456958293915,
+     "h3_creature_lizard_squirrel_hook"
+    ],
+    [
+     0.06234227120876312,
+     "my_two_picture_dial"
+    ],
+    [
+     0.06066053733229637,
+     "h3_voice_energy_v2_hook"
+    ]
+   ],
+   "bottom3": [
+    [
+     -0.11852600425481796,
+     "h3_x_datamosh"
+    ],
+    [
+     -0.13444815576076508,
+     "h3_face_perp_voice_hook"
+    ],
+    [
+     -0.1396152675151825,
+     "h3_underwater_hook"
+    ]
+   ]
+  },
+  "vertigo": {
+   "words": [
+    "vertigo",
+    "dizzy",
+    "spinning",
+    "tilt"
+   ],
+   "tokens": {
+    " vertigo": [
+     5198,
+     7836
+    ],
+    "vertigo": [
+     1621,
+     7836
+    ],
+    " Vertigo": [
+     15058,
+     7836
+    ],
+    " dizzy": [
+     84084
+    ],
+    "dizzy": [
+     67,
+     90491
+    ],
+    " Dizzy": [
+     422,
+     90491
+    ],
+    " spinning": [
+     37860
+    ],
+    "spinning": [
+     2154,
+     19770
+    ],
+    " Spinning": [
+     3089,
+     19770
+    ],
+    " tilt": [
+     36200
+    ],
+    "tilt": [
+     1646,
+     83
+    ],
+    " Tilt": [
+     350,
+     2963
+    ]
+   },
+   "native_norm": 43.200775146484375,
+   "debias_removed": 0.03267472982406616,
+   "linearity_cos_half_vs_full": 0.9887096881866455,
+   "top5": [
+    [
+     0.15236817300319672,
+     "h3_evil_impish_hook"
+    ],
+    [
+     0.15236817300319672,
+     "h3_evil_impish"
+    ],
+    [
+     0.1517331898212433,
+     "h3_evil_corrupted_hook"
+    ],
+    [
+     0.1517331898212433,
+     "h3_evil_corrupted"
+    ],
+    [
+     0.1416904479265213,
+     "h3_evil_creepy_hook"
+    ]
+   ],
+   "bottom3": [
+    [
+     -0.07402201741933823,
+     "h3_underwater_hook"
+    ],
+    [
+     -0.08816990256309509,
+     "h3_x_silentfilm_cyberpunk"
+    ],
+    [
+     -0.09240363538265228,
+     "h3_scale_miniature_v2_hook"
+    ]
+   ]
+  },
+  "still": {
+   "words": [
+    "still",
+    "frozen",
+    "motionless",
+    "calm"
+   ],
+   "tokens": {
+    " still": [
+     2058
+    ],
+    "still": [
+     43366
+    ],
+    " Still": [
+     16377
+    ],
+    " frozen": [
+     19690
+    ],
+    "frozen": [
+     69,
+     42240
+    ],
+    " Frozen": [
+     57746
+    ],
+    " motionless": [
+     11379,
+     1717
+    ],
+    "motionless": [
+     48875,
+     1717
+    ],
+    " Motionless": [
+     26562,
+     1717
+    ],
+    " calm": [
+     19300
+    ],
+    "calm": [
+     5416,
+     76
+    ],
+    " Calm": [
+     3319,
+     76
+    ]
+   },
+   "native_norm": 39.3415641784668,
+   "debias_removed": 0.010365426540374756,
+   "linearity_cos_half_vs_full": 0.9881629347801208,
+   "top5": [
+    [
+     0.12794235348701477,
+     "h3_grade_warm_cold_hook"
+    ],
+    [
+     0.10818899422883987,
+     "h3_t2_x_memory_present_mean_excl_tok0"
+    ],
+    [
+     0.10048052668571472,
+     "h3_x_probe_style"
+    ],
+    [
+     0.09570669382810593,
+     "h3_evil_cold_hook"
+    ],
+    [
+     0.09570669382810593,
+     "h3_evil_cold"
+    ]
+   ],
+   "bottom3": [
+    [
+     -0.06491480022668839,
+     "h3_face_perp_voice_hook"
+    ],
+    [
+     -0.06548672914505005,
+     "h3_time_realtime_timelapse_videos_hook"
+    ],
+    [
+     -0.10231178998947144,
+     "h3_x_silentfilm_cyberpunk"
+    ]
+   ]
+  },
+  "underwater": {
+   "words": [
+    "underwater",
+    "submerged",
+    "bubbles",
+    "aquatic"
+   ],
+   "tokens": {
+    " underwater": [
+     45374
+    ],
+    "underwater": [
+     7995,
+     12987
+    ],
+    " Underwater": [
+     9449,
+     12987
+    ],
+    " submerged": [
+     84077
+    ],
+    "submerged": [
+     1966,
+     40354
+    ],
+    " Submerged": [
+     3719,
+     40354
+    ],
+    " bubbles": [
+     43683
+    ],
+    "bubbles": [
+     65,
+     34295
+    ],
+    " Bubbles": [
+     425,
+     34295
+    ],
+    " aquatic": [
+     71391
+    ],
+    "aquatic": [
+     71571,
+     774
+    ],
+    " Aquatic": [
+     22959,
+     774
+    ]
+   },
+   "native_norm": 37.96995544433594,
+   "debias_removed": 0.015355169773101807,
+   "linearity_cos_half_vs_full": 0.9871352910995483,
+   "top5": [
+    [
+     0.09212470799684525,
+     "safety_violence_probe_v2_hook"
+    ],
+    [
+     0.08835203945636749,
+     "h3_t2_x_memory_present_mean_excl_tok0"
+    ],
+    [
+     0.08391579985618591,
+     "h3_x_memory_present"
+    ],
+    [
+     0.07695038616657257,
+     "h3_grade_warm_cold_hook"
+    ],
+    [
+     0.07554233074188232,
+     "h3_t2_x_memory_present_diff_span"
+    ]
+   ],
+   "bottom3": [
+    [
+     -0.09488961100578308,
+     "h3_face_perp_voice_hook"
+    ],
+    [
+     -0.09599005430936813,
+     "h3_perf_reserved_lively_voiceheld_hook"
+    ],
+    [
+     -0.09599005430936813,
+     "h3_face_hold_loud_hook"
+    ]
+   ]
+  },
+  "bland": {
+   "words": [
+    "table",
+    "number",
+    "between",
+    "also"
+   ],
+   "tokens": {
+    " table": [
+     1965
+    ],
+    "table": [
+     2005
+    ],
+    " Table": [
+     6633
+    ],
+    " number": [
+     1372
+    ],
+    "number": [
+     4082
+    ],
+    " Number": [
+     5624
+    ],
+    " between": [
+     1948
+    ],
+    "between": [
+     41867
+    ],
+    " Between": [
+     27133
+    ],
+    " also": [
+     1083
+    ],
+    "also": [
+     18654
+    ],
+    " Also": [
+     7281
+    ]
+   },
+   "native_norm": 37.075660705566406,
+   "debias_removed": 0.015440940856933594,
+   "linearity_cos_half_vs_full": 0.9914788007736206,
+   "top5": [
+    [
+     0.11383578926324844,
+     "h3_evil_creepy_hook"
+    ],
+    [
+     0.11383578926324844,
+     "h3_evil_creepy"
+    ],
+    [
+     0.09013402462005615,
+     "h3_grade_warm_cold_hook"
+    ],
+    [
+     0.08744767308235168,
+     "h3_evil_impish_hook"
+    ],
+    [
+     0.08744767308235168,
+     "h3_evil_impish"
+    ]
+   ],
+   "bottom3": [
+    [
+     -0.1038983017206192,
+     "h3_lizard_squirrel_pics"
+    ],
+    [
+     -0.1038983017206192,
+     "h3_creature_lizard_squirrel_pics_hook"
+    ],
+    [
+     -0.13985057175159454,
+     "h3_creature_lizard_squirrel_hook"
+    ]
+   ]
+  }
+ },
+ "pairwise_cos": {
+  "biolum|rust": 0.28278112411499023,
+  "biolum|stainedglass": 0.2903063893318176,
+  "biolum|honey": 0.3137619197368622,
+  "biolum|origami": 0.26099589467048645,
+  "biolum|static": 0.28588446974754333,
+  "biolum|hush": 0.313012033700943,
+  "biolum|thunder": 0.33634281158447266,
+  "biolum|vertigo": 0.3609757423400879,
+  "biolum|still": 0.25360190868377686,
+  "biolum|underwater": 0.2722213864326477,
+  "biolum|bland": 0.18238960206508636,
+  "rust|stainedglass": 0.2104986011981964,
+  "rust|honey": 0.26204144954681396,
+  "rust|origami": 0.3391893208026886,
+  "rust|static": 0.142764151096344,
+  "rust|hush": 0.2159743756055832,
+  "rust|thunder": 0.30408674478530884,
+  "rust|vertigo": 0.3260163366794586,
+  "rust|still": 0.26730769872665405,
+  "rust|underwater": 0.20084381103515625,
+  "rust|bland": 0.21113313734531403,
+  "stainedglass|honey": 0.2555486857891083,
+  "stainedglass|origami": 0.24758538603782654,
+  "stainedglass|static": 0.2273663878440857,
+  "stainedglass|hush": 0.20657721161842346,
+  "stainedglass|thunder": 0.23968933522701263,
+  "stainedglass|vertigo": 0.3032795190811157,
+  "stainedglass|still": 0.23443756997585297,
+  "stainedglass|underwater": 0.3106149435043335,
+  "stainedglass|bland": 0.13926510512828827,
+  "honey|origami": 0.31100884079933167,
+  "honey|static": 0.2992585301399231,
+  "honey|hush": 0.2825111150741577,
+  "honey|thunder": 0.32735463976860046,
+  "honey|vertigo": 0.35667261481285095,
+  "honey|still": 0.29588717222213745,
+  "honey|underwater": 0.2863229215145111,
+  "honey|bland": 0.3035587668418884,
+  "origami|static": 0.18870854377746582,
+  "origami|hush": 0.2123260349035263,
+  "origami|thunder": 0.27426907420158386,
+  "origami|vertigo": 0.22330468893051147,
+  "origami|still": 0.30235135555267334,
+  "origami|underwater": 0.21789973974227905,
+  "origami|bland": 0.21536396443843842,
+  "static|hush": 0.28925952315330505,
+  "static|thunder": 0.2880617678165436,
+  "static|vertigo": 0.24019137024879456,
+  "static|still": 0.31583186984062195,
+  "static|underwater": 0.29870831966400146,
+  "static|bland": 0.2282150387763977,
+  "hush|thunder": 0.37537795305252075,
+  "hush|vertigo": 0.28859174251556396,
+  "hush|still": 0.30885380506515503,
+  "hush|underwater": 0.308282732963562,
+  "hush|bland": 0.17099523544311523,
+  "thunder|vertigo": 0.41257405281066895,
+  "thunder|still": 0.39479145407676697,
+  "thunder|underwater": 0.2896437346935272,
+  "thunder|bland": 0.19020646810531616,
+  "vertigo|still": 0.3069888651371002,
+  "vertigo|underwater": 0.2693037986755371,
+  "vertigo|bland": 0.2776753604412079,
+  "still|underwater": 0.34242790937423706,
+  "still|bland": 0.30976736545562744,
+  "underwater|bland": 0.21326269209384918
+ }
+}

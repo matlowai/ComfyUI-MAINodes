@@ -1,0 +1,719 @@
+{
+ "control": "output/video/dials_evil1106/control_00001_.mp4",
+ "base": {
+  "colour_temp": -4.032249450683594,
+  "time_of_day": -69.47905731201172,
+  "light_contrast": 66.06598663330078,
+  "motion": 7.244603633880615,
+  "texture": 13.76373291015625
+ },
+ "rows": [
+  {
+   "arm": "sinister1",
+   "dial": "h3_evil_sinister.safetensors",
+   "strength": 1.0,
+   "unexplained": 0.31578609347343445,
+   "pred": {
+    "colour_temp": 0.2410392314195633,
+    "time_of_day": 0.1303623914718628,
+    "light_contrast": 0.08382374048233032,
+    "motion": -0.11671656370162964,
+    "texture": -0.05499272421002388
+   },
+   "meas": {
+    "colour_temp": 17.825057983398438,
+    "time_of_day": 18.024024963378906,
+    "light_contrast": -13.738380432128906,
+    "motion": -0.6194067001342773,
+    "texture": -1.434920310974121
+   },
+   "top_axes": [
+    [
+     "mood",
+     0.5840241312980652
+    ],
+    [
+     "expression",
+     0.2920883595943451
+    ],
+    [
+     "colour_temp",
+     0.2410392314195633
+    ]
+   ]
+  },
+  {
+   "arm": "sinister2",
+   "dial": "h3_evil_sinister.safetensors",
+   "strength": 2.0,
+   "unexplained": 0.31578609347343445,
+   "pred": {
+    "colour_temp": 0.4820784628391266,
+    "time_of_day": 0.2607247829437256,
+    "light_contrast": 0.16764748096466064,
+    "motion": -0.23343312740325928,
+    "texture": -0.10998544842004776
+   },
+   "meas": {
+    "colour_temp": 26.35580062866211,
+    "time_of_day": 18.60113525390625,
+    "light_contrast": -7.7247467041015625,
+    "motion": -1.5484075546264648,
+    "texture": -0.030706405639648438
+   },
+   "top_axes": [
+    [
+     "mood",
+     0.5840241312980652
+    ],
+    [
+     "expression",
+     0.2920883595943451
+    ],
+    [
+     "colour_temp",
+     0.2410392314195633
+    ]
+   ]
+  },
+  {
+   "arm": "creepy1",
+   "dial": "h3_evil_creepy.safetensors",
+   "strength": 1.0,
+   "unexplained": 0.6319702863693237,
+   "pred": {
+    "colour_temp": 0.11780444532632828,
+    "time_of_day": 0.2644064426422119,
+    "light_contrast": -0.05374586954712868,
+    "motion": -0.29942718148231506,
+    "texture": -0.05548030138015747
+   },
+   "meas": {
+    "colour_temp": 20.043193817138672,
+    "time_of_day": 2.85797119140625,
+    "light_contrast": -3.0600318908691406,
+    "motion": -0.7064118385314941,
+    "texture": -0.7989645004272461
+   },
+   "top_axes": [
+    [
+     "expression",
+     0.3628169298171997
+    ],
+    [
+     "motion",
+     -0.29942718148231506
+    ],
+    [
+     "time_of_day",
+     0.2644064426422119
+    ]
+   ]
+  },
+  {
+   "arm": "creepy2",
+   "dial": "h3_evil_creepy.safetensors",
+   "strength": 2.0,
+   "unexplained": 0.6319702863693237,
+   "pred": {
+    "colour_temp": 0.23560889065265656,
+    "time_of_day": 0.5288128852844238,
+    "light_contrast": -0.10749173909425735,
+    "motion": -0.5988543629646301,
+    "texture": -0.11096060276031494
+   },
+   "meas": {
+    "colour_temp": 28.73800277709961,
+    "time_of_day": 12.414058685302734,
+    "light_contrast": -11.688339233398438,
+    "motion": -1.6420974731445312,
+    "texture": 1.4737558364868164
+   },
+   "top_axes": [
+    [
+     "expression",
+     0.3628169298171997
+    ],
+    [
+     "motion",
+     -0.29942718148231506
+    ],
+    [
+     "time_of_day",
+     0.2644064426422119
+    ]
+   ]
+  },
+  {
+   "arm": "cold1",
+   "dial": "h3_evil_cold.safetensors",
+   "strength": 1.0,
+   "unexplained": 0.5375317931175232,
+   "pred": {
+    "colour_temp": 0.5365589261054993,
+    "time_of_day": -0.01523393765091896,
+    "light_contrast": 0.03348623961210251,
+    "motion": -0.171889066696167,
+    "texture": -0.16435012221336365
+   },
+   "meas": {
+    "colour_temp": 19.665706634521484,
+    "time_of_day": -3.3246536254882812,
+    "light_contrast": -2.0591888427734375,
+    "motion": 0.2607274055480957,
+    "texture": 3.437917709350586
+   },
+   "top_axes": [
+    [
+     "colour_temp",
+     0.5365589261054993
+    ],
+    [
+     "mood",
+     0.44965681433677673
+    ],
+    [
+     "motion",
+     -0.171889066696167
+    ]
+   ]
+  },
+  {
+   "arm": "cold2",
+   "dial": "h3_evil_cold.safetensors",
+   "strength": 2.0,
+   "unexplained": 0.5375317931175232,
+   "pred": {
+    "colour_temp": 1.0731178522109985,
+    "time_of_day": -0.03046787530183792,
+    "light_contrast": 0.06697247922420502,
+    "motion": -0.343778133392334,
+    "texture": -0.3287002444267273
+   },
+   "meas": {
+    "colour_temp": 29.077438354492188,
+    "time_of_day": 5.315025329589844,
+    "light_contrast": -2.533355712890625,
+    "motion": -0.8642354011535645,
+    "texture": -0.07191181182861328
+   },
+   "top_axes": [
+    [
+     "colour_temp",
+     0.5365589261054993
+    ],
+    [
+     "mood",
+     0.44965681433677673
+    ],
+    [
+     "motion",
+     -0.171889066696167
+    ]
+   ]
+  },
+  {
+   "arm": "unhinged1",
+   "dial": "h3_evil_unhinged.safetensors",
+   "strength": 1.0,
+   "unexplained": 0.5257776379585266,
+   "pred": {
+    "colour_temp": 0.19719432294368744,
+    "time_of_day": 0.28651362657546997,
+    "light_contrast": 0.033779677003622055,
+    "motion": 0.11912763118743896,
+    "texture": 0.10131511092185974
+   },
+   "meas": {
+    "colour_temp": 15.71902084350586,
+    "time_of_day": 13.619880676269531,
+    "light_contrast": -17.82119369506836,
+    "motion": 1.9052777290344238,
+    "texture": -0.8619623184204102
+   },
+   "top_axes": [
+    [
+     "voice",
+     0.6539885401725769
+    ],
+    [
+     "expression",
+     0.43842417001724243
+    ],
+    [
+     "time_of_day",
+     0.28651362657546997
+    ]
+   ]
+  },
+  {
+   "arm": "unhinged2",
+   "dial": "h3_evil_unhinged.safetensors",
+   "strength": 2.0,
+   "unexplained": 0.5257776379585266,
+   "pred": {
+    "colour_temp": 0.3943886458873749,
+    "time_of_day": 0.5730272531509399,
+    "light_contrast": 0.06755935400724411,
+    "motion": 0.23825526237487793,
+    "texture": 0.20263022184371948
+   },
+   "meas": {
+    "colour_temp": 17.706562042236328,
+    "time_of_day": 17.18927001953125,
+    "light_contrast": -12.017669677734375,
+    "motion": 11.486244678497314,
+    "texture": 0.5465984344482422
+   },
+   "top_axes": [
+    [
+     "voice",
+     0.6539885401725769
+    ],
+    [
+     "expression",
+     0.43842417001724243
+    ],
+    [
+     "time_of_day",
+     0.28651362657546997
+    ]
+   ]
+  },
+  {
+   "arm": "seductive1",
+   "dial": "h3_evil_seductive.safetensors",
+   "strength": 1.0,
+   "unexplained": 0.7499034404754639,
+   "pred": {
+    "colour_temp": 0.06692909449338913,
+    "time_of_day": 0.2460639774799347,
+    "light_contrast": 0.04803571477532387,
+    "motion": 0.08591990917921066,
+    "texture": -0.26022976636886597
+   },
+   "meas": {
+    "colour_temp": 5.5050201416015625,
+    "time_of_day": 2.5524368286132812,
+    "light_contrast": -0.7147293090820312,
+    "motion": -0.36083221435546875,
+    "texture": 0.853175163269043
+   },
+   "top_axes": [
+    [
+     "texture",
+     -0.26022976636886597
+    ],
+    [
+     "time_of_day",
+     0.2460639774799347
+    ],
+    [
+     "voice",
+     -0.2457352578639984
+    ]
+   ]
+  },
+  {
+   "arm": "seductive2",
+   "dial": "h3_evil_seductive.safetensors",
+   "strength": 2.0,
+   "unexplained": 0.7499034404754639,
+   "pred": {
+    "colour_temp": 0.13385818898677826,
+    "time_of_day": 0.4921279549598694,
+    "light_contrast": 0.09607142955064774,
+    "motion": 0.17183981835842133,
+    "texture": -0.5204595327377319
+   },
+   "meas": {
+    "colour_temp": 8.48110580444336,
+    "time_of_day": 17.15680694580078,
+    "light_contrast": -10.880317687988281,
+    "motion": -0.5127711296081543,
+    "texture": 6.796670913696289
+   },
+   "top_axes": [
+    [
+     "texture",
+     -0.26022976636886597
+    ],
+    [
+     "time_of_day",
+     0.2460639774799347
+    ],
+    [
+     "voice",
+     -0.2457352578639984
+    ]
+   ]
+  },
+  {
+   "arm": "corrupted1",
+   "dial": "h3_evil_corrupted.safetensors",
+   "strength": 1.0,
+   "unexplained": 0.5174794793128967,
+   "pred": {
+    "colour_temp": 0.19946859776973724,
+    "time_of_day": 0.29413533210754395,
+    "light_contrast": -0.11361512541770935,
+    "motion": -0.0896868035197258,
+    "texture": 0.13620489835739136
+   },
+   "meas": {
+    "colour_temp": 20.753368377685547,
+    "time_of_day": 21.934452056884766,
+    "light_contrast": -10.947521209716797,
+    "motion": -2.1844048500061035,
+    "texture": -1.2430267333984375
+   },
+   "top_axes": [
+    [
+     "world_age",
+     0.49471935629844666
+    ],
+    [
+     "mood",
+     0.38526102900505066
+    ],
+    [
+     "time_of_day",
+     0.29413533210754395
+    ]
+   ]
+  },
+  {
+   "arm": "corrupted2",
+   "dial": "h3_evil_corrupted.safetensors",
+   "strength": 2.0,
+   "unexplained": 0.5174794793128967,
+   "pred": {
+    "colour_temp": 0.3989371955394745,
+    "time_of_day": 0.5882706642150879,
+    "light_contrast": -0.2272302508354187,
+    "motion": -0.1793736070394516,
+    "texture": 0.2724097967147827
+   },
+   "meas": {
+    "colour_temp": 21.943408966064453,
+    "time_of_day": 15.680511474609375,
+    "light_contrast": -3.036998748779297,
+    "motion": -4.908113718032837,
+    "texture": -1.7178840637207031
+   },
+   "top_axes": [
+    [
+     "world_age",
+     0.49471935629844666
+    ],
+    [
+     "mood",
+     0.38526102900505066
+    ],
+    [
+     "time_of_day",
+     0.29413533210754395
+    ]
+   ]
+  },
+  {
+   "arm": "dread1",
+   "dial": "h3_evil_dread.safetensors",
+   "strength": 1.0,
+   "unexplained": 0.4983694553375244,
+   "pred": {
+    "colour_temp": 0.031408969312906265,
+    "time_of_day": 0.20618312060832977,
+    "light_contrast": -0.03988072648644447,
+    "motion": -0.12694819271564484,
+    "texture": 0.010393732227385044
+   },
+   "meas": {
+    "colour_temp": 29.792606353759766,
+    "time_of_day": -2.55718994140625,
+    "light_contrast": -6.465869903564453,
+    "motion": -0.6506810188293457,
+    "texture": -4.031783103942871
+   },
+   "top_axes": [
+    [
+     "mood",
+     0.5398247838020325
+    ],
+    [
+     "expression",
+     0.31078869104385376
+    ],
+    [
+     "voice",
+     -0.29348087310791016
+    ]
+   ]
+  },
+  {
+   "arm": "dread2",
+   "dial": "h3_evil_dread.safetensors",
+   "strength": 2.0,
+   "unexplained": 0.4983694553375244,
+   "pred": {
+    "colour_temp": 0.06281793862581253,
+    "time_of_day": 0.41236624121665955,
+    "light_contrast": -0.07976145297288895,
+    "motion": -0.2538963854312897,
+    "texture": 0.020787464454770088
+   },
+   "meas": {
+    "colour_temp": 22.985336303710938,
+    "time_of_day": 15.345935821533203,
+    "light_contrast": -6.161262512207031,
+    "motion": -2.0922603607177734,
+    "texture": -1.6042089462280273
+   },
+   "top_axes": [
+    [
+     "mood",
+     0.5398247838020325
+    ],
+    [
+     "expression",
+     0.31078869104385376
+    ],
+    [
+     "voice",
+     -0.29348087310791016
+    ]
+   ]
+  },
+  {
+   "arm": "impish1",
+   "dial": "h3_evil_impish.safetensors",
+   "strength": 1.0,
+   "unexplained": 0.7186056971549988,
+   "pred": {
+    "colour_temp": -0.0690053179860115,
+    "time_of_day": 0.04704759642481804,
+    "light_contrast": -0.09120247513055801,
+    "motion": 0.03394119441509247,
+    "texture": -0.011650790460407734
+   },
+   "meas": {
+    "colour_temp": 2.0659103393554688,
+    "time_of_day": -5.039329528808594,
+    "light_contrast": 5.160499572753906,
+    "motion": 1.6462693214416504,
+    "texture": 1.548365592956543
+   },
+   "top_axes": [
+    [
+     "expression",
+     0.2924872934818268
+    ],
+    [
+     "mood",
+     0.2820800840854645
+    ],
+    [
+     "style",
+     0.21986964344978333
+    ]
+   ]
+  },
+  {
+   "arm": "impish2",
+   "dial": "h3_evil_impish.safetensors",
+   "strength": 2.0,
+   "unexplained": 0.7186056971549988,
+   "pred": {
+    "colour_temp": -0.138010635972023,
+    "time_of_day": 0.09409519284963608,
+    "light_contrast": -0.18240495026111603,
+    "motion": 0.06788238883018494,
+    "texture": -0.023301580920815468
+   },
+   "meas": {
+    "colour_temp": -0.17446136474609375,
+    "time_of_day": 14.202503204345703,
+    "light_contrast": -2.1796798706054688,
+    "motion": 0.6769933700561523,
+    "texture": 0.0343780517578125
+   },
+   "top_axes": [
+    [
+     "expression",
+     0.2924872934818268
+    ],
+    [
+     "mood",
+     0.2820800840854645
+    ],
+    [
+     "style",
+     0.21986964344978333
+    ]
+   ]
+  },
+  {
+   "arm": "noview1",
+   "dial": "h3_x_sinister_noview.safetensors",
+   "strength": 1.0,
+   "unexplained": 0.319625586271286,
+   "pred": {
+    "colour_temp": 0.2368304282426834,
+    "time_of_day": 0.12115073204040527,
+    "light_contrast": 0.09543761610984802,
+    "motion": -0.08879764378070831,
+    "texture": -0.08207710087299347
+   },
+   "meas": {
+    "colour_temp": 18.919082641601562,
+    "time_of_day": 15.20327377319336,
+    "light_contrast": -11.087478637695312,
+    "motion": -0.3864932060241699,
+    "texture": -1.6580419540405273
+   },
+   "top_axes": [
+    [
+     "mood",
+     0.524585485458374
+    ],
+    [
+     "expression",
+     0.2819001376628876
+    ],
+    [
+     "colour_temp",
+     0.2368304282426834
+    ]
+   ]
+  },
+  {
+   "arm": "noview2",
+   "dial": "h3_x_sinister_noview.safetensors",
+   "strength": 2.0,
+   "unexplained": 0.319625586271286,
+   "pred": {
+    "colour_temp": 0.4736608564853668,
+    "time_of_day": 0.24230146408081055,
+    "light_contrast": 0.19087523221969604,
+    "motion": -0.17759528756141663,
+    "texture": -0.16415420174598694
+   },
+   "meas": {
+    "colour_temp": 28.392745971679688,
+    "time_of_day": 15.75387954711914,
+    "light_contrast": -7.626148223876953,
+    "motion": -1.8624920845031738,
+    "texture": -1.0353879928588867
+   },
+   "top_axes": [
+    [
+     "mood",
+     0.524585485458374
+    ],
+    [
+     "expression",
+     0.2819001376628876
+    ],
+    [
+     "colour_temp",
+     0.2368304282426834
+    ]
+   ]
+  },
+  {
+   "arm": "placebo4",
+   "dial": "h3_x_template_placebo.safetensors",
+   "strength": 4.0,
+   "unexplained": 0.9437109231948853,
+   "pred": {
+    "colour_temp": 0.1713683158159256,
+    "time_of_day": -0.08809185773134232,
+    "light_contrast": 0.0836823582649231,
+    "motion": -0.010799442417919636,
+    "texture": -0.10660051554441452
+   },
+   "meas": {
+    "colour_temp": -0.07323074340820312,
+    "time_of_day": 1.3042068481445312,
+    "light_contrast": -0.40467071533203125,
+    "motion": 0.8915057182312012,
+    "texture": 1.1047706604003906
+   },
+   "top_axes": [
+    [
+     "colour_temp",
+     0.0428420789539814
+    ],
+    [
+     "voice",
+     0.04149613529443741
+    ],
+    [
+     "scale",
+     -0.03257446363568306
+    ]
+   ]
+  },
+  {
+   "arm": "placebo8",
+   "dial": "h3_x_template_placebo.safetensors",
+   "strength": 8.0,
+   "unexplained": 0.9437109231948853,
+   "pred": {
+    "colour_temp": 0.3427366316318512,
+    "time_of_day": -0.17618371546268463,
+    "light_contrast": 0.1673647165298462,
+    "motion": -0.02159888483583927,
+    "texture": -0.21320103108882904
+   },
+   "meas": {
+    "colour_temp": 16.63669204711914,
+    "time_of_day": 2.2858505249023438,
+    "light_contrast": -3.9333038330078125,
+    "motion": 1.9930071830749512,
+    "texture": 0.2766094207763672
+   },
+   "top_axes": [
+    [
+     "colour_temp",
+     0.0428420789539814
+    ],
+    [
+     "voice",
+     0.04149613529443741
+    ],
+    [
+     "scale",
+     -0.03257446363568306
+    ]
+   ]
+  }
+ ],
+ "summary": {
+  "colour_temp": {
+   "n_confident": 13,
+   "sign_agree": 12,
+   "spearman_all": 0.43909774436090226
+  },
+  "time_of_day": {
+   "n_confident": 13,
+   "sign_agree": 11,
+   "spearman_all": 0.5804511278195488
+  },
+  "light_contrast": {
+   "n_confident": 5,
+   "sign_agree": 2,
+   "spearman_all": -0.24812030075187969
+  },
+  "motion": {
+   "n_confident": 10,
+   "sign_agree": 8,
+   "spearman_all": 0.7413533834586465
+  },
+  "texture": {
+   "n_confident": 8,
+   "sign_agree": 3,
+   "spearman_all": -0.5323308270676691
+  }
+ }
+}

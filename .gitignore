@@ -3,3 +3,7 @@ __pycache__/
 
 # Snap gate: the local env file (paths on this machine)
 tests/snap/.env
+# the installation's own policy: the one file guaranteed to carry an endpoint
+# and a key name, and every doc tells the user to create it at the pack root,
+# which is a git checkout (spec 9.4). tests/flow/test_llm.py enforces this.
+flow_policy.json

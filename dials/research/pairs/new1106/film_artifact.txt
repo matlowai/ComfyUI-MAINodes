@@ -1,0 +1,5 @@
+# artifact-described counterpart of silentfilm: A = clean modern colour footage, B = the visible SURFACE of old film
+# (no era, place or costume words). Tests the skill's "describe the artifact, not the medium" advice.
+{subject} stands in the room, shown in clean, sharp, modern colour footage. ||| {subject} stands in the room, shown in black-and-white footage with heavy film grain, dust and scratches.
+{subject} looks up at the camera in smooth, steady, full-colour digital video. ||| {subject} looks up at the camera in grainy monochrome film, the exposure flickering, specks of dust crossing the frame.
+{subject} walks slowly toward the viewer, the image clean, colourful and stable. ||| {subject} walks slowly toward the viewer, the image black and white, scratched, jittering and flickering.

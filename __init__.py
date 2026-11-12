@@ -44,7 +44,10 @@ NODE_DISPLAY_NAME_MAPPINGS = dict(TIMESMEAR_DISPLAY_MAPPINGS)
 # snap_astrid (2026-11-07) runs Astrid's CLI for Snap and keeps the receipt of where each Cut went.
 for _mod in ("window_loop", "window_expand", "timeline.nodes",
              "concept_lab.nodes", "vram_lab", "derope_any", "video_out", "video_compare",
-             "h3_capabilities", "h3_extend", "h3_repair", "h3_drift", "h3_color_carry", "dials.nodes", "render", "relayvsr.nodes", "relayvsr.routes", "h3_refs", "snap_bridge", "snap_vault_server", "snap_world", "snap_critiques", "snap_instructions", "snap_faces", "snap_voice", "snap_book", "snap_astrid", "snap_iris"):
+             "h3_capabilities", "h3_extend", "h3_repair", "h3_drift", "h3_color_carry", "dials.nodes", "render", "relayvsr.nodes", "relayvsr.routes", "h3_refs",
+             "h3_measure", "h3_mask_conv", "h3_core_compat",
+             "h3_guide_anchor", "h3_cond_strength", "flow",
+             "snap_bridge", "snap_vault_server", "snap_world", "snap_critiques", "snap_instructions", "snap_faces", "snap_voice", "snap_book", "snap_astrid", "snap_iris"):
     try:
         _m = __import__(f"{__name__}.{_mod}", fromlist=["*"])
     except Exception as _e:                       # an alpha module must never
