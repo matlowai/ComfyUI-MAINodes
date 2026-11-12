@@ -7,3 +7,6 @@ tests/snap/.env
 # and a key name, and every doc tells the user to create it at the pack root,
 # which is a git checkout (spec 9.4). tests/flow/test_llm.py enforces this.
 flow_policy.json
+
+# local temp folders the chat tests write
+.scratch/
