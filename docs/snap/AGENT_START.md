@@ -434,6 +434,18 @@ newest first; `get_recipe {"recipe": "recipe-<name>", "version": 2}` reads one v
 in the open graph). With privacy on a version keeps no workflow and no identity rows, and the answer says so.
 Use `get_record`/`diff_record` on a recipe only knowing that they return its whole workflow (60-70 KB per version).
 
+### Bricks you make (SNAP-R280..R284)
+
+A brick a person makes is a ComfyUI subgraph: group nodes into a subgraph in ComfyUI and promote the widgets that
+belong on its face; Snap reads it like any node (`node:<subgraph id>#<n>`, titled by the subgraph's name, every
+promoted widget on its face). `set_brick_face {"brick", "show": ["steps", ["node", "cfg", "guidance"]]}` chooses what
+any-node brick shows (`"reset": true` gives back the default) and `rename_brick {"brick", "title"}` names it; both are
+kept on the recipe and travel with a saved recipe. `make_brick {"bricks": [two or more node:… ids], "title"}` groups
+bricks into one subgraph brick (one undo step; pack bricks are refused). `keep_brick {"brick"}` keeps it in the
+person's Library as `brick-<title>` with its settings, face and blueprint (`apply_card` adds it to a recipe).
+`list_blueprints` lists the installed blueprints (what each needs, gives and shows); `add_blueprint {"name"}` adds one
+as a brick. Library cards and `get_recipe` list a brick's blueprint as `blueprint: true`; the record keeps it.
+
 ### A new view of a place (stills from context pictures)
 
 A location is one place: make each new view of it from pictures you already have, not from words alone.

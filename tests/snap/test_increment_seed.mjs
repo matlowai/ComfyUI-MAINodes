@@ -7,7 +7,7 @@ test('increment mode advances only after queueing, wraps at bounds, and fixed st
  const listeners=new Map(),seed={name:'noise_seed',value:41,options:{min:0,max:43}},node={widgets:[seed]};
  const app={graph:{extra:{snap:{bricks:[{key:'render',nodes:{render:1}}]}},getNodeById:()=>node},canvas:{emitBeforeChange(){},emitAfterChange(){},setDirty(){}}};
  const api={addEventListener:(name,fn)=>listeners.set(name,fn)};
- const bricks={BRICKS:{render:{face:[['render','noise_seed','seed']]}},RENDER_BLUEPRINT:'test',SIMPLE_RECIPE:[]};
+ const bricks={BRICKS:{render:{face:[['render','noise_seed','seed']]}},RENDER_BLUEPRINT:'test',IMAGE_BLUEPRINT:'test-image',SIMPLE_RECIPE:[],useGraph(){}};
  const context=vm.createContext({console});
  const engine=new vm.SourceTextModule(await readFile(new URL('../../web/snap/engine.js',import.meta.url),'utf8'),{context});
  await engine.link(async path=>{const values=path.endsWith('/app.js')?{app}:path.endsWith('/api.js')?{api}:bricks;return new vm.SyntheticModule(Object.keys(values),function(){for(const[k,v]of Object.entries(values))this.setExport(k,v);},{context});});await engine.evaluate();

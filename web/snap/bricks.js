@@ -2,7 +2,8 @@
 // A brick is one or more graph nodes with a clean face. `provides` maps port roles to output slot names, `needs` maps
 // port roles to input names; rules say which role feeds which, so binding never guesses for our own bricks.
 // SNAP-R1 pack bricks only choose which values show · SNAP-R4 outcome faces · SNAP-R12 LoRA roles · SNAP-R14 method
-// slots · see docs/snap/SNAP_RULES.md
+// slots · SNAP-R280 a made brick is a subgraph, read generically · SNAP-R281 an any-node brick's face and title are the
+// person's · see docs/snap/SNAP_RULES.md
 
 export const RENDER_BLUEPRINT = "Dials - H3 + De-rope";
 export const IMAGE_BLUEPRINT = "Dials - Image";
@@ -160,26 +161,68 @@ const PACK = {
 
 // any installed node as a brick ("node:<Type>#<n>"), built on demand from its node definition, so workflows that use
 // such bricks reopen without extra state: link inputs are its needs (role = input name), outputs what it provides
-// (role = output name, lowercased), the first few widgets its face
+// (role = output name, lowercased), the first few widgets its face. A subgraph (a brick a person made in ComfyUI, or an
+// installed blueprint; SNAP-R280) is read from the subgraph and its instance node instead: its name is the title, its
+// link inputs the needs, its outputs what it provides, and every widget promoted onto it the face (promoted on purpose),
+// each labelled as its subgraph input is. The person's own face and title for the brick live on its recipe entry
+// (SNAP-R281) and are laid over the definition on every read, so every reader of BRICKS[key].face / .title sees them
 const WIDGET = new Set(["INT", "FLOAT", "STRING", "BOOLEAN", "COMBO"]);
-function nodeBrick(key) {
-  const type = key.slice(5).split("#")[0], nd = LiteGraph.registered_node_types[type]?.nodeData;
+const hueOf = (type) => [...type].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+// the open graph as this module needs it, given by engine.js (it imports this module): a brick's recipe entry, a brick's
+// live node, a subgraph definition by its type id
+let graph = { entry: () => null, node: () => null, subgraph: () => null };
+export const useGraph = (g) => { graph = { ...graph, ...g }; };
+// a promoted widget's label: the label of the subgraph input it is promoted through (name and label can differ: vae / video_vae)
+export function labelFor(n, name) {
+  const input = n?.inputs?.find((i) => i.widget?.name === name) ?? n?.inputs?.find((i) => i.name === name);
+  const slot = n?.subgraph?.inputs?.find((s) => s.name === (input?.name ?? name));
+  return input?.label || slot?.label || name.replaceAll("_", " ");
+}
+const shown = (w) => w.name && !w.name.startsWith("$$") && w.type !== "button" && !w.hidden;
+function subgraphBrick(type, sg, n) {
+  const ins = n?.inputs ?? sg.inputs ?? [], outs = n?.outputs ?? sg.outputs ?? [];
+  const promoted = (i) => !!(i.widget || i.widgetId);
+  return {
+    title: sg.name || type, icon: "◻", hue: hueOf(type), blurb: "subgraph", node: type, subgraph: true,
+    nodes: [{ key: "node", type }],
+    needs: Object.fromEntries(ins.filter((i) => !promoted(i)).map((i) => [i.name, ["node", i.name]])),
+    provides: Object.fromEntries(outs.map((o) => [o.name.toLowerCase(), ["node", o.name]])),
+    face: n ? (n.widgets ?? []).filter(shown).map((w) => ["node", w.name, labelFor(n, w.name)]) : [],
+  };
+}
+const plain = new Map(); // a plain node type's definition, built once per type; the overlay below is per read
+function nodeBase(type) {
+  if (plain.has(type)) return plain.get(type);
+  const nd = LiteGraph.registered_node_types[type]?.nodeData;
   // a saved brick whose node pack is gone: a plain stub, so the recipe still shows and the brick can be removed
-  if (!nd) return { title: `${type} (not installed)`, icon: "◻", hue: 0, blurb: "missing node", node: type, missing: true, nodes: [{ key: "node", type }], needs: {}, provides: {}, face: [] };
+  if (!nd) return { title: `${type} (not installed)`, icon: "◻", hue: 0, blurb: "missing node", node: type, missing: true, nodes: [{ key: "node", type }], needs: {}, provides: {}, face: [] }; // not kept: the type can arrive (a blueprint inserted)
   const inputs = Object.entries({ ...nd.input?.required, ...nd.input?.optional });
   const isWidget = ([, spec]) => (Array.isArray(spec[0]) || WIDGET.has(spec[0])) && !spec[1]?.forceInput; // forceInput: a socket
-  const hue = [...type].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
-  return {
-    title: nd.display_name || type, icon: "◻", hue, blurb: nd.category || "node", node: type,
+  const def = {
+    title: nd.display_name || type, icon: "◻", hue: hueOf(type), blurb: nd.category || "node", node: type,
     nodes: [{ key: "node", type }],
     needs: Object.fromEntries(inputs.filter((i) => !isWidget(i)).map(([name]) => [name, ["node", name]])),
     provides: Object.fromEntries((nd.output ?? []).map((t, i) => { const name = nd.output_name?.[i] || t; return [name.toLowerCase(), ["node", name]]; })),
     face: inputs.filter(isWidget).slice(0, 3).map(([name]) => ["node", name, name.replaceAll("_", " ")]),
   };
+  plain.set(type, def);
+  return def;
+}
+// SNAP-R281: the definition with the brick's own face and title laid over it (a face row without a label reads as the
+// widget's default label); a fresh object per read, so no reader keeps a stale face. The default face stays readable
+// as `face_default`, so the Inspector can say what a reset gives back
+export function nodeBrick(key) {
+  const type = key.slice(5).split("#")[0], live = key.includes("#") ? graph.node(key) : null;
+  const base = graph.subgraph(type) ? subgraphBrick(type, graph.subgraph(type), live) : nodeBase(type), e = key.includes("#") ? graph.entry(key) : null;
+  if (!e?.face && !e?.title) return { ...base };
+  const label = (k, name) => base.face.find((f) => f[0] === k && f[1] === name)?.[2] ?? (k === "node" ? labelFor(live, name) : name.replaceAll("_", " "));
+  return { ...base, ...(e.title ? { title: e.title, named: base.title } : {}),
+    ...(e.face ? { face: e.face.map(([k, name, l]) => [k, name, l || label(k, name)]), face_default: base.face, faced: true } : {}) };
 }
 
-// own keys only: agent text must not reach inherited names like "constructor"
-export const BRICKS = new Proxy(PACK, { get: (t, k) => (Object.hasOwn(t, k) ? t[k] : typeof k === "string" && k.startsWith("node:") ? (t[k] = nodeBrick(k)) : undefined) });
+// own keys only: agent text must not reach inherited names like "constructor". Pack bricks are the curated table as it
+// is; any-node bricks are built per read (SNAP-R281: their face and title follow the recipe entry)
+export const BRICKS = new Proxy(PACK, { get: (t, k) => (Object.hasOwn(t, k) ? t[k] : typeof k === "string" && k.startsWith("node:") ? nodeBrick(k) : undefined) });
 export const PACK_BRICKS = Object.keys(PACK);
 // the slot brick to put the rail's tile on: the first pack brick of the slot for the recipe's kit
 export const slotDefault = (slot, k) => Object.keys(PACK).find((key) => PACK[key].slot === slot && PACK[key].kit === k);
@@ -194,7 +237,15 @@ export const listTitle = (key, keys) => [BRICKS[key].title, kitShown(key, keys)]
 // every installed node type a person can add as a brick, for the palette
 export function nodeTypes() {
   return Object.entries(LiteGraph.registered_node_types).filter(([, c]) => c.nodeData && !c.nodeData.deprecated && !c.nodeData.experimental)
-    .map(([type, c]) => ({ type, title: c.nodeData.display_name || type, category: c.nodeData.category || "" }));
+    .map(([type, c]) => ({ type, title: graph.subgraph(type)?.name || c.nodeData.display_name || type, category: c.nodeData.category || "" }));
+}
+// the palette's order for node types from the first letter: title prefix, then a word of the title, then the title
+// anywhere, then the type or category; ties keep the shorter title first
+export function rankTypes(list, q) {
+  const s = q.trim().toLowerCase();
+  if (!s) return [];
+  const score = (n) => { const t = n.title.toLowerCase(); return t.startsWith(s) ? 0 : t.split(/[\s_\-·()]+/).some((w) => w.startsWith(s)) ? 1 : t.includes(s) ? 2 : `${n.type} ${n.category}`.toLowerCase().includes(s) ? 3 : -1; };
+  return list.map((n) => [n, score(n)]).filter(([, r]) => r >= 0).sort((a, b) => a[1] - b[1] || a[0].title.length - b[0].title.length).map(([n]) => n);
 }
 
 // the Setup brick (SNAP-R9): in Snap the model set and how it samples read as one brick, the first of these the recipe

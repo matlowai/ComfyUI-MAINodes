@@ -4,11 +4,11 @@
 // tabs for new work · SNAP-R7 pointer-down lists · SNAP-R19 actions call their tools' functions · SNAP-R20 the metadata
 // switch · SNAP-R9 the Setup brick · SNAP-R24 the scene navigator above the chain · SNAP-R25 onboarding, SFW only ·
 // SNAP-R29 onboarding opens by itself only for a person · SNAP-R30 a recipe opens runnable (seconds on the Render face) ·
-// SNAP-R34 the gate's account in the top bar, a lock that keeps the page · SNAP-R65 the Work pill · SNAP-R66 arrivals announce, Open moves · SNAP-R73 References shows each <Audio n> · SNAP-R93/R94 the Agent library row and instructions · SNAP-R272 production strategies · see docs/snap/SNAP_RULES.md
+// SNAP-R34 the gate's account in the top bar, a lock that keeps the page · SNAP-R65 the Work pill · SNAP-R66 arrivals announce, Open moves · SNAP-R73 References shows each <Audio n> · SNAP-R93/R94 the Agent library row and instructions · SNAP-R272 production strategies · SNAP-R281 an any-node brick's face and name (pins, rename) · SNAP-R282/R284 Keep in Library, Group with… · SNAP-R283 blueprints and My bricks in the palette · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
-import { BRICKS, SETUP, PACK_BRICKS, nodeTypes, fits, listTitle, kitShown } from "./bricks.js";
+import { BRICKS, SETUP, PACK_BRICKS, nodeTypes, rankTypes, fits, listTitle, kitShown } from "./bricks.js";
 import { attachDrag } from "./drag.js";
 import { Spring, SPRINGS, animate, reducedMotion } from "./spring.js";
 import * as L from "./library.js";
@@ -509,25 +509,47 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   const results = h("div", { className: "snap-results", role: "listbox" });
   palette.append(query, results);
   root.append(palette);
-  let hits = [], hit = 0;
-  function openPalette() { palette.hidden = false; query.value = ""; search(); query.focus(); }
+  let hits = [], hit = 0, blueprintList = null;
+  // SNAP-R283: the installed blueprints are read once per open (a fetch); the list fills in when they arrive
+  function openPalette() {
+    palette.hidden = false; query.value = ""; blueprintList = null;
+    E.blueprints().then((l) => { blueprintList = l; if (!palette.hidden) search(); }, () => { blueprintList = []; });
+    search(); query.focus();
+  }
   function closePalette() { palette.hidden = true; root.focus({ preventScroll: true }); }
+  // a hit is a pack brick key, node:<Type>, bp:<blueprint name> or card:<a kept brick's Library card id>
+  function hitInfo(k, have) {
+    if (k.startsWith("card:")) { const c = L.get(k.slice(5)); return { icon: "◻", hue: 280, title: c?.title ?? k.slice(5), blurb: `my brick · ${c?.text ?? ""}` }; }
+    if (k.startsWith("bp:")) return { icon: "◻", hue: 280, title: k.slice(3), blurb: "blueprint" };
+    const def = BRICKS[k];
+    return { icon: def.icon, hue: def.hue, title: k.startsWith("node:") ? def.title : listTitle(k, [...have]), blurb: k.startsWith("node:") ? `node · ${def.blurb}` : def.blurb };
+  }
   function search() {
     const q = query.value.trim().toLowerCase(), have = new Set(E.state().bricks.map((b) => b.key));
-    hits = PACK_BRICKS.filter((k) => !have.has(k) && fits(k, [...have]) && `${listTitle(k, [...have])} ${BRICKS[k].blurb}`.toLowerCase().includes(q));
-    // any installed node, once there's something to search for (they are hundreds)
-    if (q.length >= 2) hits.push(...nodeTypes().filter((n) => `${n.title} ${n.type} ${n.category}`.toLowerCase().includes(q)).slice(0, 12).map((n) => `node:${n.type}`));
+    // bricks the person kept in the Library first ("My bricks"), then the pack's, installed blueprints, and any installed
+    // node from the first letter, ranked (title prefix, then a word of it, then anywhere, then type or category)
+    const mine = L.search(q, null).filter((c) => c.kind === "brick").map((c) => `card:${c.id}`);
+    hits = [...mine, ...PACK_BRICKS.filter((k) => !have.has(k) && fits(k, [...have]) && `${listTitle(k, [...have])} ${BRICKS[k].blurb}`.toLowerCase().includes(q))];
+    hits.push(...(blueprintList ?? []).filter((b) => b.name.toLowerCase().includes(q)).map((b) => `bp:${b.name}`));
+    if (q) hits.push(...rankTypes(nodeTypes(), q).slice(0, 12).map((n) => `node:${n.type}`)); // they are hundreds: only once something is typed
     hit = 0;
-    results.replaceChildren(...(hits.length ? hits.map((k, i) => h("div", { className: `snap-hit${i === hit ? " on" : ""}`, role: "option", onpointerdown: (e) => { e.preventDefault(); pick(k); } },
-      h("span", { className: "snap-grip", textContent: BRICKS[k].icon }), h("span", { textContent: k.startsWith("node:") ? BRICKS[k].title : listTitle(k, [...have]) }), h("span", { className: "snap-blurb", textContent: k.startsWith("node:") ? `node · ${BRICKS[k].blurb}` : BRICKS[k].blurb })))
-      : [h("div", { className: "snap-quiet", textContent: q ? "no brick matches · the Library arrives in phase 2" : "every brick is already in the recipe" })]));
-    for (const [i, el] of [...results.children].entries()) el.style.setProperty("--hue", BRICKS[hits[i]]?.hue ?? 210);
+    const row = (k, i) => { const x = hitInfo(k, have), el = h("div", { className: `snap-hit${i === hit ? " on" : ""}`, role: "option", onpointerdown: (e) => { e.preventDefault(); pick(k); } },
+      h("span", { className: "snap-grip", textContent: x.icon }), h("span", { textContent: x.title }), h("span", { className: "snap-blurb", textContent: x.blurb }));
+      el.style.setProperty("--hue", x.hue ?? 210);
+      return el; };
+    const rows = hits.map(row);
+    if (mine.length) rows.splice(0, 0, h("div", { className: "snap-insp-type", textContent: "My bricks" }));
+    if (mine.length && hits.length > mine.length) rows.splice(mine.length + 1, 0, h("div", { className: "snap-insp-type", textContent: "Bricks" }));
+    results.replaceChildren(...(hits.length ? rows : [h("div", { className: "snap-quiet", textContent: q ? (blueprintList ? "no brick, blueprint or node matches" : "no brick or node matches · blueprints are still loading") : "every brick is already in the recipe" })]));
   }
+  const hitEls = () => [...results.querySelectorAll(".snap-hit")];
   function pick(key) {
     closePalette();
     const keys = E.state().bricks.map((b) => b.key);
     let i = selected ? Math.max(...group(selected).map((k) => keys.indexOf(k))) : -1;
     if (i < 0) i = keys.length - 1;
+    if (key.startsWith("bp:")) return addWith(() => E.snapBlueprint(key.slice(3), { at: i + 1 }));
+    if (key.startsWith("card:")) return addWith(() => L.applyBrick(L.get(key.slice(5)), { at: i + 1 }));
     add(key, i + 1);
   }
   query.addEventListener("input", search);
@@ -537,7 +559,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
       hit = (hit + (e.key === "ArrowDown" ? 1 : hits.length - 1)) % Math.max(1, hits.length);
-      [...results.children].forEach((el, i) => el.classList.toggle("on", i === hit));
+      hitEls().forEach((el, i) => el.classList.toggle("on", i === hit));
     }
   });
   query.addEventListener("blur", () => setTimeout(() => { if (!palette.contains(document.activeElement)) palette.hidden = true; }, 0));
@@ -642,10 +664,12 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     }
   });
 
-  async function add(key, index) {
+  function add(key, index) { return addWith(() => E.snap(key, { at: index })); }
+  // a brick in by any route (a key, a blueprint, a kept brick): selected, drawn, its bindings said
+  async function addWith(run) {
     const before = rects();
     try {
-      const res = await E.snap(key, { at: index });
+      const res = await run();
       select(res.brick, false); // node:<Type> becomes node:<Type>#<n>
       render(before, res.brick);
       if (res.bindings.length) say(`${BRICKS[res.brick].title}: ${res.bindings.map((b) => (b.value != null ? `${b.role} = ${b.value}` : b.role)).join(", ")}`);
@@ -1522,6 +1546,51 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("button", { className: "snap-link", textContent: "Show in graph", onclick: () => onSwitch(info.brick) }));
   }
 
+  // SNAP-R281: on a brick made from any node or subgraph each setting row has a pin (show on the brick / take off the
+  // brick), the name is renamable in place (as a picture's caption is), and its own face can be reset; SNAP-R282/R284 Keep
+  // in Library and Group with… act on it. Pack bricks have none of this (their faces are curated, SNAP-R1)
+  const made = (key) => key?.startsWith("node:");
+  function pinned(el, key, k, name, on) {
+    if (!el || !made(key)) return el;
+    return h("div", { className: "snap-pinrow" }, el, h("button", { className: "snap-ref-tool snap-pin-toggle", textContent: on ? "−" : "+", title: on ? "take off the brick" : "show on the brick", ariaLabel: on ? `take ${name} off the brick` : `show ${name} on the brick`,
+      onclick: (e) => { e.stopPropagation(); try { E.pinWidget(key, k, name, !on); } catch (err) { say(err.message, true); } render(null); } }));
+  }
+  function makeBar(key) {
+    const def = BRICKS[key];
+    const name = h("button", { className: "snap-link snap-brick-name", textContent: def.title, title: "click to rename this brick (empty gives back the node's own name)", onclick: (e) => {
+      e.stopPropagation();
+      const input = h("input", { value: def.title, ariaLabel: "the brick's name" });
+      let over = false;
+      const done = (keep) => { if (over) return; over = true; if (keep && input.value.trim() !== def.title) { try { E.setTitle(key, input.value); } catch (err) { say(err.message, true); } } render(null); };
+      input.addEventListener("keydown", (k) => { k.stopPropagation(); if (k.key === "Enter") done(true); if (k.key === "Escape") done(false); });
+      input.addEventListener("blur", () => done(true));
+      input.addEventListener("pointerdown", (k) => k.stopPropagation());
+      name.replaceWith(input); input.focus(); input.select();
+    } });
+    const act = (text, title, fn) => h("button", { className: "snap-link snap-quiet-btn", textContent: text, title, onclick: async (e) => { e.stopPropagation(); try { const said = await fn(e.currentTarget); if (said) say(said); } catch (err) { say(err.message, true); } render(null); } });
+    return h("div", { className: "snap-make" }, h("span", { className: "snap-quiet", textContent: "name" }), name,
+      def.faced ? act("reset face", "show the default settings on the brick again", () => { E.setFace(key, null); return `${def.title}: its default face again · Ctrl+Z takes it back`; }) : null,
+      act("Keep in Library", "keep this brick (settings, face, name and, for a subgraph, its blueprint) as a card in your Library; keeping it again under the same name adds a version", async () => { const out = await L.keepBrick(key); return `${out.title} is in your Library (${out.ref})`; }),
+      E.state().bricks.some((b) => made(b.key) && b.key !== key) ? act("Group with…", "group this brick with others made from any node into one subgraph brick", (el) => groupMenu(key, el)) : null);
+  }
+  // the bricks to group with this one (other any-node bricks), then a name: one undo step (E.group, the make_brick tool's)
+  function groupMenu(key, at) {
+    root.querySelector(".snap-pics-menu")?.remove();
+    const others = E.state().bricks.filter((b) => made(b.key) && b.key !== key).map((b) => b.key);
+    const boxes = others.map((k) => h("label", {}, h("input", { type: "checkbox", value: k }), ` ${BRICKS[k].title}`));
+    const title = h("input", { placeholder: "name of the new brick", ariaLabel: "name of the new brick" });
+    title.addEventListener("keydown", (k) => k.stopPropagation());
+    const close = () => { menu.remove(); removeEventListener("pointerdown", outside, true); }, outside = (ev) => { if (!menu.contains(ev.target)) close(); };
+    const menu = h("div", { className: "snap-scene-menu snap-pics-menu", role: "dialog", ariaLabel: "group bricks" }, h("strong", { textContent: `Group ${BRICKS[key].title} with` }), ...boxes, title,
+      h("button", { className: "snap-primary", textContent: "Group", onclick: (ev) => { ev.stopPropagation(); const on = boxes.map((b) => b.querySelector("input")).filter((x) => x.checked).map((x) => x.value); close();
+        const before = rects();
+        try { const r = E.group([key, ...on], { title: title.value }); select(r.brick, false); say(`${r.title}: ${r.grouped.length} bricks in one subgraph · Ctrl+Z takes it back`); } catch (err) { say(err.message, true); }
+        render(before); } }));
+    const r = at.getBoundingClientRect();
+    Object.assign(menu.style, { position: "fixed", top: `${r.bottom + 4}px`, left: `${Math.max(8, Math.min(r.left, innerWidth - 300))}px` });
+    root.append(menu); addEventListener("pointerdown", outside, true);
+  }
+
   // everything a brick's nodes offer, read generically (see control): the same in the side panel and in an open brick
   function details(info) {
     if (info.members) return setupDetails(info);
@@ -1531,16 +1600,17 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const shot = info.brick === "render" && E.state().bricks.find((x) => x.key === "render")?.shot;
     return h("div", { className: "snap-details" },
       h("div", { className: "snap-quiet", textContent: def.blurb }),
+      made(info.brick) ? makeBar(info.brick) : null,
       shot ? shotParts(shot) : null,
       def.check ? checkLine(info.brick) : null,
       def.off ? startFace(info.brick) : null,
-      def.face.length ? h("div", { className: "snap-insp-node snap-insp-main" }, def.face.map((f) => (f[3]?.inline ? inline(info.brick, f) : control(info.brick, f)))) : null,
+      def.face.length ? h("div", { className: "snap-insp-node snap-insp-main" }, def.face.map((f) => (f[3]?.inline ? inline(info.brick, f) : pinned(control(info.brick, f), info.brick, f[0], f[1], true)))) : null,
       ...nodes.map(([k, n]) => h("div", { className: "snap-insp-node" },
         h("div", { className: "snap-insp-type", textContent: `${n.title} · ${n.type.length > 30 ? "blueprint" : n.type} #${n.id}` }),
         previews(n).length ? h("div", { className: "snap-thumbs big" }, previews(n).map((src) => h("img", { src, alt: "" }))) : null,
         (n.widgets ?? []).filter((w) => w.name && !faced.has(`${k}.${w.name}`)).flatMap((w) => [
           ...(def.explain?.[w.name] ? [h("div", { className: "snap-insp-type", textContent: def.explain[w.name][0] }), h("div", { className: "snap-quiet", textContent: def.explain[w.name][1] })] : []),
-          control(info.brick, [k, w.name])]))),
+          pinned(control(info.brick, [k, w.name]), info.brick, k, w.name, false)]))),
       info.bindings.length ? h("div", { className: "snap-insp-type", textContent: "Wired from" }) : null,
       info.bindings.length ? h("div", { className: "snap-binds" }, info.bindings.filter((b) => b.rule !== "ask").map((b) => {
         const chip = h("button", { className: `snap-bind ${b.rule.split(":")[0]}`, textContent: b.value != null ? `${b.role} = ${b.value}` : `${b.role} ← ${look(b.from)?.title ?? b.from}`, title: `rule: ${b.rule}`, onclick: () => onSwitch(info.brick) });
@@ -1573,6 +1643,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
         info.members.map((k) => M.warnings().filter((w) => w.brick === k).map((w) => w.text)), M.known(), M.lockCount(), info.members.flatMap(openNotes).map((n) => [n.id, n.status, n.reply]), opened === info.brick, overridden.filter((o) => info.members.includes(o.to)).map((o) => o.change)]);
     }
     const def = BRICKS[info.brick], values = [...def.face.map(([k, name]) => E.getValue(info.brick, k, name)), E.seedMode(info.brick)];
+    if (info.brick.startsWith("node:")) values.push(def.title, def.face.map((f) => f.slice(0, 3))); // SNAP-R281: a new face or name redraws it
     if (def.slot) values.push(S.on(info.brick), S.headline(info.brick), S.quality(info.brick), S.list(def.slot).map((m) => m.install_state));
     if (def.off) values.push(S.on(info.brick));
     if (def.stack) values.push(M.rows(info.brick).map((r) => [r.file, r.strength, r.on, r.entry?.role]), M.lockCount());

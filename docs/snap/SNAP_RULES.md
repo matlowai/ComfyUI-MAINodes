@@ -2483,5 +2483,47 @@ Next free ID after this batch: SNAP-R254 (G18 reserved R254-R262, G19 R263-R266)
   "waiting for delivery" after every message was delivered and answered (review item R2C). *More:*
   `web/snap/conversation_state.mjs` `deliveryLine`; `tests/snap/test_conversation_attachment.mjs`.
 
+- **SNAP-R280: A brick a person makes is a ComfyUI subgraph, read generically.** The authoring path is ComfyUI's own:
+  group nodes into a subgraph and promote the widgets that belong on the face. Snap reads a subgraph type like any node
+  (`node:<subgraph id>#<n>`, found as a key of the graph's subgraphs, never by name): its name is the title, its link
+  inputs are what it needs, its outputs what it gives, and every promoted widget is on its face in order, labelled with
+  its subgraph input's label. A plain node keeps its first three settings. No new record kind, no Python. *Why:* people
+  need bricks of their own, and a subgraph is already how ComfyUI packages nodes. *More:* `web/snap/bricks.js`
+  `nodeBrick`; `tests/snap/test_userbricks.mjs`.
+
+- **SNAP-R281: An any-node brick's face and title are the person's, kept on its recipe entry.** `face` (rows
+  `[node, setting, label?]`) and `title` on the brick's entry in `extra.snap.bricks` are laid over its definition on
+  every read, so every reader of a brick's face and title sees them; a face equal to the default keeps no override. Each
+  change is one undo step (`setFace`, `pinWidget`, `setTitle`); a setting the node lacks is refused naming the ones it
+  has. Pack bricks keep their curated faces and are refused, saying so (SNAP-R1). The Inspector pins a setting on or off
+  the brick, renames it in place, and offers reset only when an override exists. A recipe's changes list names a face or
+  title change in one line each. *Why:* "first three widgets" is rarely what a person wants on the face of a node they
+  added. *More:* `engine.js` `setFace`, `pinWidget`, `setTitle`; `bricktools.js` `set_brick_face`, `rename_brick`.
+
+- **SNAP-R282: A recipe or Library card that names a subgraph brick carries its blueprint, and lists without it.** A
+  recipe entry for a subgraph brick carries `blueprint` (its outer node unwired, its definition and every nested one), so
+  it rebuilds in a graph that never held that subgraph; the paste path gives every inserted definition a new id, so the
+  entry keeps the type it was saved under (the brick's `subgraph`) and two entries of one subgraph insert its definition
+  once. A brick is kept in the Library as a `brick-<slug of its title>` card (`kind: "brick"`, its entry; keeping it
+  again adds a version). The Library, get_recipe and edited compare blueprints as present (`blueprint: true`); that light
+  copy is never saved back, and apply reads the record. *Why:* a recipe with a made brick must open anywhere, while
+  card lists stay light. *More:* `engine.js` `entryOf`, `snapEntry`; `recipes.js` `listed`, `light`; `library.js`
+  `keepBrick`, `applyBrick`.
+
+- **SNAP-R283: Any installed blueprint can be added as a brick.** The palette lists the person's kept bricks first ("My
+  bricks"), then the pack's bricks, the installed blueprints (`/global_subgraphs`, read once per open; the two the pack's
+  Render bricks are made of are left out) and installed nodes from the first letter, ranked by title. A blueprint is
+  inserted through the frontend's own blueprint insert and recorded as an any-node brick, wired by Snap's rules, by one
+  engine function that recipes and Library cards share. *Why:* blueprints were only reachable from ComfyUI's node
+  library, outside Snap. *More:* `engine.js` `snapBlueprint`, `blueprints`; `view.js` palette; `add_blueprint`,
+  `list_blueprints`.
+
+- **SNAP-R284: Grouping bricks is one undo step and never touches pack bricks.** Two or more any-node bricks become one
+  subgraph brick through ComfyUI's Convert to Subgraph; in the same step their entries become one at the first one's
+  place, bindings into the group are read again from the new node's live wires, and bindings elsewhere that read from a
+  grouped brick read from the new one. A pack brick in the list refuses the whole call, by name. *Why:* making a brick
+  from what is already in the recipe should not break its wiring record. *More:* `engine.js` `group`; `make_brick`;
+  Inspector "Group with…".
+
 Next free ID after this batch: SNAP-R285 (R274-R277 taken by recipes, R278-R279 reserved for the polish lane,
-R280-R284 reserved for bricks; G18 reserved R254-R262, G19 R263-R266).
+R280-R284 taken by bricks; G18 reserved R254-R262, G19 R263-R266).

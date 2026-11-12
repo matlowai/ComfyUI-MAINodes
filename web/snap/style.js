@@ -963,6 +963,13 @@ div.snap-room-line .snap-link { margin: 0; padding: 4px 10px; font-size: 13px; }
 .snap-ref-n { font-size: 11px; font-weight: 700; padding: 0 5px; border-radius: 6px; background: #0b1220d9; color: #cfe1ff; line-height: 18px; }
 .snap-ref-tool { all: unset; cursor: pointer; width: 18px; height: 18px; line-height: 18px; text-align: center; font-size: 12px; border-radius: 6px; background: #ffffff10; color: var(--s-fg); }
 .snap-ref-tool:hover { background: #2a3550; } .snap-ref-tool:disabled { opacity: .3; cursor: default; }
+/* SNAP-R281: a made brick's setting rows carry a pin (on / off the face); its name and actions sit in one line */
+.snap-pinrow { display: flex; gap: 6px; align-items: flex-start; min-width: 0; } .snap-pinrow > :first-child { flex: 1; min-width: 0; }
+.snap-insp-node > .snap-pinrow:has(> .snap-textarea, > .snap-dom-field) { grid-column: 1 / -1; }
+.snap-pin-toggle { flex: none; margin-top: 18px; }
+.snap-make { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 4px 0 8px; }
+.snap-make input { font: inherit; color: var(--s-fg); background: var(--s-card); border: 1px solid var(--s-line); border-radius: 6px; padding: 2px 6px; }
+.snap-brick-name { font-weight: 600; }
 .snap-pics figcaption { cursor: text; } .snap-pics figure input { width: 100%; box-sizing: border-box; font: inherit; font-size: 11px; color: var(--s-fg); background: #0000003a; border: 1px solid #ffffff22; border-radius: 6px; padding: 2px 5px; margin-top: 3px; }
 .snap-pics figure.unnamed img { border-color: #f0b44599; }
 .snap-ref-unnamed { display: block; font-style: normal; font-size: 10px; color: #f0b445; }

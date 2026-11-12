@@ -93,3 +93,17 @@ The [review findings and revised acceptance gates](../../CONVERSATION_REVIEW_202
 - **Guard approval dispatch as well as the button.** A file card withholding Allow without a diff does not protect a shared response helper that still accepts it. Command cards also offered Allow with missing operation text. Require the exact matching operation and action kind at both presentation and outbound acceptance, retaining stale/unknown refusal.
 - **A replay cursor is not a delivery worklist.** Reading startup history advances the subscription cursor. Messages awaiting the same adapter during an outage can then be skipped even when they are not deliberately excluded as pre-attachment history. Reconstruct pending work from durable disposition/receipts; initial-attachment history needs an explicit human choice. Never turn uncertain delivery into an automatic retry.
 - **Context is not an execution guard.** Naming the intended project in a prompt helps reasoning but does not mechanically prevent a write to a newly selected graph. Require and validate the existing project/page association at native mutation/queue and proposal-acceptance owners, including asynchronous boundaries. Journal isolation is a different test.
+
+## Recipes, made bricks and polish — 2026-11-11
+
+Versioned recipes, bricks a person makes and a polish pass landed as three lanes in one checkout. The rules are SNAP-R274..R284.
+
+- **Reuse the store that already versions.** Recipes minted a new card per save while the record store beside them already kept versions, notes and diffs. Before adding a save path, check whether an existing record kind does the job under a stable id.
+- **A brick a person makes is a ComfyUI subgraph.** ComfyUI already has the authoring surface (group nodes, promote widgets, name inputs). Snap reads the subgraph node generically and lets the person choose what shows; it does not add a second definition format.
+- **Pasting a blueprint always gives its definitions new ids** (frontend 1.57.6). Anything that must recognise "the same blueprint" later has to carry the id it was saved under; a second instance in one rebuild is inserted as a node of the first copy's definition.
+- **What the Library lists must be light.** A stored version keeps the exact graph (about 70 KB) and a made brick's blueprint; the listed copy drops both and a listed copy is never written back as a version.
+- **"Edited" is computed from settings, not stored.** Moving a node or changing a subgraph's internals does not read as edited; a save still records it.
+- **Unit tests miss layout.** The one visible defect (a top-bar chip shrinking to "Save …") passed every test. Each UI lane gets a screenshot pass by someone who did not write it.
+- **Switch workflow tabs through ComfyUI's commands, never the store.** Calling the workflow store's open/close directly marked a tab active without loading its graph, so one tab's name sat over another tab's nodes until a reload. Use `Comfy.NewBlankWorkflow`, `Workspace.CloseWorkflow` and the tab UI's own path, and confirm `app.graph.id` after any switch.
+- **Parallel lanes in one checkout need three things:** owned files or named regions per lane, each lane's tools and logic in its own module with one-line wiring in the hub files, and rule IDs handed out before the lanes start.
+- **Mark what a brief infers.** A brief stated as fact that Library search returns cards whole; it does not. The lane caught it. Separate "read in source" from "assumed" when handing work over.

@@ -2,10 +2,13 @@
 // graph.extra.snap, and finds user overrides by diffing the live links against that record.
 // Only node ids are kept: undo/redo reloads the graph and replaces every node object (frontend 1.57.1).
 // SNAP-R2 graph round-trip · SNAP-R3 unresolved stays missing · SNAP-R19 no view DOM here · SNAP-R30 a recipe opens runnable ·
-// SNAP-R73 audio references, cited <Audio n> · SNAP-R118 pictures move and cites follow · SNAP-R119 missing = gone · see docs/snap/SNAP_RULES.md
+// SNAP-R73 audio references, cited <Audio n> · SNAP-R118 pictures move and cites follow · SNAP-R119 missing = gone ·
+// SNAP-R280 a made brick is a subgraph · SNAP-R281 an any-node brick's face and title are the person's (setFace, pinWidget,
+// setTitle) · SNAP-R282 a recipe entry carries its subgraph's blueprint · SNAP-R283 any installed blueprint is a brick
+// (snapBlueprint) · SNAP-R284 grouping is one undo step and never touches pack bricks (group) · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
-import { BRICKS, RENDER_BLUEPRINT, SIMPLE_RECIPE } from "./bricks.js";
+import { BRICKS, RENDER_BLUEPRINT, IMAGE_BLUEPRINT, SIMPLE_RECIPE, useGraph } from "./bricks.js";
 
 const GAP = 80;
 const COLUMN = { models: 0, preset: 0, image_models: 0, loras: 0, style: 0, cast: 0, rack: 1, first_frame: 1, refs: 1, render: 2, image: 2, upscale: 3, image_upscale: 3, image_resize: 3, save_video: 4, save_image: 4 };
@@ -41,6 +44,8 @@ function insertBlueprint(bp, position) {
 const node = (id) => app.graph.getNodeById(id);
 const widget = (n, name) => n?.widgets?.find((w) => w.name === name);
 const brick = (key) => state().bricks.find((b) => b.key === key);
+// bricks.js reads an any-node brick's entry (its face and title), its live node and the graph's subgraphs through these
+useGraph({ entry: (key) => brick(key) ?? null, node: (key) => nodeFor(key, "node") ?? null, subgraph: (type) => app.graph?.subgraphs?.get?.(type) ?? null });
 
 // every node inside a blueprint node (nested ones too)
 const inner = (n) => (n?.subgraph?.nodes ?? []).flatMap((x) => [x, ...inner(x)]);
@@ -211,6 +216,15 @@ function bindAll() {
   return made;
 }
 
+// graph layout: columns by role, each starting right of the widest node to its left, stacked below its column
+function spot(key) {
+  const nodesIn = (test) => state().bricks.filter((b) => test(column(b.key))).flatMap((b) => Object.values(b.nodes)).map(node).filter(Boolean);
+  const left = nodesIn((c) => c < column(key)), below = nodesIn((c) => c === column(key));
+  return [left.length ? Math.max(...left.map((n) => n.pos[0] + n.size[0])) + GAP : 0, below.length ? Math.max(...below.map((n) => n.pos[1] + n.size[1])) + 80 : 0];
+}
+// the next free instance key of a node type (node:<Type>#<n>)
+const freeKey = (type, taken = new Set(state().bricks.map((b) => b.key))) => { let n = 1; while (taken.has(`node:${type}#${n}`)) n++; return `node:${type}#${n}`; };
+
 // snaps of the same brick share one call: a double click or an agent racing the user inserts it once
 const inflight = new Map();
 export function snap(key, options) {
@@ -229,12 +243,7 @@ async function snapOnce(key, { values, at } = {}) {
   const bp = def.blueprint && !brick(key) ? await fetchBlueprint(def.blueprint) : null;
   if (brick(key)) return { brick: key, bindings: [] }; // read after the fetch: the graph may have changed meanwhile
   if (def.needs?.video && legacy()) throw new Error(`${def.title} needs the Render to give its video: this workflow has the older H3 Render, with Save and RelayVSR inside it. Upgrade it first (upgrade_render)`);
-  const s = record();
-  // graph layout: columns by role, each starting right of the widest node to its left, stacked below its column
-  const nodesIn = (test) => s.bricks.filter((b) => test(column(b.key))).flatMap((b) => Object.values(b.nodes)).map(node).filter(Boolean);
-  const left = nodesIn((c) => c < column(key)), below = nodesIn((c) => c === column(key));
-  const x = left.length ? Math.max(...left.map((n) => n.pos[0] + n.size[0])) + GAP : 0;
-  const y = below.length ? Math.max(...below.map((n) => n.pos[1] + n.size[1])) + 80 : 0;
+  const s = record(), [x, y] = spot(key);
   const bindings = transaction(() => {
     const ids = {};
     if (bp) { // a blueprint saved against another core version may hold a choice that moved: resolve it, else it shows as missing
@@ -262,6 +271,181 @@ async function snapOnce(key, { values, at } = {}) {
   });
   app.canvas.setDirty(true, true);
   return { brick: key, bindings };
+}
+
+// ---- bricks a person makes (SNAP-R280..R284): a subgraph, read generically; its face and title kept on its entry
+
+// the installed blueprints by name (/global_subgraphs; the two the pack bricks are made of are those bricks already)
+export async function blueprints() {
+  const list = await (await api.fetchApi("/global_subgraphs")).json();
+  return Object.entries(list).map(([id, v]) => ({ id, name: v.name, source: v.source ?? null, pack: v.info?.node_pack ?? null }))
+    .filter((b) => b.name && ![RENDER_BLUEPRINT, IMAGE_BLUEPRINT].includes(b.name)).sort((a, b) => a.name.localeCompare(b.name));
+}
+// what a blueprint needs, gives and shows, read from its one outer node: link inputs, outputs, promoted widgets (labels)
+export function blueprintFace(bp) {
+  const outer = bp?.nodes?.[0], def = (bp?.definitions?.subgraphs ?? []).find((g) => g.id === outer?.type);
+  const label = (i) => i.label || def?.inputs?.find((x) => x.name === i.name)?.label || i.name;
+  return { name: def?.name ?? null, needs: (outer?.inputs ?? []).filter((i) => !i.widget).map((i) => ({ name: i.name, label: label(i), type: i.type })),
+    gives: (outer?.outputs ?? []).map((o) => ({ name: o.name, type: o.type })), shows: (outer?.inputs ?? []).filter((i) => i.widget).map((i) => ({ name: i.widget.name ?? i.name, label: label(i) })) };
+}
+export const fetchBlueprintNamed = (name) => fetchBlueprint(name);
+
+// a subgraph brick as a blueprint insertBlueprint takes: its outer node (unwired, at 0,0) and its definition with every
+// definition nested in it. Null for a brick that isn't a subgraph
+function blueprintOf(b) {
+  const n = node(b.nodes.node);
+  if (!n?.isSubgraphNode?.() || !n.subgraph) return null;
+  const all = new Map(), walk = (sg) => { if (!sg || all.has(sg.id)) return; all.set(sg.id, sg); for (const x of sg.nodes ?? []) if (x.isSubgraphNode?.()) walk(x.subgraph); };
+  walk(n.subgraph);
+  const outer = JSON.parse(JSON.stringify(n.serialize()));
+  outer.pos = [0, 0];
+  for (const i of outer.inputs ?? []) i.link = null;
+  for (const o of outer.outputs ?? []) o.links = null;
+  return { nodes: [outer], definitions: { subgraphs: [...all.values()].map((sg) => JSON.parse(JSON.stringify(sg.asSerialisable()))) } };
+}
+// the key a brick is saved under: node:<Type> for any node, where a subgraph keeps the type it was saved as (`subgraph`:
+// every insert gives a definition a new id, so the saved key would otherwise change on each rebuild)
+const savedKey = (b) => (b.key.startsWith("node:") ? `node:${b.subgraph ?? b.key.slice(5).split("#")[0]}` : b.key);
+// one brick as recipe() lists it (SNAP-R282: a subgraph brick carries its blueprint). An identity LoRA stack is a pack
+// brick (cast), never an any-node one, so nothing here needs privacy stripping (SNAP-R277 strips it in recipes.js)
+export function entryOf(b) {
+  if (typeof b === "string") b = brick(b);
+  if (!b) return null;
+  const out = { key: savedKey(b), values: Object.fromEntries(Object.entries(b.nodes).filter(([k]) => !k.startsWith("picture_")).map(([k, id]) => [k,
+    Object.fromEntries((node(id)?.widgets ?? []).filter((w) => w.name && !w.name.startsWith("$$") && w.type !== "button" && typeof w.value !== "object").map((w) => [w.name, w.value]))])) };
+  if (!b.key.startsWith("node:")) return out;
+  const bp = blueprintOf(b);
+  return { ...out, ...(b.face ? { face: JSON.parse(JSON.stringify(b.face)) } : {}), ...(b.title ? { title: b.title } : {}), ...(bp ? { blueprint: bp } : {}) };
+}
+
+// a blueprint (or an installed blueprint's name) as a new any-node brick, wired by Snap's rules (SNAP-R283), as one undo
+// step. `as` is the subgraph type it was saved under (a recipe entry's key); `reuse` maps a saved type to the one an
+// earlier insert of this rebuild made: the paste path gives every pasted definition a new id, so a second brick of the
+// same saved subgraph is inserted as an instance of that definition, never as a second copy of it. A definition this graph
+// already holds under the blueprint's own id is used the same way (instances of one subgraph share it, as in ComfyUI)
+export async function snapBlueprint(bp, { at, title, face, values, as, reuse } = {}) {
+  if (typeof bp === "string") bp = await fetchBlueprint(bp);
+  const outer = bp?.nodes?.[0];
+  if (bp?.nodes?.length !== 1 || !outer?.type) throw new Error("A blueprint is one subgraph node: {nodes: [its instance], definitions: {subgraphs: [its definition, nested ones]}}");
+  const from = as ?? outer.type, have = reuse?.get(from) ?? (app.graph.subgraphs?.has?.(outer.type) ? outer.type : null);
+  if (!have && !(bp.definitions?.subgraphs ?? []).some((g) => g.id === outer.type)) throw new Error(`This blueprint's definition (${outer.type}) is not in it and not in this graph`);
+  const s = record(), [x, y] = spot("node:");
+  const out = transaction(() => {
+    const n = insertBlueprint(have ? { nodes: [{ ...outer, type: have }] } : bp, [x, y]);
+    if (!n) throw new Error("ComfyUI inserted nothing for this blueprint");
+    reuse?.set(from, n.type);
+    for (const m of inner(n)) for (const w of m.widgets ?? []) if (Array.isArray(w.options?.values) && !w.options.values.includes(w.value)) put(w, w.value); // as snapOnce: a moved choice resolves, else shows missing
+    for (const [name, v] of Object.entries(values?.node ?? {})) { const w = widget(n, name); if (w) put(w, v); }
+    const key = freeKey(n.type);
+    s.bricks.splice(at ?? s.bricks.length, 0, { key, nodes: { node: n.id }, placed: { [n.id]: [...n.pos] }, ...(from !== n.type ? { subgraph: from } : {}) });
+    dress(key, { face, title });
+    return { brick: key, bindings: bindAll() };
+  });
+  app.canvas.setDirty(true, true);
+  return out;
+}
+// a kept brick (a Library card's entry, a recipe entry) into the open recipe: a subgraph's blueprint is inserted, any
+// other node snapped as node:<Type>; then its values, face and title
+export async function snapEntry(entry, { at, reuse } = {}) {
+  if (!entry?.key?.startsWith?.("node:")) throw new Error(`A kept brick is an any-node brick (node:<Type>); ${JSON.stringify(entry?.key ?? null)} isn't one`);
+  if (entry.blueprint && typeof entry.blueprint === "object") return snapBlueprint(entry.blueprint, { at, values: entry.values, face: entry.face, title: entry.title, as: entry.key.slice(5), reuse });
+  const res = await snap(entry.key.split("#")[0], { at, values: entry.values });
+  transaction(() => dress(res.brick, entry));
+  return res;
+}
+// a face and title given with a brick: rows whose setting the node lacks are left out (a kept brick from another version
+// of a node), never refused after the brick is already in
+function dress(key, { face, title } = {}) {
+  const b = brick(key);
+  if (!b) return;
+  if (Array.isArray(face)) { const rows = face.filter(([k, name]) => widget(node(b.nodes[k]), name)).map((r) => [...r]); if (rows.length || !face.length) b.face = rows; }
+  if (typeof title === "string" && title.trim()) b.title = title.trim();
+}
+
+// SNAP-R281: an any-node brick's face and title. Pack bricks are curated (SNAP-R1) and refused, saying so
+function own(key) {
+  if (typeof key !== "string" || !key.startsWith("node:")) throw new Error(`${BRICKS[key]?.title ?? key} is a pack brick: its face is curated (SNAP-R1). A face and title of your own are for bricks made from any node or subgraph (node:<Type>#<n>)`);
+  const b = brick(key);
+  if (!b) throw new Error(`No brick ${key} in this recipe; its bricks: ${state().bricks.map((x) => x.key).join(", ") || "none"}`);
+  return b;
+}
+const settingNames = (n) => (n?.widgets ?? []).filter((w) => w.name && !w.name.startsWith("$$") && w.type !== "button").map((w) => w.name);
+function faceRow(key, b, [nodeKey, name, label]) {
+  if (!Object.hasOwn(b.nodes, nodeKey)) throw new Error(`${key} has no node "${nodeKey}"; its nodes: ${Object.keys(b.nodes).join(", ")}`);
+  const n = node(b.nodes[nodeKey]);
+  if (!widget(n, name)) throw new Error(`${BRICKS[key].title} has no setting "${name}"; its settings: ${settingNames(n).join(", ") || "none"}`);
+  return label != null && String(label).trim() ? [nodeKey, name, String(label).trim()] : [nodeKey, name];
+}
+const plainRows = (face) => face.map(([k, name]) => [k, name]);
+// the whole face as rows [nodeKey, setting, label?] in order (a bare setting name means the brick's node), or null for the
+// default again; a face equal to the default (same rows, no labels) is the default, so no override is kept. One undo step
+export function setFace(key, face) {
+  const b = own(key);
+  if (face != null && !Array.isArray(face)) throw new Error("face is a list of settings ([node, setting, label?] or a setting name), or null for the default");
+  const rows = face == null ? null : face.map((f) => faceRow(key, b, Array.isArray(f) ? f : ["node", f]));
+  const seen = new Set(), dedup = rows?.filter(([k, name]) => !seen.has(`${k}.${name}`) && seen.add(`${k}.${name}`));
+  const def = BRICKS[key].face_default ?? BRICKS[key].face, same = dedup && !dedup.some((r) => r[2]) && JSON.stringify(plainRows(def)) === JSON.stringify(dedup);
+  transaction(() => { if (dedup && !same) b.face = dedup; else delete b.face; });
+  app.canvas.setDirty(true, true);
+  return BRICKS[key].face;
+}
+// one setting on (at the end, or relabelled in place) or off the face, starting from the face the brick shows now
+export function pinWidget(key, nodeKey, name, on, label) {
+  const b = own(key), now = b.face ?? plainRows(BRICKS[key].face), at = now.findIndex(([k, n]) => k === nodeKey && n === name);
+  if (!on) return at < 0 ? BRICKS[key].face : setFace(key, now.filter((_, i) => i !== at));
+  const row = faceRow(key, b, [nodeKey, name, label]);
+  if (at >= 0 && row.length < 3) return BRICKS[key].face;
+  return setFace(key, at >= 0 ? now.map((r, i) => (i === at ? row : r)) : [...now, row]);
+}
+// the brick's own title, or null for the node's (a subgraph's name); one undo step
+export function setTitle(key, title) {
+  const b = own(key), t = typeof title === "string" ? title.trim() : "";
+  if (title != null && typeof title !== "string") throw new Error("title is text, or null for the node's own title");
+  transaction(() => { delete b.title; if (t && t !== BRICKS[key].title) b.title = t; }); // read after the delete: the node's own title
+  app.canvas.setDirty(true, true);
+  return BRICKS[key].title;
+}
+
+// SNAP-R284: any-node bricks grouped into one subgraph brick, as one undo step: ComfyUI's own Convert to Subgraph
+// (LGraph.convertToSubgraph(items) -> {subgraph, node}; it moves the boundary links onto the new node), then the record:
+// the bricks' entries become one node:<subgraph id>#1 entry at the first one's place, bindings into the group are read
+// again from the new node's live links (as adopt() reads them), and bindings elsewhere that read from a grouped brick
+// now read from the new brick, through the output the live link leaves from. Pack bricks are refused, by name
+export function group(keys, { title } = {}) {
+  const list = [...new Set(Array.isArray(keys) ? keys : [])];
+  const pack = list.filter((k) => typeof k !== "string" || !k.startsWith("node:"));
+  if (pack.length) throw new Error(`Only bricks made from any node or subgraph group into one; ${pack.map((k) => BRICKS[k]?.title ?? k).join(", ")} ${pack.length === 1 ? "is a pack brick" : "are pack bricks"}, whose faces are curated (SNAP-R1)`);
+  const gone = list.filter((k) => !brick(k));
+  if (gone.length) throw new Error(`No brick ${gone.join(", ")} in this recipe; its bricks: ${state().bricks.map((x) => x.key).join(", ") || "none"}`);
+  if (list.length < 2) throw new Error("Grouping takes two or more any-node bricks (node:<Type>#<n>)");
+  const s = record(), removed = new Set(list), nodes = list.flatMap((k) => Object.values(brick(k).nodes)).map(node).filter(Boolean);
+  const at = Math.min(...list.map((k) => s.bricks.findIndex((b) => b.key === k))), name = typeof title === "string" ? title.trim() : "";
+  const out = transaction(() => {
+    const { node: outer, subgraph } = app.graph.convertToSubgraph(new Set(nodes));
+    if (name) { try { subgraph.name = name; } catch { /* a read-only name: the brick's own title says it */ } }
+    const key = freeKey(outer.type, new Set(s.bricks.filter((b) => !removed.has(b.key)).map((b) => b.key)));
+    s.bricks = s.bricks.filter((b) => !removed.has(b.key));
+    s.bricks.splice(at, 0, { key, nodes: { node: outer.id }, placed: {}, ...(name && subgraph.name !== name ? { title: name } : {}) });
+    const brickOf = new Map(s.bricks.flatMap((b) => Object.values(b.nodes).map((id) => [String(id), b.key])));
+    const wire = (dst, input) => app.graph.getLink(dst?.inputs?.[dst.findInputSlot(input)]?.link);
+    // bindings elsewhere that read from a grouped brick: the wire now leaves the new node (convertToSubgraph reconnects it)
+    const kept = s.bindings.filter((x) => !removed.has(x.to)).map((x) => {
+      if (x.rule === "ask") return { ...x, candidates: x.candidates.filter((c) => !removed.has(c.from)) };
+      if (!removed.has(x.from)) return x;
+      const l = wire(node(x.target), x.input), { via, ...rest } = x;
+      return l && String(l.origin_id) === String(outer.id) ? { ...rest, from: key, output: outer.outputs[l.origin_slot]?.name ?? x.output, origin: outer.id } : { ...rest, from: key, origin: outer.id }; // rewired by hand before: stays an override
+    }).filter((x) => x.rule !== "ask" || x.candidates.length > 1);
+    // bindings into the group: what the new node's inputs are wired from now, among the recipe's bricks
+    const into = Object.entries(BRICKS[key].needs ?? {}).flatMap(([role, [, input]]) => {
+      const l = wire(outer, input), src = l && node(l.origin_id);
+      return src && brickOf.has(String(src.id)) && brickOf.get(String(src.id)) !== key ? [{ to: key, role, input, from: brickOf.get(String(src.id)), output: src.outputs[l.origin_slot].name, rule: "imported", origin: src.id, target: outer.id }] : [];
+    });
+    s.bindings = [...kept, ...into];
+    if (s.notes?.some((n) => removed.has(n.brick))) s.notes = s.notes.map((n) => (removed.has(n.brick) ? { ...n, brick: key } : n)); // a note on a grouped brick is on the group
+    return { brick: key, grouped: list, bindings: into.length, title: BRICKS[key].title };
+  });
+  app.canvas.setDirty(true, true);
+  return out;
 }
 
 // the recommended recipe on the open graph (Start, and a scene's first shot); an older served blueprint saves its own video.
@@ -342,10 +526,9 @@ export function adopt() {
   const s = record(), owned = new Set(s.bricks.flatMap((b) => Object.values(b.nodes).map(String)));
   const order = app.graph.computeExecutionOrder(false, true).filter((n) => !owned.has(String(n.id)) && !NOTES.has(n.type));
   const taken = new Set(s.bricks.map((b) => b.key)), added = [];
-  const freeKey = (type) => { let n = 1; while (taken.has(`node:${type}#${n}`)) n++; return `node:${type}#${n}`; };
   for (const n of order) {
     let key = n.isSubgraphNode?.() && n.subgraph?.name === RENDER_BLUEPRINT ? "render" : KNOWN[n.type];
-    if (!key || taken.has(key)) key = freeKey(n.type);
+    if (!key || taken.has(key)) key = freeKey(n.type, taken);
     if (!BRICKS[key]) continue; // a node type with no definition (a missing pack): leave it to the graph
     taken.add(key);
     added.push({ key, nodes: { [key.startsWith("node:") ? "node" : key]: n.id }, placed: {} });
@@ -692,13 +875,10 @@ export function missing() {
 }
 
 // the recipe as data (BRAINSTORM R5): bricks in order with every widget value on their nodes, so a recipe card can
-// rebuild it; values that point at files keep their names (a machine without them shows them as missing)
+// rebuild it; values that point at files keep their names (a machine without them shows them as missing). An any-node
+// brick also carries its face and title when the person set them, and a subgraph brick its blueprint (SNAP-R282)
 export function recipe() {
-  return state().bricks.map((b) => ({
-    key: b.key.startsWith("node:") ? b.key.split("#")[0] : b.key,
-    values: Object.fromEntries(Object.entries(b.nodes).filter(([k]) => !k.startsWith("picture_")).map(([k, id]) => [k,
-      Object.fromEntries((node(id)?.widgets ?? []).filter((w) => w.name && !w.name.startsWith("$$") && w.type !== "button" && typeof w.value !== "object").map((w) => [w.name, w.value]))])),
-  }));
+  return state().bricks.map(entryOf);
 }
 
 // rebuild a saved recipe: bricks it doesn't have yet are snapped in order, then every saved value is set. The change
@@ -711,21 +891,26 @@ export async function restore(saved) {
 }
 
 async function rebuild(saved) {
-  const keys = [];
-  const had = (key) => (key.startsWith("node:") ? state().bricks.map((x) => x.key).find((k) => k.split("#")[0] === key && !keys.includes(k)) : brick(key) && key);
-  for (const [i, { key }] of saved.entries()) { // bricks already in the stack are reused (any-node bricks of a type in order), the rest snapped
+  const keys = [], made = new Map(); // made: saved subgraph type -> the type its insert got here (SNAP-R282: inserted once)
+  const had = (key) => (key.startsWith("node:") ? state().bricks.find((x) => savedKey(x) === key && !keys.includes(x.key))?.key : brick(key) && key);
+  for (const [i, entry] of saved.entries()) { // bricks already in the stack are reused (any-node bricks of a type in order), the rest snapped
+    const { key } = entry;
     if (BRICKS[key]?.needs?.video && legacy()) { keys.push(null); continue; } // an older Render saves its own video: its note offers the upgrade
     // a new brick goes where the saved recipe has it (before the next brick it lists that is already here), so it binds
     // between its neighbours instead of dangling after the render
     const next = saved.slice(i + 1).map((x) => had(x.key)).find(Boolean), at = next ? state().bricks.findIndex((b) => b.key === next) : undefined;
-    keys.push(had(key) || (await snap(key, { at })).brick);
+    // a subgraph brick comes from its blueprint (its type id is new in every graph it is inserted into); without one, a type
+    // this graph lacks stays the "(not installed)" stub
+    const bp = key.startsWith("node:") && entry.blueprint && typeof entry.blueprint === "object" ? entry.blueprint : null;
+    keys.push(had(key) || (bp ? (await snapBlueprint(bp, { at, as: key.slice(5), reuse: made })).brick : (await snap(key, { at })).brick));
   }
-  transaction(() => saved.forEach(({ values }, i) => {
+  transaction(() => saved.forEach(({ values, face, title }, i) => {
     if (!keys[i]) return;
-    for (const [nodeKey, ws] of Object.entries(values)) {
+    for (const [nodeKey, ws] of Object.entries(values ?? {})) {
       const n = nodeFor(keys[i], nodeKey);
       for (const [name, v] of Object.entries(ws)) { const w = widget(n, name); if (w) put(w, v); }
     }
+    if (keys[i].startsWith("node:")) dress(keys[i], { face, title }); // SNAP-R281: the face and title it was kept with
   }));
   app.canvas.setDirty(true, true);
   return keys.filter(Boolean);

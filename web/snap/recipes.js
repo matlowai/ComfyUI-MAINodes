@@ -7,7 +7,8 @@
 // SNAP-R274 one versioned record · SNAP-R275 the exact graph and the brick list, listed without the graph · SNAP-R276 the
 // graph names its recipe and version, edited computed · SNAP-R277 privacy on keeps no graph and no identity rows, said ·
 // SNAP-R12/R37 identity rows · SNAP-R17 by · SNAP-R5 another recipe opens in a new tab · SNAP-R60 world records ·
-// SNAP-R58 nothing trimmed · see docs/snap/SNAP_RULES.md
+// SNAP-R58 nothing trimmed · SNAP-R281 a brick's face and title in the changes · SNAP-R282 blueprints listed as present only ·
+// see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
 import * as W from "./world.js";
@@ -24,8 +25,21 @@ export const idFor = (name, now = Date.now()) => `recipe-${slug(name) || now.toS
 // SNAP-R12/R37: with privacy on an identity brick keeps its place and none of its rows
 export const strip = (bricks, privacy, defs = BRICKS) => bricks.map((b) => (privacy && defs[b.key]?.stack?.role === "identity" ? { key: b.key, values: {} } : b));
 export const summary = (bricks, titleOf = (k) => k) => `${bricks.length} bricks: ${bricks.map((b) => titleOf(b.key)).join(", ")}`;
-// what the Library lists for a card body: a recipe's graph (60-70 KB) stays on the record, `workflow: true` says it is there
-export const listed = (body) => { if (!body?.graph) return body; const { graph, ...rest } = body; return { ...rest, workflow: true }; };
+// what the Library lists for a card body: a recipe's graph (60-70 KB) stays on the record, `workflow: true` says it is there;
+// a subgraph brick's blueprint (a recipe's bricks, a kept brick's entry) stays there too, `blueprint: true` says so (SNAP-R282)
+const lightEntry = (e) => (e?.blueprint && typeof e.blueprint === "object" ? { ...e, blueprint: true } : e);
+export const lightBricks = (bricks) => (Array.isArray(bricks) ? bricks.map(lightEntry) : bricks);
+// A family's recipe card (a setup, "Last used") keeps its blueprints: models.js applies it from the Library's copy
+export function listed(body) {
+  if (!body || typeof body !== "object") return body;
+  if (body.family && !body.graph) return body;
+  const heavy = !!body.graph || (body.brick?.bricks ?? []).some((e) => e?.blueprint && typeof e.blueprint === "object") || (body.brick?.entry?.blueprint && typeof body.brick.entry.blueprint === "object");
+  if (!heavy) return body;
+  const { graph, ...rest } = body, brick = rest.brick && { ...rest.brick, ...(rest.brick.bricks ? { bricks: lightBricks(rest.brick.bricks) } : {}), ...(rest.brick.entry ? { entry: lightEntry(rest.brick.entry) } : {}) };
+  return { ...rest, ...(brick ? { brick } : {}), ...(graph ? { workflow: true } : {}) };
+}
+// a listed copy: saving it as a version would drop what it leaves out (L.save refuses it)
+export const light = (body) => (body?.kind === "recipe" && body.workflow === true && !body.graph) || (body?.brick?.bricks ?? []).some((e) => e?.blueprint === true) || body?.brick?.entry?.blueprint === true;
 // the stored workflow: the graph less what names this tab rather than the work: its id (a reopened tab gets a new one),
 // the canvas view (extra.ds: panning is not an edit), the shot the tab is bound to (extra.snap_scene; the tab opener
 // drops it anyway) and the recipe marker. The marker is stripped, not written ahead: the version number is known only
@@ -44,14 +58,21 @@ const nodesOf = (g) => (g?.nodes ?? []).map(({ id, type, widgets_values }) => [i
 export const sameNodes = (a, b) => same(nodesOf(a), nodesOf(b));
 // what changed between two brick lists, one line per setting, each naming its brick ("Render (render): render.length 97 → 121");
 // never the graph. diff is world.js's (W.diff), injectable for the tests
-const keyed = (bricks) => { const seen = {}; return new Map((bricks ?? []).map((b) => { const k = (seen[b.key] = (seen[b.key] ?? 0) + 1); return [k > 1 ? `${b.key}#${k}` : b.key, b.values ?? {}]; })); };
+// SNAP-R281/R282: a brick's own face and title get one short line each; a blueprint is never printed
+const keyed = (bricks) => { const seen = {}; return new Map((bricks ?? []).map((b) => { const k = (seen[b.key] = (seen[b.key] ?? 0) + 1); return [k > 1 ? `${b.key}#${k}` : b.key, b]; })); };
+const faceText = (f) => (f ? f.map(([, name, label]) => label || name).join(", ") || "nothing" : "its default");
 export function changeLines(a, b, diff, titleOf = (k) => k) {
   const was = keyed(a), now = keyed(b), out = [];
-  const name = (k) => { const t = titleOf(k.split("#")[0]); return t && t !== k.split("#")[0] ? `${t} (${k})` : k; };
+  const name = (k) => { const t = now.get(k)?.title ?? was.get(k)?.title ?? titleOf(k.split("#")[0]); return t && t !== k.split("#")[0] ? `${t} (${k})` : k; };
   for (const k of new Set([...was.keys(), ...now.keys()])) {
-    if (!was.has(k)) out.push(`${name(k)}: added ${JSON.stringify(now.get(k))}`);
-    else if (!now.has(k)) out.push(`${name(k)}: taken out (was ${JSON.stringify(was.get(k))})`);
-    else out.push(...diff({ v: was.get(k) }, { v: now.get(k) }).map((l) => `${name(k)}: ${l.replace(/^v\.?/, "").trim()}`)); // wrapped so diff's top-level skips (id, saved) never hide a node named so
+    if (!was.has(k)) out.push(`${name(k)}: added ${JSON.stringify(now.get(k).values ?? {})}`);
+    else if (!now.has(k)) out.push(`${name(k)}: taken out (was ${JSON.stringify(was.get(k).values ?? {})})`);
+    else {
+      const x = was.get(k), y = now.get(k);
+      out.push(...diff({ v: x.values ?? {} }, { v: y.values ?? {} }).map((l) => `${name(k)}: ${l.replace(/^v\.?/, "").trim()}`)); // wrapped so diff's top-level skips (id, saved) never hide a node named so
+      if ((x.title ?? null) !== (y.title ?? null)) out.push(`${name(k)}: title ${x.title ? JSON.stringify(x.title) : "its own"} → ${y.title ? JSON.stringify(y.title) : "its own"}`);
+      if (!same(x.face, y.face)) out.push(`${name(k)}: face ${faceText(x.face)} → ${faceText(y.face)}`);
+    }
   }
   const order = (m, o) => [...m.keys()].filter((k) => o.has(k));
   if (order(was, now).join(" ") !== order(now, was).join(" ")) out.push(`order ${order(was, now).join(", ")} → ${order(now, was).join(", ")}`);
@@ -90,7 +111,8 @@ export async function current() {
   const r = recordOf(m.id);
   if (!r) return null;
   const v = r.versions.find((x) => x.n === m.n);
-  return { id: m.id, n: m.n, name: W.headOf(r).body.title, head: r.head, edited: !v || !same(await shareable(), v.body.brick?.bricks) };
+  // a blueprint is compared as present or not: every insert gives a subgraph new ids, so its JSON differs after a rebuild
+  return { id: m.id, n: m.n, name: W.headOf(r).body.title, head: r.head, edited: !v || !same(lightBricks(await shareable()), lightBricks(v.body.brick?.bricks)) };
 }
 
 // which record a save goes to: the graph's own recipe, or (a name given, or none yet) that name's; asNew never an

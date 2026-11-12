@@ -6,7 +6,7 @@
 // SNAP-R59 Cast by reference (applyCast) · SNAP-R196 a Cast picture replaced as a new version · SNAP-R60 the person's cards are world records (world.js) ·
 // SNAP-R73 a Cast's voice reference goes in as an <Audio n> · SNAP-R84 a location by reference: its master, plan and named
 // plates (applyLocation), in one order on every apply · SNAP-R143 a take's sound as a Cast's voice (takeToVoice) · SNAP-R115 under Ref2V the First frame opens the shot as <Picture 1> (syncOpening) ·
-// SNAP-R148 one plate or camera mark changes alone (addPlate) · SNAP-R177 a dry run writes nothing (saveLocation dry) · SNAP-R155 a place's scale anchors (scaleOf) · SNAP-R165 a Cast line folds through the story state (applyCast line) · SNAP-R237 a Cast's voice only where that Cast speaks (voiceWanted) · SNAP-R241 a voice reference keeps its words (takeToVoice) · SNAP-R253 a plate's side and set reference (sideOf, setPlateOf) · SNAP-R274/R275 recipes are versioned records, listed without their graph (recipes.js) · see docs/snap/SNAP_RULES.md
+// SNAP-R148 one plate or camera mark changes alone (addPlate) · SNAP-R177 a dry run writes nothing (saveLocation dry) · SNAP-R155 a place's scale anchors (scaleOf) · SNAP-R165 a Cast line folds through the story state (applyCast line) · SNAP-R237 a Cast's voice only where that Cast speaks (voiceWanted) · SNAP-R241 a voice reference keeps its words (takeToVoice) · SNAP-R253 a plate's side and set reference (sideOf, setPlateOf) · SNAP-R274/R275 recipes are versioned records, listed without their graph (recipes.js) · SNAP-R282/R283 a kept brick is a card with its blueprint, listed without it (keepBrick, apply) · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
@@ -20,8 +20,8 @@ import { BRICKS, kit } from "./bricks.js";
 import { setBlock, blocking, drawPlan, drawElevation, toBlob, coverage, atCamera, cameraAt, keeps, ownCamera, sameCamera } from "./setsnap.js";
 
 // the brick each kind of card goes on; a recipe goes on the whole stack (null)
-export const TARGET = { recipe: null, shot: "render", set_snapshot: "refs", location: "refs", dial: "rack", lora: "preset", cast: "render", setting: "render", scene: "render", principle: "render", pose: "first_frame", motion_guide: "refs", run: "render" };
-export const KIND_LABEL = { recipe: "Recipes", shot: "Shots", set_snapshot: "Set snapshots", location: "Locations", cast: "Cast", setting: "Settings", scene: "Scenes", principle: "Principles", motion_guide: "Motion", pose: "Poses", dial: "Dials", lora: "LoRAs", run: "Runs" };
+export const TARGET = { recipe: null, brick: null, shot: "render", set_snapshot: "refs", location: "refs", dial: "rack", lora: "preset", cast: "render", setting: "render", scene: "render", principle: "render", pose: "first_frame", motion_guide: "refs", run: "render" };
+export const KIND_LABEL = { recipe: "Recipes", brick: "Bricks", shot: "Shots", set_snapshot: "Set snapshots", location: "Locations", cast: "Cast", setting: "Settings", scene: "Scenes", principle: "Principles", motion_guide: "Motion", pose: "Poses", dial: "Dials", lora: "LoRAs", run: "Runs" };
 
 let cards = [], pack = [], loading;
 // cards load once per page; the view and the agent tools both wait on the same request. The person's own cards are
@@ -76,6 +76,7 @@ export function lineage(card) {
 // the plates), any other state of a set a new version of its record, any other card a new version of its own record
 export async function save(card, { note = "", by = "person" } = {}) {
   if (card.kind === "recipe" && card.workflow === true && !card.graph) throw new Error(`${card.title} is the Library's light copy of a recipe (its workflow left out, SNAP-R275): saving it would drop the workflow from a new version. Save the recipe from its graph (save_recipe)`);
+  if (R.light(card)) throw new Error(`${card.title} is the Library's light copy (its blueprints left out, SNAP-R282): saving it would drop them from a new version. Save it again from the graph (save_recipe, keep_brick)`);
   await ready();
   if (card.kind === "set_snapshot") {
     const lineage = card.lineage ?? card.id, { plates, ...body } = card;
@@ -891,14 +892,44 @@ export async function saveRecipe(name) {
   return get(out.id) ?? { id: out.id, kind: "recipe", title: out.name };
 }
 
+// ---- bricks a person makes (SNAP-R280..R283): an any-node brick kept as a card, `brick-<slug of its title>` (the same
+// title keeps it again as a new version of that card); its entry is E.entryOf's (key, values, face, title, blueprint)
+const listLine = (xs) => xs.join(", ") || "nothing";
+export function brickLine(key) {
+  const def = BRICKS[key];
+  return `needs ${listLine(Object.keys(def.needs ?? {}))} · gives ${listLine(Object.keys(def.provides ?? {}))} · shows ${listLine((def.face ?? []).map((f) => f[2] ?? f[1]))}`;
+}
+export async function keepBrick(key, { title, note = "", by = "person" } = {}) {
+  if (typeof key !== "string" || !key.startsWith("node:")) throw new Error(`${BRICKS[key]?.title ?? key} is a pack brick: it is in every recipe's palette already. Keep in Library is for bricks made from any node or subgraph (node:<Type>#<n>)`);
+  const entry = E.entryOf(key);
+  if (!entry) throw new Error(`No brick ${key} in this recipe; its bricks: ${E.state().bricks.map((b) => b.key).join(", ") || "none"}`);
+  // an identity LoRA stack is a pack brick (cast), never an any-node one: nothing here needs SNAP-R12 stripping
+  const name = (typeof title === "string" && title.trim()) || BRICKS[key].title, id = `brick-${R.slug(name) || Date.now().toString(36)}`;
+  await ready();
+  await save({ id, kind: "brick", title: name, text: brickLine(key), brick: { entry } }, { note, by });
+  const r = W.record("card", id);
+  return { id, ref: W.refOf("card", id, r?.head), n: r?.head ?? null, title: name, blueprint: !!entry.blueprint };
+}
+// the record body behind a listed card (the Library lists recipes and kept bricks without graph and blueprints)
+const full = (card) => { const o = originOf(card.id), r = o?.kind === "card" && W.record("card", o.id); return (r && r.versions.find((v) => v.n === o.n)?.body) || card; };
+
+// a kept brick into the open recipe (at its place in the list, else at the end), read whole from its record: the engine's
+// one way in for kept and recipe bricks (E.snapEntry). Returns the engine's {brick, bindings} and what happened
+export async function applyBrick(card, { at } = {}) {
+  if (card?.kind !== "brick") throw new Error(`${card?.title ?? "That card"} isn't a kept brick`);
+  const res = await E.snapEntry(full(card).brick?.entry, { at });
+  return { ...res, said: `${card.title} added as a brick${res.bindings.length ? `: ${res.bindings.map((b) => b.role).join(", ")} wired` : ""}` };
+}
+
 // apply a card to its brick; returns what happened, or throws with the reason it can't. A family's recipe card is a setup:
 // it goes the Setups sheet's way (another family opens a new tab; `keep` saves this stack as "Last used" first)
 export async function apply(card, { keep = true } = {}) {
   if (card.kind === "recipe" && card.family) return M.useSetup({ source: "recipe", card: card.id }, { keep });
-  if (card.kind === "recipe") {
-    const keys = await E.restore(card.brick.bricks);
+  if (card.kind === "recipe") { // a recipe record's version, read whole (its blueprints; SNAP-R282); a pack card as it is
+    const keys = await E.restore(full(card).brick.bricks);
     return `${card.title}: ${keys.length} bricks with their settings`;
   }
+  if (card.kind === "brick") return (await applyBrick(card)).said;
   if (card.kind === "run" && card.brick.take) return `${T.restore(T.get(card.brick.take))} settings from ${card.title}`; // a prior restores any workflow's own nodes
   if (card.kind === "location" && card.brick.location) return (await applyLocation(card.brick.location)).said; // References comes with it
   const brick = TARGET[card.kind];
