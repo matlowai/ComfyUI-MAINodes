@@ -1,7 +1,7 @@
 // A take picker (UI-01 "+ Add › a take", UI-03 the Cast sheet's "+ from a take"): every scene › shot with its takes as
 // thumbnails, stills and videos alike, then takes in no scene, newest first. A press hands the take back; a video gives
 // its last frame unless the caller asks for another. Reading only: nothing is written here.
-// SNAP-R118 references you can edit · SNAP-R80 every picture one click from full size · see docs/snap/SNAP_RULES.md
+// SNAP-R118 references you can edit · SNAP-R80 every picture one click from full size · SNAP-R287 an example's take · see docs/snap/SNAP_RULES.md
 import * as T from "./takes.js";
 import * as SC from "./scenes.js";
 import { full } from "./lightbox.js";
@@ -9,18 +9,19 @@ import { full } from "./lightbox.js";
 const h = (tag, props = {}, ...kids) => { const el = Object.assign(document.createElement(tag), props); el.append(...kids.flat().filter((k) => k != null && k !== false)); return el; };
 const shown = (t) => t.media.find((m) => m.kind === "image") ?? t.media.find((m) => m.kind === "video");
 
-// opens over host; pick(take) is called with the chosen take and the sheet closes. Returns the sheet
-export async function pickTake(host, { title = "Pick a take", pick }) {
+// opens over host; pick(take) is called with the chosen take and the sheet closes. `only` keeps the takes it accepts (an
+// example offers this graph's takes, SNAP-R287). Returns the sheet
+export async function pickTake(host, { title = "Pick a take", pick, only = () => true }) {
   host.querySelector(".snap-take-picker")?.remove();
   await Promise.all([T.load(), SC.load()]);
   const close = () => { sheet.remove(); host.focus({ preventScroll: true }); };
   const tile = (t, label) => {
     const m = shown(t);
-    if (!m || t.locked || t.status === "error") return null;
+    if (!m || t.locked || t.status === "error" || !only(t)) return null;
     const use = () => { close(); pick(t); }, src = T.url(m);
     const media = full(m.kind === "video" ? h("video", { src, muted: true, preload: "metadata" }) : h("img", { src, alt: label, loading: "lazy" }),
       { src, name: label, kind: m.kind, source: `output/${m.subfolder ? `${m.subfolder}/` : ""}${m.filename}` }, "picker", { label: "Use this take", run: use });
-    return h("figure", { className: "snap-picker-take", title: `${label}${t.text ? ` · ${t.text}` : ""}` }, media,
+    return h("figure", { className: "snap-picker-take", title: `${label}${t.created ? ` · ${new Date(t.created).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}` : ""}${t.text ? ` · ${t.text}` : ""}` }, media,
       h("button", { className: "snap-link snap-quiet-btn", textContent: `Use ${label}`, onclick: use }));
   };
   const seen = new Set(), rows = [];

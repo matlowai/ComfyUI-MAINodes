@@ -484,8 +484,8 @@ export const STYLE = `
    A version card stays the smaller one (.87); a phone's 200px strip gives back today's 122px */
 .snap-takes:not(.empty) .snap-takes-strip { container: snap-takes / size; }
 .snap-takes:not(.empty) .snap-takes-strip { flex-wrap: wrap; align-content: start; overflow: hidden auto; } /* rows of takes: two or more side by side stay in view to compare */
-.snap-takes:not(.empty) .snap-take { --take-h: clamp(122px, min(calc(100cqh - 56px), calc((100cqw - 50px) / 2 * 9 / 16)), 460px); width: max(216px, calc(var(--take-h) * 16 / 9)); }
-.snap-takes:not(.empty) .snap-take.version { --take-h: clamp(106px, min(calc((100cqh - 56px) * .87), calc((100cqw - 50px) / 2 * 9 / 16 * .87)), 400px); width: max(188px, calc(var(--take-h) * 16 / 9)); }
+.snap-takes:not(.empty) .snap-take { --take-h: clamp(122px, min(calc(100cqh - 56px), calc((100cqw - 50px) / 2 * 9 / 16)), 270px); width: max(216px, calc(var(--take-h) * 16 / 9)); }
+.snap-takes:not(.empty) .snap-take.version { --take-h: clamp(106px, min(calc((100cqh - 56px) * .87), calc((100cqw - 50px) / 2 * 9 / 16 * .87)), 235px); width: max(188px, calc(var(--take-h) * 16 / 9)); }
 .snap-takes:not(.empty) .snap-take:not(.ghost) .snap-take-media:has(> img, > video) { height: var(--take-h); }
 .snap-take.keep .snap-take-media { border-color: #57c785; } .snap-take.reject .snap-take-media { opacity: .55; }
 .snap-take.error .snap-take-media, .snap-take.interrupted .snap-take-media { border-color: #f0b445; }
@@ -1053,4 +1053,16 @@ div.snap-room-line .snap-link { margin: 0; padding: 4px 10px; font-size: 13px; }
 .snap-recipe-row { all: unset; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; padding: 5px 8px; border-radius: 8px; font-size: 12.5px; }
 .snap-recipe-row:hover, .snap-recipe-row:focus-visible { background: var(--s-card); }
 .snap-recipe-row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .snap-recipe-row .snap-quiet { grid-column: 1 / -1; font-size: 11px; }
+/* SNAP-R287..R290: examples and share files. An example is one small picture (a video's three frames side by side) */
+.snap-recipe-example-row { align-items: center; } .snap-recipe-example { width: 100%; max-height: 120px; object-fit: contain; border-radius: 8px; background: #000; }
+.snap-hit-thumb { width: 32px; height: 20px; flex: 0 0 auto; object-fit: cover; border-radius: 4px; background: #000; }
+.snap-sheet.snap-share-sheet { inset: 64px max(16px, calc(50% - 300px)) auto; max-height: calc(100% - 100px); display: flex; flex-direction: column; }
+.snap-share-body { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px 14px; overflow-y: auto; font-size: 13px; }
+.snap-share-example { margin: 0; } .snap-share-example img { display: block; width: 100%; height: auto; max-height: 260px; object-fit: contain; border-radius: 10px; background: #000; }
+.snap-share-example figcaption, .snap-share-made { color: var(--s-dim); font-size: 12px; }
+.snap-share-none { padding: 10px 12px; border: 1px dashed var(--s-line); border-radius: 10px; color: var(--s-dim); }
+.snap-share-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.snap-share-check { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.snap-share-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
+@container (max-width: 760px) { .snap-sheet.snap-share-sheet { inset: 56px 8px auto; } }
 `;

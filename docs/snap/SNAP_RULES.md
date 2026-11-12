@@ -2564,3 +2564,57 @@ page.
   `style.js` (the `@container (min-width: 761px)` block after `.snap-inspector`, the `snap-takes` size container).
 
 Next free ID after this batch: SNAP-R287.
+
+## Lane S (2026-11-11): examples and one-file sharing
+
+SNAP-R287 to SNAP-R290, from the operator, 2026-11-11: "we need to make it really easy for people to share these
+blueprints too... the biggest thing would be if theres a small image example or video example of what the dial or
+feature did". This batch covers kept bricks and recipes; dials come later.
+
+- **SNAP-R287: An example is the person's explicit pick from a take, small, kept on the card.** A kept brick card or a
+  recipe version can carry `example: {image, w, h, frames, from: {take, number}, caption?}`: one picture as a data URL
+  (WebP, JPEG where the browser has no WebP encoder). A still take is scaled down; a video take gives its first, middle
+  and last frames side by side as one strip. It aims at 60 KB and never passes 120 KB: the width, then the quality,
+  steps down until it fits (`fitExample`), else it is refused. Setting it is always the person's act (or their agent's
+  on their word), one card at a time, never automatic and never a default: a new version of the card's newest body,
+  noted "example from take N"; removing it is another version. Refused where privacy is on (SNAP-R37: takes are
+  private there). A recipe's example lives on its version body: the Library's light copy keeps it, while "edited" and
+  the changes list read the brick lists only, so an example changes neither. Library tiles show it when the card has
+  no media; the palette's My bricks rows show it small. *Why:* people judge a brick by what it does, and a picture says
+  that faster than its settings. *More:* `web/snap/share.js` `setExample`, `clearExample`, `fitExample`;
+  `shareview.js` `pickExample`; `tests/snap/test_share.mjs`.
+
+- **SNAP-R288: A share file carries the card, its blueprints and its example, and never weights, Cast rows, the
+  exact graph, picture names or take ids.** Share… (a kept brick's Inspector bar, a recipe version) makes
+  `<title>.snap.json`: `{snap_share: 1, kind, title, made, card, needs, includes, leaves_out}`, downloaded or copied
+  by the person, never sent (SNAP-R18). Whatever the privacy setting it leaves out identity (Cast) LoRA rows (the
+  brick keeps its place), a recipe's `graph`, any setting naming a picture, video or sound file (whole, or inside a
+  JSON setting), and which take it came from. "Leave my prompt text out" also drops prompt-like settings: a STRING its
+  node defines as multiline, or, where no definition can be read (a pack blueprint's or a subgraph's promoted
+  setting), one named like a prompt (prompt, negative, caption, text) or holding a line break; inside a blueprint,
+  every free string of a node with a multiline STRING. `needs` names what it uses: node types (each brick key's,
+  every node inside its blueprints), blueprints, dial files from Dial Rack rows (with their tensors' sha256 where this
+  server gives it), and model files named in its settings. `includes` and `leaves_out` are written from what was
+  actually done and shown before the download. *Why:* sharing must be one file a person can hand over, and must not
+  leak what makes their work theirs. *More:* `share.js` `packShare`, `needsOf`, `shareOf`; `share_card`.
+  Where the outputs are saved (a text setting of an output node, such as Save's file prefix) is left out as well: it
+  names the person's folders and projects.
+
+- **SNAP-R289: A share file is untrusted: validated, shown as text, and nothing in it runs by itself.** `readShare`
+  takes JSON of at most 2 MB, `snap_share` 1, a known kind, entries shaped as brick or recipe entries (settings are
+  plain values, every string capped), an example only as `data:image/(webp|png|jpeg);base64,` within its cap, and keeps
+  only the fields it knows. Its text reaches the page only as text (`textContent`, never HTML); nothing in it is
+  queued, run or added to a graph without the person's further act. A dropped or opened file is a share when its top
+  level names `snap_share`; any other workflow JSON opens exactly as before. *Why:* a file from someone else is someone
+  else's data. *More:* `share.js` `readShare`, `looksShared`, `isShareFile`; `view.js` `openSaved`.
+
+- **SNAP-R290: Importing lands in the Library first and says what is missing here.** The preview names what is inside
+  in plain words and what this install lacks: node types not registered, dial files not installed, model files not
+  found, pack bricks it doesn't have. Add to my Library saves the card (`from_share: {title, made}` on the body) under
+  the slug of its title, never the file's own id: the same content there is nothing to do, a card imported from a
+  share of the same title gains a version, and any other card under that id (the person's own) is left alone while the
+  import takes the next free id (-2, -3…). Add to this recipe and Open in a new tab are offered only after that, through
+  the existing paths (`L.applyBrick`, `R.open`). *Why:* the person decides what enters their work, knowing what it
+  needs first. *More:* `share.js` `previewShare`, `placeOf`, `importShare`; `preview_share`, `import_share`.
+
+Next free ID after this batch: SNAP-R291.

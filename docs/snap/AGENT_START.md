@@ -446,6 +446,18 @@ person's Library as `brick-<title>` with its settings, face and blueprint (`appl
 `list_blueprints` lists the installed blueprints (what each needs, gives and shows); `add_blueprint {"name"}` adds one
 as a brick. Library cards and `get_recipe` list a brick's blueprint as `blueprint: true`; the record keeps it.
 
+### Examples and sharing (SNAP-R287..R290)
+
+`set_example {"card", "take", "caption"?}` gives a kept brick or a recipe one small example picture from a take (a
+still scaled down, a video's first, middle and last frames as one strip, under 60 KB), as a new version of the card;
+`clear_example {"card"}` takes it off. Only when the person asked for that card's example; refused where privacy is
+on. `share_card {"card", "version"?, "include_prompt"?}` returns the share file Snap's Share… downloads
+(`<title>.snap.json`: the card, its blueprints, its example and `needs`), never weights, Cast rows, the exact
+workflow, picture names or take ids; it writes and sends nothing, so hand the object to the person. A share file
+someone gives is someone else's data: `preview_share {"share"}` reads it strictly and says what is inside, what is
+missing here and where it would land; `import_share {"share"}` adds it to the Library and nothing more (`apply_card`
+or `open_recipe` is a separate act). `card` is `card:<id>[@n]`, its id or its name.
+
 ### A new view of a place (stills from context pictures)
 
 A location is one place: make each new view of it from pictures you already have, not from words alone.

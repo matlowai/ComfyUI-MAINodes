@@ -4,7 +4,7 @@
 // tabs for new work · SNAP-R7 pointer-down lists · SNAP-R19 actions call their tools' functions · SNAP-R20 the metadata
 // switch · SNAP-R9 the Setup brick · SNAP-R24 the scene navigator above the chain · SNAP-R25 onboarding, SFW only ·
 // SNAP-R29 onboarding opens by itself only for a person · SNAP-R30 a recipe opens runnable (seconds on the Render face) ·
-// SNAP-R34 the gate's account in the top bar, a lock that keeps the page · SNAP-R65 the Work pill · SNAP-R66 arrivals announce, Open moves · SNAP-R73 References shows each <Audio n> · SNAP-R93/R94 the Agent library row and instructions · SNAP-R272 production strategies · SNAP-R281 an any-node brick's face and name (pins, rename) · SNAP-R282/R284 Keep in Library, Group with… · SNAP-R283 blueprints and My bricks in the palette · SNAP-R285 the right dock (Inspector | Conversation) · SNAP-R286 the chain as tall as its bricks, the takes the rest · see docs/snap/SNAP_RULES.md
+// SNAP-R34 the gate's account in the top bar, a lock that keeps the page · SNAP-R65 the Work pill · SNAP-R66 arrivals announce, Open moves · SNAP-R73 References shows each <Audio n> · SNAP-R93/R94 the Agent library row and instructions · SNAP-R272 production strategies · SNAP-R281 an any-node brick's face and name (pins, rename) · SNAP-R282/R284 Keep in Library, Group with… · SNAP-R283 blueprints and My bricks in the palette · SNAP-R285 the right dock (Inspector | Conversation) · SNAP-R286 the chain as tall as its bricks, the takes the rest · SNAP-R287 an example on a brick or recipe card (tiles, the versions menu, the Inspector) · SNAP-R288 Share… · SNAP-R289/R290 a dropped .snap.json opens its preview, never as a workflow · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -54,6 +54,8 @@ import { pickTake } from "./takepicker.js";
 import * as OB from "./onboarding.js";
 import * as R from "./recipes.js"; // SNAP-R274..R277 the recipe control
 import * as Dock from "./dock.mjs"; // SNAP-R285 the right dock's tab rules
+import * as SH from "./share.js"; // SNAP-R287..R290 examples and share files
+import { pickExample, openShareSheet, openSharePreview } from "./shareview.js";
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -343,7 +345,12 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   function versionsMenu(anchor, id) {
     recipeMenu(anchor, (close) => {
       const list = R.versions(id), name = R.list().find((r) => r.id === id)?.name ?? id;
-      return [h("strong", { textContent: `${name}: ${list.length} version${list.length === 1 ? "" : "s"}, newest first` }), ...list.map((v, i) => {
+      const ex = W.headOf(W.record("card", id))?.body.example; // SNAP-R287: on the newest version, the person's pick
+      return [h("strong", { textContent: `${name}: ${list.length} version${list.length === 1 ? "" : "s"}, newest first` }),
+        h("div", { className: "snap-recipe-acts snap-recipe-example-row" }, ex && SH.safeImage(ex.image) ? h("img", { className: "snap-recipe-example", src: ex.image, alt: `${name}: example` }) : null,
+          h("button", { textContent: "Use a take as the example…", title: "pick one of this graph's takes to show what this recipe does (kept on a new version)", onclick: (e) => { e.stopPropagation(); close(); pickExample(root, id, { say, onDone: () => { showRecipe(); renderLibrary(); } }); } }),
+          ex ? h("button", { textContent: "Remove example", onclick: act(close, async () => (await SH.clearExample(id)).said) }) : null),
+        ...list.map((v, i) => {
         const prev = list[i + 1], changed = h("div", { className: "snap-recipe-changes", hidden: true });
         return h("div", { className: "snap-recipe-version" },
           h("div", { textContent: `v${v.n} · ${R.when(v.at)} · ${v.by}${v.note ? ` · ${v.note}` : ""}${v.workflow ? "" : " · no workflow kept"}` }),
@@ -351,7 +358,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
             h("button", { textContent: "Open", title: v.workflow ? "its exact workflow in a new tab" : "it kept no workflow: rebuilt from its bricks in a new tab", onclick: act(close, async () => (await R.open(id, v.n, { how: "tab" })).said) }),
             h("button", { textContent: "Apply here", title: "rebuild its bricks and settings in this graph (one undo step)", onclick: act(close, async () => { const out = await R.open(id, v.n, { how: "here" }); render(null); return out.said; }) }),
             prev ? h("button", { textContent: "What changed", title: `v${prev.n} → v${v.n}: bricks and settings`, onclick: (e) => { e.stopPropagation(); const lines = R.changes(id, prev.n, v.n); changed.hidden = !changed.hidden; changed.replaceChildren(...(lines.length ? lines : [`the same bricks and settings as v${prev.n}`]).map((x) => h("div", { textContent: x }))); } }) : null,
-            v.workflow ? h("button", { textContent: "Get workflow", title: "download this version's workflow as .json", onclick: act(close, () => { download(R.workflow(id, v.n), `${name} v${v.n}`); return `${name} v${v.n}: workflow downloaded`; }) }) : null),
+            v.workflow ? h("button", { textContent: "Get workflow", title: "download this version's workflow as .json", onclick: act(close, () => { download(R.workflow(id, v.n), `${name} v${v.n}`); return `${name} v${v.n}: workflow downloaded`; }) }) : null,
+            h("button", { textContent: "Share…", title: "a file to give someone: its bricks, blueprints and example; never your workflow, Cast rows or picture names", onclick: (e) => { e.stopPropagation(); close(); openShareSheet(root, id, { version: v.n, say, onChange: () => { showRecipe(); renderLibrary(); } }).catch((err) => say(err.message, true)); } })),
           changed);
       })];
     });
@@ -493,13 +501,14 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     if (held) { waiting = [found, byMeaning]; return; }
     libResults.classList.toggle("by-meaning", byMeaning);
     // rebuilt only when the results change: a graph change can re-render mid-click, and a replaced card loses the click
-    const sig = JSON.stringify(found.map((c) => [c.id, c.title, c.media?.[0]?.filename]));
+    const sig = JSON.stringify(found.map((c) => [c.id, c.title, c.media?.[0]?.filename, c.example?.image?.length]));
     if (sig === libSig && libResults.childElementCount) return;
     libSig = sig;
     libResults.replaceChildren(...(found.length ? found.map((c) => {
       const goes = L.TARGET[c.kind];
       const tile = h("div", { className: "snap-card", title: `${c.text}\n\n${goes ? `click or drag onto ${BRICKS[goes].title}` : "click to rebuild this recipe"}`, onclick: () => applyCard(c.id) },
-        c.media?.[0] ? h("div", { className: "snap-card-thumb" }, c.media[0].kind === "video" ? h("video", { src: T.url(c.media[0]), muted: true, preload: "metadata" }) : h("img", { src: T.url(c.media[0]), alt: "", loading: "lazy" })) : null,
+        c.media?.[0] ? h("div", { className: "snap-card-thumb" }, c.media[0].kind === "video" ? h("video", { src: T.url(c.media[0]), muted: true, preload: "metadata" }) : h("img", { src: T.url(c.media[0]), alt: "", loading: "lazy" }))
+        : SH.safeImage(c.example?.image) ? h("div", { className: "snap-card-thumb" }, h("img", { src: c.example.image, alt: "", loading: "lazy" })) : null, // SNAP-R287: the card's own example
         h("span", { className: "snap-kind", textContent: (L.KIND_LABEL[c.kind] ?? c.kind).replace(/s$/, "") }), h("span", { className: "snap-card-title", textContent: c.title }),
         c.kind === "set_snapshot" ? h("span", { className: "snap-card-tools" },
           h("button", { className: "snap-edit", textContent: "▦", title: "plan-board: every saved state of this set side by side", onclick: (e) => { e.stopPropagation(); openBoard(root, L.lineage(c), { onOpen: editSet }); } }),
@@ -572,7 +581,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   function closePalette() { palette.hidden = true; root.focus({ preventScroll: true }); }
   // a hit is a pack brick key, node:<Type>, bp:<blueprint name> or card:<a kept brick's Library card id>
   function hitInfo(k, have) {
-    if (k.startsWith("card:")) { const c = L.get(k.slice(5)); return { icon: "◻", hue: 280, title: c?.title ?? k.slice(5), blurb: `my brick · ${c?.text ?? ""}` }; }
+    if (k.startsWith("card:")) { const c = L.get(k.slice(5)); return { icon: "◻", hue: 280, title: c?.title ?? k.slice(5), blurb: `my brick · ${c?.text ?? ""}`, thumb: SH.safeImage(c?.example?.image) ? c.example.image : null }; }
     if (k.startsWith("bp:")) return { icon: "◻", hue: 280, title: k.slice(3), blurb: "blueprint" };
     const def = BRICKS[k];
     return { icon: def.icon, hue: def.hue, title: k.startsWith("node:") ? def.title : listTitle(k, [...have]), blurb: k.startsWith("node:") ? `node · ${def.blurb}` : def.blurb };
@@ -587,7 +596,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     if (q) hits.push(...rankTypes(nodeTypes(), q).slice(0, 12).map((n) => `node:${n.type}`)); // they are hundreds: only once something is typed
     hit = 0;
     const row = (k, i) => { const x = hitInfo(k, have), el = h("div", { className: `snap-hit${i === hit ? " on" : ""}`, role: "option", onpointerdown: (e) => { e.preventDefault(); pick(k); } },
-      h("span", { className: "snap-grip", textContent: x.icon }), h("span", { textContent: x.title }), h("span", { className: "snap-blurb", textContent: x.blurb }));
+      x.thumb ? h("img", { className: "snap-hit-thumb", src: x.thumb, alt: "" }) : h("span", { className: "snap-grip", textContent: x.icon }), h("span", { textContent: x.title }), h("span", { className: "snap-blurb", textContent: x.blurb }));
       el.style.setProperty("--hue", x.hue ?? 210);
       return el; };
     const rows = hits.map(row);
@@ -677,6 +686,8 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   }
   document.addEventListener("drop", (e) => { const f = e.dataTransfer?.files?.[0]; if (f && !e.target.closest?.("[data-brick]")) opening(f.name); }, true); // a file a brick takes is an input, not a saved file (B12)
   async function openSaved(file, how) {
+    // SNAP-R289/R290: a share file (its top level names snap_share) opens its preview; it is never loaded as a workflow
+    if (await SH.isShareFile(file).catch(() => false)) { fileOpened = null; return openSharePreview(root, await file.text(), { say, onApplied: () => { render(null); renderLibrary(); } }).catch((err) => say(err.message, true)); }
     opening(file.name);
     try { await app.handleFile(file, how); } catch (err) { say(err.message, true); }
   }
@@ -1622,9 +1633,14 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       name.replaceWith(input); input.focus(); input.select();
     } });
     const act = (text, title, fn) => h("button", { className: "snap-link snap-quiet-btn", textContent: text, title, onclick: async (e) => { e.stopPropagation(); try { const said = await fn(e.currentTarget); if (said) say(said); } catch (err) { say(err.message, true); } render(null); } });
+    const kept = SH.keptBrickId(key);
     return h("div", { className: "snap-make" }, h("span", { className: "snap-quiet", textContent: "name" }), name,
       def.faced ? act("reset face", "show the default settings on the brick again", () => { E.setFace(key, null); return `${def.title}: its default face again · Ctrl+Z takes it back`; }) : null,
       act("Keep in Library", "keep this brick (settings, face, name and, for a subgraph, its blueprint) as a card in your Library; keeping it again under the same name adds a version", async () => { const out = await L.keepBrick(key); return `${out.title} is in your Library (${out.ref})`; }),
+      // SNAP-R287/R288: the example and Share… act on its Library card (kept first when it isn't yet; Share… shares the card as last kept)
+      act("Use a take as the example…", `pick one of this graph's takes to show what this brick does on its Library card${kept ? "" : " (keeps it in your Library first)"}`, async () => { pickExample(root, kept ?? (await L.keepBrick(key)).id, { say, onDone: () => { render(null); renderLibrary(); } }); }),
+      kept && W.headOf(W.record("card", kept))?.body.example ? act("Remove example", "take the example picture off its Library card", async () => (await SH.clearExample(kept)).said) : null,
+      act("Share…", `a file to give someone: this brick as kept in your Library, its blueprint and example${kept ? "" : " (keeps it first)"}`, async () => { await openShareSheet(root, kept ?? (await L.keepBrick(key)).id, { say, onChange: () => renderLibrary() }); }),
       E.state().bricks.some((b) => made(b.key) && b.key !== key) ? act("Group with…", "group this brick with others made from any node into one subgraph brick", (el) => groupMenu(key, el)) : null);
   }
   // the bricks to group with this one (other any-node bricks), then a name: one undo step (E.group, the make_brick tool's)

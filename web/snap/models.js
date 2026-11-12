@@ -7,7 +7,7 @@
 // SNAP-R25 SFW only hides what the graph tags nsfw · SNAP-R26 a name files a turbo LoRA only on strong signals ·
 // SNAP-R27 a lock on LoRAs the private rules match · SNAP-R35 a rating from move to…, the admin's on a gated install ·
 // SNAP-R149 the no-turbo presets are opt-in, never offered as better · SNAP-R232 pipeline(): the key of a dial's measured strengths ·
-// see docs/snap/SNAP_RULES.md
+// SNAP-R288/R290 isFile, named and readiness name and check a share file's model files (share.js) · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -246,10 +246,10 @@ export const total = (list = settings()) => [...new Map(list.filter((s) => s.siz
 // setups the recipe's nodes offer (one entry per preset), each with the model files it would load
 const DIFFUSION = new Set(["base", "sft", "finetune", "turbo_merge"]);
 const short = (f) => base(f).replace(/\.(safetensors|gguf|sft|ckpt)$/, "");
-const isFile = (v) => typeof v === "string" && /\.(safetensors|gguf|sft|ckpt)$/.test(v);
+export const isFile = (v) => typeof v === "string" && /\.(safetensors|gguf|sft|ckpt)$/.test(v); // share.js names a card's model files with it (SNAP-R288)
 // a file as a setup card or preset names it: installed (by file name in one sub-folder, as E.resolveChoice resolves it:
 // two files with that name are no match, SNAP-R3), and whether core can load it
-function readiness(v) {
+export function readiness(v) {
   const name = E.resolveChoice([...files.keys()], v);
   const e = entry(name ?? v);
   return { file: name ?? v, size: files.has(name) ? file(name).size : null, installed: files.has(name), ...(e?.loads_in_core === false ? { cant_load: true } : {}), kind: e?.kind ?? null };
@@ -493,7 +493,7 @@ export function turbo() {
 // what "off" puts back: the settings the turbo replaced when this page set it, else (a recipe rebuilt from a card) the
 // setup card's: the applied one, or the family's card on the turbo's Base/SFT lineage; a card holding a turbo is no guide
 const flat = (c) => c.brick.bricks.flatMap((b) => Object.values(b.values).flatMap((ws) => Object.entries(ws)));
-const named = (c) => flat(c).map(([, v]) => v).filter(isFile);
+export const named = (c) => flat(c).map(([, v]) => v).filter(isFile);
 function quality(was) {
   const kept = E.state().bricks.find((b) => b.key === turboHost())?.turbo;
   if (kept?.file === was.file) return kept.quality;

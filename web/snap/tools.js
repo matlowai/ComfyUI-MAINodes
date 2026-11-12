@@ -65,6 +65,7 @@ import * as B from "./book.js";
 import { BOOK_TOOLS } from "./booktools.js";
 import { RECIPE_TOOLS } from "./recipetools.js";
 import { BRICK_TOOLS } from "./bricktools.js";
+import { SHARE_TOOLS } from "./sharetools.js";
 import { directorTools } from "./director/native.mjs";
 import * as N from "./nearby.js";
 import * as CF from "./craft.js";
@@ -1796,6 +1797,7 @@ export const TOOLS = [
   ...BOOK_TOOLS, // U97 the Book (booktools.js)
   ...RECIPE_TOOLS, // SNAP-R274..R277 versioned recipes (recipetools.js)
   ...BRICK_TOOLS, // SNAP-R280..R284 bricks people make (bricktools.js)
+  ...SHARE_TOOLS, // SNAP-R287..R290 examples and share files (sharetools.js)
   ...directorTools(() => TOOLS), // Native production planners; construct before byName.
 ];
 
