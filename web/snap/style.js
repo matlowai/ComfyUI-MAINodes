@@ -47,6 +47,8 @@ export const STYLE = `
 .snap-wired { font-size: 12px; color: var(--s-dim); padding: 6px 9px; border-radius: 9px; border: 1px dashed var(--s-line); }
 .snap-dom { border-radius: 10px; padding: 8px; background: #0000002e; border: 1px solid #ffffff10; overflow: auto; }
 .snap-dom > * { height: auto !important; }
+/* a lent panel wraps to the inspector's width instead of scrolling sideways (a pack's rows built for a wider node) */
+.snap-dom > *, .snap-dom > * > * { flex-wrap: wrap; max-width: 100%; min-width: 0; } /* max-width also caps a fixed flex-basis */
 .snap-widget-btn { align-self: stretch; text-align: center; margin-top: 0; }
 .snap-thumbs { display: flex; gap: 6px; } .snap-thumbs img { width: 100%; max-height: 90px; object-fit: cover; border-radius: 8px; border: 1px solid #ffffff14; min-width: 0; }
 .snap-thumbs.big img { max-height: 220px; object-fit: contain; background: #0003; }
@@ -443,6 +445,11 @@ export const STYLE = `
 .snap-take.drop-before { box-shadow: -4px 0 0 var(--s-accent); }
 .snap-take-media { position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #000; border: 1px solid #ffffff14; }
 .snap-take-media video, .snap-take-media img { width: 100%; height: 100%; object-fit: contain; display: block; } /* a portrait still fits whole, never a torso slice */
+/* the tile takes the picture's own shape at the strip's tile height (no wide black bars around a square or portrait take);
+   a picture wider than the card still fits whole, and a tile without a picture keeps the card's 16:9 */
+.snap-take:not(.ghost) .snap-take-media:has(> img, > video) { aspect-ratio: auto; height: 122px; width: fit-content; min-width: 72px; max-width: 100%; align-self: center; }
+.snap-take:not(.ghost) .snap-take-media:has(> img, > video) > :is(img, video) { width: auto; max-width: 100%; }
+.snap-take.version:not(.ghost) .snap-take-media:has(> img, > video) { height: 106px; } /* a version card is narrower: its 16:9 height */
 .snap-take.keep .snap-take-media { border-color: #57c785; } .snap-take.reject .snap-take-media { opacity: .55; }
 .snap-take.error .snap-take-media, .snap-take.interrupted .snap-take-media { border-color: #f0b445; }
 .snap-take-none { display: grid; place-items: center; height: 100%; color: var(--s-dim); font-size: 11px; }
@@ -583,6 +590,10 @@ export const STYLE = `
 .snap-room-message { padding: 12px; border-radius: 12px; background: var(--s-card); }
 .snap-room-message p { margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .snap-room-message small { color: var(--s-dim); }
+.snap-md ul, .snap-md ol { margin: 6px 0; padding-left: 22px; } .snap-md li { margin: 2px 0; overflow-wrap: anywhere; } /* SNAP-R278: an agent's words, built as DOM (markdown.mjs) */
+.snap-md code { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 1px 4px; border-radius: 5px; background: #0000003d; overflow-wrap: anywhere; }
+.snap-md pre { margin: 6px 0; padding: 8px 10px; border-radius: 8px; background: #0000003d; overflow: auto; } .snap-md pre code { padding: 0; background: none; white-space: pre; overflow-wrap: normal; }
+.snap-md a { color: var(--s-accent); } .snap-md-h { font-size: 13.5px; }
 .snap-room-agent-reply { margin-top: 12px; border-top: 1px solid var(--s-line); padding-top: 10px; }
 .snap-room-compose { flex-shrink: 0; }
 .snap-room-body, .snap-room-messages, .snap-room-results { flex: 1 1 auto; min-height: 0; overflow: auto; }
@@ -822,6 +833,12 @@ div.snap-room-line .snap-link { margin: 0; padding: 4px 10px; font-size: 13px; }
 .snap-lora-cats { display: flex; gap: 4px; align-items: center; min-width: 0; } .snap-lora-cats .tag { color: #f0b445; }
 .snap-move { font-size: 11.5px; max-width: 110px; background: var(--s-bg); color: var(--s-dim); border: 1px solid var(--s-line); border-radius: 6px; padding: 2px 4px; }
 .snap-card .snap-move { margin-top: 4px; align-self: flex-start; } .snap-dial-tile .snap-move { align-self: flex-start; }
+/* a Library dial card's "move to…" sits over its corner and shows on hover or keyboard focus, so 40 cards stay one line
+   each; a device without hover keeps it in the card's flow, always visible */
+@media (hover: hover) {
+  .snap-card .snap-move { position: absolute; right: 6px; bottom: 6px; margin: 0; max-width: 96px; opacity: 0; transition: opacity .12s; }
+  .snap-card:hover .snap-move, .snap-card:focus-within .snap-move { opacity: 1; }
+}
 .snap-lora-addrow { display: flex; gap: 6px; align-items: center; } .snap-lora-addrow .snap-lora-add { flex: 1; min-width: 0; } .snap-lora-browse { margin: 0; }
 /* the Cast sheet (U86, SNAP-R59) */
 .snap-sheet.snap-cast-sheet { inset: 64px max(24px, calc(50% - 480px)) auto; max-height: calc(100% - 100px); display: flex; flex-direction: column; }
@@ -976,4 +993,16 @@ div.snap-room-line .snap-link { margin: 0; padding: 4px 10px; font-size: 13px; }
 /* UI-18 (phone): a scene row stacks its name over its actions; the take viewer's header wraps the date under where it is */
 @container (max-width: 480px) { .snap-scene-row { grid-template-columns: minmax(0, 1fr); } .snap-scene-row > * { grid-column: 1; grid-row: auto; }
   .snap-take-sheet > header { flex-wrap: wrap; row-gap: 2px; } .snap-take-sheet > header .snap-crumbs { flex: 1 1 calc(100% - 40px); min-width: 0; white-space: normal; } }
+/* recipes (SNAP-R274..R277): the top bar's recipe chip and its menus, My recipes in the Library rail */
+.snap-recipe-chip { flex: 0 0 auto; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .snap-recipe-chip.edited { color: #f6cf86; }
+.snap-recipe-menu { z-index: 120; gap: 4px; padding: 10px; max-width: min(420px, calc(100vw - 16px)); max-height: 70vh; overflow-y: auto; }
+.snap-recipe-menu strong { font-size: 13px; padding: 2px 4px 4px; }
+.snap-recipe-input { font: inherit; font-size: 13px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--s-line); background: var(--s-card); color: var(--s-fg); }
+.snap-recipe-version { display: flex; flex-direction: column; gap: 2px; padding: 6px 4px; border-top: 1px solid var(--s-line); font-size: 12.5px; white-space: normal; }
+.snap-recipe-acts { display: flex; flex-wrap: wrap; gap: 2px; } .snap-recipe-acts button { padding: 4px 8px; font-size: 12px; color: var(--s-accent); }
+.snap-recipe-changes { font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--s-dim); white-space: pre-wrap; word-break: break-word; } .snap-recipe-changes[hidden] { display: none; }
+.snap-recipes { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 6px; } .snap-recipes[hidden] { display: none; }
+.snap-recipe-row { all: unset; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; padding: 5px 8px; border-radius: 8px; font-size: 12.5px; }
+.snap-recipe-row:hover, .snap-recipe-row:focus-visible { background: var(--s-card); }
+.snap-recipe-row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .snap-recipe-row .snap-quiet { grid-column: 1 / -1; font-size: 11px; }
 `;

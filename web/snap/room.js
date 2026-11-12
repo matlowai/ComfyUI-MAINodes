@@ -9,11 +9,13 @@
 // what it is (a still or a frame of a video, its kind and cut), in plain() words; a record change shows its pictures now
 // and after (SNAP-R201) · SNAP-R209 out of date offers a re-make · SNAP-R229 either/or is one question, both outcomes side by side · SNAP-R198 Nearby opens on it · SNAP-R179 each question one
 // plain sentence naming the thing · SNAP-R180 a critic's row asks its finding, with each note's words and where it was born · SNAP-R173 one verdict and why · SNAP-R174 blind pairs from the server · SNAP-R65 the Work card's rows · SNAP-R7 rebuilt only when its
-// content changes, never under a pointer · see docs/snap/SNAP_RULES.md
+// content changes, never under a pointer · SNAP-R278 an agent's chat message is built as structured DOM (markdown.mjs), links
+// only to http(s) · SNAP-R279 the composer footer says the newest message's receipt state · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as A from "./activity.js";
 import * as E from "./engine.js";
 import * as Chat from "./conversation.mjs";
+import * as MD from "./markdown.mjs";
 import { createDraftGuard } from "./draft_guard.js";
 import * as D from "./dials.js";
 import * as T from "./takes.js";
@@ -173,7 +175,9 @@ export function openRoom({ say } = {}) {
   let composerProject = app.graph.id;
   const draftKey = (project = app.graph.id) => `snap-conversation:${project}`;
   const composer = h("textarea", { className: "snap-room-why snap-note-input", rows: 2, placeholder: "Talk to your agent…", ariaLabel: "Message your agent", value: sessionStorage.getItem(draftKey()) ?? "" });
-  const delivery = h("p", { className: "snap-room-where", role: "status", textContent: "Enter to send · Shift+Enter for a new line." });
+  const delivery = h("p", { className: "snap-room-where", role: "status", textContent: Chat.COMPOSE_HINT });
+  delivery.sent = null; delivery.failed = null; // SNAP-R279: the last acknowledged send and a failed one; draw() says the rest from the journal
+  const bodies = new Map(); // SNAP-R278: message id -> [its text, its rendered body]: only a message whose text changed is parsed again
   const messages = h("div", { className: "snap-room-messages", role: "log", ariaLabel: "Messages and agent replies" });
   const connectionStatus = h("p", { className: "snap-room-where", role: "status" });
   const disconnect = h("button", { className: "snap-link", textContent: "Disconnect agent", onclick: () => {
@@ -198,6 +202,7 @@ export function openRoom({ say } = {}) {
     composer.value = sessionStorage.getItem(draftKey()) ?? "";
     draftGuard.changed(); sentDraft = null; grow();
     for (const card of artifacts.children) card.hidden = true;
+    delivery.sent = null; delivery.failed = null; bodies.clear();
   };
   const sendMessage = async ({ clear = true, wake = true } = {}) => {
     if (sending) throw new Error("Your message is still sending; wait before applying another action.");
@@ -213,11 +218,11 @@ export function openRoom({ say } = {}) {
       const attempt = sentDraft;
       await Chat.send(snapshot.project, text, attempt.context, attempt.id, wake);
       if (clear && sentDraft === attempt) sentDraft = null;
-      delivery.textContent = "Saved in conversation · waiting for delivery to your agent.";
+      delivery.sent = { id: attempt.id, wake }; delivery.failed = null;
       if (clear) draftGuard.clearIfCurrent(snapshot);
       sig = ""; draw();
       return snapshot;
-    } catch (e) { delivery.textContent = `Not sent yet: ${e.message}. Your text is kept; try Send again.`; throw e; }
+    } catch (e) { delivery.failed = delivery.textContent = `Not sent yet: ${e.message}. Your text is kept; try Send again.`; throw e; }
     finally { sending = false; send.disabled = false; }
   };
   const send = h("button", { className: "snap-primary", textContent: "Send", onclick: () => sendMessage().catch(() => {}) });
@@ -323,6 +328,13 @@ export function openRoom({ say } = {}) {
         h("button", { className: "snap-link", textContent: "Neither, same problem", onclick: judge("neither", "Noted: the same problem as the others.") })));
   }
 
+  // SNAP-R278: an agent's words as paragraphs, lists, code and links (http(s) only), built from text; a streamed message
+  // re-parses only itself, the others keep their built body
+  const agentBody = (m) => {
+    const text = String(m.text ?? ""), was = bodies.get(m.id);
+    if (was?.[0] === text) return was[1];
+    const el = h("div", { className: "snap-md" }, ...MD.render(MD.parse(text), h)); bodies.set(m.id, [text, el]); return el;
+  };
   function draw() {
     if (off) return;
     syncDraftProject(); drawConnection();
@@ -334,6 +346,7 @@ export function openRoom({ say } = {}) {
     const first = list.find((r) => r.id === top) ?? list[0], seen = new Set(first ? [ask(first).q] : []);
     const rest = list.filter((r) => { if (r === first) return false; const q = ask(r).q; return !seen.has(q) && !!seen.add(q); });
     const journal = Chat.snapshot(app.graph.id), conversation = journal.messages, connection = journal.connection;
+    delivery.textContent = delivery.failed ?? Chat.deliveryLine(conversation, connection, delivery.sent); // SNAP-R279: from the receipts, before the unchanged-content return
     const openMedia = (row) => {
       const take = T.get(row.result.take);
       for (const card of artifacts.children) card.hidden = true;
@@ -351,7 +364,7 @@ export function openRoom({ say } = {}) {
     replyEl.textContent = reply;
     const wasAtEnd = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 60;
     messages.replaceChildren(...conversation.map((m) => h("article", { className: "snap-room-message" },
-      h("strong", { textContent: m.role === "human" ? "You" : m.agent ?? "Agent" }), h("p", { textContent: m.text }),
+      h("strong", { textContent: m.role === "human" ? "You" : m.agent ?? "Agent" }), m.role === "human" ? h("p", { textContent: m.text }) : agentBody(m),
       m.context?.trial ? h("p", { className: "snap-blurb", textContent: `Attached: ${m.context.trial.frames} frames · ${m.context.trial.label}` }) : null,
       m.role === "human" ? h("small", { textContent: m.error ?? ({ saved: "Saved · waiting for agent", recorded: "Recorded with your decision", sending: "Sending…", delivered: "Delivered", completed: "Replied", uncertain: "Delivery uncertain · not resent", failed: "Delivery failed", interrupted: "Interrupted" }[m.state] ?? m.state) }) : null)),
       ...(journal.activities.length ? [h("details", { className: "snap-room-message" }, h("summary", { textContent: `Agent activity (${journal.activities.length})` }),

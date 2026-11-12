@@ -1902,7 +1902,7 @@ class DialRackUI {
     const anySolo = this.rows.some((r) => active(r) && r.solo);
     if (!this.rows.length) this.el("div", { color: "#777", padding: "4px 2px" }, this.list, "No dials yet: add one, or wire a dial into a dial_ input.");
     else {
-      const head = this.el("div", { display: "flex", gap: "6px", padding: "0 4px", color: "#888", fontSize: "11px" }, this.list);
+      const head = this.el("div", { display: "flex", flexWrap: "wrap", gap: "6px", padding: "0 4px", color: "#888", fontSize: "11px" }, this.list);
       this.el("span", { flex: "1 1 auto", paddingLeft: "20px" }, head, "dial · strength");
       this.el("span", { width: "76px" }, head, "steps").title = "strength over the denoising steps (constant, early, late, bell, manual)";
       this.el("span", { width: "70px" }, head, "clip").title = "strength over the clip's time: click a row's curve to draw it";
@@ -1910,17 +1910,18 @@ class DialRackUI {
     }
     this.rows.forEach((r, i) => {
       const live = active(r) && (!anySolo || r.solo);
-      const row = this.el("div", { display: "flex", alignItems: "center", gap: "6px", padding: "3px 4px", borderRadius: "4px",
+      // wraps when narrower than the row (a node sized small, or the panel lent to Snap's inspector) instead of clipping
+      const row = this.el("div", { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px", padding: "3px 4px", borderRadius: "4px",
         background: live ? "#1f2128" : "#191a1e", opacity: live ? "1" : "0.55" }, this.list);
       // calm row: on, dial, strength, steps envelope, clip curve; blocks, info, editor, solo and hold sit behind ⋯
-      const more = this.el("div", { display: this.moreOpen === i ? "flex" : "none", alignItems: "center", gap: "6px", padding: "0 4px 3px 24px" }, this.list);
+      const more = this.el("div", { display: this.moreOpen === i ? "flex" : "none", flexWrap: "wrap", alignItems: "center", gap: "6px", padding: "0 4px 3px 24px" }, this.list);
       const on = this.el("input", { margin: 0, cursor: "pointer" }, row);
       on.type = "checkbox"; on.checked = !!r.on; on.title = "on / off";
       on.onchange = () => { r.on = on.checked; this.commit(); this.render(); };
       if ("input" in r) {
-        this.el("span", { flex: "1 1 auto", minWidth: "80px", color: "#8fb4ff" }, row, `⇠ ${r.input}`).title = "dial wired into this input";
+        this.el("span", { flex: "1 1 80px", minWidth: "80px", color: "#8fb4ff" }, row, `⇠ ${r.input}`).title = "dial wired into this input";
       } else {
-        const sel = this.el("select", { flex: "1 1 auto", minWidth: "80px", background: "#111", color: "#eee", border: "1px solid #333", borderRadius: "3px" }, row);
+        const sel = this.el("select", { flex: "1 1 80px", minWidth: "80px", background: "#111", color: "#eee", border: "1px solid #333", borderRadius: "3px" }, row);
         const updateChoices = () => {
           const family = connectedFamily(this.node), choices = compatibleDials(dialFiles || [], family, r);
           const opts = choices.includes(r.dial) || !r.dial ? choices : [r.dial, ...choices], label = labels(opts);

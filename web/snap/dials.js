@@ -44,6 +44,8 @@ const side = (t) => (t && !/^\?+$/.test(t.trim()) ? t : ""); // "???" means the 
 export const label = (d) => (side(d?.info?.negative) || side(d?.info?.positive) ? `${side(d.info.negative) || "−"} ↔ ${side(d.info.positive) || "+"}` : short(d?.dial ?? ""));
 export const title = (d) => d?.info?.name || short(d?.dial ?? "Dial");
 export const calibrated = (d) => !!(d?.info?.pos?.useful || d?.info?.neg?.useful);
+// what "uncalibrated" means, on the label: the dial's info records no useful strength on either side
+const UNCALIBRATED = "No useful strength is recorded in this dial's info, so its slider shows no useful or overcook range, and a row added without a strength starts at 0.5.\nTo calibrate: try a few strengths, then enter where the effect clearly shows (and where it overcooks) under ⋯ → ⚙ dial info on its row in the Dial Rack node; it is saved in the dial file.";
 // how strong a family's dials run, from their own calibrated useful strengths (median), next to MiniMax H3's: a family
 // whose dials need far more strength says so where dials are picked and set (MOSS-Image ≈ ±4 vs H3 ≈ ±1); agents read
 // the same numbers (list_dials)
@@ -218,7 +220,7 @@ export function face({ onChange, onPick, onMake }) {
         h("button", { className: "snap-x", textContent: "×", title: "take it off the rack", onclick: (e) => { e.stopPropagation(); remove(r.dial); onChange(); } })),
       range,
       r.time ? [timePlot(r), h("details", {}, h("summary", { textContent: "Timed envelope" }), h("p", { className: "snap-quiet", textContent: curveWords(r) }))] : null,
-      h("div", { className: "snap-dial-ends" }, h("span", { textContent: side(d?.info?.negative) || "−" }), calibrated(d) ? null : h("em", { textContent: "uncalibrated" }), h("span", { textContent: side(d?.info?.positive) || "+" })));
+      h("div", { className: "snap-dial-ends" }, h("span", { textContent: side(d?.info?.negative) || "−" }), calibrated(d) ? null : h("em", { textContent: "uncalibrated", title: UNCALIBRATED }), h("span", { textContent: side(d?.info?.positive) || "+" })));
   });
   return h("div", { className: "snap-dials" }, ...(body.length ? body : [h("div", { className: "snap-quiet", textContent: "No dials yet" })]),
     scaleNote(fam) ? h("div", { className: "snap-quiet snap-dial-scale", textContent: scaleNote(fam) }) : null,
@@ -248,7 +250,7 @@ export async function openPicker(host, { say, onChange, onMake, move }) {
       h("strong", { textContent: label(d) }),
       h("span", { className: "snap-quiet", textContent: d.info.description || "No description yet" }),
       h("span", { className: "snap-dial-meta" },
-        calibrated(d) ? h("i", { textContent: `useful ±${d.info.pos.useful ?? d.info.neg.useful}` }) : h("i", { className: "warn", textContent: "uncalibrated" }),
+        calibrated(d) ? h("i", { textContent: `useful ±${d.info.pos.useful ?? d.info.neg.useful}` }) : h("i", { className: "warn", textContent: "uncalibrated", title: UNCALIBRATED }),
         h("i", { className: "file", textContent: d.dial.replace(/^dials\//, "").replace(/\.safetensors$/, "") }),
         d.mode === "pre" ? h("i", { title: "pre-refiner LoRA file: an approximation of the hook, keep it at strength 1 or below", textContent: "LoRA file" }) : null,
         d.family !== own ? h("i", { textContent: d.family }) : null, on.has(d.dial) ? h("i", { className: "ok", textContent: "on the rack" }) : null), move?.(d.dial))) : [h("div", { className: "snap-quiet", textContent: "No dial matches. Make one?" })]));

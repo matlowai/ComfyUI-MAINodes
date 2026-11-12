@@ -20,19 +20,19 @@ const out = path.join(CFG.out, "ui"); const R = {};
   });
   await page.waitForTimeout(900);
   R.before = await snapshot();
-  await page.click("text=Save recipe"); await page.waitForTimeout(800);
+  await page.click(".snap-recipe-chip"); await page.fill(".snap-recipe-menu [aria-label=\"recipe name\"]", "Gate recipe"); await page.click(".snap-recipe-menu >> text=Save version"); await page.waitForTimeout(800); // SNAP-R274: the chip opens the recipe menu; the first save names it
   R.saveToast = await page.textContent(".snap-toast");
   await page.evaluate(() => { app.canvas.emitBeforeChange(); app.graph.clear(); app.graph.extra = {}; app.canvas.emitAfterChange(); window.__snap.view.render(null); });
   await page.waitForTimeout(300);
-  await page.click('.snap-card:has-text("Recipe:")'); await page.waitForTimeout(2000);
+  await page.click('.snap-card:has-text("Gate recipe")'); await page.waitForTimeout(2000);
   R.after = await snapshot();
   R.applyToast = await page.textContent(".snap-toast");
   await page.screenshot({ path: path.join(out, "35-recipe-restored.png") });
   await page.evaluate(() => app.extensionManager.workflow.activeWorkflow.changeTracker.undo()); await page.waitForTimeout(700);
   R.afterUndo = await page.evaluate(() => ({ length: window.__snap.engine.getValue("render", "render", "length"), bricks: window.__snap.engine.state().bricks.length }));
   // the card applied twice onto a graph that already has the stack rebuilds nothing: no second VAE Decode
-  await page.click('.snap-card:has-text("Recipe:")'); await page.waitForTimeout(2000);
-  await page.click('.snap-card:has-text("Recipe:")'); await page.waitForTimeout(2000);
+  await page.click('.snap-card:has-text("Gate recipe")'); await page.waitForTimeout(2000);
+  await page.click('.snap-card:has-text("Gate recipe")'); await page.waitForTimeout(2000);
   R.twice = (await snapshot()).keys;
   R.queueAttempts = globalThis.__queued || 0;
   R.errors = errs;

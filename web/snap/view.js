@@ -52,6 +52,7 @@ import { openRoom } from "./room.js"; // SNAP-R70 the Room
 import { full } from "./lightbox.js";
 import { pickTake } from "./takepicker.js";
 import * as OB from "./onboarding.js";
+import * as R from "./recipes.js"; // SNAP-R274..R277 the recipe control
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -221,17 +222,87 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   const seg = h("div", { className: "snap-seg", role: "tablist" },
     h("button", { className: "on", textContent: "Snap", role: "tab" }),
     h("button", { textContent: "Graph", role: "tab", onclick: () => onSwitch() }));
+  // SNAP-R274..R277: the recipe control. The chip names the open graph's recipe and version (edited: its bricks differ
+  // from that version's, computed, never stored); its menu saves a version or a new recipe, lists the versions and
+  // gives the workflow. It follows graph changes, tab switches and record writes
+  const NO_RECIPE = "keep this workflow as a recipe: one Library entry that gains a version each time you save";
+  const recipeChip = h("button", { className: "snap-link snap-quiet-btn snap-recipe-chip", textContent: "Save recipe", title: NO_RECIPE, onclick: (e) => recipeMenu(e.currentTarget) });
+  let recipeNow = null, recipeTimer = 0;
+  function showRecipe() {
+    clearTimeout(recipeTimer);
+    recipeTimer = setTimeout(() => R.current().then((c) => {
+      recipeNow = c;
+      recipeChip.textContent = c ? `${c.name} · v${c.n}${c.edited ? " · edited" : ""}` : "Save recipe";
+      recipeChip.classList.toggle("edited", !!c?.edited);
+      recipeChip.title = c ? `${c.name}: this graph is v${c.n}${c.head !== c.n ? ` (the newest is v${c.head})` : ""}${c.edited ? "; its bricks or settings changed since" : ""}. Click to save a version, see the versions or get the workflow` : NO_RECIPE;
+    }, () => {}), 150);
+  }
+  api.addEventListener("graphChanged", showRecipe);
+  W.onChange(showRecipe);
+  app.graph.events?.addEventListener("configured", showRecipe);
+  showRecipe();
   root.append(
     h("header", { className: "snap-top" }, h("span", { className: "snap-brand" }, h("i"), "Snap"), title, setupPill, status, outsideBtn, h("span", { className: "snap-spacer" }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Open file", title: "open a saved picture or video (or a workflow): its recipe opens in a new tab, and when it pinned Cast, sets or cards, run it as it was or with today's versions", onclick: () => fileInput.click() }),
-      h("button", { className: "snap-link snap-quiet-btn", textContent: "Save recipe", title: "keep these bricks and their settings as a Library card you can rebuild anywhere", onclick: async () => {
-        try { const c = await L.saveRecipe(app.extensionManager.workflow.activeWorkflow?.filename ?? "recipe"); say(`Saved "${c.title}" to your Library`); renderLibrary(); } catch (err) { say(err.message, true); }
-      } }),
+      recipeChip,
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Note", title: "a director's note on the whole recipe; agents answer it", onclick: () => { noting = true; select(null); inspector.querySelector("textarea")?.focus(); } }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Make app", title: "open this recipe in ComfyUI's App mode: the brick faces become a run-only app (reloads the graph)", onclick: () => onMakeApp() }),
       h("button", { className: "snap-link snap-quiet-btn", title: "Ctrl/Cmd+K", onclick: () => openPalette() }, "Add brick", h("span", { className: "snap-kbd", textContent: `  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}` })), accountChip, driverChip, seeBtn, seg, metaBtn, runBtn, progress),
     staleBar,
     h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), inspector, handle, railHandle), toast);
+  // the recipe menus (the scene menu's floating pattern): the chip's, and one recipe's versions
+  function recipeMenu(anchor, rows = recipeRows) {
+    root.querySelector(".snap-recipe-menu")?.remove();
+    const close = () => { menu.remove(); removeEventListener("pointerdown", outside, true); };
+    const outside = (e) => { if (!menu.contains(e.target)) close(); };
+    const menu = h("div", { className: "snap-scene-menu snap-recipe-menu", role: "menu" }, ...rows(close, anchor));
+    const at = anchor.getBoundingClientRect();
+    Object.assign(menu.style, { position: "fixed", top: `${at.bottom + 4}px`, left: `${Math.max(8, Math.min(at.left, innerWidth - 420))}px` });
+    root.append(menu);
+    addEventListener("pointerdown", outside, true);
+  }
+  const act = (close, fn) => async (e) => { e.stopPropagation(); close(); try { const said = await fn(); if (said) say(said); } catch (err) { say(err.message, true); } showRecipe(); renderLibrary(); };
+  const fileName = () => (app.extensionManager.workflow.activeWorkflow?.filename ?? "recipe").replace(/\.json$/i, "");
+  function download(json, name) {
+    const a = h("a", { href: URL.createObjectURL(new Blob([JSON.stringify(json, null, 2)], { type: "application/json" })), download: `${name.replace(/[\\/:*?"<>|]+/g, "_")}.json` });
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  const copy = async (json, what) => { await navigator.clipboard.writeText(JSON.stringify(json, null, 2)); return `${what} copied`; };
+  const savedSaid = (out) => `${out.made ? `Saved ${out.name} v${out.n}` : `Nothing changed: ${out.name} stays v${out.n}`}${out.graph ? "" : `; ${out.why}`}`;
+  function recipeRows(close, anchor) {
+    const c = recipeNow;
+    const name = h("input", { className: "snap-recipe-input", value: c ? "" : fileName(), placeholder: c ? "name of the new recipe" : "recipe name", ariaLabel: c ? "name of the new recipe" : "recipe name" });
+    const note = h("input", { className: "snap-recipe-input", placeholder: "note for this version (optional)", ariaLabel: "version note" });
+    return [
+      h("strong", { textContent: c ? `${c.name} · v${c.n}${c.edited ? " · edited" : ""}` : "This graph has no recipe yet" }),
+      ...(c ? [] : [name]), note,
+      h("button", { className: "snap-primary", textContent: "Save version", title: c ? `a new version of ${c.name} (nothing new when nothing changed)` : "the first version, under this name", onclick: act(close, async () => savedSaid(await R.save({ name: c ? undefined : name.value, note: note.value.trim() }))) }),
+      ...(c ? [name, h("button", { textContent: "Save as a new recipe…", title: "a separate recipe under the name above; this one stays as it is", onclick: (e) => { if (!name.value.trim()) { e.stopPropagation(); name.focus(); return; } act(close, async () => savedSaid(await R.save({ name: name.value, note: note.value.trim(), asNew: true })))(e); } }),
+        h("button", { textContent: "Versions…", onclick: (e) => { e.stopPropagation(); close(); versionsMenu(anchor, c.id); } })] : []),
+      h("div", { className: "snap-rail-sub", textContent: "Get workflow (this graph)" }),
+      h("button", { textContent: "Download .json", onclick: act(close, () => { download(app.graph.serialize(), fileName()); return "Workflow downloaded"; }) }),
+      h("button", { textContent: "Copy workflow JSON", onclick: act(close, () => copy(app.graph.serialize(), "Workflow JSON")) }),
+      h("button", { textContent: "Copy API JSON", title: "the prompt as ComfyUI queues it", onclick: act(close, async () => copy((await app.graphToPrompt()).output, "API JSON")) }),
+      h("span", { className: "snap-quiet", textContent: "ComfyUI's own Save (Ctrl+S) keeps this tab as a workflow file." }),
+    ];
+  }
+  function versionsMenu(anchor, id) {
+    recipeMenu(anchor, (close) => {
+      const list = R.versions(id), name = R.list().find((r) => r.id === id)?.name ?? id;
+      return [h("strong", { textContent: `${name}: ${list.length} version${list.length === 1 ? "" : "s"}, newest first` }), ...list.map((v, i) => {
+        const prev = list[i + 1], changed = h("div", { className: "snap-recipe-changes", hidden: true });
+        return h("div", { className: "snap-recipe-version" },
+          h("div", { textContent: `v${v.n} · ${R.when(v.at)} · ${v.by}${v.note ? ` · ${v.note}` : ""}${v.workflow ? "" : " · no workflow kept"}` }),
+          h("div", { className: "snap-recipe-acts" },
+            h("button", { textContent: "Open", title: v.workflow ? "its exact workflow in a new tab" : "it kept no workflow: rebuilt from its bricks in a new tab", onclick: act(close, async () => (await R.open(id, v.n, { how: "tab" })).said) }),
+            h("button", { textContent: "Apply here", title: "rebuild its bricks and settings in this graph (one undo step)", onclick: act(close, async () => { const out = await R.open(id, v.n, { how: "here" }); render(null); return out.said; }) }),
+            prev ? h("button", { textContent: "What changed", title: `v${prev.n} → v${v.n}: bricks and settings`, onclick: (e) => { e.stopPropagation(); const lines = R.changes(id, prev.n, v.n); changed.hidden = !changed.hidden; changed.replaceChildren(...(lines.length ? lines : [`the same bricks and settings as v${prev.n}`]).map((x) => h("div", { textContent: x }))); } }) : null,
+            v.workflow ? h("button", { textContent: "Get workflow", title: "download this version's workflow as .json", onclick: act(close, () => { download(R.workflow(id, v.n), `${name} v${v.n}`); return `${name} v${v.n}: workflow downloaded`; }) }) : null),
+          changed);
+      })];
+    });
+  }
   // takes under the chain: "Use as input" puts a take's frame on the First frame or References brick (T.use)
   const dailies = createDailies({ host: root, say, onRestore: () => render(null), onHover: (t) => previewTake(t), onRunFrom: (t) => runFrom(t).catch((err) => say(err.message, true)),
     // SNAP-R234: "as it was" keeps the dial rows that ran; "today's world" takes the cut's plan as it stands too
@@ -302,7 +373,22 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     onclick: () => openWorld(root, { say, onChange: () => { render(null); renderLibrary(); } }).catch((err) => say(err.message, true)) });
   const strategies = h("button", { className: "snap-link snap-quiet-btn snap-new-cast", textContent: "Production strategies", title: "preview and customize a native production plan",
     onclick: () => app.extensionManager.command.execute("MAINodes.Snap.Director.Open").catch((err) => say(err.message, true)) });
-  rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libSfw, h("div", { className: "snap-rail-sub", textContent: "LoRAs by kind" }), libLoras, h("div", { className: "snap-rail-actions" }, newCast, newLocation, worldBtn, AL.railButton({ say }), BV.railButton({ say }), strategies), libResults); // SNAP-R67 the Book
+  // SNAP-R274: My recipes above the cards while the search is empty and no brick narrows it, newest first; a row opens
+  // that recipe's versions
+  const libRecipes = h("div", { className: "snap-recipes", hidden: true });
+  let recipesAll = false;
+  function drawRecipes(show) {
+    const list = show ? R.list() : [];
+    libRecipes.hidden = !list.length;
+    const sig = JSON.stringify([list.map((r) => [r.id, r.head, r.name, r.saved]), recipesAll, Math.floor(Date.now() / 60000)]);
+    if (libRecipes.dataset.sig === sig) return;
+    libRecipes.dataset.sig = sig;
+    libRecipes.replaceChildren(h("div", { className: "snap-rail-sub", textContent: "My recipes" }),
+      ...(recipesAll ? list : list.slice(0, 6)).map((r) => h("button", { className: "snap-recipe-row", title: `${r.name}: ${r.versions} version${r.versions === 1 ? "" : "s"}, the newest saved ${R.when(r.saved)} by ${r.by}${r.note ? ` (${r.note})` : ""}. Click for its versions`, onclick: (e) => versionsMenu(e.currentTarget, r.id) },
+        h("span", { className: "snap-recipe-row-name", textContent: r.name }), h("b", { textContent: `v${r.head}` }), h("span", { className: "snap-quiet", textContent: R.ago(r.saved) }))),
+      ...(list.length > 6 ? [h("button", { className: "snap-link snap-quiet-btn", textContent: recipesAll ? "show fewer" : `show all ${list.length}`, onclick: () => { recipesAll = !recipesAll; drawRecipes(true); } })] : []));
+  }
+  rail.append(bricksRail, h("div", { className: "snap-rail-title", textContent: "Library" }), libQuery, libFor, libSfw, h("div", { className: "snap-rail-sub", textContent: "LoRAs by kind" }), libLoras, h("div", { className: "snap-rail-actions" }, newCast, newLocation, worldBtn, AL.railButton({ say }), BV.railButton({ say }), strategies), libRecipes, libResults); // SNAP-R67 the Book
   T.onChange(() => renderLibrary());
   PF.onChange(() => { render(null); renderLibrary(); }); // SFW only changes what the pickers and the Library list
   PF.load().then(() => { render(null); renderLibrary(); });
@@ -334,6 +420,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     // the last meaning ranking for this query and slot stays up through re-renders (a flip back to keyword order would
     // replace the card under a click); a fresh one replaces it when it arrives
     const q = libQuery.value, here = `${q}|${scope}`;
+    drawRecipes(!q.trim() && !scope); // SNAP-R274
     showCards(meant?.key === here ? meant.ids.map(L.get).filter(Boolean) : L.search(q, scope).slice(0, 40), meant?.key === here);
     clearTimeout(meaningTimer);
     meaningTimer = setTimeout(() => L.meaning(q, scope).then((ranked) => {

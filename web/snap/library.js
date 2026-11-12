@@ -6,7 +6,7 @@
 // SNAP-R59 Cast by reference (applyCast) · SNAP-R196 a Cast picture replaced as a new version · SNAP-R60 the person's cards are world records (world.js) ·
 // SNAP-R73 a Cast's voice reference goes in as an <Audio n> · SNAP-R84 a location by reference: its master, plan and named
 // plates (applyLocation), in one order on every apply · SNAP-R143 a take's sound as a Cast's voice (takeToVoice) · SNAP-R115 under Ref2V the First frame opens the shot as <Picture 1> (syncOpening) ·
-// SNAP-R148 one plate or camera mark changes alone (addPlate) · SNAP-R177 a dry run writes nothing (saveLocation dry) · SNAP-R155 a place's scale anchors (scaleOf) · SNAP-R165 a Cast line folds through the story state (applyCast line) · SNAP-R237 a Cast's voice only where that Cast speaks (voiceWanted) · SNAP-R241 a voice reference keeps its words (takeToVoice) · SNAP-R253 a plate's side and set reference (sideOf, setPlateOf) · see docs/snap/SNAP_RULES.md
+// SNAP-R148 one plate or camera mark changes alone (addPlate) · SNAP-R177 a dry run writes nothing (saveLocation dry) · SNAP-R155 a place's scale anchors (scaleOf) · SNAP-R165 a Cast line folds through the story state (applyCast line) · SNAP-R237 a Cast's voice only where that Cast speaks (voiceWanted) · SNAP-R241 a voice reference keeps its words (takeToVoice) · SNAP-R253 a plate's side and set reference (sideOf, setPlateOf) · SNAP-R274/R275 recipes are versioned records, listed without their graph (recipes.js) · see docs/snap/SNAP_RULES.md
 import { api } from "../../../scripts/api.js";
 import { app } from "../../../scripts/app.js";
 import * as E from "./engine.js";
@@ -15,6 +15,7 @@ import * as D from "./dials.js";
 import * as M from "./models.js";
 import * as PF from "./profile.js";
 import * as W from "./world.js";
+import * as R from "./recipes.js";
 import { BRICKS, kit } from "./bricks.js";
 import { setBlock, blocking, drawPlan, drawElevation, toBlob, coverage, atCamera, cameraAt, keeps, ownCamera, sameCamera } from "./setsnap.js";
 
@@ -30,7 +31,7 @@ const loadPack = async () => (pack = (await (await api.fetchApi("/mainodes/snap/
 function rebuild() {
   origins.clear();
   const mine = [];
-  for (const r of W.all("card")) { const v = W.headOf(r); if (v) { mine.push(v.body); origins.set(v.body.id, { kind: "card", id: r.id, n: v.n }); } }
+  for (const r of W.all("card")) { const v = W.headOf(r); if (v) { mine.push(R.listed(v.body)); origins.set(v.body.id, { kind: "card", id: r.id, n: v.n }); } } // SNAP-R275: a recipe is listed without its graph (save() refuses that copy)
   for (const r of W.all("set_snapshot")) {
     const withPlates = (c) => (r.plates ? { ...c, plates: r.plates } : c);
     for (const v of r.versions.filter((x) => x.listed !== false)) { mine.push(withPlates(v.body)); origins.set(v.body.id, { kind: "set_snapshot", id: r.id, n: v.n }); }
@@ -74,6 +75,7 @@ export function lineage(card) {
 // keep an edited card as the user's own (never overwrites a pack card): a set's working copy is its record's draft (with
 // the plates), any other state of a set a new version of its record, any other card a new version of its own record
 export async function save(card, { note = "", by = "person" } = {}) {
+  if (card.kind === "recipe" && card.workflow === true && !card.graph) throw new Error(`${card.title} is the Library's light copy of a recipe (its workflow left out, SNAP-R275): saving it would drop the workflow from a new version. Save the recipe from its graph (save_recipe)`);
   await ready();
   if (card.kind === "set_snapshot") {
     const lineage = card.lineage ?? card.id, { plates, ...body } = card;
@@ -869,7 +871,7 @@ export async function updatePin(ref) {
 }
 
 // the stack as a card keeps a Cast brick but never its rows: identity LoRAs are private (SNAP-R12)
-const shareable = async () => { const strip = await T.privacyOn(); return E.recipe().map((b) => (strip && BRICKS[b.key]?.stack?.role === "identity" ? { key: b.key, values: {} } : b)); }; // SNAP-R37: only where privacy is on
+const shareable = () => R.shareable(); // SNAP-R37: only where privacy is on (one rule, recipes.js strip)
 
 // before leaving a family: the open stack as that family's "Last used" card (one per family, replaced each time)
 export async function saveLast(family) {
@@ -880,13 +882,13 @@ export async function saveLast(family) {
   return card;
 }
 
-// save the current stack as a recipe card in the user's Library
+// save the open graph as a recipe (recipes.js, SNAP-R274): a version of the recipe the graph names, else a new recipe
+// called `name`; returns its card as the Library lists it
 export async function saveRecipe(name) {
-  const bricks = await shareable(), stamp = new Date().toTimeString().slice(0, 8);
-  const card = { id: `recipe-${Date.now().toString(36)}`, kind: "recipe", title: `Recipe: ${name} (saved ${stamp})`, saved: Date.now(),
-    text: `${bricks.length} bricks: ${bricks.map((b) => BRICKS[b.key]?.title ?? b.key).join(", ")}`, brick: { bricks } };
-  await save(card);
-  return card;
+  await ready();
+  const out = await R.save((await R.current()) ? {} : { name });
+  rebuild();
+  return get(out.id) ?? { id: out.id, kind: "recipe", title: out.name };
 }
 
 // apply a card to its brick; returns what happened, or throws with the reason it can't. A family's recipe card is a setup:

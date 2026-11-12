@@ -63,16 +63,22 @@ function chipText(id) {
   const r = CR.latestOf(id);
   if (!r) return null;
   const st = CR.stateOf(r), stale = CR.staleOf(r), c = CR.counts(r);
-  if (st === "due") return { text: Date.now() - r.created > 300000 ? "critique due · no critic on duty" : "critique due", cls: "late" };
+  if (st === "due") return Date.now() - r.created > 300000 ? { text: "critique due · no critic on duty", cls: "late", none: true } : { text: "critique due", cls: "late" };
   if (st === "claimed") return { text: "critic reading…", cls: "" };
   if (st === "skipped") return { text: "critic skipped", cls: "" };
   if (st === "stale") return { text: "critique not read · stale", cls: "", title: `stale: ${stale}` }; // SNAP-R136: never written, its subject moved on
   return { text: `critic: ${CR.countText(r)}${stale ? " · stale" : ""}`, cls: c.high ? "high" : r.verdict === "clean" ? "clean" : "", title: stale ? `stale: ${stale}` : r.notes.map((n) => `[${n.severity}] ${n.text ?? n.words}`).join("\n") };
 }
-export function paintChip(el) { const x = chipText(el.dataset.take); el.hidden = !x; if (x) { el.textContent = x.text; el.className = `snap-critic-chip ${x.cls}`; el.title = x.title ?? ""; } }
+export function paintChip(el) { const x = chipText(el.dataset.take); el.hidden = !x; if (x) { el.textContent = x.text; el.className = `snap-critic-chip ${x.cls}`; el.title = x.title ?? ""; } return x; }
 export function chip(t) { style(); const el = h("span", { className: "snap-critic-chip", hidden: true }); el.dataset.take = t.id; paintChip(el); return el; }
-export const repaint = (root) => { for (const el of root.querySelectorAll(".snap-critic-chip[data-take]")) paintChip(el); };
-export const watch = (root) => CR.onChange(() => repaint(root)); // one listener per strip, not per card
+// `note` (a strip's header line): when every take in the strip waits with no critic on duty, the header says it once and
+// the cards drop that chip; a take with any other critic state keeps its own
+export const repaint = (root, note) => {
+  const chips = [...root.querySelectorAll(".snap-critic-chip[data-take]")], said = chips.map(paintChip), all = chips.length > 1 && said.every((x) => x?.none);
+  if (all) for (const el of chips) el.hidden = true;
+  if (note) { note.hidden = !all; note.textContent = all ? `critique due on all ${chips.length} · no critic on duty` : ""; }
+};
+export const watch = (root, note) => CR.onChange(() => repaint(root, note)); // one listener per strip, not per card
 // a candidate tile's chip: its take's critique, or a painted candidate's own
 export function candidateChips(c) {
   const id = c.take ?? (c.prompt_id ? `take-${c.prompt_id}` : null);

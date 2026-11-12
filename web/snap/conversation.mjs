@@ -1,7 +1,7 @@
 // SNAP-R18/R30/R70: same-origin journal client. Agent transport remains in an external adapter.
 import { api } from '../../../scripts/api.js';
 import { projectEvents } from './conversation_state.mjs';
-export { connectionLabel } from './conversation_state.mjs';
+export { connectionLabel, deliveryLine, COMPOSE_HINT } from './conversation_state.mjs';
 const projects = new Map(), prefix = '/mainodes/snap/conversations';
 const entry = (project) => {
   if (!projects.has(project)) projects.set(project, { project, events: [], listeners: new Set(), connection: null, error: null });

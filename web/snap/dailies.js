@@ -72,7 +72,12 @@ const fullBtn = (t) => h("button", { className: "snap-take-full", textContent: "
 // → "Render prompt changed"; an input it has no words for is spelled out ("shift_video" → "shift video")
 const WORDS = { text: "prompt", prompt: "prompt", value: "setting", noise_seed: "seed", steps: "steps", cfg: "CFG", sampler_name: "sampler", scheduler: "schedule", lora_name: "LoRA",
   strength_model: "LoRA strength", unet_name: "model", ckpt_name: "model", clip_name: "text encoder", vae_name: "VAE", image: "picture", filename_prefix: "save name" };
-const settingWords = (x) => { const m = x.match(/^(.*)\.([^.\s]+)( rewired)?$/); return m ? `${m[1]} ${WORDS[m[2]] ?? m[2].replace(/_/g, " ")} ${m[3] ? "rewired" : "changed"}` : x; };
+// a brick whose title already ends in the setting's word says it once ("Dial Rack.rack" → "Dial Rack changed"), generically (SNAP-R1)
+const settingWords = (x) => {
+  const m = x.match(/^(.*)\.([^.\s]+)( rewired)?$/); if (!m) return x;
+  const w = WORDS[m[2]] ?? m[2].replace(/_/g, " "), said = ` ${m[1]}`.toLowerCase().endsWith(` ${w.toLowerCase()}`) ? m[1] : `${m[1]} ${w}`;
+  return `${said} ${m[3] ? "rewired" : "changed"}`;
+};
 // what of a pinned Cast didn't reach a take (takes.js placedCheck), in plain words; a reason it can't state isn't shown
 const UNPLACED = [[/^its details line isn't in the prompt that ran$/, () => "its description wasn't in the prompt"], [/^its pictures weren't read: (.+)$/, (x) => `its pictures weren't used (${x[1]})`],
   [/^its line is in the prompt but its pictures weren't in References$/, () => "in the prompt without its pictures"]];
@@ -92,11 +97,12 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
   const picked = new Set(); // takes ticked for compare
   const strip = h("div", { className: "snap-takes-strip" });
   const count = h("span", { className: "snap-quiet" }), heading = h("strong", { textContent: "Takes" });
+  const critic = h("span", { className: "snap-critic-chip late", hidden: true }); // every take's "no critic on duty", said once (critiqueview.js repaint)
   const compareBtn = h("button", { className: "snap-link snap-quiet-btn", textContent: "Compare", disabled: true, onclick: () => compare([...picked]) });
   // blind pairs an agent set up for the person (setup_ab): one click opens the next, blind
   const waiting = h("button", { className: "snap-link snap-ab-waiting", hidden: true, onclick: async () => { const p = (await waitingHere())[0]; if (p) blind(p.id); } });
   const el = h("section", { className: "snap-takes" },
-    h("header", {}, heading, count, waiting, h("span", { className: "snap-spacer" }),
+    h("header", {}, heading, count, critic, waiting, h("span", { className: "snap-spacer" }),
       h("span", { className: "snap-quiet snap-takes-hint", textContent: "drag to rank · tick two to compare" }), compareBtn),
     strip);
   T.onChange(() => render());
@@ -106,7 +112,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
   // will land; the strip is rebuilt only when a ghost comes or goes, the chips and rings are written in place
   let ghostSig = "";
   A.onChange(() => { const g = JSON.stringify(ghosts().map((r) => r.id)); if (g !== ghostSig) render(); else paintJobs(); });
-  CV.watch(strip);
+  CV.watch(strip, critic);
   T.load().then(render, () => {});
   // the blind pairs waiting in this workflow (a pair set up in another workflow waits there)
   const waitingHere = async () => (await T.pending()).filter((p) => p.group === T.groupOf());
@@ -142,6 +148,7 @@ export function createDailies({ host, say, onRestore, onHover, onRunFrom, onReta
       return v.length ? h("div", { className: "snap-take-family" }, card(t, ranked.indexOf(t), here), h("div", { className: "snap-take-versions" }, v)) : card(t, ranked.indexOf(t), here); };
     const roots = [...ranked, ...rest].filter((t) => !here || tree.some((e) => e.take === t.id)), loose = coming.filter((r) => !group.some((t) => t.id === r.about.take)).map(ghost);
     strip.replaceChildren(...(group.length || loose.length ? [...loose, ...roots.map(family)] : [h("div", { className: "snap-quiet", textContent: here ? `Each run of ${SC.shotTitle(here.scene, here.shot)} lands here as a take; versions of a take (a night version, a continue) nest under it.` : "Each run lands here as a take: rank it, keep or reject it, and note where it went wrong or right." })]));
+    CV.repaint(strip, critic); // the cards are new: fold a shared "no critic on duty" into the header
   }
 
   // stale chips: one live prompt per check, compared with every take in the strip; a newer check wins

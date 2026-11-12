@@ -422,6 +422,18 @@ needs a new picture, not only new words. `list_world` shows every record with it
 its Cast and places (`offered`: add their refs to carry them); `to_another_install` says how the zip gets there
 (SNAP-R183). `delete_record` can't be undone: it waits for the person.
 
+### Recipes (one record, many versions; SNAP-R274..R277)
+
+A recipe is one Library record that gains a version each time it is saved; the open graph names its recipe and version
+(`list_recipes` → `current: {id, n, name, head, edited}`, the chip in Snap's top bar).
+`save_recipe {"note": "longer walk"}` adds a version to the graph's recipe (`made: false` when nothing changed); a graph
+with no recipe needs `name`, and `{"name": "...", "as_new": true}` makes a separate one. `list_recipes` lists them
+newest first; `get_recipe {"recipe": "recipe-<name>", "version": 2}` reads one version (the workflow JSON only with
+`with_workflow: true`); `recipe_changes {"recipe", "from": 1, "to": 2}` says what changed, brick by brick;
+`open_recipe {"recipe", "version", "how": "tab"}` opens the exact workflow in a new tab (`"here"` rebuilds its bricks
+in the open graph). With privacy on a version keeps no workflow and no identity rows, and the answer says so.
+Use `get_record`/`diff_record` on a recipe only knowing that they return its whole workflow (60-70 KB per version).
+
 ### A new view of a place (stills from context pictures)
 
 A location is one place: make each new view of it from pictures you already have, not from words alone.

@@ -2435,4 +2435,53 @@ Next free ID after this batch: SNAP-R254 (G18 reserved R254-R262, G19 R263-R266)
   *Why:* the declared Book scope formerly fell through the matcher, silently omitting production guidance.
   *More:* `director/README.md`; `tests/snap/director/native-instructions.test.mjs`.
 
-Next free ID after this batch: SNAP-R274 (G18 reserved R254-R262, G19 R263-R266).
+- **SNAP-R274: A recipe is one versioned record; saving it again adds a version, never a new card.** A recipe is a card
+  record with a stable id, `recipe-<slug of its name>` (two names with one slug are one recipe). Save version adds
+  version n + 1 to the recipe the open graph names; a save whose body equals the head makes none (`made: false`, the
+  save stamp is kept so the bodies compare equal). Save as a new recipe makes a separate record (a taken id gets -2,
+  -3…). Old Library recipe cards (`recipe-<timestamp>`, no family) list as one-version recipes; a family's recipe card
+  is a setup and stays out. An agent saves as `agent` (SNAP-R17), as save_cast does. *Why:* every Save recipe press
+  minted another card, so a recipe had no history and the Library filled with near-copies. *More:*
+  `web/snap/recipes.js`, `recipetools.js`; `tests/snap/test_recipes.mjs`.
+
+- **SNAP-R275: A version keeps the exact graph and the portable brick list; the Library lists it without the graph.**
+  `graph` is `app.graph.serialize()` less what names the tab rather than the work (its id, the canvas view `extra.ds`,
+  the shot binding `extra.snap_scene`, the recipe marker), so Open gives the workflow as it was in a new tab;
+  `brick.bricks` (E.recipe) is what Apply here rebuilds in any graph. The Library's card is a copy without `graph`
+  (`workflow: true` says it is there; a graph is 60-70 KB), and that copy is never saved back as a version. Tools give
+  the workflow only when asked (get_recipe `with_workflow`). A changes list reads the brick lists only, each line naming
+  its brick. *Why:* "open as it was" needs the exact graph, while search results and card lists must stay light.
+  *More:* `recipes.js` `stored`, `listed`, `changeLines`; `library.js` `rebuild`, `save`.
+
+- **SNAP-R276: The graph names its recipe and version; edited is computed, never stored.** After a save, and when a
+  version is opened (in a new tab or here), the graph holds `extra.snap.recipe = {id, n}`. Edited compares the brick
+  list now, stripped as a save strips it, with that version's; the top bar's chip reads `<name> · v<n>` and `· edited`.
+  The marker is written after the save and stripped from the stored copy, because the version number is known only
+  once the server has compared bodies. *Why:* a person needs to see which version they are on and whether they have
+  changed it, without a flag that goes stale. *More:* `recipes.js` `current`, `marked`; `view.js` recipe control.
+
+- **SNAP-R277: With privacy on a recipe keeps no graph and no identity rows, and says so.** Where privacy is on
+  (SNAP-R37), a version stores the brick list with identity bricks' rows left out (SNAP-R12) and no workflow; the save
+  answers `graph: false` with the reason, and Open rebuilds it from its bricks in a new tab, saying it kept no
+  workflow. *Why:* the workflow carries identity LoRA names and widget values, which a recipe must not keep on a
+  private install. *More:* `recipes.js` `strip`, `PRIVATE`.
+
+- **SNAP-R278: Agent text is rendered as structured DOM: links only to http(s), never HTML.** An agent's chat message
+  is parsed into a small token tree (paragraphs, line breaks, lists, bold, italic, inline and fenced code, links,
+  headings as bold lines) and built with elements and text nodes only; nothing is assigned as HTML. Only an http: or
+  https: target becomes a link, opening in a new tab with no opener or referrer; a local path, a relative target or any
+  other scheme shows its label and the target as code, not clickable. Markup without its partner stays text, so
+  partial streamed text renders and nothing of the original is dropped or reordered. A person's own messages stay plain
+  text. A streamed message re-parses only itself. *Why:* agent replies showed `**bold**` and `[label](path)` as typed;
+  agent text is untrusted for markup. *More:* `web/snap/markdown.mjs`; `tests/snap/test_markdown.mjs`.
+
+- **SNAP-R279: A status line says the state it was derived from, never a fixed waiting text.** The composer footer
+  reads the newest human message's journal receipt (saved, sending, delivered, completed, uncertain, failed,
+  interrupted) and whether an agent is attached: a neutral hint when nothing is pending, "waiting for delivery" only
+  while a message is saved and not delivered, "delivered · agent working" while its turn runs, and the receipt's own
+  words when delivery failed. A receipt for an older message never overrides a newer one. *Why:* the footer kept
+  "waiting for delivery" after every message was delivered and answered (review item R2C). *More:*
+  `web/snap/conversation_state.mjs` `deliveryLine`; `tests/snap/test_conversation_attachment.mjs`.
+
+Next free ID after this batch: SNAP-R285 (R274-R277 taken by recipes, R278-R279 reserved for the polish lane,
+R280-R284 reserved for bricks; G18 reserved R254-R262, G19 R263-R266).

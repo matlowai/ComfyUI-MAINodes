@@ -63,6 +63,7 @@ import * as DP from "./dependents.js";
 import * as CV from "./critiqueview.js";
 import * as B from "./book.js";
 import { BOOK_TOOLS } from "./booktools.js";
+import { RECIPE_TOOLS } from "./recipetools.js";
 import { directorTools } from "./director/native.mjs";
 import * as N from "./nearby.js";
 import * as CF from "./craft.js";
@@ -1792,6 +1793,7 @@ export const TOOLS = [
   ...CR.TOOLS, // SNAP-R101-R110 list_critiques, claim_critique, critique_packet, write_critique, skip_critique, critique, critic_report, add_fixture
   ...DP.TOOLS, // SNAP-R106 rerun_dependents, list_dependents
   ...BOOK_TOOLS, // U97 the Book (booktools.js)
+  ...RECIPE_TOOLS, // SNAP-R274..R277 versioned recipes (recipetools.js)
   ...directorTools(() => TOOLS), // Native production planners; construct before byName.
 ];
 
