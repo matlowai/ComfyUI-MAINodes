@@ -301,6 +301,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Open file", title: "open a saved picture or video (or a workflow): its recipe opens in a new tab, and when it pinned Cast, sets or cards, run it as it was or with today's versions", onclick: () => fileInput.click() }),
       recipeChip,
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Note", title: "a director's note on the whole recipe; agents answer it", onclick: () => { noting = true; select(null); inspector.querySelector("textarea")?.focus(); } }),
+      h("button", { className: "snap-link snap-quiet-btn snap-talk", textContent: "Talk", title: "open the Conversation with your agent in the right column (SNAP-R285): it is always one press away, also when the column is closed", onclick: () => openConversation() }),
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Make app", title: "open this recipe in ComfyUI's App mode: the brick faces become a run-only app (reloads the graph)", onclick: () => onMakeApp() }),
       h("button", { className: "snap-link snap-quiet-btn", title: "Ctrl/Cmd+K", onclick: () => openPalette() }, "Add brick", h("span", { className: "snap-kbd", textContent: `  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}` })), accountChip, driverChip, seeBtn, seg, metaBtn, runBtn, progress),
     staleBar,

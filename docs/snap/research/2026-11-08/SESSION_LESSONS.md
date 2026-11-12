@@ -107,3 +107,17 @@ Versioned recipes, bricks a person makes and a polish pass landed as three lanes
 - **Switch workflow tabs through ComfyUI's commands, never the store.** Calling the workflow store's open/close directly marked a tab active without loading its graph, so one tab's name sat over another tab's nodes until a reload. Use `Comfy.NewBlankWorkflow`, `Workspace.CloseWorkflow` and the tab UI's own path, and confirm `app.graph.id` after any switch.
 - **Parallel lanes in one checkout need three things:** owned files or named regions per lane, each lane's tools and logic in its own module with one-line wiring in the hub files, and rule IDs handed out before the lanes start.
 - **Mark what a brief infers.** A brief stated as fact that Library search returns cards whole; it does not. The lane caught it. Separate "read in source" from "assumed" when handing work over.
+
+## Guides, explanations and context that follows the person — 2026-11-11
+
+A pointing guide was prototyped from outside the page and used live for two walkthroughs (saving and sharing a recipe; what the sampler settings mean). What it showed applies to any feature that explains or teaches.
+
+- **If an agent must read source to explain a setting, a data surface is missing.** Snap's tools return a setting's value. What it means, its own tooltip, and what a preset would change came from the pack's Python. Expose them as data (the node's tooltip, defaults, what a preset overrides) so the first rungs of an explanation come from the graph and the node pack.
+- **Name every target.** Bricks and settings have names; Inspector rows and loose buttons were matched by their label text. A guide, a stored walkthrough and "what is this?" all need a stable name per control, listed by the tool that reads the view.
+- **Nothing a guide may point at should be reachable only when something else is already open.** With the right column closed, the Conversation's tab was off-screen and its only entry was two presses deep. A panel that can close needs a visible way back in.
+- **A callout treats open menus and sheets as off-limits.** Placed below its target by default, the tooltip covered the menu it was explaining.
+- **A step is often a chain of presses.** The marker walks down the chain (the chip, then the menu item, then the next) instead of sitting on the first press.
+- **Say where each claim comes from.** Tags such as read from this recipe, computed from these values, general knowledge, and not measured here let a person keep asking "why" without mistaking a guess for a measurement. The bottom of a ladder is an experiment to run, not more prose.
+- **Using it finds what tests do not.** One guided pass by a person surfaced a privacy leak in share files (a save path), a sheet printing objects as text, and three layout problems; the unit suite had passed throughout.
+- **Context should follow touch, cheaply.** The scope is what the person selected, opened or changed; a short trail of recent scopes is the trajectory. Inject one line per relevant note or stored flow for that scope and trail, and fetch a body only when it is used. Stored flows with blanks that the trail fills ("the setting just touched") adapt without fresh exploration each time.
+- **When nothing stored matches, say so and ask where to look.** Then, if a search finds nothing solid, make it a small experiment and keep the result as a measured note. Each answer says which of the three it was.
