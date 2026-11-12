@@ -1580,7 +1580,7 @@ SNAP-R165..R172 (the Book's share of G6; G6's other rules take SNAP-R155..R164).
 
 SNAP-R70 (reserved for the Room since U97) and SNAP-R173..R177. R160-R164 stay free; the next free ID was SNAP-R178 (G8 took it on).
 
-- **SNAP-R70: The Room is the person's front door, never a restriction, and its verdicts are the record's.** Its conversation panel keeps the surrounding workspace visible with a translucent background and names the active workflow. Conversation, Decisions and Results share one movable tabbed workspace; its clickable map exposes recorded prerequisites while allowing inspection in any order. Its multiline composer sends ordinary chat through the local durable conversation journal, independently of graph undo, director notes and creative approvals; Enter sends, Shift+Enter inserts a newline. A send or decision clears only its own unchanged draft; newer typing and drafts in another workflow survive pending saves/actions. The external attached-session adapter reports actual delivery and streams agent replies into that journal; saving alone never proves delivery. Project identity and runtime approval identity survive reconnects without silently repeating uncertain actions. Director notes retain their existing annotation and tool paths. Non-media results open their artifact controls or text report rather than an empty picture viewer. The Room
+- **SNAP-R70: The Room is the person's front door, never a restriction, and its verdicts are the record's.** Its conversation panel keeps the surrounding workspace visible and names the active workflow: by default it docks beside the project in the right column (SNAP-R285), and Pop out makes it the translucent movable panel. Conversation, Decisions and Results share one tabbed workspace, docked or movable; its clickable map exposes recorded prerequisites while allowing inspection in any order. Its multiline composer sends ordinary chat through the local durable conversation journal, independently of graph undo, director notes and creative approvals; Enter sends, Shift+Enter inserts a newline. A send or decision clears only its own unchanged draft; newer typing and drafts in another workflow survive pending saves/actions. The external attached-session adapter reports actual delivery and streams agent replies into that journal; saving alone never proves delivery. Project identity and runtime approval identity survive reconnects without silently repeating uncertain actions. Director notes retain their existing annotation and tool paths. Non-media results open their artifact controls or text report rather than an empty picture viewer. The Room
   (`web/snap/room.js`; `/?room`, The Room on the Work card, `open_view {view: "room"}`) renders the Work card's landed
   rows one question at a time, newest first: pictures full width, one verdict and a sentence ("neither, same
   problem" among them), a reply saying what the verdict moved, the next questions, and "earlier" with "actually, no".
@@ -2527,3 +2527,36 @@ Next free ID after this batch: SNAP-R254 (G18 reserved R254-R262, G19 R263-R266)
 
 Next free ID after this batch: SNAP-R285 (R274-R277 taken by recipes, R278-R279 reserved for the polish lane,
 R280-R284 taken by bricks; G18 reserved R254-R262, G19 R263-R266).
+
+## Lane L (2026-11-11): the right dock and the takes' height
+
+SNAP-R285 and SNAP-R286, from the operator's screenshot review: the floating Room covered the rail and the scene strip,
+the chain floated in the middle of a mostly empty centre column, and the take thumbnails were the smallest thing on the
+page.
+
+- **SNAP-R285: The right column is one dock: Inspector | Conversation.** The column that held the Inspector has a slim
+  tab bar (`role="tablist"`, arrow keys move) over one pane: the Inspector, or the Room docked (`.snap-room.docked`, a
+  region, not a dialog). It keeps the Inspector's width (`--insp-w`, its handle and remembered width); showing the
+  Conversation it is at least 420px, and opening the Room into a closed column gives it 480px unless the remembered
+  width is wider. Opening the Room (its button, the Work card, `open_view`) shows the Conversation; selecting a brick
+  shows the Inspector unless the Conversation is pinned (the tab bar's Pin, kept per browser), and then the Inspector
+  tab carries a dot and one click shows it; deselecting with the Room docked shows the Conversation; closing the Room
+  with a brick selected shows the Inspector; with neither the column closes. A tab the person clicks wins until the
+  next of those. The Inspector's collapse (and Esc) deselects, so with the Room docked the Conversation stays; the
+  Room's own Close closes it. Pop out floats the Room as the movable, resizable panel at its kept place; Dock puts it
+  back. Docked or not is kept with that place (`MAINodes.Snap.WorkspaceLayout`, `docked` true by default; an older
+  value without it keeps its place and docks); a docked Room writes no place. Below a 1100px wide page it always
+  floats. *Why:* the operator, 2026-11-11: the conversation beside the project, covering nothing, sharing the column
+  with the Inspector. *More:* `web/snap/dock.mjs` `dockTab`, `readLayout`, `mergeLayout`; `view.js` `dock()`;
+  `room.js` `place()`; `tests/snap/test_dock.mjs`.
+
+- **SNAP-R286: The chain is as tall as its bricks; the takes get the rest.** With takes to show, the brick chain sits
+  at the top of the centre column under the scene strip at its own height (at most 58% of the column, scrolling inside
+  past that), and the takes strip grows into the remaining height (at least its old 232px). A take's picture is as
+  tall as the strip allows (the strip's height less two caption rows, 122px to 460px; a version card .87 of that),
+  whole (`object-fit: contain`, never cropped), the card that height's 16:9 width, chips and words under it. With no
+  takes the chain stays centred over the slim strip; a phone-width page keeps its own strip. *Why:* the operator,
+  2026-11-11: more than half the centre was empty while the takes were the smallest thing on the page. *More:*
+  `style.js` (the `@container (min-width: 761px)` block after `.snap-inspector`, the `snap-takes` size container).
+
+Next free ID after this batch: SNAP-R287.

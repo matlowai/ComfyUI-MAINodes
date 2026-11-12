@@ -4,7 +4,7 @@
 // tabs for new work · SNAP-R7 pointer-down lists · SNAP-R19 actions call their tools' functions · SNAP-R20 the metadata
 // switch · SNAP-R9 the Setup brick · SNAP-R24 the scene navigator above the chain · SNAP-R25 onboarding, SFW only ·
 // SNAP-R29 onboarding opens by itself only for a person · SNAP-R30 a recipe opens runnable (seconds on the Render face) ·
-// SNAP-R34 the gate's account in the top bar, a lock that keeps the page · SNAP-R65 the Work pill · SNAP-R66 arrivals announce, Open moves · SNAP-R73 References shows each <Audio n> · SNAP-R93/R94 the Agent library row and instructions · SNAP-R272 production strategies · SNAP-R281 an any-node brick's face and name (pins, rename) · SNAP-R282/R284 Keep in Library, Group with… · SNAP-R283 blueprints and My bricks in the palette · see docs/snap/SNAP_RULES.md
+// SNAP-R34 the gate's account in the top bar, a lock that keeps the page · SNAP-R65 the Work pill · SNAP-R66 arrivals announce, Open moves · SNAP-R73 References shows each <Audio n> · SNAP-R93/R94 the Agent library row and instructions · SNAP-R272 production strategies · SNAP-R281 an any-node brick's face and name (pins, rename) · SNAP-R282/R284 Keep in Library, Group with… · SNAP-R283 blueprints and My bricks in the palette · SNAP-R285 the right dock (Inspector | Conversation) · SNAP-R286 the chain as tall as its bricks, the takes the rest · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import * as E from "./engine.js";
@@ -53,6 +53,7 @@ import { full } from "./lightbox.js";
 import { pickTake } from "./takepicker.js";
 import * as OB from "./onboarding.js";
 import * as R from "./recipes.js"; // SNAP-R274..R277 the recipe control
+import * as Dock from "./dock.mjs"; // SNAP-R285 the right dock's tab rules
 
 const h = (tag, props = {}, ...kids) => {
   const el = Object.assign(document.createElement(tag), props);
@@ -67,13 +68,65 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   const lanes = document.createElementNS("http://www.w3.org/2000/svg", "svg"); // the bus: who feeds whom beyond the next brick
   lanes.classList.add("snap-lanes");
   const rail = h("aside", { className: "snap-rail" });
-  const inspector = h("aside", { className: "snap-inspector" });
+  const inspector = h("aside", { className: "snap-inspector", id: "snap-dock-inspector", role: "tabpanel" });
+  // SNAP-R285: the right column is a dock: Inspector | Conversation tabs over one pane, the Inspector or the docked Room
+  // (room.js mounts into dockRoom). One column, one width (--insp-w) and one handle; dock() picks the tab (dock.mjs)
+  const dockRoom = h("div", { className: "snap-dock-room", id: "snap-dock-conversation", role: "tabpanel", hidden: true });
+  const tabInspector = h("button", { className: "snap-dock-tab", id: "snap-dock-tab-inspector", role: "tab", textContent: "Inspector", onclick: () => dock("click-inspector") });
+  const tabConversation = h("button", { className: "snap-dock-tab", id: "snap-dock-tab-conversation", role: "tab", textContent: "Conversation", onclick: () => openConversation() });
+  for (const [tab, pane] of [[tabInspector, inspector], [tabConversation, dockRoom]]) { tab.setAttribute("aria-controls", pane.id); pane.setAttribute("aria-labelledby", tab.id); }
+  const dockTabs = h("div", { className: "snap-dock-tabs", role: "tablist", ariaLabel: "Side panel" }, tabInspector, tabConversation);
+  dockTabs.addEventListener("keydown", (e) => { // arrows move between the two tabs (the chain's arrows stay out of here)
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+    e.preventDefault(); e.stopPropagation();
+    const go = e.key === "Home" ? tabInspector : e.key === "End" ? tabConversation : document.activeElement === tabInspector ? tabConversation : tabInspector;
+    if (go === tabInspector && tabInspector.ariaDisabled === "true") return;
+    go.focus(); go.click();
+  });
+  let dockPinned = false;
+  try { dockPinned = localStorage.getItem(Dock.PIN_KEY) === "1"; } catch { /* storage blocked: not pinned */ }
+  const pinBtn = h("button", { className: "snap-dock-pin", textContent: "Pin", title: "keep the Conversation showing when you select a brick (the Inspector tab marks the selection)",
+    onclick: () => { dockPinned = !dockPinned; try { localStorage.setItem(Dock.PIN_KEY, dockPinned ? "1" : "0"); } catch { /* not kept */ } dock(null); } });
+  const dockEl = h("div", { className: "snap-dock" }, h("div", { className: "snap-dock-bar" }, dockTabs, pinBtn), inspector, dockRoom);
+  let dockShown = null, roomDocked = false;
+  // the Inspector has something to show: a brick in panel mode, or a recipe note being written
+  const wantsInspector = () => (!!selected && openIn() === "panel") || noting;
+  function dock(cause) {
+    const inspecting = wantsInspector(), tab = Dock.dockTab({ selected: inspecting, roomOpen: roomDocked, pinned: dockPinned, last: dockShown, cause });
+    dockShown = tab;
+    root.classList.toggle("inspecting", !!tab); // the column is open (the class keeps its old name: the toast and handle read it)
+    root.classList.toggle("dock-conversation", tab === "conversation");
+    inspector.hidden = tab === "conversation"; dockRoom.hidden = tab !== "conversation"; // closed: the Inspector slides out as before
+    tabInspector.ariaSelected = String(tab === "inspector"); tabConversation.ariaSelected = String(tab === "conversation");
+    tabInspector.tabIndex = tab === "inspector" ? 0 : -1; tabConversation.tabIndex = tab === "conversation" ? 0 : -1;
+    tabInspector.ariaDisabled = String(!inspecting);
+    tabInspector.classList.toggle("marked", inspecting && tab === "conversation"); // a selection waits behind the Conversation
+    tabInspector.title = inspecting && tab === "conversation" ? "a brick is selected: its settings are here" : inspecting ? "" : "select a brick to see its settings";
+    pinBtn.ariaPressed = String(dockPinned); pinBtn.classList.toggle("on", dockPinned); pinBtn.hidden = !roomDocked; // a pin means something only beside a docked Room
+  }
+  // the person's Conversation tab: the docked Room shows and its composer takes the keys; with no docked Room, one opens there
+  function openConversation() {
+    const floating = !roomDocked && root.querySelector(".snap-room:not(.docked)"), dockIt = floating && floating.querySelector(".snap-room-dock:not([hidden])");
+    if (dockIt) dockIt.click(); // a popped-out Room comes back as it is (its answers this visit kept)
+    else if (floating) floating.focus({ preventScroll: true }); // too narrow to dock: the floating one stays
+    else if (!roomDocked) openRoom({ say, docked: true });
+    if (roomDocked) dock("click-conversation");
+    dockRoom.querySelector(".snap-room-compose textarea")?.focus({ preventScroll: true });
+  }
+  root.addEventListener("snap-dock", (e) => { // room.js: the Room opened, closed, popped out or came forward
+    const wasClosed = !dockShown;
+    roomDocked = !!dockRoom.querySelector(".snap-room");
+    dock(e.detail?.cause ?? null);
+    // the column opened for the Room: at least DOCK_OPEN_W this session (a wider remembered width wins; nothing is saved)
+    const w = parseFloat(root.style.getPropertyValue("--insp-w"));
+    if (wasClosed && roomDocked && dockShown === "conversation" && w < Dock.DOCK_OPEN_W) root.style.setProperty("--insp-w", `${Dock.DOCK_OPEN_W}px`);
+  });
   // the inspector's width: drag its left edge (double-click resets); kept per browser, the page works without it
   const WIDTH_KEY = "mainodes.snap.inspectorWidth";
   const handle = h("div", { className: "snap-insp-handle", title: "drag to resize · double-click resets" });
   const setWidth = (px) => {
     if (px == null) root.style.removeProperty("--insp-w");
-    else root.style.setProperty("--insp-w", `${Math.round(Math.max(320, Math.min(px, innerWidth * 0.7)))}px`);
+    else root.style.setProperty("--insp-w", `${Math.round(Math.max(dockShown === "conversation" ? Dock.DOCK_MIN_W : 320, Math.min(px, innerWidth * 0.7)))}px`);
   };
   try { setWidth(Number(localStorage.getItem(WIDTH_KEY)) || null); } catch { /* storage blocked: default width */ }
   handle.addEventListener("pointerdown", (e) => {
@@ -86,7 +139,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       handle.removeEventListener("pointermove", move);
       root.classList.remove("resizing");
       drawLanes();
-      try { localStorage.setItem(WIDTH_KEY, String(inspector.getBoundingClientRect().width)); } catch { /* not kept */ }
+      try { localStorage.setItem(WIDTH_KEY, String(dockEl.getBoundingClientRect().width)); } catch { /* not kept */ } // the column, whichever pane shows
     };
     handle.addEventListener("pointermove", move);
     handle.addEventListener("pointerup", up, { once: true });
@@ -249,7 +302,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
       h("button", { className: "snap-link snap-quiet-btn", textContent: "Make app", title: "open this recipe in ComfyUI's App mode: the brick faces become a run-only app (reloads the graph)", onclick: () => onMakeApp() }),
       h("button", { className: "snap-link snap-quiet-btn", title: "Ctrl/Cmd+K", onclick: () => openPalette() }, "Add brick", h("span", { className: "snap-kbd", textContent: `  ${/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}` })), accountChip, driverChip, seeBtn, seg, metaBtn, runBtn, progress),
     staleBar,
-    h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), inspector, handle, railHandle), toast);
+    h("div", { className: "snap-body" }, rail, h("main", { className: "snap-main" }, notesStrip, stack), dockEl, handle, railHandle), toast);
   // the recipe menus (the scene menu's floating pattern): the chip's, and one recipe's versions
   function recipeMenu(anchor, rows = recipeRows) {
     root.querySelector(".snap-recipe-menu")?.remove();
@@ -657,6 +710,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     // arrows move along the chain: left/right in the full view, up/down when it runs top to bottom (narrow, docked)
     const across = getComputedStyle(stack).display === "grid";
     const step = { ArrowRight: across ? 1 : 0, ArrowLeft: across ? -1 : 0, ArrowDown: across ? 0 : 1, ArrowUp: across ? 0 : -1 }[e.key];
+    if (step && e.target.closest(".snap-room, .snap-dock-bar")) return; // the Room's and the dock's tabs take their own arrows
     if (step) {
       e.preventDefault();
       const j = Math.max(0, Math.min(keys.length - 1, i + step));
@@ -728,7 +782,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   }
   // the setting changed (here or in ComfyUI's Settings): carry the current selection over to the other place
   function openInChanged() {
-    if (openIn() === "brick") { root.classList.remove("inspecting"); renderInspector(); setOpen(selected); }
+    if (openIn() === "brick") { dock("deselect"); renderInspector(); setOpen(selected); }
     else { setOpen(null); select(selected); }
   }
 
@@ -740,7 +794,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
     const was = selected;
     selected = key;
     if (key) noting = false;
-    root.classList.toggle("inspecting", (!!key && openIn() === "panel") || noting);
+    dock(key || noting ? "select" : "deselect"); // SNAP-R285: the Inspector tab, unless the Conversation is pinned
     // keep the selected brick in view beside the inspector once it has slid open
     if (openIn() === "panel" && (key || was)) setTimeout(() => reveal(key ?? was), 320); // after the inspector slid in or out
     if (rerender) {
@@ -1828,7 +1882,7 @@ export function createView({ onSwitch, onMakeApp, run, openIn, setOpenIn }) {
   // what an agent reads and does through the `read_ui` / `ui` tools: the same moves a person makes
   function uiRead() {
     const here = SC.current();
-    return { selected, open: opened, side_panel: root.classList.contains("inspecting"), sheet: root.querySelector(".snap-sheet")?.ariaLabel ?? null,
+    return { selected, open: opened, side_panel: wantsInspector(), dock: dockShown, sheet: root.querySelector(".snap-sheet")?.ariaLabel ?? null,
       workflow: app.extensionManager.workflow.activeWorkflow?.filename ?? null, bricks: E.state().bricks.map((b) => b.key), metadata: MD.on() ? "on" : "off",
       scene: here ? { id: here.scene.id, name: here.scene.name, shot: here.shot.id, shot_title: SC.shotTitle(here.scene, here.shot) } : null, room: !!root.querySelector(".snap-room") }; // F-S03
   }

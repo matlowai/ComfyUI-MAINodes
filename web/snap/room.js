@@ -10,12 +10,14 @@
 // and after (SNAP-R201) · SNAP-R209 out of date offers a re-make · SNAP-R229 either/or is one question, both outcomes side by side · SNAP-R198 Nearby opens on it · SNAP-R179 each question one
 // plain sentence naming the thing · SNAP-R180 a critic's row asks its finding, with each note's words and where it was born · SNAP-R173 one verdict and why · SNAP-R174 blind pairs from the server · SNAP-R65 the Work card's rows · SNAP-R7 rebuilt only when its
 // content changes, never under a pointer · SNAP-R278 an agent's chat message is built as structured DOM (markdown.mjs), links
-// only to http(s) · SNAP-R279 the composer footer says the newest message's receipt state · see docs/snap/SNAP_RULES.md
+// only to http(s) · SNAP-R279 the composer footer says the newest message's receipt state · SNAP-R285 it docks in the right
+// column's Conversation tab by default (dock.mjs), Pop out floats it · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import * as A from "./activity.js";
 import * as E from "./engine.js";
 import * as Chat from "./conversation.mjs";
 import * as MD from "./markdown.mjs";
+import * as Dock from "./dock.mjs";
 import { createDraftGuard } from "./draft_guard.js";
 import * as D from "./dials.js";
 import * as T from "./takes.js";
@@ -137,7 +139,7 @@ const asks = () => {
 const briefRow = (r) => r.title?.startsWith("Timed trial 0") || r.title?.startsWith("Baseline ·") ? "Baseline" : r.title?.startsWith("Timed trial ") || r.title?.startsWith("Envelope trial ·") ? "Envelope trial" : r.title?.match(/^Dial preview ([+-]?[\d.]+)/)?.[0] ?? ask(r).q;
 const pictureOf = (m) => m && (m.kind === "video" ? h("video", { src: url(m), controls: true, loop: true, muted: true, playsInline: true, className: "snap-room-pic" }) : h("img", { src: url(m), className: "snap-room-pic", alt: "" }));
 
-export function openRoom({ say } = {}) {
+export function openRoom({ say, docked: dockedAsked } = {}) {
   for (const s of document.querySelectorAll(".snap-room")) s.dispatchEvent(new Event("snap-room-close"));
   const earlier = []; // this visit's verdicts, newest first: [what was asked, what was said, undo or null]
   let reply = "", sig = "", top = null;
@@ -145,11 +147,14 @@ export function openRoom({ say } = {}) {
   const body = h("main", { className: "snap-room-body" }), replyEl = h("p", { className: "snap-room-reply", role: "status" });
   // SNAP-R70: keep the project visible around the conversation, and name the live workspace.
   const context = h("strong", { className: "snap-room-context" });
+  // SNAP-R285: docked in the right column (a region) or popped out (the floating dialog); each says the way to the other
+  const popBtn = h("button", { className: "snap-link snap-room-pop", textContent: "Pop out", title: "float the conversation over the page as a movable panel", hidden: true, onclick: () => { keep({ docked: false }); place(false, "room-pop"); room.focus({ preventScroll: true }); } });
+  const dockBtn = h("button", { className: "snap-link snap-room-dock", textContent: "Dock", title: "put the conversation back in the right column", hidden: true, onclick: () => { keep({ docked: true }); place(true, "room-open"); } });
   const room = h("div", { className: "snap-room", role: "dialog", ariaLabel: "Project conversation", tabIndex: -1 },
-    h("header", { className: "snap-room-head" }, h("div", { className: "snap-room-heading" }, h("span", { textContent: "Conversation", className: "snap-room-where" }), context), h("span", { className: "snap-spacer" }), h("button", { className: "snap-link", textContent: "Close", onclick: () => close() })),
+    h("header", { className: "snap-room-head" }, h("div", { className: "snap-room-heading" }, h("span", { textContent: "Conversation", className: "snap-room-where" }), context), h("span", { className: "snap-spacer" }), popBtn, dockBtn, h("button", { className: "snap-link", textContent: "Close", onclick: () => close() })),
     replyEl, body);
   // SNAP-R70/R7: one workspace, freely selectable views; dependency edges inform rather than restrict browsing.
-  let activeTab = "decisions";
+  let activeTab = "decisions", opened = false;
   const artifacts = h("div", { className: "snap-room-artifacts" });
   const resultList = h("div", { className: "snap-room-result-list" });
   const results = h("section", { className: "snap-room-results", role: "tabpanel" }, resultList, artifacts);
@@ -166,8 +171,8 @@ export function openRoom({ say } = {}) {
   }
   tabs.addEventListener("keydown", (e) => { if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return; e.preventDefault(); const choices = [...tabs.children], index = choices.findIndex((b) => b.dataset.view === activeTab), next = e.key === "Home" ? 0 : e.key === "End" ? choices.length - 1 : (index + (e.key === "ArrowRight" ? 1 : -1) + choices.length) % choices.length; chooseTab(choices[next].dataset.view); choices[next].focus(); });
   room.insertBefore(map, replyEl); room.insertBefore(tabs, body); room.append(results);
-  room.addEventListener("snap-room-results", () => chooseTab("results"));
-  const close = () => { removeEventListener("resize", fitWorkspace); removeEventListener("pointermove", moveGesture, true); removeEventListener("pointerup", endGesture, true); removeEventListener("pointercancel", endGesture, true); removeEventListener("blur", endGesture); unsubscribeNotes(); unsubscribeConversation(); activityListeners.delete(draw); room.remove(); off = true; };
+  room.addEventListener("snap-room-results", () => { chooseTab("results"); tell(room.closest(".snap-root"), "room-show"); }); // a docked Room comes forward in its column
+  const close = () => { removeEventListener("resize", fitWorkspace); removeEventListener("pointermove", moveGesture, true); removeEventListener("pointerup", endGesture, true); removeEventListener("pointercancel", endGesture, true); removeEventListener("blur", endGesture); unsubscribeNotes(); unsubscribeConversation(); activityListeners.delete(draw); const host = room.closest(".snap-root"); room.remove(); off = true; tell(host, "room-close"); };
   room.addEventListener("snap-room-close", close);
   let off = false;
   const answered = async (asked, said, undo = null) => { reply = said; earlier.unshift([asked, said, undo]); sig = ""; await A.reconcile(); draw(); };
@@ -407,6 +412,7 @@ export function openRoom({ say } = {}) {
     resultList.replaceChildren(...dialResults.map((p) => h("button", { className: "snap-room-line", textContent: D.title(D.find(p.result.dial) ?? { dial: p.result.dial }), onclick: () => D.openResult(document.querySelector(".snap-root"), p.result).catch((e) => say?.(e.message, true)) })),
       ...landed.map((r) => h("button", { className: "snap-room-line", textContent: briefRow(r), onclick: () => openMedia(r) })));
     tabs.children[0].textContent = `Conversation (${conversation.length})`; tabs.children[1].textContent = `Decisions (${list.length})`; tabs.children[2].textContent = `Results (${dialResults.length + landed.length})`;
+    if (!opened) { opened = true; if (!list.length && activeTab === "decisions") chooseTab("conversation"); } // nothing waits for a decision: the Room opens on the talk
     body.replaceChildren(...[ // filtered: a null child prints "null"
       first ? question(first) : h("section", { className: "snap-room-q quiet" }, h("h2", { textContent: "No approval needed right now. You can still message your agent below." })),
       ...dialResults.map((p) => h("section", { className: "snap-room-message" }, h("strong", { textContent: "Dial created" }),
@@ -420,11 +426,19 @@ export function openRoom({ say } = {}) {
   const unsubscribeNotes = E.onNotesChange(draw);
   unsubscribeConversation = Chat.watch(watchedProject, draw);
   Promise.all([T.load(), C.load(), P.load(), W.load(), N.load()]).then(() => A.reconcile()).then(draw, (e) => { reply = plain(e.message); draw(); });
-  (document.querySelector(".snap-root") ?? document.body).append(room); // inside Snap's root: its colours, above its sheets
-  // SNAP-R70: a single movable, resizable workspace; layout is a browser preference, not project canon.
-  const layoutKey = "MAINodes.Snap.WorkspaceLayout";
+  // SNAP-R70/R285: docked in the right column by default (its place and size are the column's, from CSS), or the single
+  // movable, resizable panel inside Snap's root (its colours, above its sheets); both are browser preferences kept in one
+  // value (dock.mjs merges, so an older value keeps its place), not project canon. Below DOCK_MIN_HOST it always floats
+  const layoutKey = Dock.LAYOUT_KEY;
+  const stored = () => { try { return localStorage.getItem(layoutKey); } catch { return null; } };
+  const keep = (patch) => { try { localStorage.setItem(layoutKey, Dock.mergeLayout(stored(), patch)); } catch { /* not kept */ } };
+  const snapRoot = () => document.querySelector(".snap-root");
+  const dockHost = () => { const r = snapRoot(); return r && (r.clientWidth || innerWidth) >= Dock.DOCK_MIN_HOST ? r.querySelector(".snap-dock-room") : null; };
+  const tell = (host, cause) => host?.dispatchEvent(new CustomEvent("snap-dock", { detail: { cause } })); // the view picks the column's tab (dock.mjs)
+  let docked = false;
   const layout = () => ({ left: room.offsetLeft, top: room.offsetTop, width: room.offsetWidth, height: room.offsetHeight });
   const fit = (value) => {
+    if (docked) return; // the column sizes a docked Room
     const host = room.parentElement, maxWidth = Math.max(1, host.clientWidth - 24), maxHeight = Math.max(1, host.clientHeight - 66);
     const width = Math.min(maxWidth, Math.max(Math.min(360, maxWidth), value.width)), height = Math.min(maxHeight, Math.max(Math.min(360, maxHeight), value.height));
     Object.assign(room.style, { maxHeight: `${maxHeight}px`, width: `${width}px`, height: `${height}px`, left: `${Math.max(0, Math.min(host.clientWidth - width - 12, value.left))}px`, top: `${Math.max(54, Math.min(host.clientHeight - height - 12, value.top))}px` });
@@ -435,23 +449,37 @@ export function openRoom({ say } = {}) {
     const railRight = rail ? rail.getBoundingClientRect().right - host.getBoundingClientRect().left : 0;
     return Math.max(12, Math.min(railRight + 12, host.clientWidth - room.offsetWidth - 12));
   };
-  const saveLayout = () => localStorage.setItem(layoutKey, JSON.stringify({ ...layout(), userPosition }));
-  const fitWorkspace = () => fit(layout());
-  try {
-    const stored = JSON.parse(localStorage.getItem(layoutKey));
-    if (stored && ["left", "top", "width", "height"].every((k) => Number.isFinite(stored[k]))) { userPosition = stored.userPosition === true; fit(stored); }
-  } catch { /* an invalid older preference leaves the default layout */ }
-  if (!userPosition) fit({ ...layout(), left: defaultLeft() });
+  const saveLayout = () => { if (!docked) keep({ ...layout(), userPosition }); }; // a docked Room never writes the floating place
+  // mount docked (in the column's host) or floating (restoring the kept place, or the default beside the rail)
+  const place = (dock, cause) => {
+    const host = dock ? dockHost() : null;
+    docked = !!host; room.classList.toggle("docked", docked);
+    if (docked) { room.setAttribute("role", "region"); room.removeAttribute("style"); if (room.parentElement !== host) host.append(room); }
+    else {
+      room.setAttribute("role", "dialog"); room.removeAttribute("style");
+      const r = snapRoot() ?? document.body; if (room.parentElement !== r) r.append(room);
+      const saved = Dock.readLayout(stored()); userPosition = saved.userPosition; // an invalid older preference leaves the default layout
+      if (saved.floating) fit(saved.floating);
+      if (!userPosition) fit({ ...layout(), left: defaultLeft() });
+    }
+    popBtn.hidden = !docked; dockBtn.hidden = docked || !dockHost();
+    tell(room.closest(".snap-root"), cause);
+  };
+  const fitWorkspace = () => {
+    if (docked) { if (!dockHost()) place(false, "room-narrow"); return; } // narrowed below DOCK_MIN_HOST: it floats, the preference stays
+    if (Dock.readLayout(stored()).docked && dockHost()) { place(true, "room-open"); return; }
+    dockBtn.hidden = !dockHost(); fit(layout());
+  };
   let gesture = null;
   const startGesture = (e, edge) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || docked) return;
     gesture = { ...layout(), x: e.clientX, y: e.clientY, edge, pointer: e.pointerId }; room.setPointerCapture(e.pointerId); e.preventDefault(); e.stopPropagation();
   };
   room.querySelector(".snap-room-head").addEventListener("pointerdown", (e) => { if (!e.target.closest("button,input,textarea,a")) startGesture(e, "move"); });
   for (const edge of ["right", "bottom", "corner"]) {
     const handle = h("div", { className: `snap-room-resize ${edge}`, role: "separator", tabIndex: 0, ariaLabel: `Resize workspace ${edge}`, title: "Drag to resize · arrow keys adjust size" });
     handle.addEventListener("pointerdown", (e) => startGesture(e, edge));
-    handle.addEventListener("keydown", (e) => { if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return; e.preventDefault(); e.stopPropagation(); const value = layout(), step = e.shiftKey ? 40 : 10; if (e.key === "ArrowLeft") value.width -= step; if (e.key === "ArrowRight") value.width += step; if (e.key === "ArrowUp") value.height -= step; if (e.key === "ArrowDown") value.height += step; fit(value); saveLayout(); });
+    handle.addEventListener("keydown", (e) => { if (docked || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return; e.preventDefault(); e.stopPropagation(); const value = layout(), step = e.shiftKey ? 40 : 10; if (e.key === "ArrowLeft") value.width -= step; if (e.key === "ArrowRight") value.width += step; if (e.key === "ArrowUp") value.height -= step; if (e.key === "ArrowDown") value.height += step; fit(value); saveLayout(); });
     room.append(handle);
   }
   const moveGesture = (e) => {
@@ -469,6 +497,8 @@ export function openRoom({ say } = {}) {
   addEventListener("pointermove", moveGesture, true);
   addEventListener("pointerup", endGesture, true); addEventListener("pointercancel", endGesture, true); addEventListener("blur", endGesture);
   addEventListener("resize", fitWorkspace);
+  if (dockedAsked != null) keep({ docked: !!dockedAsked }); // the column's Conversation tab asks for it docked
+  place(dockedAsked ?? Dock.readLayout(stored()).docked, "room-open");
   room.focus({ preventScroll: true });
   draw();
   grow();

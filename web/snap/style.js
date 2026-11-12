@@ -8,7 +8,11 @@ export const STYLE = `
   font: 13px/1.4 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; outline: none; overflow: hidden; contain: layout paint;
 }
 .snap-root [hidden] { display: none !important; } /* the controls below use all: unset, which would undo [hidden] */
-.snap-root:not(.open) .snap-top, .snap-root:not(.open) .snap-rail, .snap-root:not(.open) .snap-inspector, .snap-root:not(.open) .snap-lanes { opacity: var(--veil); }
+.snap-root:not(.open) .snap-top, .snap-root:not(.open) .snap-rail, .snap-root:not(.open) .snap-inspector, .snap-root:not(.open) .snap-dock-bar, .snap-root:not(.open) .snap-lanes { opacity: var(--veil); }
+/* SNAP-R285: the right column's width, the Inspector's own (--insp-w, dragged and kept) or its default; showing the
+   Conversation it is at least 420px, and 480px (or the Inspector's default when wider) before anything was dragged */
+.snap-root { --dock-w: var(--insp-w, clamp(380px, 33vw, 860px)); }
+.snap-root.dock-conversation { --dock-w: max(420px, var(--insp-w, max(480px, clamp(380px, 33vw, 860px)))); }
 .snap-top { position: relative; display: flex; align-items: center; gap: 10px; height: 54px; flex: none; padding: 0 14px 0 18px; border-bottom: 1px solid var(--s-line);
   background: color-mix(in srgb, var(--s-bg) calc(var(--veil) * 100%), transparent); }
 .snap-brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; letter-spacing: -.01em; padding-right: 12px; margin-right: 2px; border-right: 1px solid var(--s-line); height: 26px; }
@@ -27,10 +31,10 @@ export const STYLE = `
 .snap-run:disabled { opacity: .6; cursor: default; }
 .snap-progress { position: absolute; left: 0; bottom: -1px; height: 2px; width: calc(var(--p, 0) * 100%); background: linear-gradient(90deg, #6aa8ff, #c084fc); transition: width .2s linear, opacity .3s; }
 .snap-body { flex: 1; min-height: 0; display: grid; grid-template-columns: var(--rail-w, 304px) minmax(0, 1fr) 0px; transition: grid-template-columns .3s cubic-bezier(.2, .8, .2, 1); }
-.snap-root.inspecting .snap-body { grid-template-columns: var(--rail-w, 304px) minmax(0, 1fr) var(--insp-w, clamp(380px, 33vw, 860px)); }
+.snap-root.inspecting .snap-body { grid-template-columns: var(--rail-w, 304px) minmax(0, 1fr) var(--dock-w); }
 .snap-body { position: relative; }
 .snap-root.resizing .snap-body { transition: none; } .snap-root.resizing { cursor: col-resize; user-select: none; }
-.snap-insp-handle { position: absolute; top: 0; bottom: 0; right: var(--insp-w, clamp(380px, 33vw, 860px)); width: 10px; margin-right: -5px; z-index: 6; cursor: col-resize; touch-action: none; display: none; }
+.snap-insp-handle { position: absolute; top: 0; bottom: 0; right: var(--dock-w); width: 10px; margin-right: -5px; z-index: 6; cursor: col-resize; touch-action: none; display: none; }
 .snap-root.inspecting .snap-insp-handle { display: block; }
 .snap-rail-handle { position: absolute; top: 0; bottom: 0; left: var(--rail-w, 304px); width: 10px; margin-left: -5px; z-index: 6; cursor: col-resize; touch-action: none; }
 .snap-rail-handle::after { content: ""; position: absolute; left: 4px; top: 0; bottom: 0; width: 2px; background: var(--s-accent); opacity: 0; transition: opacity .15s ease-out; }
@@ -38,9 +42,33 @@ export const STYLE = `
 .snap-insp-handle::after { content: ""; position: absolute; left: 4px; top: 0; bottom: 0; width: 2px; background: var(--s-accent); opacity: 0; transition: opacity .15s ease-out; }
 .snap-insp-handle:hover::after, .snap-root.resizing .snap-insp-handle::after { opacity: .7; }
 .snap-root:not(.inspecting) .snap-inspector { visibility: hidden; padding-left: 0; padding-right: 0; border: 0; }
+/* SNAP-R285: the right dock: a slim tab bar (Inspector | Conversation, and the pin) over one pane. The column's border and
+   shadow are the dock's; the Inspector inside it keeps its own padding and scroll */
+.snap-dock { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; border-left: 1px solid var(--s-line); box-shadow: -12px 0 32px #0000002e; background: color-mix(in srgb, var(--s-bg) calc(var(--veil) * 100%), transparent); }
+.snap-root:not(.inspecting) .snap-dock { visibility: hidden; border: 0; }
+.snap-dock > .snap-inspector { flex: 1 1 auto; min-height: 0; border-left: 0; box-shadow: none; background: none; }
+.snap-dock-bar { flex: none; display: flex; align-items: center; gap: 4px; padding: 6px 10px; border-bottom: 1px solid var(--s-line); }
+.snap-dock-tabs { display: flex; gap: 2px; flex: 1; min-width: 0; }
+.snap-dock-tab, .snap-dock-pin { all: unset; cursor: pointer; position: relative; padding: 5px 10px; border-radius: 8px; font-size: 12.5px; color: var(--s-dim); white-space: nowrap; }
+.snap-dock-tab:hover, .snap-dock-pin:hover { background: #ffffff10; color: var(--s-fg); }
+.snap-dock-tab[aria-selected=true] { background: var(--s-card); color: var(--s-accent); }
+.snap-dock-tab[aria-disabled=true] { cursor: default; opacity: .55; }
+.snap-dock-tab[aria-disabled=true]:hover { background: none; color: var(--s-dim); }
+.snap-dock-tab.marked::after { content: ""; position: absolute; top: 4px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--s-accent); } /* a brick is selected behind the pinned Conversation */
+.snap-dock-pin { font-size: 11.5px; padding: 4px 8px; }
+.snap-dock-pin.on { color: var(--s-accent); box-shadow: inset 0 0 0 1px var(--s-accent); }
+.snap-dock-tab:focus-visible, .snap-dock-pin:focus-visible { outline: 2px solid var(--s-accent); outline-offset: -2px; }
+.snap-dock-room { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
 .snap-rail, .snap-inspector { overflow: auto; padding: 16px 14px; display: flex; flex-direction: column; gap: 6px; background: color-mix(in srgb, var(--s-bg) calc(var(--veil) * 100%), transparent); }
 .snap-rail { border-right: 1px solid var(--s-line); }
 .snap-inspector { border-left: 1px solid var(--s-line); gap: 8px; min-width: 0; overflow: hidden auto; box-shadow: -12px 0 32px #0000002e; }
+/* SNAP-R286: with takes to show, the chain is as tall as its bricks at the top of the centre (no vertical centring, at
+   most 58% of it, scrolling inside past that) and the takes strip takes the rest; with none, the chain stays centred over
+   the slim 92px strip. Wide only: a phone keeps its own strip below */
+@container (min-width: 761px) {
+  .snap-main:has(> .snap-takes:not(.empty)) > .snap-stack { flex: 0 1 auto; max-height: 58%; align-content: start; }
+  .snap-main > .snap-takes:not(.empty) { flex: 1 1 232px; height: auto; min-height: 232px; }
+}
 .snap-collapse { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 2px; padding: 2px 6px 2px 2px; margin-left: -2px; border-radius: 9px; color: var(--s-dim); transition: background-color .12s ease-out; }
 .snap-collapse i { font-style: normal; font-size: 18px; line-height: 1; }
 .snap-collapse:hover, .snap-collapse:focus-visible { background: #ffffff14; color: var(--s-fg); }
@@ -450,6 +478,15 @@ export const STYLE = `
 .snap-take:not(.ghost) .snap-take-media:has(> img, > video) { aspect-ratio: auto; height: 122px; width: fit-content; min-width: 72px; max-width: 100%; align-self: center; }
 .snap-take:not(.ghost) .snap-take-media:has(> img, > video) > :is(img, video) { width: auto; max-width: 100%; }
 .snap-take.version:not(.ghost) .snap-take-media:has(> img, > video) { height: 106px; } /* a version card is narrower: its 16:9 height */
+/* SNAP-R286: a tile's picture is as tall as the strip lets it be: the strip is a size container and the picture's height is
+   its content height less the caption's two rows (56px, what the fixed 232px strip left them), between 122px and 460px; the
+   card is that height's 16:9 width, so a wide picture fills it and a tall one sits centred, whole (contain, never cropped).
+   A version card stays the smaller one (.87); a phone's 200px strip gives back today's 122px */
+.snap-takes:not(.empty) .snap-takes-strip { container: snap-takes / size; }
+.snap-takes:not(.empty) .snap-takes-strip { flex-wrap: wrap; align-content: start; overflow: hidden auto; } /* rows of takes: two or more side by side stay in view to compare */
+.snap-takes:not(.empty) .snap-take { --take-h: clamp(122px, min(calc(100cqh - 56px), calc((100cqw - 50px) / 2 * 9 / 16)), 460px); width: max(216px, calc(var(--take-h) * 16 / 9)); }
+.snap-takes:not(.empty) .snap-take.version { --take-h: clamp(106px, min(calc((100cqh - 56px) * .87), calc((100cqw - 50px) / 2 * 9 / 16 * .87)), 400px); width: max(188px, calc(var(--take-h) * 16 / 9)); }
+.snap-takes:not(.empty) .snap-take:not(.ghost) .snap-take-media:has(> img, > video) { height: var(--take-h); }
 .snap-take.keep .snap-take-media { border-color: #57c785; } .snap-take.reject .snap-take-media { opacity: .55; }
 .snap-take.error .snap-take-media, .snap-take.interrupted .snap-take-media { border-color: #f0b445; }
 .snap-take-none { display: grid; place-items: center; height: 100%; color: var(--s-dim); font-size: 11px; }
@@ -554,6 +591,10 @@ export const STYLE = `
 .snap-room-heading > span { font-size: 12px; }
 .snap-room-context { overflow-wrap: anywhere; }
 @media (max-width: 700px) { .snap-room { top: 64px; left: 10px; height: calc(100% - 74px); max-height: calc(100% - 74px); width: calc(100% - 20px); } }
+/* SNAP-R285: docked, the Room fills the dock's Conversation pane: the column places and sizes it, so no float, blur,
+   outer shadow or resize handles (room.js skips its gestures and keeps no layout while docked) */
+.snap-room.docked { position: relative; inset: auto; flex: 1 1 auto; min-height: 0; width: auto; height: auto; max-height: none; z-index: auto; background: var(--s-bg); backdrop-filter: none; border: 0; border-radius: 0; box-shadow: none; }
+.snap-room.docked .snap-room-resize { display: none; }
 .snap-room-head { position: sticky; top: 0; display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: color-mix(in srgb, var(--s-bg) 92%, transparent); border-bottom: 1px solid var(--s-line); z-index: 1; }
 .snap-room-head .snap-link { margin: 0; }
 .snap-room-reply { margin: 0 auto; padding: 10px 16px 0; width: min(760px, 100%); box-sizing: border-box; color: var(--s-dim); min-height: 1.4em; }
@@ -697,7 +738,7 @@ div.snap-room-line .snap-link { margin: 0; padding: 4px 10px; font-size: 13px; }
 .snap-toast { position: absolute; z-index: 90; top: 62px; right: 16px; transform: translateY(-8px); opacity: 0; pointer-events: none; padding: 10px 16px; max-width: min(560px, 70%);
   border-radius: 12px; background: var(--s-fg); color: var(--s-bg); font-size: 12.5px; box-shadow: 0 12px 32px #0008; transition: opacity .15s ease-out, transform .15s ease-out; }
 .snap-toast.show { opacity: 1; transform: none; }
-.snap-root.inspecting .snap-toast { right: calc(var(--insp-w, clamp(380px, 33vw, 860px)) + 16px); }
+.snap-root.inspecting .snap-toast { right: calc(var(--dock-w) + 16px); }
 .snap-root:has(.snap-sheet) .snap-toast { top: 6px; right: 50%; transform: translate(50%, -8px); } .snap-root:has(.snap-sheet) .snap-toast.show { transform: translate(50%, 0); } /* over a sheet: its header row is clear in the middle */
 .snap-toast.bad { background: #f0b445; color: #1b1c20; }
 .snap-toast-act { all: unset; pointer-events: auto; cursor: pointer; margin-left: 10px; padding: 2px 10px; border-radius: 999px; font-weight: 600; background: #ffffff1f; } .snap-toast-act:hover { background: #ffffff33; }
@@ -776,7 +817,7 @@ div.snap-room-line .snap-link { margin: 0; padding: 4px 10px; font-size: 13px; }
   .snap-scene-row { grid-template-columns: minmax(0, 1fr) auto; } .snap-scene-thumbs { grid-column: 1 / -1; grid-row: 2; } }
 /* narrow: a phone, or Snap docked in the sidebar next to the graph: the chain runs top to bottom */
 @container (max-width: 760px) {
-  .snap-body { grid-template-columns: minmax(0, 1fr); } .snap-rail, .snap-inspector { display: none; }
+  .snap-body { grid-template-columns: minmax(0, 1fr); } .snap-rail, .snap-inspector, .snap-dock { display: none; }
   .snap-stack { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; padding: 16px 12px 48px; --gap: 28px; }
   .snap-brick, .snap-brick.wide { width: auto; min-height: 0; }
   .snap-brick.feeds::after { left: 50%; top: calc(100% - 10px); width: 18px; height: calc(var(--gap) + 20px); margin-left: -9px; background: linear-gradient(180deg, hsl(var(--hue) 65% 58%), hsl(var(--next, var(--hue)) 65% 58%)); }
