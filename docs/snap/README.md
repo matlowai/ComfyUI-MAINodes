@@ -33,6 +33,8 @@ no settings, and nothing added to the prompts you queue. The pack's nodes work e
   palette, or `/?snap`. The same toggle takes you back to the graph.
 - **Turn it off:** **Turn Snap off** in Snap's top bar (or "Snap: turn off" in the command palette). Snap closes and
   its sidebar tab goes at once; reload the page to finish, which is when its top-bar buttons and Alt+S go.
+- Disabling **MAINodes.Snap** in ComfyUI's own Extensions panel also turns all of Snap off (the Strategies button
+  included) from the next page load.
 
 ## What to try
 

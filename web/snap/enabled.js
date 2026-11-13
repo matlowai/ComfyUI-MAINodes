@@ -16,10 +16,13 @@ export const ENABLED = "MAINodes.Snap.Enabled";
 const stored = () => { try { const v = app.extensionManager?.setting?.get(ENABLED); return v === true || v === false ? v : undefined; } catch { return undefined; } };
 const usedBefore = () => api.fetchApi("/userdata?dir=snap&recurse=true&split=false").then((r) => (r.ok ? r.json() : []), () => []).then((list) => Array.isArray(list) && list.some((f) => !/(^|\/)critiques\/_since\.json$/.test(String(f))), () => false);
 const asked = new URLSearchParams(location.search).has("snap") || new URLSearchParams(location.search).has("room");
+// ComfyUI's own Extensions panel: a person who disabled "MAINodes.Snap" there turned Snap off, all of it (a tester did
+// exactly that and kept the Strategies button, which is a second extension). Their switch wins over everything here.
+export const disabledInComfy = () => { try { const d = app.extensionManager?.setting?.get("Comfy.Extension.Disabled"); return Array.isArray(d) && d.includes("MAINodes.Snap"); } catch { return false; } };
 const choice = stored();
 // read once, as the page loads: what is registered then is what this page has until a person turns Snap on or off
-export const snapOn = asked || (choice ?? await usedBefore());
+export const snapOn = !disabledInComfy() && (asked || (choice ?? await usedBefore()));
 export const save = (on) => app.extensionManager.setting.set(ENABLED, on);
 // in an extension's setup (settings are certainly in): write down a choice made for the person, so it is asked once
-export const settle = () => { if (stored() !== snapOn && (asked || stored() === undefined)) return save(snapOn); };
+export const settle = () => { if (!disabledInComfy() && stored() !== snapOn && (asked || stored() === undefined)) return save(snapOn); }; // disabled in ComfyUI: no choice is written, so enabling it there again brings Snap back as it was
 export const setting = { id: ENABLED, name: "Snap: on", type: "hidden", defaultValue: null };

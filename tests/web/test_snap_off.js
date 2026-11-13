@@ -44,6 +44,11 @@ if (!port) { console.error("usage: node test_snap_off.js <port of a throwaway Co
   await load(); R.offReload = await state(); R.offAltS = await altS(); R.offToggle = await run("MAINodes.Snap.Toggle");
   await wipe(); await set(null); await page.evaluate(() => app.api.fetchApi("/userdata/snap%2Fprofile.json?overwrite=true", { method: "POST", body: "{}" }));
   await load(); await page.keyboard.press("Escape"); R.usedBefore = await state();
+  // the tester's case: opened Snap before, then disabled MAINodes.Snap in ComfyUI's Extensions panel
+  await set(null); await page.evaluate(() => app.extensionManager.setting.set("Comfy.Extension.Disabled", ["MAINodes.Snap"]));
+  await load(); R.comfyDisabled = await state(); R.comfyDisabledTurnOn = await run("MAINodes.Snap.TurnOn"); await page.waitForTimeout(600); R.comfyDisabledNote = await toasts(); R.comfyDisabledAfter = await state();
+  await page.evaluate(() => app.extensionManager.setting.set("Comfy.Extension.Disabled", []));
+  await load(); await page.keyboard.press("Escape"); R.comfyEnabledAgain = await state();
   await wipe(); await set(false);
   await load("?snap"); await page.waitForTimeout(1500); await closeSheets(); R.byUrl = await state();
   await set(null);
@@ -62,6 +67,9 @@ if (!port) { console.error("usage: node test_snap_off.js <port of a throwaway Co
     "before the reload, a press on the Snap button that is still there turns Snap back on": R.backOn.showing === true && R.backOn.setting === true && R.backOn.tab === true,
     "after that reload nothing of Snap is left": none(R.offReload) && R.offReload.exts === "MAINodes.Snap.Switch" && R.offAltS === false && /^ERR/.test(R.offToggle),
     "no choice made, but this person opened Snap before (a profile on the server): Snap stays on": R.usedBefore.snapBtn && R.usedBefore.root && R.usedBefore.setting === true,
+    "opened before, then MAINodes.Snap disabled in ComfyUI's Extensions panel: after a refresh no Snap button, no Strategies button, no tab, nothing running": !R.comfyDisabled.snapBtn && !R.comfyDisabled.strategies && !R.comfyDisabled.tab && !R.comfyDisabled.root && R.comfyDisabled.registered === 0,
+    "and there the turn-on command says to enable it in the Extensions panel, and starts nothing": /disabled in ComfyUI's Extensions panel/.test(R.comfyDisabledNote) && !R.comfyDisabledAfter.root && !R.comfyDisabledAfter.strategies,
+    "enabled there again: Snap is back, with no choice lost": R.comfyEnabledAgain.snapBtn && R.comfyEnabledAgain.strategies && R.comfyEnabledAgain.root,
     "/?snap turns it on and opens it, even when it was off": R.byUrl.snapBtn && R.byUrl.showing && R.byUrl.setting === true,
     "no page errors": errors.length === 0,
   };

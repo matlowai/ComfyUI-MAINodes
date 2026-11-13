@@ -136,8 +136,7 @@ const SNAP = {
       options: Object.entries(PF.REVIEWS).map(([value, text]) => ({ value, text })), defaultValue: "unknown",
       tooltip: "It costs tokens. Packs in Snap's kits already carry a safety read. Every install still waits for your yes.",
       onChange: (v, old) => { if (old !== undefined && v !== PF.get().code_review) PF.set({ code_review: v }); } }],
-  commands: [{ id: "MAINodes.Snap.Toggle", label: "Toggle Snap view", icon: "icon-[lucide--blocks]", function: () => toggle() },
-    { id: "MAINodes.Snap.TurnOff", label: "Snap: turn off", icon: "icon-[lucide--power]", function: () => turnOff() }],
+  commands: [{ id: "MAINodes.Snap.Toggle", label: "Toggle Snap view", icon: "icon-[lucide--blocks]", function: () => toggle() }],
   keybindings: [{ combo: { key: "s", alt: true }, commandId: "MAINodes.Snap.Toggle" }],
   actionBarButtons: [{ icon: "icon-[lucide--blocks]", label: "Snap", tooltip: "Snap view (Alt+S)", onClick: () => (leaving ? turnOn() : toggle()) }], // after Turn Snap off the button stays until the reload: a press on it turns Snap back on
   // SNAP-R74 (anime dogfood F-C08): core Load Audio lists only input/'s top level, so audio Snap put under input/snap/
@@ -258,6 +257,7 @@ const note = (detail, life = 7000) => app.extensionManager.toast.add({ severity:
 // settings appear at once) but does not call its setup, so that is called here. One thing waits for the next page
 // load: Load Audio's extra choices (beforeRegisterNodeDef only runs while nodes are being registered).
 async function turnOn() {
+  if (ON.disabledInComfy()) return note("Snap is disabled in ComfyUI's Extensions panel (Settings › Extensions › MAINodes.Snap). Enable it there and reload the page.", 10000);
   if (!on) { on = true; app.registerExtension(SNAP); await SNAP.setup(); registerDirector(); }
   if (leaving) { leaving = false; try { app.extensionManager.registerSidebarTab(sidebarTab); } catch { /* it comes back with the reload */ } }
   await ON.save(true);
@@ -266,7 +266,7 @@ async function turnOn() {
 // Turn Snap off: the view closes and the choice is saved now. A running page cannot take back what it registered (the
 // top-bar buttons, the key binding, the stamp on queued prompts): those end with the next page load, and the note says so
 async function turnOff() {
-  if (!on) return;
+  if (!on) { await ON.save(false); return note("Snap is off."); }
   if (sw.docked) { await app.extensionManager.command.execute(`Workspace.ToggleSidebarTab.${TAB}`); sw.undock(true); }
   if (sw.showing) toGraph();
   await ON.save(false);
@@ -277,7 +277,8 @@ async function turnOff() {
 app.registerExtension({
   name: "MAINodes.Snap.Switch",
   settings: [ON.setting],
-  commands: [{ id: "MAINodes.Snap.TurnOn", label: "Snap (pre-alpha): turn on", icon: "icon-[lucide--blocks]", function: () => turnOn() }],
+  commands: [{ id: "MAINodes.Snap.TurnOn", label: "Snap (pre-alpha): turn on", icon: "icon-[lucide--blocks]", function: () => turnOn() },
+    { id: "MAINodes.Snap.TurnOff", label: "Snap: turn off", icon: "icon-[lucide--power]", function: () => turnOff() }],
   menuCommands: [{ path: ["Extensions"], commands: ["MAINodes.Snap.TurnOn"] }],
   setup() { return ON.settle(); },
 });
