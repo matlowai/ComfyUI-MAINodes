@@ -5081,7 +5081,7 @@ def _editor_stash(unique_id, ui):
     if unique_id is None:
         return
     try:
-        with open(os.path.join(_editor_stash_dir(), f"last_{unique_id}.json"), "w") as f:
+        with open(os.path.join(_editor_stash_dir(), f"last_{unique_id}.json"), "w", encoding="utf-8") as f:
             json.dump(ui, f)
     except Exception as e:                       # never let bookkeeping fail a run
         print(f"[MAINodes] editor stash skipped: {type(e).__name__}: {e}")
@@ -5104,7 +5104,7 @@ def _install_editor_route():
         if not os.path.exists(path):
             return web.json_response({}, status=404)
         try:
-            return web.json_response(json.load(open(path)))
+            return web.json_response(json.load(open(path, encoding="utf-8")))
         except Exception:
             return web.json_response({}, status=404)
     srv._h3_editor_route = True

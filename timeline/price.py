@@ -100,7 +100,7 @@ class Calibration(object):
     def from_recorder(cls, path, device=None, model=None, pixels=None):
         rows = []
         try:
-            with open(path) as fh:
+            with open(path, encoding="utf-8") as fh:
                 for line in fh:
                     line = line.strip()
                     if not line:

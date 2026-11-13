@@ -129,7 +129,7 @@ class DeltaPack:
                 f"concept_lab inject: {path} has no sidecar; looked for "
                 f"{cands}. A pack without its sidecar is a bag of tensors "
                 f"with no geometry and no provenance")
-        with open(side) as fh:
+        with open(side, encoding="utf-8-sig") as fh:
             meta = json.load(fh)
         if meta.get("_type") != PACK_TYPE:
             raise InjectError(

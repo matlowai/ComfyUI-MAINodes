@@ -1227,7 +1227,7 @@ class _PrecProbe:
         if not self.rows or self.path is None:
             return
         import json
-        with open(self.path, "a") as f:
+        with open(self.path, "a", encoding="utf-8") as f:
             for r in self.rows:
                 f.write(json.dumps(r) + "\n")
         self.rows = []
@@ -1771,11 +1771,11 @@ class _MemLedger:
     def flush(self):
         import json
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
-        with open(self.path, "w") as f:
+        with open(self.path, "w", encoding="utf-8") as f:
             for r in self.rows:
                 f.write(json.dumps(r) + "\n")
         try:
-            with open(os.path.splitext(self.path)[0] + ".html", "w") as f:
+            with open(os.path.splitext(self.path)[0] + ".html", "w", encoding="utf-8") as f:
                 f.write(_ledger_html(self.rows))
         except Exception as e:  # noqa: BLE001
             log.debug("ledger html failed: %s", e)
@@ -1939,7 +1939,7 @@ def _dump_trace(run_dir, dev, tag):
         try:
             from torch.cuda._memory_viz import trace_plot
             html = trace_plot(snap, device=None)
-            with open(os.path.join(run_dir, "trace.html"), "w") as f:
+            with open(os.path.join(run_dir, "trace.html"), "w", encoding="utf-8") as f:
                 f.write(html)
         except Exception as e:  # noqa: BLE001
             log.warning("H3MemoryProbe[%s]: trace_plot failed (%s); snapshot.pickle kept for pytorch.org/memory_viz", tag, e)

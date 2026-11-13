@@ -527,13 +527,13 @@ def save(plan, path):
     d = os.path.dirname(path)
     if d:
         os.makedirs(d, exist_ok=True)
-    with open(path, "w") as fh:
+    with open(path, "w", encoding="utf-8") as fh:
         json.dump(plan, fh, indent=1, sort_keys=False)
     return path
 
 
 def load(path, migrate_in_place=True):
-    with open(path) as fh:
+    with open(path, encoding="utf-8-sig") as fh:
         plan = json.load(fh)
     return migrate(plan) if migrate_in_place else plan
 

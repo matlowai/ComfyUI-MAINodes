@@ -28,7 +28,6 @@ import logging
 import os
 import re
 import shlex
-import shutil
 import subprocess
 import tempfile
 import time
@@ -42,8 +41,7 @@ from comfy_api.latest import InputImpl, io
 from server import PromptServer
 
 from . import snap_astrid
-
-NICE = ["nice", "-n", "10"] if os.name != "nt" and shutil.which("nice") else []  # low priority where `nice` exists (not Windows)
+from .snap_ffmpeg import NICE, need as need_ffmpeg
 
 try:
     from . import snap_vault_server
@@ -55,6 +53,7 @@ routes = PromptServer.instance.routes
 
 def probe(path):
     """(duration in seconds, has sound) of a media file."""
+    need_ffmpeg("ffprobe")
     r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration:stream=codec_type", "-of", "json", str(path)], capture_output=True, text=True, timeout=60, check=True)
     info = json.loads(r.stdout)
     return float(info.get("format", {}).get("duration") or 0), any(s.get("codec_type") == "audio" for s in info.get("streams", []))
@@ -137,6 +136,7 @@ class MAISnapCut(io.ComfyNode):
                 paths.append(str(p))
             entries = [(e, *probe(p)) for e, p in zip(spec, paths)]
             filt, total = graph(entries, width, height, fps)
+            need_ffmpeg()
             out = place("cut.mp4")
             cmd = [*NICE, "ffmpeg", "-v", "error", "-y", *[a for p in paths for a in ("-i", p)], "-filter_complex", filt, "-map", "[v]", "-map", "[a]",
                    "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(out)]
@@ -203,6 +203,7 @@ def sha256_of(path):
 
 def sound_of(path, out):
     """a take's own sound as a 48 kHz stereo wav (the dialogue lane's file); False when the take has none"""
+    need_ffmpeg()
     r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", path, "-vn", "-ac", "2", "-ar", "48000", "-c:a", "pcm_s16le", out], capture_output=True, text=True, timeout=600)
     return r.returncode == 0 and os.path.isfile(out) and os.path.getsize(out) > 1000
 

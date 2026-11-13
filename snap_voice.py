@@ -17,6 +17,7 @@ SNAP-R227 a take with a line gets its words timed · SNAP-R240 the Voice QA · s
 import asyncio
 import os
 import re
+import shutil
 import subprocess
 
 import torch
@@ -149,6 +150,8 @@ async def take_voice(request):
         return web.json_response({"error": f"{q.get('video')} isn't on this server"}, status=400)
     if snap_vault_server is not None and snap_vault_server.snap_vault.sealed(path):
         return web.json_response({"error": "this take is kept encrypted: its sound can't be written into input/ in the clear (cut it from a take that isn't private, or save the voice file yourself)"}, status=400)
+    if shutil.which("ffmpeg") is None:
+        return web.json_response({"error": "cutting a voice clip needs ffmpeg, and it isn't on this computer's PATH: install ffmpeg (on Windows: winget install ffmpeg) and restart ComfyUI"}, status=400)
     name = re.sub(r"[^A-Za-z0-9._-]+", "_", str(q.get("name") or "voice")).strip("_") or "voice"
     out_dir = os.path.join(folder_paths.get_input_directory(), "snap", "voice")
     os.makedirs(out_dir, exist_ok=True)

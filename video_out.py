@@ -139,7 +139,7 @@ class MAIVideoOut:
         sidecars = {}
         if hold_map.strip():
             hp = _unique(base[:-1] + ".holdmap", ".json")   # <prefix>_00001.holdmap.json
-            with open(hp, "w") as f:
+            with open(hp, "w", encoding="utf-8") as f:
                 json.dump(json.loads(hold_map), f)
             sidecars["holdmap"] = os.path.basename(hp)
         draft = None
@@ -161,7 +161,7 @@ class MAIVideoOut:
                     "draft_s": (draft["seconds"] if draft else None),
                     "written": time.strftime("%Y-%m-%dT%H:%M:%S")}
             mp = _unique(base[:-1] + ".meta", ".json")
-            with open(mp, "w") as f:
+            with open(mp, "w", encoding="utf-8") as f:
                 json.dump(meta, f, indent=1)
         print(f"[MAINodes] MAIVideoOut -> {path}" + (f" (+{', '.join(sidecars.values())})" if sidecars else ""))
         return {"ui": {"images": results, "animated": (True,)},

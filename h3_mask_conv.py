@@ -72,6 +72,7 @@ on any pass whose masks are all ones, and on any pass with no mask at all.
 import datetime
 import logging
 import os
+import tempfile
 
 import torch
 
@@ -79,7 +80,7 @@ log = logging.getLogger("MAINodes.h3_mask_conv")
 
 # Where the wrapper records that it ran. Override per run so a night loop can
 # keep one file per arm; the default is deliberately outside any git checkout.
-FIRED_LOG = os.environ.get("MAINODES_MASKCONV_LOG", "/tmp/h3maskconv_fired.log")
+FIRED_LOG = os.environ.get("MAINODES_MASKCONV_LOG", "/tmp/h3maskconv_fired.log" if os.name != "nt" else os.path.join(tempfile.gettempdir(), "h3maskconv_fired.log"))
 
 
 def _now():
@@ -90,7 +91,7 @@ def _note(line):
     """Append one line to FIRED_LOG. Never raises: a diagnostic must not be
     able to kill a render."""
     try:
-        with open(FIRED_LOG, "a") as fh:
+        with open(FIRED_LOG, "a", encoding="utf-8") as fh:
             fh.write(line + "\n")
     except Exception:
         pass

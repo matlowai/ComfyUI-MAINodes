@@ -52,6 +52,7 @@ from comfy_extras.nodes_video import LoadVideo, SaveVideo, preview_input_video
 from server import PromptServer
 
 from . import snap_privacy, snap_vault
+from .snap_ffmpeg import need as need_ffmpeg
 from .video_out import MAIVideoOut
 
 routes = PromptServer.instance.routes
@@ -130,11 +131,35 @@ def plain_copy(path, asker):
         yield str(p)
 
 
+def running(pid):
+    """Whether a process with this id exists. Linux: /proc. Elsewhere it is asked of the system, and "can't tell"
+    counts as running, so another live server's scratch is never removed."""
+    if os.path.isdir("/proc"):
+        return os.path.exists(f"/proc/{pid}")
+    if os.name == "nt":
+        import ctypes
+        k = ctypes.WinDLL("kernel32", use_last_error=True)
+        h = k.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return ctypes.get_last_error() != 87  # 87 (invalid parameter): no such process; anything else: can't tell
+        code = ctypes.c_ulong()
+        ok = k.GetExitCodeProcess(h, ctypes.byref(code))
+        k.CloseHandle(h)
+        return not ok or code.value == 259  # STILL_ACTIVE
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except OSError:
+        return True
+    return True
+
+
 def sweep():
     """Scratch folders of servers that are gone (a crash mid-step)."""
     for d in SCRATCH.parent.glob("snap-vault-*"):
         pid = d.name.rsplit("-", 1)[-1]
-        if pid.isdigit() and int(pid) != os.getpid() and not os.path.exists(f"/proc/{pid}"):
+        if pid.isdigit() and int(pid) != os.getpid() and not running(int(pid)):
             shutil.rmtree(d, ignore_errors=True)
             logging.warning("Snap vault: removed scratch left by a stopped server (%s)", d)
 
@@ -188,6 +213,7 @@ class Sealing:
 
 def untagged(video):
     """A stream copy keeps the source file's tags (its recipe): remux without them, in scratch (SNAP-R38, SNAP-R98)."""
+    need_ffmpeg()
     src = video.get_stream_source()
     ext = os.path.splitext(src)[1] if isinstance(src, str) else ".mp4"
     with scratch(f"in{ext}") as a, scratch(f"out{ext}") as b:

@@ -101,7 +101,7 @@ def stop(key="default", work_units=0, steps=1, pixels=0, frames=0,
         rec.update(dict(extra))
     p = os.path.abspath(path or DEFAULT_PATH)
     os.makedirs(os.path.dirname(p), exist_ok=True)
-    with open(p, "a") as fh:
+    with open(p, "a", encoding="utf-8") as fh:
         fh.write(json.dumps(rec) + "\n")
     return rec
 
@@ -132,7 +132,7 @@ def read_streamed_flag(log_path, tail_bytes=200000, since=None):
 def read(path=None, device=None, model=None):
     out = []
     try:
-        with open(os.path.abspath(path or DEFAULT_PATH)) as fh:
+        with open(os.path.abspath(path or DEFAULT_PATH), encoding="utf-8") as fh:
             for line in fh:
                 line = line.strip()
                 if not line:

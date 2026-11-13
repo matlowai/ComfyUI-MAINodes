@@ -529,7 +529,7 @@ class H3Backend(VideoModelBackend):
         if graph_path:
             graph_path = os.path.abspath(graph_path)
             os.makedirs(os.path.dirname(graph_path), exist_ok=True)
-            with open(graph_path, "w") as fh:
+            with open(graph_path, "w", encoding="utf-8") as fh:
                 json.dump(graph, fh, indent=1)
 
         est = self.estimate(plan, dict(ctx, _compiled=comp))

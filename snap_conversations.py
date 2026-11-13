@@ -3,6 +3,7 @@ Agent transports run in optional external adapters; this service makes no outbou
 """
 import asyncio
 import json
+import locale
 import os
 from pathlib import Path
 import re
@@ -16,9 +17,16 @@ class Journal:
         self.path = Path(path)
         self.events = []
         if self.path.exists():
-            with self.path.open() as source:
-                for line in source:
-                    self.events.append(json.loads(line))
+            # written as UTF-8; a log an older version wrote on Windows is in that system's own encoding
+            for line in self.path.read_bytes().splitlines():
+                if not line.strip():
+                    continue
+                try:
+                    text = line.decode('utf-8')
+                except UnicodeDecodeError:
+                    old = locale.getpreferredencoding(False)
+                    text = line.decode('cp1252' if old.lower().replace('-', '') == 'utf8' else old, errors='replace')
+                self.events.append(json.loads(text))
         self.ids = {e['id']: e for e in self.events}
         self.condition = asyncio.Condition()
 
@@ -30,7 +38,7 @@ class Journal:
             return previous
         event = {'seq': len(self.events) + 1, 'id': identity, 'type': kind, 'at': int(time.time() * 1000), 'data': data}
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self.path.open('a') as target:
+        with self.path.open('a', encoding='utf-8') as target:
             target.write(json.dumps(event, ensure_ascii=False) + '\n')
             target.flush()
             os.fsync(target.fileno())

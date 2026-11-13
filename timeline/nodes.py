@@ -94,7 +94,7 @@ def _read_plan(plan_path, plan_json=""):
                              "into plan_json")
         if not os.path.isfile(p):
             raise ValueError(f"H3 Drawn Plan: no plan file at {p}")
-        with open(p) as fh:
+        with open(p, encoding="utf-8-sig") as fh:
             text = fh.read()
         src = p
     try:

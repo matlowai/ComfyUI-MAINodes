@@ -103,7 +103,7 @@ def load_profiles(extra_path=None):
     path = extra_path or _user_registry_path()
     if path and os.path.exists(path):
         try:
-            user = json.load(open(path))
+            user = json.load(open(path, encoding="utf-8-sig"))
             for k, v in user.items():
                 profiles[str(k)] = normalize(str(k), v)
         except Exception as e:                   # a typo must not take the pack down

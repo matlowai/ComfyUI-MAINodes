@@ -52,6 +52,7 @@ from comfy_extras.nodes_video import SaveVideo
 from server import PromptServer
 
 from . import snap_critiques, snap_faces, snap_instructions, snap_privacy
+from .snap_ffmpeg import NICE, need as need_ffmpeg
 from .dials import core as dial_core
 from .snap_conversations import register as register_conversations
 try:
@@ -1056,6 +1057,7 @@ class MAISaveVideoPrivate(SaveVideo):
                 src = os.path.join(folder_paths.get_temp_directory(), f"snap_nometa_in_{uuid.uuid4().hex}{ext}")
                 video.save_to(src)
             out = os.path.join(folder_paths.get_temp_directory(), f"snap_nometa_{uuid.uuid4().hex}{ext}")
+            need_ffmpeg()
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", src, "-map", "0", "-map_metadata", "-1", "-c", "copy", out], check=True, timeout=600)
             video = InputImpl.VideoFromFile(out)
         return super().execute(video=video, **kwargs)
@@ -1331,10 +1333,6 @@ async def take_marks(request):
 # is quiet" below about -45 dB; nothing changes until the person picks an action. "Make it louder" queues LoadVideo ->
 # MAISnapLouder -> Save Video, which lands as a version of the take: EBU R128 loudnorm (I=-23, TP=-2) on the sound, the
 # picture copied as it is (Save Video reuses the stream).
-# ffmpeg at low priority where there is `nice` (not on Windows)
-NICE = ["nice", "-n", "10"] if os.name != "nt" and shutil.which("nice") else []
-
-
 def volume(path):
     """(mean dB, max dB) of a file's sound from ffmpeg volumedetect, or None when it has no sound."""
     r = subprocess.run([*NICE, "ffmpeg", "-hide_banner", "-nostats", "-i", path, "-vn", "-af", "volumedetect", "-f", "null", "-"], capture_output=True, text=True, timeout=120)
@@ -1419,6 +1417,7 @@ class MAISnapLouder(io.ComfyNode):
 
     @classmethod
     def execute(cls, video) -> io.NodeOutput:
+        need_ffmpeg()
         src, temp = video.get_stream_source(), folder_paths.get_temp_directory()
         if isinstance(src, BytesIO) and snap_vault_server is not None:  # a take kept encrypted, opened in memory: work in RAM scratch (SNAP-R98)
             with snap_vault_server.scratch("in.mp4") as a, snap_vault_server.scratch("out.mp4") as b:

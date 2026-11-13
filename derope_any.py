@@ -129,7 +129,7 @@ class H3SaveHoldMap:
             k += 1
             path = f"{base}_{k:05d}.json"
         data = json.loads(hold_map)
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f)
         print(f"[MAINodes] H3SaveHoldMap -> {path}")
         return {"ui": {"text": [os.path.relpath(path, root)]}, "result": (path,)}
@@ -176,7 +176,7 @@ class H3LoadHoldMap:
             path = cands[-1]
         elif not os.path.isabs(path):
             path = os.path.join(root, path)
-        data = json.load(open(path))
+        data = json.load(open(path, encoding="utf-8-sig"))
         # only the clock travels: the target grid of the graph that wrote it must
         # not leak into a different model's smear
         clock = {"holds": [int(h) for h in data["holds"]],
