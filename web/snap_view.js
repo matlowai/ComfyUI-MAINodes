@@ -2,6 +2,7 @@
 // one toggle away (Alt+S, the Snap button, or "Toggle Snap view" in the command palette). Design and numbers:
 // the Snap study notes, UX_SPEC.md.
 import { app } from "../../scripts/app.js";
+import * as ON from "./snap/enabled.js";
 import { api } from "../../scripts/api.js";
 import * as engine from "./snap/engine.js";
 import { createView } from "./snap/view.js";
@@ -106,7 +107,7 @@ const setOpenIn = (place) => app.extensionManager.setting.set(OPEN_IN, Object.ke
 
 app.registerExtension({
   name: "MAINodes.Snap",
-  settings: [{ id: OPEN_IN, category: ["MAINodes", "Snap", "Open in"], name: "Clicking a Snap brick opens its settings in", type: "combo",
+  settings: [ON.setting, { id: OPEN_IN, category: ["MAINodes", "Snap", "Open in"], name: "Clicking a Snap brick opens its settings in", type: "combo",
     options: Object.keys(PLACES), defaultValue: "Side panel", onChange: () => view?.openInChanged() },
     { id: AGENTS_RUN, category: ["MAINodes", "Snap", "Agents run"], name: "Let agents run renders and make dials without asking", type: "boolean", defaultValue: false,
       tooltip: "Off: an agent's run or make_dial waits as a proposal you accept. On: it starts right away (it uses GPU time)." },
@@ -133,19 +134,22 @@ app.registerExtension({
       options: Object.entries(PF.REVIEWS).map(([value, text]) => ({ value, text })), defaultValue: "unknown",
       tooltip: "It costs tokens. Packs in Snap's kits already carry a safety read. Every install still waits for your yes.",
       onChange: (v, old) => { if (old !== undefined && v !== PF.get().code_review) PF.set({ code_review: v }); } }],
-  commands: [{ id: "MAINodes.Snap.Toggle", label: "Toggle Snap view", icon: "icon-[lucide--blocks]", function: () => toggle() }],
-  keybindings: [{ combo: { key: "s", alt: true }, commandId: "MAINodes.Snap.Toggle" }],
-  actionBarButtons: [{ icon: "icon-[lucide--blocks]", label: "Snap", tooltip: "Snap view (Alt+S)", onClick: () => toggle() }],
+  // Snap off (web/snap/enabled.js): no button, no key, and the command only says where to turn it on
+  commands: [{ id: "MAINodes.Snap.Toggle", label: "Toggle Snap view", icon: "icon-[lucide--blocks]", function: () => (view ? toggle() : ON.offNote()) }],
+  keybindings: ON.snapOn ? [{ combo: { key: "s", alt: true }, commandId: "MAINodes.Snap.Toggle" }] : [],
+  actionBarButtons: ON.snapOn ? [{ icon: "icon-[lucide--blocks]", label: "Snap", tooltip: "Snap view (Alt+S)", onClick: () => (view ? toggle() : ON.offNote()) }] : [],
   // SNAP-R74 (anime dogfood F-C08): core Load Audio lists only input/'s top level, so audio Snap put under input/snap/
   // (uploads, Cast voices) is added to its choices; its own validation accepts any input file
   async beforeRegisterNodeDef(nodeType, nodeData) {
-    if (nodeData.name !== "LoadAudio") return;
+    if (!ON.snapOn || nodeData.name !== "LoadAudio") return;
     const spec = nodeData.input?.required?.audio, list = Array.isArray(spec?.[0]) ? spec[0] : spec?.[1]?.options;
     if (!Array.isArray(list)) return;
     const mine = await api.fetchApi("/mainodes/snap/input_audio").then((r) => (r.ok ? r.json() : []), () => []);
     list.push(...mine.filter((f) => !list.includes(f)));
   },
   setup() {
+    const changed = ON.settle(); // settings are in by now
+    if (!ON.snapOn || changed) return; // off (or this browser's copy was out of date: right from the next load): nothing of Snap runs, ComfyUI queues prompts as stock
     document.head.append(Object.assign(document.createElement("style"), { textContent: STYLE + AL_STYLE + BOOK_STYLE + PLAN_STYLE })); // the Agent library keeps its own rules beside its sheet
     // SNAP-R20: every prompt this page queues (Snap's Run, the graph's, an agent's) says whether its files keep metadata;
     // SNAP-R65: and carries its job stamp, put into the POST that api.queuePrompt sends at once (its first await)

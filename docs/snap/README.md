@@ -28,6 +28,12 @@ sources and licenses, and a command you can run (see [Third-party models and lic
 
 The same toggle takes you back to the graph.
 
+## Turn Snap off
+
+Settings › MAINodes › Snap › **Snap: show it in ComfyUI**. Off, then reload the page: the Snap and Strategies buttons leave
+the top bar, the Snap tab leaves the sidebar, Alt+S does nothing, and Snap adds nothing to the prompts you queue. The
+pack's nodes keep working. Turning it back on also takes a reload.
+
 ## What to try
 
 - **Recipes and setups:** start a recipe from the onboarding sheet or the Library (MiniMax H3 video with sound, MOSS-Image
