@@ -152,7 +152,7 @@ existing installs.
   where it was tested. Alpha nodes carry `(alpha)` in the menu and load
   behind a guarded loader, so a broken one cannot take the pack down.
 - **Snap** (pre-alpha): a snap-together view over the ComfyUI graph, with agent tools. It works but is not polished
-  yet. How to try it, known issues and the third-party model licenses: [`docs/snap/README.md`](docs/snap/README.md). Don't want it? Settings › MAINodes › Snap › "Snap: show it in ComfyUI" turns all of it off.
+  yet. How to try it, known issues and the third-party model licenses: [`docs/snap/README.md`](docs/snap/README.md). It is off until you turn it on (Extensions menu: "Snap (pre-alpha): turn on"), and off it adds nothing to ComfyUI but that one entry.
 - **Node Shelf:** hide node packs, or single nodes, you don't use. Open it from ComfyUI's command palette ("Node Shelf"), the Extensions menu, or Snap's top bar. Hidden nodes leave node search, the node library, the right-click Add Node menu and Snap's Add brick; they stay installed, so workflows that use them still load and run. Needs a ComfyUI interface from about August 2025 or later; on an older one the dialog says so and hides nothing. Also available by itself: [comfyui-node-shelf](https://github.com/matlowai/comfyui-node-shelf) (installing both is fine: one copy runs).
 - **What's new:** RelayVSR upscaling with quality presets and 16 / 24 GB tiers ([`relayvsr/README.md`](relayvsr/README.md), 2026-11-03). Older notes in
   [`docs/NEWS.md`](docs/NEWS.md); open questions in [`ROADMAP.md`](ROADMAP.md).

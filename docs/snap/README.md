@@ -21,18 +21,18 @@ reload the page. There is nothing separate to install.
 Snap downloads nothing by itself. The onboarding sheet lists the files and node packs a setup needs, with sizes,
 sources and licenses, and a command you can run (see [Third-party models and licenses](#third-party-models-and-licenses)).
 
-## Open it
+## Turn it on, open it
 
-- Open `http://<your ComfyUI>/?snap`, or
-- press the **Snap** button in the ComfyUI top bar, or Alt+S, or "Toggle Snap view" in the command palette.
+Snap is **off until you turn it on**. Off, it adds nothing to ComfyUI but one menu entry: no buttons, no sidebar tab,
+no settings, and nothing added to the prompts you queue. The pack's nodes work either way.
 
-The same toggle takes you back to the graph.
-
-## Turn Snap off
-
-Settings › MAINodes › Snap › **Snap: show it in ComfyUI**. Off, then reload the page: the Snap and Strategies buttons leave
-the top bar, the Snap tab leaves the sidebar, Alt+S does nothing, and Snap adds nothing to the prompts you queue. The
-pack's nodes keep working. Turning it back on also takes a reload.
+- **Turn it on:** ComfyUI's Extensions menu or the command palette, **Snap (pre-alpha): turn on**. It starts at once,
+  with no reload, and stays on. Opening `http://<your ComfyUI>/?snap` turns it on too.
+- If you opened Snap in an earlier version, it stays on after the update.
+- **Open it** once it is on: the **Snap** button in the ComfyUI top bar, Alt+S, "Toggle Snap view" in the command
+  palette, or `/?snap`. The same toggle takes you back to the graph.
+- **Turn it off:** **Turn Snap off** in Snap's top bar (or "Snap: turn off" in the command palette). Snap closes and
+  its sidebar tab goes at once; reload the page to finish, which is when its top-bar buttons and Alt+S go.
 
 ## What to try
 

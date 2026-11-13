@@ -3,6 +3,7 @@
 // the Snap study notes, UX_SPEC.md.
 import { app } from "../../scripts/app.js";
 import * as ON from "./snap/enabled.js";
+import { registerDirector } from "./snap_director.js";
 import { api } from "../../scripts/api.js";
 import * as engine from "./snap/engine.js";
 import { createView } from "./snap/view.js";
@@ -105,9 +106,10 @@ const OPEN_IN = "MAINodes.Snap.OpenIn", PLACES = { "Side panel": "panel", "The b
 const openIn = () => PLACES[app.extensionManager.setting.get(OPEN_IN)] ?? "panel";
 const setOpenIn = (place) => app.extensionManager.setting.set(OPEN_IN, Object.keys(PLACES).find((k) => PLACES[k] === place));
 
-app.registerExtension({
+// all of Snap in ComfyUI. Registered as the page loads when Snap is on, or the moment a person turns it on (below)
+const SNAP = {
   name: "MAINodes.Snap",
-  settings: [ON.setting, { id: OPEN_IN, category: ["MAINodes", "Snap", "Open in"], name: "Clicking a Snap brick opens its settings in", type: "combo",
+  settings: [{ id: OPEN_IN, category: ["MAINodes", "Snap", "Open in"], name: "Clicking a Snap brick opens its settings in", type: "combo",
     options: Object.keys(PLACES), defaultValue: "Side panel", onChange: () => view?.openInChanged() },
     { id: AGENTS_RUN, category: ["MAINodes", "Snap", "Agents run"], name: "Let agents run renders and make dials without asking", type: "boolean", defaultValue: false,
       tooltip: "Off: an agent's run or make_dial waits as a proposal you accept. On: it starts right away (it uses GPU time)." },
@@ -134,22 +136,20 @@ app.registerExtension({
       options: Object.entries(PF.REVIEWS).map(([value, text]) => ({ value, text })), defaultValue: "unknown",
       tooltip: "It costs tokens. Packs in Snap's kits already carry a safety read. Every install still waits for your yes.",
       onChange: (v, old) => { if (old !== undefined && v !== PF.get().code_review) PF.set({ code_review: v }); } }],
-  // Snap off (web/snap/enabled.js): no button, no key, and the command only says where to turn it on
-  commands: [{ id: "MAINodes.Snap.Toggle", label: "Toggle Snap view", icon: "icon-[lucide--blocks]", function: () => (view ? toggle() : ON.offNote()) }],
-  keybindings: ON.snapOn ? [{ combo: { key: "s", alt: true }, commandId: "MAINodes.Snap.Toggle" }] : [],
-  actionBarButtons: ON.snapOn ? [{ icon: "icon-[lucide--blocks]", label: "Snap", tooltip: "Snap view (Alt+S)", onClick: () => (view ? toggle() : ON.offNote()) }] : [],
+  commands: [{ id: "MAINodes.Snap.Toggle", label: "Toggle Snap view", icon: "icon-[lucide--blocks]", function: () => toggle() },
+    { id: "MAINodes.Snap.TurnOff", label: "Snap: turn off", icon: "icon-[lucide--power]", function: () => turnOff() }],
+  keybindings: [{ combo: { key: "s", alt: true }, commandId: "MAINodes.Snap.Toggle" }],
+  actionBarButtons: [{ icon: "icon-[lucide--blocks]", label: "Snap", tooltip: "Snap view (Alt+S)", onClick: () => (leaving ? turnOn() : toggle()) }], // after Turn Snap off the button stays until the reload: a press on it turns Snap back on
   // SNAP-R74 (anime dogfood F-C08): core Load Audio lists only input/'s top level, so audio Snap put under input/snap/
   // (uploads, Cast voices) is added to its choices; its own validation accepts any input file
   async beforeRegisterNodeDef(nodeType, nodeData) {
-    if (!ON.snapOn || nodeData.name !== "LoadAudio") return;
+    if (nodeData.name !== "LoadAudio") return;
     const spec = nodeData.input?.required?.audio, list = Array.isArray(spec?.[0]) ? spec[0] : spec?.[1]?.options;
     if (!Array.isArray(list)) return;
     const mine = await api.fetchApi("/mainodes/snap/input_audio").then((r) => (r.ok ? r.json() : []), () => []);
     list.push(...mine.filter((f) => !list.includes(f)));
   },
   setup() {
-    const changed = ON.settle(); // settings are in by now
-    if (!ON.snapOn || changed) return; // off (or this browser's copy was out of date: right from the next load): nothing of Snap runs, ComfyUI queues prompts as stock
     document.head.append(Object.assign(document.createElement("style"), { textContent: STYLE + AL_STYLE + BOOK_STYLE + PLAN_STYLE })); // the Agent library keeps its own rules beside its sheet
     // SNAP-R20: every prompt this page queues (Snap's Run, the graph's, an agent's) says whether its files keep metadata;
     // SNAP-R65: and carries its job stamp, put into the POST that api.queuePrompt sends at once (its first await)
@@ -169,7 +169,7 @@ app.registerExtension({
       stamp = null;
       return sent.then((r) => { T.queuedRun(r?.prompt_id); J.sent(job, r?.prompt_id ?? null); return r; }, (e) => { J.sent(job, null); throw e; });
     };
-    view = createView({ onSwitch: (key) => toGraph(key), onMakeApp: makeApp, run: (name, args) => callTool(name, args, { confirmed: true }), openIn, setOpenIn });
+    view = createView({ onSwitch: (key) => toGraph(key), onMakeApp: makeApp, onTurnOff: () => turnOff(), run: (name, args) => callTool(name, args, { confirmed: true }), openIn, setOpenIn });
     // agents read and drive the view through the read_ui / ui tools; switching views lives here with the switch
     const SHOWN_IN_SNAP = new Set(["location", "library", "book", "room", "open_take", "setups", "dials", "make_dial", "loras", "methods", "turbo", "onboarding", "scenes", "select"]);
     ui.read = () => ({ ...view.uiRead(), view: sw.showing ? (sw.docked ? "snap (docked)" : "snap") : "graph" });
@@ -183,8 +183,9 @@ app.registerExtension({
     document.body.append(view.root);
     sw = createSwitch(view);
     rules.load().then((list) => engine.useRules(list), () => {}); // remembered picks; without them Snap just asks again
-    app.extensionManager.registerSidebarTab({ id: TAB, icon: "icon-[lucide--blocks]", title: "Snap", tooltip: "Snap beside the graph", type: "custom",
-      render: (el) => { sw.dock(el); announce(); }, destroy: () => setTimeout(() => sw.undock(), 0) });
+    sidebarTab = { id: TAB, icon: "icon-[lucide--blocks]", title: "Snap", tooltip: "Snap beside the graph", type: "custom",
+      render: (el) => { sw.dock(el); announce(); }, destroy: () => setTimeout(() => sw.undock(), 0) };
+    app.extensionManager.registerSidebarTab(sidebarTab);
     // the tools go out once the method registry is in: their slot enum is its slots
     Promise.all([S.load().catch(() => {}), I.load().catch(() => {})]).then(() => registerWebMCP(agentCall)); // the pack's notes end the descriptions (SNAP-R93)
     // the bridge sends agent calls to one tab: the one registered last (this tab registers when it loads, regains
@@ -248,4 +249,36 @@ app.registerExtension({
       if (sw.showing) { view.render(null); announce(); }
     });
   },
+};
+
+// ---- the switch (web/snap/enabled.js): all of Snap that exists while Snap is off --------------------------------
+let on = false, leaving = false, sidebarTab = null; // leaving: turned off in this page, which still carries Snap until it reloads
+const note = (detail, life = 7000) => app.extensionManager.toast.add({ severity: "info", summary: "Snap", detail, life });
+// Turn Snap on now, with no reload: ComfyUI takes an extension registered late (its buttons, key, commands and
+// settings appear at once) but does not call its setup, so that is called here. One thing waits for the next page
+// load: Load Audio's extra choices (beforeRegisterNodeDef only runs while nodes are being registered).
+async function turnOn() {
+  if (!on) { on = true; app.registerExtension(SNAP); await SNAP.setup(); registerDirector(); }
+  if (leaving) { leaving = false; try { app.extensionManager.registerSidebarTab(sidebarTab); } catch { /* it comes back with the reload */ } }
+  await ON.save(true);
+  if (!sw.showing) await toggle();
+}
+// Turn Snap off: the view closes and the choice is saved now. A running page cannot take back what it registered (the
+// top-bar buttons, the key binding, the stamp on queued prompts): those end with the next page load, and the note says so
+async function turnOff() {
+  if (!on) return;
+  if (sw.docked) { await app.extensionManager.command.execute(`Workspace.ToggleSidebarTab.${TAB}`); sw.undock(true); }
+  if (sw.showing) toGraph();
+  await ON.save(false);
+  try { app.extensionManager.unregisterSidebarTab?.(TAB); } catch { /* an older interface: the tab goes with the reload */ }
+  leaving = true;
+  note("Snap is off. Reload the page to finish: its top-bar buttons and Alt+S go then. To turn it on again: Extensions menu, or the command palette, \"Snap (pre-alpha): turn on\".", 10000);
+}
+app.registerExtension({
+  name: "MAINodes.Snap.Switch",
+  settings: [ON.setting],
+  commands: [{ id: "MAINodes.Snap.TurnOn", label: "Snap (pre-alpha): turn on", icon: "icon-[lucide--blocks]", function: () => turnOn() }],
+  menuCommands: [{ path: ["Extensions"], commands: ["MAINodes.Snap.TurnOn"] }],
+  setup() { return ON.settle(); },
 });
+if (ON.snapOn) { on = true; app.registerExtension(SNAP); }

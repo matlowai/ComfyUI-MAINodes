@@ -29,6 +29,10 @@ description, file, bytes); `GET $BASE/mainodes/snap/skills?name=snap-core` retur
 
 ## 1. Open a Snap page
 
+Snap is off until a person turns it on (docs/snap/README.md, "Turn it on, open it"). Opening `$BASE/?snap`, which
+`snap_agent_page.sh` does, turns it on for that person; a page of theirs opened without it has no Snap tools until they
+turn it on from the Extensions menu.
+
 You drive the person's main tab (SNAP-R83): their own tab once they press "Let agents see" in Snap's top bar, or the
 agents' window, one visible Chrome on this machine that agents attach to, reload and restart. Never a headless page, and
 never another tab without the person's yes.

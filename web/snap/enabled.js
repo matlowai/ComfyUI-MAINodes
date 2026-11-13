@@ -1,19 +1,25 @@
-// One switch for all of Snap in ComfyUI (2026-11-12, a tester's ask: "disable the Snap feature ... remove all buttons
-// on the topbar and sidebar"). Off: no top-bar buttons (Snap, Strategies), no sidebar tab, no Alt+S, and Snap's setup
-// does not run, so prompts are queued exactly as stock ComfyUI queues them. The pack's nodes are not affected.
-// Top-bar buttons and keybindings are fixed when an extension registers, so the switch is read once, as the page loads:
-// from ComfyUI's settings when they are in, otherwise from this browser's copy of the last value. A change takes a reload.
+// Snap is off until a person turns it on (the operator, 2026-11-12: "default to off for now until its more mature",
+// with "a do this to turn on type thing"). Off: no top-bar buttons (Snap, Strategies), no sidebar tab, no Alt+S, none of
+// Snap's settings, and Snap's setup does not run, so prompts are queued exactly as stock ComfyUI queues them. The only
+// trace is one entry in the Extensions menu and the command palette. The pack's nodes are not affected.
+//
+// The choice is ComfyUI setting MAINodes.Snap.Enabled (kept with the person's settings, no row of its own). With no
+// choice made yet, someone who has opened Snap before stays on, so an update never takes Snap away from a person
+// using it; everyone else starts off. "Opened before" is read from their userdata snap/ folder: the profile Snap writes
+// on a first visit, a take, a recipe, anything but critiques/_since.json, which older versions wrote on every page load. Opening /?snap is a choice
+// to turn it on. ComfyUI imports every .js file of a pack's web folder, so Snap's files are still fetched when it is
+// off; none of them registers or runs anything.
 import { app } from "../../../scripts/app.js";
+import { api } from "../../../scripts/api.js";
 
 export const ENABLED = "MAINodes.Snap.Enabled";
-const stored = () => { try { return app.extensionManager?.setting?.get(ENABLED); } catch { return undefined; } };
-const local = () => { try { return localStorage.getItem(ENABLED); } catch { return null; } };
-const keep = (v) => { try { localStorage.setItem(ENABLED, String(v !== false)); } catch { /* private mode: the setting still holds */ } };
-const first = stored();
-export const snapOn = first !== undefined && first !== null ? first !== false : local() !== "false";
-// once settings are certainly in (an extension's setup): true when the page must be reloaded to match the setting
-export function settle() { const now = stored() !== false; keep(now); return now !== snapOn; }
-export const setting = { id: ENABLED, category: ["MAINodes", "Snap", "Enabled"], name: "Snap: show it in ComfyUI (top bar buttons, sidebar tab, Alt+S)", type: "boolean", defaultValue: true,
-  tooltip: "Off: Snap and Strategies leave the top bar and the sidebar, Alt+S does nothing, and Snap adds nothing to the prompts you queue. The pack's nodes keep working. Reload the page after changing this.",
-  onChange: (v, old) => { keep(v); if (old !== undefined && (v !== false) !== snapOn) app.extensionManager?.toast?.add({ severity: "info", summary: "Snap", detail: `Reload the page to turn Snap ${v === false ? "off" : "on"}.`, life: 6000 }); } };
-export const offNote = () => app.extensionManager?.toast?.add({ severity: "info", summary: "Snap is off", detail: "Turn it on in Settings › MAINodes › Snap, then reload the page.", life: 6000 });
+const stored = () => { try { const v = app.extensionManager?.setting?.get(ENABLED); return v === true || v === false ? v : undefined; } catch { return undefined; } };
+const usedBefore = () => api.fetchApi("/userdata?dir=snap&recurse=true&split=false").then((r) => (r.ok ? r.json() : []), () => []).then((list) => Array.isArray(list) && list.some((f) => !/(^|\/)critiques\/_since\.json$/.test(String(f))), () => false);
+const asked = new URLSearchParams(location.search).has("snap") || new URLSearchParams(location.search).has("room");
+const choice = stored();
+// read once, as the page loads: what is registered then is what this page has until a person turns Snap on or off
+export const snapOn = asked || (choice ?? await usedBefore());
+export const save = (on) => app.extensionManager.setting.set(ENABLED, on);
+// in an extension's setup (settings are certainly in): write down a choice made for the person, so it is asked once
+export const settle = () => { if (stored() !== snapOn && (asked || stored() === undefined)) return save(snapOn); };
+export const setting = { id: ENABLED, name: "Snap: on", type: "hidden", defaultValue: null };

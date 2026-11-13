@@ -3,7 +3,7 @@ import { app } from "../../scripts/app.js";
 import { callTool, checkArgs } from "./snap/tools.js";
 import { openDirector } from "./snap/director/dialog.mjs";
 import * as SC from "./snap/scenes.js";
-import { snapOn, offNote } from "./snap/enabled.js";
+import { snapOn } from "./snap/enabled.js";
 
 const open = async () => {
   try {
@@ -14,8 +14,12 @@ const open = async () => {
     }, { book: SC.current()?.scene.book ?? "" });
   } catch (error) { console.error("SNAP production strategies", error); }
 };
-app.registerExtension({
+// part of Snap: registered with it, as the page loads or when a person turns Snap on (snap_view.js)
+const DIRECTOR = {
   name: "MAINodes.Snap.Director",
-  commands: [{ id: "MAINodes.Snap.Director.Open", label: "SNAP: Production strategies", icon: "icon-[lucide--clapperboard]", function: () => (snapOn ? open() : offNote()) }],
-  actionBarButtons: !snapOn ? [] : [{ label: "Strategies", icon: "icon-[lucide--clapperboard]", tooltip: "Preview and customize a native SNAP production strategy", onClick: open }],
-});
+  commands: [{ id: "MAINodes.Snap.Director.Open", label: "SNAP: Production strategies", icon: "icon-[lucide--clapperboard]", function: open }],
+  actionBarButtons: [{ label: "Strategies", icon: "icon-[lucide--clapperboard]", tooltip: "Preview and customize a native SNAP production strategy", onClick: open }],
+};
+let registered = false;
+export function registerDirector() { if (!registered) { registered = true; app.registerExtension(DIRECTOR); } }
+if (snapOn) registerDirector();
