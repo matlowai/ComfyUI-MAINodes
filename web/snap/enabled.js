@@ -8,7 +8,8 @@
 // using it; everyone else starts off. "Opened before" is read from their userdata snap/ folder: the profile Snap writes
 // on a first visit, a take, a recipe, anything but critiques/_since.json, which older versions wrote on every page load. Opening /?snap is a choice
 // to turn it on. ComfyUI imports every .js file of a pack's web folder, so Snap's files are still fetched when it is
-// off; none of them registers or runs anything.
+// off. Their page-wide listeners (a finished run becoming a take, seeds stepping, activity) ask `live.on` first, so
+// nothing is recorded or fetched while Snap is off.
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
@@ -22,6 +23,8 @@ export const disabledInComfy = () => { try { const d = app.extensionManager?.set
 const choice = stored();
 // read once, as the page loads: what is registered then is what this page has until a person turns Snap on or off
 export const snapOn = !disabledInComfy() && (asked || (choice ?? await usedBefore()));
+// whether Snap is on in this page right now (turning it on or off moves it; snapOn is only how the page loaded)
+export const live = { on: snapOn };
 export const save = (on) => app.extensionManager.setting.set(ENABLED, on);
 // in an extension's setup (settings are certainly in): write down a choice made for the person, so it is asked once
 export const settle = () => { if (!disabledInComfy() && stored() !== snapOn && (asked || stored() === undefined)) return save(snapOn); }; // disabled in ComfyUI: no choice is written, so enabling it there again brings Snap back as it was

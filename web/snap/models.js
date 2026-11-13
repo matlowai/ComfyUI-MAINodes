@@ -16,6 +16,7 @@ import * as L from "./library.js";
 import { BRICKS } from "./bricks.js";
 import * as PF from "./profile.js";
 import * as ACC from "./account.js";
+import { live as snapLive } from "./enabled.js";
 
 let files = new Map(), exts = [], loading = null, notify = () => {};
 // name -> { folder, size, modified } from core's folder lists (every model folder; the first folder wins a name in two),
@@ -49,7 +50,7 @@ export function locks() {
     .catch(() => { locking = null; });
   return locking;
 }
-api.addEventListener("reconnected", () => { locking = null; locks(); });
+api.addEventListener("reconnected", () => { locking = null; if (snapLive.on) locks(); });
 export const isLocked = (name) => locked.has(name);
 export const lockCount = () => locked.size; // in the faces' signatures: rows get their lock when the answer arrives
 // the lists as a tool should read them: loaded, and asked again for any recipe file they didn't have yet

@@ -28,6 +28,7 @@ import logging
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import tempfile
 import time
@@ -41,6 +42,8 @@ from comfy_api.latest import InputImpl, io
 from server import PromptServer
 
 from . import snap_astrid
+
+NICE = ["nice", "-n", "10"] if os.name != "nt" and shutil.which("nice") else []  # low priority where `nice` exists (not Windows)
 
 try:
     from . import snap_vault_server
@@ -135,7 +138,7 @@ class MAISnapCut(io.ComfyNode):
             entries = [(e, *probe(p)) for e, p in zip(spec, paths)]
             filt, total = graph(entries, width, height, fps)
             out = place("cut.mp4")
-            cmd = ["nice", "-n", "10", "ffmpeg", "-v", "error", "-y", *[a for p in paths for a in ("-i", p)], "-filter_complex", filt, "-map", "[v]", "-map", "[a]",
+            cmd = [*NICE, "ffmpeg", "-v", "error", "-y", *[a for p in paths for a in ("-i", p)], "-filter_complex", filt, "-map", "[v]", "-map", "[a]",
                    "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(out)]
             r = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
             if r.returncode:

@@ -307,7 +307,13 @@ def containers(value):
         found = []
     if os.path.isabs(value):
         found.append(value)
-    found += [p for p in (folder_paths.get_full_path(f, value) for f in folder_paths.folder_names_and_paths) if p]
+    for f in folder_paths.folder_names_and_paths:
+        try:
+            p = folder_paths.get_full_path(f, value)
+        except (ValueError, OSError):  # Windows: text with a drive-like start is not a file name
+            p = None
+        if p:
+            found.append(p)
     return sorted({p for p in found if os.path.isfile(p) and snap_vault.sealed(p)})
 
 

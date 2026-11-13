@@ -28,6 +28,7 @@ import * as E from "./engine.js";
 import { BRICKS } from "./bricks.js";
 import * as ACC from "./account.js";
 import * as W from "./world.js";
+import { live as snapLive } from "./enabled.js";
 
 // U78: an ambience-only H3 soundscape renders about -57 dB mean, one naming the action's sounds -27..-41 dB
 export const QUIET_DB = -45;
@@ -74,7 +75,7 @@ export function load() {
 function remark() {
   marked = api.fetchApi("/mainodes/snap/take_marks").then((r) => (r.ok ? r.json() : { takes: {} })).then((r) => { marks = r.takes; privacy = r.privacy === true; changed(); }, () => {});
 }
-api.addEventListener("reconnected", () => { if (loading) remark(); });
+api.addEventListener("reconnected", () => { if (snapLive.on && loading) remark(); });
 
 export const all = () => takes;
 // read the folder again: a take another tab or page wrote joins the list, one it changed since is updated in place (the
@@ -200,10 +201,11 @@ function summary(prompt) {
 
 // capture: execution events from this page's own client, then the run's record from /history
 const running = new Map(); // prompt_id -> started at
-api.addEventListener("execution_start", ({ detail }) => running.set(detail.prompt_id, Date.now()));
-api.addEventListener("execution_success", ({ detail }) => capture(detail.prompt_id, "success"));
-api.addEventListener("execution_error", ({ detail }) => capture(detail.prompt_id, "error", `${detail.node_type ?? ""}: ${detail.exception_message ?? ""}`.trim(), detail.node_id));
-api.addEventListener("execution_interrupted", ({ detail }) => capture(detail.prompt_id, "interrupted"));
+// Snap off: a run in the graph is not a take, and nothing is asked of the server about it
+api.addEventListener("execution_start", ({ detail }) => { if (snapLive.on) running.set(detail.prompt_id, Date.now()); });
+api.addEventListener("execution_success", ({ detail }) => snapLive.on && capture(detail.prompt_id, "success"));
+api.addEventListener("execution_error", ({ detail }) => snapLive.on && capture(detail.prompt_id, "error", `${detail.node_type ?? ""}: ${detail.exception_message ?? ""}`.trim(), detail.node_id));
+api.addEventListener("execution_interrupted", ({ detail }) => snapLive.on && capture(detail.prompt_id, "interrupted"));
 
 // the prompts this page queued (Run, an agent's run, a preview), newest last: run_status follows them by id (U72 F6)
 const queued = [];

@@ -8,6 +8,7 @@
 // (snapBlueprint) · SNAP-R284 grouping is one undo step and never touches pack bricks (group) · see docs/snap/SNAP_RULES.md
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
+import { live as snapLive } from "./enabled.js";
 import { BRICKS, RENDER_BLUEPRINT, IMAGE_BLUEPRINT, SIMPLE_RECIPE, useGraph } from "./bricks.js";
 
 const GAP = 80;
@@ -899,7 +900,7 @@ export function setSeedMode(key, mode) {
   if (!["fixed", "increment", "random"].includes(mode)) throw new Error("A seed mode is fixed, increment or random");
   remember(key, "seed", mode === "fixed" ? undefined : mode);
 }
-api.addEventListener("promptQueued", () => { for (const b of state().bricks) { if (b.seed === "random") newSeed(b.key); else if (b.seed === "increment") incrementSeed(b.key); } });
+api.addEventListener("promptQueued", () => { if (snapLive.on) for (const b of state().bricks) { if (b.seed === "random") newSeed(b.key); else if (b.seed === "increment") incrementSeed(b.key); } });
 
 export function updateNote(id, changes) {
   const s = state();

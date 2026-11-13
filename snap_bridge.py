@@ -27,6 +27,7 @@ import logging
 import os
 import re
 import secrets
+import shutil
 import subprocess
 import uuid
 from io import BytesIO
@@ -1088,7 +1089,7 @@ def loaded(value):
     """The real paths (symlinks followed) a string input would load from any model folder, or as an absolute path."""
     if os.path.isabs(value):
         return [os.path.realpath(value)] if os.path.isfile(value) else []
-    return [os.path.realpath(p) for p in (folder_paths.get_full_path(f, value) for f in folder_paths.folder_names_and_paths) if p]
+    return [os.path.realpath(p) for p in (in_folder(f, value) for f in folder_paths.folder_names_and_paths) if p]
 
 
 def metadata_gate(json_data):
@@ -1179,9 +1180,19 @@ class MAIRatingRefused:
         raise RuntimeError(why)
 
 
+def in_folder(folder, value):
+    """core's get_full_path, answering None for a string that can't be a file name there. On Windows core raises
+    ValueError for text with a drive-like start ("3: a wide shot", "C:..."): any prompt text reaches here, so that is
+    an ordinary no, not broken privacy rules (a tester's log, 2026-11-12)."""
+    try:
+        return folder_paths.get_full_path(folder, value)
+    except (ValueError, OSError):
+        return None
+
+
 def folders_of(value):
     """The model folders that hold this name (none for text or an absolute path)."""
-    return [] if os.path.isabs(value) else [f for f in folder_paths.folder_names_and_paths if folder_paths.get_full_path(f, value)]
+    return [] if os.path.isabs(value) else [f for f in folder_paths.folder_names_and_paths if in_folder(f, value)]
 
 
 def saves_without_prefix(class_type):
@@ -1320,9 +1331,13 @@ async def take_marks(request):
 # is quiet" below about -45 dB; nothing changes until the person picks an action. "Make it louder" queues LoadVideo ->
 # MAISnapLouder -> Save Video, which lands as a version of the take: EBU R128 loudnorm (I=-23, TP=-2) on the sound, the
 # picture copied as it is (Save Video reuses the stream).
+# ffmpeg at low priority where there is `nice` (not on Windows)
+NICE = ["nice", "-n", "10"] if os.name != "nt" and shutil.which("nice") else []
+
+
 def volume(path):
     """(mean dB, max dB) of a file's sound from ffmpeg volumedetect, or None when it has no sound."""
-    r = subprocess.run(["nice", "-n", "10", "ffmpeg", "-hide_banner", "-nostats", "-i", path, "-vn", "-af", "volumedetect", "-f", "null", "-"], capture_output=True, text=True, timeout=120)
+    r = subprocess.run([*NICE, "ffmpeg", "-hide_banner", "-nostats", "-i", path, "-vn", "-af", "volumedetect", "-f", "null", "-"], capture_output=True, text=True, timeout=120)
     mean, peak = re.search(r"mean_volume: (-?[\d.]+) dB", r.stderr), re.search(r"max_volume: (-?[\d.]+) dB", r.stderr)
     return (float(mean[1]), float(peak[1])) if mean and peak else None
 
@@ -1336,7 +1351,7 @@ HIT_OVER_DB, HIT_LOW_SHARE = 20.0, 0.5
 
 def onset(path):
     """The biggest 10 ms transient of a file's sound: {at_s, peak_db, over_db, low_share, hit}, or None without sound."""
-    r = subprocess.run(["nice", "-n", "10", "ffmpeg", "-v", "error", "-i", path, "-vn", "-ac", "1", "-ar", "16000", "-f", "f32le", "-"], capture_output=True, timeout=120)
+    r = subprocess.run([*NICE, "ffmpeg", "-v", "error", "-i", path, "-vn", "-ac", "1", "-ar", "16000", "-f", "f32le", "-"], capture_output=True, timeout=120)
     x = np.frombuffer(r.stdout, np.float32)
     w = 160  # 10 ms at 16 kHz
     n = x.size // w
@@ -1365,6 +1380,8 @@ async def loudness(request):
     path = os.path.abspath(os.path.join(root or "", q.get("subfolder", ""), q.get("filename", "")))
     if root is None or os.path.commonpath([path, os.path.abspath(root)]) != os.path.abspath(root) or not os.path.isfile(path):
         return error("No such file in output, input or temp", 404)
+    if not shutil.which("ffmpeg"):  # the page saves the take without a loudness note
+        return error("ffmpeg is not installed, so the sound was not measured", 501)
     if snap_vault_server is not None and snap_vault_server.on():
         def measure():
             with snap_vault_server.plain_copy(path, snap_vault_server.requester(request)) as p:
@@ -1388,7 +1405,7 @@ def louder_filter(path):
 
 def reached(path):
     """The integrated loudness and true peak a file's sound reached (ffmpeg ebur128), or None."""
-    r = subprocess.run(["nice", "-n", "10", "ffmpeg", "-hide_banner", "-nostats", "-i", path, "-vn", "-af", "ebur128=peak=true", "-f", "null", "-"], capture_output=True, text=True, timeout=120)
+    r = subprocess.run([*NICE, "ffmpeg", "-hide_banner", "-nostats", "-i", path, "-vn", "-af", "ebur128=peak=true", "-f", "null", "-"], capture_output=True, text=True, timeout=120)
     i, p = re.findall(r"I:\s+(-?[\d.]+) LUFS", r.stderr), re.findall(r"Peak:\s+(-?[\d.]+) dBFS", r.stderr)
     return {"lufs": float(i[-1]), "true_peak_db": float(p[-1])} if i and p else None
 

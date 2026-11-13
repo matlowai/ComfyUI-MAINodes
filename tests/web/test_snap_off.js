@@ -13,6 +13,14 @@ if (!port) { console.error("usage: node test_snap_off.js <port of a throwaway Co
   const page = await (await b.newContext({ viewport: { width: 1700, height: 900 } })).newPage(), errors = [], R = {};
   let calls = []; page.on("request", (r) => { if (/\/mainodes\/snap\/(register|page)/.test(r.url())) calls.push(r.url()); });
   page.on("pageerror", (e) => errors.push(e.message));
+  // a run in the graph: any queued prompt is swapped for a tiny one, then how many takes Snap wrote down for it
+  await page.route(/\/(api\/)?prompt$/, (r) => { if (r.request().method() !== "POST") return r.continue(); const body = JSON.parse(r.request().postData());
+    body.prompt = { 1: { class_type: "EmptyImage", inputs: { width: 64, height: 64, batch_size: 1, color: Math.floor(Math.random() * 1e7) } }, s: { class_type: "SaveImage", inputs: { images: ["1", 0], filename_prefix: "snapoff/run" } } };
+    delete body.partial_execution_targets; return r.continue({ postData: JSON.stringify(body) }); });
+  const takeFiles = () => page.evaluate(() => app.api.fetchApi("/userdata?dir=snap&recurse=true&split=false").then((r) => (r.ok ? r.json() : [])).then((l) => l.filter((f) => /take-/.test(f)).length));
+  const graphRun = async () => { const before = await takeFiles(); const q = await page.evaluate(() => app.queuePrompt(0, 1).then(() => "ok", (e) => `ERR ${e.message}`));
+    await page.waitForFunction(() => fetch("/queue").then((r) => r.json()).then((q) => !q.queue_running.length && !q.queue_pending.length), null, { timeout: 60000, polling: 400 }); await page.waitForTimeout(4000);
+    return { queued: q, takes: (await takeFiles()) - before }; };
   await page.route(/^https?:\/\/(?!127\.0\.0\.1|localhost)/, (r) => r.abort());
   const load = async (q = "") => { calls = []; await page.goto(`http://127.0.0.1:${port}/${q}`); await page.waitForFunction(() => window.app?.extensionManager?.workflow?.activeWorkflow, null, { timeout: 90000 }); await page.waitForTimeout(3500); };
   const state = async () => ({ ...(await page.evaluate(() => { const buttons = [...document.querySelectorAll("button")].map((x) => (x.textContent || "").trim()), root = document.querySelector(".snap-root");
@@ -29,7 +37,7 @@ if (!port) { console.error("usage: node test_snap_off.js <port of a throwaway Co
     for (const f of list) await app.api.fetchApi(`/userdata/${encodeURIComponent(`snap/${f}`)}`, { method: "DELETE" });
     await app.api.fetchApi("/userdata/snap%2Fcritiques%2F_since.json?overwrite=true", { method: "POST", body: "{}" }); });
   await load(); await set(null); await wipe();
-  await load(); R.fresh = await state(); R.freshAltS = await altS();
+  await load(); R.fresh = await state(); R.freshAltS = await altS(); R.freshRun = await graphRun();
   R.hasTurnOn = await page.evaluate(() => app.extensions.find((e) => e.name === "MAINodes.Snap.Switch")?.menuCommands?.[0]?.commands?.[0] ?? null);
   R.turnOn = await run("MAINodes.Snap.TurnOn"); await page.waitForTimeout(2500); await closeSheets();
   R.live = await state(); R.liveShot = null;
@@ -46,9 +54,9 @@ if (!port) { console.error("usage: node test_snap_off.js <port of a throwaway Co
   await load(); await page.keyboard.press("Escape"); R.usedBefore = await state();
   // the tester's case: opened Snap before, then disabled MAINodes.Snap in ComfyUI's Extensions panel
   await set(null); await page.evaluate(() => app.extensionManager.setting.set("Comfy.Extension.Disabled", ["MAINodes.Snap"]));
-  await load(); R.comfyDisabled = await state(); R.comfyDisabledTurnOn = await run("MAINodes.Snap.TurnOn"); await page.waitForTimeout(600); R.comfyDisabledNote = await toasts(); R.comfyDisabledAfter = await state();
+  await load(); R.comfyDisabled = await state(); R.comfyDisabledTurnOn = await run("MAINodes.Snap.TurnOn"); await page.waitForTimeout(600); R.comfyDisabledNote = await toasts(); R.comfyDisabledAfter = await state(); R.comfyDisabledRun = await graphRun();
   await page.evaluate(() => app.extensionManager.setting.set("Comfy.Extension.Disabled", []));
-  await load(); await page.keyboard.press("Escape"); R.comfyEnabledAgain = await state();
+  await load(); await page.keyboard.press("Escape"); R.comfyEnabledAgain = await state(); R.onRun = await graphRun();
   await wipe(); await set(false);
   await load("?snap"); await page.waitForTimeout(1500); await closeSheets(); R.byUrl = await state();
   await set(null);
@@ -69,6 +77,8 @@ if (!port) { console.error("usage: node test_snap_off.js <port of a throwaway Co
     "no choice made, but this person opened Snap before (a profile on the server): Snap stays on": R.usedBefore.snapBtn && R.usedBefore.root && R.usedBefore.setting === true,
     "opened before, then MAINodes.Snap disabled in ComfyUI's Extensions panel: after a refresh no Snap button, no Strategies button, no tab, nothing running": !R.comfyDisabled.snapBtn && !R.comfyDisabled.strategies && !R.comfyDisabled.tab && !R.comfyDisabled.root && R.comfyDisabled.registered === 0,
     "and there the turn-on command says to enable it in the Extensions panel, and starts nothing": /disabled in ComfyUI's Extensions panel/.test(R.comfyDisabledNote) && !R.comfyDisabledAfter.root && !R.comfyDisabledAfter.strategies,
+    "Snap off (new person; disabled in ComfyUI): a run in the graph is not written down as a take": R.freshRun.queued === "ok" && R.freshRun.takes === 0 && R.comfyDisabledRun.queued === "ok" && R.comfyDisabledRun.takes === 0,
+    "Snap on: the same run is a take": R.onRun.queued === "ok" && R.onRun.takes === 1,
     "enabled there again: Snap is back, with no choice lost": R.comfyEnabledAgain.snapBtn && R.comfyEnabledAgain.strategies && R.comfyEnabledAgain.root,
     "/?snap turns it on and opens it, even when it was off": R.byUrl.snapBtn && R.byUrl.showing && R.byUrl.setting === true,
     "no page errors": errors.length === 0,

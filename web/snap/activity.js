@@ -19,6 +19,7 @@ import * as SC from "./scenes.js";
 import * as W from "./world.js";
 import * as ACC from "./account.js";
 import * as J from "./jobs.js";
+import { live as snapLive } from "./enabled.js";
 import * as CR from "./critiques.js"; // SNAP-R101 the critic's docket is a source too
 
 export const STATES = ["queued", "running", "checking", "waiting", "done", "failed", "gone"];
@@ -210,9 +211,9 @@ export async function list({ zone, state, kind, by, about, offset = 0, limit } =
 // store changes, and every 2 s while anything is live
 let remaining = null, timer = null;
 api.addEventListener("mainodes-snap-astrid", () => reconcile()); // a push to Astrid started, queued or ended
-api.addEventListener("status", ({ detail }) => { const n = detail?.exec_info?.queue_remaining ?? null; if (n !== remaining) { remaining = n; reconcile(); } });
+api.addEventListener("status", ({ detail }) => { const n = detail?.exec_info?.queue_remaining ?? null; if (n !== remaining) { remaining = n; if (snapLive.on) reconcile(); } });
 for (const ev of ["execution_start", "execution_success", "execution_error", "execution_interrupted"]) api.addEventListener(ev, () => reconcile());
-api.addEventListener("reconnected", () => { restarted = true; reconcile(); });
+api.addEventListener("reconnected", () => { restarted = true; if (snapLive.on) reconcile(); });
 C.onChange(() => build());
 J.onRefuse(() => build());
 T.onChange(() => build());

@@ -258,6 +258,7 @@ const note = (detail, life = 7000) => app.extensionManager.toast.add({ severity:
 // load: Load Audio's extra choices (beforeRegisterNodeDef only runs while nodes are being registered).
 async function turnOn() {
   if (ON.disabledInComfy()) return note("Snap is disabled in ComfyUI's Extensions panel (Settings › Extensions › MAINodes.Snap). Enable it there and reload the page.", 10000);
+  ON.live.on = true;
   if (!on) { on = true; app.registerExtension(SNAP); await SNAP.setup(); registerDirector(); }
   if (leaving) { leaving = false; try { app.extensionManager.registerSidebarTab(sidebarTab); } catch { /* it comes back with the reload */ } }
   await ON.save(true);
@@ -270,6 +271,7 @@ async function turnOff() {
   if (sw.docked) { await app.extensionManager.command.execute(`Workspace.ToggleSidebarTab.${TAB}`); sw.undock(true); }
   if (sw.showing) toGraph();
   await ON.save(false);
+  ON.live.on = false;
   try { app.extensionManager.unregisterSidebarTab?.(TAB); } catch { /* an older interface: the tab goes with the reload */ }
   leaving = true;
   note("Snap is off. Reload the page to finish: its top-bar buttons and Alt+S go then. To turn it on again: Extensions menu, or the command palette, \"Snap (pre-alpha): turn on\".", 10000);
