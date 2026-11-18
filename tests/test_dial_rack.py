@@ -229,6 +229,30 @@ def check_image_model():
     assert names.count("MiniMax H3") == 1, names
 
 
+class HyperFlowModel(MiniMaxH3Model):  # ComfyUI-HyperFlow-Flash's class: the H3 text path with a two-time embedder
+    pass
+
+
+def check_hyperflow_model():
+    """HyperFlow H3 Flash is the H3 family: the same seams, H3 dials shift it as they do the video model, and it is a
+    video model, so a time curve is not refused as it is on the image model."""
+    torch.manual_seed(7)
+    video, flash = Fake(), Fake()
+    flash.diffusion_model = HyperFlowModel()
+    flash.diffusion_model.load_state_dict(video.diffusion_model.state_dict())
+    patch = lambda f: comfy.model_patcher.ModelPatcher(f, load_device=torch.device("cpu"), offload_device=torch.device("cpu"))
+    video, flash = patch(video), patch(flash)
+    assert core.text_path(flash) is core.text_path(video) and core.text_path(flash).family == "MiniMax H3"
+    assert not core.is_still(flash)
+    x = torch.randn(5, H)
+    ins = {"dial_0": dial("post", 1, "a"), "dial_1": dial("pre", 2, "b")}
+    rows = [dict(input="dial_0", strength=1.5), dict(input="dial_1", strength=-0.5)]
+    out = run(rack(flash, rows, ins), x)
+    assert torch.equal(out, run(rack(video, rows, ins), x)), "the HyperFlow model's rack differs from the video model's"
+    assert not torch.equal(out, run(flash, x)), "the dials did not reach the HyperFlow model"
+    rack(flash, [dict(input="dial_0", strength=1, time={"type": "keys", "points": [[0, 0], [1, 1]]})], ins)
+
+
 def _unsupported():
     other = Fake()
     other.diffusion_model = torch.nn.Linear(1, 1)
@@ -241,6 +265,7 @@ def _unsupported():
 
 def main():
     check_image_model()
+    check_hyperflow_model()
     torch.manual_seed(0)
     base = comfy.model_patcher.ModelPatcher(Fake(), load_device=torch.device("cpu"), offload_device=torch.device("cpu"))
     x = torch.randn(5, H)
