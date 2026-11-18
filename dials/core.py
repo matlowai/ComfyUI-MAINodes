@@ -60,6 +60,10 @@ TEXT_PATHS = {
     # MiniMax-H3-Image: MiniMax's image fine-tune of the same stack without the audio stream. One family with the video
     # model, so H3 dials load on it (operator, 2026-11-12: "same model. loras even work on it"; the day-night dial steered it at about 3x the video strength).
     "MiniMaxH3ImageModel": H3_PATH,
+    # HyperFlow H3 Flash (VideoRebirthAI/hyperflow-h3-flash, loaded by ComfyUI-HyperFlow-Flash): the H3 stack with a two-time
+    # (t, r) time embedder and the same prompt path. H3 dials steered it on 2026-11-17 (one seed each: ink wash 2,
+    # day/night +1.5 and -1.5, an impact frame pulse at 4.5; motion +1.5 replaced the scene). Safetensors loader only tested.
+    "HyperFlowModel": H3_PATH,
     "MOSSImage": TextPath("MOSS-Image", "text_embedder.proj", "text_embedder", _moss_refine, False, "moss_image"),
     # txtfusion has no biased projection up front; txtmlp ends in a Linear, so a post dial equals a txtmlp.3 bias diff
     "SingleStreamDiT": TextPath("Krea 2", None, "txtmlp", lambda dm, x: dm.txtmlp(dm.txtfusion(dm._unpack_context(x[None])))[0], False, "krea2"),
