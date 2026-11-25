@@ -16,6 +16,9 @@ in here ourselves instead of exporting an entrypoint.
 The original ComfyUI-H3-ContactSheet repo remains for existing installs;
 this is the consolidated home going forward.
 """
+import logging
+import sys
+
 from .contact_sheet import H3ContactSheet, H3ContactSheetDecode
 from .motion import TIMESMEAR_CLASS_MAPPINGS, TIMESMEAR_DISPLAY_MAPPINGS
 
@@ -42,12 +45,21 @@ NODE_DISPLAY_NAME_MAPPINGS = dict(TIMESMEAR_DISPLAY_MAPPINGS)
 # voice reference; snap_vault_server (2026-11-06) keeps private takes encrypted where privacy is on; snap_critiques
 # (2026-11-06) keeps the critic's docket; snap_iris (2026-11-06) keeps the Cast's eye colour after a stage 2 redraw;
 # snap_astrid (2026-11-07) runs Astrid's CLI for Snap and keeps the receipt of where each Cut went.
+#
+# Snap is also a pack of its own, comfyui-snap (2026-11-22). Where ComfyUI loads that pack and it runs Snap, the Snap
+# built in here stands down: its ten modules are not imported, so one Snap registers the /mainodes/snap routes, the
+# node types and the Library's writer, and comfyui-snap answers this pack's Snap page addresses with its own modules.
+# That pack decides it once, before any pack is imported (its prestartup_script.py), and leaves the answer as the module
+# comfyui_snap_handover; anything else than runs = True there means the built-in Snap runs, as before.
+_snap = ("snap_bridge", "snap_vault_server", "snap_world", "snap_critiques", "snap_instructions", "snap_faces", "snap_voice", "snap_book", "snap_astrid", "snap_iris")
+if getattr(sys.modules.get("comfyui_snap_handover"), "runs", None) is True:
+    logging.info("[MAINodes] Snap is provided by comfyui-snap: the built-in Snap stands down")  # logging: a print is lost where the log is a file
+    _snap = ()
 for _mod in ("window_loop", "window_expand", "timeline.nodes",
              "concept_lab.nodes", "vram_lab", "derope_any", "video_out", "video_compare",
              "h3_capabilities", "h3_extend", "h3_repair", "h3_drift", "h3_color_carry", "dials.nodes", "render", "relayvsr.nodes", "relayvsr.routes", "h3_refs",
              "h3_measure", "h3_mask_conv", "h3_core_compat",
-             "h3_guide_anchor", "h3_cond_strength", "flow",
-             "snap_bridge", "snap_vault_server", "snap_world", "snap_critiques", "snap_instructions", "snap_faces", "snap_voice", "snap_book", "snap_astrid", "snap_iris"):
+             "h3_guide_anchor", "h3_cond_strength", "flow", *_snap):
     try:
         _m = __import__(f"{__name__}.{_mod}", fromlist=["*"])
     except Exception as _e:                       # an alpha module must never
