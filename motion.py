@@ -1984,7 +1984,10 @@ class H3TrueClock:
         "of the final world frame and cost no extra world time). Wire the "
         "same sampler you would otherwise pass to SamplerCustomAdvanced. "
         "Judged on: does world-speed hold for background agents, and does "
-        "beat duplication drop.")
+        "beat duplication drop.\n\n"
+        "With the H3 variable-clock LoRA (trained on this clock), set "
+        "keep_fine_bands to 2: the model is then on-distribution and the "
+        "same node also drives stage-1 text-to-video on a variable clock.")
 
     @classmethod
     def INPUT_TYPES(cls):

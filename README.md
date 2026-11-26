@@ -41,6 +41,16 @@ Every graph comes as `name.json` (drag onto the canvas) and usually
 
 ## Motion Lab (de-rope)
 
+> **Newest: de-rope with a variable clock (H3 variable-clock LoRA).** A rank-16 LoRA trained so H3 reads a
+> per-latent clock (normal / 2x / 4x real time per latent). Use it in the de-rope pass with **H3 True Clock**
+> wired to the same hold map and `keep_fine_bands = 2`, so held stretches regenerate at their world speed
+> instead of re-inventing fast detail at the normal per-frame rhythm. It also does stage-1 text-to-video
+> straight onto a variable clock. LoRA, ready-to-run workflows (`stage2_derope_clock`, `stage1_t2v_clock`),
+> example outputs, clock-map rules and an honest results write-up:
+> [huggingface.co/MATLOWAI/MiniMax-H3-Variable-Clock](https://huggingface.co/MATLOWAI/MiniMax-H3-Variable-Clock).
+> Experimental: trained on live action only, one-seed comparisons so far, no compute saving yet; keep the
+> inject moderate (around 0.5-0.7) and judge timing of small detail on your own clips.
+
 One latent token spans four video frames, and at high speed those four
 frames need four poses one token cannot hold, so H3 smears. The pipeline
 reads where motion runs too hot from the clip's own latent (the oracle),

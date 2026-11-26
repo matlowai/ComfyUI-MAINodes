@@ -1,5 +1,10 @@
 # Motion Lab
 
+> **Newest: de-rope with a variable clock.** The H3 variable-clock LoRA plus **H3 True Clock**
+> (`keep_fine_bands = 2`) is the recommended de-rope pass now; see
+> [the README's Motion Lab section](../README.md#motion-lab-de-rope) and
+> [the LoRA page](https://huggingface.co/MATLOWAI/MiniMax-H3-Variable-Clock).
+
 H3 smears bursty motion: backflips, fast sword arcs, whip-fast reversals.
 The cause is structural. One latent token spans four pixel frames, and at
 high motion speed those four frames need four distinct poses that a single
