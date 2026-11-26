@@ -396,8 +396,8 @@
    ],
    "scheduler": "beta",
    "total_steps": 6,
-   "inject": 0.48,
-   "preset": "custom"
+   "inject": 0.45,
+   "preset": "faithful 0.45 (default)"
   },
   "_meta": {
    "title": "H3InjectSchedule"

@@ -465,8 +465,8 @@
    "widgets_values": [
     "simple",
     25,
-    0.7,
-    "balanced 0.70 (default)"
+    0.45,
+    "faithful 0.45 (default)"
    ]
   },
   {

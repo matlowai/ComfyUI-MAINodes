@@ -49,7 +49,7 @@ Every graph comes as `name.json` (drag onto the canvas) and usually
 > example outputs, clock-map rules and an honest results write-up:
 > [huggingface.co/MATLOWAI/MiniMax-H3-Variable-Clock](https://huggingface.co/MATLOWAI/MiniMax-H3-Variable-Clock).
 > Experimental: trained on live action only, one-seed comparisons so far, no compute saving yet; keep the
-> inject moderate (around 0.5-0.7) and judge timing of small detail on your own clips.
+> inject moderate (0.45 default, up to about 0.7) and judge timing of small detail on your own clips.
 
 One latent token spans four video frames, and at high speed those four
 frames need four poses one token cannot hold, so H3 smears. The pipeline
@@ -77,7 +77,7 @@ by exact frame selection.
 pass 1 at 12 steps on the base model, the turbo LoRA at 6 steps for the
 de-rope, dialogue kept intact by the audio init. 192 frames at 1 MP take
 **about 12 minutes** end to end on an RTX PRO 6000 (36 for 25 steps both
-passes without turbo). Reach for `inject` (0.50 sharper, 0.70 safer)
+passes without turbo). Reach for `inject` (0.45 is the safe default; 0.70 re-invents more)
 before any other setting, and try a 2 to 3 second clip first.
 
 The full guide, with every graph, node table, timing table and the alpha

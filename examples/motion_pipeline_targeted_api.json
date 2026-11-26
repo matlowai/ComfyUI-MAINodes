@@ -309,7 +309,7 @@
    ],
    "scheduler": "simple",
    "total_steps": 25,
-   "inject": 0.7
+   "inject": 0.45
   }
  },
  "205": {

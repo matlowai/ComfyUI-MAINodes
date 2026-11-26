@@ -21,7 +21,7 @@ remove frames or pixels beat the dials that make steps cheaper.
 | `dilation` / `d_max` | H3 Time Smear / H3 Jerk Oracle | 4 | 3 or 2 | the slow-motion budget on bursts; 2 still beats no de-rope by a wide margin |
 | `q` | H3 Jerk Oracle | 0.75 | 0.85 | fewer frames count as bursts, so borderline motion stays baseline |
 | `expand_to_end` | H3 Time Smear | on in some graphs | off | the span after the last burst stays baseline; fine when the tail is calm |
-| `inject` | H3 Inject Schedule | 0.48 | keep 0.48 | it is already the cheap setting: only the steps below the inject point run. 0.7 is the deeper, slower variant |
+| `inject` | H3 Inject Schedule | 0.45 | keep 0.45 | it is already the cheap setting: only the steps below the inject point run. 0.7 is the deeper, slower variant |
 | pass 2 resolution | the second ResolutionSelector | 1.5 MP | 1.0 MP | the upscale half of upscale-de-rope; tokens scale with pixels |
 | `coverage` | H3 Window Plan | full clip | burst only | on NON-upscale graphs only: calm spans keep their baseline render. On upscale graphs leave it on full clip or calm spans stay low-res |
 | `kv_store` | H3 Streamed Blocks | kvi8r | kvi8s | needs the sageattention package; measured 219 vs 318 s/step at long context, judged side by side as a keeper |

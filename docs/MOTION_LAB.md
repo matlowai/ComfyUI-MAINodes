@@ -83,10 +83,11 @@ same graph in API format for scripted use.
 
 Three flows cover almost every job, and the examples keep one graph per job:
 the full-quality pipeline (25-step pass 1, 25-step pass 2, no turbo), the fast
-flow (12-step turbo pass 1, 6-step turbo pass 2, inject 0.48 or 0.7), and the
-low-VRAM stack in [LOWVRAM.md](../LOWVRAM.md). Inject 0.48 replaced 0.50 as the
-shipped default: at 0.50 and above some scenes measurably loosen their hold on
-the reference. Historical dial studies and superseded variants live in
+flow (12-step turbo pass 1, 6-step turbo pass 2, inject 0.45), and the
+low-VRAM stack in [LOWVRAM.md](../LOWVRAM.md). Inject 0.45 is the shipped
+default in the node and every example graph (0.48 replaced 0.50 first): at 0.50
+and above some scenes measurably loosen their hold on the reference; 0.70
+re-invents more. Historical dial studies and superseded variants live in
 [`examples/archive/`](../examples/archive/), still runnable as committed. When the
 defaults are too slow for your card or your patience, [FASTER.md](../FASTER.md)
 prices every speed dial from measured runs.

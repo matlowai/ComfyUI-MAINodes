@@ -3774,25 +3774,29 @@ class H3LatentUpscale:
 
 
 class H3InjectSchedule:
-    """Truncated sigma schedule for v2v injection. inject=0.70 (the
-    measured sweet spot) keeps the init's coarse choreography and re-rolls
-    rendering; lower inherits more artifact risk, higher drifts toward
-    free generation (invented-physics regime)."""
+    """Truncated sigma schedule for v2v injection. inject=0.45 (the shipped
+    default) keeps the init's choreography and its hold on the reference
+    while re-rolling rendering; lower inherits more artifact risk, higher
+    (0.70 and up) drifts toward free generation (invented-physics regime)."""
 
     DESCRIPTION = (
         "Truncated sigma schedule for v2v injection — THE quality dial of "
         "the pipeline. inject = how much of the denoise trajectory actually "
         "runs on top of your smeared init.\n\n"
-        "Recommended range 0.5-0.8. Default 0.70 (playback-ratified). 0.5 "
-        "measured as the metric quality point in our A/B (sharpest AND "
-        "closest choreography tracking) — try both on your content. Below "
-        "~0.5 the init's own artifacts start surviving into the output; "
+        "Default 0.45, the safe setting: at 0.50 and above some scenes "
+        "measurably loosen their hold on the reference (0.48 replaced 0.50 "
+        "first; 0.45 is the default now). 0.70 is the looser, "
+        "playback-ratified setting for when you want more re-invention; try "
+        "both on your content. Well below ~0.45 the init's own artifacts "
+        "start surviving into the output; "
         "above ~0.8 the model increasingly ignores your baseline and invents "
         "its own choreography. total_steps 25 for the base model; drop to "
         "the distilled step count if you stack a turbo LoRA (measure first — "
         "injection under heavy distillation is still experimental).")
 
     PRESETS = {
+        "faithful 0.45 (default)": 0.45,
+        # the names below stay as they were so saved graphs keep validating
         "balanced 0.70 (default)": 0.70,
         "faithful detail 0.50 (metric best)": 0.50,
         "loose / creative 0.80": 0.80,
@@ -3805,11 +3809,11 @@ class H3InjectSchedule:
             "scheduler": (["simple", "normal", "beta", "sgm_uniform", "karras",
                            "exponential"], {"default": "simple"}),
             "total_steps": ("INT", {"default": 25, "min": 4, "max": 100}),
-            "inject": ("FLOAT", {"default": 0.70, "min": 0.05, "max": 1.0,
+            "inject": ("FLOAT", {"default": 0.45, "min": 0.05, "max": 1.0,
                                  "step": 0.05,
-                                 "tooltip": "0.5-0.8 recommended; lower keeps init artifacts, higher invents choreography"}),
+                                 "tooltip": "0.45 default (0.45-0.7 typical); lower keeps init artifacts, higher invents choreography"}),
         }, "optional": {
-            "preset": (["custom"] + list(cls.PRESETS), {"default": "balanced 0.70 (default)",
+            "preset": (["custom"] + list(cls.PRESETS), {"default": "faithful 0.45 (default)",
                        "tooltip": "any choice but 'custom' overrides the inject knob"}),
         }}
 

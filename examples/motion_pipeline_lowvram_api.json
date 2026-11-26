@@ -291,8 +291,8 @@
     "inputs": {
       "scheduler": "beta",
       "total_steps": 6,
-      "inject": 0.7,
-      "preset": "faithful detail 0.50 (metric best)",
+      "inject": 0.45,
+      "preset": "faithful 0.45 (default)",
       "model": [
         "303",
         0

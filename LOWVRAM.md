@@ -35,7 +35,7 @@ of its nodes without it and prints why. Paste that line in an issue.
 - `H3 Streamed Blocks` runs every DiT block in 16k-token chunks so the whole-sequence QKV and SwiGLU tensors (8.6 and 15.4 GiB at 217k tokens) never exist, and streams the output head; same math as stock (bit-equal on int8 / W4A8 with the exact K/V store);
 - **`kv_store` = kvi8r**: the K/V of the whole sequence held as rotated int8, forward peak +9.5 GiB at 217k tokens instead of +11.9 (with `trim_forward`, on by default, another 2.3 GiB comes off); a sibling take of the exact result that passed the operator's eyes on the de-rope ("perfect for both"); flip it to `bf16 (exact)` for the bit-equal path;
 - `H3 Evict Text Encoder` after each prompt encode, `H3 Free Cache` before the pass-2 decode: the 15 GB TE and the allocator pool leave the card before the VAE needs it;
-- the turbo LoRA with a 12-step base pass and a 6-step / inject 0.7 de-rope pass, so the long pass is a handful of forwards.
+- the turbo LoRA with a 12-step base pass and a 6-step / inject 0.45 de-rope pass, so the long pass is a handful of forwards.
 
 Everything below is the why and the numbers.
 
@@ -54,7 +54,7 @@ pass 2 follows the original delivery) and the smear-aware audio recover. For
 clips whose dilated pass does not fit your card in one piece, the same stack is
 wired into the windowed graph:
 [`examples/motion_pipeline_rolling_window_lowvram.json`](examples/motion_pipeline_rolling_window_lowvram.json)
-(API twin alongside; plan report first, then queue per window; inject 0.48). Each
+(API twin alongside; plan report first, then queue per window; inject 0.45). Each
 window pins its first and last frame to the baseline via `MiniMax H3 Add Guide`,
 which holds the regenerated windows on the baseline's motion and look so the
 splice seams carry no state jumps; the pin frames come straight from
@@ -69,7 +69,7 @@ K/V store on. What is in it and why, in the order it runs (2026-08-18):
 | `CLIPLoader` | `qwen3vl_32b_minimax_h3_nvfp4_awq` | the text encoder in NVFP4 (~15 GB file) |
 | `VAELoader` (video) | `minimax_h3_video_vae_int8_convrot` | 2.2 GiB less on the card than fp16, decode 1.5x faster, 60 dB PSNR against the fp16 decoder on the same latent |
 | `VAELoader` (audio) | `minimax_h3_audio_vae_fp32` | unchanged, 0.6 GB |
-| `LoraLoaderModelOnly` | lightx2v turbo 4-step v1.0 768p, strength 1.0 | pass 1 at 12 steps (`linear_quadratic`), pass 2 on a 6-step `beta` schedule with `inject 0.7` (the "faithful detail" preset), so the long de-rope pass costs a handful of forwards |
+| `LoraLoaderModelOnly` | lightx2v turbo 4-step v1.0 768p, strength 1.0 | pass 1 at 12 steps (`linear_quadratic`), pass 2 on a 6-step `beta` schedule with `inject 0.45` (the "faithful 0.45 (default)" preset), so the long de-rope pass costs a handful of forwards |
 | **`H3 Streamed Blocks`** | q/kv/mlp chunks 16384, `min_tokens` 32768, `final_layer_chunk` 16384, `final_layer_gemm` exact, **`kv_store` = kvi8r** | every DiT block in token chunks (never the whole-sequence QKV or SwiGLU), the output head streamed, and the K/V of the whole sequence held as rotated int8: forward peak +9.5 GiB at 217k tokens instead of +11.9 (exact store) or +21 (stock). Bit-equal to stock with `kv_store` = bf16; with kvi8r a sibling take that the operator judged "perfect for both" on the de-rope side by side |
 | `H3 Evict Text Encoder` (x2) | after each prompt encode | the 15 GB TE leaves the card as soon as its conditioning exists (1 to 2.5 GiB of peak on a 16 GB card, ~3 s per new prompt to bring back) |
 | `H3 Jerk Oracle`, `H3 Time Smear`, `H3 Audio Smear`, `H3 V2V Init` | `d_max 4`, dilation 4, audio 0.5 | the de-rope itself (see [Motion Lab](docs/MOTION_LAB.md)) |

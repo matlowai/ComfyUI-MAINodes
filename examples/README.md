@@ -61,7 +61,7 @@ Three dials do most of the work:
 | dial | node | what it trades |
 |---|---|---|
 | `preset` / `q` / `d_max` | H3 Jerk Oracle | how much of the clip gets slowed, and by how much. `balanced` is q 0.75, d_max 4 |
-| `inject` | H3 Inject Schedule | how far pass 2 is allowed to re-decide. 0.50 is sharper and tracks the source closer, 0.70 is the safer playback default. Effective pass-2 steps = total_steps x inject |
+| `inject` | H3 Inject Schedule | how far pass 2 is allowed to re-decide. 0.45 is the default: sharp, and it keeps its hold on the source; 0.70 re-decides more. Effective pass-2 steps = total_steps x inject |
 | `audio_mode` | H3 V2V Init | `0.5` seeds pass 2 with the baseline performance so dialogue survives the slow-down |
 
 The full symptom-to-dial table is [`../TUNING.md`](../TUNING.md#symptom-to-dial).
@@ -212,7 +212,7 @@ differ. Neither is wrong; they are different budgets.
 |---|---|---|
 | graphs | `motion_pipeline`, `_targeted`, `_editor`, `_editor_segment` | `_ref2va_audioinit`, `_ref2va`, `_fast_iterate`, `_upscale_derope`, `_rolling_window`, `_lowvram` |
 | pass 1 | 25 steps, `simple`, `res_multistep` | 12 steps, `linear_quadratic`, `gradient_estimation` |
-| pass 2 | base model, inject 0.70 | turbo LoRA, 6-step `beta`, inject 0.70 (or 0.48 on the window graphs) |
+| pass 2 | base model, inject 0.45 | turbo LoRA, 6-step `beta`, inject 0.45 |
 | audio | seeded (`H3 Audio Smear`) in all of them | seeded |
 | cost | ~3.5x one baseline render | ~1x to 1.3x |
 
