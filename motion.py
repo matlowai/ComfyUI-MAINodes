@@ -1863,7 +1863,56 @@ class H3ExactRecover:
         return (images[torch.tensor(starts)].cpu(),)
 
 
-_TRUE_CLOCK = {"spans": None}   # armed per run; never left set (see _wrap)
+_TRUE_CLOCK = {"spans": None,   # armed per run; never left set (see _wrap)
+               "fine_bands": 0}  # leading temporal RoPE bands kept on the stock grid
+
+
+def _install_fine_band_patch():
+    """Chain a band splice onto MiniMaxH3Model.rope_freqs, once.
+
+    With keep_fine_bands K > 0, the K leading (highest-frequency) temporal
+    RoPE bands of the TARGET VIDEO rows rotate by the stock grid while the
+    remaining bands carry the true clock. That is the layout clock LoRAs
+    trained with temporal fine bands expect (they learn the sub-latent
+    lattice phase on the stock grid). Same gating as the other patches: a
+    no-op unless armed by H3TrueClock's sampler, disarmed in a finally."""
+    import comfy.ldm.minimax.model as _mm
+    if getattr(_mm.MiniMaxH3Model.rope_freqs, "_h3_fine_bands", False):
+        return
+    prev = _mm.MiniMaxH3Model.rope_freqs
+
+    def patched(self, position_ids, device):
+        angles = prev(self, position_ids, device)
+        k = int(_TRUE_CLOCK.get("fine_bands") or 0)
+        spans = _TRUE_CLOCK["spans"]
+        if k <= 0 or spans is None:
+            return angles
+        n = len(spans)
+        if int(position_ids.shape[0]) < n:
+            return angles
+        start, rpf = dyrope_video_rows(position_ids, n)
+        origin = float(position_ids[start, 0])
+        have = position_ids[start::rpf, 0].tolist()
+        want = dyrope_grid(spans, origin)
+        if len(have) != len(want) or max(abs(a - b) for a, b in zip(have, want)) > 1e-6:
+            raise RuntimeError(
+                "H3 True Clock fine bands: the rows identified as target video "
+                "(start=%d, %d rows/frame, %d tokens) do not carry the true-clock "
+                "t-grid (first values %r vs %r); refusing to splice the wrong rows."
+                % (start, rpf, n, have[:4], want[:4]))
+        bands = int(self.rope.inv_freq.shape[0])
+        if k >= bands:
+            raise ValueError("H3 True Clock: keep_fine_bands must be below %d" % bands)
+        stock = dyrope_grid(dyrope_stock_spans(n), origin)
+        fine = prev(self, dyrope_retimed_position_ids(position_ids, start, rpf, stock), device)
+        half = angles.shape[-1] // 2          # [t(bands), h, w] duplicated
+        out = angles.clone()
+        out[start:, :k] = fine[start:, :k]
+        out[start:, half:half + k] = fine[start:, half:half + k]
+        return out
+
+    patched._h3_fine_bands = True
+    _mm.MiniMaxH3Model.rope_freqs = patched
 
 
 def _install_true_clock_patch():
@@ -1892,19 +1941,22 @@ def _install_true_clock_patch():
 
 
 class _TrueClockSampler:
-    def __init__(self, inner, spans):
+    def __init__(self, inner, spans, fine_bands=0):
         self.inner = inner
         self.spans = spans
+        self.fine_bands = int(fine_bands)
 
     def max_denoise(self, model_wrap, sigmas):
         return self.inner.max_denoise(model_wrap, sigmas)
 
     def sample(self, *args, **kwargs):
         _TRUE_CLOCK["spans"] = self.spans      # belt; layout is usually prebuilt
+        _TRUE_CLOCK["fine_bands"] = self.fine_bands
         try:
             return self.inner.sample(*args, **kwargs)
         finally:
             _TRUE_CLOCK["spans"] = None        # never leak the clock into later runs
+            _TRUE_CLOCK["fine_bands"] = 0
 
 
 class H3TrueClock:
@@ -1940,6 +1992,12 @@ class H3TrueClock:
             "sampler": ("SAMPLER",),
             "hold_map": ("STRING", {"default": "", "forceInput": True,
                          "tooltip": "hold_map_used from the H3 Time Smear that made this clip"}),
+        }, "optional": {
+            "keep_fine_bands": ("INT", {"default": 0, "min": 0, "max": 15,
+                                "tooltip": "0 = classic True Clock. K > 0 keeps the K fastest "
+                                           "temporal RoPE bands of the target video on the stock "
+                                           "grid; set it to what a clock LoRA was trained with "
+                                           "(the H3 variable-clock LoRA uses 2)"}),
         }}
 
     RETURN_TYPES = ("SAMPLER",)
@@ -1954,15 +2012,17 @@ class H3TrueClock:
         # re-execute every run or a cached hit leaves it disarmed.
         return float("nan")
 
-    def wrap(self, sampler, hold_map):
+    def wrap(self, sampler, hold_map, keep_fine_bands=0):
         holds = json.loads(hold_map)["holds"]
         spans = true_clock_spans(holds)
         _install_true_clock_patch()
+        if int(keep_fine_bands) > 0:
+            _install_fine_band_patch()
         # a guide's cond rows must ride this clock too, whoever built them
         # (this node's H3 Add Latent Guide or core's image Add Guide)
         _install_guide_layout_patch()
         _TRUE_CLOCK["spans"] = spans   # armed NOW, before extra_conds builds the layout
-        return (_TrueClockSampler(sampler, spans),)
+        return (_TrueClockSampler(sampler, spans, keep_fine_bands),)
 
 
 # --- DyRoPE: layer-wise / sigma-faded time geometry ------------------------
